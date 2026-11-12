@@ -62,7 +62,7 @@ pub fn key_of(body: &[u8]) -> Option<Box<[u8]>> {
                 return None;
             }
             let mut key = List::with_capacity(u32::try_from(end / 2).expect("world body bound"));
-            for pair in rest.get(..end)?.chunks_exact(2) {
+            for pair in rest.get(..end)?.as_chunks::<2>().0 {
                 key.push(hex(pair[0])?.checked_mul(16)?.checked_add(hex(pair[1])?)?).expect("key capacity");
             }
             return Some(key.into_boxed());

@@ -40,7 +40,7 @@ pub(in crate::tests) fn special_pages(words: &crate::words::Words) {
     assert!(tree.nodes().iter().any(|node| node.slot == Some(crate::state::signin::SLOT)));
     let (mut d, f) = start();
     drive(&mut d, Served { served: false });
-    assert!(deliver(&mut d, f, Delivery::Me(Box::new(document()))).is_empty());
+    assert_eq!(deliver(&mut d, f, Delivery::Me(Box::new(document()))).len(), 0);
     goldens.check(&build(&d, 2, words).0);
     let mut d = Fixture::new(&CLIENT);
     let kept = crate::tests::kit::list([crate::state::store::Record::Draft {

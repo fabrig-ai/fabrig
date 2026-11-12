@@ -35,7 +35,7 @@ impl People {
             Stored::Roles { project: PROJECT, holdings: Box::new([Holding { person: PERSON, role: Role::Owner }]) },
             Stored::Roles { project: OTHER, holdings: Box::new([Holding { person: PERSON, role: Role::Owner }]) },
         ] {
-            assert!(people.send(Event::Restore { record: row }).is_empty());
+            assert_eq!(people.send(Event::Restore { record: row }).len(), 0);
         }
         assert!(people.domain.start_link());
         people.domain.start_sweep();
@@ -112,7 +112,7 @@ fn a_deleted_mark_is_kept_at_admission_after_completion_and_restart() {
     people.domain = Domain::new(&LIMITS, Box::new([]), 1, Box::new([]));
     people.domain.start_restore(people.env.wall);
     for row in people.rows.values().cloned().collect::<Vec<_>>() {
-        assert!(people.send(Event::Restore { record: row }).is_empty());
+        assert_eq!(people.send(Event::Restore { record: row }).len(), 0);
     }
     assert!(people.domain.start_link());
     people.domain.start_sweep();
@@ -170,8 +170,8 @@ fn a_kept_deletion_restores_at_start() {
         people.domain = Domain::new(&LIMITS, Box::new([]), 1, Box::new([]));
         people.domain.start_restore(people.env.wall);
         for project in 1..=LIMITS.projects {
-            assert!(
-                people.send(Event::Restore { record: Stored::Deletion { project, step: selected, grace } }).is_empty()
+            assert_eq!(
+                people.send(Event::Restore { record: Stored::Deletion { project, step: selected, grace } }).len(), 0
             );
         }
         assert!(people.domain.start_link());
@@ -331,7 +331,7 @@ fn forgetting_a_project_erases_its_retained_answers_and_acts() {
     ));
     route(&people.ask(1, rename(PROJECT)));
     route(&people.act(1, Act::RemoveProject { project: PROJECT, grace: None }));
-    assert!(people.send(Event::ForgetProject { project: PROJECT }).is_empty());
+    assert_eq!(people.send(Event::ForgetProject { project: PROJECT }).len(), 0);
 }
 
 #[test]

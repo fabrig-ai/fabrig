@@ -1041,7 +1041,7 @@ fn the_io_limits_are_usable_for_one_six_and_sixty_four_steps() {
         let limits = io_limits(count);
         assert!(limits.is_usable(), "usable for {count} steps");
         assert_eq!(limits.sockets, count.saturating_mul(5).saturating_add(5));
-        assert_eq!((limits.intake, limits.receive, limits.names), (LINE_BYTES, 1, 0));
+        assert_eq!(limits.intake, limits.receive, limits.names), (LINE_BYTES, 1, 0);
         assert_eq!((limits.sends, limits.accepts, limits.backlog), (1, 1, 1));
         assert_eq!(limits.close_timeout, Duration::from_secs(5));
         assert_eq!(limits.retry, Duration::from_millis(10));
@@ -1157,7 +1157,7 @@ fn records_are_probed_before_start_and_written_private_or_reported() {
             let root = harness.machine.reopen_root(0);
             let file = harness.machine.open(root, b"box/started/3", How::Read).unwrap();
             assert_eq!(harness.machine.stat(file).mode & 0o777, 0o600, "{name}: private record");
-            assert!(harness.machine.read(file, 0, 1).unwrap().is_empty());
+            assert_eq!(harness.machine.read(file, 0, 1).unwrap().len(), 0);
             harness.machine.close(file);
             harness.machine.close(root);
         }

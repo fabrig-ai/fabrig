@@ -596,7 +596,7 @@ fn completing(emitted: Box<[Request]>) -> (Token, Prompt) {
     let Ok(one) = Box::<[Request; 1]>::try_from(emitted) else {
         panic!("expected one request");
     };
-    let [Request::Lower(crate::Lower::Complete { owner, prompt, deadlines, grant: _, .. })] = *one else {
+    let [Request::Lower(crate::Lower::Complete { owner, prompt, deadlines, .. })] = *one else {
         panic!("expected a call to an LLM");
     };
     assert_eq!(deadlines.head, Duration::from_secs(60));
@@ -769,7 +769,7 @@ fn a_run_opens_main_as_a_session_through_to_its_first_call_to_the_llm() {
         panic!("expected the first message only");
     };
     assert!(matches_text(content), "the run's first message");
-    assert_eq!((h.domain.peers(), h.domain.tickets(), h.domain.flights()), (1, 0, 0));
+    assert_eq!(h.domain.peers(), h.domain.tickets(), h.domain.flights()), (1, 0, 0);
 
     // Relative paths start in the first repository, mounted under its name.
     let relative = Call::Read { path: path(false, &[b"src", b"lib.rs"]), offset: 1, window: tools::Budget::Default };
@@ -858,7 +858,7 @@ fn an_opening_larger_than_a_session_holds_refuses_main_as_invalid() {
     };
     assert_eq!(answer, &run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Conversation)));
     h.domain.reclaim();
-    assert_eq!((h.domain.peers(), h.domain.session().sessions()), (0, 0));
+    assert_eq!(h.domain.peers(), h.domain.session().sessions()), (0, 0);
 }
 
 #[test]
@@ -952,14 +952,14 @@ fn a_change_lands_through_the_worker_and_the_run_answers_with_it() {
         "the answer and the close wait"
     );
     let emitted = h.next();
-    let [Request::Answer { to: _, answer: run::Answer::Accepted { outcome, spent: _, .. }, read: _, detail: _ }] =
+    let [Request::Answer { to: _, answer: run::Answer::Accepted { outcome, .. }, read: _, detail: _ }] =
         &*emitted
     else {
         panic!("expected the run accepted, got {emitted:?}");
     };
     assert_eq!(outcome, &Declared::Change(change));
     h.domain.reclaim();
-    assert_eq!((h.domain.peers(), h.domain.flights(), h.domain.tickets()), (0, 0, 0));
+    assert_eq!(h.domain.peers(), h.domain.flights(), h.domain.tickets()), (0, 0, 0);
 }
 
 #[test]
@@ -996,7 +996,7 @@ fn a_sub_agent_opens_a_child_session_whose_last_message_answers_the_call() {
     assert_eq!(&**id, b"a1");
     assert_eq!(&**text, b"It is in main.rs.\n\nChild usage: used 2 turns and 0 seconds; stopped for budget: no; ordinary left 7 turns and 600 seconds.");
     h.domain.reclaim();
-    assert_eq!((h.domain.peers(), h.domain.flights(), h.domain.tickets()), (1, 0, 0));
+    assert_eq!(h.domain.peers(), h.domain.flights(), h.domain.tickets()), (1, 0, 0);
 }
 
 /// Main, admitted, whose LLM says `text` bytes and asks for two read-only
@@ -1172,7 +1172,7 @@ fn the_runs_deadline_fires_before_the_sessions_expiry_at_the_same_instant() {
     assert!(!h.domain.is_due(h.env.now));
     assert!(h.next().is_empty(), "the close finds main closing already");
     let emitted = h.step(Event::Below(crate::Below::Cancelled { owner: main }));
-    let [Request::Answer { to: _, answer: run::Answer::Failed { failure, spent: _, .. }, read: _, detail: _ }] =
+    let [Request::Answer { to: _, answer: run::Answer::Failed { failure, .. }, read: _, detail: _ }] =
         &*emitted
     else {
         panic!("expected the run failed, got {emitted:?}");
@@ -1520,7 +1520,7 @@ fn caller_conventions_select_default_custom_and_explicit_legacy_check_delivery_p
         };
         assert_eq!(outcome, &Declared::Change(change));
         harness.domain.reclaim();
-        assert_eq!((harness.domain.peers(), harness.domain.flights(), harness.domain.tickets()), (0, 0, 0));
+        assert_eq!(harness.domain.peers(), harness.domain.flights(), harness.domain.tickets()), (0, 0, 0);
     }
 }
 
@@ -1560,7 +1560,7 @@ fn custom_check_cancellation_waits_for_the_abort_terminal() {
         panic!("only the abort terminal permits the original Start cancellation answer: {emitted:?}");
     };
     harness.domain.reclaim();
-    assert_eq!((harness.domain.peers(), harness.domain.flights(), harness.domain.tickets()), (0, 0, 0));
+    assert_eq!(harness.domain.peers(), harness.domain.flights(), harness.domain.tickets()), (0, 0, 0);
 }
 
 #[test]
@@ -1598,7 +1598,7 @@ fn invalid_conventions_are_refused_at_original_root_start_before_any_effect() {
             assert_eq!(answer, &run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Conventions)));
             assert!(harness.next().is_empty());
             harness.domain.reclaim();
-            assert_eq!((harness.domain.peers(), harness.domain.flights(), harness.domain.tickets()), (0, 0, 0));
+            assert_eq!(harness.domain.peers(), harness.domain.flights(), harness.domain.tickets()), (0, 0, 0);
         }
     }
 }
@@ -1801,10 +1801,10 @@ fn scalar_reservation_denies_before_any_provider_call_or_credential_lookup() {
             report: run::Report::none(),
         })
     );
-    assert_eq!((spent.units, spent.turns, *turns), (0, 0, 0));
+    assert_eq!(spent.units, spent.turns, *turns), (0, 0, 0);
     assert!(harness.turns.is_empty());
     harness.domain.reclaim();
-    assert_eq!((harness.domain.completions.len(), harness.domain.peers(), harness.domain.flights()), (0, 0, 0));
+    assert_eq!(harness.domain.completions.len(), harness.domain.peers(), harness.domain.flights()), (0, 0, 0);
 }
 
 #[test]
@@ -1852,7 +1852,7 @@ fn a_provider_charge_above_its_reserved_maximum_fails_without_recording_it() {
         *failure,
         run::RunFailure::Budget { exhausted: run::Exhausted::Overflow(run::Overflow::Spend), used: None, bound: None }
     );
-    assert_eq!((*spent, *turns), (run::Spend::ZERO, 0));
+    assert_eq!(*spent, *turns), (run::Spend::ZERO, 0);
     assert!(harness.turns.is_empty());
 }
 
@@ -1976,7 +1976,7 @@ fn root_awaiting_opens_no_session_or_provider_call_until_the_first_message() {
     };
     let run = *run;
     assert_eq!((*host_run, *read), (Token::new(91), None));
-    assert_eq!((harness.domain.starts.len(), harness.domain.peers.len(), harness.domain.sessions.len()), (1, 0, 0));
+    assert_eq!(harness.domain.starts.len(), harness.domain.peers.len(), harness.domain.sessions.len()), (1, 0, 0);
     assert!(harness.next().is_empty());
     let emitted = harness.step(Event::Message {
         finish_requested: false,
@@ -2007,8 +2007,8 @@ fn root_cancel_while_awaiting_releases_unused_restore_context_without_a_session_
     let [Request::Answer { answer, .. }] = emitted.as_ref() else { panic!("direct cancelled answer: {emitted:?}") };
     assert_eq!(answer, &run::Answer::Failed { failure: run::RunFailure::Cancelled, spent: run::Spend::ZERO, turns: 0 });
     assert!(harness.next().is_empty());
-    assert_eq!((harness.domain.starts.len(), harness.domain.peers.len(), harness.domain.sessions.len()), (0, 0, 0));
-    assert_eq!((harness.domain.run.runs(), harness.domain.run.conversations()), (0, 0));
+    assert_eq!(harness.domain.starts.len(), harness.domain.peers.len(), harness.domain.sessions.len()), (0, 0, 0);
+    assert_eq!(harness.domain.run.runs(), harness.domain.run.conversations()), (0, 0);
 }
 
 #[test]
@@ -2316,7 +2316,7 @@ fn a_key_race_uses_the_new_generation_then_ends_on_its_own_policy() {
         );
         assert!(h.domain.next_deadline().is_none());
         h.domain.reclaim();
-        assert_eq!((h.domain.peers(), h.domain.flights(), h.domain.tickets()), (0, 0, 0));
+        assert_eq!(h.domain.peers(), h.domain.flights(), h.domain.tickets()), (0, 0, 0);
         assert!(h.domain.completions.is_empty());
     }
 }

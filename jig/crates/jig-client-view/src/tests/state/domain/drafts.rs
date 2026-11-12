@@ -224,7 +224,7 @@ fn a_words_answer_clears_only_the_submitted_touch_and_refused_or_unknown_words_k
                 &[Request::Erase { records: crate::tests::fixtures::one(StoreKey::Draft { task: 8 }) }]
             );
             assert!(domain.drafts().get(8).is_none());
-            assert!(domain.fields().get(Purpose::Composer { task: 8 }).unwrap().text.bytes().is_empty());
+            assert_eq!(domain.fields().get(Purpose::Composer { task: 8 }).unwrap().text.bytes(), []);
             assert_eq!(domain.fields().get(Purpose::Composer { task: 8 }).unwrap().writes, 1);
         } else {
             assert!(rows.is_empty());

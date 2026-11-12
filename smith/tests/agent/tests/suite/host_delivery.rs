@@ -174,7 +174,7 @@ fn cancel(agent: &mut Agent, host: &mut Host, submission: &DeliverySubmission, n
         assert!(!agent.drive(1), "cancel cannot invent the submitted delivery terminal");
         forward(agent, host, next);
     }
-    assert!(agent.pushes().is_empty());
+    assert_eq!(agent.pushes(), []);
     assert!(host.seen.calls.contains(&submission.owner), "Cancel/ACK/Send cannot consume parent operation");
 }
 

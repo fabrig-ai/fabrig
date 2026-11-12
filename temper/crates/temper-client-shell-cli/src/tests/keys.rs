@@ -25,8 +25,8 @@ fn a_key_file_strips_only_one_final_newline() {
         assert_eq!(f.carried_keys[0].expose(), expected);
         let store = f.stored(b"store").expect("kept act");
         assert!(!store.windows(expected.len()).any(|w| w == expected));
-        assert!(f.stdout().is_empty());
-        assert!(f.stderr().is_empty());
+        assert_eq!(f.stdout(), []);
+        assert_eq!(f.stderr(), []);
     }
 }
 #[test]
@@ -182,8 +182,8 @@ fn an_app_key_strips_one_final_lf_and_reserves_the_bundle_framing() {
         expected.extend_from_slice(&u32::try_from(pem.len()).expect("bounded PEM").to_be_bytes());
         expected.extend_from_slice(pem);
         assert_eq!(f.carried_keys[0].expose(), expected);
-        assert!(f.stdout().is_empty());
-        assert!(f.stderr().is_empty());
+        assert_eq!(f.stdout(), []);
+        assert_eq!(f.stderr(), []);
         if let Some(store) = f.stored(b"store") {
             assert!(skein_lib::bytes::find(store, pem).is_none());
         }
@@ -270,8 +270,8 @@ fn new_forge_connections_load_and_carry_their_credential_file() {
         expected.extend_from_slice(&u32::try_from(ADMIN_TOKEN.len()).expect("fixture token").to_be_bytes());
         expected.extend_from_slice(ADMIN_TOKEN);
         assert_eq!(f.carried_keys[0].expose(), expected);
-        assert!(f.stdout().is_empty());
-        assert!(f.stderr().is_empty());
+        assert_eq!(f.stdout(), []);
+        assert_eq!(f.stderr(), []);
     }
 }
 
@@ -384,8 +384,8 @@ fn tokens_connect_and_replace_accept_files_at_the_payload_bound() {
         f.sign_in_then_deliver_me();
         assert_eq!(f.carried_keys.len(), 1);
         assert!(f.carried_keys[0].expose() == expected.expose());
-        assert!(f.stdout().is_empty());
-        assert!(f.stderr().is_empty());
+        assert_eq!(f.stdout(), []);
+        assert_eq!(f.stderr(), []);
     }
 }
 #[test]
@@ -398,6 +398,6 @@ fn replace_reads_an_rsa_key_as_one_carried_app_key() {
     f.sign_in_then_deliver_me();
     assert_eq!(f.carried_keys.len(), 1);
     assert!(f.carried_keys[0].expose() == expected.expose());
-    assert!(f.stdout().is_empty());
-    assert!(f.stderr().is_empty());
+    assert_eq!(f.stdout(), []);
+    assert_eq!(f.stderr(), []);
 }

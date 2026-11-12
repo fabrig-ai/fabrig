@@ -379,7 +379,7 @@ fn schema(tool: &[u8]) {
     let declaration = declared.expect("the declared tool");
     let doc = crate::json::parse(declaration.schema, &limits).expect("a schema is JSON");
     let schema = crate::json::Node::root(&doc, &limits);
-    assert!(!declaration.description.is_empty());
+    assert_ne!(declaration.description, []);
     let mut expected = None;
     for (name, fields) in fixtures::FIELDS {
         if *name == declaration.name {
@@ -710,7 +710,7 @@ fn an_amend_of_a_priority_alone_needs_no_revision() {
     else {
         panic!("decoded priority amendment")
     };
-    assert_eq!((target, revision), (fixtures::TARGET, 0));
+    assert_eq!(target, revision), (fixtures::TARGET, 0);
     assert_eq!(amendment.tracked, Some(jig_domain_tasks::Tracking::Tracked { priority: 7 }));
 }
 #[test]

@@ -513,7 +513,7 @@ fn an_open_event_cut_before_its_blank_line_fails_data_and_never_dispatches() {
         drop(face.down(Request::Next));
         assert_eq!(face.up(Up::Bytes(boxed(b"data: x\n"))), (Vec::from([Native::Opened]), None));
         let (events, _) = face.down(face_request(Read::Fill(8)));
-        assert!(events.is_empty());
+        assert_eq!(events, []);
         let (events, below) = face.up(ending);
         assert!(below.is_none());
         match events.as_slice() {

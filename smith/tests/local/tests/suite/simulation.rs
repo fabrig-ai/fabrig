@@ -448,7 +448,7 @@ fn a_chat_keeps_its_identity_across_activations_and_invocations() {
     assert!(first.drive_to_park(crate::bounds::CHAT), "a later activation reaches its own park");
     assert_eq!(first.activation(), 2);
     assert_eq!(first.identity(), Some(identity));
-    assert!(!first.prompt_affinities().is_empty());
+    assert_ne!(first.prompt_affinities(), []);
     assert!(first.prompt_affinities().iter().all(|affinity| affinity.key == identity.bytes() && affinity.thread == 0));
 
     let mut second = World::with_store(8085, first.into_store());
@@ -456,7 +456,7 @@ fn a_chat_keeps_its_identity_across_activations_and_invocations() {
     assert!(second.drive_to_park(crate::bounds::CHAT), "resumed activation parks");
     assert_eq!(second.activation(), 3);
     assert_eq!(second.identity(), Some(identity), "the new invocation's seed does not replace the saved key");
-    assert!(!second.prompt_affinities().is_empty());
+    assert_ne!(second.prompt_affinities(), []);
     assert!(second.prompt_affinities().iter().all(|affinity| affinity.key == identity.bytes() && affinity.thread == 0));
 
     let mut fresh = World::with_store_fresh(8086, second.into_store());
@@ -464,7 +464,7 @@ fn a_chat_keeps_its_identity_across_activations_and_invocations() {
     assert!(fresh.drive_to_park(crate::bounds::CHAT), "resume off starts a fresh conversation");
     let replacement = fresh.identity().expect("fresh identity durable");
     assert_ne!(replacement, identity);
-    assert!(!fresh.prompt_affinities().is_empty());
+    assert_ne!(fresh.prompt_affinities(), []);
     assert!(
         fresh.prompt_affinities().iter().all(|affinity| affinity.key == replacement.bytes() && affinity.thread == 0)
     );

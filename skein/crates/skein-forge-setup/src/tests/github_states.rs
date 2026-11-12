@@ -123,7 +123,7 @@ fn a_state_is_32_lowercase_hex_bytes_from_the_host_rng() {
     let mut random = [0_u8; 16];
     rng.fill(&mut random);
     let mut expected = [0_u8; 32];
-    for (pair, byte) in expected.chunks_exact_mut(2).zip(random) {
+    for (pair, byte) in expected.as_chunks_mut::<2>().0.iter_mut().zip(random) {
         for (slot, digit) in pair.iter_mut().zip(format!("{byte:02x}").bytes()) {
             *slot = digit;
         }

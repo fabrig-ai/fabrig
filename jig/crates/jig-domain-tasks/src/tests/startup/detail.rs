@@ -37,7 +37,7 @@ fn exact_spec_bytes_fit_and_one_over_keeps_the_first_outer_key() {
     let mut exact = row();
     live(&mut exact).spec.words = vec![1; 64].into_boxed_slice();
     let mut cold = empty(&LIMITS);
-    assert!(cold.send(Event::Restore { record: exact.clone() }).is_empty());
+    assert_eq!(cold.send(Event::Restore { record: exact.clone() }).len(), 0);
     assert_eq!(cold.domain.restore_failure(), None);
     live(&mut exact).number = 73;
     live(&mut exact).spec.words = vec![1; 65].into_boxed_slice();
@@ -46,9 +46,9 @@ fn exact_spec_bytes_fit_and_one_over_keeps_the_first_outer_key() {
     let mut other = row();
     live(&mut other).numbers.spent = u64::MAX;
     live(&mut other).numbers.spent_below = 1;
-    assert!(cold.send(Event::Restore { record: other }).is_empty());
-    assert!(cold.send(Event::Check).is_empty());
-    assert!(cold.send(Event::Restored).is_empty());
+    assert_eq!(cold.send(Event::Restore { record: other }).len(), 0);
+    assert_eq!(cold.send(Event::Check).len(), 0);
+    assert_eq!(cold.send(Event::Restored).len(), 0);
     assert_eq!(cold.domain.restore_failure(), first);
     assert!(!cold.domain.checked());
 }
@@ -80,7 +80,7 @@ fn writer_pool_and_ledger_occupancy_preserve_incoming_keys() {
     let mut cold = empty(&LIMITS);
     let capacity = cold.domain.writers.capacity();
     for number in 1..=u64::from(capacity) {
-        assert!(
+        assert_eq!(
             cold.send(Event::Restore {
                 record: Stored::Writer(WriterSlot {
                     number,
@@ -88,8 +88,7 @@ fn writer_pool_and_ledger_occupancy_preserve_incoming_keys() {
                     writer: Writer::Effect { entry: number },
                     lost: false,
                 })
-            })
-            .is_empty()
+            }).len(), 0
         );
     }
     refused(
@@ -106,11 +105,10 @@ fn writer_pool_and_ledger_occupancy_preserve_incoming_keys() {
     let mut cold = empty(&LIMITS);
     let capacity = cold.domain.pools.capacity();
     for number in 1..=u64::from(capacity) {
-        assert!(
+        assert_eq!(
             cold.send(Event::Restore {
                 record: Stored::Pool(crate::PoolSlots { number, pool: name(number), slots: 0 })
-            })
-            .is_empty()
+            }).len(), 0
         );
     }
     refused(
@@ -122,7 +120,7 @@ fn writer_pool_and_ledger_occupancy_preserve_incoming_keys() {
     let mut cold = empty(&LIMITS);
     let capacity = cold.domain.funding.capacity();
     for period in 1..=u64::from(capacity) {
-        assert!(cold.send(Event::Restore { record: ledger(period) }).is_empty());
+        assert_eq!(cold.send(Event::Restore { record: ledger(period) }).len(), 0);
     }
     refused(&mut cold, ledger(902), bound(B::Funders, u64::from(capacity) + 1, u64::from(capacity)));
 }
@@ -199,7 +197,7 @@ fn eventual_posting_overflow_names_the_destination_ledger() {
     let mut cold = cold(&source);
     refusal(&cold.send(Event::Check), Refusal::Restore);
     assert_eq!(cold.domain.restore_failure(), Some(RestoreFailure { key: Key::Ledger(funder), cause: C::Accounting }));
-    assert!(cold.send(Event::Restored).is_empty());
+    assert_eq!(cold.send(Event::Restored).len(), 0);
 }
 
 #[test]
@@ -215,7 +213,7 @@ fn project_aggregate_names_the_inspected_live_row() {
             if let Stored::Live(row) = &mut record {
                 row.tracked = Some(1);
             }
-            assert!(cold.send(Event::Restore { record }).is_empty());
+            assert_eq!(cold.send(Event::Restore { record }).len(), 0);
         }
         refusal(&cold.send(Event::Check), Refusal::Restore);
         assert_eq!(cold.domain.restore_failure(), Some(RestoreFailure { key: Key::Live(10), cause }));
@@ -245,7 +243,7 @@ fn placed_aggregate_names_the_inspected_hold_and_applies_party_cases() {
     ] {
         let mut cold = empty(&limits);
         for number in [31, 32] {
-            assert!(cold.send(Event::Restore { record: hold(number, crate::Owner::Party { person: 9 }) }).is_empty());
+            assert_eq!(cold.send(Event::Restore { record: hold(number, crate::Owner::Party { person: 9 }) }).len(), 0);
         }
         refusal(&cold.send(Event::Check), Refusal::Restore);
         assert_eq!(cold.domain.restore_failure(), Some(RestoreFailure { key: Key::PlacedHold(31), cause }));
@@ -288,7 +286,7 @@ fn configured_choice_failure_preserves_main_or_subagent_and_reason() {
                 models: Some(models.clone().into_boxed_slice()),
             }]);
             for record in source.stored.values().filter(|row| row.key().live()) {
-                assert!(cold.send(Event::Restore { record: record.clone() }).is_empty());
+                assert_eq!(cold.send(Event::Restore { record: record.clone() }).len(), 0);
             }
             refusal(&cold.send(Event::Check), Refusal::Restore);
             assert_eq!(
@@ -314,7 +312,7 @@ fn nonagent_choice_is_kept_without_rejudging_admission() {
             subagents: Box::new([]),
         });
         let mut restored = cold(&source);
-        assert!(restored.send(Event::Check).is_empty());
+        assert_eq!(restored.send(Event::Check).len(), 0);
         assert!(restored.domain.checked());
         assert_eq!(restored.domain.restore_failure(), None);
     }
@@ -324,7 +322,7 @@ fn nonagent_choice_is_kept_without_rejudging_admission() {
 fn successful_restore_has_no_failure_detail() {
     let source = one_task();
     let mut restored = cold(&source);
-    assert!(restored.send(Event::Check).is_empty());
+    assert_eq!(restored.send(Event::Check).len(), 0);
     restored.send(Event::Restored);
     assert!(restored.domain.ready());
     assert_eq!(restored.domain.restore_failure(), None);
@@ -354,7 +352,7 @@ fn live_stub_proposal_and_revision_capacity_include_the_incoming_row() {
     for number in 1..=u64::from(LIMITS.tasks) {
         let mut record = row();
         live(&mut record).number = number;
-        assert!(cold.send(Event::Restore { record }).is_empty());
+        assert_eq!(cold.send(Event::Restore { record }).len(), 0);
     }
     let mut record = row();
     live(&mut record).number = 300;
@@ -363,11 +361,10 @@ fn live_stub_proposal_and_revision_capacity_include_the_incoming_row() {
     let mut cold = empty(&LIMITS);
     let capacity = cold.domain.stubs.capacity();
     for number in 1..=u64::from(capacity) {
-        assert!(
+        assert_eq!(
             cold.send(Event::Restore {
                 record: Stored::Stub(Stub { task: number, phase: Status::Done, result: Token::new(number) })
-            })
-            .is_empty()
+            }).len(), 0
         );
     }
     refused(
@@ -382,7 +379,7 @@ fn live_stub_proposal_and_revision_capacity_include_the_incoming_row() {
 
     let mut cold = empty(&LIMITS);
     for number in 1..=u64::from(LIMITS.tasks) {
-        assert!(cold.send(Event::Restore { record: proposal(number) }).is_empty());
+        assert_eq!(cold.send(Event::Restore { record: proposal(number) }).len(), 0);
     }
     refused(&mut cold, proposal(900), bound(B::PersonProposals, 17, 16));
 
@@ -392,7 +389,7 @@ fn live_stub_proposal_and_revision_capacity_include_the_incoming_row() {
         let mut record = row();
         live(&mut record).number = number;
         live(&mut record).settings.task = u32::try_from(number).expect("small revision");
-        assert!(cold.send(Event::Restore { record }).is_empty());
+        assert_eq!(cold.send(Event::Restore { record }).len(), 0);
     }
     let mut record = row();
     live(&mut record).number = 901;
@@ -502,9 +499,9 @@ fn nonparty_placed_owners_do_not_acquire_the_party_bound() {
     }
     let mut cold = empty(&crate::Limits { party_placed_holds: 1, ..LIMITS });
     for record in source.stored.values().filter(|row| row.key().live()) {
-        assert!(cold.send(Event::Restore { record: record.clone() }).is_empty());
+        assert_eq!(cold.send(Event::Restore { record: record.clone() }).len(), 0);
     }
-    assert!(cold.send(Event::Check).is_empty());
+    assert_eq!(cold.send(Event::Check).len(), 0);
     assert!(cold.domain.checked());
     assert_eq!(cold.domain.restore_failure(), None);
 }
@@ -541,7 +538,7 @@ fn retained_choices_do_not_rejudge_authority_or_duplicate_models() {
         Some(crate::LlmChoice { later: None, account: None, main: chosen, subagents: Box::new([chosen, chosen]) });
     row.authority.models = crate::Models::Named(0);
     let mut restored = cold(&source);
-    assert!(restored.send(Event::Check).is_empty());
+    assert_eq!(restored.send(Event::Check).len(), 0);
     assert!(restored.domain.checked());
     assert_eq!(restored.domain.restore_failure(), None);
     assert_eq!(

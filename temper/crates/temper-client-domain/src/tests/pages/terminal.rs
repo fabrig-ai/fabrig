@@ -519,7 +519,7 @@ fn a_command_runs_the_pages_own_act() {
     }
     assert_eq!(pages.notes().len(), 8);
     pages::step(&mut pages, &env, root.client(), Event::Went { address: Address::NewChat { draft: false } }, &mut out);
-    assert!(pages.notes().is_empty());
+    assert_eq!(pages.notes(), []);
     pages::step(
         &mut pages,
         &env,
@@ -528,7 +528,7 @@ fn a_command_runs_the_pages_own_act() {
         &mut out,
     );
     pages::step(&mut pages, &env, root.client(), Event::Link { link: Link::SignedOut }, &mut out);
-    assert!(pages.notes().is_empty());
+    assert_eq!(pages.notes(), []);
 }
 
 fn loaded_pages(ended: bool, asking: bool) -> (Pages, fixtures::chat::Fixture) {

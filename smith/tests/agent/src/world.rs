@@ -2231,7 +2231,7 @@ mod bridge_tests {
         );
         world.return_host_reply(relay, run::HostReply::Answered(answer.clone())).expect("pending relay");
         assert_eq!(world.return_host_reply(relay, run::HostReply::Busy), Err("host relay terminal is already queued"));
-        assert!(world.pending_host_calls().is_empty());
+        assert_eq!(world.pending_host_calls().len(), 0);
         assert!(world.drive(20_000));
         assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
         assert_eq!(world.host_terminals().len(), 1);

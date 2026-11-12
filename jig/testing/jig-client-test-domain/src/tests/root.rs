@@ -29,7 +29,7 @@ fn keyed_requests_leave_only_through_the_table_after_their_records() {
         unreachable!("one jig request was sent");
     };
     assert_eq!(**ask, contract::Ask::Stop { project: 1, task: 9 });
-    assert!(taken(&mut root).is_empty());
+    assert_eq!(taken(&mut root).len(), 0);
 }
 #[test]
 fn a_final_answer_reaches_the_child_that_asked_unread_and_once() {
@@ -68,7 +68,7 @@ fn a_final_answer_reaches_the_child_that_asked_unread_and_once() {
         },
     );
     assert_eq!(rows, vec![Request::Erase { key: crate::store::Key::Unlinked(saved) },]);
-    assert!(
+    assert_eq!(
         drive(
             &mut root,
             Event::Client {
@@ -81,10 +81,9 @@ fn a_final_answer_reaches_the_child_that_asked_unread_and_once() {
                     }
                 }
             }
-        )
-        .is_empty()
+        ).len(), 0
     );
-    assert!(taken(&mut root).is_empty());
+    assert_eq!(taken(&mut root).len(), 0);
 }
 #[test]
 fn a_reload_parks_kept_requests_until_jig_confirms_their_party() {
@@ -108,9 +107,9 @@ fn a_reload_parks_kept_requests_until_jig_confirms_their_party() {
     kept.push(record).unwrap();
     let mut root = unlinked(&limits(), 10);
     let watch = start(&mut root, kept);
-    assert!(taken(&mut root).is_empty());
+    assert_eq!(taken(&mut root).len(), 0);
     confirm(&mut root, watch, 8);
-    assert!(taken(&mut root).is_empty());
+    assert_eq!(taken(&mut root).len(), 0);
     let sends = confirm(&mut root, watch, 7);
     let attempt = sends
         .iter()
@@ -347,7 +346,7 @@ fn family_change_refuses_a_moved_revision_and_final_answers_stay_with_the_family
             })
         }
     );
-    assert!(taken(&mut root).is_empty());
+    assert_eq!(taken(&mut root).len(), 0);
     let rows = drive(
         &mut root,
         Event::Act {
@@ -357,7 +356,7 @@ fn family_change_refuses_a_moved_revision_and_final_answers_stay_with_the_family
             }),
         },
     );
-    assert!(taken(&mut root).is_empty());
+    assert_eq!(taken(&mut root).len(), 0);
     let Request::Save { record: crate::store::Record::Unlinked(_) } = &rows[0] else { panic!("record first") };
     let Request::Unlinked {
         request:
@@ -460,8 +459,8 @@ fn closing_family_watches_keep_their_terminal_obligation_and_stale_tokens_do_not
     );
     drive(&mut root, Event::First(first::Event::Watch { watch, event: first::WatchEvent::Delivered(item(2)) }));
     assert!(root.first().page().is_none());
-    assert!(drive(&mut root, Event::First(first::Event::Ended { watch, end: first::WatchEnd::Closed })).is_empty());
-    assert!(drive(&mut root, Event::First(first::Event::Ended { watch, end: first::WatchEnd::Closed })).is_empty());
+    assert_eq!(drive(&mut root, Event::First(first::Event::Ended { watch, end: first::WatchEnd::Closed })).len(), 0);
+    assert_eq!(drive(&mut root, Event::First(first::Event::Ended { watch, end: first::WatchEnd::Closed })).len(), 0);
     drive(&mut root, Event::First(first::Event::Read { read, result: first::ReadResult::Value(item(2)) }));
     drive(&mut root, Event::First(first::Event::Read { read, result: first::ReadResult::Value(item(2)) }));
     let rows = family_page(&mut root);
@@ -499,7 +498,7 @@ fn an_unknown_family_request_inspects_before_another_change() {
     );
     assert_eq!(root.first().object(object).unwrap().card, first::Card::Unknown);
     assert_eq!(root.first().object(object).unwrap().value, first::Value::Loading);
-    assert!(drive(&mut root, Event::Act { action }).is_empty());
+    assert_eq!(drive(&mut root, Event::Act { action }).len(), 0);
     drive(
         &mut root,
         Event::First(first::Event::Read { read: family_read(&rows), result: first::ReadResult::Value(item(3)) }),
@@ -583,7 +582,7 @@ fn restored_foreign_scope_counts_are_routed_without_root_page_policy() {
     confirm(&mut root, watch, 8);
     assert_eq!(root.jig().page(), &jig_client_view::page::Page::SomeoneElse);
     assert_eq!(root.first().party(), Some(8));
-    assert!(taken(&mut root).is_empty());
+    assert_eq!(taken(&mut root).len(), 0);
     let sent = confirm(&mut root, watch, 7);
     assert_eq!(
         sent.iter()

@@ -54,7 +54,7 @@ fn a_conversations_original_read_leaves_once_when_an_exchange_slot_is_released()
     client.step(Event::Reply { exchange: occupied, message: fixtures::unknown_read() });
     assert!(client.requests().is_empty(), "a stale release does not send the read twice");
     client.fire(Time::ZERO);
-    assert!(client.requests().is_empty());
+    assert_eq!(client.requests(), []);
     assert!(thread.loaded < thread.committed);
 }
 
@@ -64,7 +64,7 @@ fn replacing_a_queued_read_keeps_only_the_current_demand_within_the_read_bound()
     let occupied = client.read(Handle { number: 100, ..TASK });
     for project in 2..12 {
         client.step(Event::Read { handle: TASK, read: Readable::Jig(c::Read::Project { project }) });
-        assert!(client.requests().is_empty());
+        assert_eq!(client.requests(), []);
     }
     client.step(Event::Read {
         handle: Handle { number: 101, ..TASK },
@@ -97,7 +97,7 @@ fn unwatch_and_a_credential_boundary_discard_queued_reads_before_slots_are_reuse
             handle: TASK,
             read: Readable::Jig(c::Read::Activity { task: SUBJECT_TASK, before: None }),
         });
-        assert!(client.requests().is_empty());
+        assert_eq!(client.requests(), []);
         if signing_in {
             client.step(Event::SignIn { with: With::Held(Secret::new(Box::new([9; 40]))) });
             let mut terminals = List::with_capacity(2);
@@ -145,7 +145,7 @@ fn peer_refusals_and_a_real_loss_still_end_an_admitted_read_without_resending() 
             handle: TASK,
             read: Readable::Jig(c::Read::Activity { task: SUBJECT_TASK, before: None }),
         });
-        assert!(client.requests().is_empty());
+        assert_eq!(client.requests(), []);
         client.step(Event::Lost { exchange: occupied });
         let admitted = client.exchange();
         match answer {
@@ -170,7 +170,7 @@ fn a_peer_version_refusal_ends_queued_reads_instead_of_admitting_them() {
         handle: TASK,
         read: Readable::Jig(c::Read::Activity { task: SUBJECT_TASK, before: None }),
     });
-    assert!(client.requests().is_empty());
+    assert_eq!(client.requests(), []);
     let answer = w::ReadAnswer::NotServed(
         w::NotServed::new(&w::CEILINGS, w::NotServedParts { owner: w::Owner::Jig, served: List::with_capacity(0) })
             .unwrap(),

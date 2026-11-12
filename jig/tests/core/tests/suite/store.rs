@@ -14,7 +14,7 @@ fn a_held_effect_commit_holds_the_system_and_the_call_answer() {
     world.store.fault(Fault::Hold { commits: 1 });
     world.call(1, 800);
     assert!(!world.store.held.is_empty());
-    assert!(world.systems[0].observed().is_empty());
+    assert_eq!(world.systems[0].observed(), []);
     assert_eq!(world.answers.len(), answers);
     world.release_commits();
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
@@ -32,12 +32,12 @@ fn a_failed_commit_stops_the_root_before_its_effect_or_answer_leaves() {
     assert!(world.stopped);
     assert_eq!(world.store.applied, durable);
     assert_eq!(world.store.rows, rows);
-    assert!(world.systems[0].observed().is_empty());
+    assert_eq!(world.systems[0].observed(), []);
     assert_eq!(world.answers.len(), answers);
     world.restart(122, false);
     assert!(world.domain.ready());
     assert!(!world.stopped);
-    assert!(world.systems[0].observed().is_empty());
+    assert_eq!(world.systems[0].observed(), []);
 }
 
 #[test]
@@ -199,7 +199,7 @@ fn a_running_chat_goes_on_above_the_fill_mark() {
         root::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn)))
             if turn.turn == 2 && turn.transcript.as_ref() == b"the running chat continues"
     )));
-    assert!(world.busy_turns.is_empty());
+    assert_eq!(world.busy_turns.len(), 0);
 }
 
 #[test]

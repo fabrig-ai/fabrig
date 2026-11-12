@@ -117,7 +117,7 @@ fn commit(bytes: &[u8]) -> Option<[u8; 32]> {
         return None;
     }
     let mut result = [0_u8; 32];
-    for (pair, cell) in bytes.chunks_exact(2).zip(&mut result) {
+    for (pair, cell) in bytes.as_chunks::<2>().0.iter().zip(&mut result) {
         for digit in pair {
             let n = match digit {
                 b'0'..=b'9' => digit.saturating_sub(b'0'),

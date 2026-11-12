@@ -115,7 +115,7 @@ fn an_answer_made_without_contact_follows_retained_turns_after_hello() {
     world.commit_turn(1);
     world.acknowledge_answer();
     world.assert_settled();
-    assert_eq!((world.stats().saves, world.stats().releases), (0, 0));
+    assert_eq!(world.stats().saves, world.stats().releases), (0, 0);
 }
 
 #[test]
@@ -183,7 +183,7 @@ fn an_answer_is_sent_again_after_a_hello_until_acknowledged() {
     world.lose_contact();
     world.turn(1, b"kept");
     world.finish(1, false);
-    assert!(world.link_words.is_empty());
+    assert_eq!(world.link_words.len(), 0);
     world.reconnect();
     assert_eq!(world.link_words, ["hello", "turn", "answer"]);
     world.reconnect();
@@ -495,7 +495,7 @@ fn a_notice_of_a_fenced_attempt_is_dropped() {
         code: Box::from(&b"forbidden"[..]),
         reason: Box::from(&b"account suspended"[..]),
     });
-    assert!(world.reports.is_empty());
+    assert_eq!(world.reports.len(), 0);
     world.gone();
     world.acknowledge_answer();
     world.assert_settled();

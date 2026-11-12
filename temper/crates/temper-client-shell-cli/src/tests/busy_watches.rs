@@ -7,12 +7,12 @@ use skein_lib::Duration;
 fn deadline_names_watches(mut f: fixtures::Engine) {
     f.advance_past(Duration::from_nanos(limits::DEADLINE.as_nanos() - DEADLINE_TICK.as_nanos()));
     assert_eq!(f.exit(), None);
-    assert!(f.stderr().is_empty());
+    assert_eq!(f.stderr(), []);
     f.advance_past(DEADLINE_TICK);
     assert_eq!(f.exit(), Some(Exit::Code(1)));
     assert_eq!(f.stderr(), b"temper ctl: all the engine's watches are in use, by open pages and waits; close one, or wait and call again\n");
     assert!(f.stderr().len() <= 240);
-    assert!(f.stdout().is_empty());
+    assert_eq!(f.stdout(), []);
 }
 
 #[test]
@@ -30,6 +30,6 @@ fn a_watch_room_that_frees_before_the_deadline_answers() {
     f.advance_past(limits::native().root.domain.client.domain.backoff.first);
     assert_eq!(f.exit(), Some(Exit::Code(0)));
     assert!(f.stdout().starts_with(b"{\""));
-    assert!(f.stderr().is_empty());
+    assert_eq!(f.stderr(), []);
     assert!(!f.host.root.client().link().watches_full);
 }

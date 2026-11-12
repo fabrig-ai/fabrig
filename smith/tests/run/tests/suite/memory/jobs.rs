@@ -87,9 +87,8 @@ fn open_main_for_waiting_writer(domain: &mut Domain, env: &Env<Limits>, out: &mu
     else {
         panic!("prepared main opens")
     };
-    assert!(
-        measured_step(domain, env, out, &meter, Event::Started { conversation, peer: HOST_RUN }, None, bound)
-            .is_empty()
+    assert_eq!(
+        measured_step(domain, env, out, &meter, Event::Started { conversation, peer: HOST_RUN }, None, bound).len(), 0
     );
     conversation
 }

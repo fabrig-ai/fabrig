@@ -127,7 +127,7 @@ fn an_empty_brief_parks_at_idle_wall_or_zero_waiting_without_opening() {
         world.empty_brief(true);
         world.waiting_time(Duration::from_secs(idle));
         world.run(100_000);
-        assert!(world.opening_prompts().is_empty());
+        assert_eq!(world.opening_prompts(), []);
         let answers: Vec<_> = world.answers().map(|answer| answer.expect("one terminal")).collect();
         assert!(
             matches!(answers.as_slice(), [smith_domain_run::Answer::Parked { spent, turns: 0 }] if *spent == smith_domain_run::Spend::ZERO)

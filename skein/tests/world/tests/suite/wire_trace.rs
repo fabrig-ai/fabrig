@@ -79,13 +79,13 @@ fn a_trace_counts_compares_and_appends_its_steps() {
     let expected = [trace.lines(), other.lines()].concat();
     trace.append(&mut other);
     assert!(other.is_empty());
-    assert!(other.lines().is_empty());
+    assert_eq!(other.lines().len(), 0);
     assert_eq!(trace.lines(), expected);
     assert_eq!(trace.len(), expected.len());
     let cloned = trace.clone();
     trace.clear();
     assert!(trace.is_empty());
-    assert!(trace.lines().is_empty());
+    assert_eq!(trace.lines().len(), 0);
     assert_eq!(cloned.lines(), expected);
 }
 

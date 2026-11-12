@@ -7182,7 +7182,7 @@ fn changed(
                 publish(d, topic, News::Changed { number: item.number }, out);
             }
         }
-        Ok(skein_forge::api::Answer::Reviews { reviews, more: _, .. }) => match resource.what {
+        Ok(skein_forge::api::Answer::Reviews { reviews, .. }) => match resource.what {
             skein_forge_client::What::Pull(number) if !reviews.is_empty() => {
                 let topic = Topic::Participation { repository: resource.repository, number };
                 publish(d, topic, News::Changed { number }, out);

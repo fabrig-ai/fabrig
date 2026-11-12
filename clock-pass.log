@@ -1,0 +1,73 @@
+warning: unused workspace dependency `jig-channel-world`
+   --> Cargo.toml:616:1
+    |
+616 | jig-channel-world = { path = "jig/tests/channel" }
+    | ^^^^^^^^^^^^^^^^^
+    |
+    = note: `cargo::unused_workspace_dependencies` is set to `warn` by default
+help: consider removing the workspace dependency `jig-channel-world`
+warning: unused workspace dependency `jig-client-world`
+   --> Cargo.toml:542:1
+    |
+542 | jig-client-world = { path = "jig/tests/client" }
+    | ^^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `jig-client-world`
+warning: unused workspace dependency `jig-core-world`
+   --> Cargo.toml:667:1
+    |
+667 | jig-core-world = { path = "jig/tests/core" }
+    | ^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `jig-core-world`
+warning: unused workspace dependency `jig-people-world`
+   --> Cargo.toml:669:1
+    |
+669 | jig-people-world = { path = "jig/tests/people" }
+    | ^^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `jig-people-world`
+warning: unused workspace dependency `jig-tasks-world`
+   --> Cargo.toml:668:1
+    |
+668 | jig-tasks-world = { path = "jig/tests/tasks" }
+    | ^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `jig-tasks-world`
+warning: unused workspace dependency `jig-test-connector-world`
+   --> Cargo.toml:551:1
+    |
+551 | jig-test-connector-world = { path = "jig/tests/test-connector" }
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `jig-test-connector-world`
+warning: unused workspace dependency `smith-run-world`
+   --> Cargo.toml:515:1
+    |
+515 | smith-run-world = { path = "smith/tests/run" }
+    | ^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `smith-run-world`
+warning: unused workspace dependency `temper-client-web-page`
+   --> Cargo.toml:623:1
+    |
+623 | temper-client-web-page = { path = "temper/crates/temper-client-web-page" }
+    | ^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `temper-client-web-page`
+warning: unused workspace dependency `temper-playground-page`
+   --> Cargo.toml:624:1
+    |
+624 | temper-playground-page = { path = "temper/crates/temper-playground-page" }
+    | ^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `temper-playground-page`
+warning: workspace (manifest) generated 9 warnings
+   Compiling skein-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-world)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.35s
+────────────
+ Nextest run ID c4ddad55-fd1a-4a70-af73-61038d57b60d with nextest profile: default
+    Starting 1 test across 1 binary (51 tests skipped)
+        PASS [   0.005s] (1/1) skein-world deadline::process::tests::proc_birth_parsing_handles_comm_delimiters_and_clock_tick_boundaries
+────────────
+     Summary [   0.006s] 1 test run: 1 passed, 51 skipped

@@ -52,7 +52,7 @@ fn checks_said_to_start_and_end_bracket_the_long_operation() {
     let world = settled(&Settings::calm(1011));
     assert_eq!(world.checked(), [false, true]);
     assert_eq!(world.check_notices().len(), world.check_terminals().len() * 2);
-    for (span, terminal) in world.check_notices().chunks_exact(2).zip(world.check_terminals()) {
+    for (span, terminal) in world.check_notices().as_chunks::<2>().0.iter().zip(world.check_terminals()) {
         let (started, begin) = span[0];
         let (ended, finish) = span[1];
         assert!(begin && !finish, "every check has one start and one end notice");
@@ -133,7 +133,7 @@ fn a_child_asking_for_sub_agents_is_refused() {
         .iter()
         .filter(|query| skein_lib::bytes::find(&query.system, b"@fix").is_some())
         .collect::<Vec<_>>();
-    assert!(!fixer.is_empty());
+    assert_ne!(fixer.len(), 0);
     assert!(fixer.iter().all(|query| !query.tools.iter().any(|tool| tool.name.as_ref() == b"sub_agent")));
     assert!(
         fixer
@@ -167,7 +167,7 @@ fn the_shared_budget_ends_the_run_after_every_conversation_settles() {
     };
     assert_eq!(spent.turns, 7, "wind-down closes the pending ordinary attempt before its callback reports usage");
     assert_eq!(count(&world, |fact| matches!(fact, run::facts::FactKind::Opened { .. })), 3);
-    assert!(world.landed().is_empty());
+    assert_eq!(world.landed(), []);
 }
 
 #[test]
@@ -176,7 +176,7 @@ fn a_push_on_a_moved_branch_answers_stale_and_lands_nothing() {
     assert!(matches!(world.answer(), Answer::Failed { failure: RunFailure::Stale, .. }));
     assert_eq!(world.checked(), [false, true]);
     assert_eq!(world.pushes(), [Delivery::Stale]);
-    assert!(world.landed().is_empty());
+    assert_eq!(world.landed(), []);
 }
 
 #[test]
@@ -196,7 +196,7 @@ fn refused_push_feedback_reaches_the_llm_and_is_retried() {
             if skein_lib::bytes::find(output, b"remote: push refused").is_some())
         });
     assert!(feedback, "the host's exact bounded diagnostic returned to the provider");
-    assert!(world.landed().is_empty());
+    assert_eq!(world.landed(), []);
 }
 
 #[test]
@@ -258,7 +258,7 @@ fn checks_past_their_deadline_fail_and_are_not_pushed() {
     let world = settled(&Settings { check: skein_world::domain::Span::millis(90_000, 120_000), ..Settings::calm(8) });
     assert!(matches!(world.answer(), Answer::Failed { failure: RunFailure::Policy(_), .. }));
     assert_eq!(world.checked(), [false, false, false]);
-    assert!(world.pushes().is_empty());
+    assert_eq!(world.pushes(), []);
 }
 
 #[test]
@@ -297,7 +297,7 @@ fn a_silent_run_drains_every_native_fact_without_changing_the_answer() {
         assert_eq!(silent.answer(), kept.answer());
         assert_eq!(silent.trace(), kept.trace());
         assert_eq!(silent.landed(), kept.landed());
-        assert!(silent.facts().is_empty());
+        assert_eq!(silent.facts(), []);
         assert_eq!(silent.agent_facts_not_written(), skein_lib::len_u64(kept.facts().len()));
     }
 }
@@ -420,7 +420,7 @@ fn submitted_delivery_gets_a_timed_out_host_terminal_during_shutdown() {
     settings.limits.run.delivery_timeout = Duration::from_nanos(10);
     let world = settled(&settings);
     assert_eq!(world.pushes(), [Delivery::Failed(run::DeliveryFailure::new(0, run::DeliveryReason::TimedOut))]);
-    assert!(world.landed().is_empty());
+    assert_eq!(world.landed(), []);
     assert!(matches!(world.answer(), Answer::Failed { failure: RunFailure::Cancelled, .. }));
 }
 

@@ -282,9 +282,9 @@ fn complete_seen(c: &mut Client, exchange: skein_lib::Token) {
     assert!(fixtures::saved(c.requests()).is_empty());
     assert_eq!(c.machine.pending(SECOND), None);
     c.step(Event::Stored);
-    assert!(c.requests().is_empty());
+    assert_eq!(c.requests(), []);
     c.step(Event::Reply { exchange, message: fixtures::seen_answer() });
-    assert!(c.requests().is_empty());
+    assert_eq!(c.requests(), []);
 }
 fn later_stop(c: &mut Client) {
     c.step(Event::Send { name: Some(STOP_NAME), key: STOP, request: fixtures::stop() });
@@ -309,7 +309,7 @@ fn reloading_seen_alone_restores_no_pending_work_or_notices() {
     let mut first = Client::signed_in();
     first.step(Event::Send { name: Some(SEEN_NAME), key: SECOND, request: fixtures::seen() });
     let mut c = Client::with_kept(fixtures::saved(first.requests()));
-    assert!(c.requests().is_empty());
+    assert_eq!(c.requests(), []);
     assert_eq!(c.machine.pending(SECOND), None);
     c.sign_in();
     c.step(Event::Send { name: Some(SEEN_NAME), key: SECOND, request: fixtures::seen() });
@@ -340,7 +340,7 @@ fn a_kept_seen_record_decodes_is_dropped_and_erased_at_start() {
         assert_eq!(c.machine.pending(SECOND), None);
         assert!(fixtures::saved(c.requests()).is_empty());
         c.step(Event::Stored); // The dropped record's erase.
-        assert!(c.requests().is_empty());
+        assert_eq!(c.requests(), []);
         c.step(Event::SignIn { with: With::Held(skein_lib::Secret::new(Box::new([7; 40]))) });
         c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
         let watch = c.opened_watch();

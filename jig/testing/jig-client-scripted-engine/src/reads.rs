@@ -605,7 +605,7 @@ mod tests {
         assert_eq!(rows.len(), 2);
         for (row, task) in rows.iter().zip([5, 6]) {
             assert_eq!(row.scope, NoteScope::Task { project: 1, task });
-            assert!(row.body.bytes().is_empty());
+            assert_eq!(row.body.bytes(), []);
             assert!(row.body.cut);
             assert!(!row.cut);
         }
@@ -615,6 +615,6 @@ mod tests {
             after: None,
         };
         let Rows::Notes(rows) = engine.rows_for(1, &query) else { panic!("notes rows") };
-        assert!(rows.is_empty());
+        assert_eq!(rows.len(), 0);
     }
 }

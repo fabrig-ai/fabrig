@@ -46,7 +46,7 @@ fn admitted_application_routes_and_its_core_part_share_the_commit_barrier() {
     world.cut = Some(Cut::Submitted(commit));
     world.send(ask(sign_in, 1, value));
     assert_eq!(world.reached_cut, Some(Cut::Submitted(commit)));
-    assert!(world.application_answers.is_empty());
+    assert_eq!(world.application_answers.len(), 0);
     world.cut = None;
     world.release_commits();
     let changed = connector::ApplicationOutcome::Changed {

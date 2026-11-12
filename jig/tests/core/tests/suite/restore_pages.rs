@@ -103,7 +103,7 @@ fn a_paused_restore_answers_an_ask_not_ready_without_a_commit_or_retained_answer
     assert_eq!(world.store.applied, applied, "NotReady must not commit");
     assert_eq!(world.commits.len(), commits, "NotReady must not submit a commit");
     assert_eq!(world.store.rows, rows, "no business mutation or retained keyed answer");
-    assert!(world.store_peer.as_mut().expect("store peer").take().is_empty());
+    assert_eq!(world.store_peer.as_mut().expect("store peer").take().len(), 0);
     world.hold_restart_reads = true;
     world.finish_restore_pages();
     assert_eq!(world.store.rows, with_start_mark(&rows), "whole original restored facts and the start's mark");
@@ -226,7 +226,7 @@ fn a_held_restore_expires_sign_ins_at_the_current_external_wall_time() {
     assert!(world.store.loading());
     assert_eq!(world.store.rows, rows, "time passing during the pause does not apply store writes");
     assert_eq!(world.store.applied, applied);
-    assert!(world.store_peer.as_mut().expect("store peer").take().is_empty());
+    assert_eq!(world.store_peer.as_mut().expect("store peer").take().len(), 0);
     let release_at = world.wall_time();
     world.finish_restore_pages();
     assert!(world.domain.ready());

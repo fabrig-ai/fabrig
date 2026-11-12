@@ -250,7 +250,7 @@ fn a_read_outstanding_when_the_body_is_discarded_on_a_connection_not_kept_is_wit
     let (_, requests) = machine.down(Request::Body(Down::Demand { read: Read::Fill(4), room: 0 }));
     assert_eq!(requests, [Down::Demand { read: Read::Fill(4), room: 0 }]);
     let (events, requests) = machine.down(Request::Discard);
-    assert!(events.is_empty());
+    assert_eq!(events, []);
     assert_eq!(requests, [Down::Demand { read: Read::Nothing, room: 0 }], "withdrawn");
     let (events, requests) = machine.bytes(b"hell");
     assert!(events.is_empty() && requests.is_empty(), "its answer, on its way, dropped");
@@ -266,7 +266,7 @@ fn a_withdrawal_then_a_discard_reads_the_rest_and_drops_it() {
     let (events, _) = machine.bytes(b"hell");
     assert!(events.is_empty(), "read for a demand withdrawn: dropped");
     let (events, requests) = machine.down(Request::Discard);
-    assert!(events.is_empty());
+    assert_eq!(events, []);
     assert_eq!(requests, [Down::Demand { read: Read::Fill(7), room: 0 }], "the rest, to drop");
     machine.bytes(b"o world");
     let (events, requests) = machine.down(Request::Respond(response(204, Body::None)));
@@ -280,12 +280,12 @@ fn a_continue_goes_before_the_body_s_first_read_and_the_head_asks_for_room_of_it
     let mut machine = Machine::new(LIMITS);
     machine.call(head);
     let (events, requests) = machine.down(Request::Body(Down::Demand { read: Read::Fill(4), room: 0 }));
-    assert!(events.is_empty());
+    assert_eq!(events, []);
     assert_eq!(requests, [Down::Send(super::boxed(CONTINUE)), Down::Demand { read: Read::Fill(4), room: 0 }]);
     let (events, _) = machine.bytes(b"body");
     assert_eq!(events, [Event::Body(Up::Bytes(super::boxed(b"body")))]);
     let (events, requests) = machine.down(Request::Respond(response(204, Body::None)));
-    assert!(events.is_empty());
+    assert_eq!(events, []);
     let room = u32::try_from(NO_CONTENT.len()).unwrap();
     assert_eq!(requests, [Down::Demand { read: Read::Nothing, room }], "the room set aside went to the 100");
     assert_eq!(machine.server.waiting(), Waiting::Room);

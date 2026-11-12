@@ -38,8 +38,8 @@ fn hello_precedes_retained_turns_and_answers_after_every_reconnection() {
 fn a_wait_keeps_its_slot_and_a_message_resumes_the_script() {
     let mut worker = Worker::new(0, 1, vec![Box::new([Script::Wait, Script::Park])]);
     worker.assign(assigned());
-    assert!(worker.tick(Time::ZERO).is_empty());
-    assert!(worker.tick(Time::ZERO).is_empty());
+    assert_eq!(worker.tick(Time::ZERO).len(), 0);
+    assert_eq!(worker.tick(Time::ZERO).len(), 0);
     worker.message(1, 1, 3, Box::from(&b"continue"[..]));
     assert!(matches!(worker.tick(Time::ZERO).as_slice(), [Up::Answer { end: End::Parked, .. }]));
     assert!(!worker.quiescent());
@@ -58,7 +58,7 @@ fn a_call_blocks_script_progress_until_one_answer_reaches_it() {
     let mut worker = Worker::new(0, 1, vec![Box::new([Script::Call(call.clone()), Script::Crash])]);
     worker.assign(assigned());
     assert!(matches!(worker.tick(Time::ZERO).as_slice(), [Up::Call { call: found, .. }] if *found == call));
-    assert!(worker.tick(Time::ZERO).is_empty());
+    assert_eq!(worker.tick(Time::ZERO).len(), 0);
     worker.call_answer(1, 1, 1, Box::from(&b"answer"[..]));
     assert!(matches!(worker.tick(Time::ZERO).as_slice(), [Up::Answer { end: End::Failed(Failure::Agent), .. }]));
 }
@@ -85,15 +85,15 @@ fn silence_and_slowness_preserve_the_live_run_but_vanishing_loses_its_flights() 
     );
     drop(worker.tick(Time::ZERO));
     worker.assign(assigned());
-    assert!(worker.tick(Time::ZERO).is_empty());
-    assert!(worker.tick(Time::from_nanos(1_000_000)).is_empty());
+    assert_eq!(worker.tick(Time::ZERO).len(), 0);
+    assert_eq!(worker.tick(Time::from_nanos(1_000_000)).len(), 0);
     drop(worker.fault(Fault::Slow { by: Duration::from_millis(3) }, Time::ZERO));
-    assert!(worker.tick(Time::from_nanos(2_000_000)).is_empty());
+    assert_eq!(worker.tick(Time::from_nanos(2_000_000)).len(), 0);
     assert!(matches!(worker.tick(Time::from_nanos(3_000_000)).as_slice(), [Up::Turn { .. }]));
     drop(worker.fault(Fault::Vanish, Time::from_nanos(3_000_000)));
     assert!(worker.quiescent());
     assert_eq!(worker.lost_spent, 2);
-    assert!(worker.tick(Time::from_nanos(4_000_000)).is_empty());
+    assert_eq!(worker.tick(Time::from_nanos(4_000_000)).len(), 0);
 }
 
 #[test]
@@ -142,7 +142,7 @@ fn a_scripted_refusal_rides_with_the_next_turn() {
         vec![Box::new([Script::Refuse { name: 3 }, Script::Turn { body: Box::new([]), cost: 1, read: None }])],
     );
     worker.assign(assigned());
-    assert!(worker.tick(Time::ZERO).is_empty());
+    assert_eq!(worker.tick(Time::ZERO).len(), 0);
     assert!(matches!(worker.tick(Time::ZERO).as_slice(),
         [Up::Turn { refused, .. }] if refused.as_ref() == [3]));
 }

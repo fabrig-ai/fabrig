@@ -131,7 +131,7 @@ pub(super) fn key_trees(d: &mut Domain) -> Box<[Request]> {
     all.into_boxed_slice()
 }
 fn baseline_tip(d: &mut Domain, tip: api::Commit) {
-    assert!(requests(&baseline_answer(d, Ok(api::Answer::Commit(tip)))).is_empty());
+    assert_eq!(requests(&baseline_answer(d, Ok(api::Answer::Commit(tip)))).len(), 0);
 }
 fn baseline(d: &mut Domain) -> Box<[Request]> {
     seen(d, None, BASE);
@@ -285,12 +285,12 @@ fn baseline_reads_past_a_stale_head_at_start_and_restart() {
         } else {
             crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
         }
-        assert!(requests(&collect(out)).is_empty());
+        assert_eq!(requests(&collect(out)).len(), 0);
         assert!(row(&d).baseline.is_none(), "a restored head is not a baseline");
-        assert!(requests(&outputs(&mut d, Event::ReadAfresh)).is_empty());
+        assert_eq!(requests(&outputs(&mut d, Event::ReadAfresh)).len(), 0);
         assert_eq!(d.tier_ops.reads.len(), 1);
         let out = baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
-        assert!(requests(&out).is_empty());
+        assert_eq!(requests(&out).len(), 0);
         assert_eq!(requests(&key_trees(&mut d)), [(1, NEXT_TIP)]);
         assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
     }
@@ -301,7 +301,7 @@ fn moves_before_the_baseline_answer_are_not_landings() {
     let mut d = configured(None);
     seen(&mut d, None, BASE);
     let out = seen(&mut d, Some(BASE), HEAD);
-    assert!(requests(&out).is_empty());
+    assert_eq!(requests(&out).len(), 0);
     assert!(row(&d).baseline.is_none(), "a move cannot choose the baseline");
     assert!(row(&d).pending.is_empty());
     baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
@@ -313,7 +313,7 @@ fn moves_before_the_baseline_answer_are_not_landings() {
     tier_step(&mut d, DISPATCH, false);
     made(&mut d, DISPATCH, skein_forge_client::Made::Set);
     completed(&mut d, api::Conclusion::Success, None);
-    assert!(requests(&finish(&mut d)).is_empty());
+    assert_eq!(requests(&finish(&mut d)).len(), 0);
     assert!(row(&d).pending.is_empty());
     assert!(row(&d).record.run.is_none());
     assert_eq!(row(&d).record.judged.unwrap().tip, NEXT_TIP);
@@ -328,10 +328,10 @@ fn a_missing_baseline_branch_waits_for_its_next_move() {
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     let mut out = Queue::uncapped();
     crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
-    assert!(requests(&collect(out)).is_empty());
-    assert!(requests(&outputs(&mut d, Event::ReadAfresh)).is_empty());
+    assert_eq!(requests(&collect(out)).len(), 0);
+    assert_eq!(requests(&outputs(&mut d, Event::ReadAfresh)).len(), 0);
     let out = baseline_answer(&mut d, Err(api::Error::Missing));
-    assert!(requests(&out).is_empty());
+    assert_eq!(requests(&out).len(), 0);
     assert!(row(&d).baseline.is_none());
     assert!(row(&d).record.run.is_none());
     assert!(d.tier_ops.reads.is_empty());
@@ -346,12 +346,12 @@ fn a_baseline_waits_for_another_tier_read() {
     let mut d = restoring(None);
     d.tier_ops.reads.insert(READ, crate::tiers::Read { tier: (REPO, TIER.into()), baseline: false }).unwrap();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    assert!(requests(&outputs(&mut d, Event::ReadAfresh)).is_empty());
+    assert_eq!(requests(&outputs(&mut d, Event::ReadAfresh)).len(), 0);
     assert_eq!(d.tier_ops.reads.len(), 1, "wait for the occupied read slot");
     assert!(row(&d).baseline.is_none());
     let mut out = Queue::uncapped();
     crate::tiers::answered(&mut d, &env(), READ, Err(api::Error::Missing), &mut out);
-    assert!(requests(&collect(out)).is_empty());
+    assert_eq!(requests(&collect(out)).len(), 0);
     assert_eq!(d.tier_ops.reads.len(), 1, "the baseline now owns the read slot");
     baseline_answer(&mut d, Ok(api::Answer::Commit(NEXT_TIP)));
     assert_eq!(requests(&key_trees(&mut d)), [(1, NEXT_TIP)]);
@@ -366,7 +366,7 @@ fn a_late_baseline_answer_keeps_the_baseline_and_its_later_moves() {
     seen(&mut d, Some(BASE), LAST_TIP);
     let mut out = Queue::uncapped();
     crate::tiers::answered(&mut d, &env(), owner, Ok(api::Answer::Commit(NEXT_TIP)), &mut out);
-    assert!(requests(&collect(out)).is_empty());
+    assert_eq!(requests(&collect(out)).len(), 0);
     assert_eq!(row(&d).baseline.unwrap().commit, BASE);
     assert_eq!(row(&d).pending.len(), 1);
     assert_eq!(row(&d).pending[0].commit, LAST_TIP);
@@ -382,7 +382,7 @@ fn first_tip_starts_a_baseline_with_no_landings() {
     assert!(row(&d).record.run.as_ref().unwrap().landings.is_empty());
     let mut again = Queue::uncapped();
     crate::tiers::start_due(&mut d, &env(), REPO, &mut again);
-    assert!(requests(&collect(again)).is_empty());
+    assert_eq!(requests(&collect(again)).len(), 0);
 }
 #[test]
 fn green_run_releases_its_branch_and_makes_a_receipt() {
@@ -619,7 +619,7 @@ fn other_dispatch_refusals_and_missing_reruns_stay_lost() {
 fn branch_no_tier_follows_starts_no_run() {
     let mut d = configured(Some(b"release/next"));
     let out = seen(&mut d, None, BASE);
-    assert!(requests(&out).is_empty());
+    assert_eq!(requests(&out).len(), 0);
     assert!(row(&d).baseline.is_none());
     assert!(row(&d).pending.is_empty());
     assert_eq!(
@@ -1173,14 +1173,14 @@ fn goal_tiers_start_no_run_without_a_held_goal_branch() {
     let mut d = restoring_following(Follows::Goals);
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     let out = outputs(&mut d, Event::ReadAfresh);
-    assert!(requests(&out).is_empty());
+    assert_eq!(requests(&out).len(), 0);
     assert!(crate::tiers::watched(&d).is_empty());
     for branch in [b"main".as_slice(), b"temper/1/g1"] {
         let mut out = Queue::uncapped();
         crate::tiers::observed(&mut d, &env(), REPO, branch, None, BASE, &mut out);
         crate::tiers::observed(&mut d, &env(), REPO, branch, Some(BASE), HEAD, &mut out);
         crate::tiers::start_due(&mut d, &env(), REPO, &mut out);
-        assert!(requests(&collect(out)).is_empty());
+        assert_eq!(requests(&collect(out)).len(), 0);
         assert!(d.tiers.is_empty());
         assert!(d.tier_ops.reads.is_empty());
     }

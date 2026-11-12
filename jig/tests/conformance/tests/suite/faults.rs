@@ -8,7 +8,7 @@ fn held_commits_keep_assignments_and_party_answers_behind_their_barrier() {
     let mut world = actions::world(24, false);
     world.store.fault(StoreFault::Hold { commits: 1 });
     world.drain().expect("held commit conforms");
-    assert!(world.peers.assignments.is_empty());
+    assert_eq!(world.peers.assignments.len(), 0);
     assert_eq!(world.peers.answers, 0);
     world.release_commits();
     world.drain().expect("released commits conform");
@@ -20,7 +20,7 @@ fn a_failed_commit_stops_the_engine_before_a_peer_sees_its_outputs() {
     let mut world = actions::world(25, false);
     world.store.fault(StoreFault::Fail { commit: 2 });
     assert!(world.drain().expect("failure conforms").stopped);
-    assert!(world.peers.assignments.is_empty());
+    assert_eq!(world.peers.assignments.len(), 0);
     assert_eq!(world.peers.answers, 0);
     world.crash().expect("cold store retains only durable evidence");
     world.drain().expect("restart after failed commit conforms");
@@ -65,7 +65,7 @@ fn the_engine_decides_ahead_while_effect_commits_are_held() {
     actions::effect(&mut world, 2);
     world.drain().expect("second held effect conforms");
     assert!(world.store.applied >= before + 2);
-    assert!(world.systems[0].observed().is_empty());
+    assert_eq!(world.systems[0].observed(), []);
     world.release_commits();
     world.drain().expect("released decisions conform");
     world.release_commits();

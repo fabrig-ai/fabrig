@@ -55,9 +55,9 @@ fn opening_the_page_reads_once_and_approves_nothing() {
     assert_eq!(state(&root), State::Reading);
     let mut out = Queue::uncapped();
     crate::fire(&mut root, &fixtures::env(&fixtures::limits()), &mut out);
-    assert!(acts(&mut out).is_empty());
-    assert!(act(&mut root, Act::Approve).is_empty());
-    assert!(open(&mut root, None).is_empty());
+    assert_eq!(acts(&mut out).len(), 0);
+    assert_eq!(act(&mut root, Act::Approve).len(), 0);
+    assert_eq!(open(&mut root, None).len(), 0);
     assert_eq!(state(&root), State::Typing { unread: false });
 }
 #[test]
@@ -78,7 +78,7 @@ fn each_answer_draws_its_state() {
     ] {
         let mut root = reading();
         let shown = crate::shown(&root);
-        assert!(read(&mut root, answer).is_empty());
+        assert_eq!(read(&mut root, answer).len(), 0);
         assert_eq!(state(&root), expected, "{answer:?}");
         assert!(crate::shown(&root) > shown);
         assert_eq!(approve::next_deadline(&root).is_some(), expected == State::Approved);
@@ -107,7 +107,7 @@ fn each_answer_draws_its_state() {
     ] {
         let mut root = asking();
         act(&mut root, Act::Approve);
-        assert!(answer(&mut root, Approval::Decided { code: code(), decided }).is_empty());
+        assert_eq!(answer(&mut root, Approval::Decided { code: code(), decided }).len(), 0);
         assert_eq!(state(&root), expected, "{decided:?}");
         assert_eq!(approve::next_deadline(&root).is_some(), expected == State::Approved);
     }
@@ -118,11 +118,11 @@ fn a_decision_is_sent_once() {
         let mut root = asking();
         assert_eq!(act(&mut root, decision), vec![ApprovalAct::Decide { code: code(), approve }]);
         assert_eq!(state(&root), State::Deciding { approve, asked: Wall::EPOCH });
-        assert!(act(&mut root, Act::Approve).is_empty());
-        assert!(act(&mut root, Act::Refuse).is_empty());
+        assert_eq!(act(&mut root, Act::Approve).len(), 0);
+        assert_eq!(act(&mut root, Act::Refuse).len(), 0);
         let mut out = Queue::uncapped();
         crate::fire(&mut root, &fixtures::env(&fixtures::limits()), &mut out);
-        assert!(acts(&mut out).is_empty());
+        assert_eq!(acts(&mut out).len(), 0);
     }
 }
 #[test]
@@ -135,7 +135,7 @@ fn while_approved_it_reads_again_each_second_until_another_answer() {
     let mut out = Queue::uncapped();
     env.now = env.now.saturating_add(Duration::from_millis(999));
     crate::fire(&mut root, &env, &mut out);
-    assert!(acts(&mut out).is_empty());
+    assert_eq!(acts(&mut out).len(), 0);
     env.now = deadline;
     crate::fire(&mut root, &env, &mut out);
     assert_eq!(acts(&mut out), vec![ApprovalAct::Read { code: code() }]);
@@ -156,7 +156,7 @@ fn while_approved_it_reads_again_each_second_until_another_answer() {
     assert_eq!(state(&root), State::SignedIn);
     assert_eq!(approve::next_deadline(&root), None);
     crate::fire(&mut root, &env, &mut out);
-    assert!(acts(&mut out).is_empty());
+    assert_eq!(acts(&mut out).len(), 0);
 }
 #[test]
 fn a_typed_code_reads_or_stays_with_its_alert() {
@@ -171,13 +171,13 @@ fn a_typed_code_reads_or_stays_with_its_alert() {
     ] {
         let mut root = fixtures::on_adoption_page();
         open(&mut root, None);
-        assert!(act(&mut root, Act::Words { words: typed.into() }).is_empty());
+        assert_eq!(act(&mut root, Act::Words { words: typed.into() }).len(), 0);
         let out = act(&mut root, Act::Check);
         if reads {
             assert_eq!(out, vec![ApprovalAct::Read { code: code() }]);
             assert_eq!(state(&root), State::Reading);
         } else {
-            assert!(out.is_empty());
+            assert_eq!(out.len(), 0);
             assert_eq!(state(&root), State::Typing { unread: true });
         }
         assert_eq!(
@@ -190,23 +190,22 @@ fn a_typed_code_reads_or_stays_with_its_alert() {
 fn an_answer_for_another_code_or_a_page_left_changes_nothing() {
     let mut root = reading();
     let shown = crate::shown(&root);
-    assert!(
-        answer(&mut root, Approval::Read { code: ApprovalCode::parse(b"BCDFGHJK").unwrap(), state: Read::Approved })
-            .is_empty()
+    assert_eq!(
+        answer(&mut root, Approval::Read { code: ApprovalCode::parse(b"BCDFGHJK").unwrap(), state: Read::Approved }).len(), 0
     );
     assert_eq!(state(&root), State::Reading);
     assert_eq!(crate::shown(&root), shown);
     // The unrelated answer must not release the in-flight read.
     let mut out = Queue::uncapped();
     crate::fire(&mut root, &fixtures::env(&fixtures::limits()), &mut out);
-    assert!(acts(&mut out).is_empty());
+    assert_eq!(acts(&mut out).len(), 0);
     step(&mut root, Event::Went { place: Place::Address(crate::Address::Accounts) });
     for answer_value in [
         Approval::Read { code: code(), state: Read::Approved },
         Approval::Decided { code: code(), decided: Decided::Approved },
     ] {
         let shown = crate::shown(&root);
-        assert!(answer(&mut root, answer_value).is_empty());
+        assert_eq!(answer(&mut root, answer_value).len(), 0);
         assert!(root.approval().is_none());
         assert_eq!(crate::shown(&root), shown);
     }
@@ -215,10 +214,10 @@ fn an_answer_for_another_code_or_a_page_left_changes_nothing() {
 fn signed_out_draws_sign_in_first() {
     let mut root = fixtures::on_adoption_page();
     step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } });
-    assert!(open(&mut root, Some(code())).is_empty());
+    assert_eq!(open(&mut root, Some(code())).len(), 0);
     assert_eq!(state(&root), State::SignedOut);
     let mut root = reading();
-    assert!(read(&mut root, Read::SignedOut).is_empty());
+    assert_eq!(read(&mut root, Read::SignedOut).len(), 0);
     assert_eq!(state(&root), State::SignedOut);
     for deciding in [false, true] {
         let mut root = reading();
@@ -226,9 +225,8 @@ fn signed_out_draws_sign_in_first() {
             read(&mut root, Read::Waiting { asked: Wall::EPOCH });
             act(&mut root, Act::Approve);
         }
-        assert!(
-            step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } })
-                .is_empty()
+        assert_eq!(
+            step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } }).len(), 0
         );
         assert_eq!(state(&root), State::SignedOut, "pending decision: {deciding}");
         assert_eq!(root.approving, approve::Flight::Idle);
@@ -237,7 +235,7 @@ fn signed_out_draws_sign_in_first() {
             Approval::Decided { code: code(), decided: Decided::Approved },
         ] {
             let shown = crate::shown(&root);
-            assert!(answer(&mut root, late).is_empty());
+            assert_eq!(answer(&mut root, late).len(), 0);
             assert_eq!(state(&root), State::SignedOut);
             assert_eq!(crate::shown(&root), shown);
         }
@@ -249,8 +247,8 @@ fn try_again_reads_and_type_a_code_returns_to_the_field() {
     read(&mut root, Read::Busy);
     assert_eq!(act(&mut root, Act::Again), vec![ApprovalAct::Read { code: code() }]);
     read(&mut root, Read::Unknown);
-    assert!(act(&mut root, Act::Type).is_empty());
+    assert_eq!(act(&mut root, Act::Type).len(), 0);
     assert_eq!(state(&root), State::Typing { unread: false });
     assert_eq!(root.approval().unwrap().code(), None);
-    assert!(root.approval().unwrap().words().is_empty());
+    assert_eq!(root.approval().unwrap().words(), []);
 }

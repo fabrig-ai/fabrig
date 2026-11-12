@@ -36,7 +36,7 @@ fn an_account_with_port_zero_visits_at_its_bound_port() {
     owner.ask(Request::SignIn { account: 0, subject: None });
     let identity = owner.listen();
     owner.listening(identity, 41000);
-    assert!(Owner::query(&owner.visit(), b"redirect_uri") == Some(b"http%3A%2F%2F127.0.0.1%3A41000%2Fcallback"));
+    assert_eq!(Owner::query(&owner.visit(), b"redirect_uri"), Some(b"http%3A%2F%2F127.0.0.1%3A41000%2Fcallback".as_slice()));
 }
 fn fixed_zero() -> Account {
     let mut account = refresh_account(0, ADDRESS);

@@ -1422,50 +1422,6 @@ impl Timer {
     }
 }
 
-#[cfg(test)]
-mod admission_tests {
-    use super::{Event, Timer};
-    use jig_domain_fleet as fleet;
-    use jig_domain_people as people;
-    use skein_lib::{ReplyTo, Token};
-
-    #[test]
-    fn completions_and_requests_have_distinct_admission() {
-        let reply_to = ReplyTo::new(Token::new(1));
-        for (event, new) in [
-            (Event::Stopping, false),
-            (Event::Fill { bytes: 0 }, false),
-            (Event::Unwatch { watcher: Token::new(1) }, false),
-            (Event::Fleet(fleet::Event::Lost { channel: Token::new(1) }), false),
-            (
-                Event::People(people::Event::Ask {
-                    reply_to,
-                    sign_in: 1,
-                    key: [1; 16],
-                    models: Box::new([]),
-                    ask: people::Ask::MarkSeen { seen: people::Seen::Results { through: 0 } },
-                }),
-                true,
-            ),
-            (Event::Period { project: 1, period: 1, budget: 0, next: None }, true),
-        ] {
-            assert_eq!(event.new_work(), new, "the variant fixes its admission");
-        }
-    }
-
-    #[test]
-    fn only_the_tasks_timer_starts_work() {
-        for (timer, new) in [
-            (Timer::People, false),
-            (Timer::Fleet, false),
-            (Timer::Brief, false),
-            (Timer::Account, false),
-            (Timer::Tasks, true),
-        ] {
-            assert_eq!(timer.new_work(), new, "the timer's work fixes its admission");
-        }
-    }
-}
 
 /// Core-owned continuations drained within one decision (jig/docs/design/domain/engine/README.md, 4.3).
 #[derive(Debug)]
@@ -1513,4 +1469,49 @@ pub enum TranscriptLoad {
     },
     Unread,
     Failed,
+}
+
+#[cfg(test)]
+mod admission_tests {
+    use super::{Event, Timer};
+    use jig_domain_fleet as fleet;
+    use jig_domain_people as people;
+    use skein_lib::{ReplyTo, Token};
+
+    #[test]
+    fn completions_and_requests_have_distinct_admission() {
+        let reply_to = ReplyTo::new(Token::new(1));
+        for (event, new) in [
+            (Event::Stopping, false),
+            (Event::Fill { bytes: 0 }, false),
+            (Event::Unwatch { watcher: Token::new(1) }, false),
+            (Event::Fleet(fleet::Event::Lost { channel: Token::new(1) }), false),
+            (
+                Event::People(people::Event::Ask {
+                    reply_to,
+                    sign_in: 1,
+                    key: [1; 16],
+                    models: Box::new([]),
+                    ask: people::Ask::MarkSeen { seen: people::Seen::Results { through: 0 } },
+                }),
+                true,
+            ),
+            (Event::Period { project: 1, period: 1, budget: 0, next: None }, true),
+        ] {
+            assert_eq!(event.new_work(), new, "the variant fixes its admission");
+        }
+    }
+
+    #[test]
+    fn only_the_tasks_timer_starts_work() {
+        for (timer, new) in [
+            (Timer::People, false),
+            (Timer::Fleet, false),
+            (Timer::Brief, false),
+            (Timer::Account, false),
+            (Timer::Tasks, true),
+        ] {
+            assert_eq!(timer.new_work(), new, "the timer's work fixes its admission");
+        }
+    }
 }

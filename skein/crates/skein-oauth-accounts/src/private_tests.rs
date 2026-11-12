@@ -578,7 +578,7 @@ impl Owner {
         for _ in 0..DRIVE_STEPS {
             self.fire();
             if self.finish_socket(identity, &mut remaining) {
-                assert!(remaining.is_empty());
+                assert_eq!(remaining, []);
                 return;
             }
         }
@@ -871,7 +871,7 @@ impl Owner {
             self.callback_io(listener, callback, &mut head, &mut answer);
             assert!(answer.is_empty(), "no answer before judgement");
             if component::redirect_read(&self.component) {
-                assert!(head.is_empty());
+                assert_eq!(head, []);
                 return callback;
             }
         }

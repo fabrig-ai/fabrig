@@ -14,120 +14,6 @@ pub struct Projection {
     joins: joins::Joins,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use jig_domain_people as people;
-    use jig_domain_tasks as tasks;
-
-    fn ledger(period: u64, spent: u64) -> core::Record {
-        core::Record::Tasks(tasks::Stored::Ledger(tasks::FundingRecord {
-            period: None,
-            funder: tasks::Funder::Pool { project: 1, person: 2, period },
-            parent: None,
-            numbers: tasks::Numbers { budget: 100, spent, spent_below: 0, reserved: 0 },
-            made: 0,
-            closed: false,
-        }))
-    }
-
-    fn check(projection: &mut Projection, applied: u64, rows: &BTreeMap<core::Key, core::Record>) -> r::Snapshot {
-        let rows = rows.iter().map(|(key, row)| (key.clone(), row)).collect();
-        let snapshot = projection.snapshot(applied, &rows);
-        assert_eq!(snapshot, super::super::snapshot(&rows), "commit {applied}");
-        snapshot
-    }
-
-    #[test]
-    fn keyed_rows_replace_erase_and_rebuild_without_double_charging_spend() {
-        let first = ledger(3, 7);
-        let second = ledger(4, 11);
-        let sign_in =
-            core::Record::People(people::Stored::SignIn { number: 5, person: 2, expires: skein_lib::Wall::EPOCH });
-        let mut rows = BTreeMap::from([(first.key(), first.clone()), (second.key(), second), (sign_in.key(), sign_in)]);
-        let mut projection = Projection::default();
-        assert_eq!(check(&mut projection, 1, &rows).person_spend.get(&2), Some(&18));
-        let replacement = ledger(3, 13);
-        projection.submitted(&Commit { number: 2, writes: vec![Write::Save(&replacement)] });
-        rows.insert(replacement.key(), replacement);
-        assert_eq!(check(&mut projection, 2, &rows).person_spend.get(&2), Some(&24));
-        projection.submitted(&Commit { number: 3, writes: vec![Write::Erase(first.key())] });
-        rows.remove(&first.key());
-        assert_eq!(check(&mut projection, 3, &rows).person_spend.get(&2), Some(&11));
-        // A restore's Got can change rows without changing applied.
-        rows.clear();
-        projection.invalidate();
-        check(&mut projection, 3, &rows);
-        rows.insert(first.key(), first.clone());
-        projection.submitted(&Commit { number: 4, writes: vec![Write::Refresh] });
-        check(&mut projection, 4, &rows);
-        // An unobserved/failed submission must not poison a reused commit number.
-        projection.submitted(&Commit { number: 5, writes: vec![Write::Erase(first.key())] });
-        projection.invalidate();
-        check(&mut projection, 4, &rows);
-        projection.submitted(&Commit { number: 5, writes: vec![] });
-        check(&mut projection, 5, &rows);
-    }
-
-    fn person_amendment(task: u64) -> core::Record {
-        core::Record::Tasks(tasks::Stored::DecidedProposal(Box::new(tasks::PersonProposal {
-            number: 9,
-            proposer: 1,
-            project: 1,
-            action: tasks::PersonAction::Amend {
-                task,
-                revision: 0,
-                amendment: Box::new(tasks::Amendment {
-                    tracked: None,
-                    addressed: None,
-                    instructions: None,
-                    release: None,
-                    spec: None,
-                    wake: None,
-                    dependencies: None,
-                    authority: None,
-                    llm: None,
-                    reason: Box::new([]),
-                }),
-            },
-            reason: Box::new([]),
-            state: tasks::PersonProposalState::Accepted { by: tasks::Party::Person(2) },
-        })))
-    }
-
-    #[test]
-    fn keyed_joins_follow_replacement_and_erasure_of_the_other_row() {
-        let decision = core::Record::Core(core::CoreRecord::ProposalDecision(core::ProposalDecisionRecord {
-            project: 1,
-            proposer: people::Proposer::Party(1),
-            proposal: 9,
-            kind: tasks::ProposalKind::Amend,
-            by: 2,
-            at: skein_lib::Wall::from_nanos(1),
-            choice: people::ProposalChoice::Accepted,
-            created: None,
-        }));
-        let mut rows = BTreeMap::from([(decision.key(), decision)]);
-        let mut projection = Projection::default();
-        assert!(check(&mut projection, 1, &rows).accepted_tasks.is_empty());
-        let proposal = person_amendment(5);
-        projection.submitted(&Commit { number: 2, writes: vec![Write::Save(&proposal)] });
-        rows.insert(proposal.key(), proposal);
-        assert_eq!(
-            check(&mut projection, 2, &rows).accepted_tasks.get(&5),
-            Some(&r::Acceptance { proposal: 9, by: r::Source::Person(2) })
-        );
-        let replacement = person_amendment(6);
-        projection.submitted(&Commit { number: 3, writes: vec![Write::Save(&replacement)] });
-        rows.insert(replacement.key(), replacement.clone());
-        let changed = check(&mut projection, 3, &rows);
-        assert!(!changed.accepted_tasks.contains_key(&5));
-        assert!(changed.accepted_tasks.contains_key(&6));
-        projection.submitted(&Commit { number: 4, writes: vec![Write::Erase(replacement.key())] });
-        rows.remove(&replacement.key());
-        assert!(check(&mut projection, 4, &rows).accepted_tasks.is_empty());
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Row {
@@ -312,5 +198,120 @@ impl Projection {
     #[must_use]
     pub fn proposal_decisions(&self) -> Vec<core::ProposalDecisionRecord> {
         self.joins.decisions()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jig_domain_people as people;
+    use jig_domain_tasks as tasks;
+
+    fn ledger(period: u64, spent: u64) -> core::Record {
+        core::Record::Tasks(tasks::Stored::Ledger(tasks::FundingRecord {
+            period: None,
+            funder: tasks::Funder::Pool { project: 1, person: 2, period },
+            parent: None,
+            numbers: tasks::Numbers { budget: 100, spent, spent_below: 0, reserved: 0 },
+            made: 0,
+            closed: false,
+        }))
+    }
+
+    fn check(projection: &mut Projection, applied: u64, rows: &BTreeMap<core::Key, core::Record>) -> r::Snapshot {
+        let rows = rows.iter().map(|(key, row)| (key.clone(), row)).collect();
+        let snapshot = projection.snapshot(applied, &rows);
+        assert_eq!(snapshot, super::super::snapshot(&rows), "commit {applied}");
+        snapshot
+    }
+
+    #[test]
+    fn keyed_rows_replace_erase_and_rebuild_without_double_charging_spend() {
+        let first = ledger(3, 7);
+        let second = ledger(4, 11);
+        let sign_in =
+            core::Record::People(people::Stored::SignIn { number: 5, person: 2, expires: skein_lib::Wall::EPOCH });
+        let mut rows = BTreeMap::from([(first.key(), first.clone()), (second.key(), second), (sign_in.key(), sign_in)]);
+        let mut projection = Projection::default();
+        assert_eq!(check(&mut projection, 1, &rows).person_spend.get(&2), Some(&18));
+        let replacement = ledger(3, 13);
+        projection.submitted(&Commit { number: 2, writes: vec![Write::Save(&replacement)] });
+        rows.insert(replacement.key(), replacement);
+        assert_eq!(check(&mut projection, 2, &rows).person_spend.get(&2), Some(&24));
+        projection.submitted(&Commit { number: 3, writes: vec![Write::Erase(first.key())] });
+        rows.remove(&first.key());
+        assert_eq!(check(&mut projection, 3, &rows).person_spend.get(&2), Some(&11));
+        // A restore's Got can change rows without changing applied.
+        rows.clear();
+        projection.invalidate();
+        check(&mut projection, 3, &rows);
+        rows.insert(first.key(), first.clone());
+        projection.submitted(&Commit { number: 4, writes: vec![Write::Refresh] });
+        check(&mut projection, 4, &rows);
+        // An unobserved/failed submission must not poison a reused commit number.
+        projection.submitted(&Commit { number: 5, writes: vec![Write::Erase(first.key())] });
+        projection.invalidate();
+        check(&mut projection, 4, &rows);
+        projection.submitted(&Commit { number: 5, writes: vec![] });
+        check(&mut projection, 5, &rows);
+    }
+
+    fn person_amendment(task: u64) -> core::Record {
+        core::Record::Tasks(tasks::Stored::DecidedProposal(Box::new(tasks::PersonProposal {
+            number: 9,
+            proposer: 1,
+            project: 1,
+            action: tasks::PersonAction::Amend {
+                task,
+                revision: 0,
+                amendment: Box::new(tasks::Amendment {
+                    tracked: None,
+                    addressed: None,
+                    instructions: None,
+                    release: None,
+                    spec: None,
+                    wake: None,
+                    dependencies: None,
+                    authority: None,
+                    llm: None,
+                    reason: Box::new([]),
+                }),
+            },
+            reason: Box::new([]),
+            state: tasks::PersonProposalState::Accepted { by: tasks::Party::Person(2) },
+        })))
+    }
+
+    #[test]
+    fn keyed_joins_follow_replacement_and_erasure_of_the_other_row() {
+        let decision = core::Record::Core(core::CoreRecord::ProposalDecision(core::ProposalDecisionRecord {
+            project: 1,
+            proposer: people::Proposer::Party(1),
+            proposal: 9,
+            kind: tasks::ProposalKind::Amend,
+            by: 2,
+            at: skein_lib::Wall::from_nanos(1),
+            choice: people::ProposalChoice::Accepted,
+            created: None,
+        }));
+        let mut rows = BTreeMap::from([(decision.key(), decision)]);
+        let mut projection = Projection::default();
+        assert!(check(&mut projection, 1, &rows).accepted_tasks.is_empty());
+        let proposal = person_amendment(5);
+        projection.submitted(&Commit { number: 2, writes: vec![Write::Save(&proposal)] });
+        rows.insert(proposal.key(), proposal);
+        assert_eq!(
+            check(&mut projection, 2, &rows).accepted_tasks.get(&5),
+            Some(&r::Acceptance { proposal: 9, by: r::Source::Person(2) })
+        );
+        let replacement = person_amendment(6);
+        projection.submitted(&Commit { number: 3, writes: vec![Write::Save(&replacement)] });
+        rows.insert(replacement.key(), replacement.clone());
+        let changed = check(&mut projection, 3, &rows);
+        assert!(!changed.accepted_tasks.contains_key(&5));
+        assert!(changed.accepted_tasks.contains_key(&6));
+        projection.submitted(&Commit { number: 4, writes: vec![Write::Erase(replacement.key())] });
+        rows.remove(&replacement.key());
+        assert!(check(&mut projection, 4, &rows).accepted_tasks.is_empty());
     }
 }

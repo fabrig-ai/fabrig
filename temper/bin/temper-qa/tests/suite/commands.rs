@@ -46,7 +46,7 @@ pub(super) fn run(home: &Home, arguments: &[&str], session: Option<&str>, stdin:
 pub(super) fn success(output: &Output, stdout: &[u8]) {
     assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.stdout, stdout);
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr.len(), 0);
 }
 #[test]
 fn missing_session_refuses_before_reading_or_writing_and_bad_config_names_its_key() {
@@ -58,13 +58,13 @@ fn missing_session_refuses_before_reading_or_writing_and_bad_config_names_its_ke
         output.stderr,
         b"temper-qa: TEMPER_INTERNAL_QA_SESSION is not set: triage commands run in a triage session\n"
     );
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout.len(), 0);
     assert_eq!(std::fs::read(&home.ledger).expect("after"), before);
     std::fs::write(home.directory.join("qa.json"), br#"{"unknown_key":0}"#).expect("unknown key");
     let output = run(&home, &["show"], None, None);
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(output.stderr, b"temper-qa: qa.json: unknown field unknown_key\n");
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout.len(), 0);
     assert_eq!(std::fs::read(&home.ledger).expect("after"), before);
 }
 #[test]
@@ -84,7 +84,7 @@ fn a_case_from_file_and_stdin_records_at_once_and_refusals_leave_it_unchanged() 
         let output = run(&home, &arguments, Some("1"), stdin);
         assert_eq!(output.status.code(), Some(1));
         assert_eq!(output.stderr, format!("temper-qa: {words}\n").as_bytes());
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout.len(), 0);
         assert_eq!(std::fs::read(&home.ledger).expect("unchanged"), before);
     }
 }
@@ -179,7 +179,7 @@ fn q3_configuration_show_and_report_cross_the_binary_boundary() {
         let output = run(&home, &["show"], None, None);
         assert_eq!(output.status.code(), Some(1));
         assert_eq!(output.stderr, format!("temper-qa: {words}\n").as_bytes());
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout.len(), 0);
         assert_eq!(std::fs::read(&home.ledger).expect("unchanged"), before);
     }
 }

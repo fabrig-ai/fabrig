@@ -160,7 +160,7 @@ fn an_authorized_verdict_makes_followups_in_its_result_commit_and_waits_for_them
         Reply::Acknowledged(jig_domain_tasks::Accepted::New)
     );
     assert_eq!(w.record(1).delegates.as_ref(), [2]);
-    assert!(w.record(2).created_at == w.record(1).created_at);
+    assert_eq!(w.record(2).created_at, w.record(1).created_at);
     w.restart();
     assert_eq!(w.record(1).result_followups.as_ref(), [2]);
     assert!(w.results.is_empty() && !w.activations.contains(&3));

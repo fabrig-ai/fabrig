@@ -45,7 +45,7 @@ fn a_second_take_over_of_the_same_token_deletes_nothing() {
     let kept = world.file(Item::AdminToken).cloned();
     assert_eq!(world.take_over(fixtures::TAKEN), Ended::Done);
     assert_eq!(world.tally().routes.get(&Route::DeleteToken).copied(), deletes);
-    assert!(fixtures::write_routes(&world, since).is_empty());
+    assert_eq!(fixtures::write_routes(&world, since).len(), 0);
     assert_eq!(world.file(Item::AdminToken), kept.as_ref());
 }
 

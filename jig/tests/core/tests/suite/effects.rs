@@ -72,7 +72,7 @@ fn an_effect_call_wait_commits_nothing_and_the_same_name_can_be_asked_again() {
         world.answers.last(),
         Some((_, _, core::CallPart::EffectDenied { answer: authority::Answer::Wait, .. }))
     ));
-    assert!(world.systems[0].observed().is_empty());
+    assert_eq!(world.systems[0].observed(), []);
     world.observed(13);
     world.call(1, 205);
     assert!(matches!(
@@ -110,7 +110,7 @@ fn an_effect_answers_committed_and_pending_only_past_its_absolute_deadline() {
 fn an_explicit_effect_proposal_is_kept_across_a_restart_and_checked_again_before_acceptance() {
     let mut world = World::new(Setup { seed: 85, requirement: true, ..Setup::default() });
     let proposal = world.propose(1);
-    assert!(world.systems[0].observed().is_empty());
+    assert_eq!(world.systems[0].observed(), []);
     assert!(
         world
             .store
@@ -142,7 +142,7 @@ fn rejecting_an_effect_proposal_erases_its_payload_without_making_it() {
     let mut world = World::new(Setup { seed: 86, ..Setup::default() });
     let proposal = world.propose(1);
     world.decide_proposal(proposal, false, 3);
-    assert!(world.systems[0].observed().is_empty());
+    assert_eq!(world.systems[0].observed(), []);
     assert!(
         !world
             .store
@@ -333,14 +333,13 @@ fn retained_effect_deadline_is_a_pure_minimum_including_equal_walls_and_epoch() 
             assert_eq!([domain.quiescent(false), domain.quiescent(true)], quiescence);
         }
         if earliest != 0 {
-            assert!(
+            assert_eq!(
                 deadline_answers(effect_outputs(
                     &mut domain,
                     &limits,
                     Wall::from_nanos(earliest - 1),
                     core::Event::EffectDeadline
-                ))
-                .is_empty()
+                )).len(), 0
             );
             assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(earliest)));
         }
@@ -360,14 +359,13 @@ fn retained_effect_deadline_is_a_pure_minimum_including_equal_walls_and_epoch() 
         assert_eq!(answers, expected, "exactly due rights retain their previous committed evidence");
         let remaining = if first == second { None } else { Some(Wall::from_nanos(first.max(second))) };
         assert_eq!(domain.effect_deadline(), remaining);
-        assert!(
+        assert_eq!(
             deadline_answers(effect_outputs(
                 &mut domain,
                 &limits,
                 Wall::from_nanos(earliest),
                 core::Event::EffectDeadline
-            ))
-            .is_empty()
+            )).len(), 0
         );
         if let Some(last) = remaining {
             let final_answers =
@@ -445,9 +443,8 @@ fn a_duplicate_keeps_its_exact_deadline_and_latest_right_while_made_removes_only
         )]
     );
     assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(20)));
-    assert!(
-        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(19), core::Event::EffectDeadline))
-            .is_empty()
+    assert_eq!(
+        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(19), core::Event::EffectDeadline)).len(), 0
     );
     assert_eq!(
         deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(20), core::Event::EffectDeadline)),
@@ -476,19 +473,16 @@ fn a_stale_claim_keeps_its_effect_deadline_until_the_due_right_is_consumed_witho
         Some(tasks::Phase::Active(tasks::Active::Claimed { .. } | tasks::Active::Running { .. }))
     ));
     assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(20)), "stale rights stay queryable for cleanup");
-    assert!(
-        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(19), core::Event::EffectDeadline))
-            .is_empty()
+    assert_eq!(
+        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(19), core::Event::EffectDeadline)).len(), 0
     );
     assert_eq!(domain.effect_deadline(), Some(Wall::from_nanos(20)));
-    assert!(
-        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(20), core::Event::EffectDeadline))
-            .is_empty()
+    assert_eq!(
+        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(20), core::Event::EffectDeadline)).len(), 0
     );
     assert_eq!(domain.effect_deadline(), None);
-    assert!(
-        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(20), core::Event::EffectDeadline))
-            .is_empty()
+    assert_eq!(
+        deadline_answers(effect_outputs(&mut domain, &limits, Wall::from_nanos(20), core::Event::EffectDeadline)).len(), 0
     );
 }
 

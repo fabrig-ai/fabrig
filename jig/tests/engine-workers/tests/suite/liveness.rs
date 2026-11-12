@@ -61,7 +61,7 @@ fn an_idle_channel_sends_a_ping_after_the_interval() {
     let mut world = world();
     let (connection, _) = reporting(&mut world);
     world.advance(Duration::from_millis(4_999));
-    assert!(world.observed(connection).is_empty());
+    assert_eq!(world.observed(connection), []);
     world.advance(Duration::from_millis(1));
     assert_eq!(observed(&world, connection), [5]);
     assert_eq!(world.root().len(), 1);

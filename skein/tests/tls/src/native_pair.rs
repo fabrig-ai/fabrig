@@ -246,7 +246,7 @@ impl Pair {
         let mut events = pair.down(native::Request::Client(client::Request::Handshake));
         events.extend(pair.settle());
         assert!(matches!(&events[..], [native::Event::Client(client::Event::Ready(_))]));
-        assert!(pair.read(crate::meter::LARGE.read).is_empty());
+        assert_eq!(pair.read(crate::meter::LARGE.read).len(), 0);
         let plaintext = vec![b'x'; 40_000];
         pair.peer.rustls_mut().write(&plaintext);
         pair.pull();

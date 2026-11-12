@@ -248,7 +248,7 @@ fn a_fresh_assignment_has_an_empty_transcript_piece() {
     let mut assignment = fixtures::assignment();
     assignment.turns = Box::new([]);
     let record = assignment_record(down(jig_domain_host::LinkDown::Assign { assignment }));
-    assert!(record.transcript().is_empty());
+    assert_eq!(record.transcript(), []);
 }
 #[test]
 fn a_grant_without_a_value_is_left_out() {

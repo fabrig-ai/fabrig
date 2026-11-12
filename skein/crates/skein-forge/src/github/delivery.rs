@@ -26,8 +26,8 @@ pub fn signature(header: &[u8]) -> Option<[u8; 32]> {
         }
     }
     let mut out = [0; 32];
-    for (pair, slot) in text.chunks_exact(2).zip(&mut out) {
-        *slot = bytes::hex_value(*pair.first()?)?.checked_mul(16)?.checked_add(bytes::hex_value(*pair.get(1)?)?)?;
+    for (&[high, low], slot) in text.as_chunks::<2>().0.iter().zip(&mut out) {
+        *slot = bytes::hex_value(high)?.checked_mul(16)?.checked_add(bytes::hex_value(low)?)?;
     }
     Some(out)
 }
@@ -40,10 +40,9 @@ pub fn sign(secret: &[u8], body: &[u8]) -> [u8; 71] {
     for (slot, byte) in out.iter_mut().zip(b"sha256=") {
         *slot = *byte;
     }
-    for (pair, byte) in out.get_mut(7..).expect("signature prefix").chunks_exact_mut(2).zip(mac.finish()) {
-        for (slot, nibble) in pair.iter_mut().zip([byte / 16, byte % 16]) {
-            *slot = bytes::hex_digit(nibble);
-        }
+    for ([high, low], byte) in out.get_mut(7..).expect("signature prefix").as_chunks_mut::<2>().0.iter_mut().zip(mac.finish()) {
+        *high = bytes::hex_digit(byte / 16);
+        *low = bytes::hex_digit(byte % 16);
     }
     out
 }

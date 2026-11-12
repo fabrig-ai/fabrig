@@ -174,6 +174,9 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
         record.encode(&mut out).expect("measured record");
         return Ok(out.finish());
     }
+    remaining_value(d, at, kind)
+}
+fn remaining_value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
     if kind == 10 {
         let record = match project_words(d, at) {
             Ok(value) => value,

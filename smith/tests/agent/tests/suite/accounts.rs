@@ -24,7 +24,7 @@ fn llms_sharing_an_account_share_its_grant() {
     let mut world = world(&settings, scripted_charter(&settings), &[0]);
     world.run(2000);
     assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
-    assert!(!world.prompts().is_empty());
+    assert_ne!(world.prompts(), []);
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn an_llm_with_no_account_is_admitted_with_no_grant() {
     let mut world = world(&settings, charter, &[]);
     world.run(2000);
     assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
-    assert!(!world.prompts().is_empty());
+    assert_ne!(world.prompts(), []);
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn a_held_grant_serves_a_later_start() {
     world.hold_grant(0);
     world.run(2000);
     assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
-    assert!(!world.prompts().is_empty());
+    assert_ne!(world.prompts(), []);
 }
 
 use skein_fake_checkout::Checkout;

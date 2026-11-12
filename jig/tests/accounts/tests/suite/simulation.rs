@@ -310,15 +310,14 @@ fn a_sign_in_sources_grant_carries_the_form_its_component_announced() {
 #[test]
 fn a_component_grant_in_the_application_form_is_ignored() {
     let mut world = World::wanting(&[ANALYST]);
-    assert!(
+    assert_eq!(
         world
             .step(Event::Component(FromComponent::Granted {
                 account: ANALYST,
                 generation: 4,
                 valid: Duration::from_secs(100),
                 form: Form::Application,
-            }))
-            .is_empty()
+            })).len(), 0
     );
     assert!(!world.domain.usable(1_000 + ANALYST));
     assert_eq!(world.domain.grant(1_000 + ANALYST, world.now), None);
@@ -346,7 +345,7 @@ fn limit_merge_keeps_the_old_pair_on_ties() {
     world.now = at(12);
     world.wall = Wall::from_nanos(1_000_000_000_000);
     for reset in [at(20), at(30)] {
-        assert!(world.step(Event::Limited { account: ANALYST, reset: Some(reset) }).is_empty());
+        assert_eq!(world.step(Event::Limited { account: ANALYST, reset: Some(reset) }).len(), 0);
         assert_eq!(source_deadline(&world), Some(old));
         assert_eq!(world.domain.next_deadline(), Some(old.at));
     }
@@ -354,7 +353,7 @@ fn limit_merge_keeps_the_old_pair_on_ties() {
     let later = jig_domain_accounts::Deadline { at: at(40), wall: Wall::from_nanos(1_028_000_000_000) };
     assert_eq!(source_deadline(&world), Some(later));
     assert_eq!(world.domain.next_deadline(), Some(later.at));
-    assert!(world.fire_at(39).is_empty());
+    assert_eq!(world.fire_at(39).len(), 0);
     assert_eq!(source_deadline(&world), Some(later));
     assert_eq!(world.fire_at(40), vec![kept(None)]);
     assert_eq!(world.domain.source(ANALYST).expect("unlimited source").state, State::Granted);
@@ -370,8 +369,8 @@ fn no_reset_overrides_a_timed_limit_until_resume() {
         vec![kept(Some(Held::Limited { reset: None }))]
     );
     assert_eq!(source_deadline(&world), None);
-    assert!(world.step(Event::Limited { account: ANALYST, reset: Some(at(40)) }).is_empty());
-    assert!(world.fire_at(40).is_empty());
+    assert_eq!(world.step(Event::Limited { account: ANALYST, reset: Some(at(40)) }).len(), 0);
+    assert_eq!(world.fire_at(40).len(), 0);
     assert_eq!(source_deadline(&world), None);
     world.step(Event::Change {
         request: skein_lib::Token::new(0),
@@ -393,7 +392,7 @@ fn retry_keeps_its_wall_while_its_monotonic_timer_fires() {
     world.wall = Wall::from_nanos(1_000_000_000_000);
     assert_eq!(world.domain.source(ANALYST).expect("retrying source").state, state);
     assert_eq!(world.domain.next_deadline(), Some(at(30)));
-    assert!(world.fire_at(29).is_empty());
+    assert_eq!(world.fire_at(29).len(), 0);
     assert_eq!(world.domain.source(ANALYST).expect("retrying source").state, state);
     assert_eq!(world.fire_at(30), vec![want()]);
     assert_eq!(world.domain.source(ANALYST).expect("asking source").state, State::Asking);

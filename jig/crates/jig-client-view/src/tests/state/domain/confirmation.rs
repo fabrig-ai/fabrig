@@ -196,8 +196,8 @@ fn note_corrections_keep_the_supplied_scope_revision_and_all_references() {
         assert_eq!(sent(&drive(&mut domain, Time::ZERO, Event::Act { action: Act::Confirm })), &expected);
         assert!(domain.confirmation().is_none());
         if act == ActKind::EditNote {
-            assert!(domain.fields().get(Purpose::NoteDescription).unwrap().text.bytes().is_empty());
-            assert!(domain.fields().get(Purpose::NoteBody).unwrap().text.bytes().is_empty());
+            assert_eq!(domain.fields().get(Purpose::NoteDescription).unwrap().text.bytes(), []);
+            assert_eq!(domain.fields().get(Purpose::NoteBody).unwrap().text.bytes(), []);
         }
     }
 }

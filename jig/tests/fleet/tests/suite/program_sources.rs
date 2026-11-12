@@ -29,7 +29,7 @@ impl World {
         )
         .expect("fixture membership");
         world.domain.configure_workers(membership);
-        assert!(world.step(Event::Sources { sources: names.iter().map(|name| source(name)).collect() }).is_empty());
+        assert_eq!(world.step(Event::Sources { sources: names.iter().map(|name| source(name)).collect() }).len(), 0);
         world
     }
     fn step(&mut self, event: Event) -> Vec<Request> {
@@ -80,7 +80,7 @@ fn even_empty_inventory_is_a_placement_barrier() {
     assert!(matches!(&world.hello(CHANNEL)[..], [Request::Sources { sources, .. }] if sources.is_empty()));
     assert!(!world.available());
     assert!(world.domain.awaiting_logins(CHANNEL));
-    assert!(world.inventory(&[]).is_empty());
+    assert_eq!(world.inventory(&[]).len(), 0);
     assert!(world.available());
     assert!(!world.domain.awaiting_logins(CHANNEL));
 }
@@ -91,12 +91,12 @@ fn old_whole_snapshot_crossing_a_replacement_updates_nothing() {
     world.inventory(&[b"a", b"b"]);
     assert!(world.available());
     // Reordering the same set cannot start an indistinguishable barrier.
-    assert!(world.step(Event::Sources { sources: Box::new([source(b"b"), source(b"a")]) }).is_empty());
+    assert_eq!(world.step(Event::Sources { sources: Box::new([source(b"b"), source(b"a")]) }).len(), 0);
     assert!(world.available());
     let sent = world.step(Event::Sources { sources: Box::new([source(b"a")]) });
     assert!(matches!(&sent[..], [Request::Sources { sources, .. }] if sources.as_ref() == [source(b"a")]));
     assert!(!world.available());
-    assert!(
+    assert_eq!(
         world
             .step(Event::Logins {
                 channel: CHANNEL,
@@ -112,8 +112,7 @@ fn old_whole_snapshot_crossing_a_replacement_updates_nothing() {
                         email: Some(b"second@example.com".as_slice().into())
                     },
                 ])
-            })
-            .is_empty()
+            }).len(), 0
     );
     assert!(
         world
@@ -210,15 +209,14 @@ fn a_lost_sign_out_cannot_complete_a_new_channel_call() {
         [Request::SignOut { .. }]
     ));
     assert!(matches!(&world.step(Event::Lost { channel: CHANNEL })[..], [Request::SignedOut { result: None, .. }]));
-    assert!(world.step(Event::Lost { channel: CHANNEL }).is_empty());
+    assert_eq!(world.step(Event::Lost { channel: CHANNEL }).len(), 0);
     let replacement = Token::new(202);
     assert!(matches!(&world.hello(replacement)[..], [Request::Sources { .. }]));
     assert!(!world.available());
     world.step(Event::SignOut { to: ReplyTo::new(Token::new(2)), channel: replacement, name: source(b"a") });
-    assert!(
+    assert_eq!(
         world
-            .step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut })
-            .is_empty()
+            .step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut }).len(), 0
     );
     let ended =
         world.step(Event::SignedOut { channel: replacement, name: source(b"a"), result: SignOutResult::SignedOut });
@@ -257,7 +255,7 @@ fn loss_ends_the_configured_members_operation_once() {
         world.step(Event::Lost { channel: CHANNEL }),
         vec![Request::ProgramSignedOut { source: 7, worker: worker(0), result: fleet::ProgramResult::Lost },]
     );
-    assert!(world.step(Event::Lost { channel: CHANNEL }).is_empty());
+    assert_eq!(world.step(Event::Lost { channel: CHANNEL }).len(), 0);
 }
 #[test]
 fn reconnect_cleanup_is_separate_from_the_original_answer() {
@@ -273,7 +271,7 @@ fn reconnect_cleanup_is_separate_from_the_original_answer() {
     );
     let answer =
         world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut });
-    assert!(answer.is_empty());
+    assert_eq!(answer.len(), 0);
     assert!(!world.available());
     world.inventory(&[b"a"]);
     assert!(world.available());
@@ -290,14 +288,14 @@ fn a_failed_cleanup_is_not_retried_by_periodic_inventory() {
         name: source(b"a"),
         result: SignOutResult::Failed { reason: SourceFailure::Exited, detail: b"failed".as_slice().into() },
     });
-    assert!(world.step(Event::Logins { channel: CHANNEL, logins: rows }).is_empty());
+    assert_eq!(world.step(Event::Logins { channel: CHANNEL, logins: rows }).len(), 0);
 }
 #[test]
 fn a_check_waits_until_its_source_list_has_been_sent() {
     let mut world = configured();
     world.hello(CHANNEL);
     world.step(Event::Sources { sources: Box::new([source(b"a"), source(b"b")]) });
-    assert!(world.step(Event::CheckProgram { name: source(b"b") }).is_empty());
+    assert_eq!(world.step(Event::CheckProgram { name: source(b"b") }).len(), 0);
     world.inventory(&[b"a"]);
     fleet::resume(&mut world.domain, &world.env, &mut world.out);
     let mut requests = Vec::new();

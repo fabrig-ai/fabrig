@@ -813,7 +813,7 @@ fn draft_first_requires_the_closer_and_close_job_in_both_delegations() {
         for ceiling in [true, false] {
             let mut policy = complete.clone();
             let mut kept = List::with_capacity(u32::try_from(required.len()).unwrap());
-            for executor in required.iter() {
+            for executor in &required {
                 if *executor != missing {
                     kept.push(*executor).unwrap();
                 }

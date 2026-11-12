@@ -236,7 +236,7 @@ fn a_supplied_native_hold_slot_reads_and_renders_its_actual_scoped_account() {
         assert!(contains(&view, text), "missing {}", String::from_utf8_lossy(text));
     }
     assert!(view.tree().nodes().iter().any(|node| node.key == Some(crate::family_key(&subject))));
-    assert!(patches(&mut view, &root).is_empty());
+    assert_eq!(patches(&mut view, &root).len(), 0);
     let retained =
         root.jig().borrow(root.client()).objects().get(root.jig().objects().find(ObjectKey::Task(9)).unwrap()).unwrap();
     let jig_client_view::objects::Body::Task(retained) = retained.body.as_ref().unwrap() else { panic!("whole task") };

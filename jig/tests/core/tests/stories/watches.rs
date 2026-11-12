@@ -93,7 +93,7 @@ fn a_tree_window_past_the_rows_is_clamped_and_cut() {
     assert_eq!(folded.parent, parent.0);
     assert_eq!(folded.phases, PhaseCounts { starting: 2, ..PhaseCounts::ZERO });
     assert_eq!(folded.held_below, 0);
-    assert!(watches.endings.is_empty());
+    assert_eq!(watches.endings.len(), 0);
     assert!(world.busy_events.is_empty(), "no Busy or retry");
     watches.finish();
     world.close();

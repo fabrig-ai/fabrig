@@ -231,7 +231,7 @@ fn an_act_answered_busy_then_done_prints_within_a_span_of_its_clearing() {
     advance(&mut f, 2);
     assert_eq!(f.exit(), Some(Exit::Code(0)), "answer within two seconds of room");
     assert_eq!(f.stdout(), b"done: task 41, chat\n");
-    assert!(f.stderr().is_empty());
+    assert_eq!(f.stderr(), []);
 }
 #[test]
 fn a_read_whose_me_is_answered_busy_is_answered_within_a_span_of_its_clearing() {
@@ -242,8 +242,8 @@ fn a_read_whose_me_is_answered_busy_is_answered_within_a_span_of_its_clearing() 
     f.me_busy = false;
     advance(&mut f, 2);
     assert_eq!(f.exit(), Some(Exit::Code(0)), "me reopened within two seconds");
-    assert!(!f.stdout().is_empty());
-    assert!(f.stderr().is_empty());
+    assert_ne!(f.stdout(), []);
+    assert_eq!(f.stderr(), []);
 }
 
 #[test]

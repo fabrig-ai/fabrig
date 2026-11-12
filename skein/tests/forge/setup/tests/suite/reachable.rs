@@ -60,7 +60,7 @@ fn a_reachable_run_writes_nothing() {
     for request in world.requests() {
         assert_eq!(client::encode(request, &limits.documents).expect("request encodes").method, Method::Get);
     }
-    assert!(fixtures::write_routes(&world, 0).is_empty());
+    assert_eq!(fixtures::write_routes(&world, 0).len(), 0);
     assert_eq!(world.tally().total, 3);
     assert_eq!(world.tally().routes.len(), 3);
     for route in [Route::User, Route::ApiSettings, Route::RepoSearch] {
@@ -86,7 +86,7 @@ fn a_plain_users_token_cannot_list() {
 fn an_installation_given_to_a_forgejo_sends_no_request() {
     let mut world = HostWorld::managed_paged(7, 4);
     assert_eq!(world.reachable(Some(7), 1), failure(Stage::Installation, b"7", Why::Unexpected));
-    assert!(world.requests().is_empty());
+    assert_eq!(world.requests(), []);
     assert_eq!(world.tally().total, 0);
 }
 #[test]
@@ -95,7 +95,7 @@ fn neither_token_kept_stops_missing() {
     world.forget(Item::AdminToken);
     world.forget(Item::ApiToken);
     assert_eq!(world.reachable(None, 1), failure(Stage::Token, b"api", Why::Missing));
-    assert!(world.requests().is_empty());
+    assert_eq!(world.requests(), []);
 }
 #[test]
 fn no_secret_is_in_a_reachable_failure_debug_or_trace() {
@@ -192,7 +192,7 @@ fn a_connected_run_writes_nothing() {
     for request in &world.requests()[since..] {
         assert_eq!(client::encode(request, &limits.documents).expect("request encodes").method, Method::Get);
     }
-    assert!(fixtures::write_routes(&world, since).is_empty());
+    assert_eq!(fixtures::write_routes(&world, since).len(), 0);
     assert_eq!(world.tally().total, tally + 2);
     for (route, count) in routes {
         if route != Route::ApiSettings && route != Route::UserRepos {

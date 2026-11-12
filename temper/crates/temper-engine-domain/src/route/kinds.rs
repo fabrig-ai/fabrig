@@ -107,7 +107,7 @@ fn restore(
             }
             let asked = settings::Asked { kind: key.kind, scope: key.scope, number: key.number, edit: edit.clone() };
             let why = match way_refusal(domain, None, &asked) {
-                Some(_) => Some(settings::Refusal::Way.words().into()),
+                Some(_) => Some(settings::Refusal::Way.words()),
                 None => follows::refusal(domain, &asked)
                     .or(dependencies::refusal(domain, &asked))
                     .or(owner_refusal_words(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked)),

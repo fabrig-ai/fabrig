@@ -12,9 +12,9 @@ fn a_charter_naming_an_undeclared_model_runs() {
     let mut world = world(&settings, requested, &[0]);
     world.run(2000);
     assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
-    assert!(!world.prompts().is_empty());
+    assert_ne!(world.prompts(), []);
     assert!(world.prompts().iter().all(|prompt| prompt.model.as_ref() == b"not-served"));
-    assert!(!world.turns().is_empty());
+    assert_ne!(world.turns(), []);
 }
 
 #[test]
@@ -25,8 +25,8 @@ fn a_window_above_its_declaration_is_refused() {
     let mut world = world(&settings, requested, &[0]);
     world.run(2000);
     assert_eq!(world.answer(), &run::Answer::Refused(run::Refusal::Invalid(run::Invalid::Llm)));
-    assert!(world.prompts().is_empty());
-    assert!(world.turns().is_empty());
+    assert_eq!(world.prompts(), []);
+    assert_eq!(world.turns(), []);
 }
 
 #[test]
@@ -38,6 +38,6 @@ fn the_fake_provider_receives_the_charters_effective_output_cap() {
     let mut world = world(&settings, requested, &[0]);
     world.run(2000);
     assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
-    assert!(!world.prompts().is_empty());
+    assert_ne!(world.prompts(), []);
     assert!(world.prompts().iter().all(|query| query.max_tokens == 256));
 }

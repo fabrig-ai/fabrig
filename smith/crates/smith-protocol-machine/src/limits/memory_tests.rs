@@ -145,7 +145,7 @@ fn saturated_listings_keep_their_pathname_copies_within_the_bound() {
     let mut peak = meter.check(meter.end(), LISTINGS_PEAK_CEILING, &"eight record buffers");
     for listing in &mut listings {
         let listing = listing.as_mut().expect("eight saturated listings");
-        for byte in [b'a', b'b'] {
+        for byte in *b"ab" {
             meter.start();
             for _ in 0_u32..16_384 {
                 listing.push(byte);

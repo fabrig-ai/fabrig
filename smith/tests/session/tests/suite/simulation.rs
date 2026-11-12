@@ -86,7 +86,7 @@ fn malformed_calls_are_answered_with_their_problem_and_the_conversation_goes_on(
     // Every call is malformed: none runs, and each gets an answer, or the
     // provider would refuse the next query.
     assert_eq!(yields(&world, opener), [(Yield::Done, &b"done"[..])]);
-    assert_eq!((world.stats().ops, world.stats().results), (0, 0));
+    assert_eq!(world.stats().ops, world.stats().results), (0, 0);
     let told = world.told();
     assert!(told.invalid_calls >= 2 && told.invalid_calls == told.calls, "{told:?}");
 }
@@ -240,7 +240,7 @@ fn a_session_out_of_time_ends_once_at_the_whole_call_deadline() {
 
     assert_eq!(end(&world, opener), out_of(Dimension::Time));
     let stats = world.stats();
-    assert_eq!((stats.timeouts, stats.late_answers, stats.cancels), (1, 1, 0));
+    assert_eq!(stats.timeouts, stats.late_answers, stats.cancels), (1, 1, 0);
 }
 
 #[test]
@@ -276,8 +276,8 @@ fn an_opener_that_closes_a_calling_session_has_its_call_cancelled() {
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
     world.run(ITERATIONS);
 
-    assert_eq!((end(&world, opener), turns(&world, opener)), (End::Closed, 0));
-    assert!(yields(&world, opener).is_empty());
+    assert_eq!(end(&world, opener), turns(&world, opener)), (End::Closed, 0);
+    assert_eq!(yields(&world, opener).len(), 0);
     let stats = world.stats();
     assert_eq!((stats.cancels, stats.late_answers), (1, 1));
 }
@@ -317,7 +317,7 @@ fn a_tool_call_that_runs_out_of_time_goes_back_to_the_llm_and_the_conversation_g
     assert_eq!(yields(&world, opener), [(Yield::Done, &b"done"[..])]);
     assert_eq!((end(&world, opener), turns(&world, opener)), (End::Closed, 3));
     let stats = world.stats();
-    assert_eq!((stats.results, stats.op_timeouts, stats.op_cancels), (2, 2, 0));
+    assert_eq!(stats.results, stats.op_timeouts, stats.op_cancels), (2, 2, 0);
 }
 
 #[test]
@@ -330,9 +330,9 @@ fn a_call_that_wins_its_race_with_a_cancel_still_ends_the_session_and_counts() {
 
     // The answer came all the same: its tokens count, and nothing yields.
     assert_eq!((end(&world, opener), turns(&world, opener)), (End::Closed, 1));
-    assert!(yields(&world, opener).is_empty());
+    assert_eq!(yields(&world, opener).len(), 0);
     let stats = world.stats();
-    assert_eq!((stats.cancels_lost, stats.answered_after_cancel, stats.cancels), (1, 1, 0));
+    assert_eq!(stats.cancels_lost, stats.answered_after_cancel, stats.cancels), (1, 1, 0);
 }
 
 #[test]
@@ -351,7 +351,7 @@ fn a_tool_run_that_wins_its_race_with_a_cancel_still_ends_the_session() {
 
     assert_eq!((end(&world, opener), turns(&world, opener)), (End::Closed, 1));
     let stats = world.stats();
-    assert_eq!((stats.op_cancels_lost, stats.done_after_cancel, stats.op_cancels), (1, 1, 0));
+    assert_eq!(stats.op_cancels_lost, stats.done_after_cancel, stats.op_cancels), (1, 1, 0);
 }
 
 /// A spec that grants no tools of the session's own, so that the LLM calls

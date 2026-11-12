@@ -27,7 +27,7 @@ fn a_forgejo_reconcile_converges_beside_a_configured_github_forge() {
     for key in [Item::ApiToken, Item::GitToken] {
         assert!(item::token(world.file(key).expect("token written").expose(), 64).is_some());
     }
-    assert!(!world.connection_addresses().is_empty());
+    assert_ne!(world.connection_addresses(), []);
     assert!(!world.connection_addresses().contains(&github_address));
     let mut plain = HostWorld::new(7, &[]);
     plain.run(1);
@@ -111,7 +111,7 @@ fn an_installation_no_state_accepted_stops_missing_and_sends_nothing() {
     world.finish();
     assert_heard(&world, &[stop(1, Stage::Installation, b"3", Why::Missing, Duration::ZERO)]);
     assert_eq!(world.reads(), &[Item::Accepted]);
-    assert!(world.connects().is_empty());
+    assert_eq!(world.connects(), []);
 }
 #[test]
 fn an_accepted_installation_the_app_does_not_have_stops_missing() {
@@ -138,7 +138,7 @@ fn a_key_that_cannot_sign_stops_key_form_and_sends_nothing() {
     world.run_plan(1, picker(Some(2), 1));
     world.finish();
     assert_heard(&world, &[stop(1, Stage::App, b"key", Why::KeyForm, Duration::ZERO)]);
-    assert!(world.connects().is_empty());
+    assert_eq!(world.connects(), []);
 }
 #[test]
 fn a_missing_app_id_or_key_stops_missing_at_the_app() {
@@ -148,7 +148,7 @@ fn a_missing_app_id_or_key_stops_missing_at_the_app() {
         world.run_plan(1, picker(Some(2), 1));
         world.finish();
         assert_heard(&world, &[stop(1, Stage::App, subject, Why::Missing, Duration::ZERO)]);
-        assert!(world.connects().is_empty());
+        assert_eq!(world.connects(), []);
     }
 }
 #[test]
@@ -157,15 +157,15 @@ fn a_github_reachable_with_no_installation_stops_at_once_in_the_world() {
     world.run_plan(1, picker(None, 1));
     world.finish();
     assert_heard(&world, &[stop(1, Stage::Installation, b"none", Why::Unexpected, Duration::ZERO)]);
-    assert!(world.reads().is_empty());
-    assert!(world.connects().is_empty());
+    assert_eq!(world.reads(), []);
+    assert_eq!(world.connects(), []);
 }
 #[test]
 fn a_second_github_picker_stops_busy_while_the_first_is_held() {
     let mut world = HostWorld::github(41, &[Connect::Silent]);
     world.run_plan(1, picker(Some(2), 1));
     world.settle();
-    assert!(world.heard().is_empty());
+    assert_eq!(world.heard(), []);
     world.run_plan(2, picker(Some(2), 1));
     world.settle();
     assert_heard(&world, &[stop(2, Stage::App, b"reachable", Why::Busy, Duration::ZERO)]);

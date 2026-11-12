@@ -38,7 +38,7 @@ fn forgejo_repo_search_request_without_page_and_limit_keeps_sort_and_order() {
     assert_eq!(encoded.method, method);
     assert_eq!(&*encoded.target, target);
     assert_eq!(encoded.body, None);
-    assert!(body.is_empty());
+    assert_eq!(body, []);
     let mut limits = forgejo::limits();
     limits.target_bytes = 38;
     client::encode(&request, &limits).unwrap();
@@ -152,7 +152,7 @@ fn forgejo_repo_search_decodes_ok_and_rows() {
     let body = br#"{"ok":true,"data":[]}"#;
     let decoded = forgejo::decode(&request(), body);
     assert_eq!(decoded.document, Ok(Document::RepoSearch { ok: true }));
-    assert!(decoded.rows.is_empty());
+    assert_eq!(decoded.rows.len(), 0);
 }
 #[test]
 fn forgejo_repo_search_ok_false_is_reported_not_hidden() {

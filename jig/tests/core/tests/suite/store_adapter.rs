@@ -222,7 +222,7 @@ fn a_dropped_transcript_leaves_no_turn_of_its_task() {
     for number in [5, 6] {
         store.submit(number, Box::new([header(number), root::Write::DropTranscript { task: LIVE }]), 0);
         assert_eq!(store.tick(false), Ok(Some(number)));
-        assert!(window_turns(&mut store, LIVE).is_empty());
+        assert_eq!(window_turns(&mut store, LIVE).len(), 0);
         assert!(!store.rows.keys().any(
             |key| matches!(key, root::Key::Core(core::Key::Core(core::CoreKey::Turn { task, .. })) if *task == LIVE)
         ));

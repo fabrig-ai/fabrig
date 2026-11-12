@@ -357,7 +357,7 @@ fn a_push_to_another_branch_starts_no_run() {
     world.run_for(20);
     assert!(row(&world).record.run.is_none());
     assert_eq!(row(&world).record.sequence, 1);
-    assert!(selections(&world.take_calls()).is_empty());
+    assert_eq!(selections(&world.take_calls()).len(), 0);
 }
 fn restarted_part(seed: u64, wanted: u8) {
     let mut world = world(seed, Box::new([]), true);

@@ -161,17 +161,7 @@ pub(super) fn admitted(
         Application::Try { account, again } => {
             sweep_answers(domain, env);
             let answer = super::trials::asked(domain, env, person, account, again);
-            domain
-                .try_answers
-                .insert(
-                    token,
-                    (
-                        answer,
-                        env.now.saturating_add(retention),
-                        skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(retention.as_nanos())),
-                    ),
-                )
-                .expect("one marker per retained key");
+            keep_trial_answer(domain, token, retention, answer, env);
             finished(domain, request, Ok(token));
         }
         Application::AddDevice(call) => {
@@ -227,6 +217,26 @@ pub(super) fn admitted(
             domain.work.push(Work::Forge(forge::Event::Application { request, token, retention, ask, role, carried }));
         }
     }
+}
+
+fn keep_trial_answer(
+    domain: &mut Domain,
+    token: Token,
+    retention: Duration,
+    answer: crate::TryAnswer,
+    env: &skein_lib::Env<crate::Limits>,
+) {
+    domain
+        .try_answers
+        .insert(
+            token,
+            (
+                answer,
+                env.now.saturating_add(retention),
+                skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(retention.as_nanos())),
+            ),
+        )
+        .expect("one marker per retained key");
 }
 
 pub(super) fn drop(domain: &mut Domain, owner: Token) {

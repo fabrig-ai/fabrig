@@ -122,7 +122,7 @@ fn a_persons_procedure_goal_shows_the_actual_live_connector_panel_on_its_task_pa
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
     assert!(outcome.judged.0 > 0);
-    assert!(world.front().session.driver.world.peers.as_ref().expect("actual worker").workers[0].seen.is_empty());
+    assert_eq!(world.front().session.driver.world.peers.as_ref().expect("actual worker").workers[0].seen.len(), 0);
 }
 
 fn effect_configuration(configuration: &mut jig_test_domain::Config, owner: &jig_test_domain::Limits) {
@@ -205,5 +205,5 @@ fn a_proposed_effect_shows_its_real_connector_description_in_the_proposal_card()
         )),
         "a description does not make the proposed effect"
     );
-    assert!(engine.systems[0].observed().is_empty());
+    assert_eq!(engine.systems[0].observed(), []);
 }

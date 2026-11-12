@@ -154,7 +154,7 @@ fn log_time(bytes: &[u8]) -> Option<(&[u8], usize)> {
         end += 1;
     } else {
         let offset = bytes.get(end..end + 6)?;
-        if ![b'+', b'-'].contains(&offset[0])
+        if !b"+-".contains(&offset[0])
             || offset[3] != b':'
             || ![1, 2, 4, 5].iter().all(|i| offset[*i].is_ascii_digit())
         {

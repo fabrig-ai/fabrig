@@ -44,7 +44,7 @@ fn a_run_placed_on_the_engine_slots_is_settled_as_not_started_by_a_restart_befor
     let mut domain = jig_fleet_world::fixtures::domain(&limits, jig_fleet_world::fixtures::needs());
     let task = Token::new(1);
     let attempt = Token::new(2);
-    assert!(
+    assert_eq!(
         step(
             &mut domain,
             limits,
@@ -59,8 +59,7 @@ fn a_run_placed_on_the_engine_slots_is_settled_as_not_started_by_a_restart_befor
                 kinds: Kinds::Engine,
                 assignment: refs()
             }
-        )
-        .is_empty()
+        ).len(), 0
     );
     assert_eq!(
         place(&mut domain, limits),
@@ -76,7 +75,7 @@ fn a_run_placed_on_the_engine_slots_is_settled_as_not_started_by_a_restart_befor
             Request::Placed { run: task, attempt },
         ]
     );
-    assert!(step(&mut domain, limits, Event::Lost { channel: Token::new(0) }).is_empty());
+    assert_eq!(step(&mut domain, limits, Event::Lost { channel: Token::new(0) }).len(), 0);
     assert_eq!(domain.attempts(), 1, "the local host stays until restart");
     let mut restarted = jig_fleet_world::fixtures::domain(&limits, jig_fleet_world::fixtures::needs());
     assert_eq!(
@@ -122,7 +121,7 @@ fn a_charter_for_workers_only_waits_while_only_engine_slots_are_free() {
     let mut domain = jig_fleet_world::fixtures::domain(&limits, jig_fleet_world::fixtures::needs());
     let task = Token::new(3);
     let attempt = Token::new(4);
-    assert!(
+    assert_eq!(
         step(
             &mut domain,
             limits,
@@ -137,12 +136,11 @@ fn a_charter_for_workers_only_waits_while_only_engine_slots_are_free() {
                 kinds: Kinds::Workers,
                 assignment: refs()
             }
-        )
-        .is_empty()
+        ).len(), 0
     );
-    assert!(place(&mut domain, limits).is_empty());
+    assert_eq!(place(&mut domain, limits).len(), 0);
     assert_eq!(domain.waiting(), 1);
-    assert!(
+    assert_eq!(
         step(
             &mut domain,
             limits,
@@ -158,8 +156,7 @@ fn a_charter_for_workers_only_waits_while_only_engine_slots_are_free() {
                     hosting: Box::new([]),
                 }
             }
-        )
-        .is_empty()
+        ).len(), 0
     );
     assert_eq!(
         place(&mut domain, limits),
@@ -183,7 +180,7 @@ fn a_worker_holding_the_workstream_is_preferred_over_a_free_engine_slot() {
     let mut domain = jig_fleet_world::fixtures::domain(&limits, jig_fleet_world::fixtures::needs());
     let task = Token::new(9);
     let attempt = Token::new(10);
-    assert!(
+    assert_eq!(
         step(
             &mut domain,
             limits,
@@ -199,10 +196,9 @@ fn a_worker_holding_the_workstream_is_preferred_over_a_free_engine_slot() {
                     hosting: Box::new([]),
                 }
             }
-        )
-        .is_empty()
+        ).len(), 0
     );
-    assert!(
+    assert_eq!(
         step(
             &mut domain,
             limits,
@@ -217,8 +213,7 @@ fn a_worker_holding_the_workstream_is_preferred_over_a_free_engine_slot() {
                 kinds: Kinds::Both,
                 assignment: refs()
             }
-        )
-        .is_empty()
+        ).len(), 0
     );
     assert_eq!(
         place(&mut domain, limits),
@@ -296,7 +291,7 @@ fn a_worker_refused_for_its_agent_hosts_nothing() {
         domain.hello_refusals().as_slice()[0].why,
         fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Turns { charter: 1 } }
     );
-    assert!(place(&mut domain, limits).is_empty());
+    assert_eq!(place(&mut domain, limits).len(), 0);
     assert_eq!(domain.workers(), 0);
     assert_eq!(domain.waiting(), 1);
 }
@@ -322,7 +317,7 @@ fn worker_needs() -> fleet::Needs {
 
 fn waiting_worker(limits: Limits) -> Domain {
     let mut domain = jig_fleet_world::fixtures::domain(&limits, worker_needs());
-    assert!(
+    assert_eq!(
         step(
             &mut domain,
             limits,
@@ -337,8 +332,7 @@ fn waiting_worker(limits: Limits) -> Domain {
                 kinds: Kinds::Workers,
                 assignment: refs(),
             }
-        )
-        .is_empty()
+        ).len(), 0
     );
     domain
 }
@@ -384,7 +378,7 @@ fn startup_and_hello_check_only_the_charters_for_the_host_kind() {
             assert!(matches!(requests.as_slice(), [Request::Refuse { channel: actual, .. }] if *actual == channel));
             assert_eq!(domain.hello_refusals().as_slice()[0].why, fleet::HelloRefusal::Agent { why });
         } else {
-            assert!(requests.is_empty());
+            assert_eq!(requests.len(), 0);
             assert!(domain.hello_refusals().is_empty());
         }
     }

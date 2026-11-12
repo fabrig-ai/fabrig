@@ -175,7 +175,7 @@ fn the_press_opens_before_transport_and_the_answer_points_without_return() {
     assert!(answer.navigate.is_none());
     assert!(!answer.asked.iter().any(|ask| matches!(ask, Asked::Exchange { .. })), "no Return exchange");
     let settled = host.report(Report::Carried { reports: Vec::new(), writes: answer.writes });
-    assert!(settled.tab.is_empty());
+    assert_eq!(settled.tab.len(), 0);
     assert!(!settled.asked.iter().any(|ask| matches!(ask, Asked::Exchange { .. })), "no saved Return");
 }
 #[test]
@@ -183,7 +183,7 @@ fn a_refused_tab_never_points_from_the_answer() {
     let (mut host, _) = press_sign_in();
     host.report(Report::TabRefused);
     let answer = answer_sign_in(&mut host);
-    assert!(answer.tab.is_empty());
+    assert_eq!(answer.tab.len(), 0);
     assert!(answer.navigate.is_none());
 }
 

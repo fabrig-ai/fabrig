@@ -51,9 +51,9 @@ impl States {
             return Err(failure);
         };
         let mut text = [0_u8; 32];
-        for (pair, byte) in text.chunks_exact_mut(2).zip(random) {
-            *pair.first_mut().expect("two hex digits") = hex_digit(byte.wrapping_shr(4));
-            *pair.get_mut(1).expect("two hex digits") = hex_digit(*byte);
+        for ([high, low], byte) in text.as_chunks_mut::<2>().0.iter_mut().zip(random) {
+            *high = hex_digit(byte.wrapping_shr(4));
+            *low = hex_digit(*byte);
         }
         for entry in &self.entries {
             if entry.state.as_ref() == text {

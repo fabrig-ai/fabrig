@@ -42,8 +42,8 @@ fn project_holds_are_erased_without_touching_other_scopes_or_projects() {
     }
     assert_eq!(test.domain.funding_records().len(), 1);
     assert_eq!(test.domain.funding(other), Some(&other_before));
-    assert!(test.send(Event::CloseProject { project: 1 }).is_empty());
-    assert!(test.send(Event::CloseProject { project: 99 }).is_empty());
+    assert_eq!(test.send(Event::CloseProject { project: 1 }).len(), 0);
+    assert_eq!(test.send(Event::CloseProject { project: 99 }).len(), 0);
 }
 
 #[test]
@@ -69,13 +69,13 @@ fn allotments_post_before_the_period_is_closed() {
                 } else if row.funder == period {
                     assert!(posted);
                     assert_eq!(row.numbers.spent, 3);
-                    assert_eq!((row.numbers.spent_below, row.numbers.reserved), (18, 0));
+                    assert_eq!(row.numbers.spent_below, row.numbers.reserved), (18, 0);
                     closed_period = true;
                 }
             } else if let Stored::Ledger(row) = record {
                 assert_eq!(row.funder, period);
                 assert!(closed_pool);
-                assert_eq!((row.numbers.spent_below, row.numbers.reserved), (18, 0));
+                assert_eq!(row.numbers.spent_below, row.numbers.reserved), (18, 0);
                 posted = true;
             }
         }
@@ -89,7 +89,7 @@ fn period_opening_requires_the_cores_project_gate() {
     let mut test = Harness::new();
     test.send(Event::CloseProject { project: 1 });
     assert!(test.domain.funding_records().is_empty());
-    assert!(test.send(Event::PeriodNext { project: 1, period: 1, next: None }).is_empty());
+    assert_eq!(test.send(Event::PeriodNext { project: 1, period: 1, next: None }).len(), 0);
     // OpenPeriod is an authorized allocation from the core, which owns deleted project identities.
     test.send(Event::OpenPeriod { reply_to: to(), project: 1, period: 1, budget: 100 });
     assert!(test.domain.funding(Funder::Period { project: 1, period: 1 }).is_some());

@@ -631,7 +631,7 @@ fn contract_text_is_bounded_and_change_checks_are_required() {
         assert_eq!(no_change.name.as_ref(), b"no_change");
         assert_eq!(no_change.text_max, words.min(crate::CONTRACT_TEXT_MAX));
         assert!(no_change.fields.is_empty());
-        assert_eq!((no_change.items.min, no_change.items.max), (0, 0));
+        assert_eq!(no_change.items.min, no_change.items.max), (0, 0);
         let rule = change.contract.change.expect("change rule");
         assert!(rule.checks_must_pass);
         assert_eq!(rule.checks_must_pass, crate::CONTRACT_CHECKS_MUST_PASS);
@@ -853,7 +853,7 @@ fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
     .expect("hosted assignment");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&result.assignment.charter)).unwrap();
     assert_eq!(decoded.brief().len(), 19);
-    for ((_, title), pair) in titles.iter().zip(decoded.brief().as_slice().chunks_exact(2)) {
+    for ((_, title), pair) in titles.iter().zip(decoded.brief().as_slice().as_chunks::<2>().0) {
         assert_eq!(pair[0].title(), *title);
         assert_eq!(pair[0].body(), b"section text");
         assert_eq!(pair[1].title(), *title);

@@ -713,7 +713,7 @@ fn without_records_serves_past_a_zero_cap() {
             support::assert_panic(result, "the world's referee observation count fits its configured cap");
         } else {
             assert!(result.unwrap().starts_with(b"HTTP/1.1 200"));
-            assert!(peer.observations().is_empty());
+            assert_eq!(peer.observations(), []);
         }
     }
 }

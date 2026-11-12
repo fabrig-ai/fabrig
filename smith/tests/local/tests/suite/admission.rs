@@ -37,7 +37,7 @@ fn a_one_turn_budget_refuses_before_any_provider_completion() {
             "the reserve refusal names its part and invents no provider prose"
         );
         assert_eq!(world.completions(), 0, "reserve refusal starts no provider request");
-        assert!(world.prompt_texts().is_empty());
+        assert_eq!(world.prompt_texts(), []);
     }
 }
 

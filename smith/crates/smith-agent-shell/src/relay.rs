@@ -230,7 +230,6 @@ impl Host for Process {
 }
 
 /// Drive the shipped relay with arguments, environment, signals and the kernel (smith/docs/design/protocol/programs.md, section 5.3).
-#[must_use]
 pub fn main() -> ExitCode {
     let arguments: Vec<Box<[u8]>> = std::env::args_os().skip(1).map(|argument| argument.as_bytes().into()).collect();
     let environment: Vec<Box<[u8]>> = std::env::vars_os()

@@ -124,7 +124,7 @@ fn late_copies_retries_and_each_recovery_class_keep_their_promise() {
     let kept = keep(&mut unrecoverable, 1, 4, 14, 8, None);
     unrecoverable.release(&kept, &mut VecDeque::from([Fault::Late]));
     unrecoverable.wall = 7;
-    assert!(unrecoverable.fire().is_empty());
+    assert_eq!(unrecoverable.fire().len(), 0);
     assert_eq!(unrecoverable.system.observed().len(), 0);
     assert!(
         unrecoverable.trace().iter().any(|request| matches!(request, Request::Outcome { outcome: Outcome::Held, .. }))
@@ -168,9 +168,9 @@ fn procedures_require_answers_and_current_facts_and_replay_the_same_decision() {
     };
     let first = step(&mut world, ProcedureSignal::Activate);
     assert!(matches!(first.last(), Some(Request::Step { decision: StepDecision::Effect(..), .. })));
-    assert!(step(&mut world, ProcedureSignal::Message).is_empty());
+    assert_eq!(step(&mut world, ProcedureSignal::Message).len(), 0);
     world.cold_restart();
-    assert!(step(&mut world, ProcedureSignal::Message).is_empty());
+    assert_eq!(step(&mut world, ProcedureSignal::Message).len(), 0);
     assert!(matches!(
         step(&mut world, ProcedureSignal::Settled).last(),
         Some(Request::Step { decision: StepDecision::Delegate { .. }, .. })
@@ -189,7 +189,7 @@ fn procedures_require_answers_and_current_facts_and_replay_the_same_decision() {
         step(&mut world, ProcedureSignal::Message).last(),
         Some(Request::Step { decision: StepDecision::Finish { .. }, .. })
     ));
-    assert!(step(&mut world, ProcedureSignal::Message).is_empty());
+    assert_eq!(step(&mut world, ProcedureSignal::Message).len(), 0);
 }
 
 #[test]
@@ -257,8 +257,8 @@ fn shrinking_pools_news_and_values_cross_the_root_once() {
     assert_eq!(subscribers.len(), 3);
     assert_eq!(subscribers.iter().filter(|subscriber| subscriber.class == Class::Wake).count(), 2);
     assert_eq!(subscribers.iter().filter(|subscriber| subscriber.class == Class::Keep).count(), 1);
-    assert!(world.event(Event::System(SystemEvent::News { topic, importance: 1, origin: Origin::Other })).is_empty());
-    assert!(world.event(Event::System(SystemEvent::News { topic, importance: 5, origin: Origin::Own })).is_empty());
+    assert_eq!(world.event(Event::System(SystemEvent::News { topic, importance: 1, origin: Origin::Other })).len(), 0);
+    assert_eq!(world.event(Event::System(SystemEvent::News { topic, importance: 5, origin: Origin::Own })).len(), 0);
     let token = Token::new(9);
     assert!(
         matches!(world.event(Event::Read { token, read: Read { resource: resource.clone(), size: 8 } }).as_slice(), [Request::Answer { bytes, .. }] if bytes.len() == 8)
@@ -271,15 +271,15 @@ fn shrinking_pools_news_and_values_cross_the_root_once() {
     assert!(
         matches!(world.event(Event::HandOver { token }).as_slice(), [Request::Section { bytes, .. }] if bytes.len() == 9)
     );
-    assert!(world.event(Event::HandOver { token }).is_empty());
+    assert_eq!(world.event(Event::HandOver { token }).len(), 0);
     assert!(matches!(world.event(Event::Items { token, task: 1 }).as_slice(), [Request::Ready { size: 1, .. }]));
     assert!(
         matches!(world.event(Event::HandOver { token }).as_slice(), [Request::Workspace { items, .. }] if items.len() == 1)
     );
-    assert!(world.event(Event::HandOver { token }).is_empty());
+    assert_eq!(world.event(Event::HandOver { token }).len(), 0);
     world.event(Event::Gather { token, task: 1, budget: 8 });
     world.event(Event::Drop { token });
-    assert!(world.event(Event::HandOver { token }).is_empty());
+    assert_eq!(world.event(Event::HandOver { token }).len(), 0);
 }
 
 #[test]
@@ -342,7 +342,7 @@ fn a_persons_retry_preserves_the_previous_attempt_deadline_across_restart() {
     world.wall = deadline.as_nanos() - 1;
     world.cold_restart();
     world.settle_restart(&mut VecDeque::new());
-    assert!(world.system.observed().is_empty());
+    assert_eq!(world.system.observed(), []);
     world.wall = deadline.as_nanos();
     let due = world.fire();
     assert!(matches!(due.as_slice(), [Request::Save { .. }, Request::System(SystemRequest::Apply { attempt: 4, .. })]));

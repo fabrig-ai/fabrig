@@ -366,7 +366,7 @@ fn a_refresh_naming_no_scope_keeps_the_granted_scopes() {
     prior.granted_scopes = Some(boxed(b"read"));
     let expected = prior.granted_scopes.clone();
     let record = refreshed(&prior, success(b"access", Some(b"next"), 0));
-    assert!(record.granted_scopes == expected);
+    assert_eq!(record.granted_scopes, expected);
 }
 #[test]
 fn a_refresh_keeps_the_subject_and_id_token() {
@@ -378,7 +378,7 @@ fn a_refresh_keeps_the_subject_and_id_token() {
     let fake::Body::Token(answer) = &mut plan.body else { panic!("token plan") };
     answer.id_token = Some(skein_lib::Secret::new(boxed(b"replacement.header.signature")));
     let record = refreshed(&prior, plan);
-    assert!((record.subject, record.id_token) == expected);
+    assert_eq!((record.subject, record.id_token), expected);
 }
 #[test]
 fn a_current_record_refreshes_and_keeps_its_generation() {
@@ -387,7 +387,7 @@ fn a_current_record_refreshes_and_keeps_its_generation() {
     let saved = oauth::encode_record(&record, &documents()).expect("saved");
     assert_eq!(saved.get(..2), Some(b"\x00\x03".as_slice()));
     let restored = oauth::decode_record(&saved, &documents()).expect("version three");
-    assert!(restored.refresh_token == Some(skein_lib::Secret::new(boxed(b"next"))));
+    assert_eq!(restored.refresh_token, Some(skein_lib::Secret::new(boxed(b"next"))));
     assert_eq!(restored.generation, 3);
 }
 

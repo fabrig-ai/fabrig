@@ -276,7 +276,6 @@ pub const TABLE: Table = Table {
     more: "temper-qa COMMAND --help prints a command; read temper/docs/design/testing/qa/README.md.",
 };
 
-#[must_use]
 #[expect(
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-qa's arguments and environment, once (skein/docs/foundation/cli.md, 6)"
@@ -490,7 +489,7 @@ fn record(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8]>])
         let notes = std::str::from_utf8(notes).expect("checked notes");
         if command == &OUTCOME {
             let findings = tail
-                .chunks_exact(2)
+                .as_chunks::<2>().0.iter()
                 .map(|pair| {
                     std::str::from_utf8(pair.get(1).expect("finding value"))
                         .expect("checked finding")

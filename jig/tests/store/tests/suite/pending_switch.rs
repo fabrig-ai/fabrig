@@ -53,7 +53,7 @@ fn a_patched_copy_opens_pending_and_switches_when_asked() {
     world.crash(SEED);
     assert_eq!(world.open(), Some(RESTORED_LAST));
     assert!(!world.pending);
-    assert!(world.patched().is_empty());
+    assert_eq!(world.patched(), []);
     assert_eq!(world.application(true).get(RESTORED_KEY), Some(&Box::from(RESTORED_VALUE)));
 }
 
@@ -67,7 +67,7 @@ fn a_start_that_ends_before_asking_leaves_the_old_generation_active() {
     assert_eq!(world.active(), b"1\n");
     assert_eq!(world.open(), Some(PATCHED_LAST));
     assert!(world.pending);
-    assert!(!world.patched().is_empty());
+    assert_ne!(world.patched(), []);
     assert!(!world.application(false).contains_key(RESTORED_KEY));
     assert!(!world.paths().iter().any(|path| path == b"generations/2/pending-copy"));
     patches::kept(&original, &patches::source(&mut world), &"abandoned restore");

@@ -56,9 +56,9 @@ pub fn decode(word: &[u8], body: &[u8]) -> Option<Box<[u8]>> {
         }
     }
     let mut out = Writer::new(end / 2);
-    for pair in digits.chunks_exact(2) {
-        let high = bytes::hex_value(*pair.first()?)?;
-        let low = bytes::hex_value(*pair.get(1)?)?;
+    for &[high, low] in digits.as_chunks::<2>().0 {
+        let high = bytes::hex_value(high)?;
+        let low = bytes::hex_value(low)?;
         out.put(&[high.checked_mul(16)?.checked_add(low)?]).ok()?;
     }
     Some(out.finish())

@@ -817,7 +817,7 @@ fn change(value: &Value, models: &[engine::Model]) -> Result<engine::ChangeCall,
                 return Err(Problem::Range(b"repairs"));
             }
             let mut commit = [0_u8; 32];
-            for (pair, cell) in text.chunks_exact(2).zip(&mut commit) {
+            for (pair, cell) in text.as_chunks::<2>().0.iter().zip(&mut commit) {
                 for digit in pair {
                     let nibble = match digit {
                         b'0'..=b'9' => digit.saturating_sub(b'0'),
@@ -913,7 +913,7 @@ fn merge_commit(value: &Value) -> Result<[u8; 32], Problem> {
         return Err(Problem::Range(b"merge"));
     }
     let mut commit = [0_u8; 32];
-    for (pair, cell) in text.chunks_exact(2).zip(&mut commit) {
+    for (pair, cell) in text.as_chunks::<2>().0.iter().zip(&mut commit) {
         let mut byte = 0_u8;
         for digit in pair {
             let digit = match digit.to_ascii_lowercase() {

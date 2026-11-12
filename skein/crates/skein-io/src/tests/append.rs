@@ -92,7 +92,7 @@ fn inherited_write_pipe_close_replaces_the_write_deadline() {
     assert_eq!(rig.io.next_deadline(), Some(Time::ZERO.saturating_add(Duration::from_secs(1))));
     rig.at(Time::ZERO.saturating_add(Duration::from_millis(10))).nothing();
     let mut expired = rig.at(Time::ZERO.saturating_add(Duration::from_secs(1)));
-    assert!(expired.events.is_empty());
+    assert_eq!(expired.events.len(), 0);
     let cancel = expired.take(Kind::Cancel);
     rig.complete(cancel, Ok(Done::Nothing)).nothing();
     let close = rig.complete(first, Err(Error::Cancelled)).take(Kind::Close);
@@ -116,7 +116,7 @@ fn inherited_write_pipe_retries_a_cancel_the_backend_could_not_submit() {
     let first = send(&mut rig, stream, b"one").take(Kind::PipeWrite);
     let cancel = rig.at(Time::ZERO.saturating_add(Duration::from_millis(10))).take(Kind::Cancel);
     let mut retried = rig.complete(cancel, Err(Error::Other(12)));
-    assert!(retried.events.is_empty());
+    assert_eq!(retried.events.len(), 0);
     let cancel = retried.take(Kind::Cancel);
     rig.complete(first, Err(Error::Cancelled)).nothing();
     let close = rig.complete(cancel, Ok(Done::Nothing)).take(Kind::Close);
@@ -221,7 +221,7 @@ fn abort_drops_the_queue_cancels_the_append_and_only_closes() {
     let first = send(&mut rig, stream, b"one").take(Kind::Append);
     send(&mut rig, stream, b"two").nothing();
     let mut aborted = rig.down(Request::Abort { entity: stream });
-    assert!(aborted.events.is_empty());
+    assert_eq!(aborted.events.len(), 0);
     let cancel = aborted.take(Kind::Cancel);
     rig.complete(first, Err(Error::Cancelled)).nothing();
     let close = rig.complete(cancel, Ok(Done::Nothing)).take(Kind::Close);
@@ -245,7 +245,7 @@ fn a_cancel_the_backend_could_not_submit_is_retried_without_another_failure() {
     let first = send(&mut rig, stream, b"one").take(Kind::Append);
     let cancel = rig.at(Time::ZERO.saturating_add(Duration::from_millis(10))).take(Kind::Cancel);
     let mut retried = rig.complete(cancel, Err(Error::Other(12)));
-    assert!(retried.events.is_empty());
+    assert_eq!(retried.events.len(), 0);
     let cancel = retried.take(Kind::Cancel);
     rig.complete(first, Err(Error::Cancelled)).nothing();
     let close = rig.complete(cancel, Ok(Done::Nothing)).take(Kind::Close);
@@ -299,14 +299,14 @@ fn no_timeout_write_error_spills_the_queue_without_continuing_short_writes_or_re
     assert_eq!(failed.events, [Event::Stream { owner: stream, up: Up::Failed(Fault::Reset) }]);
     let second = failed.take(Kind::PipeWrite);
     let Op::PipeWrite { bytes, from, .. } = &second.kind else { panic!("queued write") };
-    assert_eq!((bytes.as_ref(), *from), (&b"two"[..], 0));
+    assert_eq!(bytes.as_ref(), *from), (&b"two"[..], 0);
     let mut spilled = rig.complete(second, Ok(Done::Count(1)));
-    assert!(spilled.events.is_empty());
+    assert_eq!(spilled.events.len(), 0);
     let third = spilled.take(Kind::PipeWrite);
     let Op::PipeWrite { bytes, from, .. } = &third.kind else { panic!("queued write") };
-    assert_eq!((bytes.as_ref(), *from), (&b"e"[..], 0));
+    assert_eq!(bytes.as_ref(), *from), (&b"e"[..], 0);
     let mut ignored = rig.complete(third, Err(Error::BrokenPipe));
-    assert!(ignored.events.is_empty());
+    assert_eq!(ignored.events.len(), 0);
     let close = ignored.take(Kind::Close);
     finish(&mut rig, stream, close);
 }

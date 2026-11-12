@@ -2423,7 +2423,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                     return false;
                 }
                 let mut commit = [0_u8; 32];
-                for (pair, cell) in value.chunks_exact(2).zip(&mut commit) {
+                for (pair, cell) in value.as_chunks::<2>().0.iter().zip(&mut commit) {
                     for digit in pair {
                         let nibble = match digit {
                             b'0'..=b'9' => digit.saturating_sub(b'0'),
@@ -6187,7 +6187,7 @@ fn catch_up_commit(text: &[u8]) -> Option<[u8; 32]> {
         return None;
     }
     let mut commit = [0_u8; 32];
-    for (pair, cell) in text.chunks_exact(2).zip(&mut commit) {
+    for (pair, cell) in text.as_chunks::<2>().0.iter().zip(&mut commit) {
         let mut byte = 0_u8;
         for digit in pair {
             let digit = match digit {

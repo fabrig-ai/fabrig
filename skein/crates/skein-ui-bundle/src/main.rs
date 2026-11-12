@@ -35,7 +35,7 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
     let mut gzip = None;
     let mut markup = None;
     let mut stylesheet = None;
-    let mut pairs = args.chunks_exact(2);
+    let mut pairs = args.as_chunks::<2>().0;
     for pair in &mut pairs {
         let value = &pair[1];
         match pair[0].as_str() {

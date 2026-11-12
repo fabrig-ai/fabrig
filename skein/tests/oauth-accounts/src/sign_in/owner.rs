@@ -194,7 +194,7 @@ fn keep(client: &mut Client, env: &Env<accounts::Limits>, account: u32, record: 
     let size = if super::owner(client).large { 256 } else { 16 };
     assert_eq!(record.access_token.expose(), vec![if generation == 1 { b'a' } else { b'b' }; size]);
     if matches!(story, Story::Profile(_)) && generation == 2 {
-        assert!(record.id_token == super::owner(client).records.first().expect("sign-in record").id_token);
+        assert_eq!(record.id_token, super::owner(client).records.first().expect("sign-in record").id_token);
     }
     super::owner_mut(client).records.push(record);
     if story == Story::PasteThenListener && super::owner(client).callback != super::paste::Callback::Finished {
@@ -257,7 +257,7 @@ pub(crate) fn observe(client: &mut Client, env: &Env<accounts::Limits>) {
             }
             accounts::Event::SignedIn { account, generation, missing, subject, profile } => {
                 if matches!(story, Story::OpenIdAgain | Story::IssuedClientId) {
-                    assert!(subject.as_deref() == Some(super::SUBJECT));
+                    assert_eq!(subject.as_deref(), Some(super::SUBJECT));
                 }
                 signed_in(client, env, account, generation, missing);
                 let expected = if matches!(story, Story::Profile(_)) {

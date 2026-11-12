@@ -345,12 +345,11 @@ fn abandoned_read_and_closing_watch_tokens_cannot_recreate_a_page() {
         }),
     );
     assert_eq!(root.infrastructure().page(), None);
-    assert!(
+    assert_eq!(
         drive(
             &mut root,
             Event::Infrastructure(infrastructure::Event::Ended { watch, end: infrastructure::WatchEnd::Closed })
-        )
-        .is_empty()
+        ).len(), 0
     );
 }
 #[test]

@@ -92,7 +92,7 @@ fn a_second_run_writes_nothing() {
     let since = world.requests().len();
     let files = fixtures::file_writes(&world);
     assert_eq!(world.reconcile(), Ended::Done);
-    assert!(fixtures::write_routes(&world, since).is_empty());
+    assert_eq!(fixtures::write_routes(&world, since).len(), 0);
     assert_eq!(fixtures::file_writes(&world), files);
 }
 #[test]

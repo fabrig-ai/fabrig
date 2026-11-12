@@ -1,0 +1,717 @@
+warning: unused workspace dependency `jig-channel-world`
+   --> Cargo.toml:616:1
+    |
+616 | jig-channel-world = { path = "jig/tests/channel" }
+    | ^^^^^^^^^^^^^^^^^
+    |
+    = note: `cargo::unused_workspace_dependencies` is set to `warn` by default
+help: consider removing the workspace dependency `jig-channel-world`
+warning: unused workspace dependency `jig-client-world`
+   --> Cargo.toml:542:1
+    |
+542 | jig-client-world = { path = "jig/tests/client" }
+    | ^^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `jig-client-world`
+warning: unused workspace dependency `jig-core-world`
+   --> Cargo.toml:667:1
+    |
+667 | jig-core-world = { path = "jig/tests/core" }
+    | ^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `jig-core-world`
+warning: unused workspace dependency `jig-people-world`
+   --> Cargo.toml:669:1
+    |
+669 | jig-people-world = { path = "jig/tests/people" }
+    | ^^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `jig-people-world`
+warning: unused workspace dependency `jig-tasks-world`
+   --> Cargo.toml:668:1
+    |
+668 | jig-tasks-world = { path = "jig/tests/tasks" }
+    | ^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `jig-tasks-world`
+warning: unused workspace dependency `jig-test-connector-world`
+   --> Cargo.toml:551:1
+    |
+551 | jig-test-connector-world = { path = "jig/tests/test-connector" }
+    | ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `jig-test-connector-world`
+warning: unused workspace dependency `smith-run-world`
+   --> Cargo.toml:515:1
+    |
+515 | smith-run-world = { path = "smith/tests/run" }
+    | ^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `smith-run-world`
+warning: unused workspace dependency `temper-client-web-page`
+   --> Cargo.toml:623:1
+    |
+623 | temper-client-web-page = { path = "temper/crates/temper-client-web-page" }
+    | ^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `temper-client-web-page`
+warning: unused workspace dependency `temper-playground-page`
+   --> Cargo.toml:624:1
+    |
+624 | temper-playground-page = { path = "temper/crates/temper-playground-page" }
+    | ^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: consider removing the workspace dependency `temper-playground-page`
+warning: workspace (manifest) generated 9 warnings
+    Checking skein-codec v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-codec)
+    Checking skein-http v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-http)
+    Checking skein-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-shell)
+    Checking skein-forge v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-forge)
+    Checking jig-client-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-client-domain)
+    Checking smith-domain-run v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-domain-run)
+    Checking jig-domain-fleet v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-domain-fleet)
+    Checking jig-domain-accounts v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-domain-accounts)
+    Checking smith-transcript v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-transcript)
+    Checking skein-oauth v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-oauth)
+    Checking jig-client-protocol-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-client-protocol-wire)
+    Checking skein-sim-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-sim-world)
+    Checking skein-llm v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-llm)
+    Checking skein-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-world)
+    Checking jig-domain-core v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-domain-core)
+    Checking smith-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-domain)
+    Checking smith-channel v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-channel)
+    Checking smith-charter v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-charter)
+    Checking skein-oauth-accounts v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-oauth-accounts)
+    Checking skein-fake-llm-protocol v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-fake-llm-protocol)
+    Checking smith-host-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-host-domain)
+    Checking skein-llm-connection v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-llm-connection)
+    Checking jig-protocol-transcript v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-transcript)
+    Checking skein-fake-forge-http v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-fake-forge-http)
+    Checking skein-fake-machine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-fake-machine)
+    Checking skein-fake-oauth v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-fake-oauth)
+    Checking smith-protocol-translate v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-protocol-translate)
+    Checking skein-fake-push v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-fake-push)
+    Checking skein-fake-forge-github v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-fake-forge-github)
+    Checking skein-fake-forge-forgejo v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-fake-forge-forgejo)
+    Checking temper-client-protocol-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-protocol-wire)
+    Checking smith-protocol-llm v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-protocol-llm)
+    Checking smith-protocol-machine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-protocol-machine)
+    Checking smith-protocol-channel v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-protocol-channel)
+    Checking temper-protocol-records v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-protocol-records)
+    Checking smith-protocol-program v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-protocol-program)
+    Checking smith-protocol-events v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-protocol-events)
+    Checking jig-protocol-store v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-store)
+    Checking jig-protocol-tools v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-tools)
+    Checking jig-domain-hub-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-domain-hub-link)
+    Checking skein-fake-peers v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-fake-peers)
+    Checking jig-protocol-charter v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-charter)
+    Checking skein-llm-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-llm-kit)
+    Checking skein-forge-client v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-forge-client)
+    Checking jig-protocol-worker-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-worker-wire)
+    Checking smith-tools-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/tools)
+    Checking smith-host-protocol v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-host-protocol)
+    Checking smith-agent-profile v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-agent-profile)
+    Checking jig-protocol-worker-agents v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-worker-agents)
+    Checking temper-fetch v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-fetch)
+    Checking smith-agent-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-agent-service)
+    Checking smith-agent-document v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-agent-document)
+    Checking smith-agent-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-agent-shell)
+    Checking smith-session-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/session)
+    Checking skein-forge-connection v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-forge-connection)
+    Checking jig-conformance v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-conformance)
+    Checking smith-inline-agent v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-inline-agent)
+    Checking smith-agent-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/agent)
+    Checking temper-engine-domain-forge-issues v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-engine-domain-forge-issues)
+    Checking temper-engine-domain-forge-closer v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-engine-domain-forge-closer)
+    Checking jig-protocol-worker-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-worker-link)
+    Checking skein-forge-setup v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-forge-setup)
+    Checking jig-client-test-protocol-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-client-test-protocol-wire)
+    Checking temper-worker-domain-checkout v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-worker-domain-checkout)
+    Checking skein-ui-web v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-ui-web)
+    Checking jig-test-system v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test-system)
+    Checking smith-local-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-local-domain)
+    Checking temper-worker-protocol-git v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-worker-protocol-git)
+    Checking temper-protocol-worker-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-protocol-worker-wire)
+    Checking smith-fake-claude v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/fake-claude)
+    Checking temper-worker-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-worker-domain)
+    Checking smith-local-protocol v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-local-protocol)
+    Checking temper-protocol-brief v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-protocol-brief)
+    Checking smith-local-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-local-service)
+    Checking temper-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-shell)
+    Checking smith-agent-process-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/agent-process)
+    Checking jig-test-worker v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test-worker)
+    Checking temper-test-env v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/testing/temper-test-env)
+    Checking temper-fake-git v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-fake-git)
+    Checking skein-codegen v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-codegen)
+   Compiling temper-version v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-version)
+    Checking skein-throwaway-forgejo v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-throwaway-forgejo)
+    Checking temper-fetch-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-fetch-shell)
+    Checking skein-browser v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-browser)
+    Checking skein-ui-bundle v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-ui-bundle)
+    Checking smith-local-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/crates/smith-local-shell)
+    Checking skein-playground v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-playground)
+    Checking hearth-protocol-mmdebstrap v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/crates/hearth-protocol-mmdebstrap)
+error: could not compile `temper-fake-git` (lib) due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+    Checking smith-machine-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/machine)
+    Checking temper-launcher v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-launcher)
+    Checking hearth-protocol-template v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/crates/hearth-protocol-template)
+    Checking smith-host-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/host)
+    Checking hearth-domain-render v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/crates/hearth-domain-render)
+    Checking skein-fake-person-browser v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-fake-person-browser)
+    Checking temper-client-bundle v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-bundle)
+    Checking temper-protocol-reaches v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-protocol-reaches)
+    Checking hearth-client-protocol-records v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/crates/hearth-client-protocol-records)
+    Checking skein-forge-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-forge-kit)
+    Checking temper-init v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-init)
+    Checking temper-engine-domain-forge v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-engine-domain-forge)
+    Checking hearth-domain-builder v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/crates/hearth-domain-builder)
+    Checking temper-agent-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-agent-shell)
+    Checking hearth-protocol-builder v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/crates/hearth-protocol-builder)
+    Checking smith-local-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/local)
+    Checking hearth-test-fixtures v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/testing/hearth-test-fixtures)
+    Checking hearth-fake-machine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/testing/hearth-fake-machine)
+    Checking skein-ui-example-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/examples/ui/view)
+    Checking skein-ui-example-server v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/examples/ui/server)
+    Checking jig-client-fake-person-browser v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-client-fake-person-browser)
+    Checking hearth-test-git v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/testing/hearth-test-git)
+error: could not compile `hearth-protocol-builder` (lib) due to 1 previous error
+    Checking hearth-test-repository v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/testing/hearth-test-repository)
+error: could not compile `smith-local-shell` (lib) due to 2 previous errors
+    Checking skein-forge-conformance v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-forge-conformance)
+    Checking jig-tasks-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-tasks-kit)
+    Checking jig-ops-client-protocol-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/examples/ops/client-protocol-wire)
+    Checking jig-test-patches-smith v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test-patches-smith)
+    Checking skein-echo-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/examples/echo/shell)
+    Checking hearth-fake-mmdebstrap v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/testing/hearth-fake-mmdebstrap)
+    Checking hearth-fake-git v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/testing/hearth-fake-git)
+    Checking skein-ui-web-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/ui-web)
+    Checking skein-world-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/world)
+    Checking skein-http-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-http-kit)
+    Checking skein-echo-client v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-echo-client)
+    Checking jig-ops-protocol-observability v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/examples/ops/protocol-observability)
+error: could not compile `hearth-fake-git` (lib) due to 1 previous error
+    Checking skein-conformance-real v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/conformance/real)
+    Checking jig-people-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-people-kit)
+    Checking jig-test-patches-jig v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test-patches-jig)
+    Checking jig-test-patches v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test-patches)
+    Checking temper-worker-protocol-git-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/tests/worker/protocol-git)
+    Checking temper-qa-tool v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-qa-tool)
+    Checking jig-ops-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/examples/ops/domain)
+    Checking skein-browser-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/browser)
+    Checking temper-git-transcripts-tool v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-git-transcripts-tool)
+    Checking skein-io-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/io)
+    Checking temper-engine-domain-ways v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-engine-domain-ways)
+    Checking temper-engine-forge-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/tests/engine/forge)
+    Checking temper-playground-serve-tool v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-playground-serve-tool)
+    Checking github-conformance v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/forge/github)
+    Checking forgejo-conformance v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/forge/conformance)
+    Checking smith-channel-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/channel)
+    Checking skein-llm-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/llm)
+    Checking temper-engine-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-engine-domain)
+    Checking hearth-tree-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/tests/tree)
+    Checking jig-people-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/people)
+    Checking skein-echo-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/echo)
+    Checking skein-http-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/http)
+    Checking temper-engine-protocol-forge-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/tests/engine/protocol-forge)
+    Checking jig-tasks-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/tasks)
+    Checking hearth-git-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/tests/git)
+    Checking skein-protocol-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/protocol)
+    Checking skein-conformance-sim v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/conformance/sim)
+    Checking skein-tls-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/tls)
+    Checking hearth-mmdebstrap-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/tests/mmdebstrap)
+    Checking jig-test-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test-domain)
+    Checking temper-protocol-store v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-protocol-store)
+    Checking jig-store-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/store)
+    Checking skein-forge-setup-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/forge/setup)
+error: could not compile `hearth-mmdebstrap-world` (lib) due to 1 previous error
+    Checking skein-forge-protocol-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/forge/protocol)
+    Checking skein-forge-client-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/forge/client)
+    Checking skein-forge-machine-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/forge/machine)
+    Checking jig-test-store v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test-store)
+    Checking temper-codecs-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/tests/codecs)
+    Checking hearth-template-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/tests/template)
+    Checking hearth-config-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/tests/config)
+    Checking skein-playground-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/playground)
+    Checking jig-worker-link-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/worker-link)
+    Checking jig-test-connector-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/test-connector)
+error: could not compile `hearth-template-world` (lib) due to 1 previous error
+    Checking smith-protocol-llm-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/protocol-llm)
+    Checking skein-oauth-accounts-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/oauth-accounts)
+    Checking skein-llm-connection-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/llm-connection)
+    Checking skein-oauth-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/oauth)
+    Checking jig-test-store-files v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test-store-files)
+error: could not compile `forgejo-conformance` (lib) due to 1 previous error
+    Checking skein-fake-checkout-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/fake-checkout)
+    Checking skein-fake-peers-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/fake-peers)
+    Checking skein-kv-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/kv)
+    Checking skein-sim-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/sim)
+    Checking skein-oauth-issuer-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/oauth-issuer)
+    Checking jig-host-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/host)
+    Checking smith-run-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/run)
+    Checking skein-ring-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/ring)
+    Checking jig-brief-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/brief)
+    Checking jig-accounts-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/accounts)
+    Checking jig-fleet-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/fleet)
+    Checking jig-notes-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/notes)
+    Checking jig-client-views-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/views)
+    Checking skein-codec-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/codec)
+    Checking skein-codec-patches v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/codec-patches)
+    Checking smith-transcript-patches v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/transcript-patches)
+    Checking jig-worker-wire-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/worker-wire)
+    Checking smith-codecs-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/smith/tests/codecs)
+    Checking skein-lib-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/lib)
+error: could not compile `jig-fleet-world` (test "suite") due to 4 previous errors
+error: could not compile `skein-oauth-accounts-world` (test "suite") due to 5 previous errors
+error: could not compile `smith-codecs-world` (test "suite") due to 1 previous error
+error: could not compile `smith-run-world` (test "suite") due to 4 previous errors
+error: could not compile `skein-fake-checkout-tests` (test "suite") due to 1 previous error
+error: could not compile `jig-host-world` (test "suite") due to 12 previous errors
+    Checking skein-link-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/link)
+    Checking jig-protocol-engine-clients v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-engine-clients)
+    Checking jig-client-protocol-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-client-protocol-link)
+    Checking jig-client-test-records v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-client-test-records)
+    Checking temper-settings-form v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-settings-form)
+    Checking skein-ui-screen-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/ui-screen)
+    Checking temper-stage-one-tool v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-stage-one-tool)
+    Checking jig-test-profile v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test-profile)
+    Checking jig-core-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-core-kit)
+    Checking temper-stage-one v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/bin/temper-stage-one)
+    Checking jig-protocol-engine-clients-http v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-engine-clients-http)
+    Checking temper-engine-smith v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-engine-smith)
+    Checking jig-protocol-config v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-config)
+    Checking jig-client v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-client)
+    Checking jig-protocol-accounts v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-accounts)
+error: could not compile `temper-stage-one-tool` (lib test) due to 2 previous errors
+    Checking jig-protocol-engine-workers v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-protocol-engine-workers)
+    Checking jig-client-protocol-http v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-client-protocol-http)
+    Checking temper-forge-setup v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-forge-setup)
+    Checking temper-protocol-records-forge v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-protocol-records-forge)
+    Checking jig-client-scripted-engine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-client-scripted-engine)
+    Checking temper-service-core v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-service-core)
+    Checking jig-client-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-client-view)
+    Checking temper-client-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-domain)
+error: could not compile `temper-engine-smith` (lib) due to 4 previous errors
+    Checking temper-box-machine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-box-machine)
+    Checking jig-test-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test-service)
+    Checking jig-client-shell-native v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-client-shell-native)
+    Checking temper-fake v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-fake)
+    Checking temper-fixtures v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/testing/temper-fixtures)
+    Checking temper-forge-setup-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-forge-setup-shell)
+    Checking jig-protocol-accounts-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-protocol-accounts-kit)
+    Checking temper-twin-tool v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-twin-tool)
+    Checking jig-conformance-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/conformance)
+    Checking jig-engine-clients-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-engine-clients-kit)
+    Checking temper-client-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-view)
+    Checking temper-client-tools v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-tools)
+    Checking jig-test v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-test)
+    Checking jig-engine-clients-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/engine-clients)
+error: could not compile `temper-twin-tool` (lib) due to 1 previous error
+    Checking jig-protocol-accounts-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/protocol-accounts)
+    Checking jig-core-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/core)
+    Checking temper-client-shell-terminal v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-shell-terminal)
+    Checking temper-client-shell-cli v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-shell-cli)
+    Checking temper-client-tui v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-tui)
+    Checking jig-engine-workers-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/engine-workers)
+    Checking temper-client-shell-tui v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-shell-tui)
+    Checking temper-client-gallery-tool v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-gallery-tool)
+    Checking temper-client-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-shell)
+error: could not compile `temper-client-shell` (lib) due to 1 previous error
+error: could not compile `temper-client-shell-tui` (test "suite") due to 2 previous errors
+error: could not compile `temper-client-shell` (lib test) due to 3 previous errors
+error: could not compile `temper-client-gallery-tool` (lib) due to 1 previous error
+    Checking jig-client-test-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-client-test-domain)
+    Checking jig-client-test-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-client-test-kit)
+    Checking jig-client-test-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-client-test-view)
+    Checking jig-client-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-client-kit)
+error: could not compile `temper-client-shell-cli` (lib test) due to 33 previous errors
+    Checking jig-client-shell-web v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-client-shell-web)
+    Checking temper-client-shell-web v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-shell-web)
+    Checking jig-ops-client-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/examples/ops/client-domain)
+    Checking jig-client-browser-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/client-browser)
+error: could not compile `temper-client-gallery-tool` (lib test) due to 1 previous error
+    Checking temper-client-journeys-tool v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-journeys-tool)
+error: could not compile `temper-client-shell-tui` (lib test) due to 15 previous errors
+    Checking jig-ops-client-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/examples/ops/client-view)
+error: could not compile `temper-client-tui` (lib test) due to 1 previous error
+error: could not compile `jig-ops-client-view` (lib test) due to 1 previous error
+    Checking temper-client-web-page v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-web-page)
+    Checking temper-playground-page v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-playground-page)
+error: could not compile `temper-engine-smith` (lib test) due to 5 previous errors
+error: could not compile `temper-client-journeys-tool` (lib) due to 2 previous errors
+    Checking jig-client-protocol-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-client-protocol-kit)
+error: could not compile `temper-playground-page` (lib test) due to 1 previous error
+    Checking jig-client-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/client)
+error: could not compile `temper-client-shell-web` (test "suite") due to 1 previous error
+error: could not compile `jig-client-protocol-kit` (lib) due to 1 previous error
+error: could not compile `temper-client-shell-terminal` (test "suite") due to 2 previous errors
+error: could not compile `jig-client-world` (test "suite") due to 1 previous error
+error: could not compile `temper-client-journeys-tool` (lib test) due to 4 previous errors
+error: could not compile `temper-client-shell-web` (lib test) due to 9 previous errors
+error: could not compile `jig-engine-clients-world` (test "suite") due to 1 previous error
+    Checking jig-client-wire-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/client-wire)
+error: could not compile `jig-conformance-world` (test "suite") due to 5 previous errors
+error: could not compile `jig-client-test-view` (lib test) due to 8 previous errors
+error: could not compile `jig-client-protocol-kit` (lib test) due to 1 previous error
+error: could not compile `jig-client-test-domain` (lib test) due to 11 previous errors
+error: could not compile `jig-client-kit` (lib test) due to 21 previous errors
+error: could not compile `jig-ops-client-domain` (lib test) due to 1 previous error
+error: could not compile `jig-core-world` (test "suite") due to 66 previous errors
+error: could not compile `temper-client-tools` (lib test) due to 4 previous errors
+error: could not compile `temper-twin-tool` (lib test) due to 1 previous error
+error: could not compile `jig-store-world` (test "suite") due to 17 previous errors
+error: could not compile `temper-box-machine` (lib test) due to 3 previous errors
+    Checking jig-store-codecs-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/store-codecs)
+error: could not compile `temper-init` (lib test) due to 1 previous error
+error: could not compile `temper-forge-setup` (lib test) due to 1 previous error
+error: could not compile `jig-tasks-world` (test "suite") due to 3 previous errors
+error: could not compile `temper-engine-domain` (lib test) due to 4 previous errors
+error: could not compile `skein-forge-machine-world` (test "suite") due to 2 previous errors
+error: could not compile `skein-tls-world` (test "suite") due to 96 previous errors
+error: could not compile `skein-echo-world` (test "suite") due to 1 previous error
+error: could not compile `skein-io-world` (test "suite") due to 12 previous errors
+error: could not compile `jig-client-view` (lib test) due to 14 previous errors
+    Checking temper-git-transcripts v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/bin/temper-git-transcripts)
+error: could not compile `smith-channel-world` (test "suite") due to 5 previous errors
+    Checking temper-playground-serve v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/bin/temper-playground-serve)
+error: could not compile `hearth-tree-world` (test "suite") due to 1 previous error
+error: could not compile `temper-engine-forge-world` (test "suite") due to 1 previous error
+error: could not compile `temper-client-domain` (lib test) due to 21 previous errors
+    Checking temper-qa v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/bin/temper-qa)
+error: could not compile `skein-llm-world` (test "suite") due to 1 previous error
+error: could not compile `temper-qa` (test "suite") due to 13 previous errors
+error: could not compile `skein-world-tests` (test "suite") due to 1 previous error
+error: could not compile `temper-qa-tool` (test "suite") due to 35 previous errors
+error: could not compile `skein-ui-web-tests` (test "browser_stories") due to 1 previous error
+error: could not compile `hearth-fake-git` (lib test) due to 1 previous error
+error: could not compile `github-conformance` (lib test) due to 2 previous errors
+error: could not compile `temper-client-view` (lib test) due to 10 previous errors
+    Checking skein-echo-protocol v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/examples/echo/protocol)
+error: could not compile `forgejo-conformance` (lib test) due to 1 previous error
+    Checking fabrig-boundary v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/tests/boundary)
+error: could not compile `smith-local-world` (test "suite") due to 4 previous errors
+    Checking hearth-protocol-tree v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/crates/hearth-protocol-tree)
+error: could not compile `hearth-mmdebstrap-world` (lib test) due to 1 previous error
+    Checking hearth-lib v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/crates/hearth-lib)
+error: could not compile `jig-client-fake-person-browser` (lib test) due to 2 previous errors
+error: could not compile `hearth-template-world` (lib test) due to 1 previous error
+    Checking skein-fake-forge-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/fake-forge)
+error: could not compile `skein-browser-world` (lib test) due to 2 previous errors
+    Checking temper-agent v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/bin/temper-agent)
+error: could not compile `temper-agent` (test "suite") due to 1 previous error
+error: could not compile `hearth-protocol-builder` (lib test) due to 1 previous error
+    Checking skein-fake-forge-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-fake-forge-domain)
+error: could not compile `smith-host-world` (test "suite") due to 9 previous errors
+error: could not compile `smith-agent-world` (lib test) due to 1 previous error
+error: could not compile `smith-agent-world` (test "suite") due to 22 previous errors
+error: could not compile `skein-ui-bundle` (bin "skein-ui-bundle" test) due to 1 previous error
+error: could not compile `skein-ui-bundle` (bin "skein-ui-bundle") due to 1 previous error
+    Checking hearth-domain-build v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/hearth/crates/hearth-domain-build)
+error: could not compile `temper-engine-domain-forge` (lib test) due to 23 previous errors
+error: could not compile `temper-fake-git` (lib test) due to 2 previous errors
+error: could not compile `smith-protocol-events` (lib test) due to 1 previous error
+error: could not compile `smith-session-world` (test "suite") due to 6 previous errors
+error: could not compile `jig-protocol-charter` (lib test) due to 1 previous error
+error: could not compile `jig-protocol-tools` (lib test) due to 1 previous error
+    Checking skein-forge-dialect-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/forge/dialect)
+error: could not compile `smith-protocol-program` (lib test) due to 1 previous error
+    Checking jig-boundary v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/tests/boundary)
+    Checking skein-readiness-tests v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/tests/readiness)
+error: could not compile `jig-protocol-store` (lib test) due to 4 previous errors
+error: could not compile `skein-ui-web` (lib test) due to 11 previous errors
+error: could not compile `smith-domain` (lib test) due to 13 previous errors
+error: could not compile `skein-fake-machine` (lib test) due to 2 previous errors
+error: could not compile `temper-protocol-store` (lib test) due to 9 previous errors
+    Checking jig-domain-people v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-domain-people)
+    Checking temper-client-redaction v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/temper/crates/temper-client-redaction)
+    Checking skein-ui v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-ui)
+    Checking jig-fake-workers v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-fake-workers)
+    Checking skein-io v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/crates/skein-io)
+error: could not compile `skein-browser` (lib test) due to 4 previous errors
+error: could not compile `temper-worker-domain-checkout` (lib test) due to 3 previous errors
+    Checking jig-domain-tasks v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/crates/jig-domain-tasks)
+error: could not compile `jig-domain-people` (lib test) due to 19 previous errors
+    Checking jig-ops-fake-production v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/jig/testing/jig-ops-fake-production)
+    Checking skein-rows v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/38654705664/fabrig/skein/testing/skein-rows)
+error: could not compile `skein-io` (lib test) due to 14 previous errors
+error: could not compile `jig-domain-tasks` (lib test) due to 40 previous errors
+error: could not compile `jig-domain-core` (lib test) due to 10 previous errors
+warning: unused dependency `skein-world`
+  --> jig/tests/accounts/Cargo.toml:17:1
+   |
+17 | skein-world.workspace = true
+   | ^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-world`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `jig-accounts-world` (manifest) generated 1 warning
+warning: unused dependency `skein-world`
+  --> jig/tests/brief/Cargo.toml:17:1
+   |
+17 | skein-world.workspace = true
+   | ^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-world`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `jig-brief-world` (manifest) generated 1 warning
+warning: unused dependency `skein-ui-bundle`
+  --> jig/tests/client-browser/Cargo.toml:12:1
+   |
+12 | skein-ui-bundle.workspace = true
+   | ^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-ui-bundle`
+warning: `jig-client-browser-world` (manifest) generated 1 warning
+warning: unused dependency `skein-world`
+  --> jig/tests/engine-workers/Cargo.toml:23:1
+   |
+23 | skein-world.workspace = true
+   | ^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-world`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `jig-engine-workers-world` (manifest) generated 1 warning
+warning: unused dependency `skein-lib`
+  --> jig/examples/ops/domain-connectors/Cargo.toml:11:1
+   |
+11 | skein-lib.workspace = true
+   | ^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-lib`
+warning: `jig-ops-domain-connectors` (manifest) generated 1 warning
+warning: unused dependency `sha2`
+  --> jig/tests/people/Cargo.toml:16:1
+   |
+16 | sha2.workspace = true
+   | ^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `sha2`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `jig-people-world` (manifest) generated 1 warning
+warning: unused dependency `sha2`
+  --> jig/tests/test-connector/Cargo.toml:20:1
+   |
+20 | sha2.workspace = true
+   | ^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `sha2`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `jig-test-connector-world` (manifest) generated 1 warning
+warning: unused dependency `skein-world`
+  --> jig/tests/worker-link/Cargo.toml:23:1
+   |
+23 | skein-world.workspace = true
+   | ^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-world`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `jig-worker-link-world` (manifest) generated 1 warning
+warning: unused dependency `skein-channel`
+  --> skein/tests/channel/Cargo.toml:12:1
+   |
+12 | skein-channel.workspace = true
+   | ^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-channel`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `skein-channel-world` (manifest) generated 1 warning
+warning: unused dependency `skein-scratch`
+  --> skein/tests/kv/Cargo.toml:17:1
+   |
+17 | skein-scratch.workspace = true
+   | ^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-scratch`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `skein-kv-tests` (manifest) generated 1 warning
+warning: unused dependency `skein-heap`
+  --> skein/tests/oauth-issuer/Cargo.toml:20:1
+   |
+20 | skein-heap.workspace = true
+   | ^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-heap`
+help: to still use for development builds, move to `dev-dependencies`
+warning: unused dependency `skein-oauth`
+  --> skein/tests/oauth-issuer/Cargo.toml:18:1
+   |
+18 | skein-oauth.workspace = true
+   | ^^^^^^^^^^^
+   |
+help: consider removing the dependency on `skein-oauth`
+help: to still use for development builds, move to `dev-dependencies`
+warning: unused dependency `skein-oauth-issuer`
+  --> skein/tests/oauth-issuer/Cargo.toml:19:1
+   |
+19 | skein-oauth-issuer.workspace = true
+   | ^^^^^^^^^^^^^^^^^^
+   |
+help: consider removing the dependency on `skein-oauth-issuer`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `skein-oauth-issuer-world` (manifest) generated 3 warnings
+warning: unused dependency `skein-fake-peers`
+  --> skein/tests/oauth/Cargo.toml:20:1
+   |
+20 | skein-fake-peers.workspace = true
+   | ^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-fake-peers`
+warning: unused dependency `skein-world`
+  --> skein/tests/oauth/Cargo.toml:19:1
+   |
+19 | skein-world.workspace = true
+   | ^^^^^^^^^^^
+   |
+help: consider removing the dependency on `skein-world`
+warning: `skein-oauth-world` (manifest) generated 2 warnings
+warning: unused dependency `skein-fail-stop`
+  --> skein/tests/playground/Cargo.toml:11:1
+   |
+11 | skein-fail-stop.workspace = true
+   | ^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-fail-stop`
+warning: `skein-playground-world` (manifest) generated 1 warning
+warning: unused dependency `skein-scratch`
+  --> skein/tests/ring/Cargo.toml:14:1
+   |
+14 | skein-scratch.workspace = true
+   | ^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-scratch`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `skein-ring-tests` (manifest) generated 1 warning
+warning: unused dependency `skein-sim`
+  --> skein/tests/ui-screen/Cargo.toml:20:1
+   |
+20 | skein-sim.workspace = true
+   | ^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-sim`
+help: to still use for development builds, move to `dev-dependencies`
+warning: unused dependency `skein-ui-screen-terminal`
+  --> skein/tests/ui-screen/Cargo.toml:15:1
+   |
+15 | skein-ui-screen-terminal.workspace = true
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+help: consider removing the dependency on `skein-ui-screen-terminal`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `skein-ui-screen-tests` (manifest) generated 2 warnings
+warning: unused dependency `skein-sim`
+  --> skein/tests/ui-text/Cargo.toml:19:1
+   |
+19 | skein-sim.workspace = true
+   | ^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-sim`
+help: to still use for development builds, move to `dev-dependencies`
+warning: unused dependency `skein-ui-text`
+  --> skein/tests/ui-text/Cargo.toml:15:1
+   |
+15 | skein-ui-text.workspace = true
+   | ^^^^^^^^^^^^^
+   |
+help: consider removing the dependency on `skein-ui-text`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `skein-ui-text-tests` (manifest) generated 2 warnings
+warning: unused dependency `skein-ui-example-server`
+  --> skein/tests/ui-web/Cargo.toml:16:1
+   |
+16 | skein-ui-example-server.workspace = true
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-ui-example-server`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `skein-ui-web-tests` (manifest) generated 1 warning
+warning: unused dependency `skein-scratch`
+  --> skein/tests/world/Cargo.toml:20:1
+   |
+20 | skein-scratch.workspace = true
+   | ^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-scratch`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `skein-world-tests` (manifest) generated 1 warning
+warning: unused dependency `smith-agent-process-world`
+  --> smith/tests/channel/Cargo.toml:24:1
+   |
+24 | smith-agent-process-world.workspace = true
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `smith-agent-process-world`
+help: to still use for development builds, move to `dev-dependencies`
+warning: unused dependency `smith-host-world`
+  --> smith/tests/channel/Cargo.toml:25:1
+   |
+25 | smith-host-world.workspace = true
+   | ^^^^^^^^^^^^^^^^
+   |
+help: consider removing the dependency on `smith-host-world`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `smith-channel-world` (manifest) generated 2 warnings
+warning: unused dependency `skein-tls-kit`
+  --> smith/tests/protocol-llm/Cargo.toml:27:1
+   |
+27 | skein-tls-kit.workspace = true
+   | ^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-tls-kit`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `smith-protocol-llm-world` (manifest) generated 1 warning
+warning: unused dependency `smith-domain`
+  --> smith/tests/session/Cargo.toml:15:1
+   |
+15 | smith-domain = { workspace = true, features = ["fixture"] }
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `smith-domain`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `smith-session-world` (manifest) generated 1 warning
+warning: unused dependency `temper-client-shell-web`
+  --> temper/crates/temper-client-web-page/Cargo.toml:13:1
+   |
+13 | temper-client-shell-web.workspace = true
+   | ^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `temper-client-shell-web`
+warning: unused dependency `wasm-bindgen`
+  --> temper/crates/temper-client-web-page/Cargo.toml:14:1
+   |
+14 | wasm-bindgen.workspace = true
+   | ^^^^^^^^^^^^
+   |
+help: consider removing the dependency on `wasm-bindgen`
+warning: `temper-client-web-page` (manifest) generated 2 warnings
+warning: unused dependency `skein-world`
+  --> temper/tests/engine/forge/Cargo.toml:18:1
+   |
+18 | skein-world.workspace = true
+   | ^^^^^^^^^^^
+   |
+   = note: `cargo::unused_dependencies` is set to `warn` by default
+help: consider removing the dependency on `skein-world`
+help: to still use for development builds, move to `dev-dependencies`
+warning: `temper-engine-forge-world` (manifest) generated 1 warning
