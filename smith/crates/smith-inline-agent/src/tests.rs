@@ -739,7 +739,13 @@ fn a_parent_drain_keeps_the_completion_and_tells_its_turn_before_cancelling() {
     }
     let (handle, owner) = completion.expect("provider request");
     step(&mut agent, &env, Input::Parent(parent::Event::Drain { agent: handle }), &mut out);
-    assert!(out.is_empty(), "drain does not cancel the completion");
+    agent.reclaim();
+    for _ in 0_u32..8 {
+        if !agent.is_ready() { break; }
+        resume(&mut agent, &env, &mut out);
+        agent.reclaim();
+    }
+    assert!(out.is_empty(), "drain does not cancel the completion, even after deferred work");
     step(&mut agent, &env, Input::Below { agent: handle, terminal: Below::Completed {
         owner,
         completion: smith::llm::Completion {

@@ -1518,17 +1518,23 @@ fn drain_is_once_without_grace_and_stop_starts_its_own_grace() {
 
 #[test]
 fn drain_before_start_follows_the_start_send() {
-    let mut world = World::new(1771, limits());
-    world.spawn(start());
-    world.spawned();
-    world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
-    assert_eq!(world.seen.down.len(), 1, "start's send is still owed");
-    world.sent();
-    assert_eq!(world.seen.down.last(), Some(&Down::Drain));
-    world.sent();
-    world.up(Up::Admitted);
-    last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 0);
-    world.clean_end();
+    for spawning in [false, true] {
+        let mut world = World::new(1771, limits());
+        world.spawn(start());
+        if spawning {
+            world.event(Input::Parent(parent::Event::Drain { agent: world.owner() }));
+            assert!(world.seen.down.is_empty());
+        }
+        world.spawned();
+        world.event(Input::Parent(parent::Event::Drain { agent: world.agent() }));
+        assert_eq!(world.seen.down.len(), 1, "start's send is still owed");
+        world.sent();
+        assert_eq!(world.seen.down.last(), Some(&Down::Drain));
+        world.sent();
+        world.up(Up::Admitted);
+        last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 0);
+        world.clean_end();
+    }
 }
 
 #[test]

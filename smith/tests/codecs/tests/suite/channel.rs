@@ -29,6 +29,7 @@ fn channel_goldens_decode_at_their_measured_length() {
 fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
     let table = schema(&CEILINGS).expect("schema bounds fit");
     assert_eq!(table.magic, *b"smth");
+    assert_eq!(smith_channel::KindRule::FORMAT_VERSION, 7);
     assert_eq!(table.versions.len(), 1);
     let version = table.version(7).expect("version seven");
     assert_eq!(version.kinds.len(), 21);
