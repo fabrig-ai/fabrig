@@ -560,7 +560,6 @@ smith-local-process-world = { path = "smith/tests/local-process" }
 smith-local-shell = { path = "smith/crates/smith-local-shell" }
 smith-agent-shell = { path = "smith/crates/smith-agent-shell" }
 smith-agent-document = { path = "smith/crates/smith-agent-document" }
-smith-run-world = { path = "smith/tests/run" }
 smith-session-world = { path = "smith/tests/session" }
 smith-tools-world = { path = "smith/tests/tools" }
 jig-test-patches = { path = "jig/testing/jig-test-patches" }
@@ -593,7 +592,6 @@ jig-protocol-store-core = { path = "jig/crates/jig-protocol-store-core" }
 jig-protocol-store-settings = { path = "jig/crates/jig-protocol-store-settings" }
 jig-protocol-store-families = { path = "jig/crates/jig-protocol-store-families" }
 jig-protocol-tools = { path = "jig/crates/jig-protocol-tools" }
-jig-client-world = { path = "jig/tests/client" }
 jig-protocol-transcript = { path = "jig/crates/jig-protocol-transcript" }
 jig-client-view = { path = "jig/crates/jig-client-view" }
 jig-client-scripted-engine = { path = "jig/testing/jig-client-scripted-engine" }
@@ -602,7 +600,6 @@ jig-domain-accounts = { path = "jig/crates/jig-domain-accounts" }
 jig-test-connector = { path = "jig/testing/jig-test-connector" }
 jig-test-store = { path = "jig/testing/jig-test-store" }
 jig-test-store-files = { path = "jig/testing/jig-test-store-files" }
-jig-test-connector-world = { path = "jig/tests/test-connector" }
 jig-test-domain = { path = "jig/testing/jig-test-domain" }
 jig-test-profile = { path = "jig/testing/jig-test-profile" }
 jig-client-test-domain = { path = "jig/testing/jig-client-test-domain" }
@@ -667,15 +664,12 @@ temper-client-bundle = { path = "temper/crates/temper-client-bundle" }
 jig-boundary = { path = "jig/tests/boundary" }
 temper-fake-git = { path = "temper/crates/temper-fake-git" }
 temper-fake-git-hosted = { path = "temper/crates/temper-fake-git-hosted" }
-jig-channel-world = { path = "jig/tests/channel" }
 temper-client-shell = { path = "temper/crates/temper-client-shell" }
 temper-client-shell-terminal = { path = "temper/crates/temper-client-shell-terminal" }
 temper-client-shell-tui = { path = "temper/crates/temper-client-shell-tui" }
 temper-client-shell-cli = { path = "temper/crates/temper-client-shell-cli" }
 temper-client-redaction = { path = "temper/crates/temper-client-redaction" }
 temper-client-shell-web = { path = "temper/crates/temper-client-shell-web" }
-temper-client-web-page = { path = "temper/crates/temper-client-web-page" }
-temper-playground-page = { path = "temper/crates/temper-playground-page" }
 jig-client-test-records = { path = "jig/testing/jig-client-test-records" }
 jig-client-shell-native = { path = "jig/crates/jig-client-shell-native" }
 temper-client-view = { path = "temper/crates/temper-client-view" }
@@ -722,9 +716,6 @@ temper-engine-domain-forge = { path = "temper/crates/temper-engine-domain-forge"
 temper-worker-domain = { path = "temper/crates/temper-worker-domain" }
 temper-worker-domain-checkout = { path = "temper/crates/temper-worker-domain-checkout" }
 temper-worker-domain-tooling = { path = "temper/crates/temper-worker-domain-tooling" }
-jig-core-world = { path = "jig/tests/core" }
-jig-tasks-world = { path = "jig/tests/tasks" }
-jig-people-world = { path = "jig/tests/people" }
 temper-fake-checkout = { path = "temper/tests/fake-checkout" }
 temper-worker-checkout-world = { path = "temper/tests/worker/checkout" }
 
