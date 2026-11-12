@@ -1,8 +1,0 @@
-   Compiling temper-engine-domain-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/tests/engine/domain)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.61s
-────────────
- Nextest run ID e57e13b7-8c3a-4c5d-b91a-32ec452c557c with nextest profile: default
-    Starting 1 test across 1 binary (1039 tests skipped)
-        PASS [   0.205s] (1/1) temper-engine-domain-world::suite forge_routes::merge_job::producer::a_turn_preparation_waits_for_its_producers_final_head
-────────────
-     Summary [   0.207s] 1 test run: 1 passed, 1039 skipped
