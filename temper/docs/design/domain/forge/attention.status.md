@@ -2,7 +2,6 @@
 
 2026-11-11. Where the tree's code lags or departs from [attention.md](attention.md).
 
-- **Not yet:** 3: the live standing roles' Nows in the status run's words, *The roles' Nows* [in flight: change 777].
 
 - **Not yet:** 5: a standing role's Decided rows for its person and Overturn waking it, held by no story (`../agent/standing.md`, section 3) [in flight: change 109].
 
