@@ -298,7 +298,7 @@ impl ActivityPhrase {
             Self::AgentTries => 7232,
             Self::LostTries => 7233,
             Self::InvalidTries => 7234,
-            Self::InfrastructureTries => 7319,
+            Self::InfrastructureTries => 7321,
             Self::NowWritten => 7318,
             Self::TalkOpened => 7313,
             Self::TalkEnded => 7314,
