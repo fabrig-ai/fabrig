@@ -461,15 +461,14 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
         Some(bundle) => {
             let _checked = provisioned_bundle(Some(crate::path(bundle)), named.bundle_limits)?;
         }
-        None => return Err("application.clients.bundle: effective document must name its loopback bundle".into()),
+        None => return Err("application.clients.bundle: effective document must name its bundle".into()),
     }
     Ok(())
 }
 fn provisioned_bundle(path: Option<&Path>, limits: temper_service::limits::Clients) -> Result<PathBuf, String> {
     let instructions =
         "run scripts/bundle.sh DIR && temper-box --fake-backends --bundle BUNDLE (directory flags as usual)";
-    let path =
-        path.ok_or_else(|| format!("application.clients.bundle: no provisioned loopback bundle; {instructions}"))?;
+    let path = path.ok_or_else(|| format!("application.clients.bundle: no provisioned bundle; {instructions}"))?;
     let page = path.join("index.html");
     public_path(&page)
         .map_err(|why| format!("application.clients.bundle: {}: {why}; {instructions}", page.display()))?;
