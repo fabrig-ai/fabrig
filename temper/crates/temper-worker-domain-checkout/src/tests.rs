@@ -2186,7 +2186,7 @@ fn merged_head_conflict_fails_naming_it() {
             client: Token::new(1),
             prepared: Prepared::Failed {
                 failure: Failure::Conflicted { repository: 0, head: commit(8) },
-                detail: bytes(b"merge: Conflicted")
+                detail: bytes(b"merge: Conflicted: head 0808080808080808080808080808080808080808080808080808080808080808 does not merge into main")
             }
         }
     );
