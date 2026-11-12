@@ -2,6 +2,8 @@ use super::fixtures;
 use crate::{jig, table};
 use skein_lib::List;
 const GOLDENS: &[(Option<u8>, &str)] = &[
+    (Some(jig::rows::PARTY_MAKE_AT), "help_party_make"),
+    (Some(jig::rows::SIGN_IN_AT), "help_sign_in"),
     (Some(65), "help_repository_make"),
     (Some(66), "help_repository_copy"),
     (Some(jig::rows::PROJECT_AMEND_AT), "help_project_amend"),

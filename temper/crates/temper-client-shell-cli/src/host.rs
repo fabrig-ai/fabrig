@@ -22,6 +22,7 @@ use skein_shell::Host;
 use temper_client_tools::{jig::call::Parsed, root};
 mod input;
 mod sign_in;
+mod service;
 const TAG: u64 = 1 << 61;
 const FILES: u64 = 1 << 62;
 const ROOM: u32 = (limits::EXCHANGES + 1) * 128; // Two bounded socket bursts plus pipe and file completions.
@@ -62,6 +63,8 @@ pub struct OneShot {
     #[cfg(test)]
     pub(crate) test_connections: Option<jig_client_shell_native::Limits>,
     signing: Option<Signing>,
+    service_sign_in: Option<()>,
+    service_file: Option<service::ServiceFile>,
     recovery: Recovery,
     startup: Startup,
     until: Option<Time>,
@@ -131,6 +134,7 @@ impl OneShot {
             }
             Parsed::Call { .. } | Parsed::File { .. } => (false, None),
         };
+        let service_file = service::ServiceFile::for_call(&call.parsed);
         let mut host = Self {
             exporting,
             move_file,
@@ -154,6 +158,8 @@ impl OneShot {
             #[cfg(test)]
             test_connections: None,
             signing: None,
+            service_sign_in: None,
+            service_file,
             recovery: Recovery::new(),
             startup,
             until: None,
@@ -346,7 +352,7 @@ impl OneShot {
                         | NotSignedIn::LinkUnknown,
                     )
                     | None => {
-                        self.fail(b"the sign-in link was refused");
+                        self.fail(if self.service_sign_in.is_some() { b"the service credential was refused" } else { b"the sign-in link was refused" });
                         return;
                     }
                 }
@@ -427,7 +433,7 @@ impl OneShot {
             if self.recovery.admits()
                 && let Some(printed) = self.recovery.printed.take()
             {
-                self.print(printed);
+                self.service_print(printed);
             }
         }
         self.sign_out_keep();
@@ -471,11 +477,17 @@ impl OneShot {
                     if let Some(signing) = &mut self.signing
                         && let jig_client::Request::Exchange {
                             exchange,
-                            message: jig_client::Message::SignInLink(_),
+                            message: jig_client::Message::SignInLink(_) | jig_client::Message::SignInService,
                             ..
                         } = &request
                     {
                         signing.exchange = Some(*exchange);
+                    }
+                    if let jig_client::Request::ServiceCredential { party, credential } = request {
+                        if self.call.is_none() && let Some(service) = &mut self.service_file {
+                            service.credentials.insert(party, credential);
+                        }
+                        continue;
                     }
                     if let Some(transport) = &mut self.transport {
                         transport.down(self.env.now, request);
@@ -772,9 +784,11 @@ impl Host for OneShot {
             self.directory.progress(now);
         }
         if let Some(result) = self.directory.recorded.take() {
-            let number = self.recording.take().expect("record acknowledgment");
-            if self.status.is_none() {
-                self.root.recorded(&self.root_env, number, result, &mut self.requests);
+            if self.service_file.is_some() {
+                if self.status.is_none() { self.service_recorded(&result); }
+            } else {
+                let number = self.recording.take().expect("record acknowledgment");
+                if self.status.is_none() { self.root.recorded(&self.root_env, number, result, &mut self.requests); }
             }
         }
         if let Some(why) = self.directory.not_removed.take()

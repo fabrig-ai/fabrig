@@ -13,7 +13,7 @@ pub struct Group {
 }
 /// In `temper ctl help`'s order.
 pub const GROUPS: &[Group] = &[
-    Group { name: b"sign-in", line: b"Sign in with the link the deployment printed" },
+    Group { name: b"sign-in", line: b"Sign in with a printed link or a service file" },
     Group { name: b"sign-out", line: b"End the sign-in and leave the token empty" },
     Group { name: b"pending", line: b"List the requests DIR keeps, without reaching the engine" },
     Group { name: b"help", line: b"Read the page ctl and the groups, a group's tools, or one tool's record" },
@@ -39,6 +39,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"model", line: b"Models: read those your party may use" },
     Group { name: b"settings", line: b"The settings: read them, change them, or propose a change to their owners" },
     Group { name: b"revision", line: b"Settings revisions: read one or the history, move running work to the newest" },
+    Group { name: b"party", line: b"Parties: make a service with a project's role" },
     Group { name: b"project", line: b"Projects: make or remove one, read periods and pools, set spend and visibility" },
     Group { name: b"playground", line: b"The playground: start it, or end it and set up temper" },
 ];
@@ -118,6 +119,7 @@ pub const TOOLS: &[&Tool] = &[
     &rows::ROLE_START,
     &rows::ROLE_LIST,
     &rows::ROLE_SHOW,
+    &rows::PARTY_MAKE,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     argv::parse(TOOLS, words, &crate::limits::tools())

@@ -33,6 +33,10 @@ impl OneShot {
                 self.preparing = false;
                 self.finish(0, false);
             }
+            Parsed::Call { call, .. } if call.tool == jig::rows::PARTY_MAKE_AT => {
+                if let Some(service) = &self.service_file { self.directory.check_output(&service.path); }
+                else { self.fail(b"party make --out needs a file, not stdin"); }
+            }
             Parsed::Call { call, .. } if call.tool == temper_client_tools::jig::rows::EXPORT_AT => {
                 self.directory.create_record(self.move_file.as_deref().expect("export file"));
             }
@@ -64,6 +68,13 @@ impl OneShot {
         }
         if self.file_input() {
             self.directory.progress(self.env.now);
+        }
+        if self.service_file.is_some() {
+            if self.directory.checked_output.is_some() && self.directory.ready() {
+                self.directory.start(self.class);
+                self.preparing = false;
+            }
+            return;
         }
         if self.exporting {
             if self.directory.created && self.directory.ready() {
@@ -177,6 +188,7 @@ impl OneShot {
             Some(Parsed::File { file: Source::Path(_), .. }) => true,
             Some(Parsed::Call { call, .. }) => {
                 call.tool == temper_client_tools::jig::rows::EXPORT_AT
+                    || call.tool == jig::rows::PARTY_MAKE_AT
                     || arguments::key_file(call).is_some()
                     || text_file(call).is_some()
             }

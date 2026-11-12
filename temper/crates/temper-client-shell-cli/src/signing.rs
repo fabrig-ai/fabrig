@@ -15,6 +15,7 @@ pub(crate) enum Credential {
 pub(crate) struct Signing {
     pub(crate) shell: Option<Shell>,
     pub(crate) with: Option<Secret>,
+    pub(crate) service: Option<()>,
     pub(crate) link: Option<Secret>,
     pub(crate) held: Option<Secret>,
     pub(crate) retry: Option<Time>,
@@ -51,6 +52,7 @@ impl Signing {
                 io,
             })),
             with: None,
+            service: None,
             link: None,
             held: None,
             retry: None,
@@ -99,6 +101,7 @@ impl Signing {
             shell: Some(shell),
             link: Some(with.clone()),
             with: Some(with),
+            service: None,
             held: None,
             retry: None,
             last: None,
@@ -112,6 +115,24 @@ impl Signing {
             closing: false,
             startup,
         })
+    }
+    // client/ctl/README.md, 7: one address line followed by the 40 credential bytes.
+    pub(crate) fn service(
+        bytes: &[u8], parent: Fd, leaf: Box<[u8]>, startup: Startup,
+        out: &mut Queue<Submit>, connections: jig_client_shell_native::Limits, io: skein_io::Limits,
+    ) -> Result<Self, &'static [u8]> {
+        let end = bytes.iter().position(|byte| *byte == b'\n').ok_or(b"service file is not in party make's form".as_slice())?;
+        let (address, credential) = bytes.split_at(end + 1);
+        if credential.len() != 40 { return Err(b"service file is not in party make's form"); }
+        let engine = directory::address(address)?;
+        let mut signing = Self::held(engine, parent, leaf, startup, out, connections, io);
+        let credential = Secret::new(credential.into());
+        signing.with = Some(credential.clone());
+        signing.link = Some(credential);
+        signing.service = Some(());
+        signing.address = Some(address.into());
+        signing.credential = Credential::New;
+        Ok(signing)
     }
     pub(crate) fn complete(&mut self, complete: Complete) {
         if complete.op != OPEN {
