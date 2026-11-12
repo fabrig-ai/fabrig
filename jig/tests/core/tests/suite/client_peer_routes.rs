@@ -95,8 +95,8 @@ fn an_explicit_client_destination_receives_its_whole_durable_sign_in() {
     assert!(world.commits.iter().flatten().any(|write| matches!(write,
         root::Write::Save(root::Record::Core(core::Record::People(people::Stored::SignIn { number, .. })))
             if *number == sign_in)));
-    assert!(world.people_answers.is_empty());
-    assert!(world.peers.as_ref().expect("peers").parties[0].replies.is_empty());
+    assert_eq!(world.people_answers.len(), 0);
+    assert_eq!(world.peers.as_ref().expect("peers").parties[0].replies.len(), 0);
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn registered_and_scripted_sign_ins_wait_for_release_and_are_observed_once() {
     world.send(sign_in(CLIENT));
     assert!(world.store.applied > before);
     assert!(world.client_peer.as_ref().expect("client peer").delivered.is_empty());
-    assert!(world.peers.as_ref().expect("peers").parties[0].replies.is_empty());
+    assert_eq!(world.peers.as_ref().expect("peers").parties[0].replies.len(), 0);
     let before_release = world.observer.take();
     assert!(!before_release.iter().any(|value| matches!(value,
         Observed::Released { requires } if requires.iter().any(|receipt| matches!(receipt, Receipt::SignIn(_))))));

@@ -291,7 +291,8 @@ navigation named by the open project, in this order:
   `div.temper-rail-person`, drawn as the foot's other rows. It opens a panel
   above the row, as wide as it, in the look of the switcher's menu. Its items:
   "Accounts", to `Accounts`; "What temper remembers about you", to
-  `Remembered`, Ask temper's memory of the person (`pages/remembered.md`); and "Sign out", the
+  `Remembered`, Ask temper's memory of the person (`pages/remembered.md`); "Telling you", to
+  `Told`, where pushes go (`pages/told.md`); and "Sign out", the
   `Accounts` tab's act. A press
   on an item, Escape and a press outside close it, the focus back on the row
   unless that press took it elsewhere. Open, the row keeps the hover's grey. A

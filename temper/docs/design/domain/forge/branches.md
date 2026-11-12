@@ -9,8 +9,10 @@
     default). The task is the running agent's, even when its workstream
     and delivery branch belong to its parent change. Saved work has its
     own branch, so it starts no CI and moves no pull request;
-  - a landing's own branch, for a pin-only member: `temper/<root>/l<task>`,
-    the landing's task, held by the landing (`../landing.md`, 4.1);
+  - a landing's own branch, where its prepare job pushes each round's
+    candidate: `temper/<root>/l<task>`, the landing's task, held by the
+    landing from its making, deleted as a round ends unlanded and as
+    the landing closes (`../landing.md`, 5.1);
   - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
     its project's home, held by the goal (1);
   - an agent's task's own branch, for runs that push outside a change,
@@ -229,7 +231,65 @@ section 6).
   `ClosingStep`, by its attempts (below), its words naming the step,
   the change and why, which escalates to the goal: its release makes
   the step's change again, and its cancel ends the closer, the goal's
-  branch kept.
+  branch kept. A question its step change passes up reaches the goal
+  through the closer (below).
+- **Its changes' questions go up to the goal.** The closer makes each
+  step's change with questions `up` (`change/questions.md`, 1; `"questions":
+  "up"` in the change it makes, whatever the project's questions), so that
+  the change's agents, the land step's CI repair and conflict resolution
+  and either step's repair, are delegated with the Message family and
+  may ask; their change passes each question up to its requester, the
+  closer, one at a time. The closer, a procedure, decides nothing: it
+  relays as a change does, one level up, and its goal answers as it
+  answers its own changes.
+  - *Taken:* at a step, a question in its inbox from its live step
+    change is taken and kept on its row: its asker, the asker's number
+    for it, its words as they came, and where it stands (taken, or
+    asked with the number of the closer's own question). At most one
+    stands, since its one live step change passes up one at a time; a
+    second from that change while one stands, and a question from any
+    other task, is answered, in the answer form to its number,
+    `The goal's closer decides nothing; it relays its own change's
+    questions to its goal.` Any other task's words are taken and
+    dropped, as before.
+  - *Passed up:* the closer asks its goal in the question form, its
+    words `Change C, the goal's STEP, asks:`, a blank line, then the
+    question's words whole, cut from their end to the message bound
+    and marked `…`; C the change's task number and STEP `landing` or
+    `status settlement`. The goal is woken by it as by any question
+    (jig's `domain/tasks/messages.md`, 3) and reads it labelled with how
+    to answer, the closer as its target.
+  - *The answer relayed down:* the goal's answer, in the answer form to
+    the closer's question, is taken at the step that reads it and
+    relayed to the change in the answer form to the asker's number, its
+    words whole, cut from their end to the message bound and marked
+    `…`, as the change cuts what it relays down
+    (`change/questions.status.md`, Departs). The change relays it to its
+    own asker, whose run goes on from where it parked; the closer's
+    record clears. Words from the goal answer nothing.
+  - *Its step change's words,* its notices of an asker that ended
+    (`change/questions.md`, 1), are passed up to the goal as words,
+    `Change C: ` then the words, cut and marked as above.
+  - *A change that ends first,* with its question on the closer's
+    record, ends it there: the closer drops it and tells its goal once,
+    in words, `Change C ended with its question open; it reached no
+    one: LINE` where the goal was not yet asked, and, where it was,
+    takes and drops the goal's answer when it comes, saying `Change C
+    ended; your answer to question Q goes no further: LINE`, Q the
+    closer's question and LINE the question's first line. The next
+    step's change starts with none.
+  - *Room and admission:* these messages share the step's `tasks.batch`
+    with the step's other messages; what finds no room stays on the
+    record and makes the next step due at once. The record is saved
+    only once jig admits the step, as a change's relay is
+    (`change/questions.md`, 1).
+  - *Kept across a restart:* the question, with where it stands, is
+    stored with the closer's row (`README.md`, section 9) and restored
+    with it; a row stored before reads as none.
+  - The closer counts no bound of its own: the change counts each
+    question against `forge.change_policy.questions` and holds past it
+    (`change/questions.md`, 1), and that hold escalates past the
+    closer to the goal as any of its holds does (above).
 - **A landing that ended is never the end.** When the land step's
   change ends cancelled or failed, the closer first reads afresh
   whether the base holds the goal's branch (the land step's own test,

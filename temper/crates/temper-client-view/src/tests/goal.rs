@@ -198,6 +198,7 @@ fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, n
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         };
         if let Some(up) = up {
@@ -1552,7 +1553,7 @@ pub(super) fn paused_document() -> c::Task {
         revision: 1,
         before: c::PriorPhase::Active(c::RunStage::Idle),
         escalation: None,
-        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: None,
     });
     task

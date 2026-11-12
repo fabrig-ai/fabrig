@@ -1,0 +1,2 @@
+- **Surveys** run at gpt-6.1-sol, high. A reverse-dependency survey takes the tests that read a site from `.config/gate/read-by-tests.txt`'s globs.
+- **Your design's rules:** `DESIGN.md` holds for every design file you write: read it first.

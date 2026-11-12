@@ -22,7 +22,7 @@ fn stage(home: &Home, name: &str) -> std::path::PathBuf {
     for directory in ["bin", "bundle", "bundle-record"] {
         fs::create_dir_all(path.join(directory)).expect("stage directory");
     }
-    for binary in ["temper-box", "temper-client", "temper-client-journeys"] {
+    for binary in ["temper-box", "temper", "temper-client-journeys"] {
         script(&path.join("bin").join(binary), &format!("printf '{binary} 0.1.0 (0123456789ab)\\n'"));
     }
     script(&path.join("bin/fake-claude"), "printf '2.1.312 (Claude Code)\\n'");
@@ -51,14 +51,14 @@ fn keep(home: &Home, commit: &str, stage: &Path) -> Output {
 fn success(output: &Output, files: usize) {
     assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.stdout, format!("build {SHORT} kept: {files} files\n").as_bytes());
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr.len(), 0);
 }
 fn refusal(home: &Home, commit: &str, stage: &Path, words: &str) {
     let before = fs::read(&home.ledger).ok();
     let output = keep(home, commit, stage);
     assert_eq!(output.status.code(), Some(1), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(String::from_utf8_lossy(&output.stderr), format!("temper-qa: {words}\n"));
-    assert!(output.stdout.is_empty());
+    assert_eq!(output.stdout.len(), 0);
     assert!(stage.is_dir(), "staging was moved");
     assert!(!home.builds.join(commit).exists(), "build was published");
     assert!(!home.builds.join(format!(".{commit}.partial")).exists(), "staging was moved to partial");
@@ -94,8 +94,8 @@ fn kept_build_moves_files_writes_sorted_sha256_manifest_and_records_time_without
             "bin/another",
             "bin/directory/data",
             "bin/fake-claude",
+            "bin/temper",
             "bin/temper-box",
-            "bin/temper-client",
             "bin/temper-client-journeys",
             "bundle-record/index.html",
             "bundle/a\\\\b\\nc\\r",
@@ -247,7 +247,7 @@ fn keep_arguments_are_refused_through_the_table_before_home_is_read() {
             .output()
             .expect("arguments");
         assert_eq!(output.status.code(), Some(2));
-        assert!(output.stdout.is_empty());
+        assert_eq!(output.stdout.len(), 0);
         let command = temper_qa_tool::TABLE
             .commands
             .iter()

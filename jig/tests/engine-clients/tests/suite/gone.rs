@@ -1,5 +1,5 @@
 //! A caller gone releases its connection without cancelling its work (protocol/client/wire.md, 2.2).
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{Event, FromApplication, Served, ToApplication};
 use skein_lib::{Reader, Token, Writer};
@@ -7,7 +7,7 @@ use skein_lib::{Reader, Token, Writer};
 fn signed() -> Peer {
     let mut settings = fixtures::settings();
     settings.served = skein_lib::List::with_capacity(2);
-    settings.served.push(Served { family: None, first: 19, last: 19 }).expect("jig");
+    settings.served.push(Served { family: None, first: 20, last: 20 }).expect("jig");
     settings.served.push(Served { family: Some(1), first: 1, last: 1 }).expect("family");
     let mut server = fixtures::server_limits();
     server.peer_end = jig_protocol_engine_clients_http::server::PeerEnd::Connection;

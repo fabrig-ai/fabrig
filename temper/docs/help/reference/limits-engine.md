@@ -10,7 +10,7 @@ The tree limit counts all tasks made over the requester's tree's life, including
 
 A change batch reserves one task per member and shares the descendant allowance across members within each change policy's cap. These are prospective allowances for that call, not retained reservations across calls. A task-tree refusal names available and minimum required capacity and says whether fewer changes per call can fit (temper help change).
 
-temper sizes the engine's watch rooms itself: a stream holds 26 watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.
+temper sizes the engine's watch rooms itself: a stream holds 31 watches, and the engine holds clients.streams times that, in all and for one party. Raise clients.streams for more.
 
 ## tasks
 
@@ -80,6 +80,9 @@ temper sizes the engine's watch rooms itself: a stream holds 26 watches, and the
 - `tasks.retries.invalid.retries`: count, 3. Bounds failures allowed before holding a task for invalid failures.
 - `tasks.retries.invalid.base_ms`: milliseconds, 1,000. Bounds the initial exponential-backoff delay for invalid failures.
 - `tasks.retries.invalid.max_ms`: milliseconds, 30,000. Bounds the exponential-backoff delay for invalid failures.
+- `tasks.retries.infrastructure.retries`: count, 12. Bounds failures allowed before holding a task for infrastructure failures.
+- `tasks.retries.infrastructure.base_ms`: milliseconds, 10,000. Bounds the initial exponential-backoff delay for infrastructure failures.
+- `tasks.retries.infrastructure.max_ms`: milliseconds, 300,000. Bounds the exponential-backoff delay for infrastructure failures.
 
 ## people
 
@@ -123,7 +126,7 @@ temper sizes the engine's watch rooms itself: a stream holds 26 watches, and the
 - `fleet.call_name_bytes`: bytes, 64. Bounds bytes of a run's opaque call name retained for each relay.
 - `fleet.progress_bytes`: bytes, 1,024. Bounds whole tool-name bytes in one best-effort observation.
 - `fleet.turns`: count, 32. Bounds turns awaiting adoption or the parent's commitment, across all attempts.
-- `fleet.grace_ms`: milliseconds, 120,000. Bounds the wait for a lost worker to return or an unclaimed attempt to be adopted.
+- `fleet.grace_ms`: milliseconds, 240,000. Bounds the wait for a lost worker to return or an unclaimed attempt to be adopted.
 - `fleet.facts`: count, 32. Bounds facts kept until the parent drains them.
 - `fleet.history`: count, 8. Bounds recent lost channels and refused hellos retained separately from diagnostics, at most this many of each.
 
@@ -273,6 +276,8 @@ temper sizes the engine's watch rooms itself: a stream holds 26 watches, and the
 
 - `clients.streams`: count, 2. Bounds client streams admitted at once.
 - `clients.exchanges`: count, 8. Bounds client exchanges admitted at once.
+- `clients.queued_bytes`: bytes, 65,536. Bounds encoded records held by one client stream, including its in-flight record.
+- `clients.exchanges_per_client`: count, 2. Bounds exchanges in flight per sign-in, shared by its clients.
 - `clients.provider_codes`: count, 16. Bounds volatile authorization codes.
 - `clients.provider_tokens`: count, 64. Bounds volatile provider access tokens.
 - `clients.public.reads`: count, 0. Bounds public reads admitted at once; zero turns public reading off.

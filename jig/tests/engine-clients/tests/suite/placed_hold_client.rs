@@ -1,6 +1,6 @@
 //! The public linked client, native client wire, real core and applied store.
 use jig_client::{self as client, contract as c};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_core_kit::fixtures;
 use jig_core_kit::reads;
 use jig_core_kit::world::Setup;
@@ -82,7 +82,7 @@ impl Party {
                 stream: [7; 16],
                 served: jig_client_kit::test::list([w::Served::new(
                     &w::CEILINGS,
-                    w::ServedParts { owner: w::Owner::Jig, first: 19, last: 19 },
+                    w::ServedParts { owner: w::Owner::Jig, first: 20, last: 20 },
                 )
                 .expect("served")]),
                 heartbeat: skein_lib::Duration::from_secs(5),
@@ -112,7 +112,7 @@ impl Party {
         let mut bytes = Writer::new(value.measure() as usize);
         value.encode(&mut bytes).expect("Me delivery");
         let document =
-            w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
+            w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 20, record: bytes.finish() })
                 .expect("owned");
         let delivery = w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery");
         party.step(client::Event::Streamed {

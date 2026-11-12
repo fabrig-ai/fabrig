@@ -9,7 +9,7 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 mod tests;
 
 /// Every application shape, including the machine decoder’s own rows.
-pub static SHAPES: [Shape; 32] = [
+pub static SHAPES: [Shape; 34] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -31,6 +31,7 @@ pub static SHAPES: [Shape; 32] = [
         paths: &["application.clients"],
         line: "The clients’ listener and browser presentation.",
     },
+    Shape { name: "push", paths: &["application.push"], line: "The deployment’s push key and services." },
     Shape { name: "webhooks", paths: &["application.webhooks"], line: "The Forgejo deliveries listener." },
     Shape { name: "sign-in", paths: &["application.sign_in"], line: "The registration and people allowed to sign in." },
     Shape {
@@ -64,6 +65,11 @@ pub static SHAPES: [Shape; 32] = [
         name: "landing-project",
         paths: &["application.landing.projects[]"],
         line: "One project’s landing way, merge command and checks.",
+    },
+    Shape {
+        name: "landing-combine",
+        paths: &["application.landing.projects[].combine"],
+        line: "How trains combine their members.",
     },
     Shape {
         name: "repository-checks",
@@ -117,7 +123,7 @@ pub static SHAPES: [Shape; 32] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 113] = [
+pub static MEMBERS: [Member; 123] = [
     Member {
         shape: "document",
         name: "engine",
@@ -206,6 +212,42 @@ pub static MEMBERS: [Member; 113] = [
         bound: "engine shapes only",
         required: true,
         line: "The people’s sign-in registration, or null for none.",
+        gone: None,
+    },
+    Member {
+        shape: "application",
+        name: "push",
+        kind: "push or null",
+        bound: "absent or null for none; engine shapes only",
+        required: false,
+        line: "The deployment’s push key, contact and services.",
+        gone: None,
+    },
+    Member {
+        shape: "push",
+        name: "key",
+        kind: "text",
+        bound: "private data file, 0o600; PKCS#8 PEM P-256; at most 1,024 bytes",
+        required: true,
+        line: "The kept VAPID signing key; its public half is the clients’.",
+        gone: None,
+    },
+    Member {
+        shape: "push",
+        name: "subject",
+        kind: "text",
+        bound: "mailto: or https: URI; 1 to 256 printable ASCII bytes, no space, quote or backslash",
+        required: true,
+        line: "Where the push services may reach the operator.",
+        gone: None,
+    },
+    Member {
+        shape: "push",
+        name: "services",
+        kind: "list of text or null",
+        bound: "1 to 8 origins; https, or http on loopback; null for https://fcm.googleapis.com, https://updates.push.services.mozilla.com and https://web.push.apple.com",
+        required: true,
+        line: "The allowed push services; hosts resolve at each send, HTTPS uses machine roots.",
         gone: None,
     },
     Member {
@@ -525,6 +567,33 @@ pub static MEMBERS: [Member; 113] = [
     },
     Member {
         shape: "landing-project",
+        name: "combine",
+        kind: "landing-combine",
+        bound: "stock merge for main, squash for other",
+        required: false,
+        line: "How each train combines its member.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-combine",
+        name: "main",
+        kind: "text",
+        bound: "merge or squash; merge when absent",
+        required: false,
+        line: "Trains into the default branch.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-combine",
+        name: "other",
+        kind: "text",
+        bound: "merge or squash; squash when absent",
+        required: false,
+        line: "Trains into other branches.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
         name: "merge_job",
         kind: "text",
         bound: "relative repository path without parent segments; 1 to 4,096 bytes",
@@ -566,6 +635,24 @@ pub static MEMBERS: [Member; 113] = [
         bound: "1,000 to 86,400,000; none when absent",
         required: false,
         line: "Delivery checks’ wall bound for change producers, repairs and resolutions, including goal landings; read each attempt, or the agent’s bound when absent.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
+        name: "gate_retries",
+        kind: "integer",
+        bound: "0 to 255; 2 when absent",
+        required: false,
+        line: "How many runner faults a landing gate may retry.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
+        name: "gate_timeout_ms",
+        kind: "integer",
+        bound: "60,000 to 86,400,000; 3,600,000 when absent",
+        required: false,
+        line: "How long a landing gate may run, in milliseconds.",
         gone: None,
     },
     Member {
@@ -656,6 +743,15 @@ pub static MEMBERS: [Member; 113] = [
         bound: "",
         required: true,
         line: "Whether a failing gate blocks landing.",
+        gone: None,
+    },
+    Member {
+        shape: "gate-check",
+        name: "base",
+        kind: "true or false",
+        bound: "false when absent",
+        required: false,
+        line: "Whether the gate reads the round’s base, given as temper_base and included in its key.",
         gone: None,
     },
     Member {

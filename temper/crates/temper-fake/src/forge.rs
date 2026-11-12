@@ -1,4 +1,5 @@
-//! The QA forge's document, fixed seed and setup acts (protocol/setup/playground.md).
+//! The QA forge's document, fixed seed and setup acts (testing/fakes.md, 2;
+//! protocol/setup/playground.md).
 pub mod github;
 pub mod observations;
 use crate::{Refusal, read};
@@ -12,7 +13,8 @@ use skein_forge_setup::given::login;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Secret, Time, Token, Wall, bytes};
 use temper_forge_setup::name::{branch, relative, repository};
 
-/// Setup increments its account number before insertion, so it cannot issue MAX.
+/// Seeded owner identities descend from MAX; setup accounts grow from one
+/// within the wire document's bounded account slots.
 pub const OWNER: u64 = u64::MAX;
 /// The one named check, with no silence or rerun.
 pub const CONTEXT: &[u8] = b"check";
@@ -25,9 +27,9 @@ pub const FILES: [(&[u8], &[u8]); 3] = [
     (b".forgejo/workflows/check.yml", b"name: check\non: [push, pull_request]\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo 'The fake judges the configured CI cue; this workflow is not run.'\n"),
 ];
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Ci {
-    pub path: Box<[u8]>,
-    pub green: Box<[u8]>,
+pub enum Ci {
+    File { path: Box<[u8]>, green: Box<[u8]> },
+    Declared { path: Box<[u8]> },
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Repository {
@@ -58,6 +60,7 @@ pub struct Document {
     sources: Box<[Source]>,
     github: Option<github::Github>,
     ci_ms: u32,
+    made_checks: api::Checks,
 }
 impl Document {
     /// The fake forge of a checked setup entry, its token at `admin_token` (protocol/setup/playground.md).
@@ -85,6 +88,7 @@ impl Document {
             sources: Box::new([]),
             github: None,
             ci_ms: 0,
+            made_checks: limits().made_checks,
         }
     }
     /// The seeded App's public test private key, for the fake box's own-App path.
@@ -93,7 +97,6 @@ impl Document {
         let github = self.github.as_ref()?;
         Some(github.pem())
     }
-    #[expect(clippy::too_many_lines, reason = "standalone members and repository validation share one decoder")]
     pub fn decode(bytes: &[u8]) -> Result<Self, Refusal> {
         let d = read::document(bytes)?;
         let p = Path::root();
@@ -114,7 +117,12 @@ impl Document {
             Some(at) => Some(github::decode(&d, at, &p.member(b"github"))?),
             None => None,
         };
+        let made_ci_at = o.member(&d, b"made_ci");
         let ci_ms = read::pace(&mut o, &d, b"ci_ms", &p)?;
+        let made_checks = match made_ci_at {
+            Some(at) => checks_paced(ci(&d, at, &p.member(b"made_ci"), false)?.as_ref(), ci_ms),
+            None => limits().made_checks,
+        };
         read::finish(o, &d, &p)?;
         let listen = read::listen(&d, listen_at, &p.member(b"listen"))?;
         read::absolute(&admin_token, &p.member(b"admin_token"))?;
@@ -142,7 +150,7 @@ impl Document {
                 None => None,
             };
             let name = read::field(&mut o, &d, b"name", 100, &p)?;
-            let landing = read::field(&mut o, &d, b"landing", LIMITS.limits.name_bytes, &p)?;
+            let landing = read::field(&mut o, &d, b"landing", limits().limits.name_bytes, &p)?;
             let repository_owner = if github.is_some() {
                 match o.member(&d, b"owner") {
                     Some(at) => read::text(&d, at, 39, &p.member(b"owner"))?,
@@ -170,28 +178,7 @@ impl Document {
                     return Err(read::why(&p.member(b"name"), b"must be unique"));
                 }
             }
-            let ci = if read::is_null(&d, ci_at) {
-                None
-            } else {
-                let p = p.member(b"ci");
-                let mut o = read::object(&d, ci_at, &p)?;
-                let path = read::field(&mut o, &d, b"path", LIMITS.limits.name_bytes, &p)?;
-                let green = read::field(&mut o, &d, b"green", LIMITS.limits.content_bytes, &p)?;
-                read::finish(o, &d, &p)?;
-                if !relative(&path) {
-                    return Err(read::why(
-                        &p.member(b"path"),
-                        b"expected a relative file path with no . or .. component",
-                    ));
-                }
-                for (seed, _) in FILES {
-                    if tree.is_none() && path.as_ref() == seed {
-                        return Err(read::why(&p.member(b"path"), b"must not name a seed file"));
-                    }
-                }
-                read::nonempty(&green, &p.member(b"green"))?;
-                Some(Ci { path, green })
-            };
+            let ci = ci(&d, ci_at, &p.member(b"ci"), tree.is_none())?;
             repositories
                 .push(Repository { id, tree, owner: repository_owner, name, landing, ci })
                 .expect("sixteen repositories");
@@ -200,7 +187,16 @@ impl Document {
             github.check(repositories.as_slice())?;
         }
         check_sources(&sources, repositories.as_slice())?;
-        Ok(Self { listen, admin_token, owner, repositories: repositories.into_boxed(), sources, github, ci_ms })
+        Ok(Self {
+            listen,
+            admin_token,
+            owner,
+            repositories: repositories.into_boxed(),
+            sources,
+            github,
+            ci_ms,
+            made_checks,
+        })
     }
     #[must_use]
     pub fn listen(&self) -> SocketAddr {
@@ -228,7 +224,9 @@ impl Document {
     /// so a file holds the run alone.
     #[must_use]
     pub fn seed(&self, seed: u64) -> (Forge, forgejo::Config) {
-        let mut domain = domain::Domain::new(&LIMITS, seed);
+        let mut configuration = limits();
+        configuration.made_checks = self.made_checks.clone();
+        let mut domain = domain::Domain::new(&configuration, seed);
         let mut repositories = List::with_capacity(crate::ENTRIES);
         for (i, repository) in self.repositories.iter().enumerate() {
             let id = repository
@@ -248,7 +246,7 @@ impl Document {
             };
             domain::repository(
                 &mut domain,
-                &LIMITS,
+                &limits(),
                 api::Setup {
                     workflows: Box::new([]),
                     id,
@@ -268,8 +266,7 @@ impl Document {
         }
         let sources = seed_sources(&mut domain, &mut repositories, &self.sources);
         drain_seed_observations(&mut domain);
-        let mut users = List::with_capacity(1);
-        users.push((OWNER, self.owner.clone())).expect("one domain owner");
+        let users = owners(&self.owner, &repositories);
         let config = forgejo::Config {
             base: bytes::copy_of(b"http://127.0.0.1"),
             tokens: List::with_capacity(0),
@@ -281,9 +278,65 @@ impl Document {
             hooks: None,
             faults: forgejo::Faults { reset: 0, drop: 0, server_error: 0 },
         };
-        (Forge::new(domain, LIMITS), config)
+        (Forge::new(domain, configuration), config)
     }
 }
+
+fn owners(owner: &[u8], repositories: &List<forgejo::Repository>) -> List<(u64, Box<[u8]>)> {
+    let mut users = List::with_capacity(crate::ENTRIES.checked_add(1).expect("seed owners and the default"));
+    users.push((OWNER, bytes::copy_of(owner))).expect("default owner");
+    for repository in repositories {
+        let slash = bytes::find(&repository.full, b"/").expect("admitted repository owner/name");
+        let owner = repository.full.get(..slash).expect("owner prefix");
+        let mut known = false;
+        for (_, login) in &users {
+            if login.as_ref() == owner {
+                known = true;
+                break;
+            }
+        }
+        if !known {
+            let id = OWNER.checked_sub(u64::from(users.len())).expect("bounded seed owner identities");
+            users.push((id, bytes::copy_of(owner))).expect("at most one owner per seeded repository");
+        }
+    }
+    users
+}
+fn ci(d: &skein_json::Document, at: u32, p: &Path, seed_tree: bool) -> Result<Option<Ci>, Refusal> {
+    if read::is_null(d, at) {
+        return Ok(None);
+    }
+    let mut o = read::object(d, at, p)?;
+    if let Some(at) = o.member(d, b"declared") {
+        let path = read::text(d, at, limits().limits.name_bytes, &p.member(b"declared"))?;
+        read::finish(o, d, p)?;
+        if path.is_empty() || !relative(&path) {
+            return Err(read::why(
+                &p.member(b"declared"),
+                b"expected a relative file path with no empty, . or .. component",
+            ));
+        }
+        return Ok(Some(Ci::Declared { path }));
+    }
+    let path_at = o.member(d, b"path");
+    let green_at = o.member(d, b"green");
+    read::finish(o, d, p)?;
+    let path_at = path_at.ok_or(read::why(&p.member(b"path"), b"missing"))?;
+    let green_at = green_at.ok_or(read::why(&p.member(b"green"), b"missing"))?;
+    let path = read::text(d, path_at, limits().limits.name_bytes, &p.member(b"path"))?;
+    let green = read::text(d, green_at, limits().limits.content_bytes, &p.member(b"green"))?;
+    if !relative(&path) {
+        return Err(read::why(&p.member(b"path"), b"expected a relative file path with no . or .. component"));
+    }
+    for (seed, _) in FILES {
+        if seed_tree && path.as_ref() == seed {
+            return Err(read::why(&p.member(b"path"), b"must not name a seed file"));
+        }
+    }
+    read::nonempty(&green, &p.member(b"green"))?;
+    Ok(Some(Ci::File { path, green }))
+}
+
 fn sources(d: &skein_json::Document, at: u32, p: &Path) -> Result<Box<[Source]>, Refusal> {
     let items = read::list(d, at, 0, p)?;
     let mut sources = List::<Source>::with_capacity(items.len());
@@ -312,7 +365,7 @@ fn sources(d: &skein_json::Document, at: u32, p: &Path) -> Result<Box<[Source]>,
             return Err(read::why(&rp.member(b"name"), b"expected a Forgejo repository name"));
         }
         let repository = read::joined(&[&owner, b"/", &name]);
-        let landing = read::field(&mut o, d, b"landing", LIMITS.limits.name_bytes, &rp)?;
+        let landing = read::field(&mut o, d, b"landing", limits().limits.name_bytes, &rp)?;
         if !branch(&landing) {
             return Err(read::why(&rp.member(b"landing"), b"expected a branch name"));
         }
@@ -323,7 +376,7 @@ fn sources(d: &skein_json::Document, at: u32, p: &Path) -> Result<Box<[Source]>,
             let bp = rp.member(b"branches");
             for (i, at) in read::list(d, at, 0, &bp)?.iter().enumerate() {
                 let bp = read::index(&bp, i);
-                let name = read::text(d, *at, LIMITS.limits.name_bytes, &bp)?;
+                let name = read::text(d, *at, limits().limits.name_bytes, &bp)?;
                 if !branch(&name) {
                     return Err(read::why(&bp, b"expected a branch name"));
                 }
@@ -419,7 +472,7 @@ fn seed_sources(
         id = id.checked_add(1).expect("checked source ids");
         let first = domain::repository(
             domain,
-            &LIMITS,
+            &limits(),
             api::Setup {
                 workflows: Box::new([]),
                 id,
@@ -453,8 +506,8 @@ fn seed_branches(domain: &mut domain::Domain, source: &Source, first: u64) {
     if source.branches.is_empty() {
         return;
     }
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
-    let mut out = Queue::with_capacity(LIMITS.limits.calls);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
+    let mut out = Queue::with_capacity(limits().limits.calls);
     domain::grant(domain, &source.repository, OWNER, api::Permission::Admin);
     for branch in &source.branches {
         domain::step(
@@ -481,14 +534,14 @@ fn seed_branches(domain: &mut domain::Domain, source: &Source, first: u64) {
     domain::grant(domain, &source.repository, OWNER, api::Permission::None);
 }
 fn drain_seed_observations(domain: &mut domain::Domain) {
-    for _ in 0..LIMITS.limits.observations {
+    for _ in 0..limits().limits.observations {
         if domain.pop_observation().is_none() {
             break;
         }
     }
 }
 fn tree(d: &skein_json::Document, at: u32, p: &Path) -> Result<Box<[api::File]>, Refusal> {
-    let items = match jig_protocol_config::read::list(d, at, LIMITS.limits.files) {
+    let items = match jig_protocol_config::read::list(d, at, limits().limits.files) {
         Ok(items) => items,
         Err(why) => return Err(read::kind(p, why)),
     };
@@ -496,8 +549,8 @@ fn tree(d: &skein_json::Document, at: u32, p: &Path) -> Result<Box<[api::File]>,
     for (i, at) in items.iter().enumerate() {
         let p = read::index(p, i);
         let mut o = read::object(d, *at, &p)?;
-        let path = read::field(&mut o, d, b"path", LIMITS.limits.name_bytes, &p)?;
-        let content = read::field(&mut o, d, b"content", LIMITS.limits.content_bytes, &p)?;
+        let path = read::field(&mut o, d, b"path", limits().limits.name_bytes, &p)?;
+        let content = read::field(&mut o, d, b"content", limits().limits.content_bytes, &p)?;
         read::finish(o, d, &p)?;
         if !relative(&path) {
             return Err(read::why(&p.member(b"path"), b"expected a relative file path with no . or .. component"));
@@ -533,65 +586,70 @@ pub fn checks_paced(ci: Option<&Ci>, ci_ms: u32) -> api::Checks {
         passes: 1000,
         reruns: 0,
         cue: match ci {
-            Some(ci) => Some(api::Cue::File { path: ci.path.clone(), green: ci.green.clone() }),
+            Some(Ci::File { path, green }) => Some(api::Cue::File { path: path.clone(), green: green.clone() }),
+            Some(Ci::Declared { path }) => Some(api::Cue::Declared { path: path.clone() }),
             None => None,
         },
     }
 }
 /// Bounded store for sixteen repositories, with small mutable QA histories.
-pub const LIMITS: domain::Config = domain::Config {
-    setup_faults: 0,
-    lost: 0,
-    limits: domain::Limits {
-        workflows: 0,
-        workflow_runs: 0,
-        repositories: crate::ENTRIES,
-        users: 32,
-        bypassing_users: 8,
-        labels: 8,
-        items: 32,
-        comments: 8,
-        dependencies: 8,
-        reviews: 8,
-        branches: 32,
-        commits: 128,
-        files: 16,
-        statuses: 32,
-        contexts: 8,
-        pages: 8,
-        name_bytes: 256,
-        title_bytes: 256,
-        body_bytes: 4096,
-        content_bytes: 8192,
-        page_size: 32,
-        calls: 8,
-        hooks: 32,
-        observations: 128,
-    },
-    latency_min: Duration::ZERO,
-    latency_max: Duration::ZERO,
-    settle_min: Duration::ZERO,
-    settle_max: Duration::ZERO,
-    late: 0,
-    late_min: Duration::ZERO,
-    late_max: Duration::ZERO,
-    unavailable: 0,
-    timeouts: 0,
-    landing: 0,
-    land_min: Duration::ZERO,
-    land_max: Duration::ZERO,
-    rate_limit: 0,
-    rate_window: Duration::ZERO,
-    ci: 0,
-    hook_min: Duration::ZERO,
-    hook_max: Duration::ZERO,
-    hooks_late: 0,
-    hooks_lost: 0,
-    resolution: Duration::from_secs(1),
-    skew: domain::Skew::None,
-    status_updates: false,
-    edit_updates: false,
-};
+#[must_use]
+pub fn limits() -> domain::Config {
+    domain::Config {
+        setup_faults: 0,
+        lost: 0,
+        limits: domain::Limits {
+            workflows: 0,
+            workflow_runs: 0,
+            repositories: crate::ENTRIES,
+            users: 32,
+            bypassing_users: 8,
+            labels: 8,
+            items: 32,
+            comments: 8,
+            dependencies: 8,
+            reviews: 8,
+            branches: 32,
+            commits: 128,
+            files: 16,
+            statuses: 32,
+            contexts: 8,
+            pages: 8,
+            name_bytes: 256,
+            title_bytes: 256,
+            body_bytes: 4096,
+            content_bytes: 8192,
+            page_size: 32,
+            calls: 8,
+            hooks: 32,
+            observations: 128,
+        },
+        latency_min: Duration::ZERO,
+        latency_max: Duration::ZERO,
+        settle_min: Duration::ZERO,
+        settle_max: Duration::ZERO,
+        late: 0,
+        late_min: Duration::ZERO,
+        late_max: Duration::ZERO,
+        unavailable: 0,
+        timeouts: 0,
+        landing: 0,
+        land_min: Duration::ZERO,
+        land_max: Duration::ZERO,
+        rate_limit: 0,
+        rate_window: Duration::ZERO,
+        ci: 0,
+        made_checks: domain::Config::test().made_checks,
+        hook_min: Duration::ZERO,
+        hook_max: Duration::ZERO,
+        hooks_late: 0,
+        hooks_lost: 0,
+        resolution: Duration::from_secs(1),
+        skew: domain::Skew::None,
+        status_updates: false,
+        edit_updates: false,
+    }
+}
 
 /// The git route's wire bounds, shared by the peer and its process client.
 #[must_use]

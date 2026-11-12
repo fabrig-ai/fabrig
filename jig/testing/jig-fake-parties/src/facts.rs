@@ -324,6 +324,7 @@ pub enum FailureClass {
     Lost,
     /// The result broke its contract.
     Invalid,
+    Infrastructure,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

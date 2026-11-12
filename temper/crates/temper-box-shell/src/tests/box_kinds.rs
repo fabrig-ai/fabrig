@@ -39,20 +39,18 @@ fn first_link_draws_a_secret_and_uses_serves_url() {
 }
 
 #[test]
-fn the_front_runs_only_in_a_terminal_with_echo_none_and_a_first_link() {
-    use temper_box_machine::host::Echo;
-    for (no_tui, echo, terminals, first_link, expected) in [
-        (false, Echo::None, true, true, true),
-        (true, Echo::None, true, true, false),
-        (false, Echo::Steps, true, true, false),
-        (false, Echo::None, false, true, false),
-        (false, Echo::None, true, false, false),
-    ] {
-        assert_eq!(
-            crate::box_command::front_wanted(no_tui, echo, terminals, first_link),
-            expected,
-            "no_tui={no_tui}, echo={echo:?}, terminals={terminals}, first_link={first_link}"
-        );
+fn the_front_runs_exactly_when_requested_and_requires_a_first_link() {
+    let named = first_link_named();
+    for wanted in [false, true] {
+        let mut first = crate::box_command::first_link(&named, &first_link_steps()).expect("draw link");
+        let front = crate::box_command::configured_front(wanted, &named, first.as_mut()).expect("configure front");
+        assert_eq!(front.is_some(), wanted, "only --front enables the pipes, with no terminal condition");
+        let absent = crate::box_command::configured_front(wanted, &named, None);
+        if wanted {
+            assert_eq!(absent.expect_err("no first link"), "--front: no first sign-in link drawn");
+        } else {
+            assert!(absent.expect("bare box").is_none());
+        }
     }
 }
 
@@ -73,15 +71,7 @@ fn the_front_hands_a_local_link_at_the_clients_listener() {
             "the front's link uses the listener without a public origin"
         );
         let address = format!("http://{listener}");
-        assert_eq!(
-            front.arguments.as_ref(),
-            [
-                b"internal".as_slice().into(),
-                b"tui".as_slice().into(),
-                b"--box".as_slice().into(),
-                address.as_bytes().into()
-            ]
-        );
+        assert_eq!((front.input.raw(), front.link_output.raw(), front.lines.raw()), (0, 3, 4));
         assert!(
             front.link.expose().starts_with(format!("{address}/").as_bytes()),
             "the link's host is the front's address"
@@ -398,4 +388,25 @@ fn a_box_with_no_sign_in_has_no_source_step_in_its_group() {
     let owned = steps.asked.iter().find(|group| group.kind == Some(BoxKind::Owned)).expect("owned slot");
     assert!(!owned.steps.iter().any(|(stage, _)| *stage == Stage::Source), "no source needs the held engine");
     assert_eq!(owned.before, 0, "the group can start before serve");
+}
+
+#[test]
+fn recording_is_given_only_to_the_serve_step_after_box() {
+    let dirs = super::configuration::directories(std::path::Path::new("/fixture"));
+    let document = super::configuration::init_document();
+    for record in [false, true] {
+        let (steps, _) = crate::box_command::configuration_steps_recording(&dirs, &document, Box::new([]), record)
+            .expect("box steps");
+        let serve = steps.always.iter().find(|step| step.name() == b"serve").expect("serve step");
+        let arguments: Vec<_> = serve.arguments().iter().map(std::convert::AsRef::as_ref).collect();
+        assert_eq!(arguments.contains(&b"--record".as_slice()), record);
+        if record {
+            assert!(arguments.ends_with(&[b"--box".as_slice(), b"--record"]));
+        }
+        for group in &steps.asked {
+            for (_, step) in &group.steps {
+                assert!(!step.arguments().iter().any(|word| word.as_ref() == b"--record"));
+            }
+        }
+    }
 }

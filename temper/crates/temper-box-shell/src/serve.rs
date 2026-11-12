@@ -1,12 +1,9 @@
 //! The standalone start, composed from the engine and worker shells (protocol/services.md, 7).
-use crate::{Service, path, prefixed, program_login};
+use crate::{Service, path, prefixed, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
 use std::os::unix::fs::FileTypeExt;
-use temper_engine_shell::{
-    serve::{self as engine, printed},
-    setup,
-};
+use temper_engine_shell::serve::{self as engine, printed};
 use temper_service as service;
 use temper_service_shell::{close, jig_directories};
 use temper_shell::directories::{Directories, EnvironmentEntry};
@@ -37,6 +34,7 @@ pub fn prepare_with_store(
         bytes,
         owned,
         false,
+        false,
         None,
         None,
         &service::stock::Given::Stock,
@@ -55,6 +53,7 @@ fn prepare_with_limits(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
     under_box: bool,
+    record: bool,
     link_secret: Option<Secret>,
     local_secret: Option<Secret>,
     given: &service::stock::Given,
@@ -69,11 +68,34 @@ fn prepare_with_limits(
     let setup::Deployment { mut named, checked, limits, .. } =
         setup::check_with(bytes, &jig_directories(directories), given)?;
     let engine = engine::settings(bytes, directories, given);
-    let engine::Runtimes { roots, github } = engine::runtimes(binary, &named)?;
+    let engine::Runtimes { roots, github } = engine::runtimes(binary, &named.machine)?;
     let user = skein_shell::effective_user();
-    let agent = named.worker.as_ref().map(agent::preflight_worker).transpose()?;
-    let engine::Inputs { files, google, bundle } = engine::before_root(&mut named, user)?;
-    let runtime = named.worker.as_ref().map(|worker| worker::root(&worker.root, user, owned)).transpose()?;
+    let agent = named.worker.as_ref().map(agent::prepare_worker).transpose()?;
+    if let Some(worker) = &named.worker {
+        named.files = agent::without_configuration(core::mem::take(&mut named.files), &worker.agent);
+        named.asked_files = agent::without_configuration(core::mem::take(&mut named.asked_files), &worker.agent);
+    }
+    let engine::Inputs { mut files, google, bundle } = engine::before_root(
+        &mut named.files,
+        &mut named.asked_files,
+        named.sign_in.as_ref(),
+        named.bundle.as_deref(),
+        named.bundle_limits,
+        user,
+        record,
+    )?;
+    if let Some(prepared) = &agent {
+        files = agent::with_configuration(
+            files,
+            &named.worker.as_ref().expect("local agent checked").agent,
+            &prepared.bytes,
+        );
+    }
+    let runtime = named
+        .worker
+        .as_ref()
+        .map(|worker| worker::root(worker, &agent.as_ref().expect("local agent checked").bytes, user, owned))
+        .transpose()?;
     let program_login = if named.worker.is_some() {
         program_login::line(directories, &printed::running_word(environment), skein_shell::HOME.value(environment))
             .map(|line| line.into_bytes().into_boxed_slice())
@@ -86,7 +108,7 @@ fn prepare_with_limits(
         bytes,
         &jig_directories(directories),
         &files,
-        agent.as_ref(),
+        agent.as_ref().map(|prepared| &prepared.agent),
         &seeds,
         Some(accounts),
         runtime,
@@ -103,8 +125,8 @@ fn prepare_with_limits(
     if let Some(agent) = &agent {
         let worker = named.worker.as_ref().expect("local agent checked");
         let sources = worker::sources(
-            agent,
-            path(&worker.agent),
+            &agent.agent,
+            agent.environment.clone(),
             path(&worker.program),
             path(&directories.cache),
             user,
@@ -120,7 +142,7 @@ fn prepare_with_limits(
             service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
         }
     }
-    engine::adopt(&mut service, &named.deployment, bundle, user, owned)?;
+    engine::adopt(service.engine_component(), &named.deployment, bundle, user, owned)?;
     Ok((Service::Joined(service), named.deployment, limits.line_bytes))
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
@@ -162,6 +184,7 @@ fn operations_in_mode(
         config,
         &mut owned,
         boxed,
+        false,
         None,
         None,
         &service::stock::Given::Stock,
@@ -194,9 +217,20 @@ pub fn prepare_in_with(
 ) -> Result<Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
-    let result =
-        prepare_with_limits(binary, environment, working, directories, &bytes, &mut owned, false, None, None, given)
-            .map(|(service, _, _)| service);
+    let result = prepare_with_limits(
+        binary,
+        environment,
+        working,
+        directories,
+        &bytes,
+        &mut owned,
+        false,
+        false,
+        None,
+        None,
+        given,
+    )
+    .map(|(service, _, _)| service);
     if result.is_err() {
         close(owned);
     }
@@ -213,9 +247,20 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result =
-        prepare_with_limits(binary, environment, working, directories, config, &mut owned, false, None, None, given)
-            .map(|(service, _, _)| service.operations());
+    let result = prepare_with_limits(
+        binary,
+        environment,
+        working,
+        directories,
+        config,
+        &mut owned,
+        false,
+        false,
+        None,
+        None,
+        given,
+    )
+    .map(|(service, _, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
@@ -225,6 +270,7 @@ pub fn run(
     working: &[u8],
     directories: &Directories,
     boxed: bool,
+    record: bool,
 ) -> Result<Exit, String> {
     temper_service_shell::run(
         binary,
@@ -241,6 +287,7 @@ pub fn run(
                 bytes,
                 owned,
                 boxed,
+                record,
                 input.link,
                 input.local,
                 &service::stock::Given::Stock,

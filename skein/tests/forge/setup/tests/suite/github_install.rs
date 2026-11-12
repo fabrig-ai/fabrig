@@ -137,7 +137,7 @@ fn a_reused_or_wrong_install_state_sends_nothing() {
         &Failure { forge: 5, step: Stage::State, subject: b"accept".as_slice().into(), why: Why::Unknown }
     );
     assert_eq!(world.reads(), &[Item::AppSlug]);
-    assert!(world.connects().is_empty());
+    assert_eq!((world.connects()).len(), 0);
     closed(&mut world);
 }
 #[test]
@@ -147,11 +147,13 @@ fn a_failed_accept_still_uses_its_state() {
     no_id.forget(Item::AppId);
     let mut full = world(&[]);
     full.put(Item::Accepted, accepted_item(&[1, 3, 4, 5, 6, 7, 8, 9]));
-    for (mut world, step, subject, why, connections) in [
+    for (mut world, step, subject, why, connections) in vec![
         (missing, Stage::Installation, b"2".as_slice(), Why::Missing, 1),
         (no_id, Stage::App, b"id".as_slice(), Why::Missing, 0),
         (full, Stage::Installation, b"2".as_slice(), Why::Unexpected, 1),
-    ] {
+    ]
+    .into_boxed_slice()
+    {
         let before = world.file(Item::Accepted).cloned();
         let state = install(&mut world, 1);
         accept(&mut world, 2, &state, INSTALLATION);
@@ -178,7 +180,7 @@ fn a_busy_accept_leaves_its_state_usable() {
     world.settle();
     accept(&mut world, 4, &state, INSTALLATION);
     assert_eq!(world.pending_reads(), &[(Token::new(4), Item::AppId)]);
-    assert!(world.connects().is_empty());
+    assert_eq!((world.connects()).len(), 0);
     closed(&mut world);
 }
 #[test]

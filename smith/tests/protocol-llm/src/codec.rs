@@ -11,7 +11,7 @@ pub use smith_protocol_llm::{
     render_bound, render_outcome, schemas_for_contract, valid,
 };
 
-pub use smith_protocol_llm::fixture::{Context, cancelled, completion, failed, prompt, refusal, schemas};
+pub use smith_protocol_llm_fixtures::{Context, cancelled, completion, failed, prompt, refusal, schemas};
 
 /// All owned input to one preparation. Caller credentials are consumed as a grant;
 /// acquisition and refresh remain outside Smith.
@@ -56,7 +56,7 @@ pub fn prepare(input: Input, limits: &Limits) -> Result<Prepared, Error> {
         return Err(Error::Invalid);
     }
     let ceiling = prompt.max_tokens;
-    let (mut translated, context) = smith_protocol_llm::fixture::prepare_prompt(owner, prompt, receiving, limits)?;
+    let (mut translated, context) = smith_protocol_llm_fixtures::prepare_prompt(owner, prompt, receiving, limits)?;
     translated.output_ceiling(endpoint.provider, ceiling).map_err(Error::from_client)?;
     let client = client::Client::prepare(
         skein_llm::Call { owner, endpoint, credential: Some(credential), prompt: translated },
@@ -81,7 +81,7 @@ pub fn prepare_for_contract(
     }
     let ceiling = prompt.max_tokens;
     let (mut translated, context) =
-        smith_protocol_llm::fixture::prepare_for_contract(owner, prompt, outcome, deliver, receiving, limits)?;
+        smith_protocol_llm_fixtures::prepare_for_contract(owner, prompt, outcome, deliver, receiving, limits)?;
     translated.output_ceiling(endpoint.provider, ceiling).map_err(Error::from_client)?;
     let client = client::Client::prepare(
         skein_llm::Call { owner, endpoint, credential: Some(credential), prompt: translated },

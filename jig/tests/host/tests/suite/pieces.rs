@@ -102,7 +102,7 @@ fn an_unasked_kind_and_turn_zero_are_fenced() {
             world.piece(Piece { kind, ..text(1, 1, 0, b"unasked") });
         }
         world.piece(text(0, 1, 0, b"no turn zero"));
-        assert!(pieces(&world).is_empty());
+        assert_eq!(pieces(&world).len(), 0);
         assert_eq!(world.piece_counts(), (count + 1, 0));
         finish(&mut world, 0);
         assert_eq!(world.piece_counts(), (count + 1, 0));
@@ -185,7 +185,7 @@ fn a_queued_piece_is_fenced_when_its_attempt_stops_before_drain() {
     world.finish(0, false);
     assert_eq!(world.piece_counts(), (0, 0));
     world.reconnect();
-    assert!(pieces(&world).is_empty());
+    assert_eq!(pieces(&world).len(), 0);
     assert_eq!(world.piece_counts(), (1, 0));
     world.acknowledge_answer();
     world.assert_settled();

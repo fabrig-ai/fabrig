@@ -1,6 +1,6 @@
 //! Retained outcomes, field for field with the forge's application family.
 use super::{FITS, names};
-use crate::{Bounds, Undecodable, v12 as w};
+use crate::{Bounds, Undecodable, v16 as w};
 use skein_lib::{Reader, Wall, Writer};
 use temper_engine_domain_forge as d;
 mod refusal;
@@ -32,7 +32,7 @@ pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -
         ),
         d::ApplicationOutcome::CoreRefused(v) => {
             let record =
-                refusal::encode_refusal(v, &jig_protocol_store::people_v15::CEILINGS).expect("refusal facts fit");
+                refusal::encode_refusal(v, &jig_protocol_store::people_v16::CEILINGS).expect("refusal facts fit");
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("small refusal"));
             record.encode(&mut writer).expect("measured room");
             w::ApplicationOutcome::CoreRefused(
@@ -68,7 +68,7 @@ pub(super) fn decode(value: w::Application, bounds: &Bounds) -> Result<d::Stored
         w::ApplicationOutcome::CoreRefused(v) => {
             let mut reader = Reader::new(v.refusal());
             let record =
-                jig_protocol_store::people_v15::Refusal::decode(&jig_protocol_store::people_v15::CEILINGS, &mut reader)
+                jig_protocol_store::people_v16::Refusal::decode(&jig_protocol_store::people_v16::CEILINGS, &mut reader)
                     .or(Err(Undecodable::Malformed))?;
             d::ApplicationOutcome::CoreRefused(refusal::decode_refusal(record))
         }

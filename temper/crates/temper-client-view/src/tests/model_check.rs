@@ -320,6 +320,7 @@ fn the_welcomes_host_check_precedes_the_trial() {
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Copy { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .unwrap();
@@ -546,6 +547,7 @@ fn trial_failures_say_why_and_retry_the_account() {
     let (mut root, watch, _) = fed(d::WayKind::Program);
     for (class, words) in [
         (v::TrialClass::Transient, "Claude was busy or out of reach just now."),
+        (v::TrialClass::Infrastructure, "Claude was busy or out of reach just now."),
         (v::TrialClass::Permanent, "Claude refused the request. Its account may need attention."),
         (v::TrialClass::Run, "The run stopped before Claude answered."),
         (v::TrialClass::Agent, "The run stopped before Claude answered."),
@@ -759,7 +761,7 @@ fn sign_in_again_follows_the_place_and_the_selected_source() {
                 let tree = b.finish();
                 let links: Vec<_> = tree.nodes().iter().filter(|n| n.role == Role::Link).collect();
                 if kind == d::WayKind::Key && !welcome {
-                    assert!(links.is_empty());
+                    assert_eq!(links.len(), 0);
                     continue;
                 }
                 assert_eq!(links.len(), 1);

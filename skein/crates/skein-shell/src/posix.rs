@@ -43,6 +43,12 @@ pub(crate) fn status_flags(fd: i32) -> Result<i32, i32> {
     if flags < 0 { Err(last_errno()) } else { Ok(flags) }
 }
 
+/// Whether a startup descriptor is open for writing. Reads its flags without
+/// taking ownership or changing them (runtime/shell.md, 6).
+pub fn descriptor_writes(fd: Fd) -> Result<bool, i32> {
+    retry(|| status_flags(fd.raw())).map(|flags| flags & libc::O_ACCMODE != libc::O_RDONLY)
+}
+
 pub(crate) fn nonblocking(fd: Fd) -> Result<(), i32> {
     let flags = retry(|| status_flags(fd.raw()))?;
     retry(|| {
@@ -105,5 +111,22 @@ pub fn wait_readable(fd: Fd, bound: skein_lib::Duration) -> Result<bool, i32> {
         if clock.now().now >= deadline {
             return Ok(false);
         }
+    }
+}
+
+#[cfg(test)]
+mod descriptor_tests {
+    use super::descriptor_writes;
+    use skein_io::kernel::Fd;
+    use std::os::fd::AsRawFd;
+
+    #[test]
+    fn descriptor_write_access_keeps_the_open_mode() {
+        for (read, write, expected) in [(true, false, false), (false, true, true), (true, true, true)] {
+            let file = std::fs::OpenOptions::new().read(read).write(write).open("/dev/null").expect("null");
+            assert_eq!(descriptor_writes(Fd::new(file.as_raw_fd())), Ok(expected));
+            assert_eq!(descriptor_writes(Fd::new(file.as_raw_fd())), Ok(expected), "flags unchanged");
+        }
+        assert!(descriptor_writes(Fd::new(-1)).is_err());
     }
 }

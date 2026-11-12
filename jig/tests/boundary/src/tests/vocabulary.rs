@@ -158,7 +158,7 @@ fn workspace_fixture_omits_only_dependency_sources() {
     let manifest = format!("[workspace]\n[workspace.dependencies]\nskein-lib = {{ {word} = \"{url}\" }}\n");
     let source = workspace_vocabulary(&manifest);
     assert_eq!(source, "[workspace]\n[workspace.dependencies]\nskein-lib = {  }\n");
-    assert!(vocabulary_breaches(Path::new("fixture/Cargo.toml"), &source, &forbidden_words()).is_empty());
+    assert_eq!(vocabulary_breaches(Path::new("fixture/Cargo.toml"), &source, &forbidden_words()).len(), 0);
 
     let commented = format!("{manifest}# {word} = \"{url}\"\n");
     let source = workspace_vocabulary(&commented);
@@ -309,6 +309,6 @@ fn banned_words_are_reported_in_identifiers_comments_and_strings() {
         ];
         assert_eq!(super::super::names::breaches(path, &source), expected);
         let current = format!("fn {word}ness() {{}} // x{word}\nconst TEXT: &str = \"{word}s\";");
-        assert!(super::super::names::breaches(path, &current).is_empty());
+        assert_eq!(super::super::names::breaches(path, &current).len(), 0);
     }
 }

@@ -46,7 +46,7 @@ fn stock_world() -> (World, core::settings::Defaults) {
             .collect(),
     };
     let limits = box_limits();
-    let stock = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
+    let stock = temper_engine_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     let mut world = World::configured_stock_limits(&stock, &llm.models[0].model, &limits);
     world.sign_in();
     (world, stock)

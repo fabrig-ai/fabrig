@@ -30,7 +30,6 @@ pub(crate) struct LinkPeer {
     pub(crate) engine_pings: u32,
     pub(crate) worker_pings: u32,
     room: u32,
-    pub(crate) engine_frames: u32,
     pub(crate) records: List<LinkRecord>,
     pub(crate) component: engine_link::Component,
     pub(crate) out: Queue<engine_link::Request>,
@@ -41,9 +40,6 @@ pub(crate) struct LinkPeer {
     pub(crate) owner: Token,
 }
 impl LinkPeer {
-    pub(crate) fn new() -> Self {
-        Self::with_settings(&fixtures::worker_settings(), &fixtures::worker_agent())
-    }
     pub(crate) fn with_settings(settings: &crate::settings::Worker, agent: &crate::settings::Agent) -> Self {
         Self::with_limits(settings, agent, &fixtures::worker_limits())
     }
@@ -85,7 +81,6 @@ impl LinkPeer {
             engine_pings: 0,
             worker_pings: 0,
             room,
-            engine_frames: jig_protocol_worker_wire::sizes::engine_cap(&limits.sizes).unwrap().frames,
             records: List::with_capacity(LINK_RECORDS),
             component: engine_link::Component::new(
                 limits,
@@ -238,21 +233,17 @@ pub(crate) fn demanded_bytes(read: &mut Option<stream::Read>, intake: &mut Intak
     Some(bytes)
 }
 
-pub(crate) const AGENT_OWNER: Token = Token::new(23);
 pub(crate) const AGENT_CHILD: Token = Token::new(101);
 pub(crate) const AGENT_INPUT: Token = Token::new(102);
 pub(crate) const AGENT_OUTPUT: Token = Token::new(103);
 pub(crate) const AGENT_ERROR: Token = Token::new(104);
 pub(crate) const ADMITTED: u16 = 0x0106;
-pub(crate) const TURN: u16 = 0x0109;
-pub(crate) const ANSWER: u16 = 0x0110;
-pub(crate) const LIVE: u16 = 0x0112;
 pub(crate) const FRAME_HEADER_BYTES: u32 = 8; // skein's channel frame header.
 pub(crate) const PEER_FRAMES: u32 = 6; // Accept, Terms, Admitted, Live, Turn, Answer.
 pub(crate) const PEER_STEPS: u16 = 1000; // The existing LinkPeer's finite settling bound.
 
 // Private agent peer for the Worker's Process IO, without a root assignment.
-// The ledger measures actual frame writes and demanded byte deliveries; it
+// The ledger measures frame writes and demanded byte deliveries; it
 // neither supplies process events nor stands in for Worker::process_read.
 pub(crate) struct AgentPeer {
     pub(crate) owner: Token,
@@ -274,13 +265,6 @@ pub(crate) struct AgentPeer {
     pub(crate) output_closes: u32,
 }
 impl AgentPeer {
-    pub(crate) fn start(worker: &mut crate::Worker) -> Self {
-        Self::launch(worker, &fixtures::worker_agent(), AGENT_OWNER, false)
-    }
-    pub(crate) fn assigned(worker: &mut crate::Worker, agent: &crate::settings::Agent) -> Self {
-        let owner = assigned_agent(worker, agent);
-        Self::launch(worker, agent, owner, true)
-    }
     pub(crate) fn new(agent: &crate::settings::Agent, owner: Token) -> Self {
         let host = agent.limits;
         // The host's output bound prices initiator frames. The new responder
@@ -334,43 +318,7 @@ impl AgentPeer {
             output_closes: 0,
         }
     }
-    fn launch(worker: &mut crate::Worker, agent: &crate::settings::Agent, owner: Token, rooted: bool) -> Self {
-        let mut peer = Self::new(agent, owner);
-        if !rooted {
-            worker.route(root::Request::Process(Box::new(smith_host_domain::process::Request::Spawn {
-                owner,
-                workspace: None,
-                deadline: Time::from_nanos(u64::MAX),
-            })));
-        }
-        let owner = agent_spawn(worker);
-        peer.attach(worker, owner);
-        let opened = peer.events.pop();
-        let Some(smith_protocol_channel::Heard::Opened { .. }) = opened else {
-            panic!("agent opening: {opened:?}");
-        };
-        if !rooted {
-            let mut start = decoded_chat_start(agent);
-            start.live = Some(smith_host_domain::channel::LiveAsk { text: true, reasoning: false, input: false });
-            Self::send(
-                worker,
-                smith_host_domain::Down::Start {
-                    start: *start,
-                    window: smith_host_domain::Window {
-                        turns: agent.host_limits.turns,
-                        bytes: agent.host_limits.unacknowledged_bytes,
-                    },
-                },
-            );
-        }
-        peer.settle(worker);
-        let Some(smith_protocol_channel::Heard::Start { .. }) = peer.events.pop() else {
-            panic!("agent receives Start");
-        };
-        peer.component.send_admitted(peer.owner, &mut peer.events, &mut peer.out).unwrap();
-        peer.settle(worker);
-        peer
-    }
+
     /// Receive a real assignment's Start without admitting the run.
     pub(crate) fn pending(
         worker: &mut crate::Worker,
@@ -403,7 +351,7 @@ impl AgentPeer {
             },
             smith_host_domain::process::Event::Reaped { owner: self.owner, detail: detail.into() },
         ] {
-            worker.events.push(root::Event::Process(Box::new(event)));
+            worker.events().push(root::Event::Process(Box::new(event)));
         }
     }
 
@@ -415,20 +363,6 @@ impl AgentPeer {
         self.settle(worker);
     }
 
-    pub(crate) fn send(worker: &mut crate::Worker, message: smith_host_domain::Down) {
-        worker.route(root::Request::Process(Box::new(smith_host_domain::process::Request::Send {
-            owner: AGENT_OWNER,
-            process: AGENT_CHILD,
-            message,
-        })));
-    }
-    pub(crate) fn read(&mut self, worker: &mut crate::Worker) {
-        worker.route(root::Request::Process(Box::new(smith_host_domain::process::Request::Read {
-            owner: AGENT_OWNER,
-            process: AGENT_CHILD,
-        })));
-        self.settle(worker);
-    }
     pub(crate) fn lower(&mut self, event: LowerEvent) {
         self.component.from_below(event, &mut self.events, &mut self.out);
     }
@@ -495,9 +429,7 @@ impl AgentPeer {
     pub(crate) fn settle(&mut self, worker: &mut crate::Worker) {
         self.pump(worker, None);
     }
-    pub(crate) fn stage_frame(&mut self, worker: &mut crate::Worker, frames: usize) {
-        self.pump(worker, Some(frames));
-    }
+
     fn pump(&mut self, worker: &mut crate::Worker, frames: Option<usize>) {
         for _ in 0..PEER_STEPS {
             worker.iterate(self.now, Wall::EPOCH);
@@ -567,36 +499,6 @@ impl AgentPeer {
         }
         panic!("agent channel settles within the existing peer bound");
     }
-}
-
-pub(crate) fn decoded_chat_start(agent: &crate::settings::Agent) -> Box<smith_host_domain::Start> {
-    let link::Request::Down { down: hub::LinkDown::Assign { assignment }, .. } = fixtures::chat_assignment() else {
-        panic!("chat assignment")
-    };
-    let source = assignment.assignment;
-    crate::worker_route::decode(
-        source.run,
-        hub::Start {
-            live: hub::LiveAsk::NONE,
-            workspace: Some(Token::new(3)),
-            charter: source.charter,
-            activation: 1,
-            identity: source.identity,
-            turns: Box::new([]),
-            answered: Box::new([]),
-            messages: Box::new([]),
-            grants: Box::new([]),
-        },
-        agent,
-    )
-    .unwrap()
-}
-
-pub(crate) fn cancellation_turn(agent: &crate::settings::Agent) -> Box<[u8]> {
-    turn_body(agent, 1)
-}
-pub(crate) fn turn_body(agent: &crate::settings::Agent, number: u32) -> Box<[u8]> {
-    text_turn(agent, number, b"last text")
 }
 
 /// Encode a concrete saved assistant turn, with the supplied text.
@@ -690,42 +592,26 @@ fn stream_request(request: &io::Request, streams: &[Token]) -> bool {
     }
 }
 
-// Only fixture setup drives the root directly: capture smith's opaque process
-// owner as Spawn crosses, then hand every request to the real service adapter.
-fn assigned_agent(worker: &mut crate::Worker, agent: &crate::settings::Agent) -> Token {
-    let link::Request::Down { mut down, .. } = fixtures::chat_assignment() else { panic!("chat assignment") };
-    if let hub::LinkDown::Assign { assignment } = &mut down {
-        assignment.assignment.live = hub::LiveAsk { text: true, reasoning: false, input: false };
-    }
-    assigned_agent_with(worker, agent, link::Request::Down { down, parts: Box::new([]) })
-}
+// Offer the assignment to the component, then recover smith's opaque owner
+// while leaving its IO Spawn queued for the peer.
 
-fn assigned_agent_with(worker: &mut crate::Worker, agent: &crate::settings::Agent, assignment: link::Request) -> Token {
-    const OUTPUTS: u32 = 256; // A chat start's routing requests.
+fn assigned_agent_with(
+    worker: &mut crate::Worker,
+    _agent: &crate::settings::Agent,
+    assignment: link::Request,
+) -> Token {
     let link::Request::Down { down, .. } = assignment else { panic!("assignment") };
-    let mut out = Queue::with_capacity(OUTPUTS);
-    root::step(&mut worker.root, &worker.env, root::Event::Link(down), &mut out);
-    let mut spawned = None;
-    while let Some(request) = out.pop() {
-        if let root::Request::Decode { agent: owner, run, start } = request {
-            let start = crate::worker_route::decode(run, *start, agent);
-            root::step(&mut worker.root, &worker.env, root::Event::Decoded { agent: owner, start }, &mut out);
-        } else {
-            if let root::Request::Process(ref process) = request
-                && let smith_host_domain::process::Request::Spawn { owner, .. } = process.as_ref()
-            {
-                spawned = Some(*owner);
-            }
-            worker.route(request);
+    worker.offer(root::Event::Link(down));
+    for _ in 0..worker.io().len() {
+        let request = worker.io().pop().unwrap();
+        if let io::Request::Spawn { owner, .. } = &request {
+            let owner = *owner;
+            worker.io().push(request);
+            return worker.process_owner(owner).expect("spawn belongs to the worker process");
         }
+        worker.io().push(request);
     }
-    spawned.expect("the assigned chat spawns smith")
-}
-
-pub(crate) fn socket_stand() -> fixtures::WorkerStand {
-    let mut settings = fixtures::worker_settings();
-    settings.jig.engine = jig_protocol_config::Address::Addr(io::Addr::Ip(([127, 0, 0, 1], 7100).into()));
-    socket_stand_with(&settings, &fixtures::worker_agent())
+    panic!("the assigned chat spawns smith");
 }
 
 pub(crate) fn socket_stand_with(
@@ -802,7 +688,11 @@ impl AskingChat {
             period_span: crate::stock::PERIOD_SPAN,
             core,
             landings: setup.landings,
-            forge: skein_forge_client::Config { namespace: Box::new([31; 16]), writers: Box::new([]) },
+            forge: temper_engine_domain_forge::Config {
+                push: None,
+                namespace: Box::new([31; 16]),
+                writers: Box::new([]),
+            },
             identities: Box::new([]),
             machine: None,
             forges: Box::new([]),
@@ -1099,18 +989,18 @@ fn asking_worker_settings() -> (crate::settings::Worker, crate::settings::Agent)
 
 fn asking_grants(worker: &mut crate::Worker, grants: &[Grant]) {
     for grant in grants {
-        worker
-            .values
-            .granted(
-                grant.account,
-                grant.generation,
-                crate::worker::credentials::Value {
-                    scheme: crate::worker::credentials::Scheme::Key,
+        worker.link(
+            fixtures::NOW,
+            link::Request::Value {
+                account: grant.account,
+                generation: grant.generation,
+                expires: Time::from_nanos(u64::MAX),
+                value: link::GrantValue::Credential {
+                    scheme: link::Scheme::Key,
                     token: skein_lib::Secret::new(b"fake-model-key".as_slice().into()),
                 },
-                Time::from_nanos(u64::MAX),
-            )
-            .unwrap();
+            },
+        );
     }
 }
 

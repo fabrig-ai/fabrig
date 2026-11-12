@@ -115,6 +115,7 @@ fn valid_accepts_test_limits() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn invalid_tls_limits_refuse_portable_and_native_construction() {
     skein_rows::check(
         [

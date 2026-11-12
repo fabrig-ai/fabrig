@@ -3,7 +3,6 @@
 use std::os::unix::fs::DirBuilderExt;
 use std::path::{Path, PathBuf};
 
-use rusqlite::Connection;
 use smith_bench::agent::codex::{ChildThread, Link, Rollouts, collect_rollouts, parse_rollout};
 use smith_bench::{Measure, ScopeKind};
 
@@ -33,20 +32,26 @@ fn immutable_response_ids_deduplicate_without_adding_turn_totals() {
 }
 
 fn an_unlinked_child_keeps_its_scope_unavailable_and_the_total_a_lower_bound() {
-    let (_, responses) = parse_rollout(&rollout("root", None), "root").expect("root");
-    let (_, child_usage) = parse_rollout(&rollout("child", None), "child").expect("child");
-    let records = Rollouts {
-        responses,
-        children: vec![ChildThread { thread: "child".into(), link: Link::Unlinked, responses: child_usage }],
-        files: Vec::new(),
+    let scratch = private("unlinked");
+    for (name, parent) in [("missing", None), ("no-parent", Some(None)), ("unknown-parent", Some(Some("unknown")))] {
+        let home = scratch.path().join(name);
+        std::fs::create_dir_all(home.join("sessions")).expect("private fixture");
+        std::fs::write(home.join("sessions/root.jsonl"), rollout("root", None)).expect("root");
+        if let Some(parent) = parent {
+            std::fs::write(home.join("sessions/child.jsonl"), rollout("child", parent)).expect("unlinked child");
+        }
+        let mut observing = collection_observer(&home, "root", &["child"]);
+        let collected = observing.collect().expect(name);
+        assert_eq!(collected.children.len(), 1, "{name}");
+        assert_eq!(collected.children[0].thread, "child", "{name}");
+        assert_eq!(collected.children[0].link, Link::Unlinked, "{name}");
+        let records = collected.token_records("root").expect("honest ledger");
+        let child = records.iter().find(|record| record.scope == "child").expect("unavailable child scope");
+        assert_eq!(child.role, ScopeKind::UnlinkedChild, "{name}");
+        assert!(matches!(child.usage.fresh, Measure::Unavailable { .. }), "{name}");
+        let total = records.iter().find(|record| record.role == ScopeKind::Total).expect("total");
+        assert!(matches!(total.usage.fresh, Measure::LowerBound { value: 15, .. }), "{name}");
     }
-    .token_records("root")
-    .expect("honest ledger");
-    let child = records.iter().find(|record| record.scope == "child").expect("unavailable child scope");
-    assert_eq!(child.role, ScopeKind::UnlinkedChild);
-    assert!(matches!(child.usage.fresh, Measure::Unavailable { .. }));
-    let total = records.iter().find(|record| record.role == ScopeKind::Total).expect("total");
-    assert!(matches!(total.usage.fresh, Measure::LowerBound { value: 15, .. }));
 }
 
 fn known_usage_shape_changes_and_foreign_thread_records_refuse() {
@@ -63,6 +68,152 @@ fn known_usage_shape_changes_and_foreign_thread_records_refuse() {
     let response = edit_lines(&response, "/payload/usage/total_tokens", &json!(28), Some(&json!(29)), 1);
     let conflicting = format!("{text}{response}");
     assert!(parse_rollout(conflicting.as_bytes(), "root").is_err());
+}
+
+#[derive(Debug)]
+struct TreeRow {
+    name: &'static str,
+    files: Vec<(&'static str, Vec<u8>)>,
+    links: Vec<(&'static str, &'static str)>,
+    root: &'static str,
+    stream_children: Vec<&'static str>,
+    expected: Result<TreeEvidence, (&'static str, &'static str)>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct TreeEvidence {
+    children: Vec<(String, Link)>,
+    files: Vec<String>,
+}
+
+fn write_tree(home: &Path, row: &TreeRow) {
+    std::fs::create_dir_all(home).expect("scratch home");
+    for (path, bytes) in &row.files {
+        let path = home.join(path);
+        std::fs::create_dir_all(path.parent().expect("fixture parent")).expect("fixture directories");
+        std::fs::write(path, bytes).expect("fixture file");
+    }
+    for (path, target) in &row.links {
+        let path = home.join(path);
+        std::fs::create_dir_all(path.parent().expect("fixture parent")).expect("link parent");
+        std::os::unix::fs::symlink(home.join(target), path).expect("fixture link");
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one table of rollout discovery rules shares its fixture and assertions")]
+fn rollout_trees_discover_only_named_threads_and_refuse_unsafe_or_ambiguous_files() {
+    let linked = |thread: &str, parent: &str| (thread.to_owned(), Link::Linked { parent: parent.into() });
+    let rows = [
+        TreeRow {
+            name: "archived",
+            files: vec![("sessions/a/root.jsonl", rollout("root", None)),
+                ("archived_sessions/2026/10/09/rollout-x.jsonl", rollout("child", Some("root")))],
+            links: vec![], root: "root", stream_children: vec![],
+            expected: Ok(TreeEvidence { children: vec![linked("child", "root")], files: vec!["child".into(), "root".into()] }),
+        },
+        TreeRow {
+            name: "unrelated-openings",
+            files: vec![("sessions/root", rollout("root", None)),
+                ("sessions/other-kind", b"{\"type\":\"turn_context\",\"payload\":{\"id\":\"foreign\"}}\n{invalid}".to_vec()),
+                ("sessions/no-id", b"{\"type\":\"session_meta\",\"payload\":{}}\n{invalid}".to_vec()),
+                ("sessions/binary", vec![0xff, 0xfe, b'\n']), ("sessions/empty", vec![])],
+            links: vec![], root: "root", stream_children: vec![],
+            expected: Ok(TreeEvidence { children: vec![], files: vec!["root".into()] }),
+        },
+        TreeRow {
+            name: "outside-file", files: vec![("outside/file", rollout("root", None))],
+            links: vec![("sessions/root", "outside/file")], root: "root", stream_children: vec![],
+            expected: Err(("sessions/root", "link")),
+        },
+        TreeRow {
+            name: "outside-directory", files: vec![("outside/file", rollout("root", None))],
+            links: vec![("sessions/escape", "outside")], root: "root", stream_children: vec![],
+            expected: Err(("sessions/escape", "link")),
+        },
+        TreeRow {
+            name: "dangling", files: vec![], links: vec![("sessions/missing", "absent")],
+            root: "root", stream_children: vec![], expected: Err(("sessions/missing", "link")),
+        },
+        TreeRow {
+            name: "session-directory-link", files: vec![("outside/file", rollout("root", None))],
+            links: vec![("sessions", "outside")], root: "root", stream_children: vec![],
+            expected: Err(("sessions", "link")),
+        },
+        TreeRow {
+            name: "internal-links", files: vec![("sessions/a/root", rollout("root", None)),
+                ("archived_sessions/b/child", rollout("child", Some("root")))],
+            links: vec![("sessions/alias", "sessions/a/root"), ("archived_sessions/alias", "sessions/a")],
+            root: "root", stream_children: vec![],
+            expected: Ok(TreeEvidence { children: vec![linked("child", "root")], files: vec!["child".into(), "root".into()] }),
+        },
+        TreeRow {
+            name: "duplicate", files: vec![("sessions/x.jsonl", rollout("dup", Some("root"))),
+                ("sessions/y.jsonl", rollout("dup", Some("root")))], links: vec![], root: "root", stream_children: vec![],
+            expected: Err(("sessions/y.jsonl", "duplicate")),
+        },
+        TreeRow {
+            name: "grandchild", files: vec![("sessions/root", rollout("root", None)),
+                ("sessions/child", rollout("z-child", Some("root"))),
+                ("sessions/grandchild", rollout("a-grandchild", Some("z-child")))],
+            links: vec![], root: "root", stream_children: vec![],
+            expected: Ok(TreeEvidence { children: vec![linked("a-grandchild", "z-child"), linked("z-child", "root")],
+                files: vec!["a-grandchild".into(), "root".into(), "z-child".into()] }),
+        },
+        TreeRow {
+            name: "native-parent", files: vec![("sessions/root", rollout("root", None)),
+                ("sessions/child", b"{\"type\":\"session_meta\",\"payload\":{\"id\":\"child\",\"parent_thread_id\":\"unknown\",\"source\":{\"subagent\":{\"thread_spawn\":{\"parent_thread_id\":\"root\"}}}}}\n".to_vec())],
+            links: vec![], root: "root", stream_children: vec![],
+            expected: Ok(TreeEvidence { children: vec![linked("child", "root")], files: vec!["child".into(), "root".into()] }),
+        },
+        TreeRow {
+            name: "unknown-parent", files: vec![("sessions/root", rollout("root", None)),
+                ("sessions/foreign", rollout("foreign", Some("unknown")))],
+            links: vec![], root: "root", stream_children: vec![],
+            expected: Ok(TreeEvidence { children: vec![], files: vec!["root".into()] }),
+        },
+        TreeRow {
+            name: "stream-child", files: vec![("sessions/root", rollout("root", None)),
+                ("sessions/child", rollout("child", None)), ("sessions/grandchild", rollout("grandchild", Some("child")))],
+            links: vec![], root: "root", stream_children: vec!["child"],
+            expected: Ok(TreeEvidence { children: vec![("child".into(), Link::Unlinked), linked("grandchild", "child")],
+                files: vec!["child".into(), "grandchild".into(), "root".into()] }),
+        },
+        TreeRow {
+            name: "missing-directories", files: vec![], links: vec![], root: "root", stream_children: vec!["child"],
+            expected: Ok(TreeEvidence { children: vec![("child".into(), Link::Unlinked)], files: vec![] }),
+        },
+    ];
+    let scratch = private("rollout-trees");
+    for row in rows {
+        let home = scratch.path().join(row.name);
+        write_tree(&home, &row);
+        let mut observing = collection_observer(&home, row.root, &row.stream_children);
+        match row.expected {
+            Ok(expected) => {
+                let collected = observing.collect().unwrap_or_else(|error| panic!("{}: {error}", row.name));
+                let evidence = TreeEvidence {
+                    children: collected
+                        .children
+                        .iter()
+                        .map(|child| {
+                            let link = match &child.link {
+                                Link::Linked { parent } => Link::Linked { parent: parent.clone() },
+                                Link::Unlinked => Link::Unlinked,
+                            };
+                            (child.thread.clone(), link)
+                        })
+                        .collect(),
+                    files: collected.files.iter().map(|file| file.thread.clone()).collect(),
+                };
+                assert_eq!(evidence, expected, "{}", row.name);
+            }
+            Err((path, word)) => {
+                let error = observing.collect().expect_err(row.name).detail;
+                assert!(error.contains(path) && error.contains(word), "{}: {error}", row.name);
+            }
+        }
+    }
 }
 
 fn private(name: &str) -> skein_scratch::Scratch {
@@ -109,41 +260,29 @@ fn read_only_collection_follows_only_the_named_roots_descendants() {
     let scratch = private("named");
     let home = scratch.path().join("root");
     std::fs::create_dir_all(home.join("sessions")).expect("private fixture");
-    let database = home.join("state_5.sqlite");
-    let connection = Connection::open(&database).expect("fixture database");
-    connection.execute_batch("CREATE TABLE threads(id TEXT PRIMARY KEY, rollout_path TEXT); CREATE TABLE thread_spawn_edges(parent_thread_id TEXT, child_thread_id TEXT);").expect("pinned schema");
+    let mut before = Vec::new();
     for (thread, parent) in [("root", None), ("child", Some("root")), ("foreign", None)] {
         let file = home.join("sessions").join(format!("{thread}.jsonl"));
-        std::fs::write(&file, if thread == "foreign" { b"not JSON".to_vec() } else { rollout(thread, parent) })
-            .expect("own fixture");
-        connection
-            .execute("INSERT INTO threads VALUES(?1,?2)", [thread, file.to_str().expect("fixture path")])
-            .expect("thread row");
-        if let Some(parent) = parent {
-            connection.execute("INSERT INTO thread_spawn_edges VALUES(?1,?2)", [parent, thread]).expect("native edge");
-        }
+        let bytes = if thread == "foreign" { b"not JSON".to_vec() } else { rollout(thread, parent) };
+        std::fs::write(&file, &bytes).expect("own fixture");
+        before.push((file, bytes));
     }
-    drop(connection);
-    let before = std::fs::read(&database).expect("database snapshot");
     let collected = collect_rollouts(&home, "root").expect("named collection ignores foreign file");
     assert_eq!(collected.children.len(), 1);
     assert_eq!(collected.files.len(), 2);
     assert_eq!(collected.children[0].link, Link::Linked { parent: "root".into() });
-    assert_eq!(std::fs::read(database).expect("unchanged database"), before);
+    for (file, bytes) in before {
+        assert_eq!(std::fs::read(file).expect("unchanged rollout tree"), bytes);
+    }
 }
 
 fn a_named_path_cannot_read_credentials_or_an_unrelated_file() {
     let scratch = private("path");
     let home = scratch.path().join("root");
-    std::fs::create_dir_all(&home).expect("fixture directory");
-    let connection = Connection::open(home.join("state_5.sqlite")).expect("fixture database");
-    connection.execute_batch("CREATE TABLE threads(id TEXT PRIMARY KEY, rollout_path TEXT); CREATE TABLE thread_spawn_edges(parent_thread_id TEXT, child_thread_id TEXT);").expect("schema");
+    std::fs::create_dir_all(home.join("sessions")).expect("fixture directory");
     let forbidden = home.join("auth.json");
     std::fs::write(&forbidden, "CREDENTIAL_CONTROL_SENTINEL").expect("unissued fixture sentinel");
-    connection
-        .execute("INSERT INTO threads VALUES(?1,?2)", ["root", forbidden.to_str().expect("path")])
-        .expect("invalid native path");
-    drop(connection);
+    std::os::unix::fs::symlink(&forbidden, home.join("sessions/root.jsonl")).expect("invalid native path");
     let error = collect_rollouts(&home, "root").expect_err("not a rollout directory");
     assert!(!error.to_string().contains("CREDENTIAL_CONTROL_SENTINEL"));
 }
@@ -333,6 +472,44 @@ fn repeated_session_metadata_keeps_its_parent_and_refuses_conflicts() {
     );
 }
 
+fn collection_observer(home: &Path, root: &str, children: &[&str]) -> smith_bench::agent::codex::Observing {
+    let prepared = smith_bench::agent::PreparedAgent::Codex(smith_bench::agent::codex::PreparedCodex {
+        overrides: Vec::new(),
+        credential: home.join("auth.json"),
+        expires: skein_lib::Wall::EPOCH,
+        borrowed: None,
+        home: home.to_path_buf(),
+        final_message: home.join("final.txt"),
+        model: smith_bench::ModelChoice { model: Some("offline".into()), effort: Some("low".into()) },
+        program: "/bin/false".into(),
+        workspace: home.to_path_buf(),
+        teardown: skein_lib::Duration::ZERO,
+    });
+    let smith_bench::agent::Observing::Codex(mut observing) = prepared.observe().expect("prepared Codex observer")
+    else {
+        panic!("Codex observer");
+    };
+    observing
+        .observer
+        .observe_line(&serde_json::json!({"type":"thread.started", "thread_id": root}).to_string())
+        .expect("named root");
+    if !children.is_empty() {
+        observing.observer.observe_line(r#"{"type":"turn.started"}"#).expect("active turn");
+        observing
+            .observer
+            .observe_line(
+                &serde_json::json!({
+                    "type":"item.completed", "item": {"id":"spawn", "type":"collab_tool_call",
+                    "tool":"spawn_agent", "sender_thread_id":root, "receiver_thread_ids":children,
+                    "prompt":null, "agents_states":{}, "status":"completed"}
+                })
+                .to_string(),
+            )
+            .expect("completed spawn_agent");
+    }
+    observing
+}
+
 fn malformed_named_rollouts_remain_available_for_archive_and_keep_the_cached_fault() {
     let scratch = private("raw-fault");
     let home = scratch.path().join("root");
@@ -340,29 +517,7 @@ fn malformed_named_rollouts_remain_available_for_archive_and_keep_the_cached_fau
     let file = home.join("sessions/root.jsonl");
     let raw = b"{\"type\":\"session_meta\",\"payload\":{\"id\":\"root\"}}\n{invalid JSON}\n";
     std::fs::write(&file, raw).expect("known malformed rollout");
-    let connection = Connection::open(home.join("state_5.sqlite")).expect("fixture database");
-    connection.execute_batch("CREATE TABLE threads(id TEXT PRIMARY KEY, rollout_path TEXT); CREATE TABLE thread_spawn_edges(parent_thread_id TEXT, child_thread_id TEXT);").expect("schema");
-    connection
-        .execute("INSERT INTO threads VALUES(?1,?2)", ["root", file.to_str().expect("path")])
-        .expect("named path");
-    drop(connection);
-    let prepared = smith_bench::agent::PreparedAgent::Codex(smith_bench::agent::codex::PreparedCodex {
-        overrides: Vec::new(),
-        credential: home.join("auth.json"),
-        expires: skein_lib::Wall::EPOCH,
-        borrowed: None,
-        home: home.clone(),
-        final_message: home.join("final.txt"),
-        model: smith_bench::ModelChoice { model: Some("offline".into()), effort: Some("low".into()) },
-        program: "/bin/false".into(),
-        workspace: home.clone(),
-        teardown: skein_lib::Duration::ZERO,
-    });
-    let smith_bench::agent::Observing::Codex(mut observing) = prepared.observe().expect("prepared Codex observer")
-    else {
-        panic!("Codex observer");
-    };
-    observing.observer.observe_line(r#"{"type":"thread.started","thread_id":"root"}"#).expect("named root");
+    let mut observing = collection_observer(&home, "root", &[]);
     let first = observing.collect().expect_err("known shape fault").detail;
     assert!(first.contains("thread root"));
     let retained = observing.collected.as_ref().expect("raw retained");

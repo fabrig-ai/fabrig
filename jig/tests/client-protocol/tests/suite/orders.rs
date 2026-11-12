@@ -2,7 +2,7 @@
 //! See skein/docs/foundation/programming-model.md, 7.2.
 use jig_client_domain::{Ask, Asker, Held, Key, Readable, contract};
 use jig_client_protocol_link::{Event, Link, Message, Record, Request, Saved};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_client_protocol_world::fixtures::{self, PROJECT};
 use skein_lib::{Duration, Queue, Reader, RequestKey, RequestRecord, Time, Token, Writer};
 use std::collections::BTreeMap;
@@ -186,7 +186,7 @@ fn failed_persistence_never_releases_held_exchanges_under_load() {
     world.event(Event::NotStored);
     world.stored();
     world.event(Event::NotStored);
-    assert!(world.sent.is_empty());
+    assert_eq!(world.sent.len(), 0);
     assert_eq!(world.loads, [(EXCHANGES, PENDING_WRITES)]);
     assert_eq!(world.terminals, terminals("not kept"));
     assert_eq!(world.link.in_flight(), OCCUPIED_READS);

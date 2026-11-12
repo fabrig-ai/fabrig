@@ -110,7 +110,7 @@ fn crash_open(
     assert_eq!(opening.activation, activation);
     assert!(opening.transcript.is_none());
     let conversation = *conversation;
-    assert!(crash_take(domain, env, out, run::Event::Started { conversation, peer: Token::new(99) }).is_empty());
+    assert_eq!(crash_take(domain, env, out, run::Event::Started { conversation, peer: Token::new(99) }).len(), 0);
     (run, conversation)
 }
 
@@ -180,9 +180,10 @@ fn sub_agents_reserve_from_the_runs_budget_and_spend_never_passes_it() {
         panic!("the run opened its child: {asked:?}")
     };
     let child = *child;
-    assert!(
+    assert_eq!(
         crash_take(&mut domain, &env, &mut out, run::Event::Started { conversation: child, peer: Token::new(101) })
-            .is_empty()
+            .len(),
+        0
     );
 
     let first = Token::new(801);
@@ -190,25 +191,27 @@ fn sub_agents_reserve_from_the_runs_budget_and_spend_never_passes_it() {
     assert_eq!(run::reserve(&mut domain, main, first, run::Most::Bounded(60)), Ok(()));
     assert_eq!(run::reserve(&mut domain, child, second, run::Most::Bounded(50)), Err(Exhausted::Spend));
     assert!(run::settle_reservation(&mut domain, main, first, 20));
-    assert!(
+    assert_eq!(
         crash_take(
             &mut domain,
             &env,
             &mut out,
             run::Event::Priced { conversation: main, own_spent: 20, subtree_spent: 20 },
         )
-        .is_empty()
+        .len(),
+        0
     );
     assert_eq!(run::reserve(&mut domain, child, second, run::Most::Bounded(50)), Ok(()));
     assert!(run::settle_reservation(&mut domain, child, second, 30));
-    assert!(
+    assert_eq!(
         crash_take(
             &mut domain,
             &env,
             &mut out,
             run::Event::Priced { conversation: child, own_spent: 30, subtree_spent: 30 },
         )
-        .is_empty()
+        .len(),
+        0
     );
     let child_spend = run::Spend { turns: 1, units: 30, ..run::Spend::ZERO };
     let returned = crash_take(
@@ -270,7 +273,7 @@ fn answered_host_call_before_turn_crash_wakes_as_host_text_with_new_call_namespa
     let mut resumed = run::Domain::new(&limits, 0);
     let (run, conversation) = crash_open(&mut resumed, &env, &mut out, host.start(2), 2);
     let notice = host.waking_text();
-    assert!(
+    assert_eq!(
         crash_take(
             &mut resumed,
             &env,
@@ -283,7 +286,8 @@ fn answered_host_call_before_turn_crash_wakes_as_host_text_with_new_call_namespa
                 text: notice[6..].into()
             },
         )
-        .is_empty()
+        .len(),
+        0
     );
     let waking = crash_take(
         &mut resumed,

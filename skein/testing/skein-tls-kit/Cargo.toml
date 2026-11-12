@@ -11,7 +11,7 @@ publish.workspace = true
 skein-heap.workspace = true
 skein-lib.workspace = true
 skein-tls.workspace = true
-rustls = { workspace = true, features = ["std"] }
+rustls-std = { workspace = true }
 
 [lib]
 test = false

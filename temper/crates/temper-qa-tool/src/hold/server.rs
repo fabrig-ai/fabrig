@@ -79,11 +79,11 @@ impl Holder {
             for script in scripts {
                 command.arg("--scripts").arg(script);
             }
+            command.arg("--strict").arg("--files").arg(&drive.files);
             if let Some(ports) = &drive.place.ports {
                 command.args(["--ports", ports]);
             }
             let child = command
-                .arg("--strict")
                 .stdin(Stdio::from(OwnedFd::from(child_input)))
                 .stdout(Stdio::from(OwnedFd::from(child_output)))
                 .stderr(Stdio::inherit())

@@ -555,7 +555,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Seed { project, collaborators } => seed(domain, &env.limits, project, &collaborators, out),
         Event::Waiting { task, entries } => {
             domain.assert_projection_event();
-            replace_waiting(domain, &env.limits, task, &entries);
+            replace_waiting(domain, &env.limits, task, &entries, out);
         }
         Event::ApplyRoles { reply_to, request } => {
             let result = apply_roles(domain, env, request, out);

@@ -62,7 +62,7 @@ impl Connection {
         if let Some(up) = up {
             server::up(&mut self.server, &mut forge.service, &env, up, &mut self.above, &mut self.below);
         }
-        let domain_env = env.with(forge.config);
+        let domain_env = env.with(forge.config.clone());
         let mut lent = Lent { domain: &mut forge.domain, env: &domain_env, hooks };
         inline::pass(&mut self.server, &mut forge.service, &mut lent, &env, &mut self.above, &mut self.below);
     }

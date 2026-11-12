@@ -81,9 +81,12 @@ How it counts decides what becomes of the task:
 - **Capacity:** nothing is wrong but room, which frees by itself. The
   task pauses and is due again after a backoff, no try spent, with no
   bound on how many times (../tasks/lifecycle.md, 6).
-- **Transient** or **permanent:** a failure of that class (../tasks/lifecycle.md,
-  6). The task backs off within that class's allowance and, past it,
-  is held for `Failures` of that class, its hold naming the reason.
+- **Transient**, **infrastructure** or **permanent:** a failure of that
+  class (../tasks/lifecycle.md, 6). The task backs off within that class's
+  allowance and, past it, is held for `Failures` of that class, its hold
+  naming the reason. A section whose system failed for now, or that its
+  system did not answer by the brief's deadline, is the infrastructure's:
+  its allowance rides out a system down for minutes.
 
 A brief that fails, however it counts, gives its brief slot back at once,
 its sections still gathering dropped, before its task pauses or backs
@@ -97,8 +100,9 @@ Which is which, by what `executors.md`, 1 prepares:
 | a connector says it has no room, or that its system admits nothing yet | capacity | the connector's |
 | the core's result reads, its notes or its proofs have no room | capacity | `results: no read flight is free`, `notes: no room for the index`, `run: no room for its proof` |
 | a claim refused (a host's or a writer's room; ../tasks/lifecycle.md, 6) | capacity | `claim: refused` |
-| a required section past the brief's deadline | transient | `SECTION: not gathered by its deadline` |
-| a connector says its system failed for now | transient | the connector's |
+| a required section past the brief's deadline | infrastructure | `SECTION: not gathered by its deadline` |
+| a connector says its system failed for now | infrastructure | the connector's |
+| a connector says its section is to be gathered again, what it reads having moved meanwhile | transient | the connector's |
 | a dependency's result the store no longer answers with | transient | `results: a dependency's result could not be read` |
 | a transcript's window that does not load | transient | `transcript: its window could not be loaded`, or `transcript: its window could not be read` for an open window unread, which closes it (`executors.md`, 2) |
 | a required section that cannot fit, whole or cut | permanent | `SECTION: does not fit the brief's budget`, or `brief: its required sections do not fit its budget` |

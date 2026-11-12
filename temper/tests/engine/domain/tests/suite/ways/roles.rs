@@ -53,7 +53,7 @@ fn driver(producers: &[(u32, Option<&[u8]>)]) -> (Driver, jig_domain_core::Templ
     let policy = &mut config.core.seed_projects[0].policy.policy;
     policy.ceiling.delegation.kinds.clone_from(&executors);
     policy.roles[0].authority.delegation.kinds = executors;
-    let stock = temper_service::stock::with_models(
+    let stock = temper_engine_service::stock::with_models(
         Box::new([core_settings::CatalogueModel {
             first_read: None,
             number: 1,
@@ -209,10 +209,18 @@ fn roles_append_live_standing_charters_then_follow_producers_once_in_source_orde
     assert_eq!(got.iter().map(|(number, _, _)| *number).collect::<Vec<_>>(), [1, 2, 4, 9, 13, 14, 17, 16]);
     assert_eq!(got[4], initial[4], "two roles under 13 still give one card");
     assert_eq!(got[5].1, "Standing role");
-    assert_eq!(got[5].2, "For each standing role: Keep this project's work in order.");
-    for (_, name, who) in &got[6..] {
+    assert_eq!(
+        got[5].2,
+        "For each standing role: Routes what comes in to its area's owner, and triages what fits no area."
+    );
+    for (number, name, who) in &got[6..] {
         assert_eq!(name, "Follow's coding agent");
-        assert_eq!(who, "For each follow change: Keep this project's work in order.");
+        let words = if *number == 16 {
+            "For each follow change: Keeps its area's port in step with its source."
+        } else {
+            "For each follow change: Keep this project's work in order."
+        };
+        assert_eq!(who, words);
     }
 }
 

@@ -74,7 +74,7 @@ enum NoteRefusal { busy, oversized, full, exists, missing, moved: NoteRefusalMov
 record CallPartNoteRefused { value: NoteRefusal }
 record CallPartRevised { task: u64 revision: u64 }
 
-enum FailureClass { transient, permanent, run, agent, lost, invalid }
+enum FailureClass { transient, permanent, run, agent, lost, invalid, infrastructure }
 record HoldReasonFailures { class: FailureClass }
 record HoldReasonDependency { task: u64 }
 record HoldReasonPlaced { hold: u64 }

@@ -91,7 +91,7 @@ fn configured_rows(settings: Settings, rows: u32) -> World<Test, Scripted> {
         settings,
         Scripted::new(
             Script {
-                versions: VersionRange { first: 19, last: 19 },
+                versions: VersionRange { first: 20, last: 20 },
                 truth,
                 bounds: Bounds {
                     text: 32,
@@ -828,7 +828,7 @@ pub fn held_chat(seed: u64) -> World<Test, Scripted> {
         revision: 4,
         before: PriorPhase::Active(RunStage::Running { attempt: 1 }),
         escalation: None,
-        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: Some(Wall::EPOCH),
     };
     held.hold = Some(Box::new(reason.clone()));

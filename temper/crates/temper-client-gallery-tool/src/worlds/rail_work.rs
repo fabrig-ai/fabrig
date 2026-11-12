@@ -126,7 +126,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                             matches!(work, Work::Whole) || name == "rail-all-projects" || name == "rail-across";
                         project_ways(root, read, drafts, work, out);
                     }
-                    w::Read::Deployment => super::deployment_read(root, read, true, out),
+                    w::Read::Deployment => super::deployment_read(root, read, true, false, out),
                     _ => {}
                 }
             }
@@ -446,6 +446,8 @@ fn changes(work: Work) -> w::ChangesPanel {
                 w::ChangesQueue::new(
                     &w::CEILINGS,
                     w::ChangesQueueParts {
+                        way: w::Way::Queue,
+                        in_flight: None,
                         repository: b"work/project".as_slice().into(),
                         branch: b"main".as_slice().into(),
                         red: false,

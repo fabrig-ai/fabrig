@@ -277,7 +277,7 @@ fn an_opener_that_closes_a_calling_session_has_its_call_cancelled() {
     world.run(ITERATIONS);
 
     assert_eq!((end(&world, opener), turns(&world, opener)), (End::Closed, 0));
-    assert!(yields(&world, opener).is_empty());
+    assert_eq!(yields(&world, opener).len(), 0);
     let stats = world.stats();
     assert_eq!((stats.cancels, stats.late_answers), (1, 1));
 }
@@ -330,7 +330,7 @@ fn a_call_that_wins_its_race_with_a_cancel_still_ends_the_session_and_counts() {
 
     // The answer came all the same: its tokens count, and nothing yields.
     assert_eq!((end(&world, opener), turns(&world, opener)), (End::Closed, 1));
-    assert!(yields(&world, opener).is_empty());
+    assert_eq!(yields(&world, opener).len(), 0);
     let stats = world.stats();
     assert_eq!((stats.cancels_lost, stats.answered_after_cancel, stats.cancels), (1, 1, 0));
 }

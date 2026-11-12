@@ -7,7 +7,7 @@ fn each_cut_around_the_switch_leaves_one_generation_whole() {
     let first = completed.operation_count();
     completed.switch();
     let cuts: Vec<_> = patches::cuts(&completed).into_iter().filter(|cut| *cut >= first).collect();
-    assert!(!cuts.is_empty());
+    assert_ne!(cuts.len(), 0);
     for cut in cuts {
         a_switch_cut_leaves_one_generation_whole(cut);
     }

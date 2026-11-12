@@ -24,28 +24,28 @@ use directories::Directories;
 pub mod box_command;
 pub mod claude_code;
 pub mod table;
-pub use table::{TABLE, TREE};
+pub use table::TABLE;
 pub mod ctl;
 pub mod fake;
 mod fake_backends;
 use fake_backends::json;
-pub use temper_engine_shell::forge;
+pub mod forge;
 use temper_engine_shell::{address, forge_sign_in, login_passwd};
 use temper_forge_setup_shell::process as forge_exec;
 pub mod help;
 mod init;
 pub use temper_shell::link_file;
+pub mod lines;
 pub mod open;
 mod program_login;
-pub use temper_engine_shell::setup;
 mod serve;
 mod served;
-mod worker_half;
+pub mod setup;
 pub use served::Service;
-mod tui_front;
+mod upgrade;
 use json::CONFIG_BYTES;
 #[cfg(test)]
-pub(crate) use temper_service_shell::host;
+pub(crate) use lines as host;
 use temper_shell::directories::{errno, unread};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -71,11 +71,13 @@ pub enum Command {
     Serve {
         directories: Directories,
         boxed: bool,
+        record: bool,
     },
     Box {
         directories: Directories,
         echo: temper_box_machine::host::Echo,
-        no_tui: bool,
+        front: bool,
+        record: bool,
     },
     BoxFakeBackends {
         directories: Directories,
@@ -83,7 +85,8 @@ pub enum Command {
         scripts: Vec<PathBuf>,
         strict: bool,
         echo: temper_box_machine::host::Echo,
-        no_tui: bool,
+        front: bool,
+        record: bool,
     },
     ProgramLogin {
         directories: Directories,
@@ -94,9 +97,6 @@ pub enum Command {
     },
     AgentList {
         configuration: PathBuf,
-    },
-    TuiFront {
-        address: Box<[u8]>,
     },
     Open {
         arguments: Vec<OsString>,
@@ -181,15 +181,24 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
     }
     let (directories, rest) =
         directories::resolve(arguments, environment, working).map_err(|why| refused(&why.to_string()))?;
-    let no_tui_count = rest.iter().filter(|word| word.as_ref() == b"--no-tui").count();
-    if no_tui_count > 1 {
+    let record_count = rest.iter().filter(|word| word.as_ref() == b"--record").count();
+    if record_count > 1 {
         return Err(refused("invalid arguments"));
     }
-    let rest: Box<[_]> = rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--no-tui").collect();
+    let record = record_count == 1;
+    let rest: Box<[_]> = rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--record").collect();
+    let front_count = rest.iter().filter(|word| word.as_ref() == b"--front").count();
+    if front_count > 1 {
+        return Err(refused("invalid arguments"));
+    }
+    let rest: Box<[_]> = rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--front").collect();
     let (echo, rest) = box_command::echo(&rest, environment).map_err(|why| refused(&why))?;
-    let no_tui = no_tui_count == 1;
+    let front = front_count == 1;
+    if front && echo == temper_box_machine::host::Echo::Steps {
+        return Err(refused("--front cannot be used with --echo steps"));
+    }
     if rest.is_empty() {
-        return Ok(Command::Box { directories, echo, no_tui });
+        return Ok(Command::Box { directories, echo, front, record });
     }
     let mut words = rest.iter();
     while let Some(word) = words.next() {
@@ -197,12 +206,14 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
             words.next();
         } else if !word.starts_with(b"-") {
             return Err(TABLE.unknown(arguments));
+        } else if word.as_ref() != b"--fake-backends" && word.as_ref() != b"--strict" {
+            return Err(refused(&format!("unknown flag {}", String::from_utf8_lossy(word))));
         }
     }
     let rest: Vec<_> = rest.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect();
     let fake_backends::Options { bundle, scripts, strict } =
         fake_backends::configure(&rest, working).map_err(|why| refused(&why))?;
-    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, no_tui })
+    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record })
 }
 
 fn configure_row(
@@ -246,12 +257,6 @@ fn configure_row(
                 _ => Err(invalid()),
             };
         }
-        ["internal", "tui"] => {
-            return match arguments {
-                [flag, address] if flag.as_ref() == b"--box" => Ok(Command::TuiFront { address: address.clone() }),
-                _ => Err(invalid()),
-            };
-        }
         ["forge", _] | ["internal", "forge-child"] => {
             let legacy = match words {
                 ["forge", "fetch"] => &forge::FETCH,
@@ -278,11 +283,20 @@ fn configure_row(
     }
     let (directories, rest) = directories::resolve(arguments, environment, working).map_err(|why| why.to_string())?;
     let rest = os(&rest);
+    let (rest, record) = if matches!(words, ["serve"] | ["internal", "serve"]) {
+        let record = rest.iter().filter(|word| *word == "--record").count();
+        if record > 1 {
+            return Err(invalid());
+        }
+        (rest.into_iter().filter(|word| word != "--record").collect::<Vec<_>>(), record == 1)
+    } else {
+        (rest, false)
+    };
     match words {
         ["init"] if rest.is_empty() => Ok(Command::Init { directories, boxed: false }),
         ["init"] if rest == ["--box"] => Ok(Command::Init { directories, boxed: true }),
-        ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false }),
-        ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true }),
+        ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false, record }),
+        ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true, record }),
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
         _ => Err(invalid()),
     }
@@ -298,7 +312,7 @@ pub fn run(
 ) -> Result<u8, String> {
     let exit = match command {
         Command::Upgrade { directories, request } => {
-            return temper_engine_shell::upgrade::run("temper-box", &directories, &request, Some(&worker_half::Half));
+            return upgrade::run(&directories, &request);
         }
         Command::Overview => {
             print!("{}", TABLE.help());
@@ -321,17 +335,21 @@ pub fn run(
         Command::Init { directories, boxed } => {
             return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
-        Command::Serve { directories, boxed } => serve::run("temper", environment, working, &directories, boxed)?,
-        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, no_tui } => fake_backends::run(
+        Command::Serve { directories, boxed, record } => {
+            serve::run("temper", environment, working, &directories, boxed, record)?
+        }
+        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record } => fake_backends::run(
             &directories,
             &fake_backends::Options { bundle, scripts, strict },
             echo,
-            no_tui,
+            front,
+            record,
             environment,
         )
         .map_err(|why| prefixed("temper-box", &why))?,
-        Command::Box { directories, echo, no_tui } => {
-            box_command::run(&directories, echo, no_tui, environment).map_err(|why| prefixed("temper-box", &why))?
+        Command::Box { directories, echo, front, record } => {
+            box_command::run(&directories, echo, front, record, environment)
+                .map_err(|why| prefixed("temper-box", &why))?
         }
         Command::Agent { configuration } => {
             return temper_agent_shell::run(
@@ -357,13 +375,10 @@ pub fn run(
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
         Command::FakeGit { arguments } => return Ok(fake::git::run(&arguments, run_as, environment, working)),
         Command::ForgeChild { parent, signal, program, arguments } => {
-            return temper_engine_shell::forge::command(
-                "temper",
-                forge::Command::ForgeChild { parent, signal, program, arguments },
-            );
+            return forge::command("temper", forge::Command::ForgeChild { parent, signal, program, arguments });
         }
         Command::Forge { directories, arguments, ssl_cert_file, environment } => {
-            return temper_engine_shell::forge::command(
+            return forge::command(
                 "temper",
                 forge::Command::Forge { directories, arguments, ssl_cert_file, environment },
             );
@@ -373,7 +388,6 @@ pub fn run(
             return Ok(0);
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
-        Command::TuiFront { address } => return Ok(tui_front::run(&address, &Clock::new(), environment, working)),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
     Ok(match exit {
@@ -385,7 +399,6 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
-pub use temper_service_shell::host::ending as service_ending;
 pub type Host = temper_service_shell::Host<Service>;
 pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal};
 #[cfg(test)]
@@ -465,7 +478,7 @@ mod tests;
 mod box_tests {
     #[test]
     fn serve_box_flag_is_carried_to_the_command() {
-        for boxed in [false, true] {
+        for (boxed, record) in [(false, false), (false, true), (true, false), (true, true)] {
             let mut args = ["serve", "--config", "/c", "--data", "/d", "--cache", "/k"]
                 .iter()
                 .map(|word| Box::from(word.as_bytes()))
@@ -474,18 +487,22 @@ mod box_tests {
                 args.insert(0, Box::from(b"internal".as_slice()));
                 args.push(Box::from(b"--box".as_slice()));
             }
-            let super::Command::Serve { boxed: found, .. } =
+            if record {
+                args.push(Box::from(b"--record".as_slice()));
+            }
+            let super::Command::Serve { boxed: found, record: found_record, .. } =
                 super::configure_with(&args, &[], b"/").expect("serve arguments")
             else {
                 panic!("serve command");
             };
             assert_eq!(found, boxed);
+            assert_eq!(found_record, record);
         }
     }
 
     #[test]
     fn serve_refuses_unknown_or_repeated_flags() {
-        for flags in [&["--other"][..], &["--box", "--box"][..]] {
+        for flags in [&["--other"][..], &["--box", "--box"][..], &["--record", "--record"][..]] {
             let args = core::iter::once("serve")
                 .chain(flags.iter().copied())
                 .chain(["--config", "/c", "--data", "/d", "--cache", "/k"])
@@ -495,3 +512,18 @@ mod box_tests {
         }
     }
 }
+
+/// The box's ending, preserving its public call path.
+#[must_use]
+pub fn service_ending(
+    end: Option<&temper_service::End>,
+    output_failed: bool,
+    directories: &Directories,
+    store: &[u8],
+    unsettled: &[temper_service::Unsettled],
+) -> (String, u8) {
+    lines::ending_with_binary("temper", end, output_failed, directories, store, unsettled)
+}
+
+#[cfg(test)]
+mod worker_lines_tests;

@@ -95,7 +95,7 @@ mod grants {
             Form::Credential(jig_domain_link::Scheme::Bearer),
             fixtures::credential_value(Scheme::Key),
         );
-        assert!(received_grants(&world, connection).is_empty());
+        assert_eq!(received_grants(&world, connection).len(), 0);
     }
     #[test]
     fn an_assignment_reaches_the_worker_with_its_start_and_identity() {
@@ -140,7 +140,7 @@ mod grants {
             Form::Credential(jig_domain_link::Scheme::Bearer),
             fixtures::credential_value(Scheme::Bearer),
         );
-        assert!(received_grants(&world, connection).is_empty());
+        assert_eq!(received_grants(&world, connection).len(), 0);
         assert_eq!(world.dropped_down(), 1);
     }
     #[test]
@@ -154,7 +154,7 @@ mod grants {
             Form::Credential(jig_domain_link::Scheme::Bearer),
             fixtures::credential_value(Scheme::Bearer),
         );
-        assert!(received_grants(&world, connection).is_empty());
+        assert_eq!(received_grants(&world, connection).len(), 0);
         assert_eq!(world.dropped_down(), 1);
     }
     #[test]
@@ -184,6 +184,6 @@ mod grants {
             values: Box::new([None]),
         });
         world.run();
-        assert!(received_grants(&world, connection).is_empty());
+        assert_eq!(received_grants(&world, connection).len(), 0);
     }
 }

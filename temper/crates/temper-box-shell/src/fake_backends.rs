@@ -118,7 +118,8 @@ pub(crate) fn run(
     source: &Directories,
     options: &Options,
     echo: temper_box_machine::host::Echo,
-    no_tui: bool,
+    front: bool,
+    record: bool,
     environment: &[crate::EnvironmentEntry],
 ) -> Result<Exit, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
@@ -136,7 +137,8 @@ pub(crate) fn run(
         std::mem::take(&mut listeners.0),
         steps,
         echo,
-        no_tui,
+        front,
+        record,
         opening,
         environment,
     );
@@ -180,12 +182,12 @@ fn join_scripts(files: &[PathBuf], document: &[u8]) -> Result<Box<[u8]>, String>
                 .map_err(|why| refuse(String::from_utf8_lossy(&why.line()).into_owned()))
         };
         check(&source)?;
-        let Json::Object(members) = Json::decode(&source).map_err(&refuse)? else {
+        let Json::Object(members) = Json::decode(&source).map_err(refuse)? else {
             unreachable!("script reader checked the object");
         };
         for (name, value) in members {
             let name = std::str::from_utf8(&name).expect("checked script member");
-            let target = joined.at_mut(name).map_err(&refuse)?;
+            let target = joined.at_mut(name).map_err(refuse)?;
             if name == "otherwise" {
                 *target = value;
             } else {
@@ -195,7 +197,7 @@ fn join_scripts(files: &[PathBuf], document: &[u8]) -> Result<Box<[u8]>, String>
                 target.append(&mut given);
             }
         }
-        content = joined.encode().map_err(&refuse)?;
+        content = joined.encode().map_err(refuse)?;
         check(&content)?;
     }
     Ok(content)

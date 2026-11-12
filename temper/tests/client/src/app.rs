@@ -209,6 +209,7 @@ impl App for Temper {
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Leave { .. }
+            | Request::Push(_)
             | Request::Fact { .. }
             | Request::Dropped { .. } => Duty::Fact,
         }
@@ -261,6 +262,7 @@ impl App for Temper {
             | Request::Tab { .. }
             | Request::Leave { .. }
             | Request::SignOut
+            | Request::Push(_)
             | Request::Fact { .. }
             | Request::Dropped { .. } => return None,
         };
@@ -282,7 +284,8 @@ impl App for Temper {
                     | domain::pages::Act::Latest
             ),
             Some(
-                domain::Event::Copied { .. }
+                domain::Event::Push(_)
+                | domain::Event::Copied { .. }
                 | domain::Event::Launchpad
                 | domain::Event::AskApproval
                 | domain::Event::Act { action: Action::Approve(_) | Action::Copy { .. } }
@@ -359,7 +362,14 @@ impl App for Temper {
                 {
                     return None;
                 }
-                Sent { attempt: *attempt, key: *key, card: Some(adoption_card()), revision: None, words: None }
+                Sent {
+                    application: true,
+                    attempt: *attempt,
+                    key: *key,
+                    card: Some(adoption_card()),
+                    revision: None,
+                    words: None,
+                }
             }
             jig_client::Ask::Jig(ask) => {
                 let mut sent = observe::jig_sent(*attempt, *key, ask);
@@ -402,6 +412,7 @@ impl App for Temper {
             | Request::Tab { .. }
             | Request::Leave { .. }
             | Request::SignOut
+            | Request::Push(_)
             | Request::Fact { .. }
             | Request::Dropped { .. } => None,
         }
@@ -438,7 +449,8 @@ impl App for Temper {
                 receipts
             }
             domain::Event::SignedOut => vec![Receipt::Parked],
-            domain::Event::Copied { .. }
+            domain::Event::Push(_)
+            | domain::Event::Copied { .. }
             | domain::Event::Start { .. }
             | domain::Event::Went { .. }
             | domain::Event::Act { .. }

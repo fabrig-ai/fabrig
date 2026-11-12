@@ -1,5 +1,6 @@
 mod deadline;
 pub(crate) mod fixtures;
+mod service;
 use crate::{directory, limits};
 use skein_io::kernel::{Error, Exit, ServiceSignal};
 const SIGN_IN_FIRST: skein_lib::Duration = skein_lib::Duration::from_millis(100);
@@ -265,12 +266,12 @@ fn streams_full_exits_one_at_the_link_deadline() {
             let mut f = fixtures::Engine::full_streams(words, bound.clone(), fixtures::FULL_STREAMS);
             f.advance_past(skein_lib::Duration::from_nanos(limits::DEADLINE.as_nanos() - DEADLINE_TICK.as_nanos()));
             assert_eq!(f.exit(), None);
-            assert!(f.stderr().is_empty());
+            assert_eq!((f.stderr()).len(), 0);
             f.advance_past(DEADLINE_TICK);
             assert_eq!(f.exit(), Some(Exit::Code(1)));
             assert_eq!(f.stderr(), b"temper ctl: the engine's 2 streams are all in use, by waits and open clients; end one, or wait and call again\n");
             assert!(f.stderr().len() <= 240);
-            assert!(f.stdout().is_empty());
+            assert_eq!((f.stdout()).len(), 0);
         }
     }
 }
@@ -291,7 +292,7 @@ fn streams_full_retries_and_succeeds_when_a_stream_frees_before_the_deadline() {
         f.advance_past(limits::native().root.domain.client.domain.backoff.first);
         assert_eq!(f.exit(), Some(Exit::Code(0)));
         assert!(f.stdout().starts_with(b"{\""));
-        assert!(f.stderr().is_empty());
+        assert_eq!((f.stderr()).len(), 0);
         assert_eq!(f.host.root.client().link().streams_full, None);
     }
 }
@@ -449,7 +450,7 @@ fn sign_in_waits_for_live_me() {
     assert_eq!(f.stdout(), b"");
     f.answer_sign_in_then_me();
     assert_eq!(f.exit(), Some(Exit::Code(0)));
-    assert!(!f.stdout().is_empty());
+    assert_ne!((f.stdout()).len(), 0);
 }
 #[test]
 fn a_new_act_waits_for_the_kept_answers_erase_to_be_stored() {
@@ -902,7 +903,7 @@ fn a_json_argument_refusal_names_the_tool_before_opening_the_directory() {
             f.stderr(),
             b"temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity\n"
         );
-        assert!(f.stdout().is_empty());
+        assert_eq!((f.stdout()).len(), 0);
         assert!(!f.opened(b"directory"));
         assert_eq!(f.requests(), 0);
     }
@@ -922,7 +923,7 @@ fn a_terminal_task_phase_names_until_ended_and_sends_nothing() {
         f.stderr(),
         b"temper ctl: --until phase:done never holds: a task's watch ends with the task; use --until ended\n"
     );
-    assert!(f.stdout().is_empty());
+    assert_eq!((f.stdout()).len(), 0);
     assert!(f.no_directory());
     assert_eq!(f.requests(), 0);
 }
@@ -989,7 +990,7 @@ fn a_json_call_reads_stdin() {
     f.sign_in_then_deliver_me();
     assert_eq!(f.exit(), Some(Exit::Code(0)));
     assert!(!f.opened(b"call.json"));
-    assert!(!f.stdout().is_empty());
+    assert_ne!((f.stdout()).len(), 0);
 }
 
 #[test]
@@ -1131,7 +1132,7 @@ fn a_rerun_under_a_kept_name_waits_for_that_answer_and_a_different_ask_is_held()
     let mut f = fixtures::Frame::act_words_with(ADOPT, unanswered_adopt());
     f.sign_in_then_deliver_me();
     assert_eq!(f.act_keys().len(), 1, "same ask reuses the restored request");
-    assert!(f.stdout().is_empty());
+    assert_eq!((f.stdout()).len(), 0);
     f.answer_restored();
     f.store_erase();
     assert_eq!(f.exit(), Some(Exit::Code(2)));
@@ -1159,7 +1160,7 @@ fn a_jig_rerun_prints_the_kept_requests_success_as_its_own() {
     rerun.store_erase();
     assert_eq!(rerun.exit(), Some(Exit::Code(0)));
     assert_eq!(rerun.stdout(), b"done: task 41, chat\n");
-    assert!(rerun.stderr().is_empty());
+    assert_eq!((rerun.stderr()).len(), 0);
     assert_eq!(rerun.kept_records(), 1, "only the stream record remains");
 }
 
@@ -1200,7 +1201,7 @@ fn a_cold_setup_waits_past_the_link_deadline_then_adopts() {
         assert_eq!(f.exit(), None);
         f.finish_setup();
         assert_eq!(f.exit(), Some(Exit::Code(0)));
-        assert!(f.stderr().is_empty());
+        assert_eq!((f.stderr()).len(), 0);
         assert!(f.stdout().windows(7).any(|s| s == if json { b"adopted" } else { b"Adopted" }));
     }
 }
@@ -1212,7 +1213,7 @@ fn a_cold_setup_past_its_allowance_names_the_forges_and_timeout() {
         assert_eq!(f.exit(), Some(Exit::Code(3)));
         assert!(f.stdout().windows(7).any(|s| s == b"timeout"));
         assert!(f.stdout().windows(1).any(|s| s == b"3"));
-        assert!(f.stderr().is_empty());
+        assert_eq!((f.stderr()).len(), 0);
     }
 }
 
@@ -1313,7 +1314,7 @@ fn landing_reads_keep_missing_and_invalid_document_statuses_in_both_modes() {
             }
             let f = fixtures::Frame::change_read(&words);
             assert_eq!(f.exit(), Some(Exit::Code(status)), "task={task}, json={json}");
-            assert!(f.stdout().is_empty());
+            assert_eq!((f.stdout()).len(), 0);
             let expected = if json && status == 2 {
                 format!("{{\"error\":\"{message}\"}}")
             } else if json {

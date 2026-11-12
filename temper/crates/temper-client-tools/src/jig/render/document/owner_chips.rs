@@ -212,5 +212,7 @@ pub(super) fn encode_owner_failure_tries(
     out.unsigned(u64::from(value.lost));
     out.key(b"invalid");
     out.unsigned(u64::from(value.invalid));
+    out.key(b"infrastructure");
+    out.unsigned(u64::from(value.infrastructure));
     out.object_end();
 }

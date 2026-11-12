@@ -97,8 +97,8 @@ fn config(seed: u64) -> engine::Config {
     let mut config = super::agreement::config(seed);
     let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     jig.core.tasks = temper_engine_domain_world::forge_routes::box_limits().tasks;
-    config.core.jobs = temper_service::limits::merge_jobs(&jig);
-    assert_eq!(config.core.jobs.as_ref(), [temper_service::limits::merge_bound()]);
+    config.core.jobs = temper_service_core::limits::merge_jobs(&jig);
+    assert_eq!(config.core.jobs.as_ref(), [temper_service_core::limits::merge_bound()]);
     let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
     let mut extended = kinds.to_vec();
     if !extended.contains(&jig_domain_authority::Executor::Job(3)) {
@@ -112,6 +112,10 @@ fn config(seed: u64) -> engine::Config {
         }
     }
     let mut landing = engine::ProjectLanding {
+        gate_retries: 2,
+        combine_main: engine::Combine::Merge,
+        combine_other: engine::Combine::Squash,
+        gate_timeout: skein_lib::Duration::from_millis(3_600_000),
         landing_attempts: engine::LANDING_ATTEMPTS,
         check_timeout: None,
         close_job: None,
@@ -411,14 +415,16 @@ impl World {
         assert_eq!(channel, super::CHANNEL);
         assert_eq!(job.kind.0, 3);
         assert_eq!(job.deadline, Duration::from_secs(600));
-        let mut own = temper_service::limits::profile(temper_service::limits::Profile::Small);
+        let mut own = temper_service_core::limits::profile(temper_service_core::limits::Profile::Small);
         let checkout = &self.worker_env.limits.checkout;
         own.checkout.repositories = checkout.repositories;
         own.checkout.name_bytes = checkout.name_bytes;
         own.checkout.conflicts = checkout.conflicts;
         own.checkout.path_bytes = checkout.path_bytes;
-        let limits = temper_service::worker_settings::payload_limits(&temper_service::limits::worker(&own))
-            .expect("worker payload limits");
+        let limits = temper_worker_service::worker_settings::payload_limits(
+            &temper_worker_service::worker_settings::Limits::shared(own),
+        )
+        .expect("worker payload limits");
         let story = self.merge_job.as_mut().expect("merge story");
         story.job = Some(job.run.raw());
         if let Some(repository) = &story.cached_repository {

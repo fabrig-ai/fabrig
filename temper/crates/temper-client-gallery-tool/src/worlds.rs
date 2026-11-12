@@ -416,6 +416,81 @@ pub(super) fn asking_world(w: World, address: Address, then: Then) -> (Domain, O
 pub(super) fn goals_world(w: World, address: Address, name: &str) -> Domain {
     world_in_layout(w, address, Then::Shown, false, Some(name), None, false).0
 }
+/// The browser reports its own facts; the watch supplies two real device rows (client/pages/told.md).
+pub(super) fn told_world(name: &str) -> Domain {
+    use temper_client_domain::pages::told::{Act, Browser, Duty, Permission, Refusal, Report};
+    let mut root = world_in_layout(Reference, Address::Told, Then::Shown, false, Some(name), None, false).0;
+    let mut out = Queue::uncapped();
+    step(
+        &mut root,
+        Event::Push(Report::State(Browser {
+            capable: name != "told-cannot",
+            permission: Permission::Granted,
+            endpoint: (name == "told-on").then(|| b"https://fcm.googleapis.com/subscription/gallery".as_slice().into()),
+            user_agent: b"Mozilla/5.0 (iPhone) Version/17 Safari/605.1".as_slice().into(),
+        })),
+        &mut out,
+    );
+    if name == "told-refused" {
+        step(
+            &mut root,
+            Event::Act {
+                action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Told(Act::TurnOn)),
+            },
+            &mut out,
+        );
+        while let Some(request) = out.pop() {
+            if let Request::Push(Duty::Subscribe { token, .. }) = request {
+                step(&mut root, Event::Push(Report::Refused { token, why: Refusal::TooMany }), &mut out);
+            }
+        }
+    }
+    root
+}
+fn told_devices(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut rows = List::with_capacity(w::CEILINGS.devices_rows);
+    for (number, label, endpoint) in [
+        (1, b"Safari on iPhone".as_slice(), b"https://fcm.googleapis.com/subscription/gallery".as_slice()),
+        (
+            2,
+            b"Firefox on Linux".as_slice(),
+            b"https://updates.push.services.mozilla.com/subscription/gallery".as_slice(),
+        ),
+    ] {
+        rows.push(
+            w::DeviceRow::new(
+                &w::CEILINGS,
+                w::DeviceRowParts {
+                    number,
+                    label: label.into(),
+                    at: now(Reference).as_nanos(),
+                    endpoint: endpoint.into(),
+                },
+            )
+            .expect("device row"),
+        )
+        .expect("two devices");
+    }
+    let document = w::Devices::new(&w::CEILINGS, w::DevicesParts { rows }).expect("devices");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::devices(&document),
+                    },
+                },
+            },
+        },
+        out,
+    );
+}
+
 /// Remembered states use the person's party documents and public acts (client/pages/remembered.md).
 pub(super) fn remembered_world(name: &str) -> Domain {
     use temper_client_domain::pages::{Act, remembered::Act as R};
@@ -802,7 +877,13 @@ fn world_in_layout(
                 jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                     use temper_client_protocol_wire::{self as wire, v1};
                     match wire::decode_reading(&record.bytes, &v1::CEILINGS).expect("gallery forge read").read() {
-                        v1::Read::Deployment => deployment_read(&mut root, read, goals != Some("no-project"), &mut out),
+                        v1::Read::Deployment => deployment_read(
+                            &mut root,
+                            read,
+                            goals != Some("no-project"),
+                            goals.is_some_and(|name| name.starts_with("told-") && name != "told-not-set-up"),
+                            &mut out,
+                        ),
                         v1::Read::Playground => {
                             // A resetting sample leaves the next read pending.
                             if w != (FirstRun { step: 10 }) || !playground_read {
@@ -886,7 +967,7 @@ fn world_in_layout(
                                 views::answer(&mut root, read, view.address(), &mut out);
                             }
                         }
-                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::Finding(_) | v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
@@ -899,6 +980,10 @@ fn world_in_layout(
                     )
                     .expect("gallery forge watch");
                     let subject = match watching.watch() {
+                        w::Watch::Devices => {
+                            told_devices(&mut root, watch, &mut out);
+                            continue;
+                        }
                         w::Watch::Forges => {
                             forge_watch = Some(watch);
                             if settings == Some("repositories-making") {
@@ -995,6 +1080,7 @@ fn world_in_layout(
                         | w::Watch::Ways(_)
                         | w::Watch::Trials
                         | w::Watch::Approvals
+                        | w::Watch::Findings(_)
                         | w::Watch::Changes(_)
                         | w::Watch::Dismissed => {
                             continue;
@@ -1497,11 +1583,11 @@ fn gallery_pull(
     use temper_client_protocol_wire::v1 as w;
     w::Pull::new(limits, w::PullParts { number, address: Box::from(address) }).expect("pull")
 }
-fn deployment_read(root: &mut Domain, read: Token, welcome: bool, out: &mut Queue<Request>) {
+fn deployment_read(root: &mut Domain, read: Token, welcome: bool, push: bool, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1};
     let answer = v1::DeploymentAnswer::new(
         &v1::CEILINGS,
-        v1::DeploymentAnswerParts { welcome, owned: true, program_login: None },
+        v1::DeploymentAnswerParts { push: push.then_some([4; 65]), welcome, owned: true, program_login: None },
     )
     .expect("deployment answer");
     step(
@@ -2191,7 +2277,15 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
                 revision: 1,
                 before: c::PriorPhase::Active(c::RunStage::Idle),
                 escalation: None,
-                tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+                tries: c::FailureTries {
+                    transient: 0,
+                    permanent: 0,
+                    run: 0,
+                    agent: 0,
+                    lost: 0,
+                    invalid: 0,
+                    infrastructure: 0,
+                },
                 hold_wait_since: None,
             });
             line.chip.phase = c::Phase::Held;
@@ -2216,7 +2310,7 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
     }
     line
 }
-fn goal_window(w: World, window: u32, name: Option<&str>) -> c::Tasks {
+pub(super) fn goal_window(w: World, window: u32, name: Option<&str>) -> c::Tasks {
     let mut rows = List::with_capacity(window);
     let mut more = false;
     for f in goal_facts(w) {
@@ -4327,7 +4421,15 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             revision: 7,
             before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries {
+                transient: 0,
+                permanent: 0,
+                run: 0,
+                agent: 0,
+                lost: 0,
+                invalid: 0,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         };
         t.hold = Some(Box::new(hold.clone()));
@@ -4367,7 +4469,15 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             revision: 7,
             before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries {
+                transient: 0,
+                permanent: 0,
+                run: 2,
+                agent: 0,
+                lost: 0,
+                invalid: 0,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         };
         t.hold = Some(Box::new(hold.clone()));
@@ -4409,7 +4519,15 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             revision: 1,
             before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries {
+                transient: 0,
+                permanent: 0,
+                run: 0,
+                agent: 0,
+                lost: 0,
+                invalid: 0,
+                infrastructure: 0,
+            },
             hold_wait_since: None,
         };
         t.hold = Some(Box::new(hold.clone()));
@@ -4659,7 +4777,7 @@ fn sample_answer(root: &mut Domain, attempt: Token, answer: jig_client::Answered
         out,
     );
 }
-fn sample_forge_answer(
+pub(super) fn sample_forge_answer(
     root: &mut Domain,
     attempt: Token,
     outcome: temper_client_protocol_wire::v1::Outcome,
@@ -4899,6 +5017,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesQueue::new(
                     &v::CEILINGS,
                     v::ChangesQueueParts {
+                        way: v::Way::Queue,
+                        in_flight: None,
                         repository: b"jeremy/fabrig".as_slice().into(),
                         branch: b"main".as_slice().into(),
                         red: false,

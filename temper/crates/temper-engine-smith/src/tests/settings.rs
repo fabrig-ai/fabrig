@@ -93,7 +93,7 @@ fn every_settings_read_form_and_offset_decodes() {
 fn settings_bad_fields_are_refused_by_name() {
     for spec in &crate::calls::SPECS {
         if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
-            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Setting number; template-goal: its template's. Omit for rules and project-{policy,ways,questions,classes,words}.""#).is_some());
+            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Setting number; template-goal: its template's. Omit for rules and unnumbered project settings.""#).is_some());
         }
     }
     for (input, why) in [
@@ -341,8 +341,8 @@ fn settings_neutral_form_preserves_ctls_bounds() {
         neutral.settings.authority_note_resources, ctl.settings.authority_note_resources,
         "authority_note_resources"
     );
-    // Eighteen executor places fit the whole reference delegation.
-    assert_eq!(neutral.settings.delegation_kinds, 18);
+    // The stock's 21 executors and one deployment charter fit whole.
+    assert_eq!(neutral.settings.delegation_kinds, 22);
     assert_eq!(neutral.settings.delegation_kinds, ctl.settings.delegation_kinds, "delegation_kinds");
     assert_eq!(neutral.settings.part_key_path_value, ctl.settings.part_key_path_value, "part_key_path_value");
     assert_eq!(
@@ -526,6 +526,14 @@ fn settings_proposals_carry_typed_landing_values() {
             9, 0, settings::Value::CharterWords(b"Reviews changes".as_slice().into()),
         ),
         (
+            br#"{"against":1,"reason":"areas","items":[{"setting":{"kind":"project-areas","project":7},"set":{"areas":[{"name":"tests","words":"C tests","owner":{"role":0}}]}}]}"#,
+            14, 7, settings::Value::ProjectAreas(settings::ProjectAreas { areas: Box::new([settings::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner: settings::AreaOwner::Role(0) }]) }),
+        ),
+        (
+            br#"{"against":1,"reason":"triager","items":[{"setting":{"kind":"project-triager","project":7},"set":{"owner":{"charter":14}}}]}"#,
+            15, 7, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Charter(14) }),
+        ),
+        (
             br#"{"against":1,"reason":"words","items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review changes."}}]}"#,
             10, 7, settings::Value::ProjectWords(settings::ProjectWords { headline: b"Our way".as_slice().into(), lede: b"We review changes.".as_slice().into() }),
         ),
@@ -675,6 +683,7 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
             (s::Setting::Rules, s::Value::Rules(Box::new(rules))),
         ] {
             let document = jig_domain_core::reads::SettingDocument {
+                overlay: None,
                 setting,
                 revision: 1,
                 value: Some(value),
@@ -699,7 +708,8 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
                     assert_eq!(restored.setting, form::Setting::Rules);
                     rules.ceiling
                 }
-                form::SettingValue::Model(_)
+                form::SettingValue::Overlay(_)
+                | form::SettingValue::Model(_)
                 | form::SettingValue::Application(_)
                 | form::SettingValue::Charter(_)
                 | form::SettingValue::Template(_) => {
@@ -770,8 +780,14 @@ fn settings_proposals_carry_typed_project_questions() {
 }
 #[test]
 fn project_settings_reads_require_project_and_refuse_number() {
-    for (kind, number) in [("project-ways", 7), ("project-questions", 6), ("project-classes", 8), ("project-words", 10)]
-    {
+    for (kind, number) in [
+        ("project-ways", 7),
+        ("project-questions", 6),
+        ("project-classes", 8),
+        ("project-words", 10),
+        ("project-areas", 14),
+        ("project-triager", 15),
+    ] {
         let bytes = format!(r#"{{"setting":{{"kind":"{kind}","project":7}},"revision":2}}"#);
         let call = decided(b"settings", bytes.as_bytes()).expect("project read");
         assert_eq!(

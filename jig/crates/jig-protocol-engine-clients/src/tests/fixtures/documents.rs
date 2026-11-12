@@ -1,5 +1,5 @@
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_domain_core::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{Duration, List, Wall};
@@ -139,7 +139,7 @@ pub fn hold() -> d::HoldLine {
         revision: 31,
         before: d::PriorPhase::Waiting,
         escalation: None,
-        tries: t::Tries { transient: 2, permanent: 3, run: 5, agent: 7, lost: 11, invalid: 13 },
+        tries: t::Tries { transient: 2, permanent: 3, run: 5, agent: 7, lost: 11, invalid: 13, infrastructure: 17 },
         hold_wait_since: Some(Wall::from_nanos(17)),
     }
 }
@@ -200,8 +200,8 @@ pub fn task_with_hold() -> d::Task {
     }
 }
 
-/// The shared v19 fixture with each engine-supplied project's required name.
-pub fn frame_two_projects_record() -> jig_client_protocol_wire::v19::Me {
+/// The shared v20 fixture with each engine-supplied project's required name.
+pub fn frame_two_projects_record() -> jig_client_protocol_wire::v20::Me {
     let limits = w::CEILINGS;
     let mut parts = jig_client_test_records::frame_two_projects_record().into_parts();
     let mut reader = skein_lib::Reader::new(&parts.projects);

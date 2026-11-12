@@ -36,6 +36,7 @@ pub struct Drive {
     session: u64,
     place: PlacePaths,
     setups: PathBuf,
+    files: PathBuf,
 }
 impl Drive {
     pub fn for_session(home: &Home, session: u64) -> Result<Self, Refusal> {
@@ -49,8 +50,8 @@ impl Drive {
                 home: home.clone(),
                 session,
                 place: paths,
-                setups: std::path::absolute(home.directory.join("passes").join(number.to_string()).join("setups"))
-                    .map_err(io_refusal)?,
+                setups: std::path::absolute(crate::pass_files::setups(home, number)).map_err(io_refusal)?,
+                files: std::path::absolute(crate::pass_files::files(home, number)).map_err(io_refusal)?,
             })
         })
     }

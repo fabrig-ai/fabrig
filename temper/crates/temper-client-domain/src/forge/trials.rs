@@ -39,6 +39,7 @@ pub enum Class {
     Lost,
     Invalid,
     Refused,
+    Infrastructure,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -100,7 +101,11 @@ pub(crate) fn look(root: &mut crate::Domain, env: &Env<crate::Limits>, out: &mut
     match root.pages.address() {
         crate::Address::Welcome { step: crate::Step::Model { .. } | crate::Step::Ready }
         | crate::Address::ConnectModel { .. } => {}
-        crate::Address::Remembered | crate::Address::Members | crate::Address::Limits | crate::Address::Accounts => {
+        crate::Address::Told
+        | crate::Address::Remembered
+        | crate::Address::Members
+        | crate::Address::Limits
+        | crate::Address::Accounts => {
             let Some(page) = root.pages.accounts() else { return };
             if page.added.is_none() || !page.added_from_connect {
                 return;
@@ -432,6 +437,7 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[Row]>> {
                             w::TrialClass::Agent => Class::Agent,
                             w::TrialClass::Lost => Class::Lost,
                             w::TrialClass::Invalid => Class::Invalid,
+                            w::TrialClass::Infrastructure => Class::Infrastructure,
                             w::TrialClass::Refused => Class::Refused,
                         },
                     },

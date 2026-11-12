@@ -44,6 +44,7 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         })
         .expect("me watch");
@@ -101,6 +102,7 @@ fn deliver_forges(host: &mut Host, forges: &temper_client_protocol_wire::v1::For
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         })
         .expect("forges watch");
@@ -159,6 +161,7 @@ fn send(host: &mut Host, name: &[u8]) -> Token {
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         })
         .expect("account request left the host")
@@ -330,12 +333,12 @@ fn encoded(size: u32, write: impl FnOnce(&mut skein_lib::Writer) -> Result<(), s
     write(&mut writer).expect("measured fixture");
     writer.finish()
 }
-fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::v19::Owned {
-    use jig_client_protocol_wire::{VERSION, v19 as w};
+fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::v20::Owned {
+    use jig_client_protocol_wire::{VERSION, v20 as w};
     w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: VERSION, record })
         .expect("fixture envelope")
 }
-fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v19::StreamEvent) {
+fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v20::StreamEvent) {
     use skein_lib::base64::{self, Alphabet};
     let bytes = encoded(event.measure(), |writer| event.encode(writer));
     let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture fits"))
@@ -350,7 +353,7 @@ fn streamed(host: &mut Host, event: &jig_client_protocol_wire::v19::StreamEvent)
 #[test]
 #[expect(clippy::too_many_lines, reason = "one wire story delivers sign-in, task activity and me before drawing")]
 fn the_first_task_activity_answer_survives_transport_sign_in() {
-    use jig_client_protocol_wire::{VERSION, v19 as w};
+    use jig_client_protocol_wire::{VERSION, v20 as w};
     use skein_lib::{Duration, Reader};
     // task_record's chip is task 7; the answer carries one committed run marker.
     const TASK_PATH: &[u8] = b"/tasks/7";
@@ -487,11 +490,11 @@ fn the_deadline_takes_the_earlier_domain_or_view_time_from_the_same_clocks() {
 #[test]
 fn the_patch_queue_is_reserved_once_at_start() {
     let mut host = fixture();
-    assert!(!host.patches().is_empty());
+    assert_ne!(host.patches().len(), 0);
     assert!(host.patches.is_empty());
     assert_eq!(host.patches.room(), host.bounds.tree.patches);
     host.went(b"/chats");
-    assert!(!host.patches().is_empty());
+    assert_ne!(host.patches().len(), 0);
     assert!(host.patches.is_empty());
     assert_eq!(host.patches.room(), host.bounds.tree.patches);
 }

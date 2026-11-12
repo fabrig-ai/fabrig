@@ -162,6 +162,7 @@ fn sparse_current_hold_facts_keep_only_supplied_categories_and_numeric_identitie
         HoldFailure::Agent,
         HoldFailure::Lost,
         HoldFailure::Invalid,
+        HoldFailure::Infrastructure,
     ] {
         reasons.push(HoldCategory::Failures { class });
     }

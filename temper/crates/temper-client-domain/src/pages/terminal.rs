@@ -74,6 +74,7 @@ pub fn draws(address: &crate::Address) -> bool {
         Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -418,6 +419,7 @@ pub(super) fn prepare(
         | Event::SignInKept { .. }
         | Event::Went { .. }
         | Event::Told { .. }
+        | Event::Push(_)
         | Event::Link { .. }) => event,
     };
     match event {
@@ -453,6 +455,7 @@ pub(super) fn prepare(
         | Event::SignInKept { .. }
         | Event::Went { .. }
         | Event::Told { .. }
+        | Event::Push(_)
         | Event::Link { .. }) => Some(event),
     }
 }

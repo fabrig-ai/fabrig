@@ -102,6 +102,8 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::Clean
             | Command::Merge { .. }
             | Command::DiffPaths { .. }
+            | Command::MergeBases { .. }
+            | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => return Err(Refusal::Broken("author outside commit")),
         }
@@ -119,6 +121,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
         return Err(Refusal::Broken("commit author"));
     }
     let credential = if remote(&command).is_some()
+        || matches!(command, Command::CheckOut { .. } | Command::Merge { .. })
         || (matches!(command, Command::IsAncestor { .. }) && env.contains_key(b"GIT_CONFIG_COUNT".as_slice()))
     {
         Some(read_credential(&mut env, spawn)?)
@@ -225,6 +228,8 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::CommitTree { .. }
         | Command::Origin { .. }
         | Command::DiffPaths { .. }
+        | Command::MergeBases { .. }
+        | Command::BringsList { .. }
         | Command::IsAncestor { .. } => None,
     }
 }
@@ -263,9 +268,17 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
                 _ => return None,
             },
         },
-        [b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", remote, directory] => {
-            Command::Store { remote: (*remote).into(), directory: (*directory).into() }
-        }
+        [
+            b"clone",
+            b"--bare",
+            b"--filter=blob:none",
+            b"--single-branch",
+            b"--no-tags",
+            b"--quiet",
+            b"--",
+            remote,
+            directory,
+        ] => Command::Store { remote: (*remote).into(), directory: (*directory).into() },
         [b"remote", b"add", b"origin", b"--", remote] => Command::Remote { remote: (*remote).into() },
         [b"update-ref", reference, commit] => Command::UpdateRef {
             into: match *reference {
@@ -279,6 +292,7 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             b"fetch",
             b"--porcelain",
             b"--verbose",
+            b"--filter=blob:none",
             b"--no-tags",
             b"--no-write-fetch-head",
             b"--no-recurse-submodules",
@@ -306,9 +320,13 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             };
             Command::Fetch { remote: (*url).into(), source, into, workspace }
         }
-        [b"checkout", b"--force", b"--detach", commit] => Command::CheckOut { commit: invocation::object(commit)? },
+        [b"-c", b"remote.origin.promisor=true", b"checkout", b"--force", b"--detach", commit] => {
+            Command::CheckOut { commit: invocation::object(commit)? }
+        }
         [b"clean", b"-ffdxq"] => Command::Clean,
-        [b"merge", b"--no-commit", b"--no-ff", b"--", theirs] => Command::Merge { theirs: invocation::object(theirs)? },
+        [b"-c", b"remote.origin.promisor=true", b"merge", b"--no-commit", b"--no-ff", b"--", theirs] => {
+            Command::Merge { theirs: invocation::object(theirs)? }
+        }
         [b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"] => Command::Unmerged,
         [b"add", b"--all", b"--", b".", b":(exclude,glob)**/.*.log"] => Command::Add,
         [b"diff-tree", b"--no-commit-id", b"--name-only", b"--no-renames", b"-r", b"-z", before, after, b"--"] => {
@@ -326,6 +344,21 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             parent: invocation::object(parent)?,
             merging: Some(invocation::object(second)?),
         },
+        [b"merge-base", b"--all", head, upstream] => {
+            Command::MergeBases { head: invocation::object(head)?, upstream: invocation::object(upstream)? }
+        }
+        [b"rev-list", b"--max-count=1", rest @ .., b"--"] => {
+            let (base, bases) = rest.split_last()?;
+            let base = invocation::object(base.strip_prefix(b"^")?)?;
+            let mut ids = Vec::new();
+            for id in bases {
+                ids.push(invocation::object(id)?);
+            }
+            if ids.is_empty() {
+                return None;
+            }
+            Command::BringsList { bases: ids.into(), base }
+        }
         [b"merge-base", b"--is-ancestor", old, commit] => {
             Command::IsAncestor { expected: invocation::object(old)?, commit: invocation::object(commit)? }
         }

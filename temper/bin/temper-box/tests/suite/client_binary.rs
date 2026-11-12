@@ -7,8 +7,8 @@ use support::ctl::{Call, Step, Story, json};
 fn ctl_from_the_deployments_client_signs_in_to_an_engine_and_reads_me() {
     let scratch = support::Scratch::new("client_binary_ctl");
     let engine = support::cluster::Cluster::engine_alone(scratch.path());
-    let client = skein_scratch::paths::binary("temper-box").with_file_name("temper-client");
-    assert!(client.is_file(), "build the client's sibling binary: cargo build -p temper-client --bin temper-client");
+    let client = skein_scratch::paths::binary("temper-box").with_file_name("temper");
+    assert!(client.is_file(), "build the client's sibling binary: cargo build -p temper --bin temper");
     let seen = support::ctl::run_on_engine(Story::new(
         &engine,
         vec![Step::Run(Call::sign_in().by(&client)), Step::Run(Call::new(&["me", "--json"]).by(&client))],

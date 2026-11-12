@@ -11,6 +11,7 @@ publish.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-json.workspace = true
+smith-domain-run.workspace = true
 jig-domain-link.workspace = true
 jig-protocol-config.workspace = true
 

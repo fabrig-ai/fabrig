@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{Decimal, List, Writer, bytes};
 use smith_domain_run::HostAnswer;
-use temper_engine_domain::{CallAnswer, Changed};
+use temper_engine_domain::{AskHow, CallAnswer, Changed};
 
 use crate::Problem;
 
@@ -29,7 +29,7 @@ pub(crate) struct Text {
 }
 
 impl Text {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         // Every retained fragment has at least one byte; the host byte bound
         // bounds their count too (domain/agent/tools.md).
         Self {
@@ -103,7 +103,7 @@ impl Text {
         self.add(&temper_engine_domain::commit_text(commit))
     }
 
-    fn finish(self, error: bool) -> Result<HostAnswer, Problem> {
+    pub(crate) fn finish(self, error: bool) -> Result<HostAnswer, Problem> {
         let mut writer = Writer::new(self.len);
         for part in &self.parts {
             if writer.put(part).is_err() {
@@ -270,6 +270,9 @@ fn bounded(
     if let Some(reason) = unasked_kind(answer) {
         return unasked_refusal(tool, reason, cap);
     }
+    if let CallAnswer::Finding(answer) = answer {
+        return crate::finding::render(answer, cap);
+    }
     if let CallAnswer::ForgeRead(read) = answer {
         if let Some(job) = job
             && read.as_ref() == &Err(api::Error::MissingJob)
@@ -303,7 +306,7 @@ fn bounded(
             }
         };
     }
-    answer_text(answer, tool, task, forge)
+    answer_text(answer, tool, task, forge, AskHow::None)
 }
 
 fn compare_bounded(read: &Result<api::Answer, api::Error>, cap: usize, forge: ForgeReadBounds) -> HostAnswer {
@@ -585,11 +588,18 @@ fn escaped_len(text: &[u8]) -> usize {
 /// becomes a bounded host error, so no decided call is left unanswered.
 #[must_use]
 pub fn answer(answer: &CallAnswer) -> HostAnswer {
-    answer_text(answer, &[], None, ForgeReadBounds::STOCK)
+    answer_text(answer, &[], None, ForgeReadBounds::STOCK, AskHow::None)
 }
 
-fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>, forge: ForgeReadBounds) -> HostAnswer {
-    match rendered(answer, tool, task, forge) {
+/// Render a decision with the asking route the root read from its caller, beside
+/// the unchanged stored answer (domain/agent/tools.md).
+#[must_use]
+pub fn answer_for_decided(answer: &CallAnswer, how: AskHow) -> HostAnswer {
+    answer_text(answer, b"decided", None, ForgeReadBounds::STOCK, how)
+}
+
+fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>, forge: ForgeReadBounds, how: AskHow) -> HostAnswer {
+    match rendered(answer, tool, task, forge, how) {
         Ok(answer) => answer,
         Err(Problem::Unasked(reason)) => unasked_refusal(tool, reason, HostAnswer::CAPACITY),
         Err(Problem::TooLarge) => HostAnswer::new(
@@ -646,7 +656,7 @@ fn proposed(
 fn ask_reason(text: &mut Text, reach: Option<temper_protocol_reaches::Reach>) -> Result<(), Problem> {
     use temper_protocol_reaches::{Class, Reason};
     let Some(reach) = reach else {
-        return text.add(b"no person is asked through you: ask your requester");
+        return text.add(b"no person is asked through you");
     };
     if reach.decided() {
         return text.add(b"your person's decided list is full for today");
@@ -685,9 +695,11 @@ fn rendered(
     tool: &[u8],
     task: Option<u64>,
     forge: ForgeReadBounds,
+    how: AskHow,
 ) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
+        CallAnswer::Finding(answer) => return Ok(crate::finding::render(answer, HostAnswer::CAPACITY)),
         CallAnswer::Decided { took: choice, reach } => {
             match choice {
                 Some(words) => {
@@ -696,9 +708,17 @@ fn rendered(
                     text.add(b".")?;
                 }
                 None => {
-                    text.add(b"Ask: ")?;
+                    text.add(if how == AskHow::None { b"Not decided: " } else { b"Ask: " })?;
                     ask_reason(&mut text, *reach)?;
-                    text.add(b". Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N.")?;
+                    match how {
+                        AskHow::Message => text.add(b". Ask your requester with message, as a question.")?,
+                        AskHow::Person(person) => {
+                            text.add(b". Ask person ")?;
+                            text.number(person)?;
+                            text.add(b" with delegate, a person task addressed to them.")?;
+                        }
+                        AskHow::None => text.add(b". Nothing you hold asks anyone: decide within your brief, or leave the choice and your recommendation in your result.")?,
+                    }
                 }
             }
             false
@@ -1375,6 +1395,10 @@ fn subscription_refusal(
 fn subscription_topic(text: &mut Text, topic: &temper_engine_domain_forge::Topic) -> Result<(), Problem> {
     use temper_engine_domain_forge::Topic;
     let repository = match topic {
+        Topic::Findings { project } => {
+            text.add(b"findings project ")?;
+            return text.number(u64::from(*project));
+        }
         Topic::Landings { repository, branch } => {
             text.add(b"landings branch ")?;
             text.add(branch)?;
@@ -1389,7 +1413,7 @@ fn subscription_topic(text: &mut Text, topic: &temper_engine_domain_forge::Topic
             text.add(match topic {
                 Topic::Pull { .. } => b"pull ",
                 Topic::Participation { .. } => b"participation ",
-                Topic::Landings { .. } | Topic::Ci { .. } => unreachable!("numbered topic"),
+                Topic::Landings { .. } | Topic::Ci { .. } | Topic::Findings { .. } => unreachable!("numbered topic"),
             })?;
             text.number(*number)?;
             *repository
@@ -1857,6 +1881,7 @@ fn hold_reason(reason: &jig_domain_people::HoldReason) -> &'static [u8] {
             FailureClass::Agent => b"for agent failures",
             FailureClass::Lost => b"for lost runs",
             FailureClass::Invalid => b"for invalid results",
+            FailureClass::Infrastructure => b"for infrastructure failures",
         },
         HoldReason::Exceeded(_) => b"for its configured model allowance",
         HoldReason::Circle => b"for a circle of waits",
@@ -2038,6 +2063,7 @@ fn task_hold_reason(text: &mut Text, reason: jig_domain_tasks::Hold) -> Result<(
                 Class::Agent => b"retry allowance exhausted: agent failures",
                 Class::Lost => b"retry allowance exhausted: lost runs",
                 Class::Invalid => b"retry allowance exhausted: invalid results",
+                Class::Infrastructure => b"retry allowance exhausted: infrastructure failures",
             });
         }
         Hold::Stalled => (b"executor stalled", None),

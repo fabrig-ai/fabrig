@@ -888,7 +888,7 @@ fn a_connection_takes_no_further_answer_until_its_heard_one_is_taken() {
     world.action(Request::Offer);
     world.action(Request::Offer);
     assert_eq!(world.requests().len(), 1, "the next exchange cannot demand its body past the held first reply");
-    assert!(world.connected_forges().is_empty());
+    assert_eq!((world.connected_forges()).len(), 0);
     world.release_response();
     world.run_for(SECOND);
     assert_eq!(world.requests().len(), 2, "each buffered reply advances the start plan once");

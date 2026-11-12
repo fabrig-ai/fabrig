@@ -2,11 +2,10 @@
 
 use crate::{
     Config, Domain,
-    api::{Answer, Checks, Error, Permission, What},
+    api::{Answer, Error, Permission, What},
     store::{Repository, fits},
 };
-use alloc::boxed::Box;
-use skein_lib::{Duration, Env, Id, Map, Set, Writer, bytes::copy_of};
+use skein_lib::{Env, Id, Map, Set, Writer, bytes::copy_of};
 
 /// Admits the destination without allocating any commit or moving a head.
 pub(crate) fn start(
@@ -43,16 +42,7 @@ pub(crate) fn start(
         last = last.max(repository.id);
     }
     let id = last.checked_add(1).ok_or(Error::Full)?;
-    let checks = Checks {
-        cues: Box::new([]),
-        contexts: Box::new([]),
-        latency_min: Duration::ZERO,
-        latency_max: Duration::ZERO,
-        silent: 0,
-        passes: 1000,
-        reruns: 0,
-        cue: None,
-    };
+    let checks = env.limits.made_checks.clone();
     let mut destination = Repository::empty(limits, copy_of(&full), copy_of(&default), checks, None, false);
     destination.id = id;
     destination.permissions.insert(user, Permission::Admin).expect("owner permission room");

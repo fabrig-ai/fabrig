@@ -123,7 +123,11 @@ fn service(inherited: &skein_world::Inherited) -> Proc {
         Some(&agent),
         &Incident::seeds(parameters.seed),
         None,
-        Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into() }),
+        Some(temper_service::WorkerRuntime {
+            root: worker,
+            path: b"/worker".as_slice().into(),
+            agent: temper_playground::documents::pinned_agent(),
+        }),
         temper_playground::documents::forges(),
         None,
         None,
@@ -741,7 +745,7 @@ fn run_sequence(whole: bool, legacy: bool) -> [Outcome; 2] {
 
 fn forge() -> temper_fake_git_hosted::Typed {
     use skein_fake_forge_domain::{self as fake, api};
-    let mut config = temper_playground::documents::hosted_git::CONFIG;
+    let mut config = temper_playground::documents::hosted_git::config();
     // Two service calls and the hosted git can be in flight together.
     config.limits.calls = 4;
     config.limits.page_size = 8; // The service requests eight rows per forge page.

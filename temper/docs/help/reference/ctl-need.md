@@ -1,0 +1,25 @@
+# temper ctl need
+
+Kind: reference
+
+Needs: ask a person with choices and why.
+
+## need ask
+
+```
+need ask --project PROJECT [--party PARTY] [--role ROLE] [--choice TEXT]... --why TEXT TEXT --key KEY
+  --project PROJECT: a project's name or number; required. The project
+  --party PARTY: a number; optional. The person party to address; an alternative to --role
+  --role ROLE: a number from 0 to 4294967295; optional. The role to address; role 0, the owners, when neither is named
+  --choice TEXT: text, at most 1048576 bytes; repeated, at most 6. An answer choice; two to six, in code order from 1
+  --why TEXT: text, at most 1048576 bytes, or - to read stdin; required. Why the answer is needed
+  TEXT (text): text, at most 1048576 bytes, or - to read stdin; required. The question
+Ask a person a question with choices and why
+Prints: done: task N, need
+--json: the record need.
+Key: --key KEY, required.
+Makes a person task without a template. The spec is the question,
+a blank line, then Why: and the why. Choices are numbered from 1;
+the specification's byte parameters keep their words under those codes.
+Read its answer with task show TASK. Jig's refusal prints in its words, exit 2.
+```

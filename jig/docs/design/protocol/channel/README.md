@@ -670,9 +670,11 @@ holds, and neither of its components reads them.
   frame it heard, and the engine may have last heard from the worker a
   ping interval before the partition. So the stop bound the worker states
   in its hello counts from the last frame the engine may have heard from
-  it: its ping interval, its silence deadline, its grace, then the longer
-  of its agents' stop graces and a delivery's deadline, then a save. The
-  engine's grace, which counts from when the engine notices the link lost,
+  it: the longer of its ping interval, its silence deadline and its grace
+  together, and its drain's bound, which a worker's own shutdown runs
+  first (`../../domain/hosts/hub.md`, 7); then the longer of its agents'
+  stop graces and a delivery's deadline, then a save
+  (`../configuration.md`, section 4). The engine's grace, which counts from when the engine notices the link lost,
   must be strictly longer, and the fleet refuses a hello whose stop bound
   is not (4.3). Then no next attempt is placed while this one may still
   write (`../../domain/engine/fleet.md`).

@@ -103,7 +103,7 @@ fn stop(task: u64) -> Ask {
 }
 fn assert_one_refusal(story: &Story) {
     let answers = story.answered(STOP);
-    let [Outcome::Answered(Answered::Jig(contract::Answer::Refused { refusal: _, .. }))] = answers.as_slice() else {
+    let [Outcome::Answered(Answered::Jig(contract::Answer::Refused { .. }))] = answers.as_slice() else {
         panic!("one refusal: {answers:?}");
     };
     assert_eq!(story.made(fixtures::FIRST_OWNER), 1);
@@ -267,7 +267,7 @@ fn a_request_pending_across_a_restart_that_stops_serving_its_family_stays_unsent
     assert!(story.run_until(|s| s.made(fixtures::FIRST_OWNER) == 1, PROOF_WAIT));
     assert_eq!(story.answered(FAMILY_REQUEST), vec![]);
     story.restart_serving(jig_client_kit::test::list([
-        jig_protocol_engine_clients::Served { family: None, first: 19, last: 19 },
+        jig_protocol_engine_clients::Served { family: None, first: 20, last: 20 },
         jig_protocol_engine_clients::Served { family: Some(1), first: 3, last: 3 },
     ]));
     assert!(story.run_until(|s| s.client.link().state == Link::Live, PROOF_WAIT));

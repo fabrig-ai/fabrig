@@ -69,10 +69,29 @@ records kept in files or stores.
   step code. It reads schemas through `skein-codec`'s parser and adds
   the checks only Rust needs (`README.md`, section 7). A consumer depends on it in its
   tests and tools only.
-- **A consumer's codec crate** holds its schemas, the generated code, its
-  golden bytes and its drift test, and depends on lib and `skein-codec`.
-  smith's `smith-charter`, `smith-channel` and `smith-transcript` are such
-  crates.
+- **A consumer's codec crate** holds a family's generated record code,
+  `src/generated/<family>_v<N>.rs` or `v<N>.rs` (section 4), and depends
+  on lib and `skein-codec` alone; its dev-dependencies are free,
+  `skein-codegen` among them. The family's **owner**, the crate that
+  keeps it, holds the rest: its schemas, kept texts and patches
+  (`command.md`, 1), its generated glue, its golden bytes and its drift
+  test (section 6), and the translation between its records and a
+  domain, with the domain's crates as its dependencies. So the generated
+  code compiles beside the domains rather than after them, and only a
+  change of schema recompiles it (temper's `draft/crate-graph.md`, 4.1).
+  An owner's patches may name its domain's types, so they stay with it.
+- **An owner with no domain to translate is its own codec crate,**
+  holding schemas, code, golden bytes and drift test together: smith's
+  `smith-charter`, `smith-channel` and `smith-transcript`, and the
+  client wires, are such crates.
+- **A large family has a codec crate of its own:** a family whose
+  generated code passes 20,000 lines, the user's figure, shares its
+  crate with no other family (`tools/crates/design.md`, 3.1), so that a
+  change to one family recompiles it alone and the families compile side
+  by side. An owner's smaller families may share one codec crate.
+- **The packages that still hold generated record code beside other
+  dependencies** are the codec check's exceptions, each until its crate's
+  milestone (`tools/crates/design.md`, 3.2).
 
 ## 3. The schema
 
@@ -305,7 +324,9 @@ reserved for fields.
 - **Drift:** a test runs the generator on the schema and compares the
   result with the committed code and golden bytes. On a difference it
   fails, saying how to write them again, which the same test does when an
-  environment variable asks it to.
+  environment variable asks it to. The test is the owner's: it reads the
+  schema and the golden bytes in the owner, and the code in the family's
+  codec crate (section 2), and writes each where it reads it.
 - **One family to a golden directory:** a crate that holds several
   families gives each version of each a directory of its own, as skein's
   fixtures do with `golden/<family>-v<N>`, and a directory holds that

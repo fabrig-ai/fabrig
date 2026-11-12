@@ -72,10 +72,7 @@ of domain/host.md, section 2.
   one version, its release's, and offers only that one: the channel is
   pre-release, and no half reads an older version (README.md, section
   8).
-  The current version is 6 (`channel-v6.schema`). Before v0.1.0 a
-  version changes in place: the save ask (section 4) was added to
-  version 6 as it is (the owner, 2026-11-09); both halves are built
-  together until then.
+  The current version is 7 (`channel-v7.schema`), which added the drain (section 3). From 2026-11-12 the version moves with every change to its layout (the owner, 2026-11-12), as a new kind always moved it, and the previous version's schema and goldens stay in the tree unchanged, as its kept text, which no code reads: no half speaks an older version, since both halves are built together.
 - **The credential** is empty over a spawned agent's pipes. A connected
   agent's is still open (README.md, section 11).
 - **The agent accepts at once** over pipes. A daemon decides by its
@@ -108,6 +105,7 @@ of domain/host.md, section 2.
 | acknowledge | a turn's number: that turn and every one before it are kept durably | as the host keeps them |
 | grant | an account; a generation; how long it is valid; its value (section 6) | when the host refreshes one |
 | cancel | nothing | at most once |
+| drain | nothing | at most once, and never after a cancel: the run stops at the end of its current turn (domain/run.md, section 9) |
 
 **The start** (domain/run.md, 3.2):
 
@@ -319,7 +317,8 @@ edge is independent of the channel's own flow control (section 7).
   - the start comes first, once;
   - answers to calls come once per call, even after a cancel, since a
     delivery is never abandoned (domain/host.md, section 2);
-  - the cancel comes at most once.
+  - the cancel comes at most once;
+  - the drain comes at most once, and never after the cancel; a cancel may follow it.
 - **Up:**
   - admitted, or a refused answer, comes first;
   - turns are consecutive from one, and their spend never falls;

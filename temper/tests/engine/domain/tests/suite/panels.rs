@@ -96,7 +96,7 @@ fn a_party_without_a_role_in_the_scope_is_refused_before_the_connector() {
     let mut driver = driver();
     watch(&mut driver, 2, CHANGE);
     driver.settle();
-    assert!(panels(&driver).is_empty());
+    assert_eq!(panels(&driver).len(), 0);
     assert!(driver.immediate.iter().any(|request| matches!(request, root::Request::Party(root::PartyRequest::WatchRefused { watcher, why: jig_domain_core::WatchRefusal::NotAllowed }) if *watcher == WATCHER)));
 }
 #[test]
@@ -148,7 +148,7 @@ fn a_task_that_is_no_change_ends_the_watch_as_gone() {
     let mut driver = driver();
     watch(&mut driver, 1, 999);
     driver.settle();
-    assert!(panels(&driver).is_empty());
+    assert_eq!(panels(&driver).len(), 0);
     assert!(driver.delivered.iter().any(|delivery| matches!(delivery, root::Delivery::WatchEnded { watcher, why: jig_domain_views::End::Gone } if *watcher == WATCHER)));
 }
 
@@ -342,7 +342,7 @@ fn a_status_subject_for_another_project_is_gone() {
     let mut driver = driver();
     watch(&mut driver, 1, forge::status_subject(2));
     driver.settle();
-    assert!(statuses(&driver).is_empty());
+    assert_eq!(statuses(&driver).len(), 0);
     assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
         root::Delivery::WatchEnded { watcher, why: jig_domain_views::End::Gone } if *watcher == WATCHER)));
 }
@@ -351,7 +351,7 @@ fn a_status_watch_without_a_project_role_is_refused() {
     let mut driver = driver();
     watch(&mut driver, 2, forge::status_subject(2));
     driver.settle();
-    assert!(statuses(&driver).is_empty());
+    assert_eq!(statuses(&driver).len(), 0);
     assert!(driver.immediate.iter().any(|request| matches!(request,
         root::Request::Party(root::PartyRequest::WatchRefused {
             watcher, why: jig_domain_core::WatchRefusal::NotAllowed,
@@ -539,7 +539,7 @@ fn a_partys_away_is_its_own() {
         for _ in 0..UNCOMMITTED_STEPS {
             driver.advance(false);
         }
-        assert!(panel_answers(&driver).is_empty());
+        assert_eq!(panel_answers(&driver).len(), 0);
         assert!(!driver.store.pending.is_empty());
         driver.settle();
         assert_eq!(panel_answers(&driver), [Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away))]);
@@ -644,9 +644,46 @@ fn a_party_without_a_role_is_refused_at_admission() {
         );
     }
     panel_watch(&mut driver, sign_in, WATCHER, ApplicationScope::Project(2), forge::decided_subject(2));
-    assert!(party_documents(&driver, WATCHER).is_empty());
+    assert_eq!(party_documents(&driver, WATCHER).len(), 0);
     assert!(driver.immediate.iter().any(|request| matches!(request,
         root::Request::Party(root::PartyRequest::WatchRefused {
             watcher, why: jig_domain_core::WatchRefusal::NotAllowed,
         }) if *watcher == WATCHER)));
+}
+
+#[test]
+fn a_service_is_refused_device_registration_at_its_own_admission() {
+    let mut driver = driver();
+    let session = driver.session();
+    // Keep the sign-in and role rows, with a deployment-authenticated party.
+    driver.store.seed(
+        Box::new([root::Record::Core(jig_domain_core::Record::People(jig_domain_people::Stored::Person {
+            number: 1,
+            identity: jig_domain_people::Identity {
+                key: jig_domain_people::IdentityKey { provider: 1, subject: b"push-service".as_slice().into() },
+                login: b"service".as_slice().into(),
+                name: b"Service".as_slice().into(),
+            },
+        }))]),
+        Box::new([]),
+    );
+    let mut driver = restarted_panels(&mut driver);
+    driver.delivered.clear();
+    panel_application(
+        &mut driver,
+        session,
+        121,
+        ApplicationScope::Deployment,
+        root::Application::AddDevice(forge::AddDevice {
+            endpoint: b"http://push.test:4000/push/service".as_slice().into(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            label: b"service".as_slice().into(),
+        }),
+    );
+    driver.settle();
+    assert_eq!(
+        panel_answers(&driver),
+        [Some(root::ApplicationAnswer::Device(forge::DeviceAnswer::Refused(forge::DeviceRefusal::Person)))]
+    );
 }

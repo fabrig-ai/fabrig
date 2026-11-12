@@ -363,8 +363,8 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 fn home_limits() -> d::Limits {
     let mut limits = f::domain_limits();
     // Home, stock ways, goal presence, Goals, standing Needs, trials and a running trial task (client/pages/README.md).
-    limits.client.domain.handles = 19;
-    limits.client.domain.watches = 17;
+    limits.client.domain.handles = 24;
+    limits.client.domain.watches = 22;
     limits.client.domain.reads = 16;
     limits
 }
@@ -1177,6 +1177,7 @@ fn adopting(root: &mut d::Domain, refused: Option<w::ForgeReason>) {
                 | d::Request::KeepSignIn { .. }
                 | d::Request::Tab { .. }
                 | d::Request::Copy { .. }
+                | d::Request::Push(_)
                 | d::Request::Fact { .. } => None,
             })
             .expect("adoption request");
@@ -1951,6 +1952,7 @@ fn home_skip_hides_the_card_and_refusal_offers_retry() {
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Copy { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .expect("Skip request");

@@ -296,8 +296,15 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
         | w::Outcome::Removed
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Reset
+        | w::Outcome::DeviceAdded(_)
+        | w::Outcome::DeviceRemoved
+        | w::Outcome::DeviceRefused(_)
         | w::Outcome::Away
         | w::Outcome::Tried
+        | w::Outcome::Filed(_)
+        | w::Outcome::Handed
+        | w::Outcome::Triaged
+        | w::Outcome::FindingRefused(_)
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
         | w::Outcome::Follow(_)

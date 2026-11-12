@@ -138,6 +138,11 @@ impl Changes {
     fn rows(&mut self, panel: &w::ChangesPanel, out: &mut Queue<Request>) {
         let mut tasks = List::uncapped();
         for queue in panel.queues() {
+            if let Some(flight) = queue.in_flight()
+                && !tasks.as_slice().contains(&flight.member())
+            {
+                tasks.push(flight.member()).expect("wire bounds rows");
+            }
             for row in queue.changes() {
                 if !tasks.as_slice().contains(&row.task()) {
                     tasks.push(row.task()).expect("wire bounds rows");

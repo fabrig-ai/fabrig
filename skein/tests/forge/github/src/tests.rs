@@ -97,7 +97,7 @@ fn github_conformance_holds_every_fact_on_the_fake() {
     let facts = fs::read_to_string(out.0.join("facts.txt")).expect("recorded facts");
     assert!(facts.lines().any(|line| line == "# queue-dequeued-delivered group branch reads 1"));
     assert!(facts.lines().any(|line| line == "# issues-since-epoch-empty listing reads 1"));
-    assert!(report.leftover_mints.is_empty());
+    assert_eq!(report.leftover_mints.len(), 0);
 }
 #[test]
 fn github_conformance_renews_the_app_jwt_at_half_life() {
@@ -675,7 +675,7 @@ fn github_conformance_failed_case_revokes_its_tokens() {
         };
         assert!(r.complete(stopped).is_err(), "failed run must retain its failure after cleanup");
         assert!(r.journal.pending.is_empty());
-        assert!(r.leftover_mints.is_empty());
+        assert_eq!(r.leftover_mints.len(), 0);
         assert_eq!(
             r.raw(Method::Get, "/installation/repositories?per_page=100&page=1", &token, b"")
                 .expect("revoked read")

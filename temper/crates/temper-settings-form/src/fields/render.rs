@@ -1,4 +1,4 @@
-use super::{Choice, FIELDS, FORMS, Field, Form, Value, Width, Word, most};
+use super::{Choice, FIELDS, FORMS, Field, Form, Shape, Value, Width, Word, most, overlay_replaces};
 use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
@@ -51,6 +51,22 @@ fn write(forms: &[Form], fields: &[Field], limits: &Limits, out: &mut Text) {
                     out.put(b"\n");
                 }
             }
+        }
+        if form.shape == Shape::Overlay {
+            out.put(b"As `charter`'s fields, replacing the default whole: ");
+            let mut first = true;
+            for field in fields {
+                if overlay_replaces(field) {
+                    if !first {
+                        out.put(b", ");
+                    }
+                    first = false;
+                    out.put(b"`");
+                    out.put(field.name);
+                    out.put(b"`");
+                }
+            }
+            out.put(b".\n\n");
         }
         for field in fields {
             if field.shape != form.shape {

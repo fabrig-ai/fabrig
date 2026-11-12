@@ -364,6 +364,7 @@ pub(crate) fn is_reading(domain: &Domain, right: Token) -> bool {
             SeeReading::Settings | SeeReading::Head | SeeReading::File | SeeReading::Proposal => false,
         },
         FlightRender::Plain
+        | FlightRender::FindingRead
         | FlightRender::TaskRead
         | FlightRender::ForgeRead
         | FlightRender::Settings { see: None, .. }
@@ -391,6 +392,7 @@ fn flight_context(render: &mut FlightRender) -> (&mut SeeFlight, u32) {
     match render {
         FlightRender::Settings { see: Some(see), from, .. } => (see, *from),
         FlightRender::Plain
+        | FlightRender::FindingRead
         | FlightRender::TaskRead
         | FlightRender::ForgeRead
         | FlightRender::Settings { see: None, .. }

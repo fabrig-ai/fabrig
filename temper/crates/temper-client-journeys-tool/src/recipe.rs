@@ -8,7 +8,7 @@ mod command;
 mod reader;
 mod walk;
 pub(crate) use command::{Mode, run};
-use reader::Reader;
+use reader::{CommitFiles, Reader};
 pub use walk::{Action, Event, Walk};
 
 pub const SETUPS: &str = "temper/docs/development/qa/setups";
@@ -72,6 +72,7 @@ struct Recipe {
     after: Option<String>,
     bytes: Vec<u8>,
     scripts: Option<Vec<u8>>,
+    files: CommitFiles,
     steps: Vec<RecipeLine>,
     check: Vec<RecipeLine>,
 }
@@ -121,6 +122,13 @@ impl Chain {
                 hash.update(u64::try_from(bytes.len()).expect("file length fits u64").to_be_bytes());
                 hash.update(bytes);
             }
+            hash.update(u64::try_from(recipe.files.len()).expect("file count").to_be_bytes());
+            for (path, bytes) in &recipe.files {
+                for bytes in [path.as_ref(), bytes.as_slice()] {
+                    hash.update(u64::try_from(bytes.len()).expect("file length").to_be_bytes());
+                    hash.update(bytes);
+                }
+            }
         }
         hash.finalize().into()
     }
@@ -161,7 +169,7 @@ impl Recipe {
     fn read(reader: &Reader<'_>, name: &str) -> Result<Self, Refusal> {
         let files = reader.files(name).map_err(|why| Refusal::file(name, "recipe", why))?;
         for file in &files {
-            if file != "recipe" && file != "scripts.json" && file != "README.md" {
+            if file != "recipe" && file != "scripts.json" && file != "README.md" && file != "files" {
                 return Err(Refusal::file(name, &file.to_string_lossy(), "unexpected file"));
             }
         }
@@ -210,7 +218,34 @@ impl Recipe {
         } else {
             None
         };
-        Ok(Self { name: name.into(), after, bytes, scripts, steps, check })
+        let files = reader.commit_files(name)?;
+        let named: std::collections::BTreeSet<_> = steps
+            .iter()
+            .filter_map(|line| match line.line.record() {
+                Record::Forge(crate::line::Forge::Commit { paths, .. }) => Some(paths.iter().map(AsRef::as_ref)),
+                _ => None,
+            })
+            .flatten()
+            .collect();
+        for path in &named {
+            if !files.contains_key(*path) {
+                return Err(Refusal::file(
+                    name,
+                    &format!("files/{}", String::from_utf8_lossy(path)),
+                    "missing forge commit file",
+                ));
+            }
+        }
+        for path in files.keys() {
+            if !named.contains(path.as_ref()) {
+                return Err(Refusal::file(
+                    name,
+                    &format!("files/{}", String::from_utf8_lossy(path)),
+                    "no forge commit line names this file",
+                ));
+            }
+        }
+        Ok(Self { name: name.into(), after, bytes, scripts, files, steps, check })
     }
 }
 fn check_name(name: &str) -> Result<(), &'static str> {

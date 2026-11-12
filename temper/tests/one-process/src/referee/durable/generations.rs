@@ -40,7 +40,7 @@ impl Store {
     }
 
     fn binary(&self) -> codec::component::Levels {
-        self.levels.unwrap_or_else(|| jig_protocol_store::levels(&temper_service::store::PATCH_SETS))
+        self.levels.unwrap_or_else(|| jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS))
     }
 
     /// Retain every raw operation before deciding whether its generation can be decoded.

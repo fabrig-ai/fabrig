@@ -33,6 +33,7 @@ fn configured() -> (Domain, ChangeRow) {
         PROJECT,
         c::Way::Queue,
         Box::new([]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
             verdict: p::Settings { retries: 2, suspects: p::Suspects::Bisect },
             bound: Duration::from_secs(600),
@@ -332,4 +333,43 @@ fn a_follow_job_fault_retries_its_failed_attempt_and_an_authority_veto_keeps_the
     assert_eq!(check::write(&d, &mut row, 13), Some(retry));
     assert!(row.verdicts.is_empty());
     assert!(d.landing.receipts.is_empty());
+}
+
+#[test]
+fn a_follow_workflow_judges_the_train_prefix_on_its_landing_branch() {
+    let (mut d, mut row) = configured();
+    let prefix = sha1(0xcc);
+    row.change.state = c::State::Judging {
+        head: fixtures::HEAD,
+        ready_since: env().wall,
+        target: c::Judgement {
+            landing: 61,
+            round: 1,
+            pull: 2,
+            branch: b"temper/1/l61".as_slice().into(),
+            base: b"main".as_slice().into(),
+            prefix,
+        },
+        asked: Box::new([c::FOLLOW_CHECK_GATE]),
+    };
+    assert_eq!(check::asked(&row), Some(prefix));
+    assert!(matches!(check::advance(&mut d, &env(), &mut row, prefix, &mut Queue::uncapped()),
+        Action::Read { kind: ReadKind::Tree(1), read: api::Read::Tree { object, .. } } if object == prefix));
+    assert!(
+        check::answered(
+            &mut d,
+            &env(),
+            &mut row,
+            ReadKind::Tree(1),
+            Ok(api::Answer::Tree { entries: Box::new([]), more: false }),
+            &mut List::with_capacity(LIMITS.key_entries),
+            &mut Queue::uncapped()
+        )
+        .is_none()
+    );
+    assert!(matches!(check::advance(&mut d, &env(), &mut row, prefix, &mut Queue::uncapped()), Action::Write));
+    let api::Write::Dispatch { branch, inputs, .. } = sent(&d, &mut row) else { panic!("dispatch") };
+    assert_eq!(branch.as_ref(), b"temper/1/l61");
+    assert_eq!(inputs[0].value, commit_text(&prefix));
+    assert_eq!(inputs[2].value.as_ref(), &[b'b'; 40]);
 }

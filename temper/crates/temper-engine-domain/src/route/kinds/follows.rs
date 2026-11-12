@@ -97,7 +97,7 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
             || current.source.branch != follow.source.branch
             || current.target != follow.target)
     {
-        return Some(words(asked.number, &[settings::Refusal::FollowFixed.words()]));
+        return Some(words(asked.number, &[&settings::Refusal::FollowFixed.words()]));
     }
     None
 }

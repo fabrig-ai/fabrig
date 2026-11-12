@@ -50,7 +50,7 @@ fn an_engine_not_serving_jig_s_version_leaves_the_link_out_of_date() {
     c.stream(fixtures::hello(0));
     assert_eq!(c.machine.link().state, Link::OutOfDate);
     c.step(Event::Watch { handle: TASK, subject: task() });
-    assert!(c.requests().is_empty());
+    assert_eq!((c.requests()).len(), 0);
     assert_eq!(c.machine.next_deadline(), None);
 }
 #[test]
@@ -141,7 +141,7 @@ fn a_full_stream_reaches_the_domain_and_reopens_after_backoff() {
 
 #[test]
 fn the_link_view_names_a_watch_refused_busy() {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let mut c = Client::signed_in();
     assert!(!c.machine.link().watches_full);
     c.step(Event::Watch { handle: TASK, subject: task() });
@@ -164,7 +164,7 @@ fn the_link_view_names_a_watch_refused_busy() {
     c.step(Event::Reply { exchange, message: bytes.finish() });
     assert!(!c.machine.link().watches_full);
     assert_eq!(c.machine.link().state, Link::Live);
-    assert!(c.requests().is_empty());
+    assert_eq!((c.requests()).len(), 0);
 }
 
 mod approval;

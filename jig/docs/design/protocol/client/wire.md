@@ -91,7 +91,19 @@
   (`../../domain/tasks/lifecycle.md`, 7). With no saved kind it says unreadable
   result, for an adapter's decode or translation failure. Every other
   class omits it. This is the ended attempt's immutable fact, not the
-  task's current retry context. Wire 19 changes in place under `README.md`, section 6.
+  task's current retry context. Wire 20 carries charter overlays under `README.md`, section 6.
+- **Every result kind a task hears crosses.** A delegate's result reaches
+  its requester as a word whose kind names the result
+  (`../../domain/tasks/messages.md`, 1), and `WordResult` has a form for each
+  kind the core records: a job delegate's (`../../domain/engine/executors.md`,
+  5) is `job`, with no payload, after `cancelled` among its tags. The word,
+  or the `Words` line, carrying a job's result crosses with empty words: a
+  job's result is bytes its procedure reads, not words, and need not be
+  text (`../../client/domain/contract/documents.md`, 7). So the engine's
+  translation of an activity line, a word or a question's answer refuses no
+  kind the core records, and no line a task heard keeps its activity's page,
+  or a question's answer, from being served. Wire 20 takes `job` in place,
+  before the first release (`README.md`, section 6).
 - **No time crosses, only walls.** Documents carry wall times, which the
   store keeps (`../../client/domain/contract/documents.md`, 3); durations (a
   retention, a heartbeat, a grace, a deadline a request gives as a span,
@@ -141,7 +153,7 @@ client share the deployment's hello-refusal translations. A checks
 shortfall carries the failing charter number as `AgentShortfallChecks {
 charter }`, identifying its `reserve_time` member, and turns, time and
 waiting carry theirs as `AgentShortfallTurns`, `AgentShortfallTime` and
-`AgentShortfallWaiting { charter }`. The v19 schema takes these in
+`AgentShortfallWaiting { charter }`. The v20 schema takes these in
 place.
 `TaskWaitSource { state }` names a source's state. `TaskRunWaitRefused { value }` wraps the enum payload
 for the generator, an unversioned record that adds no tag or header

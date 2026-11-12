@@ -185,6 +185,7 @@ fn another_tasks_page_closes_the_old_panel_and_watches_its_own_subject() {
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Push(_)
             | Request::Screen { .. }
             | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }

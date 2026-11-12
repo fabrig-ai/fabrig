@@ -13,7 +13,7 @@ pub struct Group {
 }
 /// In `temper ctl help`'s order.
 pub const GROUPS: &[Group] = &[
-    Group { name: b"sign-in", line: b"Sign in with the link the deployment printed" },
+    Group { name: b"sign-in", line: b"Sign in with a printed link or a service file" },
     Group { name: b"sign-out", line: b"End the sign-in and leave the token empty" },
     Group { name: b"pending", line: b"List the requests DIR keeps, without reaching the engine" },
     Group { name: b"help", line: b"Read the page ctl and the groups, a group's tools, or one tool's record" },
@@ -26,6 +26,8 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"proposal", line: b"Proposals: read one, decide it" },
     Group { name: b"hold", line: b"Placed holds: lift one you may lift" },
     Group { name: b"change", line: b"Changes: read a change's way to landing" },
+    Group { name: b"finding", line: b"Findings: file, read, hand on and triage them" },
+    Group { name: b"need", line: b"Needs: ask a person with choices and why" },
     Group { name: b"follow", line: b"Follows: read a project's follows and their lag and parity" },
     Group { name: b"landing", line: b"Landings: read one or a project's landings" },
     Group { name: b"draft", line: b"Landed drafts: say ready or not ready, list them" },
@@ -41,7 +43,9 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"model", line: b"Models: read those your party may use" },
     Group { name: b"settings", line: b"The settings: read them, change them, or propose a change to their owners" },
     Group { name: b"revision", line: b"Settings revisions: read one or the history, move running work to the newest" },
+    Group { name: b"party", line: b"Parties: make a service with a project's role" },
     Group { name: b"project", line: b"Projects: make or delete one, read periods and pools, set spend and visibility" },
+    Group { name: b"push", line: b"Push devices: list, add or remove your subscriptions" },
     Group { name: b"playground", line: b"The playground: start it, or end it and set up temper" },
 ];
 pub const TOOLS: &[&Tool] = &[
@@ -130,6 +134,18 @@ pub const TOOLS: &[&Tool] = &[
     &crate::follow::HOLD,
     &crate::follow::SKIP,
     &crate::follow::MERGE,
+    &crate::push::LIST,
+    &crate::push::ADD,
+    &crate::push::REMOVE,
+    &rows::PARTY_MAKE,
+    &rows::FINDING_LIST,
+    &rows::FINDING_SHOW,
+    &rows::FINDING_FILE,
+    &rows::FINDING_HAND,
+    &rows::FINDING_ROUTE,
+    &rows::FINDING_BACKLOG,
+    &rows::FINDING_DROP,
+    &rows::NEED_ASK,
 ];
 pub fn parse(words: &[&[u8]]) -> Result<Parsed, Usage> {
     argv::parse(TOOLS, words, &crate::limits::tools())

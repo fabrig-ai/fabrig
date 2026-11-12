@@ -29,9 +29,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // Page, session, trial and standing-role watches across two project openings.
-                handles: 16,
-                watches: 18, // Includes How work runs’ follows and standing-role watches.
+                // The page handles, project-needs, session Away and Home decisions watches, trials and a running trial task.
+                handles: 21, // Four findings subjects and one live-goals menu.
+                watches: 23, // Four findings subjects and one live-goals menu.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -481,6 +481,7 @@ pub(super) fn root_at_with_classes(
         | temper_client_domain::Address::Chats { .. }
         | temper_client_domain::Address::NewChat { .. }
         // page-view: draw Remembered.
+        | temper_client_domain::Address::Told
         | temper_client_domain::Address::Remembered
         | temper_client_domain::Address::Members
         | temper_client_domain::Address::Limits
@@ -758,6 +759,7 @@ pub(super) fn root_at_with_classes(
                     }
                 }
                 w::Read::RevisionSetting(_)
+                | w::Read::Finding(_)
                 | w::Read::ProposalItems(_)
                 | w::Read::ProgramEnvironment
                 | w::Read::View(_) => {}
@@ -1994,9 +1996,11 @@ pub fn deliver_playground(
     playground_record(root, read, Some(wire::playground_answer(&answer)));
 }
 pub fn deliver_deployment(root: &mut temper_client_domain::Domain, read: Token, welcome: bool, owned: bool) {
-    let answer =
-        w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { welcome, owned, program_login: None })
-            .expect("deployment answer");
+    let answer = w::DeploymentAnswer::new(
+        &w::CEILINGS,
+        w::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
+    )
+    .expect("deployment answer");
     playground_record(root, read, Some(wire::deployment_answer(&answer)));
 }
 pub fn deliver_no_playground(root: &mut temper_client_domain::Domain, read: Token) {
@@ -2607,6 +2611,7 @@ fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => continue,
         };
         temper_client_domain::step(root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);

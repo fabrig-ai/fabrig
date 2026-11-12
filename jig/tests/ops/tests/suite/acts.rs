@@ -59,7 +59,7 @@ fn provisioning_with(config: &Config) -> Harness<Ops> {
         .collect();
     assert_eq!(live.len(), 3, "C, E and D");
     assert!(live.iter().any(|row| row.number == 1 && row.flags.conversation));
-    assert!(live.iter().filter(|row| row.requester == tasks::Party::Task(1)).count() == 2);
+    assert_eq!(live.iter().filter(|row| row.requester == tasks::Party::Task(1)).count(), 2);
     assert!(world.store.rows.values().any(|row| matches!(
         row,
         root::Record::Infrastructure(infra::Record::Procedure(infra::ProcedureState { chat: Some(1), .. }))
@@ -194,7 +194,7 @@ fn a_close_committed_before_a_restart_is_sent_again_and_answered_once() {
         }
     }
     assert_eq!(pending_closes(&world), 1);
-    assert!(world.peers.close_answers.is_empty());
+    assert_eq!(world.peers.close_answers.len(), 0);
     assert!(world.store.rows.values().any(|row| matches!(
         row,
         root::Record::Core(core::Record::People(people::Stored::Acted {

@@ -49,6 +49,7 @@ pub fn limits() -> Limits {
         },
         checkout: checkout::Limits {
             workspaces: 4,
+            preparations: 4,
             repositories: 2,
             name_bytes: 32,
             message_bytes: 512,
@@ -106,6 +107,8 @@ pub fn limits() -> Limits {
             unacknowledged: 2,
             reply_bytes: None,
         },
+        drain: Duration::from_secs(10),
+        after_grace: Duration::from_secs(15),
         stop_bound: Duration::from_secs(20),
     }
 }

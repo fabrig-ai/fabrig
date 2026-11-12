@@ -1,5 +1,6 @@
 //! Installation reconciliation through the component boundary and the landed page plan.
 use super::fixtures;
+use crate::seam::Access;
 use crate::{Account, Change, Component, Event};
 use alloc::boxed::Box;
 use skein_forge::{

@@ -173,6 +173,7 @@ fn referee_signal_reaches_a_hosted_child_through_its_pipe() {
     clippy::disallowed_methods,
     reason = "skein's round: reads the child marker and TIERS_ONE_PROCESS for the isolated deadline test"
 )]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_zero_patience_deadline_reports_the_failing_iteration() {
     // Zero patience meets the runnable-wait threshold. Exercise its failure
     // diagnostic outside the runners so a starved pass cannot skip it.
@@ -258,6 +259,7 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
     clippy::disallowed_methods,
     reason = "skein's round: reads the child marker and TIERS_ONE_PROCESS for the isolated referee teardown test"
 )]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     use skein_io::kernel::{Complete, Submit};
     use skein_lib::{Queue, Time, Wall};

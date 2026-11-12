@@ -38,3 +38,49 @@ fn each_box_line_reads_and_prints_back() {
     }
     assert!(failures.is_empty(), "box line rows: {failures:?}");
 }
+
+#[test]
+fn each_box_stage_reads_and_prints_back() {
+    use crate::{BoxEnd, BoxStage};
+    let rows: &[(&[u8], BoxStage)] = &[
+        (b"finding", BoxStage::Finding),
+        (b"fetching 5 -", BoxStage::Fetching { done: 5, total: None }),
+        (b"fetching 0 18446744073709551615", BoxStage::Fetching { done: 0, total: Some(u64::MAX) }),
+        (b"starting", BoxStage::Starting),
+        (b"running", BoxStage::Running),
+        (b"stopping", BoxStage::Stopping),
+        (b"ended exited 2", BoxStage::Ended { end: BoxEnd::Exited { code: 2 } }),
+        (b"ended killed 255", BoxStage::Ended { end: BoxEnd::Killed { signal: 255 } }),
+        (b"failed no link", BoxStage::Failed { why: copy_of(b"no link") }),
+        (b"failed \xff\x80", BoxStage::Failed { why: copy_of(b"\xff\x80") }),
+        (b"failed ", BoxStage::Failed { why: Box::default() }),
+    ];
+    for (bytes, stage) in rows {
+        assert_eq!(stage.print().as_ref(), *bytes, "print {stage:?}");
+        assert_eq!(BoxStage::read(bytes).as_ref(), Some(stage), "read {stage:?}");
+    }
+    for bytes in [
+        b"fetching 5".as_slice(),
+        b"ended",
+        b"stopped",
+        b"",
+        b"finding ",
+        b"starting now",
+        b"running x",
+        b"stopping x",
+        b"fetching - 5",
+        b"fetching 5 x",
+        b"fetching 5 - extra",
+        b"fetching 18446744073709551616 -",
+        b"fetching 05 -",
+        b"fetching 5 00",
+        b"ended exited 02",
+        b"ended exited 256",
+        b"ended killed -1",
+        b"ended killed 9 extra",
+        b"ended other 2",
+        b"failed",
+    ] {
+        assert_eq!(BoxStage::read(bytes), None, "reject {bytes:?}");
+    }
+}

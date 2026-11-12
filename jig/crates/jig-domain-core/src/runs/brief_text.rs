@@ -329,13 +329,14 @@ fn waiting_read(core: &Core, task: u64, carried: u32, bytes: u32) -> BriefRead {
 }
 
 fn attempt_read(tries: tasks::Tries, invalid: Option<tasks::InvalidResult>, bytes: u32) -> BriefRead {
-    let classes: [(&[u8], u32); 6] = [
+    let classes: [(&[u8], u32); 7] = [
         (b"transient: ", tries.transient),
         (b"permanent: ", tries.permanent),
         (b"run: ", tries.run),
         (b"agent: ", tries.agent),
         (b"lost: ", tries.lost),
         (b"invalid: ", tries.invalid),
+        (b"infrastructure: ", tries.infrastructure),
     ];
     let mut total = 0_usize;
     for (name, count) in classes {
@@ -759,7 +760,7 @@ mod tests {
             text_bytes: 0,
             text_kept: 0,
         };
-        for byte in [b'a', b'b', b'c'] {
+        for byte in *b"abc" {
             transcript.append_text(Some(Box::from(&[byte; 40][..])), 128);
         }
         let BriefRead::Got(parts) = tail_read(&transcript, 90) else { panic!("read tail") };

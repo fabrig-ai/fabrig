@@ -286,7 +286,7 @@ fn later_saves_extend_a_whole_recording() {
     assert!(prove(&second).is_ok());
 }
 
-// Jig's v19 SignedIn wire: answer tag, present token, length, token, party, expiry.
+// Jig's v20 SignedIn wire: answer tag, present token, length, token, party, expiry.
 // The credential's first eight bytes are its sign-in number, followed by 32 fake bytes.
 fn credential() -> Secret {
     let mut bytes = 7_u64.to_be_bytes().to_vec();
@@ -462,7 +462,7 @@ fn sent(walk: &mut Walk, kind: fn(&Sent) -> bool) -> Token {
 fn approved() -> Walk {
     let mut walk = Walk::new();
     let exchange = sent(&mut walk, |message| matches!(message, Sent::ApprovalAsk(_)));
-    // v19 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
+    // v20 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
     let mut asked = vec![0];
     asked.extend_from_slice(&32_u32.to_be_bytes());
     asked.extend_from_slice(&[7; 32]);
@@ -526,6 +526,7 @@ fn duties_keep_the_seams_order_and_fields() {
     let mut erased = skein_lib::List::with_capacity(RECORDS);
     erased.push(b"old".as_slice().into()).expect("one erased record");
     let duties = Duties {
+        stop: None,
         local: true,
         note: Some(temper_client_tui::Note::SignedOut),
         asked: vec![
@@ -664,6 +665,8 @@ fn local_records_are_refused_outside_their_places() {
         ("noted among duties", 12, Line::Noted(Note::SignedOut)),
         ("front among reports", 10, Line::Front),
         ("box-line among facts", 5, Line::BoxLine(b"log recent".as_slice().into())),
+        ("box-stage among facts", 5, Line::BoxStage(b"finding".as_slice().into())),
+        ("stop-box among facts", 5, Line::StopBox),
         ("found among facts", 5, Line::Found(None)),
         ("found outside turn", canonical.len() - 1, Line::Found(None)),
         ("note before keep", 10, Line::Note(Note::SignedOut)),
@@ -692,14 +695,25 @@ fn local_records_are_refused_outside_their_places() {
         let Err(error) = Replay::new(&written(&records)) else { panic!("unreadable box line accepted") };
         assert_eq!(error, Unreadable { line: 11, why: "unreadable box line" });
     }
+    for bytes in [b"unknown".as_slice(), b"ended", b"fetching x -"] {
+        let mut records = canonical.clone();
+        records.insert(10, Line::BoxStage(bytes.into()));
+        let Err(error) = Replay::new(&written(&records)) else { panic!("unreadable box stage accepted") };
+        assert_eq!(error, Unreadable { line: 11, why: "unreadable box stage" });
+    }
 }
 
 #[test]
 fn front_reports_replay_through_box_line_read() {
     use crate::host::tests::{delivery_report, home_subject, home_tasks, launchpad_me, watch};
-    use jig_client_protocol_wire::v19 as w;
-    use temper_client_tui::BoxLine;
+    use jig_client_protocol_wire::v20 as w;
+    use temper_client_tui::{BoxEnd, BoxLine, BoxStage};
     let (mut walk, duties) = linked_walk_duties(true);
+    let stages =
+        [BoxStage::Finding, BoxStage::Fetching { done: 7, total: Some(10) }, BoxStage::Starting, BoxStage::Running];
+    for stage in &stages {
+        walk.reports(vec![Report::Stage(stage.clone())]);
+    }
     let duties = walk.admit(duties);
     let me = watch(&duties, &w::Subject::Me);
     let next = walk.reports(vec![delivery_report(me, &w::DeliveryValue::Me(launchpad_me(true)))]);
@@ -711,12 +725,36 @@ fn front_reports_replay_through_box_line_read() {
     }
     walk.mark();
     let duties = walk.key(Key::Control(b'c'));
-    assert!(!duties.iter().any(|duties| duties.close), "work running asks before quitting");
+    assert!(!duties.iter().any(|duties| duties.close || duties.stop.is_some()), "work running asks before quitting");
     assert!(
         walk.host.frame().text().windows(b"Stop the box?".len()).any(|bytes| bytes == b"Stop the box?"),
         "the quit question stands"
     );
+    let first = walk.key(Key::Control(b'c'));
+    assert!(first.iter().any(|duties| duties.stop == Some(crate::host::Stop::First)));
+    let second = walk.key(Key::Control(b'c'));
+    assert!(second.iter().any(|duties| duties.stop == Some(crate::host::Stop::Second)));
+    let ended = BoxStage::Ended { end: BoxEnd::Killed { signal: 15 } };
+    walk.reports(vec![Report::Stage(ended.clone())]);
     let records = lines(&walk.save()).expect("front records");
+    let recorded: Vec<_> = records
+        .iter()
+        .filter_map(|line| if let Line::BoxStage(bytes) = line { Some(bytes.as_ref()) } else { None })
+        .collect();
+    let expected: Vec<_> = stages.iter().chain(core::iter::once(&ended)).map(BoxStage::print).collect();
+    assert_eq!(recorded, expected.iter().map(AsRef::as_ref).collect::<Vec<_>>());
+    assert!(records.contains(&Line::StopBox));
+    assert!(records.contains(&Line::StopBoxAgain));
+    for (recorded, changed) in [(Line::StopBox, Line::StopBoxAgain), (Line::StopBoxAgain, Line::Quit)] {
+        let mut changed_records = records.clone();
+        let at = changed_records.iter().position(|line| *line == recorded).expect("stop duty");
+        changed_records[at] = changed;
+        let stale = replay_stale(&written(&changed_records));
+        let mut expected = Vec::new();
+        recorded.write(&mut expected);
+        expected.pop();
+        assert_eq!(stale.asked.as_ref(), expected);
+    }
     assert!(records.contains(&Line::Front), "front start fact");
     assert_eq!(records.iter().filter(|line| matches!(line, Line::BoxLine(_))).count(), 2);
     same_frames(walk);

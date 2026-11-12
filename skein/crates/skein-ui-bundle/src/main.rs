@@ -35,10 +35,9 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
     let mut gzip = None;
     let mut markup = None;
     let mut stylesheet = None;
-    let mut pairs = args.chunks_exact(2);
-    for pair in &mut pairs {
-        let value = &pair[1];
-        match pair[0].as_str() {
+    let (pairs, remainder) = args.as_chunks::<2>();
+    for [option, value] in pairs {
+        match option.as_str() {
             "--module" if module.is_none() => module = Some(PathBuf::from(value)),
             "--worker" if worker.is_none() => {
                 let (name, path) = value.split_once('=').ok_or(USAGE)?;
@@ -74,7 +73,7 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
             _ => return Err(USAGE),
         }
     }
-    if !pairs.remainder().is_empty() {
+    if !remainder.is_empty() {
         return Err(USAGE);
     }
     inputs.placeholder = match (markup, stylesheet) {

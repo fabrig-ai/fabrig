@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-12. Where temper's code lags or departs from [README.md](README.md).
 
 `checks.md`, section 1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.

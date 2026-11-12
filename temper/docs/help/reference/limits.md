@@ -79,6 +79,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.changes_landed`: count, 8. Bounds recent landed changes in the changes document.
 - `forge.landings_kept`: count, 16. Bounds retained landings per repository.
 - `forge.landings`: count, 2. Bounds live landing procedure rows.
+- `forge.findings_per_project`: count, 256. Bounds retained findings per project.
 - `forge.decided_per_project`: count, 1,024. Bounds retained decided and asked rows per project.
 - `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.
 - `forge.judge_criteria`: count, 8. Bounds criteria in each deployment or project judge table.
@@ -144,6 +145,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 ## checkout
 
 - `checkout.workspaces`: count, 3. Bounds workspaces cached on disk and held at once; at least the slots; preparation refuses when all are held.
+- `checkout.preparations`: count, 1. Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival.
 - `checkout.repositories`: count, 2. Bounds repositories named by one checkout specification.
 - `checkout.name_bytes`: bytes, 256. Bounds a workstream key, repository name, remote or branch.
 - `checkout.message_bytes`: bytes, 4,096. Bounds a commit message's title and body together.

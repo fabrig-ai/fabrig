@@ -641,12 +641,12 @@ fn a_domain_entrance_waits_until_the_previous_entrances_facts_reach_the_sinks() 
     assert_eq!(service.stages.domain_events.len(), 1, "the second entrance has not run");
     domain_up(&mut service.stages, &mut service.frame);
     assert_eq!(service.stages.domain_events.len(), 1, "waiting again cannot advance the second entrance");
-    smith_protocol_events::sinks::fixture::drain_ready(service.stages.events.as_mut().unwrap().sinks(), TRACE);
+    smith_protocol_events_fixtures::sinks::drain_ready(service.stages.events.as_mut().unwrap().sinks(), TRACE);
     let mut names = List::with_capacity(FACTS);
     for _ in [FIRST, SECOND] {
         domain_up(&mut service.stages, &mut service.frame);
         for record in
-            smith_protocol_events::sinks::fixture::drain_ready(service.stages.events.as_mut().unwrap().sinks(), TRACE)
+            smith_protocol_events_fixtures::sinks::drain_ready(service.stages.events.as_mut().unwrap().sinks(), TRACE)
         {
             match record.event {
                 smith_events::Event::MessageReceived(message) => {
@@ -910,9 +910,9 @@ mod validity {
             cases.push(limits);
             let mut limits = base;
             limits.events = Some(smith_protocol_events::EventLimits {
-                sinks: smith_protocol_events::sinks::fixture::limits(1),
+                sinks: smith_protocol_events_fixtures::sinks::limits(1),
                 capture: smith_protocol_events::sinks::Capture::None,
-                ..smith_protocol_events::fixture::event_limits()
+                ..smith_protocol_events_fixtures::event_limits()
             });
             limits.events.as_mut().unwrap().sinks.output = 0;
             cases.push(limits);

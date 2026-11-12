@@ -146,7 +146,7 @@ fn sign_in_keeps_connect_in_the_page_and_welcome_offers_no_separate_entry() {
 #[test]
 fn a_sign_in_holds_its_page_and_offers_the_paste() {
     let (front, root, _) = begin(b"/accounts/connect");
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
     assert!(offered(&root, Role::TextField, FIELD));
 }
 
@@ -263,7 +263,7 @@ fn reload_of_the_waiting_source_drops_the_pasted_value() {
     let returned = format!("/accounts/connect?provider=17&way=sign-in&source={source}");
     h::reopen(&mut front, &mut root, at(returned.as_bytes()));
     assert!(disabled(&root));
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 
 // client/pages/README.md From another computer: sign-in offers the folded paste.
@@ -322,7 +322,7 @@ fn accounts_row_sign_in_offers_the_paste_and_observes_success() {
     );
     assert!(has(&root, b"Added your ChatGPT plan"));
     assert!(!offered(&root, Role::TextField, b"Address of the page that couldn't be reached"));
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 
 #[test]

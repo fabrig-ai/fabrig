@@ -46,7 +46,7 @@ fn hello(channel: Token) -> Event {
 /// An attempt hosted by `WORKER`, with `OTHER` also in contact.
 fn hosted() -> Domain {
     let mut domain = jig_fleet_world::fixtures::domain(&LIMITS, jig_fleet_world::fixtures::needs());
-    assert!(step(&mut domain, hello(WORKER)).is_empty());
+    assert_eq!(step(&mut domain, hello(WORKER)).len(), 0);
     let start = Event::Start {
         placement: None,
         version: jig_domain_fleet::Version { charter: 1, revision: 1 },
@@ -58,14 +58,14 @@ fn hosted() -> Domain {
         kinds: Kinds::Workers,
         assignment: jig_domain_fleet::Assignment { turns: Token::new(0), answered: Token::new(0) },
     };
-    assert!(step(&mut domain, start).is_empty());
+    assert_eq!(step(&mut domain, start).len(), 0);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
     let mut out = Queue::uncapped();
     fleet::resume(&mut domain, &env, &mut out);
     assert!(matches!(out.pop(), Some(Request::Assign { channel: WORKER, .. })));
     assert!(matches!(out.pop(), Some(Request::Placed { .. })));
     domain.reclaim();
-    assert!(step(&mut domain, hello(OTHER)).is_empty());
+    assert_eq!(step(&mut domain, hello(OTHER)).len(), 0);
     domain
 }
 
@@ -120,7 +120,7 @@ fn a_notice_from_a_worker_not_hosting_the_attempt_reaches_nothing() {
         refused(OTHER),
     ];
     for notice in notices {
-        assert_eq!(step(&mut domain, notice), []);
+        assert_eq!((step(&mut domain, notice)).len(), 0);
     }
 }
 

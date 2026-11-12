@@ -6,7 +6,7 @@ use crate::{
     limits,
 };
 use jig_client::{Message, Request};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
 use skein_ui_screen::{Rgb, Size};
@@ -18,7 +18,7 @@ use temper_client_domain::{
         terminal::{self, Command, Font, Theme},
     },
 };
-use temper_client_tui::{Event, Local, Note, Own, Scheme, Told, WalkStep};
+use temper_client_tui::{BoxEnd, BoxStage, Event, Local, Note, Own, Scheme, Told, WalkStep};
 
 fn host() -> Host {
     Host::new(&Settings { limits: limits::tui() }, 7, Time::ZERO, Wall::EPOCH)
@@ -55,13 +55,14 @@ fn text(host: &mut Host) -> String {
 }
 
 fn empty(duties: &Duties) {
-    assert!(duties.asked.is_empty());
+    assert_eq!(duties.asked.len(), 0);
     assert!(duties.keep.is_none());
     assert!(duties.note.is_none());
     assert!(!duties.local);
     assert!(duties.address.is_none());
     assert!(duties.open.is_none());
     assert!(!duties.close);
+    assert!(duties.stop.is_none());
 }
 
 #[test]
@@ -221,7 +222,7 @@ fn reply(host: &mut Host, exchange: skein_lib::Token, message: Box<[u8]>) -> Dut
 }
 
 fn approval_bytes(code: &[u8], tail: &[u8]) -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let record = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -260,7 +261,7 @@ fn approval_is_asked_once_per_opening() {
         } else {
             ask(&duties)
         };
-        assert!(host.report(Report::Resize(Size { columns: 80, rows: 24 })).asked.is_empty());
+        assert_eq!(host.report(Report::Resize(Size { columns: 80, rows: 24 })).asked.len(), 0);
         host.frame();
         assert!(host.report(Report::Key(Key::Enter)).asked.is_empty(), "no second ask while asking");
         reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
@@ -271,7 +272,7 @@ fn approval_is_asked_once_per_opening() {
         let exchange = ask(&duties);
         assert!(host.report(Report::Key(Key::Control(b'c'))).close);
         assert!(reply(&mut host, exchange, approval_bytes(b"BCDFGHJK", b"")).open.is_none());
-        assert!(host.report(Report::Due).asked.is_empty());
+        assert_eq!(host.report(Report::Due).asked.len(), 0);
     }
 }
 
@@ -311,7 +312,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     for answer in [
         w::ApprovalSignInAnswer::Refused,
         w::ApprovalSignInAnswer::Expired,
@@ -344,7 +345,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         host.frame();
         let duties = host.report(Report::Key(Key::Enter));
         if waiting {
-            assert!(duties.asked.is_empty());
+            assert_eq!(duties.asked.len(), 0);
             assert_eq!(
                 host.state().signing(),
                 &temper_client_tui::Signing::Refused(temper_client_tui::Refusal::NotALink)
@@ -383,7 +384,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
 
 #[test]
 fn approval_deadline_includes_the_views_tick() {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let mut host = host();
     let exchange = ask(&start(&mut host, None));
     let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
@@ -1572,7 +1573,7 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
         empty(&duties);
         host.frame();
         assert!(host.state().theme_list());
-        assert!(host.words().is_empty());
+        assert_eq!((host.words()).len(), 0);
         assert_eq!(host.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Auto) }));
         empty(&host.report(Report::Key(Key::Escape)));
         assert!(!host.state().theme_list());
@@ -1594,7 +1595,7 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
     );
     assert!(text(&mut host).contains("Theme: light."));
     assert!(!host.state().theme_list());
-    assert!(host.words().is_empty());
+    assert_eq!((host.words()).len(), 0);
     assert_eq!(host.theme, temper_client_tui::theme(Scheme::Light, None));
     let palette = temper_client_tui::theme::palette(Scheme::Light);
     let frame = host.frame();
@@ -1942,7 +1943,7 @@ fn keys_typed_during_the_file_sign_in_stay_in_the_box() {
         assert!(text(&mut host).contains(first));
         empty(&host.report(Report::Key(Key::Char('a'))));
         assert!(text(&mut host).contains("❯ a"), "first frame, front {front}");
-        assert!(host.state().field().is_empty());
+        assert_eq!((host.state().field()).len(), 0);
         let signing = host.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
         let exchange = local_exchange(&signing);
         assert_eq!(signing.asked.len(), 1, "only the sign-in request");
@@ -2041,8 +2042,8 @@ fn a_notice_stands_six_seconds_and_a_newer_replaces_it() {
     empty(&give(&mut host, Event::Send));
     assert_eq!(host.state().notice(), Some(&first));
     assert_eq!(host.deadline(), skein_lib::earliest(root::next_deadline(&host.root), Some(end)));
-    assert!(host.words().is_empty());
-    assert!(host.root.pages().notes().is_empty());
+    assert_eq!((host.words()).len(), 0);
+    assert_eq!((host.root.pages().notes()).len(), 0);
     assert!(host.root.pages().listing().is_none());
     let frame = text(&mut host);
     let line = frame.lines().find(|line| line.contains("Unknown command /qiut")).expect("quiet notice");
@@ -2084,8 +2085,8 @@ fn a_notice_stands_six_seconds_and_a_newer_replaces_it() {
         typed(&mut host, words);
         give(&mut host, Event::Send);
         assert_eq!(host.state().notice(), Some(&Notice::Unknown { words: words.into() }));
-        assert!(host.words().is_empty());
-        assert!(host.root.pages().notes().is_empty());
+        assert_eq!((host.words()).len(), 0);
+        assert_eq!((host.root.pages().notes()).len(), 0);
         host.clocks(Time::ZERO.saturating_add(Duration::from_secs(seconds)), Wall::EPOCH);
         host.report(Report::Due);
         assert_eq!(host.state().notice(), None, "at and past the end");
@@ -2384,11 +2385,11 @@ fn the_launchpad_takes_its_own_words() {
             LaunchWant::Brief => assert!(host.state().brief_shown(), "{words:?}"),
             LaunchWant::Walk => {
                 assert!(host.state().walk().is_some_and(|walk| !walk.by_key()), "{words:?}");
-                assert!(host.words().is_empty());
+                assert_eq!((host.words()).len(), 0);
             }
             LaunchWant::Opened => {
                 assert_eq!(duties.open.as_deref(), Some(b"http://127.0.0.1:8367/projects/3".as_slice()));
-                assert!(host.words().is_empty());
+                assert_eq!((host.words()).len(), 0);
             }
             LaunchWant::New => {
                 assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
@@ -2404,7 +2405,7 @@ fn the_launchpad_takes_its_own_words() {
                     "reply words reach card"
                 );
                 assert!(host.state().walk().is_some_and(|walk| walk.shown(&object)), "answered need marked shown");
-                assert!(host.words().is_empty());
+                assert_eq!((host.words()).len(), 0);
             }
         }
     }
@@ -2948,7 +2949,8 @@ fn waiting_at(chat: bool) -> Host {
     // The fixture supplies the terminal look so event rows isolate event translation.
     host.step(root::Event::LookKept { look: terminal::Look { terminal: true, ..terminal::Look::default() } });
     host.step(root::Event::Went { place: Place::Address(Address::Home { project: 3 }) });
-    watches.asked.extend(host.report(Report::Due).asked);
+    let duties = host.report(Report::Due);
+    watches.asked.extend(admit(&mut host, duties).asked);
     if chat {
         host.step(root::Event::Went { place: Place::Address(Address::Chat { task: 7 }) });
     }
@@ -3254,6 +3256,7 @@ enum FrontAct {
 
 enum FrontWant {
     Quit { close: bool, asking: bool },
+    Stop,
     Log { shown: bool, unknown: Option<&'static [u8]> },
     Line(temper_client_tui::BoxLine),
 }
@@ -3267,17 +3270,9 @@ fn in_front_quitting_asks_while_work_runs() {
     let closed = || FrontWant::Quit { close: true, asking: false };
     let mut rows = vec![
         ("bare working", false, true, vec![(close(), closed())]),
-        ("front idle", true, false, vec![(close(), closed())]),
-        ("ask twice", true, true, vec![(close(), asked()), (close(), FrontWant::Quit { close: true, asking: true })]),
-        (
-            "quit",
-            true,
-            true,
-            vec![
-                (FrontAct::Send(b"/quit"), asked()),
-                (FrontAct::Send(b"/quit"), FrontWant::Quit { close: true, asking: true }),
-            ],
-        ),
+        ("front idle", true, false, vec![(close(), FrontWant::Stop)]),
+        ("ask twice", true, true, vec![(close(), asked()), (close(), FrontWant::Stop)]),
+        ("quit", true, true, vec![(FrontAct::Send(b"/quit"), asked()), (FrontAct::Send(b"/quit"), FrontWant::Stop)]),
         ("exit alias", true, true, vec![(FrontAct::Send(b"/exit"), asked())]),
         (
             "stay",
@@ -3289,19 +3284,14 @@ fn in_front_quitting_asks_while_work_runs() {
                 (close(), asked()),
             ],
         ),
-        (
-            "stop",
-            true,
-            true,
-            vec![(close(), asked()), (FrontAct::Event(Event::Stop), FrontWant::Quit { close: true, asking: true })],
-        ),
+        ("stop", true, true, vec![(close(), asked()), (FrontAct::Event(Event::Stop), FrontWant::Stop)]),
     ];
     let gave_up = BoxLine::GaveUp { step: b"forge".as_slice().into() };
     rows.push((
         "given up",
         true,
         true,
-        vec![(FrontAct::Line(gave_up.clone()), FrontWant::Line(gave_up)), (close(), closed())],
+        vec![(FrontAct::Line(gave_up.clone()), FrontWant::Line(gave_up)), (close(), FrontWant::Stop)],
     ));
     for (name, front, words) in [
         ("log", true, b"/log".as_slice()),
@@ -3334,6 +3324,7 @@ fn in_front_quitting_asks_while_work_runs() {
         let mut host = if running { home_host(true) } else { signed_host(true).0 };
         if front {
             host.tell(Told::Front);
+            host.report(Report::Stage(BoxStage::Running));
         }
         // Running must clear a known restart, rather than leave an already running box alone.
         host.report(Report::Front(BoxLine::Restarting { step: b"forge".as_slice().into() }));
@@ -3348,7 +3339,15 @@ fn in_front_quitting_asks_while_work_runs() {
                 FrontAct::Line(line) => host.report(Report::Front(line)),
             };
             let passed = match want {
-                FrontWant::Quit { close, asking } => duties.close == close && host.state().quitting() == asking,
+                FrontWant::Quit { close, asking } => {
+                    duties.close == close && duties.stop.is_none() && host.state().quitting() == asking
+                }
+                FrontWant::Stop => {
+                    duties.stop == Some(crate::host::Stop::First)
+                        && !duties.close
+                        && host.state().box_stage() == &BoxStage::Stopping
+                        && !host.state().quitting()
+                }
                 FrontWant::Log { shown, unknown } => {
                     duties.asked.is_empty()
                         && !duties.close
@@ -3376,6 +3375,72 @@ fn in_front_quitting_asks_while_work_runs() {
         }
     }
     assert!(failures.is_empty(), "front rows: {failures:?}");
+}
+
+#[test]
+fn front_stages_wait_for_an_asked_end_and_quits_stop_twice() {
+    use crate::host::Stop;
+    let ended = BoxStage::Ended { end: BoxEnd::Exited { code: 0 } };
+    for stage in [
+        BoxStage::Finding,
+        BoxStage::Fetching { done: 7, total: None },
+        BoxStage::Fetching { done: 7, total: Some(10) },
+        BoxStage::Starting,
+        BoxStage::Running,
+        BoxStage::Stopping,
+        BoxStage::Failed { why: b"cannot fetch".as_slice().into() },
+        ended.clone(),
+        BoxStage::Ended { end: BoxEnd::Killed { signal: 9 } },
+    ] {
+        for command in [false, true] {
+            let mut host = host();
+            let duties = host.report(Report::Start(Start {
+                front: true,
+                size: Size { columns: 80, rows: 24 },
+                scheme: Some(Scheme::Dark),
+                background: None,
+                address: b"127.0.0.1:8367".as_slice().into(),
+                local: true,
+                boxed: false,
+                kept: Vec::new(),
+                credential: None,
+                note: None,
+            }));
+            assert!(duties.local && duties.asked.is_empty());
+            assert!(host.state().front());
+            assert_eq!(host.state().box_stage(), &BoxStage::Finding);
+            let duties = host.report(Report::Stage(stage.clone()));
+            assert!(!duties.close, "an unasked end stays open");
+            assert_eq!(host.state().box_stage(), &stage);
+            let quit = |host: &mut Host| {
+                if command {
+                    typed(host, b"/quit");
+                    give(host, Event::Send)
+                } else {
+                    host.report(Report::Key(Key::Control(b'c')))
+                }
+            };
+            let first = quit(&mut host);
+            if matches!(stage, BoxStage::Ended { .. }) {
+                assert!(first.close && first.stop.is_none());
+                continue;
+            }
+            assert_eq!(
+                first.stop,
+                Some(if stage == BoxStage::Stopping { Stop::Second } else { Stop::First }),
+                "{stage:?}, /quit={command}"
+            );
+            assert!(!first.close);
+            // Failed is terminal for the displayed stage, but the host still waits on its stop duty.
+            if !matches!(stage, BoxStage::Failed { .. }) {
+                assert_eq!(host.state().box_stage(), &BoxStage::Stopping);
+            }
+            let second = quit(&mut host);
+            assert_eq!(second.stop, Some(Stop::Second));
+            assert!(!second.close);
+            assert!(host.report(Report::Stage(ended.clone())).close);
+        }
+    }
 }
 
 fn working_chip(task: u64, title: &[u8]) -> w::Chip {

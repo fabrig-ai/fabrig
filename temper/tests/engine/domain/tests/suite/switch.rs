@@ -61,7 +61,7 @@ fn every_start_takes_the_switch_step_and_commits_its_wires() {
         let wires = driver.take_store().into_wires();
         let kept: Vec<_> = wires.wires().iter().map(|wire| (wire.name(), wire.version())).collect();
         let expected: Vec<_> =
-            temper_service::store::WIRES.iter().map(|wire| (wire.name.as_bytes(), wire.version)).collect();
+            temper_engine_service::store::WIRES.iter().map(|wire| (wire.name.as_bytes(), wire.version)).collect();
         assert_eq!(kept, expected, "{label}: actual component Wires row");
     }
 }

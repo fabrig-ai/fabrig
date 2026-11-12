@@ -101,6 +101,10 @@ pub(crate) fn workflows(tier: Option<Tier>, gates: Box<[raw::Workflow]>) -> Box<
 
 #[must_use]
 pub fn world(turn: bool, tier: Tier) -> World {
+    world_with_kinds(turn, tier, false)
+}
+
+fn world_with_kinds(turn: bool, tier: Tier, kinds: bool) -> World {
     World::configured_limits(
         true,
         true,
@@ -108,24 +112,37 @@ pub fn world(turn: bool, tier: Tier) -> World {
         1000,
         Gate::default(),
         None,
-        StoryLimits { turn, tier: Some(tier), tasks: Some(12), spec_bytes: Some(4096), ..StoryLimits::default() },
+        StoryLimits {
+            turn,
+            kinds,
+            tier: Some(tier),
+            tasks: Some(12),
+            spec_bytes: Some(4096),
+            ..StoryLimits::default()
+        },
     )
 }
 
 /// Room for the red's header, test ids, run URL and log, and both change results.
 #[must_use]
 pub fn news_world() -> World {
-    news_world_with(Tier::default())
+    news_world_with(Tier::default(), false)
 }
 
 /// The news world with a second tier following goal branches every 20 minutes.
 #[must_use]
 pub fn goal_world() -> World {
-    news_world_with(Tier { goals: true, ..Tier::default() })
+    news_world_with(Tier { goals: true, ..Tier::default() }, false)
 }
 
-fn news_world_with(options: Tier) -> World {
-    let mut world = world(false, options);
+/// Red findings exercise project triager settings through the root's settings entrance.
+#[must_use]
+pub fn findings_world() -> World {
+    news_world_with(Tier::default(), true)
+}
+
+fn news_world_with(options: Tier, kinds: bool) -> World {
+    let mut world = world_with_kinds(false, options, kinds);
     world.env.limits.tasks.message_bytes = 1024;
     world.env.limits.tasks.result_bytes = 512;
     world.env.limits.tasks.inbox_bytes = 4096;

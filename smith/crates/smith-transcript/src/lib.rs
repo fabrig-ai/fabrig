@@ -8,9 +8,6 @@
 
 extern crate alloc;
 
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
-
 #[rustfmt::skip]
 mod generated {
     /// Archived version-6 codec, without supplied system context.

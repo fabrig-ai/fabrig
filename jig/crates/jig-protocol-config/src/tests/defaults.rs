@@ -88,7 +88,10 @@ fn a_seed_policy_above_the_passed_rules_is_refused_at_pass() {
     );
     let expected = parse(&document, Defaults::Document).unwrap_err();
     assert_eq!(found.problems, expected.problems);
-    assert_eq!(found.problems.get(0).unwrap().what, What::Bound);
+    assert_eq!(
+        found.problems.get(0).unwrap().what,
+        What::Because(b"policy authority or period spend exceeds deployment rules")
+    );
 }
 #[test]
 fn files_name_no_charter_for_passed_defaults() {
@@ -220,7 +223,7 @@ fn a_resolved_charter_of_64_models_fits_run_bytes() {
     let standard = crate::profile(crate::Profile::Standard);
     assert_eq!(standard.core.settings.alternatives, 63);
     assert_eq!(crate::profile(crate::Profile::Small).core.settings.alternatives, 63);
-    assert_eq!(jig_client_protocol_wire::v19::CEILINGS.charter_alternatives, 63);
+    assert_eq!(jig_client_protocol_wire::v20::CEILINGS.charter_alternatives, 63);
     assert!(bytes <= u64::from(standard.core.run_bytes), "64-model resolved policy owns {bytes} bytes");
     assert!(
         bytes > u64::from(crate::profile(crate::Profile::Small).core.run_bytes),

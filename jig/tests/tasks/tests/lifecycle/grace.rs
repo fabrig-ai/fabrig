@@ -242,6 +242,6 @@ fn a_restored_finish_word_does_not_repeat_grace_consistency_checks() {
                 refusals.push(problem.why);
             }
         }
-        assert!(refusals.is_empty());
+        assert_eq!(refusals.len(), 0);
     }
 }

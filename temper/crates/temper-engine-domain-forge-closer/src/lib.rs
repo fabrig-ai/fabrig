@@ -5,6 +5,7 @@
 extern crate alloc;
 
 mod policy;
+pub mod relay;
 mod report;
 mod selection;
 pub use policy::{Child, Closer, Decision, Facts, Hold, Running, Step, Stepped, step};

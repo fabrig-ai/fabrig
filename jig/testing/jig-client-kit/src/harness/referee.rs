@@ -28,6 +28,7 @@ type RequestKey = (u64, [u8; 16]);
 type Card = (ClientId, CardKey);
 #[derive(Debug)]
 struct Pending {
+    application: bool,
     client: ClientId,
     card: Option<CardKey>,
     words: Option<(u64, Vec<u8>)>,
@@ -208,7 +209,12 @@ impl Rules {
         if fresh || (!judge.is_pending(&Deadline::Request(party, sent.key)) && !self.made.contains_key(&key)) {
             judge.expect(Deadline::Request(party, sent.key), self.request_within);
         }
-        self.requests.entry(key).or_insert(Pending { client, card: sent.card, words: sent.words });
+        self.requests.entry(key).or_insert(Pending {
+            application: sent.application,
+            client,
+            card: sent.card,
+            words: sent.words,
+        });
         self.attempts.insert((client, sent.attempt), key);
     }
     fn delivered(&mut self, client: ClientId, receipt: Receipt, judge: &mut JudgeOf) {
@@ -226,10 +232,12 @@ impl Rules {
                         .or_insert(revision);
                 }
             }
-            Receipt::Answer { attempt, final_answer, unconfigured_model, words } => {
+            Receipt::Answer { attempt, final_answer, unconfigured_model, closed_project, words } => {
                 if final_answer && let Some(key) = self.attempts.get(&(client, attempt)) {
                     judge.check(
-                        self.made.contains_key(key) || unconfigured_model,
+                        self.made.contains_key(key)
+                            || unconfigured_model
+                            || (closed_project && self.requests.get(key).is_some_and(|sent| sent.application)),
                         "nothing shown done before durable: final answer has no write",
                     );
                     judge.meet(&Deadline::Request(key.0, key.1));

@@ -36,6 +36,7 @@ impl Words {
                     HoldFailure::Agent => JigPhrase::FailureAgent,
                     HoldFailure::Lost => JigPhrase::HostLost,
                     HoldFailure::Invalid => JigPhrase::FailureInvalid,
+                    HoldFailure::Infrastructure => JigPhrase::FailureInfrastructure,
                 };
                 self.text(b, phrase, &[]);
             }

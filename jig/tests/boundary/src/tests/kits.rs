@@ -173,7 +173,7 @@ fn cycles_name_the_dev_edge_and_each_package_on_the_return_path() {
     assert_eq!(dev_cycles(&packages), ["a -> dev -> b -> c -> a"]);
     let packages = [fixture("a", &[], &["b"]), fixture("b", &[], &["a"])];
     assert_eq!(dev_cycles(&packages), ["a -> dev -> b -> a", "b -> dev -> a -> b"]);
-    assert!(dev_cycles(&[fixture("a", &[], &["b"]), fixture("b", &[], &[])]).is_empty());
+    assert_eq!(dev_cycles(&[fixture("a", &[], &["b"]), fixture("b", &[], &[])]).len(), 0);
     assert_eq!(dev_cycles(&[fixture("a", &[], &["a"])]), ["a -> dev -> a"]);
 }
 

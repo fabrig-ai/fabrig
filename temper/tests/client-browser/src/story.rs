@@ -75,6 +75,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn unattributed_failures_report_only_the_person_and_step() {
         for (person, step) in [(0, 3), (1, 0)] {
             let failure = std::panic::catch_unwind(|| {

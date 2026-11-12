@@ -19,12 +19,11 @@ fn auth_status_reaches_the_engine_through_the_worker_channel() {
         assert_eq!(result.observations.len(), 1);
         assert_eq!(result.observations[0].arguments, ["auth", "status"]);
         assert!(result.observations[0].environment.contains(&"CLAUDE_CONFIG_DIR".into()));
-        assert!(
-            !result.observations[0]
-                .environment
-                .iter()
-                .any(|name| name.starts_with("ANTHROPIC_") || name == "CLAUDE_CODE_OAUTH_TOKEN")
+        assert_eq!(
+            result.observations[0].environment.iter().filter(|name| name.starts_with("ANTHROPIC_")).collect::<Vec<_>>(),
+            [&"ANTHROPIC_CONFIG_DIR".to_owned()]
         );
+        assert!(!result.observations[0].environment.iter().any(|name| name == "CLAUDE_CODE_OAUTH_TOKEN"));
     }
 }
 fn logout_result(logout: Logout) -> program_sources::Run {
@@ -75,7 +74,7 @@ fn an_unconfigured_worker_reports_failure_without_starting_a_program() {
             detail: b"no program configured".as_slice().into()
         }]
     );
-    assert!(result.observations.is_empty());
+    assert_eq!(result.observations.len(), 0);
 }
 
 #[test]

@@ -63,6 +63,8 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
             match field {
                 b"streams" => limits.clients.streams = count,
                 b"exchanges" => limits.clients.exchanges = count,
+                b"queued_bytes" => limits.clients.queued_bytes = count,
+                b"exchanges_per_client" => limits.clients.exchanges_per_client = count,
                 b"provider_codes" => limits.clients.provider_codes = count,
                 b"provider_tokens" => limits.clients.provider_tokens = count,
                 _ => return Err(What::Override),
@@ -166,13 +168,15 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         room_refusals,
         ..
     } = limits;
-    let jig_domain_tasks::Retries { transient, permanent, run, agent, lost, invalid } = retries;
+    let jig_domain_tasks::Retries { transient, permanent, run, agent, lost, invalid, infrastructure } = retries;
     let jig_domain_tasks::Retry { retries: transient_retries, base: transient_base, max: transient_max } = transient;
     let jig_domain_tasks::Retry { retries: permanent_retries, base: permanent_base, max: permanent_max } = permanent;
     let jig_domain_tasks::Retry { retries: run_retries, base: run_base, max: run_max } = run;
     let jig_domain_tasks::Retry { retries: agent_retries, base: agent_base, max: agent_max } = agent;
     let jig_domain_tasks::Retry { retries: lost_retries, base: lost_base, max: lost_max } = lost;
     let jig_domain_tasks::Retry { retries: invalid_retries, base: invalid_base, max: invalid_max } = invalid;
+    let jig_domain_tasks::Retry { retries: infrastructure_retries, base: infrastructure_base, max: infrastructure_max } =
+        infrastructure;
     match name {
         b"placed_holds" => *placed_holds = count(value)?,
         b"project_placed_holds" => *project_placed_holds = count(value)?,
@@ -240,6 +244,9 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         b"retries.invalid.retries" => *invalid_retries = count(value)?,
         b"retries.invalid.base_ms" => *invalid_base = millis(value)?,
         b"retries.invalid.max_ms" => *invalid_max = millis(value)?,
+        b"retries.infrastructure.retries" => *infrastructure_retries = count(value)?,
+        b"retries.infrastructure.base_ms" => *infrastructure_base = millis(value)?,
+        b"retries.infrastructure.max_ms" => *infrastructure_max = millis(value)?,
         _ => return Err(What::Override),
     }
     Ok(())

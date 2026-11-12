@@ -8,6 +8,7 @@ mod amend;
 mod change;
 mod demo;
 mod drafts;
+mod finding;
 mod follow;
 mod forge;
 mod forges;
@@ -24,3 +25,5 @@ pub mod table;
 mod tests;
 
 pub mod help;
+
+pub mod push;

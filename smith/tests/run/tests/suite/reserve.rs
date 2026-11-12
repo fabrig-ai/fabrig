@@ -89,7 +89,7 @@ fn seen_facts_tell_child_shares_and_budget_without_deciding_work() {
         })
         .collect();
     assert_eq!(children.len(), world.share_seen().len());
-    assert!(!children.is_empty());
+    assert_ne!(children.len(), 0);
     for ((at, asked, granted), (opened_at, seen)) in children.iter().zip(world.share_seen()) {
         assert_eq!(at, opened_at);
         assert_eq!(*asked, seen.asked);
@@ -106,7 +106,7 @@ fn seen_facts_tell_child_shares_and_budget_without_deciding_work() {
             Some((fact.at, run, standing))
         })
         .collect();
-    assert!(!budgets.is_empty());
+    assert_ne!(budgets.len(), 0);
     assert!(budgets.len() >= world.charges_seen().len(), "stage changes also tell standing");
     let observed: Vec<_> = world
         .charges_seen()

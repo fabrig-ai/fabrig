@@ -1,5 +1,5 @@
 //! The engine's table and the box's shared forge commands (temper/docs/design/cli/README.md, 7).
-use skein_shell::{Argument, Command, Reach, Set, Table};
+use skein_shell::{Argument, Command, Reach, Set, Switch, Table};
 use temper_shell::{commands::Row, directories, environment, table::HELP};
 
 pub const ENGINE: Table = Table {
@@ -37,14 +37,21 @@ const DIRECTORIES: Argument =
     Argument { shown: temper_shell::commands::DIRECTORIES.shown, line: temper_shell::commands::DIRECTORIES.line };
 const FORGE: Argument = Argument { shown: super::forge::FORGE.shown, line: super::forge::FORGE.line };
 
+pub const RECORD: Switch = Switch {
+    name: "record",
+    set: Set::Public,
+    line: "Have every page served record a journey in its browser, saved by Alt+Shift+S.",
+    notes: "",
+};
+
 pub const SERVE: Command = Command {
     reach: Reach::Words(&["serve"]),
     set: Set::Public,
-    forms: &["[DIRECTORIES]"],
+    forms: &["[DIRECTORIES] [--record]"],
     line: "Run an engine alone's document until stopped; temper-worker serve runs a worker alone, and temper-box serve runs an engine and its worker in one process.",
     arguments: &[DIRECTORIES],
     settings: &[&directories::SETTINGS],
-    switches: &[],
+    switches: &[RECORD],
     variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR],
     notes: "Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure. Refuses a worker alone's document, naming temper-worker serve, or an engine and its worker in one process, naming temper-box serve.",
 };

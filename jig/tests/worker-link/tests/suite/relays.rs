@@ -128,7 +128,7 @@ fn an_answer_after_cancellation_never_reaches_the_hub() {
     call(&mut world, b"first");
     cancel(&mut world, b"first");
     world.play(fixtures::relayed(b"first", false));
-    assert!(answers(&world).is_empty());
+    assert_eq!(answers(&world).len(), 0);
 }
 
 #[test]
@@ -173,7 +173,7 @@ fn call_input_at_the_bound_crosses_and_one_more_byte_is_answered_locally() {
         });
         assert_eq!(kinds(&world, 0).contains(&0x0102), sent);
         if sent {
-            assert!(answers(&world).is_empty());
+            assert_eq!(answers(&world).len(), 0);
         } else {
             let terminals: Vec<_> = world
                 .root()

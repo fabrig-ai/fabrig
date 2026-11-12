@@ -144,7 +144,7 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
     {
         let mut root = crate::unlinked(&f::limits(), f::SEED);
         let me = f::start(&mut root, List::with_capacity(0));
-        assert!(root.forge().approvals().rows().is_empty());
+        assert_eq!((root.forge().approvals().rows()).len(), 0);
         assert_eq!(root.forge().approvals().more(), 0);
         let mut out = Queue::uncapped();
         f::confirm(&mut root, me, f::PARTY, &mut out);
@@ -197,7 +197,7 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
             Some(end) => up(&mut root, Up::WatchEnded { watch, end }),
         };
         assert_eq!(closes(&out, watch), expected_closes);
-        assert!(root.forge().approvals().rows().is_empty());
+        assert_eq!((root.forge().approvals().rows()).len(), 0);
         assert_eq!(root.forge().approvals().more(), 0);
         let mut out = Queue::uncapped();
         f::confirm(&mut root, me, f::PARTY, &mut out);
@@ -205,7 +205,7 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
         assert_eq!(opening(&link(&mut root, Link::Offline)), None);
         assert_eq!(opening(&link(&mut root, Link::Live)), None);
         deliver(&mut root, watch, &[row(CHANGE, f::PROJECT, None)], 0);
-        assert!(root.forge().approvals().rows().is_empty());
+        assert_eq!((root.forge().approvals().rows()).len(), 0);
         up(&mut root, Up::SignedOut);
         let signed_in = up(&mut root, Up::SignedIn);
         let mut me = None;
@@ -226,6 +226,6 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
         let watch = opening(&out).expect("next sign-in opens approvals");
         deliver(&mut root, watch, &[row(CHANGE, f::PROJECT, None)], 0);
         assert_eq!(closes(&link(&mut root, Link::SignedOut), watch), ONE);
-        assert!(root.forge().approvals().rows().is_empty());
+        assert_eq!((root.forge().approvals().rows()).len(), 0);
     }
 }

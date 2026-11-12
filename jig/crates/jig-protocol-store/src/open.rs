@@ -266,11 +266,13 @@ fn ready(
                 return;
             }
         };
-    }
-    if let Err(failure) = codec::catalogue(store) {
-        store.open_failed(restore::OpenFailure::Data(failure));
-        corrupt(store, owner, above);
-        return;
+        // Serving codecs read the catalogue only after pending patches have
+        // brought the model rows to the binary's levels (protocol/store/opening.md, 2).
+        if let Err(failure) = codec::catalogue(store) {
+            store.open_failed(restore::OpenFailure::Data(failure));
+            corrupt(store, owner, above);
+            return;
+        }
     }
     store.phase = Phase::Ready { next, format_due };
     store.directory.owner = owner;

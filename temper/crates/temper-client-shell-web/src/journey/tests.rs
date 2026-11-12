@@ -2,6 +2,8 @@ use super::*;
 use jig_client_shell_web::adapter::Heard;
 use skein_ui::Act;
 
+mod saving;
+
 #[test]
 fn every_record_reads_back_as_written() {
     let bytes = || Box::from(b"bytes".as_slice());
@@ -136,14 +138,14 @@ fn a_malformed_line_is_unreadable() {
         recording.push(b'\n');
         let error = lines(&recording).expect_err(bad);
         assert_eq!(error.line, 2, "{bad}");
-        assert!(!error.why.is_empty());
+        assert_ne!(error.why, "");
         assert_eq!(Line::read(bad.as_bytes()).expect_err(bad).line, 1);
     }
     assert_eq!(lines(b"journey 2\nseed 1").expect_err("no final newline").line, 2);
     assert_eq!(lines(b"").expect_err("empty recording").line, 1);
 }
 
-fn facts() -> Facts {
+pub(super) fn facts() -> Facts {
     Facts {
         seed: 11,
         now: Time::ZERO,
@@ -558,7 +560,7 @@ mark 3 "Done"
     );
     let simple = setup(b"setup 1\npress link \"Home\"\nreload \"/\"\n").expect("optional records absent");
     assert_eq!(simple.after, None);
-    assert!(simple.marks.is_empty());
+    assert_eq!(simple.marks.len(), 0);
     assert!(matches!(&simple.steps[..], [SetupStep::Act { role: Role::Link, order: 0, .. }]));
 }
 

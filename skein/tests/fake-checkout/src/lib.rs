@@ -232,7 +232,7 @@ pub fn merge_case(seed: u64) -> String {
         );
         checkout.write(b"work/code", &expected.concat());
     } else {
-        assert!(merged.conflicts.is_empty());
+        assert_eq!(merged.conflicts.len(), 0);
     }
     assert_eq!(files(&checkout), tree(&[(b"code", &expected.concat())]));
     let commit =

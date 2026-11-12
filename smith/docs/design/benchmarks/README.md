@@ -429,7 +429,7 @@ scope and convention. **Classify** one end (section 8.3).
 | prepare | `XDG_CONFIG_HOME` holds the pinned settings as the user's layer: the account's file and the trace, capturing `calls` so the scope gate sees each call's input (`everything` where a task needs prompts), and nothing else of a comparison's; `XDG_STATE_HOME` the attempt's state; `credentials` the harness's credentials directory, and the account one of its own (section 10). Before an arm's first attempt, `smith check --json` with the attempt's own flags, those of `exec` for a headless arm and the interactive `smith`'s, its trace among them, for a Chat arm, records the effective limits, the teardown bound, schema versions and credentials of the run it will start; a nonzero exit refuses the arm as setup. The attempt's events are its standard output's, under `--json`: the harness gives `exec` no trace file, so the run has one event destination | a `CODEX_HOME` of the attempt's own, holding only an access-only `auth.json` the harness writes from the harness's own Codex login (section 10), so none of the user's instructions, skills, plugins, memories or configuration reach it and its rollouts are the attempt's; only the keys an attempt must own (5.4) pinned by `-c` overrides: no MCP servers, the attempt root trusted, workspace edits allowed, no approvals, the model and effort, and the attempt's private caches among its sandbox's writable roots, so that it can write them; no other key, so that the rest is Codex's default; its background service disabled where it can be, or ended with the tree | `CLAUDE_CONFIG_DIR` the harness's own configuration directory, signed in once with `claude auth login` (section 10); the attempt's own settings, instructions and empty MCP configuration given by flags (`--settings`, `--strict-mcp-config`, `--setting-sources`), so that none of the login's directory's reach it, and its session found by its id; edits and commands allowed without asking |
 | command | `smith exec --json -C <workspace> -m <endpoint>/<model> --effort <effort> -`, overrides as `-c KEY=VALUE` (../shell/commands.md, section 2); interactive, `smith --trace <file>` at a pseudo-terminal | `codex exec --json -m <model> -c model_reasoning_effort=<effort> -C <workspace> -o <final> -` | `claude -p --output-format stream-json --verbose --model <model> --effort <effort> --max-budget-usd <ceiling> --settings <pinned> --mcp-config <empty>`; `--input-format stream-json` for later messages |
 | observe | the event stream, through `smith-events`; standard error is never parsed | JSON lines: thread, turns, items, and each turn's usage, of the root thread only, cached input within input | the opening record, assistant messages with usage, sub-agent messages with their parent's call, the result with durations, turns, cost and per-model usage, in the pinned version's recorded shapes |
-| collect | nothing beyond the stream | the rollouts of the thread named and of each thread linked to it as a child (codex-cli 0.160.0 names its parent in the child's opening record): per-response usage, children and their spans, and each command's span against its call's; where a child is not linked to its parent, child scopes are unavailable and totals lower bounds | nothing; transcripts are archived |
+| collect | nothing beyond the stream | the rollouts of the thread named, of the children its stream's `spawn_agent` calls name, and of each thread linked to one of those as a child (codex-cli 0.160.0 names its parent in the child's opening record), each thread's file the one under the attempt's `CODEX_HOME/sessions/` or `archived_sessions/` whose opening record names it, found in the rollouts alone and never in Codex's state database (6.3): per-response usage, children and their spans, and each command's span against its call's; where a child is not linked to its parent, child scopes are unavailable and totals lower bounds | nothing; transcripts are archived |
 | classify | the exit code (../shell/commands.md, section 3), held against `run.completed` | the exit, the last turn's completion or failure, the deadline | the result's subtype and error flag, the exit, the deadline |
 
 - **One runner.** Each attempt runs on skein's world harness, end to end
@@ -490,6 +490,59 @@ scope and convention. **Classify** one end (section 8.3).
   the face, and results of different faces are never compared.
 - **Baselines** taken on an earlier face are retaken or dropped (section
   9). Results from before this harness are never a baseline.
+
+### 6.3 Codex's threads
+
+The Codex adapter's collect step finds the attempt's threads and their
+files in its `CODEX_HOME`'s rollouts alone. Every rollout there is the
+attempt's (section 10), so no file need be asked for by name, and the
+harness links no SQLite and runs no `sqlite3`.
+
+- **The files.** Every regular file under `CODEX_HOME/sessions/` and
+  `CODEX_HOME/archived_sessions/`, at any depth and whatever its name,
+  taken under the canonical `CODEX_HOME`; a missing directory holds none.
+  The walk meets entries in name order and follows no symbolic link: one
+  whose canonical target lies inside either directory is skipped, its
+  target met on its own; any other, out of them or dangling, refuses the
+  collection, the fault naming the link's path under `CODEX_HOME` and
+  nothing it points at. An entry that is neither a directory, a regular
+  file nor a link is skipped unopened.
+- **A file's thread.** A file's opening is its first line, read up to its
+  newline within the opening bound. It names a thread when it is a JSON
+  `session_meta` record whose `payload.id` is a nonempty string. Its
+  parent is `payload.source.subagent.thread_spawn.parent_thread_id`, else
+  `payload.parent_thread_id`, when that is a nonempty string, and none
+  otherwise. Any other opening (not JSON, another record, no id, or cut at
+  the bound) marks an unrelated file, skipped and read no further. Two
+  files naming one thread refuse the collection.
+- **The threads.** Known first: the root the stream names and the
+  children its `spawn_agent` calls name (their `receiver_thread_ids`).
+  Then, until none is added, each thread whose file names a known thread
+  as its parent. A known thread's file is the one naming it. A known
+  child with no file, or whose file names no known parent, is unlinked:
+  its scope unavailable and the totals lower bounds (8.2). The root's own
+  parent links nothing.
+- **Bounds.** Discovery meets at most 8,192 entries under the two
+  directories, directories and files alike, and reads at most 1 MiB of
+  each file's opening (an opening stops at its newline); past the first
+  bound the collection is refused, and an opening that meets the second
+  is cut. The known threads stay within 4,096 and their files, read whole,
+  within 64 MiB together; past either, the collection is refused.
+- **A known thread's file** is read whole, its canonical path checked
+  inside the two directories again, and decoded: its first record is its
+  owner's metadata, a later one an ancestor's, and malformed, repeated
+  or conflicting metadata refuses the collection, naming the thread and
+  never a credential's bytes. Its bytes are kept for the attempt's
+  archive, the files in thread-id order and the children too.
+- **Why not the database.** codex-cli 0.160.0's `state_5.sqlite` holds
+  each thread's children (`thread_spawn_edges`) and its file
+  (`threads.rollout_path`). Its rollouts hold both: each file's opening
+  record names its thread, and a child's names its parent and is written
+  before the child's first response
+  (`smith/benchmarks/tests/recorded/codex/live-child-rollout.jsonl`). A
+  child the database alone knows would
+  have neither a rollout nor a response, so no case this design needs
+  reads it.
 
 ## 7. Models as tiers
 
@@ -772,7 +825,9 @@ The offline tier runs in the focused suite, with no agent and no network:
 - **Parsers on recorded outputs,** per agent and version: smith's are the
   event codec's goldens (../protocol/events.md, section 8); Codex's are JSON
   lines and rollouts with root-only usage, an unlinked child and repeated
-  usage; Claude Code's are streams with repeated message ids, sub-agent
+  usage, and rollout trees with an archived rollout, an unrelated file,
+  a link out of the session directories and two files naming one thread
+  (6.3); Claude Code's are streams with repeated message ids, sub-agent
   messages and helper models. Unknown records are skipped, a known record
   in a new shape is a harness error, usage counts once per response, and
   unavailable is never zero.
@@ -816,9 +871,14 @@ Each runs in milliseconds, within the focused and fuzzy budgets.
 ## 14. Open questions
 
 - **Codex's later versions:** whether a version after 0.160.0 still
-  links each child thread to its parent in its opening record, and still
-  trusts the attempt root by `projects.<root>.trust_level`; a new pin
-  checks both before its first comparison.
+  writes each thread's rollout under `sessions/` or `archived_sessions/`
+  with its own `session_meta` as the first line, still links each child
+  thread to its parent in that opening record, written before the child's
+  first response, and still trusts the attempt root by
+  `projects.<root>.trust_level`. A new pin checks each, on a recorded
+  attempt with a child and a grandchild, before its first comparison: the
+  collector finds every thread its stream and its state database name,
+  each linked (6.3).
 - **Claude Code:** the settings that allow edits and commands headless;
   whether `CLAUDE_CONFIG_DIR` keeps every user file out;
   `claude-haiku-5-5` at low effort on a subscription.

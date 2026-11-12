@@ -33,7 +33,11 @@ fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once() {
     let observed = Observed::from_ran(&cluster, &reads);
     oracle::assert_met(&oracle::step_4_6(&observed));
     for name in WORKERS {
-        assert_eq!(cluster.worker(name).end(), Some(&End::Drained), "{name} drained");
+        assert_eq!(
+            cluster.worker(name).end(),
+            Some(&End::Worker(temper_service::worker_alone::End::Drained)),
+            "{name} drained"
+        );
     }
     let ws = cluster.worker("ws");
     let lives = ws.lives();

@@ -48,12 +48,13 @@ pub(crate) fn echo(
 pub fn run(
     directories: &super::Directories,
     echo: Echo,
-    no_tui: bool,
+    fronted: bool,
+    record: bool,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
     let (bytes, held, first_run) = configuration(directories, environment)?;
     let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
-    run_configuration(directories, &bytes, held, Box::new([]), echo, no_tui, opening, environment)
+    run_configuration(directories, &bytes, held, Box::new([]), echo, fronted, record, opening, environment)
 }
 
 /// Lines opening the box log and following its sign-in block (protocol/setup/box.md, 2).
@@ -73,7 +74,8 @@ pub(crate) fn run_configuration(
     held: Vec<(Fd, std::num::NonZeroU16)>,
     first: Box<[temper_forge_setup::Step]>,
     echo: Echo,
-    no_tui: bool,
+    fronted: bool,
+    record: bool,
     opening: Opening,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
@@ -93,23 +95,11 @@ pub(crate) fn run_configuration(
                 entry.into_boxed_slice()
             })
             .collect();
-        let (steps, limits) = configuration_steps(directories, bytes, first)?;
+        let (steps, limits) = configuration_steps_recording(directories, bytes, first, record)?;
         let named = super::setup::check(bytes, &jig_directories(directories))?.named;
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
         let mut first_link = first_link(&named, &steps)?;
-        let terminals =
-            skein_shell::terminal_modes(Fd::new(0)).is_ok() && skein_shell::terminal_modes(Fd::new(1)).is_ok();
-        let terminal = if front_wanted(no_tui, echo, terminals, first_link.is_some()) {
-            skein_shell::open_terminal().ok()
-        } else {
-            None
-        };
-        let front = if let Some(terminal) = terminal {
-            owned.push(terminal);
-            Some(front(&named, first_link.as_mut().expect("front needs a first link"))?)
-        } else {
-            None
-        };
+        let front = configured_front(fronted, &named, first_link.as_mut())?;
         let signals = skein_shell::open_signals(skein_shell::Watch::TerminationAndHangup)
             .map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
@@ -143,29 +133,29 @@ pub(crate) fn run_configuration(
         };
         let service = Service::new(&limits, steps, settings).map_err(|why| format!("box limits: {why:?}"))?;
         let kernel = Kernel::open(Config { operations: service.operations() }).map_err(|why| why.to_string())?;
-        Ok((service, kernel, terminal))
+        Ok((service, kernel))
     })();
-    let (mut service, mut kernel, terminal) = match opened {
+    let (mut service, mut kernel) = match opened {
         Ok(opened) => opened,
         Err(why) => {
             super::close(owned);
             return Err(why);
         }
     };
-    if terminal.is_none() {
-        return Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut service));
-    }
-    let mut fronted = Fronted { service: &mut service, terminal };
-    let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut fronted);
-    if let Some(terminal) = fronted.terminal.take() {
-        skein_shell::close_startup_fd(terminal);
-    }
-    Ok(exit)
+    Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut service))
 }
 
-/// The binary's front condition (temper/docs/design/protocol/setup/box.md, 6).
-pub(crate) fn front_wanted(no_tui: bool, echo: Echo, terminals: bool, first_link: bool) -> bool {
-    !no_tui && echo == Echo::None && terminals && first_link
+/// Only the explicit internal switch enables the parent's pipes; no terminal is opened.
+pub(crate) fn configured_front(
+    wanted: bool,
+    named: &temper_service::startup::Named,
+    first: Option<&mut FirstLink>,
+) -> Result<Option<Front>, String> {
+    if !wanted {
+        return Ok(None);
+    }
+    let first = first.ok_or("--front: no first sign-in link drawn")?;
+    front(named, first).map(Some)
 }
 
 /// The front signs in locally, at its own address (temper/docs/design/protocol/setup/box.md, 6).
@@ -177,66 +167,7 @@ pub(crate) fn front(named: &temper_service::startup::Named, first: &mut FirstLin
         return Err("serve: sign-in link too long".into());
     }
     first.local = Some(secret);
-    Ok(Front {
-        arguments: vec![
-            b"internal".as_slice().into(),
-            b"tui".as_slice().into(),
-            b"--box".as_slice().into(),
-            format!("http://{listener}").into_bytes().into(),
-        ]
-        .into_boxed_slice(),
-        link: skein_lib::Secret::new(url),
-    })
-}
-
-/// Return the terminal between iteration and submission (temper/docs/design/protocol/setup/box.md, 6).
-struct Fronted<'a> {
-    service: &'a mut Service,
-    terminal: Option<Fd>,
-}
-impl Host for Fronted<'_> {
-    fn state_digest(&self) -> Option<[u8; 32]> {
-        self.service.state_digest()
-    }
-    fn drain(&mut self) {
-        self.service.drain();
-        if self.service.front_ended()
-            && let Some(terminal) = self.terminal.take()
-        {
-            let _foreground = skein_shell::take_foreground(terminal);
-            skein_shell::close_startup_fd(terminal);
-        }
-    }
-    fn iterate(&mut self, now: skein_lib::Time, wall: skein_lib::Wall) {
-        self.service.iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut skein_lib::Queue<skein_io::kernel::Complete> {
-        self.service.completions()
-    }
-    fn submissions(&mut self) -> &mut skein_lib::Queue<skein_io::kernel::Submit> {
-        self.service.submissions()
-    }
-    fn work_pending(&self, now: skein_lib::Time) -> bool {
-        self.service.work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<skein_lib::Time> {
-        self.service.next_deadline()
-    }
-    fn next_mechanism_deadline(&self) -> Option<skein_lib::Time> {
-        self.service.next_mechanism_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<skein_lib::Time> {
-        self.service.next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.service.is_empty()
-    }
-    fn exit(&self) -> Option<Exit> {
-        self.service.exit()
-    }
-    fn operations(&self) -> u32 {
-        self.service.operations()
-    }
+    Ok(Front { input: Fd::new(0), link_output: Fd::new(3), lines: Fd::new(4), link: skein_lib::Secret::new(url) })
 }
 
 /// Checks the listeners the box holds itself, which it was never given.
@@ -430,6 +361,14 @@ pub fn configuration_steps(
     bytes: &[u8],
     first: Box<[temper_forge_setup::Step]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
+    configuration_steps_recording(directories, bytes, first, false)
+}
+pub(crate) fn configuration_steps_recording(
+    directories: &super::Directories,
+    bytes: &[u8],
+    first: Box<[temper_forge_setup::Step]>,
+    record: bool,
+) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
     let super::setup::Deployment { named, demo, limits, .. } =
         super::setup::check(bytes, &jig_directories(directories))?;
     let mut serve = vec![super::address(&named.clients)?];
@@ -444,6 +383,7 @@ pub fn configuration_steps(
             &directories.flags(),
             serve.into_boxed_slice(),
             cfg!(target_os = "linux"),
+            record,
         );
         if let Some(fake) = &machine.fake {
             let demo = demo.as_ref().ok_or("application.machine.fake requires application.demo.llm")?;

@@ -71,7 +71,7 @@ fn next_is_one_event_and_duplicate_demand_is_inert() {
             break;
         }
     }
-    assert!(world.seen.is_empty());
+    assert_eq!(world.seen.len(), 0);
     assert_eq!(world.machine.waiting(), client::Waiting::Next);
     world.request(client::Request::Next);
     world.request(client::Request::Next);
@@ -363,7 +363,7 @@ fn lower_close_before_start_is_unsent_and_cancellation_during_read_settles() {
     world.settle();
     world.settle();
     world.assert_once();
-    assert!(world.sent.is_empty());
+    assert_eq!(world.sent.len(), 0);
     assert!(world.seen.iter().any(|e| matches!(e, client::Event::Failed { evidence: client::Evidence::Unsent, .. })));
     let mut world = World::new(call(2), limits(), text_response(true), 8);
     world.request(client::Request::Start);

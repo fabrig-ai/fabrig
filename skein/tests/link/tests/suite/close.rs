@@ -74,7 +74,7 @@ fn an_abort_sends_nothing() {
     world.close(true);
     late_stream(&mut world);
     assert_eq!(world.trace, [Trace::Abort]);
-    assert!(world.above.is_empty());
+    assert_eq!(world.above.len(), 0);
     assert!(!world.wire.server.closed, "abort sends no close_notify");
     assert_eq!(world.link.next_deadline(), None);
 }
@@ -93,7 +93,7 @@ fn an_abort_follows_a_graceful_close() {
         assert!(!world.link.has_work(), "abort drops work, flushing={flushing}");
         world.settle();
         assert_eq!(world.trace, expected, "flushing={flushing}");
-        assert!(world.above.is_empty());
+        assert_eq!(world.above.len(), 0);
         assert_eq!(world.link.next_deadline(), None);
     }
 }
@@ -112,7 +112,7 @@ fn a_close_after_the_peers_close_notify() {
     world.settle();
     assert!(world.wire.server.closed, "the peer reads our close_notify after its own");
     assert_eq!(world.trace.last(), Some(&Trace::Close));
-    assert!(world.above.is_empty());
+    assert_eq!(world.above.len(), 0);
 }
 
 #[test]
@@ -124,7 +124,7 @@ fn a_close_before_the_handshake_is_done() {
     world.settle();
     assert_eq!(world.trace.last(), Some(&Trace::Close));
     assert!(!world.wire.server.closed, "an unfinished handshake has no close_notify");
-    assert!(world.above.is_empty());
+    assert_eq!(world.above.len(), 0);
     assert!(!world.link.has_work());
 }
 
@@ -205,7 +205,7 @@ fn a_stream_end_during_a_close_waits_for_its_deadline() {
     world.link.up(&world.env, Up::End);
     world.settle();
     assert_eq!(world.trace, [Trace::Demand], "the demand for room stays outstanding");
-    assert!(world.above.is_empty());
+    assert_eq!(world.above.len(), 0);
     assert!(!world.link.has_work());
     assert_eq!(world.link.next_deadline(), Some(DEADLINE));
     world.link.fire(DEADLINE, &mut world.below);

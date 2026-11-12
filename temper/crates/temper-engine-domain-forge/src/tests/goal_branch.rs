@@ -723,7 +723,8 @@ fn a_closing_goal_keeps_its_branch_when_no_change_landed_it() {
             }
         }
         assert_eq!(d.hold(&name(GOAL_BRANCH)), None);
-        assert_eq!(d.branch_head(&name(GOAL_BRANCH)), Some(TIP));
+        assert_eq!(d.branch_head(&name(GOAL_BRANCH)), None);
+        assert!(released.contains(&Request::Erase { key: Key::BranchHead(name(GOAL_BRANCH)) }));
     }
 }
 

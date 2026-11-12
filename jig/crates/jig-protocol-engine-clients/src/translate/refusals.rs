@@ -1,5 +1,5 @@
 //! Sparse entrance facts without invented names, words or bounds (client/domain/contract/README.md, 3).
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_domain_people as p;
 use skein_lib::Writer;
 #[expect(clippy::too_many_lines, reason = "one total match preserves every people refusal")]
@@ -356,6 +356,7 @@ fn hold(value: p::HoldReason, limits: &w::Limits) -> Result<w::HoldCategory, w::
                 p::FailureClass::Agent => w::HoldFailure::Agent,
                 p::FailureClass::Lost => w::HoldFailure::Lost,
                 p::FailureClass::Invalid => w::HoldFailure::Invalid,
+                p::FailureClass::Infrastructure => w::HoldFailure::Infrastructure,
             };
             w::HoldCategory::Failures(w::HoldCategoryFailures::new(limits, w::HoldCategoryFailuresParts { class })?)
         }

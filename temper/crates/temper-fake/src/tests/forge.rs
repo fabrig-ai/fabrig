@@ -80,6 +80,24 @@ fn sources_seed_their_trees_branches_and_catalogue() {
 }
 
 #[test]
+fn seeded_repository_owners_have_distinct_wire_identities() {
+    let mut value = fixture();
+    value["sources"] = sources(3);
+    value["sources"][2]["repository"]["owner"] = json!("another");
+    let document = decode(&value).expect("source document");
+    let (_, config) = document.seed(7);
+    assert_eq!(config.users.len(), 3, "repeated owners share one identity");
+    let identities = [b"person".as_slice(), b"acme", b"another"].map(|owner| {
+        config.users.iter().find(|(_, login)| login.as_ref() == owner).expect("repository owner has a wire identity").0
+    });
+    for (at, id) in identities.iter().enumerate() {
+        assert_ne!(*id, 0);
+        assert!(!identities[..at].contains(id), "distinct owners have distinct identities");
+    }
+    assert_eq!(config.users, document.seed(7).1.users, "owner identities survive a fresh seed");
+}
+
+#[test]
 fn sources_fill_the_remaining_repository_capacity() {
     // The fixture seeds one ordinary repository before its sources.
     const SOURCE_COUNT: u32 = crate::ENTRIES - 1;

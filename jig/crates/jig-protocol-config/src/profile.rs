@@ -58,7 +58,7 @@ pub struct Limits {
 pub fn profile(profile: Profile) -> Limits {
     match profile {
         Profile::Small => small::LIMITS,
-        Profile::Standard => standard::LIMITS,
+        Profile::Standard => standard::limits(),
     }
 }
 

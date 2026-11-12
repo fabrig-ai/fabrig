@@ -86,6 +86,8 @@ pub enum Repair {
     Landing { gate: u16 },
     /// A person's request for changes on the forge, at the head they reviewed (domain/forge/change/gates.md, 1).
     Review { head: Commit },
+    /// The failed candidate pins the receipt and its job-log snapshot through repair.
+    LandingAt { gate: u16, candidate: Commit },
 }
 
 /// The part of a change's authority its next delegate needs.
@@ -192,6 +194,19 @@ pub enum State {
     Cleared { merge: Commit },
     /// The verification bound expired or the verifying change was cancelled.
     Uncleared { merge: Commit },
+    /// Blocking judgement at a landing prefix (domain/landing.md, 3, 15).
+    Judging { head: Commit, ready_since: Wall, target: Judgement, asked: Box<[u64]> },
+}
+
+/// The round's review target; the change's own pull remains the repair target.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Judgement {
+    pub landing: u64,
+    pub round: u16,
+    pub pull: u64,
+    pub branch: Box<[u8]>,
+    pub base: Box<[u8]>,
+    pub prefix: Commit,
 }
 
 /// How the change's project lands (domain/landing.md, 1; domain/forge/change/README.md, 2).
@@ -285,12 +300,27 @@ pub struct Ci {
 }
 
 /// What its landing asks of the change (domain/landing.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
     /// Rebase the last known head onto the requested main tip.
-    Prepare { head: Commit, main: Commit },
+    Prepare {
+        head: Commit,
+        main: Commit,
+    },
     /// Repair a real gate failure at the landing's candidate.
-    Repair { gate: u16, candidate: Commit },
+    Repair {
+        gate: u16,
+        candidate: Commit,
+    },
+    /// The landing's prefix is on the train's branch.
+    Landed {
+        prefix: Commit,
+    },
+    /// Resolve the prepare job's conflict against this round's base.
+    Resolve {
+        base: Commit,
+    },
+    Judge(Judgement),
 }
 
 /// What the top reads of the landing's verification each step

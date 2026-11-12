@@ -388,8 +388,7 @@ pub fn plan_ended_tasks(calls: &[super::Ended]) -> (usize, [Vec<u64>; 2]) {
         .iter()
         .position(|call| {
             serde_json::from_slice::<serde_json::Value>(&call.stdout)
-                .ok()
-                .is_some_and(|value| value["ended"].is_object() && value["live"].is_array())
+                .is_ok_and(|value| value["ended"].is_object() && value["live"].is_array())
         })
         .expect("ended delegate pages");
     let tasks =
@@ -846,6 +845,9 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::
             .expect("Claude Code must be installed on PATH");
         configure_live_model(&paths[0], model, &executable);
     }
+    if let LiveModel::AnthropicKey { .. } = model {
+        configure_live_model(&paths[0], model, std::path::Path::new(""));
+    }
     let path = paths[0].join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     value["engine"]["limits"]["overrides"]["accounts.sign_in_deadline_ms"] = 600_000.into();
@@ -933,11 +935,39 @@ pub fn held_account(file: &std::path::Path) -> Result<(), &'static str> {
     Ok(())
 }
 
-/// A live command as notices and failures print it: an imported record's path
-/// stays out of them, and ctl's own words are all that is said of it.
+/// Admit the key by metadata alone; refusal words never include its path.
+/// Unset, the caller skips before reserving a store or starting a process.
+pub fn anthropic_key(value: Option<std::ffi::OsString>) -> Result<Option<PathBuf>, &'static str> {
+    use std::os::unix::fs::MetadataExt;
+    let Some(value) = value else { return Ok(None) };
+    let path = PathBuf::from(value);
+    let metadata = fs::symlink_metadata(&path).map_err(|_| "TEMPER_TEST_LIVE_ANTHROPIC_KEY names no file")?;
+    if !metadata.is_file() {
+        return Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link");
+    }
+    if metadata.mode() & 0o7777 != 0o600 {
+        return Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not 0600");
+    }
+    if metadata.uid() != skein_shell::effective_user() {
+        return Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not owned by this user");
+    }
+    if metadata.len() == 0 {
+        return Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is empty");
+    }
+    Ok(Some(path))
+}
+
+/// A live command as notices and failures print it: an imported record or added
+/// key's path stays out of them, and ctl's own words are all that is said of it.
 #[must_use]
 pub fn printed_command(args: &[String]) -> Vec<String> {
     match args {
+        [account, add_key, provider, _file, rest @ ..] if account == "account" && add_key == "add-key" => {
+            [account.clone(), add_key.clone(), provider.clone(), "FILE".into()]
+                .into_iter()
+                .chain(rest.iter().cloned())
+                .collect()
+        }
         [account, import, _file, rest @ ..] if account == "account" && import == "import" => {
             [account.clone(), import.clone(), "FILE".into()].into_iter().chain(rest.iter().cloned()).collect()
         }
@@ -1203,6 +1233,12 @@ pub fn live_commands(fresh: bool, model: LiveModel<'_>) -> (Vec<Vec<String>>, us
                     ],
                 });
             }
+            LiveModel::AnthropicKey { key } => {
+                commands.extend([
+                    vec!["account", "add-key", "2", key.to_str().expect("key path is UTF-8"), "--key", "live-key"],
+                    vec!["account", "list", "--until", "usable", "--timeout", "600s", "--json"],
+                ]);
+            }
             LiveModel::ClaudeCode { login } => {
                 commands.push(vec![
                     "account",
@@ -1249,11 +1285,12 @@ pub fn require_closed_roots(read: &serde_json::Value, before: &std::collections:
     )
 }
 
-/// The held source selects the same story's model, without copying a login.
+/// The source selects the story's model, without copying a login or key.
 #[derive(Clone, Copy)]
 pub enum LiveModel<'a> {
     ChatGpt { account: Option<&'a std::path::Path> },
     ClaudeCode { login: &'a std::path::Path },
+    AnthropicKey { key: &'a std::path::Path },
 }
 
 fn source_name(login: &std::path::Path) -> &str {
@@ -1269,6 +1306,7 @@ impl LiveModel<'_> {
         match self {
             Self::ChatGpt { .. } => "forge-land",
             Self::ClaudeCode { .. } => "forge-land-claude",
+            Self::AnthropicKey { .. } => "forge-land-claude-key",
         }
     }
 
@@ -1277,7 +1315,7 @@ impl LiveModel<'_> {
     pub const fn name(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => "gpt-6-luna",
-            Self::ClaudeCode { .. } => "claude-haiku-5-5",
+            Self::ClaudeCode { .. } | Self::AnthropicKey { .. } => "claude-haiku-5-5",
         }
     }
     /// The stock row read after startup: the selected model's own, or the
@@ -1286,31 +1324,49 @@ impl LiveModel<'_> {
     const fn number(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => "7",
-            Self::ClaudeCode { .. } => "3",
+            Self::ClaudeCode { .. } | Self::AnthropicKey { .. } => "3",
         }
     }
     const fn row(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => "gpt-6-luna",
-            Self::ClaudeCode { .. } => "claude-fable-5-1",
+            Self::ClaudeCode { .. } | Self::AnthropicKey { .. } => "claude-fable-5-1",
         }
     }
     /// A model taken by name: its default effort; `None` for a stock row.
     const fn by_name(self) -> Option<&'static str> {
         match self {
             Self::ChatGpt { .. } => None,
-            Self::ClaudeCode { .. } => Some("low"),
+            Self::ClaudeCode { .. } | Self::AnthropicKey { .. } => Some("low"),
         }
     }
     const fn unavailable(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => KEPT_SIGN_IN_EXPIRED,
+            Self::AnthropicKey { .. } => {
+                "the Anthropic key is refused or limited; check TEMPER_TEST_LIVE_ANTHROPIC_KEY"
+            }
             Self::ClaudeCode { .. } => "the held Claude Code login is not usable; stop and return it to its holder",
         }
     }
     pub fn ready(self, value: &serde_json::Value) -> Result<(), String> {
         match self {
             Self::ChatGpt { .. } => super::live::ready_account(value),
+            Self::AnthropicKey { .. } => {
+                let accounts = value["accounts"]["party"].as_array().ok_or("person's accounts missing")?;
+                let sources: Vec<_> = accounts
+                    .iter()
+                    .filter(|account| account["provider"] == 2)
+                    .filter_map(|account| account["sources"].as_array())
+                    .flatten()
+                    .filter(|source| source["kind"] == "key")
+                    .collect();
+                require(!sources.is_empty(), "Anthropic provider 2 key source missing")?;
+                require(
+                    sources.iter().any(|source| source["usable"] == true),
+                    "Anthropic provider 2 key source is not usable",
+                )
+            }
             Self::ClaudeCode { login } => {
                 let account = declared_program(value, source_name(login))?;
                 require(
@@ -1377,6 +1433,22 @@ pub fn retain_live_model(path: &std::path::Path, name: &str) {
 }
 
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
+    if let LiveModel::AnthropicKey { .. } = model {
+        let path = config.join("temper.json");
+        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        let provider = value["engine"]["llm"]["providers"]
+            .as_array_mut()
+            .expect("providers")
+            .iter_mut()
+            .find(|provider| provider["name"] == "anthropic")
+            .expect("init Anthropic provider")
+            .as_object_mut()
+            .expect("provider");
+        provider.remove("keep");
+        provider.remove("drop");
+        super::write_private(&path, &serde_json::to_vec(&value).expect("key configuration"));
+        return;
+    }
     let LiveModel::ClaudeCode { login } = model else { return };
     let path = config.join("temper.json");
     let agent_path = config.join("agent.json");

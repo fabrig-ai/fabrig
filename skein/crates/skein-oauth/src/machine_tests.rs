@@ -862,10 +862,10 @@ fn a_sign_in_without_refresh_completes_and_round_trips() {
     assert!(record.access_token.expose() == b"access");
     assert!(record.refresh_state().is_none());
     assert!(record.subject.is_none() && record.id_token.is_none());
-    assert!(record.granted_scopes.as_deref() == Some(b"read"));
+    assert_eq!(record.granted_scopes.as_deref(), Some(b"read".as_slice()));
     assert_eq!(record.earliest_refresh_at, Some(wall(20)));
     let encoded = encode_record(&record, &limits().document).expect("encode");
-    assert!(decode_record(&encoded, &limits().document).expect("decode") == record);
+    assert_eq!(decode_record(&encoded, &limits().document).expect("decode"), record);
 }
 
 mod access_only_openid;

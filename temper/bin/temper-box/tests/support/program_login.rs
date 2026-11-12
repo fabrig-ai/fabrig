@@ -82,6 +82,7 @@ pub fn run(directory: &Path) -> super::Ended {
                 ("BENIGN_SETTING".into(), "kept".into()),
                 ("CLAUDE_CONFIG_DIR".into(), "/wrong".into()),
                 ("ANTHROPIC_API_KEY".into(), "removed".into()),
+                ("ANTHROPIC_CONFIG_DIR".into(), "/home/person/.config/anthropic".into()),
                 ("CLAUDE_CODE_OAUTH_TOKEN".into(), "removed".into()),
                 ("CLAUDE_CODE_USE_BEDROCK".into(), "removed".into()),
                 ("AWS_BEARER_TOKEN_BEDROCK".into(), "removed".into()),

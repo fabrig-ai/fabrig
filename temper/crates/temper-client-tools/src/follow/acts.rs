@@ -117,7 +117,7 @@ fn commit(bytes: &[u8]) -> Option<[u8; 32]> {
         return None;
     }
     let mut result = [0_u8; 32];
-    for (pair, cell) in bytes.chunks_exact(2).zip(&mut result) {
+    for (pair, cell) in bytes.as_chunks::<2>().0.iter().zip(&mut result) {
         for digit in pair {
             let n = match digit {
                 b'0'..=b'9' => digit.saturating_sub(b'0'),
@@ -220,6 +220,11 @@ fn restored(request: &Ask) -> bool {
         | w::Request::SetAway(_)
         | w::Request::Overturn(_)
         | w::Request::SetDraft(_)
+        | w::Request::AddDevice(_)
+        | w::Request::RemoveDevice(_)
+        | w::Request::FileFinding(_)
+        | w::Request::HandFinding(_)
+        | w::Request::TriageFinding(_)
         | w::Request::TryAccount(_) => false,
     }
 }

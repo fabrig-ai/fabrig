@@ -1,0 +1,7 @@
+finding show FINDING
+  FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
+Read one finding whole
+Prints: Its line, filer, filing time, last hand-off's why, goal and drop reason, then its body
+--json: the record finding.
+Key: none.
+FINDING is P/N, P the project's name or number.

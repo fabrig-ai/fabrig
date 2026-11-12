@@ -226,9 +226,9 @@ fn settings(value: json::Node<'_>, limits: &Limits) -> Result<Decoded, Problem> 
         return Err(Problem { field: b"set", why: Why::Malformed });
     }
     let mut bytes = skein_lib::List::with_capacity(count);
-    for pair in set.chunks_exact(2) {
-        let high = hex(*pair.first().expect("two hex digits"))?;
-        let low = hex(*pair.get(1).expect("two hex digits"))?;
+    for &[high, low] in set.as_chunks::<2>().0 {
+        let high = hex(high)?;
+        let low = hex(low)?;
         let byte = high.checked_mul(16).expect("high hex nibble").checked_add(low).expect("low hex nibble");
         bytes.push(byte).expect("bounded settings bytes");
     }

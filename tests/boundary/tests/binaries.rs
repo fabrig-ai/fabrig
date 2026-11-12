@@ -16,16 +16,14 @@ struct Row {
     exceptions: &'static [(&'static str, &'static str)],
 }
 
-const WORKER_EXCEPTION: &str = "temper-service's worker feature composes the engine's half too, until temper/docs/design/draft/cli.execution.md's C5 makes the worker's half crates of its own.";
-
 const ROWS: &[Row] = &[
     Row {
-        package: "temper-client",
+        package: "temper",
         rules: &[
             (
                 "temper",
                 Rule::Only(&[
-                    "temper-client",
+                    "temper",
                     "temper-client-shell",
                     "temper-client-domain",
                     "temper-client-protocol-wire",
@@ -34,8 +32,11 @@ const ROWS: &[Row] = &[
                     "temper-client-shell-tui",
                     "temper-client-redaction",
                     "temper-client-tools",
+                    "temper-charter-set",
                     "temper-client-tui",
                     "temper-client-view",
+                    "temper-fetch",
+                    "temper-fetch-shell",
                     "temper-shell",
                     "temper-docs",
                     "temper-version",
@@ -81,7 +82,7 @@ const ROWS: &[Row] = &[
     Row {
         package: "temper-engine",
         rules: &[
-            ("temper", Rule::Not(&["temper-worker-"])),
+            ("temper", Rule::Not(&["temper-worker-", "temper-service"])),
             ("jig", Rule::Not(&["jig-protocol-worker-agents", "jig-protocol-worker-link"])),
             (
                 "smith",
@@ -133,26 +134,16 @@ const ROWS: &[Row] = &[
                     "temper-init",
                     "temper-client-bundle",
                     "temper-client-shell-web",
+                    "temper-forge-setup",
                     "temper-forge-setup-shell",
+                    "temper-protocol-records-forge",
+                    "temper-service",
                     "temper-agent-shell",
                 ]),
             ),
             ("smith", Rule::Not(&["smith-agent-shell", "smith-agent-service", "smith-local-", "smith-inline-agent"])),
         ],
-        exceptions: &[
-            ("temper-engine-domain", WORKER_EXCEPTION),
-            ("temper-engine-domain-calendar", WORKER_EXCEPTION),
-            ("temper-engine-domain-forge", WORKER_EXCEPTION),
-            ("temper-engine-domain-forge-change", WORKER_EXCEPTION),
-            ("temper-engine-domain-forge-closer", WORKER_EXCEPTION),
-            ("temper-engine-domain-forge-issues", WORKER_EXCEPTION),
-            ("temper-engine-domain-forge-landing", WORKER_EXCEPTION),
-            ("temper-engine-domain-forge-tiers", WORKER_EXCEPTION),
-            ("temper-engine-domain-trials", WORKER_EXCEPTION),
-            ("temper-engine-domain-ways", WORKER_EXCEPTION),
-            ("temper-engine-smith", WORKER_EXCEPTION),
-            ("temper-box-machine", WORKER_EXCEPTION),
-        ],
+        exceptions: &[],
     },
     Row {
         package: "temper-agent",

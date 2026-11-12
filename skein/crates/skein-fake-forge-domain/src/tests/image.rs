@@ -8,7 +8,7 @@ use crate::{
 fn restored(h: &Harness) -> Harness {
     Harness {
         domain: Domain::from_image(&h.env.limits, &h.domain.image().unwrap()).unwrap(),
-        env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: h.env.limits },
+        env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: h.env.limits.clone() },
         out: Queue::uncapped(),
         hooks: Queue::with_capacity(64),
         answered: Queue::with_capacity(LIMITS.calls),
@@ -37,11 +37,11 @@ fn story() -> (Harness, u64, u64) {
         cue: Cue::File { path: copy_of(b"ci"), green: copy_of(b"green") },
     }]);
     configured.workflows = Box::new([workflow()]);
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     let mut gone = setup();
     gone.id = 3;
     gone.name = copy_of(b"ai/gone");
-    crate::repository(&mut h.domain, &CALM, gone);
+    crate::repository(&mut h.domain, &calm(), gone);
     crate::grant(&mut h.domain, b"ai/gone", ADMIN, Permission::Admin);
     h.call_on(b"ai/gone", ADMIN, write(Write::DeleteRepository)).unwrap();
     let issue = h.issue(ENGINE, b"issue");
@@ -155,7 +155,7 @@ fn an_image_round_trips_the_lasting_forge_and_rebuilds_its_indexes() {
         }
     }
     assert!(h.domain.branches(REPOSITORY).iter().eq(other.domain.branches(REPOSITORY).iter()));
-    assert_eq!(other.domain.inspect(&CALM, b"ai/gone", &Read::Locate), Err(Error::Missing(What::Repository)));
+    assert_eq!(other.domain.inspect(&calm(), b"ai/gone", &Read::Locate), Err(Error::Missing(What::Repository)));
     assert_eq!(other.domain.repositories.len(), 2, "gone slots stay occupied");
     assert!(other.domain.repositories.iter().last().unwrap().1.gone);
     assert_eq!(h.domain.image().unwrap(), other.domain.image().unwrap(), "lasting records are canonical");
@@ -191,7 +191,7 @@ fn the_restored_rng_decides_faults_and_latencies_from_the_saved_stream() {
         late: 250,
         latency_min: Duration::from_millis(3),
         latency_max: Duration::from_secs(1),
-        ..CALM
+        ..calm()
     };
     let mut h = Harness::new(config);
     for _ in 0_u32..7 {
@@ -207,7 +207,7 @@ fn the_restored_rng_decides_faults_and_latencies_from_the_saved_stream() {
 }
 #[test]
 fn restored_comments_never_precede_the_images_last_clock_reading() {
-    let mut h = Harness::new(Config { skew: Skew::Ahead(Duration::from_secs(20)), ..CALM });
+    let mut h = Harness::new(Config { skew: Skew::Ahead(Duration::from_secs(20)), ..calm() });
     h.env.now = Time::from_nanos(Duration::from_secs(100).as_nanos());
     let issue = h.issue(ENGINE, b"issue");
     h.settle();
@@ -219,7 +219,7 @@ fn restored_comments_never_precede_the_images_last_clock_reading() {
 }
 #[test]
 fn an_undecided_ci_run_keeps_its_time_left_but_unreleased_hooks_are_dropped() {
-    let config = Config { hook_min: Duration::from_secs(30), hook_max: Duration::from_secs(30), ..CALM };
+    let config = Config { hook_min: Duration::from_secs(30), hook_max: Duration::from_secs(30), ..calm() };
     let mut h = Harness::new(config);
     h.env.now = Time::from_nanos(Duration::from_secs(100).as_nanos());
     let head = h.commit(FIRST, &[(b"src", b"one")]);
@@ -245,7 +245,7 @@ fn an_undecided_ci_run_keeps_its_time_left_but_unreleased_hooks_are_dropped() {
 }
 #[test]
 fn an_image_is_busy_only_until_every_reply_has_been_emitted() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let event = Event::Call {
         reply_to: ReplyTo::new(Token::new(1)),
         user: PERSON,
@@ -281,19 +281,19 @@ fn malformed_and_over_limit_images_build_nothing() {
     let (h, _, _) = story();
     let bytes = h.domain.image().unwrap();
     for end in 0..bytes.len() {
-        assert!(malformed(Domain::from_image(&CALM, &bytes[..end]).err()), "truncated at {end}");
+        assert!(malformed(Domain::from_image(&calm(), &bytes[..end]).err()), "truncated at {end}");
     }
-    assert!(malformed(Domain::from_image(&CALM, b"arbitrary bytes").err()));
+    assert!(malformed(Domain::from_image(&calm(), b"arbitrary bytes").err()));
     let trailing = skein_lib::bytes::concat(&[&bytes, b"trailing"]);
-    assert_eq!(Domain::from_image(&CALM, &trailing).err(), Some(Refusal::Malformed("trailing bytes")));
-    let smaller = Config { limits: Limits { repositories: 1, ..LIMITS }, ..CALM };
+    assert_eq!(Domain::from_image(&calm(), &trailing).err(), Some(Refusal::Malformed("trailing bytes")));
+    let smaller = Config { limits: Limits { repositories: 1, ..LIMITS }, ..calm() };
     assert_eq!(Domain::from_image(&smaller, &bytes).err(), Some(Refusal::Limits("repositories")));
-    let smaller = Config { limits: Limits { comments: 0, ..LIMITS }, ..CALM };
+    let smaller = Config { limits: Limits { comments: 0, ..LIMITS }, ..calm() };
     assert_eq!(Domain::from_image(&smaller, &bytes).err(), Some(Refusal::Limits("comments")));
 }
 #[test]
 fn an_answered_late_landing_survives_without_a_second_reply() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let issue = h.issue(ENGINE, b"issue");
     h.settle();
     h.env.limits.landing = 1000;
@@ -321,7 +321,7 @@ fn a_ci_rerun_and_a_dispatched_job_keep_their_remaining_delays() {
     let mut configured = setup();
     configured.checks.reruns = 1000;
     configured.workflows = Box::new([workflow()]);
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     h.env.now = Time::from_nanos(Duration::from_secs(100).as_nanos());
     let head = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", head).unwrap();
@@ -348,7 +348,7 @@ fn a_queues_pending_wake_and_group_verdict_survive_the_image() {
         limits: Limits { name_bytes: 128, branches: 8, ..LIMITS },
         latency_min: Duration::ZERO,
         latency_max: Duration::ZERO,
-        ..CALM
+        ..calm()
     };
     let mut configured = setup();
     configured.protection = Some(Protection {
@@ -379,7 +379,7 @@ fn a_queues_pending_wake_and_group_verdict_survive_the_image() {
 }
 #[test]
 fn rate_windows_and_undrained_observations_start_empty_after_restore() {
-    let mut h = Harness::new(Config { rate_limit: 1, ..CALM });
+    let mut h = Harness::new(Config { rate_limit: 1, ..calm() });
     h.issue(ENGINE, b"first");
     assert_eq!(h.domain.windows.len(), 1);
     let mut other = restored(&h);
@@ -393,11 +393,11 @@ fn rate_windows_and_undrained_observations_start_empty_after_restore() {
 fn references_and_nested_limits_are_checked_before_a_domain_is_returned() {
     let (h, _, _) = story();
     let bytes = h.domain.image().unwrap();
-    let smaller = Config { limits: Limits { reviews: 1, ..LIMITS }, ..CALM };
+    let smaller = Config { limits: Limits { reviews: 1, ..LIMITS }, ..calm() };
     assert_eq!(Domain::from_image(&smaller, &bytes).err(), Some(Refusal::Limits("reviews")));
-    let smaller = Config { limits: Limits { contexts: 1, ..LIMITS }, ..CALM };
+    let smaller = Config { limits: Limits { contexts: 1, ..LIMITS }, ..calm() };
     assert_eq!(Domain::from_image(&smaller, &bytes).err(), Some(Refusal::Limits("status contexts")));
-    let smaller = Config { limits: Limits { content_bytes: 2, ..LIMITS }, ..CALM };
+    let smaller = Config { limits: Limits { content_bytes: 2, ..LIMITS }, ..calm() };
     assert!(matches_limits(Domain::from_image(&smaller, &bytes).err()));
     for corruption in 0_u32..5 {
         let (mut h, head, pull) = story();
@@ -428,7 +428,7 @@ fn references_and_nested_limits_are_checked_before_a_domain_is_returned() {
             }
             _ => unreachable!("five reference corruptions"),
         }
-        assert!(malformed(Domain::from_image(&CALM, &h.domain.image().unwrap()).err()), "corruption {corruption}");
+        assert!(malformed(Domain::from_image(&calm(), &h.domain.image().unwrap()).err()), "corruption {corruption}");
     }
 }
 fn matches_limits(error: Option<Refusal>) -> bool {
@@ -443,7 +443,7 @@ fn retained_queue_admissions_need_not_follow_a_pulls_new_head_or_open_state() {
         limits: Limits { name_bytes: 128, branches: 8, ..LIMITS },
         latency_min: Duration::ZERO,
         latency_max: Duration::ZERO,
-        ..CALM
+        ..calm()
     };
     let mut configured = setup();
     configured.checks.silent = 1000;
@@ -473,7 +473,7 @@ fn retained_queue_admissions_need_not_follow_a_pulls_new_head_or_open_state() {
 }
 #[test]
 fn generated_ci_text_is_retained_even_when_incoming_bodies_have_no_room() {
-    let config = Config { limits: Limits { body_bytes: 0, ..LIMITS }, ..CALM };
+    let config = Config { limits: Limits { body_bytes: 0, ..LIMITS }, ..calm() };
     let mut h = Harness::new(config);
     let head = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", head).unwrap();
@@ -483,4 +483,40 @@ fn generated_ci_text_is_retained_even_when_incoming_bodies_have_no_room() {
     let _image = other.domain.image().unwrap();
     let again = restored(&other);
     same_read(&other, &again, Read::Checks { commit: head });
+}
+
+#[test]
+fn late_branch_creation_and_recorded_merge_survive_an_image() {
+    use crate::api::{ManualMerges, MergeHow};
+    for record in [false, true] {
+        let mut h = Harness::new(calm());
+        let head = h.commit(FIRST, &[(b"README", b"work")]);
+        h.push(ENGINE, b"work", head).unwrap();
+        let Answer::Created(number) = h.open(b"work").unwrap() else { panic!("pull") };
+        let op = if record {
+            crate::manual_merges(
+                &mut h.domain,
+                REPOSITORY,
+                ManualMerges { allow_manual_merge: true, autodetect_manual_merge: false },
+            );
+            write(Write::Merge { number, head, how: MergeHow::Recorded { commit: FIRST } })
+        } else {
+            Op::Git(Git::PushNew { branch: copy_of(b"landing"), commit: head })
+        };
+        h.settle();
+        h.env.limits.landing = 1000;
+        h.env.limits.land_min = Duration::from_secs(3);
+        h.env.limits.land_max = Duration::from_secs(3);
+        assert_eq!(h.call(ENGINE, op), Err(Error::Timeout));
+        let mut other = restored(&h);
+        other.until(Time::from_nanos(Duration::from_secs(3).as_nanos()));
+        if record {
+            assert_eq!(other.pull(number).merged, Some(FIRST));
+            assert_eq!(other.branch(MAIN), Some(FIRST));
+        } else {
+            assert_eq!(other.branch(b"landing"), Some(head));
+        }
+        other.settle();
+        assert!(other.answered.is_empty(), "restoration retains no reply right");
+    }
 }

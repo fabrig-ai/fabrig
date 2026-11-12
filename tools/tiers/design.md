@@ -74,7 +74,7 @@ Variable names are unique within a pair. For example, an entry with
 After any bundle step, build each listed binary in order with
 `cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
 servers in the table above are native list entries. `process-temper` also
-lists `smith-fake-claude`'s `fake-claude` and `temper-client`'s `temper-client`:
+lists `smith-fake-claude`'s `fake-claude` and `temper`'s `temper`:
 temper's fake-backend tests execute that adapter and the deployment's client
 story executes that client as the `temper` binary's siblings. It also lists
 `temper-engine`, `temper-worker` and `temper-agent`, which the cluster's story
@@ -89,6 +89,11 @@ above. Smith's selected live tests use the `smith` package's own binaries;
 the separate `smith-fake-claude` package's binary tests are not selected by
 any of these pairs. No other native binary requirement was found across
 the configured pairs.
+
+`[test-binaries]` lists, by package, the binaries of other packages that the
+package's focused and fuzzy tests run, in the same records without `env`,
+validated alike; the delivery check builds them before its tests
+(`tools/pre-pr/design.md`, 4). `smith`'s lists `smith-fake-claude`'s `fake-claude`.
 
 ### 2.2 The bundle list
 

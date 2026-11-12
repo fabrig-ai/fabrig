@@ -27,6 +27,7 @@ merge.conflictStyle=merge
 submodule.recurse=false
 clone
 --bare
+--filter=blob:none
 --single-branch
 --no-tags
 --quiet

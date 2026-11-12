@@ -1129,9 +1129,7 @@ fn encoded_hex(pool: &mut List<u8>, value: &[u8], bound: u32, fixed: bool, piece
     if !fixed {
         uint(pool, u64::from(length), 4);
     }
-    for pair in digits.as_chunks::<2>().0 {
-        let &high = pair.first().expect("two hex digits");
-        let &low = pair.get(1).expect("two hex digits");
+    for &[high, low] in digits.as_chunks::<2>().0 {
         // A value's hex digits are lower case (data/codec/patches.md, 2), though lib
         // reads either case.
         if high.is_ascii_uppercase() || low.is_ascii_uppercase() {

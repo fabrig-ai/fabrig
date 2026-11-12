@@ -221,7 +221,7 @@ impl State {
                 })
                 .expect("one table entry per setup");
         }
-        let mut config = temper_worker_checkout_world::hosted::CONFIG;
+        let mut config = temper_worker_checkout_world::hosted::config();
         // The HTTP peer admits four simultaneous calls, unlike the git-only fixture.
         config.limits.calls = protocol_limits().calls;
         // A change opens its pull under its words' first sentence, fitted to
@@ -283,7 +283,7 @@ impl State {
     }
     pub(crate) fn push(&mut self, now: Time, wall: Wall, path: &[u8], words: &[u8]) {
         let mut forge = self.handle.borrow_mut();
-        let env = Env { now, wall, limits: forge.config };
+        let env = Env { now, wall, limits: forge.config.clone() };
         domain::advance(&mut forge.domain, &env, b"acme/app", b"main", path, words, OTHER)
             .expect("another party's push");
         self.moved = true;

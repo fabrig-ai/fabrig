@@ -114,7 +114,7 @@ fn receipt_key(d: &Domain, row: &ChangeRow) -> ReceiptKey {
 }
 fn inputs(check: &FollowCheck) -> Box<[api::Input]> {
     let mut inputs = List::with_capacity(3);
-    for input in crate::landing::inputs(check.head, check.key.expect("computed key")) {
+    for input in crate::landing::inputs(check.head, check.key.expect("computed key"), None) {
         inputs.push(input).expect("two check inputs");
     }
     inputs
@@ -131,7 +131,11 @@ fn following(d: &Domain, row: &ChangeRow) -> runs::Follow {
         crate::purpose::EffectPurpose::Step { task: row.task, purpose: 18 }.identity().expect("check purpose"),
         row.repository,
         setting.check.workflow,
-        row.branch.clone(),
+        if let c::State::Judging { target, .. } = &row.change.state {
+            target.branch.clone()
+        } else {
+            row.branch.clone()
+        },
         check.head,
         inputs(check),
     );
@@ -416,6 +420,7 @@ fn finish(
         run: ReceiptRun { id: run.id, number: run.number, url: run.url.clone() },
         candidate: follow.commit,
         ended: env.wall,
+        logs: Box::new([]),
     };
     crate::landing::put_receipt(d, env, receipt_key(d, row), receipt.clone(), out);
     judged(d, env, row, &receipt, out);
@@ -586,6 +591,13 @@ pub(crate) fn asked(row: &ChangeRow) -> Option<api::Commit> {
         c::State::Gating { head, asked } => {
             if asked.contains(&c::FOLLOW_CHECK_GATE) && !has_verdict(row, *head) {
                 Some(*head)
+            } else {
+                None
+            }
+        }
+        c::State::Judging { target, asked, .. } => {
+            if asked.contains(&c::FOLLOW_CHECK_GATE) && !has_verdict(row, target.prefix) {
+                Some(target.prefix)
             } else {
                 None
             }

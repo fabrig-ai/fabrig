@@ -75,7 +75,7 @@ fn a_deleted_projects_use_leaves_an_account_with_others() {
 fn an_account_whose_only_use_is_the_project_keeps_it() {
     let uses = [Use::Project(PROJECT)];
     let mut world = fixture(vec![row(1, Some(&uses))]);
-    assert!(world.step(Event::ForgetProject { project: PROJECT }).is_empty());
+    assert_eq!(world.step(Event::ForgetProject { project: PROJECT }).len(), 0);
     assert_eq!(world.domain.account(1).expect("kept account").uses(), Some(uses.as_slice()));
     // The core's current coverage excludes a project that cannot be a payer again.
     let coverage = [Coverage { account: 1, serves: false }];
@@ -98,13 +98,13 @@ fn an_account_whose_only_use_is_the_project_keeps_it() {
 fn forgetting_twice_or_an_unused_project_saves_nothing() {
     let mut world =
         fixture(vec![row(1, Some(&[Use::Project(PROJECT), Use::Party(7)])), row(2, None), row(3, Some(&[]))]);
-    assert!(world.step(Event::ForgetProject { project: OTHER_PROJECT }).is_empty());
+    assert_eq!(world.step(Event::ForgetProject { project: OTHER_PROJECT }).len(), 0);
     assert_eq!(
         world.step(Event::ForgetProject { project: PROJECT }),
         vec![Request::Save { record: row(1, Some(&[Use::Party(7)])) }]
     );
-    assert!(world.step(Event::ForgetProject { project: PROJECT }).is_empty());
-    assert!(world.step(Event::ForgetProject { project: OTHER_PROJECT }).is_empty());
+    assert_eq!(world.step(Event::ForgetProject { project: PROJECT }).len(), 0);
+    assert_eq!(world.step(Event::ForgetProject { project: OTHER_PROJECT }).len(), 0);
     assert_eq!(world.domain.account(2).expect("default uses").uses(), None);
     assert_eq!(world.domain.account(3).expect("empty explicit uses").uses(), Some([].as_slice()));
 }

@@ -106,6 +106,9 @@ pub(super) fn encode_write(value: &d::Write) -> w::Write {
             let how = match how {
                 d::MergeHow::Style => w::MergeHow::Style,
                 d::MergeHow::FastForwardOnly => w::MergeHow::FastForwardOnly,
+                d::MergeHow::Recorded { commit } => w::MergeHow::Recorded(
+                    w::RecordedMerge::new(&w::CEILINGS, w::RecordedMergeParts { commit: *commit }).expect(FITS),
+                ),
             };
             w::Write::Merge(
                 w::MergeWrite::new(&w::CEILINGS, w::MergeWriteParts { number: *number, head: *head, how }).expect(FITS),
@@ -194,6 +197,7 @@ pub(super) fn decode_write(value: w::Write) -> d::Write {
                 how: match how {
                     w::MergeHow::Style => d::MergeHow::Style,
                     w::MergeHow::FastForwardOnly => d::MergeHow::FastForwardOnly,
+                    w::MergeHow::Recorded(value) => d::MergeHow::Recorded { commit: value.into_parts().commit },
                 },
             }
         }

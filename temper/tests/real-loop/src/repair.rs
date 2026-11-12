@@ -208,7 +208,7 @@ fn check_waiting(ran: &Ran) {
     let tree = document(ran, TREE);
     assert!(!tree.to_string().contains("\"task\":3"), "no change before approval: {tree}");
     assert_eq!(tree["tree"]["more"], false);
-    assert!(tree["tree"]["folded"].as_array().expect("folded tasks").is_empty());
+    assert_eq!(tree["tree"]["folded"].as_array().expect("folded tasks").len(), 0);
     let notice = told(query_at(ran, 0, 3));
     assert!(
         notice.find(person("question")).expect("question")
@@ -382,7 +382,7 @@ fn check_landing(ran: &Ran, repaired: u64, merge: u64) {
         assert_eq!(document(ran, position)["chip"]["phase"], "ended");
     }
     assert!(document(ran, REVIEWED).to_string().contains("Approve."));
-    assert!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").is_empty());
+    assert_eq!(document(ran, INBOX_EMPTY)["needs"]["rows"].as_array().expect("last questions").len(), 0);
 }
 
 /// The oracle reads the walk's recorded values, not the replay's templates.

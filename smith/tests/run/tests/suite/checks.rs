@@ -55,7 +55,7 @@ impl PendingCheck {
                     Request::Probe { owner, .. } => next.extend(check.step(Event::Probed { owner, executable: true })),
                     Request::Open { conversation, .. } => {
                         check.conversation = conversation;
-                        assert!(check.step(Event::Started { conversation, peer: PEER }).is_empty());
+                        assert_eq!(check.step(Event::Started { conversation, peer: PEER }).len(), 0);
                     }
                     other => panic!("unexpected preparation request: {other:?}"),
                 }
@@ -129,7 +129,7 @@ impl PendingCheck {
 
     fn assert_settled(&mut self) {
         self.facts.clear();
-        assert!(self.step(Event::Withdraw { conversation: self.conversation, call: CALL }).is_empty());
+        assert_eq!(self.step(Event::Withdraw { conversation: self.conversation, call: CALL }).len(), 0);
         assert!(self.facts.is_empty(), "settled withdrawal cannot make another terminal");
         let closes = self.step(Event::Cancel { run: run::owner(&self.domain, self.conversation).expect("live run") });
         assert_eq!(closes.as_slice(), [Request::Close { peer: PEER }]);
