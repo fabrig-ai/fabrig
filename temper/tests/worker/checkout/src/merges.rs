@@ -444,6 +444,74 @@ pub fn replaced_pin(case: PinCase) {
     world.finish(Event::Release { hold }, false);
 }
 
+/// A resolution receives the conflict whether or not its change has pushed a head.
+pub fn resolution_conflict(pushed: bool) {
+    let mut world = World::new(73, Case::Conflict, 64);
+    let (branch, push, ours, base) = if pushed {
+        (b"topic".as_slice(), b"topic".as_slice(), world.ours, world.base)
+    } else {
+        // The base branch is one side of the conflict; the incoming base is the other.
+        (b"main".as_slice(), b"resolution".as_slice(), world.base, world.ours)
+    };
+    let expected = if pushed { Some(translate::commit(ours)) } else { None };
+    assert_eq!(world.forge.branch(b"forge/temper", push), expected.map(translate::fake));
+    let spec = Spec {
+        key: b"resolution".as_slice().into(),
+        repositories: Box::new([Repository {
+            save: None,
+            git: None,
+            name: b"temper".as_slice().into(),
+            remote: b"forge/temper".as_slice().into(),
+            start: Start::Merge { branch: branch.into(), base: translate::commit(base) },
+            identity: 0,
+            account: None,
+            push: Some(push.into()),
+            expected,
+            landing: None,
+        }]),
+    };
+    world.forge.moves();
+    let ready = world.finish(Event::Prepare { client: Token::new(9), spec }, false);
+    let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } = ready else {
+        panic!("resolution ready with conflicts: {ready:?}")
+    };
+    assert_eq!(
+        &*conflicts,
+        &[Conflicts { repository: 0, files: Box::new([b"code".as_slice().into()]) }]
+    );
+    let at = translate::path(&temper_worker_domain_checkout::git::Place {
+        git: None,
+        workspace,
+        repository: b"temper".as_slice().into(),
+    });
+    let pin = [at.as_slice(), b"/.git/refs/temper/landing"].concat();
+    assert_eq!(world.pins, 1, "one replaced-head pin per hold");
+    assert_eq!(world.disk.content(&pin), Some(ours.to_le_bytes().as_slice()));
+    assert_eq!(world.disk.content(&[at.as_slice(), b"/.git/temper-head"].concat()), Some(ours.to_le_bytes().as_slice()));
+    assert_eq!(world.disk.content(&[at.as_slice(), b"/.git/MERGE_HEAD"].concat()), Some(base.to_le_bytes().as_slice()));
+    assert!(world.commits.is_empty(), "prepare leaves the merge in progress");
+    assert_eq!(
+        &*world.push(false, false),
+        &[Landing::Conflicted { files: Box::new([b"code".as_slice().into()]) }]
+    );
+    assert!(world.forge.moves().is_empty(), "unsettled files neither move nor create a branch");
+    world.disk.write(&[at.as_slice(), b"/code"].concat(), b"resolved\n");
+    let landings = world.push(false, false);
+    let [Landing::Landed { commit }] = landings.as_ref() else { panic!("resolved merge lands: {landings:?}") };
+    let landed = translate::fake(*commit);
+    assert_eq!(world.forge.parent(landed), Some(ours));
+    assert_eq!(world.forge.merge_parent(landed), Some(base));
+    assert_eq!(world.forge.tree(landed), world.expected);
+    assert_eq!(world.forge.branch(b"forge/temper", push), Some(landed));
+    assert_eq!(world.forge.moves().len(), 1, "one push creates or replaces the change's branch");
+    assert_eq!(world.commits.len(), 2, "the refused commit and the single settled merge commit");
+    assert_eq!(world.pins, 1, "push does not move the pin");
+    assert_eq!(world.disk.content(&pin), Some(ours.to_le_bytes().as_slice()));
+    let hold = world.hold.take().expect("resolution held");
+    assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { .. }));
+    assert_eq!(world.domain.holds(), 0);
+}
+
 /// The named prefix leaves every conflicted file and the merge state on disk.
 fn settle_past_the_bound(world: &mut World, at: &[u8], conflicts: &[Conflicts], seed: u64) {
     let named: Box<[Box<[u8]>]> =
