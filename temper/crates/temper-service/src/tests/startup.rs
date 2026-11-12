@@ -964,7 +964,7 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
     .unwrap();
     assert_eq!(
         service.engine.as_ref().unwrap().opening_limits().core,
-        temper_engine_domain::core_limits(&service.engine.as_ref().unwrap().limits()),
+        temper_engine_domain::core_limits(service.engine.as_ref().unwrap().limits()),
     );
     let mut refused: serde_json::Value = serde_json::from_slice(&document).unwrap();
     refused["application"]["limits"]["overrides"]["root.loads.rows"] = 0_u32.into();

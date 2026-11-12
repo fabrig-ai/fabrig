@@ -952,13 +952,11 @@ fn refused_run_stderr_names_reason_and_bounds_start_words() {
 fn job_stderr_forms_escape_and_bound_their_why() {
     use jig_domain_host::{JobFailure, JobInvalid, JobRefusal, Preparation};
     use temper_engine_service::{JobDiagnostic, JobDiagnosticEnding};
-    // domain/worker/jobs.md: all four forms retain the last 4,096 input bytes.
+    // The engine job forms retain the last 4,096 input bytes.
     const TAIL: usize = 4096;
-    for (worker, refused, prefix) in [
-        (false, false, "temper serve: task 3 run 7 attempt 2 failed Unprepared(Transient): job 3: "),
-        (false, true, "temper serve: task 3 run 7 attempt 2 refused Invalid(Start): job 3: "),
-        (true, false, "temper worker: run 7 attempt 2 job 3 merge failed Unprepared(Transient): "),
-        (true, true, "temper worker: run 7 attempt 2 job 3 merge refused Invalid(Start): "),
+    for (refused, prefix) in [
+        (false, "temper serve: task 3 run 7 attempt 2 failed Unprepared(Transient): job 3: "),
+        (true, "temper serve: task 3 run 7 attempt 2 refused Invalid(Start): job 3: "),
     ] {
         for (why, expected) in [
             (b"fetch base: Broken\n\xff".to_vec(), "fetch base: Broken\\n\\xff".to_owned()),
@@ -973,23 +971,7 @@ fn job_stderr_forms_escape_and_bound_their_why() {
                     detail: why.clone().into(),
                 }
             };
-            let note = if worker {
-                temper_engine_service::Note::WorkerJob {
-                    run: 7,
-                    attempt: 2,
-                    kind: 3,
-                    verb: b"merge".as_slice().into(),
-                    ending: match ending {
-                        JobDiagnosticEnding::Failed { failure, detail } => {
-                            temper_engine_service::WorkerJobEnding::Failed { failure, detail }
-                        }
-                        JobDiagnosticEnding::Refused(reason) => temper_engine_service::WorkerJobEnding::Refused(reason),
-                    },
-                    why: why.into(),
-                }
-            } else {
-                temper_engine_service::Note::JobAnswered(JobDiagnostic { task: 3, run: 7, attempt: 2, kind: 3, ending })
-            };
+            let note = temper_engine_service::Note::JobAnswered(JobDiagnostic { task: 3, run: 7, attempt: 2, kind: 3, ending });
             assert_eq!(note_line("temper", note), format!("{prefix}{expected}\n"));
         }
     }

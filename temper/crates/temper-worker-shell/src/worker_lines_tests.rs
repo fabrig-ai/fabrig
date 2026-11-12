@@ -160,3 +160,16 @@ fn worker_loss_lines_name_each_cause_and_refusal_exactly() {
         );
     }
 }
+
+#[test]
+fn job_stderr_forms_escape_and_bound_their_why() {
+    use jig_domain_host::{JobFailure, JobInvalid, JobRefusal, Preparation};
+    const TAIL: usize = 4096;
+    for (refused, prefix) in [(false, "temper worker: run 7 attempt 2 job 3 merge failed Unprepared(Transient): "), (true, "temper worker: run 7 attempt 2 job 3 merge refused Invalid(Start): ")] {
+        for (why, expected) in [(b"fetch base: Broken\n\xff".to_vec(), "fetch base: Broken\\n\\xff".to_owned()), (vec![b'x'; TAIL], "x".repeat(TAIL)), ([b"discard".as_slice(), vec![b'x'; TAIL].as_slice()].concat(), "x".repeat(TAIL))] {
+            let ending = if refused { WorkerJobEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why: why.clone().into() })) } else { WorkerJobEnding::Failed { failure: JobFailure::Unprepared(Preparation::Transient), detail: why.clone().into() } };
+            let note = worker::Note::WorkerJob { run: 7, attempt: 2, kind: 3, verb: b"merge".as_slice().into(), ending, why: why.into() };
+            assert_eq!(worker_note_words("temper", note), format!("{prefix}{expected}\n"));
+        }
+    }
+}
