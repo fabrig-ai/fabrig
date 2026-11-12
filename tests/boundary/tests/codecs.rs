@@ -279,7 +279,7 @@ fn records_not_glue_make_a_codec() {
     let scratch = scratch(&[]);
     fs::create_dir_all(scratch.path().join("a/src/generated/people_v1.rs")).expect("record-shaped directory");
     let metadata = fixture_metadata(&scratch, &serde_json::json!([{"name": "b", "kind": null}]));
-    assert!(findings(&packages(&metadata.to_string()).expect("fixture metadata"), &[], &[]).is_empty());
+    assert_eq!(findings(&packages(&metadata.to_string()).expect("fixture metadata"), &[], &[]), Vec::<String>::new());
 }
 
 #[test]
@@ -288,7 +288,7 @@ fn allowances_match_dependencies_and_only_shrink() {
     let allowed = [Allowance { package: "a", dependency: "b", reason: "fixture channel vocabulary" }];
     let metadata = fixture_metadata(&scratch, &serde_json::json!([{"name": "b", "kind": null}]));
     let packages = packages(&metadata.to_string()).expect("fixture metadata");
-    assert!(findings(&packages, &allowed, &[]).is_empty());
+    assert_eq!(findings(&packages, &allowed, &[]), Vec::<String>::new());
     assert_eq!(
         findings(&packages, &[Allowance { package: "a", dependency: "c", reason: "different dependency" }], &[]),
         [
@@ -326,7 +326,7 @@ fn exceptions_excuse_every_package_finding_and_only_shrink() {
         findings(&packages, &[], &[]),
         ["a: normal dependency on workspace member b", "a: normal dependency on workspace member c"]
     );
-    assert!(findings(&packages, &[], &exceptions).is_empty());
+    assert_eq!(findings(&packages, &[], &exceptions), Vec::<String>::new());
     let metadata = fixture_metadata(&scratch, &serde_json::json!([]));
     let packages = self::packages(&metadata.to_string()).expect("fixture metadata");
     assert_eq!(findings(&packages, &[], &exceptions), ["a (until G3): remove it: the check's exceptions only shrink"]);
