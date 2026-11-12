@@ -72,7 +72,7 @@ enum Stage {
     Pull(u16),
     Reviews(u16, u32),
     Collect,
-    Round { stage: u8, candidate: Option<api::Commit> },
+    Round { stage: RoundRead, candidate: Option<api::Commit> },
     Run {
         key: ReceiptKey,
         pages: u32,
@@ -87,6 +87,9 @@ enum Stage {
         reading_base: bool,
     },
 }
+#[derive(Clone, Copy, Hash, Debug)]
+enum RoundRead { Branch, Base, Head, Squash, Contained, Pull, Upstream }
+
 fn slots(l: &Limits) -> Option<u32> {
     l.landings.checked_mul(l.landing_members)?.checked_mul(l.gates)
 }
@@ -718,7 +721,7 @@ pub(crate) fn register(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: 
         assert_eq!(change.pull.unwrap_or(0), member.pull, "preflighted pull");
         assert_eq!(
             member.gates.len(),
-            gates(d, &row, repository(member)).len(),
+            d.train_gates(&row, repository(member)).len(),
             "configured gates"
         );
     }
@@ -737,9 +740,11 @@ pub(crate) fn register(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: 
     }
     save(d, row, out);
 }
-fn gates<'a>(d: &'a Domain, row: &LandingRow, repo: api::Repository) -> &'a [policy::Gate] {
-    if let Some(repository) = d.repository(repo) && repository.settings.default_branch != row.landing.branch { return &[]; }
-    d.landing.gates(row.landing.project, repo)
+impl Domain {
+    fn train_gates(&self, row: &LandingRow, repo: api::Repository) -> &[policy::Gate] {
+        if let Some(repository) = self.repository(repo) && repository.settings.default_branch != row.landing.branch { return &[]; }
+        self.landing.gates(row.landing.project, repo)
+    }
 }
 
 fn fresh(gates: &[policy::Gate]) -> policy::MemberFacts {
@@ -838,7 +843,7 @@ pub(crate) fn step(
                 },
             })
             .expect("bounded evidence");
-        facts.push(fresh(gates(d, &row, repository(member)))).expect("admitted members");
+        facts.push(fresh(d.train_gates(&row, repository(member)))).expect("admitted members");
     }
     let Some(first) = row.landing.members.first() else {
         return;
@@ -1118,7 +1123,7 @@ fn advance(
                 return;
             }
             let upstream = upstream_branch(d, &row);
-            p.stage = Stage::Round { stage: if upstream.is_some() { 6 } else { 0 }, candidate: None };
+            p.stage = Stage::Round { stage: if upstream.is_some() { RoundRead::Upstream } else { RoundRead::Branch }, candidate: None };
             let read = api::Read::Branch { branch: upstream.unwrap_or(row.landing.round.branch.clone()) };
             let repo = p.repository;
             ask(d, env, owner, p, repo, read, out);
@@ -1256,7 +1261,7 @@ fn advance(
                 return;
             }
             let configured =
-                gates(d, &row, repo).get(usize::from(gate)).expect("configured gate").clone();
+                d.train_gates(&row, repo).get(usize::from(gate)).expect("configured gate").clone();
             let mut keyed = policy::key(
                 policy::Repository { forge: repo.forge, repository: repo.repository },
                 &configured.name,
@@ -1345,41 +1350,45 @@ fn advance(
 }
 #[expect(clippy::too_many_arguments, reason = "one stage of the coherent round read")]
 fn round_read(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, row: &LandingRow,
-    stage: u8, candidate: Option<api::Commit>, answer: Result<api::Answer, api::Error>, out: &mut Queue<Request>) {
+    stage: RoundRead, candidate: Option<api::Commit>, answer: Result<api::Answer, api::Error>, out: &mut Queue<Request>) {
     let member = row.landing.members.first().expect("one member");
     let fact = p.facts.first_mut().expect("one fact");
     let base = member.base.unwrap_or(fact.main);
     let head = member.head.unwrap_or(fact.head);
     let mut candidate = candidate;
     let read = match stage {
-        6 => {
+        RoundRead::Upstream => {
             let Ok(api::Answer::Commit(tip)) = answer else { wait(d, p.task, env, p.repository, out); return };
-            p.upstream = Some(tip); p.stage = Stage::Round { stage: 0, candidate: None };
+            p.upstream = Some(tip); p.stage = Stage::Round { stage: RoundRead::Branch, candidate: None };
             let repo = p.repository;
             ask(d, env, owner, p, repo, api::Read::Branch { branch: row.landing.round.branch.clone() }, out); return;
         }
-        0 => {
-            candidate = match answer { Ok(api::Answer::Commit(commit)) => Some(commit), Ok(_) | Err(_) => None };
+        RoundRead::Branch => {
+            candidate = match answer {
+                Ok(api::Answer::Commit(commit)) => Some(commit), Err(api::Error::Missing) => None,
+                Ok(_) | Err(_) => { wait(d, p.task, env, p.repository, out); return; }
+            };
             match candidate {
                 Some(tip) => api::Read::Commits { before: tip, after: base, page: 1 },
                 None => {
-                    p.stage = Stage::Round { stage: 4, candidate };
+                    p.stage = Stage::Round { stage: RoundRead::Contained, candidate };
                     let repo = p.repository;
                     ask(d, env, owner, p, repo, api::Read::Commits { before: base, after: head, page: 1 }, out);
                     return;
                 }
             }
         }
-        1 => {
-            if crate::domain::ancestry_status(answer) != change::Status::Passed {
-                candidate = None;
+        RoundRead::Base => {
+            match crate::domain::ancestry_status(answer) {
+                change::Status::Passed => {}, change::Status::Failed => candidate = None,
+                change::Status::Unknown | change::Status::Pending => { wait(d, p.task, env, p.repository, out); return; }
             }
             match candidate {
                 Some(tip) => api::Read::Commits { before: tip, after: head, page: 1 },
                 None => api::Read::Commits { before: base, after: head, page: 1 },
             }
         }
-        2 => {
+        RoundRead::Head => {
             if let Some(tip) = candidate {
                 if crate::domain::ancestry_status(answer) == change::Status::Passed {
                     fact.candidate = Some((tip, policy::Combine::Merge));
@@ -1387,14 +1396,14 @@ fn round_read(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, r
                 api::Read::Commits { before: base, after: tip, page: 1 }
             } else {
                 fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed { policy::Status::Passed } else { policy::Status::Failed };
-                p.stage = Stage::Round { stage: 5, candidate };
+                p.stage = Stage::Round { stage: RoundRead::Pull, candidate };
                 let repo = p.repository;
                 let read = api::Read::PullFor { head: row.landing.round.branch.clone(), base: row.landing.branch.clone() };
                 ask(d, env, owner, p, repo, read, out);
                 return;
             }
         }
-        3 => {
+        RoundRead::Squash => {
             if fact.candidate.is_none()
                 && let Some(tip) = candidate
                 && let Ok(api::Answer::Commits { commits, more: false }) = answer
@@ -1407,11 +1416,11 @@ fn round_read(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, r
             }
             api::Read::Commits { before: base, after: head, page: 1 }
         }
-        4 => {
+        RoundRead::Contained => {
             fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed { policy::Status::Passed } else { policy::Status::Failed };
             api::Read::PullFor { head: row.landing.round.branch.clone(), base: row.landing.branch.clone() }
         }
-        5 => {
+        RoundRead::Pull => {
             if let Ok(api::Answer::Pull(pull)) = answer
                 && (pull.state == api::State::Open || pull.merged == member.candidate)
                 && Some(pull.commit) == member.candidate
@@ -1422,9 +1431,14 @@ fn round_read(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, r
             collect(d, env, owner, p, out);
             return;
         }
-        _ => unreachable!("bounded round read stage"),
     };
-    p.stage = Stage::Round { stage: stage.checked_add(1).expect("six stages"), candidate };
+    let stage = match stage {
+        RoundRead::Branch => RoundRead::Base, RoundRead::Base => RoundRead::Head,
+        RoundRead::Head => RoundRead::Squash, RoundRead::Squash => RoundRead::Contained,
+        RoundRead::Contained => RoundRead::Pull,
+        RoundRead::Pull | RoundRead::Upstream => unreachable!("terminal stages return above"),
+    };
+    p.stage = Stage::Round { stage, candidate };
     let repo = p.repository;
     ask(d, env, owner, p, repo, read, out);
 }
@@ -1454,7 +1468,7 @@ fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out:
     let row = d.landing.rows.get(&p.task).expect("pending landing");
     for (index, member) in row.landing.members.iter().enumerate() {
         let repo = repository(member);
-        for (number, gate) in gates(d, row, repo).iter().enumerate() {
+        for (number, gate) in d.train_gates(row, repo).iter().enumerate() {
             let main = p.facts.get(index).expect("member fact").main;
             if match d.landing.main_keys.get(&(repo, gate.name.clone())) {
                 Some((tip, _)) => *tip != main,
@@ -1521,7 +1535,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         fact.merge = result(d, p.task, position, 0, 5);
         fact.preparation = p.heard.preparation;
         fact.record = if member.landed.is_some() && fact.merged == member.landed { policy::Status::Passed } else { result(d, p.task, position, 0, 9) };
-        for (number, gate) in gates(d, &row, repository(member)).iter().enumerate() {
+        for (number, gate) in d.train_gates(&row, repository(member)).iter().enumerate() {
             let number = u16::try_from(number).expect("gate position");
             let fact = fact.gates.get_mut(usize::from(number)).expect("gate fact");
             let candidate = member.candidate.unwrap_or([0; 32]);
@@ -1683,7 +1697,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             let m = row.landing.members.get(usize::from(member)).expect("member");
             let repo = repository(m);
             let configured =
-                gates(d, &row, repo).get(usize::from(gate)).expect("configured gate").clone();
+                d.train_gates(&row, repo).get(usize::from(gate)).expect("configured gate").clone();
             let candidate = m.candidate.expect("candidate before dispatch");
             let key = gate_key(&row, member, gate, &configured.name, key);
             let purpose = purpose_identity(&row, member, gate, 1, try_);
@@ -1741,7 +1755,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             let m = row.landing.members.get(usize::from(member)).expect("member");
             let repo = repository(m);
             let configured =
-                gates(d, &row, repo).get(usize::from(gate)).expect("configured gate").clone();
+                d.train_gates(&row, repo).get(usize::from(gate)).expect("configured gate").clone();
             let key = gate_key(
                 &row,
                 member,
@@ -2195,7 +2209,7 @@ pub(crate) fn rebuild(d: &mut Domain) {
                 let policy::Proof::Dispatched { key, try_ } = proof.proof else {
                     continue;
                 };
-                let Some(gate) = gates(d, row, repo).get(number) else {
+                let Some(gate) = d.train_gates(row, repo).get(number) else {
                     continue;
                 };
                 let Some(candidate) = member.candidate else {
@@ -2425,7 +2439,7 @@ pub(crate) fn judge(
             return Some(crate::JudgeVerdict::Wait);
         }
         if criterion == crate::Criterion::Ci {
-            for (number, configured) in gates(d, row, repo).iter().enumerate() {
+            for (number, configured) in d.train_gates(row, repo).iter().enumerate() {
                 if !configured.blocking {
                     continue;
                 }

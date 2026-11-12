@@ -130,17 +130,21 @@ fn a_restart_finds_uncertain_opening_and_record_by_reading_the_forge() {
 #[test]
 fn a_head_moved_at_the_turn_closes_the_round_and_returns_to_gating() {
     let mut world = start(false); world.prepare_landing(LANDING, false);
+    let name = top::Name { forge: REPO.forge, repository: REPO.repository, what: top::What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()])) };
+    world.event(top::Event::Names { task: 99, resources: Box::new([name.clone()]) });
+    world.event(top::Event::Hold { entry: 0, task: 99, resource: name.clone(), from: None }); world.run_for(1);
     for entry in 102..140 {
         landings::step_landing_raw(&mut world, LANDING, entry);
         if matches!(world.landing(LANDING).landing.phase, landing::Phase::Turn { .. }) { break; }
     }
     assert!(matches!(world.landing(LANDING).landing.phase, landing::Phase::Turn { .. }));
-    let base = world.branch(b"main"); world.push_file(MEMBER, b"next", b"new delivery");
-    let head = translate::commit(world.branch(MEMBER)); let mut row = world.change(CHANGE).clone();
-    row.change.last_head = Some(head); row.change.state = change::State::Gating { head, asked: Box::new([]) };
-    world.event(top::Event::Change { row }); landings::drive_landing(&mut world, LANDING);
+    let base = world.branch(b"main");
+    world.event(top::Event::Claim { designs: Box::new([]), task: 99, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) }); world.run_for(1);
+    world.push_file(MEMBER, b"next", b"new delivery"); let head = translate::commit(world.branch(MEMBER));
+    world.event(top::Event::Answered { task: 99, attempt: 1, pushed: Box::new([(name, head)]) }); world.run_for(1);
+    landings::drive_landing(&mut world, LANDING);
     assert!(world.landing(LANDING).landing.members[0].landed.is_none()); assert_eq!(world.branch(b"main"), base);
-    assert!(matches!(world.change(CHANGE).change.state, change::State::Ready { head: latest, .. } if latest == head));
+    assert!(matches!(world.change(CHANGE).change.state, change::State::Ready { head: latest, .. } if latest == head), "{:?}", world.change(CHANGE).change.state);
     assert_eq!(world.change(CHANGE).change.landing, None);
     let writes = world.take_calls();
     assert!(writes.iter().any(|op| matches!(op, api::Op::Write(api::Write::Close { .. }))));
