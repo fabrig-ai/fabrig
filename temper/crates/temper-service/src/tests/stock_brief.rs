@@ -65,7 +65,7 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
     };
     assignment.run.contract = if open {
         jig_domain_tasks::Contract::Report { words: 32 }
-    } else if number == 5 || number == 13 {
+    } else if number == 5 || number >= 13 {
         jig_domain_tasks::Contract::Report { words: engine.limits.core.tasks.result_bytes }
     } else if number == 10 {
         jig_domain_tasks::Contract::Report { words: 64 }

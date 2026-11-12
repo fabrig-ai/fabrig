@@ -140,8 +140,7 @@ fn a_fresh_init_names_the_standard_profiles() {
     for at in (1..document.len().checked_sub(1).unwrap()).step_by(2) {
         let member = document.text(document.token(at).unwrap()).expect("override name");
         assert!(
-            !member.starts_with(b"people.")
-                && (!member.starts_with(b"authority.") || member == b"authority.executors"),
+            !member.starts_with(b"people.") && (!member.starts_with(b"authority.") || member == b"authority.executors"),
             "init overrides {} instead of taking standard",
             str::from_utf8(member).unwrap()
         );
