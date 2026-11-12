@@ -12,7 +12,7 @@
 //!   the script. System turns count every assistant message; request and
 //!   fallback turns count those after the last user message holding text.
 //!   Opted-in rules select a fixed turn from fresh text and tool output.
-//!   Past its last turn, a script answers "done".
+//!   Past its last turn, a script answers "done", or fails under strict (2.5).
 //! - While the conversation has had fewer rounds of tool calls than
 //!   configured since the client last wrote, and the query offers tools, the
 //!   answer calls some of them, picked at random, with arguments from a small
@@ -28,7 +28,7 @@
 
 use alloc::boxed::Box;
 
-use skein_lib::bytes::copy_of;
+use skein_lib::bytes::{self, copy_of};
 use skein_lib::{Duration, List, Rng, Time, usize_of};
 
 use crate::api::{Answer, Error, Failure, Finish, Line, Message, Part, Query, Role, Rule, Rules, Script, Turn, Usage};
@@ -156,10 +156,16 @@ pub(crate) fn by_input(
                 Err(failure) => Err((failure, place)),
             };
         }
+        if config.strict {
+            return Err((no_script(played, Some(script), query), None));
+        }
         return Ok((
             answer(query, Box::new([Part::Text { text: copy_of(b"done") }]), Finish::Stop, 1, cut_text()),
             None,
         ));
+    }
+    if config.strict {
+        return Err((no_script(played, None, query), None));
     }
     let outside = rng.chance(config.outside_choice) && tool_count(query, true) != 0;
     if tool_rounds(&query.messages) < config.tool_rounds
@@ -192,6 +198,62 @@ pub(crate) fn by_input(
     }
     let tokens = rng.between(1, config.answer_tokens.max(1).into());
     Ok((answer(query, Box::new([Part::Text { text: copy_of(b"done") }]), Finish::Stop, tokens, cut_text()), None))
+}
+
+/// Strict's provider text and evidence (testing/fakes/llm.md, 2.5).
+fn no_script(played: &Played, selected: Option<usize>, query: &Query) -> Failure {
+    let reason = match selected {
+        Some(index) => {
+            let script = played.scripts.get(index).expect("selected among the scripts");
+            let count = skein_lib::Decimal::of(skein_lib::len_u64(script.turns.len()));
+            let named = played.cued.checked_add(played.asked).expect("admitted script groups");
+            let source = if index < named {
+                bytes::concat(&[b"the script cued \"", &script.cue, b"\""])
+            } else {
+                copy_of(b"otherwise")
+            };
+            bytes::concat(&[b"past the ", count.as_bytes(), b" turns of ", &source])
+        }
+        None => copy_of(b"no cue matches"),
+    };
+    let request = last_request_text(&query.messages);
+    Failure {
+        error: Error::InvalidRequest,
+        report: crate::api::Report { code: copy_of(b"no_script"), ..crate::api::Report::none() },
+        message: bytes::concat(&[b"no script answers: ", &reason, b"; last request: \"", &request, b"\""]),
+        parts: Box::new([]),
+    }
+}
+
+/// Joins only text parts, stopping at strict's request-text clip.
+fn last_request_text(messages: &[Message]) -> Box<[u8]> {
+    const CLIP: u32 = 512;
+    let Some(request) = latest_request(messages) else { return Box::new([]) };
+    let mut text = List::with_capacity(CLIP);
+    let mut separated = false;
+    for part in &request.parts {
+        match part {
+            Part::Text { text: part } => {
+                if separated {
+                    if text.len() == CLIP {
+                        return bytes::concat(&[text.as_slice(), "…".as_bytes()]);
+                    }
+                    text.push(b'\n').expect("room before the clip");
+                }
+                let room = usize_of(CLIP.checked_sub(text.len()).expect("text within the clip"));
+                let prefix = bytes::utf8_prefix(part, room);
+                for byte in prefix {
+                    text.push(*byte).expect("prefix fits the clip");
+                }
+                if prefix.len() < part.len() {
+                    return bytes::concat(&[text.as_slice(), "…".as_bytes()]);
+                }
+                separated = true;
+            }
+            Part::Opaque { .. } | Part::ToolCall { .. } | Part::ToolOutput { .. } => {}
+        }
+    }
+    text.into_boxed()
 }
 
 /// Only names offered distinct tools; the independent domain validates its inputs.
@@ -393,7 +455,7 @@ fn input_turn(group: &[Box<[Rule]>], script: usize, messages: &[Message]) -> Opt
                     Part::ToolOutput { output, .. } => output,
                     Part::Opaque { .. } | Part::ToolCall { .. } => continue,
                 };
-                if skein_lib::bytes::find(text, &rule.cue).is_some() {
+                if bytes::find(text, &rule.cue).is_some() {
                     return Some(usize_of(rule.turn));
                 }
             }
@@ -453,7 +515,12 @@ fn scripted(
                             continue;
                         }
                     }
-                    return Err(Failure { error: *error, report: report.clone(), parts: parts.into_boxed() });
+                    return Err(Failure {
+                        error: *error,
+                        report: report.clone(),
+                        message: Box::new([]),
+                        parts: parts.into_boxed(),
+                    });
                 }
                 continue;
             }
@@ -1027,3 +1094,6 @@ mod failures;
 
 #[cfg(test)]
 mod played;
+
+#[cfg(test)]
+mod strict;
