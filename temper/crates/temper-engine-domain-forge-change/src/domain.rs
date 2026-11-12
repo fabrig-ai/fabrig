@@ -1559,7 +1559,7 @@ fn pushed(change: &Change, head: [u8; 32]) -> State {
 }
 
 fn ready(
-    change: Change,
+    mut change: Change,
     head: [u8; 32],
     ready_since: Wall,
     facts: &Facts,
@@ -1568,6 +1568,11 @@ fn ready(
     limits: &Limits,
 ) -> Stepped {
     if facts.branch != Some(head) {
+        if change.last_head == facts.branch && let Some(head) = facts.branch {
+            change.state = State::Gating { head, asked: Box::new([]) };
+            change.clean = Box::new([]); change.gate_failures = Box::new([]); change.since = now;
+            return Stepped { change, decision: Decision::None };
+        }
         return hold(change, Hold::BranchMoved);
     }
     match facts.ask {

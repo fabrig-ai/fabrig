@@ -898,6 +898,7 @@ fn a_change_created_with_a_dependency_does_not_join_a_formed_landing() {
 #[test]
 fn the_prepare_jobs_conflict_result_ends_the_round_and_asks_for_resolution() {
     let (mut world, change) = produced_turn_change(None);
+    world.manual_prepare_jobs();
     for _ in 0..600 {
         world.tick();
         if !world.jobs.is_empty() {

@@ -2249,8 +2249,8 @@ fn outcome_facts(
                         save_change(d, out, saved);
                     }
                 }
-                landed::landed_room(d, env, commit, task, out);
             }
+            landed::landed_room(d, env, commit, task, out);
             if let Some(change) = d.changes.get(&task) {
                 let repository = change.repository;
                 let branch = change.base.clone();

@@ -93,6 +93,7 @@ pub struct CallError {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
+    auto_prepare: bool,
     restart_config: engine::Config,
     oracle_documents: Vec<(Token, forge_top::Document)>,
     oracle_watcher: u64,
@@ -1100,6 +1101,7 @@ impl World {
             assigned: Vec::new(),
             jobs: Vec::new(),
             job_workspaces: BTreeMap::new(),
+            auto_prepare: turn,
             delivered_messages: BTreeMap::new(),
             answers: Vec::new(),
             call_errors: Vec::new(),
@@ -1281,8 +1283,10 @@ impl World {
     }
 
     /// Give the engine a clean prepare outcome as the scripted worker gives it.
-    pub fn prepare_tick(&mut self) {
-        self.tick();
+    pub fn prepare_tick(&mut self) { self.tick(); }
+    pub fn manual_prepare_jobs(&mut self) { self.auto_prepare = false; }
+    pub fn automatic_prepare_jobs(&mut self) { self.auto_prepare = true; }
+    fn complete_prepare(&mut self) {
         let Some(index) = self.jobs.iter().position(|job| job.kind == jig_domain_link::JobKind(1)) else { return };
         let job = self.jobs.remove(index);
         let workspace = self.job_workspaces.get(&job.run.raw()).expect("typed prepare items").clone();
@@ -2238,6 +2242,7 @@ impl World {
 
     pub fn tick(&mut self) {
         self.tick_with_reply_cut(None);
+        if self.auto_prepare { self.complete_prepare(); }
     }
 
     /// Apply the step saving a reply to `target`, losing its commit terminal.

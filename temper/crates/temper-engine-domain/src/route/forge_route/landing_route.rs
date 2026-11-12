@@ -166,7 +166,7 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
             tasks::Phase::Active(_) | tasks::Phase::Waiting => false,
             tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
         };
-        if held || kept(domain, env, candidate.task) {
+        if held || kept(domain, env, candidate.task) || super::change_delegate_live(domain, candidate.task) {
             excluded.push(candidate.task).expect("bounded changes");
         }
     }

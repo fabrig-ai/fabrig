@@ -208,7 +208,7 @@ pub fn chat_policy(value: &mut serde_json::Value) {
         // The standing charter, closer procedure and close job are delegation targets.
         ("authority.executors", 18),
         ("authority.segments", 8),
-        ("tasks.authority_grants", 14),
+        ("tasks.authority_grants", 15),
         ("tasks.authority_bytes", 70),
         // The standing charter, closer procedure and close job are delegation targets.
         ("tasks.executor_kinds", 18),
