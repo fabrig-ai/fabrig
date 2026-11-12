@@ -32,7 +32,7 @@ fn the_opener_and_the_two_hour_check_run_on_three_workers() {
     assert_eq!(queued.pointer("/task/chip/phase").and_then(serde_json::Value::as_str), Some("due"));
     for name in WORKERS {
         let worker = cluster.worker(name);
-        assert_eq!(worker.end(), Some(&End::Drained), "{name} drained");
+        assert_eq!(worker.end(), Some(&End::Worker(temper_service::worker_alone::End::Drained)), "{name} drained");
     }
     assert_eq!(cluster.worker("ws").ran(), &[case::DIRECTOR, case::CHECK], "ws ran both chats");
     assert_eq!(cluster.worker("s2").ran(), &[case::BENCHMARK], "s2 ran only the benchmark");

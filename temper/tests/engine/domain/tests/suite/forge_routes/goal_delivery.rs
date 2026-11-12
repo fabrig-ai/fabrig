@@ -83,7 +83,7 @@ fn assert_design_first_recipe() {
             "the recipe must cite landed design without an ended dependency"
         );
     }
-    let ask = include_str!("../../../../../../crates/temper-service/src/stock/ask.txt");
+    let ask = include_str!("../../../../../../crates/temper-engine-service/src/stock/ask.txt");
     assert!(ask.contains("Use after only for live prerequisites"), "Ask temper must propose live dependencies");
     assert!(ask.contains("cite design's repository path and section in words; omit its ended task from after"));
 }
@@ -190,7 +190,7 @@ fn assert_confirmed_design_recipe() {
             "{place}: production evidence must not stand in for landing confirmation"
         );
     }
-    let ask = include_str!("../../../../../../crates/temper-service/src/stock/ask.txt");
+    let ask = include_str!("../../../../../../crates/temper-engine-service/src/stock/ask.txt");
     assert!(ask.contains("confirm all required design landed into g before dispatching coding"));
     assert!(ask.contains("A push, delivery or designer report is insufficient"));
     let first = coordinator["parts"][0]["instructions"].as_str().expect("first instructions");

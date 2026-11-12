@@ -29,22 +29,23 @@ pub mod ctl;
 pub mod fake;
 mod fake_backends;
 use fake_backends::json;
-pub use temper_engine_shell::forge;
+pub mod forge;
 use temper_engine_shell::{address, forge_sign_in, login_passwd};
 use temper_forge_setup_shell::process as forge_exec;
 pub mod help;
 mod init;
 pub use temper_shell::link_file;
+pub mod lines;
 pub mod open;
 mod program_login;
-pub use temper_engine_shell::setup;
 mod serve;
 mod served;
+pub mod setup;
 pub use served::Service;
 mod tui_front;
 use json::CONFIG_BYTES;
 #[cfg(test)]
-pub(crate) use temper_engine_shell::lines as host;
+pub(crate) use lines as host;
 use temper_shell::directories::{errno, unread};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -345,13 +346,10 @@ pub fn run(
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
         Command::FakeGit { arguments } => return Ok(fake::git::run(&arguments, run_as, environment, working)),
         Command::ForgeChild { parent, signal, program, arguments } => {
-            return temper_engine_shell::forge::command(
-                "temper",
-                forge::Command::ForgeChild { parent, signal, program, arguments },
-            );
+            return forge::command("temper", forge::Command::ForgeChild { parent, signal, program, arguments });
         }
         Command::Forge { directories, arguments, ssl_cert_file, environment } => {
-            return temper_engine_shell::forge::command(
+            return forge::command(
                 "temper",
                 forge::Command::Forge { directories, arguments, ssl_cert_file, environment },
             );
@@ -492,7 +490,7 @@ pub fn service_ending(
     store: &[u8],
     unsettled: &[temper_service::Unsettled],
 ) -> (String, u8) {
-    temper_engine_shell::lines::ending_with_binary("temper", end, output_failed, directories, store, unsettled)
+    lines::ending_with_binary("temper", end, output_failed, directories, store, unsettled)
 }
 
 #[cfg(test)]

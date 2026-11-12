@@ -1,5 +1,5 @@
 //! The box's service and adapter (protocol/services.md, 7).
-use temper_engine_shell::lines as engine_lines;
+use crate::lines::note_line;
 use temper_service as service;
 use temper_service_shell::Served;
 use temper_worker_shell::lines as worker_lines;
@@ -39,11 +39,11 @@ pub const SERVED: Served<Service> = Served {
         Service::Worker(service) => service::worker_alone::iterate_stage(service, stage, now, wall),
     },
     resolve: |service| match service {
-        Service::Joined(service) => temper_engine_shell::served::resolve(service),
+        Service::Joined(service) => temper_engine_shell::served::resolve(service.engine_component()),
         Service::Worker(_) => {}
     },
     handover: |service| match service {
-        Service::Joined(service) => temper_engine_shell::served::handover(service),
+        Service::Joined(service) => temper_engine_shell::served::handover(service.engine_component()),
         Service::Worker(_) => {}
     },
     completions: |service| match service {
@@ -88,15 +88,15 @@ pub const SERVED: Served<Service> = Served {
     },
     operations: Service::operations,
     ending: |service, binary, failed, directories, store| match service {
-        Service::Joined(service) => engine_lines::service_ending(service, binary, failed, directories, store),
+        Service::Joined(service) => ending(service, binary, failed, directories, store),
         Service::Worker(service) => worker_lines::worker_service_ending(service, binary, failed, directories, store),
     },
     listening: |service, binary| match service {
-        Service::Joined(service) => engine_lines::listening_line(service, binary),
+        Service::Joined(service) => listening(service, binary),
         Service::Worker(service) => worker_lines::worker_listening_line(service, binary),
     },
     note: |service, binary| match service {
-        Service::Joined(service) => engine_lines::next_note_line(service, binary),
+        Service::Joined(service) => service.notes().pop().map(|note| note_line(binary, note)),
         Service::Worker(service) => worker_lines::worker_note_line(service, binary),
     },
     link: |service| match service {
@@ -108,3 +108,21 @@ pub const SERVED: Served<Service> = Served {
         Service::Worker(_) => None,
     },
 };
+
+fn listening(service: &mut service::Service, binary: &str) -> Option<(String, bool)> {
+    let note = service.listening().pop()?;
+    let clients = matches!(
+        &note,
+        service::Note::Engine(service::EngineNote::Listening { listener: service::Listening::Clients, .. })
+    );
+    Some((note_line(binary, note), clients))
+}
+fn ending(
+    service: &service::Service,
+    binary: &str,
+    failed: bool,
+    directories: &temper_shell::directories::Directories,
+    store: &[u8],
+) -> (String, u8) {
+    crate::lines::ending_with_binary(binary, service.end(), failed, directories, store, service.unsettled())
+}

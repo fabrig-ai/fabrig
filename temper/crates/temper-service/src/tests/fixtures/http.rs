@@ -1,7 +1,7 @@
-use crate::engine::Engine;
 use jig_client_protocol_wire::v19 as wire;
 use skein_io as io;
 use skein_lib::{Decimal, Reader, Time, Token, Wall, Writer};
+use temper_engine_service::Engine;
 const REQUEST_AT: Time = Time::from_nanos(1);
 const REQUEST_WALL: Wall = Wall::from_nanos(1);
 pub const SOCKET: Token = Token::new(100);
@@ -68,24 +68,14 @@ impl Peer {
     pub fn raw_on(engine: &mut Engine, bytes: &[u8], socket: Token) -> Self {
         let mut wire = skein_world::stream::Wire::new(7);
         wire.write(bytes);
-        assert!(engine.clients.up(io::Event::Accepted {
+        assert!(engine.client_event(io::Event::Accepted {
             owner: Token::new(crate::tokens::SERVER),
             socket,
             peer: address(),
         }));
         Self { wire, socket, owner: None, closed: 0, body_demand: false }
     }
-    /// Stop once the held request head has caused a demand for its withheld body.
-    pub fn hold_body(&mut self, engine: &mut Engine) {
-        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, |peer, _| peer.body_demand);
-        assert!(self.body_demand, "the mounted call asks for its withheld body");
-    }
-    pub fn handoff(&mut self, engine: &mut Engine) {
-        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, |_, engine| !engine.clients.early.is_empty());
-    }
-    pub fn is_closed(&self) -> bool {
-        self.closed > 0
-    }
+
     pub fn pump(&mut self, engine: &mut Engine, decide: bool) {
         self.pump_at(engine, decide, REQUEST_AT, REQUEST_WALL);
     }
@@ -102,22 +92,14 @@ impl Peer {
     ) {
         for _ in 0_u32..256 {
             if decide {
-                crate::engine::iterate(engine, now, wall);
+                engine.iterate(now, wall);
             } else {
-                engine.clients.iterate(
-                    now,
-                    wall,
-                    &mut engine.events,
-                    &engine.workers.forges,
-                    engine.demo.as_ref(),
-                    &mut engine.accounts,
-                );
-                engine.clients.secrets_step(&mut engine.store);
+                engine.advance_clients(now, wall);
             }
-            for _ in 0..engine.clients.io.len() {
-                match engine.clients.io.pop().unwrap() {
+            for _ in 0..engine.client_requests().len() {
+                match engine.client_requests().pop().unwrap() {
                     io::Request::Listen { owner, addr } => {
-                        assert!(engine.clients.up(io::Event::Listening { owner, listener: LISTENER, addr }));
+                        assert!(engine.client_event(io::Event::Listening { owner, listener: LISTENER, addr }));
                     }
                     io::Request::Bind { socket, owner } => {
                         assert_eq!(socket, self.socket);
@@ -135,7 +117,7 @@ impl Peer {
                     }
                     io::Request::Close { .. } | io::Request::Abort { .. } => {
                         self.closed = self.closed.checked_add(1).unwrap();
-                        assert!(engine.clients.up(io::Event::Closed { owner: self.owner.unwrap() }));
+                        assert!(engine.client_event(io::Event::Closed { owner: self.owner.unwrap() }));
                     }
                     io::Request::Connect { .. }
                     | io::Request::Reject { .. }
@@ -153,52 +135,18 @@ impl Peer {
             if let Some(owner) = self.owner
                 && let Some(up) = self.wire.answer()
             {
-                assert!(engine.clients.up(io::Event::Stream { owner, up }));
+                assert!(engine.client_event(io::Event::Stream { owner, up }));
             }
         }
     }
-    pub fn read_hello(&mut self, engine: &mut Engine) -> bool {
-        // Keep the clock at REQUEST_AT: no predecessor waits out a heartbeat.
-        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, |peer, _| peer.event_data().is_some());
-        let Some(data) = self.event_data() else { return false };
-        let record =
-            skein_lib::base64::decode(skein_lib::base64::Alphabet::Standard, data, u32::try_from(data.len()).unwrap())
-                .unwrap();
-        match wire::StreamEvent::decode(&engine.clients.env.limits.wire, &mut Reader::new(&record)) {
-            Ok(wire::StreamEvent::Hello(_)) => true,
-            Ok(wire::StreamEvent::Delivery(_) | wire::StreamEvent::Text(_) | wire::StreamEvent::Ended(_)) | Err(_) => {
-                false
-            }
-        }
-    }
-    fn event_data(&self) -> Option<&[u8]> {
-        let start = skein_lib::bytes::find(&self.wire.received, b"data: ")?;
-        let data = self.wire.received.get(start.checked_add(6).unwrap()..).unwrap();
-        let end = skein_lib::bytes::find(data, b"\n\n")?;
-        data.get(..end)
-    }
-    pub fn end(&mut self, engine: &mut Engine) {
-        engine.clients.up(io::Event::Stream { owner: self.owner.expect("bound peer"), up: skein_lib::stream::Up::End });
-        self.pump_until(engine, false, REQUEST_AT, REQUEST_WALL, |_, _| false);
-    }
-    pub fn close(&mut self, engine: &mut Engine) {
-        assert!(engine.clients.up(io::Event::Closed { owner: self.owner.expect("bound peer") }));
-        self.closed = self.closed.checked_add(1).unwrap();
-        self.pump(engine, false);
-    }
-    pub fn closed(&self) -> u32 {
-        self.closed
-    }
+
     pub fn received(&self) -> &[u8] {
         &self.wire.received
     }
     pub fn sign_in_answer(&self, engine: &Engine) -> wire::SignInAnswer {
         let at = skein_lib::bytes::find(&self.wire.received, b"\r\n\r\n").unwrap().checked_add(4).unwrap();
-        wire::SignInAnswer::decode(
-            &engine.clients.env.limits.wire,
-            &mut Reader::new(self.wire.received.get(at..).unwrap()),
-        )
-        .unwrap()
+        wire::SignInAnswer::decode(engine.client_wire(), &mut Reader::new(self.wire.received.get(at..).unwrap()))
+            .unwrap()
     }
     pub fn streaming(&self) -> bool {
         skein_lib::bytes::find(&self.wire.received, b"text/event-stream").is_some()
@@ -211,11 +159,9 @@ pub fn link_body(engine: &Engine, link: &[u8]) -> Box<[u8]> {
     use skein_lib::base64::{self, Alphabet};
     let at = skein_lib::bytes::find(link, b"secret=").unwrap().checked_add(7).unwrap();
     let secret = base64::decode(Alphabet::Url, link.get(at..).unwrap(), 32).unwrap();
-    let record = wire::LinkSignIn::new(
-        &engine.clients.env.limits.wire,
-        wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) },
-    )
-    .unwrap();
+    let record =
+        wire::LinkSignIn::new(engine.client_wire(), wire::LinkSignInParts { secret: skein_lib::Secret::new(secret) })
+            .unwrap();
     let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut bytes).unwrap();
     bytes.finish()

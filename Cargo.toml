@@ -681,7 +681,8 @@ temper-box-shell = { path = "temper/crates/temper-box-shell" }
 temper-worker-service-fixtures = { path = "temper/testing/temper-worker-service-fixtures" }
 temper-worker-service = { path = "temper/crates/temper-worker-service" }
 temper-service-core = { path = "temper/crates/temper-service-core" }
-temper-service = { path = "temper/crates/temper-service", default-features = false }
+temper-service = { path = "temper/crates/temper-service" }
+temper-engine-service = { path = "temper/crates/temper-engine-service" }
 temper-worker-protocol-git-world = { path = "temper/tests/worker/protocol-git" }
 temper-worker-protocol-git = { path = "temper/crates/temper-worker-protocol-git" }
 temper-client-protocol-wire = { path = "temper/crates/temper-client-protocol-wire" }

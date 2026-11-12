@@ -5,7 +5,8 @@ use jig_protocol_config::{self as config, Path, read};
 use skein_json::{Document, document::Kind};
 use temper_service_core::startup::at;
 
-pub(super) struct Worker {
+#[derive(Debug)]
+pub struct Worker {
     pub root: Box<[u8]>,
     pub git: Option<Box<[u8]>>,
 }
@@ -63,7 +64,7 @@ pub(super) fn finish_shape(document: &Document, object: read::Object, path: &Pat
     }
     problems.past = problems.past.saturating_add(found.past);
 }
-fn worker(
+pub fn member(
     document: &Document,
     index: usize,
     entry: u32,
@@ -128,7 +129,7 @@ pub(super) fn read(
             problems.push(path.member(b"workers"), What::WorkerAlone);
         }
         for (index, at) in ats.iter().enumerate() {
-            let value = worker(document, index, *at, directories, &path, problems);
+            let value = member(document, index, *at, directories, &path, problems);
             if index == 0 {
                 own = value;
             }

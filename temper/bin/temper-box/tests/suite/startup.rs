@@ -886,7 +886,9 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
                 };
                 assert_eq!(
                     service.notes().pop(),
-                    Some(temper_service::Note::StartupWarning { line: line.trim_end().as_bytes().into() }),
+                    Some(temper_service::Note::Engine(temper_service::EngineNote::StartupWarning {
+                        line: line.trim_end().as_bytes().into()
+                    })),
                     "{member}={value}"
                 );
                 assert_eq!(service.notes().pop(), None);

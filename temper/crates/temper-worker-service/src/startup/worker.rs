@@ -1,5 +1,5 @@
 //! The worker's start and checks (protocol/services.md, 5).
-mod application;
+pub mod application;
 pub mod checkout;
 pub mod checks;
 use crate::worker_settings::Limits;

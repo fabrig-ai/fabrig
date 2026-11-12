@@ -41,7 +41,7 @@ pub fn one_process_under_box(under_box: bool) -> SystemStand {
 pub fn until_hosting(stand: &mut SystemStand) {
     for _ in 0_u16..256 {
         // Occupy this turn's root input so the arriving hello stays visible.
-        stand.service.engine.as_mut().expect("engine").events.push(temper_engine_domain::Event::Resume);
+        stand.service.engine_component().input(temper_engine_domain::Event::Resume);
         stand.turn();
         if hello(&stand.service).is_some() {
             return;
@@ -50,7 +50,7 @@ pub fn until_hosting(stand: &mut SystemStand) {
     panic!("the worker's hello reaches the engine");
 }
 pub fn hello(service: &Service) -> Option<(skein_lib::Token, &jig_domain_link::Hello)> {
-    for event in &service.engine.as_ref().expect("engine").events {
+    for event in service.engine.as_ref().expect("engine").observations() {
         if let temper_engine_domain::Event::Worker(temper_engine_domain::WorkerInput::Link {
             channel,
             link: temper_engine_domain::Link::Hello { hello, .. },
