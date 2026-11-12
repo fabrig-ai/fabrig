@@ -929,7 +929,7 @@ fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: 
         out,
     );
 }
-fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<Request>) {
+fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u32, out: &mut Queue<Request>) {
     let result = row.result.as_ref().expect("terminal receipt");
     let run = row.record.run.as_ref().expect("live range");
     let next = if row.received {
@@ -966,7 +966,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
                 wait(row.task.expect("tier task"), out);
                 return;
             };
-            red::landed(d, row, &newly_red, &logs, out);
+            red::landed(d, row, &newly_red, &logs, message_bytes, out);
         }
         let run = row.record.run.as_ref().expect("judged range");
         crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
@@ -1130,7 +1130,7 @@ pub(crate) fn step(
             TierBranch::Pending { .. } => wait(task, out),
             TierBranch::Absent => {
                 d.tier_ops.follows.remove(&key);
-                finish(d, env, &mut row, out);
+                finish(d, env, &mut row, heard.message_bytes, out);
             }
         }
     } else {
