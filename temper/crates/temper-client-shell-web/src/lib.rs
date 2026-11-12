@@ -23,9 +23,12 @@ pub mod journey;
 pub mod limits;
 pub mod playground;
 pub mod public;
+#[cfg(target_arch = "wasm32")]
+mod push;
 pub mod records;
 #[cfg(target_arch = "wasm32")]
 enum Report {
+    Push(temper_client_domain::pages::told::Report),
     Start,
     #[cfg(feature = "record")]
     Mark,
@@ -46,6 +49,7 @@ enum Report {
 /// The shared host loop (temper/docs/design/playground.md, 6).
 struct Shell<P: ShellPlatform> {
     host: host::Host,
+    push_inbox: Rc<Inbox<Report>>,
     #[cfg(feature = "record")]
     recorder: Option<journey::Recorder>,
     page: Rc<RefCell<Page<'static>>>,
@@ -87,6 +91,7 @@ impl ShellPlatform for platform::Browser<Report> {
 #[cfg(target_arch = "wasm32")]
 #[cfg_attr(not(feature = "playground"), wasm_bindgen::prelude::wasm_bindgen(start))]
 pub fn start() {
+    push::manifest();
     let window = web_sys::window().expect("window");
     let path = window.location().pathname().expect("path") + &window.location().search().expect("query");
     if matches!(temper_client_domain::address::parse(path.as_bytes()), temper_client_domain::Place::Public(_)) {
@@ -165,6 +170,7 @@ fn start_signed_in() {
     let timer = timer::web::Timer::new(Rc::clone(&inbox), || Report::Due);
     let mut shell = Shell {
         host,
+        push_inbox: Rc::clone(&inbox),
         #[cfg(feature = "record")]
         recorder,
         page,
@@ -179,6 +185,7 @@ fn start_signed_in() {
         title: title::web::Title::default(),
         heading_focus: focus::HeadingFocus::new(),
     };
+    push::state(Rc::clone(&inbox));
     inbox.start(Box::new(move |inbox| shell.turn(inbox)));
     inbox.raise(Report::Start);
 }
@@ -251,6 +258,7 @@ impl<P: ShellPlatform> Shell<P> {
     /// The host's report, or none for the shell's recording marks and saves; the timer told it fired.
     fn host_report(&mut self, report: Report) -> Option<host::Report> {
         match report {
+            Report::Push(report) => host::Report::Push(report),
             Report::Start => host::Report::Start,
             Report::Frame(_) | Report::World(_) => return None,
             #[cfg(feature = "record")]
@@ -288,6 +296,10 @@ impl<P: ShellPlatform> Shell<P> {
     }
     /// Carries one report's requests, navigation, store writes and stream read; returns whether a new page shows.
     fn carry(&mut self, inbox: &Inbox<Report>, duties: host::Duties, read_on: bool) -> bool {
+        // Push permission is asked inside the press event, before any asynchronous work.
+        for duty in &duties.push {
+            push::carry(Rc::clone(&self.push_inbox), *duty);
+        }
         // Keep the person's gesture: tabs precede transport in this turn
         // (skein/docs/design/ui/web/README.md, section 9).
         for tab in &duties.tab {

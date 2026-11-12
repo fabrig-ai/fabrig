@@ -188,6 +188,7 @@ impl App for Temper {
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Leave { .. }
+            | Request::Push(_)
             | Request::Fact { .. }
             | Request::Dropped { .. } => Duty::Fact,
         }
@@ -240,6 +241,7 @@ impl App for Temper {
             | Request::Tab { .. }
             | Request::Leave { .. }
             | Request::SignOut
+            | Request::Push(_)
             | Request::Fact { .. }
             | Request::Dropped { .. } => return None,
         };
@@ -261,7 +263,8 @@ impl App for Temper {
                     | domain::pages::Act::Latest
             ),
             Some(
-                domain::Event::Copied { .. }
+                domain::Event::Push(_)
+                | domain::Event::Copied { .. }
                 | domain::Event::AskApproval
                 | domain::Event::Act { action: Action::Approve(_) | Action::Copy { .. } }
                 | domain::Event::Start { .. }
@@ -380,6 +383,7 @@ impl App for Temper {
             | Request::Tab { .. }
             | Request::Leave { .. }
             | Request::SignOut
+            | Request::Push(_)
             | Request::Fact { .. }
             | Request::Dropped { .. } => None,
         }
@@ -416,7 +420,8 @@ impl App for Temper {
                 receipts
             }
             domain::Event::SignedOut => vec![Receipt::Parked],
-            domain::Event::Copied { .. }
+            domain::Event::Push(_)
+            | domain::Event::Copied { .. }
             | domain::Event::Start { .. }
             | domain::Event::Went { .. }
             | domain::Event::Act { .. }

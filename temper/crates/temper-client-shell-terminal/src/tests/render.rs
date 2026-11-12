@@ -213,6 +213,7 @@ fn no_project_reads_the_same_in_the_terminal() {
             | Request::SignOut
             | Request::Dropped { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => None,
         };
         if let Some(up) = up {

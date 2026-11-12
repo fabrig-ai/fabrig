@@ -132,6 +132,7 @@ pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
             | Address::Inbox { .. }
             | Address::Chats { .. }
             // page-view: draw Remembered.
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Limits

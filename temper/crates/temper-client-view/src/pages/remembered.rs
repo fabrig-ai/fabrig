@@ -149,7 +149,7 @@ fn button(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, act: 
     }
     b.close();
 }
-fn text(b: &mut Builder, role: Role, words: &[u8], style: Style) {
+pub(super) fn text(b: &mut Builder, role: Role, words: &[u8], style: Style) {
     b.open(role);
     b.style(style);
     b.name(words);
