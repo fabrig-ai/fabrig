@@ -140,7 +140,7 @@ fn the_checkouts_repositories_past_the_agents_directories_name_both_limits() {
     let worker = fixtures::worker_settings();
     let own = crate::limits::profile(crate::limits::Profile::Small);
     let mut found = Problems::empty();
-    checks::worker(&crate::worker_settings::root_limits(&worker, &agent, &own), &mut found);
+    checks::worker(&crate::worker_settings::root_limits(&worker, &agent, &crate::limits::worker(&own)), &mut found);
     assert_eq!(
         &*lines(&found),
         b"application.limits.overrides.checkout.repositories: must agree with the agent's directories\n"
@@ -312,7 +312,7 @@ fn worker_limits() -> temper_worker_domain::Limits {
     crate::worker_settings::root_limits(
         &fixtures::worker_settings(),
         &fixtures::startup_agent(),
-        &crate::limits::profile(crate::limits::Profile::Small),
+        &crate::limits::worker(&crate::limits::profile(crate::limits::Profile::Small)),
     )
 }
 

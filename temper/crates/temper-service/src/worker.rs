@@ -1,20 +1,22 @@
 //! One worker root and its channels, with values below the domain (jig's
 //! protocol/service.md, 6).
+pub(crate) mod credentials;
 mod diagnostics;
 mod jobs;
 #[cfg(test)]
 #[path = "tests/worker_jobs.rs"]
 mod tests;
 pub mod translate;
+use crate::worker_job_ending::JobEnding;
 use crate::{
     identities::IdentityTable,
     settings::{Agent, Files},
     worker_route, worker_settings,
 };
 use alloc::boxed::Box;
+use credentials::{Scheme, Table, Value};
 use jig_domain_host as hub;
 use jig_domain_link::SourceName;
-use jig_protocol_accounts::table::{Scheme, Table, Value};
 use jig_protocol_config::{Problems, What};
 use jig_protocol_worker_link as link;
 use skein_channel::{Lower, LowerEvent};
@@ -103,7 +105,7 @@ impl Worker {
     pub fn new(
         settings: &crate::settings::Worker,
         agent: &Agent,
-        limits: &crate::limits::Limits,
+        limits: &worker_settings::Limits,
         files: &Files,
         runtime: WorkerRuntime,
         seed: u64,
@@ -160,7 +162,7 @@ impl Worker {
                 config.limits.core.accounts.accounts.checked_add(1).expect("account slots"),
                 worker_settings::credential_bytes(config.limits.token),
             ),
-            identities: IdentityTable::new(limits.forge.forges),
+            identities: IdentityTable::new(limits.peer.forges),
             undecodable_values: 0,
             payload: prepared.payload,
             io: Queue::uncapped(),
@@ -622,9 +624,9 @@ impl Worker {
         let why = self.root.job_why(run, attempt);
         let ending = match &answer {
             hub::JobEnding::Failed { failure, detail, .. } => {
-                Some(temper_engine_domain::JobDiagnosticEnding::Failed { failure: *failure, detail: detail.clone() })
+                Some(JobEnding::Failed { failure: *failure, detail: detail.clone() })
             }
-            hub::JobEnding::Refused(reason) => Some(temper_engine_domain::JobDiagnosticEnding::Refused(reason.clone())),
+            hub::JobEnding::Refused(reason) => Some(JobEnding::Refused(reason.clone())),
             hub::JobEnding::Finished { .. } => None,
         };
         if let Some((kind, verb)) = kind
@@ -1200,7 +1202,7 @@ fn owner_of(event: &mut io::Event, new: Token) {
 }
 
 fn worker_root(limits: &root::Limits) -> root::Domain {
-    root::Domain::new(limits, crate::limits::job_kinds())
+    root::Domain::new(limits, worker_settings::job_kinds())
 }
 
 impl crate::Service {

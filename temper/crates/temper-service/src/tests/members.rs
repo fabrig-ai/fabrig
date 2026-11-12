@@ -145,9 +145,14 @@ fn every_row_is_a_member_its_decoder_takes() {
     }
     // Gone members are consumed and refused by their owning decoder, with the table's remedy.
     for (parent, what, shape, name) in [
-        ("application", What::CharterStored, "application", "charter"),
-        ("application.landing", What::LandingStored, "landing", "deployment"),
-        ("application.landing.projects[]", What::ProjectLandingStored, "landing-project", "rules"),
+        ("application", What::Half(startup::EngineWhat::CharterStored), "application", "charter"),
+        ("application.landing", What::Half(startup::EngineWhat::LandingStored), "landing", "deployment"),
+        (
+            "application.landing.projects[]",
+            What::Half(startup::EngineWhat::ProjectLandingStored),
+            "landing-project",
+            "rules",
+        ),
     ] {
         let changed = gone(&document, parent, name);
         let problems =

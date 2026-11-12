@@ -304,7 +304,7 @@ impl Service {
     #[cfg(feature = "worker")]
     pub(crate) fn worker_alone(
         settings: &settings::Worker,
-        limits: &limits::Limits,
+        limits: &crate::worker_settings::Limits,
         agent: &settings::Agent,
         files: &settings::Files,
         runtime: crate::WorkerRuntime,

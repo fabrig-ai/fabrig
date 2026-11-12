@@ -407,7 +407,7 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
         temper_service::Note::WorkerJob { run, attempt, kind, verb, ending, why } => {
             let verb = verb.escape_ascii();
             let prefix = format!("{binary} worker: run {run} attempt {attempt} job {kind} {verb} ");
-            let (class, _) = job_ending(&ending);
+            let (class, _) = worker_job_ending(&ending);
             run_detail_line(format!("{prefix}{class}: "), &why)
         }
         temper_service::Note::HelloRefused { channel, text } => {
@@ -634,6 +634,23 @@ fn job_ending(ending: &temper_service::JobDiagnosticEnding) -> (String, &[u8]) {
             (String::from("refused Invalid(Start)"), why)
         }
         JobDiagnosticEnding::Refused(
+            reason @ (JobRefusal::Busy
+            | JobRefusal::Invalid(
+                JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
+            )),
+        ) => (format!("refused {reason:?}"), b""),
+    }
+}
+
+fn worker_job_ending(ending: &temper_service::WorkerJobEnding) -> (String, &[u8]) {
+    use jig_domain_host::{JobInvalid, JobRefusal};
+    use temper_service::WorkerJobEnding;
+    match ending {
+        WorkerJobEnding::Failed { failure, detail } => (format!("failed {failure:?}"), detail),
+        WorkerJobEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why })) => {
+            (String::from("refused Invalid(Start)"), why)
+        }
+        WorkerJobEnding::Refused(
             reason @ (JobRefusal::Busy
             | JobRefusal::Invalid(
                 JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
@@ -1885,7 +1902,12 @@ fn job_stderr_forms_escape_and_bound_their_why() {
                     attempt: 2,
                     kind: 3,
                     verb: b"merge".as_slice().into(),
-                    ending,
+                    ending: match ending {
+                        JobDiagnosticEnding::Failed { failure, detail } => {
+                            temper_service::WorkerJobEnding::Failed { failure, detail }
+                        }
+                        JobDiagnosticEnding::Refused(reason) => temper_service::WorkerJobEnding::Refused(reason),
+                    },
                     why: why.into(),
                 }
             } else {
