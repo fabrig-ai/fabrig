@@ -24,6 +24,7 @@ fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
         StoryLimits { merge_kind: kind, merge_authority: authority, ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         enforce: true,

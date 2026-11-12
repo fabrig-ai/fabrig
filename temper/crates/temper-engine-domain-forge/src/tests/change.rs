@@ -764,9 +764,9 @@ fn passed_pull_ci_reads_the_head_contexts_for_its_landed_result() {
         assert_eq!(
             row.change.state,
             change::State::First { head: fixtures::HEAD, ready_since: env().wall },
-            "an approval-vetoed merge keeps its proposed state, queued: {queued}"
+            "a veto without short review evidence keeps its proposed state, queued: {queued}"
         );
-        assert!(row.change.owns_turn, "the approval wait keeps its turn, queued: {queued}");
+        assert!(row.change.owns_turn, "no approval facts have made this turn short, queued: {queued}");
         assert_eq!(row.pending, None);
         assert_eq!(row.effect, change::EffectResult::None);
         assert!(!d.entries.contains_key(&entry), "a veto removes the uncommitted merge");

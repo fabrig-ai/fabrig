@@ -732,6 +732,8 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
             decision: forge_change::Decision::Effect(forge_change::Effect::Merge { head: SHA1, base: SHA1 }),
             entry: Some(ENTRY),
             evidence: Some(forge::ChangeEvidence {
+                touched: forge::Touched::UNKNOWN,
+                size: None,
                 prior,
                 head: Some(SHA1),
                 base_tip: SHA1,
@@ -901,6 +903,8 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
         let mut row = change_row(None);
         row.repository = api::Repository { forge, repository: 1 };
         let evidence = forge::ChangeEvidence {
+            touched: forge::Touched::UNKNOWN,
+            size: None,
             prior: row.change.clone(),
             head: Some(SHA1),
             base_tip: SHA1,
@@ -4321,6 +4325,8 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
     )
     .unwrap();
     let evidence = forge::ChangeEvidence {
+        touched: forge::Touched::UNKNOWN,
+        size: None,
         prior: row.change.clone(),
         head: Some(SHA1),
         base_tip: SHA1,

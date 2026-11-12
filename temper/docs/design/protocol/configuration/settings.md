@@ -125,10 +125,10 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 - **A landing rule's value** is a `LandingRule` record in temper's
   codec, `engine.md`'s rule member for member but `connector` and `kind`,
   which are always the forge's and its merge: `pattern`, `enforce`,
-  `ci`, `up_to_date`, `gates` and `approvals`, each as `engine.md` says.
-  Its largest bytes, the kind's bound, are its encoding with a pattern
-  at jig's pattern bounds, `forge.change_policy.gates` gates and
-  `authority.roles` approvals; `forge.landing_rules`, a limit of the
+  `ci`, `up_to_date`, `gates`, `approvals` and `sets`, each as `engine.md`
+  says, `sets` last. Its largest bytes, the kind's bound, are its encoding
+  with a pattern at jig's pattern bounds, `forge.change_policy.gates`
+  gates, `authority.roles` approvals and 6 sets; `forge.landing_rules`, a limit of the
   forge's (`limits.md`), is 4 in `small`, as jig's requirements per scope
   bound the rules today.
 - **A project's rule may name a branch** (`../../draft/stock-ways.md`,
@@ -152,7 +152,11 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     bounds; with more gates than
     `forge.change_policy.gates`, or a gate's number twice; with an
     approval of no people, or a role twice, or one past
-    `authority.roles`;
+    `authority.roles`; with more than 6 sets, a set's number outside 1
+    to 6 or named twice, or, of kind 1, any set ("a deployment's rule
+    names no path set": sets are a project's). A set the project's
+    classes don't hold is no refusal: each item is judged alone, and the
+    rule covers every change until the classes hold it (`engine.md`);
   - *the forge's charter* outside 1 to jig's `tasks.charters`, or
     removed: the forge always has all three charters, and an owner who
     wants the stock's back resets it;
@@ -211,7 +215,12 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   its items and replaces its rules, the deployment's or the project's,
   whole; each live change into a repository it serves is stepped after
   the commit, so a gate a rule added is asked for and one it dropped no
-  longer waited on (`../../domain/forge/change/gates.md`, 1). At a start the forge is given the stock
+  longer waited on (`../../domain/forge/change/gates.md`, 1), and a change
+  a rule's sets now cover waits for what the rule asks. A commit that
+  changes a project's classes' sets steps, likewise, each live change of
+  the project that a rule naming a set covers by its branch, so a set's
+  patterns changed reach the changes they now cover or no longer do
+  (`../../draft/what-reaches-you.md`, section 7). At a start the forge is given the stock
   defaults, tells jig which changed, and holds the current values
   before its other records (`../../domain/forge/README.md`, section 9).
 - **Erased with their project.** A project deleted (jig's
@@ -324,7 +333,9 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
 - **Judged over the rules the forge holds then.** At a merge, the forge
   takes every rule covering its branch that enforces, the deployment's
   and the project's, a project's rule beginning at `branch` covering the
-  branch of that name in each of the project's repositories (2), and
+  branch of that name in each of the project's repositories (2), a rule
+  naming path sets only where the change touches one of them at the
+  merge's head (`../../domain/forge/change/gates.md`, 2), and
   its rule 1 the stock's while its owners have set none (`stock.md`):
   requirement 5 meets when each one's CI, gates and
   approvals are met, waits when one waits and none refuses, and refuses

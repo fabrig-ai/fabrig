@@ -31,9 +31,14 @@ pub(super) fn row(task: u64, project: u32, goal: Option<u64>) -> w::ApprovalRow 
             role: 5,
             required: 2,
             counted: 1,
-            behind: 3,
+            sets: List::from_boxed(Box::new([w::ApprovalSet::new(
+                &w::CEILINGS,
+                w::ApprovalSetParts { number: 1, name: b"vsr's protocol core".as_slice().into() },
+            )
+            .unwrap()])),
             whole: true,
             yours: w::ApprovalYours::Counts,
+            size: None,
         },
     )
     .unwrap()
@@ -89,6 +94,39 @@ fn closes(out: &Queue<Request>, expected: Token) -> u32 {
     count
 }
 #[test]
+fn approval_sizes_follow_the_wire_including_none_and_cut() {
+    let mut root = crate::unlinked(&f::limits(), f::SEED);
+    let me = f::start(&mut root, List::with_capacity(0));
+    let mut out = Queue::uncapped();
+    f::confirm(&mut root, me, f::PARTY, &mut out);
+    let watch = opening(&out).expect("approvals watch");
+    for size in [
+        Some(approvals::Size { files: 4, additions: 142, deletions: 18, cut: false }),
+        Some(approvals::Size { files: u32::MAX, additions: 10, deletions: 2, cut: true }),
+        None,
+    ] {
+        let mut parts = row(CHANGE, f::PROJECT, None).into_parts();
+        parts.size = match size {
+            Some(size) => Some(
+                w::ApprovalSize::new(
+                    &w::CEILINGS,
+                    w::ApprovalSizeParts {
+                        files: size.files,
+                        additions: size.additions,
+                        deletions: size.deletions,
+                        cut: size.cut,
+                    },
+                )
+                .unwrap(),
+            ),
+            None => None,
+        };
+        deliver(&mut root, watch, &[w::ApprovalRow::new(&w::CEILINGS, parts).unwrap()], 0);
+        assert_eq!(root.forge().approvals().rows().first().unwrap().size, size);
+    }
+}
+
+#[test]
 fn approvals_are_watched_once_for_the_session_and_end_with_it() {
     for (ending, expected_closes) in
         [(None, ONE), (Some(c::WatchEnd::NotAllowed), 0), (Some(c::WatchEnd::SubjectEnded), 0)]
@@ -127,9 +165,10 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
                 role: 5,
                 required: 2,
                 counted: 1,
-                behind: 3,
+                sets: Box::new([approvals::ApprovalSet { number: 1, name: b"vsr's protocol core".as_slice().into() }]),
                 whole: true,
                 yours: approvals::Yours::Counts,
+                size: None,
             }]
         );
         assert_eq!(root.forge().approvals().more(), MORE);

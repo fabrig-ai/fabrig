@@ -4171,6 +4171,7 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the same document pins row fields, optional sizes and delivery bounds")]
 fn approvals_encode_each_row_with_its_kind_and_files_address() {
     let forgejo = fixtures::forges().first().unwrap().clone();
     let mut github = forgejo.clone();
@@ -4217,9 +4218,14 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
             role: 1,
             required: 2,
             counted: 1,
-            behind: 3,
+            sets: Box::new([root::ApprovalSet { number: 1, name: b"vsr's protocol core".as_slice().into() }]),
             whole: false,
             yours,
+            size: match forge {
+                1 => Some(root::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false }),
+                2 => Some(root::ApprovalSize { files: u32::MAX, additions: 142, deletions: 18, cut: true }),
+                _ => None,
+            },
         })
         .unwrap();
     }
@@ -4242,9 +4248,22 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         assert_eq!(actual.title(), row.title.as_ref());
         assert_eq!(actual.since(), row.since.as_nanos());
         assert_eq!((actual.scope(), actual.rule(), actual.role()), (row.scope, row.rule, row.role));
-        assert_eq!((actual.required(), actual.counted(), actual.behind()), (row.required, row.counted, row.behind));
+        assert_eq!((actual.required(), actual.counted()), (row.required, row.counted));
+        assert_eq!(actual.sets().len(), 1);
+        assert_eq!(actual.sets().as_slice()[0].number(), row.sets[0].number);
+        assert_eq!(actual.sets().as_slice()[0].name(), row.sets[0].name.as_ref());
         assert_eq!(actual.whole(), row.whole);
         assert_eq!(actual.yours(), yours);
+        let size = match actual.size() {
+            Some(size) => Some(root::ApprovalSize {
+                files: size.files(),
+                additions: size.additions(),
+                deletions: size.deletions(),
+                cut: size.cut(),
+            }),
+            None => None,
+        };
+        assert_eq!(size, row.size);
     }
     for limits in [w::Limits { approvals_rows: 3, ..w::CEILINGS }, w::Limits { approval_row_title: 0, ..w::CEILINGS }] {
         assert!(family::approvals(document.clone(), &forges, &limits).is_none());

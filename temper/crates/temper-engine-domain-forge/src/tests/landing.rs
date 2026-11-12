@@ -418,74 +418,283 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
 fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
     use skein_forge::api::{Answer, Op, Read};
     use temper_engine_domain_forge_change as change;
+    let size = skein_forge::api::Size { files: 4, additions: 142, deletions: 18 };
+    for (pull_head, pull_size, expected) in
+        [(fixtures::HEAD, Some(size), Some(size)), (fixtures::HEAD, None, None), (fixtures::BASE, Some(size), None)]
+    {
+        let mut d = landing_fixture();
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+            change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+        let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
+        row.landing.members = Box::new([policy::Member {
+            change: fixtures::CHANGE,
+            repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
+            pull: 1,
+            head: Some(fixtures::HEAD),
+            base: Some(fixtures::BASE),
+            candidate: Some(fixtures::HEAD),
+            gates: Box::new([]),
+            asked: None,
+            landed: None,
+        }]);
+        row.asks = Box::new([None]);
+        outputs(&mut d, Event::Landing { row });
+        outputs(
+            &mut d,
+            Event::StepLanding {
+                task: 61,
+                entry: 91,
+                heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            },
+        );
+        let (branch_call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
+        outputs(&mut d, Event::Enqueue { entry: status(92, 8) });
+        outputs(&mut d, Event::Committed { entry: 92 });
+        assert!(ready(&mut d).is_empty(), "the higher entry waits while the landing's lower entry is reserved");
+        fixtures::answer(&mut d, branch_call, Ok(Answer::Commit(fixtures::HEAD)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        fixtures::answer_next(
+            &mut d,
+            Ok(Answer::Pull(skein_forge::api::Pull { commit: pull_head, size: pull_size, ..fixtures::open_pull() })),
+        );
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
+        let requests =
+            fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        assert!(ready(&mut d).is_empty(), "the higher entry waits for the landing's lower reserved entry");
+        outputs(&mut d, Event::Withdraw { entry: 92 });
+        let mut evidence = None;
+        for request in &requests {
+            if let Request::LandingDecision { evidence: Some(facts), entry: Some(91), .. } = request {
+                evidence = Some(facts);
+            }
+        }
+        let evidence = evidence.expect("merge evidence");
+        assert_eq!(evidence.change, fixtures::CHANGE);
+        assert_eq!(evidence.facts.head, Some(fixtures::HEAD));
+        assert_eq!(evidence.facts.size, expected, "pull at {pull_head:?}");
+        assert_eq!(evidence.facts.base_tip, fixtures::BASE);
+        assert_eq!(evidence.facts.contains_base, change::Status::Passed);
+        assert_eq!(evidence.facts.ci, change::Status::Passed);
+        assert!(evidence.facts.reviews_complete);
+        let (repository, _, described) = d.describe_landing_effect(61, 91).expect("saved merge description");
+        assert_eq!(repository, REPO);
+        assert_eq!(described.kind, 4);
+        assert_eq!(described.state, fixtures::HEAD);
+        let vetoed = outputs(&mut d, Event::VetoLanding { task: 61, entry: 91 });
+        assert!(vetoed.contains(&Request::Erase { key: Key::Entry(91) }));
+        assert!(d.describe_landing_effect(61, 91).is_none());
+        assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Failed));
+        outputs(&mut d, Event::Committed { entry: 91 });
+        for request in ready(&mut d) {
+            if let Request::Call { op: Op::Write(_), .. } = request {
+                panic!("vetoed write reached client");
+            }
+        }
+    }
+}
+
+fn turn_fixture() -> Domain {
+    use temper_engine_domain_forge_change as change;
     let mut d = landing_fixture();
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
     d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
         change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
-    let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
-    row.landing.members = Box::new([policy::Member {
-        change: fixtures::CHANGE,
-        repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
-        pull: 1,
-        head: Some(fixtures::HEAD),
-        base: Some(fixtures::BASE),
-        candidate: Some(fixtures::HEAD),
+    member_landing(&mut d);
+    let row = d.landing.rows.get_mut(&61).expect("landing");
+    row.landing.phase = policy::Phase::Turn { at: env().wall };
+    let member = row.landing.members.get_mut(0).expect("member");
+    member.head = Some(fixtures::HEAD);
+    member.base = Some(fixtures::BASE);
+    member.candidate = Some(fixtures::HEAD);
+    d
+}
+
+fn turn_rule(d: &mut Domain, branch: &[u8], sets: &[u8], enforce: bool) {
+    use crate::settings::{Asked, Edit, LandingRule, RuleApproval, SizedValue, Value};
+    let rule = LandingRule {
+        pattern: GatePattern {
+            segments: Box::new([b"branch".as_slice().into()]),
+            last: GateLast::Exact(branch.into()),
+        },
+        sets: sets.into(),
+        enforce,
+        ci: false,
+        up_to_date: false,
         gates: Box::new([]),
-        asked: None,
-        landed: None,
-    }]);
-    row.asks = Box::new([None]);
-    outputs(&mut d, Event::Landing { row });
+        approvals: Box::new([RuleApproval { role: 1, people: 1, freshness: JudgeFreshness::Exact }]),
+    };
+    d.keep_settings(
+        &env(),
+        2,
+        None,
+        &[Asked { kind: 2, scope: 5, number: 1, edit: Edit::Set(SizedValue { value: Value::Rule(rule), size: 128 }) }],
+        &mut Queue::uncapped(),
+    );
+}
+
+// Pin the turn's planned reads: a path rule adds only its comparison, after reviews.
+fn turn_reviews(d: &mut Domain) -> Box<[Request]> {
+    use skein_forge::api::{Answer, Op, Read};
     outputs(
-        &mut d,
+        d,
         Event::StepLanding {
             task: 61,
             entry: 91,
             heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
         },
     );
-    let (branch_call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
-    outputs(&mut d, Event::Enqueue { entry: status(92, 8) });
-    outputs(&mut d, Event::Committed { entry: 92 });
-    assert!(ready(&mut d).is_empty(), "the higher entry waits while the landing's lower entry is reserved");
-    fixtures::answer(&mut d, branch_call, Ok(Answer::Commit(fixtures::HEAD)));
-    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
-    fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-    fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
-    let (call, op) = fixtures::next_call(&mut d);
+    for (read, answer) in [
+        (Read::Branch { branch: b"temper/51".as_slice().into() }, Answer::Commit(fixtures::HEAD)),
+        (Read::Branch { branch: b"main".as_slice().into() }, Answer::Commit(fixtures::BASE)),
+        (
+            Read::Commits { before: fixtures::HEAD, after: fixtures::BASE, page: 1 },
+            Answer::Commits { commits: Box::new([]), more: false },
+        ),
+        (Read::Pull { number: 1, ci: false }, Answer::Pull(fixtures::open_pull())),
+    ] {
+        let (call, op) = fixtures::next_call(d);
+        assert_eq!(op, Op::Read(read));
+        fixtures::answer(d, call, Ok(answer));
+    }
+    let (call, op) = fixtures::next_call(d);
     assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
-    let requests =
-        fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
-    assert!(ready(&mut d).is_empty(), "the higher entry waits for the landing's lower reserved entry");
-    outputs(&mut d, Event::Withdraw { entry: 92 });
-    let mut evidence = None;
-    for request in &requests {
-        if let Request::LandingDecision { evidence: Some(facts), entry: Some(91), .. } = request {
-            evidence = Some(facts);
+    fixtures::answer(d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
+}
+
+fn merge_evidence(requests: &[Request]) -> &LandingEvidence {
+    for request in requests {
+        if let Request::LandingDecision {
+            decision: policy::Decision::Merge { member: 0, candidate: fixtures::HEAD },
+            entry: Some(91),
+            evidence: Some(evidence),
+            ..
+        } = request
+        {
+            return evidence;
         }
     }
-    let evidence = evidence.expect("merge evidence");
-    assert_eq!(evidence.change, fixtures::CHANGE);
-    assert_eq!(evidence.facts.head, Some(fixtures::HEAD));
-    assert_eq!(evidence.facts.base_tip, fixtures::BASE);
-    assert_eq!(evidence.facts.contains_base, change::Status::Passed);
-    assert_eq!(evidence.facts.ci, change::Status::Passed);
-    assert!(evidence.facts.reviews_complete);
-    let (repository, _, described) = d.describe_landing_effect(61, 91).expect("saved merge description");
-    assert_eq!(repository, REPO);
-    assert_eq!(described.kind, 4);
-    assert_eq!(described.state, fixtures::HEAD);
-    let vetoed = outputs(&mut d, Event::VetoLanding { task: 61, entry: 91 });
-    assert!(vetoed.contains(&Request::Erase { key: Key::Entry(91) }));
-    assert!(d.describe_landing_effect(61, 91).is_none());
-    assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Failed));
-    outputs(&mut d, Event::Committed { entry: 91 });
-    for request in ready(&mut d) {
-        if let Request::Call { op: Op::Write(_), .. } = request {
-            panic!("vetoed write reached client");
+    panic!("turn's merge evidence: {requests:?}");
+}
+
+#[test]
+fn the_turn_reads_paths_only_for_a_branch_rule_naming_sets() {
+    use skein_forge::api::{Answer, Op, Read};
+    for (branch, sets, compare) in [
+        (None, [].as_slice(), false),
+        (Some(b"main".as_slice()), [].as_slice(), false),
+        (Some(b"other".as_slice()), [1].as_slice(), false),
+        (Some(b"main".as_slice()), [1].as_slice(), true),
+    ] {
+        let mut d = turn_fixture();
+        if let Some(branch) = branch {
+            turn_rule(&mut d, branch, sets, false);
+        }
+        let mut requests = turn_reviews(&mut d);
+        if compare {
+            for request in &requests {
+                if let Request::LandingDecision { .. } = request {
+                    panic!("comparison must precede the decision");
+                }
+            }
+            let (call, op) = fixtures::next_call(&mut d);
+            assert_eq!(op, Op::Read(Read::Compare { before: fixtures::BASE, after: fixtures::HEAD }));
+            requests = fixtures::answer(
+                &mut d,
+                call,
+                Ok(Answer::Compare {
+                    before: fixtures::BASE,
+                    after: fixtures::HEAD,
+                    ahead: 1,
+                    behind: 0,
+                    changed: 0,
+                    files: Box::new([]),
+                }),
+            );
+        }
+        let evidence = merge_evidence(&requests);
+        assert_eq!(evidence.facts.touched.whole, compare);
+        assert!(ready(&mut d).is_empty(), "no further reads before authorizing the merge");
+    }
+}
+
+#[test]
+fn the_turn_judges_path_approvals_from_its_complete_candidate_comparison() {
+    use crate::settings::{Asked, Edit, SizedValue, Value};
+    use skein_forge::api::{Answer, Error, Op, Read, Verdict};
+    use temper_protocol_reaches::{Classes, PathSet};
+    for (path, before, after, changed, refused, covered, whole) in [
+        (b"src/lib.rs".as_slice(), fixtures::BASE, fixtures::HEAD, 1, false, true, true),
+        (b"docs/a.md".as_slice(), fixtures::BASE, fixtures::HEAD, 1, false, false, true),
+        (b"docs/a.md".as_slice(), fixtures::BASE, fixtures::HEAD, 2, false, true, false),
+        (b"docs/a.md".as_slice(), fixtures::HEAD, fixtures::HEAD, 1, false, true, false),
+        (b"docs/a.md".as_slice(), fixtures::BASE, fixtures::BASE, 1, false, true, false),
+        (b"docs/a.md".as_slice(), fixtures::BASE, fixtures::HEAD, 1, true, true, false),
+    ] {
+        let mut d = turn_fixture();
+        turn_rule(&mut d, b"main", &[1], true);
+        let classes = Classes {
+            items: Box::new([]),
+            sets: Box::new([PathSet {
+                number: 1,
+                name: b"core".as_slice().into(),
+                patterns: Box::new([b"src/**".as_slice().into()]),
+            }]),
+        };
+        let size = temper_protocol_reaches::classes_record(&classes).expect("classes record").measure();
+        d.keep_settings(
+            &env(),
+            2,
+            None,
+            &[Asked {
+                kind: 8,
+                scope: 5,
+                number: 1,
+                edit: Edit::Set(SizedValue { value: Value::Classes(classes), size }),
+            }],
+            &mut Queue::uncapped(),
+        );
+        turn_reviews(&mut d);
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Compare { before: fixtures::BASE, after: fixtures::HEAD }));
+        let answer = if refused {
+            Err(Error::Missing)
+        } else {
+            Ok(Answer::Compare { before, after, ahead: 1, behind: 0, changed, files: Box::new([path.into()]) })
+        };
+        let requests = fixtures::answer(&mut d, call, answer);
+        let evidence = merge_evidence(&requests);
+        assert_eq!(evidence.change, fixtures::CHANGE);
+        assert_eq!(evidence.facts.head, Some(fixtures::HEAD));
+        assert_eq!(evidence.facts.base_tip, fixtures::BASE);
+        assert_eq!(evidence.facts.touched.whole, whole);
+        if !whole {
+            assert_eq!(evidence.facts.touched, Touched::UNKNOWN);
+        }
+        let reviewer_cases: [(Box<[Reviewer]>, JudgeVerdict); 3] = [
+            (Box::new([]), if covered { JudgeVerdict::Wait } else { JudgeVerdict::Met }),
+            (
+                Box::new([Reviewer { person: 7, role: 1, head: fixtures::BASE, verdict: Verdict::Approve }]),
+                if covered { JudgeVerdict::Wait } else { JudgeVerdict::Met },
+            ),
+            (
+                Box::new([Reviewer { person: 7, role: 1, head: fixtures::HEAD, verdict: Verdict::Approve }]),
+                JudgeVerdict::Met,
+            ),
+        ];
+        for (reviewers, expected) in reviewer_cases {
+            assert_eq!(
+                d.judge_landing(5, 5, 0, 61, fixtures::HEAD, &evidence.facts, &reviewers),
+                Some(expected),
+                "{path:?}, before {before:?}, after {after:?}, changed {changed}, refused {refused}"
+            );
         }
     }
 }
@@ -874,6 +1083,7 @@ fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_pane
         }
         let repository = adopted();
         let rule = crate::settings::LandingRule {
+            sets: Box::new([]),
             pattern: GatePattern {
                 segments: Box::new([
                     b"forge".as_slice().into(),
@@ -903,6 +1113,7 @@ fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_pane
             &mut Queue::uncapped(),
         );
         let facts = ReviewFacts {
+            size: None,
             head: Some(fixtures::HEAD),
             reviews_complete: true,
             reviewers: Box::new([]),
@@ -930,11 +1141,11 @@ fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_pane
         let mark = Request::Marked { tasks: Box::new([APPROVALS_SUBJECT, fixtures::CHANGE]) };
         assert_eq!(requests.contains(&mark), merge, "turn={turn}, merge={merge}: {requests:?}");
         assert_eq!(d.review_facts.get(&fixtures::CHANGE), if merge { None } else { Some(&facts) });
-        assert_eq!(d.review_since.get(&fixtures::CHANGE).copied(), if merge { None } else { Some(env().wall) });
+        assert_eq!(d.review_since(fixtures::CHANGE), if merge { None } else { Some(env().wall) });
         let panel = d.panel(fixtures::CHANGE, ApplicationScope::Project(5), env().wall, &LIMITS).expect("panel");
         assert_eq!(panel.approvals[0].read, if merge { ReviewRead::Unread } else { ReviewRead::Complete });
         assert_eq!(d.review_facts.get(&52), Some(&facts), "another change keeps its facts");
-        assert_eq!(d.review_since.get(&52), Some(&env().wall));
+        assert_eq!(d.review_since(52), Some(env().wall));
         assert!(!outputs(&mut d, Event::Committed { entry: 91 }).contains(&mark), "no repeated drop mark");
     }
 }

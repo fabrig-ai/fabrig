@@ -77,14 +77,25 @@ pub(crate) fn sentences(row: &Row, w: &Words) -> Box<[Box<[u8]>]> {
         )
     };
     lines.push(rule).expect("four context sentences fit");
-    if row.behind != 0 {
-        lines
-            .push(if row.behind == 1 {
-                w.say(Word::ApprovalBehindOne, &[])
-            } else {
-                w.say(Word::ApprovalBehindMany, &[Hole::Number(u64::from(row.behind))])
-            })
-            .expect("context fits");
+    let mut names = None;
+    let mut remaining = row.sets.len();
+    for set in &row.sets {
+        remaining = remaining.saturating_sub(1);
+        let name = if set.name.is_empty() {
+            w.say(Word::ApprovalPathSet, &[Hole::Number(u64::from(set.number))])
+        } else {
+            set.name.clone()
+        };
+        names = Some(match names {
+            None => name,
+            Some(before) => w.say(
+                if remaining == 0 { Word::ApprovalAnd } else { Word::ApprovalJoin },
+                &[Hole::Name(before), Hole::Name(name)],
+            ),
+        });
+    }
+    if let Some(names) = names {
+        lines.push(w.say(Word::ApprovalSets, &[Hole::Name(names)])).expect("context fits");
     }
     if !row.whole {
         lines.push(w.say(Word::ApprovalCut, &[])).expect("context fits");
@@ -100,6 +111,31 @@ pub(crate) fn sentences(row: &Row, w: &Words) -> Box<[Box<[u8]>]> {
     }
     lines.into_boxed()
 }
+fn size_count(count: u32, cut: bool, w: &Words) -> Box<[u8]> {
+    w.say(if cut && count == u32::MAX { Word::CountLimited } else { Word::Count }, &[Hole::Number(u64::from(count))])
+}
+pub(crate) fn size(b: &mut Builder, row: &Row, w: &Words) {
+    let Some(size) = row.size else { return };
+    b.open(Role::Slot);
+    b.style(look::CHIPS);
+    b.open(Role::Slot);
+    b.style(look::CHIP);
+    b.text(
+        Run::Plain,
+        &w.say(
+            Word::ApprovalSizeLines,
+            &[Hole::Name(size_count(size.additions, size.cut, w)), Hole::Name(size_count(size.deletions, size.cut, w))],
+        ),
+    );
+    let files = if size.files == 1 {
+        w.say(Word::ApprovalSizeFile, &[])
+    } else {
+        w.say(Word::ApprovalSizeFiles, &[Hole::Name(size_count(size.files, size.cut, w))])
+    };
+    ask::text(b, Role::Text, &files, look::SIZE_FILES);
+    b.close();
+    b.close();
+}
 pub(crate) fn when(row: &Row, w: &Words, times: &mut Times) -> Box<[u8]> {
     concat(&[
         &w.say(Word::ApprovalKind, &[]),
@@ -108,7 +144,7 @@ pub(crate) fn when(row: &Row, w: &Words, times: &mut Times) -> Box<[u8]> {
     ])
 }
 pub(crate) fn review_words(row: &Row, w: &Words) -> Box<[u8]> {
-    w.say(Word::ApprovalReview, &[Hole::Name(forge(row, w))])
+    w.say(if row.sets.is_empty() { Word::ApprovalReview } else { Word::ApprovalSignOff }, &[Hole::Name(forge(row, w))])
 }
 fn review(b: &mut Builder, row: &Row, w: &Words, sign_in: &Forges, style: skein_ui::Style) -> bool {
     if row.yours != Yours::Counts {

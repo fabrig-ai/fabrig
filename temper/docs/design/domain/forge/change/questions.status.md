@@ -113,3 +113,5 @@
   task, where the request names the producing task alone, because all three run
   under the one charter and each would pay the same turn
   (`temper-engine-domain/src/route/forge_route/relay.rs`, `asking_delegate`).
+
+- **Not yet:** 2: an `approvals` row's size, the forge's part's, narrowed by the root's [in flight: change 534].
