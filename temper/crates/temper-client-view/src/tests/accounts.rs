@@ -792,6 +792,7 @@ pub(super) fn sign_in_address(address: &[u8]) -> d::Domain {
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Copy { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .expect("sign-in attempt");
@@ -1016,6 +1017,7 @@ fn answer_account_operation(root: &mut d::Domain, operation: Operation, outcome:
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Copy { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .expect("account operation attempt");

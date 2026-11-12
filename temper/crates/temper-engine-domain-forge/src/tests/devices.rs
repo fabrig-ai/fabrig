@@ -10,11 +10,19 @@ const OTHER: u64 = 8;
 const REQUEST: Token = Token::new(90);
 const ANSWER: Token = Token::new(91);
 fn subscription() -> AddDevice {
-    AddDevice { endpoint: b"http://push.test:4000/push/alice-phone".as_slice().into(), p256dh: [4; 65], auth: [7; 16], label: b"temper ctl".as_slice().into() }
+    AddDevice {
+        endpoint: b"http://push.test:4000/push/alice-phone".as_slice().into(),
+        p256dh: [4; 65],
+        auth: [7; 16],
+        label: b"temper ctl".as_slice().into(),
+    }
 }
 fn enabled() -> Domain {
     let mut d = domain();
-    d.push = Some(Box::new([b"http://push.test:4000".as_slice().into()]));
+    d.devices = Some(Box::new(crate::devices::State::new(
+        Some(Box::new([b"http://push.test:4000".as_slice().into()])),
+        LIMITS.devices(),
+    )));
     d
 }
 fn add(d: &mut Domain, party: u64, call: AddDevice) -> Box<[Request]> {
@@ -24,14 +32,19 @@ fn answer(d: &Domain) -> DeviceAnswer {
     let Some(Answered::Device(answer)) = d.application_answer(ANSWER) else { panic!("device answer") };
     answer
 }
-fn done() -> Request { Request::ApplicationDone { request: REQUEST, token: ANSWER } }
+fn done() -> Request {
+    Request::ApplicationDone { request: REQUEST, token: ANSWER }
+}
 fn refusal(d: &mut Domain, call: AddDevice, why: DeviceRefusal) {
     assert_eq!(add(d, PARTY, call).as_ref(), [done()]);
     assert_eq!(answer(d), DeviceAnswer::Refused(why));
 }
 #[test]
 fn devices_validate_in_order_replace_in_place_and_transfer_atomically() {
-    let mut invalid = subscription(); invalid.endpoint = Box::new([]); invalid.p256dh = [3; 65]; invalid.label = Box::new([]);
+    let mut invalid = subscription();
+    invalid.endpoint = Box::new([]);
+    invalid.p256dh = [3; 65];
+    invalid.label = Box::new([]);
     refusal(&mut domain(), invalid.clone(), DeviceRefusal::Off);
     let mut d = enabled();
     refusal(&mut d, invalid, DeviceRefusal::Service);
@@ -49,10 +62,16 @@ fn devices_validate_in_order_replace_in_place_and_transfer_atomically() {
     assert_eq!(answer(&d), DeviceAnswer::Added { number: 1 });
     assert_eq!(add(&mut d, PARTY, subscription()).as_ref(), [done()], "identical subscription writes nothing");
     let changed = AddDevice { label: b"new label".as_slice().into(), p256dh: [4; 65], auth: [8; 16], ..subscription() };
-    let mut environment = env(); environment.wall = Wall::from_nanos(999);
+    let mut environment = env();
+    environment.wall = Wall::from_nanos(999);
     let mut out = Queue::uncapped();
-    step(&mut d, &environment, Event::AddDevice { request: REQUEST, token: ANSWER, party: PARTY, person: true, call: changed.clone() }, &mut out);
-    let held = d.devices.get(&(PARTY, 1)).unwrap();
+    step(
+        &mut d,
+        &environment,
+        Event::AddDevice { request: REQUEST, token: ANSWER, party: PARTY, person: true, call: changed.clone() },
+        &mut out,
+    );
+    let held = d.devices.as_ref().unwrap().rows.get(&(PARTY, 1)).unwrap();
     assert_eq!((held.label.as_ref(), held.auth, held.at), (changed.label.as_ref(), changed.auth, environment.wall));
     let transferred = add(&mut d, OTHER, subscription());
     assert_eq!(transferred[0], Request::Erase { key: Key::Device { party: PARTY, number: 1 } });
@@ -122,40 +141,63 @@ fn devices_are_bounded_private_restored_and_not_a_projects() {
     let own = d.document(DEVICES_SUBJECT, ApplicationScope::Own, PARTY, env().wall, &LIMITS).unwrap();
     let Document::Devices(view) = own else { panic!("devices") };
     assert_eq!(view.rows.iter().map(|row| row.number).collect::<Vec<_>>(), (1..=DEVICES).collect::<Vec<_>>());
-    assert_eq!(d.document(DEVICES_SUBJECT, ApplicationScope::Own, OTHER, env().wall, &LIMITS), Some(Document::Devices(DevicesView { rows: Box::new([]) })));
+    assert_eq!(
+        d.document(DEVICES_SUBJECT, ApplicationScope::Own, OTHER, env().wall, &LIMITS),
+        Some(Document::Devices(DevicesView { rows: Box::new([]) }))
+    );
     assert!(d.document(DEVICES_SUBJECT, ApplicationScope::Project(1), PARTY, env().wall, &LIMITS).is_none());
     let rows: Vec<_> = d.devices_of(PARTY).map(|(_, row)| Stored::Device(row.clone())).collect();
     let mut restored = enabled();
-    for row in &rows { outputs(&mut restored, Event::Restore { record: row.clone() }); }
+    for row in &rows {
+        outputs(&mut restored, Event::Restore { record: row.clone() });
+    }
     assert_eq!(restored.restore_fit_failure(), None);
     assert_eq!(restored.devices_of(PARTY).collect::<Vec<_>>(), d.devices_of(PARTY).collect::<Vec<_>>());
-    let mut out = Queue::uncapped(); crate::away::erase_project(&mut restored, 1, &mut out);
-    assert!(out.is_empty()); assert_eq!(restored.devices_of(PARTY).collect::<Vec<_>>(), d.devices_of(PARTY).collect::<Vec<_>>());
+    let out = outputs(&mut restored, Event::ReleaseProject { project: 1, request: REQUEST });
+    assert_eq!(out.as_ref(), [Request::ProjectReleased { request: REQUEST }]);
+    assert_eq!(restored.devices_of(PARTY).collect::<Vec<_>>(), d.devices_of(PARTY).collect::<Vec<_>>());
     let removed = outputs(&mut d, Event::RemoveDevice { request: REQUEST, token: ANSWER, party: PARTY, number: 2 });
     assert_eq!(removed[0], Request::Erase { key: Key::Device { party: PARTY, number: 2 } });
     assert_eq!(answer(&d), DeviceAnswer::Removed);
-    assert_eq!(outputs(&mut d, Event::RemoveDevice { request: REQUEST, token: ANSWER, party: OTHER, number: 1 }).as_ref(), [done()]);
+    assert_eq!(
+        outputs(&mut d, Event::RemoveDevice { request: REQUEST, token: ANSWER, party: OTHER, number: 1 }).as_ref(),
+        [done()]
+    );
     assert_eq!(answer(&d), DeviceAnswer::Refused(DeviceRefusal::Unknown));
-    add(&mut d, PARTY, subscription()); assert_eq!(answer(&d), DeviceAnswer::Added { number: 9 });
-    let Stored::Device(mut ninth) = rows[0].clone() else { panic!("device") }; ninth.number = 9;
+    add(&mut d, PARTY, subscription());
+    assert_eq!(answer(&d), DeviceAnswer::Added { number: 9 });
+    let Stored::Device(mut ninth) = rows[0].clone() else { panic!("device") };
+    ninth.number = 9;
     outputs(&mut restored, Event::Restore { record: Stored::Device(ninth) });
     assert_eq!(restored.restore_fit_failure().unwrap().family, Some(RecordKind::Device));
     // The family-wide bound is independent of each party's eight.
-    let mut small = enabled(); small.devices = skein_lib::Map::with_capacity(1);
+    let mut small = enabled();
+    small.devices.as_mut().unwrap().rows = skein_lib::Map::with_capacity(1);
     add(&mut small, OTHER, subscription());
     let other = AddDevice { endpoint: b"http://push.test:4000/other".as_slice().into(), ..subscription() };
     refusal(&mut small, other, DeviceRefusal::TooMany);
-    add(&mut small, PARTY, subscription()); assert_eq!(answer(&small), DeviceAnswer::Added { number: 1 });
-    assert_eq!(small.devices.len(), 1);
-    let mut limits = LIMITS; limits.bindings = 1;
+    add(&mut small, PARTY, subscription());
+    assert_eq!(answer(&small), DeviceAnswer::Added { number: 1 });
+    assert_eq!(small.devices.as_ref().unwrap().rows.len(), 1);
+    let mut limits = LIMITS;
+    limits.bindings = 1;
     let mut family = domain_with_limits(&limits);
     family.restore_begin(Wall::EPOCH);
-    let mut environment = env(); environment.limits = limits;
+    let mut environment = env();
+    environment.limits = limits;
     for party in 1..=u64::from(limits.devices()).saturating_add(1) {
-        let row = Device { party, number: 1, endpoint: format!("http://push.test/{party}").into_bytes().into_boxed_slice(), p256dh: [4; 65], auth: [7; 16], label: b"phone".as_slice().into(), at: Wall::EPOCH };
+        let row = Device {
+            party,
+            number: 1,
+            endpoint: format!("http://push.test/{party}").into_bytes().into_boxed_slice(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            label: b"phone".as_slice().into(),
+            at: Wall::EPOCH,
+        };
         let mut out = Queue::uncapped();
         step(&mut family, &environment, Event::Restore { record: Stored::Device(row) }, &mut out);
     }
-    assert_eq!(family.devices.len(), limits.devices());
+    assert_eq!(family.devices.as_ref().unwrap().rows.len(), limits.devices());
     assert_eq!(family.restore_fit_failure().unwrap().family, Some(RecordKind::Device));
 }

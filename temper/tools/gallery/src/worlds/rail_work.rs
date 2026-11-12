@@ -124,7 +124,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                             matches!(work, Work::Whole) || name == "rail-all-projects" || name == "rail-across";
                         super::project_ways(root, read, drafts, true, true, out);
                     }
-                    w::Read::Deployment => super::deployment_read(root, read, true, out),
+                    w::Read::Deployment => super::deployment_read(root, read, true, false, out),
                     _ => {}
                 }
             }

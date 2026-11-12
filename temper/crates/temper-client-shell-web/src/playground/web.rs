@@ -173,6 +173,7 @@ impl Life {
         let dom = Dom::new(element(super::APP), &page, inbox, Report::Act, &[]);
         self.shell = Some(Shell {
             host,
+            push_inbox: Rc::clone(inbox),
             #[cfg(feature = "record")]
             recorder: None,
             page,
@@ -233,6 +234,7 @@ impl Life {
                 | Report::Fetch(_)
                 | Report::TabRefused
                 | Report::Copied(_)
+                | Report::Push(_)
                 | Report::Screen(_)
                 | Report::Carried(..)
                 | Report::Place(_)) => {

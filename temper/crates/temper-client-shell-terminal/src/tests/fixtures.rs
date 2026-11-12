@@ -459,6 +459,7 @@ fn populate_page(
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. }
             | Request::Dropped { .. } => {}
         }

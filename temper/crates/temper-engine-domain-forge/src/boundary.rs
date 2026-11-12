@@ -1974,8 +1974,19 @@ pub enum Event {
         forge: u16,
         answer: PersonAnswer,
     },
-    AddDevice { request: Token, token: Token, party: u64, person: bool, call: crate::AddDevice },
-    RemoveDevice { request: Token, token: Token, party: u64, number: u32 },
+    AddDevice {
+        request: Token,
+        token: Token,
+        party: u64,
+        person: bool,
+        call: crate::AddDevice,
+    },
+    RemoveDevice {
+        request: Token,
+        token: Token,
+        party: u64,
+        number: u32,
+    },
 }
 /// The owner of the root's fresh read `serial`: bit 61 alone of the top five
 /// bits, the serial below 2^59; `None` past that (temper/docs/design/domain/forge/keeping-up.md, 3).

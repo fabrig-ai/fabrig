@@ -174,7 +174,15 @@ fn row(kind: RecordKind, number: u32) -> Stored {
                 away: false,
             },
         }),
-        RecordKind::Device => Stored::Device(Device { party: n, number: 1, endpoint: b"https://push.test/sub".as_slice().into(), p256dh: [4; 65], auth: [7; 16], label: b"phone".as_slice().into(), at: Wall::EPOCH }),
+        RecordKind::Device => Stored::Device(Device {
+            party: n,
+            number: 1,
+            endpoint: b"https://push.test/sub".as_slice().into(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            label: b"phone".as_slice().into(),
+            at: Wall::EPOCH,
+        }),
         RecordKind::Client => panic!("no own table"),
     }
 }

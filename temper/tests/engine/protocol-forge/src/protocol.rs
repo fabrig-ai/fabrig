@@ -224,7 +224,8 @@ impl Protocol {
         top::Domain::new(
             limits,
             seed,
-            temper_engine_domain_forge::Config { push: None,
+            temper_engine_domain_forge::Config {
+                push: None,
                 namespace: Box::from(b"world".as_slice()),
                 writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author }]),
             },
@@ -870,6 +871,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },
         top::Stored::Decided(row) => top::Key::Decided { project: row.project, number: row.number },
         top::Stored::Looked(row) => top::Key::Looked { party: row.party, project: row.project },

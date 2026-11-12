@@ -229,6 +229,7 @@ pub(super) fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
             | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Copy { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .expect("flow sends one request")
@@ -1154,6 +1155,7 @@ fn opened(out: &skein_lib::Queue<d::Request>, subject: &c::Subject) -> skein_lib
             | d::Request::SignOut
             | d::Request::Dropped { .. }
             | d::Request::Copy { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .unwrap()
@@ -1225,12 +1227,13 @@ pub(super) fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -
             | d::Request::SignOut
             | d::Request::Dropped { .. }
             | d::Request::Copy { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .expect("live link reads deployment");
     let answer = w::DeploymentAnswer::new(
         &w::CEILINGS,
-        w::DeploymentAnswerParts { push: None,  welcome: true, owned: true, program_login: line.map(Into::into) },
+        w::DeploymentAnswerParts { push: None, welcome: true, owned: true, program_login: line.map(Into::into) },
     )
     .unwrap();
     fixtures::root_event(

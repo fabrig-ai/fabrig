@@ -56,6 +56,7 @@ pub(crate) fn owned(words: &[&str]) -> Box<[Box<[u8]>]> {
     owned.into_boxed()
 }
 /// One argv per table row and form; the help derivation shares these examples.
+pub(crate) const PUSH_SUBSCRIPTION: &[u8] = br#"{"endpoint":"http://push.test:4000/sub","keys":{"p256dh":"BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4","auth":"BTBZMqHH6r4Tts7J_aSIgg"}}"#;
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["project", "make", "Second", "--key", "second-project"],
     &["repository", "make", "--project", "shop", "team/widget", "--key", "make"],
@@ -181,6 +182,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["landing", "show", "41"],
     &["landing", "list", "--project", "1"],
     &["task", "text", "1"],
+    &["push", "list"],
+    &["push", "add", "subscription.json"],
+    &["push", "remove", "1"],
 ];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
@@ -830,7 +834,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 89;
+pub(super) const TOOL_FORMS: u32 = 92;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

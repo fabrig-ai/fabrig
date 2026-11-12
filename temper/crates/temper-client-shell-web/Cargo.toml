@@ -37,7 +37,7 @@ temper-client-protocol-wire.workspace = true
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 js-sys.workspace = true
 wasm-bindgen.workspace = true
-web-sys = { workspace = true, features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement"] }
+web-sys = { workspace = true, features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "HtmlHeadElement", "Navigator", "ServiceWorkerContainer", "ServiceWorkerRegistration", "PushManager", "PushSubscription", "PushSubscriptionOptionsInit", "PushEncryptionKeyName", "Notification", "NotificationPermission"] }
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

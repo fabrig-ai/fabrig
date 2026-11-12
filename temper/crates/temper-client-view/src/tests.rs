@@ -39,6 +39,7 @@ mod settings;
 mod start_goal;
 mod team;
 mod toast;
+mod told;
 mod work;
 use jig_client::contract::{ApplicationPart, PartScope};
 use skein_ui::Role;

@@ -481,6 +481,7 @@ pub(super) fn root_at_with_classes(
         | temper_client_domain::Address::Chats { .. }
         | temper_client_domain::Address::NewChat { .. }
         // page-view: draw Remembered.
+        | temper_client_domain::Address::Told
         | temper_client_domain::Address::Remembered
         | temper_client_domain::Address::Members
         | temper_client_domain::Address::Limits
@@ -1994,9 +1995,11 @@ pub fn deliver_playground(
     playground_record(root, read, Some(wire::playground_answer(&answer)));
 }
 pub fn deliver_deployment(root: &mut temper_client_domain::Domain, read: Token, welcome: bool, owned: bool) {
-    let answer =
-        w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { push: None,  welcome, owned, program_login: None })
-            .expect("deployment answer");
+    let answer = w::DeploymentAnswer::new(
+        &w::CEILINGS,
+        w::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
+    )
+    .expect("deployment answer");
     playground_record(root, read, Some(wire::deployment_answer(&answer)));
 }
 pub fn deliver_no_playground(root: &mut temper_client_domain::Domain, read: Token) {
@@ -2607,6 +2610,7 @@ fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => continue,
         };
         temper_client_domain::step(root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);

@@ -167,6 +167,7 @@ impl Case {
                         | w::Watch::Changes(_)
                         | w::Watch::Status(_)
                         | w::Watch::Away
+                        | w::Watch::Devices
                         | w::Watch::Decided(_) => continue,
                     };
                     Up::FamilyDelivered {

@@ -157,7 +157,7 @@ pub fn to_root(
                         | w::Request::Dismiss(_)
                         | w::Request::AddDevice(_)
                         | w::Request::RemoveDevice(_)
-| w::Request::SetAway(_)
+                        | w::Request::SetAway(_)
                         | w::Request::Overturn(_)
                         | w::Request::Looked(_)
                         | w::Request::RemoveForge(_)
@@ -335,12 +335,24 @@ pub fn to_root(
                 }
                 w::Request::AddDevice(value) => {
                     let w::AddDeviceParts { endpoint, p256dh, auth, label } = value.into_parts();
-                    return Ok(root::Event::Party(root::PartyInput::Application { scope, reply_to, sign_in, key, digest, carried,
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
                         request: root::Application::AddDevice(forge::AddDevice { endpoint, p256dh, auth, label }),
                     }));
                 }
                 w::Request::RemoveDevice(value) => {
-                    return Ok(root::Event::Party(root::PartyInput::Application { scope, reply_to, sign_in, key, digest, carried,
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
                         request: root::Application::RemoveDevice { number: value.number() },
                     }));
                 }
@@ -886,16 +898,26 @@ pub fn answer(
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
         Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
         Some(root::ApplicationAnswer::Device(answer)) => match answer {
-            forge::DeviceAnswer::Added { number } => w::Outcome::DeviceAdded(w::DeviceAdded::new(limits, w::DeviceAddedParts { number }).expect("device number")),
+            forge::DeviceAnswer::Added { number } => w::Outcome::DeviceAdded(
+                w::DeviceAdded::new(limits, w::DeviceAddedParts { number }).expect("device number"),
+            ),
             forge::DeviceAnswer::Removed => w::Outcome::DeviceRemoved,
-            forge::DeviceAnswer::Refused(why) => w::Outcome::DeviceRefused(w::DeviceRefused::new(limits, w::DeviceRefusedParts { reason: match why {
-                forge::DeviceRefusal::Person => w::DeviceRefusal::Person,
-                forge::DeviceRefusal::Off => w::DeviceRefusal::Off,
-                forge::DeviceRefusal::Service => w::DeviceRefusal::Service,
-                forge::DeviceRefusal::Malformed => w::DeviceRefusal::Malformed,
-                forge::DeviceRefusal::TooMany => w::DeviceRefusal::TooMany,
-                forge::DeviceRefusal::Unknown => w::DeviceRefusal::Unknown,
-            } }).expect("device refusal")),
+            forge::DeviceAnswer::Refused(why) => w::Outcome::DeviceRefused(
+                w::DeviceRefused::new(
+                    limits,
+                    w::DeviceRefusedParts {
+                        reason: match why {
+                            forge::DeviceRefusal::Person => w::DeviceRefusal::Person,
+                            forge::DeviceRefusal::Off => w::DeviceRefusal::Off,
+                            forge::DeviceRefusal::Service => w::DeviceRefusal::Service,
+                            forge::DeviceRefusal::Malformed => w::DeviceRefusal::Malformed,
+                            forge::DeviceRefusal::TooMany => w::DeviceRefusal::TooMany,
+                            forge::DeviceRefusal::Unknown => w::DeviceRefusal::Unknown,
+                        },
+                    },
+                )
+                .expect("device refusal"),
+            ),
         },
         Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)) => w::Outcome::Away,
         Some(root::ApplicationAnswer::Overturn(answer)) => match answer {
@@ -2090,7 +2112,19 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
 fn devices(value: forge::DevicesView, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut rows = List::with_capacity(forge::DEVICES);
     for row in value.rows {
-        rows.push(w::DeviceRow::new(limits, w::DeviceRowParts { number: row.number, label: row.label, at: row.at.as_nanos(), endpoint: row.endpoint }).ok()?).ok()?;
+        rows.push(
+            w::DeviceRow::new(
+                limits,
+                w::DeviceRowParts {
+                    number: row.number,
+                    label: row.label,
+                    at: row.at.as_nanos(),
+                    endpoint: row.endpoint,
+                },
+            )
+            .ok()?,
+        )
+        .ok()?;
     }
     let document = w::Devices::new(limits, w::DevicesParts { rows }).ok()?;
     Some(wire::devices(&document))

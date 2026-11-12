@@ -802,7 +802,11 @@ impl AskingChat {
             period_span: crate::stock::PERIOD_SPAN,
             core,
             landings: setup.landings,
-            forge: temper_engine_domain_forge::Config { push: None, namespace: Box::new([31; 16]), writers: Box::new([]) },
+            forge: temper_engine_domain_forge::Config {
+                push: None,
+                namespace: Box::new([31; 16]),
+                writers: Box::new([]),
+            },
             identities: Box::new([]),
             machine: None,
             forges: Box::new([]),

@@ -1,7 +1,7 @@
 //! A person's push devices and deliveries (temper/docs/design/domain/forge/attention.md, 7.1–7.2).
 use crate::{Answered, Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
-use skein_lib::{Env, List, Queue, Token, Wall};
+use skein_lib::{Env, List, Map, Queue, Token, Wall};
 
 pub const DEVICES_SUBJECT: u64 = 1 << 59;
 pub const DEVICES: u32 = 8;
@@ -25,6 +25,18 @@ pub enum PushAnswer {
     Failed,
 }
 
+// An off deployment with no restored rows retains only the optional owner handle.
+#[derive(Hash, Debug)]
+pub(crate) struct State {
+    pub(crate) push: Option<Box<[Box<[u8]>]>>,
+    pub(crate) rows: Map<(u64, u32), Device>,
+}
+impl State {
+    pub(crate) fn new(push: Option<Box<[Box<[u8]>]>>, bound: u32) -> Self {
+        Self { push, rows: Map::with_capacity(bound) }
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Device {
     pub party: u64,
@@ -43,9 +55,20 @@ pub struct AddDevice {
     pub label: Box<[u8]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum DeviceRefusal { Person, Off, Service, Malformed, TooMany, Unknown }
+pub enum DeviceRefusal {
+    Person,
+    Off,
+    Service,
+    Malformed,
+    TooMany,
+    Unknown,
+}
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum DeviceAnswer { Added { number: u32 }, Removed, Refused(DeviceRefusal) }
+pub enum DeviceAnswer {
+    Added { number: u32 },
+    Removed,
+    Refused(DeviceRefusal),
+}
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DeviceView {
     pub number: u32,
@@ -54,22 +77,44 @@ pub struct DeviceView {
     pub endpoint: Box<[u8]>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct DevicesView { pub rows: Box<[DeviceView]> }
+pub struct DevicesView {
+    pub rows: Box<[DeviceView]>,
+}
 
-pub(crate) fn add(d: &mut Domain, env: &Env<Limits>, request: Token, token: Token, party: u64, call: AddDevice, out: &mut Queue<Request>) {
+pub(crate) fn add(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    request: Token,
+    token: Token,
+    party: u64,
+    call: AddDevice,
+    out: &mut Queue<Request>,
+) {
     let answer = add_row(d, env.wall, party, call, out);
     d.connect.answer(request, token, Answered::Device(answer), out);
 }
 #[expect(clippy::disallowed_methods, reason = "the connector judges the device label as UTF-8 (attention.md, 7.1)")]
 fn add_row(d: &mut Domain, wall: Wall, party: u64, call: AddDevice, out: &mut Queue<Request>) -> DeviceAnswer {
-    let Some(services) = &d.push else { return DeviceAnswer::Refused(DeviceRefusal::Off) };
-    let Some(endpoint) = skein_push::Endpoint::parse(&call.endpoint) else { return DeviceAnswer::Refused(DeviceRefusal::Service); };
+    let Some(state) = &d.devices else { return DeviceAnswer::Refused(DeviceRefusal::Off) };
+    let Some(services) = &state.push else { return DeviceAnswer::Refused(DeviceRefusal::Off) };
+    let Some(endpoint) = skein_push::Endpoint::parse(&call.endpoint) else {
+        return DeviceAnswer::Refused(DeviceRefusal::Service);
+    };
     let mut allowed = false;
     for service in services {
-        if service.as_ref() == endpoint.origin() { allowed = true; break; }
+        if service.as_ref() == endpoint.origin() {
+            allowed = true;
+            break;
+        }
     }
-    if !allowed { return DeviceAnswer::Refused(DeviceRefusal::Service); }
-    if call.p256dh.first() != Some(&4) || call.label.is_empty() || call.label.len() > 60 || core::str::from_utf8(&call.label).is_err() {
+    if !allowed {
+        return DeviceAnswer::Refused(DeviceRefusal::Service);
+    }
+    if call.p256dh.first() != Some(&4)
+        || call.label.is_empty()
+        || call.label.len() > 60
+        || core::str::from_utf8(&call.label).is_err()
+    {
         return DeviceAnswer::Refused(DeviceRefusal::Malformed);
     }
     let mut count = 0_u32;
@@ -78,39 +123,84 @@ fn add_row(d: &mut Domain, wall: Wall, party: u64, call: AddDevice, out: &mut Qu
     for ((_, number), row) in d.devices_of(party) {
         count = count.saturating_add(1);
         highest = *number;
-        if row.endpoint == call.endpoint { own = Some(row); }
+        if row.endpoint == call.endpoint {
+            own = Some(row);
+        }
     }
     if let Some(row) = own {
         let number = row.number;
-        if row.p256dh == call.p256dh && row.auth == call.auth && row.label == call.label { return DeviceAnswer::Added { number }; }
-        save(d, Device { party, number, endpoint: call.endpoint, p256dh: call.p256dh, auth: call.auth, label: call.label, at: wall }, out);
+        if row.p256dh == call.p256dh && row.auth == call.auth && row.label == call.label {
+            return DeviceAnswer::Added { number };
+        }
+        save(
+            d,
+            Device {
+                party,
+                number,
+                endpoint: call.endpoint,
+                p256dh: call.p256dh,
+                auth: call.auth,
+                label: call.label,
+                at: wall,
+            },
+            out,
+        );
         return DeviceAnswer::Added { number };
     }
     // A refused decision changes nothing, including another party's row.
     let mut previous = None;
-    for (key, row) in &d.devices {
-        if row.endpoint == call.endpoint { previous = Some(*key); break; }
+    let rows = &d.devices.as_ref().expect("push on retains device state").rows;
+    for (key, row) in rows {
+        if row.endpoint == call.endpoint {
+            previous = Some(*key);
+            break;
+        }
     }
-    if count >= DEVICES || (previous.is_none() && d.devices.len() == d.devices.capacity()) { return DeviceAnswer::Refused(DeviceRefusal::TooMany); }
+    if count >= DEVICES || (previous.is_none() && rows.len() == rows.capacity()) {
+        return DeviceAnswer::Refused(DeviceRefusal::TooMany);
+    }
     let Some(number) = highest.checked_add(1) else { return DeviceAnswer::Refused(DeviceRefusal::TooMany) };
     if let Some((party, number)) = previous {
-        d.devices.remove(&(party, number));
+        d.devices.as_mut().expect("push on retains device state").rows.remove(&(party, number));
         out.push(Request::Erase { key: Key::Device { party, number } });
     }
-    save(d, Device { party, number, endpoint: call.endpoint, p256dh: call.p256dh, auth: call.auth, label: call.label, at: wall }, out);
+    save(
+        d,
+        Device {
+            party,
+            number,
+            endpoint: call.endpoint,
+            p256dh: call.p256dh,
+            auth: call.auth,
+            label: call.label,
+            at: wall,
+        },
+        out,
+    );
     DeviceAnswer::Added { number }
 }
 fn save(d: &mut Domain, row: Device, out: &mut Queue<Request>) {
-    d.devices.insert((row.party, row.number), row.clone()).expect("device room checked");
+    d.devices
+        .as_mut()
+        .expect("push on retains device state")
+        .rows
+        .insert((row.party, row.number), row.clone())
+        .expect("device room checked");
     out.push(Request::Save { record: Stored::Device(row), release: None, read_afresh: None });
     out.push(Request::Marked { tasks: Box::new([DEVICES_SUBJECT]) });
 }
 pub(crate) fn remove(d: &mut Domain, request: Token, token: Token, party: u64, number: u32, out: &mut Queue<Request>) {
-    let answer = if d.devices.remove(&(party, number)).is_some() {
+    let erased = match &mut d.devices {
+        Some(state) => state.rows.remove(&(party, number)).is_some(),
+        None => false,
+    };
+    let answer = if erased {
         out.push(Request::Erase { key: Key::Device { party, number } });
         out.push(Request::Marked { tasks: Box::new([DEVICES_SUBJECT]) });
         DeviceAnswer::Removed
-    } else { DeviceAnswer::Refused(DeviceRefusal::Unknown) };
+    } else {
+        DeviceAnswer::Refused(DeviceRefusal::Unknown)
+    };
     d.connect.answer(request, token, Answered::Device(answer), out);
 }
 /// Only the subscription named by this answer may be erased (attention.md, 7.2).
@@ -126,11 +216,12 @@ pub(crate) fn pushed(
         PushAnswer::Made | PushAnswer::Failed => return,
         PushAnswer::Gone => {}
     }
-    let Some(row) = d.devices.get(&(party, device)) else { return };
+    let Some(state) = &mut d.devices else { return };
+    let Some(row) = state.rows.get(&(party, device)) else { return };
     if row.endpoint.as_ref() != endpoint {
         return;
     }
-    d.devices.remove(&(party, device));
+    state.rows.remove(&(party, device));
     out.push(Request::Erase { key: Key::Device { party, number: device } });
     out.push(Request::Marked { tasks: Box::new([DEVICES_SUBJECT]) });
 }
@@ -139,7 +230,8 @@ impl Domain {
     /// Read the arrival's deliveries without writing any connector state (attention.md, 7.2).
     #[must_use]
     pub fn pushes(&self, party: u64, topic: &[u8], payload: &[u8]) -> Box<[Push]> {
-        if self.push.is_none() {
+        let Some(state) = &self.devices else { return Box::new([]) };
+        if state.push.is_none() {
             return Box::new([]);
         }
         let mut pushes = List::with_capacity(DEVICES);
@@ -161,12 +253,22 @@ impl Domain {
 
     /// This party's subscriptions in number order, including keys for the push decision.
     pub fn devices_of(&self, party: u64) -> impl Iterator<Item = (&(u64, u32), &Device)> {
-        self.devices.range((party, 0)..=(party, u32::MAX))
+        let rows = match &self.devices {
+            Some(state) => Some(state.rows.range((party, 0)..=(party, u32::MAX))),
+            None => None,
+        };
+        rows.into_iter().flatten()
     }
     pub(crate) fn devices_view(&self, party: u64) -> DevicesView {
         let mut rows = List::with_capacity(DEVICES);
         for (_, row) in self.devices_of(party) {
-            rows.push(DeviceView { number: row.number, label: row.label.clone(), at: row.at, endpoint: row.endpoint.clone() }).expect("bounded party devices");
+            rows.push(DeviceView {
+                number: row.number,
+                label: row.label.clone(),
+                at: row.at,
+                endpoint: row.endpoint.clone(),
+            })
+            .expect("bounded party devices");
         }
         DevicesView { rows: rows.into_boxed() }
     }

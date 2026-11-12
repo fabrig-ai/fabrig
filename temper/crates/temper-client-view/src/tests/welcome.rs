@@ -2353,6 +2353,7 @@ fn welcome_claude_states_keep_the_command_and_check_in_both_shells() {
                             | d::Request::KeepSignIn { .. }
                             | d::Request::Tab { .. }
                             | d::Request::Copy { .. }
+                            | d::Request::Push(_)
                             | d::Request::Fact { .. } => None,
                         })
                         .expect("chained check sent");

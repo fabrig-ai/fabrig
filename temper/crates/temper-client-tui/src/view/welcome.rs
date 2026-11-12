@@ -44,6 +44,7 @@ pub(crate) fn shown(root: &Domain, tui: &Tui) -> bool {
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Ask { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits

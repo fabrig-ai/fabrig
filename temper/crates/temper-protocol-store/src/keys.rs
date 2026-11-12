@@ -238,7 +238,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::ProjectFacts { project } => {
             writer.tag(PROJECT_FACTS).u64(u64::from(*project));
         }
-        forge::Key::Device { party, number } => { writer.tag(DEVICE).u64(*party).u64(u64::from(*number)); }
+        forge::Key::Device { party, number } => {
+            writer.tag(DEVICE).u64(*party).u64(u64::from(*number));
+        }
         forge::Key::Away { party, project } => {
             writer.tag(AWAY).u64(*party).u64(u64::from(*project));
         }

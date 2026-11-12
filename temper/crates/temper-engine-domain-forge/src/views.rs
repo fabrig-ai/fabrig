@@ -360,7 +360,9 @@ impl Document {
             }
             Self::Devices(view) => {
                 size = size.saturating_add(size_of_val(view.rows.as_ref()));
-                for row in &view.rows { size = size.saturating_add(row.label.len()).saturating_add(row.endpoint.len()); }
+                for row in &view.rows {
+                    size = size.saturating_add(row.label.len()).saturating_add(row.endpoint.len());
+                }
             }
             Self::Aways(view) => {
                 size = size.saturating_add(size_of_val(view.rows.as_ref()));
