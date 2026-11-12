@@ -52,6 +52,8 @@ pub struct TaskRead {
     pub words: TaskText,
     /// Verdict selected by a result read; offsets still count only reason bytes.
     pub verdict_code: Option<u32>,
+    /// A result read of a live task, answered with its specification (domain/engine/executors.md, 3).
+    pub result_pending: bool,
     pub hold: Option<TaskHold>,
 }
 
@@ -140,6 +142,15 @@ fn value(
     {
         return Err(tasks::Refusal::Reference);
     }
+    let result_pending = field == TaskTextField::Result
+        && match row.phase {
+            tasks::Phase::Ended(_) => false,
+            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => true,
+        };
+    if result_pending && from != 0 {
+        return Err(tasks::Refusal::Unknown);
+    }
+    let field = if result_pending { TaskTextField::Specification } else { field };
     let source = match field {
         TaskTextField::Specification => row.spec.words.as_ref(),
         TaskTextField::Result => super::task_text::report(row).ok_or(tasks::Refusal::Unknown)?,
@@ -157,6 +168,7 @@ fn value(
         questions: row.questions.clone(),
         words,
         verdict_code: verdict_code(row, field),
+        result_pending,
         hold,
     })
 }
@@ -425,6 +437,80 @@ mod tests {
     }
 
     #[test]
+    fn live_result_reads_return_only_the_first_specification_chunk() {
+        let (core, mut limits) = crate::tests::make_tree();
+        limits.documents.text_bytes = 4;
+        let mut row = core.tasks.task(2).expect("delegate").clone();
+        row.spec.words = b"a\xc3\xa9bcdef".as_slice().into();
+        row.revisions.spec = 2;
+        row.revisions.hold = 7;
+        row.dependencies = Box::new([3]);
+        row.questions = Box::new([tasks::QuestionCredit {
+            number: 103,
+            answerer: tasks::Party::Task(1),
+            asked: tasks::Party::Task(1),
+            line: 106,
+        }]);
+        for phase in [
+            tasks::Phase::Waiting,
+            tasks::Phase::Active(tasks::Active::Due),
+            tasks::Phase::Held {
+                was: tasks::Was::Waiting,
+                why: tasks::Hold::Procedure,
+                source: Some(Box::new(tasks::HoldSource::Account {
+                    connector: 2,
+                    entry: None,
+                    words: b"amend authority and release".as_slice().into(),
+                })),
+            },
+        ] {
+            row.phase = phase;
+            let mut spec = in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[])
+                .expect("specification");
+            assert!(!spec.result_pending);
+            assert_eq!(spec.words.field, TaskTextField::Specification);
+            assert_eq!(spec.words.from, 0);
+            assert_eq!(spec.words.bytes.as_ref(), b"a\xc3\xa9b");
+            assert_eq!(spec.words.next, Some(4));
+            assert_eq!(spec.verdict_code, None);
+            spec.result_pending = true;
+            assert_eq!(
+                in_document_room(&core, &limits, 1, &row, TaskTextField::Result, 0, &[]),
+                Ok(spec),
+                "live result keeps the specification header and chunk"
+            );
+            assert_eq!(
+                in_document_room(&core, &limits, 1, &row, TaskTextField::Result, 1, &[]),
+                Err(tasks::Refusal::Unknown)
+            );
+        }
+    }
+
+    #[test]
+    fn ended_tasks_without_reports_do_not_fall_back_to_specifications() {
+        let (core, limits) = crate::tests::make_tree();
+        let mut row = core.tasks.task(2).expect("delegate").clone();
+        for ending in [
+            tasks::Ending::Failed { reason: b"failed".as_slice().into() },
+            tasks::Ending::Cancelled {
+                by: tasks::Party::Task(1),
+                at: skein_lib::Wall::EPOCH,
+                reason: b"cancelled".as_slice().into(),
+                result: None,
+            },
+        ] {
+            row.phase = tasks::Phase::Ended(ending);
+            assert_eq!(
+                in_document_room(&core, &limits, 1, &row, TaskTextField::Result, 0, &[]),
+                Err(tasks::Refusal::Unknown)
+            );
+            let spec = in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[])
+                .expect("ended specification");
+            assert!(!spec.result_pending);
+        }
+    }
+
+    #[test]
     fn result_reads_keep_verdict_codes_outside_reason_offsets() {
         let (core, mut limits) = crate::tests::make_tree();
         limits.documents.text_bytes = 5; // The UTF-8 reason is two five-byte windows.
@@ -450,6 +536,7 @@ mod tests {
                 &[],
             )
             .expect("requester result");
+            assert!(!read.result_pending);
             assert_eq!(read.verdict_code, Some(2));
             assert_eq!(read.words.bytes.as_ref(), bytes);
             assert_eq!(read.words.next, next);
@@ -473,6 +560,7 @@ mod tests {
         );
         let spec =
             in_document_room(&core, &limits, 1, &row, TaskTextField::Specification, 0, &[]).expect("requester spec");
+        assert!(!spec.result_pending);
         assert_eq!(spec.verdict_code, None);
         assert_eq!(
             in_document_room(&core, &limits, 3, &row, TaskTextField::Result, 0, &[]),
@@ -480,10 +568,9 @@ mod tests {
         );
         row.phase =
             tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words: b"bold".as_slice().into() }));
-        assert_eq!(
-            in_document_room(&core, &limits, 1, &row, TaskTextField::Result, 0, &[]).expect("report").verdict_code,
-            None
-        );
+        let report = in_document_room(&core, &limits, 1, &row, TaskTextField::Result, 0, &[]).expect("report");
+        assert_eq!(report.verdict_code, None);
+        assert!(!report.result_pending);
     }
 
     #[test]
@@ -685,13 +772,14 @@ mod tests {
     }
 
     #[test]
-    fn a_goal_reads_a_live_grandchilds_specification() {
+    fn a_goal_reads_a_live_grandchilds_specification_and_pending_result() {
         let (mut core, limits, _) = retained_fixture();
         report_delegate(&mut core, &limits, CHANGE, GOAL, change_contract(&limits));
         report_delegate(&mut core, &limits, PRODUCER, CHANGE, change_contract(&limits));
         let row = core.tasks.task(PRODUCER).expect("live producer");
         let env = Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
         let expected = (row.spec.words.clone(), task_state(row));
+        for field in [TaskTextField::Specification, TaskTextField::Result] {
         let out = run(
             &mut core,
             &env,
@@ -700,13 +788,15 @@ mod tests {
             Read {
                 joined: false,
                 task: PRODUCER,
-                field: TaskTextField::Specification,
+                field,
                 from: 0,
                 room: limits.call_answer_bytes,
             },
         );
-        let read = read_answer(out).expect("live grandchild specification");
+        let read = read_answer(out).expect("live grandchild read");
+        assert_eq!(read.result_pending, field == TaskTextField::Result);
         assert_eq!((read.words.bytes, read.state), expected);
+        }
     }
 
     #[test]
