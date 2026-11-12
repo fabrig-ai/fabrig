@@ -45,13 +45,19 @@ scripts answer, strict (`../../protocol/setup/box.md`, 5):
   steps of the `launchpad-chat` journey's walk past its approval
   (`../../client/tui/journeys/launchpad-chat/walk`), as drive lines, from
   `web reload "/projects/1"`, as the journey's setup ends, to the fake
-  model's answer; its check `tui see` of that answer. It reaches Hello
+  model's answer, a `tui see` of it that waits, then `web reload "/"`,
+  a step that is no `see`, so that the answer's `see` stays a step
+  (`../../client/recipe.md`, 3.1); its check `tui see "/chats 1"`, the
+  chat's row on the launchpad of the TUI the check starts afresh after
+  the walk's `tui stop` (`../../client/recipe.md`, 5.1;
+  `../../client/tui/pages/launchpad.md`, 4). It reaches Hello
   with an Ask temper chat asked and answered from the TUI, and serves
   the TUI's chat screen (`../../client/tui/pages/chat.md`) and the web
   client's view of a chat the TUI started.
 - **A TUI state** a later case needs is a pass's to add, as any other
   (`places.md`, 6): its lines are `tui` lines, and its check `tui see`
-  or `web see` lines.
+  or `web see` lines, read on the root page and a TUI started afresh
+  (`../../client/recipe.md`, 5.1).
 
 ## 4. The twins
 
