@@ -100,8 +100,8 @@ pub fn across_people(limits: Limits) -> Joint {
     front.engine.settle();
     front
 }
-/// Eight delegates fill the chat's watch set beside its session approvals and Home's full room.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 8;
+/// Delegates fill one stream's room beside the two pages' fourteen other watches.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = temper_engine_domain::WATCHES_PER_STREAM - 14;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]
