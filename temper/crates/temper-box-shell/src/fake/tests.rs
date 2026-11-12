@@ -203,7 +203,8 @@ fn arguments() {
         assert_eq!(
             arguments,
             Arguments {
-                state: None,                scripts: None,
+                state: None,
+                scripts: None,
                 strict: false,
                 kind,
                 source: Source::Document(document.into()),
@@ -438,7 +439,8 @@ fn github_installation_records_end_at_the_pass_checkpoint() {
     .expect("fixture");
     let path = directory.join("observations");
     let arguments = Arguments {
-                state: None,        scripts: None,
+        state: None,
+        scripts: None,
         strict: false,
         kind: Kind::Forge,
         source: Source::Document(document),
@@ -556,7 +558,8 @@ fn observation_write_failure_drains_the_peer_and_keeps_its_outputs() {
         .expect("valid fixture");
         let path = directory.join("observations");
         let arguments = Arguments {
-                state: None,            scripts: None,
+            state: None,
+            scripts: None,
             strict: false,
             kind: Kind::Forge,
             source: Source::Document(document.clone()),
@@ -649,7 +652,8 @@ fn llm_records_full_counts_connections_without_queries() {
     .expect("fixture");
     let path = directory.join("observations");
     let arguments = Arguments {
-                state: None,        scripts: None,
+        state: None,
+        scripts: None,
         strict: false,
         kind: Kind::Llm,
         source: Source::Document(document),
@@ -741,7 +745,8 @@ fn deployment_arguments() {
             configured(&words, &environment),
             Ok(Command::Fake {
                 arguments: Arguments {
-                state: None,                    scripts: None,
+                    state: None,
+                    scripts: None,
                     strict: false,
                     kind: Kind::Forge,
                     source: Source::Setup { directories, forge },
@@ -779,7 +784,8 @@ fn deployment_arguments() {
             configured(&words, &environment),
             Ok(Command::Fake {
                 arguments: Arguments {
-                state: None,                    scripts: None,
+                    state: None,
+                    scripts: None,
                     strict: false,
                     kind: Kind::Llm,
                     source: Source::Demo { directories },

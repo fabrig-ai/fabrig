@@ -26,9 +26,12 @@ fn read(path: &Path) -> Result<Option<Box<[u8]>>, String> {
     let file = File::open(path).map_err(|why| why.to_string())?;
     let opened = file.metadata().map_err(|why| why.to_string())?;
     let named = fs::symlink_metadata(path).map_err(|why| why.to_string())?;
-    if !safe(&opened) || !safe(&named)
-        || opened.dev() != named.dev() || opened.ino() != named.ino()
-        || opened.dev() != metadata.dev() || opened.ino() != metadata.ino()
+    if !safe(&opened)
+        || !safe(&named)
+        || opened.dev() != named.dev()
+        || opened.ino() != named.ino()
+        || opened.dev() != metadata.dev()
+        || opened.ino() != metadata.ino()
     {
         return Err("output changed while opening".into());
     }
@@ -36,7 +39,7 @@ fn read(path: &Path) -> Result<Option<Box<[u8]>>, String> {
     let length = u32::try_from(opened.len()).map_err(|_| "image length".to_string())?;
     let mut bytes = Vec::new();
     file.take(u64::from(length).saturating_add(1)).read_to_end(&mut bytes).map_err(|why| why.to_string())?;
-    if u64::try_from(bytes.len()).ok() != Some(opened.len()) {
+    if skein_lib::len_u64(bytes.len()) != opened.len() {
         return Err("output changed while reading".into());
     }
     Ok(Some(bytes.into_boxed_slice()))
@@ -50,10 +53,15 @@ pub(super) fn restore(path: &Path, peer: &mut Peer) -> Result<(), String> {
 }
 pub(super) fn store(path: &Path, peer: &Peer) -> Result<(), String> {
     let image = peer.image().map_err(|why| format!("state {}: {why:?}", path.display()))?;
-    let mut name = path.file_name().ok_or_else(|| format!("state {}: expected a file name", path.display()))?.to_os_string();
+    let mut name =
+        path.file_name().ok_or_else(|| format!("state {}: expected a file name", path.display()))?.to_os_string();
     name.push(format!(".{}.tmp", std::process::id()));
     let temporary = path.with_file_name(name);
-    let mut file = OpenOptions::new().write(true).create_new(true).mode(0o600).open(&temporary)
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(&temporary)
         .map_err(|why| format!("state {}: {why}", path.display()))?;
     let result = file.write_all(&image).and_then(|()| file.sync_all()).and_then(|()| fs::rename(&temporary, path));
     if let Err(why) = result {
