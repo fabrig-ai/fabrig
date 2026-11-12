@@ -223,7 +223,7 @@ fn failure(
             None => (named(w, Word::WelcomeTryWaited, who), None),
         },
         trials::Why::Ended { class: trials::Class::Permanent } => (named(w, Word::WelcomeTryRefused, who), answer),
-        trials::Why::Ended { class: trials::Class::Transient } => (named(w, Word::WelcomeTryBusy, who), None),
+        trials::Why::Ended { class: trials::Class::Transient | trials::Class::Infrastructure } => (named(w, Word::WelcomeTryBusy, who), None),
         trials::Why::Ended { class: trials::Class::Run | trials::Class::Agent | trials::Class::Invalid } => {
             (named(w, Word::WelcomeTryRun, who), None)
         }

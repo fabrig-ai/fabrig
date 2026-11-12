@@ -62,7 +62,7 @@ fn root_with_hold(executor: c::ChipExecutor, priority: Option<u32>, held: bool) 
             revision: HOLD_REVISION.value,
             before: c::PriorPhase::Active(c::RunStage::Idle),
             escalation: None,
-            tries: c::FailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0 },
+            tries: c::FailureTries { transient: 0, permanent: 0, run: 2, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
             hold_wait_since: None,
         }));
         document.acts = List::with_capacity(ONE_OFFER);

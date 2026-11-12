@@ -39,6 +39,7 @@ pub enum Class {
     Lost,
     Invalid,
     Refused,
+    Infrastructure,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -432,6 +433,7 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[Row]>> {
                             w::TrialClass::Agent => Class::Agent,
                             w::TrialClass::Lost => Class::Lost,
                             w::TrialClass::Invalid => Class::Invalid,
+                            w::TrialClass::Infrastructure => Class::Infrastructure,
                             w::TrialClass::Refused => Class::Refused,
                         },
                     },

@@ -98,7 +98,7 @@ pub fn held(act: ActKind) -> ReadValue {
         revision: NEW_REVISION.value,
         before: PriorPhase::Active(RunStage::Running { attempt: 1 }),
         escalation: None,
-        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: None,
     }));
     ReadValue::Escalation(Box::new(Escalation { task: Box::new(task), acts: offered(act, Admission::Allowed) }))

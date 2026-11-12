@@ -78,7 +78,7 @@ fn committed_turn(w: &World) {
 
 fn past_backoff(w: &mut World) {
     let retries = w.env.limits.retries;
-    let longest = [retries.transient, retries.permanent, retries.run, retries.agent, retries.lost, retries.invalid]
+    let longest = [retries.transient, retries.permanent, retries.run, retries.agent, retries.lost, retries.invalid, retries.infrastructure]
         .into_iter()
         .map(|retry| retry.max)
         .max()

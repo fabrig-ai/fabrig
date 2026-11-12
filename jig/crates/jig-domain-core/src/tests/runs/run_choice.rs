@@ -1674,6 +1674,25 @@ fn an_open_start_takes_the_first_eligible_hosts_answer_in_either_order() {
 }
 
 #[test]
+fn an_infrastructure_failure_rechecks_while_its_account_waits() {
+    for failure in [
+        tasks::End::Failed(tasks::Class::Infrastructure),
+        tasks::End::FailedWithReason { class: tasks::Class::Infrastructure, reason: Box::from(b"fetch: TimedOut".as_slice()) },
+    ] {
+        let (mut core, limits) = placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
+        claim_open(&mut core, &limits, OPEN_ATTEMPT);
+        core.proofs.get_mut(&OPEN_TASK).unwrap().account_terminal = true;
+        let mut answer = invalid_start_answer(OPEN_ATTEMPT, &[]);
+        let Event::AnswerPayload { end, .. } = &mut answer else { panic!("answer fixture") };
+        *end = failure;
+        let _out = step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, answer);
+        assert_eq!(core.proofs.get(&OPEN_TASK).unwrap().terminal.as_ref().unwrap().end, tasks::End::Recheck);
+        assert_eq!(core.tasks.task(OPEN_TASK).unwrap().tries, tasks::Tries::NONE);
+        assert_eq!(core.tasks.task(OPEN_TASK).unwrap().phase, tasks::Phase::Active(tasks::Active::Due));
+    }
+}
+
+#[test]
 fn a_bound_failure_is_not_rechecked_while_its_account_waits() {
     let (mut core, limits) = placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
     claim_open(&mut core, &limits, OPEN_ATTEMPT);

@@ -20,6 +20,8 @@ pub enum Class {
     Lost,
     /// Returned result violated the admitted task contract.
     Invalid,
+    /// A workspace or required brief section could not be prepared for now.
+    Infrastructure,
 }
 
 /// Task's per-class failure counters, updated with saturation; counts describe history rather
@@ -34,11 +36,12 @@ pub struct Tries {
     pub lost: u32,
     /// Count of results that violated the task contract.
     pub invalid: u32,
+    pub infrastructure: u32,
 }
 
 impl Tries {
     /// All failure counters zero; a `new` task and a successful park start with this value.
-    pub const NONE: Tries = Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 };
+    pub const NONE: Tries = Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 };
 
     /// Pure selection of the counter or retry policy for `class`; no allocation, mutation, output
     /// or lifecycle transition.
@@ -51,6 +54,7 @@ impl Tries {
             Class::Agent => self.agent,
             Class::Lost => self.lost,
             Class::Invalid => self.invalid,
+            Class::Infrastructure => self.infrastructure,
         }
     }
 
@@ -62,6 +66,7 @@ impl Tries {
             Class::Agent => self.agent = self.agent.saturating_add(1),
             Class::Lost => self.lost = self.lost.saturating_add(1),
             Class::Invalid => self.invalid = self.invalid.saturating_add(1),
+            Class::Infrastructure => self.infrastructure = self.infrastructure.saturating_add(1),
         }
     }
 }
@@ -90,6 +95,7 @@ pub struct Retries {
     pub agent: Retry,
     pub lost: Retry,
     pub invalid: Retry,
+    pub infrastructure: Retry,
 }
 
 impl Retries {
@@ -104,6 +110,7 @@ impl Retries {
             Class::Agent => self.agent,
             Class::Lost => self.lost,
             Class::Invalid => self.invalid,
+            Class::Infrastructure => self.infrastructure,
         }
     }
 }

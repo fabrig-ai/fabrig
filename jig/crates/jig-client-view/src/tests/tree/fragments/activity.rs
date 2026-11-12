@@ -207,9 +207,9 @@ fn owner_activity_equal_sender_numbers_keep_task_person_and_deployment_distinct(
     goldens.check(&tree);
 }
 #[test]
-fn owner_activity_closed_run_causes_and_ends_keep_all_six_failure_classes_and_counters() {
+fn owner_activity_closed_run_causes_and_ends_keep_all_seven_failure_classes_and_counters() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_closed");
-    let tries = FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX };
+    let tries = FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX, infrastructure: 0 };
     let causes: Box<[RunWhy]> = Box::new([
         RunWhy::Made,
         RunWhy::Ready,
@@ -244,6 +244,7 @@ fn owner_activity_closed_run_causes_and_ends_keep_all_six_failure_classes_and_co
         HoldFailure::Agent,
         HoldFailure::Lost,
         HoldFailure::Invalid,
+        HoldFailure::Infrastructure,
     ]);
     for class in classes {
         let tree = build(
@@ -261,8 +262,7 @@ fn assert_max_tries() {
         run: u32::MAX,
         agent: u32::MAX,
         lost: u32::MAX,
-        invalid: u32::MAX,
-    };
+        invalid: u32::MAX, infrastructure: 0 };
     let tree = build(
         &activity(Activity::RunBegan { attempt: 0, why: RunWhy::Retry { tries }, resumed: false }),
         normal_words(),

@@ -124,7 +124,7 @@ fn invalid_reason(class: t::Class, reason: Option<t::InvalidResult>) -> Option<w
             Some(t::InvalidResult::Followups) => w::InvalidReason::Followups,
             None => w::InvalidReason::UnreadableResult,
         }),
-        t::Class::Transient | t::Class::Permanent | t::Class::Run | t::Class::Agent | t::Class::Lost => None,
+        t::Class::Transient | t::Class::Infrastructure | t::Class::Permanent | t::Class::Run | t::Class::Agent | t::Class::Lost => None,
     }
 }
 

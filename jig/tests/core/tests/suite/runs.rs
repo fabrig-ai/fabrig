@@ -712,18 +712,27 @@ fn host_ending(world: &mut World, ending: jig_domain_host::Ending, spent: u64) {
 }
 
 #[test]
-fn an_unrelated_transient_try_does_not_disable_a_later_windows_resume() {
+fn an_unrelated_infrastructure_try_does_not_disable_a_later_windows_resume() {
     use jig_domain_host as host;
     let mut world = World::new(Setup { seed: 118, ..Setup::default() });
     host_ending(
         &mut world,
         host::Ending::Failed {
             failure: host::Failure::Unprepared(host::Preparation::Transient),
-            detail: Box::new([]),
+            detail: Box::from(b"fetch: TimedOut".as_slice()),
             work: host::Work { left: None, saved: None },
         },
         0,
     );
+    let task = world.domain.core().tasks.task(world.task()).expect("live chat");
+    assert_eq!(task.tries.infrastructure, 1);
+    assert_eq!(task.tries.transient, 0);
+    assert!(matches!(task.phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
+    assert_eq!(task.retry_notice, Some(tasks::RetryNotice::Failed {
+        class: tasks::Class::Infrastructure, count: 1,
+        allowance: world.env().limits.core.tasks.retries.infrastructure.retries,
+        reason: Some(Box::from(b"fetch: TimedOut".as_slice())),
+    }));
     world.retry_due();
     let conversation = world.attempt();
     world.window_turn(1, 1, None, b"window after preparation retry");
@@ -732,7 +741,7 @@ fn an_unrelated_transient_try_does_not_disable_a_later_windows_resume() {
     let assignment = world.assigned.as_ref().expect("retry resumes the open window");
     assert_eq!(assignment.conversation, conversation);
     assert_eq!(assignment.transcript.as_ref(), [Box::<[u8]>::from(&b"window after preparation retry"[..])]);
-    assert_eq!(world.domain.core().tasks.task(world.task()).expect("live chat").tries.transient, 1);
+    assert_eq!(world.domain.core().tasks.task(world.task()).expect("live chat").tries.infrastructure, 1);
 }
 
 #[test]

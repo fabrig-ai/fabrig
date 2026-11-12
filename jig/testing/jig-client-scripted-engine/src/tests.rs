@@ -1153,7 +1153,7 @@ fn hold(reason: HoldCategory, revision: u64) -> ChipHold {
         revision,
         before: PriorPhase::Active(RunStage::Running { attempt: 1 }),
         escalation: None,
-        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: None,
     }
 }

@@ -44,6 +44,7 @@ pub enum ActivityPhrase {
     AgentTries,
     LostTries,
     InvalidTries,
+    InfrastructureTries,
     NowWritten,
     TalkOpened,
     TalkEnded,
@@ -63,6 +64,7 @@ pub enum ActivityPhrase {
     AgentFailure,
     Lost,
     Invalid,
+    Infrastructure,
     Turn,
     Reply,
     TurnNumber,
@@ -129,7 +131,7 @@ pub enum ActivityPhrase {
     NothingAwaited,
 }
 // Activity captions include question outcomes and the requester obligation.
-pub const ALL: [ActivityPhrase; 118] = [
+pub const ALL: [ActivityPhrase; 120] = [
     ActivityPhrase::Activity,
     ActivityPhrase::Task,
     ActivityPhrase::Position,
@@ -165,6 +167,7 @@ pub const ALL: [ActivityPhrase; 118] = [
     ActivityPhrase::AgentTries,
     ActivityPhrase::LostTries,
     ActivityPhrase::InvalidTries,
+    ActivityPhrase::InfrastructureTries,
     ActivityPhrase::NowWritten,
     ActivityPhrase::TalkOpened,
     ActivityPhrase::TalkEnded,
@@ -184,6 +187,7 @@ pub const ALL: [ActivityPhrase; 118] = [
     ActivityPhrase::AgentFailure,
     ActivityPhrase::Lost,
     ActivityPhrase::Invalid,
+    ActivityPhrase::Infrastructure,
     ActivityPhrase::Turn,
     ActivityPhrase::Reply,
     ActivityPhrase::TurnNumber,
@@ -292,6 +296,7 @@ impl ActivityPhrase {
             Self::AgentTries => 7232,
             Self::LostTries => 7233,
             Self::InvalidTries => 7234,
+            Self::InfrastructureTries => 7319,
             Self::NowWritten => 7318,
             Self::TalkOpened => 7313,
             Self::TalkEnded => 7314,
@@ -311,6 +316,7 @@ impl ActivityPhrase {
             Self::AgentFailure => 7245,
             Self::Lost => 7246,
             Self::Invalid => 7247,
+            Self::Infrastructure => 7320,
             Self::Turn => 7248,
             Self::Reply => 7249,
             Self::TurnNumber => 7250,
@@ -419,6 +425,7 @@ impl ActivityPhrase {
             | Self::AgentFailure
             | Self::Lost
             | Self::Invalid
+            | Self::Infrastructure
             | Self::Turn
             | Self::ReadAbsent
             | Self::Decided
@@ -479,6 +486,7 @@ impl ActivityPhrase {
             | Self::AgentTries
             | Self::LostTries
             | Self::InvalidTries
+            | Self::InfrastructureTries
             | Self::Spent
             | Self::Reply
             | Self::TurnNumber
@@ -542,6 +550,7 @@ impl ActivityPhrase {
             Self::AgentTries => b"Agent failures: ",
             Self::LostTries => b"Lost failures: ",
             Self::InvalidTries => b"Invalid failures: ",
+            Self::InfrastructureTries => b"Infrastructure failures: ",
             Self::NowWritten => b"Wrote its Now:",
             Self::TalkOpened => b"Talk opened by",
             Self::TalkEnded => b"Talk ended",
@@ -561,6 +570,7 @@ impl ActivityPhrase {
             Self::AgentFailure => b"Class: agent",
             Self::Lost => b"Class: lost",
             Self::Invalid => b"Class: invalid",
+            Self::Infrastructure => b"Class: infrastructure",
             Self::Turn => b"Committed turn reference",
             Self::Reply => b"Archive reply: ",
             Self::TurnNumber => b"Turn: ",

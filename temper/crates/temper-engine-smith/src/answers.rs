@@ -1857,6 +1857,7 @@ fn hold_reason(reason: &jig_domain_people::HoldReason) -> &'static [u8] {
             FailureClass::Agent => b"for agent failures",
             FailureClass::Lost => b"for lost runs",
             FailureClass::Invalid => b"for invalid results",
+                FailureClass::Infrastructure => b"for infrastructure failures",
         },
         HoldReason::Exceeded(_) => b"for its configured model allowance",
         HoldReason::Circle => b"for a circle of waits",
@@ -2038,6 +2039,7 @@ fn task_hold_reason(text: &mut Text, reason: jig_domain_tasks::Hold) -> Result<(
                 Class::Agent => b"retry allowance exhausted: agent failures",
                 Class::Lost => b"retry allowance exhausted: lost runs",
                 Class::Invalid => b"retry allowance exhausted: invalid results",
+                Class::Infrastructure => b"retry allowance exhausted: infrastructure failures",
             });
         }
         Hold::Stalled => (b"executor stalled", None),

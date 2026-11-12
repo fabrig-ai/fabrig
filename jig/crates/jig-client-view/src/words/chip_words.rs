@@ -66,6 +66,7 @@ pub enum ChipPhrase {
     AgentTries,
     LostTries,
     InvalidTries,
+    InfrastructureTries,
     Done,
     Failed,
     Cancelled,
@@ -93,6 +94,7 @@ pub enum ChipPhrase {
     AgentFailure,
     Lost,
     InvalidFailure,
+    InfrastructureFailure,
     Stalled,
     Dependency,
     Stopped,
@@ -109,7 +111,7 @@ pub enum ChipPhrase {
     PoolLost,
     HoldProcedure,
 }
-pub const ALL: [ChipPhrase; 99] = [
+pub const ALL: [ChipPhrase; 101] = [
     ChipPhrase::Project,
     ChipPhrase::PhaseSince,
     ChipPhrase::Placement,
@@ -167,6 +169,7 @@ pub const ALL: [ChipPhrase; 99] = [
     ChipPhrase::AgentTries,
     ChipPhrase::LostTries,
     ChipPhrase::InvalidTries,
+    ChipPhrase::InfrastructureTries,
     ChipPhrase::Done,
     ChipPhrase::Failed,
     ChipPhrase::Cancelled,
@@ -194,6 +197,7 @@ pub const ALL: [ChipPhrase; 99] = [
     ChipPhrase::AgentFailure,
     ChipPhrase::Lost,
     ChipPhrase::InvalidFailure,
+    ChipPhrase::InfrastructureFailure,
     ChipPhrase::Stalled,
     ChipPhrase::Dependency,
     ChipPhrase::Stopped,
@@ -272,6 +276,7 @@ impl ChipPhrase {
             Self::AgentTries => 7054,
             Self::LostTries => 7055,
             Self::InvalidTries => 7056,
+            Self::InfrastructureTries => 7099,
             Self::Done => 7057,
             Self::Failed => 7058,
             Self::Cancelled => 7059,
@@ -299,6 +304,7 @@ impl ChipPhrase {
             Self::AgentFailure => 7081,
             Self::Lost => 7082,
             Self::InvalidFailure => 7083,
+            Self::InfrastructureFailure => 7100,
             Self::Stalled => 7084,
             Self::Dependency => 7085,
             Self::Stopped => 7086,
@@ -348,6 +354,7 @@ impl ChipPhrase {
             | Self::AgentTries
             | Self::LostTries
             | Self::InvalidTries
+            | Self::InfrastructureTries
             | Self::RequesterTask
             | Self::RequesterPerson
             | Self::RequesterDeployment
@@ -406,6 +413,7 @@ impl ChipPhrase {
             | Self::AgentFailure
             | Self::Lost
             | Self::InvalidFailure
+            | Self::InfrastructureFailure
             | Self::Stalled
             | Self::Stopped
             | Self::Placed
@@ -481,6 +489,7 @@ impl ChipPhrase {
             Self::AgentTries => b"Agent tries: ",
             Self::LostTries => b"Lost tries: ",
             Self::InvalidTries => b"Invalid tries: ",
+            Self::InfrastructureTries => b"Infrastructure tries: ",
             Self::Done => b"Completed with result",
             Self::Failed => b"Failed with reason",
             Self::Cancelled => b"Cancelled with reason",
@@ -508,6 +517,7 @@ impl ChipPhrase {
             Self::AgentFailure => b"Agent failure",
             Self::Lost => b"Lost failure",
             Self::InvalidFailure => b"Invalid failure",
+            Self::InfrastructureFailure => b"Infrastructure failure",
             Self::Stalled => b"Held stalled",
             Self::Dependency => b"Held dependency task: ",
             Self::Stopped => b"Held stopped",

@@ -305,8 +305,8 @@ fn frame_bound(codec: &codec::View) -> Option<u64> {
 // Bound for two decoded records, including their wire values and the census's joined task.
 fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
     core_v6::Row::decoded_bound(&codec.core)?
-        .checked_add(tasks_v10::Row::decoded_bound(&codec.tasks)?)?
-        .checked_add(people_v15::Row::decoded_bound(&codec.people)?)?
+        .checked_add(tasks_v11::Row::decoded_bound(&codec.tasks)?)?
+        .checked_add(people_v16::Row::decoded_bound(&codec.people)?)?
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
         .checked_add(settings_v2::Revision::decoded_bound(&codec.settings)?)?
@@ -421,11 +421,11 @@ pub mod accounts_v2;
 pub mod notes_v1;
 #[rustfmt::skip]
 #[expect(clippy::similar_names, reason = "generated StoredActed retains its domain fields act and at")]
-#[path = "generated/people_v15.rs"]
-pub mod people_v15;
+#[path = "generated/people_v16.rs"]
+pub mod people_v16;
 #[rustfmt::skip]
-#[path = "generated/tasks_v10.rs"]
-pub mod tasks_v10;
+#[path = "generated/tasks_v11.rs"]
+pub mod tasks_v11;
 #[rustfmt::skip]
 #[path = "generated/core_v6.rs"]
 pub mod core_v6;

@@ -66,7 +66,7 @@ fn hold() -> ChipHold {
         revision: u64::MAX,
         before: PriorPhase::Waiting,
         escalation: None,
-        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX },
+        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: u32::MAX, infrastructure: 0 },
         hold_wait_since: Some(Wall::from_nanos(40)),
     }
 }
@@ -233,7 +233,7 @@ fn resource_rows_keep_raw_segmented_parts_and_independent_holder_writer_loss_obs
     goldens.check(&tree);
 }
 #[test]
-fn all_hold_categories_and_six_failure_classes_retain_only_supplied_payloads_and_counters() {
+fn all_hold_categories_and_seven_failure_classes_retain_only_supplied_payloads_and_counters() {
     let mut goldens = Goldens::new("tree/fragments/chip/all_hold_categories");
     let mut value = details();
     value.hold = Some(hold());
@@ -266,6 +266,7 @@ fn all_hold_categories_and_six_failure_classes_retain_only_supplied_payloads_and
         HoldFailure::Agent,
         HoldFailure::Lost,
         HoldFailure::Invalid,
+        HoldFailure::Infrastructure,
     ] {
         value.hold.as_mut().unwrap().reason = HoldCategory::Failures { class };
         let tree = build(&value, words()).0;
@@ -480,6 +481,7 @@ fn owner_retry_keeps_all_six_classes_and_independent_zero_max_counts_in_chip_and
         HoldFailure::Agent,
         HoldFailure::Lost,
         HoldFailure::Invalid,
+        HoldFailure::Infrastructure,
     ];
     for class in classes {
         for (count, allowance) in [(0, 0), (0, u32::MAX), (u32::MAX, 0), (u32::MAX, u32::MAX)] {

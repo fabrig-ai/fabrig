@@ -437,3 +437,40 @@ fn a_jobs_failure_reason_reaches_its_retry_notice_and_hold() {
     h.restart();
     assert_eq!(h.domain.task(2).unwrap().phase, held);
 }
+
+/// Infrastructure owns its allowance, delay and reason (domain/tasks/lifecycle.md, 6).
+#[test]
+fn infrastructure_backs_off_twelve_times_then_holds_with_its_reason() {
+    let mut h = running_job();
+    h.env.limits.retries.infrastructure = crate::Retry {
+        retries: 12, base: skein_lib::Duration::from_secs(10), max: skein_lib::Duration::from_secs(300),
+    };
+    let reason: Box<[u8]> = b"fetch: TimedOut".as_slice().into();
+    for (index, ceiling) in [10, 20, 40, 80, 160, 300, 300, 300, 300, 300, 300, 300, 0].into_iter().enumerate() {
+        let attempt = u64::try_from(index).unwrap() + 1;
+        let row = &mut crate::domain::task_mut(&mut h.domain, 2).unwrap().record;
+        row.attempt = attempt;
+        row.phase = crate::Phase::Active(crate::Active::Claimed { attempt });
+        h.send(Event::Activation {
+            reply_to: super::revisions::to(), task: 2, attempt, cause: crate::Cause::Unpriced, saved: None,
+            end: crate::End::FailedWithReason { class: crate::Class::Infrastructure, reason: reason.clone() },
+        });
+        let row = h.domain.task(2).unwrap();
+        assert_eq!(row.tries.infrastructure, u32::try_from(attempt).unwrap());
+        assert_eq!(row.tries.transient, 0);
+        if ceiling > 0 {
+            let crate::Phase::Active(crate::Active::BackingOff { until }) = row.phase else { panic!("infrastructure retries"); };
+            let delay = until.as_nanos() - h.env.wall.as_nanos();
+            let ceiling = skein_lib::Duration::from_secs(ceiling).as_nanos();
+            assert!((ceiling / 2..=ceiling).contains(&delay));
+        } else {
+            assert_eq!(row.phase, crate::Phase::Held {
+                was: crate::Was::Active(crate::Active::Due), why: crate::Hold::Failures(crate::Class::Infrastructure),
+                source: Some(Box::new(crate::HoldSource::Preparation { words: reason.clone() })),
+            });
+        }
+    }
+    let held = h.domain.task(2).unwrap().clone();
+    h.restart();
+    assert_eq!(h.domain.task(2).unwrap(), &held);
+}

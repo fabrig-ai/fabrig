@@ -126,6 +126,7 @@ fn hold(value: owner::HoldReason) -> client::HoldCategory {
                 owner::FailureClass::Agent => client::HoldFailure::Agent,
                 owner::FailureClass::Lost => client::HoldFailure::Lost,
                 owner::FailureClass::Invalid => client::HoldFailure::Invalid,
+                owner::FailureClass::Infrastructure => client::HoldFailure::Infrastructure,
             },
         },
         owner::HoldReason::Dependency { task } => client::HoldCategory::Dependency { task },

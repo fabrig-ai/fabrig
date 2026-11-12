@@ -34,7 +34,7 @@ record Accept { forge: u16 installation: u64 }
 # A model's trial (temper/docs/design/domain/trial.md, 6).
 record TryAccount { account: u32 again: bool }
 enum TrialStep { starts, answers }
-enum TrialClass { transient, permanent, run, agent, lost, invalid, refused }
+enum TrialClass { transient, permanent, run, agent, lost, invalid, refused, infrastructure }
 record TrialEnded { class: TrialClass }
 enum TrialWhy { ended: TrialEnded, refused, waited }
 record TrialAnswered { seconds: u32 }

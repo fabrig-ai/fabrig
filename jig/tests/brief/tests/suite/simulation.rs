@@ -183,7 +183,7 @@ fn a_required_section_missing_at_the_deadline_fails_before_completion() {
             brief: Token::new(1),
             why: GatherMissing::Late,
             failure: GatherFailure {
-                fate: GatherFate::Transient,
+                fate: GatherFate::Infrastructure,
                 section: b"section",
                 words: Box::from(b"not gathered by its deadline".as_slice())
             }

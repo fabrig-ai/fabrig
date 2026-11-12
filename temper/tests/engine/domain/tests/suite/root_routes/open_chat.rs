@@ -99,7 +99,7 @@ fn past_idle_and_backoff(driver: &mut Driver) {
     let idle_interval = charter().policy.waiting;
     let retries = driver.env.limits.tasks.retries;
     let retry_backoff =
-        [retries.transient, retries.permanent, retries.run, retries.agent, retries.lost, retries.invalid]
+        [retries.transient, retries.permanent, retries.run, retries.agent, retries.lost, retries.invalid, retries.infrastructure]
             .into_iter()
             .map(|retry| retry.max)
             .max()

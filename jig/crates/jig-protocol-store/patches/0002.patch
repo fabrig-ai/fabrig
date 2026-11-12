@@ -1,0 +1,9 @@
+patch 1
+owner jig 2
+
+family jig-store-people 15 to 16
+add FailureClass.infrastructure
+
+family jig-store-tasks 10 to 11
+add Class.infrastructure
+add Tries.infrastructure u32 0
