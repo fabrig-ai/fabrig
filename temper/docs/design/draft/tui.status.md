@@ -90,8 +90,7 @@
     hands it on a descriptor with nothing to read, paste or approve,
     where 1 and 4.2 have it signed in from the browser or by a paste; and
     Ctrl+C or `/quit` there stops the box with it, asking first while
-    work runs, where 4.1's closing is the TUI's alone. `temper box
-    --no-tui`, or a box with no terminal, runs as before
+    work runs, where 4.1's closing is the TUI's alone. `temper-box`, or `temper box` with no terminal, runs without a TUI
     (`../client/tui/box.md`; `../protocol/setup/box.md`, 6). The
     landing account's explained differences: the quiet line names a
     failing step as the box names it ("forgejo-3 restarting"), where the

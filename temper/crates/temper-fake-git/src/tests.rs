@@ -86,9 +86,9 @@ fn spawn(command: &Command) -> k::Spawn {
         | Command::DiffIndex { .. }
         | Command::WriteTree
         | Command::CommitTree { .. } => Some(temper_worker_domain_checkout::git::Kind::Commit),
-        Command::CheckOut { .. } | Command::Clean => Some(temper_worker_domain_checkout::git::Kind::CheckOut),
+        Command::CheckOut { .. } => Some(temper_worker_domain_checkout::git::Kind::CheckOut),
         Command::Merge { .. } => Some(temper_worker_domain_checkout::git::Kind::Merge),
-        Command::Version => None,
+        Command::Version | Command::Clean => None,
         Command::Origin { .. } => Some(temper_worker_domain_checkout::git::Kind::Look),
     };
     let identity = Identity {
@@ -612,4 +612,88 @@ fn a_lost_push_answer_does_not_send_the_write_again() {
         output::classify(&answer.stderr, temper_worker_domain_checkout::git::Kind::Push),
         temper_worker_domain_checkout::git::Fault::Unreachable
     );
+}
+
+type Vector = &'static [&'static [u8]];
+fn partial_vectors() -> [(Vector, Vector); 4] {
+    const ID: &[u8] = b"0000000000000000000000000000000000000001";
+    [
+        (
+            &[
+                b"clone",
+                b"--bare",
+                b"--filter=blob:none",
+                b"--single-branch",
+                b"--no-tags",
+                b"--quiet",
+                b"--",
+                REMOTE,
+                b"1",
+            ],
+            &[b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", REMOTE, b"1"],
+        ),
+        (
+            &[
+                b"fetch",
+                b"--porcelain",
+                b"--verbose",
+                b"--filter=blob:none",
+                b"--no-tags",
+                b"--no-write-fetch-head",
+                b"--no-recurse-submodules",
+                b"--",
+                REMOTE,
+                b"+HEAD:refs/temper/7/fetched",
+            ],
+            &[
+                b"fetch",
+                b"--porcelain",
+                b"--verbose",
+                b"--no-tags",
+                b"--no-write-fetch-head",
+                b"--no-recurse-submodules",
+                b"--",
+                REMOTE,
+                b"+HEAD:refs/temper/7/fetched",
+            ],
+        ),
+        (
+            &[b"-c", b"remote.origin.promisor=true", b"checkout", b"--force", b"--detach", ID],
+            &[b"checkout", b"--force", b"--detach", ID],
+        ),
+        (
+            &[b"-c", b"remote.origin.promisor=true", b"merge", b"--no-commit", b"--no-ff", b"--", ID],
+            &[b"merge", b"--no-commit", b"--no-ff", b"--", ID],
+        ),
+    ]
+}
+
+fn vector_spawn(tail: &[&[u8]]) -> k::Spawn {
+    let mut request = spawn(&Command::Store { remote: REMOTE.into(), directory: b"1".as_slice().into() });
+    request.args = invocation::SETTINGS
+        .iter()
+        .flat_map(|setting| [Box::from(b"-c".as_slice()), Box::from(*setting)])
+        .chain(tail.iter().map(|arg| Box::from(*arg)))
+        .collect();
+    request
+}
+
+#[test]
+fn blobless_and_promisor_vectors_are_admitted_and_old_vectors_are_usage() {
+    for (new, old) in partial_vectors() {
+        assert!(crate::check::check(&vector_spawn(new)).is_ok(), "new vector: {new:?}");
+        assert_eq!(crate::check::check(&vector_spawn(old)).expect_err("old vector"), crate::check::Refusal::Usage);
+    }
+}
+
+#[test]
+fn lazy_fetch_commands_require_the_credential_header() {
+    for (new, _) in partial_vectors().into_iter().skip(2) {
+        let mut request = vector_spawn(new);
+        request.env = invocation::environment(b"/home", None, None);
+        assert_eq!(
+            crate::check::check(&request).expect_err("missing credential"),
+            crate::check::Refusal::Broken("credential configuration")
+        );
+    }
 }

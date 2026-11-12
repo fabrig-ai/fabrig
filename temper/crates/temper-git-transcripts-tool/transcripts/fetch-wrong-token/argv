@@ -28,6 +28,7 @@ submodule.recurse=false
 fetch
 --porcelain
 --verbose
+--filter=blob:none
 --no-tags
 --no-write-fetch-head
 --no-recurse-submodules

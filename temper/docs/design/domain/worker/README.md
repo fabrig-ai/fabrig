@@ -587,8 +587,10 @@ table and the git component.
   (`../../protocol/configuration/README.md`, section 3). Making one empties it
   first, so what the cache evicted, or a worker left behind before a
   restart, cannot fail a prepare. The stores sit beside them, one bare
-  repository each, set aside at every start as the workspaces are
-  (`../../protocol/git.md`, section 2): the worker keeps nothing durable.
+  repository each, and outlive a restart (`../../protocol/git.md`,
+  section 2), a cache as the workspaces are: what must survive still lives
+  in the engine's store or on the forge, and a store removed is made again
+  from the forge (`checkouts.md`).
 
 ## 9. The world
 

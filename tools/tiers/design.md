@@ -74,7 +74,7 @@ Variable names are unique within a pair. For example, an entry with
 After any bundle step, build each listed binary in order with
 `cargo build -p PACKAGE --bin BINARY`, then run nextest. The browser
 servers in the table above are native list entries. `process-temper` also
-lists `smith-fake-claude`'s `fake-claude` and `temper-client`'s `temper-client`:
+lists `smith-fake-claude`'s `fake-claude` and `temper`'s `temper`:
 temper's fake-backend tests execute that adapter and the deployment's client
 story executes that client as the `temper` binary's siblings. It also lists
 `temper-engine`, `temper-worker` and `temper-agent`, which the cluster's story

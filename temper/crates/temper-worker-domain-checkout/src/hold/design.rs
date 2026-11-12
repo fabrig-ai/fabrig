@@ -282,7 +282,7 @@ fn run(
     let head = super::tips(holding, delivery.repository).head;
     let op = match step {
         Step::Fetch => Op::Fetch {
-            store: super::borrowed(holding, delivery.repository).store.token(),
+            store: super::borrowed(holding, delivery.repository).token,
             at,
             remote: spec.remote.clone(),
             want: Want::Branch { branch: super::branch_of(spec, &push.to) },
@@ -291,7 +291,9 @@ fn run(
             account: spec.account,
         },
         Step::Compare => Op::IsAncestor { at, ancestor: delivery.tip.expect("fetched tip"), commit: head },
-        Step::Merge => Op::Merge { at, theirs: delivery.tip.expect("fetched tip") },
+        Step::Merge => {
+            Op::Merge { at, theirs: delivery.tip.expect("fetched tip"), identity: spec.identity, account: spec.account }
+        }
         Step::Commit => {
             let branch = spec.push.as_deref().expect("a design repository is writable");
             let mut title = Writer::new(b"Merge ".len().checked_add(branch.len()).expect("bounded branch"));
@@ -308,7 +310,9 @@ fn run(
                 identity: spec.identity,
             }
         }
-        Step::CheckOut => Op::CheckOut { at, commit: head, clean: true },
+        Step::CheckOut => {
+            Op::CheckOut { at, commit: head, clean: true, identity: spec.identity, account: spec.account }
+        }
         Step::Paths => Op::DiffPaths { at, before: delivery.tip.expect("fetched tip"), after: head },
         Step::Push => Op::Push {
             at,

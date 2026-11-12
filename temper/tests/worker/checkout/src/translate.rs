@@ -64,6 +64,8 @@ pub fn workspace(op: &Op) -> Option<Token> {
 pub fn identity(op: &Op) -> Option<u32> {
     match op {
         Op::Store { identity, .. }
+        | Op::CheckOut { identity, .. }
+        | Op::Merge { identity, .. }
         | Op::Fetch { identity, .. }
         | Op::Create { identity, .. }
         | Op::Commit { identity, .. }
@@ -71,11 +73,9 @@ pub fn identity(op: &Op) -> Option<u32> {
         Op::Point { .. }
         | Op::Clone { .. }
         | Op::Make { .. }
-        | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
-        | Op::IsAncestor { .. }
-        | Op::Merge { .. } => None,
+        | Op::IsAncestor { .. } => None,
     }
 }
 
@@ -273,7 +273,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             Done::IsAncestor { contains: contains(forge, fake(ancestor), fake(commit)) }
         }
 
-        Op::Merge { at, theirs } => {
+        Op::Merge { at, theirs, .. } => {
             assert_cloned(disk, &at);
             let merged = git::merge(forge, disk, &path(&at), fake(theirs)).expect("merge parent is locally fetched");
             if merged.conflicts.is_empty() {
