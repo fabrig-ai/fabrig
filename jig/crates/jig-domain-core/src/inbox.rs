@@ -1,6 +1,8 @@
 //! Volatile party inbox projections from the task child's durable rows.
 //! The core routes these sibling facts on save and restore (domain/engine/README.md, 4.4).
 
+pub use crate::below::inbox::*;
+
 mod census;
 
 use crate::routing::Work;
@@ -13,12 +15,6 @@ use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue};
 
 use crate::{Core, Limits};
-
-/// Inbox words, role-routed proposals and the four scalar references: a
-/// person-held proposal, escalation, answerable person task and stall update.
-pub(crate) fn waiting_capacity(limits: &Limits) -> Option<u32> {
-    limits.tasks.inbox_messages.checked_mul(2)?.checked_add(limits.authority.roles)?.checked_add(4)
-}
 
 fn add(
     entries: &mut List<people::Entry>,
@@ -55,10 +51,6 @@ pub(crate) fn questions_live(phase: &tasks::Phase) -> bool {
         tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => false,
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => true,
     }
-}
-
-pub(crate) fn question_capacity(limits: &Limits) -> Option<u32> {
-    limits.tasks.tasks.checked_mul(limits.tasks.inbox_messages)
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

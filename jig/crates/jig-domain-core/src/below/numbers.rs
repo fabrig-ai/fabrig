@@ -1,5 +1,7 @@
 //! Deployment numbers owned by the core (domain/engine/README.md, 3 and 5.4; domain/model.md, 6.1).
 
+use crate::{CoreRecord, Record, Write};
+
 /// Core to store, then store to core at startup: one fixed-size deployment
 /// header with allocated high-water marks. Every writing decision saves it
 /// atomically with its other rows (domain/engine/README.md, 5.1 and 5.4).
@@ -63,12 +65,12 @@ pub enum Family {
 /// Deployment numbers retained by the core.
 #[derive(Hash, Debug)]
 pub struct Counters {
-    pub(crate) deployment: Deployment,
-    header: Header,
+    pub deployment: Deployment,
+    pub header: Header,
 }
 
 #[derive(Hash, Debug)]
-enum Header {
+pub enum Header {
     Clean,
     Dirty,
     Loading,
@@ -122,11 +124,12 @@ impl Counters {
 
     /// The bootstrap header cannot be written until the core's live load has
     /// established whether a durable header already exists (domain/engine/restart.md).
-    pub(crate) fn begin_start(&mut self) {
+    pub fn begin_start(&mut self) {
         self.header = Header::Loading;
     }
 
-    pub(crate) fn loading(&self) -> bool {
+    #[must_use]
+    pub fn loading(&self) -> bool {
         match self.header {
             Header::Loading => true,
             Header::Clean | Header::Dirty => false,
@@ -135,7 +138,7 @@ impl Counters {
 
     /// A supplied durable header replaces these counters with `new`. Only an
     /// empty load still has its bootstrap identity waiting to be committed.
-    pub(crate) fn finish_restore(&mut self) {
+    pub fn finish_restore(&mut self) {
         match self.header {
             Header::Loading => self.header = Header::Dirty,
             Header::Clean | Header::Dirty => {}
@@ -184,6 +187,18 @@ pub fn fresh(counters: &mut Counters, family: Family) -> Option<u64> {
     *counter = next;
     counters.header = Header::Dirty;
     Some(next)
+}
+
+impl Counters {
+    /// Number a writing decision and construct its deployment row (domain/engine/README.md, 5.4).
+    #[must_use]
+    pub fn commit_header(&mut self) -> Write {
+        Write::Save(self.commit_record())
+    }
+
+    pub fn commit_record(&mut self) -> Record {
+        Record::Core(CoreRecord::Deployment(self.next_commit()))
+    }
 }
 
 #[cfg(test)]
