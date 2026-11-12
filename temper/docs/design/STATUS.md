@@ -80,8 +80,21 @@ agent, and 2, the implementer, assembled from five Markdown files in
 reference's charter 6 among it: a change's questions go `up` or nowhere,
 and a stored foreman is refused naming its setting
 (`domain/forge/change/questions.md`, 1; `protocol/configuration/settings.md`,
-2). Its walk on a fresh box follows landing; overlays are S2
-(`draft/stock-charters.status.md`).
+2). Its walk on a fresh box follows landing.
+
+Overlays are the stock charters' milestone S2, by goal 1386: a charter's
+overlay kept over its default, the fields it replaces and the text it
+adds, laid over each start's defaults (jig's `domain/engine/overlays.md`);
+`settings apply`'s overlay items, their directories of charter files and
+files stacked in one call, and `settings show`'s marks and literal export
+(`client/ctl/overlays.md`); the room judged on the charter an overlay
+makes, its parts counted (`domain/agent/tools.md`); the reference's
+charters 5 and 2 as overlays of its fields, its charters 7 and 8 gone
+(`protocol/configuration/reference.md`), stage one's golden keeping the
+whole charters on a profile of its own (`testing/checks.md`, 5); and
+fabrig's set, `temper/docs/charters/fabrig/`, documentation
+(`domain/agent/charter.md`, 1). The switch on dev.fabrig.ai follows
+deployment (`draft/stock-charters.execution.md`).
 
 Design documents:
 - [`README.md`](README.status.md)

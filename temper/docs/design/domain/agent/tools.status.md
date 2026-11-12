@@ -3,6 +3,7 @@
 2026-11-12. Where the tree's code lags or departs from [tools.md](tools.md).
 
 
+- **Not yet:** the whole document: the room judged before a run meets it counts a charter's instructions without its parts, and judges an item setting an overlay not at all (`temper-engine-domain`'s `room.rs`, `route.rs`) [in flight: change 1412].
 - **Not yet:** the whole document: `read_reviews`, `read_remarks` and
   `read_pull_files` take no `skip`, and a page the answer's bytes cut
   says no way on (`temper-engine-smith/src/calls.rs`, `src/answers.rs`)
