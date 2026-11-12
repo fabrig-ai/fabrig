@@ -53,6 +53,16 @@ pub enum What {
     Duplicate,
     Kind,
     Bound,
+    /// A complete policy snapshot exceeds the configured byte budget.
+    PolicyBytes {
+        bytes: u64,
+        limit: u64,
+    },
+    /// An authority's delegation lists more executors than its configured bound.
+    PolicyExecutors {
+        executors: u64,
+        limit: u32,
+    },
     /// The worker's slots exceed its hub capacity.
     SlotsPastHub,
     Form,
@@ -150,6 +160,34 @@ impl Problem {
             }
             What::Capacity { member, configured, requires: dependency, required: minimum } => {
                 capacity_message(&self.path, member, configured, dependency, minimum)
+            }
+            What::PolicyExecutors { executors, limit } => {
+                let executors = Decimal::of(executors);
+                let limit = Decimal::of(u64::from(limit));
+                codec_parts_message(
+                    &self.path,
+                    &[
+                        b"policy has ",
+                        executors.as_bytes(),
+                        b" executor kinds; authority.executors limit is ",
+                        limit.as_bytes(),
+                        b".",
+                    ],
+                )
+            }
+            What::PolicyBytes { bytes, limit } => {
+                let bytes = Decimal::of(bytes);
+                let limit = Decimal::of(limit);
+                codec_parts_message(
+                    &self.path,
+                    &[
+                        b"policy snapshot needs ",
+                        bytes.as_bytes(),
+                        b" bytes; core.policy_bytes limit is ",
+                        limit.as_bytes(),
+                        b" bytes.",
+                    ],
+                )
             }
             What::CodecCeiling { bound } => codec_ceiling_message(&self.path, bound),
             What::CodecArithmetic => codec_text_message(&self.path, b"people-v13 codec bound arithmetic overflows."),

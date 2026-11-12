@@ -278,6 +278,17 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
 - **Collections** are pieces or counted lists by jig's rule (jig's
   `protocol/store/records.md`, 1). The schema's limits are made from the
   forge's limits, and checked against the schema's ceilings at start.
+- **Settings history room follows the effective core capacities.** Before
+  map admission, temper raises the profile's value ceiling to at least
+  jig's `sizes::settings_value` (jig's `protocol/store/records.md`, 4),
+  and its page ceiling to at least that value plus the profile's key
+  ceiling. This includes a whole set of edits, their replaced values and
+  the model-name table; stock at the small process deployment's capacities
+  needs 4,385,228 bytes. The figure is calculated at startup, never a
+  second fixed ceiling that stock growth must update. Checked map sizing
+  then derives the opening value, chunk and page from the effective
+  limits. The map budget, row count, queues and read slots retain their
+  configured bounds. Other records still face the resulting value ceiling.
 - **`STORE_VERSION`,** temper's store version: one number for all of
   temper's families. From the baseline (`baseline.md`, 2), a changed
   stored layout moves its version and brings its patch in that landing

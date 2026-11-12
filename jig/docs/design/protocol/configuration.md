@@ -228,6 +228,12 @@ or empty providers therefore require an empty model catalogue. Endpoint backend 
 not select accounts or infer provider membership. The public JSON refuses
 `llm.accounts` and an endpoint's `account` member at their paths.
 
+A copied seed is checked against the effective rules and authority limits,
+its references, and the byte price of its complete policy snapshot before
+any store opens. A refusal at the policy's delegation names its executor
+count and `authority.executors` limit; a snapshot refusal names its bytes
+and `core.policy_bytes` limit. Unknown references name their member.
+
 ### 3.1 Templates
 
 - **A template is the application's recipe for a shape of work:** the
