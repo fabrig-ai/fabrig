@@ -352,7 +352,6 @@ impl Cache {
     }
 }
 
-/// Whether any repository restores saved work into an empty directory.
 /// Remove a waiting hold without changing the other holds' order.
 /// Used for store waiters and prepares waiting for a permit.
 pub(crate) fn unqueue(queue: &mut Queue<Id<Hold>>, hold: Id<Hold>) {
@@ -364,6 +363,7 @@ pub(crate) fn unqueue(queue: &mut Queue<Id<Hold>>, hold: Id<Hold>) {
     }
 }
 
+/// Whether any repository restores saved work into an empty directory.
 fn starts_saved(repositories: &[Repository]) -> bool {
     for repository in repositories {
         if repository.start.is_saved() {

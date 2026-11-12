@@ -274,11 +274,11 @@ fn a_domain_with_every_workspace_held_at_its_limits_stays_within_its_heap_ceilin
     const FULL_WORKSPACES_HEAP_CEILING: u64 = 8_000_000;
     fill(LIMITS, FULL_WORKSPACES_HEAP_CEILING);
     fill(
-        Limits { workspaces: 64, repositories: 8, name_bytes: 256, message_bytes: 65_536, ..LIMITS },
+        Limits { workspaces: 64, preparations: 64, repositories: 8, name_bytes: 256, message_bytes: 65_536, ..LIMITS },
         FULL_WORKSPACES_HEAP_CEILING,
     );
     fill(
-        Limits { workspaces: 1000, repositories: 1, name_bytes: 16, message_bytes: 16, ..LIMITS },
+        Limits { workspaces: 1000, preparations: 1000, repositories: 1, name_bytes: 16, message_bytes: 16, ..LIMITS },
         FULL_WORKSPACES_HEAP_CEILING,
     );
 }
@@ -335,7 +335,7 @@ impl Fill {
 fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_heap_ceiling() {
     // Measured peak: 126,776 bytes with retired preparations and live pushes retaining maximum conflict sets; 25% headroom, rounded up.
     const CONFLICT_SETS_HEAP_CEILING: u64 = 160_000;
-    let limits = Limits { workspaces: 8, repositories: 4, conflicts: 8, path_bytes: 128, ..LIMITS };
+    let limits = Limits { workspaces: 8, preparations: 8, repositories: 4, conflicts: 8, path_bytes: 128, ..LIMITS };
     // World bookkeeping predates the meter; only the domain and its admitted
     // ownership transfers are charged against the scenario ceiling.
     let mut active = Vec::with_capacity(limits.workspaces as usize);

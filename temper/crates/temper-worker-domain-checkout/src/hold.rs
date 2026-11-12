@@ -430,8 +430,11 @@ fn admit(domain: &mut Domain, env: &Env<Limits>, id: Id<Hold>, cached: Cached, o
 /// Store successors are resumed before new admissions, preserving the oldest
 /// store waiter's claim when a maker fails. All admissions are in this step.
 fn admissions(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    while domain.active < env.limits.preparations {
-        let Some(id) = domain.queued.pop() else { break };
+    for _ in 0..domain.queued.len() {
+        if domain.active >= env.limits.preparations {
+            break;
+        }
+        let id = domain.queued.pop().expect("the queued prepares to admit");
         let cached = match domain.holds.get(id).expect("a queued hold lives").state {
             State::Queued { cached } => cached,
             State::Preparing { .. } | State::Waiting { .. } | State::Ready
