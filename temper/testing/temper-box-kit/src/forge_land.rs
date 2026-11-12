@@ -2879,12 +2879,10 @@ fn kept_project(
     found.ok_or_else(|| "kept deployment lacks an owned work/hello adoption".to_owned())
 }
 
-#[cfg(test)]
-mod tests {
+pub mod tests {
     use serde_json::{Value, json};
 
-    #[test]
-    fn survivor_lines_name_each_process_its_parent_and_group() {
+    pub fn survivor_lines_name_each_process_its_parent_and_group() {
         use super::survivors::{Row, lines, parse};
 
         let row = |pid, parent, group, command: &str| Row { pid, parent, group, session: 1, command: command.into() };
@@ -2933,14 +2931,12 @@ mod tests {
                 format!("{forge:04x}"),format!("{repository:08x}")]}}}],"cut":false})
     }
 
-    #[test]
-    fn a_kept_deployment_with_no_merged_pulls_can_find_its_project() {
+    pub fn a_kept_deployment_with_no_merged_pulls_can_find_its_project() {
         let projects = [adopted(2, 1, 9, "owned"), adopted(7, 3, 42, "owned")];
         assert_eq!(super::kept_project(&person(), &projects, 3, 42), Ok(7));
     }
 
-    #[test]
-    fn a_kept_project_matches_the_owned_adoptions_identity() {
+    pub fn a_kept_project_matches_the_owned_adoptions_identity() {
         for (forge, repository, role) in [(1, 42, "owned"), (3, 9, "owned"), (3, 42, "context")] {
             let projects = [adopted(7, forge, repository, role)];
             assert!(super::kept_project(&person(), &projects, 3, 42).is_err());
@@ -2950,8 +2946,7 @@ mod tests {
         assert!(super::kept_project(&person(), &[project], 3, 42).is_err());
     }
 
-    #[test]
-    fn a_kept_project_requires_complete_visible_unambiguous_adoptions() {
+    pub fn a_kept_project_requires_complete_visible_unambiguous_adoptions() {
         let project = adopted(7, 3, 42, "owned");
         for me in [
             json!({}),

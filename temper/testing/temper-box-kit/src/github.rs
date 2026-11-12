@@ -56,7 +56,7 @@ pub fn restart() {
     let clock = Clock::new();
     let began = clock.now().now;
     let scratch = Scratch::new("github_git");
-    let directory = skein_scratch::paths::package().join("tests/support/github");
+    let directory = skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/github");
     let mut description = cluster::Cluster::read_from(scratch.path(), &directory);
     let [clients, workers] = super::free_addresses(&[]);
     description.bind("story.clients", &clients.to_string());
@@ -671,7 +671,7 @@ fn decode(value: &Value) -> Box<[u8]> {
         .expect("file bytes")
 }
 // The fake's object route is credential-free and does not add a repository git call.
-// Like support/webhooks.rs, the referee makes one bounded request to a separate process.
+// Like webhooks.rs, the referee makes one bounded request to a separate process.
 pub(super) fn objects(address: SocketAddr, commit: u64) -> Value {
     let within = skein_lib::Duration::from_secs(10);
     let mut socket = Socket::connect("the GitHub object route", within, address, Scope::World).expect("object route");
@@ -687,18 +687,18 @@ pub(super) fn objects(address: SocketAddr, commit: u64) -> Value {
     serde_json::from_slice(&response[at + 4..]).expect("objects JSON")
 }
 
-pub(crate) struct App {
-    pub(crate) id: u64,
-    pub(crate) pem: Secret,
+pub struct App {
+    pub id: u64,
+    pub pem: Secret,
 }
 // These requests go to other processes' real listeners; unlike the one-ring
 // tier, a bounded synchronous exchange cannot hold the server's loop up.
-pub(crate) struct Response {
-    pub(crate) status: u16,
-    pub(crate) location: Option<String>,
-    pub(crate) body: Vec<u8>,
+pub struct Response {
+    pub status: u16,
+    pub location: Option<String>,
+    pub body: Vec<u8>,
 }
-pub(crate) fn request_url(address: SocketAddr, method: &str, url: &str, media: &str, body: &[u8]) -> Response {
+pub fn request_url(address: SocketAddr, method: &str, url: &str, media: &str, body: &[u8]) -> Response {
     let origin = format!("http://{address}");
     let target = url.strip_prefix(&origin).expect("only the expected fake or engine origin");
     assert!(target.starts_with('/'), "local HTTP target");
@@ -735,7 +735,7 @@ fn request(address: SocketAddr, method: &str, target: &str, media: &str, body: &
         .map(|(_, value)| value.trim().to_owned());
     Response { status, location, body: bytes[at + 4..].to_vec() }
 }
-pub(crate) fn make_app(address: SocketAddr, clients: SocketAddr, scratch: &Path) -> App {
+pub fn make_app(address: SocketAddr, clients: SocketAddr, scratch: &Path) -> App {
     use skein_forge::github::setup;
     use std::fmt::Write as _;
     let origin = format!("http://{clients}");
@@ -781,26 +781,26 @@ pub(crate) fn make_app(address: SocketAddr, clients: SocketAddr, scratch: &Path)
     app
 }
 
-pub(crate) fn secrets(engine: &Path) -> PathBuf {
+pub fn secrets(engine: &Path) -> PathBuf {
     let path = engine.join("data/state/generations/1/secrets");
     assert!(path.is_dir(), "excluded directory is jig's secrets store");
     path
 }
 
-pub(crate) struct Scan {
+pub struct Scan {
     pem: Vec<u8>,
     der: Box<[u8]>,
     encoded: Vec<u8>,
 }
 
 impl Scan {
-    pub(crate) fn new(pem: &[u8]) -> Self {
+    pub fn new(pem: &[u8]) -> Self {
         let compact: String =
             std::str::from_utf8(pem).expect("PEM text").lines().filter(|line| !line.starts_with("-----")).collect();
         let der = base64::decode(base64::Alphabet::Standard, compact.as_bytes(), 4096).expect("App DER");
         Self { pem: pem.to_vec(), der, encoded: compact.into_bytes() }
     }
-    pub(crate) fn clean(&self, bytes: &[u8]) {
+    pub fn clean(&self, bytes: &[u8]) {
         assert!(
             !bytes.windows(40).any(|part| part.starts_with(b"ghs_") && part[4..].iter().all(u8::is_ascii_alphanumeric)),
             "Must: no installation token outside jig's secrets store"
@@ -814,7 +814,7 @@ impl Scan {
             );
         }
     }
-    pub(crate) fn files(&self, root: &Path, secrets: &Path, downloaded: &Path) {
+    pub fn files(&self, root: &Path, secrets: &Path, downloaded: &Path) {
         assert!(secrets.is_dir(), "excluded directory is jig's secrets store");
         let mut pending = vec![root.to_path_buf()];
         while let Some(path) = pending.pop() {

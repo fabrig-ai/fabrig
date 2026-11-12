@@ -24,7 +24,7 @@ pub fn restart() {
     let clock = Clock::new();
     let began = clock.now().now;
     let scratch = Scratch::new("github_land");
-    let directory = skein_scratch::paths::package().join("tests/support/github");
+    let directory = skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/github");
     let mut description = cluster::Cluster::read_from(scratch.path(), &directory);
     let [clients, workers] = super::free_addresses(&[]);
     description.bind("story.clients", &clients.to_string());
@@ -799,7 +799,7 @@ fn decode(value: &Value) -> Box<[u8]> {
     )
     .expect("file bytes")
 }
-pub(crate) fn configure_llm(path: &Path) {
+pub fn configure_llm(path: &Path) {
     use serde_json::json;
     let mut value: Value = serde_json::from_slice(&fs::read(path).expect("LLM fixture")).expect("LLM JSON");
     value["asked"][0]["turns"][0]["lines"] =
@@ -835,7 +835,7 @@ fn configure_engine(value: &mut Value) {
     value["engine"]["limits"]["overrides"]["tasks.result_bytes"] = 512.into();
 }
 
-pub(crate) fn landing_reads() -> Vec<ctl::Call> {
+pub fn landing_reads() -> Vec<ctl::Call> {
     [
         &["task", "show", "2", "--json"][..],
         &["task", "show", "1", "--json"],
@@ -850,7 +850,7 @@ pub(crate) fn landing_reads() -> Vec<ctl::Call> {
     .collect()
 }
 
-pub(crate) fn landing_settings(forge: SocketAddr, owner: &str, repository: &str) -> Vec<Value> {
+pub fn landing_settings(forge: SocketAddr, owner: &str, repository: &str) -> Vec<Value> {
     use serde_json::json;
     let value = json!({"world_settings":{"landing":{"deployment":[{"connector":1,"kind":4,"pattern":{"segments":["forge",forge.to_string(),owner,repository,"branch"],"last":"exact","value":"main"},"enforce":true,"ci":true,"up_to_date":true,"gates":[{"number":1,"blocking":true,"freshness":"exact"}],"approvals":[]}]}}});
     temper_real_loop_world::settings_items::forge_items(&temper_real_loop_world::settings::forge(&value))

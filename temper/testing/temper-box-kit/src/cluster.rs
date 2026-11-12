@@ -21,7 +21,7 @@ const READY_SECONDS: u64 = 120;
 const STOP_SECONDS: u64 = 20;
 const STDERR_TAIL_LINES: usize = 20;
 // bin/temper-box/tests/fixtures/cluster/engine.json's fleet.grace_ms: above each worker's stop bound, 2300 (jig-protocol-config worker.rs:38), which a hello must be under (jig-domain-fleet channel.rs:174); reached only on a lost link.
-pub(crate) const FLEET_GRACE_MS: u64 = 3000;
+pub const FLEET_GRACE_MS: u64 = 3000;
 const _: () = assert!(FLEET_GRACE_MS < STOP_SECONDS * 1000);
 const CGROUPS: &str = "the cluster's tests need cgroups delegated by the user's service manager (temper docs/design/protocol/cluster.md, 5): run them where it delegates them";
 
@@ -77,8 +77,8 @@ impl Cluster {
     }
     /// Reuse the GitHub story's templates with a relay in place of its forge process.
     #[must_use]
-    pub(crate) fn github_relay(scratch: &Path, git: std::net::SocketAddr) -> Self {
-        let directory = skein_scratch::paths::package().join("tests/support/github");
+    pub fn github_relay(scratch: &Path, git: std::net::SocketAddr) -> Self {
+        let directory = skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/github");
         let mut cluster = Self::read_from(scratch, &directory);
         cluster.specs.retain(|spec| spec["name"] != "forge");
         for spec in &mut cluster.specs {
@@ -96,7 +96,7 @@ impl Cluster {
     // Cluster tasks.executor_kinds has twenty-one places for the same delegation.
     // GitHub authority.executors has twenty-one stock places including the standing charters, closer procedure and close job.
     // GitHub tasks.executor_kinds has twenty-one places for the same delegation.
-    pub(crate) fn description_from(scratch: &Path, directory: &Path) -> Self {
+    pub fn description_from(scratch: &Path, directory: &Path) -> Self {
         let experiment = directory.canonicalize().expect("description directory");
         let value: Value =
             serde_json::from_slice(&fs::read(experiment.join("experiment.json")).expect("cluster description"))
@@ -1015,7 +1015,6 @@ fn probe(scratch: &Path) {
     assert_eq!(binary.counts().expect("probe settled").method, Method::Cgroup, "{CGROUPS}");
 }
 
-#[cfg(test)]
 pub mod deadline_tests {
     use super::MemberWait;
     use skein_lib::{Duration, Time};

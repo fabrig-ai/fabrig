@@ -910,7 +910,6 @@ pub fn inbox_reply(entry: &[u8]) -> Step<Address> {
     }
 }
 
-#[cfg(test)]
 pub mod serve_gate_tests {
     use super::*;
 

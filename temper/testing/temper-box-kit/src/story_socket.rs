@@ -193,7 +193,6 @@ impl Socket {
     }
 }
 
-#[cfg(test)]
 pub mod tests {
     use super::{Scope, Socket};
     use skein_lib::Duration;

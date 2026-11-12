@@ -136,7 +136,7 @@ impl Judge {
         self.phase = Phase::Stopping;
     }
 }
-pub(crate) fn find(pids: &[u32], program: &Path, argument: &[u8]) -> Option<u32> {
+pub fn find(pids: &[u32], program: &Path, argument: &[u8]) -> Option<u32> {
     pids.iter().copied().find(|pid| {
         std::fs::read_link(format!("/proc/{pid}/exe")).ok().as_deref() == Some(program)
             && std::fs::read(format!("/proc/{pid}/cmdline"))
@@ -532,7 +532,7 @@ struct CtlJudge<'a, F, T> {
     deadline: Patience,
     cleanup_deadline: Time,
 }
-pub(crate) fn visit_address(call: &super::Ended) -> Option<Vec<u8>> {
+pub fn visit_address(call: &super::Ended) -> Option<Vec<u8>> {
     super::sign_in::authorization_address(call).map(<[u8]>::to_vec).or_else(|| {
         let answer: serde_json::Value = serde_json::from_slice(&call.stdout).ok()?;
         Some(answer.pointer("/outcome/done/document/account_sign_in_started/address")?.as_str()?.as_bytes().to_vec())

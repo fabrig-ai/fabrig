@@ -90,7 +90,7 @@ impl Visitor {
     }
     /// Hands over `url` to visit, once: a plain `http://` URL with a
     /// literal address.
-    pub(crate) fn hand(&mut self, url: &[u8]) {
+    pub fn hand(&mut self, url: &[u8]) {
         assert!(self.is_empty(), "previous visit drained");
         self.http = http::Client::new(&limits().http);
         self.last_redirect = None;

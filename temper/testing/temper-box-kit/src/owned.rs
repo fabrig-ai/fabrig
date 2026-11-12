@@ -513,9 +513,9 @@ pub fn tier_configuration(directory: &Path) -> std::net::SocketAddr {
 }
 
 /// The complete owned deployment and its non-secret files, as the walk server's step 1 writes them (temper help server).
-pub const EXAMPLE: &[u8] = include_bytes!("../../../../docs/examples/owned.json");
+pub const EXAMPLE: &[u8] = include_bytes!("../../../docs/examples/owned.json");
 pub const SHIPPED: [(&str, &[u8]); 1] =
-    [("owned/agent.json", include_bytes!("../../../../docs/examples/owned/agent.json"))];
+    [("owned/agent.json", include_bytes!("../../../docs/examples/owned/agent.json"))];
 /// The example's three listeners, provider, binaries and optional agent review.
 pub struct Owned {
     pub forgejo: SocketAddr,
@@ -788,8 +788,8 @@ pub fn bounded_template(directory: &Path) -> Bounded {
 pub fn bounded_reference(directory: &Path) -> Bounded {
     bounded_template_profile(
         directory,
-        &[("temper.json", include_bytes!("../../../../docs/examples/reference/limits.json"))],
-        Some(include_bytes!("../../../../docs/examples/reference/room.json")),
+        &[("temper.json", include_bytes!("../../../docs/examples/reference/limits.json"))],
+        Some(include_bytes!("../../../docs/examples/reference/room.json")),
     )
 }
 

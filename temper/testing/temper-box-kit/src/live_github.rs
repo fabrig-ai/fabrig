@@ -131,7 +131,7 @@ pub fn run() {
     assert!(relay.refused().is_empty(), "relay refusals: {:?}", relay.refused());
 }
 
-pub(crate) fn document(path: &Path) -> Value {
+pub fn document(path: &Path) -> Value {
     serde_json::from_slice(&fs::read(path).expect("fixture document")).expect("fixture JSON")
 }
 fn save(path: &Path, value: &Value) {
@@ -154,7 +154,7 @@ fn render_owner(value: &mut Value, owner: &str) {
     }
 }
 /// Shape the live engine without reading inputs or constructing a relay.
-pub(crate) fn configure_engine(value: &mut Value, owner: &str, api: SocketAddr, git: SocketAddr, workers: SocketAddr) {
+pub fn configure_engine(value: &mut Value, owner: &str, api: SocketAddr, git: SocketAddr, workers: SocketAddr) {
     render_owner(value, owner);
     value["engine"]["hosts"]["listener"][0]["socket"] = workers.to_string().into();
     value["application"]["machine"]["github"] = json!({"api":{"socket":api.to_string()},"transport":"plaintext","remote":format!("http://{git}"),"web":format!("http://{git}")});

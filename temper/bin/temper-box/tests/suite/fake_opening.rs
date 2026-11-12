@@ -154,12 +154,12 @@ fn read(path: &Path) -> Value {
 
 #[test]
 fn github_chat_fixture_selects_its_delegate_from_the_opening_user_message() {
-    let value = cluster_fixture("github_opening", "tests/support/github", false);
+    let value = cluster_fixture("github_opening", "tests/fixtures/github", false);
     calls(&answer(&value, "@forge_chat Update README", run::Mode::Open), "delegate");
 }
 #[test]
 fn github_landing_fixture_selects_its_change_from_the_opening_user_message() {
-    let value = cluster_fixture("github_landing_opening", "tests/support/github", true);
+    let value = cluster_fixture("github_landing_opening", "tests/fixtures/github", true);
     calls(&answer(&value, "@forge_chat Update README", run::Mode::Open), "change");
 }
 #[test]
@@ -202,6 +202,6 @@ fn demo_chat_fixtures_select_their_opening_requests() {
 }
 #[test]
 fn github_coder_fixture_keeps_its_finite_system_cue() {
-    let value = cluster_fixture("github_coder_opening", "tests/support/github", false);
+    let value = cluster_fixture("github_coder_opening", "tests/fixtures/github", false);
     calls(&answer(&value, "@coding Fix", run::Mode::Finite), "read");
 }

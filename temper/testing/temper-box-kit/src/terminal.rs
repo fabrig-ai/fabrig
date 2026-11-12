@@ -226,7 +226,7 @@ fn adoption_refusal(bytes: &[u8]) -> Option<String> {
 
 pub fn a_terminal_adoption_refusal_uses_the_current_frame() {
     let refused =
-        include_bytes!("../../../../crates/temper-client-shell-terminal/src/tests/golden/adopt_refused_not_found.txt");
+        include_bytes!("../../../crates/temper-client-shell-terminal/src/tests/golden/adopt_refused_not_found.txt");
     assert_eq!(
         adoption_refusal(refused).as_deref(),
         Some("No repository acme/shop on forge 1 that temper's forge user can see.")
@@ -375,7 +375,6 @@ impl Typist {
     }
 }
 
-#[cfg(test)]
 pub mod tests {
     use super::*;
 

@@ -211,7 +211,7 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
   Templates name addresses by `{proc.P.ready.C}` and directories by
   `{proc.P.dir}`. The description is canonical JSON, with integers
   within ±(2^53−1); each process's `memory_bytes` matches its document.
-- **The process tier's reader,** `bin/temper-box/tests/support/cluster.rs`:
+- **The process tier's reader,** `testing/temper-box-kit/src/cluster.rs`:
   templates rendered; processes started by skein-world's `Binary`, in
   cgroups, by `after`, ties in name order, with no seed; ready lines
   awaited on streams; processes stopped in reverse, a termination signal,

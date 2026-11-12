@@ -1336,7 +1336,6 @@ pub fn proposal_key(ended: &Ended, me: &Ended) -> String {
     format!("p{party}/{number}")
 }
 
-#[cfg(test)]
 pub mod read_condition_tests {
     use super::*;
 
@@ -1550,7 +1549,6 @@ pub mod read_condition_tests {
     }
 }
 
-#[cfg(test)]
 pub mod serve_gate_tests {
     use super::*;
 

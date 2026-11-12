@@ -5,14 +5,11 @@
 mod managed_client;
 #[path = "support/managed_sitting.rs"]
 mod managed_sitting;
-#[path = "support/patience.rs"]
-mod patience;
-#[path = "support/relay.rs"]
-mod relay;
+use temper_box_kit::patience;
+use temper_box_kit::relay;
 #[path = "support/relay_managed.rs"]
 mod relay_managed;
-#[path = "support/socket.rs"]
-mod socket;
+use temper_box_kit::socket;
 
 fn write_private(path: &std::path::Path, bytes: &[u8]) {
     use std::{io::Write, os::unix::fs::OpenOptionsExt};

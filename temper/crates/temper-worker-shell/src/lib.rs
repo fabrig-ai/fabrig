@@ -48,7 +48,7 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 #[cfg(test)]
-#[path = "../../../bin/temper-box/tests/support/configuration.rs"]
+#[path = "../../../testing/temper-box-kit/src/configuration.rs"]
 pub mod test_configuration;
 #[cfg(test)]
 mod tests;
