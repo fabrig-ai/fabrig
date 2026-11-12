@@ -288,92 +288,33 @@ fn reference_call(
     jig_domain_authority::check_call(domain, &ask, &mut skein_lib::Queue::uncapped())
 }
 
-#[test]
-fn the_coordinators_parts_load_the_whole_first_edition_as_written() {
-    use jig_domain_tasks::Reasons;
-    let engine = engine(&generated());
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let charter = defaults.charters.iter().find(|charter| charter.number == 5).expect("stock coordinator");
-    // Read the five headings independently of the stock's byte splitter.
-    let text = include_str!("../stock/coordinator.md");
-    let mut sections = text.split("## ");
-    assert_eq!(sections.next(), Some(""), "the first heading opens the file");
-    let sections: Box<[_]> = sections.map(|section| section.split_once('\n').expect("heading line")).collect();
-    assert_eq!(
-        sections.iter().map(|(heading, _)| *heading).collect::<Box<[_]>>().as_ref(),
-        [
-            "shared",
-            "part, on: first",
-            "part, on: question, question_answered, question_ended, question_owed, words",
-            "part, on: result, notice, nothing_awaited, escalation, proposal, person_stalled",
-            "part, on: news, timer",
-        ],
-        "five sections account for the whole file"
-    );
-    assert_eq!(charter.policy.instructions.as_ref(), sections[0].1.trim_matches('\n').as_bytes());
-    let reasons = [
-        Reasons::FIRST,
-        Reasons::QUESTION
-            .union(Reasons::QUESTION_ANSWERED)
-            .union(Reasons::QUESTION_ENDED)
-            .union(Reasons::QUESTION_OWED)
-            .union(Reasons::WORDS),
-        Reasons::RESULT
-            .union(Reasons::NOTICE)
-            .union(Reasons::NOTHING_AWAITED)
-            .union(Reasons::ESCALATION)
-            .union(Reasons::PROPOSAL)
-            .union(Reasons::PERSON_STALLED),
-        Reasons::NEWS.union(Reasons::TIMER),
-    ];
-    assert_eq!(charter.parts.len(), reasons.len(), "four parts in file order");
-    for ((part, on), (_, text)) in charter.parts.iter().zip(reasons).zip(&sections[1..]) {
-        assert_eq!(part.on, on);
-        assert_eq!(part.instructions.as_ref(), text.trim_matches('\n').as_bytes());
-    }
-}
+#[path = "stock_set.rs"]
+mod set;
 
 #[test]
-fn the_coordinator_prioritizes_relayed_questions_in_shared_instructions() {
-    let engine = engine(&generated());
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let charter = defaults.charters.iter().find(|charter| charter.number == 5).expect("stock coordinator");
-    let shared = core::str::from_utf8(&charter.policy.instructions).expect("shared UTF-8");
-    assert!(shared.contains(concat!(
-        "At each wake read your report note and tree first; after deciding, park with `wait`.\n\n",
-        "A question a change relays is answered before anything else, whatever woke you: every run is shown each question still open, with its asker, its number and how to answer, until you answer it with message in the answer form, as your part for questions says."
-    )));
+fn the_coordinator_prioritizes_relayed_questions() {
+    let set = crate::stock::charter_set();
+    assert!(set.goal.unwrap().contains("read your report note and the task tree first"));
+    assert!(set.coordinator.unwrap().contains("answer before you go on with anything else"));
+    assert!(set.coordinator.unwrap().contains("in the answer form naming its question"));
 }
 
 #[test]
 fn the_coordinators_charter_makes_no_landing_close_out_or_catch_up() {
-    let engine = engine(&generated());
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let charter = defaults.charters.iter().find(|charter| charter.number == 5).expect("stock coordinator");
-    let shared = core::str::from_utf8(&charter.policy.instructions).expect("shared UTF-8");
-    let prohibition = "Never land your goal, make a close-out or a catch-up, or finish once your changes have ended: your closer settles your goal's status, lands it and reports, and comes to you only through an escalation.";
-    assert_eq!(shared.matches(prohibition).count(), 1);
-    let rest = shared.replace(prohibition, "");
-    for text in core::iter::once(rest.as_str())
-        .chain(charter.parts.iter().map(|part| core::str::from_utf8(&part.instructions).expect("part UTF-8")))
-    {
-        for forbidden in [r#""branch": "mine""#, r#""merge""#, "catch", "close-out", "read_task"] {
-            assert!(!text.to_ascii_lowercase().contains(forbidden), "{forbidden}");
-        }
-    }
-    assert!(shared.contains("[in flight: change N]"));
-    assert!(shared.contains("Then watch it with `subscribe` and call wait"));
-    assert!(shared.contains("watch with `subscribe` each person task you wait on"));
-    let first = core::str::from_utf8(&charter.parts[0].instructions).expect("first UTF-8");
-    assert!(first.contains("Never subscribe to main's landings"));
-    assert!(first.contains("Your first run never waits for its changes, but hears them end: a change's failure, and your last live change's result, can reach you while you design. Read it, fit what you are still designing to what landed or failed, and go on."));
-    let reference = include_str!("../../../../docs/examples/reference/settings.json");
-    assert!(reference.contains("Never subscribe to main's landings"));
-    let results = core::str::from_utf8(&charter.parts[2].instructions).expect("results UTF-8");
-    assert!(
-        results.contains("On a change that failed, read why; make a change for what the plan still needs, or nothing.")
-    );
-    assert!(results.contains("When your closer escalates (its change settling your status, or your goal's landing, held past its bounds, or the closer held): read why and what failed. Release it where the cause has passed or an amendment naming it will do. Where the landing needs work, make the change into your goal branch with `\"landing\": \"goal\"`, then release: your closer waits for it and lands the new head. Cancel your closer only to drop the landing; your goal branch then stays as it is. Pass up with `decide` only what the draft does not settle."));
+    let set = crate::stock::charter_set();
+    assert!(set.common.unwrap().contains("No agent merges or lands."));
+    let goal = set.goal.unwrap();
+    assert!(goal.contains("Make no catch-up of g: the closer takes main as it lands."));
+    assert!(goal.contains("A goal never finishes itself: its closer lands g and ends it."));
+    assert!(goal.contains("[in flight: change N]"));
+    assert!(goal.contains("never to main's"));
+    assert!(goal.contains("Then `subscribe` to it"));
+    assert!(set.designer.unwrap().contains("Your changes' questions and failures reach you as you work"));
+    let coordinator = set.coordinator.unwrap();
+    assert!(coordinator.contains("**A failure:** read its report."));
+    assert!(coordinator.contains("**Your closer's escalation**"));
+    assert!(coordinator.contains("Never write g or land it yourself."));
+    assert!(coordinator.contains("pass it up to your person with `decide_escalation`"));
 }
 
 #[test]
@@ -589,7 +530,10 @@ fn the_stock_passes_jigs_one_check() {
         let core = config::core(&engine, [1; 16], 7);
         let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
         assert_eq!(defaults.charters[0].policy.instructions.as_ref(), include_bytes!("../stock/chat.txt"));
-        assert_eq!(defaults.charters[1].policy.instructions.as_ref(), include_bytes!("../stock/coding.txt"));
+        assert_eq!(
+            defaults.charters[1].policy.instructions.as_ref(),
+            temper_charter_set::implementer(&crate::stock::charter_set()).as_ref()
+        );
         for charter in &defaults.charters {
             assert_eq!(charter.hosts, jig_domain_fleet::Kinds::Workers, "{row}");
         }
@@ -618,7 +562,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         }
     }
     // The main model and eight alternatives each carry eight aligned cache-lifetime bytes.
-    assert_eq!(run, (11_676, Setting::Charter(5)));
+    assert_eq!(run, (26_744, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing role's charter executor.
@@ -811,28 +755,25 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
 // temper/docs/design/protocol/configuration/stock.md; domain/agent/tools.md.
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
-    for (words, prefixes) in [
-        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
-        (include_str!("../stock/coordinator.md"), &["Where the draft leaves a choice:"][..]),
-    ] {
+    for (words, prefixes) in
+        [(include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..])]
+    {
         for prefix in prefixes {
             let paragraph =
                 words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
             assert!(paragraph.contains("Before asking the person anything, call decided with the question, its options, the one you'd take, why, its kind, the paths the choice would change, and under where an item of the project's classes with words covers it (see settings project-classes); on Decided carry on and ask no one; on Ask, ask as the answer says. Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the ten; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
         }
     }
-    let coordinator = include_str!("../stock/coordinator.md");
-    let question = coordinator
-        .split("\n\n")
-        .find(|paragraph| paragraph.starts_with("On a question a change relays"))
-        .expect("question part");
+    let goal = crate::stock::charter_set().goal.unwrap();
+    assert!(goal.contains("`decide_escalation`, which passes an escalation up"));
     for words in [
-        "before asking the person call `decided`",
-        "question, options, the one you'd take, why, kind, paths, and `under`",
+        "Before you ask anything, call `decided`",
+        "the question, its options, the one you'd take, why, its kind, the paths",
         "see settings project-classes",
-        "on Decided carry on and ask no one; on Ask, ask as the answer says",
+        "On Decided, carry on with it and ask no one; on Ask, ask as the answer says.",
+        "If you're told a decision was overturned, ask it with `message`",
     ] {
-        assert!(question.contains(words));
+        assert!(goal.contains(words), "{words}");
     }
 
     assert!(
@@ -843,13 +784,9 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
 
 #[test]
 fn asks_always_is_told_every_answer_is_ask() {
-    for (words, prefixes) in [
-        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
-        (
-            include_str!("../stock/coordinator.md"),
-            &["Where the draft leaves a choice:", "On a question a change relays"][..],
-        ),
-    ] {
+    for (words, prefixes) in
+        [(include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..])]
+    {
         for prefix in prefixes {
             let paragraph =
                 words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
@@ -859,6 +796,12 @@ fn asks_always_is_told_every_answer_is_ask() {
             );
         }
     }
+    assert!(
+        crate::stock::charter_set()
+            .goal
+            .unwrap()
+            .contains("If your words hold the line `Asks: always`, every answer is Ask.")
+    );
 }
 
 #[test]
@@ -1408,56 +1351,55 @@ fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() 
 
 #[test]
 fn the_coders_words_name_which_task_is_its_change() {
-    let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Message your change only in the question form. Your change is the task your brief's [Requested by task N] line names, never [This task: N]."));
+    let words = crate::stock::charter_set().implementer.unwrap();
+    assert!(words.contains("then call `message` to your requester"));
+    assert!(words.contains("`[Requested by task N]` line names and never `[This task: N]`"));
+    assert!(words.contains("in the question form"));
 }
 
 #[test]
 fn the_coders_words_put_its_report_in_finish() {
-    let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Report in finish's body what your brief asks you to report, whole; with nothing asked, summarize the change there. If it can't fit the bound your contract names, that's no question: cut what can be read elsewhere, naming the file or test instead of quoting it, say under Left what you cut, and finish. Message your change only in the question form."));
+    let words = crate::stock::charter_set().implementer.unwrap();
+    assert!(words.contains("Written whole in one `finish`"));
+    assert!(words.contains("The body holds what your spec's `## Report` asks, whole"));
+    assert!(words.contains("list what you cut under `## Left`, and finish."));
 }
 
 #[test]
 fn the_coders_words_explain_what_a_delivery_keeps() {
-    let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Your checkout is detached: deliver commits the tree as it stands on the host's own head and names what it pushed. Your own commits, resets and rebases keep their files, not their history, so name no commit from an earlier run: it may not be on the branch."));
+    let words = crate::stock::charter_set().implementer.unwrap();
+    assert!(words.contains("**Your checkout is detached:** `deliver` commits its files on the host's own head"));
+    assert!(words.contains("name no commit from an earlier run: it may not be on the branch."));
 }
 
 #[test]
 fn the_coders_words_say_what_a_resume_holds() {
-    let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("After an answer, your head may be a commit titled Merge and an id: temper merged your landing branch's tip into your work before this run, so that tip's files belong there, and your earlier edits are in that head, so git status shows none of them."));
-    assert!(words.contains("Settle a merge's conflicts before you ask: a run that parks with a conflict marker left keeps none of that run's edits."));
+    let words = crate::stock::charter_set().implementer.unwrap();
+    assert!(words.contains("temper merged your branch's tip into your work before this run"));
+    assert!(words.contains("Settle a merge's conflicts before you ask"));
+    assert!(words.contains("keeps none of its edits."));
 }
 
 #[test]
 fn the_coders_words_wait_after_asking() {
-    let engine = single_engine();
-    let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let coder = stock.charters.iter().find(|charter| charter.number == 2).expect("coding charter 2");
-    let words = core::str::from_utf8(&coder.policy.instructions).expect("coding instructions");
-    assert!(words.contains("After asking, call wait, not finish: the answer reaches this run."));
-}
-
-#[test]
-fn the_coders_words_refuse_an_absent_fix_instead_of_adding_a_feature() {
-    let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Change only what was asked. If a requested fix is absent from the code, write nothing and finish with no_change, explaining what the code has; never add a feature in its place."));
+    let words = crate::stock::charter_set().implementer.unwrap();
+    assert!(words.contains("Then call `wait`, not `finish`: the answer reaches this run."));
 }
 
 #[test]
 fn the_coders_words_build_additions_in_the_code_there_is() {
-    let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("If the description differs from the code, build the requested addition using the code's names; use no_change only if it cannot be built there."));
+    let words = crate::stock::charter_set().implementer.unwrap();
+    assert!(words.contains("Where the spec's words differ from the code, build what it asks with the code's names."));
 }
 
 #[test]
 fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
-    let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("In repairs and resolutions, preserve the requested change and unrelated base content, including independent appended lines and existing blank lines."));
-    assert!(words.contains("Restore losses named in review; never remove content to pass checks."));
-    assert!(words.contains("Initial production has no pull request yet:"));
+    let words = crate::stock::charter_set().implementer.unwrap();
+    assert!(
+        words.contains("keep the requested change and unrelated base content, appended lines and blank lines included")
+    );
+    assert!(words.contains("restore losses a review names; never remove content to pass checks."));
+    assert!(words.contains("Until then it has no pull request:"));
 }
 
 #[test]
@@ -1937,7 +1879,11 @@ fn stock_words_hold_no_placeholder_a_run_cannot_fill() {
     for words in [
         include_str!("../stock/ask.txt"),
         include_str!("../stock/chat.txt"),
-        include_str!("../stock/coding.txt"),
+        include_str!("../../../../docs/charters/stock/common.md"),
+        include_str!("../../../../docs/charters/stock/goal.md"),
+        include_str!("../../../../docs/charters/stock/designer.md"),
+        include_str!("../../../../docs/charters/stock/coordinator.md"),
+        include_str!("../../../../docs/charters/stock/implementer.md"),
         include_str!("../stock/review.txt"),
         include_str!("../stock/status.txt"),
         include_str!("../stock/trial.txt"),

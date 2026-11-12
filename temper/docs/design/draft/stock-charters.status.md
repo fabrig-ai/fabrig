@@ -8,5 +8,7 @@ Already designed: a charter's parts and the runs that read them (jig's `domain/t
   - 4: jig's `domain/engine/settings.md`, 1 sets a charter whole, removes it or resets it, with no overlay; `../client/ctl/tools.md`, 3 applies one settings file, a charter's text inside it, and `settings show` marks nothing an overlay replaced or added.
   - 5, 10: no design names `temper/docs/charters/fabrig/` or its `settings.json`.
   - 6: `../protocol/configuration/reference.md` gives the reference charters 5, 7, 2 and 8 of its own, editions over the stock's rather than overlays.
-- **Design departs:** none yet.
+- **Design departs:**
+  - 9.2: `temper/docs/charters/stock/goal.md`'s last sentence of "Asking your requester" names `decide_escalation` as the tool that passes an escalation up, where the draft names `decide`, which decides proposals alone (change 1154, 2026-11-12).
+  - 9.4: `temper/docs/charters/stock/coordinator.md`'s "An escalation" passes it up with `decide_escalation`, where the draft names `decide` (change 1154, 2026-11-12).
 - **Open:** 12. Its second question, the stock implementer's shell, stands at its default in the design: charter 2 names no shell (`../protocol/configuration/stock.md`).

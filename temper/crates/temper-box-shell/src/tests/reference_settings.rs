@@ -115,14 +115,6 @@ fn the_reference_settings_file_decodes() {
     assert_eq!(coder.wake, WakePolicy::DEFAULT);
     assert!(coder.documents.is_empty());
     assert!(coder.shell());
-    let stock = std::str::from_utf8(include_bytes!("../../../temper-service/src/stock/coding.txt"))
-        .expect("stock coding instructions are UTF-8");
-    let checks = "Before each delivery, run with the shell the lints and the focused tests of each package \
-                  you changed: `cargo clippy -p PKG --all-targets -- -D warnings`, then `cargo nextest run -p \
-                  PKG`, naming each package; fix what they find in your own files, and list a failure outside \
-                  them under Left.";
-    let instructions = stock.replace("You can run nothing.", checks);
-    assert!(coder.instructions.bytes().starts_with(instructions.as_bytes()));
     let coder_instructions = std::str::from_utf8(coder.instructions.bytes()).expect("coding instructions are UTF-8");
     assert!(coder_instructions.contains("in the question form"));
     assert!(coder_instructions.contains("After asking, call wait, not finish: the answer reaches this run."));

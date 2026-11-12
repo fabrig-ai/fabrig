@@ -287,7 +287,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   `authority.grants` is below the rules' grants, is refused at the
   start, naming the limit and the stock setting. The `core.run_bytes`
   floor measures the resolved charter, including its parts and catalogue
-  models; charter 5 at init's catalogue needs about 27,000 bytes, its
+  models; charter 5 at init's catalogue needs 26,744 bytes, its
   four files' 24 KB and its models', which `temper-service`'s floor test
   holds exactly. The root holds a run's charter within
   `root.journal.run_bytes`, 65,536 in both of temper's profiles, the

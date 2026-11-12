@@ -23,6 +23,7 @@ worker = [
 ]
 
 [dependencies]
+temper-charter-set.workspace = true
 temper-protocol-reaches.workspace = true
 temper-protocol-brief.workspace = true
 temper-engine-domain-ways.workspace = true

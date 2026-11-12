@@ -796,10 +796,10 @@ defaults (`stock.md`), so that a test world gives its own or none.
 
 - **A brief past the host part's room** (`stock.md`). The same request sizes a
   run's brief at 1 MB, where `standard`'s `root.brief.brief_bytes`,
-  353,072, a whole spec among it, fits the room the host part leaves
-  charter 5 at init's models, the least a stock charter keeps: 355,042
+  336,713, a whole spec among it, fits the room the host part leaves
+  charter 5 at init's models, the least a stock charter keeps: 340,091
   bytes, less 1,472 for its 64 sections' titles and framing and a
-  498-byte margin. It is past the largest fabrig's development has had,
+  1,906-byte margin. It is past the largest fabrig's development has had,
   200 kB.
   1 MB needs a window of about 2.7M tokens or a larger share of
   it for the host. Default: as it stands. The user's to choose, with no
