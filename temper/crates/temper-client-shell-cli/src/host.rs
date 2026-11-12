@@ -21,8 +21,8 @@ use skein_lib::{
 use skein_shell::Host;
 use temper_client_tools::{jig::call::Parsed, root};
 mod input;
-mod settings_input;
 mod service;
+mod settings_input;
 mod sign_in;
 const TAG: u64 = 1 << 61;
 const FILES: u64 = 1 << 62;

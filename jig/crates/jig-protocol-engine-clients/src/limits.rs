@@ -103,3 +103,12 @@ impl PublicLimits {
         self.rate > 0
     }
 }
+
+/// Whole first deliveries for every watch beside the in-flight hello, including stream-event tags
+/// (jig/docs/design/protocol/client/README.md, 10).
+#[must_use]
+pub fn stream_queue_bytes(watches: u32, wire: &jig_client_protocol_wire::v20::Limits) -> Option<u32> {
+    let delivery = jig_client_protocol_wire::v20::Delivery::encoded_bound(wire)?.checked_add(1)?;
+    let hello = jig_client_protocol_wire::v20::Hello::encoded_bound(wire)?.checked_add(1)?;
+    u32::try_from(delivery.checked_mul(u64::from(watches))?.checked_add(hello)?).ok()
+}

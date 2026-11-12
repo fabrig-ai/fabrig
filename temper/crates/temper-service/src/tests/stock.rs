@@ -162,9 +162,9 @@ fn configure_reference_authority_allows_coordinator_tools() {
             .collect();
     }
     widen_reference(&mut configured.roles[0].authority, &required);
-    assert_eq!(rules.ceiling.delegation.kinds.len(), 15);
-    assert_eq!(configured.ceiling.delegation.kinds.len(), 15);
-    assert_eq!(configured.roles[0].authority.delegation.kinds.len(), 13);
+    assert_eq!(rules.ceiling.delegation.kinds.len(), 18);
+    assert_eq!(configured.ceiling.delegation.kinds.len(), 18);
+    assert_eq!(configured.roles[0].authority.delegation.kinds.len(), 16);
     for (old, new) in [
         (&stock.rules.ceiling, &rules.ceiling),
         (&policy.ceiling, &configured.ceiling),

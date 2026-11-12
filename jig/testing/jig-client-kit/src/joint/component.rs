@@ -529,7 +529,11 @@ impl Composition {
                 let record = driver.world.take_moved(source);
                 self.event(Event::MovedTaken { exchange, record });
             }
-            Request::Link { .. } | Request::LocalLink { .. } | Request::LinkSignedIn | Request::Closed => {}
+            Request::StreamFailed { .. }
+            | Request::Link { .. }
+            | Request::LocalLink { .. }
+            | Request::LinkSignedIn
+            | Request::Closed => {}
             Request::Redeemed { .. } | Request::Claimed { .. } => panic!("world has no OAuth issuer"),
         }
     }

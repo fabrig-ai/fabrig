@@ -41,6 +41,22 @@
   and routes are a team's as they were. Its machine's concurrency (hub,
   fleet and worker slots, workers, clients' streams and calls) is a
   team's, which a deployment sets for its own machine.
+- **Standard's first deliveries fit together.** Its stream watch count
+  covers a full web client. Its queue holds that many deliveries at the
+  wire's largest owned record, with the owner, version, length, watch
+  number and stream-event tag. The profile derives this from the codec's
+  encoded bound, plus the largest in-flight hello and its event tag. Its
+  HTTP SSE event holds the largest stream record in base64, with the data
+  prefix and line feeds. These are admission
+  ceilings, never allocations ahead of use; small keeps its own figures.
+  The application's startup test checks the web watch count and the
+  resulting stream ceiling against its supplied memory budget. As below,
+  that domain budget is no process-wide sum of all edge ceilings.
+- **Client pressure overrides.** `clients.queued_bytes` is a u32 byte
+  ceiling for one stream, including its in-flight record, at least 128;
+  `clients.exchanges_per_client` is a positive u32 count of exchanges in
+  flight per sign-in, shared by its clients. The reader checks both
+  through the component's validity predicate after applying overrides.
 - **Stream overrides carry their calls.** `clients.streams`,
   `clients.exchanges`, `clients_http.streams` and `clients_http.calls`
   are positive scalar overrides. When any is overridden, both carriers

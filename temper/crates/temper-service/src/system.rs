@@ -534,6 +534,10 @@ impl Service {
         if let Some(worker) = &mut self.worker {
             worker.drain_notes(&mut engine.notes);
         }
+        for _ in 0..engine.notes.room() {
+            let Some(note) = engine.clients.notes.pop() else { break };
+            engine.notes.push(note);
+        }
         &mut engine.notes
     }
     /// Root, component and I/O deadlines on the injected clock.

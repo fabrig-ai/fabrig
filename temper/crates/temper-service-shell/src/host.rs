@@ -451,6 +451,9 @@ fn long_pass_line(binary: &str, long: LongPass) -> String {
 #[must_use]
 pub fn note_line(binary: &str, note: temper_service::Note) -> String {
     match note {
+        temper_service::Note::ClientStreamFailed { sign_in, why } => {
+            format!("{binary} serve: client stream closed: sign_in={sign_in} reason={why:?}\n")
+        }
         temper_service::Note::CoreWaiting { why } => {
             format!("{binary} serve: the core is not answering: {}\n", String::from_utf8_lossy(&why.words()))
         }
@@ -2249,3 +2252,15 @@ pub(super) mod adapter_tests {
 #[cfg(test)]
 #[path = "worker_lines_tests.rs"]
 mod worker_lines_tests;
+
+#[test]
+fn client_stream_failure_line_names_the_sign_in_and_bound() {
+    let note = temper_service::Note::ClientStreamFailed {
+        sign_in: 41,
+        why: temper_service::StreamFailure::QueueBound { queued_bytes: 65_536 },
+    };
+    assert_eq!(
+        note_line("temper", note),
+        "temper serve: client stream closed: sign_in=41 reason=QueueBound { queued_bytes: 65536 }\n"
+    );
+}
