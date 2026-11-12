@@ -1820,7 +1820,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2345;
+const PHRASES: u32 = 2372;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1847,9 +1847,9 @@ const PHRASES: u32 = 2345;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4232;
+const SEGMENTS: u32 = 4305;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56704;
+const ENGLISH_BYTES: u32 = 57233;
 const ALL: [Word; 1688] = [
     Word::StopAsking,
     Word::StopAskingRule,
@@ -5311,8 +5311,8 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
         let tiers = bounds.card_name.checked_add(bounds.fact_value).ok_or(Invalid::Overflow)?
             .checked_add(5).ok_or(Invalid::Overflow)?.checked_mul(bounds.branch_path_stops).ok_or(Invalid::Overflow)?;
         let branch = bounds.follow_view_source.checked_add(bounds.follow_view_source_branch).ok_or(Invalid::Overflow)?;
-        return Ok(joined.max(paths).max(tiers).max(branch).max(bounds.follow_check_workflow)
-            .max(bounds.follow_view_stopped_some).checked_add(32).ok_or(Invalid::Overflow)?);
+        return joined.max(paths).max(tiers).max(branch).max(bounds.follow_check_workflow)
+            .max(bounds.follow_view_stopped_some).checked_add(32).ok_or(Invalid::Overflow);
     }
     if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
         return Ok(CLASSES_OBJECTS_BYTES);
