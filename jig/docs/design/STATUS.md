@@ -173,6 +173,9 @@ live names and another holder's reservation answer name taken
 section 3). Finer reasons for key and sign-in acts' not-offered answers
 remain deferred in those documents' open questions.
 
+A program's login in a lent terminal, its contract and the engine's
+offers, asks and ends, is being built (`domain/terminal-login.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`domain/README.md`](domain/README.status.md)
@@ -187,6 +190,7 @@ Design documents:
 - [`domain/testing.md`](domain/testing.status.md)
 - [`domain/accounts.md`](domain/accounts.status.md)
 - [`domain/providers.md`](domain/providers.status.md)
+- [`domain/terminal-login.md`](domain/terminal-login.status.md)
 - [`client/domain/README.md`](client/domain/README.status.md)
 - [`client/domain/client/README.md`](client/domain/client/README.status.md)
 - [`client/domain/contract/README.md`](client/domain/contract/README.status.md)
