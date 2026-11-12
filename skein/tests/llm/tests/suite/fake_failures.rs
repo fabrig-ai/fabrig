@@ -260,18 +260,34 @@ fn strict_failure(provider: Provider, status: u16, kind: &[u8]) {
     world.run();
     assert_eq!(
         terminal(&world),
-        (Failure::Invalid, Report { code: b"no_script".as_slice().into(), request: b"req_1".as_slice().into(), field: Box::new([]) }, client::Evidence::Response { status })
+        (
+            Failure::Invalid,
+            Report { code: b"no_script".as_slice().into(), request: b"req_1".as_slice().into(), field: Box::new([]) },
+            client::Evidence::Response { status }
+        )
     );
     let expected_type = [b"\"type\":\"".as_slice(), kind, b"\""].concat();
     assert!(world.responses.windows(expected_type.len()).any(|bytes| bytes == expected_type));
-    for field in [br#""code":"no_script""#.as_slice(), br#""message":"no script answers: no cue matches; last request: \"Hello\"""#] {
+    for field in [
+        br#""code":"no_script""#.as_slice(),
+        br#""message":"no script answers: no cue matches; last request: \"Hello\"""#,
+    ] {
         assert!(world.responses.windows(field.len()).any(|bytes| bytes == field));
     }
-    let detail = world.seen.iter().find_map(|event| match event {
-        client::Event::Failed { detail, .. } => Some(detail.as_ref()),
-        client::Event::Delta { .. } | client::Event::Block { .. } | client::Event::Completed { .. }
-        | client::Event::Cancelled { .. } | client::Event::Reusable | client::Event::Close | client::Event::Closed => None,
-    }).expect("client failure detail");
+    let detail = world
+        .seen
+        .iter()
+        .find_map(|event| match event {
+            client::Event::Failed { detail, .. } => Some(detail.as_ref()),
+            client::Event::Delta { .. }
+            | client::Event::Block { .. }
+            | client::Event::Completed { .. }
+            | client::Event::Cancelled { .. }
+            | client::Event::Reusable
+            | client::Event::Close
+            | client::Event::Closed => None,
+        })
+        .expect("client failure detail");
     assert_eq!(detail, b"no script answers: no cue matches; last request: \"Hello\"");
     assert_eq!(stream(&world), vec![Err(Failure::Invalid)], "failure before any stream");
 }

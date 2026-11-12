@@ -46,15 +46,19 @@ fn strict_system_script_fails_past_its_turns_and_again() {
         1,
         Box::new([script(b"Plan the widget", Box::new([says(b"first"), says(b"second")]))]),
         empty_menu(),
-    ).expect("configured scripts");
+    )
+    .expect("configured scripts");
     let mut input = query(Box::new([user(Box::new([text(b"Build it")]))]));
     input.system = copy_of(b"Plan the widget");
     assert_eq!(call(&mut domain, &input).expect("first turn").parts.as_ref(), &[text(b"first")]);
     input.messages = Box::new([user(Box::new([text(b"Build it")])), assistant(), user(Box::new([text(b"Continue")]))]);
     assert_eq!(call(&mut domain, &input).expect("second turn").parts.as_ref(), &[text(b"second")]);
     input.messages = Box::new([
-        user(Box::new([text(b"Build it")])), assistant(), user(Box::new([text(b"Continue")])),
-        assistant(), user(Box::new([text(b"Add CSV export")]))
+        user(Box::new([text(b"Build it")])),
+        assistant(),
+        user(Box::new([text(b"Continue")])),
+        assistant(),
+        user(Box::new([text(b"Add CSV export")])),
     ]);
     for _ in 0..2_u32 {
         assert_failure(call(&mut domain, &input), b"no script answers: past the 2 turns of the script cued \"Plan the widget\"; last request: \"Add CSV export\"");
@@ -64,9 +68,26 @@ fn strict_system_script_fails_past_its_turns_and_again() {
 #[test]
 fn strict_request_and_otherwise_scripts_fail_past_their_turns() {
     let rows = [
-        (Scripts { cued: Box::new([script(b"ask", Box::new([says(b"answer")]))]), asked: Box::new([]), otherwise: Box::new([]) }, b"the script cued \"ask\"".as_slice()),
-        (Scripts { cued: Box::new([]), asked: Box::new([script(b"ask", Box::new([says(b"answer")]))]), otherwise: Box::new([]) }, b"the script cued \"ask\"".as_slice()),
-        (Scripts { cued: Box::new([]), asked: Box::new([]), otherwise: Box::new([says(b"answer")]) }, b"otherwise".as_slice()),
+        (
+            Scripts {
+                cued: Box::new([script(b"ask", Box::new([says(b"answer")]))]),
+                asked: Box::new([]),
+                otherwise: Box::new([]),
+            },
+            b"the script cued \"ask\"".as_slice(),
+        ),
+        (
+            Scripts {
+                cued: Box::new([]),
+                asked: Box::new([script(b"ask", Box::new([says(b"answer")]))]),
+                otherwise: Box::new([]),
+            },
+            b"the script cued \"ask\"".as_slice(),
+        ),
+        (
+            Scripts { cued: Box::new([]), asked: Box::new([]), otherwise: Box::new([says(b"answer")]) },
+            b"otherwise".as_slice(),
+        ),
     ];
     for (scripts, source) in rows {
         let mut domain = Domain::played(&STRICT, 1, scripts, empty_menu()).expect("played scripts");
@@ -81,16 +102,27 @@ fn strict_request_and_otherwise_scripts_fail_past_their_turns() {
 #[test]
 fn strict_miss_names_only_the_latest_user_text_unescaped() {
     let rows = [
-        (Box::<[Message]>::from([
-            user(Box::new([text(b"old")])), assistant(),
-            user(Box::new([text(b"Add \"CSV\""), Part::Opaque { bytes: copy_of(b"ignored") }, text(b"export\nnow")])),
-            assistant(), user(Box::new([])),
-        ]), b"Add \"CSV\"\nexport\nnow".as_slice()),
+        (
+            Box::<[Message]>::from([
+                user(Box::new([text(b"old")])),
+                assistant(),
+                user(Box::new([
+                    text(b"Add \"CSV\""),
+                    Part::Opaque { bytes: copy_of(b"ignored") },
+                    text(b"export\nnow"),
+                ])),
+                assistant(),
+                user(Box::new([])),
+            ]),
+            b"Add \"CSV\"\nexport\nnow".as_slice(),
+        ),
         (Box::new([user(Box::new([Part::Opaque { bytes: copy_of(b"no text") }]))]), b"".as_slice()),
         (Box::new([user(Box::new([text(b"old")])), user(Box::new([text(b"")]))]), b"".as_slice()),
     ];
     for (messages, text) in rows {
-        let mut domain = Domain::configured(&STRICT, 1, Box::new([script(b"unmatched", Box::new([says(b"unused")]))]), empty_menu()).expect("configured scripts");
+        let mut domain =
+            Domain::configured(&STRICT, 1, Box::new([script(b"unmatched", Box::new([says(b"unused")]))]), empty_menu())
+                .expect("configured scripts");
         let input = query(messages);
         let message = concat(&[b"no script answers: no cue matches; last request: \"", text, b"\""]);
         assert_failure(call(&mut domain, &input), &message);

@@ -515,7 +515,12 @@ fn scripted(
                             continue;
                         }
                     }
-                    return Err(Failure { error: *error, report: report.clone(), message: Box::new([]), parts: parts.into_boxed() });
+                    return Err(Failure {
+                        error: *error,
+                        report: report.clone(),
+                        message: Box::new([]),
+                        parts: parts.into_boxed(),
+                    });
                 }
                 continue;
             }

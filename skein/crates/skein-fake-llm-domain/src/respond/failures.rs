@@ -49,7 +49,11 @@ fn a_failing_line_answers_its_class_and_report() {
     ];
     for error in rows {
         let (query, scripts) = setup(Box::new([fail(error, Box::new([]))]), None);
-        assert_eq!(reply(&query, &scripts), Err(Failure { error, report: report(), message: Box::new([]), parts: Box::new([]) }), "{error:?}");
+        assert_eq!(
+            reply(&query, &scripts),
+            Err(Failure { error, report: report(), message: Box::new([]), parts: Box::new([]) }),
+            "{error:?}"
+        );
     }
 }
 
@@ -82,7 +86,11 @@ fn call_at(domain: &mut Domain, query: &Query, now: Time) -> Result<Answer, Fail
 fn assert_call(domain: &mut Domain, query: &Query, nanos: u64, failure: Option<Error>) {
     let got = call_at(domain, query, Time::from_nanos(nanos));
     if let Some(error) = failure {
-        assert_eq!(got, Err(Failure { error, report: report(), message: Box::new([]), parts: Box::new([]) }), "at {nanos}");
+        assert_eq!(
+            got,
+            Err(Failure { error, report: report(), message: Box::new([]), parts: Box::new([]) }),
+            "at {nanos}"
+        );
     } else {
         let answer = got.expect("the call passes over the expired line");
         assert_eq!(answer.parts.as_ref(), &[Part::Text { text: copy_of(b"through") }], "at {nanos}");
