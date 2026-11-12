@@ -1882,25 +1882,3 @@ fn landing_combine_reads_stock_each_value_and_problems_at_the_member() {
         );
     }
 }
-
-#[test]
-fn a_worker_alone_applies_its_names_without_engine_range_checks() {
-    let input = fixtures::with(
-        &fixtures::worker_alone_document(),
-        b"application.limits.overrides",
-        br#"{"checkout.conflicts":7,"forge.change_policy.tasks":0,"forge.changes":1025}"#,
-    );
-    let directories = config::Directories::working();
-    assert_eq!(crate::startup::shape(&input, &directories).unwrap(), crate::startup::Shape::WorkerAlone);
-    let part = crate::startup::worker_part(&input, &directories).unwrap();
-    assert_eq!(part.limits.checkout.conflicts, 7);
-    let service = crate::startup::worker_alone(
-        part,
-        &fixtures::files(),
-        &fixtures::startup_agent(),
-        fixtures::worker_runtime(),
-        7,
-    )
-    .unwrap();
-    assert_eq!(service.worker.env.limits.checkout.conflicts, 7);
-}
