@@ -5212,6 +5212,7 @@ name = "temper-client-journeys-tool"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "sha2",
  "skein-browser",
  "skein-fake-person",
  "skein-fake-person-browser",

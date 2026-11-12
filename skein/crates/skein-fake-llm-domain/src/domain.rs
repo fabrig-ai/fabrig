@@ -15,6 +15,10 @@ use crate::{cache, limits, pieces, respond};
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Config {
+    /// Fail a call no script answers instead of answering "done" or at random.
+    ///
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.5.
+    pub strict: bool,
     /// Calls held at once. A call beyond them is refused as overloaded.
     ///
     /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.

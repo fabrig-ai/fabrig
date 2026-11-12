@@ -17,10 +17,19 @@ proposals. A role reports through its Now, a line per session and a weekly
 `report` note, with its Now in Home's brief's words; areas and routing remain
 a later milestone, and Team's and the terminal's talk and report surfaces
 remain the pages' (`draft/standing-roles.status.md`).
+QA's hands are landed-qa's milestone Q2,
+by goal 1000: a drive session on a fake box from a given build, taking a
+person's steps and looks a line at a time; recipes and their walk; the
+fake model's given scripts and strict switch; a store this build cannot
+read refused by name; and a box started again with a newer build, whose
+process-tier story runs after landing (`client/drive.md`;
+`client/recipe.md`; `protocol/setup/box.md`, 1 and 5; `protocol/store.md`,
+5; `draft/landed-qa.status.md`).
+
 Landed QA's milestone Q1: `temper-qa`
 watches main's ref, triages each goal's landing into cases in main's
 order, and keeps the deployment's builds of landed tips until no pass
-can need them, all in one ledger; its passes follow in Q2 and Q3
+can need them, all in one ledger; its passes follow in Q3
 (`testing/qa/README.md`; `draft/landed-qa.status.md`).
 
 A follow across projects is the whole story's milestone F1
@@ -55,6 +64,7 @@ Design documents:
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
+- [`client/drive.md`](client/drive.status.md)
 - [`client/engine.md`](client/engine.status.md)
 - [`client/forge/README.md`](client/forge/README.status.md)
 - [`client/forge/deployment.md`](client/forge/deployment.status.md)
@@ -82,6 +92,7 @@ Design documents:
 - [`client/pages/team.md`](client/pages/team.status.md)
 - [`client/pages/welcome.md`](client/pages/welcome.status.md)
 - [`client/pages/work.md`](client/pages/work.status.md)
+- [`client/recipe.md`](client/recipe.status.md)
 - [`client/testing.md`](client/testing.status.md)
 - [`client/tui/README.md`](client/tui/README.status.md)
 - [`client/tui/box.md`](client/tui/box.status.md)
