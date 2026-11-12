@@ -68,6 +68,7 @@ pub fn engine() -> settings::Engine {
         jig,
         webhooks: None,
         sign_in: None,
+        push: None,
         clients: crate::startup::application::Clients {
             listener: jig_protocol_config::Address::Addr(http::address()),
             bundle: None,

@@ -892,6 +892,9 @@ fn socket_count(
     if members.webhooks.is_some() {
         required = required.checked_add(1)?.checked_add(u64::from(members.limits.forge_component.hooks))?;
     }
+    if members.push.is_some() {
+        required = required.checked_add(u64::from(crate::clients::push::PUSHES_IN_FLIGHT))?;
+    }
     if members.sign_in.is_some() {
         required = required.checked_add(u64::from(members.limits.sign_in.fetches))?;
     }

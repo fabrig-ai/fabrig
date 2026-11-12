@@ -140,8 +140,12 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 engine.admission = None;
             }
             let event = match request {
-                // Push sending is the service's next change (attention.md, 7.3).
-                root::PartyRequest::Deliver(root::Delivery::Push(_)) => None,
+                root::PartyRequest::Deliver(root::Delivery::Push(push)) => {
+                    if engine.drain.is_none() {
+                        engine.clients.pushes.send(push, engine.env.now, engine.env.wall, &mut engine.clients.io);
+                    }
+                    None
+                }
                 root::PartyRequest::Deliver(root::Delivery::PlaygroundNote { line }) => {
                     engine.notes.push(crate::Note::Playground { line });
                     None
