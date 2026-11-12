@@ -532,6 +532,7 @@ impl Patcher {
     pub fn versions(&self, plan: PlanIx) -> Versions;
     pub fn counterpart(&self, plan: PlanIx, old: DeclIx) -> Option<DeclIx>;
     pub fn source(&self, plan: PlanIx, new: DeclIx) -> Option<DeclIx>;
+    pub fn copies(&self, plan: PlanIx, old: DeclIx) -> bool; // its conversion copies (5)
 
     pub fn start(&mut self, plan: PlanIx, root: DeclIx, record: Box<[u8]>) -> Result<(), Halt>;
     pub fn next(&mut self) -> Result<Step, Halt>;
@@ -579,6 +580,10 @@ impl Build {                         // the new value, in preorder
   `plan_from` finds each, `source` names the root in the one before
   (and `counterpart` in the one after), and `next_pass` starts each
   after the first over the last `finish`'s bytes.
+- **`copies`** reads the plan's own flag for an old declaration, the
+  one the walk reads to copy pieces or open them: a reader that must
+  tell opened pieces from copied ones (the patch goldens, `skein-codegen`)
+  asks it rather than repeat the planning.
 - **A machine per family.** `keep` refuses another family's text
   (`Family`), a version kept already (`Twice`), and past the
   capacity's versions or text (`Room`). Plans name kept versions, so
