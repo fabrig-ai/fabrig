@@ -109,13 +109,11 @@ fn wait_for_conflict(world: &mut World, task: u64, base: u64, assignments: usize
     assert_eq!(world.assigned.len(), assignments, "no resolution while the producer lives");
     assert!(!matches!(row.change.state, change::State::Held { .. }), "{row:?}");
     assert_eq!(row.change.resolutions, 0);
-    assert_eq!(
-        row.change.state,
-        change::State::WaitingProducer { base: translate::commit(base) },
-        "{row:?}; phase {:?}; writes {:?}",
-        live_task(world, task).phase,
-        world.writes
-    );
+    if row.change.way == change::Way::Turn {
+        assert!(matches!(row.change.state, change::State::Ready { .. }), "{row:?}");
+    } else {
+        assert_eq!(row.change.state, change::State::WaitingProducer { base: translate::commit(base) }, "{row:?}");
+    }
 }
 
 fn resume(world: &mut World, producer: &engine::Assignment) -> engine::Assignment {
@@ -192,12 +190,22 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
         StoryLimits { turn: true, ..StoryLimits::default() },
     );
     let (mut world, task, producer, _, base) = live_producer(configured);
+    world.manual_prepare_jobs();
     wait_for_conflict(&mut world, task, base, 2);
     assert_eq!(change_row(&world, task).change.way, change::Way::Turn);
     let producer = resume(&mut world, &producer);
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", BRANCH, b"file", b"producer H2", 2)
         .expect("producer pushes H2");
     finish_resolution(&mut world, &producer);
+    for _ in 0..STEPS { world.tick(); if !world.jobs.is_empty() { break; } }
+    assert_eq!(world.jobs.len(), 1);
+    let job = world.jobs.remove(0);
+    assert_eq!(job.kind, jig_domain_link::JobKind(1));
+    let spec = temper_protocol_worker_wire::v1::JobSpec::decode(&temper_protocol_worker_wire::v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("prepare spec");
+    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+    assert_eq!(request["members"][0]["head"], String::from_utf8(forge_top::commit_text(&translate::commit(head)).into_vec()).expect("head text"));
+    let conflict = format!("{{\"conflict\":{{\"member\":{task},\"with\":\"branch\",\"files\":[\"file\"]}}}}");
+    finish_job(&mut world, &job, conflict.as_bytes());
     let resolution = super::super::reviews::next_assignment(&mut world, 3);
     assert!(
         matches!(change_row(&world, task).delegate, Some((child, change::Delegate::Resolve { .. })) if child == resolution.task)
@@ -211,6 +219,7 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
     let merged = push_merge(&mut world, task, head, base);
     passed_ci(&mut world, merged);
     finish_resolution(&mut world, &resolution);
+    world.automatic_prepare_jobs();
     for _ in 0..STEPS {
         world.tick();
         if matches!(change_row(&world, task).change.state, change::State::Ready { .. }) {
