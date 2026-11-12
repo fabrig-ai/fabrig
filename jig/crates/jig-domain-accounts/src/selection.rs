@@ -3,6 +3,22 @@
 use crate::{Account, Domain, Holder, Kind, State, Use};
 use skein_lib::Time;
 
+/// The ways a model can take its provider's sources (accounts.md, 3.4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Ways {
+    pub program: bool,
+    pub direct: bool,
+}
+impl Ways {
+    #[must_use]
+    pub fn allows(self, kind: Kind) -> bool {
+        match kind {
+            Kind::Program => self.program,
+            Kind::SignIn | Kind::Key | Kind::None => self.direct,
+        }
+    }
+}
+
 /// Coverage of one account for the payer of this check, recomputed by the core.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Coverage {
@@ -39,11 +55,9 @@ pub enum Selection {
 }
 
 impl Domain {
-    /// Choose for one provider on one candidate host. A program endpoint skips direct sources;
-    /// an endpoint without a program skips program sources. `preferred` is the kept or checked named
+    /// Choose for one provider on one candidate host, taking only the model's ways. `preferred` is the kept or checked named
     /// account; when still eligible it wins even while unusable. Other accounts are considered
     /// in payer/explicit/deployment order, preserving each holder's order, with number ties.
-    /// Only `program`'s presence is read: a source serves its provider's program, which configuration checks it offers.
     /// Inputs are bounded by this child's account/source capacities. Duplicate evidence fails
     /// closed. The query allocates nothing. Work is bounded by accounts squared plus host facts
     /// squared plus sources times host facts, all within the configured capacities.
@@ -56,7 +70,7 @@ impl Domain {
         &self,
         payer: Use,
         provider: u32,
-        program: Option<&[u8]>,
+        ways: Ways,
         preferred: Option<u32>,
         excluded: Option<Excluded>,
         coverage: &[Coverage],
@@ -86,16 +100,16 @@ impl Domain {
             && let Some(account) = self.accounts.get(&number)
             && eligible(number, account, provider, None, coverage)
         {
-            return self.select_source(number, account, program, host, now);
+            return self.select_source(number, account, ways, host, now);
         }
         let mut chosen = None;
         let mut waiting = None;
         for (number, account) in &self.accounts {
-            if !eligible(*number, account, provider, excluded, coverage) || !self.has_source(account, program) {
+            if !eligible(*number, account, provider, excluded, coverage) || !self.has_source(account, ways) {
                 continue;
             }
             let key = (rank(payer, account), account.holder(), account.place(), *number);
-            let selection = self.select_source(*number, account, program, host, now);
+            let selection = self.select_source(*number, account, ways, host, now);
             match selection {
                 Selection::Chosen { .. } => match chosen {
                     Some((best, _)) if best <= key => {}
@@ -118,13 +132,12 @@ impl Domain {
     }
 
     /// Ranked account candidates; a valid pin is the sole candidate even when held.
-    /// Only `program`'s presence is read: a source serves its provider's program, which configuration checks it offers.
     #[must_use]
     pub fn candidates(
         &self,
         payer: Use,
         provider: u32,
-        program: Option<&[u8]>,
+        ways: Ways,
         preferred: Option<u32>,
         excluded: Option<Excluded>,
         coverage: &[Coverage],
@@ -149,7 +162,7 @@ impl Domain {
         }
         let mut ranked = skein_lib::List::with_capacity(self.accounts.capacity());
         for (number, account) in &self.accounts {
-            if eligible(*number, account, provider, excluded, coverage) && self.has_source(account, program) {
+            if eligible(*number, account, provider, excluded, coverage) && self.has_source(account, ways) {
                 ranked
                     .push((rank(payer, account), account.holder(), account.place(), *number))
                     .expect("one eligible row per account");
@@ -173,28 +186,21 @@ impl Domain {
         result
     }
 
-    fn has_source(&self, account: &Account, program: Option<&[u8]>) -> bool {
+    fn has_source(&self, account: &Account, ways: Ways) -> bool {
         for (_, number) in account.sources() {
             let source = self.sources.get(number).expect("account source");
-            if (source.kind == Kind::Program) == program.is_some() {
+            if ways.allows(source.kind) {
                 return true;
             }
         }
         false
     }
 
-    fn select_source(
-        &self,
-        number: u32,
-        account: &Account,
-        program: Option<&[u8]>,
-        host: &[HostSource],
-        now: Time,
-    ) -> Selection {
+    fn select_source(&self, number: u32, account: &Account, ways: Ways, host: &[HostSource], now: Time) -> Selection {
         let mut first_local = None;
         for (_, source) in account.sources() {
             let fact = self.source(*source).expect("account's source exists");
-            if (fact.kind == Kind::Program) != program.is_some() {
+            if !ways.allows(fact.kind) {
                 continue;
             }
             let globally_held = match fact.state {

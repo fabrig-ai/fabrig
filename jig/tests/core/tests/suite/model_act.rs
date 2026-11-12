@@ -120,6 +120,7 @@ fn turning_a_model_off_keeps_the_rest_of_its_value() {
     assert_eq!(entry(&world, 1), newest);
     assert_eq!(world.domain.core_mut().charter_of(task), &held);
     assert_eq!(fixtures::live_row(&world, task).settings.task, 1);
+    super::models::host(&mut world);
     let me = frame(&mut world, signed);
     let catalogue = jig_protocol_engine_clients::translate::llm::catalogue(&[newest]);
     let offer = jig_protocol_engine_clients::translate::llm::models(
@@ -137,11 +138,13 @@ fn turning_a_model_off_keeps_the_rest_of_its_value() {
         }))
     );
     assert_eq!(world.domain.settings().newest(), 3);
+    fixtures::finish_chat(&mut world, 0, b"Done");
 }
 
 #[test]
 fn a_committed_picker_change_refreshes_a_live_me_watch() {
     let (mut world, signed) = setup(1);
+    super::models::host(&mut world);
     let watcher = Token::new(45);
     world.send(root::Event::Core(core::Event::Watch {
         watcher,
@@ -240,6 +243,7 @@ fn adding_a_model_by_name_makes_a_persons_model_on_the_picker() {
             estimated: true
         }
     );
+    super::models::host(&mut world);
     let me = frame(&mut world, signed);
     let offered = me.projects.get(0).unwrap().offer.as_slice().iter().find(|row| row.model == 63).unwrap();
     assert!(!offered.accounts.is_empty());
