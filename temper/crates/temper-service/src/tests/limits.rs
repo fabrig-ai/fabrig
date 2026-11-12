@@ -71,6 +71,29 @@ fn the_change_tasks_override_sets_its_field_and_refuses_values_outside_its_bound
 }
 
 #[test]
+fn checkout_preparations_is_a_named_override_and_zero_refuses_start() {
+    for profile in [limits::Profile::Small, limits::Profile::Standard] {
+        let mut own = limits::profile(profile);
+        assert_eq!(own.checkout.preparations, 1);
+        assert_eq!(limits::apply(&mut own, b"checkout.preparations", 2), Ok(()));
+        assert_eq!(crate::worker_settings::checkout(own.checkout).preparations, 2);
+        let row = limits::find(b"checkout.preparations").expect("listed limit");
+        assert_eq!((row.value)(&own), 2);
+        assert_eq!(
+            row.line,
+            "Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival."
+        );
+    }
+    let document =
+        fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.preparations":0}"#);
+    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    assert_eq!(
+        crate::startup::lines(&problems).as_ref(),
+        b"application.limits.overrides.checkout.preparations: 0; requires at least 1\n"
+    );
+}
+
+#[test]
 fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
     let document =
         fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"forge.change_policy.tasks":0}"#);
