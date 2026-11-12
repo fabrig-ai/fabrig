@@ -15,6 +15,7 @@ fn row(task: u64, phase: policy::Phase) -> LandingRow {
             stale_proofs: 2,
             branch: Box::from(b"main".as_slice()),
             members: Box::new([policy::Member {
+left: None,
                 change: fixtures::CHANGE,
                 repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
                 pull: 1,

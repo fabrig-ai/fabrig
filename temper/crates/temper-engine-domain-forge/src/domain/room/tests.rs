@@ -184,6 +184,7 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
                     project: 5,
                     phase,
                     members: Box::new([landing::Member {
+left: None,
                         change: fixtures::CHANGE,
                         repository: landing::Repository { forge: 1, repository: 2 },
                         pull: 1,

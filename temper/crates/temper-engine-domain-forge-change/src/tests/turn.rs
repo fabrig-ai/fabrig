@@ -201,7 +201,7 @@ fn a_clean_gate_counts_at_a_clean_prepares_candidate_and_an_exact_one_is_asked_a
 fn a_queue_change_ignores_an_ask() {
     for ask in [Ask::Prepare { head: HEAD, main: BASE }, Ask::Repair { gate: 3, candidate: NEW }] {
         let mut f = facts();
-        f.ask = Some(ask);
+        f.ask = Some(ask.clone());
         for c in [
             change(State::Opening { requested: true }),
             change(State::Gating { head: HEAD, asked: Box::new([]) }),
@@ -211,7 +211,7 @@ fn a_queue_change_ignores_an_ask() {
             let with_ask = decide(&c, &f, &heard());
             f.ask = None;
             assert_eq!(with_ask, decide(&c, &f, &heard()));
-            f.ask = Some(ask);
+            f.ask = Some(ask.clone());
         }
     }
 }

@@ -187,6 +187,19 @@ pub enum State {
     Cleared { merge: Commit },
     /// The verification bound expired or the verifying change was cancelled.
     Uncleared { merge: Commit },
+    /// Blocking judgement at a landing prefix (domain/landing.md, 3, 15).
+    Judging { head: Commit, ready_since: Wall, target: Judgement, asked: Box<[u64]> },
+}
+
+/// The round's review target; the change's own pull remains the repair target.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Judgement {
+    pub landing: u64,
+    pub round: u16,
+    pub pull: u64,
+    pub branch: Box<[u8]>,
+    pub base: Box<[u8]>,
+    pub prefix: Commit,
 }
 
 /// How the change's project lands (domain/landing.md, 1; domain/forge/change/README.md, 2).
@@ -278,7 +291,7 @@ pub struct Ci {
 }
 
 /// What its landing asks of the change (domain/landing.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
     /// Rebase the last known head onto the requested main tip.
     Prepare { head: Commit, main: Commit },
@@ -288,6 +301,7 @@ pub enum Ask {
     Landed { prefix: Commit },
     /// Resolve the prepare job's conflict against this round's base.
     Resolve { base: Commit },
+    Judge(Judgement),
 }
 
 /// What the top reads of the landing's verification each step

@@ -125,6 +125,7 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
         }
     }
     Some(landing::Member {
+left: None,
         change: task,
         repository: landing::Repository { forge: row.repository.forge, repository: row.repository.repository },
         // A producing member has no pull yet; the top fills it before reading.
@@ -330,48 +331,6 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
             }));
             StepEnd::Wait
         }
-        landing::Decision::Hold(landing::Hold::Faults { member, gate }) => {
-            let row = domain.forge.landing(task).expect("landing");
-            let member = row.landing.members.get(usize::from(member)).expect("member");
-            let provider = skein_forge::api::Repository {
-                forge: member.repository.forge,
-                repository: member.repository.repository,
-            };
-            let mut words = List::with_capacity(env.limits.tasks.message_bytes);
-            append(&mut words, b"gate ");
-            if let Some(config) = domain.config.landings.get(&row.landing.project) {
-                for repository in &config.repositories {
-                    if repository.repository == provider
-                        && let Some(check) = repository.gates.get(usize::from(gate))
-                    {
-                        append(&mut words, &check.name);
-                    }
-                }
-            }
-            append(&mut words, b" of ");
-            if let Some(repository) = domain.forge.repository(provider) {
-                append(&mut words, &repository.owner);
-                append(&mut words, b"/");
-                append(&mut words, &repository.name);
-            }
-            append(&mut words, b" failed on its runner past its retries");
-            let decision = ProcedureStep {
-                messages: Box::new([jig_domain_core::StepMessage {
-                    target: task,
-                    kind: tasks::MessageKind::Words,
-                    words: words.into_boxed(),
-                }]),
-                ..ProcedureStep::new(StepEnd::Hold(tasks::Hold::Procedure))
-            };
-            domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
-                task,
-                step,
-                connector,
-                code,
-                decision,
-            }));
-            return;
-        }
         landing::Decision::Prepare { .. } => {
             if let Some(delegate) = prepare_delegate(domain, env, task) {
                 domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
@@ -385,7 +344,7 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
             }
             StepEnd::Hold(tasks::Hold::Procedure)
         }
-        landing::Decision::Hold(landing::Hold::Prepare | landing::Hold::Record { .. }) => {
+        landing::Decision::Hold(_) => {
             let words = domain.forge.landing_hold_words(task).unwrap_or(Box::from(b"prepare job: failed".as_slice()));
             let decision = super::holds::decision(domain, env, task, words);
             domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
@@ -403,6 +362,8 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
         | landing::Decision::Delete
         | landing::Decision::Record { .. }
         | landing::Decision::Landed { .. }
+        | landing::Decision::Leave { .. }
+        | landing::Decision::Judge { .. }
         | landing::Decision::Resolve { .. }
         | landing::Decision::Key { .. }
         | landing::Decision::Dispatch { .. }
@@ -454,7 +415,13 @@ fn landing_result_words(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u
             append(&mut words, &repository.name);
         }
         append(&mut words, b" ");
-        let Some(commit) = member.landed else { continue };
+        let Some(commit) = member.landed else {
+            append(&mut words, b"change "); append(&mut words, skein_lib::Decimal::of(member.change).as_bytes());
+            append(&mut words, b" left: ");
+            if let Some(why) = domain.forge.landing_leave_words(task, 0) { append(&mut words, &why); }
+            append(&mut words, b"\n");
+            continue;
+        };
         let width = if commit[20..] == [0; 12] { 20 } else { 32 };
         for byte in commit.get(..width).expect("commit width") {
             append(&mut words, &forge::hex(*byte));
@@ -628,3 +595,14 @@ fn prepare_failure(context: &tasks::RunContext) -> Box<[u8]> {
     }
     Box::from(b"job failed past its tries".as_slice())
 }
+
+pub(super) fn tell(domain: &mut Domain, env: &Env<Limits>, task: u64, step: forge::LandingNews) {
+    let Some((change, words)) = domain.forge.landing_news_words(task, step) else { return };
+    let Some(row) = domain.forge.change(change) else { return };
+    let Some(goal) = row.goal else { return };
+    let words = forge::text::fit(&words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");
+    if let Some(event) = domain.core.connector_news(goal, 0, tasks::NewsClass::Kept, words, env.wall) {
+        domain.work.push(Work::Tasks(event));
+    }
+}
+

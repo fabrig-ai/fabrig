@@ -1246,6 +1246,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                         project: 5,
                         phase: phase.clone(),
                         members: Box::new([l::Member {
+left: None,
                             change: 51,
                             repository: l::Repository { forge: 1, repository: 2 },
                             pull: 7,

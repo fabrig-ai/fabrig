@@ -70,6 +70,7 @@ fn judged(d: &Domain, requirement: u16, evidence: &ChangeEvidence, reviewers: &[
 
 fn landing(d: &mut Domain) {
     let member = policy::Member {
+left: None,
         change: CHANGE,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
         pull: 1,

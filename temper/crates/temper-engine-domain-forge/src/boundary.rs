@@ -966,6 +966,15 @@ pub struct ChangeRow {
     pub merge_result: Option<Box<[u8]>>,
 }
 impl ChangeRow {
+    /// The pull a judgement delegate reads; every other state keeps the change's pull.
+    #[must_use]
+    pub fn review_target(&self) -> Option<(u64, &[u8], &[u8], skein_forge::api::Commit)> {
+        if let change::State::Judging { target, .. } = &self.change.state {
+            return Some((target.pull, &target.branch, &target.base, target.prefix));
+        }
+        Some((self.pull?, &self.branch, &self.base, self.change.last_head?))
+    }
+
     /// A landed or ended change gathers no more brief or change facts.
     #[must_use]
     pub fn terminal(&self) -> bool {
@@ -981,6 +990,7 @@ impl ChangeRow {
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }
             | change::State::Checking { .. }
+            | change::State::Judging { .. }
             | change::State::Gating { .. }
             | change::State::CancellingGates { .. }
             | change::State::Ready { .. }
@@ -2053,6 +2063,7 @@ pub enum Request {
     BoxRemove {
         forge: u16,
     },
+    LandingNews { task: u64, step: LandingNews },
     LandingDecision {
         task: u64,
         decision: landing::Decision,
@@ -2499,3 +2510,7 @@ pub struct LoggedChange {
     pub pull: Option<u64>,
     pub title: Box<[u8]>,
 }
+
+/// The five landing transitions reported to its member's goal (domain/landing.md, 4.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum LandingNews { Joined, Proving, Landed, Left, Held }

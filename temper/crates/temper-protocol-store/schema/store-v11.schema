@@ -183,7 +183,9 @@ record MergeChange { merge: fixed 32 }
 record LandedChange { merge: fixed 32 since: u64 }
 record NoChange { words: bytes 65536 }
 record Preparing { from: fixed 32 main: fixed 32 ready_since: u64 }
-enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange, red: LandedChange, cleared: MergeChange, uncleared: MergeChange, waiting_producer: WaitingProducer }
+record Judgement { landing: u64 round: u16 pull: u64 branch: bytes 4096 base: bytes 4096 prefix: fixed 32 }
+record Judging { head: fixed 32 ready_since: u64 target: Judgement asked: list 1024 u64 }
+enum ChangeLive { producing: Producing, opening: Producing, recreating: ChangeHead, reopening: Reopening, checking: ChangeHead, gating: Gating, queued: ReadyHead, first: ReadyHead, updating: Updating, resolving: Resolving, repairing: Repairing, landing: ChangeHead, landed: LandedChange, ended, cancelling_gates: ChangeHead, ready: ReadyHead, preparing: Preparing, no_change: NoChange, red: LandedChange, cleared: MergeChange, uncleared: MergeChange, waiting_producer: WaitingProducer, judging: Judging }
 record ChangeState { live: ChangeLive holds: list 8 ChangeHold }
 record Gate { number: u64 kind: GateKind blocking: bool freshness: Freshness eager: bool }
 record GateReport { number: u64 head: fixed 32 status: ChangeStatus }
@@ -259,18 +261,22 @@ record DispatchedKey { key: fixed 32 try_: u16 }
 enum GateProofState { unkeyed, keyed: GateKey, dispatched: DispatchedKey, passed: GateKey, failed: GateKey }
 enum GatePosted { nothing, pending, verdict }
 record GateProof { proof: GateProofState posted: GatePosted faults: u32 }
-record LandingMember { change: u64 repository: Repository pull: u64 head: option fixed 32 base: option fixed 32 candidate: option fixed 32 gates: list 64 GateProof asked: option u16 landed: option fixed 32 }
+record LandingTimeout { member: u16 gate: u16 run: u64 }
+record LandingGateRefused { gate: u64 }
+record LandingGateFailed { gate: u16 run: u64 }
+enum LandingLeave { conflict, head_moved: Commit, cancelled, held, refused: LandingGateRefused, failed: LandingGateFailed }
+record LandingMember { change: u64 repository: Repository pull: u64 head: option fixed 32 base: option fixed 32 candidate: option fixed 32 gates: list 64 GateProof asked: option u16 landed: option fixed 32 left: option LandingLeave }
 enum LandingCombine { merge, squash }
 enum LandingRoundEnd { stale, leave, conflict }
 record LandingRecordHold { member: u16 }
-enum LandingOwnHold { prepare, record: LandingRecordHold }
-record LandingRound { branch: bytes 4096 pull: option u64 upstream: option fixed 32 combined: option LandingCombine recorded: bool told: bool ending: option LandingRoundEnd failure: bytes 8192 }
+enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn }
+record LandingRound { branch: bytes 4096 pull: option u64 upstream: option fixed 32 combined: option LandingCombine recorded: bool told: bool ending: option LandingRoundEnd failure: bytes 8192 judging: bool }
 record LandingState { task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 round: LandingRound own_hold: option LandingOwnHold }
 record LandingPrepare { head: fixed 32 main: fixed 32 }
 record LandingRepairAsk { gate: u16 candidate: fixed 32 }
 record LandingPrefix { prefix: fixed 32 }
 record LandingResolve { base: fixed 32 }
-enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk, landed: LandingPrefix, resolve: LandingResolve }
+enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk, landed: LandingPrefix, resolve: LandingResolve, judge: Judgement }
 record LandingAskSlot { ask: option LandingAsk }
 enum LandingOperation { dispatch, rerun, pending, verdict, merge, open, close, delete, record }
 record LandingEntry { entry: u64 member: u16 gate: u16 operation: LandingOperation }

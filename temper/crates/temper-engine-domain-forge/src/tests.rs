@@ -231,6 +231,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                     project: 5,
                     phase: policy::Phase::Turn { at: env().wall },
                     members: Box::new([policy::Member {
+left: None,
                         change: fixtures::CHANGE,
                         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
                         pull: 1,

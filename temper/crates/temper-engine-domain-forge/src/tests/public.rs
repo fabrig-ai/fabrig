@@ -296,7 +296,9 @@ fn ask(kind: u16, task: Option<u64>, public: &[PublicTask]) -> PublicAsk<'_> {
     PublicAsk { kind, version: w::PUBLIC_VERSION, project: 5, task, public, now: env().wall }
 }
 fn member(task: u64) -> policy::Member {
+left: None,
     policy::Member {
+left: None,
         change: task,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
         pull: 1,
@@ -845,7 +847,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                         stale_proofs: u32::MAX,
                         branch: Box::from(b"main".as_slice()),
                     },
-                    asks: Box::new([None; 8]),
+                    asks: Box::new([const { None }; 8]),
                     entries: Box::new([]),
                 },
             )

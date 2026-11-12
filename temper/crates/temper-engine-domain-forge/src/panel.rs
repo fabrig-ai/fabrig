@@ -277,7 +277,7 @@ impl Domain {
             change::State::Recreating { .. } => PanelStep::Recreating,
             change::State::Reopening { .. } => PanelStep::Reopening,
             change::State::Checking { .. } => PanelStep::Checking,
-            change::State::Gating { .. } | change::State::CancellingGates { .. } => PanelStep::Gating,
+            change::State::Judging { .. } | change::State::Gating { .. } | change::State::CancellingGates { .. } => PanelStep::Gating,
             change::State::Ready { .. } => PanelStep::Ready { landing: row.change.landing },
             change::State::Preparing { .. } => PanelStep::Preparing { landing: row.change.landing },
             change::State::Queued { .. } => {

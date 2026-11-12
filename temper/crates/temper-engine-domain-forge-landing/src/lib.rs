@@ -16,7 +16,7 @@ mod tests;
 mod verdict;
 
 pub use boundary::{
-    CHECK_NAME_BYTES, Combine, Commit, Decision, Facts, Flight, Gate, GateFacts, GateProof, Hold, Key, Landing, Limits,
+    CHECK_NAME_BYTES, Combine, Commit, Decision, Facts, Flight, Gate, GateFacts, GateProof, Hold, Leave, Key, Landing, Limits,
     Member, MemberFacts, Phase, Posted, Posting, Preparation, Project, Proof, Repository, Round, RoundEnd, Status,
     Stepped, WORKFLOW_BYTES,
 };

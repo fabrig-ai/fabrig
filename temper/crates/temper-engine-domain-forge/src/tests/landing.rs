@@ -523,6 +523,7 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
         change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
     row.landing.members = Box::new([policy::Member {
+left: None,
         change: fixtures::CHANGE,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
         pull: 1,
@@ -690,6 +691,7 @@ fn member_landing(d: &mut Domain) {
 fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
     let mut row = landing_row(61, policy::Phase::Proving);
     row.landing.members = Box::new([policy::Member {
+left: None,
         change: fixtures::CHANGE,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
         pull: 1,

@@ -80,6 +80,7 @@ enum Stage {
         key: ReceiptKey,
         pages: u32,
     },
+    FailedJobs { key: ReceiptKey, run: api::Run, next: u32, words: Box<[u8]> },
     Tree {
         member: u16,
         gate: u16,
@@ -576,6 +577,7 @@ fn joinable(d: &Domain, project: u32, task: u64) -> bool {
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::Ready { .. }
         | change::State::Preparing { .. }
@@ -612,7 +614,7 @@ fn remap_members(d: &mut Domain, row: &mut LandingRow, prior: &LandingRow) {
         let mut ask = None;
         for (index, old) in prior.landing.members.iter().enumerate() {
             if old.change == member.change {
-                ask = *prior.asks.get(index).expect("member ask");
+                ask.clone_from(prior.asks.get(index).expect("member ask"));
             }
         }
         asks.push(ask).expect("member asks");
@@ -746,6 +748,7 @@ pub(crate) fn register(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: 
         super::domain::save_change(d, out, saved);
     }
     save(d, row, out);
+    emit(out, Request::LandingNews { task, step: crate::LandingNews::Joined });
 }
 impl Domain {
     fn train_gates(&self, row: &LandingRow, repo: api::Repository) -> &[policy::Gate] {
@@ -768,6 +771,8 @@ fn fresh(gates: &[policy::Gate]) -> policy::MemberFacts {
                 receipt: policy::Status::Unknown,
                 flight: policy::Flight::None,
                 posting: policy::Status::Unknown,
+                expired: None,
+                run: 0,
             })
             .expect("bounded gates");
     }
@@ -785,6 +790,9 @@ fn fresh(gates: &[policy::Gate]) -> policy::MemberFacts {
         candidate: None,
         preparation: policy::Preparation::Idle,
         record: policy::Status::Unknown,
+        held: false,
+        judgement: policy::Status::Passed,
+        refused: None,
     }
 }
 pub(crate) fn step(
@@ -1025,6 +1033,7 @@ fn advance(
                                 | change::State::Recreating { .. }
                                 | change::State::Reopening { .. }
                                 | change::State::Checking { .. }
+                                | change::State::Judging { .. }
                                 | change::State::Gating { .. }
                                 | change::State::Ready { .. }
                                 | change::State::Preparing { .. }
@@ -1084,9 +1093,11 @@ fn advance(
                         return;
                     };
                     fact.merged = pull.merged;
-                    fact.ready = if let change::State::Ready { .. } = change.change.state { true } else { false };
+                    fact.ready = if let change::State::Ready { .. } | change::State::Judging { .. } = change.change.state { true } else { false };
+                    fact.held = if let change::State::Held { .. } = change.change.state { true } else { false };
+                    fact.cancelled = change.change.state == change::State::Ended;
                     fact.asked = row.asks.get(usize::from(index)).expect("member ask").is_some();
-                    fact.cancelled = p.heard.cancelled;
+                    fact.cancelled |= p.heard.cancelled;
                     p.stage = Stage::Reviews(index, 1);
                     api::Read::Reviews { number: member.pull, page: 1, skip: 0 }
                 }
@@ -1094,6 +1105,7 @@ fn advance(
                 | Stage::Collect
                 | Stage::Round { .. }
                 | Stage::Run { .. }
+                | Stage::FailedJobs { .. }
                 | Stage::Tree { .. } => {
                     unreachable!("member stage")
                 }
@@ -1178,6 +1190,22 @@ fn advance(
             let repo = p.repository;
             ask(d, env, owner, p, repo, read, out);
         }
+        Stage::FailedJobs { key, run, next, words } => {
+            let mut log = List::with_capacity(8192);
+            append_words(&mut log, &words);
+            match answer {
+                Ok(api::Answer::Job { step, log: tail, truncated, .. }) => {
+                    if let Some(step) = step {
+                        append_words(&mut log, b"Failed step: "); append_words(&mut log, &step.name); append_words(&mut log, b"\n");
+                    }
+                    append_words(&mut log, b"End of its log:\n");
+                    if truncated { append_words(&mut log, b"[log prefix omitted]\n"); }
+                    append_words(&mut log, &tail); append_words(&mut log, b"\n");
+                }
+                Ok(_) | Err(_) => append_words(&mut log, b"[job log could not be read]\n"),
+            }
+            failed_jobs(d, env, owner, p, key, run, next, log.into_boxed(), out);
+        }
         Stage::Round { stage, candidate } => {
             round_read(d, env, owner, p, &row, stage, candidate, answer, out);
         }
@@ -1203,6 +1231,10 @@ fn advance(
                 match ended.outcome {
                     policy::Verdict::Passed | policy::Verdict::Failed => {
                         let run = ended.run.expect("a verdict has a run");
+                        if ended.outcome == policy::Verdict::Failed {
+                            failed_jobs(d, env, owner, p, key, run, 0, Box::new([]), out);
+                            return;
+                        }
                         let receipt = Receipt {
                             failures: None,
                             passed: ended.outcome == policy::Verdict::Passed,
@@ -1631,7 +1663,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     if row.landing.members.first().expect("member").base.is_none() {
         row.landing.round.upstream = p.upstream;
     }
-    if p.heard.preparation == policy::Preparation::Failed {
+    if p.heard.preparation == policy::Preparation::Failed || p.heard.preparation == policy::Preparation::Conflict {
         row.landing.round.failure.clone_from(&p.heard.failure);
     }
     if continue_retry(d, &mut row, p.entry, out) {
@@ -1640,6 +1672,22 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     for (index, (member, fact)) in row.landing.members.iter().zip(p.facts.iter_mut()).enumerate() {
         let position = u16::try_from(index).expect("member position");
         fact.merge = result(d, p.task, position, 0, 5);
+        if let Some(prefix) = member.candidate {
+            let change = d.changes.get(&member.change).expect("member change");
+            fact.judgement = policy::Status::Passed;
+            for gate in &change.change.gates {
+                if !gate.blocking { continue; }
+                if !row.landing.round.judging && (gate.kind == change::GateKind::Check || gate.freshness == change::Freshness::Exact) {
+                    fact.judgement = policy::Status::Pending;
+                    continue;
+                }
+                match change::prefix_verdict(&change.change, *gate, &change.verdicts, member.head.expect("round head"), prefix) {
+                    change::Status::Failed => fact.refused = Some(gate.number),
+                    change::Status::Unknown | change::Status::Pending => fact.judgement = policy::Status::Pending,
+                    change::Status::Passed => {}
+                }
+            }
+        }
         fact.preparation = p.heard.preparation;
         fact.record = if member.landed.is_some() && fact.merged == member.landed {
             policy::Status::Passed
@@ -1665,6 +1713,19 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                     None => policy::Status::Unknown,
                 };
                 fact.flight = flight_fact(&d.landing, &key, (p.task, position, number));
+                if let Some(receipt) = d.landing.receipts.get(&key) { fact.run = receipt.run.id; }
+                if let Some(flight) = d.landing.flights.get(&key) {
+                    if let Some(run) = &flight.run { fact.run = run.id; }
+                    let settings = match d.landing.projects.get(&row.landing.project) {
+                        Some((_, _, _, _, _, settings)) => *settings,
+                        None => policy::Project::DEFAULT,
+                    };
+                    if let Some(since) = flight.since
+                        && env.now.as_nanos().saturating_sub(since.as_nanos()) > settings.gate_timeout.as_nanos()
+                        && flight.outcome == Some(policy::Verdict::Running) {
+                        fact.expired = Some(fact.run);
+                    }
+                }
             }
             fact.posting = result(
                 d,
@@ -1832,7 +1893,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 | policy::Decision::Cancel
                 | policy::Decision::Hold(_)
                 | policy::Decision::Landed { .. }
-                | policy::Decision::Resolve { .. } => unreachable!("round write"),
+                | policy::Decision::Resolve { .. }
+                | policy::Decision::Leave { .. }
+                | policy::Decision::Judge { .. } => unreachable!("round write"),
             };
             keep(d, &mut row, p.entry, 0, 0, op, write, condition, out);
             committed = Some(p.entry);
@@ -1853,6 +1916,37 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 out,
                 Request::WakeProcedure { task: row.landing.members.get(usize::from(member)).expect("member").change },
             );
+        }
+        policy::Decision::Judge { member } => {
+            let m = row.landing.members.get(usize::from(member)).expect("member");
+            if let Some(change) = d.changes.get_mut(&m.change) {
+                let mut verdicts = List::with_capacity(env.limits.change_policy.gates);
+                for verdict in &change.verdicts {
+                    let mut exact = false;
+                    for gate in &change.change.gates {
+                        if gate.number == verdict.number && gate.blocking && (gate.freshness == change::Freshness::Exact || gate.kind == change::GateKind::Check) { exact = true; }
+                    }
+                    if !exact { verdicts.push(*verdict).expect("bounded verdicts"); }
+                }
+                change.verdicts = verdicts.into_boxed();
+                let saved = change.clone();
+                super::domain::save_change(d, out, saved);
+            }
+            *row.asks.get_mut(usize::from(member)).expect("ask") = Some(change::Ask::Judge(change::Judgement {
+                landing: p.task, round: row.landing.preparation, pull: row.landing.round.pull.expect("round pull"),
+                branch: row.landing.round.branch.clone(), base: row.landing.branch.clone(), prefix: m.candidate.expect("prefix"),
+            }));
+            emit(out, Request::WakeProcedure { task: m.change });
+        }
+        policy::Decision::Leave { member, why } => {
+            let m = row.landing.members.get(usize::from(member)).expect("member");
+            let ask = match why {
+                policy::Leave::Conflict => Some(change::Ask::Resolve { base: m.base.expect("round base") }),
+                policy::Leave::Failed { gate, .. } => Some(change::Ask::Repair { gate, candidate: m.candidate.expect("candidate") }),
+                policy::Leave::Cancelled | policy::Leave::Held | policy::Leave::HeadMoved { .. } | policy::Leave::Refused { .. } => None,
+            };
+            *row.asks.get_mut(usize::from(member)).expect("ask") = ask;
+            emit(out, Request::WakeProcedure { task: m.change });
         }
         policy::Decision::Repair { member, gate } => {
             *row.asks.get_mut(usize::from(member)).expect("member ask") = Some(change::Ask::Repair {
@@ -1985,7 +2079,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         policy::Decision::Finish => {
             for member in &row.landing.members {
                 if member.landed.is_none()
-                    && row.asks.first().copied().flatten().is_none()
+                    && row.asks.first().cloned().flatten().is_none()
                     && let Some(change) = d.changes.get_mut(&member.change)
                 {
                     change.change.landing = None;
@@ -1999,7 +2093,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             // A member may still have been due when its ask was published.
             // Keep the ask level-triggered until its change consumes it.
             for (index, member) in row.landing.members.iter().enumerate() {
-                if row.asks.get(index).copied().flatten().is_some()
+                if row.asks.get(index).cloned().flatten().is_some()
                     && let Some(change) = d.changes.get(&member.change)
                     && let change::State::Ready { .. } = change.change.state
                 {
@@ -2016,7 +2110,19 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     if row.landing.preparation != prior.landing.preparation || decision == policy::Decision::Stale {
         reset_results(d, &row, &prior);
     }
+    let news = match decision {
+        policy::Decision::Leave { .. } => Some(crate::LandingNews::Left),
+        policy::Decision::Hold(_) => Some(crate::LandingNews::Held),
+        policy::Decision::Landed { .. } => Some(crate::LandingNews::Landed),
+        policy::Decision::None | policy::Decision::Wait { .. } | policy::Decision::Prepare { .. }
+        | policy::Decision::Key { .. } | policy::Decision::Dispatch { .. } | policy::Decision::Retry { .. }
+        | policy::Decision::Post { .. } | policy::Decision::Repair { .. } | policy::Decision::Proved
+        | policy::Decision::Merge { .. } | policy::Decision::Stale | policy::Decision::Finish
+        | policy::Decision::Cancel | policy::Decision::Open | policy::Decision::Record { .. }
+        | policy::Decision::Close | policy::Decision::Delete | policy::Decision::Resolve { .. } | policy::Decision::Judge { .. } => if row.landing.phase == policy::Phase::Proving && prior.landing.phase != policy::Phase::Proving { Some(crate::LandingNews::Proving) } else { None },
+    };
     save(d, row, out);
+    if let Some(step) = news { emit(out, Request::LandingNews { task: p.task, step }); }
     emit(out, Request::LandingDecision { task: p.task, decision, entry: committed, evidence });
 }
 fn purpose_identity(row: &LandingRow, member: u16, gate: u16, operation: u8, attempt: u16) -> Box<[u8]> {
@@ -2336,7 +2442,7 @@ pub(crate) fn outcome(
             }
         }
         row.entries = entries.into_boxed();
-        if item.operation == Operation::Record {
+        if item.operation == Operation::Record || item.operation == Operation::Open || item.operation == Operation::Merge {
             row.landing.round.failure = match outcome {
                 skein_forge_client::Outcome::Failed(error) | skein_forge_client::Outcome::Raced { why: error, .. } => {
                     crate::effect_words::error_words(error)
@@ -2366,7 +2472,7 @@ pub(crate) fn ask_for(d: &Domain, change: &crate::ChangeRow) -> Option<change::A
     let row = d.landing.rows.get(&change.change.landing?)?;
     for (index, member) in row.landing.members.iter().enumerate() {
         if member.change == change.task {
-            if let Some(ask) = *row.asks.get(index).expect("member ask") {
+            if let Some(ask) = row.asks.get(index).expect("member ask").clone() {
                 return Some(ask);
             }
             for (index, gate) in member.gates.iter().enumerate() {
@@ -2426,11 +2532,11 @@ pub(crate) fn change_advanced(
         | change::Decision::Cancel
         | change::Decision::Hold(_) => false,
     };
-    if resolution && matches_terminal(&landing.landing.phase) {
+    if (resolution || repair) && (matches_terminal(&landing.landing.phase) || landing.landing.round.ending == Some(policy::RoundEnd::Leave)) {
         row.change.landing = None;
     }
     for (index, member) in landing.landing.members.iter().enumerate() {
-        if member.change == row.task && (settled || repair || resolution) {
+        if member.change == row.task && (settled || repair || resolution || (judging(&prior.state) && !judging(&row.change.state))) {
             *landing.asks.get_mut(index).expect("member ask") = None;
         }
     }
@@ -2714,11 +2820,14 @@ pub(crate) fn judge(
             return Some(crate::JudgeVerdict::Met);
         }
         let change = d.changes.get(&member.change)?;
+        let mut clean = List::with_capacity(u32::try_from(change.change.clean.len()).expect("bounded clean").saturating_add(1));
+        for head in &change.change.clean { clean.push(*head).expect("clean room"); }
+        if let Some(head) = member.head { clean.push(head).expect("head room"); }
         return Some(crate::judge::judge(
             criterion,
             d.repositories.get(&repo)?,
             head,
-            &change.change.clean,
+            clean.as_slice(),
             evidence,
             reviewers,
         ));
@@ -2806,28 +2915,72 @@ impl Domain {
     #[must_use]
     pub fn landing_hold_words(&self, task: u64) -> Option<Box<[u8]>> {
         let row = self.landing.rows.get(&task)?;
-        match row.landing.phase {
-            policy::Phase::Held { why: policy::Hold::Prepare, .. } => {
-                Some(concat(&[b"prepare job: ", &row.landing.round.failure]))
+        let policy::Phase::Held { why, .. } = row.landing.phase else { return None };
+        match why {
+            policy::Hold::Prepare => Some(concat(&[b"prepare job: ", &row.landing.round.failure])),
+            policy::Hold::Record { member } => Some(concat(&[b"turn: record of #", skein_lib::Decimal::of(row.landing.members.get(usize::from(member))?.pull).as_bytes(), b": ", &row.landing.round.failure])),
+            policy::Hold::Turn => Some(concat(&[b"turn: ", &row.landing.round.failure])),
+            policy::Hold::Faults { member, gate } | policy::Hold::Timeout { member, gate, .. } => {
+                let m = row.landing.members.get(usize::from(member))?;
+                let repo = self.repository(repository(m))?;
+                let gate = self.train_gates(row, repository(m)).get(usize::from(gate))?;
+                let mut words = List::with_capacity(16384);
+                for part in [b"gate ".as_slice(), &gate.name, b" of ", &repo.owner, b"/", &repo.name] { append_words(&mut words, part); }
+                match why {
+                    policy::Hold::Faults { .. } => append_words(&mut words, b" failed on its runner past its retries"),
+                    policy::Hold::Timeout { run, .. } => { append_words(&mut words, b": run "); append_words(&mut words, skein_lib::Decimal::of(run).as_bytes()); append_words(&mut words, b" running past its bound"); }
+                    policy::Hold::Prepare | policy::Hold::Record { .. } | policy::Hold::Turn => unreachable!("gate hold"),
+                }
+                Some(words.into_boxed())
             }
-            policy::Phase::Held { why: policy::Hold::Record { member }, .. } => {
-                let member = row.landing.members.get(usize::from(member))?;
-                Some(concat(&[
-                    b"turn: record of #",
-                    skein_lib::Decimal::of(member.pull).as_bytes(),
-                    b": ",
-                    &row.landing.round.failure,
-                ]))
-            }
-            policy::Phase::Held { why: policy::Hold::Faults { .. }, .. }
-            | policy::Phase::Waiting
-            | policy::Phase::Preparing
-            | policy::Phase::Proving
-            | policy::Phase::Proved { .. }
-            | policy::Phase::Turn { .. }
-            | policy::Phase::Landed
-            | policy::Phase::Cancelled => None,
         }
+    }
+    /// The one source of a member's leaving words (domain/landing.md, 4.3).
+    #[must_use]
+    pub fn landing_leave_words(&self, task: u64, member: u16) -> Option<Box<[u8]>> {
+        let row = self.landing.rows.get(&task)?;
+        let m = row.landing.members.get(usize::from(member))?;
+        Some(match m.left? {
+            policy::Leave::Conflict => concat(&[b"conflict with the branch: ", &row.landing.round.failure]),
+            policy::Leave::HeadMoved { head } => concat(&[b"head moved to ", &commit_hex(head)]),
+            policy::Leave::Cancelled => Box::from(b"cancelled".as_slice()),
+            policy::Leave::Held => Box::from(b"held".as_slice()),
+            policy::Leave::Refused { gate } => concat(&[b"gate ", skein_lib::Decimal::of(gate).as_bytes(), b" refused"]),
+            policy::Leave::Failed { gate, run } => concat(&[b"gate ", &self.train_gates(row, repository(m)).get(usize::from(gate))?.name, b" failed in ", skein_lib::Decimal::of(run).as_bytes()]),
+        })
+    }
+    /// The failed jobs are read before the receipt is committed; repairs use that snapshot.
+    #[must_use]
+    pub fn landing_failure_words(&self, change: u64, gate: u16) -> Option<Box<[u8]>> {
+        let mut words = None;
+        for (_, row) in &self.landing.rows {
+            for member in &row.landing.members {
+                if member.change == change && matches_failed(member.left, gate) { words = Some(row.landing.round.failure.clone()); }
+            }
+        }
+        words
+    }
+    /// All five news lines are formed from the committed landing (domain/landing.md, 4.2).
+    #[must_use]
+    pub fn landing_news_words(&self, task: u64, step: crate::LandingNews) -> Option<(u64, Box<[u8]>)> {
+        let row = self.landing.rows.get(&task)?;
+        let member = row.landing.members.first()?;
+        let mut words = List::with_capacity(16384);
+        append_words(&mut words, b"landing "); append_words(&mut words, skein_lib::Decimal::of(task).as_bytes()); append_words(&mut words, b": ");
+        if step != crate::LandingNews::Held {
+            append_words(&mut words, b"change "); append_words(&mut words, skein_lib::Decimal::of(member.change).as_bytes()); append_words(&mut words, b" ");
+        }
+        match step {
+            crate::LandingNews::Joined => {
+                let repo = self.repository(repository(member))?;
+                for part in [b"joined, into ".as_slice(), &repo.owner, b"/", &repo.name, b" ", &row.landing.branch, b", round ", skein_lib::Decimal::of(u64::from(row.landing.preparation.max(1))).as_bytes()] { append_words(&mut words, part); }
+            }
+            crate::LandingNews::Proving => { for part in [b"proving at ".as_slice(), &commit_hex(member.candidate?), b" on ", &commit_hex(member.base?)] { append_words(&mut words, part); } }
+            crate::LandingNews::Landed => { append_words(&mut words, b"landed at "); append_words(&mut words, &commit_hex(member.landed?)); }
+            crate::LandingNews::Left => { append_words(&mut words, b"left: "); append_words(&mut words, &self.landing_leave_words(task, 0)?); }
+            crate::LandingNews::Held => { append_words(&mut words, b"held: "); append_words(&mut words, &self.landing_hold_words(task)?); }
+        }
+        Some((member.change, words.into_boxed()))
     }
     /// Describe the exact saved landing write before core authorization.
     #[must_use]
@@ -3042,4 +3195,45 @@ fn refuse_entry(
             u64::from(d.entries.len()).saturating_add(1),
         );
     }
+}
+
+#[expect(clippy::match_like_matches_macro, reason = "explicit state observation")]
+fn judging(state: &change::State) -> bool {
+    if let change::State::Judging { .. } = state { true } else { false }
+}
+
+#[expect(clippy::match_like_matches_macro, reason = "explicit typed leaving reason")]
+fn matches_failed(left: Option<policy::Leave>, gate: u16) -> bool {
+    if let Some(policy::Leave::Failed { gate: failed, .. }) = left { gate == failed } else { false }
+}
+
+/// Snapshot each failed job before publishing the failed receipt (domain/landing.md, 7.3).
+#[expect(clippy::too_many_arguments, reason = "one coherent failed run and its bounded log cursor")]
+fn failed_jobs(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, key: ReceiptKey, run: api::Run, next: u32, words: Box<[u8]>, out: &mut Queue<Request>) {
+    let mut log = List::with_capacity(8192);
+    append_words(&mut log, &words);
+    let mut row = d.landing.rows.get(&p.task).expect("failed landing").clone();
+    if next == 0 {
+        let member = row.landing.members.first().expect("member");
+        let name = match &key.check { Check::Gate(name) | Check::Tier(name) => name };
+        for part in [b"Gate: ".as_slice(), name, b"\nRun: ", &run.url, b"\nCandidate: ", &commit_hex(run.commit), b"\nBase: ", &commit_hex(member.base.expect("base")), b"\n"] { append_words(&mut log, part); }
+    }
+    let total = u32::try_from(run.jobs.len()).expect("bounded jobs");
+    for index in next..total {
+        let job = run.jobs.get(skein_lib::usize_of(index)).expect("job");
+        if job.conclusion != Some(api::Conclusion::Failure) { continue; }
+        append_words(&mut log, b"Failed job: "); append_words(&mut log, &job.name); append_words(&mut log, b"\n");
+        let attempt = api::JobAttempt { head: run.commit, run: run.id, job: job.id, attempt: job.attempt };
+        let share = log.room().checked_div(total.saturating_sub(index).max(1)).expect("positive job count");
+        let read = api::Read::Job { part: api::LogPart::End, attempt, max_bytes: share.min(env.limits.client.answer_bytes).max(1) };
+        p.stage = Stage::FailedJobs { key: key.clone(), run, next: index.checked_add(1).expect("bounded jobs"), words: log.into_boxed() };
+        ask(d, env, owner, p, key.repository, read, out);
+        return;
+    }
+    row.landing.round.failure = log.into_boxed();
+    save(d, row, out);
+    let receipt = Receipt { failures: None, passed: false, candidate: run.commit, ended: env.wall, run: ReceiptRun { id: run.id, number: run.number, url: run.url } };
+    put_receipt(d, env, key.clone(), receipt, out);
+    finish_flight(d, &key, out);
+    collect(d, env, owner, p, out);
 }

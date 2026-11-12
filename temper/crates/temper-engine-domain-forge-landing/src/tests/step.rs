@@ -25,6 +25,7 @@ fn landing_of_one() -> Landing {
         stale_proofs: 0,
         branch: Box::from(b"main".as_slice()),
         members: Box::new([Member {
+left: None,
             change: 8,
             repository: Repository { forge: 1, repository: 2 },
             pull: 10,
@@ -44,6 +45,7 @@ fn facts() -> Facts {
         closed: Status::Unknown,
         deleted: Status::Unknown,
         members: Box::new([MemberFacts {
+held: false, judgement: Status::Passed, refused: None,
             contained: Status::Failed,
             candidate: Some((HEAD, crate::Combine::Merge)),
             preparation: crate::Preparation::Idle,
@@ -57,6 +59,7 @@ fn facts() -> Facts {
             merge: Status::Unknown,
             merged: None,
             gates: Box::new([GateFacts {
+expired: None, run: 0,
                 blocking: true,
                 key: None,
                 receipt: Status::Unknown,

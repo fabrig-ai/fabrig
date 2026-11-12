@@ -1414,6 +1414,7 @@ fn goal_priorities(domain: &mut Domain, feed: &jig_domain_core::ProjectionFeed) 
             | forge_change::State::Recreating { .. }
             | forge_change::State::Reopening { .. }
             | forge_change::State::Checking { .. }
+            | forge_change::State::Judging { .. }
             | forge_change::State::Gating { .. }
             | forge_change::State::CancellingGates { .. }
             | forge_change::State::Ready { .. }
@@ -2381,6 +2382,7 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
         | forge_change::State::Recreating { .. }
         | forge_change::State::Reopening { .. }
         | forge_change::State::Checking { .. }
+        | forge_change::State::Judging { .. }
         | forge_change::State::Gating { .. }
         | forge_change::State::Ready { .. }
         | forge_change::State::Preparing { .. }
@@ -2828,6 +2830,7 @@ fn change_step(
                             | forge_change::State::Recreating { .. }
                             | forge_change::State::Reopening { .. }
                             | forge_change::State::Checking { .. }
+                            | forge_change::State::Judging { .. }
                             | forge_change::State::Gating { .. }
                             | forge_change::State::CancellingGates { .. }
                             | forge_change::State::Ready { .. }
@@ -3920,15 +3923,16 @@ fn review_words(
         append(&mut words, failure);
         append(&mut words, b"\n");
     }
-    let number = skein_lib::Decimal::of(row.pull?);
+    let (pull, branch, base, _) = row.review_target()?;
+    let number = skein_lib::Decimal::of(pull);
     let head = commit_text(head);
     let identity: [&[u8]; 9] = [
         b"Review this change at the named head\nPull request: #",
         number.as_bytes(),
         b"\nBranch: ",
-        &row.branch,
+        branch,
         b"\nBase: ",
-        &row.base,
+        base,
         b"\nHead: ",
         &head,
         b"\n",
@@ -4384,6 +4388,7 @@ fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Bo
         | forge_change::State::Recreating { .. }
         | forge_change::State::Reopening { .. }
         | forge_change::State::Checking { .. }
+        | forge_change::State::Judging { .. }
         | forge_change::State::Gating { .. }
         | forge_change::State::Ready { .. }
         | forge_change::State::Preparing { .. }
@@ -5109,6 +5114,7 @@ pub(crate) fn outputs(
                     }
                 }
             }
+            forge::Request::LandingNews { task, step } => landing_route::tell(domain, env, task, step),
             forge::Request::News { task, subscription, news, class, .. } => {
                 let class = match class {
                     forge::Class::Wakes => tasks::NewsClass::Wakes,
