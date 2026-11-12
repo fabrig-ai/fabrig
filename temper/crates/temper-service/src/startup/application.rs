@@ -217,11 +217,11 @@ fn configured_limits(
     if limits.forge.changes > bound {
         problems.push(
             super::checks::own(b"forge.changes"),
-            What::TierChanges {
+            What::Half(crate::startup::EngineWhat::TierChanges {
                 count: limits.forge.changes,
                 bound,
                 ceiling: temper_protocol_store::tier_landings_ceiling(),
-            },
+            }),
         );
     }
     // Pass the resolved client capacity once, including the profile default.
@@ -347,7 +347,7 @@ pub fn parse(
     let bounds = limits.unwrap_or(limits::profile(limits::Profile::Small));
     let workers_ats = read::list(&mut object, document, b"workers", jig.limits.core.fleet.workers, &path, problems);
     if object.member(document, b"charter").is_some() {
-        problems.push(path.member(b"charter"), What::CharterStored);
+        problems.push(path.member(b"charter"), What::Half(crate::startup::EngineWhat::CharterStored));
     }
     let clients_at = read::required(&mut object, document, b"clients", &path, problems);
     let clients = match clients_at {
@@ -397,7 +397,7 @@ pub fn parse(
             problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Jig(config::What::Refers));
         }
         if sign_in.is_some() {
-            problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::BoxSignIn);
+            problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Half(crate::startup::EngineWhat::BoxSignIn));
         }
     }
     if let Some(sign_in) = &sign_in {

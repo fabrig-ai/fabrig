@@ -25,7 +25,7 @@ fn charter_path(engine: &config::Engine, index: usize) -> Path {
 pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mut Problems) {
     for (index, charter) in engine.charters.iter().enumerate() {
         if let Err(short) = host.check(charter.number, &charter.policy) {
-            problems.push(charter_path(engine, index), What::Room(short));
+            problems.push(charter_path(engine, index), What::Half(crate::startup::EngineWhat::Room(short)));
         }
     }
 }
@@ -43,7 +43,7 @@ pub(crate) fn stock(engine: &config::Engine, problems: &mut Problems) {
     {
         problems.push(
             Path::root().member(b"engine").member(b"limits").member(b"overrides").member(floor.limit),
-            What::Stock(floor),
+            What::Half(crate::startup::EngineWhat::Stock(floor)),
         );
     }
 }
@@ -94,23 +94,23 @@ pub(super) fn loopback(address: &config::Address) -> bool {
 fn engine_alone(engine: &config::Engine, workers: &[config::Worker], problems: &mut Problems) {
     let hosts = Path::root().member(b"engine").member(b"hosts");
     if !workers.is_empty() {
-        problems.push(Path::root().member(b"workers"), What::EngineAlone);
+        problems.push(Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone));
     }
     if engine.hosts.listener.len() != 1 {
-        problems.push(hosts.member(b"listener"), What::EngineAlone);
+        problems.push(hosts.member(b"listener"), What::Half(crate::startup::EngineWhat::EngineAlone));
     }
     for (index, address) in engine.hosts.listener.iter().enumerate() {
         if !loopback(address) {
-            problems.push(at(index, hosts.member(b"listener")), What::EngineAlone);
+            problems.push(at(index, hosts.member(b"listener")), What::Half(crate::startup::EngineWhat::EngineAlone));
         }
     }
     if engine.hosts.workers.is_empty() {
-        problems.push(hosts.member(b"workers"), What::EngineAlone);
+        problems.push(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone));
     }
     for (index, worker) in engine.hosts.workers.iter().enumerate() {
         for previous in engine.hosts.workers.iter().take(index) {
             if previous.digest == worker.digest {
-                problems.push(at(index, hosts.member(b"workers")).member(b"digest"), What::EngineAlone);
+                problems.push(at(index, hosts.member(b"workers")).member(b"digest"), What::Half(crate::startup::EngineWhat::EngineAlone));
                 break;
             }
         }
@@ -148,11 +148,11 @@ pub fn standalone(
     match clients.listener {
         config::Address::Addr(Addr::Ip(socket)) if socket.ip().is_loopback() => {}
         config::Address::Addr(Addr::Ip(_) | Addr::InProcess(_)) | config::Address::Host { .. } => {
-            problems.push(root.member(b"application").member(b"clients").member(b"listener"), What::Loopback);
+            problems.push(root.member(b"application").member(b"clients").member(b"listener"), What::Half(crate::startup::EngineWhat::Loopback));
         }
     }
     if engine.connectors.as_ref() != [1] {
-        problems.push(root.member(b"engine").member(b"connectors"), What::Connectors);
+        problems.push(root.member(b"engine").member(b"connectors"), What::Half(crate::startup::EngineWhat::Connectors));
     }
     if alone {
         return;
@@ -177,7 +177,7 @@ pub fn standalone(
             None => false,
         };
         if old_command {
-            problems.push(path.member(b"agent").member(b"arguments"), What::OldAgentCommand);
+            problems.push(path.member(b"agent").member(b"arguments"), What::Half(crate::startup::EngineWhat::OldAgentCommand));
         } else if command {
             let absolute = match worker.agent.arguments.get(2) {
                 Some(value) => value.starts_with(b"/"),
@@ -207,13 +207,13 @@ pub fn standalone(
 pub fn hub(engine: &config::Engine, problems: &mut Problems) {
     let path = Path::root().member(b"engine");
     if engine.limits.core.fleet.engine_slots != 0 {
-        problems.push(path.member(b"limits").member(b"overrides").member(b"fleet.engine_slots"), What::NoHub);
+        problems.push(path.member(b"limits").member(b"overrides").member(b"fleet.engine_slots"), What::Half(crate::startup::EngineWhat::NoHub));
     }
     for (index, charter) in engine.charters.iter().enumerate() {
         match charter.hosts {
             fleet::Kinds::Workers => {}
             fleet::Kinds::Engine | fleet::Kinds::Both => {
-                problems.push(charter_path(engine, index).member(b"hosts"), What::NoHub);
+                problems.push(charter_path(engine, index).member(b"hosts"), What::Half(crate::startup::EngineWhat::NoHub));
             }
         }
     }
@@ -249,7 +249,7 @@ pub fn provider(engine: &config::Engine, problems: &mut Problems) {
             config::ProviderKind::Deployment if provider.number == 0 => {
                 problems.push(
                     at(index, Path::root().member(b"engine").member(b"providers")).member(b"number"),
-                    What::Provider,
+                    What::Half(crate::startup::EngineWhat::Provider),
                 );
             }
             config::ProviderKind::Deployment | config::ProviderKind::Link | config::ProviderKind::Application => {}
@@ -264,7 +264,7 @@ pub fn credentials(engine: &config::Engine, workers: &[config::Worker], forges: 
         bound = bound.min(worker.limits.core.accounts.credentials);
     }
     if forges > bound {
-        problems.push(own(b"forge.forges"), What::Credentials);
+        problems.push(own(b"forge.forges"), What::Half(crate::startup::EngineWhat::Credentials));
     }
 }
 /// Check the optional listener and the secret paths that require it.
@@ -278,7 +278,7 @@ pub fn webhooks(members: &super::application::Members, problems: &mut Problems) 
                 }
             }
             config::Address::Addr(_) | config::Address::Host { .. } => {
-                problems.push(path.member(b"webhooks").member(b"listener"), What::Loopback);
+                problems.push(path.member(b"webhooks").member(b"listener"), What::Half(crate::startup::EngineWhat::Loopback));
             }
         }
     }
@@ -706,7 +706,7 @@ pub fn root(
                 at(index_of(&numbers, project), engine_path.member(b"projects"))
                     .member(b"policy")
                     .member(b"escalation_role"),
-                What::Escalation,
+                What::Half(crate::startup::EngineWhat::Escalation),
             ),
             domain::Refused::Permissions { project, bytes } => (
                 at(index_of(&numbers, project), engine_path.member(b"projects")).member(b"roles"),
@@ -746,7 +746,7 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
     for (index, endpoint) in engine.llm.endpoints.iter().enumerate() {
         let agrees = agent.resolves_endpoint(&endpoint.name);
         if !agrees {
-            problems.push(at(index, Path::root().member(b"engine").member(b"llm").member(b"endpoints")), What::Agent);
+            problems.push(at(index, Path::root().member(b"engine").member(b"llm").member(b"endpoints")), What::Half(crate::startup::EngineWhat::Agent));
         }
     }
     for (index, provider) in engine.llm.providers.iter().enumerate() {
@@ -763,7 +763,7 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
                             .member(b"sources")
                             .member(b"programs"),
                     ),
-                    What::Adapter,
+                    What::Half(crate::startup::EngineWhat::Adapter),
                 );
             }
         }
@@ -790,7 +790,7 @@ pub fn admission(
         if offered < required {
             problems.push(
                 Path::root().member(b"engine").member(b"limits"),
-                What::Admission { why, offered: u64::from(offered), required: u64::from(required) },
+                What::Half(crate::startup::EngineWhat::Admission { why, offered: u64::from(offered), required: u64::from(required) }),
             );
             break;
         }
@@ -811,7 +811,7 @@ pub fn admission(
                         charter_index(engine, charter.version.charter),
                         u32::try_from(model).expect("configured model"),
                     ),
-                    What::Agent,
+                    What::Half(crate::startup::EngineWhat::Agent),
                 );
                 return warnings;
             }
@@ -821,7 +821,7 @@ pub fn admission(
     let engine_path = Path::root().member(b"engine");
     let path = match why {
         AgentShortfall::Model { charter, model } => {
-            warnings.push(model_path(charter_index(engine, charter), model), What::Agent);
+            warnings.push(model_path(charter_index(engine, charter), model), What::Half(crate::startup::EngineWhat::Agent));
             return warnings;
         }
         AgentShortfall::Window { charter, model } | AgentShortfall::Output { charter, model } => {
@@ -839,7 +839,7 @@ pub fn admission(
         AgentShortfall::Message | AgentShortfall::Inbox | AgentShortfall::Unacknowledged => return warnings,
     };
     let figures = fleet::figures(&needs, bounds, fleet::HostKind::Worker, why).expect("selected numerical shortfall");
-    warnings.push(path, What::Admission { why, offered: figures.offered, required: figures.required });
+    warnings.push(path, What::Half(crate::startup::EngineWhat::Admission { why, offered: figures.offered, required: figures.required }));
     warnings
 }
 fn admission_charter_path(index: usize) -> Path {
@@ -935,7 +935,7 @@ pub fn redirect_ports(
             && port != 0
             && port == redirect.port
         {
-            problems.push(redirect.path.clone(), What::Redirect(listener));
+            problems.push(redirect.path.clone(), What::Half(crate::startup::EngineWhat::Redirect(listener)));
         }
     }
 }
@@ -1110,7 +1110,7 @@ fn task_store_refusal(engine: &config::Engine, refused: crate::store::Refusal) -
         let mut problems = Problems::empty();
         problems.push(
             Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.batch_bytes"),
-            What::StoreTask { needs, has, batch_bytes: engine.limits.core.tasks.batch_bytes },
+            What::Half(crate::startup::EngineWhat::StoreTask { needs, has, batch_bytes: engine.limits.core.tasks.batch_bytes }),
         );
         return problems;
     }
@@ -1123,7 +1123,7 @@ pub(crate) fn store_refusal(refused: crate::store::Refusal) -> Problems {
             (own(b"root.loads.read_bytes"), What::Short { bytes: read, of: b"a read's room", needs })
         }
         crate::store::Refusal::Page { transcript, frame, page, ceiling } => {
-            (own(b"root.loads.transcript_bytes"), What::StorePage { transcript, frame, page, ceiling })
+            (own(b"root.loads.transcript_bytes"), What::Half(crate::startup::EngineWhat::StorePage { transcript, frame, page, ceiling }))
         }
         crate::store::Refusal::Transcript { bytes, ceiling } => (
             own(b"root.loads.transcript_bytes"),
@@ -1134,7 +1134,7 @@ pub(crate) fn store_refusal(refused: crate::store::Refusal) -> Problems {
             },
         ),
         crate::store::Refusal::Map(why) => {
-            (Path::root().member(b"engine").member(b"limits").member(b"store"), What::StoreMap(why))
+            (Path::root().member(b"engine").member(b"limits").member(b"store"), What::Half(crate::startup::EngineWhat::StoreMap(why)))
         }
     };
     let mut problems = Problems::empty();

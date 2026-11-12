@@ -10,6 +10,14 @@ fn duration(value: u64) -> Result<Duration, Refused> {
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive table of scalar dotted field paths")]
 pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
+    if temper_service_core::limits::shared_name(name) {
+ let mut shared = temper_service_core::limits::Shared { checkout: limits.checkout, git_component: limits.git_component,
+ peer: temper_service_core::limits::Peer { forges: limits.forge.forges, installations: limits.forges.installations, token_bytes: limits.forge_component.token_bytes } };
+ temper_service_core::limits::apply(&mut shared, name, value)?;
+ limits.checkout = shared.checkout; limits.git_component = shared.git_component;
+ limits.forge.forges = shared.peer.forges; limits.forges.installations = shared.peer.installations; limits.forge_component.token_bytes = shared.peer.token_bytes;
+ return Ok(());
+ }
     if find(name).is_none() {
         return Err(Refused::Unknown);
     }
@@ -80,7 +88,6 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"root.brief.budgets.now" => {
             limits.root.brief.budgets.now = u32::try_from(value).or(Err(Refused::Range))?;
         }
-        b"forge.forges" => limits.forge.forges = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.repositories" => limits.forge.repositories = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.tasks" => limits.forge.tasks = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.holds" => limits.forge.holds = u32::try_from(value).or(Err(Refused::Range))?,
@@ -205,37 +212,9 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
             limits.forge.issue_policy.comment_bytes = u32::try_from(value).or(Err(Refused::Range))?;
         }
         b"forge.issue_policy.interval_ms" => limits.forge.issue_policy.interval = duration(value)?,
-        b"checkout.workspaces" => limits.checkout.workspaces = u32::try_from(value).or(Err(Refused::Range))?,
-        b"checkout.repositories" => limits.checkout.repositories = u32::try_from(value).or(Err(Refused::Range))?,
-        b"checkout.name_bytes" => limits.checkout.name_bytes = u32::try_from(value).or(Err(Refused::Range))?,
-        b"checkout.message_bytes" => limits.checkout.message_bytes = u32::try_from(value).or(Err(Refused::Range))?,
-        b"checkout.conflicts" => limits.checkout.conflicts = u32::try_from(value).or(Err(Refused::Range))?,
-        b"checkout.path_bytes" => limits.checkout.path_bytes = u32::try_from(value).or(Err(Refused::Range))?,
-        b"checkout.remote_timeout_ms" => limits.checkout.remote_timeout = duration(value)?,
-        b"checkout.local_timeout_ms" => limits.checkout.local_timeout = duration(value)?,
-        b"checkout.facts" => limits.checkout.facts = u32::try_from(value).or(Err(Refused::Range))?,
-        b"git_component.operations" => {
-            limits.git_component.operations = u32::try_from(value).or(Err(Refused::Range))?;
-        }
-        b"git_component.stdout_bytes" => {
-            limits.git_component.stdout_bytes = u32::try_from(value).or(Err(Refused::Range))?;
-        }
-        b"git_component.stderr_bytes" => {
-            limits.git_component.stderr_bytes = u32::try_from(value).or(Err(Refused::Range))?;
-        }
-        b"git_component.read_bytes" => {
-            limits.git_component.read_bytes = u32::try_from(value).or(Err(Refused::Range))?;
-        }
-        b"git_component.sweep_entries" => {
-            limits.git_component.sweep_entries = u32::try_from(value).or(Err(Refused::Range))?;
-        }
-        b"git_component.sweep_bytes" => {
-            limits.git_component.sweep_bytes = u32::try_from(value).or(Err(Refused::Range))?;
-        }
         b"clients.bundle_files" => limits.clients.bundle_files = u32::try_from(value).or(Err(Refused::Range))?,
         b"clients.bundle_bytes" => limits.clients.bundle_bytes = u32::try_from(value).or(Err(Refused::Range))?,
         b"records.value_bytes" => limits.records.value_bytes = u32::try_from(value).or(Err(Refused::Range))?,
-        b"forges.installations" => limits.forges.installations = u32::try_from(value).or(Err(Refused::Range))?,
         b"forges.log_origins" => limits.forges.log_origins = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge_component.log_origins" => {
             limits.forge_component.log_origins = u32::try_from(value).or(Err(Refused::Range))?;
@@ -256,9 +235,6 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         }
         b"forge_component.renew_before_ms" => limits.forge_component.renew_before = duration(value)?,
         b"forge_component.forges" => limits.forge_component.forges = u32::try_from(value).or(Err(Refused::Range))?,
-        b"forge_component.token_bytes" => {
-            limits.forge_component.token_bytes = u32::try_from(value).or(Err(Refused::Range))?;
-        }
         b"forge_component.connections" => {
             limits.forge_component.connections = u32::try_from(value).or(Err(Refused::Range))?;
         }

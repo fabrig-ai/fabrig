@@ -10,12 +10,6 @@ use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 pub use temper_service_core::limits::{Checkout, GitComponent};
 
-/// Temper's profiles for one person's machine and a project of fabrig's scale.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Profile {
-    Small,
-    Standard,
-}
 /// Root's own limits, beyond jig's child limits.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Root {
@@ -87,18 +81,7 @@ pub struct Forges {
     /// Maximum configured job-log origins per forge (protocol/configuration/limits.md).
     pub log_origins: u32,
 }
-/// Refusal of an override; the caller retains its name.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Refused {
-    /// Unknown field path.
-    Unknown,
-    /// Value outside the field's representation.
-    Range,
-}
-/// `forge_component.installations` default.
-pub const FORGE_INSTALLATIONS: u32 = 8;
-/// Default bound for a token minted by the forge component.
-pub const FORGE_TOKEN_BYTES: u32 = 512;
+pub use temper_service_core::limits::{Profile, Refused, FORGE_INSTALLATIONS, FORGE_TOKEN_BYTES};
 const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     // Logical calls retained, queued and in flight, from the engine forge world fixture.
     pending: 4,
@@ -154,7 +137,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
 };
 const FORGE: forge::Limits = forge::Limits {
     // Forges kept at most (temper/docs/design/protocol/forge/README.md, 6).
-    forges: 3,
+    forges: temper_service_core::limits::profile(Profile::Small).peer.forges,
     // Repositories retained, from the engine forge world fixture.
     repositories: 2,
     // Tasks participating in the forge, from the engine forge world fixture.
@@ -299,26 +282,6 @@ const STANDARD_FORGE: forge::Limits = forge::Limits {
     },
     ..FORGE
 };
-const CHECKOUT: Checkout = Checkout {
-    // Cached or held checkout workspaces, from the checkout world fixture.
-    workspaces: 3,
-    // Held to the agent's two repository directories.
-    repositories: 2,
-    // Bytes in a checkout key, name, remote or branch.
-    name_bytes: 256,
-    // Holds the agent's largest commit-message argument.
-    message_bytes: 4096,
-    // Conflicted paths per repository, for a merge of a few hundred paths.
-    conflicts: 512,
-    // Bytes per conflicted path, with its NUL in the git component's stdout.
-    path_bytes: 255,
-    // Time for an operation reaching a forge, from the checkout world fixture.
-    remote_timeout: Duration::from_secs(60),
-    // Time for a local checkout operation, from the checkout world fixture.
-    local_timeout: Duration::from_secs(10),
-    // Facts awaiting drain, from the checkout world fixture.
-    facts: 256,
-};
 /// Root room follows the domain world; byte carriers take jig's small profile
 /// bounds where its children require more than the world's reduced fixtures.
 const ROOT: Root = Root {
@@ -442,7 +405,8 @@ pub const SOCKETS: u32 = 256;
 /// Constant profile values in each owner's limits.
 #[must_use]
 pub fn profile(profile: Profile) -> Limits {
-    match profile {
+    let shared = temper_service_core::limits::profile(profile);
+    let mut limits = match profile {
         Profile::Standard => Limits { root: STANDARD_ROOT, forge: STANDARD_FORGE, ..self::profile(Profile::Small) },
         Profile::Small => Limits {
             picker: Picker { page: 30 },
@@ -453,8 +417,8 @@ pub fn profile(profile: Profile) -> Limits {
             forge_component: crate::forge::small(&FORGE),
             root: ROOT,
             forge: FORGE,
-            checkout: CHECKOUT,
-            git_component: GIT,
+            checkout: shared.checkout,
+            git_component: shared.git_component,
             clients: CLIENTS,
             sign_in: SignIn {
                 members: 64,
@@ -465,8 +429,13 @@ pub fn profile(profile: Profile) -> Limits {
                 url_bytes: 2048,
                 secret_bytes: 512,
             },
-        },
-    }
+        }, };
+ limits.checkout = shared.checkout;
+ limits.git_component = shared.git_component;
+ limits.forge.forges = shared.peer.forges;
+ limits.forges.installations = shared.peer.installations;
+ limits.forge_component.token_bytes = shared.peer.token_bytes;
+ limits
 }
 /// Set one dotted field name byte for byte.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
@@ -524,21 +493,6 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
         },
     }
 }
-
-const GIT: GitComponent = GitComponent {
-    // One operation per cached workspace, plus the component's startup and sweep.
-    operations: 3,
-    // At least every conflict path including its terminating NUL.
-    stdout_bytes: 131_072,
-    // The tail retained for classification and the checkout's diagnostic.
-    stderr_bytes: 512,
-    // Each stdout/stderr demand, bounded further by io's read size.
-    read_bytes: 4096,
-    // One page of trash entries held while sweeping.
-    sweep_entries: 16,
-    // Every name in that page at the kernel's longest name.
-    sweep_bytes: 4080,
-};
 
 /// Limits decoded by the setup and box owners, kept with their values.
 #[must_use]
@@ -618,16 +572,16 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     jobs.into_boxed()
 }
 
-/// The worker root's job kinds, ascending (temper/docs/design/domain/worker/jobs.md).
+/// The worker's declared kinds, also read by composition worlds (protocol/services.md, 6).
+#[cfg(feature = "worker")]
+pub use crate::worker_settings::job_kinds;
+/// Project the engine's resolved aggregate for the local worker (protocol/services.md, 6).
 #[cfg(feature = "worker")]
 #[must_use]
-pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {
-    Box::new([
-        temper_worker_domain::tooling::Kind { bound: merge_bound(), verb: b"merge".as_slice().into(), delivers: true },
-        temper_worker_domain::tooling::Kind { bound: close_bound(), verb: b"close".as_slice().into(), delivers: true },
-    ])
+pub fn worker(limits: &Limits) -> crate::worker_settings::Limits {
+ crate::worker_settings::Limits { checkout: limits.checkout, git_component: limits.git_component,
+ peer: temper_service_core::limits::Peer { forges: limits.forge.forges, installations: limits.forges.installations, token_bytes: limits.forge_component.token_bytes } }
 }
-
 #[cfg(test)]
 mod making_tests {
     #[test]

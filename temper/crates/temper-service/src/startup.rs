@@ -38,7 +38,7 @@ pub fn unbuilt(shape: Shape, worker: bool) -> Option<Problem> {
     }
     match shape {
         Shape::Standalone | Shape::WorkerAlone => {
-            Some(Problem { path: Path::root().member(b"workers"), what: What::UnbuiltWorker, file: None })
+            Some(Problem { path: Path::root().member(b"workers"), what: What::Half(crate::startup::EngineWhat::UnbuiltWorker), file: None })
         }
         Shape::EngineAlone => None,
     }
@@ -175,7 +175,7 @@ pub fn store_limits(
     let mut parsed =
         load(document, directories, false)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     if !parsed.workers.is_empty() {
-        let agent = agent.ok_or(problem(indexed(0).member(b"agent"), What::Agent))?;
+        let agent = agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(crate::startup::EngineWhat::Agent)))?;
         parsed.compose(agent)?;
         let mut problems = Problems::empty();
         checks::agent_answer(agent, &mut problems);
@@ -397,7 +397,7 @@ fn inline_seed_policies(document: &skein_json::Document, engine: u32, problems: 
                     .member(b"projects")
                     .child(Segment::Index(u32::try_from(index).expect("bounded projects")))
                     .member(b"policy"),
-                What::InlineSeedPolicy,
+                What::Half(crate::startup::EngineWhat::InlineSeedPolicy),
             );
         }
     }
@@ -529,7 +529,7 @@ fn load_document(
         ));
     }
     if shape == Shape::EngineAlone && !ats.is_empty() {
-        problems.push(root.member(b"workers"), What::EngineAlone);
+        problems.push(root.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone));
     }
     checks::standalone(
         engine.as_ref().expect("required engine checked"),
@@ -538,7 +538,7 @@ fn load_document(
         &mut problems,
     );
     if shape == Shape::EngineAlone && !application.workers.is_empty() {
-        problems.push(root.member(b"application").member(b"workers"), What::EngineAlone);
+        problems.push(root.member(b"application").member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone));
     } else if workers.len() != application.workers.len() {
         problems.push(root.member(b"application").member(b"workers"), What::Jig(config::What::Bound));
     }
@@ -715,7 +715,7 @@ pub(crate) fn checked_start_with(
 ) -> Result<CheckedStart, Problems> {
     let mut parsed = parse_with(document, directories, given)?;
     let agent = match parsed.workers.first() {
-        Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Agent))?),
+        Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(crate::startup::EngineWhat::Agent)))?),
         None => None,
     };
     if let Some(agent) = agent {

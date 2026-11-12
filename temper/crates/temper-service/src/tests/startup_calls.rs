@@ -101,7 +101,7 @@ fn store_readers_require_local_agent_metadata_but_leave_remote_engines_configure
     let directories = config::Directories::working();
     let found = store_limits(&document(None, None), &directories, None).unwrap_err();
     assert_eq!(found.problems.get(0).unwrap().path, indexed(0).member(b"agent"));
-    assert_eq!(found.problems.get(0).unwrap().what, What::Agent);
+    assert_eq!(found.problems.get(0).unwrap().what, What::Half(crate::startup::EngineWhat::Agent));
     let input = fixtures::engine_alone_document();
     let input = core::str::from_utf8(&input).unwrap().replace(",\"core.call_answer_bytes\":2048", "");
     let agent = fixtures::startup_agent();

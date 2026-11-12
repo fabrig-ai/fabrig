@@ -383,23 +383,23 @@ fn standalone_shapes() -> [(Shape, Path, What); 9] {
             Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"engine"),
             What::Standalone,
         ),
-        (Shape::HostSocket, Path::root().member(b"workers"), What::EngineAlone),
+        (Shape::HostSocket, Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),
         (
             Shape::ClientProcess,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
-            What::Loopback,
+            What::Half(crate::startup::EngineWhat::Loopback),
         ),
         (
             Shape::ClientRemote,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
-            What::Loopback,
+            What::Half(crate::startup::EngineWhat::Loopback),
         ),
         (
             Shape::ClientRemoteApproval,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
-            What::Loopback,
+            What::Half(crate::startup::EngineWhat::Loopback),
         ),
-        (Shape::Connectors, Path::root().member(b"engine").member(b"connectors"), What::Connectors),
+        (Shape::Connectors, Path::root().member(b"engine").member(b"connectors"), What::Half(crate::startup::EngineWhat::Connectors)),
         (
             Shape::Program,
             Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent").member(b"program"),
@@ -498,7 +498,7 @@ fn fixed_redirect_ports_reject_listeners_on_the_reserved_number() {
         let mut problems = Problems::empty();
         checks::redirect_ports(&fixed_redirects(), Some(port), listener, &mut problems);
         assert_eq!(problems.problems.len(), 1, "{listener:?} {port:?}");
-        assert_eq!(problems.problems.get(0).unwrap().what, What::Redirect(listener));
+        assert_eq!(problems.problems.get(0).unwrap().what, What::Half(crate::startup::EngineWhat::Redirect(listener)));
         assert_eq!(lines(&problems).as_ref(), expected.as_bytes());
     }
 }
@@ -815,21 +815,21 @@ fn an_engine_alone_names_each_shape_departure() {
     let listener = hosts.member(b"listener");
     let base = fixtures::engine_alone_document();
     let rows: &[ShapeRow] = &[
-        (b"workers", b"[{}]", vec![(root.member(b"workers"), What::EngineAlone)]),
+        (b"workers", b"[{}]", vec![(root.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))]),
         (
             b"application.workers",
             br#"[{"root":"worker-root","git":null}]"#,
-            vec![(root.member(b"application").member(b"workers"), What::EngineAlone)],
+            vec![(root.member(b"application").member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))],
         ),
         (
             b"engine.hosts.listener",
             br#"[{"socket":"127.0.0.1:0"},{"in_process":"workers"}]"#,
-            vec![(listener.clone(), What::EngineAlone), (listener.child(Index(1)), What::EngineAlone)],
+            vec![(listener.clone(), What::Half(crate::startup::EngineWhat::EngineAlone)), (listener.child(Index(1)), What::Half(crate::startup::EngineWhat::EngineAlone))],
         ),
         (
             b"engine.hosts.listener",
             br#"[{"socket":"127.0.0.1:0"},{"socket":"[::1]:0"}]"#,
-            vec![(listener.clone(), What::EngineAlone)],
+            vec![(listener.clone(), What::Half(crate::startup::EngineWhat::EngineAlone))],
         ),
         (
             b"engine.hosts.listener",
@@ -841,11 +841,11 @@ fn an_engine_alone_names_each_shape_departure() {
             br#"[{"socket":"127.0.0.1:0","transport":"tls"}]"#,
             vec![(listener.child(Index(0)).member(b"transport"), What::Jig(config::What::Unknown))],
         ),
-        (b"engine.hosts.workers", b"[]", vec![(hosts.member(b"workers"), What::EngineAlone)]),
+        (b"engine.hosts.workers", b"[]", vec![(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))]),
         (
             b"engine.hosts.workers",
             br#"[{"name":"worker-a","digest":"same"},{"name":"worker-b","digest":"same"}]"#,
-            vec![(hosts.member(b"workers").child(Index(1)).member(b"digest"), What::EngineAlone)],
+            vec![(hosts.member(b"workers").child(Index(1)).member(b"digest"), What::Half(crate::startup::EngineWhat::EngineAlone))],
         ),
     ];
     for (member, value, expected) in rows {
@@ -860,8 +860,8 @@ fn the_socket_listener_in_the_old_hostsocket_case_now_names_both_local_worker_li
     assert_eq!(
         shape_problems(&input),
         vec![
-            (Path::root().member(b"workers"), What::EngineAlone),
-            (Path::root().member(b"application").member(b"workers"), What::EngineAlone),
+            (Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),
+            (Path::root().member(b"application").member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),
         ]
     );
 }

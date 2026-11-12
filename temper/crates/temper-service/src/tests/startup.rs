@@ -86,7 +86,7 @@ fn startup_names_map_sizing_without_inventing_a_records_bound() {
     let mut problems = Problems::empty();
     crate::startup::checks::records(&engine.jig, &engine.limits, &mut problems);
     assert_eq!(problems.problems.len(), 1);
-    let What::StoreMap(jig_protocol_store::sizes::SizeRefusal::Key { needs, has: 0 }) =
+    let What::Half(crate::startup::EngineWhat::StoreMap(jig_protocol_store::sizes::SizeRefusal::Key { needs, has: 0 })) =
         problems.problems.get(0).unwrap().what
     else {
         panic!("the map's key admission is the only cause: {problems:?}");
@@ -537,13 +537,13 @@ fn problems_print_one_line_each_with_their_path() {
     let mut problems = Problems::empty();
     let forge = Path::root().member(b"application").member(b"forges").child(Segment::Index(0));
     problems.push(forge.member(b"user"), What::Jig(config::What::Missing));
-    problems.push(Path::root().member(b"application").member(b"webhooks"), What::NoWebhooks);
+    problems.push(Path::root().member(b"application").member(b"webhooks"), What::Half(crate::startup::EngineWhat::NoWebhooks));
     assert_eq!(
         &*lines(&problems),
         b"application.forges[0].user: missing\napplication.webhooks: needs application.webhooks\n".as_slice()
     );
     for _ in 0..config::PROBLEMS {
-        problems.push(Path::root(), What::NoWebhooks);
+        problems.push(Path::root(), What::Half(crate::startup::EngineWhat::NoWebhooks));
     }
     assert_eq!(problems.past, 2);
     assert!(lines(&problems).ends_with(b"and 2 more\n"), "capped diagnostics name overflow");
@@ -931,7 +931,7 @@ fn admission_model_words_use_tokens_and_missing_names_make_no_amount_claim() {
         ),
     ] {
         let mut problems = Problems::empty();
-        problems.push(Path::root().member(b"model"), What::Admission { why, offered: 1024, required: 8192 });
+        problems.push(Path::root().member(b"model"), What::Half(crate::startup::EngineWhat::Admission { why, offered: 1024, required: 8192 }));
         assert_eq!(&*lines(&problems), expected.as_bytes());
     }
 }
@@ -1819,7 +1819,7 @@ fn a_task_store_value_refusal_names_batch_bytes_and_inbox_messages() {
     let mut problems = Problems::empty();
     problems.push(
         Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.batch_bytes"),
-        What::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 },
+        What::Half(crate::startup::EngineWhat::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 }),
     );
     assert_eq!(lines(&problems).as_ref(), b"engine.limits.overrides.tasks.batch_bytes: the store's map value, 1001 bytes, past its bound of 1000 bytes; binding record tasks-v9.TaskRecord with tasks.batch_bytes 512; fixed profile ceiling engine.limits.store.value; reduce tasks.batch_bytes, tasks.inbox_messages or the task record's spec/message/result/authority capacities; this ceiling has no scalar override\n");
 }
