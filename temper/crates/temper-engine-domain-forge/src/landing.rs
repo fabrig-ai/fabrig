@@ -1061,8 +1061,13 @@ fn advance(
                         return;
                     };
                     fact.main = main;
-                    p.stage = Stage::Ancestry(index);
-                    api::Read::Commits { before: fact.head, after: main, page: 1 }
+                    if member.candidate.is_some() {
+                        p.stage = Stage::Pull(index);
+                        api::Read::Pull { number: member.pull, ci: false }
+                    } else {
+                        p.stage = Stage::Ancestry(index);
+                        api::Read::Commits { before: fact.head, after: main, page: 1 }
+                    }
                 }
                 Stage::Ancestry(_) => {
                     fact.contains_main = match crate::domain::ancestry_status(answer) {
@@ -1135,6 +1140,25 @@ fn advance(
                 let read = api::Read::Branch { branch: change.branch.clone() };
                 p.stage = Stage::Branch(index);
                 ask(d, env, owner, p, repo, read, out);
+                return;
+            }
+            // A validated immutable candidate is kept for the round. Only preparation
+            // and an uncertain opening need the landing branch or pull read again.
+            let member = row.landing.members.first().expect("one member");
+            if let Some(candidate) = member.candidate
+                && let Some(combined) = row.landing.round.combined
+            {
+                p.facts.first_mut().expect("one fact").candidate = Some((candidate, combined));
+            }
+            if row.landing.round.ending.is_some() || (member.candidate.is_some() && row.landing.round.pull.is_some()) {
+                p.stage = Stage::Collect;
+                collect(d, env, owner, p, out);
+                return;
+            }
+            if member.candidate.is_some() {
+                p.stage = Stage::Round { stage: RoundRead::Pull, candidate: member.candidate };
+                let repo = p.repository;
+                ask(d, env, owner, p, repo, api::Read::PullFor { head: row.landing.round.branch.clone(), base: row.landing.branch.clone() }, out);
                 return;
             }
             let upstream = upstream_branch(d, &row);
