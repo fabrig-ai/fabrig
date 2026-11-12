@@ -5,3 +5,5 @@
 #app > .temper-welcome .temper-welcome-box-note > .temper-flow-quiet { font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 /* forgejo-link */
 #app > .temper-welcome .temper-welcome-status > a.temper-flow-quiet { display: inline-block; margin: 2px 0 0 24px; font-size: 13.5px; line-height: 1.55; color: var(--gf-muted); text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+/* switcher-links */
+@media (min-width: 761px) { #app .temper-projects-acts > a[href$="/settings"], #app .temper-projects-acts > a[href="/accounts"] { display: none; } }
