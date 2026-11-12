@@ -8,14 +8,6 @@
   and the requester idle with it [in flight: change 838].
 - **Not yet:** 1, *Passed up*: the question's label names no answer form
   [in flight: change 839].
-- **Not yet:** 1, *Its questions*: a goal's closer passes no question on
-  to its goal, and a repair's or a resolution's question asked through
-  the `message` tool, relayed as a producer's is
-  (`temper-engine-domain/src/route/forge_route/relay.rs`,
-  `asking_delegate`), is unobserved in stories: every relay story runs
-  the change's producing task, or restores a delegate's question
-  (`tests/engine/domain/tests/suite/forge_routes/questions.rs` and
-  `goal_questions.rs`) [in flight: change 1710].
 
 - **Not yet:**
   -  the request-to-repair fuzzy coverage remains `gates.status.md`, 1.
