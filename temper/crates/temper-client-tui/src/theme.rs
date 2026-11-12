@@ -204,6 +204,7 @@ fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, back: Option<Rgb>) -> Bo
         style(look::END, Paint { reverse: true, ..Paint::NONE }),
         StyleLook { label: false, focused_value: Some(Paint::NONE), ..style(look::FIELD, Paint::NONE) },
         style(look::LIST_HEAD, bold),
+        style(look::WHY, fore(accent)),
         StyleLook { described: Some(fore(dim)), ..style(look::OPTION, bold) },
         StyleLook { described: Some(fore(dim)), active_name: Some(Paint::NONE), ..style(look::COMMAND, bold) },
         style(look::NOTE, fore(dim)),

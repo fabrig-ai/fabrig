@@ -119,6 +119,7 @@ pub trait Play {
 mod commands;
 mod request;
 mod script;
+pub mod session;
 pub use script::{Script, Step, TabSeen};
 #[derive(Clone, Copy)]
 pub enum ServerAction {
