@@ -12,6 +12,7 @@ mod ledger;
 mod pass_document;
 mod pass_end;
 mod passes;
+mod recording;
 mod report;
 mod requests;
 pub mod runner;

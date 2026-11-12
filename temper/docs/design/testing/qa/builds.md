@@ -58,7 +58,7 @@ deleted once no pass can need them.
 
   A debug build's set is about 400 MB.
 - **Then** `temper-qa build keep COMMIT DIR`, with the home's
-  `TEMPER_QA_HOME`. A refusal fails the deployment's step, and its words
+  `TEMPER_INTERNAL_QA_HOME`. A refusal fails the deployment's step, and its words
   say why.
 
 ## 3. Keeping one

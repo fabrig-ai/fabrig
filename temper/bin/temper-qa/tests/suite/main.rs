@@ -1,6 +1,7 @@
 //! The tool's front and real command boundary (testing/tools.md, 6).
 mod builds;
 mod commands;
+mod passes;
 use std::process::{Command, Stdio};
 use temper_qa_tool::TABLE;
 
@@ -19,6 +20,10 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
         vec!["build", "keep", "--help"],
         vec!["triage", "none", "--help"],
         vec!["triage", "case", "--help"],
+        vec!["pass", "outcome", "--help"],
+        vec!["pass", "finding", "--help"],
+        vec!["pass", "check", "--help"],
+        vec!["pass", "note", "--help"],
         vec!["show", "--help"],
         vec!["lines", "--help"],
         vec!["report", "--help"],
@@ -46,6 +51,10 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                     "build keep",
                     "triage none",
                     "triage case",
+                    "pass outcome",
+                    "pass finding",
+                    "pass check",
+                    "pass note",
                     "show",
                     "lines",
                     "report",

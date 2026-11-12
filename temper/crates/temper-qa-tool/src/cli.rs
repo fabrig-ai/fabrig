@@ -68,6 +68,62 @@ const CASE: Command = Command {
     variables: &[&HOME, &SESSION],
     notes: "",
 };
+const OUTCOME: Command = Command {
+    reach: Reach::Words(&["pass", "outcome"]),
+    set: Set::Internal,
+    forms: &["CASE RESULT NOTES [--finding N]..."],
+    line: "Record a case's outcome at once; the session's last outcome is the one its end reads.",
+    arguments: &[
+        Argument { shown: "CASE", line: "A case assigned to the session's pass." },
+        Argument { shown: "RESULT", line: "passed, failed or blocked." },
+        Argument { shown: "NOTES", line: "One argument, nonempty for blocked, saying why." },
+        Argument {
+            shown: "[--finding N]...",
+            line: "A finding of this case; repeat for each finding. A failed case names at least one.",
+        },
+    ],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME, &SESSION],
+    notes: "",
+};
+const FINDING: Command = Command {
+    reach: Reach::Words(&["pass", "finding"]),
+    set: Set::Internal,
+    forms: &["FILE"],
+    line: "Record a finding, copying its evidence and linking it to a matching open finding.",
+    arguments: &[Argument { shown: "FILE", line: "A finding JSON file, or - to read stdin." }],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME, &SESSION],
+    notes: "Evidence: at most 16 regular files, each at most 16 MiB, with distinct file names. An absent area takes the surface's configured area, else owner.",
+};
+const CHECK: Command = Command {
+    reach: Reach::Words(&["pass", "check"]),
+    set: Set::Internal,
+    forms: &["FINDING RESULT NOTES"],
+    line: "Check an open finding of the pass in a resumed session.",
+    arguments: &[
+        Argument { shown: "FINDING", line: "An open finding of the session's pass." },
+        Argument { shown: "RESULT", line: "holds or gone." },
+        Argument { shown: "NOTES", line: "One argument with the check's notes, possibly empty." },
+    ],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME, &SESSION],
+    notes: "",
+};
+const NOTE: Command = Command {
+    reach: Reach::Words(&["pass", "note"]),
+    set: Set::Internal,
+    forms: &["WORDS"],
+    line: "Record what the pass noticed off the green path.",
+    arguments: &[Argument { shown: "WORDS", line: "One nonempty argument." }],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME, &SESSION],
+    notes: "",
+};
 const RUN: Command = Command {
     reach: Reach::Words(&["run"]),
     set: Set::Internal,
@@ -117,7 +173,7 @@ pub const TABLE: Table = Table {
     line: "QA after landing: main's landings triaged into cases, and passes run on builds kept for them.",
     version: temper_version::VERSION,
     commit: temper_version::COMMIT,
-    commands: &[RUN, KEEP, NONE, CASE, SHOW, LINES, REPORT],
+    commands: &[RUN, KEEP, NONE, CASE, OUTCOME, FINDING, CHECK, NOTE, SHOW, LINES, REPORT],
     settings: &[],
     variables: &[&HOME, &SESSION, &AREA],
     more: "temper-qa COMMAND --help prints a command; read temper/docs/design/testing/qa/README.md.",
@@ -170,6 +226,29 @@ fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8
             _ => Err("expected COMMIT and DIR".into()),
         };
     }
+    if command == &OUTCOME || command == &CHECK {
+        let [number, result, notes, tail @ ..] = rest else {
+            return Err(format!("expected {} RESULT NOTES", if command == &OUTCOME { "CASE" } else { "FINDING" }));
+        };
+        if !is_number(number) {
+            return Err(format!("expected a {} number", if command == &OUTCOME { "case" } else { "finding" }));
+        }
+        if std::str::from_utf8(result).is_err() || std::str::from_utf8(notes).is_err() {
+            return Err("RESULT and NOTES must be UTF-8".into());
+        }
+        if command == &CHECK && !tail.is_empty() {
+            return Err("expected FINDING RESULT NOTES".into());
+        }
+        let mut tail = tail;
+        while !tail.is_empty() {
+            let [flag, number, rest @ ..] = tail else { return Err("expected --finding N".into()) };
+            if flag.as_ref() != b"--finding" || !is_number(number) {
+                return Err("expected --finding N".into());
+            }
+            tail = rest;
+        }
+        return Ok(rest);
+    }
     if command == &REPORT {
         return match rest {
             [value]
@@ -184,10 +263,17 @@ fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8
             _ => Err("expected a pass number".into()),
         };
     }
-    if command == &NONE || command == &CASE {
+    if command == &NONE || command == &CASE || command == &FINDING || command == &NOTE {
+        let name = if command == &NONE {
+            "WHY"
+        } else if command == &NOTE {
+            "WORDS"
+        } else {
+            "FILE"
+        };
         match rest {
             [value] if !value.starts_with(b"--") => Ok(rest),
-            [] => Err(format!("{} is not given", if command == &NONE { "WHY" } else { "FILE" })),
+            [] => Err(format!("{name} is not given")),
             _ => Err("expected one argument".into()),
         }
     } else if rest.is_empty() {
@@ -196,11 +282,58 @@ fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8
         Err("no arguments are taken".into())
     }
 }
+fn record(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8]>]) -> Result<String, Refusal> {
+    home.transact(|ledger| {
+        ledger.pass_command_session(session)?;
+        let now = skein_shell::Clock::new().now().wall.as_secs();
+        if command == &NOTE {
+            let words = std::str::from_utf8(arguments.first().expect("note words"))
+                .map_err(|_| refused("note words must be UTF-8"))?;
+            return ledger.record_note(session, words, now).map(|number| format!("note {number}\n"));
+        }
+        let [number, result, notes, tail @ ..] = arguments else { unreachable!("checked recording arguments") };
+        let number = std::str::from_utf8(number).expect("checked number").parse().expect("checked number");
+        let result = std::str::from_utf8(result).expect("checked result");
+        let notes = std::str::from_utf8(notes).expect("checked notes");
+        if command == &OUTCOME {
+            let findings = tail
+                .chunks_exact(2)
+                .map(|pair| {
+                    std::str::from_utf8(pair.get(1).expect("finding value"))
+                        .expect("checked finding")
+                        .parse()
+                        .expect("checked finding")
+                })
+                .collect::<Vec<_>>();
+            ledger.record_outcome(session, number, result, notes, &findings, now)?;
+            return Ok(format!("case {number} {result}\n"));
+        }
+        ledger.record_check(session, number, result, notes, now)?;
+        let check = ledger
+            .findings
+            .iter()
+            .find(|finding| finding.number == number)
+            .expect("checked finding")
+            .checks
+            .last()
+            .expect("recorded check");
+        Ok(if result == "holds" {
+            format!("finding {number} holds\n")
+        } else {
+            format!("finding {number} gone at {}\n", check.commit.chars().take(12).collect::<String>())
+        })
+    })
+}
+fn is_number(value: &[u8]) -> bool {
+    std::str::from_utf8(value).ok().and_then(|value| value.parse::<u64>().ok()).is_some()
+}
 fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) -> Result<String, Refusal> {
-    let session = if command == &NONE || command == &CASE {
-        let value = SESSION
-            .value(environment)
-            .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not set: triage commands run in a triage session"))?;
+    let pass = command == &OUTCOME || command == &FINDING || command == &CHECK || command == &NOTE;
+    let session = if command == &NONE || command == &CASE || pass {
+        let kind = if pass { "pass" } else { "triage" };
+        let value = SESSION.value(environment).ok_or_else(|| {
+            refused(format!("TEMPER_INTERNAL_QA_SESSION is not set: {kind} commands run in a {kind} session"))
+        })?;
         Some(
             std::str::from_utf8(value)
                 .ok()
@@ -253,7 +386,13 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
             .map_err(|_| refused(format!("{} is no commit id", String::from_utf8_lossy(commit))))?;
         return crate::build::keep(&home, commit, Path::new(OsStr::from_bytes(directory)), environment);
     }
-    let session = session.expect("triage command");
+    let session = session.expect("session command");
+    if command == &FINDING {
+        return crate::recording::finding(&home, session, arguments.first().expect("finding file"));
+    }
+    if pass {
+        return record(&home, session, command, arguments);
+    }
     let argument = arguments.first().expect("triage argument").as_ref();
     home.transact(|ledger| {
         ledger.command_session(session)?;
