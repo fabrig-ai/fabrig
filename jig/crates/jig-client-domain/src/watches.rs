@@ -27,6 +27,7 @@ impl Domain {
             | Up::StreamsFull { .. }
             | Up::SignedOut
             | Up::NotKept { .. }
+            | Up::Unreadable
             | Up::Served { .. }
             | Up::FamilyServed { .. }
             | Up::Answer { .. }
@@ -49,6 +50,7 @@ impl Domain {
             | Up::StreamsFull { .. }
             | Up::SignedOut
             | Up::NotKept { .. }
+            | Up::Unreadable
             | Up::Served { .. }
             | Up::FamilyServed { .. }
             | Up::Answer { .. }

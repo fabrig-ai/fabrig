@@ -226,6 +226,7 @@ fn an_engine_outside_jig_s_version_leaves_the_client_out_of_date_sending_nothing
     let mut story = Story::live(fixtures::SEED);
     story.serve_jig(8);
     assert!(story.run_until(|s| s.client.link().state == Link::OutOfDate, Duration::from_secs(1)));
+    assert!(!story.client.link().unreadable);
     let exchanges = story.exchanges();
     story.send(STOP, stop(STOP_TASK));
     story.read(PROJECT_PAGE, Readable::Jig(contract::Read::Project { project: PROJECT_NUMBER }));
