@@ -39,7 +39,19 @@ struct Reading {
     intake: Intake,
     demand: Option<Read>,
     source: Source,
+    paused: bool,
+    cancel: bool,
 }
+impl Reading {
+    fn quiet(&self) -> bool {
+        let receiving = match self.source {
+            Source::Reading(_) => true,
+            Source::Idle | Source::Eof | Source::Ended => false,
+        };
+        !self.cancel && !receiving
+    }
+}
+
 #[derive(Debug)]
 enum Source {
     Idle,
@@ -134,6 +146,18 @@ impl Pipe {
             | State::Closed => None,
         }
     }
+    pub(crate) fn read_cancelled(&self) -> bool {
+        match &self.state {
+            State::Reading(read) => read.paused && read.quiet(),
+            State::Pending
+            | State::Adopted { .. }
+            | State::Writing(_)
+            | State::Flushing(_)
+            | State::Settling { .. }
+            | State::Releasing { .. }
+            | State::Closed => false,
+        }
+    }
     pub(crate) const fn is_closed(&self) -> bool {
         match self.state {
             State::Closed => true,
@@ -169,6 +193,8 @@ pub(crate) fn resume(
                     intake: Intake::with_capacity(env.limits.intake),
                     demand: read,
                     source: Source::Idle,
+                    paused: false,
+                    cancel: false,
                 }),
                 Way::In => State::Writing(Writing {
                     output: Output { fd, queue: Queue::with_capacity(env.limits.sends), bytes: 0, write: None },
@@ -189,6 +215,53 @@ pub(crate) fn resume(
     };
     pipe.state = follow(state, pipe, id, env, tables, up, subs);
 }
+/// Pauses a readable pipe without relinquishing its descriptor.
+pub(crate) fn cancel_read(
+    pipe: &mut Pipe,
+    id: Id<Entity>,
+    env: &Env<Limits>,
+    tables: &mut Tables,
+    subs: &mut Queue<Submit>,
+) {
+    if pipe.way != Way::Out {
+        return;
+    }
+    let state = mem::replace(&mut pipe.state, State::Closed);
+    pipe.state = match state {
+        State::Adopted { fd, .. } => {
+            tables.ready.mark(id);
+            State::Reading(Reading {
+                fd,
+                intake: Intake::with_capacity(env.limits.intake),
+                demand: None,
+                source: Source::Idle,
+                paused: true,
+                cancel: false,
+            })
+        }
+        State::Reading(mut read) => {
+            if !read.paused {
+                read.paused = true;
+                match read.source {
+                    Source::Reading(flight) => {
+                        read.cancel = true;
+                        tables.cancel(subs, id, flight);
+                    }
+                    Source::Idle | Source::Eof | Source::Ended => {}
+                }
+                tables.ready.mark(id);
+            }
+            State::Reading(read)
+        }
+        State::Pending
+        | State::Writing(_)
+        | State::Flushing(_)
+        | State::Settling { .. }
+        | State::Releasing { .. }
+        | State::Closed => state,
+    };
+}
+
 pub(crate) fn request(
     pipe: &mut Pipe,
     id: Id<Entity>,
@@ -214,6 +287,10 @@ pub(crate) fn request(
             Down::Demand { read, room } => {
                 let (demand, _) = asked(pipe, reading.demand.is_none(), read, room, env, tables, id).unzip();
                 reading.demand = demand;
+                if demand.is_some() {
+                    assert!(!reading.paused || reading.quiet(), "a withdrawn read settles before reading again");
+                    reading.paused = false;
+                }
                 State::Reading(reading)
             }
             Down::Send(_) => unreachable!("only an unfinished write pipe sends"),
@@ -331,12 +408,21 @@ pub(crate) fn landed(
                 }
                 State::Flushing(flush)
             }
-            State::Pending
-            | State::Adopted { .. }
-            | State::Reading(_)
-            | State::Writing(_)
-            | State::Releasing { .. }
-            | State::Closed => unreachable!("a cancel completes while settling or flushing"),
+            State::Reading(mut read) => {
+                assert!(read.cancel, "read cancellation is in flight");
+                if crate::layer::unsubmitted(landed.result) {
+                    match read.source {
+                        Source::Reading(flight) => tables.cancel(subs, id, flight),
+                        Source::Idle | Source::Eof | Source::Ended => read.cancel = false,
+                    }
+                } else {
+                    read.cancel = false;
+                }
+                State::Reading(read)
+            }
+            State::Pending | State::Adopted { .. } | State::Writing(_) | State::Releasing { .. } | State::Closed => {
+                unreachable!("a cancel completes while settling, flushing or withdrawing a read")
+            }
         },
         Purpose::Socket
         | Purpose::Bind
@@ -371,6 +457,7 @@ fn read_landed(state: State, pipe: &mut Pipe, landed: Landed, up: &mut Queue<Eve
                     read.intake.append(buf.get(..usize_of(n)).expect("count fits buffer")).expect("read within room");
                     Source::Idle
                 }
+                Err(kernel::Error::Cancelled) if read.paused => Source::Idle,
                 Err(error) => {
                     failed(pipe, landed.entity, error, up);
                     Source::Ended
@@ -409,10 +496,15 @@ pub(crate) fn close(
                 Source::Reading(read) => Some(read),
                 Source::Idle | Source::Eof | Source::Ended => None,
             };
-            if let Some(read) = read {
+            let cancels = if reading.cancel {
+                1
+            } else if let Some(read) = read {
                 tables.cancel(subs, id, read);
-            }
-            State::Settling { fd: reading.fd, read, cancels: u32::from(read.is_some()) }
+                1
+            } else {
+                0
+            };
+            State::Settling { fd: reading.fd, read, cancels }
         }
         State::Writing(write) => {
             let mut flush = flushing(write);
@@ -469,6 +561,9 @@ fn follow(
                 read.demand = None;
                 up.push(Event::Stream { owner: id.token(), up: Up::Bytes(bytes) });
             }
+            if read.paused && read.quiet() {
+                read.demand = None;
+            }
             read.source = match read.source {
                 Source::Eof if read.intake.is_empty() || read.demand.is_some() => {
                     up.push(Event::Stream { owner: id.token(), up: Up::End });
@@ -476,7 +571,7 @@ fn follow(
                 }
                 Source::Idle => {
                     let room = read.intake.room().min(env.limits.receive);
-                    if room > 0 {
+                    if room > 0 && !read.paused {
                         Source::Reading(tables.submit(
                             subs,
                             id,
