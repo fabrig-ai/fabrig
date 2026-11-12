@@ -306,7 +306,7 @@ fn a_provider_with_no_stock_takes_its_endpoint_and_the_dearest_figures() {
         Box::new([config.core.settings.llm_providers.providers[0].clone(), other]);
     config.core.settings.endpoints = Box::new([
         config.core.settings.endpoints[0].clone(),
-        core::EndpointFacts { number: 2, dialect: 4, program: None, providers: Box::new([2]) },
+        core::EndpointFacts { direct: Box::new([]), number: 2, dialect: 4, program: None, providers: Box::new([2]) },
     ]);
     let mut expected = config.core.defaults.models[1].model.clone();
     expected.provider = 2;
@@ -319,6 +319,7 @@ fn a_provider_with_no_stock_takes_its_endpoint_and_the_dearest_figures() {
         s::ModelSource::List,
         &config.core.defaults.models,
         &[core::EndpointFacts {
+            direct: Box::new([]),
             number: 2,
             dialect: 4,
             program: Some(b"backend".as_slice().into()),

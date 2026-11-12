@@ -189,6 +189,20 @@ pub struct Settings {
     pub redirect_bytes: u32,
 }
 
+impl Settings {
+    /// The provider's credential endpoint, where configured (protocol/configuration.md, 3).
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "the strict subset iterates without a closure")]
+    pub fn direct_endpoint(&self, provider: u32) -> Option<&EndpointFacts> {
+        for endpoint in &self.endpoints {
+            if endpoint.direct.contains(&provider) {
+                return Some(endpoint);
+            }
+        }
+        None
+    }
+}
+
 /// Jig's authority bits for the engine's tool families.
 #[derive(Clone, Copy, Hash, Debug)]
 pub struct ToolFamilies {
@@ -644,6 +658,8 @@ pub use effects::connector::PersonSeed;
 pub struct EndpointFacts {
     /// Providers that name this endpoint for added models (domain/engine/settings.md, 11).
     pub providers: Box<[u32]>,
+    /// Providers that name this endpoint as their direct way (protocol/configuration.md, 3).
+    pub direct: Box<[u32]>,
     pub number: u32,
     pub dialect: u32,
     pub program: Option<Box<[u8]>>,
