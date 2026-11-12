@@ -25,12 +25,8 @@ fn adopt_pair_configured(
     cued: bool,
     context: bool,
 ) {
-    let workflows: Box<[_]> = if following {
-        Box::new([follow_workflow(cued)])
-    } else {
-        Box::new([])
-    };
-    adopt_pair_workflows(world, source, target, passes, workflows, context);
+    let workflows: Box<[_]> = if following { Box::new([follow_workflow(cued)]) } else { Box::new([]) };
+    adopt_pair_workflows(world, source, target, passes, &workflows, context);
 }
 
 fn follow_workflow(cued: bool) -> raw::Workflow {
@@ -45,7 +41,11 @@ fn follow_workflow(cued: bool) -> raw::Workflow {
         flaky: Box::new([]),
         select: None,
         cue: cued.then(|| raw::Cue::Tests { path: b"failures".as_slice().into() }),
-        report: Some(raw::Report { artifact: b"results".as_slice().into(), format: raw::ReportFormat::Lines, deflate: false }),
+        report: Some(raw::Report {
+            artifact: b"results".as_slice().into(),
+            format: raw::ReportFormat::Lines,
+            deflate: false,
+        }),
     }
 }
 
@@ -55,7 +55,7 @@ pub(super) fn adopt_pair_with_red_tier(world: &mut World) {
     fuzz.file = b"fuzz.yml".as_slice().into();
     fuzz.latency_min = Duration::from_secs(90);
     fuzz.latency_max = fuzz.latency_min;
-    adopt_pair_workflows(world, b"vsr", b"vsr-rs", 1000, Box::new([follow_workflow(false), fuzz]), true);
+    adopt_pair_workflows(world, b"vsr", b"vsr-rs", 1000, &[follow_workflow(false), fuzz], true);
 }
 
 fn adopt_pair_workflows(
@@ -63,7 +63,7 @@ fn adopt_pair_workflows(
     source: &[u8],
     target: &[u8],
     passes: u32,
-    workflows: Box<[raw::Workflow]>,
+    workflows: &[raw::Workflow],
     context: bool,
 ) {
     let following = !workflows.is_empty();
@@ -79,7 +79,7 @@ fn adopt_pair_workflows(
                 default: b"main".as_slice().into(),
                 tree: Box::new([]),
                 labels: Box::new([]),
-                workflows: workflows.clone(),
+                workflows: Box::from(workflows),
                 protection: None,
                 hooked: following,
                 checks: raw::Checks {

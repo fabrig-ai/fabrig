@@ -388,7 +388,11 @@ fn a_red_names_the_lowest_kept_member_follow() {
     d.subscriptions.remove(&(GOAL, Topic::Landings { repository: REPO, branch: b"main".as_slice().into() }));
     d.changes.remove(&CHANGE);
     // Deliberately not in member order; CHANGE's row has already been forgotten.
-    verification(&mut d, NEXT_TIP, &[THIRD_CHANGE, CHANGE, SECOND_CHANGE]);
+    verification(&mut d, NEXT_TIP, &[THIRD_CHANGE, CHANGE, SECOND_CHANGE, 1]);
+    let mut ordinary = fixtures::opening_row();
+    ordinary.task = 1;
+    ordinary.follows = None;
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(ordinary)) });
     for (task, follow) in [(THIRD_CHANGE, 9), (SECOND_CHANGE, 4)] {
         let mut change = fixtures::opening_row();
         change.task = task;
@@ -398,10 +402,13 @@ fn a_red_names_the_lowest_kept_member_follow() {
     tier_step(&mut d, RELEASE, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
     let out = tier_step(&mut d, RELEASE + 1, false);
-    let filings: Vec<_> = out.iter().filter_map(|request| match request {
-        Request::FileRedFinding { follow, finding, .. } => Some((*follow, finding)),
-        _ => None,
-    }).collect();
+    let filings: Vec<_> = out
+        .iter()
+        .filter_map(|request| match request {
+            Request::FileRedFinding { follow, finding, .. } => Some((*follow, finding)),
+            _ => None,
+        })
+        .collect();
     assert_eq!(filings, [(Some(4), &expected_finding())]);
 }
 
