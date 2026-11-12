@@ -482,19 +482,7 @@ impl Worker {
             smith::Down::Message { .. }
             | smith::Down::Answer { .. }
             | smith::Down::Acknowledge { .. }
-            | smith::Down::Cancel => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
-        };
-        let Some(values) = values else {
-            self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
-            return;
-        };
-        let process = self.processes.get_mut(&owner).expect("root owns process");
-        let token = owner;
-        let sent = match message {
-            smith::Down::Start { start, window } => {
-                process.send_start(start, window, values, token, &mut self.process_events, &mut self.io)
-            }
-            | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
+            | smith::Down::Cancel | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
         };
         let Some(values) = values else {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
@@ -526,6 +514,7 @@ impl Worker {
                 process.send_acknowledge(turn, token, &mut self.process_events, &mut self.io)
             }
             smith::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io),
+            smith::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io),
         };
         if sent.is_err() {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
