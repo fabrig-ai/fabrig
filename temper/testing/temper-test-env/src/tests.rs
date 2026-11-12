@@ -16,6 +16,7 @@ fn table_is_tempers_test_set() {
             "TEMPER_TEST_FORGEJO_RUNNER",
             "TEMPER_TEST_FORGE_PARENT_HELPER",
             "TEMPER_TEST_LIVE_ACCOUNT",
+            "TEMPER_TEST_LIVE_ANTHROPIC_KEY",
             "TEMPER_TEST_LIVE_CLAUDE",
             "TEMPER_TEST_LIVE_GITHUB_FIXTURES",
             "TEMPER_TEST_LIVE_GITHUB_KEEP",
