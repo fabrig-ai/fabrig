@@ -1,12 +1,178 @@
-   Compiling temper-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-service)
-   Compiling temper-github-app v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/testing/temper-github-app)
-   Compiling temper-playground v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-playground)
-   Compiling temper-one-process-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/tests/one-process)
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.84s
+   Compiling skein-lib v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-lib)
+   Compiling skein-heap v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-heap)
+   Compiling skein-fake-checkout v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-checkout)
+   Compiling skein-fork v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-fork)
+   Compiling skein-fail-stop v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fail-stop)
+   Compiling skein-scratch v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-scratch)
+   Compiling skein-json v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-json)
+   Compiling skein-codec v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-codec)
+   Compiling skein-io v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-io)
+   Compiling skein-http v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-http)
+   Compiling skein-tls v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-tls)
+   Compiling jig-domain-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-link)
+   Compiling jig-domain-tasks v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-tasks)
+   Compiling jig-domain-views v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-views)
+   Compiling smith-transcript v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-transcript)
+   Compiling jig-domain-fleet v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-fleet)
+   Compiling jig-domain-accounts v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-accounts)
+   Compiling jig-domain-people v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-people)
+   Compiling jig-domain-notes v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-notes)
+   Compiling jig-domain-authority v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-authority)
+   Compiling jig-domain-brief v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-brief)
+   Compiling jig-client-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-client-domain)
+   Compiling jig-client-protocol-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-client-protocol-wire)
+   Compiling skein-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-link)
+   Compiling smith-domain-run v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-domain-run)
+   Compiling skein-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-shell)
+   Compiling skein-forge v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-forge)
+   Compiling jig-domain-host v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-host)
+   Compiling jig-protocol-transcript v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-transcript)
+   Compiling smith-domain-tools v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-domain-tools)
+   Compiling skein-kv v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-kv)
+   Compiling skein-oauth v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-oauth)
+   Compiling skein-llm v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-llm)
+   Compiling skein-channel v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-channel)
+   Compiling smith-domain-session v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-domain-session)
+   Compiling smith-channel v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-channel)
+   Compiling smith-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-domain)
+   Compiling skein-oauth-issuer v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-oauth-issuer)
+   Compiling smith-charter v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-charter)
+   Compiling skein-oauth-accounts v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-oauth-accounts)
+   Compiling skein-sim v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-sim)
+   Compiling skein-ui v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-ui)
+   Compiling smith-host-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-host-domain)
+   Compiling smith-events v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-events)
+   Compiling smith-protocol-translate v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-protocol-translate)
+   Compiling temper-client-protocol-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-protocol-wire)
+   Compiling jig-test-connector v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-test-connector)
+   Compiling smith-protocol-channel v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-protocol-channel)
+   Compiling skein-forge-setup v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-forge-setup)
+   Compiling skein-fake-llm-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-llm-domain)
+   Compiling jig-client-protocol-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-client-protocol-link)
+   Compiling jig-domain-core v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-core)
+   Compiling skein-sim-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-sim-world)
+   Compiling skein-llm-connection v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-llm-connection)
+   Compiling skein-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-world)
+   Compiling skein-fake-forge-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-forge-domain)
+   Compiling skein-fake-forge-http v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-forge-http)
+   Compiling smith-protocol-llm v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-protocol-llm)
+   Compiling skein-fake-llm-protocol v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-llm-protocol)
+   Compiling smith-protocol-program v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-protocol-program)
+   Compiling jig-client v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-client)
+   Compiling skein-fake-forge-github v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-forge-github)
+   Compiling skein-forge-client v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-forge-client)
+   Compiling temper-protocol-reaches v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-protocol-reaches)
+   Compiling temper-engine-domain-forge-closer v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain-forge-closer)
+   Compiling skein-forge-connection v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-forge-connection)
+   Compiling temper-engine-domain-forge-issues v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain-forge-issues)
+   Compiling temper-engine-domain-forge-change v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain-forge-change)
+   Compiling temper-engine-domain-forge-landing v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain-forge-landing)
+   Compiling temper-engine-domain-forge-tiers v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain-forge-tiers)
+   Compiling smith-host-protocol v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-host-protocol)
+   Compiling smith-protocol-events v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-protocol-events)
+   Compiling skein-fake-forge-forgejo v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-forge-forgejo)
+   Compiling smith-protocol-machine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-protocol-machine)
+   Compiling jig-protocol-worker-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-worker-wire)
+   Compiling skein-fake-oauth v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-oauth)
+   Compiling temper-worker-domain-checkout v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-worker-domain-checkout)
+   Compiling skein-fake-peers v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-peers)
+   Compiling smith-agent-profile v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-agent-profile)
+   Compiling skein-fake-machine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-fake-machine)
+   Compiling jig-client-test-protocol-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-client-test-protocol-wire)
+   Compiling jig-fake-store v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-fake-store)
+   Compiling temper-worker-protocol-git v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-worker-protocol-git)
+   Compiling jig-protocol-store v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-store)
+   Compiling jig-protocol-tools v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-tools)
+   Compiling jig-domain-hub-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-domain-hub-link)
+   Compiling temper-engine-domain-forge v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain-forge)
+   Compiling jig-protocol-charter v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-charter)
+   Compiling jig-conformance v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-conformance)
+   Compiling jig-protocol-worker-link v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-worker-link)
+   Compiling jig-protocol-worker-agents v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-worker-agents)
+   Compiling temper-settings-form v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-settings-form)
+   Compiling jig-client-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-client-view)
+   Compiling temper-fetch v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-fetch)
+   Compiling temper-docs v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-docs)
+   Compiling smith-agent-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-agent-service)
+   Compiling jig-client-protocol-http v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-client-protocol-http)
+   Compiling jig-client-test-records v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-client-test-records)
+   Compiling temper-protocol-worker-wire v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-protocol-worker-wire)
+   Compiling temper-engine-domain-trials v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain-trials)
+   Compiling temper-engine-domain-calendar v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain-calendar)
+   Compiling jig-client-shell-native v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-client-shell-native)
+   Compiling jig-test-system v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-test-system)
+   Compiling temper-engine-domain-ways v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain-ways)
+   Compiling smith-agent-document v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-agent-document)
+   Compiling jig-client-test-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-client-test-domain)
+   Compiling skein-llm-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-llm-kit)
+   Compiling temper-engine-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-domain)
+   Compiling smith-tools-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/tests/tools)
+   Compiling jig-test-connector-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-test-connector-kit)
+   Compiling skein-ui-text v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-ui-text)
+   Compiling smith-inline-agent v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-inline-agent)
+   Compiling temper-protocol-brief v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-protocol-brief)
+   Compiling temper-worker-domain-tooling v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-worker-domain-tooling)
+   Compiling jig-fake-parties v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-fake-parties)
+   Compiling jig-fake-workers v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-fake-workers)
+   Compiling smith-local-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-local-domain)
+   Compiling jig-client-test-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-client-test-view)
+   Compiling smith-session-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/tests/session)
+   Compiling temper-worker-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-worker-domain)
+   Compiling jig-client-test-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-client-test-kit)
+   Compiling smith-agent-shell v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-agent-shell)
+   Compiling temper-fake-git v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-fake-git)
+   Compiling jig-client-scripted-engine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-client-scripted-engine)
+   Compiling skein-fake-person v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-fake-person)
+   Compiling jig-test-worker v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-test-worker)
+   Compiling smith-agent-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/tests/agent)
+   Compiling smith-local-protocol v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-local-protocol)
+   Compiling smith-fake-claude v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/tests/fake-claude)
+   Compiling skein-ui-web v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-ui-web)
+   Compiling skein-fake-channel v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-fake-channel)
+   Compiling skein-tls-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-tls-kit)
+   Compiling skein-playground v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/crates/skein-playground)
+   Compiling temper-fake-git-hosted v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-fake-git-hosted)
+   Compiling smith-local-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/crates/smith-local-service)
+   Compiling smith-agent-process-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/smith/tests/agent-process)
+   Compiling skein-throwaway-forgejo v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/skein/testing/skein-throwaway-forgejo)
+   Compiling temper-test-env v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/testing/temper-test-env)
+   Compiling temper-fake-checkout v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/tests/fake-checkout)
+   Compiling temper-fixtures v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/testing/temper-fixtures)
+   Compiling temper-worker-checkout-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/tests/worker/checkout)
+   Compiling jig-protocol-engine-clients v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-engine-clients)
+   Compiling jig-test-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-test-domain)
+   Compiling temper-protocol-store v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-protocol-store)
+   Compiling jig-test-store v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-test-store)
+   Compiling jig-test-profile v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-test-profile)
+   Compiling jig-test-store-files v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-test-store-files)
+   Compiling jig-core-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-core-kit)
+   Compiling jig-protocol-engine-clients-http v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-engine-clients-http)
+   Compiling temper-engine-smith v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-engine-smith)
+   Compiling jig-protocol-config v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-config)
+   Compiling temper-protocol-records v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-protocol-records)
+   Compiling jig-protocol-accounts v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-accounts)
+   Compiling jig-protocol-engine-workers v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/crates/jig-protocol-engine-workers)
+   Compiling temper-forge-setup v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-forge-setup)
+   Compiling jig-client-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-client-kit)
+   Compiling temper-client-domain v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-domain)
+   Compiling temper-box-machine v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-box-machine)
+   Compiling jig-test-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-test-service)
+   Compiling temper-fake v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-fake)
+   Compiling temper-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-service)
+   Compiling jig-client-protocol-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-client-protocol-kit)
+   Compiling jig-channel-kit v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/jig/testing/jig-channel-kit)
+   Compiling temper-client-view v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-view)
+   Compiling temper-client-tools v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-tools)
+   Compiling temper-github-app v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/testing/temper-github-app)
+   Compiling temper-client-shell-cli v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-shell-cli)
+   Compiling temper-playground v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-playground)
+   Compiling temper-client-shell-terminal v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/crates/temper-client-shell-terminal)
+   Compiling temper-one-process-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/25769803776/fabrig/temper/tests/one-process)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 13s
 ────────────
- Nextest run ID 9557fb94-76b0-4362-b33c-f165ef48b824 with nextest profile: default
+ Nextest run ID 1bb28dce-cab3-4337-8e83-c60f80ac7ef5 with nextest profile: default
     Starting 1 test across 1 binary (45 tests skipped)
-        FAIL [   0.049s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
+        FAIL [   0.069s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
   stdout ───
 
     running 1 test
@@ -17,21 +183,27 @@
     failures:
         public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
 
-    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 45 filtered out; finished in 0.03s
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 45 filtered out; finished in 0.05s
 
   stderr ───
 
-    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (2667020) panicked at temper/crates/temper-playground/src/programs.rs:269:32:
-    engine.limits.store: the store's map sizing is past its codec or arithmetic bounds
+    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (160301) panicked at temper/crates/temper-playground/src/programs.rs:271:32:
+    engine.limits.overrides.core.call_answer_bytes: 2048 bytes, short of the agent's call input (profile.declared.tool_payload), 4098 bytes; raise it to at least 4098 bytes, or omit it to follow the agent's call input
+    engine.limits.overrides.core.call_answer_bytes: call input 4098 bytes; wire answer 2048 bytes; smith host_reply_bytes 4098 bytes
+    workers[0].limits.overrides.core.call_answer_bytes: 2048 bytes, short of the agent's call input (profile.declared.tool_payload), 4098 bytes; raise it to at least 4098 bytes, or omit it to follow the agent's call input
+    workers[0].limits.overrides.core.call_answer_bytes: call input 4098 bytes; wire answer 2048 bytes; smith host_reply_bytes 4098 bytes
 
     note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 
-    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (2667020) panicked at temper/tests/one-process/src/public.rs:128:9:
-    public walk every_inaccessible_identifier_is_one_unknown_byte_for_byte, seed 7: engine.limits.store: the store's map sizing is past its codec or arithmetic bounds
+    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (160301) panicked at temper/tests/one-process/src/public.rs:130:9:
+    public walk every_inaccessible_identifier_is_one_unknown_byte_for_byte, seed 7: engine.limits.overrides.core.call_answer_bytes: 2048 bytes, short of the agent's call input (profile.declared.tool_payload), 4098 bytes; raise it to at least 4098 bytes, or omit it to follow the agent's call input
+    engine.limits.overrides.core.call_answer_bytes: call input 4098 bytes; wire answer 2048 bytes; smith host_reply_bytes 4098 bytes
+    workers[0].limits.overrides.core.call_answer_bytes: 2048 bytes, short of the agent's call input (profile.declared.tool_payload), 4098 bytes; raise it to at least 4098 bytes, or omit it to follow the agent's call input
+    workers[0].limits.overrides.core.call_answer_bytes: call input 4098 bytes; wire answer 2048 bytes; smith host_reply_bytes 4098 bytes
 
 
   Cancelling due to test failure
 ────────────
-     Summary [   0.051s] 1 test run: 0 passed, 1 failed, 45 skipped
-        FAIL [   0.049s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
+     Summary [   0.086s] 1 test run: 0 passed, 1 failed, 45 skipped
+        FAIL [   0.069s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
 error: test run failed

@@ -62,6 +62,10 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     value["application"]["limits"]["overrides"]["forge.client.op_bytes"] = 4096.into();
     // Merge setup and workflow discovery fit one forge rate window before visitor reads.
     value["application"]["limits"]["overrides"]["forge.client.rate"] = 1000.into();
+    value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
+    for worker in value["workers"].as_array_mut().expect("workers") {
+        worker["limits"]["overrides"]["core.call_answer_bytes"] = 4098.into();
+    }
     value["application"]["clients"]["public"] = "https://one.example".into();
     value["application"]["landing"] = serde_json::json!({"projects": [{"project": 1, "by": "turn"}]});
     for (name, count) in [
