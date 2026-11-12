@@ -35,6 +35,7 @@ mod remembered;
 mod report;
 mod start_goal;
 mod switcher;
+mod talk;
 mod task;
 mod welcome;
 mod work;

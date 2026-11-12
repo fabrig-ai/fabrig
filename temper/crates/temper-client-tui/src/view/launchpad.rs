@@ -92,6 +92,7 @@ fn project(root: &Domain, me: &c::Me) -> Option<u32> {
         | Address::Welcome { .. }
         | Address::Task { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }

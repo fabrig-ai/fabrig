@@ -2134,6 +2134,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
         "created chat",
         "show chat",
         "show ask",
+        "show talk",
         "show without project",
         "new",
         "exit",
@@ -2237,8 +2238,13 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 host.root.pages().address() == &Address::Inbox { filter: root::address::Filter::ALL }
                     && host.state().focus() == before
             }
-            "show chat" | "show ask" => {
-                let address = if row == "show chat" { Address::Chat { task: 9 } } else { Address::Ask { project: 5 } };
+            "show chat" | "show ask" | "show talk" => {
+                let address = match row {
+                    "show chat" => Address::Chat { task: 9 },
+                    "show ask" => Address::Ask { project: 5 },
+                    "show talk" => Address::Talk { project: 5, task: 9 },
+                    _ => unreachable!("named navigation row"),
+                };
                 host.out.push(root::Request::Show { address: address.clone(), replace: true });
                 let before = host.state().focus();
                 host.report(Report::Due);

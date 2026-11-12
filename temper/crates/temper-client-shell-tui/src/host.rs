@@ -916,6 +916,7 @@ impl Host {
             | Address::Models { project }
             | Address::Builders { project }
             | Address::Team { project, .. }
+            | Address::Talk { project, .. }
             | Address::Role { project, .. }
             | Address::Rule { project, .. }
             | Address::Ask { project }

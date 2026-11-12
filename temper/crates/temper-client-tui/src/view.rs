@@ -324,6 +324,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
             match root.pages().address() {
                 Address::Chat { .. } => Body::Chat(chat::read(root, tui, &view.words, wall)),
                 Address::Home { .. }
+                | Address::Talk { .. }
                 | Address::AllHome
                 | Address::Inbox { .. }
                 | Address::Chats { .. }
