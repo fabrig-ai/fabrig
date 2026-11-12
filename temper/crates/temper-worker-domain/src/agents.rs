@@ -67,10 +67,13 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
         host::ToAgent::Cancel { agent } => {
             let mut cut = false;
             for (owner, bound) in &domain.agents {
-                if bound.agent == agent { cut = crate::stopping::cut(domain, *owner); break; }
+                if bound.agent == agent {
+                    cut = crate::stopping::cut(domain, *owner);
+                    break;
+                }
             }
             if cut { smith::parent::Event::Drop { agent } } else { smith::parent::Event::Stop { agent } }
-        },
+        }
         // The hub hands its agent only the LLM accounts' grants, and keeps
         // the application credentials, the git identities, to itself (jig's
         // domain/hosts/hub.md, 2): the table needs no reading.

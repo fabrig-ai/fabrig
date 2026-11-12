@@ -440,7 +440,9 @@ pub(crate) fn abort(domain: &mut Domain, hold: Token, out: &mut Queue<Request>) 
 pub(crate) fn cut(domain: &mut Domain, hold: Token, out: &mut Queue<Request>) {
     let Some(id) = addressed(&domain.holds, hold) else { return };
     let hold = domain.holds.get_mut(id).expect("addressed above");
-    if hold.cut { return; }
+    if hold.cut {
+        return;
+    }
     hold.cut = true;
     if let State::Pushing { .. } = hold.state {
         out.push(Request::Cancel { owner: id.token() });
@@ -496,7 +498,9 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
         }
         State::Pushing { mut push, step, asked } if hold.cut => {
             // Only a completed push proves a landing without further IO.
-            if let PushStep::Push { repository } | PushStep::Design { delivery: design::Delivery { repository, .. }, step: design::Step::Push } = step {
+            if let PushStep::Push { repository }
+            | PushStep::Design { delivery: design::Delivery { repository, .. }, step: design::Step::Push } = step
+            {
                 let landing = match pushed_to(holding, &push.to, repository, done) {
                     Ok(landing) => landing,
                     Err(failure) => failed_landing(failure),

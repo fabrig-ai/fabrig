@@ -334,7 +334,12 @@ impl AgentPeer {
             output_closes: 0,
         }
     }
-    pub(crate) fn launch(worker: &mut crate::Worker, agent: &crate::settings::Agent, owner: Token, rooted: bool) -> Self {
+    pub(crate) fn launch(
+        worker: &mut crate::Worker,
+        agent: &crate::settings::Agent,
+        owner: Token,
+        rooted: bool,
+    ) -> Self {
         let mut peer = Self::new(agent, owner);
         if !rooted {
             worker.route(root::Request::Process(Box::new(smith_host_domain::process::Request::Spawn {

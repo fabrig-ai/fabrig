@@ -185,7 +185,9 @@ pub struct SetupStep {
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
     /// The worker abandoned its remaining work at its stop bound.
-    StopBoundPassed { abandoned: u64 },
+    StopBoundPassed {
+        abandoned: u64,
+    },
     /// A configured charter may differ from the store's settings (protocol/configuration/README.md, 3).
     StartupWarning {
         line: Box<[u8]>,

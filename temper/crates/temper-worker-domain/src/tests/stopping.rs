@@ -36,7 +36,8 @@ fn the_earlier_of_shutdown_and_contact_bounds_holds_without_resetting_either() {
 fn dropped(rows: &[Request]) -> bool {
     for row in rows {
         if let Request::Process(request) = row
-            && let agent::process::Request::Signal { signal: agent::Signal::Terminate, .. } = request.as_ref() {
+            && let agent::process::Request::Signal { signal: agent::Signal::Terminate, .. } = request.as_ref()
+        {
             return true;
         }
     }

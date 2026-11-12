@@ -1168,8 +1168,10 @@ fn hello_refusal_notes_print_the_channel_and_words_exactly() {
 #[test]
 fn worker_link_notes_print_each_address_and_refusal_exactly() {
     use temper_service::{Note, Refusal};
-    assert_eq!(note_line("temper", Note::StopBoundPassed { abandoned: 4 }),
-        "temper worker: stop bound passed; abandoned 4 turns and answers\n");
+    assert_eq!(
+        note_line("temper", Note::StopBoundPassed { abandoned: 4 }),
+        "temper worker: stop bound passed; abandoned 4 turns and answers\n"
+    );
     for (address, printed) in
         [(([127, 0, 0, 1], 7100).into(), "127.0.0.1:7100"), (([0, 0, 0, 0, 0, 0, 0, 1], 7100).into(), "[::1]:7100")]
     {

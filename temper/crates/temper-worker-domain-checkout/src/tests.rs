@@ -1391,7 +1391,10 @@ fn an_abort_mid_push_waits_for_the_push_keeps_what_landed_and_reports_the_rest_a
 
 #[test]
 fn a_stop_bound_cut_cancels_a_push_without_verifying_and_never_starts_another_save() {
-    for (done, first) in [(failed(Fault::Cancelled), explained(Fault::Cancelled)), (Done::Succeeded, Landing::Landed { commit: commit(11) })] {
+    for (done, first) in [
+        (failed(Fault::Cancelled), explained(Fault::Cancelled)),
+        (Done::Succeeded, Landing::Landed { commit: commit(11) }),
+    ] {
         let mut h = Harness::new(LIMITS);
         let hold = h.ready(1, spec(b"w", Box::new([repository(b"a", true), repository(b"b", true)])));
         h.one(Event::Push { hold, message: message() });

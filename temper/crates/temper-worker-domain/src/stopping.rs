@@ -112,5 +112,8 @@ pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
 }
 
 fn passed(at: Option<Time>, now: Time) -> bool {
-    match at { Some(at) => at <= now, None => false }
+    match at {
+        Some(at) => at <= now,
+        None => false,
+    }
 }

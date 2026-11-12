@@ -93,7 +93,7 @@ fn collect(
             | Request::Source { .. }
             | Request::SourceFault
             | Request::Stop
-                    | Request::Abandon
+            | Request::Abandon
             | Request::CancelIo { .. }
             | Request::CancelRelay { .. }
             | Request::Process(_)

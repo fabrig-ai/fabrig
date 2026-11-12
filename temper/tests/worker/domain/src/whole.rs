@@ -206,14 +206,14 @@ impl World {
                 let (held, _) = self.held.take().expect("a cut names the held save push");
                 assert_eq!(owner, held);
                 self.report.io_cuts += 1;
-                self.owed.push_back(Event::Done { owner, done: temper_worker_domain::checkout::git::Done::Failed {
-                    fault: temper_worker_domain::checkout::git::Fault::Cancelled,
-                }});
+                self.owed.push_back(Event::Done {
+                    owner,
+                    done: temper_worker_domain::checkout::git::Done::Failed {
+                        fault: temper_worker_domain::checkout::git::Fault::Cancelled,
+                    },
+                });
             }
-            Request::JobAnswer { .. }
-            | Request::Job { .. }
-            | Request::CancelRelay { .. }
-            => {
+            Request::JobAnswer { .. } | Request::Job { .. } | Request::CancelRelay { .. } => {
                 panic!("unscripted request")
             }
         }
@@ -297,7 +297,9 @@ impl World {
                 assert_eq!((Some(owner), process), (self.process, PROCESS));
             }
             agent::process::Request::Signal { owner, signal, .. } => {
-                if signal == agent::Signal::Terminate { self.report.drops += 1; }
+                if signal == agent::Signal::Terminate {
+                    self.report.drops += 1;
+                }
                 self.owed.push_back(Event::Process(Box::new(agent::process::Event::Signalled { owner })));
             }
         }
@@ -492,7 +494,11 @@ impl World {
         assert_eq!(self.domain.workspaces(), 0);
         let (answer, work, preparation) = self.answer.take().expect("a terminal answer");
         assert_eq!(preparation, None);
-        let branch = if matches!(case, Case::ContactPast | Case::Drained | Case::DrainExpired) { b"saved".as_slice() } else { b"topic".as_slice() };
+        let branch = if matches!(case, Case::ContactPast | Case::Drained | Case::DrainExpired) {
+            b"saved".as_slice()
+        } else {
+            b"topic".as_slice()
+        };
         let commit = self.forge.branch(REMOTE, branch).expect("worker pushed");
         let expected = match case {
             Case::Delivered | Case::ContactWithin => None,
@@ -822,9 +828,14 @@ pub fn contact_bound(seed: u64, saving: bool) -> Report {
         world.gone();
         assert_eq!(world.report.saves, 0, "no new commit after the bound");
     }
-    if !world.up { world.connect(); }
+    if !world.up {
+        world.connect();
+    }
     let (answer, work, _) = world.answer.take().expect("the cut run is answered");
-    assert!(matches!(answer.ending, host::Ending::Failed { failure: host::Failure::Cancelled(host::Reason::Contact), .. }));
+    assert!(matches!(
+        answer.ending,
+        host::Ending::Failed { failure: host::Failure::Cancelled(host::Reason::Contact), .. }
+    ));
     let saved = work.saved.expect("the save's failed outcome");
     assert!(!matches!(saved[0].landing, wire::Landing::Landed { .. }));
     assert_eq!(world.forge.branch(REMOTE, b"saved"), Some(world.first));
