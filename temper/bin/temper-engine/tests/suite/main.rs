@@ -1,6 +1,12 @@
 //! The engine binary's table and dispatch (temper/docs/design/protocol/binaries.md, 2).
 use std::process::{Command, Stdio};
 use temper_engine_shell::{ENGINE, commands};
+#[path = "../support/upgrade.rs"]
+mod upgrade;
+#[test]
+fn upgrade_refuses_an_empty_deployment_directory() {
+    upgrade::empty_directory("temper-engine");
+}
 
 const WORKER: &str = r#"{"workers":[{"engine":{"socket":"127.0.0.1:1"}}]}"#;
 const STANDALONE: &str = r#"{"engine":{"hosts":{"listener":[{"in_process":"workers"}]}}}"#;
@@ -26,7 +32,7 @@ fn help(text: &str) -> bool {
     let rows: Vec<_> =
         text.lines().filter(|line| line.starts_with("  ")).filter_map(|line| line.split_whitespace().next()).collect();
     text == ENGINE.help()
-        && ["serve", "versions", "help"].iter().all(|word| rows.contains(word))
+        && ["serve", "versions", "upgrade", "help"].iter().all(|word| rows.contains(word))
         && ["forge", "box", "program-login"].iter().all(|word| !rows.contains(word))
 }
 
@@ -106,6 +112,20 @@ const ROWS: &[Case] = &[
         1,
         empty,
         "temper-engine forge fetch: temper.json holds a worker alone; temper-worker serve runs it\n",
+    ),
+    (
+        &["upgrade", "--check"],
+        None,
+        2,
+        empty,
+        "temper-engine upgrade --check: invalid arguments\nusage: temper-engine upgrade --check [DIRECTORIES] DIRECTORY\n",
+    ),
+    (
+        &["upgrade", "--back", "extra"],
+        None,
+        2,
+        empty,
+        "temper-engine upgrade --back: invalid arguments\nusage: temper-engine upgrade --back [DIRECTORIES]\n",
     ),
     (&["versions"], None, 0, versions, ""),
     (

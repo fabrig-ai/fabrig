@@ -1,5 +1,16 @@
 //! Baseline owner admission, coverage and the application's mark-only fixture.
 #[test]
+fn rehearsal_preserves_the_deployment_then_start_and_back_obey_the_first_commit() {
+    temper_one_process_world::upgrade::check::rehearsal_then_start_and_back();
+}
+#[test]
+fn the_golden_store_rehearses_its_kept_patch_counts_and_restores() {
+    temper_one_process_world::upgrade::check::golden(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
+    );
+}
+
+#[test]
 fn power_lost_at_the_copys_first_write_keeps_a_whole_generation() {
     temper_one_process_world::upgrade::story::power_loss(0);
 }

@@ -375,6 +375,34 @@ impl Service {
     pub fn patch_sets(&mut self, sets: jig_protocol_store::PatchSets) {
         self.engine.as_mut().expect("engine patch sets").store.patch_sets(sets);
     }
+    /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
+    pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
+        let engine = self.engine.as_mut().expect("rehearsal has an engine");
+        engine.domain.rehearse();
+        crate::upgrade::prepare(engine, true);
+        engine.store.host.adopt_mode(
+            directory,
+            user,
+            engine.store.installation,
+            jig_protocol_store::host::Adoption::Rehearse { scratch },
+        )
+    }
+    /// Ask jig to make the previous generation active, with the deployment stopped.
+    pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
+        let engine = self.engine.as_mut().expect("going back has an engine");
+        crate::upgrade::prepare(engine, false);
+        engine.store.host.adopt_mode(
+            directory,
+            user,
+            engine.store.installation,
+            jig_protocol_store::host::Adoption::Back,
+        )
+    }
+    /// Retained through teardown for shells and worlds alike.
+    #[must_use]
+    pub fn upgrade_report(&self) -> Option<&crate::upgrade::Report> {
+        Some(&self.engine.as_ref()?.upgrade.as_ref()?.report)
+    }
     /// Adopt the binary's deployment directory.
     pub fn adopt_store(&mut self, root: Fd, effective_user: u32) -> Result<(), Fd> {
         match &mut self.engine {

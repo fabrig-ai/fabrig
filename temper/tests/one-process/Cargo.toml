@@ -8,6 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-service-shell.workspace = true
+temper-shell.workspace = true
 smith-fake-claude.workspace = true
 jig-domain-accounts.workspace = true
 temper-engine-domain-forge-change.workspace = true

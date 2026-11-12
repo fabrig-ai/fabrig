@@ -329,7 +329,9 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
                 Phase::Link => domain.work.push(Work::ForgeRestored),
                 Phase::Sweep => sweep(domain, env, decision),
                 Phase::Switch => {
-                    if domain.start_pending {
+                    if domain.rehearsal.is_some() {
+                        domain.rehearsal = Some(true);
+                    } else if domain.start_pending {
                         assert!(crate::domain::now(domain, Request::Store(crate::StoreRequest::Switch)), "switch door");
                     } else {
                         domain.work.push(Work::StartDone(phase));

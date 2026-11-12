@@ -5515,6 +5515,7 @@ dependencies = [
 name = "temper-engine"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "skein-fail-stop",
  "skein-scratch",
  "temper-engine-shell",
@@ -6082,6 +6083,8 @@ dependencies = [
  "temper-playground",
  "temper-protocol-store",
  "temper-service",
+ "temper-service-shell",
+ "temper-shell",
  "temper-worker-checkout-world",
 ]
 

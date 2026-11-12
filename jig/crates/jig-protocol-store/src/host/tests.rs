@@ -80,6 +80,48 @@ impl World {
 }
 
 #[test]
+fn adoption_modes_open_rehearse_and_go_back_without_an_implicit_open() {
+    let mut world = World::new();
+    // The default Open must still create a deployment before the other modes can use it.
+    world.open();
+    world.close();
+    let source = world.machine.reopen_root(0);
+    world.fd = world.sim.root(world.pid, Handle::new(source.raw()));
+    let scratch = world.machine.lay(&[]);
+    let scratch = world.sim.root(world.pid, Handle::new(scratch.raw()));
+    world.host = Drivers::new(&fixtures::store_limits(), 2);
+    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world
+        .host
+        .adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, super::Adoption::Rehearse { scratch })
+        .unwrap();
+    world.settle();
+    let Some(Event::Rehearsing { .. }) = world.above.pop() else { panic!("no implicit Open before Rehearsing") };
+    let Some(Event::Opened { .. }) = world.above.pop() else { panic!("scratch opens") };
+    assert!(world.above.is_empty());
+    world.host.down(
+        &mut world.store,
+        &fixtures::env(),
+        crate::Request::Close { owner: Token::new(41) },
+        &mut world.above,
+    );
+    world.settle();
+    let Some(Event::Closed { removed: true, .. }) = world.above.pop() else { panic!("scratch emptied") };
+    world.close();
+    let source = world.machine.reopen_root(0);
+    world.fd = world.sim.root(world.pid, Handle::new(source.raw()));
+    world.host = Drivers::new(&fixtures::store_limits(), 3);
+    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world.host.adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, super::Adoption::Back).unwrap();
+    world.settle();
+    let Some(Event::BackRefused { why: crate::BackRefusal::NoPrevious, .. }) = world.above.pop() else {
+        panic!("Back, not Open")
+    };
+    assert!(world.above.is_empty());
+    world.close();
+}
+
+#[test]
 fn a_commit_waits_for_its_driver_and_is_recovered_after_close() {
     let mut world = World::new();
     world.open();

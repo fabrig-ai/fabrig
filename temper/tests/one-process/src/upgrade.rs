@@ -1,4 +1,5 @@
 //! Real owner sets and a mark-only upgrade (temper/docs/design/protocol/baseline.md, 4 and 8).
+pub mod check;
 mod maps;
 pub mod story;
 use crate::{fixtures, referee, world};

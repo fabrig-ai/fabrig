@@ -52,6 +52,13 @@ impl Host {
             clock: skein_shell::Clock::new(),
         }
     }
+    /// Upgrade refusals name the directory checked, which need not be the configured data directory.
+    #[must_use]
+    pub fn for_upgrade(binary: &str, service: Service, directories: Directories, store: Box<[u8]>) -> Self {
+        let mut host = Self::with_binary(binary, service, directories, &[]);
+        host.store = store;
+        host
+    }
     pub(super) fn keep_link(&self, url: &[u8]) {
         if let Some(path) = &self.link_file
             && let Err(why) = super::link_file::keep(path, url, skein_shell::effective_user())
@@ -106,6 +113,11 @@ impl skein_shell::Host for Host {
         if !self.service.is_empty() {
             return None;
         }
+        if let Some(report) = self.service.upgrade_report() {
+            let (lines, code) = crate::upgrade::lines(&self.binary, report, &self.directories, &self.store);
+            print!("{lines}");
+            return Some(Exit::Code(code));
+        }
         if let Some(long) = self.watch.held() {
             eprint!("{}", long_pass_line(&self.binary, long));
         }
@@ -139,6 +151,9 @@ impl skein_shell::Host for Host {
             }
         }
         while let Some(note) = self.service.notes().pop() {
+            if self.service.upgrade_report().is_some() {
+                continue;
+            }
             let lines = note_line(&self.binary, note);
             eprint!("{lines}");
         }
@@ -461,7 +476,13 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
             )
         }
         temper_service::Note::Patched { of, patch, counts } => {
-            format!("{binary} serve: {of:?} patch {patch}: {} records, {} commits\n", counts.records, counts.commits)
+            let binary = if binary == "temper" { "temper-box" } else { binary };
+            format!(
+                "{binary} serve: patched {} {patch}: {} records in {} commits\n",
+                crate::upgrade::owner(of),
+                counts.records,
+                counts.commits
+            )
         }
         temper_service::Note::Listening { listener, addr } => {
             let name = match listener {
