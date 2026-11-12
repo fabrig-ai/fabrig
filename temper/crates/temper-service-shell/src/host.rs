@@ -12,6 +12,7 @@ use temper_shell::directories::EnvironmentEntry;
 pub struct Host<S> {
     pub service: S,
     served: Served<S>,
+    upgrade: Option<fn(&S) -> Option<&temper_service::upgrade::Report>>,
     binary: String,
     directories: Directories,
     pub(super) store: Box<[u8]>,
@@ -41,6 +42,7 @@ impl<S> Host<S> {
         Self {
             service,
             served,
+            upgrade: None,
             binary: binary.into(),
             directories,
             store,
@@ -65,6 +67,23 @@ impl<S> Host<S> {
         {
             eprintln!("{} serve: link file {why}", self.binary);
         }
+    }
+}
+
+impl Host<temper_service::Service> {
+    /// Upgrade refusals name the checked directory, not the configured data directory.
+    #[must_use]
+    pub fn for_upgrade(
+        binary: &str,
+        service: temper_service::Service,
+        served: Served<temper_service::Service>,
+        directories: Directories,
+        store: Box<[u8]>,
+    ) -> Self {
+        let mut host = Self::with_binary(binary, service, served, directories, &[]);
+        host.store = store;
+        host.upgrade = Some(temper_service::Service::upgrade_report);
+        host
     }
 }
 
@@ -108,7 +127,7 @@ impl<S> skein_shell::Host for Host<S> {
         if !(self.served.is_empty)(&self.service) {
             return None;
         }
-        if let Some(report) = self.service.upgrade_report() {
+        if let Some(report) = self.upgrade.and_then(|report| report(&self.service)) {
             let (lines, code) = crate::upgrade::lines(&self.binary, report, &self.directories, &self.store);
             print!("{lines}");
             return Some(Exit::Code(code));
@@ -129,7 +148,9 @@ impl<S> skein_shell::Host for Host<S> {
             }
         }
         while let Some(lines) = (self.served.note)(&mut self.service, &self.binary) {
-            eprint!("{lines}");
+            if self.upgrade.and_then(|report| report(&self.service)).is_none() {
+                eprint!("{lines}");
+            }
         }
         while let Some(link) = (self.served.link)(&mut self.service) {
             if self

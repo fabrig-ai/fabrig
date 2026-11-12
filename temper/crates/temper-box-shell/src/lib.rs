@@ -40,6 +40,7 @@ mod program_login;
 pub use temper_engine_shell::setup;
 mod serve;
 mod served;
+mod worker_half;
 pub use served::Service;
 mod tui_front;
 use json::CONFIG_BYTES;
@@ -301,7 +302,7 @@ pub fn run(
                 "temper-box",
                 &directories,
                 &request,
-                Some(&worker_half::Half { environment: environment.into() }),
+                Some(&worker_half::Half),
             );
         }
         Command::Overview => {

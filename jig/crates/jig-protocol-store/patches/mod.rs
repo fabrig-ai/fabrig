@@ -2,7 +2,6 @@
 
 mod context;
 pub use context::Context;
-mod p0001;
 
 use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
@@ -29,23 +28,12 @@ add Line.talk_ended
 add Line.now_written
 add Talk
 add Session
-add BeforeTalk
-add TaskRecord.record BeforeTalk written
-add TaskRecord.talk option Talk none
-drop TaskRecord.closer
-drop TaskRecord.history
-drop TaskRecord.run
-drop TaskRecord.definition
-drop TaskRecord.started_from
-drop TaskRecord.interests
-drop TaskRecord.outcome
-drop TaskRecord.asked_requester
-written TaskRecord.record
-payload Value.live TaskRecord BeforeTalk
-payload Value.ended TaskRecord BeforeTalk
+rename TaskRecord BeforeTalk
+add BeforeTalk.activation_open bool false
+add BeforeTalk.session option Session none
+add TaskRecord
 add Value.live_talk
 add Value.ended_talk
-written Value
 add TalkOpen
 add Refusal.not_standing
 add Refusal.talk_open
@@ -10068,15 +10056,8 @@ versioned record ChangeRecord { value: Change }
 
 pub mod refusal {}
 
-pub fn written(site: Site, old: &Old, new: &mut Build, at: Node, cx: &mut Context) -> Result<(), Halt> {
-    match site.patch() {
-        1 => match site.index() {
-            0 => p0001::task_record_record(old, new, at, cx),
-            1 => p0001::value(old, new, at, cx),
-            _ => Err(Halt::NoSite(site)),
-        },
-        _ => Err(Halt::NoSite(site)),
-    }
+pub fn written(site: Site, _old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {
+    Err(Halt::NoSite(site))
 }
 
 #[cfg(test)]

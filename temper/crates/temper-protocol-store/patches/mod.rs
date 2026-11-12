@@ -11,11 +11,9 @@ pub const PATCHES: &[&str] = &[r"patch 1
 owner temper 1 after jig 1
 
 family temper-store 11 to 12
-add Adopted.contexts list 65536 u32 ?
+add Adopted.contexts list 65536 u32 []
 add GateKind.follow
-add Route.retired
-drop Route.foreman
-written Route
+rename Route.foreman retired
 add Stands.retired
 drop Stands.foreman
 written Stands
@@ -5525,8 +5523,7 @@ pub mod refusal {}
 pub fn written(site: Site, old: &Old, new: &mut Build, at: Node, cx: &mut Context) -> Result<(), Halt> {
     match site.patch() {
         1 => match site.index() {
-            0 => p0001::route(old, new, at, cx),
-            1 => p0001::stands(old, new, at, cx),
+            0 => p0001::stands(old, new, at, cx),
             _ => Err(Halt::NoSite(site)),
         },
         _ => Err(Halt::NoSite(site)),

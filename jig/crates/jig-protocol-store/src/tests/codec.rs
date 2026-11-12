@@ -1928,7 +1928,7 @@ fn task_talks_and_their_lines_round_trip() {
 
 #[test]
 fn rows_stored_before_talk_decode_with_no_talk() {
-    use crate::{codec::tasks as codec, tasks_v9 as w};
+    use crate::{codec::tasks as codec, tasks_v10 as w};
     use jig_domain_tasks as t;
     use skein_lib::{List, Writer};
     let limits = tasks_limits();

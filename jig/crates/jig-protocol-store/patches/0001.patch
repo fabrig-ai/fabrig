@@ -20,23 +20,12 @@ add Line.talk_ended
 add Line.now_written
 add Talk
 add Session
-add BeforeTalk
-add TaskRecord.record BeforeTalk written
-add TaskRecord.talk option Talk none
-drop TaskRecord.closer
-drop TaskRecord.history
-drop TaskRecord.run
-drop TaskRecord.definition
-drop TaskRecord.started_from
-drop TaskRecord.interests
-drop TaskRecord.outcome
-drop TaskRecord.asked_requester
-written TaskRecord.record
-payload Value.live TaskRecord BeforeTalk
-payload Value.ended TaskRecord BeforeTalk
+rename TaskRecord BeforeTalk
+add BeforeTalk.activation_open bool false
+add BeforeTalk.session option Session none
+add TaskRecord
 add Value.live_talk
 add Value.ended_talk
-written Value
 add TalkOpen
 add Refusal.not_standing
 add Refusal.talk_open
