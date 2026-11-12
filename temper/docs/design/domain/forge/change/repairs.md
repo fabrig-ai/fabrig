@@ -457,9 +457,14 @@ released:
   no change, and a failure for good holds the change again with the new
   words.
 - **The change released** decides afresh as at producing, with a fresh
-  close job; the held one is cancelled first, its reason `superseded by
-  its change's fresh close job, task M`, M the fresh job's task, so that
-  no close job its change no longer names runs.
+  close job; the held one is cancelled once the fresh one is made and
+  before it starts, its reason `superseded by its change's fresh close
+  job, task M`, M the fresh job's task, so that no close job its change
+  no longer names runs.
+
+A close job reserves none of its change's spend: it runs no model and
+makes no children, so a held one leaves its change's budget whole for a
+fresh one (2026-11-12). A merge job's reservation is unchanged.
 
 ## 1. Open questions
 

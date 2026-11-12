@@ -1,6 +1,8 @@
 # repairs: status
 
-2026-11-11. Where the tree's code lags or departs from [repairs.md](repairs.md).
+2026-11-12. Where the tree's code lags or departs from [repairs.md](repairs.md).
+
+- **Not yet:** "A close job held for its failures" (2026-11-12): once its change holds on the job's failure, the change forgets the job though it lives, so a released job runs outside its change's checkout, read-only in the project's home, and fails `no unique writable repository`, and its end moves no change; a change released makes a fresh close job and leaves the held one live (`temper-engine-domain-forge/src/domain.rs`, `decide_step`; `temper-engine-domain/src/route/forge_route.rs`, `run_workspace`) [in flight: change 1046].
 
 - **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`) [in flight: change 596].
 - **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`) [in flight: change 601].
