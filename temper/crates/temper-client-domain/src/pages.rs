@@ -54,6 +54,7 @@ pub mod only_you;
 pub mod parts;
 pub mod rail;
 pub mod report;
+mod signing;
 pub mod start_goal;
 pub mod stop_asking;
 pub mod switcher;
@@ -1089,7 +1090,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Told { told: Told::Changed { handle } } if handle == me_handle() => {
             me_changed(pages, client, out);
-            pages.team.told(client, &Told::Changed { handle });
+            pages.team.told(client, &Told::Changed { handle }, env.limits.forge);
         }
         Event::Link { link } => {
             if let Some(task) = &mut pages.task {
@@ -1901,7 +1902,7 @@ pub(crate) fn account_request_name(serial: u64) -> skein_lib::RequestKey {
 
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps page replies beside their request owners")]
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
-    if pages.team.told(client, &told) {
+    if pages.team.told(client, &told, env.limits.forge) {
         return true;
     }
     if pages.roles.told(&told, env.limits.forge) {

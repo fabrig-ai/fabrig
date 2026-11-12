@@ -19,7 +19,7 @@ pub(super) fn member(party: u64, kind: c::PartyKind, name: &[u8], role: c::HeldR
     c::ProjectMember { party, kind, role, login: text(b"login"), name: text(name) }
 }
 fn person(party: u64, you: bool, name: &[u8], role: c::HeldRole, waits: Option<Waits>) -> Person {
-    Person { party, you, name: name.into(), role, waits }
+    Person { party, you, name: name.into(), role, waits, signed: None }
 }
 pub(super) fn project(members: Box<[c::ProjectMember]>, cut: bool) -> c::Project {
     c::Project {
@@ -138,7 +138,7 @@ fn gather_lists_each_person_once_the_reader_first() {
         ("cut copied", Box::<[_]>::from([you]), None, Box::<[_]>::from([]), true, Box::<[_]>::from([reader])),
     ] {
         assert_eq!(
-            team::gather(&project(members, cut), YOU, yours, &others),
+            team::gather(&project(members, cut), YOU, yours, &others, None, Wall::EPOCH),
             Facts { people: List::from_boxed(expected), cut, triager: None, standing_roles: None },
             "{name}",
         );
@@ -149,24 +149,29 @@ fn gather_lists_each_person_once_the_reader_first() {
 fn parts_show_what_the_facts_hold() {
     use c::HeldRole::{Maintainer, Member, Observer, Owner, Policy};
     for (name, people, triager, expected) in [
-        ("no people or triager", Box::<[_]>::from([]), None, Parts { people: false, shared: None, triager: false }),
+        (
+            "no people or triager",
+            Box::<[_]>::from([]),
+            None,
+            Parts { signed: List::with_capacity(0), people: false, shared: None, triager: false },
+        ),
         (
             "people without waits",
             Box::<[_]>::from([person(YOU, true, b"Reader", Owner, None)]),
             None,
-            Parts { people: true, shared: None, triager: false },
+            Parts { signed: List::with_capacity(0), people: true, shared: None, triager: false },
         ),
         (
             "triager alone",
             Box::<[_]>::from([]),
             Some(b"Sam".as_slice()),
-            Parts { people: false, shared: None, triager: true },
+            Parts { signed: List::with_capacity(0), people: false, shared: None, triager: true },
         ),
         (
             "both parts",
             Box::<[_]>::from([person(SAM, false, b"Sam", Member, Some(SAMS))]),
             Some(b"Reader".as_slice()),
-            Parts { people: true, shared: None, triager: true },
+            Parts { signed: List::with_capacity(0), people: true, shared: None, triager: true },
         ),
     ] {
         let facts = Facts {
@@ -197,7 +202,11 @@ fn parts_show_what_the_facts_hold() {
             people.push(person(u64::try_from(at).unwrap(), false, b"Person", *role, None)).unwrap();
         }
         let facts = Facts { people, cut, triager: None, standing_roles: None };
-        assert_eq!(team::parts(&facts), Parts { people: !roles.is_empty(), shared, triager: false }, "{roles:?} {cut}");
+        assert_eq!(
+            team::parts(&facts),
+            Parts { signed: List::with_capacity(0), people: !roles.is_empty(), shared, triager: false },
+            "{roles:?} {cut}"
+        );
     }
 }
 
@@ -523,7 +532,7 @@ fn waiting(whom: c::Whom, kind: c::WaitedFor, ended: bool) -> c::TaskLine {
     line.requester = c::Requester::Person(SAM);
     line.waits_on = c::WaitsOn::Party { whom, entries: 2, task: line.chip.task, kind };
     if ended {
-        line.ended_at = Some(skein_lib::Wall::EPOCH);
+        line.ended_at = Some(Wall::EPOCH);
     }
     line
 }
@@ -846,9 +855,188 @@ fn team_reads_the_project_and_what_waits_on_each() {
             Effects { reads: List::from_boxed(reads), watches: List::from_boxed(watches), closed },
             "{name}: effects"
         );
-        assert_eq!(team::shown(&f.root, PROJECT), shown, "{name}: shown");
+        assert_eq!(team::shown(&f.root, PROJECT, fixtures::NOW), shown, "{name}: shown");
         assert_eq!(team::people(&f.root, PROJECT), people, "{name}: people");
-        assert_eq!(team::shown(&f.root, OTHER_PROJECT), team::Shown::Reading, "{name}: other project");
+        assert_eq!(team::shown(&f.root, OTHER_PROJECT, fixtures::NOW), team::Shown::Reading, "{name}: other project");
         assert_eq!(team::people(&f.root, OTHER_PROJECT), None, "{name}: other project's people");
     }
+}
+
+use skein_lib::Wall;
+use temper_client_protocol_wire::{self as wire, v1 as w};
+const DAY: u64 = 86_400_000_000_000;
+const WALL: Wall = Wall::from_nanos(20 * DAY);
+
+pub(super) fn landing(task: u64, at: u64, parties: &[u64]) -> w::ChangesLanded {
+    let mut signed = List::with_capacity(u32::try_from(parties.len()).unwrap());
+    for party in parties {
+        signed
+            .push(
+                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: *party, head: [3; 32], at: 0 })
+                    .unwrap(),
+            )
+            .unwrap();
+    }
+    w::ChangesLanded::new(
+        &w::CEILINGS,
+        w::ChangesLandedParts {
+            task,
+            at,
+            signed,
+            title: b"Change".as_slice().into(),
+            commit: [4; 32],
+            default_branch: true,
+        },
+    )
+    .unwrap()
+}
+pub(super) fn changes(rows: &[w::ChangesLanded], more: u32) -> w::ChangesPanel {
+    w::ChangesPanel::new(
+        &w::CEILINGS,
+        w::ChangesPanelParts {
+            project: PROJECT,
+            landing: b"main".as_slice().into(),
+            queues: List::with_capacity(0),
+            more: 0,
+            landed: List::with_capacity(0),
+            landed_more: 0,
+            landed_default: List::from_boxed(rows.into()),
+            landed_default_more: more,
+        },
+    )
+    .unwrap()
+}
+
+#[test]
+fn signoffs_count_distinct_changes_in_the_week_with_a_floor_only_when_cut_inside_it() {
+    let document = read_people(&[YOU, SAM, UNLISTED]);
+    let one = landing(1, WALL.as_nanos() - DAY, &[SAM]);
+    let two = landing(2, WALL.as_nanos() - 3 * DAY, &[SAM, YOU]);
+    let old = landing(3, WALL.as_nanos() - 8 * DAY, &[SAM]);
+    for (rows, more, reader, sam) in [
+        (
+            Box::<[_]>::from([one.clone(), two.clone(), old.clone()]),
+            0,
+            "Signed one last week.",
+            "Signed two last week.",
+        ),
+        (
+            Box::<[_]>::from([one.clone(), two.clone(), two.clone()]),
+            0,
+            "Signed one last week.",
+            "Signed two last week.",
+        ),
+        (Box::<[_]>::from([one.clone(), two.clone()]), 1, "Signed 1+ last week.", "Signed 2+ last week."),
+        (Box::<[_]>::from([one, two, old]), 1, "Signed one last week.", "Signed two last week."),
+        (
+            Box::<[_]>::from([
+                landing(4, WALL.as_nanos() - 7 * DAY, &[SAM]),
+                landing(5, WALL.as_nanos(), &[YOU]),
+                landing(6, WALL.as_nanos() + 1, &[SAM]),
+            ]),
+            0,
+            "Signed one last week.",
+            "Signed one last week.",
+        ),
+    ] {
+        let panel = changes(&rows, more);
+        let facts = team::gather(&document, YOU, None, &[], Some(&panel), WALL);
+        let parts = team::parts(&facts);
+        assert_eq!(parts.signed(YOU), Some(reader.as_bytes()));
+        assert_eq!(parts.signed(SAM), Some(sam.as_bytes()));
+        assert_eq!(parts.signed(UNLISTED), None, "zero is silent");
+    }
+    let facts = team::gather(&document, YOU, None, &[], None, WALL);
+    assert!(team::parts(&facts).signed.is_empty(), "changes unread");
+    let mut members = List::uncapped();
+    for party in 1..=10 {
+        members.push(party).unwrap();
+    }
+    let panel = changes(&[landing(7, WALL.as_nanos(), &[10])], 0);
+    let facts = team::gather(&read_people(members.as_slice()), 1, None, &[], Some(&panel), WALL);
+    assert_eq!(facts.people.get(9).unwrap().waits, None);
+    assert_eq!(team::parts(&facts).signed(10), Some(b"Signed one last week.".as_slice()), "past eight others");
+    for (count, floor, expected) in [
+        (9, false, "Signed nine last week."),
+        (10, false, "Signed 10 last week."),
+        (1, true, "Signed 1+ last week."),
+        (0, true, ""),
+    ] {
+        let mut facts = facts.clone();
+        facts.people.get_mut(9).unwrap().signed = Some(team::Signed { count, floor });
+        assert_eq!(team::parts(&facts).signed(10).unwrap_or(b""), expected.as_bytes());
+    }
+}
+
+#[test]
+fn team_watches_signoffs_delivers_counts_and_closes_the_watch_on_leaving() {
+    let mut f = reads_fixture();
+    let mut out = Queue::uncapped();
+    pages::step(
+        &mut f.root.pages,
+        &fixtures::env(&fixtures::limits()),
+        &f.root.client,
+        Event::Went { address: Address::Team { project: PROJECT } },
+        &mut out,
+    );
+    let mut changes_watch = None;
+    for request in &out {
+        if let Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(c::Read::Project { .. }) }) =
+            request
+        {
+            f.read = Some(*handle);
+        }
+        if let Request::Client(jig_client::Event::Watch { handle, subject }) = request
+            && Some(subject.clone()) == crate::forge::changes::watch(PROJECT, &fixtures::limits().forge)
+        {
+            assert!(changes_watch.is_none(), "one changes watch");
+            changes_watch = Some((*handle, subject.clone()));
+        }
+    }
+    let (handle, subject) = changes_watch.expect("Team watches changes");
+    let opened = client(&mut f, jig_client::Event::Watch { handle, subject });
+    let mut watch = None;
+    for request in &opened {
+        if let jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch: token, .. } } = request {
+            watch = Some(*token);
+        }
+    }
+    feed(&mut f, Feed::Project(Box::new(read_people(&[YOU, SAM]))));
+    let panel = changes(&[landing(1, fixtures::NOW.as_nanos(), &[SAM])], 0);
+    client(
+        &mut f,
+        jig_client::Event::Up {
+            up: jig_client::Up::FamilyDelivered {
+                watch: watch.unwrap(),
+                record: jig_client::Family {
+                    family: wire::FORGE,
+                    version: wire::CLIENT_VERSION,
+                    bytes: wire::changes_panel(&panel),
+                },
+            },
+        },
+    );
+    page(&mut f, Event::Told { told: Told::Changed { handle } });
+    let team::Shown::Read(facts) = team::shown(&f.root, PROJECT, fixtures::NOW) else { panic!("people read") };
+    assert_eq!(team::parts(&facts).signed(SAM), Some(b"Signed one last week.".as_slice()));
+    page(&mut f, Event::Told { told: Told::Ended { handle, why: jig_client::Why::Unknown } });
+    let team::Shown::Read(facts) = team::shown(&f.root, PROJECT, fixtures::NOW) else { panic!("people stay read") };
+    assert!(team::parts(&facts).signed.is_empty(), "failed changes do not claim counts");
+    out = Queue::uncapped();
+    pages::step(
+        &mut f.root.pages,
+        &fixtures::env(&fixtures::limits()),
+        &f.root.client,
+        Event::Went { address: Address::Models { project: PROJECT } },
+        &mut out,
+    );
+    let mut closed = 0_u32;
+    for request in &out {
+        if let Request::Client(jig_client::Event::Unwatch { handle: ended }) = request
+            && *ended == handle
+        {
+            closed += 1;
+        }
+    }
+    assert_eq!(closed, 1, "leaving Team closes its changes watch");
 }

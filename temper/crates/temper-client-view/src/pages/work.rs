@@ -273,8 +273,8 @@ fn card_view(
     if !card.changes.is_empty() {
         b.open(Role::List);
         b.style(look::WORK_ROWS);
-        for task in &card.changes {
-            change_row(b, root, words, bindings, times, *task);
+        for row in &card.changes {
+            change_row(b, root, words, bindings, times, row);
         }
         b.close();
     }
@@ -452,12 +452,20 @@ fn queue_word(index: usize, words: &Words) -> Box<[u8]> {
         )
     }
 }
-fn change_row(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times, task: u64) {
+fn change_row(
+    b: &mut Builder,
+    root: &Domain,
+    words: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+    row: &work::Row,
+) {
+    let task = row.task;
     let Some(panel) = panel(root) else { return };
     for queue in panel.queues() {
         for (index, row) in queue.changes().iter().enumerate() {
             if row.task() == task {
-                work_row(b, words, bindings, task, b"\xc2\xb7", row.title(), &queue_word(index, words));
+                work_row(b, words, bindings, task, b"\xc2\xb7", row.title(), &queue_word(index, words), None);
                 return;
             }
         }
@@ -466,7 +474,7 @@ fn change_row(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bind
         if change.task() == task {
             let when = words
                 .say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(change.at())))]);
-            work_row(b, words, bindings, task, b"\xe2\x9c\x93", change.title(), &when);
+            work_row(b, words, bindings, task, b"\xe2\x9c\x93", change.title(), &when, row.signed.as_deref());
             return;
         }
     }
@@ -508,12 +516,13 @@ fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings
             )
             | None => commit.as_slice().into(),
         };
-        work_row(b, words, bindings, task, &when, title, &status);
+        work_row(b, words, bindings, task, &when, title, &status, row.signed.as_deref());
         return;
     }
 }
 
-fn work_row(
+#[expect(clippy::too_many_arguments, reason = "a work row carries its title, status and optional signers")]
+pub(crate) fn work_row(
     b: &mut Builder,
     words: &Words,
     bindings: &mut Bindings,
@@ -521,11 +530,22 @@ fn work_row(
     mark: &[u8],
     title: &[u8],
     status: &[u8],
+    signed: Option<&[u8]>,
 ) {
     b.open(Role::Item);
     b.style(look::WORK_ROW);
     text(b, Role::Paragraph, look::WORK_MONO, mark);
+    b.open(Role::Paragraph);
     link(b, words, bindings, title, Address::Task { task });
+    b.close();
+    if let Some(signed) = signed {
+        text(
+            b,
+            Role::Text,
+            look::WORK_BYLINE,
+            &crate::accounts::words::join(&[&words.say(Word::ToolSeparator, &[]), signed]),
+        );
+    }
     b.close();
     text(b, Role::Paragraph, look::WORK_BYLINE, status);
     b.close();
