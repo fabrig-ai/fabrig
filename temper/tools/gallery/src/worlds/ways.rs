@@ -558,7 +558,15 @@ fn stop(step: w::PathStep) -> w::Stop {
             Person,
             "you approve",
             rule,
-            card("a person · decides whether it lands", "owner", &[("Role", "owner"), ("Asks", "1 of them")]),
+            card(
+                "a person · decides whether it lands",
+                "owner",
+                &[
+                    ("Role", "owner"),
+                    ("Asks", "1 of them"),
+                    ("Counts", "code counts the sign-offs at this head; a clean update keeps them"),
+                ],
+            ),
         ),
         Conflict => (
             Code,
