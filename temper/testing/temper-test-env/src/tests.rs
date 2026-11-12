@@ -47,7 +47,7 @@ fn table_is_tempers_test_set() {
 
 #[test]
 fn document_is_the_table() {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/design/cli/test-env.md");
+    let path = skein_scratch::paths::tree().join("docs/design/cli/test-env.md");
     let rendered = TESTS.document();
     if rewrite() {
         std::fs::write(path, rendered).expect("write test table document");

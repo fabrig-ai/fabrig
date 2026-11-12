@@ -511,11 +511,12 @@ fn tasks_piece_words_read_their_fixtures_whole() {
     let limits = super::tasks_limits();
     let task = fixtures::holds::task();
     let bytes = codec::tasks::encode(&t::Stored::Ended(Box::new(task.clone())), &limits, &[]).unwrap();
-    let tasks::Value::Ended(value) = tasks::Row::decode(&limits, &mut Reader::new(&bytes)).unwrap().into_parts().value
+    let tasks::Value::EndedTalk(value) =
+        tasks::Row::decode(&limits, &mut Reader::new(&bytes)).unwrap().into_parts().value
     else {
         panic!("ended fixture")
     };
-    let value = value.into_parts();
+    let value = value.into_parts().record.into_parts();
     let tasks::Contract::Verdict(contract) = value.definition.contract().clone() else { panic!("contract fixture") };
     let t::Contract::Verdict { choices } = task.contract else { panic!("contract fixture") };
     let tasks::Phase::Ended(ended) = value.outcome.into_parts().phase else { panic!("ended fixture") };

@@ -70,6 +70,8 @@ impl Operation {
                 c::Ask::Create { tasks, .. } | c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } => {
                     (creation_word(tasks), None)
                 }
+                c::Ask::Talk { task, .. } => (b"talk", Some(*task)),
+                c::Ask::Leave { task, .. } => (b"leave", Some(*task)),
                 c::Ask::Message { task, .. } => (b"message", Some(*task)),
                 c::Ask::Compound { operations, .. } => {
                     let mut task = None;
@@ -383,13 +385,18 @@ fn text(
     out.put(b"\n");
 }
 fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
+    if let c::Outcome::Document(c::DocumentOutcome::Left { task }) = done {
+        out.put(b"left: task ");
+        out.number(*task);
+        return;
+    }
     if let c::Outcome::Document(c::DocumentOutcome::ProjectMade { project }) = done {
         out.put(b"project ");
         out.number(u64::from(*project));
         return;
     }
     if let c::Outcome::Document(c::DocumentOutcome::ProjectRemoved { project }) = done {
-        out.put(b"removed: project ");
+        out.put(b"deleted: project ");
         out.number(u64::from(*project));
         if let Some(name) = &operation.removed_project_name
             && !name.bytes().is_empty()
@@ -673,6 +680,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::CHAT_CREATE_AT => &rows::CHAT_CREATE,
         rows::GOAL_START_AT => &rows::GOAL_START,
         rows::ROLE_START_AT => &rows::ROLE_START,
+        rows::ROLE_TALK_AT => &rows::ROLE_TALK,
         rows::MESSAGE_AT => &rows::MESSAGE,
         rows::CLOSE_AT => &rows::CLOSE,
         rows::ANSWER_AT => &rows::ANSWER,
@@ -695,7 +703,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::PROJECT_MAKE_AT => &rows::PROJECT_MAKE,
         rows::PROJECT_FUND_AT => &rows::PROJECT_FUND,
         rows::PROJECT_AMEND_AT => &rows::PROJECT_AMEND,
-        rows::PROJECT_REMOVE_AT => &rows::PROJECT_REMOVE,
+        rows::PROJECT_DELETE_AT => &rows::PROJECT_DELETE,
         _ => unreachable!("act tool"),
     }
 }
@@ -851,6 +859,9 @@ fn refused_text(
     prefix: &[u8],
     out: &mut Text,
 ) {
+    if super::roles::refusal(operation.word, refusal, me, out) {
+        return;
+    }
     if operation.proposal_decision && *refusal == c::Refusal::Unknown {
         out.put(operation.tool_name());
         out.put(b": this proposal isn't waiting; it may have been decided or replaced");
@@ -1101,6 +1112,8 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             | c::Ask::ChangeSettings(_)
             | c::Ask::Create { .. }
             | c::Ask::Withdraw { .. }
+            | c::Ask::Talk { .. }
+            | c::Ask::Leave { .. }
             | c::Ask::Message { .. }
             | c::Ask::Compound { .. }
             | c::Ask::Answer { .. }
@@ -1188,6 +1201,7 @@ fn ended_refusal(refusal: &c::Refusal, archived: bool) -> bool {
         | c::Refusal::Full(_)
         | c::Refusal::AccountMove { .. }
         | c::Refusal::SignInRedirect { .. }
+        | c::Refusal::LiveTasks { .. }
         | c::Refusal::Circle { .. }
         | c::Refusal::Dependency { .. }
         | c::Refusal::Kept { .. }

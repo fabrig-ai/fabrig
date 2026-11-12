@@ -265,7 +265,11 @@ fn text(bytes: &[u8]) -> &str {
 }
 
 fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
-    outputs(d, Event::PlanBrief { section: SECTION, source, partner: None });
+    planned_read_partner(d, source, budget, None)
+}
+
+fn planned_read_partner(d: &mut Domain, source: BriefSource, budget: u32, partner: Option<Token>) -> Token {
+    outputs(d, Event::PlanBrief { section: SECTION, source, partner });
     let mut env = env();
     env.limits.brief_bytes = 4608;
     let mut out = Queue::uncapped();
@@ -289,6 +293,15 @@ fn planned_read(d: &mut Domain, source: BriefSource, budget: u32) -> Token {
 }
 
 fn pending_pull_item(body: &[u8], state: change::State, head: [u8; 32]) -> (Domain, Token) {
+    pending_pull_item_partner(body, state, head, None)
+}
+
+fn pending_pull_item_partner(
+    body: &[u8],
+    state: change::State,
+    head: [u8; 32],
+    partner: Option<Token>,
+) -> (Domain, Token) {
     let mut config = configured()[0].clone();
     config.git = b"https://forge.example".as_slice().into();
     let mut d = setup_domain(&[config], false);
@@ -299,10 +312,24 @@ fn pending_pull_item(body: &[u8], state: change::State, head: [u8; 32]) -> (Doma
     row.change.clean = Box::new([head]);
     row.change.state = state;
     outputs(&mut d, Event::Change { row });
-    let owner = planned_read(
+    if let Some(section) = partner {
+        outputs(
+            &mut d,
+            Event::PlanBrief {
+                section,
+                source: BriefSource::Ci {
+                    item: BriefItem { repository: REPO.repository, number: 1 },
+                    head: BriefCommit(head),
+                },
+                partner: None,
+            },
+        );
+    }
+    let owner = planned_read_partner(
         &mut d,
         BriefSource::Pull { item: BriefItem { repository: REPO.repository, number: 1 }, head: BriefCommit(head) },
         4608,
+        partner,
     );
     let item = skein_forge::api::Summary {
         labels: Box::default(),
@@ -327,13 +354,90 @@ fn pending_pull_item(body: &[u8], state: change::State, head: [u8; 32]) -> (Doma
 }
 
 fn pending_pull(body: &[u8], state: change::State) -> (Domain, Token) {
-    let (mut d, owner) = pending_pull_item(body, state, HEAD);
+    pending_pull_partner(body, state, None)
+}
+
+fn pending_pull_partner(body: &[u8], state: change::State, partner: Option<Token>) -> (Domain, Token) {
+    let (mut d, owner) = pending_pull_item_partner(body, state, HEAD, partner);
     let mut out = Queue::uncapped();
     let mut pull = fixtures::open_pull();
     pull.commit = HEAD;
     pull.base_commit = None;
     assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, &mut out));
     (d, owner)
+}
+
+#[test]
+fn stale_files_pause_a_pull_section_and_wake_its_change_even_with_a_partner() {
+    const PARTNER: Token = Token::new(100);
+    for (state, partner) in [
+        (change::State::Resolving { requested: true, base: fixtures::BASE }, None),
+        (change::State::Repairing { requested: true, why: change::Repair::Ci }, Some(PARTNER)),
+    ] {
+        let (mut d, owner) = pending_pull_partner(b"Whole body", state, partner);
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        let mut out = Queue::uncapped();
+        assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Stale), LIMITS.client.rows, &mut out));
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefReadRefused {
+                section: SECTION,
+                stage: "files",
+                reason: "the change's head moved",
+                heads: None,
+                error: Some(skein_forge::api::Error::Stale),
+            })
+        );
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefSized {
+                section: SECTION,
+                size: Err(BriefUnread {
+                    fate: BriefFate::Capacity,
+                    words: Box::from(b"the change's head moved".as_slice())
+                }),
+            })
+        );
+        assert!(out.is_empty());
+        assert!(d.take_brief(SECTION).is_none(), "capacity never becomes words");
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        assert!(ready(&mut d).contains(&Request::WakeProcedure { task: fixtures::CHANGE }));
+    }
+}
+
+#[test]
+fn stale_at_other_pull_stages_stays_permanent() {
+    for compared in [false, true] {
+        let state = change::State::Resolving { requested: true, base: fixtures::BASE };
+        let (mut d, owner) =
+            if compared { pending_pull(b"Whole body", state) } else { pending_pull_item(b"Whole body", state, HEAD) };
+        let mut out = Queue::uncapped();
+        if compared {
+            assert!(brief::brief_answer(
+                &mut d,
+                owner,
+                Ok(Answer::PullFiles { head: HEAD, files: Box::new([]), more: false, cut: false }),
+                LIMITS.client.rows,
+                &mut out,
+            ));
+            out.clear();
+        }
+        assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Stale), LIMITS.client.rows, &mut out));
+        assert!(out.pop().is_some());
+        assert_eq!(
+            out.pop(),
+            Some(Request::BriefSized {
+                section: SECTION,
+                size: Err(BriefUnread {
+                    fate: BriefFate::Permanent,
+                    words: Box::from(b"the forge refused this read".as_slice())
+                }),
+            })
+        );
+        assert!(out.is_empty());
+        assert!(d.procedure_wakes.is_empty());
+    }
 }
 
 #[test]

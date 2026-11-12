@@ -20,6 +20,9 @@ pub(in crate::codec) fn wire_document_outcome(
     limits: &w::Limits,
 ) -> Result<w::DocumentOutcome, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::DocumentOutcome::Left { task } => {
+            w::DocumentOutcome::Left(w::OutcomeStopped::new(limits, w::OutcomeStoppedParts { task: *task })?)
+        }
         c::DocumentOutcome::Lifted { hold, released } => w::DocumentOutcome::Lifted(w::OutcomeLifted::new(
             limits,
             w::OutcomeLiftedParts { hold: *(hold), released: *(released) },

@@ -1268,6 +1268,12 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         Refusal::Placed { .. } => text.add(b"held by a placed hold"),
         Refusal::HoldOwner { .. } => text.add(b"only the placed hold's owner may release it"),
         Refusal::HoldRevision { .. } => text.add(b"placed hold revision changed"),
+        Refusal::NotStanding => text.add(b"the task does not stand"),
+        Refusal::NoTalk => text.add(b"no talk of yours to leave"),
+        Refusal::TalkOpen { party } => {
+            text.add(b"talk open with party ")?;
+            text.number(party)
+        }
         Refusal::NotReady => text.add(b"not ready"),
         Refusal::Unknown => text.add(b"unknown"),
         Refusal::Busy => {

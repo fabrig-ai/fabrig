@@ -6,7 +6,9 @@ use jig_domain_people::ApplicationScope;
 use skein_lib::List;
 use temper_engine_domain_forge_landing as policy;
 mod changes;
+mod follows;
 pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView};
+pub use follows::{DependencyView, FollowLagEntry, FollowView, FollowsView, follows_subject};
 
 /// The changes waiting on a person's approval, the party's own scope (domain/forge/change/questions.md, 2).
 pub const APPROVALS_SUBJECT: u64 = (1 << 62) | (1 << 37);
@@ -34,6 +36,7 @@ pub enum Document {
     Change(Panel),
     Landing(LandingView),
     Landings(LandingsView),
+    Follows(FollowsView),
     Changes(ChangesView),
     Status(crate::StatusView),
     Aways(crate::AwaysView),
@@ -121,6 +124,9 @@ impl Domain {
             ApplicationScope::Project(project) => project,
             ApplicationScope::Deployment => return None,
         };
+        if subject == follows_subject(project) {
+            return Some(Document::Follows(self.follows_view(project, limits)?));
+        }
         for ended in [false, true] {
             if subject == landings_subject(project, ended) {
                 return Some(Document::Landings(self.landings_view(project, ended)?));
@@ -352,6 +358,9 @@ impl Document {
                         .saturating_add(draft.row.branch.len())
                         .saturating_add(draft.row.title.len());
                 }
+            }
+            Self::Follows(view) => {
+                size = size.saturating_add(follows::owned_bytes(view));
             }
             Self::Changes(view) => {
                 size = size

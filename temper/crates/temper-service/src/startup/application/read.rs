@@ -154,7 +154,7 @@ pub(super) fn nullable(
 ) -> Option<u32> {
     let at = object.member(document, name);
     if at.is_none() {
-        problems.push(path.member(name), What::MissingNull);
+        problems.push(path.member(name), What::Half(crate::startup::EngineWhat::MissingNull));
     }
     at
 }

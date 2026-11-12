@@ -33,7 +33,9 @@ pub(super) fn admit(
         }
         documents::Subject::Escalation { task } => match act {
             Act::Amend | Act::Cancel => task::admit(core, limits, party, act, *task),
-            Act::Message
+            Act::Talk
+            | Act::Leave
+            | Act::Message
             | Act::Answer
             | Act::Take
             | Act::HandBack
@@ -103,7 +105,9 @@ fn project_admission(core: &Core, limits: &Limits, party: u64, act: Act, project
         | Act::MakeService
         | Act::SetPool => allowed(core.role_allowed_for(party, project, limits.tasks.tree_tasks, act)),
         Act::Seen => Admission::Allowed,
-        Act::Message
+        Act::Talk
+        | Act::Leave
+        | Act::Message
         | Act::Answer
         | Act::Take
         | Act::HandBack

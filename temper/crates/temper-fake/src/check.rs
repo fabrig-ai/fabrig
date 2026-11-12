@@ -153,6 +153,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Issue(_)
             | d::Stored::Release(_)
             | d::Stored::Application { .. }
+            | d::Stored::RefusedSetting(_)
             | d::Stored::Setting(_)
             | d::Stored::Making(_)
             | d::Stored::Dismissed { .. }
@@ -162,6 +163,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
             | d::Stored::Forge(_)
             | d::Stored::ForgeNumber { .. }
             | d::Stored::Playground(_)
+            | d::Stored::Follow(_)
             | d::Stored::Tier(_)
             | d::Stored::ProjectFacts(_)
             | d::Stored::LandedDraft(_)

@@ -95,15 +95,58 @@ fn adoption() -> p::Adoption {
 }
 
 #[test]
+fn a_deleted_mark_is_kept_at_admission_after_completion_and_restart() {
+    let mut people = People::new();
+    let admitted = people.send(Event::Deleting { project: OTHER, step: Some(DeletionStep::Tasks), grace: None });
+    let mark = Stored::Deleted { project: OTHER };
+    assert!(admitted.contains(&Request::Save { record: mark.clone() }));
+    assert!(people.domain.deleted(OTHER));
+    for step in [DeletionStep::Rows, DeletionStep::Release] {
+        people.send(Event::Deleting { project: OTHER, step: Some(step), grace: None });
+        people.send(Event::ForgetProject { project: OTHER });
+    }
+    people.send(Event::Deleting { project: OTHER, step: None, grace: None });
+    assert_eq!(people.rows.get(&Key::Deleted(OTHER)), Some(&mark));
+    assert!(!people.rows.contains_key(&Key::Deletion(OTHER)));
+    people.domain = Domain::new(&LIMITS, Box::new([]), 1, Box::new([]));
+    people.domain.start_restore(people.env.wall);
+    for row in people.rows.values().cloned().collect::<Vec<_>>() {
+        assert!(people.send(Event::Restore { record: row }).is_empty());
+    }
+    assert!(people.domain.start_link());
+    people.domain.start_sweep();
+    assert!(people.domain.start_complete(&people.env));
+    assert!(people.domain.deleted(OTHER));
+    assert!(people.domain.deletions().is_empty());
+}
+
+#[test]
+fn a_full_marks_set_erases_its_lowest_number_in_the_admitting_decision() {
+    let mut people = People::new();
+    for project in (1..=LIMITS.projects).rev() {
+        people.send(Event::Deleting { project, step: Some(DeletionStep::Tasks), grace: None });
+        people.send(Event::Deleting { project, step: None, grace: None });
+    }
+    assert!(people.domain.deleted(1));
+    assert_eq!(people.rows.len(), usize::try_from(LIMITS.projects).expect("small project bound"));
+    let project = LIMITS.projects + 1;
+    let admitted = people.send(Event::Deleting { project, step: Some(DeletionStep::Tasks), grace: None });
+    assert!(admitted.contains(&Request::Erase { key: Key::Deleted(1) }));
+    assert!(admitted.contains(&Request::Save { record: Stored::Deleted { project } }));
+    assert!(!people.domain.deleted(1));
+    assert!(people.domain.deleted(project));
+    assert!(!people.rows.contains_key(&Key::Deleted(1)));
+    assert_eq!(people.rows.len(), usize::try_from(LIMITS.projects + 1).expect("marks and deletion"));
+}
+
+#[test]
 fn a_deletion_row_is_kept_advanced_and_erased() {
     let grace = Some(skein_lib::Duration::from_millis(5000));
     let mut people = People::new();
     for step in [DeletionStep::Tasks, DeletionStep::Rows, DeletionStep::Release] {
         let row = Stored::Deletion { project: PROJECT, step, grace };
-        assert_eq!(
-            people.send(Event::Deleting { project: PROJECT, step: Some(step), grace }),
-            [Request::Save { record: row.clone() }]
-        );
+        let requests = people.send(Event::Deleting { project: PROJECT, step: Some(step), grace });
+        assert!(requests.contains(&Request::Save { record: row.clone() }));
         assert_eq!(people.rows.get(&Key::Deletion(PROJECT)), Some(&row));
         assert_eq!(people.domain.deletions().len(), 1);
         assert_eq!(people.domain.deletions().get(&PROJECT), Some(&KeptDeletion { step, grace }));
@@ -291,7 +334,7 @@ fn forgetting_a_project_erases_its_retained_answers_and_acts() {
 }
 
 #[test]
-fn a_removal_answer_stays_through_release_and_goes_with_its_deletion_row() {
+fn a_removal_answer_outlives_its_deletion_only_for_the_owner() {
     for connector in [false, true] {
         let mut people = People::new();
         let act = Act::RemoveProject { project: PROJECT, grace: None };
@@ -319,8 +362,23 @@ fn a_removal_answer_stays_through_release_and_goes_with_its_deletion_row() {
             Key::Answer(RequestKey { person: PERSON, key: [1; 16] })
         };
         let erased = people.send(Event::Deleting { project: PROJECT, step: None, grace: None });
-        assert!(erased.contains(&Request::Erase { key: answer }));
-        assert!(!people.rows.contains_key(&answer));
+        assert_eq!(erased.contains(&Request::Erase { key: answer }), connector);
+        assert_eq!(people.rows.contains_key(&answer), !connector);
+        let replay = if connector { people.act(1, act) } else { people.ask(1, ask) };
+        if connector {
+            route(&replay); // The core judges the act afresh, as unknown.
+        } else {
+            assert_eq!(replay, [Request::Reply { to: to(), reply: Reply::Outcome(outcome) }]);
+        }
+        people.env.now = people.env.now.saturating_add(LIMITS.request_retention);
+        let mut expired = Queue::uncapped();
+        p::fire(&mut people.domain, &people.env, &mut expired);
+        while let Some(request) = expired.pop() {
+            if let Request::Erase { key } = request {
+                people.rows.remove(&key);
+            }
+        }
+        assert!(!people.rows.contains_key(&answer), "ordinary retention still expires the answer");
         assert!(!people.rows.contains_key(&Key::Deletion(PROJECT)));
     }
 }

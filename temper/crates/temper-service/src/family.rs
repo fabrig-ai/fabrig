@@ -85,6 +85,32 @@ pub fn to_root(
                         })),
                     }));
                 }
+                w::Request::FollowAct(value) => {
+                    let value = value.into_parts();
+                    let act = match value.act {
+                        w::FollowAct::Start(v) => forge::follows::FollowAct::Start { after: *v.after() },
+                        w::FollowAct::Hold(v) => {
+                            let p = v.into_parts();
+                            forge::follows::FollowAct::Hold { after: p.after, reason: p.reason }
+                        }
+                        w::FollowAct::Skip(v) => {
+                            let p = v.into_parts();
+                            forge::follows::FollowAct::Skip { after: p.after, reason: p.reason }
+                        }
+                        w::FollowAct::Merge(v) => {
+                            forge::follows::FollowAct::Merge { afters: v.into_parts().afters.into_boxed() }
+                        }
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Follow { project: value.project, follow: value.follow, act },
+                    }));
+                }
                 w::Request::SetUp(value) => {
                     let value = value.into_parts();
                     let Some(forge) = making(value.forge, directories) else {
@@ -180,6 +206,7 @@ pub fn to_root(
                         w::Request::DismissMaking(_)
                         | w::Request::MakeRepository(_)
                         | w::Request::Reachable(_)
+                        | w::Request::FollowAct(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::SetDraft(_)
@@ -480,6 +507,11 @@ pub fn to_root(
                             subject: Token::new(subject.task()),
                         }
                     }
+                    w::Watch::Follows(subject) => jig_domain_core::documents::Watched::Application {
+                        scope,
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::follows_subject(subject.project())),
+                    },
                     w::Watch::Landings(subject) => jig_domain_core::documents::Watched::Application {
                         scope,
                         connector: wire::FORGE,
@@ -608,7 +640,7 @@ fn panel_gates(value: Box<[forge::PanelGate]>, limits: &w::Limits) -> Option<Lis
                         kind: match gate.kind {
                             change::GateKind::Agent => w::GateKind::Review,
                             change::GateKind::Person => w::GateKind::Approval,
-                            change::GateKind::Check => w::GateKind::Check,
+                            change::GateKind::Check | change::GateKind::Follow => w::GateKind::Check,
                         },
                         blocks: gate.blocking,
                         verdict: match gate.verdict {
@@ -702,9 +734,6 @@ fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w
                     line: question.line,
                     stands: match question.stands {
                         forge::PanelStands::Taken => w::Stands::Taken,
-                        forge::PanelStands::Foreman(task) => {
-                            w::Stands::Foreman(w::Foreman::new(limits, w::ForemanParts { task }).ok()?)
-                        }
                         forge::PanelStands::Asked => w::Stands::Asked,
                         forge::PanelStands::Held => w::Stands::Held,
                     },
@@ -719,7 +748,6 @@ fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w
         w::QuestionsParts {
             route: match value.route {
                 change::Route::None => w::Route::None,
-                change::Route::Foreman => w::Route::Foreman,
                 change::Route::Up => w::Route::Up,
             },
             taken: used(value.taken, limits)?,
@@ -880,6 +908,10 @@ pub fn answer(
             }
             w::Outcome::Page(w::Page::new(limits, w::PageParts { rows, more: page.more }).ok()?)
         }
+        Some(
+            root::ApplicationAnswer::Follow(refusal)
+            | root::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Follow(refusal)),
+        ) => w::Outcome::Follow(w::FollowOutcome::new(limits, w::FollowOutcomeParts { refusal }).ok()?),
         Some(root::ApplicationAnswer::Make(answer)) => match answer {
             forge::MakeAnswer::Kept => w::Outcome::MakeKept,
             forge::MakeAnswer::Refused(why) => {
@@ -1461,12 +1493,115 @@ fn project_status(value: forge::StatusView, limits: &w::Limits) -> Option<Box<[u
     Some(wire::project_status(&document))
 }
 
+fn follow_state(value: forge::FollowState, limits: &w::Limits) -> Option<w::FollowState> {
+    Some(match value {
+        forge::FollowState::NotMade => w::FollowState::NotMade,
+        forge::FollowState::WaitsWord => w::FollowState::WaitsWord,
+        forge::FollowState::Producing => w::FollowState::Producing,
+        forge::FollowState::WaitsFor(change) => {
+            w::FollowState::WaitsFor(w::FollowWait::new(limits, w::FollowWaitParts { change }).ok()?)
+        }
+        forge::FollowState::HeldByOwner(words) => {
+            w::FollowState::HeldByOwner(w::FollowWords::new(limits, w::FollowWordsParts { words }).ok()?)
+        }
+        forge::FollowState::Held(words) => {
+            w::FollowState::Held(w::FollowWords::new(limits, w::FollowWordsParts { words }).ok()?)
+        }
+        forge::FollowState::Ended(words) => {
+            w::FollowState::Ended(w::FollowWords::new(limits, w::FollowWordsParts { words }).ok()?)
+        }
+    })
+}
+fn follows_document(value: forge::FollowsView, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let mut follows = List::with_capacity(limits.follows_panel_follows);
+    for row in value.follows {
+        let mut entries = List::with_capacity(limits.follow_view_entries);
+        for entry in row.entries {
+            entries
+                .push(
+                    w::FollowEntry::new(
+                        limits,
+                        w::FollowEntryParts {
+                            after: entry.after,
+                            change: entry.change,
+                            state: follow_state(entry.state, limits)?,
+                        },
+                    )
+                    .ok()?,
+                )
+                .ok()?;
+        }
+        let mut skips = List::with_capacity(limits.follow_view_skips);
+        for skip in row.skips {
+            skips
+                .push(w::FollowSkip::new(limits, w::FollowSkipParts { after: skip.after, reason: skip.reason }).ok()?)
+                .ok()?;
+        }
+        let parity = match row.parity {
+            Some(parity) => Some(
+                w::FollowParity::new(
+                    limits,
+                    w::FollowParityParts {
+                        source: parity.source,
+                        head: parity.head,
+                        run: parity.run,
+                        verdict: match parity.verdict {
+                            forge::FollowVerdict::Passed => w::FollowVerdict::Passed,
+                            forge::FollowVerdict::Failing(count) => w::FollowVerdict::Failing(
+                                w::FollowFailing::new(limits, w::FollowFailingParts { count }).ok()?,
+                            ),
+                            forge::FollowVerdict::Many => w::FollowVerdict::Many,
+                        },
+                    },
+                )
+                .ok()?,
+            ),
+            None => None,
+        };
+        follows
+            .push(
+                w::FollowView::new(
+                    limits,
+                    w::FollowViewParts {
+                        number: row.number,
+                        setting: forge::settings::follow_record(&row.setting)?,
+                        source: row.source,
+                        source_branch: row.source_branch,
+                        target: row.target,
+                        target_branch: row.target_branch,
+                        task: row.task,
+                        stopped: row.stopped,
+                        lag: row.lag,
+                        entries,
+                        skips,
+                        parity,
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    let mut dependencies = List::with_capacity(limits.follows_panel_dependencies);
+    for row in value.dependencies {
+        dependencies
+            .push(
+                w::DependencyView::new(limits, w::DependencyViewParts { number: row.number, project: row.project })
+                    .ok()?,
+            )
+            .ok()?;
+    }
+    Some(wire::follows_panel(
+        &w::FollowsPanel::new(limits, w::FollowsPanelParts { project: value.project, follows, dependencies }).ok()?,
+    ))
+}
+
 /// Encode a whole forge document, with deployment addresses at this boundary.
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one exhaustive encoding map for forge documents")]
 pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     match value {
         forge::Document::Change(value) => panel(value, forges, limits),
+        forge::Document::Follows(value) => follows_document(value, limits),
         forge::Document::Dismissals(rows) => {
             let mut dismissed = List::with_capacity(u32::try_from(rows.len()).ok()?);
             for row in rows {

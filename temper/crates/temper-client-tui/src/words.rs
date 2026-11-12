@@ -149,8 +149,9 @@ pub enum Word {
     PaneFolds,
     PaneGoal,
     PaneLinkedGoal,
+    Asked,
 }
-pub(crate) const ALL: [Word; 139] = [
+pub(crate) const ALL: [Word; 140] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -290,6 +291,7 @@ pub(crate) const ALL: [Word; 139] = [
     Word::PaneFolds,
     Word::PaneGoal,
     Word::PaneLinkedGoal,
+    Word::Asked,
 ];
 
 #[derive(Clone, Copy)]
@@ -486,6 +488,7 @@ impl Word {
             Self::PaneFolds => 139,
             Self::PaneGoal => 140,
             Self::PaneLinkedGoal => 141,
+            Self::Asked => 142,
         }
     }
     const fn id(self) -> PhraseId {
@@ -508,6 +511,7 @@ impl Word {
             Self::PaneWidens => (&[b"Ctrl-P widens"], &[]),
             Self::PaneFolds => (&[b"Ctrl-P folds"], &[]),
             Self::PaneGoal => (&[b"/goal starts a goal from the draft"], &[]),
+            Self::Asked => (&[b"asked ", b""], &[Slot::Span]),
             Self::PaneLinkedGoal => (&[b"goal ", b" \xc2\xb7 /open opens it"], &[Slot::Title]),
 
             Self::GoalHead => (&[b"Start a goal from ", b". How should it run?"], &[Slot::Title]),

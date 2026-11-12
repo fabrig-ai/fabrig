@@ -1,6 +1,6 @@
 //! Only Chromium proves that the manifest posts itself under its form-action policy (client/web/testing.md, 4).
 use skein_fake_person::{Find, Step as PersonStep};
-use skein_fake_person_browser::{Harness, Lent, Outcome, Script, Sent, Step};
+use skein_fake_person_browser::{Lent, Outcome, Script, Sent, Step};
 use skein_ui::Role;
 use temper_client_browser_world::{Tier, WITHIN};
 
@@ -26,7 +26,7 @@ fn the_manifest_posts_once_and_history_waits_for_continue() {
         see(Role::Link, b"Create GitHub App"),
     ]);
     let mut script = Script::new(steps.into_boxed_slice());
-    let mut harness = Harness::new(setup);
+    let mut harness = temper_client_browser_world::harness(setup);
     let outcome = harness.run_lending(&mut [&mut script], &mut [Lent { name: b"github", peer: &mut github }]);
     let mut posts = 0;
     for record in github.observations() {

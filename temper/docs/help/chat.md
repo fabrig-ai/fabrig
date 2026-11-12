@@ -66,7 +66,7 @@ A chat is a conversation between a party and an agent in a project: an untracked
   and only then does the goal call `change`. The chat never answers
   the goal's question: an answer it sends is refused, naming that its
   party answers it in their inbox. In the chat's conversation the
-  goal's question reads `G asks (question Q): ...` and, once answered,
+  goal's question reads `G asks (question Q; answer with message target=G, form=answer, question=Q): ...` and, once answered,
   `Person answered task G's question Q in their inbox; task G has the answer and does the work`.
   When you answer in your inbox, the chat hears it with your words; the work that asked does the work.
   The chat says what

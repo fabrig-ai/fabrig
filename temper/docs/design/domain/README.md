@@ -116,6 +116,8 @@ smith's are smith's.
 | landing rule | what configuration requires of landing into a pattern of branches: CI, up to date, gates, approvals (forge/change/gates.md, 2; root.md, section 5) |
 | landing queue | the changes ready to land into one branch, by priority then by readiness; only the first is updated and merged (forge/queues.md) |
 | queue repair | the one change made into a landing branch whose own CI fails, first in its queue (forge/queues.md) |
+| follow, follow change | a project's setting following a branch of a repository it adopts as context, and the change its follow task makes for each landing there in the paths it names (forge/follows.md) |
+| dependency | a project's setting naming another project of the deployment it builds on, shown beside its follows and acted on by nothing (forge/dependencies.md) |
 | stall | a change's wait past its bound, which holds it (forge/change/repairs.md) |
 | a change's, a task's, a saved-work branch | `temper/<root>/c<task>`, `temper/<root>/r<task>`, `temper/<root>/s<task>`: branches named after the task tree (forge/branches.md) |
 | goal's issue | one issue per goal, a projection temper writes on the forge and never reads back (forge/issues.md) |
@@ -126,7 +128,7 @@ smith's are smith's.
 | push | temper's delivery: the tree the run checked, committed and pushed as a fast-forward, never forced (agent/README.md, section 5) |
 | git identity | a forge's token and commit author for git, one per forge, one of temper's application credentials (`../protocol/credentials.md`, section 4) |
 | failed preparation | a repository the worker could not prepare, for good: the forge lacks it, its branch or its commit, or refused the identity (worker/README.md, 4.3; root.md, 6.4) |
-| the forge's charters | temper's kind 3: the charters the agent tasks of a change are made under, its producer's by default, its reviews' and its foremen's (`../protocol/configuration/settings.md`, 2; root.md, section 5) |
+| the forge's charters | temper's kind 3: the charters the agent tasks of a change are made under, its producer's by default and its reviews' (`../protocol/configuration/settings.md`, 2; root.md, section 5) |
 | standalone | one engine and one worker in one process on one person's machine (`../protocol/README.md`, section 6) |
 
 ## 5. Decisions this design takes

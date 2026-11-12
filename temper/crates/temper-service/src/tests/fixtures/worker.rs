@@ -196,8 +196,10 @@ pub fn worker_settings() -> crate::settings::Worker {
         git: Some(b"/usr/bin/git".as_slice().into()),
     }
 }
-pub fn worker_limits() -> crate::limits::Limits {
-    let mut own = crate::limits::profile(crate::limits::Profile::Small);
+pub fn worker_limits() -> crate::worker_settings::Limits {
+    let mut own = crate::worker_settings::Limits::shared(temper_service_core::limits::profile(
+        temper_service_core::limits::Profile::Small,
+    ));
     own.checkout.workspaces = 1;
     own.checkout.repositories = 1;
     own.checkout.name_bytes = 64;

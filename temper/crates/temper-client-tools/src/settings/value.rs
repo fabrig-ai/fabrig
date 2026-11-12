@@ -38,7 +38,6 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             }
             out.string(match value.route() {
                 w::QuestionsRoute::None => b"none",
-                w::QuestionsRoute::Foreman => b"foreman",
                 w::QuestionsRoute::Up => b"up",
             });
         }

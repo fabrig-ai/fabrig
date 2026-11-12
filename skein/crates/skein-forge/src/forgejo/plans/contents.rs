@@ -223,14 +223,8 @@ impl Plan {
                         Body::Document(document) => {
                             crate::forgejo::plans::reads::keep::keep_document(document, repository.forge, tables);
                         }
-                        Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
-                            return Err(if *field == b"log" {
-                                api::Error::InvalidAnswer
-                            } else {
-                                api::Error::TooLarge(api::Excess::unnamed())
-                            });
-                        }
-                        Body::Empty | Body::Malformed(_) => return Err(api::Error::InvalidAnswer),
+                        Body::Malformed(error) => return Err(super::failure::malformed(*error)),
+                        Body::Empty => return Err(api::Error::InvalidAnswer),
                         Body::Raw { .. } => {}
                     }
                     Some(body)

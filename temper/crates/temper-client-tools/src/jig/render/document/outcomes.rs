@@ -234,6 +234,21 @@ pub(super) fn encode_refusal(value: &jig_client::contract::Refusal, out: &mut En
             out.object_end();
             out.object_end();
         }
+        jig_client::contract::Refusal::LiveTasks { tasks, more } => {
+            out.object_start();
+            out.key(b"live_tasks");
+            out.object_start();
+            out.key(b"tasks");
+            out.array_start();
+            for task in tasks {
+                out.unsigned(*task);
+            }
+            out.array_end();
+            out.key(b"more");
+            out.unsigned(u64::from(*more));
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::Refusal::Circle { tasks, cut } => {
             out.object_start();
             out.key(b"circle");

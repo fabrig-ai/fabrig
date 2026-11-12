@@ -36,7 +36,7 @@ const APPLICATION: &[u8] = br#"{
  "cued":[{"cue":"Call","turns":[{"lines":[{"call":"inspect","arguments":{"name":"anything"}}],"finish":"tool_calls","tokens":1}]}],
  "otherwise":["Fallback"]}},
 "limits":{"profile":"small","overrides":{}},"workers":[{"root":"workspaces","git":"/usr/bin/git"}],
-"landing":{"projects":[{"project":1,"by":"turn","check_timeout_ms":900000,"merge_job":".temper/merge","close_job":".temper/close","tier_retries":2,"verification_bound_ms":7200000,
+"landing":{"projects":[{"project":1,"by":"turn","check_timeout_ms":900000,"merge_job":".temper/merge","close_job":".temper/close","landing_attempts":3,"tier_retries":2,"verification_bound_ms":7200000,
  "gates":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true}],
  "tiers":[{"name":"tier","workflow":"tier.yml","ignored":["docs"],"artifact":"failing","format":"lines","branch":"goal","span_ms":1200000,"description":"the slow suites"}]}]}]}
 }"#;
@@ -145,9 +145,14 @@ fn every_row_is_a_member_its_decoder_takes() {
     }
     // Gone members are consumed and refused by their owning decoder, with the table's remedy.
     for (parent, what, shape, name) in [
-        ("application", What::CharterStored, "application", "charter"),
-        ("application.landing", What::LandingStored, "landing", "deployment"),
-        ("application.landing.projects[]", What::ProjectLandingStored, "landing-project", "rules"),
+        ("application", What::Half(startup::EngineWhat::CharterStored), "application", "charter"),
+        ("application.landing", What::Half(startup::EngineWhat::LandingStored), "landing", "deployment"),
+        (
+            "application.landing.projects[]",
+            What::Half(startup::EngineWhat::ProjectLandingStored),
+            "landing-project",
+            "rules",
+        ),
     ] {
         let changed = gone(&document, parent, name);
         let problems =

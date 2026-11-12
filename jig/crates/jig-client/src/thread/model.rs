@@ -253,6 +253,7 @@ fn number(value: &DocumentOutcome, task: u64, place: u32) -> Option<u64> {
         | DocumentOutcome::NoteEdited { .. }
         | DocumentOutcome::ServiceMade { .. }
         | DocumentOutcome::Adopted { .. }
+        | DocumentOutcome::Left { .. }
         | DocumentOutcome::Stopped { .. }
         | DocumentOutcome::Cancelled { .. }
         | DocumentOutcome::Lifted { .. }

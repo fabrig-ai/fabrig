@@ -45,8 +45,10 @@ mod watch_room;
 mod ways;
 
 mod fuzzy {
+    mod closer_attempts;
     mod endings;
     mod escalation;
+    mod follows;
     mod loads;
     #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
     #[path = "../removal.rs"]

@@ -52,7 +52,6 @@ pub(super) fn change(number: u64, document: &Document, lines: &mut List<Box<[u8]
     for question in &panel.questions.open {
         let stands = match question.stands {
             f::PanelStands::Taken => b"taken".as_slice(),
-            f::PanelStands::Foreman(_) => b"with the foreman",
             f::PanelStands::Asked => b"waiting for a person",
             f::PanelStands::Held => b"held",
         };
@@ -211,6 +210,7 @@ pub(super) fn queues(
             | Document::Landing(_)
             | Document::Drafts(_)
             | Document::Changes(_)
+            | Document::Follows(_)
             | Document::Status(_)
             | Document::Aways(_)
             | Document::Decisions(_)

@@ -177,6 +177,34 @@ pub(crate) fn advance(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Reques
     }
 }
 
+/// An owner's deletion names live roots only, including closing and graced roots.
+pub(crate) fn live_roots(core: &Core, project: u32) -> Option<people::Refusal> {
+    let mut roots = List::uncapped();
+    for task in core.tasks.view_tasks() {
+        if task.project != project || core.tasks.root(task.number) != Some(task.number) {
+            continue;
+        }
+        let row = core.tasks.task(task.number).expect("live task projection");
+        match row.phase {
+            tasks::Phase::Ended(_) => {}
+            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } | tasks::Phase::Closing(_) => {
+                roots.push(task.number).expect("uncapped live roots");
+            }
+        }
+    }
+    if roots.is_empty() {
+        return None;
+    }
+    let more = roots.len().saturating_sub(people::NAMED_TASKS);
+    let mut roots = roots.into_boxed();
+    roots.sort_unstable();
+    let mut tasks = List::with_capacity(people::NAMED_TASKS);
+    for &task in roots.iter().take(usize::try_from(people::NAMED_TASKS).expect("named tasks fit usize")) {
+        tasks.push(task).expect("named task bound");
+    }
+    Some(people::Refusal::LiveTasks { tasks: tasks.into_boxed(), more })
+}
+
 fn live_tasks(core: &Core, project: u32) -> bool {
     for task in core.tasks.view_tasks() {
         if task.project == project {

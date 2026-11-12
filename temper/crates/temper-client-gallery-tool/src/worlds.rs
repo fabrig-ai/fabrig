@@ -535,7 +535,7 @@ fn world_in_layout(
 ) -> (Domain, Option<Token>) {
     let view = goals.filter(|name| name.starts_with("chat-view-"));
     let how = settings.is_some_and(ways::is_how);
-    let to_begin = (how && !settings.is_some_and(ways::is_draft))
+    let to_begin = (how && !settings.is_some_and(|name| ways::is_draft(name) || name == "how-team"))
         || settings.is_some_and(|name| name == "ask-first-run" || name.starts_with("ask-ways-"));
     let picker = goals.filter(|name| picker::is_state(name));
     let agent_work = goals == Some("agent-work");
@@ -643,7 +643,9 @@ fn world_in_layout(
                             Some(c::Delivery::Accounts(Box::new(doc)))
                         }
                         c::Subject::Tasks { query, window } => {
-                            let mut tasks = if query.tracked == Some(true) {
+                            let mut tasks = if settings == Some("how-follows") && query.label == Some(3) {
+                                ways::standing()
+                            } else if query.tracked == Some(true) {
                                 goal_window(w, window, goals)
                             } else {
                                 task_window(w, window)
@@ -770,7 +772,9 @@ fn world_in_layout(
                     }
                 }
                 jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) } => {
-                    let value = if let Some(name) = view {
+                    let value = if settings == Some("how-follows") && matches!(what, c::Read::Project { .. }) {
+                        Some(c::ReadValue::Project(Box::new(ways::how_project())))
+                    } else if let Some(name) = view {
                         match &what {
                             c::Read::Activity { .. } => Some(c::ReadValue::Activity(Box::new(views::activity(name)))),
                             _ => read_value(w, &what, then, goals),
@@ -814,7 +818,12 @@ fn world_in_layout(
                                 continue;
                             }
                             let bytes = settings.and_then(|name| {
-                                if setting.kind() == 8 && !matches!(name, "how-approve" | "how-reaches") {
+                                if setting.kind() == 8
+                                    && !matches!(
+                                        name,
+                                        "how-approve" | "how-reaches" | "how-rules" | "how-rules-card" | "how-team"
+                                    )
+                                {
                                     return None;
                                 }
                                 if how && setting.kind() == 7 {
@@ -869,8 +878,10 @@ fn world_in_layout(
                             }
                         }
                         v1::Read::View(view) => {
-                            if settings.is_some_and(ways::is_draft) && view.address() == b"roles" {
-                                ways::roles(&mut root, read, &mut out);
+                            if settings.is_some_and(|name| ways::is_draft(name) || name == "how-team")
+                                && view.address() == b"roles"
+                            {
+                                ways::roles(&mut root, read, settings == Some("how-team"), &mut out);
                             } else if goals.is_some_and(|name| name.starts_with("chat-view-")) {
                                 views::answer(&mut root, read, view.address(), &mut out);
                             }
@@ -969,10 +980,15 @@ fn world_in_layout(
                             ways::deliver(&mut root, watch, subject.project(), settings, &mut out);
                             continue;
                         }
+                        w::Watch::Follows(_) if settings == Some("how-follows") => {
+                            ways::follows(&mut root, watch, &mut out);
+                            continue;
+                        }
                         w::Watch::Change(subject) => subject,
                         w::Watch::Away
                         | w::Watch::Landing(_)
                         | w::Watch::Landings(_)
+                        | w::Watch::Follows(_)
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
                         | w::Watch::Drafts(_)
@@ -3975,7 +3991,9 @@ fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
                 live_runs: 0,
                 proposals: 0,
             })),
-            c::ActKind::Message
+            c::ActKind::Talk
+            | c::ActKind::Leave
+            | c::ActKind::Message
             | c::ActKind::Answer
             | c::ActKind::Take
             | c::ActKind::HandBack
@@ -4073,6 +4091,8 @@ fn base_task(number: u64, title: &str) -> c::Task {
         deadline: None,
     };
     c::Task {
+        talk: None,
+        session: None,
         settings: Some(c::TaskSettings { task: 1, run: None, newest: 1 }),
         chip: c::Chip {
             task: number,
@@ -4991,10 +5011,12 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::v1 as v;
     if kind == 8 {
         use temper_protocol_reaches::{Classes, Way, classes_record};
-        if name == "how-reaches" {
-            return ways::reaches_setting();
+        if matches!(name, "how-reaches" | "how-rules" | "how-rules-card") {
+            return ways::reaches_setting(name);
         }
-        let classes = classes_record(&Classes::stock(Way::YouApprove)).expect("You approve's classes");
+        let classes =
+            classes_record(&Classes::stock(if name == "how-team" { Way::AgentsReview } else { Way::YouApprove }))
+                .expect("project classes");
         let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).expect("classes bytes"));
         classes.encode(&mut writer).expect("measured classes");
         writer.finish()
@@ -5016,7 +5038,7 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
         writer.finish()
     } else {
         assert_eq!(kind, 6);
-        let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Foreman };
+        let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Up };
         let questions =
             v::ProjectQuestions::new(&v::CEILINGS, v::ProjectQuestionsParts { route }).expect("settings questions");
         let mut writer = skein_lib::Writer::new(usize::try_from(questions.measure()).expect("questions bytes"));

@@ -65,6 +65,20 @@ impl Core {
     /// Number an authenticated person's word and route it to the task hub,
     /// retaining the keyed reply correlation until admission completes.
     pub fn person_message(&mut self, limits: &Limits, message: PersonMessage) -> Result<tasks::Event, people::Refusal> {
+        self.person_words(limits, message, false)
+    }
+
+    /// Route talk words through message numbering and admission (standing.md, 5.6).
+    pub fn person_talk(&mut self, limits: &Limits, message: PersonMessage) -> Result<tasks::Event, people::Refusal> {
+        self.person_words(limits, message, true)
+    }
+
+    fn person_words(
+        &mut self,
+        limits: &Limits,
+        message: PersonMessage,
+        talk: bool,
+    ) -> Result<tasks::Event, people::Refusal> {
         self.start_input();
         let PersonMessage { request, person, project, task, question, words, at } = message;
         let row = self.tasks.task(task).ok_or(people::Refusal::Unknown)?;
@@ -110,6 +124,22 @@ impl Core {
         let request = self.fly(Flight::Saying { request, task, question });
         let event = match question {
             Some(_) => tasks::Event::Message {
+                reply_to: skein_lib::ReplyTo::new(request),
+                project,
+                operation: tasks::Message {
+                    task,
+                    word: tasks::Word {
+                        number: message,
+                        from: tasks::Party::Person(person),
+                        kind,
+                        words,
+                        at,
+                        hits: 1,
+                        eligible: false,
+                    },
+                },
+            },
+            None if talk => tasks::Event::Talk {
                 reply_to: skein_lib::ReplyTo::new(request),
                 project,
                 operation: tasks::Message {

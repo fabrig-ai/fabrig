@@ -11,7 +11,6 @@ publish.workspace = true
 temper-service = { workspace = true, features = ["worker"] }
 temper-service-shell.workspace = true
 temper-shell.workspace = true
-temper-version.workspace = true
 temper-launcher.workspace = true
 smith-agent-document.workspace = true
 smith-host-protocol.workspace = true

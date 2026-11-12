@@ -73,6 +73,7 @@ pub fn again(
         expected: vec![],
         origins: vec![],
     })
+    .page_query(b"internal-record=1&internal-loopback-navigation=1")
     .horizon(HORIZON);
     let mut walker = Walker::new(name, steps, prepared);
     let outcome = harness.run(&mut [&mut walker]);
@@ -305,7 +306,12 @@ impl Walker {
                 // The face completes Go after the load, accepting its closing warning.
                 // Opening then waits for that new page's asynchronous client start.
                 self.phase = Phase::Opening;
-                return Ok(Next::Do(Doing::Go { address }));
+                return Ok(Next::Do(Doing::Go {
+                    address: skein_fake_person_browser::harness::with_query(
+                        &address,
+                        b"internal-record=1&internal-loopback-navigation=1",
+                    ),
+                }));
             }
             Phase::MarkWait { mark, text } => {
                 self.since.get_or_insert(now);
@@ -524,7 +530,9 @@ mod tests {
         walker.phase = Phase::Load;
         assert_eq!(
             walker.progress(&mut face, Time::ZERO).expect("load"),
-            Next::Do(Doing::Go { address: b"/projects/1".as_slice().into() })
+            Next::Do(Doing::Go {
+                address: b"/projects/1?internal-record=1&internal-loopback-navigation=1".as_slice().into()
+            })
         );
         assert!(matches!(walker.phase, Phase::Opening));
         walker.phase = Phase::Start;

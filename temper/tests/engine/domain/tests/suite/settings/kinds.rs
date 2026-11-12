@@ -192,9 +192,12 @@ fn a_deleted_project_loses_its_rules() {
     assert!(kept(&driver, 2, 1, 1, settings::SettingSlot::Change).is_some());
     let chat = driver.chat_ask(1, b"work under the project rules");
     ask(&mut driver, 27, chat);
-    ask(&mut driver, 26, people::Ask::RemoveProject { project: 1, grace: None });
-    driver.fire_at(Duration::from_secs(5));
+    ask(&mut driver, 28, people::Ask::Cancel { project: 1, task: 1, reason: Box::new([]), grace: None });
     driver.pump();
+    ask(&mut driver, 26, people::Ask::RemoveProject { project: 1, grace: None });
+    driver.hello(Token::new(7));
+    driver.fire_at(Duration::from_secs(5));
+    driver.settle();
     assert!(
         driver.delivered.iter().any(|delivery| matches!(
             delivery,
@@ -745,10 +748,10 @@ fn a_proposal_of_a_projects_ways_is_kept_then_accepted() {
 fn a_project_member_reads_its_kinds_at_their_revisions() {
     use temper_engine_domain_forge_change::Route;
     let mut driver = kinds::driver();
-    let earlier = [settings::Value::Rule(rule()), settings::Value::Questions(Route::Foreman), project_ways()];
+    let earlier = [settings::Value::Rule(rule()), settings::Value::Questions(Route::Up), project_ways()];
     let later = [
         settings::Value::Rule(settings::LandingRule { ci: true, ..rule() }),
-        settings::Value::Questions(Route::Up),
+        settings::Value::Questions(Route::None),
         settings::Value::Ways(settings::ProjectWays { drafts: false, goals: false, changes: true, way: 0 }),
     ];
     for (key, values) in [(67, &earlier), (68, &later)] {
@@ -778,6 +781,34 @@ fn a_project_member_reads_its_kinds_at_their_revisions() {
                 "kind {kind}, revision {revision}: {:?}",
                 driver.delivered
             );
+        }
+    }
+}
+
+#[test]
+fn the_retired_forge_charter_number_is_refused_for_changes_and_proposals() {
+    for proposal in [false, true] {
+        for number in [3, 4] {
+            let mut driver = kinds::driver();
+            let before = kinds::revision(&driver.store.rows);
+            let items = Box::new([kinds::item(3, 0, number, &settings::Value::Charter(2))]);
+            let event = if proposal {
+                kinds::proposal(driver.session(), before, 90, items)
+            } else {
+                kinds::change(driver.session(), before, 90, items)
+            };
+            driver.send(event);
+            driver.settle();
+            assert!(
+                driver.delivered.iter().any(|delivery| matches!(
+                    delivery,
+                    Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::Refused(_)), .. }
+                )),
+                "unknown forge-charter {number}: {:?}",
+                driver.delivered
+            );
+            assert_eq!(kinds::revision(&driver.store.rows), before);
+            assert_eq!(kept(&driver, 3, 0, number, settings::SettingSlot::Change), None);
         }
     }
 }

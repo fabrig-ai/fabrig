@@ -19,6 +19,29 @@ impl Words {
             }
             Refusal::Stale(value) => self.text(b, JigPhrase::SettingsStale, &[Hole::Number(u64::from(value.newest))]),
             Refusal::Full(value) => self.full_refusal(b, value),
+            Refusal::LiveTasks { tasks, more } => {
+                let head = self.say_word(Word::refusal(refusal), &[]);
+                let capacity = head
+                    .len()
+                    .checked_add(tasks.as_slice().len().checked_mul(23).expect("named roots fit"))
+                    .expect("bounded refusal text")
+                    .checked_add(32)
+                    .expect("more suffix fits");
+                let mut text = skein_lib::Writer::new(capacity);
+                text.put(&head).expect("refusal phrase fits");
+                let mut first = true;
+                for task in tasks {
+                    text.put(if first { b" T" } else { b", T" }).expect("task prefix fits");
+                    text.put(skein_lib::Decimal::of(*task).as_bytes()).expect("task number fits");
+                    first = false;
+                }
+                if *more != 0 {
+                    text.put(b", and ").expect("more prefix fits");
+                    text.put(skein_lib::Decimal::of(u64::from(*more)).as_bytes()).expect("more number fits");
+                    text.put(b" more").expect("more suffix fits");
+                }
+                b.text(skein_ui::Run::Plain, &text.finish());
+            }
             Refusal::Circle { tasks, cut } => self.circle_refusal(b, tasks, *cut),
             Refusal::Dependency { dependency, how } => self.dependency_refusal(b, *dependency, *how),
             Refusal::Kept { pending } => {

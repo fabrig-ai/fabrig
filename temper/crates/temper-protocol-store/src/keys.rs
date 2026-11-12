@@ -39,6 +39,8 @@ pub const DECIDED: u8 = 39;
 pub const CLOSER: u8 = 40;
 /// Landed drafts (temper/docs/design/protocol/store.md, 2).
 pub const LANDED_DRAFT: u8 = 41;
+/// A follow record (temper/docs/design/protocol/store.md, 2).
+pub const FOLLOW: u8 = 42;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -128,6 +130,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
                     writer.tag(3).u64(revision);
                 }
             }
+        }
+        forge::Key::Follow { project, follow } => {
+            writer.tag(FOLLOW).u64(u64::from(*project)).u64(u64::from(*follow));
         }
         forge::Key::Tier { repository, tier } => {
             writer.tag(TIER);
@@ -301,6 +306,10 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
 pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
     let mut reader = KeyReader::new(bytes);
     let key = match reader.tag()? {
+        FOLLOW => forge::Key::Follow {
+            project: u32::try_from(reader.u64()?).ok()?,
+            follow: u32::try_from(reader.u64()?).ok()?,
+        },
         FORGE => forge::Key::Forge(u16::try_from(reader.u64()?).ok()?),
         FORGE_NUMBER => forge::Key::ForgeNumber,
         PLAYGROUND => forge::Key::Playground,

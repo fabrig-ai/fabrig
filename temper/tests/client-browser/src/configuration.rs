@@ -49,7 +49,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     for (name, count) in [
         ("core.policy_bytes", 8192),
         // Holds charter 5's resolved models, shared instructions and four parts.
-        ("core.run_bytes", 16_384),
+        ("core.run_bytes", 32_768),
         ("authority.grants", 16),
         // The standing charter, closer procedure and close job are delegation targets.
         ("authority.executors", 18),
@@ -320,10 +320,11 @@ mod tests {
         for charter in &engine.charters {
             assert!(u64::from(charter.policy.turns) <= turns, "charter {} exceeds agent turns", charter.number);
         }
-        assert_eq!(engine.charters.len(), 10);
-        assert_eq!(
-            usize::try_from(engine.limits.core.documents.lines).expect("line capacity"),
-            engine.charters.iter().filter(|charter| charter.number != 10).count()
+        assert_eq!(engine.charters.len(), 9);
+        assert!(
+            usize::try_from(engine.limits.core.documents.lines).expect("line capacity")
+                >= engine.charters.iter().filter(|charter| charter.number != 10).count(),
+            "the configured page admits every live stock charter"
         );
     }
 }

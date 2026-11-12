@@ -11,7 +11,7 @@ fn names_are_the_promised_ones() {
         names.push(sample.name);
     }
     if temper_test_env::rewrite() {
-        fs::write(Path::new(env!("CARGO_MANIFEST_DIR")).join("names.txt"), format!("{}\n", names.join("\n"))).unwrap();
+        fs::write(skein_scratch::paths::package().join("names.txt"), format!("{}\n", names.join("\n"))).unwrap();
     } else {
         let promised: Vec<&str> = include_str!("../names.txt").lines().collect();
         assert_eq!(names, promised);
@@ -240,6 +240,38 @@ const HOW_REACHES_NOTE: Part = Part::Named {
 const HOW_DECIDE_NOTE: Part =
     Part::Named { role: Role::Paragraph, name: "Listed in Decided for you for 24 hours, to overturn." };
 const HOW_WAIT_NOTE: Part = Part::Named { role: Role::Paragraph, name: "Away or not." };
+const HOW_RULES_TABLE: Part = Part::StyledText {
+    style: temper_client_view::look::HOW_TABLE,
+    text: &[
+        "Paths",
+        "Sign-off",
+        "Lands",
+        "include/vsr.h · src/protocol.* · src/transition.* · docs/protocol.md",
+        "you",
+        "once you sign off",
+    ],
+};
+const HOW_TEAM_TABLE: Part = Part::StyledText {
+    style: temper_client_view::look::HOW_TABLE,
+    text: &[
+        "Paths",
+        "Review",
+        "Sign-off",
+        "Lands",
+        "payments/",
+        "an agent",
+        "two of you",
+        "once two have signed this head",
+        "everything else",
+        "an agent",
+        "one of you",
+        "once signed",
+    ],
+};
+const HOW_RULES_NOTE: Part = Part::Named {
+    role: Role::Paragraph,
+    name: "A sign-off is for one head. A change pushed after it needs signing again; taking main cleanly keeps it.",
+};
 static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "remembered-none",
@@ -768,11 +800,6 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Described {
                 role: Role::Disclosure,
-                name: "Foreman",
-                description: "When a coding agent asks: answers from the goal’s design, or passes it up",
-            },
-            Part::Described {
-                role: Role::Disclosure,
                 name: "Status agent",
                 description: "When you look at Home after landings: writes the lines at its top",
             },
@@ -847,6 +874,63 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "how-follows",
+        heading: "Draft first, then agents build it on its own branch",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What follows a landing" },
+            Part::Named { role: Role::Text, name: "code triggers, agents judge" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "cowsql/vsr-rs follows cowsql/vsr" },
+            Part::Text {
+                text: "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat. Each waits for Pat's word. Its check: .forgejo/workflows/vsr-tests.yml.",
+            },
+            Part::Text { text: "2 behind · check passes at abababababab" },
+            Part::Named { role: Role::Text, name: "code hears the landing" },
+            Part::Named { role: Role::Text, name: "an agent ports" },
+            Part::Named { role: Role::Text, name: "code checks" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "Tiers on main" },
+            Part::Text {
+                text: "Code runs each after landings on main: fuzz (fuzzing for 6 hours). A red reaches the goals whose changes landed in it, and their agents repair it.",
+            },
+            Part::Named { role: Role::Text, name: "code runs" },
+            Part::Named { role: Role::Text, name: "an agent repairs" },
+            Part::Named { role: Role::Text, name: "a week · renews Tuesday" },
+            Part::Named { role: Role::Text, name: "Owns the tests" },
+            Part::Named { role: Role::Text, name: "a standing role · 28 left" },
+            Part::Named { role: Role::Text, name: "40" },
+            Part::Named { role: Role::Text, name: "Goals" },
+            Part::Named { role: Role::Text, name: "80" },
+        ],
+    },
+    Holds {
+        name: "night-how-follows",
+        heading: "Draft first, then agents build it on its own branch",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What follows a landing" },
+            Part::Named { role: Role::Text, name: "code triggers, agents judge" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "cowsql/vsr-rs follows cowsql/vsr" },
+            Part::Text {
+                text: "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat. Each waits for Pat's word. Its check: .forgejo/workflows/vsr-tests.yml.",
+            },
+            Part::Text { text: "2 behind · check passes at abababababab" },
+            Part::Named { role: Role::Text, name: "code hears the landing" },
+            Part::Named { role: Role::Text, name: "an agent ports" },
+            Part::Named { role: Role::Text, name: "code checks" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "Tiers on main" },
+            Part::Text {
+                text: "Code runs each after landings on main: fuzz (fuzzing for 6 hours). A red reaches the goals whose changes landed in it, and their agents repair it.",
+            },
+            Part::Named { role: Role::Text, name: "code runs" },
+            Part::Named { role: Role::Text, name: "an agent repairs" },
+            Part::Named { role: Role::Text, name: "a week · renews Tuesday" },
+            Part::Named { role: Role::Text, name: "Owns the tests" },
+            Part::Named { role: Role::Text, name: "a standing role · 28 left" },
+            Part::Named { role: Role::Text, name: "40" },
+            Part::Named { role: Role::Text, name: "Goals" },
+            Part::Named { role: Role::Text, name: "80" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
         name: "how-reaches",
         heading: "Draft first, then agents build it on its own branch",
         parts: &[
@@ -878,6 +962,81 @@ static HOLDS: [Holds; samples::N] = [
             HOW_WAIT_NOTE,
             Part::Named { role: Role::Select, name: "Questions a goal can answer from its plan" },
             Part::Named { role: Role::Select, name: "Away until" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "how-rules",
+        heading: "Draft first, with the protocol core asking you",
+        parts: &[
+            Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
+            Part::Named { role: Role::Item, name: "you, a person (if protocol core)" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Rules by path" },
+            Part::Destination { name: "+ A rule", href: "/projects/1/ask" },
+            Part::Absent { role: Role::ColumnHeader, name: "Review" },
+            HOW_RULES_TABLE,
+            HOW_RULES_NOTE,
+            Part::StyleCount { style: temper_client_view::look::HOW_WHO_PERSON, count: 3 },
+        ],
+    },
+    Holds {
+        name: "how-rules-card",
+        heading: "Draft first, with the protocol core asking you",
+        parts: &[
+            HOW_RULES_TABLE,
+            HOW_RULES_NOTE,
+            Part::Expanded { name: "you, a person (if protocol core)" },
+            Part::Named { role: Role::Term, name: "Only for" },
+            Part::Named {
+                role: Role::Description,
+                name: "include/vsr.h · src/protocol.* · src/transition.* · docs/protocol.md",
+            },
+            Part::Named { role: Role::Term, name: "Role" },
+            Part::Named { role: Role::Description, name: "owner" },
+            Part::Named { role: Role::Term, name: "Asks" },
+            Part::Named { role: Role::Description, name: "1 of them" },
+            Part::Named { role: Role::Term, name: "Counts" },
+            Part::Named {
+                role: Role::Description,
+                name: "code counts the sign-offs at this head; a clean update keeps them",
+            },
+            Part::Drawing { style: temper_client_view::look::WAYS_CARET, count: 1 },
+        ],
+    },
+    Holds {
+        name: "how-team",
+        heading: "Agents review everything, then one of you signs off",
+        parts: &[
+            Part::Reader { role: jig_client::contract::HeldRole::Owner },
+            Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
+            Part::Named { role: Role::Item, name: "review, an agent" },
+            Part::Named { role: Role::Item, name: "one of you, a person" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Rules by path" },
+            Part::Destination { name: "+ A rule", href: "/projects/1/ask" },
+            HOW_TEAM_TABLE,
+            HOW_RULES_NOTE,
+            Part::StyleCount { style: temper_client_view::look::HOW_WHO_PERSON, count: 4 },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Reviewer",
+                description: "For each change: reviews it, and holds it until it approves",
+            },
+            Part::Absent { role: Role::Disclosure, name: "Foreman" },
+        ],
+    },
+    Holds {
+        name: "night-how-team",
+        heading: "Agents review everything, then one of you signs off",
+        parts: &[
+            HOW_TEAM_TABLE,
+            HOW_RULES_NOTE,
+            Part::StyleCount { style: temper_client_view::look::HOW_WHO_PERSON, count: 4 },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Reviewer",
+                description: "For each change: reviews it, and holds it until it approves",
+            },
+            Part::Absent { role: Role::Disclosure, name: "Foreman" },
             Part::Pressed { name: "Night mode" },
         ],
     },
@@ -2146,7 +2305,19 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "main red" },
             Part::After { first: temper_client_view::look::HOME_NEEDS, then: temper_client_view::look::DECIDED },
             Part::After { first: temper_client_view::look::DECIDED, then: temper_client_view::look::PROJECTS },
-            Part::After { first: temper_client_view::look::PROJECTS, then: temper_client_view::look::ASK_LINE },
+            Part::Named { role: Role::Region, name: "What follows what" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "What follows what" },
+            Part::Named { role: Role::Text, name: "across projects" },
+            Part::Named { role: Role::Group, name: "vsr-rs follows work/vsr" },
+            Part::Named { role: Role::Text, name: "follows work/vsr" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "vsr-rs" },
+            Part::Named { role: Role::Paragraph, name: "2 behind · check passes at 9c04d7e1a2b3" },
+            Part::Named { role: Role::Group, name: "fabrig depends on vsr-rs" },
+            Part::Named { role: Role::Text, name: "depends on vsr-rs" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "fabrig" },
+            Part::Named { role: Role::Paragraph, name: "Nothing follows its landings." },
+            Part::After { first: temper_client_view::look::PROJECTS, then: temper_client_view::look::HOW_FOLLOWS },
+            Part::After { first: temper_client_view::look::HOW_FOLLOWS, then: temper_client_view::look::ASK_LINE },
             Part::Named { role: Role::TextField, name: "Ask temper" },
             Part::NoStyle { style: temper_client_view::look::HOME_FACTS },
             Part::Absent { role: Role::Region, name: "Chats" },
@@ -3707,7 +3878,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "How temper will run tally" },
             Part::Named { role: Role::Heading { level: 5 }, name: "temper enforces" },
             Part::Text { text: "Drafts: on" },
-            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Questions: asked of me too" },
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Button, name: "Accept" },
             Part::Named { role: Role::Button, name: "Change something" },
@@ -3719,7 +3890,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "How temper will run tally" },
             Part::Text { text: "Drafts: on" },
-            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Questions: asked of me too" },
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Paragraph, name: "✓ Accepted · new work follows it" },
             Part::Absent { role: Role::Button, name: "Accept" },
@@ -3731,7 +3902,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "How temper will run tally" },
             Part::Text { text: "Drafts: on" },
-            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Questions: asked of me too" },
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Paragraph, name: "Rejected · nothing changes" },
             Part::Absent { role: Role::Paragraph, name: "Waiting for an owner" },
@@ -3745,7 +3916,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "How temper will run tally" },
             Part::Text { text: "Drafts: on" },
-            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Questions: asked of me too" },
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Paragraph, name: "Withdrawn · nothing changes" },
             Part::Absent { role: Role::Paragraph, name: "Waiting for an owner" },
@@ -3759,7 +3930,7 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Text { text: "How temper will run tally" },
             Part::Text { text: "Drafts: on" },
-            Part::Text { text: "Questions: answered by the goal" },
+            Part::Text { text: "Questions: asked of me too" },
             Part::Text { text: "Way: Plan, tasks, land whole" },
             Part::Named { role: Role::Paragraph, name: "Replaced by the proposal below" },
             Part::Named { role: Role::Button, name: "Accept" },

@@ -370,6 +370,7 @@ pub fn read(
 }
 
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "read-set dispatch keeps terminal project reads beside other read failures")]
 pub(crate) fn reads(
     reading: &crate::jig::runner::reads::Reading,
     client: &Client,
@@ -405,6 +406,11 @@ pub(crate) fn reads(
                 if check_selected(&reading.called.call, *local, value).is_err() {
                     return failure(b"tools' bug; unexpected document; report it as a finding", reading.called.json, 1);
                 }
+            }
+            Readout::Jig(ReadResult::None(ReadNone::Gone))
+                if reading.called.call.tool == crate::jig::rows::PROJECT_SHOW_AT && *local == 1 =>
+            {
+                return failure(&deleted_project(reading.project.expect("project read")), reading.called.json, 2);
             }
             Readout::Jig(ReadResult::None(ReadNone::TooLarge { bytes })) if reading.called.call.tool == 6 => {
                 let Some(crate::jig::call::Value::Turn(name)) = crate::jig::call::value(&reading.called.call, 1) else {
@@ -478,6 +484,16 @@ pub(crate) fn reads(
         return notes::print(page, &reading.called.call, reading.called.json, limits);
     }
     document::print(document::Document::ReadSet(reading, party), reading.called.json, limits, vocabulary)
+}
+
+fn deleted_project(project: u32) -> Box<[u8]> {
+    let number = skein_lib::Decimal::of(u64::from(project));
+    let size = b"project  was deleted".len().checked_add(number.as_bytes().len()).expect("project reason");
+    let mut reason = Writer::new(size);
+    reason.put(b"project ").expect("measured reason");
+    reason.put(number.as_bytes()).expect("measured reason");
+    reason.put(b" was deleted").expect("measured reason");
+    reason.finish()
 }
 
 fn check_selected(call: &crate::jig::call::Call, local: u32, value: &ReadValue) -> Result<(), ()> {

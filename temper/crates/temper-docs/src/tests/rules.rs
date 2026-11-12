@@ -62,6 +62,12 @@ fn each_page_keeps_its_head_template_links_and_voice() {
 }
 
 #[test]
+fn chat_help_shows_the_goal_questions_answer_form() {
+    let text = find(b"chat").expect("chat page").text;
+    assert!(text.contains("`G asks (question Q; answer with message target=G, form=answer, question=Q): ...`"));
+}
+
+#[test]
 fn task_help_explains_refused_invalid_results() {
     let found = search(&PAGES, b"invalid results", 20).expect("search words");
     assert!(found.hits.as_slice().iter().any(|hit| hit.page == "task"), "invalid results must find task help");
@@ -164,7 +170,7 @@ fn budget_help_sizes_a_hundred_change_goal() {
     for instruction in [
         "For a goal of up to a hundred changes",
         "100 change procedures, 100 producers, 200 reviews and 100 repairs",
-        "12 coordinator/foreman tasks including the goal",
+        "12 coordinator tasks including the goal",
         "512 tasks in the tree, 511 delegated tasks",
         "412K units",
         "five delegation levels below the goal",
@@ -268,7 +274,7 @@ fn the_reference_readme_grants_its_tools_and_note_scopes() {
         "select(.number == $role)",
         ".set.ceiling |= widen",
         ".notes |= grant($required[0].notes)",
-        "map(select(. != {\"charter\": 12}))",
+        "map(select(. != {\"charter\": 12} and . != {\"charter\": 6}))",
     ] {
         assert!(text.contains(command), "the reference's recipe must use: {command}");
     }

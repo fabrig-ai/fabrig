@@ -29,7 +29,7 @@ impl World {
         }))
         .expect("fixture write");
         let moving = Script {
-            cue: b"Read only what the change needs".as_slice().into(),
+            cue: b"Run only what your change needs".as_slice().into(),
             turns: Box::new([
                 call(b"write", &write),
                 call(b"finish", br#"{"title":"Advance the goal","body":"Give the waiting producer new context."}"#),

@@ -14,6 +14,7 @@ skein-ui.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-ui-text.workspace = true
 
 [lints]
