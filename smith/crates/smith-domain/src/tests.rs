@@ -491,7 +491,7 @@ fn oversized_resume_history_is_refused_when_the_conversation_opens() {
                 endpoint: Some(session::llm::Endpoint(1)),
                 dialect: 1,
                 sequence,
-                ..session::fixture::turn(
+                ..smith_domain_session_fixtures::turn(
                     b"model-a".as_slice().into(),
                     if sequence == 1 { first_turn_kind() } else { session::record::Kind::Ordinary },
                     Box::new([session::llm::Message { role: Role::User, content: Box::new([]) }]),
@@ -2021,7 +2021,7 @@ fn first_message_after_awaiting_restores_history_and_absent_host_answers_once() 
         turns: Box::new([session::record::Turn {
             endpoint: Some(session::llm::Endpoint(1)),
             dialect: 1,
-            ..session::fixture::turn(
+            ..smith_domain_session_fixtures::turn(
                 b"model-a".as_slice().into(),
                 session::record::Kind::First(Box::new(session::record::Opener {
                     system: None,

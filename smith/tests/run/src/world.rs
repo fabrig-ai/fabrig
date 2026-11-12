@@ -173,7 +173,7 @@ const fn calm_run_limits() -> run::Limits {
         delivery_timeout: Duration::from_secs(600),
         check_timeout: Duration::from_secs(600),
         check_tail: 256,
-        ..smith_domain_run::fixture::SMALL
+        ..smith_domain_run_fixtures::SMALL
     }
 }
 

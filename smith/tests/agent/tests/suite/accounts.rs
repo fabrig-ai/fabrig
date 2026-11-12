@@ -79,7 +79,7 @@ fn account_world(account: Option<u32>, held: Option<Grant>, failures: u32, failu
     let start = Event::Start(smith_domain::Start {
         window: Window { turns: u32::MAX, bytes: u64::MAX },
         grants: held.into_iter().collect(),
-        ..smith_domain::fixture::start(Token::new(1), charter)
+        ..smith_domain_fixtures::start(Token::new(1), charter)
     });
     let scripts = Box::new([Script {
         cue: b"@report".as_slice().into(),

@@ -459,7 +459,7 @@ pub fn turn_value(bytes: u64) -> host::TurnValue {
     } else {
         Box::<[llm::Message]>::default()
     };
-    host::TurnValue::new(smith_domain::session::fixture::turn(Box::new([]), kind, messages), bytes)
+    host::TurnValue::new(smith_domain_session_fixtures::turn(Box::new([]), kind, messages), bytes)
         .expect("bounded turn fixture")
 }
 

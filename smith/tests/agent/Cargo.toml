@@ -8,14 +8,18 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+smith-domain-tools-fixtures.workspace = true
+smith-domain-session-fixtures.workspace = true
+smith-domain-run-fixtures.workspace = true
+smith-domain-fixtures.workspace = true
 smith-protocol-llm.workspace = true
 smith-protocol-llm-fixtures.workspace = true
 skein-llm-kit.workspace = true
 skein-lib.workspace = true
-smith-domain = { workspace = true, features = ["fixture"] }
+smith-domain.workspace = true
 smith-host-domain.workspace = true
 smith-session-world.workspace = true
-smith-domain-tools = { workspace = true, features = ["fixture"] }
+smith-domain-tools.workspace = true
 smith-tools-world.workspace = true
 skein-fake-checkout.workspace = true
 skein-fake-llm-domain.workspace = true
