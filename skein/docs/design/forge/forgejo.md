@@ -360,9 +360,13 @@ Notes on the table:
 - **Markers** at the head of a body, a comment or a review are decoded
   into its `key` (`README.md`, section 5).
 - **A changed file's `status`** is `added`, `deleted` or `removed`,
-  `modified` or `changed`, `renamed` or `copied`; `removed` is what a real
-  Forgejo's comparison says of a file gone, and reads as `deleted` does. Any
-  other word is a malformed answer.
+  `modified`, `changed` or `unchanged`, `renamed` or `copied`; `removed` is what a real
+  Forgejo's comparison says of a file gone, and reads as `deleted` does.
+  `unchanged` is what Forgejo's pull files listing says of a file
+  modified with no line added or deleted (a binary file, as a wire
+  golden is, or a change of mode alone), and reads as `modified` does:
+  with `sides`, both its sides are read. Any other word is a malformed
+  answer.
 - **What may follow** is told by the page coming full, `X-HasMore`, or
   `total_count`. For a call made of several requests, `more` is its
   listing's.
@@ -372,14 +376,19 @@ Notes on the table:
   `X-HasMore` has more only when it came full.
 - **A malformed answer** (a success status other than its request's,
   1.2; a document that does not decode, a field missing, a number out
-  of range, a commit id of the wrong length, a string past its cap, a
-  body past the component's `body_bytes_in`, a log read through
-  included; a repository read by its id answering another) fails a
-  write as `Timeout`: the request reached the forge, so what it asked
-  may have been done. It fails a read as `InvalidAnswer`. Either way the
-  connection is closed, since what followed on it can no longer be
-  trusted. A repository id past the vocabulary's 32 bits fails the call
-  as `TooLarge` (`Forge`, `limit` 4,294,967,295, `size` the id).
+  of range, a commit id of the wrong length; a log read through past the
+  component's `body_bytes_in`; a repository read by its id answering
+  another) fails a write as `Timeout`: the request reached the forge, so
+  what it asked may have been done. It fails a read as `InvalidAnswer`.
+  An answer past a bound (a string past its cap; a JSON document past
+  the component's `body_bytes_in`, as an unpaged comparison far behind
+  its base can be) fails a write as `Timeout` too, and a read as
+  `TooLarge` (1.4): a document past `body_bytes_in` names `Forge`, its
+  `limit` that figure and its `size` what had been delivered when the
+  bound stopped it, not exact; a string past its cap names `Unnamed`.
+  Either way the connection is closed, since what followed on it can no
+  longer be trusted. A repository id past the vocabulary's 32 bits fails
+  the call as `TooLarge` (`Forge`, `limit` 4,294,967,295, `size` the id).
 
 ### 1.4 Failures
 

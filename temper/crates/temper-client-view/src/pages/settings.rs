@@ -331,6 +331,7 @@ pub(crate) fn how_work_runs(
         };
         super::how::path(b, root, w, bindings, project);
         super::how::reaches(b, root, w, bindings, forge, project, wall);
+        super::how::rules(b, root, w, bindings, project);
         super::how::follows(b, root, w, project);
         super::how::roles(b, root, w, bindings, project);
         super::how::budgets(b, root, w, project);

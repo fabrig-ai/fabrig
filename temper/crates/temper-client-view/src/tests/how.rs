@@ -215,6 +215,11 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
         let panel = w::WaysPanel::new(
             &w::CEILINGS,
             w::WaysPanelParts {
+                rules: w::PathRules::new(
+                    &w::CEILINGS,
+                    w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
+                )
+                .unwrap(),
                 words: case.words.map(|(headline, lede)| {
                     w::ProjectWords::new(
                         &w::CEILINGS,
@@ -687,6 +692,168 @@ fn parts_draw_the_current_way_and_the_shown_path() {
 }
 
 #[test]
+fn rules_draw_the_reads_words_between_reaches_and_roles() {
+    let row = |paths: &[u8], review: &[u8], sign_off: &[u8], lands: &[u8]| {
+        w::PathRule::new(
+            &w::CEILINGS,
+            w::PathRuleParts {
+                paths: paths.into(),
+                review: review.into(),
+                sign_off: sign_off.into(),
+                lands: lands.into(),
+            },
+        )
+        .unwrap()
+    };
+    let payments = row(b"payments/**", b"an agent", b"two of you", b"once two have signed this head");
+    let bare = row(b"src/**", b"", b"", b"on its own");
+    for asking in [false, true] {
+        let (mut root, watch) = fixture(&Case {
+            name: "rules",
+            read: 2,
+            words: None,
+            heading: "",
+            lede: "",
+            current: None,
+            shown: 3,
+            goals: false,
+            budget: c::TemplateBudget::Given,
+            figure: None,
+            may_change: false,
+            asking,
+            open: false,
+            roles: Some(true),
+        });
+        for (rows, note, review) in [
+            (vec![], b"not drawn without rows".as_slice(), false),
+            (vec![bare.clone()], b"".as_slice(), false),
+            (vec![bare.clone(), payments.clone()], b"The engine's note, unchanged.".as_slice(), true),
+        ] {
+            let panel = w::WaysPanel::new(
+                &w::CEILINGS,
+                w::WaysPanelParts {
+                    project: f::PROJECT,
+                    ways: List::with_capacity(0),
+                    current: None,
+                    own: path(false),
+                    words: None,
+                    may_change: false,
+                    rules: w::PathRules::new(
+                        &w::CEILINGS,
+                        w::PathRulesParts {
+                            rows: List::from_boxed(rows.clone().into_boxed_slice()),
+                            note: note.into(),
+                        },
+                    )
+                    .unwrap(),
+                },
+            )
+            .unwrap();
+            up(
+                &mut root,
+                Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::ways_panel(&panel),
+                    },
+                },
+            );
+            for browser in [false, true] {
+                let mut page = view(&root, browser);
+                let tree = page.tree();
+                assert_eq!(skein_ui::outline::check(tree), None);
+                let headings: Vec<_> = tree
+                    .nodes()
+                    .iter()
+                    .filter(|n| n.role == Role::Heading { level: 2 })
+                    .map(|n| n.name.as_deref().unwrap())
+                    .collect();
+                if rows.is_empty() {
+                    assert!(!headings.contains(&b"Rules by path".as_slice()));
+                    assert!(!tree.nodes().iter().any(|n| n.role == Role::Table));
+                    continue;
+                }
+                let at = headings.iter().position(|h| *h == b"Rules by path").unwrap();
+                assert_eq!(&headings[at - 1..=at + 1], [b"What reaches you".as_slice(), b"Rules by path", b"Roles"]);
+                let scroll = styled(tree, look::HOW_RULES);
+                let table = scroll.iter().find(|n| n.role == Role::Table).unwrap();
+                let table_nodes = subtree(tree, table);
+                assert!(table.styles.as_slice().contains(&look::HOW_TABLE));
+                let drawn = children(table_nodes);
+                assert_eq!(drawn.len(), rows.len() + 1);
+                let headers: Vec<_> = children(subtree(tree, drawn[0]))
+                    .into_iter()
+                    .map(|n| {
+                        assert_eq!(n.role, Role::ColumnHeader);
+                        n.name.as_deref().unwrap()
+                    })
+                    .collect();
+                assert_eq!(
+                    headers,
+                    if review {
+                        vec![b"Paths".as_slice(), b"Review", b"Sign-off", b"Lands"]
+                    } else {
+                        vec![b"Paths".as_slice(), b"Sign-off", b"Lands"]
+                    }
+                );
+                for (drawn, row) in drawn.iter().skip(1).zip(&rows) {
+                    assert_eq!(drawn.role, Role::Row);
+                    let cells = children(subtree(tree, drawn));
+                    assert!(cells.iter().all(|n| n.role == Role::Cell));
+                    let mut expected = vec![row.paths()];
+                    if review {
+                        expected.push(if row.review().is_empty() { "–".as_bytes() } else { row.review() });
+                    }
+                    expected.push(if row.sign_off().is_empty() { "–".as_bytes() } else { row.sign_off() });
+                    expected.push(row.lands());
+                    assert_eq!(
+                        cells.iter().map(|n| f::nodes_text(subtree(tree, n))).collect::<Vec<_>>(),
+                        expected.iter().map(|w| Box::<[u8]>::from(*w)).collect::<Vec<_>>()
+                    );
+                    assert!(cells[0].styles.as_slice().contains(&look::HOW_PATHS));
+                    let sign = subtree(tree, cells[if review { 2 } else { 1 }]);
+                    assert_eq!(
+                        sign.iter().any(|n| n.styles.as_slice().contains(&look::HOW_WHO_PERSON)),
+                        !row.sign_off().is_empty()
+                    );
+                    for cell in &cells {
+                        if f::nodes_text(subtree(tree, cell)).as_ref() == "–".as_bytes() {
+                            assert!(subtree(tree, cell).iter().any(|n| n.styles.as_slice().contains(&look::HOW_EMPTY)));
+                        }
+                    }
+                }
+                let notes: Vec<_> =
+                    tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&look::HOW_RULES_NOTE)).collect();
+                assert_eq!(notes.len(), usize::from(!note.is_empty()));
+                if !note.is_empty() {
+                    assert_eq!(notes[0].role, Role::Paragraph);
+                    assert_eq!(notes[0].name.as_deref(), Some(note));
+                    assert!(
+                        tree.nodes().iter().position(|n| n.id == notes[0].id).unwrap()
+                            > tree.nodes().iter().position(|n| n.id == table.id).unwrap()
+                    );
+                }
+                let add = tree.nodes().iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"+ A rule"));
+                assert_eq!(add.is_some(), asking);
+                if let Some(add) = add {
+                    let id = add.id;
+                    assert!(add.styles.as_slice().contains(&look::HOW_ADD));
+                    assert_eq!(crate::href(&mut page, id).as_deref(), Some(b"/projects/1/ask".as_slice()));
+                    assert_eq!(
+                        crate::act(&mut page, id, Act::Press),
+                        Some(d::Action::Pages(pages::Act::Go { address: Address::Ask { project: f::PROJECT } }))
+                    );
+                }
+            }
+        }
+        up(&mut root, Up::WatchEnded { watch, end: c::WatchEnd::Closed });
+        assert!(!view(&root, true).tree().nodes().iter().any(|n| n.name.as_deref() == Some(b"Rules by path")));
+    }
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "both shells keep the sentences, markers and section order")]
 fn follows_boxes_word_their_facts_and_mark_who_acts() {
     use d::pages::how::{Follow, Landed, Owner, Tier, Tiers};
@@ -816,6 +983,11 @@ fn follows_boxes_word_their_facts_and_mark_who_acts() {
             ways: List::with_capacity(0),
             current: None,
             own: w::BranchPath::new(&w::CEILINGS, path).unwrap(),
+            rules: w::PathRules::new(
+                &w::CEILINGS,
+                w::PathRulesParts { rows: List::with_capacity(0), note: Box::default() },
+            )
+            .unwrap(),
             may_change: false,
         },
     )
@@ -859,6 +1031,7 @@ fn budgets_draw_the_period_in_reader_time_and_roles_before_goals() {
             let mut words = f::words();
             words.zone_minutes = 720_i32;
             let facts = Facts {
+                rules: List::with_capacity(0),
                 period,
                 standing: Box::new([
                     Standing { number: 2, title: b"Owns tests".as_slice().into(), left: 28, budget: 40 },

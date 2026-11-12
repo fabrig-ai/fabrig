@@ -199,6 +199,26 @@ fn ways_text(document: &engine::ways::WaysDocument) -> Box<[u8]> {
         }
         parts.push(join(&["Yours · now\n".as_bytes(), &path_text(&document.own), b"\n"])).expect("own path text");
     }
+    if !document.rules.rows.is_empty() {
+        parts.push(b"\nRules by path\n".as_slice().into()).expect("rules heading");
+        for row in &document.rules.rows {
+            parts
+                .push(join(&[
+                    &row.paths,
+                    b": review ",
+                    if row.review.is_empty() { b"none" } else { &row.review },
+                    b"; sign-off ",
+                    if row.sign_off.is_empty() { b"none" } else { &row.sign_off },
+                    b"; lands ",
+                    &row.lands,
+                    b"\n",
+                ]))
+                .expect("rule row");
+        }
+        if !document.rules.note.is_empty() {
+            parts.push(join(&[&document.rules.note, b"\n"])).expect("rules note");
+        }
+    }
     let permission = if document.may_change {
         b"\nYou may change this project's settings.\n".as_slice()
     } else {

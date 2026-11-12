@@ -1808,6 +1808,24 @@ fn brief_read_refusal_line_names_the_task_section_stage_and_error() {
 }
 
 #[test]
+fn stale_files_refusal_names_the_error_without_heads() {
+    assert_eq!(
+        note_line(
+            "temper",
+            temper_service::Note::BriefReadRefused {
+                task: 7,
+                section: b"pull",
+                stage: "files",
+                reason: "the change's head moved",
+                heads: None,
+                error: Some(skein_forge::api::Error::Stale),
+            },
+        ),
+        "temper serve: brief read refused task=7 section=pull stage=files reason=the change's head moved error=Stale\n"
+    );
+}
+
+#[test]
 fn brief_failure_line_names_how_it_counts_and_why() {
     assert_eq!(
         note_line(

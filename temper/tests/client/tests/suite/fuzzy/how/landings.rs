@@ -147,6 +147,11 @@ impl Drawing {
                                 ways: List::with_capacity(0),
                                 current: None,
                                 own: path,
+                                rules: w::PathRules::new(
+                                    limits,
+                                    w::PathRulesParts { rows: List::with_capacity(0), note: Box::default() },
+                                )
+                                .expect("empty rules"),
                                 may_change: false,
                             },
                         )
