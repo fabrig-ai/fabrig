@@ -32,6 +32,8 @@ pub(crate) struct Hosted {
     pub(crate) attempt: Token,
     grants: Box<[Grant]>,
     refreshed: bool,
+    /// A live run asked to stop at its turn's end (domain/hosts/hub.md, 7).
+    drained: bool,
     refusals: crate::refusals::Refusals,
     pub(crate) answer: Option<crate::answers::Kept>,
     /// Whether the workspace saves unfinished work before release.
@@ -225,6 +227,7 @@ fn assign_runtime(
         attempt,
         grants,
         refreshed: false,
+        drained: false,
         answer: None,
         refusals: crate::refusals::Refusals::new(env.limits.inbox),
         save: save && workspace.is_some(),
@@ -388,6 +391,34 @@ fn relay_ended(domain: &mut Hub, call_id: Id<Call>, out: &mut Queue<Request>) {
     let removed = entry.relays.remove(&call_id);
     assert!(removed, "a relay belongs to its run until it settles");
     conclude(domain, id, out);
+}
+
+pub(crate) fn drain(domain: &mut Hub, out: &mut Queue<Request>) {
+    let Hub { names, hosted, ready, .. } = domain;
+    for (_, id) in names.iter() {
+        let entry = hosted.get_mut(*id).expect("a named run is hosted");
+        if entry.job.is_some() {
+            continue;
+        }
+        match &entry.state {
+            State::Active { agent, .. } | State::Waiting { agent, .. } => {
+                if !entry.drained {
+                    entry.drained = true;
+                    out.push(Request::Agent(crate::ToAgent::Drain { agent: *agent }));
+                }
+            }
+            State::Preparing { .. } | State::Starting { .. } => {
+                if !ready.contains_key(id) {
+                    ready.insert(*id, Reason::Shutdown).expect("room on the ready list for every run");
+                }
+            }
+            State::Cancelling { .. }
+            | State::Unwanted { .. }
+            | State::Stopping { .. }
+            | State::Saving { .. }
+            | State::Closed => {}
+        }
+    }
 }
 
 pub(crate) fn cancel_all(domain: &mut Hub, reason: Reason) {
@@ -664,7 +695,9 @@ pub(crate) fn finish_run(domain: &mut Hub, env: &Env<Limits>, owner: Token, fini
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
         State::Active { workspace, agent } | State::Waiting { workspace, agent } => {
-            let ending = said(finish, Failure::Run(RunFailure::Cancelled), &env.limits);
+            let cancelled =
+                if entry.drained { Failure::Cancelled(Reason::Shutdown) } else { Failure::Run(RunFailure::Cancelled) };
+            let ending = said(finish, cancelled, &env.limits);
             leave(entry.run, entry.attempt, &entry.relays, calls, out);
             out.push(Request::Agent(crate::ToAgent::Cancel { agent }));
             State::Stopping { workspace, agent, ending, gone: false }
@@ -1395,6 +1428,7 @@ impl Hosted {
             answer: None,
             grants: Box::new([]),
             refreshed: false,
+            drained: false,
             refusals: crate::refusals::Refusals::new(0),
             save: false,
             live: crate::LiveAsk::NONE,

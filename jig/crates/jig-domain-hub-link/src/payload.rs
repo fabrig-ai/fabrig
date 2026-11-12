@@ -310,9 +310,8 @@ pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
             host::JobFailure::Failed | host::JobFailure::Deadline => tasks::End::Failed(tasks::Class::Run),
             host::JobFailure::Unstarted => tasks::End::Failed(tasks::Class::Agent),
             host::JobFailure::Result => tasks::End::Failed(tasks::Class::Invalid),
-            host::JobFailure::Cancelled(host::Reason::Contact | host::Reason::Shutdown) => {
-                tasks::End::Failed(tasks::Class::Lost)
-            }
+            host::JobFailure::Cancelled(host::Reason::Shutdown) => tasks::End::Recheck,
+            host::JobFailure::Cancelled(host::Reason::Contact) => tasks::End::Failed(tasks::Class::Lost),
             host::JobFailure::Cancelled(host::Reason::Engine) => tasks::End::Refused,
             host::JobFailure::Undelivered(host::DeliveryOutcome::Delivered | host::DeliveryOutcome::Nothing) => {
                 tasks::End::Failed(tasks::Class::Invalid)
