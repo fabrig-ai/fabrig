@@ -118,6 +118,11 @@ impl Machine {
             self.tui_running = false;
             out.push(Action::StopTui);
         }
+        if matches!(self.phase, Phase::TuiStarting | Phase::TuiBrowse | Phase::TuiAddress | Phase::TuiOpening
+            | Phase::TuiApprove | Phase::TuiPressed | Phase::TuiReturning) {
+            self.tui_running = false;
+            out.push(Action::StopTui);
+        }
         self.save_until = None;
         out.push(Action::CancelFace);
         if let Some(address) = self.return_address.take() {

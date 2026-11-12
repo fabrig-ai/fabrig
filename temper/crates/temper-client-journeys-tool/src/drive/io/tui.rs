@@ -5,6 +5,7 @@ use skein_lib::{Time, Duration};
 use skein_ui_screen_terminal::Key;
 use std::{fs::{self, File}, path::PathBuf, os::unix::ffi::OsStrExt};
 struct Saving { earlier: Option<File> }
+struct Saving { earlier: Option<File> }
 pub(super) struct Tui {
     session: PathBuf,
     terminal: Option<Terminal>,
@@ -62,7 +63,7 @@ impl Tui {
         if !self.ready && terminal.ready() { self.ready = true; events.push(Event::TuiReady); }
         if self.writing && terminal.written() { self.writing = false; events.push(Event::TuiWritten); }
         if let Some(earlier) = &self.save {
-            match replaced(&self.session.join("state/temper/tui/recording"), earlier.earlier.as_ref()) {
+            match replaced(&self.session.join("state/temper/tui/recording"), earlier.earlier.earlier.as_ref()) {
                 Ok(Some(bytes)) => { self.save = None; events.push(Event::TuiSaved(bytes.into())); }
                 Ok(None) => {},
                 Err(why) => { self.save = None; events.push(Event::TuiFailure(format!("cannot read TUI save: {why}"))); }

@@ -616,20 +616,22 @@ fn project_landings_start_is_welcome_set_ups_recorded_acts() {
     assert!(at > 0);
 }
 
-struct TuiWorld {
+pub(super) struct TuiWorld {
     host: temper_client_shell_tui::host::Host,
     recorder: temper_client_shell_tui::journey::Recorder,
     now: u64,
 }
 impl TuiWorld {
-    fn new(address: &[u8]) -> Self {
-        use skein_ui_screen::Size;
+    pub(super) fn new(address: &[u8]) -> Self {
+        Self::sized(address, skein_ui_screen::Size { rows: 16, columns: 100 })
+    }
+    pub(super) fn sized(address: &[u8], size: skein_ui_screen::Size) -> Self {
         use temper_client_shell_tui::journey::{Facts, Recorder};
         let facts = Facts {
             seed: 7,
             now: Time::ZERO,
             wall: Wall::EPOCH,
-            size: Size { rows: 16, columns: 100 },
+            size,
             scheme: Some(temper_client_tui::Scheme::Dark),
             background: None,
             boxed: false,
@@ -645,7 +647,7 @@ impl TuiWorld {
         world.report(start);
         world
     }
-    fn report(&mut self, report: temper_client_shell_tui::host::Report) -> temper_client_shell_tui::host::Duties {
+    pub(super) fn report(&mut self, report: temper_client_shell_tui::host::Report) -> temper_client_shell_tui::host::Duties {
         let now = Time::from_nanos(self.now);
         let wall = Wall::from_nanos(self.now);
         self.now += 1;
@@ -656,7 +658,7 @@ impl TuiWorld {
         self.recorder.deadline(self.host.deadline());
         duties
     }
-    fn mark(&mut self) {
+    pub(super) fn mark(&mut self) {
         let now = Time::from_nanos(self.now);
         let wall = Wall::from_nanos(self.now);
         self.now += 1;
@@ -665,10 +667,10 @@ impl TuiWorld {
         self.recorder.mark(&mut self.host);
         self.recorder.deadline(self.host.deadline());
     }
-    fn save(&mut self) -> Box<[u8]> {
+    pub(super) fn save(&mut self) -> Box<[u8]> {
         self.recorder.save(&mut self.host)
     }
-    fn exchange(&mut self, approval: bool) -> skein_lib::Token {
+    pub(super) fn exchange(&mut self, approval: bool) -> skein_lib::Token {
         use temper_client_shell_tui::journey::{Line, Sent, lines};
         let file = self.save();
         let records = lines(&file).expect("records");
@@ -719,7 +721,7 @@ fn tui_approval_recording() -> Box<[u8]> {
     world.save()
 }
 
-fn tui_approval_reply() -> Box<[u8]> {
+pub(super) fn tui_approval_reply() -> Box<[u8]> {
     let mut reply = vec![0];
     reply.extend_from_slice(&32_u32.to_be_bytes());
     reply.extend_from_slice(&[7; 32]);
