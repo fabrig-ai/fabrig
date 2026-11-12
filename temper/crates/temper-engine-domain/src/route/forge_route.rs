@@ -5324,16 +5324,11 @@ pub(crate) fn outputs(
                 status_route::start_status_run(domain, env, project, words, &signers);
             }
             forge::Request::FollowRun { project, follow } => follow_route::start(domain, env, project, follow),
-            forge::Request::CancelFollow { project, task } => {
+            forge::Request::CancelFollow { project, task, reason } => {
                 domain.work.push(Work::Tasks(tasks::Event::Cancel {
                     reply_to: ReplyTo::new(Token::new(task)),
                     by: tasks::Party::Deployment { project },
-                    operation: tasks::Cancel {
-                        task,
-                        reason: b"the follow was removed".as_slice().into(),
-                        grace: None,
-                        message: None,
-                    },
+                    operation: tasks::Cancel { task, reason, grace: None, message: None },
                 }));
             }
             forge::Request::TierRun { repository, tier, number, tip } => {
@@ -6217,3 +6212,5 @@ fn catch_up_parameter_requires_a_lowercase_commit_and_pads_sha_one() {
         assert_eq!(catch_up_commit(text), None);
     }
 }
+
+pub(crate) use follow_route::make_refused as follow_make_refused;

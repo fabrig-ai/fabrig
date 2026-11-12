@@ -208,6 +208,9 @@ fn link_now(domain: &mut Domain, value: core::LinkNow) {
             );
         }
         core::LinkNow::RefusedPayload { request, problem } => {
+            if forge_route::follow_make_refused(domain, request.raw(), problem.why) {
+                return;
+            }
             if let Some(value) = domain.hub_link.payload(request) {
                 let bytes = crate::budget::payload_bytes(value);
                 let answer =
