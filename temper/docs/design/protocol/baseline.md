@@ -33,6 +33,8 @@ this document says what temper's deployment fixes with them.
 - **The policy:** from the baseline, a change of a stored layout lands
   with its patch, and moves its family's version in that landing; a
   focused test holds it (7).
+- **The catch-up:** what `main` changed in place after `bc23255eb7`
+  comes in as jig's and temper's first patches, from the baseline (9).
 
 ## 2. What it fixes
 
@@ -86,9 +88,11 @@ constant built from its crate's generated module, naming no other owner:
 ```rust
 // jig_protocol_store: skein's and smith's records live in jig's maps, so
 // jig builds their sets from their crates' constants
-pub const SKEIN_PATCH_SET: PatchSet; // skein-oauth's `SavedToken`, map Secrets, the sources' range
+pub const SKEIN_PATCH_SET: PatchSet; // skein-oauth's `SavedToken`, map Secrets, no keys: held in jig's `Source`
 pub const SMITH_PATCH_SET: PatchSet; // smith-transcript's `Turn`, frames "Turn", no keys, fresh FRESH_WINDOWS
-pub const JIG_PATCH_SET: PatchSet;   // jig's eight store families and jig-accounts
+// jig_protocol_accounts: the lowest jig crate that sees every jig family,
+// since jig-protocol-accounts depends on jig-protocol-store
+pub const JIG_PATCH_SET: PatchSet;   // jig's eight store families and jig-accounts; patches from jig_protocol_store::patches
 // temper_protocol_store
 pub const PATCH_SET: PatchSet;       // temper-store and temper-secrets
 // temper_service::store
@@ -99,6 +103,12 @@ pub const PATCH_SETS: PatchSets;     // the four, upstream first
   (jig's `protocol/store/README.md`, 4.4), leaving out what lies among
   them but is another's; each range's root its records' declaration;
   the core's frames' root `TurnRecord` (jig's `protocol/store/opening.md`, 3).
+- **Held families have no keys:** a family whose every record is held
+  inside another family's record has empty `keys`, like smith's, and is
+  patched at `Step::Held` (jig's `protocol/store/opening.md`, 5).
+  skein-oauth's `SavedToken` is held in jig-store-secrets' `Source`, which
+  owns the sources' range `[3, 0]` to `[3, 1]`. jig-accounts' `Moved` is
+  held in `Carried`.
 - **temper's set:** `temper-store`'s ranges, relative to temper's tag,
   one per tag of temper's keys (`store.md`, section 3) with its root, and its
   `flights` the `Flight` tag's range, `[21]` to `[22]`; `temper-secrets`
@@ -118,7 +128,11 @@ pub const PATCH_SETS: PatchSets;     // the four, upstream first
   `protocol/store/opening.md`, 3), so a first start under them is the
   plan's proof. That every record of a map lies in exactly one family's
   range takes a walk: a focused test walks the golden store's two maps
-  (6) and finds each key in one range of `PATCH_SETS`.
+  (6) and finds each key in one range of `PATCH_SETS`. The component's
+  own rows (the format row, the layouts, the wires, the installation's
+  identifier) are in no range (jig's `protocol/store/opening.md`, 3).
+  The walk lists them on their own and finds each one exactly where the
+  component writes it.
 
 ## 5. A store at the baseline
 
@@ -203,8 +217,9 @@ store keeps its row until the first patch it meets writes the levels.
 ## 8. Stories through an upgrade
 
 - **The fixture patch:** the real sets with temper's extended by one
-  patch that changes no family, `patch 1`, `owner temper 1 after jig 0`,
-  `mark fresh-windows`, its set's `fresh` that word (skein's
+  patch that changes no family, the one after temper's last (`patch 1`,
+  `owner temper 1 after jig 0` before the catch-up; `patch 2`, `owner
+  temper 2 after jig 1` after it, 9), `mark fresh-windows`, its set's `fresh` that word (skein's
   `data/codec/patches.md`, 1: a patch may carry a mark and no block).
   A store made under the real sets is behind it, so a start under it
   plans, copies, patches (no record changed), closes every live window,
@@ -213,15 +228,52 @@ store keeps its row until the first patch it meets writes the levels.
   stories (`../testing/README.md`, 2.5); no fixture names a family it
   changes.
 
-## 9. Open questions
+## 9. The catch-up
 
-- **Deployments of builds between the baseline and this design's
-  landing.** A build of `main` after `bc23255eb7` that changed a stored
-  family in place wrote a store at no level and another layout, refused
-  as before the baseline. The goal's catch-up with `main` brings such a
-  change as a patch from the baseline, so the stores of every build that
-  kept the baseline's layouts upgrade, and those of a build that did not
-  are made again. Default: so.
+The user's words of 2026-11-11: every stored layout `main` changed in place after
+`bc23255eb7` comes into this design's landing as a patch from the
+baseline, so a store a build at the baseline's layouts wrote, such as
+dev.fabrig.ai's, upgrades to it.
+
+- **Found by the merge:** once `main` is merged into the goal's branch,
+  each family whose current text differs from its kept text, the
+  baseline's, is caught up; the kept text is never refreshed to `main`'s,
+  since `BASELINE` (5) and the golden store (6) are the baseline's.
+- **On 2026-11-11, goals 63 and 187:**
+
+| Family | Change on `main` | Every old record takes | Here |
+|---|---|---|---|
+| `jig-store-tasks` 9 | `TaskRecord.activation_open`, `TaskRecord.session`; activity lines `stood`, `session_ended` appended | `activation_open` false, `session` none | moves to 10 in jig's patch 1 |
+| `jig-store-settings` 1 | `Model.cache_life_ms` inserted; `EndedBy`'s `standing` appended | `cache_life_ms` 0, the configuration's "none declared" | moves to 2 in jig's patch 1 |
+| `jig-store-people` 14 | `EndedBy`'s `standing` appended | nothing | kept at 14, its kept text refreshed: no patch needed while no landed patch names it (skein's `data/codec/command.md`, 2, step 3) |
+| `temper-store` 11 | `LandingRule.sets` appended | `sets` empty: a rule naming no set covers every change | moves to 12 in temper's patch 1; `STORE_VERSION` 12 |
+
+- **The patches:** jig's patch 1, `owner jig 1 after smith 0 skein 0`,
+  and temper's patch 1, `owner temper 1 after jig 1`, each `after`
+  listing its upstreams' levels at this landing (skein's
+  `data/codec/patches.md`, 1), each written by
+  `skein-codegen patch <crate>` with the values above, their goldens
+  reviewed. Another family `main` changed by the merge comes the same way:
+  a value needed moves its version in its owner's patch; none needed
+  refreshes its kept text.
+- **Their step over the golden store:** a line each in `patched.txt`
+  (6), `jig 1 …` then `temper 1 …`, the counts from the start and
+  reviewed; the golden test's assertions hold under them.
+- **What moves with them:** the binary's levels, jig 1 and temper 1, so
+  `versions` prints `level jig 1` and `level temper 1`; the fixture patch
+  (8) is the one after temper's last, `patch 2`, `owner temper 2 after
+  jig 1`.
+- **Unchanged:** `BASELINE` (5), the baseline's versions and layouts, by
+  which a store the baseline's build wrote reads as level 0 and is
+  patched through both. A store a build of `main` after `bc23255eb7`
+  wrote, at no level and other layouts, is refused as an older build's;
+  such a deployment is made again.
+- **A stored change landing on `main` later,** before this design lands,
+  joins the catch-up at the closer's merge; after it lands, it brings
+  its own patch, the gate (7) refusing it otherwise.
+
+## 10. Open questions
+
 - **The golden stores of later releases** (`../draft/upgrades.md`, 13),
   each made by its release's binary, join this one at each release.
 - **A patch that walks the golden store's records alone,** decoded and

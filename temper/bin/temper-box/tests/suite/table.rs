@@ -127,6 +127,12 @@ fn versions_are_the_engines_lines_and_refusals() {
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     assert!(output.stderr.is_empty(), "{output:?}");
     assert_eq!(output.stdout, temper_engine_shell::versions().as_bytes());
+    assert!(String::from_utf8_lossy(&output.stdout).lines().take(4).eq([
+        "level skein 0",
+        "level smith 0",
+        "level jig 0",
+        "level temper 0",
+    ]));
     let refused = Command::new(skein_scratch::paths::binary("temper-box"))
         .args(["versions", "x"])
         .env_clear()

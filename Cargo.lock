@@ -6033,6 +6033,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-protocol-accounts",
  "jig-protocol-config",
  "jig-protocol-store",
  "jig-test-service",
@@ -6095,6 +6096,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
+ "jig-protocol-store",
  "jig-protocol-worker-wire",
  "serde_json",
  "skein-channel",
@@ -6226,6 +6228,7 @@ dependencies = [
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-protocol-reaches",
+ "temper-protocol-records",
 ]
 
 [[package]]

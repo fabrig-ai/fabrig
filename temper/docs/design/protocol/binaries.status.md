@@ -5,6 +5,7 @@
 - **Not yet:** 4: the closures are held by two tests of two shapes, `tests/boundary/tests/binaries.rs` the engine's row alone, the agent's in a second file; the client's and the worker's have no row, and the client links `jig-protocol-accounts` through `crates/temper-client-shell-cli/Cargo.toml`, which no code of it uses [in flight: change 353]
 
 - **Not yet:** the whole document: `temper-box upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper-box-shell/src/table.rs`) [in flight: change 709]
+- **Not yet:** `temper-box upgrade --check`'s decode of every record before its plan, and its `record not decodable` line [in flight: change 863]
 
 - **Not yet:** the whole document: the restored-forge link gap remains `../domain/root.status.md`, 8.1.  the deferred setup-close gap remains `README.status.md`, 4.
 

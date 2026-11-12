@@ -41,6 +41,7 @@ pub enum Story {
 #[derive(Debug)]
 pub struct Outcome {
     pub stopped: Option<Stopped>,
+    pub patched: Vec<(jig_protocol_store::Owner, u32, jig_protocol_store::Counts)>,
     pub verdict: skein_world::domain::Verdict,
     pub peaks: Option<Vec<u64>>,
     /// Names in the same process-index order as `peaks`.
@@ -131,6 +132,7 @@ fn process_name(process: &Proc) -> &'static str {
 const REFUSED_POLICY_BYTES: u32 = 512;
 thread_local! {
     static REFUSE_START: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static PATCH_SETS: std::cell::Cell<Option<jig_protocol_store::PatchSets>> = const { std::cell::Cell::new(None) };
     static STORE: RefCell<Option<Rc<RefCell<Store>>>> = const { RefCell::new(None) };
     static PROGRESS: RefCell<Progress> = RefCell::new(Progress::default());
 }
@@ -157,6 +159,9 @@ pub(crate) type ServiceHost = temper_playground::service::ServiceHost<OneProcess
 impl Harness for OneProcess {
     type Service = ServiceObserver;
     type Process = HarnessProcess;
+    fn patch_sets() -> Option<jig_protocol_store::PatchSets> {
+        PATCH_SETS.with(std::cell::Cell::get)
+    }
     fn github() -> bool {
         crate::lower::github::active()
     }
@@ -238,6 +243,7 @@ pub(crate) fn parameters(machine: &Machine, forge: temper_fake_git_hosted::Typed
 /// Captures, faults and assertions beside the composition's service.
 pub(crate) struct ServiceObserver {
     pub(crate) hooks: Option<SocketAddr>,
+    patched: Vec<(jig_protocol_store::Owner, u32, jig_protocol_store::Counts)>,
     bound_hooks: Option<(Fd, SocketAddr)>,
     capture: Capture,
     store: Rc<RefCell<Store>>,
@@ -259,6 +265,7 @@ impl Observe for ServiceObserver {
         let store = STORE.with(|store| store.borrow().as_ref().expect("world store").clone());
         Self {
             hooks: None,
+            patched: Vec::new(),
             bound_hooks: None,
             capture,
             store: store.clone(),
@@ -302,6 +309,9 @@ impl Observe for ServiceObserver {
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, now: Time, _wall: Wall) -> bool {
         while let Some(note) = service.notes().pop() {
+            if let temper_service::Note::Patched { of, patch, counts } = &note {
+                self.patched.push((*of, *patch, *counts));
+            }
             if stories::playground() {
                 eprintln!("story A at {} ns: service {note:?}", now.as_nanos());
             }
@@ -432,6 +442,7 @@ pub(crate) struct Person {
     root: Option<Fd>,
     actor: skein_fake_person::Person<temper_client_domain::Address>,
     provision: Option<skein_fake_person::Person<temper_client_domain::Address>>,
+    provision_after: u32,
     wake: Option<Time>,
     pub(crate) signed_in: u32,
     pub(crate) finished: bool,
@@ -461,6 +472,12 @@ impl Person {
         person.wire = referee::client::Wire::capturing();
         crate::m15::observer::root(crate::m15::observer::Role::Client, root, b"client");
         person
+    }
+    /// Add an account through the ordinary form, waiting for opening reads first.
+    pub(crate) fn with_account_after(mut self, after: u32) -> Self {
+        self.provision_after = after;
+        self.provision = Some(skein_fake_person::Person::new(fixtures::account_steps()));
+        self
     }
     pub(crate) fn saved(&mut self) {
         self.client = Some(
@@ -553,6 +570,7 @@ impl Person {
             client: None,
             root: Some(root),
             actor: skein_fake_person::Person::new(remaining.into_boxed_slice()),
+            provision_after: 0,
             provision: (offset == 0 && !matches!(scenario, Story::PlaygroundA | Story::NoWelcome))
                 .then(|| skein_fake_person::Person::new(fixtures::account_steps())),
             wake: None,
@@ -716,6 +734,10 @@ impl Person {
     }
 }
 impl Host for Person {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the account barrier stays in the native person's single ordered act loop"
+    )]
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.prepare_client(now, wall);
         let Some(client) = &mut self.client else { return };
@@ -759,6 +781,7 @@ impl Host for Person {
         self.wake = None;
         let preparing = client.started()
             && !self.finished
+            && self.actor.at() >= self.provision_after
             && prepare_account(client, &mut self.project_selected, &mut self.provision, &mut self.wake, now);
         if client.started() && self.project_selected && !self.finished && !preparing {
             let before = self.actor.at();
@@ -1139,7 +1162,7 @@ fn model_list_agent(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> P
 }
 
 #[expect(clippy::too_many_lines, reason = "the scenario owns its registry, restartable processes and outcome together")]
-fn run_phase(
+pub(crate) fn run_phase(
     settings: Settings,
     scenario: Story,
     phase: Phase,
@@ -1270,8 +1293,19 @@ fn run_phase(
         *cell.borrow_mut() = None;
     });
     let records = std::mem::take(&mut *store.borrow_mut());
+    let patched = outcome
+        .procs
+        .iter()
+        .filter_map(|proc| match proc {
+            Proc::Service(service) => Some(service.observer.patched.as_slice()),
+            _ => None,
+        })
+        .flatten()
+        .copied()
+        .collect();
     let result = Outcome {
         stopped: None,
+        patched,
         peaks: outcome.peaks(),
         process_names: outcome.procs.iter().map(process_name).collect(),
         verdict: skein_world::domain::Verdict::Passed,
@@ -1296,6 +1330,18 @@ fn run_phase(
 
 #[cfg(test)]
 mod tests;
+
+/// Scope an override to this world's phase, including on an assertion's unwind.
+pub(crate) fn with_patch_sets<R>(sets: jig_protocol_store::PatchSets, run: impl FnOnce() -> R) -> R {
+    struct Reset(Option<jig_protocol_store::PatchSets>);
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            PATCH_SETS.with(|at| at.set(self.0));
+        }
+    }
+    let _reset = Reset(PATCH_SETS.with(|at| at.replace(Some(sets))));
+    run()
+}
 
 pub(crate) fn lower_store(store: Option<Rc<RefCell<Store>>>) {
     STORE.with(|cell| *cell.borrow_mut() = store);

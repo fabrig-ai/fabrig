@@ -1,5 +1,5 @@
 //! Durability observations from real file completions, independent of the service.
-mod snapshots;
+pub(crate) mod snapshots;
 #[cfg(test)]
 mod tests;
 use jig_domain_core as core;
@@ -13,6 +13,8 @@ use temper_engine_domain as root;
 pub struct Commit {
     pub number: u64,
     pub writes: Vec<root::Write>,
+    pub(crate) installation: Option<[u8; 16]>,
+    pub(crate) wires: bool,
 }
 #[derive(Default)]
 pub struct Store {
@@ -20,6 +22,8 @@ pub struct Store {
     pub(crate) agent_records: Vec<super::agent::Record>,
     pub pending: VecDeque<Commit>,
     pub applied: u64,
+    pub(crate) installation: Option<[u8; 16]>,
+    pub(crate) wires: Option<u64>,
     pub recovered: std::collections::BTreeSet<u64>,
     pub(crate) restored: Option<BTreeMap<root::Key, root::Record>>,
     restoring: bool,
@@ -79,7 +83,7 @@ impl Capture {
                     });
                     if is_log(&path) {
                         self.events.push(Observed::Recovered(path.clone()));
-                    } else if path == b"generations/1/store/snapshot" {
+                    } else if in_generation(&path) == Some(b"store/snapshot".as_slice()) {
                         self.events.push(Observed::Snapshot(path.clone()));
                     }
                 }
@@ -108,11 +112,15 @@ impl Store {
     pub fn new() -> Self {
         Self::default()
     }
+    /// A cold world's existing transcript files precede every recovered map row.
+    pub(crate) fn transcript_file(&mut self, path: Vec<u8>, bytes: Vec<u8>) {
+        self.files.insert(path, bytes);
+    }
     pub(crate) fn recovering(&mut self) {
         self.rows.clear();
         self.applied = 0;
         self.lengths.clear();
-        self.files.retain(|path, _| !path.starts_with(b"generations/1/store/"));
+        self.files.retain(|path, _| !in_generation(path).is_some_and(|suffix| suffix.starts_with(b"store/")));
         self.validated.clear();
         self.pending.clear();
         self.recovered.clear();
@@ -133,7 +141,7 @@ impl Store {
                     // The secrets' store keeps a signed-in or handed-in source's
                     // record; the store, its snapshots and its logs hold none
                     // (jig's protocol/store/secrets.md).
-                    if !path.starts_with(b"generations/1/secrets/") {
+                    if !in_generation(&path).is_some_and(|suffix| suffix.starts_with(b"secrets/")) {
                         super::secrets::require(&bytes, "store bytes");
                     }
                     if let Some(validated) = self.validated.get_mut(&path)
@@ -172,7 +180,7 @@ impl Store {
                 Observed::Sync(path) if is_log(&path) => {
                     committed.extend(self.durable(&path, limits, names, connector));
                 }
-                Observed::Sync(path) if path == b"generations/1/store" && self.restoring => {
+                Observed::Sync(path) if in_generation(&path) == Some(b"store".as_slice()) && self.restoring => {
                     // KV announces its new segment only after replaying every old log.
                     // Capture this boundary before any new startup commit can join it.
                     self.restored = Some(self.rows.clone());
@@ -207,6 +215,12 @@ impl Store {
         committed
     }
     fn apply(&mut self, commit: &Commit, limits: &codec::View) {
+        if let Some(installation) = commit.installation {
+            self.installation = Some(installation);
+        }
+        if commit.wires {
+            self.wires = Some(commit.number);
+        }
         for write in &commit.writes {
             match write {
                 root::Write::DropTranscript { task } => {
@@ -238,6 +252,8 @@ impl Store {
         connector: &temper_protocol_store::Bounds,
     ) -> Commit {
         let mut writes = Vec::new();
+        let mut installation = None;
+        let mut wires = false;
         for op in ops {
             match op {
                 skein_kv::Op::Put { key, value } => {
@@ -270,6 +286,11 @@ impl Store {
                             ))));
                             at += len;
                         }
+                    } else if keys::decode_own(&key) == Some(keys::Own::Wires) {
+                        wires = true;
+                    } else if Some(key.as_ref()) == keys::installation(64).as_deref() {
+                        installation =
+                            Some(codec::accounts::Installation::decode(&value).expect("kept installation").id);
                     } else if key.first() == Some(&keys::APPLICATION) {
                         let row =
                             temper_protocol_store::records::decode(&value, connector).expect("real application row");
@@ -289,11 +310,11 @@ impl Store {
                 }
             }
         }
-        Commit { number, writes }
+        Commit { number, writes, installation, wires }
     }
 }
 type Frames = Vec<(u64, Box<[skein_kv::Op]>)>;
-fn frames(bytes: &[u8], after: u64) -> (Frames, usize) {
+pub(crate) fn frames(bytes: &[u8], after: u64) -> (Frames, usize) {
     let mut reader = Reader::new(bytes);
     let mut frames = Vec::new();
     let mut used = 0;
@@ -340,7 +361,13 @@ fn frames(bytes: &[u8], after: u64) -> (Frames, usize) {
     (frames, used)
 }
 
+fn in_generation(path: &[u8]) -> Option<&[u8]> {
+    let rest = path.strip_prefix(b"generations/")?;
+    let slash = rest.iter().position(|byte| *byte == b'/')?;
+    (!rest[..slash].is_empty() && rest[..slash].iter().all(u8::is_ascii_digit)).then_some(&rest[slash + 1..])
+}
 fn is_log(path: &[u8]) -> bool {
-    path.strip_prefix(b"generations/1/store/log-")
+    in_generation(path)
+        .and_then(|suffix| suffix.strip_prefix(b"store/log-"))
         .is_some_and(|number| number.len() == 20 && number.iter().all(u8::is_ascii_digit))
 }
