@@ -30,29 +30,21 @@
     `pair/needs.html`'s table of its files with their counts, an open
     question there (section 8), or its chips for CI at the head and its
     repairs, "CI green at 9c04d7e" and "repaired once".
-  - 6: `../client/pages/team.md`, 1 holds a project's people and
-    what waits on each, the project's triager once a setting names
-    one, its standing roles in a section of their own, each reached from
-    its row there, and a role's card but for "owns AREA", "Talk to it",
-    "Give the area back" and its weekly report; no design holds a
-    project's areas, an area's owner, a person's areas on their box or
-    "Hand an area to a role" (`standing-roles.md`, 4 has no design yet
-    either), and its lede counts the people alone. A card's rules are its
-    charter's "Asked to", its instructions' first sentence, not the words
-    kept with it; what wakes it says "News from the forge" for a forge
-    topic and "A timer" for a timer, with no branch, check, paths or
-    purpose, which no client read gives; and a session's line on what it
-    did is a run's finished words, where one finished, since no record
-    keeps a session's (`../client/pages/team.md`, 2, *A role's card,
-    where a read lacks*). This section has the triager as Who routes, a chip
-    under the areas, where `../client/pages/team.md`, 1 has a line at
-    People's foot, "Findings with no area go to NAME.", which nothing
-    draws yet (`whole-story.execution.md`, P4c); and `team/team.html`
-    gives a person's line what they can still sign and asked for, which
-    waits for a read of the sign-offs another person can still give: the
-    `approvals` rows name who can still sign only the changes their watcher
-    sees (`../domain/forge/change/questions.md`, 2, *Who can still sign*);
+  - 6: `../client/pages/team.md`, 1 holds a project's areas and their
+    owners with Who routes, its people and what waits on each, its
+    standing roles that own no area, and a role's card. A card's rules
+    are its charter's "Asked to", its instructions' first sentence, not
+    the words kept with it; what wakes it says "News from the forge" for
+    a forge topic and "A timer" for a timer, with no branch, check, paths
+    or purpose, which no client read gives (`../client/pages/team.md`,
+    2, *A role's card, where a read lacks*). `team/team.html` gives a person's line what
+    they can still sign and asked for, which waits for a read of the
+    sign-offs another person can still give: the `approvals` rows name
+    who can still sign only the changes their watcher sees
+    (`../domain/forge/change/questions.md`, 2, *Who can still sign*);
     what they signed is `../client/pages/team.md`, 1, *What each signed*.
+    No design holds `team/team.html`'s "Open" column or its next step's
+    card with suggested areas (`../client/pages/team.md`, 2).
   - 7: `../client/pages/settings.md`, 2, *The page*, draws the way, the path
     as Ask temper's ways draw it, What reaches you from the project's
     classes, Roles by when each runs and what it does, and a goal's
@@ -121,8 +113,9 @@
     and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
     and Team's people, alone and at night (`team`, `team-alone`,
-    `night-team`), and a role's card, by day and at night (`team-role`,
-    `night-team-role`), with no areas. No state holds Tell
+    `night-team`), its areas and a role's card, by day and at night
+    (`team-role`, `night-team-role`), its hand-off's sheet (`team-hand`)
+    and a role's talk on its page (`role-talk`). No state holds Tell
     temper's card, which nothing draws yet (9); the phone's tabs and a
     need at 390 pixels are `all-home`'s, `needs-list`'s and `ask-chat`'s
     prints read at a phone's width, a print being one page at every
@@ -147,6 +140,25 @@
     role they hold (`../client/pages/README.md`, *Team*): no read gives
     another party's inbox (jig's `domain/people/README.md`, section 5). Decided
     by `ui-p4a-team`'s cut, 2026-11-08, on today's engine.
+  - 6: `../client/pages/team.md`, 1, *A role's card*, says a role "owns
+    tests, since 2 November" from the day the role started, where this
+    section's "since DATE" is when it took the area: nothing keeps when an
+    area changed owner. Its weekly report is the card's last part, drawn
+    whole as its Now is, where this section links it: no page shows a
+    note alone. "Hand an area to a role" and "Give the area back" save
+    kind 14 at once for an owner of the project and propose it for anyone
+    else, as Stop asking's narrower rule does, where this section says
+    "by proposal"; given back, an area's owner is the role's person, its
+    requester. The sheet offers the project's roles and the stock's
+    prover and porter, started with the hand-off; a role written with Ask
+    temper is a charter Ask temper proposes, started with `temper ctl role
+    start --charter N`, since no page starts a role under any charter.
+    Standing roles stays, for the roles that own no area, which the
+    areas' table can't reach. "Talk to it" opens the role's task page,
+    whose composer talks and whose conversation is the role's whole
+    activity, its talks among its wakes, and gives `temper ctl role
+    talk`'s command until the terminal's `/talk` (11.3). Decided by goal
+    1983's design, 2026-11-12.
   - 6: a role's card's "Pause" is jig's `Stop` of the role, as a goal's
     page's Pause is (`../client/pages/team.md`, 1, *A role's card*): it
     stops its live run and holds the role and every task it started
