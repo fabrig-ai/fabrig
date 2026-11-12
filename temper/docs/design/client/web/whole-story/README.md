@@ -8,7 +8,7 @@ frame.
 
 **They are the target** where they differ from the greenfield mock, which
 stays the target where these draw nothing (`../../../draft/surfaces.md`,
-section 13; `../../greenfield/README.md`).
+section 13; `../greenfield/README.md`).
 
 **They are current with what has landed:** night is the client's, from the
 moon at the rail's foot or the phone's top bar, or `#night` on a page's

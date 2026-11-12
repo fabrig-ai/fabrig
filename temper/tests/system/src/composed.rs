@@ -710,6 +710,7 @@ impl World {
         batch[0].flags.ended_by = match self.chat_ending {
             tasks::EndedBy::Result => people::EndedBy::Result,
             tasks::EndedBy::Requester => people::EndedBy::Requester,
+            tasks::EndedBy::Standing => people::EndedBy::Standing,
             tasks::EndedBy::Closer(closer) => {
                 people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
             }
@@ -1122,6 +1123,7 @@ impl World {
             | Delivery::WatchEnded { .. }
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
+            | Delivery::MoveStanding { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
@@ -1557,6 +1559,7 @@ fn questioning_script() -> Script {
 fn questioning_config(seed: u64) -> engine::Config {
     let mut config = agreement::config(seed);
     let rule = engine::LandingRule {
+        sets: Box::new([]),
         connector: 1,
         kind: 4,
         enforce: true,

@@ -1,4 +1,4 @@
-//! The job capability's boundary (temper/docs/design/domain/worker.md, 4.4;
+//! The job capability's boundary (temper/docs/design/domain/worker/jobs.md;
 //! temper/docs/design/protocol/tooling.md, 2 and 3).
 
 use alloc::boxed::Box;

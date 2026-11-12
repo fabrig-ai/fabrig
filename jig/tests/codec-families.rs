@@ -75,8 +75,8 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "tasks",
         root: "crates/jig-protocol-store",
-        schemas: &["schema/tasks-v9.schema"],
-        generated: &["src/generated/tasks_v9.rs"],
+        schemas: &["schema/tasks-v10.schema"],
+        generated: &["src/generated/tasks_v10.rs"],
         golden: "golden/tasks",
         fixtures: &[],
     },
@@ -107,8 +107,8 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "settings",
         root: "crates/jig-protocol-store",
-        schemas: &["schema/settings-v1.schema"],
-        generated: &["src/generated/settings_v1.rs"],
+        schemas: &["schema/settings-v2.schema"],
+        generated: &["src/generated/settings_v2.rs"],
         golden: "golden/settings",
         fixtures: &[],
     },

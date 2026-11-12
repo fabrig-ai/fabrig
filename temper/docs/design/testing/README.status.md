@@ -140,3 +140,6 @@ that proof remains with the after-landing runs (11).
   adopts and renders no `policies`
   (`bin/temper-box/tests/support/managed_sitting.rs`). The next
   after-landing run proves them (11).
+
+- **Not yet:** 2.8: temper's one story on macOS has not run green
+  on the runner, so `../draft/macos.md`'s acceptance stands open.

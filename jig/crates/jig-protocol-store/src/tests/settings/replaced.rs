@@ -1,6 +1,6 @@
 //! Revisions preserve replaced values and restore addresses (domain/engine/settings.md, 10).
 use super::{a, catalogue_name, charter, codec, core, fixtures, people, policy, rules, s, template};
-use crate::{keys, settings_v1 as wire};
+use crate::{keys, settings_v2 as wire};
 use s::application;
 use skein_lib::{List, Reader, Wall, Writer};
 

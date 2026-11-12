@@ -210,6 +210,7 @@ pub fn run() -> Box<core::RunCharter> {
                 endpoint: 1,
                 program: None,
                 name: b"small".as_slice().into(),
+                cache_life_ms: 0,
                 window: 1024,
                 output: 128,
                 input_price: 1,

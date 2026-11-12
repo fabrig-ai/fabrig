@@ -118,11 +118,10 @@ fn an_amendment_keeps_a_due_agent_and_rejects_stale_preparation_and_claims() {
     assert!(
         matches!(response(&mut world, |reply_to| Event::Prepare { reply_to, task: 1 }), Reply::Refused(problem) if problem.why == Refusal::State)
     );
-    assert!(
-        matches!(response(&mut world, |reply_to| Event::Claim { offered: jig_domain_tasks::Reasons::ALL, reasons: jig_domain_tasks::Reasons::FIRST,
+    assert!(matches!(response(&mut world, |reply_to| Event::Claim {
+            session_end: None, offered: jig_domain_tasks::Reasons::ALL, reasons: jig_domain_tasks::Reasons::FIRST,
         reply_to, task: 1, attempt: 1, resumed: false, budget: 1, account: None, writes: Box::new([]),
-    }), Reply::Refused(problem) if problem.why == Refusal::State)
-    );
+    }), Reply::Refused(problem) if problem.why == Refusal::State));
 }
 
 #[test]
@@ -614,6 +613,7 @@ fn a_claim_committed_before_the_amendment_stays_live_and_its_done_finish_parks()
     assert_eq!(response(&mut world, |reply_to| Event::Prepare { reply_to, task: 1 }), Reply::Done);
     assert_eq!(
         response(&mut world, |reply_to| Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to,
@@ -812,6 +812,7 @@ fn releasing_a_waiter_reholds_on_a_failed_or_cancelled_dependency_with_a_fresh_e
         assert!(!world.activations.contains(&1));
         assert_eq!(
             response(&mut world, |reply_to| Event::Claim {
+                session_end: None,
                 offered: jig_domain_tasks::Reasons::ALL,
                 reasons: jig_domain_tasks::Reasons::FIRST,
                 reply_to,

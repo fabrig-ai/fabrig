@@ -2,90 +2,31 @@
 
 2026-11-11. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
+- **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`) [in flight: change 596].
+- **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`) [in flight: change 601].
+
 - **Not yet:** "A pull section is pinned at the change's head" and "A brief section's read that fails": a pull past the pin fails the brief, transient, whoever pushed it, the task's own earlier attempt included, until the task is held; a lost reread superseded by a later attempt of the same task records no head; the `brief read refused` line names no reason or heads, `error=None` for a refusal the forge answered (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`) [in flight: change 262].
 - **Not yet:** "A release", released from a resolution or a merge job that failed or was cancelled: the change keeps `Resolving { requested: true }` and holds again on the ended delegate's status (`temper-engine-domain-forge-change/src/domain.rs`, `released_state`) [in flight: change 263].
 
 - **Not yet:** "A resolution", its "It waits for its producer": a conflict met while a task that pushes the change's branch still lives is resolved at once, its pull pinned at the last head the change knew, so a push by that task fails every attempt of the resolution's brief, `the change's head moved` (`temper-engine-domain-forge-change/src/domain.rs`, `conflict_due`; `temper-engine-domain/src/assemble.rs`, `finish_brief_plan`) [in flight: change 37].
 
 - **Not yet:**
-  - the whole document: the user's N4 request of 2026-11-08 asks for focused and
-    fuzzy tests. The focused story
-    `a_persons_request_for_changes_repairs_with_its_remarks`
-    (`tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`)
-    has all four requested rows and checks the repaired head's new review
-    wait, but no fuzzy story exercising this person's request-to-repair
-    path is identified in main or the supplied reports. The existing
-    fuzzy stories do not establish that coverage.
-  -  no supplied result shows the three-thread real-process trial
-    passing after update recovery. Both styles' lost answers, retries,
-    exhausted counts, release and late-copy holds have world stories;
-    the real-Forgejo restart trial remains the after-landing proof.
-    The fake reads a rebase copy's head at landing, so the dropped-push
-    story uses an explicit branch rewrite and does not establish the
-    real forge's concurrent-push behaviour (skein's `forge/forgejo.md`, section 2).
-  - `README.md`, 2, step 3: a head already behind taking its base first stands on the fake
-    forge's stories alone
-    (`tests/engine/domain/tests/suite/forge_routes/update_first.rs`). The request
-    `landing-fixes` of 2026-11-06 has its proof in the next landing plan on a real
-    deployment, and no record shows one, so how much of a change's wait it saves,
-    and how soon a moving base reaches the bound (`../README.md`, section 11), are unmeasured.
-  - the whole document: the `landing-fixes-2` request of 2026-11-06 takes the next
-    landing plan on a real deployment as its proof, and no result is supplied.
-    The fake-forge stories cover a clean update's named failed check, its log
-    before the base's contents, an unnamed check and a resolution's conflict
-    words (`tests/engine/domain/tests/suite/forge_routes/repair_cause.rs`), and
-    a retried repair's saved branch deleted as it closes (`saved_close.rs`).
-    They do not establish that deployment's branch cleanup or that the new
-    brief would avoid the reported failed `read_job`.
-  - `questions.md`, 1, *Which target*: the coding charter's sentence and the refusal's words
-    stand on a script alone
-    (`tests/engine/domain/tests/suite/forge_routes/question_target.rs`). No real
-    model has read them, and the request `landing-fixes` of 2026-11-06 has the same
-    proof as `README.md`, 2's, so whether a producer's first question now reaches its change
-    is unobserved.
-  - `questions.md`, 1, *The next producer merges the landing tip first*: a tip its start
-    already contains, a clean merge committed before its run and the advice
-    for a conflict have scripted coverage alone. No deployment replay on
-    record proves the `resume-told` request's resumed producer and its answerers
-    read the tree rightly (`../../worker.status.md`, sections 5 and 10).
-  -  a refusal's "adopt the repository again" has no story from the browser. The engine takes an adopted repository's adoption (`readopt`, `temper/tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`), and by reading alone the form sends one (`../../../client/forge/family.md`, 4); it opens at its defaults, so the person types the repository, its role, prefix and landing branch again.
-  -  a removal without the box, its group's act answered in its
-    decision: an owned or fake forge's removal asks the box link for
-    `remove N` whether or not a pipe is there, and without one waits for
-    an answer that never comes, so it is never whole and the
-    playground's reset stops at its forge
-    (`temper-engine-domain-forge/src/removal.rs`, `begin`, sets
-    `box_removed` by the forge's mode alone;
-    `temper-service/src/route/box_link.rs`, `remove`).
-  -  on GitHub, statuses and dispatches by temper's App for a
-    project that lands by turn, and verdicts posted where an installation
-    grants `statuses: write`; `status` is false there.
-  -  the forge's own merge queue beyond a queued merge kept
-    pending: `Pull.queued` and `dequeued` are not read, a queued change
-    keeps temper's turn, an ejection makes no repair, the panel shows no
-    place in it, and adoption's words leave out the queue, signatures,
-    linear history, code owners and the App's bypass
-    (`temper-service/src/family.rs`).
-  -  the findings topic and findings (`../../findings.md`).
-  -  a hold parked until a landing. An explicit landing subscription
-    with no paths receives a known landing as kept news; it does not wake
-    a parked hold.
-  -  per-change bounds and gates are not caller overrides: `change` takes parameters 1
-    to 6, 9 to 12, 14 and 16, its bounds, the questions it takes among
-    them, are the deployment's `change_policy`, and its gates its landing
-    branch's rules' (`temper-engine-domain/src/route/forge_route.rs`,
-    `start_change`); its page's line that a change takes no words.
-  -  a goal's issue can still reach its forge with an empty title. A spec
-    whose first line is blank or a lone full stop leaves no sentence
-    (`temper-engine-domain/src/route/forge_route.rs`, the projection's `title`;
-    `temper-engine-domain-forge-issues/src/text.rs`, `title`), and
-    `temper-engine-domain-forge/src/domain.rs`, `project_write`, writes it as it
-    is. The request `producer-failure` of 2026-11-05 has no empty title reach a
-    forge by any route; its plan's cut took the pull request's alone, an issue
-    making its own from a goal's spec. This is from reading: no story writes one.
-  -  the pull request's body naming its goal's issue.
-  -  a person's approval as a gate; a review's lens; gates run at once
-    when the change asks; a verdict posted as a commit status.
+  - the whole document: the request-to-repair fuzzy coverage remains `gates.status.md`, 1.
+  -  the real-process update-recovery trial remains `../README.status.md`, 6 and 10.
+  - `README.md`, 2, step 3: the base-first deployment proof remains `README.status.md`, 2, step 3.
+  - the whole document: the repair-cause and cleanup deployment proof remains `../branches.status.md` (Not yet, the whole document).
+  - `questions.md`, 1, *Which target*: the real-model question-target proof remains `questions.status.md`, 1, *Which target*.
+  - `questions.md`, 1, *The next producer merges the landing tip first*: the resumed-producer deployment proof remains `questions.status.md`, 1, *The next producer merges the landing tip first*.
+  -  the browser readoption story remains `gates.status.md`, 3.
+  -  the boxless removal gap remains `../adoption.status.md`, 1.
+  -  the GitHub status and dispatch gap remains `gates.status.md`, 1.
+  -  the native-queue gap remains `../queues.status.md`, 1.
+  -  the findings projection gap remains `../issues.status.md` (Not yet, the whole document).
+  -  the parked landing hold remains `../README.status.md`, 5.3.
+  -  the per-change bounds and gates gap remains `README.status.md`, 1.
+  -  the empty issue-title gap remains `../issues.status.md` (Not yet).
+  -  the goal-issue link remains `README.status.md`, 2.
+  -  the approval, lens, parallel-gate and status gaps remain `gates.status.md`, 1.
   - the whole document: a no-change on a change under another hold stays on the row, but the
     hold that stands does not say its words: `hold_change_decision`
     (`temper-engine-domain/src/route/forge_route.rs`) reads them for
@@ -147,85 +88,75 @@
     (`temper-engine-domain/src/route/forge_route.rs`, `change_delegate_running`):
     the policy's tests hold a failed status and `delegate_running` alone
     (`temper-engine-domain-forge-change/src/tests/green.rs`).
-  - the whole document: a goal's landing whose update into main conflicts,
-    settled by the merge job and a resolution on its goal's branch
-    (`../../../draft/reference-landing.md`, section 9's first story), is built
-    by every change's path, the job writing the branch under the goal's
-    hold as the landing's resolution does
-    (`temper-engine-domain-forge/src/items.rs`, `change_branch_holder`),
-    but no story runs it: the merge job's stories are changes into a
-    goal's branch and into main, none a goal's landing
-    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`; the
-    composed system world's `suite::merge_job`). The
-    forge world steps such a landing to its merge job and a resolution
-    on scripted delegations alone, with no job or resolution run
-    (`a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job`).
-  -  a retargeted pull request retargeted back on release; the change
-    is held as a failed effect.
-  -  the explicit choice to adopt a GitHub repository without CI.
-  -  the rule and criterion of a change's last wait or refusal, and
-    its charter, on its panel.
-  -  a change drained.
-  -  a dependent's landing holding its dependency's pushed head in
-    g's ancestry is unobserved in stories, the fake forge squashing
-    merges (skein's `testing/fakes/forge.md`, 2.2).
-  -  what a step short of message room leaves for the next. A
-    question's `Stands` is taken, foreman, asked or held
-    (`temper-engine-domain-forge-change/src/boundary.rs`, and the store's
-    `Stands`), so nothing holds reasons awaiting passing up, whose stored
-    ceiling is not in the schema, or a foreman's words awaiting passing
-    down. With no room `relay`
-    (`temper-engine-domain-forge-change/src/relay.rs`) leaves the question
-    as it stood and wakes the change, while the step's commit takes the
-    foreman's verdict from the inbox (jig's `domain/tasks/messages.md`, 2), so the
-    question waits on an ended foreman. A question released past the bound
-    at such a step meets the spent allowance again at the next: the release
-    is that step's alone, and `next_act` holds the change.
-  -  a repair's or a resolution's question, relayed as a producer's
-    is (`temper-engine-domain/src/route/forge_route/relay.rs`,
-    `asking_delegate`), and its words, refused as a producer's are, are
-    unobserved in stories: every relay story runs the change's producing
-    task only
-    (`tests/engine/domain/tests/suite/forge_routes/questions.rs`,
-    `foremen.rs` and `goal_questions.rs`).
-  -  a branch a tier follows still pauses its queue on its own CI's
-    red and makes a repair, where its tiers judge it instead
-    (`temper-engine-domain-forge-change/src/domain.rs`, `base_ci`).
-  -  the issue's milestones but its lifecycle and revisions: the plan
-    accepted, a change landed or held, a report kept.
-  -  questions on the forge.
-  -  participating objects beyond their news; a landing waiting for
-    someone else's merge where temper may not merge (also `../adoption.md`, section 4 and `../queues.md`).
-  -  upstream contributions.
-  -  the rules as settings (`gates.md`, 3) in the forge's world: `tests/engine/forge`
-    tells none of them. The engine's domain world tells a rule changed
-    between two merges, a rule refused in its change's decision, a
-    change kept on the charters it was made with and one held when its
-    charter is no longer offered, and a restart
-    (`tests/engine/domain/tests/suite/settings/kinds.rs`,
-    `forge_routes/kind_charters.rs`); no world tells a gate a rule adds
-    asked for on a queued change, a gate a rule drops no longer waited
-    on.
+  - the whole document: the conflicting goal-landing story remains `../branches.status.md`, 1.
+  -  the retarget-on-release gap remains `README.status.md`, 3.
+  -  the no-CI adoption choice remains `gates.status.md`, 2.
+  -  the panel's wait and charter facts remain `README.status.md`, 5.
+  -  the change drain remains `README.status.md`, 6.
+  -  the dependency-ancestry proof remains `questions.status.md`, 1.
+  -  the message-room relay gap remains `questions.status.md`, 1.
+  -  the repair/resolution relay stories remain `questions.status.md`, 1.
+  -  the tier-branch CI gap remains `../queues.status.md` (Not yet, the whole document).
+  -  the issue milestones remain `../issues.status.md` (Not yet, the whole document).
+  -  the forge questions remain `../issues.status.md`, 1.
+  -  participating objects and external merges remain `../README.status.md`, 7.
+  -  upstream contributions remain `../README.status.md`, 8.
+  -  the rule-change gate stories remain `gates.status.md`, 3.
 - **Design departs:** `repairs.md`, `questions.md`, 1 and jig's `domain/tasks/lifecycle.md`, 8, from the request
   `producer-failure` of 2026-11-05, each decided by its plan's cut, for the user
   to see:
-  - `questions.md`, 1, and jig's `../attention.md`, 3: the request recommends refusing an asker's `finish` at
-    the call, with the words `Your question is still open: call wait; the answer
-    reaches this run.` The run parks instead, as a done finish does: smith judges
-    a `finish` with no call to its host, and the tasks child decides at the
-    answer's commit, the run and its host knowing nothing of it (jig's
-    `domain/engine/executors.md`, 4). A refusal at the call would need a new crossing from
-    jig through the worker to smith, and costs the run a turn that parking does
-    not. So those words reach no run; the stock coding charter says the same
-    before it finishes, and a resumed run's transcript shows its earlier `finish`
-    as accepted, then its waking instruction and the answer.
-  -  the request has a question left by its asker's end say so to whoever
-    was waiting. One passed up says so at its answer, not at the end, because
-    saying it once at the end would need a stored mark and the request names no
-    store change. So a requester that never answers hears nothing of it.
+  - `questions.md`, 1, and jig's `../attention.md`, 3: the finish-parking departure remains `questions.status.md`, 1.
+  -  the ended-asker notice departure remains `questions.status.md`, 1.
   - the whole document: the request has its failing test in the forge world. Its stories run in
     the engine's domain world
     (`tests/engine/domain/tests/suite/forge_routes/producer_failure.rs`), where the
     core and the connector meet, with the policy's in
     `temper-engine-domain-forge-change/src/tests.rs`; `tests/engine/forge` tells
     none of it.
+
+- **Design departs:** from `replay-repairs`' request item 2,
+  decided by its plan's cut: a review starts with an omitted-page notice
+  rather than including the oversized file. A files page already carries
+  whole files, and the reference already sizes its answer bound from
+  the room, so neither paging between files nor that room admits one
+  file beyond the bound. The requested refusal's bound met and measured
+  size remain `../README.md`, section 11's open decision: skein supplies only bare
+  `TooLarge`, and carrying those facts changes its public interface and
+  temper's stored answer. `read_pull_files` therefore still names
+  `forge.client.rows or forge.client.answer_bytes` and says the measure
+  is unknown; its host answer limit is a separate bound.
+
+- **Design departs:** from the request `repair-green` of 2026-11-05, each
+  decided by its plan's cut, for the user to see:
+  - The request's rule 1 ends a held repair when CI has passed at the head. A
+    hold at gating, past the bound or short of authority, stays held
+    (`temper-engine-domain-forge-change/src/domain.rs`, `held_on_ci`), because
+    its state can't say whether it is a gate's or CI's, and the plan kept what a
+    hold stores.
+  - Rule 1's hold ends on a wake alone, and a poll wakes a change only when what
+    it read of the pull request moved (`temper-engine-domain-forge/src/domain.rs`,
+    the pull read's `wakes`). Under required contexts a check they don't name can
+    keep the pull request's CI as it was, so that hold waits for a hint or a
+    person's release, and where nothing delivers hints, for the release. It
+    costs time and makes no fresh repair.
+  - Rule 1 ends a retrying repair with no agent's work. A run ending into a retry
+    wakes no change, and the change reads again within `poll`
+    (`temper-engine-domain-forge/src/domain.rs`, `repair_poll`), so a backoff
+    shorter than that starts another run, which rule 2 leaves to finish.
+  - The request has its stories in the forge world or lower. The held and
+    retrying ones run in the engine's domain world, above it
+    (`tests/engine/domain/tests/suite/forge_routes/repair_green.rs`), where a
+    task's phase, its cancel and the deployment's release meet; the forge world
+    (`tests/engine/forge/tests/suite/green.rs`) tells the policy's.
+
+- **Design departs:** from the request `brief-failure` of 2026-11-05, each
+  decided by its plan's cut, for the user to see:
+  - The request's true capacity is a place, an account or a brief slot. `repairs.md` also
+    pauses, with no bound, for a forge client `Busy` at the brief's deadline, a
+    forge not connected and a connector with no room, so a repair waits out a
+    disconnected forge unheld, though saying why, rather than making a person
+    release each.
+  - The request has a CI repair's stories in the forge world. They run in the
+    engine's domain world (`tests/engine/domain/tests/suite/forge_routes/brief_failure.rs`),
+    where the core and the connector meet; the forge world
+    (`tests/engine/forge/tests/suite/brief.rs`) tells a lone section's failure.

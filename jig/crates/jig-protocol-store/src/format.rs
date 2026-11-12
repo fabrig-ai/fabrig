@@ -56,11 +56,11 @@ pub fn current(application: u32, deployment: [u8; 16]) -> component::Format {
     component::Format {
         component: 3,
         core: 6,
-        tasks: 9,
+        tasks: 10,
         people: 14,
         notes: 1,
         accounts: 2,
-        settings: 1,
+        settings: 2,
         application,
         deployment,
         levels: NONE,
@@ -89,8 +89,8 @@ pub(crate) fn check_versions(
             return Err(OpenRefusal::Format { family, found, wanted });
         }
     }
-    // No jig patch moves a family of jig's own yet: even Behind uses the
-    // binary's versions. Application patches rewrite its version.
+    // Jig versions are checked against the store's level before a patch;
+    // the application's patches rewrite its version in the sealing commit.
     if compared == Compared::Same && found.application != wanted.application {
         return Err(OpenRefusal::Format {
             family: Family::Application,
@@ -102,6 +102,33 @@ pub(crate) fn check_versions(
         return Err(OpenRefusal::Deployment);
     }
     Ok(())
+}
+
+/// Jig's versions at the store's level, from the same blocks the pending machines planned.
+pub(crate) fn at_level(
+    application: u32,
+    deployment: [u8; 16],
+    machines: &crate::patching::machines::Machines,
+) -> component::Format {
+    // Sets that do not name one of jig's families keep this build's version for it.
+    let mut wanted = current(application, deployment);
+    for (name, version) in [
+        ("jig-store-component", &mut wanted.component),
+        ("jig-store-core", &mut wanted.core),
+        ("jig-store-tasks", &mut wanted.tasks),
+        ("jig-store-people", &mut wanted.people),
+        ("jig-store-notes", &mut wanted.notes),
+        ("jig-store-accounts", &mut wanted.accounts),
+        ("jig-store-settings", &mut wanted.settings),
+    ] {
+        if let Some(family) = machines.named(name.as_bytes()) {
+            let machine = machines.get(family);
+            if machine.owner == Owner::Jig {
+                *version = machine.reached;
+            }
+        }
+    }
+    wanted
 }
 
 /// This build's layouts (protocol/store/records.md, 3): computed from the schemas built in,

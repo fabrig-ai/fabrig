@@ -62,7 +62,7 @@ impl Capture {
                                         .expect("format")
                                         .levels
                                         .application
-                                        == Some(1)
+                                        == jig_protocol_store::levels(&crate::upgrade::FIXTURE_SETS).application
                                 {
                                     self.seals.insert(fd.raw(), true);
                                 }

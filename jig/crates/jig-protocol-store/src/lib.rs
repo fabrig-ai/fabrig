@@ -305,11 +305,11 @@ fn frame_bound(codec: &codec::View) -> Option<u64> {
 // Bound for two decoded records, including their wire values and the census's joined task.
 fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
     core_v6::Row::decoded_bound(&codec.core)?
-        .checked_add(tasks_v9::Row::decoded_bound(&codec.tasks)?)?
+        .checked_add(tasks_v10::Row::decoded_bound(&codec.tasks)?)?
         .checked_add(people_v14::Row::decoded_bound(&codec.people)?)?
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
-        .checked_add(settings_v1::Revision::decoded_bound(&codec.settings)?)?
+        .checked_add(settings_v2::Revision::decoded_bound(&codec.settings)?)?
         .checked_add(jig_domain_core::settings::revision_bound(&limits.core)?)?
         .checked_add(u64::try_from(size_of::<jig_domain_tasks::TaskRecord>()).ok()?)?
         .checked_mul(2)
@@ -424,8 +424,8 @@ pub mod notes_v1;
 #[path = "generated/people_v14.rs"]
 pub mod people_v14;
 #[rustfmt::skip]
-#[path = "generated/tasks_v9.rs"]
-pub mod tasks_v9;
+#[path = "generated/tasks_v10.rs"]
+pub mod tasks_v10;
 #[rustfmt::skip]
 #[path = "generated/core_v6.rs"]
 pub mod core_v6;
@@ -440,8 +440,8 @@ pub use boundary::{
 mod tests;
 
 #[rustfmt::skip]
-#[path = "generated/settings_v1.rs"]
-pub mod settings_v1;
+#[path = "generated/settings_v2.rs"]
+pub mod settings_v2;
 #[rustfmt::skip]
 #[path = "generated/component_v3.rs"]
 pub mod component_v3;

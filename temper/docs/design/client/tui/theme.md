@@ -47,7 +47,7 @@
   |---|---|---|---|---|---|
   | `tui-top` | top | lines | `╭ ╮ ╰ ╯`, `─`, `│`, faint, its title in it, with sides | 1 | signing in's lines; the launchpad's header |
   | `tui-sections` | body | lines | none | 1 | the launchpad's sections and notes |
-  | `tui-pane` | side, `Side { percent: 50 }` | lines | `│` down, faint, no sides, no title | 1 | a chat's draft at half (`pages.md`, *A design session*) |
+  | `tui-pane` | side, `Side { percent: 50 }` | lines | `│` down, faint, no sides, no title | 1 | a chat's draft at half (`pages/design-session.md`, 1) |
   | `tui-working` | bottom | lines | none | 0 | a chat's running line |
   | `tui-box` | bottom | lines | `─`, faint, no sides: a rule above, its title in it, one below | 0 | the box, and a send's refusal under it; on a chat, the chat's title, drawn in its rule |
   | `tui-list` | bottom | lines | none | 0 | a list in the quiet line's place |
@@ -137,7 +137,7 @@
     `Start.kept` before the root is given the rest, since jig's store
     reads only its own records; one absent or unreadable reads as Auto,
     so the next run starts in the theme the last one took.
-  - *Written* when the person takes a theme (`pages.md`, *`/theme`*), Auto
+  - *Written* when the person takes a theme (`pages/README.md`, 2, *`/theme`*), Auto
     included: a `jig_client::Request::Save` of that record alone, among
     the report's duties' requests, after the root's. The native shell
     answers each `Save` and `Erase` once, in the order asked (jig's

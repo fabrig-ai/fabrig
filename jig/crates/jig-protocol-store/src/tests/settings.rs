@@ -15,6 +15,7 @@ fn model() -> core::Model {
         endpoint: 4,
         program: Some(Box::from(b"program".as_slice())),
         name: Box::from(b"model".as_slice()),
+        cache_life_ms: 300_000,
         window: 8192,
         output: 1024,
         input_price: 1,
@@ -673,8 +674,8 @@ fn charter_documents_obey_lowered_limits_in_every_settings_record() {
             codec::settings::limits(&fewer_documents).unwrap(),
             codec::settings::limits(&fewer_segments).unwrap(),
             shorter_segments,
-            crate::settings_v1::Limits { document_path: core::DOCUMENT_PATH_BYTES - 1, ..limits },
-            crate::settings_v1::Limits { document_heading_some: core::DOCUMENT_HEADING_BYTES - 1, ..limits },
+            crate::settings_v2::Limits { document_path: core::DOCUMENT_PATH_BYTES - 1, ..limits },
+            crate::settings_v2::Limits { document_heading_some: core::DOCUMENT_HEADING_BYTES - 1, ..limits },
         ] {
             assert_eq!(codec::settings::encode(&row, &lowered, &[]).unwrap_err().reason, skein_codec::Reason::Bound);
             assert_eq!(
@@ -735,15 +736,18 @@ fn charter_parts_refuse_empty_and_unknown_reason_bits() {
 
 #[test]
 fn a_templates_closer_round_trips_in_the_settings_family() {
-    let mut template = template();
-    template.flags.conversation = false;
-    template.flags.ended_by = tasks::EndedBy::Closer(tasks::Closer { connector: 1, code: 6 });
-    let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Changed {
-        setting: s::Setting::Template(1),
-        changed: s::Changed { revision: 1, value: Some(s::Value::Template(Box::new(template))) },
-    }));
-    let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
-    let names = [catalogue_name(b"one"), catalogue_name(b"two")];
-    let bytes = codec::encode(&row, &limits, &names).unwrap();
-    assert_eq!(codec::decode(&row.key(), &bytes, &limits, &names), Some(row));
+    for ended_by in [tasks::EndedBy::Closer(tasks::Closer { connector: 1, code: 6 }), tasks::EndedBy::Standing] {
+        let mut template = template();
+        template.flags.conversation = false;
+        template.tracked = None;
+        template.flags.ended_by = ended_by;
+        let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Changed {
+            setting: s::Setting::Template(1),
+            changed: s::Changed { revision: 1, value: Some(s::Value::Template(Box::new(template))) },
+        }));
+        let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
+        let names = [catalogue_name(b"one"), catalogue_name(b"two")];
+        let bytes = codec::encode(&row, &limits, &names).unwrap();
+        assert_eq!(codec::decode(&row.key(), &bytes, &limits, &names), Some(row));
+    }
 }

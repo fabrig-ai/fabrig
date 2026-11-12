@@ -22,6 +22,9 @@ use temper_playground::{
     service::Observe,
 };
 
+// The start's copy uses this build's brief floor; kept bytes stay unchanged (baseline.md, 6).
+const BRIEF_SECTIONS: u32 = jig_domain_core::CORE_SECTIONS;
+
 struct Golden;
 type Proc = programs::Process<Golden>;
 impl Harness for Golden {
@@ -375,6 +378,40 @@ fn assert_history(store: &Store) {
     );
     assert!(rows.values().any(|row| matches!(row, Row::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Repository(repo) if repo.project == 1 && repo.provider.forge == 1 && repo.provider.repository == 1 && repo.owner.as_ref() == b"playground" && repo.name.as_ref() == b"widget"))), "adopted repository");
     assert!(rows.values().any(|row| matches!(row, Row::Core(Record::Tasks(tasks::Stored::Ended(task))) if task.number == 2 && matches!(task.phase, tasks::Phase::Ended(_)))), "landed change task ended");
+    let task = rows
+        .values()
+        .find_map(|row| match row {
+            Row::Core(Record::Tasks(tasks::Stored::Ended(task))) if task.number == 2 => Some(task),
+            _ => None,
+        })
+        .expect("kept ended task");
+    assert!(task.session.is_none(), "kept task has no session");
+    let charter = rows
+        .values()
+        .find_map(|row| {
+            let Row::Core(Record::Core(CoreRecord::Settings(jig_domain_core::settings::Record::Default {
+                setting: jig_domain_core::settings::Setting::Charter(1),
+                default,
+            }))) = row
+            else {
+                return None;
+            };
+            let jig_domain_core::settings::Value::Charter(charter) = &default.value else { return None };
+            Some(charter)
+        })
+        .expect("charter model");
+    assert_eq!(charter.policy.model.cache_life_ms, 0, "model declares no cache life");
+    let rule = rows
+        .values()
+        .find_map(|row| {
+            let Row::Forge { row } = row else { return None };
+            let temper_engine_domain_forge::Stored::Setting(setting) = row.as_ref() else { return None };
+            let temper_engine_domain_forge::settings::Edit::Set(value) = &setting.edit else { return None };
+            let temper_engine_domain_forge::settings::Value::Rule(rule) = &value.value else { return None };
+            Some(rule)
+        })
+        .expect("kept landing rule");
+    assert!(rule.sets.is_empty(), "kept landing rule names no set");
     let commit =
         [29, 11, 20, 228, 219, 1, 143, 237, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     assert!(rows.values().any(|row| matches!(row, Row::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Landed { task: 2, commit: kept } if *kept == commit))), "landing marker");
@@ -477,7 +514,23 @@ pub fn read(directory: &Path) {
     PATCHED.with(|lines| lines.borrow_mut().clear());
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
     let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
-    let document = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    let sections =
+        document.pointer_mut("/engine/limits/overrides/brief.sections").expect("kept brief section override");
+    *sections = sections.as_u64().expect("brief section count").max(u64::from(BRIEF_SECTIONS)).into();
+    let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
+        panic!("golden world defaults")
+    };
+    for (name, count) in [
+        ("tasks.charters", jig.charters.len()),
+        ("core.templates", jig.templates.len()),
+        ("authority.executors", jig.rules.ceiling.delegation.kinds.len()),
+    ] {
+        let count = u64::try_from(count).expect("configured default count");
+        let bound = document["engine"]["limits"]["overrides"].get_mut(name).expect("kept count override");
+        *bound = bound.as_u64().expect("count override").max(count).into();
+    }
+    let configuration = serde_json::to_vec(&document).expect("startup configuration");
     let mut disk = files::load(directory);
     // The terminal keeps its token; ctl additionally reads the engine's address.
     machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());

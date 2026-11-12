@@ -5,14 +5,17 @@ use crate::{fixtures, referee, world};
 use jig_protocol_store::{KeptMap, Owner, PatchSets, codec, keys};
 use std::{cell::RefCell, collections::BTreeSet, path::Path, rc::Rc};
 
-/// The baseline owners with a single application patch that changes no family.
+/// The real owners with one extra application patch that changes no family.
 pub const FIXTURE_SETS: PatchSets = PatchSets {
     sets: &[
         jig_protocol_store::SKEIN_PATCH_SET,
         jig_protocol_store::SMITH_PATCH_SET,
         jig_protocol_accounts::JIG_PATCH_SET,
         jig_protocol_store::PatchSet {
-            patches: &["patch 1\nowner temper 1 after jig 0\nmark fresh-windows\n"],
+            patches: &[
+                include_str!("../../../crates/temper-protocol-store/patches/0001.patch"),
+                "patch 1\nowner temper 2 after jig 1\nmark fresh-windows\n",
+            ],
             fresh: Some("fresh-windows"),
             ..temper_protocol_store::PATCH_SET
         },
@@ -88,12 +91,8 @@ pub fn golden_ranges(directory: &Path) {
     eprintln!("golden ranges: {} store keys (4 reserved), {} secrets keys", maps.store.len(), maps.secrets.len());
 }
 
-fn assert_levels(maps: &maps::Maps, application: u32) {
-    let format = maps.format();
-    assert_eq!(
-        format.levels,
-        codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(0), application: Some(application) }
-    );
+fn assert_levels(maps: &maps::Maps, sets: &PatchSets) {
+    assert_eq!(maps.format().levels, jig_protocol_store::levels(sets));
 }
 
 fn chat_window(maps: &maps::Maps) -> jig_domain_core::RunProof {
@@ -109,7 +108,7 @@ fn chat_window(maps: &maps::Maps) -> jig_domain_core::RunProof {
     proof
 }
 
-/// A signal-stopped chat keeps its live window at level zero. An equal open
+/// A signal-stopped chat keeps its live window at the real owners' levels. An equal open
 /// patches nothing; the marked upgrade closes the window and switches once.
 pub fn fresh_windows() {
     let scenario = world::Story::ChatReadThenWait { words: b"Hello" };
@@ -128,7 +127,7 @@ pub fn fresh_windows() {
     assert!(first.drained && first.end == Some(temper_service::End::Drained));
     assert!(first.patched.is_empty(), "first start patches nothing");
     let before = maps::Maps::read(&mut disk);
-    assert_levels(&before, 0);
+    assert_levels(&before, &temper_service::store::PATCH_SETS);
     let proof = chat_window(&before);
     let window = proof.window.expect("chat has a live window");
     assert!(!window.closed, "signal preserves the live chat window");
@@ -140,17 +139,21 @@ pub fn fresh_windows() {
     assert!(equal.patched.is_empty(), "equal baseline levels patch nothing");
     let equal_maps = maps::Maps::read(&mut disk);
     assert_eq!(equal_maps.active, before.active, "equal open does not switch");
-    assert_levels(&equal_maps, 0);
+    assert_levels(&equal_maps, &temper_service::store::PATCH_SETS);
     assert!(!chat_window(&equal_maps).window.expect("window retained").closed);
 
     let (patched, mut disk, store) = world::with_patch_sets(FIXTURE_SETS, || {
         world::run_phase(settings, scenario, world::Phase::SignIn, disk, store, run.clone())
     });
     assert!(patched.drained);
-    assert_eq!(patched.patched, vec![(Owner::Application, 1, jig_protocol_store::Counts { records: 0, commits: 0 })]);
+    let patch = jig_protocol_store::levels(&FIXTURE_SETS).application.expect("fixture application level");
+    assert_eq!(
+        patched.patched,
+        vec![(Owner::Application, patch, jig_protocol_store::Counts { records: 0, commits: 0 })]
+    );
     let after = maps::Maps::read(&mut disk);
     assert_eq!(after.active, before.active + 1, "one copy switched");
-    assert_levels(&after, 1);
+    assert_levels(&after, &FIXTURE_SETS);
     let proof = chat_window(&after);
     assert!(proof.crossed);
     let closed = proof.window.expect("window retained closed");
@@ -164,6 +167,6 @@ pub fn fresh_windows() {
     assert!(equal.drained);
     assert!(equal.patched.is_empty(), "equal fixture levels patch nothing");
     let again = maps::Maps::read(&mut disk);
-    assert_levels(&again, 1);
+    assert_levels(&again, &FIXTURE_SETS);
     assert_eq!(again.active, after.active, "equal fixture open does not switch");
 }

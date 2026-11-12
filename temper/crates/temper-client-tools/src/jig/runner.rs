@@ -13,6 +13,7 @@ mod moves;
 pub(crate) mod proposal;
 pub(crate) mod reads;
 mod recovery;
+mod role;
 pub(crate) mod specification;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileEnd {
@@ -188,6 +189,8 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::PROPOSAL_AT
         | rows::TASK_TEXT_AT
         | rows::TASK_NOTES_AT
+        | rows::ROLE_LIST_AT
+        | rows::ROLE_SHOW_AT
         | rows::PROJECT_SHOW_AT => {
             reads::start(runner, client, env, called, out);
         }
@@ -197,6 +200,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         rows::TAKE_AT
         | rows::HAND_BACK_AT
         | rows::GOAL_START_AT
+        | rows::ROLE_START_AT
         | rows::CHAT_CREATE_AT..=rows::CANCEL_AT
         | rows::LIFT_AT
         | rows::TASK_DECIDE_AT

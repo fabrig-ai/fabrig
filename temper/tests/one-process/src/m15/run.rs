@@ -36,7 +36,7 @@ fn provider(renew: bool) -> skein_fake_peers::llm::Peer {
         "executor":{"kind":"procedure","connector":fixtures::FORGE_CONNECTOR,"code":fixtures::PROCEDURE_CODE},
         "spec":{"words":"@edit Fix","parameters":[{"name":fixtures::PARAMETER_NAMES[0],"kind":"resource","connector":fixtures::FORGE_CONNECTOR,"resource":fixtures::REPOSITORY_TAG},{"name":fixtures::PARAMETER_NAMES[1],"kind":"bytes","value":"main"}]},
         "contract":{"kind":"change","connector":fixtures::FORGE_CONNECTOR,"change_kind":fixtures::CHANGE_KIND,"words":fixtures::CHANGE_WORDS},
-        "authority":{"tools":fixtures::PRODUCER_TOOLS,"grants":temper_engine_domain_forge::CHANGE_KINDS.map(grant),"delegation":{"kinds":[{"kind":"agent","number":fixtures::AGENT_KIND}],"tasks":fixtures::PRODUCER_TASKS,"depth":fixtures::PRODUCER_DEPTH},"budget":{"spend":fixtures::PRODUCER_SPEND},"notes":fixtures::PRODUCER_NOTES}
+        "authority":{"tools":fixtures::PRODUCER_TOOLS,"grants":super::DELIVERY_KINDS.map(grant),"delegation":{"kinds":[{"kind":"agent","number":fixtures::AGENT_KIND}],"tasks":fixtures::PRODUCER_TASKS,"depth":fixtures::PRODUCER_DEPTH},"budget":{"spend":fixtures::PRODUCER_SPEND},"notes":fixtures::PRODUCER_NOTES}
     }]});
     let mut edits =
         vec![call(b"read", br#"{"path":"README.md"}"#), call(b"shell", br#"{"command":"echo fixed > conflict.txt"}"#)];

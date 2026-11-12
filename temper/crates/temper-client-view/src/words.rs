@@ -484,6 +484,8 @@ pub enum Word {
     SettingsNoneTag,
     SettingsNoneBody,
     SettingsSignedIn,
+    WorkGoalBranchOne,
+    WorkGoalBranchMany,
     WorkOne,
     WorkKicker,
     WorkNothing,
@@ -1295,7 +1297,7 @@ pub enum Word {
     ChatPaused,
     ChatSendResumes,
     ChatWorking,
-    /// A model writing its answer, on the shared running line (client/tui/pages.md).
+    /// A model writing its answer, on the shared running line (client/tui/pages/README.md).
     RunningWork,
     ConnectForge,
     ChatTitle,
@@ -1615,12 +1617,15 @@ pub enum Word {
     ApprovalProjectRule,
     ApprovalOne,
     ApprovalMany,
-    ApprovalBehindOne,
-    ApprovalBehindMany,
     ApprovalCut,
     ApprovalTooFew,
     ApprovalNoAccount,
     ApprovalOtherRole,
+    ApprovalSets,
+    ApprovalPathSet,
+    ApprovalJoin,
+    ApprovalAnd,
+    ApprovalSignOff,
     ApprovalReview,
     ApprovalOwner,
     ApprovalMaintainer,
@@ -1778,7 +1783,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2331;
+const PHRASES: u32 = 2336;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1805,10 +1810,10 @@ const PHRASES: u32 = 2331;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4190;
+const SEGMENTS: u32 = 4209;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56546;
-const ALL: [Word; 1647] = [
+const ENGLISH_BYTES: u32 = 56611;
+const ALL: [Word; 1652] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2273,6 +2278,8 @@ const ALL: [Word; 1647] = [
     Word::SettingsNoneTag,
     Word::SettingsNoneBody,
     Word::SettingsSignedIn,
+    Word::WorkGoalBranchOne,
+    Word::WorkGoalBranchMany,
     Word::WorkOne,
     Word::WorkKicker,
     Word::WorkNothing,
@@ -3367,12 +3374,15 @@ const ALL: [Word; 1647] = [
     Word::ApprovalProjectRule,
     Word::ApprovalOne,
     Word::ApprovalMany,
-    Word::ApprovalBehindOne,
-    Word::ApprovalBehindMany,
     Word::ApprovalCut,
     Word::ApprovalTooFew,
     Word::ApprovalNoAccount,
     Word::ApprovalOtherRole,
+    Word::ApprovalSets,
+    Word::ApprovalPathSet,
+    Word::ApprovalJoin,
+    Word::ApprovalAnd,
+    Word::ApprovalSignOff,
     Word::ApprovalReview,
     Word::ApprovalOwner,
     Word::ApprovalMaintainer,
@@ -3478,12 +3488,15 @@ impl Word {
             Self::ApprovalProjectRule => 4126,
             Self::ApprovalOne => 4127,
             Self::ApprovalMany => 4128,
-            Self::ApprovalBehindOne => 4129,
-            Self::ApprovalBehindMany => 4130,
             Self::ApprovalCut => 4131,
             Self::ApprovalTooFew => 4132,
             Self::ApprovalNoAccount => 4133,
             Self::ApprovalOtherRole => 4134,
+            Self::ApprovalSets => 5652,
+            Self::ApprovalPathSet => 5653,
+            Self::ApprovalJoin => 5654,
+            Self::ApprovalAnd => 5655,
+            Self::ApprovalSignOff => 5656,
             Self::ApprovalReview => 4135,
             Self::ApprovalOwner => 4136,
             Self::ApprovalMaintainer => 4137,
@@ -3958,6 +3971,8 @@ impl Word {
             Self::StartGoalAlways => 3593,
             Self::StartGoalAlwaysDetail => 3594,
             Self::GoalFollowsAway => 3595,
+            Self::WorkGoalBranchOne => 5672,
+            Self::WorkGoalBranchMany => 5673,
             Self::WorkOne => 4679,
             Self::WorkKicker => 4650,
             Self::WorkNothing => 4651,
@@ -5173,10 +5188,15 @@ fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
 const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 // Twenty items, six implicit kinds and six implicit sets, each within 200 bytes with words (client/pages/settings.md, 2).
 const CLASSES_OBJECTS_BYTES: u32 = 6400;
+// Six 40-byte set names, four commas and the last conjunction (client/forge/README.md, 4.1).
+const APPROVAL_SET_NAMES_BYTES: u32 = 253;
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
     if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
         return Ok(CLASSES_OBJECTS_BYTES);
+    }
+    if [Word::ApprovalSets, Word::ApprovalJoin, Word::ApprovalAnd].contains(&word) {
+        return Ok(APPROVAL_SET_NAMES_BYTES);
     }
     if word == Word::ClassesSet {
         return Ok(if last { 490 } else { 40 });
@@ -5576,12 +5596,15 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApprovalProjectRule => (&[b"This project's landing rule ", b""], &[Number]),
         Word::ApprovalOne => (&[b"", b" asks for one approval by ", b"."], &[Name, Name]),
         Word::ApprovalMany => (&[b"", b" asks for ", b" approvals by ", b"; ", b" so far."], &[Name, Number, Name, Number]),
-        Word::ApprovalBehindOne => (&[b"1 more change waits behind this one."], &[]),
-        Word::ApprovalBehindMany => (&[b"", b" more changes wait behind this one."], &[Number]),
         Word::ApprovalCut => (&[b"There are too many reviews to read them all, so one may already count."], &[]),
         Word::ApprovalTooFew => (&[b"Fewer people can approve it than the rule asks for, so it waits until the rule or the project's people change."], &[]),
         Word::ApprovalNoAccount => (&[b"temper knows no ", b" account of yours, so your review wouldn't count."], &[Name]),
         Word::ApprovalOtherRole => (&[b"It waits for a review by ", b"; yours wouldn't count."], &[Name]),
+        Word::ApprovalSets => (&[b"Signs off changes to ", b"."], &[Name]),
+        Word::ApprovalPathSet => (&[b"path set ", b""], &[Number]),
+        Word::ApprovalJoin => (&[b"", b", ", b""], &[Name, Name]),
+        Word::ApprovalAnd => (&[b"", b" and ", b""], &[Name, Name]),
+        Word::ApprovalSignOff => (&[b"Sign off on ", b" \xe2\x86\x97"], &[Name]),
         Word::ApprovalReview => (&[b"Review on ", b" \xe2\x86\x97"], &[Name]),
         Word::ApprovalOwner => (&[b"an owner"], &[]),
         Word::ApprovalMaintainer => (&[b"a maintainer"], &[]),
@@ -5795,6 +5818,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalsMoreMany => (&[b"More than ", b" goals, ", b" under way."], &[Number, Number]),
         Word::GoalsLede => (&[b"A goal turns a draft into landed work."], &[]),
         Word::GoalsWays => (&[b"A goal turns a draft into landed work, its own way: "], &[]),
+        Word::WorkGoalBranchOne => (&[b"Also one change landed into a goal branch."], &[]),
+        Word::WorkGoalBranchMany => (&[b"Also ", b" changes landed into goal branches."], &[Name]),
         Word::WorkOne => (&[b"One"], &[]),
         Word::WorkKicker => (&[b"", b" \xc2\xb7 Work"], &[Name]),
         Word::WorkNothing => (&[b"Nothing in flight yet."], &[]),

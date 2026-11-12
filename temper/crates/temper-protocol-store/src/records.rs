@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v11 as w};
+use crate::{Bounds, Undecodable, v12 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as d;
@@ -196,6 +196,7 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
         landing_rule_gates: forge.change_policy.gates,
         landing_rule_approvals: forge.roles,
+        landing_rule_sets: 6,
         rule_pattern_segments: forge.authority_segments.checked_mul(forge.name_bytes.checked_add(8)?)?,
         effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,
         answer_name_name: forge.client.answer_bytes,

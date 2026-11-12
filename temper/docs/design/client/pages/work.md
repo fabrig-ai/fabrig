@@ -16,7 +16,8 @@
   - **Its reads** are the three lists it joins, each as its own page reads
     it: the goals' (*Goals*: the goals' query, its live group watched and its
     ended group read, a report per row, the project's needs); the changes'
-    (*Changes*: the subject `changes`, and a `task` per row shown); and the
+    (*Changes*: the subject `changes`, and a `task` per row of its queues,
+    its `landed` and its `landed_default`); and the
     person's chats' (*The Chats page*: the chats' query and its documents'
     notes). Work under each filter, `Goals` and `Changes` open the same three,
     and a move among them keeps them open, as a move of Goals' filter keeps its
@@ -57,8 +58,23 @@
       and for each chat with a change on its way, by the rules below;
     - "Drafts · N", "a goal starts from each": a card for each draft;
     - "Landed this week · N", with "All", to `Changes { project }`, at its
-      right: a row for each change landed in the seven days before now, by
-      the changes' `landed` rows, newest first.
+      right: the work that reached a default branch in the seven days
+      before now, by the changes' `landed_default` rows
+      (`../forge/records.md`, *A project's changes*), newest first: a row
+      for each goal with a change landed into its repository's default
+      branch, its goal's landing or any other of its changes, and a row
+      for each such change outside a goal. A change landed into a goal's
+      branch, or any branch other than its repository's default, is no
+      row, since a person reads the section as what reached main (the
+      person, 2026-11-11), where the whole story's mockup lists a row per
+      change. N, and the heading's "landed this week", count the rows.
+      After the rows, while it is above zero, a quiet line, in the
+      byline's style, of the changes of goals landed into a branch other
+      than their repository's default in the same seven days, by the
+      `landed` rows: "Also one change landed into a goal branch." or
+      "Also N changes landed into goal branches.", N in words from two to
+      nine and in digits from ten, as the heading's numbers. With no row,
+      the section, its quiet line with it, isn't drawn.
   - **What goes where** is one pure function of the domain's,
     `temper_client_domain::pages::work::place(&Facts, wall) -> Work`, over
     plain facts that `work::facts(root, project)` gathers from the three
@@ -83,6 +99,15 @@
     - In flight's order is the newest activity first: a goal's or a chat's
       `last_activity`, a change's `ready_since`; Drafts' the newest
       `last_activity` first; a tie the lower task number first.
+    - Landed this week takes the `landed_default` rows whose `at` is in
+      the seven days before `wall`, `wall` included, each once by its task:
+      a row that belongs to a goal is that goal's row, and a goal has one
+      row, at its newest such landing; any other is its change's row, a
+      chat's change and one whose task is unread among them. Its order is
+      the newest landing first, a tie the lower change's task first. Its
+      quiet line counts the `landed` rows in the same window, each once by
+      its task, whose `default_branch` is false and that belong to a goal,
+      whether the goal is listed or not.
   - **A goal's card:** its from line: the tag "goal" in the agents' colour,
     the mockup's `.who.a`; its title, its chip's, a link to its `Task`; its
     way's name (1, *Ways*); and "31 of 50 spent", its task line's
@@ -102,9 +127,15 @@
     name, as the Chats page's row says what it writes, and "a chat with you",
     its last activity in the clock form; then its chat's title; then "Open
     the draft", to its `Chat`.
-  - **A landed row:** its time in the mono face, in the clock form; its
-    title, a link to its change's `Task`; and at its right where it came
-    from: its goal's title, "a chat with you", or nothing.
+  - **A landed row:** its landing's time in the mono face, in the clock
+    form; then a goal's row its goal's title, the title of the goal's chip
+    in its change's `lineage_chips`, else its change's title (a goal's
+    landing takes the goal's title as its words, `../../domain/forge/branches.md`,
+    2), a link to the goal's `Task`; a change's row its change's title, a
+    link to its change's `Task`; and at its right its landing's commit,
+    its first seven hex digits as a short commit is written
+    (`../web/public.md`, 3, *A short commit*), after "a chat with you · " on a
+    chat's change's row.
   - **Under Drafts,** Work's head and filters, then the Drafts section alone.
   - **Before an answer and with nothing:** a section claims nothing until its
     reads have answered (`README.md`'s intro). With all three answered and nothing
@@ -195,6 +226,14 @@
   delegates did other than its changes; and who made a change. No read
   gives any of them. Default: a draft is a chat's document, a chat's card
   holds its changes, and a change's card names no maker.
+- **A week's landings past the log** (1, *Work*): Landed this week reads the
+  landing log (`../../domain/after-landing.md`, section 10), a ring of
+  `landings_kept` landings per repository, through `landed_default`'s
+  `forge.changes_landed` rows, so a busy week's landings into goal branches
+  can push its older default-branch landings out of the ring, and more than
+  `forge.changes_landed` of them show as that many. Default: so, nothing
+  stored added (the person, 2026-11-11); or the log keeps default-branch
+  landings apart, a stored field.
 - **A goal row's count of landings** (1, *Goals*; `goal.md`, 2): `TaskLine` counts a goal's
   delegates ended done whatever they did, so a row and the goal's headline say "N of
   M tasks done.", and only the goal's own rows, whose chips carry their results, say

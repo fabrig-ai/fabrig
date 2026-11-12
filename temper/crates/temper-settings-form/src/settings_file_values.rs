@@ -1034,6 +1034,7 @@ fn ended_by(d: &Decoder<'_>, at: u32) -> Result<c::EndedBy, Error> {
         return match d.string(at)? {
             b"result" => Ok(c::EndedBy::Result),
             b"requester" => Ok(c::EndedBy::Requester),
+            b"standing" => Ok(c::EndedBy::Standing),
             _ => Err(error(b"ended_by", b"unknown word")),
         };
     }

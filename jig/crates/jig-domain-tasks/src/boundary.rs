@@ -1107,6 +1107,10 @@ pub struct SettingsRevision {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent durable lifecycle facts are explicit")]
 pub struct TaskRecord {
+    /// The standing task's current session (jig/docs/design/domain/tasks/standing.md, 7).
+    pub session: Option<crate::Session>,
+    /// Whether this activation continues across retries and kept parks (standing.md, 5.1).
+    pub activation_open: bool,
     /// The live closer's task number (jig/docs/design/domain/tasks/README.md, 3, and jig/docs/design/domain/tasks/lifecycle.md, 11).
     pub closer: Option<u64>,
     /// Why this activation runs (jig/docs/design/domain/tasks/messages.md, 6).
@@ -1805,6 +1809,8 @@ pub enum Event {
     /// `Preparing`-to-`Claimed` admission with a strictly increasing root attempt, producing `Done`
     /// or `Refused`.
     Claim {
+        /// The session verdict prepared at a standing task's wake, committed only by this claim.
+        session_end: Option<crate::SessionEnd>,
         /// The prepared run's reasons (jig/docs/design/domain/tasks/messages.md, 6).
         reasons: crate::Reasons,
         /// The kinds its preparation offers (jig/docs/design/domain/tasks/messages.md, 6).
@@ -2151,6 +2157,10 @@ pub struct Added {
 /// (domain/engine/executors.md, section 1, and domain/engine/briefs.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RunContext {
+    /// A standing task's wake, rather than a retry or continuation (standing.md, 5.1).
+    pub session_wake: bool,
+    /// Kinds waking it, excluding entries and words that are always offered.
+    pub session_kinds: crate::Reasons,
     /// Why this run runs (jig/docs/design/domain/tasks/messages.md, 6).
     pub reasons: crate::Reasons,
     pub ended_by: crate::EndedBy,

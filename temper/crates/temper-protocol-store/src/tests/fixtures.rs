@@ -81,6 +81,7 @@ pub const LIMITS: top::Limits = top::Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         repairs: 3,
         resolutions: 3,
         updates: 3,
@@ -637,7 +638,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v11::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v12::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -695,13 +696,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
-pub fn encoded_row(row: &crate::v11::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v12::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v11::Row {
-    use crate::v11 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v12::Row {
+    use crate::v12 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
             .expect("piece ceiling"),

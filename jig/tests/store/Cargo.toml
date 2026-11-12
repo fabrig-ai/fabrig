@@ -33,6 +33,7 @@ skein-fake-machine.workspace = true
 skein-sim.workspace = true
 
 [dev-dependencies]
+jig-protocol-accounts.workspace = true
 jig-test-profile.workspace = true
 jig-protocol-config.workspace = true
 jig-core-kit.workspace = true

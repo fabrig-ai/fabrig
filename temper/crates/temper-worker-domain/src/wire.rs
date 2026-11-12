@@ -11,14 +11,14 @@ use alloc::boxed::Box;
 pub struct Undecodable;
 
 /// A job's command and request bytes, decoded by the service
-/// (temper/docs/design/domain/worker.md, 4.4).
+/// (temper/docs/design/domain/worker/jobs.md).
 #[derive(PartialEq, Eq, Debug)]
 pub struct JobSpec {
     pub command: Box<[u8]>,
     pub request: Box<[u8]>,
 }
 
-/// The repositories a run works in (`domain/worker.md`, 4.1). The checkout
+/// The repositories a run works in (`domain/worker/README.md`, 4.1). The checkout
 /// that holds them is keyed by jig's workstream, the holding task's number;
 /// an empty list means the run has no workspace items, so no checkout is
 /// prepared or held.
@@ -35,7 +35,7 @@ pub struct Repository {
     /// Deployment repository name, echoed in landed work.
     pub tag: u64,
     /// The directory it sits in, side by side with the workspace's others
-    /// (`domain/worker.md`, section 5), and what the agent calls it: one path
+    /// (`domain/worker/checkouts.md`), and what the agent calls it: one path
     /// component, unique within the workspace.
     pub name: Box<[u8]>,
     /// The forge's address of the repository, never interpreted: the

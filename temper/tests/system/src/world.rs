@@ -39,6 +39,7 @@ pub fn charter() -> engine::Charter {
         dialect: temper_worker_domain_world::DIALECT,
         endpoint: 0,
         name: b"fake-1".as_slice().into(),
+        cache_life_ms: 0,
         window: 65_536,
         output: 4096,
         input_price: 1,

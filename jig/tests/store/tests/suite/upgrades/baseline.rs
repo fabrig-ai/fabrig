@@ -1,5 +1,5 @@
 //! A baseline row reaches the copy-and-patch path through the simulated disk.
-use jig_protocol_store::{Owner, codec, keys};
+use jig_protocol_store::{Family, OpenRefusal, Owner, PatchSet, PatchSets, codec, keys};
 use jig_store_world::{World, patches, root};
 use skein_fake_machine::Item;
 
@@ -37,15 +37,9 @@ fn source_commit(rows: &[Row]) -> Vec<u8> {
     frame
 }
 
-#[test]
-fn baseline_store_is_patched_from_zero_and_opens() {
+fn source_world(format: codec::component::Format, extra: Vec<Row>, sets: jig_protocol_store::PatchSets) -> World {
     let baseline = &fixed::BASELINE;
     let limits = patches::limits();
-    let format = codec::component::Format {
-        application: root::APPLICATION.version,
-        deployment: root::DEPLOYMENT,
-        ..baseline.format
-    };
     let own = |key| keys::encode_own(&key, limits.store.key).expect("own key");
     let header = root::header(1);
     let mut rows = vec![
@@ -60,14 +54,7 @@ fn baseline_store_is_patched_from_zero_and_opens() {
             codec::encode(&header, &codec::limits(&limits.core).expect("limits"), &[]).expect("header"),
         ),
     ];
-    let mut records = patches::Records::story();
-    records.tokens.clear();
-    rows.extend(
-        records
-            .rows(1)
-            .into_iter()
-            .map(|(key, value)| (keys::application(&key, limits.store.key).expect("application key"), value)),
-    );
+    rows.extend(extra);
     let mut world = World::unopened_observed(0xba5e, limits, None);
     world.lay(&[
         Item::directory(b"generations"),
@@ -77,7 +64,100 @@ fn baseline_store_is_patched_from_zero_and_opens() {
         Item::file(b"generations/1/store/log-00000000000000000001", &source_commit(&rows)),
         Item::file(b"active", b"1\n"),
     ]);
-    world.patch_sets(patches::SETS);
+    world.patch_sets(sets);
+    world
+}
+
+// Keep the fixture's changes and sites, with the real jig changes that its
+// baseline format row now needs. The reviewed fixture patch files do not change.
+fn baseline_fixture_sets() -> PatchSets {
+    let jig = patches::SETS.sets[1];
+    let families =
+        jig.families.iter().chain(jig_protocol_accounts::JIG_PATCH_SET.families).copied().collect::<Vec<_>>();
+    let (_, blocks) = jig_protocol_store::patches::PATCHES[0].split_once("\n\n").expect("real jig blocks");
+    let first: &'static str = Box::leak(format!("{}\n{blocks}", jig.patches[0]).into_boxed_str());
+    let texts = Box::leak(vec![first, jig.patches[1]].into_boxed_slice());
+    PatchSets {
+        sets: Box::leak(Box::new([
+            jig_protocol_store::SKEIN_PATCH_SET,
+            jig_protocol_store::SMITH_PATCH_SET,
+            patches::SETS.sets[0],
+            PatchSet { patches: texts, families: Box::leak(families.into_boxed_slice()), ..jig },
+        ])),
+    }
+}
+
+const REAL_SETS: PatchSets = PatchSets {
+    sets: &[
+        jig_protocol_store::SKEIN_PATCH_SET,
+        jig_protocol_store::SMITH_PATCH_SET,
+        jig_protocol_accounts::JIG_PATCH_SET,
+    ],
+};
+
+#[test]
+fn real_jig_set_versions_are_baseline_at_zero_and_binary_at_one() {
+    for level in [0, 1] {
+        let mut expected = if level == 0 {
+            codec::component::Format {
+                application: root::APPLICATION.version,
+                deployment: root::DEPLOYMENT,
+                ..fixed::BASELINE.format
+            }
+        } else {
+            jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT)
+        };
+        expected.levels =
+            codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(level), application: None };
+        let mut valid = source_world(expected, Vec::new(), REAL_SETS);
+        assert!(valid.open_switched().is_some(), "jig level {level}: {:?}", valid.refusal());
+        for family in [
+            Family::Component,
+            Family::Core,
+            Family::Tasks,
+            Family::People,
+            Family::Notes,
+            Family::Accounts,
+            Family::Settings,
+        ] {
+            let mut bad = expected;
+            let version = match family {
+                Family::Component => &mut bad.component,
+                Family::Core => &mut bad.core,
+                Family::Tasks => &mut bad.tasks,
+                Family::People => &mut bad.people,
+                Family::Notes => &mut bad.notes,
+                Family::Accounts => &mut bad.accounts,
+                Family::Settings => &mut bad.settings,
+                _ => unreachable!("format family"),
+            };
+            let wanted = u32::from(*version);
+            *version = version.checked_add(1).expect("one past this family's level");
+            let found = u32::from(*version);
+            let mut world = source_world(bad, Vec::new(), REAL_SETS);
+            assert_eq!(world.open_switched(), None, "{family:?} at level {level}");
+            assert_eq!(world.refusal(), Some(&OpenRefusal::Format { family, found, wanted }));
+        }
+    }
+}
+
+#[test]
+fn baseline_store_is_patched_from_zero_and_opens() {
+    let baseline = &fixed::BASELINE;
+    let limits = patches::limits();
+    let format = codec::component::Format {
+        application: root::APPLICATION.version,
+        deployment: root::DEPLOYMENT,
+        ..baseline.format
+    };
+    let mut records = patches::Records::story();
+    records.tokens.clear();
+    let rows = records
+        .rows(1)
+        .into_iter()
+        .map(|(key, value)| (keys::application(&key, limits.store.key).expect("application key"), value))
+        .collect();
+    let mut world = source_world(format, rows, baseline_fixture_sets());
     let opened = world.open_switched();
     assert!(opened.is_some(), "baseline opens through patching: {:?}", world.refusal());
     assert_eq!(world.active(), b"2\n");
@@ -90,6 +170,6 @@ fn baseline_store_is_patched_from_zero_and_opens() {
     let manifest = codec::component::Manifest::decode(&manifest).expect("manifest");
     assert_eq!(
         manifest.before,
-        codec::component::Levels { jig: Some(0), application: Some(0), skein: None, smith: None }
+        codec::component::Levels { jig: Some(0), application: Some(0), skein: Some(0), smith: Some(0) }
     );
 }

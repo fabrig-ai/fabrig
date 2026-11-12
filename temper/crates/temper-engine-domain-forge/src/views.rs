@@ -341,7 +341,8 @@ impl Document {
                 size = size
                     .saturating_add(view.landing.len())
                     .saturating_add(size_of_val(view.queues.as_ref()))
-                    .saturating_add(size_of_val(view.landed.as_ref()));
+                    .saturating_add(size_of_val(view.landed.as_ref()))
+                    .saturating_add(size_of_val(view.landed_default.as_ref()));
                 for queue in &view.queues {
                     size = size
                         .saturating_add(queue.repository.len())
@@ -352,6 +353,9 @@ impl Document {
                     }
                 }
                 for change in &view.landed {
+                    size = size.saturating_add(change.title.len());
+                }
+                for change in &view.landed_default {
                     size = size.saturating_add(change.title.len());
                 }
             }

@@ -159,7 +159,7 @@ impl Hosted {
         !self.secrets.is_empty()
             || !self.sources.is_empty()
             || !self.above.is_empty()
-            || crate::patching::phase::ready(&self.component)
+            || !self.closing && crate::patching::phase::ready(&self.component)
             || self.drivers.work_pending(now)
     }
     #[must_use]

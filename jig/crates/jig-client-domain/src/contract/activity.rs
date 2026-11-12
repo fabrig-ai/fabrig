@@ -21,7 +21,19 @@ pub enum Activity {
     Turn { reply: u64, attempt: u64, turn: u32, read: Option<u64> },
     Decided { revision: u64, proposal: Option<DecidedProposal> },
     Milestone { position: u64 },
+    Stood { attempt: u64, words: Text },
+    SessionEnded { attempt: u64, end: SessionEnd },
     Kept { attempt: u64, pending: List<u64>, question: Option<u64> },
+}
+/// The end of a standing session (jig/docs/design/domain/tasks/standing.md, 7).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SessionEnd {
+    Quiet,
+    Bound,
+    Unoffered,
+    Fresh,
+    Closed,
+    Rules,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RunWhy {

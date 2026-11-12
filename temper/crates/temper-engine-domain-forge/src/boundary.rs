@@ -107,7 +107,7 @@ pub struct Kinds {
 pub const READ_KINDS: [u16; 1] = [1];
 
 /// Forge grants needed by the change procedure (domain/forge/README.md, section 4 and domain/forge/change/README.md).
-pub const CHANGE_KINDS: [u16; 6] = [2, 3, 4, 10, 11, 12];
+pub const CHANGE_KINDS: [u16; 7] = [2, 3, 4, 10, 11, 12, 17];
 
 /// One adopted repository, with provider name and project ownership.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1109,6 +1109,7 @@ pub struct GateRemark {
 /// releasing its durable outbox entry.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeEvidence {
+    pub touched: crate::Touched,
     /// State to restore if the root does not authorize this effect.
     pub prior: change::Change,
     pub head: Option<skein_forge::api::Commit>,
@@ -1826,6 +1827,10 @@ pub enum Event {
         task: u64,
         head: skein_forge::api::Commit,
     },
+    /// Re-derive the queue after the root keeps changed review facts (domain/forge/queues.md).
+    ReviewsChanged {
+        task: u64,
+    },
     /// Gather fresh forge facts and step one registered change.
     StepChange {
         /// The change's current authority delegates to the merge kind (domain/forge/change/repairs.md).
@@ -1925,6 +1930,8 @@ pub enum Event {
         task: u64,
         entry: u64,
         prior: change::Change,
+        /// Holds, refusals and pending dependencies end the turn; an approval wait does not.
+        leaves_queue: bool,
     },
     /// Subscribe a live task to a topic.
     Subscribe {
@@ -2294,6 +2301,11 @@ pub enum Request {
     /// A projection could not continue under current facts or limits.
     ProjectionFailed {
         goal: u64,
+    },
+    /// A ready change's fresh review evidence for the root to judge (domain/forge/change/gates.md, 2).
+    Reviewed {
+        task: u64,
+        evidence: ChangeEvidence,
     },
     /// A change policy step and its checked effect entry, when any.
     ChangeDecision {

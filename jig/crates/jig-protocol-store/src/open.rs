@@ -51,13 +51,20 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         Ok(compared) => compared,
         Err(why) => return refuse(store, owner, why, above),
     };
+    if compared == format::Compared::Behind
+        && let Err(why) = pending(store, found_levels, binary)
+    {
+        return refuse(store, owner, why, above);
+    }
     // Refuse another family's version before decoding its header.
-    let wanted = format::current(store.application.version, found.deployment);
+    let wanted = wanted(store, found_levels, binary, found.deployment);
     if let Err(why) = format::check_versions(&found, &wanted, compared) {
         refuse(store, owner, why, above);
         return;
     }
-    if let Err(why) = check_layouts(store, owner, found_levels, binary) {
+    if compared == format::Compared::Same
+        && let Err(why) = check_layouts(store, owner, found_levels, binary)
+    {
         refuse(store, owner, why, above);
         return;
     }
@@ -72,17 +79,12 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     };
     match header {
         Record::Core(CoreRecord::Deployment(header)) => {
-            let wanted = format::current(store.application.version, header.id);
+            let wanted = codec::component::Format { deployment: header.id, ..wanted };
             if let Err(why) = format::check_versions(&found, &wanted, compared) {
                 refuse(store, owner, why, above);
             } else if header.commits != last {
                 refuse(store, owner, OpenRefusal::Numbers { store: last, header: header.commits }, above);
             } else {
-                if compared == format::Compared::Behind
-                    && let Err(why) = pending(store, found_levels, binary)
-                {
-                    return refuse(store, owner, why, above);
-                }
                 restore_installation(store, owner, last, above, below);
             }
         }
@@ -102,6 +104,15 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         | Record::Accounts(_) => {
             corrupt_header(store, owner, restore::DecodeFailure::KeyValueDisagree, above);
         }
+    }
+}
+
+fn wanted(store: &Store, found: plan::Levels, binary: plan::Levels, deployment: [u8; 16]) -> codec::component::Format {
+    if found.jig < binary.jig {
+        let pending = store.directory.patch.as_ref().expect("behind open planned");
+        format::at_level(store.application.version, deployment, &pending.machines)
+    } else {
+        format::current(store.application.version, deployment)
     }
 }
 

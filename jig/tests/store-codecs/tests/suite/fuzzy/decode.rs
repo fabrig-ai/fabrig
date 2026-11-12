@@ -111,8 +111,8 @@ fn mutated_accounts_goldens_never_panic() {
 }
 
 fn tasks(bytes: &[u8]) {
-    use jig_protocol_store::tasks_v9;
-    if let Ok(row) = tasks_v9::Row::decode(&tasks_v9::CEILINGS, &mut Reader::new(bytes)) {
+    use jig_protocol_store::tasks_v10;
+    if let Ok(row) = tasks_v10::Row::decode(&tasks_v10::CEILINGS, &mut Reader::new(bytes)) {
         let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
@@ -167,11 +167,11 @@ fn mutated_core_goldens_never_panic() {
 }
 
 fn frames(bytes: &[u8]) {
-    use jig_protocol_store::{codec, core_v6, notes_v1, tasks_v9, transcripts::frame};
+    use jig_protocol_store::{codec, core_v6, notes_v1, tasks_v10, transcripts::frame};
     let limits = codec::View {
-        settings: jig_protocol_store::settings_v1::CEILINGS,
+        settings: jig_protocol_store::settings_v2::CEILINGS,
         core: core_v6::CEILINGS,
-        tasks: tasks_v9::CEILINGS,
+        tasks: tasks_v10::CEILINGS,
         people: people_v14::CEILINGS,
         notes: notes_v1::CEILINGS,
     };
@@ -185,11 +185,11 @@ fn arbitrary_frames_never_panic_and_round_trip_when_they_decode() {
 }
 #[test]
 fn mutated_and_short_frames_never_panic() {
-    use jig_protocol_store::{codec, core_v6, notes_v1, tasks_v9, transcripts::frame};
+    use jig_protocol_store::{codec, core_v6, notes_v1, tasks_v10, transcripts::frame};
     let limits = codec::View {
-        settings: jig_protocol_store::settings_v1::CEILINGS,
+        settings: jig_protocol_store::settings_v2::CEILINGS,
         core: core_v6::CEILINGS,
-        tasks: tasks_v9::CEILINGS,
+        tasks: tasks_v10::CEILINGS,
         people: people_v14::CEILINGS,
         notes: notes_v1::CEILINGS,
     };
@@ -240,7 +240,7 @@ fn mutated_test_connector_goldens_never_panic() {
 }
 
 fn settings(bytes: &[u8]) {
-    use jig_protocol_store::settings_v1 as wire;
+    use jig_protocol_store::settings_v2 as wire;
     if let Ok(row) = wire::Default::decode(&wire::CEILINGS, &mut Reader::new(bytes)) {
         let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");

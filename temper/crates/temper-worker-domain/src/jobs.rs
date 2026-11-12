@@ -1,5 +1,5 @@
 //! The job capability beside smith and the checkout: routing and translation
-//! only (temper/docs/design/domain/worker.md, 4.4).
+//! only (temper/docs/design/domain/worker/jobs.md).
 
 use alloc::boxed::Box;
 use jig_domain_host as host;
@@ -347,7 +347,7 @@ fn delivery_why(outcome: &crate::checkout::Outcome) -> Option<Box<[u8]>> {
     None
 }
 
-/// Operator-only fallback for endings whose hub answer carries no detail (worker.md, 4.4).
+/// Operator-only fallback for endings whose hub answer carries no detail (domain/worker/jobs.md).
 fn job_reason(answer: &host::JobEnding) -> Box<[u8]> {
     use host::{DeliveryOutcome, JobFailure, JobInvalid, JobRefusal, Reason};
     let why: &[u8] = match answer {

@@ -242,7 +242,9 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     crate::clients::check_public(&engine.limits, problems);
     for (index, template) in engine.templates.iter().enumerate() {
         match template.flags.ended_by {
-            jig_domain_tasks::EndedBy::Result | jig_domain_tasks::EndedBy::Requester => {}
+            jig_domain_tasks::EndedBy::Result
+            | jig_domain_tasks::EndedBy::Requester
+            | jig_domain_tasks::EndedBy::Standing => {}
             jig_domain_tasks::EndedBy::Closer(closer) => {
                 let path = check::index(&Path::root().member(b"templates"), index).member(b"ended_by");
                 connector(engine, closer.connector, &path, problems);
@@ -534,14 +536,14 @@ pub fn check_effective_limits(limits: &jig_domain_core::Limits) -> Result<(), Pr
 }
 
 fn batch_ceiling(limits: &jig_domain_core::Limits) -> Option<Problem> {
-    if limits.tasks.batch > jig_protocol_store::tasks_v9::CEILINGS.task_interests_result_followups {
+    if limits.tasks.batch > jig_protocol_store::tasks_v10::CEILINGS.task_interests_result_followups {
         return Some(Problem {
             path: codec_path(b"tasks.batch"),
             what: What::CodecCeiling {
                 bound: CodecBound {
                     field: b"tasks-v9.TaskInterests.result_followups",
                     needed: limits.tasks.batch,
-                    ceiling: jig_protocol_store::tasks_v9::CEILINGS.task_interests_result_followups,
+                    ceiling: jig_protocol_store::tasks_v10::CEILINGS.task_interests_result_followups,
                 },
             },
         });

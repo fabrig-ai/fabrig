@@ -354,7 +354,7 @@ pub static SHAPES: [Shape; 65] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 275] = [
+pub static MEMBERS: [Member; 276] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -785,6 +785,15 @@ pub static MEMBERS: [Member; 275] = [
         bound: "4096 bytes",
         required: true,
         line: "Names the configured endpoint serving this model.",
+        gone: None,
+    },
+    Member {
+        shape: "model",
+        name: "cache_life_ms",
+        kind: "integer",
+        bound: "0 to 4294967295 milliseconds",
+        required: false,
+        line: "Gives the prompt cache life in milliseconds, zero or absent for none.",
         gone: None,
     },
     Member {
@@ -1736,9 +1745,9 @@ pub static MEMBERS: [Member; 275] = [
         shape: "template",
         name: "ended_by",
         kind: "text or object",
-        bound: "result, requester or closer",
+        bound: "result, requester, standing or closer",
         required: false,
-        line: "Chooses whether a result, the requester or a closer ends the task, defaulting to result.",
+        line: "Chooses result, requester, closer or standing ending authority, defaulting to result.",
         gone: None,
     },
     Member {

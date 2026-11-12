@@ -249,8 +249,8 @@ const FORGE: forge::Limits = forge::Limits {
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
-    // Two gathers of nine sections, each with a second fetch while cutting.
-    brief_sections: 36,
+    // Two gathers of ten sections, each with a second fetch while cutting.
+    brief_sections: 40,
     // Bytes of one gathered forge section: at least the root's brief.read_bytes.
     brief_bytes: 4608,
     // Forge client calls, retries and outbox room.
@@ -270,6 +270,7 @@ const FORGE: forge::Limits = forge::Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         // Repair attempts, from the engine forge world fixture.
         repairs: 3,
         // Resolution attempts, from the engine forge world fixture.
@@ -313,6 +314,7 @@ const STANDARD_FORGE: forge::Limits = forge::Limits {
         ..CLIENT
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         // Questions per change or task, 15 seen.
         questions: 80,
         // Tasks across a change's runs and retries, 14 runs seen.
@@ -389,7 +391,7 @@ const ROOT: Root = Root {
         // Concurrent gathers, from the root world.
         briefs: 2,
         // Core sections and two charter documents per gather.
-        sections: 9,
+        sections: 10,
         // Parts per section, from the root world.
         parts: 2,
         // One section's read bytes: at least the task section's.
@@ -416,6 +418,7 @@ const ROOT: Root = Root {
             // Notes section's bytes, from the root world.
             notes: 64,
             preferences: 2048,
+            now: 4096,
         },
         // Whole task, pull and review sections, with 768 bytes for other context.
         brief_bytes: 14_592,
@@ -456,7 +459,8 @@ const STANDARD_ROOT: Root = Root {
         // and two reason sets (engine::row_bound).
         // The task's closer adds 32 bytes to the task owner.
         // Two added executor places retain two 8-byte AuthorityExecutor values.
-        transcript_bytes: 22_467_744,
+        // A standing task's session adds 32 bytes to the task record (TaskRecord.session).
+        transcript_bytes: 22_467_776,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },
@@ -618,20 +622,20 @@ pub(crate) const TOOLING_LOG_BYTES: u32 = 65_536;
 pub(crate) const TOOLING_PATH_BYTES: u32 = 4096;
 pub(crate) const TOOLING_PATH: &[u8] = b"/usr/local/bin:/usr/bin:/bin";
 
-/// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The merge job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 pub(crate) const MERGE_KIND: u32 = 3;
 pub(crate) const MERGE_SPEC_BYTES: u32 = 4_096;
 pub(crate) const MERGE_RESULT_BYTES: u32 = 512;
 pub(crate) const MERGE_DEADLINE: Duration = Duration::from_secs(600);
 
-/// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The merge job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn merge_bound() -> JobBound {
     JobBound { kind: JobKind(MERGE_KIND), spec: MERGE_SPEC_BYTES, result: MERGE_RESULT_BYTES, deadline: MERGE_DEADLINE }
 }
 
 /// Declare merge only where the tasks child holds its bounds
-/// (temper/docs/design/domain/worker.md, 4.4).
+/// (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let bound = merge_bound();
@@ -642,12 +646,12 @@ pub fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     }
 }
 
-/// The close job's bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The close job's bounds (temper/docs/design/domain/worker/jobs.md).
 pub(crate) const CLOSE_SPEC_BYTES: u32 = 16_384;
 pub(crate) const CLOSE_RESULT_BYTES: u32 = 512;
 pub(crate) const CLOSE_DEADLINE: Duration = Duration::from_secs(600);
 
-/// The close job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
+/// The close job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn close_bound() -> JobBound {
     JobBound {
@@ -659,7 +663,7 @@ pub fn close_bound() -> JobBound {
 }
 
 /// Declare close only where the tasks child holds its bounds
-/// (temper/docs/design/domain/worker.md, 4.4).
+/// (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn close_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let bound = close_bound();
@@ -670,7 +674,7 @@ pub fn close_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     }
 }
 
-/// The engine's declared kinds, ascending (temper/docs/design/domain/worker.md, 4.4).
+/// The engine's declared kinds, ascending (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let mut jobs = List::with_capacity(2);
@@ -680,7 +684,7 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     jobs.into_boxed()
 }
 
-/// The worker root's job kinds, ascending (temper/docs/design/domain/worker.md, 4.4).
+/// The worker root's job kinds, ascending (temper/docs/design/domain/worker/jobs.md).
 #[cfg(feature = "worker")]
 #[must_use]
 pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {

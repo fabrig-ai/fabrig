@@ -3,7 +3,7 @@
 //! temper/docs/design/domain/forge/change/gates.md, 3).
 use alloc::boxed::Box;
 
-use crate::{GateLast, GatePattern, JudgeFreshness, Limits, Requires, gates::covers};
+use crate::{GateLast, GatePattern, JudgeFreshness, Limits, Repository, Requires, Touched, gates::covers};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Kind {
@@ -62,6 +62,7 @@ pub struct LandingRule {
     pub up_to_date: bool,
     pub gates: Box<[RuleGate]>,
     pub approvals: Box<[RuleApproval]>,
+    pub sets: Box<[u8]>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -280,6 +281,10 @@ pub enum Refusal {
     Pattern,
     Gates,
     Approvals,
+    Sets,
+    SetNumber,
+    SetTwice,
+    DeploymentSets,
     Charter,
     Value,
     Replaced,
@@ -299,6 +304,10 @@ impl Refusal {
             Self::Pattern => b"a pattern that is not a landing branch's, or past the pattern bounds",
             Self::Gates => b"more gates than forge.change_policy.gates, or a gate twice",
             Self::Approvals => b"an approval of no people, a role twice, or one past authority.roles",
+            Self::Sets => b"more than 6 path sets",
+            Self::SetNumber => b"a set outside 1 to 6",
+            Self::SetTwice => b"a set named twice",
+            Self::DeploymentSets => b"a deployment's rule names no path set",
             Self::Charter => b"a charter outside 1 to tasks.charters, or the forge's charter removed",
             Self::Value => b"a value of another kind",
             Self::Replaced => b"the replaced value is no longer kept",
@@ -535,6 +544,22 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
             }
         }
     }
+    if kind == Kind::DeploymentRules && !rule.sets.is_empty() {
+        return Err(Refusal::DeploymentSets);
+    }
+    if !within(rule.sets.len(), 6) {
+        return Err(Refusal::Sets);
+    }
+    for (at, set) in rule.sets.iter().enumerate() {
+        if *set == 0 || *set > 6 {
+            return Err(Refusal::SetNumber);
+        }
+        for prior in rule.sets.iter().take(at) {
+            if set == prior {
+                return Err(Refusal::SetTwice);
+            }
+        }
+    }
     Ok(())
 }
 
@@ -556,11 +581,11 @@ pub struct HeldRules {
 /// The procedure's waits over the supplied scopes' rules, enforcing or not
 /// (temper/docs/design/domain/forge/change/gates.md, 2).
 #[must_use]
-pub fn requires(held: &[Held], name: &[Box<[u8]>]) -> Requires {
+pub fn requires(held: &[Held], repository: &Repository, branch: &[u8], touched: Touched) -> Requires {
     let mut result = Requires { ci: false, up_to_date: false };
     let mut covered = false;
     for held in held {
-        if covers(&held.rule.pattern, name) {
+        if covers(&held.rule, repository, branch, touched) {
             covered = true;
             result.ci |= held.rule.ci;
             result.up_to_date |= held.rule.up_to_date;

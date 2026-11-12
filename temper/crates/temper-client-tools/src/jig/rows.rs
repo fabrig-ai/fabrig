@@ -942,6 +942,49 @@ pub const TASK_NOTES: Tool = Tool {
 };
 
 /// The goal creation tool's durable position.
+pub const ROLE_START_AT: u8 = 72;
+pub const ROLE_LIST_AT: u8 = 73;
+pub const ROLE_SHOW_AT: u8 = 74;
+/// Standing roles (client/ctl/tools.md, 2 and 3).
+pub const ROLE_START: Tool = Tool {
+    name: b"role start",
+    line: b"Start a standing role from template 7",
+    prints: b"`done: task N, role`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree",
+    result: b"role_create",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"budget", b"AMOUNT", Kind::Number, Required, b"The budget each period, in the deployment's unit"),
+        positional(b"text", b"TEXT", Kind::Text, Required, b"What the role owns and how"),
+        flag(b"charter", b"CHARTER", Kind::NumberRange { min: 1, max: 4_294_967_295 }, Optional, b"The role's charter; 13 when absent"),
+    ]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Template 7 supplies the standing flags, label, contract and models.\nWithin your bounds the role is created; beyond them it is proposed\nwhen your role allows a proposal. It has no deadline.\n",
+};
+pub const ROLE_LIST: Tool = Tool {
+    name: b"role list",
+    line: b"List a project's live standing roles and their Now headlines",
+    prints: b"A line per role: its number, charter, state, budget left and Now's first line, or `no Now yet`; then a continuation or `no more`",
+    result: b"roles",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"The cursor a page printed, to read on"),
+    ]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"Reads live tasks labelled 3 and the note described now in each\nrole's own scope. The lowest-numbered matching note is its Now.\n",
+};
+pub const ROLE_SHOW: Tool = Tool {
+    name: b"role show",
+    line: b"Read a standing role's task document and its Now whole",
+    prints: b"The task document, then its whole Now with note number, revision and time, or `no Now yet`",
+    result: b"role",
+    forms: &[&[positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number")]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"The Now is the lowest-numbered note described now in the role's\nown task scope. A supplied cut body is marked, never silently lost.\n",
+};
+
 pub const GOAL_START_AT: u8 = 62;
 /// Fill a project's offered goal template and submit a keyed request.
 pub const GOAL_START: Tool = Tool {

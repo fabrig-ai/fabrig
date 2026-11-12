@@ -177,7 +177,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     full.goal = Some(7);
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
     let row = records::encode(&d::Stored::Tier(full));
-    assert_eq!(skein_lib::len_u64(row.len()), crate::v11::TierRow::encoded_bound(l).unwrap() + 3);
+    assert_eq!(skein_lib::len_u64(row.len()), crate::v12::TierRow::encoded_bound(l).unwrap() + 3);
     assert_eq!(row.len(), 178_063);
 }
 
@@ -299,7 +299,7 @@ fn tier_goals_refuse_empty_branches_unordered_duplicates_and_excess_holds() {
         assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable), "case {case}");
     }
     let mut limits = fixtures::LIMITS;
-    limits.holds = crate::v11::CEILINGS.tier_row_goals;
+    limits.holds = crate::v12::CEILINGS.tier_row_goals;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_some());
     limits.holds += 1;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_none());

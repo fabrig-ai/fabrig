@@ -3,7 +3,7 @@
     clippy::trivially_copy_pass_by_ref,
     reason = "typed encoders uniformly borrow the domain values they translate"
 )]
-use crate::settings_v1 as wire;
+use crate::settings_v2 as wire;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::{self as core, settings};
@@ -397,6 +397,7 @@ fn encode_ended_by(value: &tasks::EndedBy, limits: &wire::Limits) -> Result<wire
     Ok(match value {
         tasks::EndedBy::Result => wire::EndedBy::Result,
         tasks::EndedBy::Requester => wire::EndedBy::Requester,
+        tasks::EndedBy::Standing => wire::EndedBy::Standing,
         tasks::EndedBy::Closer(closer) => wire::EndedBy::Closer(wire::Closer::new(
             limits,
             wire::CloserParts { connector: closer.connector, code: closer.code },
@@ -407,6 +408,7 @@ fn decode_ended_by(value: wire::EndedBy) -> tasks::EndedBy {
     match value {
         wire::EndedBy::Result => tasks::EndedBy::Result,
         wire::EndedBy::Requester => tasks::EndedBy::Requester,
+        wire::EndedBy::Standing => tasks::EndedBy::Standing,
         wire::EndedBy::Closer(closer) => {
             tasks::EndedBy::Closer(tasks::Closer { connector: closer.connector(), code: closer.code() })
         }
@@ -540,6 +542,7 @@ fn encode_model(value: &core::Model, limits: &wire::Limits) -> Result<wire::Mode
             program: field_program,
             name: field_name,
             window: field_window,
+            cache_life_ms: value.cache_life_ms,
             output: field_output,
             input_price: field_input_price,
             cached_price: field_cached_price,
@@ -559,6 +562,7 @@ fn decode_model(value: wire::Model) -> core::Model {
         program,
         name,
         window,
+        cache_life_ms,
         output,
         input_price,
         cached_price,
@@ -593,6 +597,7 @@ fn decode_model(value: wire::Model) -> core::Model {
         program: field_program,
         name: field_name,
         window: field_window,
+        cache_life_ms,
         output: field_output,
         input_price: field_input_price,
         cached_price: field_cached_price,

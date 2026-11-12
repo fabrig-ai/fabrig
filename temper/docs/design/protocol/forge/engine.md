@@ -678,3 +678,11 @@ service's io.
   ask, and a group the box still runs answers the next ask by its own
   lines (../setup/box.md, 1). What a removal needs again is the forge's
   record's (3).
+
+## 9. Open questions
+
+- **A kept GitHub forge whose base ends in `/`.** Its record keeps
+  that place (section 6), so its remotes have two `/` after the host.
+  Default: so, until it is removed and connected again (../forge/engine.md,
+  3); a patch of the record or a trimmed base would repair it in
+  place.

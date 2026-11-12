@@ -86,7 +86,7 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
-    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v11");
+    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v12");
     for _ in 0..2_000 {
         let address = format!("member{}@example.com", rng.next_u64()).into_bytes().into_boxed_slice();
         let binding =
@@ -394,7 +394,12 @@ fn setting_row(rng: &mut Rng, bounds: &Bounds) {
     let value = if rng.below(2) == 0 {
         s::Value::Charter(u32::try_from(rng.below(4_294_967_296)).expect("u32"))
     } else {
+        let mut sets = skein_lib::List::with_capacity(6);
+        for _ in 0..rng.below(7) {
+            sets.push(u8::try_from(rng.below(256)).expect("u8 draw")).expect("bounded sets");
+        }
         s::Value::Rule(s::LandingRule {
+            sets: sets.into_boxed(),
             pattern: forge::GatePattern { segments: Box::new([drawn_field(rng)]), last },
             enforce: rng.below(2) == 0,
             ci: rng.below(2) == 0,

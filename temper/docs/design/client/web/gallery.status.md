@@ -53,6 +53,8 @@ chosen.
 - **Not yet:** 2: `how-draft`'s hand-made `roles` answer has no
   drafter, and each role's `who` says when it runs alone, where
   `whole-story/how.html` says what it does too [in flight: change 316].
+- **Not yet:** 2: `sheet-from-home` and `sheet-from-chats` are not in
+  the gallery (`tools/gallery/src/samples.rs`) [in flight: change 525].
 - **Not yet:** 2: `goal-sending` has one pending message and "Being sent",
   but no earlier accepted message or next words in the composer.
   `goal-toast` answers Pause without delivering a paused task document, so
@@ -62,10 +64,7 @@ chosen.
   "temper", where the shell's is "Home · temper" (`../view.md`, 1):
   `tools/gallery/src/lib.rs`, `heading`, reads the level-1 heading, not
   the view's title.
-- **Departs:**  `?forge=elsewhere` still reads, as A Forgejo
-  elsewhere's Details (`temper-client-domain`'s `address.rs`
-  `forge_choice`), words for a forge added to the configuration by hand,
-  which names none (`../forge/README.status.md`). 2: `google-sign-in`,
+- **Departs:**  the elsewhere-forge address departure remains `README.status.md`, 2.3. 2: `google-sign-in`,
   `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
   states the gallery holds (`tools/gallery/names.txt`,
   `tools/gallery/src/samples.rs`) that the table does not list.
