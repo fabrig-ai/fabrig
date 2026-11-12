@@ -758,7 +758,7 @@ pub(crate) fn room_refusal(
             let charter = match value {
                 Value::Charter(charter) => charter,
                 Value::Overlay(overlay) => {
-                    let Some(default) = domain.core.current.default_value(item.setting).and_then(Value::as_charter) else {
+                    let Some(Value::Charter(default)) = domain.core.current.default_value(item.setting) else {
                         // Jig refuses an overlay without a default as reference.
                         continue;
                     };
