@@ -426,9 +426,10 @@ sources in its holder's order. temper configures the LLM providers
     sign-in, `claude auth login`, at the configured path. The
     environment is the caller's, so that the program's sign-in has the
     person's terminal and browser, with `CLAUDE_CONFIG_DIR` the source's
-    directory and the program's credential variables removed, as every
+    directory, `ANTHROPIC_CONFIG_DIR` its `anthropic` directory, and the
+    program's credential variables removed, as every
     command of a program source's is (smith's `protocol/programs.md`,
-    4.2): every `ANTHROPIC_` variable (a key, a token, a named profile,
+    4.2): every other `ANTHROPIC_` variable (a key, a token, a named profile,
     the federation variables), `CLAUDE_CODE_OAUTH_TOKEN` and the cloud
     providers' variables, which would win over the login (jig's
     `domain/providers.md`, 3.3). The
