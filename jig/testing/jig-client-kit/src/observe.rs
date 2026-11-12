@@ -67,7 +67,9 @@ pub fn jig_sent(attempt: skein_lib::Token, request_key: [u8; 16], ask: &Ask) -> 
             }
             _ => (None, None, None),
         },
-        Ask::Message { task, words, .. } | Ask::Answer { on: AnswerOn::Question { task, words, .. }, .. } => {
+        Ask::Talk { task, words, .. }
+        | Ask::Message { task, words, .. }
+        | Ask::Answer { on: AnswerOn::Question { task, words, .. }, .. } => {
             (None, None, Some((*task, words.bytes().to_vec())))
         }
         Ask::Answer { on: AnswerOn::Person { task, revision, .. }, .. } => {
@@ -93,6 +95,7 @@ pub fn jig_sent(attempt: skein_lib::Token, request_key: [u8; 16], ask: &Ask) -> 
         | Ask::Propose { action: jig_client_domain::contract::ProposeAction::Batch { .. }, .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
+        | Ask::Leave { .. }
         | Ask::Take { .. }
         | Ask::HandBack { .. }
         | Ask::Stop { .. }

@@ -3991,7 +3991,9 @@ fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
                 live_runs: 0,
                 proposals: 0,
             })),
-            c::ActKind::Message
+            c::ActKind::Talk
+            | c::ActKind::Leave
+            | c::ActKind::Message
             | c::ActKind::Answer
             | c::ActKind::Take
             | c::ActKind::HandBack
@@ -4089,6 +4091,8 @@ fn base_task(number: u64, title: &str) -> c::Task {
         deadline: None,
     };
     c::Task {
+        talk: None,
+        session: None,
         settings: Some(c::TaskSettings { task: 1, run: None, newest: 1 }),
         chip: c::Chip {
             task: number,

@@ -293,7 +293,8 @@ impl Core {
                 people::Outcome::Applied { connector, .. } => {
                     require_link(self.connectors.contains(connector), &source, Linked::Connector(*connector))?;
                 }
-                people::Outcome::Stopped { task }
+                people::Outcome::Left { task }
+                | people::Outcome::Stopped { task }
                 | people::Outcome::Cancelled { task }
                 | people::Outcome::Released { task }
                 | people::Outcome::PersonTaken { task }

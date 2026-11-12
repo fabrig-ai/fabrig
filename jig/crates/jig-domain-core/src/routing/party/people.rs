@@ -217,6 +217,7 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::Created { .. }
                     | people::Outcome::Proposed { .. }
                     | people::Outcome::Withdrawn { .. }
+                    | people::Outcome::Left { .. }
                     | people::Outcome::Stopped { .. }
                     | people::Outcome::Cancelled { .. }
                     | people::Outcome::Lifted { .. }
@@ -610,6 +611,10 @@ pub(crate) fn tag_people_part(
                             }
                         },
                     },
+                    people::Ask::Talk { task, words, .. } => {
+                        super::controls::talk_request(core, env, &mut routed, party, task, words);
+                    }
+                    people::Ask::Leave { task, .. } => super::controls::leave_request(core, &mut routed, party, task),
                     people::Ask::Say { task, words, .. } => {
                         say_request(core, env, &mut routed, party, task, words);
                     }

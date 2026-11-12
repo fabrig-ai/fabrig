@@ -111,6 +111,8 @@ pub struct Domain {
     pub(crate) forge_subscribing: Map<Token, forge::Subscriber>,
     pub(crate) forge_unsubscribing: Map<Token, (u64, forge::Topic)>,
     pub(crate) forge_reading: Map<Token, (ReplyTo, CallKey)>,
+    pub(crate) status_reading: Map<Token, forge_route::status_route::Reading>,
+    pub(crate) next_status_owner: u32,
     pub(crate) forge_left: Map<(u64, u64), Box<[forge::Pushed]>>,
     pub(crate) forge_effecting: Map<u64, (ReplyTo, CallKey)>,
     pub(crate) forge_effects: Map<Token, forge_route::EffectFlight>,
@@ -564,6 +566,8 @@ impl Domain {
             forge_subscribing: Map::with_capacity(limits.fleet.calls),
             forge_unsubscribing: Map::with_capacity(limits.fleet.calls),
             forge_reading: Map::with_capacity(limits.fleet.calls),
+            status_reading: Map::uncapped(),
+            next_status_owner: 0,
             forge_left: Map::with_capacity(limits.tasks.tasks),
             forge_effecting: Map::with_capacity(limits.fleet.calls),
             forge_effects: Map::with_capacity(
@@ -712,6 +716,7 @@ impl Domain {
             && self.forge_subscribing.is_empty()
             && self.forge_unsubscribing.is_empty()
             && self.forge_reading.is_empty()
+            && self.status_reading.is_empty()
             && self.forge.briefs_idle()
             && self.call_renders.is_empty()
             && self.forge_effecting.is_empty()

@@ -221,7 +221,10 @@ fn answers_question(answer: &ActivityLine, message: u64) -> bool {
         | Activity::RunEnded { .. }
         | Activity::Turn { .. }
         | Activity::Decided { .. }
+        | Activity::NowWritten { .. }
         | Activity::Stood { .. }
+        | Activity::TalkOpened { .. }
+        | Activity::TalkEnded { .. }
         | Activity::SessionEnded { .. }
         | Activity::Kept { .. }
         | Activity::Milestone { .. } => false,

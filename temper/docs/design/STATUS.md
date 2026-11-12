@@ -11,7 +11,14 @@ each draft landed in its repositories that its writer says is ready, by
 its commit, title, chat and, once started, its goal; Work lists the ready
 ones under Drafts, each starting a goal at the project's way; its render
 check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
-`draft/surfaces.status.md`, 5). QA's hands are landed-qa's milestone Q2,
+`draft/surfaces.status.md`, 5). A person talks with a standing role through
+`role talk`, with instructions for every case becoming rules by settings
+proposals. A role reports through its Now, a line per session and a weekly
+`report` note, with its Now in Home's brief's words; areas and routing remain
+a later milestone, and Team's and the terminal's talk and report surfaces
+remain the pages' (`draft/standing-roles.status.md`).
+
+QA's hands are landed-qa's milestone Q2,
 by goal 1000: a drive session on a fake box from a given build, taking a
 person's steps and looks a line at a time; recipes and their walk; the
 fake model's given scripts and strict switch; a store this build cannot
