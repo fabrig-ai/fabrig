@@ -734,9 +734,6 @@ fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w
                     line: question.line,
                     stands: match question.stands {
                         forge::PanelStands::Taken => w::Stands::Taken,
-                        forge::PanelStands::Foreman(task) => {
-                            w::Stands::Foreman(w::Foreman::new(limits, w::ForemanParts { task }).ok()?)
-                        }
                         forge::PanelStands::Asked => w::Stands::Asked,
                         forge::PanelStands::Held => w::Stands::Held,
                     },
@@ -751,7 +748,6 @@ fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w
         w::QuestionsParts {
             route: match value.route {
                 change::Route::None => w::Route::None,
-                change::Route::Foreman => w::Route::Foreman,
                 change::Route::Up => w::Route::Up,
             },
             taken: used(value.taken, limits)?,

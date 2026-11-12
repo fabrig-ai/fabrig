@@ -31,13 +31,9 @@ fn start(room: u64) -> Result<crate::Service, startup::Problems> {
     agent.run_limits.host_part = 65_536;
     // The long instructions need the charter carriers, independently of the host-part bound.
     let document = super::stock::limited(&fixtures::document(), b"core.run_bytes", 65_536);
-    let overrides = fixtures::value(&document, b"application.limits.overrides");
-    let prefix = overrides.strip_suffix(b"}").unwrap();
-    let suffix = b",\"root.journal.run_bytes\":65536}";
-    let mut out = skein_lib::Writer::new(prefix.len().checked_add(suffix.len()).unwrap());
-    out.put(prefix).unwrap();
-    out.put(suffix).unwrap();
-    let document = fixtures::with(&document, b"application.limits.overrides", &out.finish());
+    let mut document: serde_json::Value = serde_json::from_slice(&document).expect("room fixture");
+    document["application"]["limits"]["overrides"]["root.journal.run_bytes"] = 65_536_u32.into();
+    let document = serde_json::to_vec(&document).expect("room fixture JSON");
     let engine = fixtures::parse_engine(&fixtures::value(&document, b"engine"));
     let host = temper_engine_smith::room::host_part(&agent.run_limits);
     let mut defaults = stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);

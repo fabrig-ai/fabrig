@@ -99,7 +99,6 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Act::Input { value },
             ) => {
                 let route = match value.as_ref() {
-                    b"foreman" => forge::ways::Route::Foreman,
                     b"up" => forge::ways::Route::Up,
                     b"none" => forge::ways::Route::None,
                     _ => return None,

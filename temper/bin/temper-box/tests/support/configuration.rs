@@ -98,7 +98,7 @@ pub fn use_stock(value: &mut serde_json::Value) {
     }
     temper_playground::documents::settings::strip_models(value);
     value["engine"]["limits"]["overrides"]["authority.roles"] = 4.into();
-    value["engine"]["limits"]["overrides"]["core.run_bytes"] = 16_384.into();
+    value["engine"]["limits"]["overrides"]["core.run_bytes"] = 32_768.into();
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 10.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 6.into();
     // The standing charter, closer procedure and close job are delegation targets.

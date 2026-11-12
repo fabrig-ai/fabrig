@@ -144,13 +144,13 @@ fn follow_decode_refuses_one_past_each_configured_bound() {
                 assert!(records::decode(&encoded, &exact).is_ok(), "owner hold at bound");
                 limits.follow_reason_bytes = 12;
                 let smaller = crate::bounds(&limits, limits.client.op_bytes).expect("smaller bounds");
-                assert_eq!(records::decode(&encoded, &smaller), Err(Undecodable));
+                assert_eq!(records::decode(&encoded, &smaller), Err(Undecodable::Malformed));
                 continue;
             }
             _ => unreachable!("eight configured fields"),
         }
         let smaller = crate::bounds(&limits, limits.client.op_bytes).expect("smaller bounds");
-        assert_eq!(records::decode(&encoded, &smaller), Err(Undecodable), "one past {field}");
+        assert_eq!(records::decode(&encoded, &smaller), Err(Undecodable::Malformed), "one past {field}");
     }
 }
 

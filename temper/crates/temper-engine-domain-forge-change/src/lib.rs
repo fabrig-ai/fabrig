@@ -28,4 +28,4 @@ pub use boundary::{
 };
 pub use domain::{authority_words, held_on_ci, released, review_failed, step};
 pub use queue::first;
-pub use relay::{Asked, RelayAct, RelayHeard, Relayed, Settled, relay};
+pub use relay::{Asked, RelayAct, RelayHeard, Relayed, relay};

@@ -28,7 +28,7 @@ pub(super) fn plan_world(bound: Option<u32>) -> (World, engine::Assignment) {
             ..StoryLimits::default()
         },
     );
-    // The foreman's whole question and its contract share the required task section.
+    // The question and its contract share the required task section.
     world.env.limits.brief.budgets.task = 512;
     let client = world.env.limits.forge.client;
     world = world.with_forge_client(client);
@@ -578,27 +578,14 @@ fn a_restart_keeps_an_open_question_where_it_stood() {
 }
 
 #[test]
-fn questions_foreman_is_offered_with_control() {
-    let (mut world, requester) = plan_world(None);
-    let input = smith_domain_run::HostInput::attested(
-        br#"{"words":"Make the agreed fix","questions":"foreman"}"#.as_slice().into(),
-    )
-    .expect("change input");
-    let temper_engine_smith::Decoded::Call(decoded) = temper_engine_smith::call(
-        smith_domain_run::CallName { activation: requester.attempt, completion: 1, position: 1 },
-        b"change",
-        &input,
-    )
-    .expect("foreman change decodes") else {
-        panic!("change call")
-    };
-    call(&mut world, &requester, CALL, decoded.tool);
-    let Some(engine::CallAnswer::Delegated(made)) = world.answers.last() else { panic!("foreman change made") };
-    let change = made[0].task;
-    assert!(world.call_errors.is_empty());
-    assert!(live_task(&world, change).spec.parameters.contains(&tasks::Parameter::Number { name: 14, value: 1 }));
-    assert!(live_task(&world, change).authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Charter(6)));
-    assert_eq!(live_task(&world, change).authority.delegation.tasks, 7);
+fn questions_none_and_up_are_offered_with_control() {
+    let (_, requester) = plan_world(None);
+    let charter = temper_engine_smith::charter(&requester);
+    let tool = charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"change").expect("change offered");
+    let schema: serde_json::Value = serde_json::from_slice(&tool.schema).expect("change schema");
+    for properties in [&schema["properties"], &schema["properties"]["changes"]["items"]["properties"]] {
+        assert_eq!(properties["questions"]["enum"], serde_json::json!(["none", "up"]));
+    }
 }
 
 pub(super) fn wait_answer(world: &mut World, producer: u64, change: u64) {

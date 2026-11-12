@@ -745,7 +745,6 @@ fn the_way_is_chosen_and_sends_the_whole_record() {
 fn the_questions_select_sends_its_route() {
     for browser in [false, true] {
         for (label, route, value) in [
-            ("Answered by the goal, kept in its decisions", w::QuestionsRoute::Foreman, b"foreman".as_slice()),
             ("Asked of me too", w::QuestionsRoute::Up, b"up".as_slice()),
             ("Not asked: each agent decides alone", w::QuestionsRoute::None, b"none".as_slice()),
         ] {
@@ -763,7 +762,6 @@ fn the_questions_select_sends_its_route() {
                 asked: Asked::Questions(Route::None),
             }));
             let expected = match route {
-                w::QuestionsRoute::Foreman => Route::Foreman,
                 w::QuestionsRoute::Up => Route::Up,
                 w::QuestionsRoute::None => Route::None,
             };
@@ -838,7 +836,7 @@ fn the_value_asked_shows_while_out() {
                 .as_slice()
                 .contains(&State::Disabled)
         );
-        let id = find(view.tree(), Role::Option, b"Answered by the goal, kept in its decisions");
+        let id = find(view.tree(), Role::Option, b"Not asked: each agent decides alone");
         assert_eq!(crate::act(&mut view, id, Act::Press), None);
     }
 }
@@ -2000,5 +1998,20 @@ fn assert_role_page(root: &d::Domain, address: &Address, value: Option<&w::View>
             let id = back.id;
             assert_eq!(crate::href(&mut view, id), Some(d::address::print(&settings())));
         }
+    }
+}
+
+#[test]
+fn the_questions_select_has_only_two_routes() {
+    let root = how(Some(SHOWN));
+    for browser in [false, true] {
+        let view = how_view(&root, browser);
+        let row = setting_row(view.tree(), b"Questions a goal can answer from its plan");
+        let options: Vec<_> =
+            row.iter().filter(|node| node.role == Role::Option).map(|node| node.name.as_deref()).collect();
+        assert_eq!(
+            options,
+            [Some(b"Asked of me too".as_slice()), Some(b"Not asked: each agent decides alone".as_slice())]
+        );
     }
 }

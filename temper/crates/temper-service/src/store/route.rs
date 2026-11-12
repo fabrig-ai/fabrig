@@ -490,7 +490,10 @@ fn decode(row: store::Row, bounds: &families::Bounds) -> Result<engine::Record, 
         store::Row::Jig(row) => Ok(engine::Record::Core(row)),
         store::Row::Application { key, value } => match families::records::row(&key, &value, bounds) {
             Ok(row) => Ok(engine::Record::Forge { row: Box::new(row) }),
-            Err(families::Undecodable) => Err(UnreadableRow { key }),
+            Err(families::Undecodable::Setting(key)) => {
+                Ok(engine::Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::RefusedSetting(key)) })
+            }
+            Err(families::Undecodable::Malformed) => Err(UnreadableRow { key }),
         },
     }
 }

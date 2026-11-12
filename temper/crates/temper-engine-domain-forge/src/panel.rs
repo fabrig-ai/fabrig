@@ -65,7 +65,6 @@ pub struct PanelQuestion {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PanelStands {
     Taken,
-    Foreman(Option<u64>),
     Asked,
     Held,
 }
@@ -332,7 +331,6 @@ fn panel_questions(row: &ChangeRow, limits: &Limits) -> PanelQuestions {
             line: question.line.clone(),
             stands: match &question.stands {
                 change::Stands::Taken => PanelStands::Taken,
-                change::Stands::Foreman { task } => PanelStands::Foreman(*task),
                 change::Stands::Asked => PanelStands::Asked,
                 change::Stands::Held { .. } => PanelStands::Held,
             },

@@ -29,6 +29,8 @@ pub enum StartStop {
     ForgeFit { phase: Option<jig_domain_core::start::Phase>, failure: forge::RestoreFit },
     /// The deployment's namespace binding was refused.
     Binding,
+    /// A current stored setting names a retired value or number.
+    Setting(forge::settings::SettingKey),
 }
 
 /// Core, forge, journal and bounded child-requested continuation bindings.
