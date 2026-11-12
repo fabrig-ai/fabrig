@@ -35,7 +35,7 @@ fn run(home: &Home, arguments: &[&str]) -> Output {
     Command::new(skein_scratch::paths::binary("temper-qa"))
         .args(arguments)
         .env_clear()
-        .env("TEMPER_QA_HOME", &home.directory)
+        .env("TEMPER_INTERNAL_QA_HOME", &home.directory)
         .env("QA_VERSION_WORD", "captured")
         .current_dir(&home.directory)
         .stdin(Stdio::null())

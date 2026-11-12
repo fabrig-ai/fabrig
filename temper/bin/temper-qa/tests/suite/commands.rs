@@ -29,13 +29,13 @@ fn run(home: &Home, arguments: &[&str], session: Option<&str>, stdin: Option<&[u
     command
         .args(arguments)
         .env_clear()
-        .env("TEMPER_QA_HOME", &home.directory)
+        .env("TEMPER_INTERNAL_QA_HOME", &home.directory)
         .current_dir(&home.directory)
         .stdin(if stdin.is_some() { Stdio::piped() } else { Stdio::null() })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     if let Some(session) = session {
-        command.env("TEMPER_QA_SESSION", session);
+        command.env("TEMPER_INTERNAL_QA_SESSION", session);
     }
     let mut child = command.spawn().expect("run tool");
     if let Some(bytes) = stdin {
@@ -54,7 +54,10 @@ fn missing_session_refuses_before_reading_or_writing_and_bad_config_names_its_ke
     let before = std::fs::read(&home.ledger).expect("before");
     let output = run(&home, &["triage", "case", "missing.json"], None, None);
     assert_eq!(output.status.code(), Some(1));
-    assert_eq!(output.stderr, b"temper-qa: TEMPER_QA_SESSION is not set: triage commands run in a triage session\n");
+    assert_eq!(
+        output.stderr,
+        b"temper-qa: TEMPER_INTERNAL_QA_SESSION is not set: triage commands run in a triage session\n"
+    );
     assert!(output.stdout.is_empty());
     assert_eq!(std::fs::read(&home.ledger).expect("after"), before);
     std::fs::write(home.directory.join("qa.json"), br#"{"unknown_key":0}"#).expect("unknown key");

@@ -6,7 +6,7 @@ use std::{ffi::OsStr, io::Read, os::unix::ffi::OsStrExt, path::Path, process::Ex
 pub(crate) type Environment = [(Box<[u8]>, Box<[u8]>)];
 
 pub const HOME: Variable = Variable {
-    name: "TEMPER_QA_HOME",
+    name: "TEMPER_INTERNAL_QA_HOME",
     set: Set::Internal,
     form: "DIR",
     line: "The deployment's QA home, holding qa.json and ledger.json.",
@@ -15,7 +15,7 @@ pub const HOME: Variable = Variable {
     way: Way::Reads,
 };
 pub const SESSION: Variable = Variable {
-    name: "TEMPER_QA_SESSION",
+    name: "TEMPER_INTERNAL_QA_SESSION",
     set: Set::Internal,
     form: "N",
     line: "The running triage session the agent's commands record for.",
@@ -166,17 +166,17 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
     let session = if command == &NONE || command == &CASE {
         let value = SESSION
             .value(environment)
-            .ok_or_else(|| refused("TEMPER_QA_SESSION is not set: triage commands run in a triage session"))?;
+            .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not set: triage commands run in a triage session"))?;
         Some(
             std::str::from_utf8(value)
                 .ok()
                 .and_then(|value| value.parse::<u64>().ok())
-                .ok_or_else(|| refused("TEMPER_QA_SESSION is not a session number"))?,
+                .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?,
         )
     } else {
         None
     };
-    let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_QA_HOME is not set"))?;
+    let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
     let directory = Path::new(OsStr::from_bytes(directory));
     // Session commands run from another working directory, so the home placed
     // in their environment must not depend on this command's working directory.

@@ -154,8 +154,8 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     assert_eq!(command.output, world.home.session_directory(1).join("output"));
     for (key, value) in [
         ("CAPTURED", "kept".to_owned()),
-        ("TEMPER_QA_HOME", world.home.directory.display().to_string()),
-        ("TEMPER_QA_SESSION", "1".to_owned()),
+        ("TEMPER_INTERNAL_QA_HOME", world.home.directory.display().to_string()),
+        ("TEMPER_INTERNAL_QA_SESSION", "1".to_owned()),
     ] {
         assert!(
             command

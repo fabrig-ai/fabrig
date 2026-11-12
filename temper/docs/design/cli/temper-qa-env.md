@@ -6,7 +6,7 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 
 ## Internal
 
-### `TEMPER_QA_HOME`
+### `TEMPER_INTERNAL_QA_HOME`
 
 - **Set:** internal
 - **Reads**
@@ -14,7 +14,7 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** Required by every command but the front's.
 - The deployment's QA home, holding qa.json and ledger.json.
 
-### `TEMPER_QA_SESSION`
+### `TEMPER_INTERNAL_QA_SESSION`
 
 - **Set:** internal
 - **Reads**

@@ -223,8 +223,8 @@ impl Processes for Agents {
                 .find(|(name, _)| name.as_ref() == key.as_bytes())
                 .map(|(_, value)| String::from_utf8(value.to_vec()).expect("env"))
         };
-        let home = Home::open(Path::new(&env("TEMPER_QA_HOME").expect("home env"))).expect("agent's home");
-        let number = env("TEMPER_QA_SESSION").expect("session env").parse().expect("number");
+        let home = Home::open(Path::new(&env("TEMPER_INTERNAL_QA_HOME").expect("home env"))).expect("agent's home");
+        let number = env("TEMPER_INTERNAL_QA_SESSION").expect("session env").parse().expect("number");
         home.transact(|ledger| {
             match process.agent {
                 Agent::None => {

@@ -46,8 +46,8 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                     "triage case",
                     "show",
                     "lines",
-                    "TEMPER_QA_HOME",
-                    "TEMPER_QA_SESSION",
+                    "TEMPER_INTERNAL_QA_HOME",
+                    "TEMPER_INTERNAL_QA_SESSION",
                 ] {
                     assert!(!stdout.contains(internal), "internal entry: {internal}");
                 }
