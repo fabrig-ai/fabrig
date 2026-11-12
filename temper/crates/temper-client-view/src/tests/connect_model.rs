@@ -112,12 +112,41 @@ fn the_model_choose_names_the_plan_sign_in_and_key_ways() {
 fn two_key_providers_name_each_key_way_by_its_brand() {
     let mut providers = List::with_capacity(2);
     providers.push(offer(PROVIDER, b"openai", false, false)).unwrap();
-    providers.push(offer(PROVIDER + 1, b"Scripted", false, false)).unwrap();
-    let root = ways_root(providers, false);
+    providers.push(offer(PROVIDER + 1, b"anthropic", false, false)).unwrap();
+    let mut root = ways_root(providers, false);
     let view = fixtures::page_view(&root);
     let shown = words(&root);
     assert!(shown.contains("OpenAI API key"));
-    assert!(shown.contains("Scripted API key"));
+    assert!(shown.contains("Anthropic API key"));
+    let me = d::pages::accounts::current_me(root.client()).unwrap();
+    let ways = d::pages::accounts::ways(&me.providers, None, c::AskAccountHolder::Own);
+    for (provider, label) in
+        [(PROVIDER, b"Use an OpenAI API key".as_slice()), (PROVIDER + 1, b"Use an Anthropic API key")]
+    {
+        assert_eq!(
+            crate::pages::connect_model::label(
+                me,
+                d::pages::accounts::Way::Key { provider },
+                &ways,
+                &fixtures::words()
+            )
+            .as_ref(),
+            label
+        );
+    }
+    let more = super::inbox::styled(view.tree(), crate::look::CONNECT_MORE);
+    let rows = super::inbox::subtree(view.tree(), more);
+    assert!(
+        rows.iter()
+            .any(|node| node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"Or an API key"))
+    );
+    for name in [b"OpenAI API key".as_slice(), b"Anthropic API key"] {
+        let row = fixtures::find(view.tree(), Role::Slot, name).unwrap();
+        assert!(rows.iter().any(|node| node.id == row));
+        let index = view.tree().nodes().iter().position(|node| node.id == row).unwrap();
+        let content = super::inbox::subtree(view.tree(), index);
+        assert!(content.iter().any(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Add key")));
+    }
     assert_eq!(
         view.tree()
             .nodes()
@@ -126,6 +155,56 @@ fn two_key_providers_name_each_key_way_by_its_brand() {
             .count(),
         2
     );
+    for (provider, heading, description) in [
+        (
+            PROVIDER,
+            "An OpenAI API key",
+            "From OpenAI’s platform, under API keys. What temper’s agents use is billed to the key’s organization.",
+        ),
+        (
+            PROVIDER + 1,
+            "An Anthropic API key",
+            "From the Claude Console, under API keys. What temper’s agents use is billed to the key’s organization.",
+        ),
+    ] {
+        let address =
+            d::Address::ConnectModel { way: Some(d::ModelWay { source: None, provider, kind: d::WayKind::Key }) };
+        let mut choose = fixtures::page_view(&root);
+        let links: Vec<_> = choose
+            .tree()
+            .nodes()
+            .iter()
+            .filter(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Add key"))
+            .map(|node| node.id)
+            .collect();
+        assert!(links.into_iter().any(|id| crate::act(&mut choose, id, Act::Press)
+            == Some(d::Action::Pages(d::pages::Act::Go { address: address.clone() }))));
+        fixtures::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
+        let details = fixtures::page_view(&root);
+        assert!(fixtures::find(details.tree(), Role::Heading { level: 1 }, heading.as_bytes()).is_some());
+        assert!(words(&root).contains(description));
+        fixtures::root_event(
+            &mut root,
+            d::Event::Went { place: d::Place::Address(d::Address::ConnectModel { way: None }) },
+        );
+    }
+}
+#[test]
+fn another_providers_key_details_keep_its_platform() {
+    let mut providers = List::with_capacity(1);
+    providers.push(offer(PROVIDER, b"Example", false, false)).unwrap();
+    let mut root = ways_root(providers, false);
+    fixtures::root_event(
+        &mut root,
+        d::Event::Went {
+            place: d::Place::Address(d::Address::ConnectModel {
+                way: Some(d::ModelWay { source: None, provider: PROVIDER, kind: d::WayKind::Key }),
+            }),
+        },
+    );
+    assert!(words(&root).contains(
+        "From Example’s platform, under API keys. What temper’s agents use is billed to the key’s organization."
+    ));
 }
 #[test]
 fn a_provider_without_a_plan_names_its_sign_in_by_its_brand() {
@@ -301,6 +380,29 @@ fn a_key_lands_on_accounts_with_its_line_and_chat_link() {
         crate::act(&mut view, node, Act::Press),
         Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::NewChat { draft: false } }))
     );
+}
+#[test]
+fn an_anthropic_key_lands_on_accounts_with_its_brand() {
+    let mut root = plans_root();
+    fixtures::root_event(
+        &mut root,
+        d::Event::Went {
+            place: d::Place::Address(d::Address::ConnectModel {
+                way: Some(d::ModelWay { source: None, provider: PROVIDER + 1, kind: d::WayKind::Key }),
+            }),
+        },
+    );
+    let mut view = fixtures::view();
+    press(
+        &mut view,
+        &mut root,
+        Role::TextField,
+        b"Key (pasted once)",
+        Act::Input { value: Box::from(b"private-once".as_slice()) },
+    );
+    let attempt = sent(&mut root, M::Submit { name: [1; 16] });
+    answer(&mut root, attempt, c::DocumentOutcome::AccountKeyKept { source: 43 });
+    assert!(words(&root).contains("Added your Anthropic API key. temper’s agents now run on it."));
 }
 #[test]
 fn a_key_added_on_the_welcome_continues_to_its_ready() {

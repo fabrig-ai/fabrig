@@ -226,6 +226,7 @@ impl Fixture {
             list(&[w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    signed: List::with_capacity(8),
                     commit: [0xab; 32],
                     default_branch: true,
                     task: LANDED,
@@ -333,6 +334,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     let branch = w::ChangesLanded::new(
         &w::CEILINGS,
         w::ChangesLandedParts {
+            signed: List::with_capacity(8),
             task: 21,
             title: b"Goal-branch implementation".as_slice().into(),
             at: RECENT,
@@ -344,6 +346,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     let landing = w::ChangesLanded::new(
         &w::CEILINGS,
         w::ChangesLandedParts {
+            signed: List::with_capacity(8),
             task: 22,
             title: b"Landing fallback".as_slice().into(),
             at: RECENT + 1,
@@ -424,6 +427,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
                 w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        signed: List::with_capacity(8),
                         task,
                         title: title.as_bytes().into(),
                         at: RECENT,
@@ -483,7 +487,9 @@ fn heading_work(flight: u32, drafts: u32, landed: u32) -> Work {
         work.drafts.push(card.clone()).unwrap();
     }
     for _ in 0..landed {
-        work.landed.push(Landed { item: Item::Goal(GOAL), change: LANDED, commit: [0xab; 32], at: NOW }).unwrap();
+        work.landed
+            .push(Landed { signed: None, item: Item::Goal(GOAL), change: LANDED, commit: [0xab; 32], at: NOW })
+            .unwrap();
     }
     work
 }
@@ -671,6 +677,43 @@ fn the_terminal_numbers_filters_and_cards_with_their_from_headline_and_rows() {
         "landed 07:54",
     ] {
         assert!(skein_lib::bytes::find(printed, value.as_bytes()).is_some(), "missing {value}");
+    }
+}
+
+#[test]
+fn work_rows_draw_signers_after_the_title_in_the_byline_style() {
+    for words in [f::browser_words(), f::words()] {
+        for signed in [None, Some(b"signed by you and Sam".as_slice())] {
+            let mut b = Builder::new(&f::tree_limits());
+            let mut bindings = Bindings::new(f::tree_limits().bindings);
+            b.open(Role::Page);
+            b.open(Role::List);
+            work::work_row(&mut b, &words, &mut bindings, LANDED, b"12:30", b"Change title", b"abababa", signed);
+            b.close();
+            b.close();
+            let tree = b.finish();
+            let mut title = None;
+            let mut signer = None;
+            for (index, node) in tree.nodes().iter().enumerate() {
+                if node.role == Role::Link && node.name.as_deref() == Some(b"Change title".as_slice()) {
+                    title = Some(index);
+                }
+                if node.name.as_deref() == Some(" · signed by you and Sam".as_bytes()) {
+                    signer = Some(index);
+                }
+            }
+            let title = title.unwrap();
+            let bylines = styled(&tree, look::WORK_BYLINE);
+            assert_eq!(bylines.len(), if signed.is_some() { 2 } else { 1 });
+            if signed.is_some() {
+                let at = signer.expect("signed words after title");
+                assert!(at > title);
+                assert!(tree.nodes().get(at).unwrap().styles.as_slice().contains(&look::WORK_BYLINE));
+                assert_eq!(bylines.last().unwrap().name.as_deref(), Some(b"abababa".as_slice()));
+            } else {
+                assert!(!has(&tree, "signed by"));
+            }
+        }
     }
 }
 

@@ -66,7 +66,7 @@ pub(super) fn validate(prompt: &Prompt, declared_output: u32, limits: &wire::Lim
     if let Some(effort) = &prompt.reasoning_effort {
         text(effort, &mut budget, limits)?;
         match effort.as_ref() {
-            b"off" | b"low" | b"medium" | b"high" | b"xhigh" | b"max" => {}
+            b"low" | b"medium" | b"high" | b"xhigh" | b"max" => {}
             _ => return Err(Error::Unsupported),
         }
     }
@@ -332,15 +332,13 @@ fn write_request(
         out.key(b"thinking");
         out.object_start();
         out.key(b"type");
-        out.string(if effort.as_ref() == b"off" { b"disabled" } else { b"adaptive" });
+        out.string(b"adaptive");
         out.object_end();
-        if effort.as_ref() != b"off" {
-            out.key(b"output_config");
-            out.object_start();
-            out.key(b"effort");
-            out.string(effort);
-            out.object_end();
-        }
+        out.key(b"output_config");
+        out.object_start();
+        out.key(b"effort");
+        out.string(effort);
+        out.object_end();
     }
     out.object_end();
     Ok(())

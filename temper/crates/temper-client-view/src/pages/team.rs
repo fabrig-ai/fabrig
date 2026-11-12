@@ -10,12 +10,12 @@ use jig_client::contract::HeldRole;
 use skein_ui::{Builder, Role, Run, Style, phrases::Hole};
 use temper_client_domain::{Domain, pages::team};
 
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, project: u32) {
+pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, project: u32, wall: skein_lib::Wall) {
     let name = match super::project_name(root.pages().me(root.client()), project) {
         Some(name) => name,
         None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
     };
-    draw(b, w, &name, &team::shown(root, project));
+    draw(b, w, &name, &team::shown(root, project, wall));
 }
 
 /// The main column from what Team shows.
@@ -56,11 +56,12 @@ pub(crate) fn draw(b: &mut Builder, w: &Words, project_name: &[u8], shown: &team
             paragraph(b, &w.say(Word::TeamUnreadable, &[]), look::SETTINGS_EMPTY);
         }
         team::Shown::Read(facts) => {
-            if team::parts(facts).people {
+            let parts = team::parts(facts);
+            if parts.people {
                 b.open(Role::Slot);
                 b.style(look::TEAM_PEOPLE);
                 for person in &facts.people {
-                    person_box(b, w, person);
+                    person_box(b, w, person, parts.signed(person.party));
                 }
                 b.close();
             }
@@ -91,7 +92,7 @@ fn lede(w: &Words, facts: &team::Facts) -> Box<[u8]> {
     w.say(if you { Word::TeamOfYou } else { Word::TeamPeopleCount }, &[Hole::Name(count)])
 }
 
-fn person_box(b: &mut Builder, w: &Words, person: &team::Person) {
+fn person_box(b: &mut Builder, w: &Words, person: &team::Person, signed: Option<&[u8]>) {
     b.open(Role::Slot);
     b.style(look::TEAM_PERSON);
     let name = if person.you { w.say(Word::TeamYou, &[]) } else { person.name.clone() };
@@ -110,6 +111,9 @@ fn person_box(b: &mut Builder, w: &Words, person: &team::Person) {
     if let Some(waits) = person.waits {
         let whom = if person.you { w.say(Word::TeamWhomYou, &[]) } else { person.name.clone() };
         paragraph(b, &line(w, &waits, whom), look::TEAM_LINE);
+    }
+    if let Some(signed) = signed {
+        paragraph(b, signed, look::TEAM_LINE);
     }
     b.close();
 }

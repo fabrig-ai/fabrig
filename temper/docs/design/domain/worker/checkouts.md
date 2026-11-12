@@ -110,6 +110,12 @@ runs as contained processes and whose output it parses.
   naming the head, permanent for this assignment: nothing of the
   merges is kept, and nothing is pushed. The change it was for then
   waits for its dependencies to land (`../forge/change/questions.md`, 1).
+  This is the one conflict a prepare refuses, and only an early producer's
+  start meets it; its detail says why, as
+  `merge: Conflicted: head <head> does not merge into <branch>`, `<head>`
+  the head's full id in lowercase hexadecimal, 40 digits for a SHA-1 id and
+  64 for a SHA-256 one, as a merge's title spells it
+  (`../../protocol/channel.md`, 4), and `<branch>` the start's branch.
 - **A merge in progress** fetches the branch and the base commit, checks
   out the branch, and merges the base into it as git does, leaving the
   files in conflict with their markers and the merge's state in the
@@ -121,7 +127,11 @@ runs as contained processes and whose output it parses.
   push, and the run is told which. More files in conflict than the
   checkout's `conflicts` still make a merge in progress: each stays
   marked, and the start names the first `conflicts` of them, in git's
-  order (`../../protocol/git.md`, 4.6). A producer's start, the one naming its
+  order (`../../protocol/git.md`, 4.6). A conflict this start meets is the
+  run's to settle, never a failure of the prepare: a resolution's start,
+  whether it merges the base into the change's branch or, with nothing of
+  the change pushed, into the base branch, is always prepared so, its
+  files named in its start. A producer's start, the one naming its
   landing branch (`../forge/change/questions.md`, 1), first asks whether its branch already
   contains the base: if so there is nothing to merge, and it goes on as a
   start from that branch or saved work does, with no merge state and no

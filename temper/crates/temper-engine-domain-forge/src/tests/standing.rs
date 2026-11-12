@@ -64,7 +64,7 @@ fn fixture() -> (Domain, ChangeEvidence) {
 }
 
 fn reviewers() -> [Reviewer; 1] {
-    [Reviewer { person: 7, role: 1, head: HEAD, verdict: skein_forge::api::Verdict::Approve }]
+    [Reviewer { at: Wall::from_nanos(0), person: 7, role: 1, head: HEAD, verdict: skein_forge::api::Verdict::Approve }]
 }
 
 fn judged(d: &Domain, requirement: u16, evidence: &ChangeEvidence, reviewers: &[Reviewer]) -> Option<JudgeVerdict> {

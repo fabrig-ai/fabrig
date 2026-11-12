@@ -39,6 +39,7 @@ fn configuration() -> engine::Config {
     config.core.defaults = temper_service::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
 
     config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+        direct: Box::new([]),
         providers: Box::new([]),
         number: model.endpoint,
         dialect: model.dialect,
