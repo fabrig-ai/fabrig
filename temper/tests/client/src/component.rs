@@ -113,7 +113,7 @@ impl Composition {
             link_secret: secret.clone(),
             local_secret: None,
             approval,
-            deployment_provider: 2,
+            deployment_provider: configuration.core.settings.deployment_provider,
             heartbeat: skein_lib::Duration::from_secs(3600),
             rows: limits.rows,
             served: list([

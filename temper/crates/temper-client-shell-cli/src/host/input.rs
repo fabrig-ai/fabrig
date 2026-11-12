@@ -33,7 +33,10 @@ impl OneShot {
                 self.preparing = false;
                 self.finish(0, false);
             }
-            Parsed::Call { call, .. } if call.tool == jig::rows::PARTY_MAKE_AT => {
+            Parsed::Call { call, .. }
+                if call.tool == jig::rows::PARTY_MAKE_AT
+                    && self.service_file.as_ref().is_none_or(|service| !service.checked) =>
+            {
                 if let Some(service) = &self.service_file {
                     self.directory.check_output(&service.path);
                 } else {
@@ -72,10 +75,15 @@ impl OneShot {
         if self.file_input() {
             self.directory.progress(self.env.now);
         }
-        if self.service_file.is_some() {
+        if let Some(service) = &mut self.service_file
+            && !service.checked
+        {
             if self.directory.checked_output.is_some() && self.directory.ready() {
-                self.directory.start(self.class);
-                self.preparing = false;
+                service.checked = true;
+                self.prepare_start();
+                if !self.preparing {
+                    self.directory.start(self.class);
+                }
             }
             return;
         }

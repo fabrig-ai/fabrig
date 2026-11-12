@@ -54,7 +54,7 @@ impl Machine {
         files
             .insert("link".to_owned(), File { bytes: front::printed_link().into_vec(), mode: 0o600, kind: Kind::File });
         Self {
-            front: Joint::with_printed_link(fixtures::SEED, fixtures::domain_limits()),
+            front: Joint::with_service_party(fixtures::SEED, fixtures::domain_limits()),
             files,
             descriptors: BTreeMap::new(),
             sockets: BTreeMap::new(),
@@ -320,6 +320,9 @@ impl Machine {
                     reply.extend(b"\n\n");
                 }
                 Event::Streamed { message: Streamed::Heartbeat } => {}
+                Event::Streamed { message: Streamed::SignedOut } => {
+                    panic!("stream refused a credential that was not signed in");
+                }
                 _ => panic!("unexpected component event in service-party story"),
             }
         }

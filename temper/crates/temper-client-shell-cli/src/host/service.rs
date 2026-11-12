@@ -9,6 +9,7 @@ use temper_client_tools::jig::{
 
 pub(super) struct ServiceFile {
     pub(super) path: Box<[u8]>,
+    pub(super) checked: bool,
     pub(super) credentials: std::collections::BTreeMap<u64, Secret>,
     printed: Option<Printed>,
 }
@@ -19,7 +20,7 @@ impl ServiceFile {
             return None;
         }
         let Some(Some(Values::One(Value::File(path)))) = call.values.get(2) else { return None };
-        Some(Self { path: path.clone(), credentials: std::collections::BTreeMap::new(), printed: None })
+        Some(Self { path: path.clone(), checked: false, credentials: std::collections::BTreeMap::new(), printed: None })
     }
 }
 impl OneShot {

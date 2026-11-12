@@ -25,6 +25,17 @@ fn party_make_writes_the_private_file_only_after_the_answer_is_durable() {
     f.no_service_leaked();
 }
 #[test]
+fn party_make_reads_its_name_from_stdin() {
+    let mut f =
+        Frame::read(&["party", "make", "--project", "7", "--role", "2", "--out", "record", "-", "--key", "scout"]);
+    f.input = b"scout";
+    f.answer_sign_in_then_me();
+    assert_eq!(f.exit(), Some(Exit::Code(0)));
+    assert_eq!(f.made_services, 1);
+    assert_eq!(f.stdout(), b"made: party 9\n");
+    f.no_service_leaked();
+}
+#[test]
 fn party_make_refuses_an_existing_file_before_sending() {
     let mut f = make();
     f.record_exists = true;
