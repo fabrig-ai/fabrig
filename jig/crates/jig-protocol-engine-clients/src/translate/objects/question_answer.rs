@@ -132,11 +132,7 @@ pub fn word_result(value: &t::ResultKind, limits: &w::Limits) -> Result<w::WordR
     })
 }
 fn crossing_words(kind: &t::MessageKind, words: &[u8]) -> Box<[u8]> {
-    if let t::MessageKind::Result(t::ResultKind::Job) = kind {
-        Box::new([])
-    } else {
-        bytes::copy_of(words)
-    }
+    if let t::MessageKind::Result(t::ResultKind::Job) = kind { Box::new([]) } else { bytes::copy_of(words) }
 }
 pub fn word(value: &t::Word, limits: &w::Limits) -> Result<w::Word, w::Problem> {
     w::Word::new(
