@@ -2173,6 +2173,7 @@ pub enum Request {
     CancelFollow {
         project: u32,
         task: u64,
+        reason: Box<[u8]>,
     },
     TierRun {
         repository: skein_forge::api::Repository,

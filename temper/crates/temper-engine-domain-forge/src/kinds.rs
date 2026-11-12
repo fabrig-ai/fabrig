@@ -56,6 +56,12 @@ impl Domain {
         items: &[settings::Asked],
         out: &mut Queue<Request>,
     ) {
+        let mut before_follows = Map::uncapped();
+        for item in items {
+            if item.kind == 12 {
+                before_follows.insert((item.scope, item.number), match self.follow(item.scope, item.number) { Some(follow) => Some(follow.owner), None => None }).expect("accepted follows");
+            }
+        }
         let mut before_classes = Map::with_capacity(env.limits.judge_projects);
         for item in items {
             if item.kind == 8 && !before_classes.contains_key(&item.scope) {
@@ -82,7 +88,7 @@ impl Domain {
                 out.push(Request::Marked { tasks: Box::new([crate::follows_subject(item.scope)]) });
             }
             if item.kind == 12 {
-                crate::follows::keep(self, item.scope, item.number, out);
+                crate::follows::keep(self, item.scope, item.number, before_follows.get(&(item.scope, item.number)).copied().flatten(), out);
             }
         }
         let mut wake = List::with_capacity(self.changes.capacity());

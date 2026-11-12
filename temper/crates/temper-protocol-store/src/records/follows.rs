@@ -158,6 +158,7 @@ pub(super) fn encode(row: &d::FollowRow) -> w::FollowRow {
                         number: question.number,
                         words: question.words.clone(),
                         person: question.person,
+                        relayed: question.relayed,
                         answer: question.answer.clone(),
                     },
                 )
@@ -213,8 +214,8 @@ pub(super) fn decode(row: w::FollowRow, bounds: &Bounds) -> Result<d::FollowRow,
     }
     let mut decoded_questions = List::with_capacity(questions.len());
     for question in questions.into_boxed() {
-        let w::FollowQuestionParts { change, number, words, person, answer } = question.into_parts();
-        decoded_questions.push(d::FollowQuestion { change, number, words, person, answer }).expect(FITS);
+        let w::FollowQuestionParts { change, number, words, person, answer, relayed } = question.into_parts();
+        decoded_questions.push(d::FollowQuestion { change, number, words, person, answer, relayed }).expect(FITS);
     }
     Ok(d::FollowRow {
         project,

@@ -43,6 +43,7 @@ pub struct FollowQuestion {
     pub number: u64,
     pub words: Box<[u8]>,
     pub person: Option<u64>,
+    pub relayed: Option<u64>,
     pub answer: Option<Box<[u8]>>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -220,12 +221,23 @@ pub fn followed(d: &mut Domain, project: u32, follow: u32, afters: &[Commit], ou
     row.queue = queue.into_boxed();
     save(row, out);
 }
-pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, out: &mut Queue<Request>) {
+pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, before: Option<crate::settings::FollowOwner>, out: &mut Queue<Request>) {
     let key = (project, follow);
     if let Some(setting) = d.follow(project, follow).cloned() {
         if let Some(row) = d.follow_rows.get_mut(&key) {
+            let changed = match (before, setting.owner) {
+                (Some(crate::settings::FollowOwner::Person(_)), crate::settings::FollowOwner::Person(_)) | (None, crate::settings::FollowOwner::Person(_) | crate::settings::FollowOwner::Task(_)) => false,
+                (Some(owner), next) => owner != next,
+            };
+            if changed {
+                if let Some(task) = row.task.take() {
+                    out.push(Request::CancelFollow { project, task, reason: b"its owner changed".as_slice().into() });
+                }
+                remaking(row);
+            }
             if row.stopped.take().is_some() {
                 row.task = None;
+                remaking(row);
             }
             save(row, out);
         } else {
@@ -251,7 +263,7 @@ pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, out: &mut Queue<Re
         }
     } else if let Some(row) = d.follow_rows.remove(&key) {
         if let Some(task) = row.task {
-            out.push(Request::CancelFollow { project, task });
+            out.push(Request::CancelFollow { project, task, reason: b"the follow was removed".as_slice().into() });
         }
         d.follow_retry.remove(&key);
         let mut owners = List::with_capacity(d.follow_reads.capacity());
@@ -273,6 +285,20 @@ pub(crate) fn keep(d: &mut Domain, project: u32, follow: u32, out: &mut Queue<Re
         out.push(Request::FollowRun { project, follow });
     }
     d.tier_ops.dirty = true;
+}
+/// A new requester remakes only the prefix before an independently ended entry (follows.md, 4).
+pub fn remaking(row: &mut FollowRow) {
+    row.questions = Box::new([]);
+    for entry in &mut row.queue {
+        if let FollowState::Ended(_) = entry.state {
+            break;
+        }
+        entry.change = None;
+        if let FollowState::HeldByOwner(_) = entry.state {} else {
+            entry.state = FollowState::NotMade;
+        }
+        entry.remake = false;
+    }
 }
 pub(crate) fn branch<'a>(d: &'a Domain, row: &'a FollowRow) -> Option<&'a [u8]> {
     if row.branch.is_empty() { Some(&d.repository(row.source)?.settings.default_branch) } else { Some(&row.branch) }
