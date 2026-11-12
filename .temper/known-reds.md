@@ -1,6 +1,6 @@
 # Known reds
 
-Failures on the goal branch that no live change of goal 1706 owns; delivery
+Failures on the goal branch that no live change of goal 1987 owns; delivery
 checks count them as inherited (`tools/pre-pr/design.md`, section 5).
 
 - lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/patches/p0001.rs
@@ -43,3 +43,7 @@ Inherited from main, raised by change 1766 on 2026-11-12.
 - lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
 - test temper-client-journeys-tool tests::the_overlay_is_empty
 - lint jig-protocol-config clippy::disallowed_methods jig/crates/jig-protocol-config/src/tests/seed_policy.rs
+- lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
+- lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
+- lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
+- lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs

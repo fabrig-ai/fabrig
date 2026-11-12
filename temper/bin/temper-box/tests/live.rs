@@ -1,6 +1,6 @@
 //! A person asks a real model to change a repository on the owned forge.
-pub mod support;
 use skein_lib::Duration;
+use temper_box_kit as support;
 #[test]
 #[ignore = "live: a person's fresh ChatGPT sign-in, through scripts/proof-live.sh"]
 fn a_real_model_answers_a_chat_and_pushes_a_small_change() {

@@ -1901,7 +1901,7 @@ fn the_live_github_configuration_passes_startup_admission() {
     use std::os::unix::ffi::OsStrExt;
     use support::live_github::{configure_engine, document};
 
-    let templates = skein_scratch::paths::package().join("tests/support/github");
+    let templates = skein_scratch::paths::package().join("tests/fixtures/github");
     let api = "127.0.0.1:31001".parse().expect("synthetic API socket");
     let git = "127.0.0.1:31002".parse().expect("synthetic git socket");
     let workers = "127.0.0.1:31003".parse().expect("synthetic worker socket");
@@ -2020,7 +2020,7 @@ fn turn_bounds() {
         turn_bound_document(&directory.join(name), turn, true);
     }
     eprintln!("cluster fixture: T={turn}");
-    let github = root.join("bin/temper-box/tests/support/github");
+    let github = root.join("bin/temper-box/tests/fixtures/github");
     let agent = fs::read_to_string(github.join("agent.json")).expect("GitHub agent");
     let agent: serde_json::Value =
         serde_json::from_str(&agent.replace("{{", "{").replace("}}", "}")).expect("GitHub agent JSON");
