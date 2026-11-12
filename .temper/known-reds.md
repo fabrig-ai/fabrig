@@ -1,0 +1,1 @@
+- lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
