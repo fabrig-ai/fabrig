@@ -5,7 +5,7 @@ use temper_engine_domain_forge::settings;
 use temper_engine_domain_world::kinds;
 
 const ASK_CHARTER: u32 = 11;
-const SETTINGS_CHARTER: u32 = 14;
+const SETTINGS_CHARTER: u32 = 17;
 
 fn box_owner() -> people::IdentityKey {
     people::IdentityKey { provider: 3, subject: b"owner-a".as_slice().into() }
