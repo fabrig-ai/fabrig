@@ -349,7 +349,8 @@ record FollowRepository { forge: u16 repository: u32 }
 record FollowSource { repository: FollowRepository branch: bytes 4096 paths: list 256 bytes 256 }
 record FollowTarget { repository: FollowRepository branch: bytes 4096 }
 record FollowPerson { person: u64 }
-enum FollowOwner { person: FollowPerson }
+record FollowOwnerTask { task: u64 }
+enum FollowOwner { person: FollowPerson task: FollowOwnerTask }
 enum FollowStart { owner, code }
 enum FollowFormat { junit, lines }
 record FollowCheck { workflow: bytes 256 artifact: bytes 256 format: FollowFormat }
