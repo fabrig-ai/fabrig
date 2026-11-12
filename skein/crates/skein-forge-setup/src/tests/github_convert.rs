@@ -319,7 +319,10 @@ fn a_conversion_names_status_down_and_wrong_document_at_its_step() {
             (Reply::Empty, Why::Unexpected),
             (Reply::Rows(Box::new([])), Why::Unexpected),
             (Reply::GitHubRows(Box::new([])), Why::Unexpected),
-            (Reply::Document(Box::new(skein_forge::forgejo::document::Document::RepoSearch { ok: true })), Why::Unexpected),
+            (
+                Reply::Document(Box::new(skein_forge::forgejo::document::Document::RepoSearch { ok: true })),
+                Why::Unexpected,
+            ),
         ] {
             let mut machine = at(phase);
             assert_eq!(go(&mut machine, Event::Reply(reply)), failure(subject, why));

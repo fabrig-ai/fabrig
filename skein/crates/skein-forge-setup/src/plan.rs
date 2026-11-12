@@ -51,10 +51,6 @@ pub enum Outcome {
 }
 /// The outcome of the outstanding need.
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::large_enum_variant, reason = "a reply's document moves whole, as the store's records do")
-)]
 pub enum Event {
     Begin,
     Read(Option<Secret>),

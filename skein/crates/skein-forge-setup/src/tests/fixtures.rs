@@ -141,9 +141,9 @@ pub fn bot_event() -> crate::reconcile::Event {
     user_event(person(b"kit", b"kit:bot"))
 }
 pub fn user_event(user: skein_forge::forgejo::document::User) -> crate::reconcile::Event {
-    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Box::new(skein_forge::forgejo::document::Document::User(
-        user,
-    ))))
+    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Box::new(
+        skein_forge::forgejo::document::Document::User(user),
+    )))
 }
 pub fn settings_event(cap: u32) -> crate::reconcile::Event {
     use skein_forge::forgejo::document::{ApiSettings, Document};
@@ -402,10 +402,9 @@ pub fn repository(id: u64, owner: &[u8], name: &[u8]) -> crate::reconcile::Event
 }
 pub fn permission(permission: skein_forge::forgejo::document::Permission) -> crate::reconcile::Event {
     use skein_forge::forgejo::document::{CollaboratorPermission, Document};
-    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Box::new(Document::Permission(CollaboratorPermission {
-        permission,
-        user: user(42, b"kit", false),
-    }))))
+    crate::reconcile::Event::Reply(crate::reconcile::Reply::Document(Box::new(Document::Permission(
+        CollaboratorPermission { permission, user: user(42, b"kit", false) },
+    ))))
 }
 pub struct AdoptRun {
     pub(super) machine: crate::adopt::Adopt,

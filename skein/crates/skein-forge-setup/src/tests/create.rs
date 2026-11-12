@@ -27,7 +27,10 @@ fn at_org(machine: &mut Create) {
     let mut admin = fixtures::person(b"ada", b"Ada");
     admin.is_admin = true;
     go(machine, Event::Reply(Reply::Document(Box::new(Document::User(admin)))));
-    go(machine, Event::Reply(Reply::Document(Box::new(Document::Org(Org { id: 1, name: b"first".as_slice().into() })))));
+    go(
+        machine,
+        Event::Reply(Reply::Document(Box::new(Document::Org(Org { id: 1, name: b"first".as_slice().into() })))),
+    );
 }
 #[test]
 fn a_repository_creation_race_reads_the_winning_repository_again() {
@@ -47,9 +50,7 @@ fn a_repository_creation_race_reads_the_winning_repository_again() {
 fn an_empty_file_list_finishes_after_access_with_the_repository_id() {
     let mut machine = machine();
     at_org(&mut machine);
-    let Event::Reply(Reply::Document(document)) =
-        fixtures::repository(1, b"first", b"starter")
-    else {
+    let Event::Reply(Reply::Document(document)) = fixtures::repository(1, b"first", b"starter") else {
         panic!("repository fixture")
     };
     let Document::Repository(mut repository) = *document else { panic!("repository fixture") };

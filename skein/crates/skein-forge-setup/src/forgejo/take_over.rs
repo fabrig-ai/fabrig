@@ -120,13 +120,13 @@ impl TakeOver {
             State::Settings => match reply(event)? {
                 Reply::Document(document) => {
                     let Document::ApiSettings(settings) = *document else { return Err(Why::Unexpected) };
-                    if settings.max_response_items == 0 { return Err(Why::Unexpected); }
+                    if settings.max_response_items == 0 {
+                        return Err(Why::Unexpected);
+                    }
                     self.cap = Some(settings.max_response_items);
                     Ok(self.listing())
                 }
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             State::Listing => self.rows(reply(event)?),
             State::Delete => match reply(event)? {

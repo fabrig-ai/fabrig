@@ -65,12 +65,10 @@ fn org() -> Event {
     document(Document::Org(Org { id: 1, name: b"first".as_slice().into() }))
 }
 fn repository(id: u64) -> Event {
-    let Event::Reply(Reply::Document(document)) =
-        fixtures::repository(id, b"first", b"copied")
-    else {
+    let Event::Reply(Reply::Document(value)) = fixtures::repository(id, b"first", b"copied") else {
         panic!("repository fixture")
     };
-    let Document::Repository(mut repository) = *document else { panic!("repository fixture") };
+    let Document::Repository(mut repository) = *value else { panic!("repository fixture") };
     repository.default_branch = BRANCH.into();
     document(Document::Repository(repository))
 }

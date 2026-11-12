@@ -55,13 +55,9 @@ impl Peer {
             let call = self.calls.remove(index);
             let domain::Request::Reply { result, .. } = &reply else { unreachable!("reply snapshot") };
             if let Some((repository, op)) = call.snapshot {
-                let bytes = sum(&[
-                    repository.heap(),
-                    op.heap(),
-                    u64::try_from(size_of_val(result)).ok(),
-                    result.heap(),
-                ])
-                .expect("bounded frozen call");
+                let bytes =
+                    sum(&[repository.heap(), op.heap(), u64::try_from(size_of_val(result)).ok(), result.heap()])
+                        .expect("bounded frozen call");
                 self.reserve(bytes);
                 self.observe(
                     Observation::Call {

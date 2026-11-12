@@ -296,11 +296,7 @@ impl Judge {
             .observations()
             .iter()
             .find_map(|observation| {
-                if let Observation::Call {
-                    op: Op::Write(Write::Copy { owner, name, .. }),
-                    result,
-                    ..
-                } = observation
+                if let Observation::Call { op: Op::Write(Write::Copy { owner, name, .. }), result, .. } = observation
                     && let Ok(skein_fake_forge_domain::api::Answer::Copied { repository, .. }) = &**result
                     && owner.as_ref() == b"acme"
                     && name.as_ref() == b"copied"

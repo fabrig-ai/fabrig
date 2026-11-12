@@ -272,18 +272,14 @@ impl Create {
                     self.state = State::MakeOrg;
                     Ok(self.send(Request::CreateOrg { person: owner, name: self.at.owner.clone() }))
                 }
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             State::MakeOrg => match answer {
                 Reply::Document(document) => {
                     let Document::Org(_) = *document else { return Err(Why::Unexpected) };
                     Ok(self.repository())
                 }
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             State::Repository => match answer {
                 Reply::Document(document) => {
@@ -308,9 +304,7 @@ impl Create {
                     }
                     Source::Copy { .. } => self.mark(),
                 }),
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             State::MakeRepository => match answer {
                 Reply::Document(document) => {
@@ -319,9 +313,7 @@ impl Create {
                     Ok(self.access())
                 }
                 Reply::Status(409) => Ok(self.repository()),
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             State::Migrate | State::CopyBranch { .. } | State::Delete => self.copy_answer(answer),
             State::Branch | State::Raw | State::File => self.file_answer(answer),
@@ -347,9 +339,7 @@ impl Create {
                     Ok(self.copy_branch(false))
                 }
                 Reply::Status(409) => Err(Why::Taken),
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             State::CopyBranch { restart } => match answer {
                 Reply::Document(document) => {
@@ -364,9 +354,7 @@ impl Create {
                         Err(Why::Empty)
                     }
                 }
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             State::Delete => match answer {
                 Reply::Empty | Reply::Status(404) => Ok(self.mark()),
@@ -400,9 +388,7 @@ impl Create {
                         reference: branch.commit,
                     }))
                 }
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             State::Raw => match answer {
                 Reply::Empty => Ok(self.file_done()),
@@ -416,9 +402,7 @@ impl Create {
                     let Document::CreatedFile { .. } = *document else { return Err(Why::Unexpected) };
                     Ok(self.file_done())
                 }
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             State::Admin(_)
             | State::Org

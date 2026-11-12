@@ -123,13 +123,13 @@ impl Tokens {
             Phase::Settings => match reply(event)? {
                 Reply::Document(document) => {
                     let Document::ApiSettings(settings) = *document else { return Err(Why::Unexpected) };
-                    if settings.max_response_items == 0 { return Err(Why::Unexpected); }
+                    if settings.max_response_items == 0 {
+                        return Err(Why::Unexpected);
+                    }
                     self.cap = Some(settings.max_response_items);
                     Ok(self.listing(machine))
                 }
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             Phase::Listing => self.rows(machine, reply(event)?),
             Phase::Delete => match reply(event)? {
@@ -145,9 +145,7 @@ impl Tokens {
                     self.phase = Phase::Written;
                     Ok(Need::Write { item: self.item, bytes: value })
                 }
-                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             Phase::Written => match event.written() {
                 Ok(()) => Ok(self.next(machine)),
