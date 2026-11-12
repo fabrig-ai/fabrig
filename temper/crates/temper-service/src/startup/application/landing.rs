@@ -439,6 +439,28 @@ fn optional_check_timeout(
     Some(skein_lib::Duration::from_millis(value))
 }
 
+fn optional_landing_attempts(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<u8> {
+    let value = optional_integer(
+        object,
+        document,
+        b"landing_attempts",
+        u64::from(engine::LANDING_ATTEMPTS),
+        u64::from(u8::MAX),
+        path,
+        problems,
+    )?;
+    if value == 0 {
+        problems.push(path.member(b"landing_attempts"), What::Jig(config::What::Bound));
+        return None;
+    }
+    Some(u8::try_from(value).expect("bounded landing attempts"))
+}
+
 fn project_landing(
     object: &mut crate::startup::members::Object,
     document: &Document,
@@ -447,6 +469,7 @@ fn project_landing(
     problems: &mut Problems,
 ) -> Option<engine::ProjectLanding> {
     let check_timeout = optional_check_timeout(object, document, path, problems);
+    let landing_attempts = optional_landing_attempts(object, document, path, problems);
     let retries = optional_integer(object, document, b"tier_retries", 2, u64::from(u8::MAX), path, problems);
     let bound = optional_integer(object, document, b"verification_bound_ms", 7_200_000, u64::MAX, path, problems);
     let by = optional_word(object, document, b"by", b"queue", path, problems)?;
@@ -476,6 +499,7 @@ fn project_landing(
     }
     Some(engine::ProjectLanding {
         check_timeout,
+        landing_attempts: landing_attempts?,
         by,
         close_job,
         merge_job,
