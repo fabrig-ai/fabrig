@@ -668,6 +668,9 @@ fn dependencies_judge_the_scope_number_and_value_and_allow_no_value() {
     let item = Item { kind: 13, scope: PROJECT, number: 1, value: Some(value.clone()) };
     assert_eq!(Kind::of(13), Some(Kind::Dependency));
     assert_eq!(Kind::Dependency.number(), 13);
+    for (dependencies, accepted) in [(0, false), (1, true), (256, true), (257, false)] {
+        assert_eq!(crate::valid(&crate::Limits { dependencies, ..super::LIMITS }), accepted);
+    }
     assert_eq!(judge(&item, &BOUNDS), Ok(()));
     assert_eq!(judge(&Item { scope: 0, ..item.clone() }, &BOUNDS), Err(Refusal::Scope));
     for number in [0, BOUNDS.dependencies + 1] {

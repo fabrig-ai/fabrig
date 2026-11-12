@@ -7,8 +7,8 @@ use skein_lib::{Decimal, Env, List, Queue};
 use temper_engine_domain_forge::settings;
 
 use crate::{Domain, Limits, Work};
-mod follows;
 mod dependencies;
+mod follows;
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "the forge dispatcher selects only the settings asks")]
 pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: connector::Ask) {
@@ -165,7 +165,8 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
     };
     let ways = match value {
         settings::Value::Ways(ways) => ways,
-        settings::Value::Dependency(_) | settings::Value::Follow(_)
+        settings::Value::Dependency(_)
+        | settings::Value::Follow(_)
         | settings::Value::Rule(_)
         | settings::Value::Charter(_)
         | settings::Value::Goal(_)
@@ -224,7 +225,8 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
     };
     let rule = match value {
         settings::Value::Rule(rule) => rule,
-        settings::Value::Dependency(_) | settings::Value::Follow(_)
+        settings::Value::Dependency(_)
+        | settings::Value::Follow(_)
         | settings::Value::Charter(_)
         | settings::Value::Questions(_)
         | settings::Value::Classes(_)
@@ -488,7 +490,13 @@ fn read_refusal(
                         crate::ForgeRead::View { project: requested, .. } => *requested == project,
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
-                            (*kind == 2 || *kind == 6 || *kind == 7 || *kind == 8 || *kind == 10 || *kind == 12 || *kind == 13)
+                            (*kind == 2
+                                || *kind == 6
+                                || *kind == 7
+                                || *kind == 8
+                                || *kind == 10
+                                || *kind == 12
+                                || *kind == 13)
                                 && *scope == project
                         }
                         crate::ForgeRead::ProposalItems { .. } | crate::ForgeRead::ProgramEnvironment => false,

@@ -97,7 +97,12 @@ fn show(row: &w::FollowView, out: &mut Text) {
     }
     out.put(b"\n");
 }
-fn text(panel: &w::FollowsPanel, row: Option<&w::FollowView>, projects: &[jig_client::contract::MeProject], out: &mut Text) {
+fn text(
+    panel: &w::FollowsPanel,
+    row: Option<&w::FollowView>,
+    projects: &[jig_client::contract::MeProject],
+    out: &mut Text,
+) {
     if let Some(row) = row {
         show(row, out);
         return;
@@ -111,9 +116,13 @@ fn text(panel: &w::FollowsPanel, row: Option<&w::FollowView>, projects: &[jig_cl
     }
     let mut name = None;
     for project in projects {
-        if project.project == panel.project() { name = Some(project.name.bytes()); break; }
+        if project.project == panel.project() {
+            name = Some(project.name.bytes());
+            break;
+        }
     }
-    let fallback = skein_lib::bytes::concat(&[b"project ", skein_lib::Decimal::of(u64::from(panel.project())).as_bytes()]);
+    let fallback =
+        skein_lib::bytes::concat(&[b"project ", skein_lib::Decimal::of(u64::from(panel.project())).as_bytes()]);
     for row in panel.dependencies() {
         out.put(&follows::dependency_line(row, name.unwrap_or(&fallback), projects));
         out.put(b"\n");

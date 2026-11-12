@@ -6,7 +6,11 @@ use temper_client_protocol_wire::v1 as w;
 /// A dependency's binding line, naming only projects the reader belongs to
 /// (temper/docs/design/domain/forge/dependencies.md, 4).
 #[must_use]
-pub fn dependency_line(row: &w::DependencyView, project: &[u8], projects: &[jig_client::contract::MeProject]) -> Box<[u8]> {
+pub fn dependency_line(
+    row: &w::DependencyView,
+    project: &[u8],
+    projects: &[jig_client::contract::MeProject],
+) -> Box<[u8]> {
     let mut name = None;
     for project in projects {
         if project.project == row.project() {
@@ -15,8 +19,14 @@ pub fn dependency_line(row: &w::DependencyView, project: &[u8], projects: &[jig_
         }
     }
     let fallback = concat(&[b"project ", Decimal::of(u64::from(row.project())).as_bytes()]);
-    concat(&[b"dependency ", Decimal::of(u64::from(row.number())).as_bytes(), b": ", project,
-        b" depends on ", name.unwrap_or(&fallback)])
+    concat(&[
+        b"dependency ",
+        Decimal::of(u64::from(row.number())).as_bytes(),
+        b": ",
+        project,
+        b" depends on ",
+        name.unwrap_or(&fallback),
+    ])
 }
 
 #[must_use]

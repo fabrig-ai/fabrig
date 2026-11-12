@@ -998,8 +998,13 @@ fn follows_keep_only_accepted_values_in_number_order_and_restore_remove_and_rese
 #[test]
 fn dependencies_ride_with_or_without_follows_and_erase_only_with_their_own_project() {
     let mut d = domain();
-    let first = item(13, 1, 1, Edit::Set(SizedValue { value: Value::Dependency(crate::settings::Dependency { project: 2 }), size: 4 }));
-    let second = Asked { number:2, ..first.clone() };
+    let first = item(
+        13,
+        1,
+        1,
+        Edit::Set(SizedValue { value: Value::Dependency(crate::settings::Dependency { project: 2 }), size: 4 }),
+    );
+    let second = Asked { number: 2, ..first.clone() };
     let mut out = Queue::uncapped();
     d.keep_proposal_settings(7, from_ref(&first), &mut out);
     assert!(d.dependencies(1).is_empty());
@@ -1007,27 +1012,49 @@ fn dependencies_ride_with_or_without_follows_and_erase_only_with_their_own_proje
     d.keep_settings(&env(), 3, Some(7), from_ref(&first), &mut out);
     let watched = crate::tiers::watched(&d);
     assert!(watched.is_empty(), "dependencies watch no branch");
-    let Document::Follows(view) = d.document(follows_subject(1), jig_domain_people::ApplicationScope::Project(1), 1, env().wall, &LIMITS).unwrap() else { panic!("follows document") };
+    let Document::Follows(view) = d
+        .document(follows_subject(1), jig_domain_people::ApplicationScope::Project(1), 1, env().wall, &LIMITS)
+        .unwrap()
+    else {
+        panic!("follows document")
+    };
     assert!(view.follows.is_empty());
-    assert_eq!(view.dependencies.as_ref(), &[DependencyView {number:1, project:2}, DependencyView {number:2, project:2}]);
-    let other=item(13,2,1,Edit::Set(SizedValue {value:Value::Dependency(crate::settings::Dependency {project:1}),size:4}));
-    d.keep_settings(&env(),4,None,from_ref(&other),&mut out);
+    assert_eq!(
+        view.dependencies.as_ref(),
+        &[DependencyView { number: 1, project: 2 }, DependencyView { number: 2, project: 2 }]
+    );
+    let other = item(
+        13,
+        2,
+        1,
+        Edit::Set(SizedValue { value: Value::Dependency(crate::settings::Dependency { project: 1 }), size: 4 }),
+    );
+    d.keep_settings(&env(), 4, None, from_ref(&other), &mut out);
     d.erase_project_settings(2, &mut out);
     assert!(d.dependencies(2).is_empty());
     assert_eq!(d.dependencies(1).len(), 2, "removing the target leaves dependencies");
     for edit in [Edit::Remove, Edit::Reset] {
         let asked = Asked { edit, ..first.clone() };
-        assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Accept { size:0, charter:None }]);
+        assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Accept { size: 0, charter: None }]);
         d.keep_settings(&env(), 4, None, from_ref(&asked), &mut out);
-        assert_eq!(d.dependencies(1).len(),1);
+        assert_eq!(d.dependencies(1).len(), 1);
         d.keep_settings(&env(), 5, None, from_ref(&first), &mut out);
     }
     // A follow whose repository facts are unavailable must not hide the dependencies.
-    restore(&mut d, &item(12, 1, 1, Edit::Set(SizedValue { value:Value::Follow(settings::follow()), size:128 })), SettingSlot::Change);
-    let Document::Follows(view) = d.document(follows_subject(1), jig_domain_people::ApplicationScope::Project(1), 1, env().wall, &LIMITS).unwrap() else { panic!("dependencies despite missing repository facts") };
+    restore(
+        &mut d,
+        &item(12, 1, 1, Edit::Set(SizedValue { value: Value::Follow(settings::follow()), size: 128 })),
+        SettingSlot::Change,
+    );
+    let Document::Follows(view) = d
+        .document(follows_subject(1), jig_domain_people::ApplicationScope::Project(1), 1, env().wall, &LIMITS)
+        .unwrap()
+    else {
+        panic!("dependencies despite missing repository facts")
+    };
     assert!(view.follows.is_empty());
     assert_eq!(view.dependencies.len(), 2);
-    d.keep_proposal_settings(8,from_ref(&second),&mut out);
+    d.keep_proposal_settings(8, from_ref(&second), &mut out);
     d.erase_project_settings(1, &mut out);
     assert!(d.dependencies(1).is_empty());
     for (key, _) in &d.setting_rows {

@@ -458,7 +458,9 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
         }
         13 => {
             let Ok(value) = w::Dependency::decode(&w::CEILINGS, &mut reader) else { return false };
-            if !reader.is_empty() { return false; }
+            if !reader.is_empty() {
+                return false;
+            }
             out.object_start();
             out.key(b"project");
             out.unsigned(u64::from(value.project()));

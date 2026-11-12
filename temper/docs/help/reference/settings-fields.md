@@ -4,7 +4,7 @@ Kind: reference
 
 Every member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `settings show` prints it.
 
-A settings file is a `file`, below; each section is one shape of JSON object, and each bullet one of its members, with its type, its bound and what it does. Read a value with `settings show`, given its kind and number, edit it, and set it whole. A bound here is what ctl sends; the deployment may still refuse a value, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend is in the deployment's units, those of its models' prices. Hex is bytes in lower-case hexadecimal: `666f726765` is `forge`.
+Each section is a JSON object shape; each bullet a member, its type, bound and effect on work. A settings file is `file`. Read `settings show KIND N`, edit, and set the whole value. Ctl sends these bounds; the deployment may refuse a value, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.
 
 ## file
 
@@ -24,7 +24,7 @@ One setting, and what becomes of it: `setting`, then exactly one of `set` and `e
 
 Which setting: its kind and number, or project for project settings.
 
-- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"follow"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"` or `"project-words"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
+- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"follow"`, `"dependency"`, `"project-ways"`, `"project-questions"`, `"project-classes"`, `"charter-words"` or `"project-words"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
 - `number`: integer, 0 to 4,294,967,295. Setting number, from 1; omit for rules, project-policy, project-ways, project-questions, project-classes and project-words.
 - `project`: integer, 0 to 4,294,967,295. Project number: required for follow, project-ways, project-questions, project-classes, project-words and project-policy; absent for charter-words. Landing rule: from 1, or deployment-wide if absent.
 
@@ -512,6 +512,12 @@ The final resource segment, in the same hex form as a pattern's last segment.
 ## forge-charter
 
 Charter number: integer 0 to 4,294,967,295. Setting 1 selects the change's charter; setting 2 its reviews'.
+
+## dependency
+
+Another project of this deployment. Selector: project and number (1 to forge.dependencies); no stock default. Nothing acts on it.
+
+- `project`: integer, 0 to 4,294,967,295. Required project number.
 
 ## follow
 

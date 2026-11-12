@@ -157,6 +157,9 @@ pub fn valid(l: &Limits) -> bool {
         || l.landing_rules == 0
         || crate::follows::capacity(l).is_none()
         || l.follows == 0
+        // The follows document carries at most 256 dependencies.
+        || l.dependencies == 0
+        || l.dependencies > 256
         || l.follow_paths == 0
         || l.follow_paths > 256
         || l.follow_queue == 0

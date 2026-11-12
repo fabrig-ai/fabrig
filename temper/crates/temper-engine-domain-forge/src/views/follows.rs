@@ -62,8 +62,12 @@ impl Domain {
     fn follow_views(&self, project: u32, limits: &Limits, with_dependencies: bool) -> Option<Box<[FollowView]>> {
         let mut follows = List::with_capacity(limits.follows);
         for (number, setting) in self.follows(project) {
-            let (Some(source), Some(target)) = (self.repository(setting.source.repository), self.repository(setting.target.repository)) else {
-                if with_dependencies { continue; }
+            let (Some(source), Some(target)) =
+                (self.repository(setting.source.repository), self.repository(setting.target.repository))
+            else {
+                if with_dependencies {
+                    continue;
+                }
                 return None;
             };
             let row = self.follow_row(project, number);

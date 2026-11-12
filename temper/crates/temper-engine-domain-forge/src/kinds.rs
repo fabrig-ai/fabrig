@@ -324,7 +324,13 @@ impl Domain {
     pub fn erase_project_settings(&mut self, project: u32, out: &mut Queue<Request>) {
         let mut erases = List::with_capacity(self.setting_rows.capacity());
         for (key, _) in &self.setting_rows {
-            if (key.kind == 2 || key.kind == 6 || key.kind == 7 || key.kind == 8 || key.kind == 10 || key.kind == 12 || key.kind == 13)
+            if (key.kind == 2
+                || key.kind == 6
+                || key.kind == 7
+                || key.kind == 8
+                || key.kind == 10
+                || key.kind == 12
+                || key.kind == 13)
                 && key.scope == project
             {
                 erases.push(*key).expect("bounded project setting rows");
@@ -347,7 +353,8 @@ impl Domain {
             Some(settings::SizedValue {
                 value:
                     Value::Goal(_)
-                    | Value::Dependency(_) | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Ways(_)
@@ -368,7 +375,8 @@ impl Domain {
             Some(settings::SizedValue { value: Value::Classes(classes), .. }) => classes.clone(),
             Some(settings::SizedValue {
                 value:
-                    Value::Dependency(_) | Value::Follow(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -391,7 +399,8 @@ impl Domain {
             Some(settings::SizedValue {
                 value:
                     Value::Goal(_)
-                    | Value::Dependency(_) | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -412,7 +421,8 @@ impl Domain {
             Some(settings::SizedValue {
                 value:
                     Value::Goal(_)
-                    | Value::Dependency(_) | Value::Follow(_)
+                    | Value::Dependency(_)
+                    | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -433,7 +443,8 @@ impl Domain {
             Some(settings::SizedValue { value: Value::Goal(goal), .. }) => Some(*goal),
             Some(settings::SizedValue {
                 value:
-                    Value::Dependency(_) | Value::Follow(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Charter(_)
                     | Value::Questions(_)
@@ -452,7 +463,9 @@ impl Domain {
     pub fn dependencies(&self, project: u32) -> Box<[(u32, &settings::Dependency)]> {
         let mut dependencies = List::uncapped();
         for (key, edit) in &self.setting_rows {
-            if key.kind == 13 && key.scope == project && key.slot == SettingSlot::Change
+            if key.kind == 13
+                && key.scope == project
+                && key.slot == SettingSlot::Change
                 && let Edit::Set(settings::SizedValue { value: Value::Dependency(value), .. }) = edit
             {
                 dependencies.push((key.number, value)).expect("one current value per dependency");
@@ -657,7 +670,8 @@ impl Domain {
             Some(settings::SizedValue { value: Value::Charter(charter), .. }) => *charter,
             Some(settings::SizedValue {
                 value:
-                    Value::Dependency(_) | Value::Follow(_)
+                    Value::Dependency(_)
+                    | Value::Follow(_)
                     | Value::Rule(_)
                     | Value::Goal(_)
                     | Value::Questions(_)
@@ -712,7 +726,8 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
         Some(settings::SizedValue { value: Value::Charter(charter), size }) => (*size, Some(*charter)),
         Some(settings::SizedValue {
             value:
-                Value::Dependency(_) | Value::Rule(_)
+                Value::Dependency(_)
+                | Value::Rule(_)
                 | Value::Goal(_)
                 | Value::Questions(_)
                 | Value::Ways(_)

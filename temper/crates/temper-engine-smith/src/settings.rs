@@ -74,7 +74,12 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
                 by_project = Some(name);
             }
         }
-        if project.is_some() && kind.as_ref() != b"landing-rule" && kind.as_ref() != b"follow" && kind.as_ref() != b"dependency" && by_project.is_none() {
+        if project.is_some()
+            && kind.as_ref() != b"landing-rule"
+            && kind.as_ref() != b"follow"
+            && kind.as_ref() != b"dependency"
+            && by_project.is_none()
+        {
             return Err(Problem::Range(b"project"));
         }
         if kind.as_ref() == b"rules" || by_project.is_some() {
