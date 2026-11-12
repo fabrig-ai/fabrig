@@ -92,7 +92,7 @@ pub static FORMS: [Form; 76] = [
     Form { shape: Shape::Follow, name: b"follow", choice: Choice::Every, line: b"Context-to-owned follow: select by project and number (1 to forge.follows); no stock default." },
     Form { shape: Shape::FollowSource, name: b"follow-source", choice: Choice::Every, line: b"Context repository. Empty branch: adopted default; empty paths: all." },
     Form { shape: Shape::FollowTarget, name: b"follow-target", choice: Choice::Every, line: b"Owned, writable repository. Absent/empty branch: landing branch." },
-    Form { shape: Shape::FollowOwner, name: b"follow-owner", choice: Choice::Every, line: b"A person in any role of this project." },
+    Form { shape: Shape::FollowOwner, name: b"follow-owner", choice: Choice::One { words: &[] }, line: b"A person or live standing role of this project." },
     Form { shape: Shape::FollowCheck, name: b"follow-check", choice: Choice::Every, line: b"Target workflow and report artifact: each required, 1 to 256 bytes." },
     Form { shape: Shape::TemplateGoal, name: b"template-goal", choice: Choice::Every, line: b"Goal design-first and close-out switches. Absent: plans, no close-out." },
     Form { shape: Shape::ProjectWays, name: b"project-ways", choice: Choice::Every, line: b"Project display and goal start. Absent: drafts true, others false, way 0." },
@@ -110,7 +110,7 @@ pub static FORMS: [Form; 76] = [
     Form { shape: Shape::Area, name: b"area", choice: Choice::Every, line: b"A named scope of project work and its owner." },
     Form { shape: Shape::AreaOwner, name: b"area-owner", choice: Choice::One { words: &[] }, line: b"One owner: task, party, role or charter." },
 ];
-pub static FIELDS: [Field; 260] = [
+pub static FIELDS: [Field; 261] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -1311,6 +1311,7 @@ pub static FIELDS: [Field; 260] = [
     Field { shape: Shape::FollowTarget, name: b"repository", value: Value::Integer(Width::U32), list: None, null: false, line: b"The repository id on that forge." },
     Field { shape: Shape::FollowTarget, name: b"branch", value: Value::Text(Bound::Most(4096)), list: None, null: false, line: b"Target branch; absent/empty: landing branch." },
     Field { shape: Shape::FollowOwner, name: b"person", value: Value::Integer(Width::U64), list: None, null: false, line: b"Project person's number." },
+    Field { shape: Shape::FollowOwner, name: b"task", value: Value::Integer(Width::U64), list: None, null: false, line: b"Project standing role's task number." },
     Field { shape: Shape::FollowCheck, name: b"workflow", value: Value::Text(Bound::Most(256)), list: None, null: false, line: b"Target workflow file; required, nonempty." },
     Field { shape: Shape::FollowCheck, name: b"artifact", value: Value::Text(Bound::Most(256)), list: None, null: false, line: b"Uploaded artifact name; required, nonempty." },
     Field { shape: Shape::FollowCheck, name: b"format", value: Value::Words(&[Word { word: b"junit", line: b"JUnit XML." }, Word { word: b"lines", line: b"Line-format report." }]), list: None, null: false, line: b"The report format; required." },

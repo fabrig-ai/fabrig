@@ -1,6 +1,6 @@
 //! Settings rows and their bounds (temper/docs/design/protocol/store.md, sections 2 to 4).
 use super::fixtures;
-use crate::{Undecodable, keys, records, v15 as w};
+use crate::{Undecodable, keys, records, v16 as w};
 use temper_engine_domain_forge::{self as forge, settings as d};
 
 fn rule() -> d::LandingRule {
@@ -131,7 +131,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 assert_eq!(forge::stored_bytes(&cloned), Some(held));
                 drop(cloned);
                 let bytes = records::encode(&row);
-                assert_eq!(&bytes[..3], &[0, 15, 26]); // The appended value tag leaves earlier tags unchanged.
+                assert_eq!(&bytes[..3], &[0, 16, 26]); // The appended value tag leaves earlier tags unchanged.
                 assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
                 let key = keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
                 assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
@@ -280,23 +280,20 @@ fn setting_records_refuse_unknown_kinds_and_slot_tags() {
 }
 
 #[test]
-fn a_replaced_row_has_store_v15_golden_bytes() {
+fn a_replaced_row_has_store_v16_golden_bytes() {
     let row = forge::Stored::Setting(d::SettingRow {
         key: d::SettingKey { kind: 3, scope: 0, number: 1, slot: d::SettingSlot::Replaced(3) },
         edit: d::Edit::Set(d::SizedValue { value: d::Value::Charter(2), size: 4 }),
     });
     let bytes: &[u8] =
-        &[0, 15, 26, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0, 4];
+        &[0, 16, 26, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 3, 0, 1, 0, 0, 0, 2, 0, 0, 0, 4];
     assert_eq!(records::encode(&row).as_ref(), bytes);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(records::decode(bytes, &bounds), Ok(row));
 }
 
-#[test]
-fn a_follow_setting_round_trips_its_wire_value_and_every_slot() {
-    use skein_lib::{Reader, Writer};
-    use temper_client_protocol_wire::v1;
-    let follow = d::Follow {
+fn follow_value() -> d::Follow {
+    d::Follow {
         source: d::FollowSource {
             repository: skein_forge::api::Repository { forge: 1, repository: 12 },
             branch: b"main".as_slice().into(),
@@ -314,7 +311,24 @@ fn a_follow_setting_round_trips_its_wire_value_and_every_slot() {
             artifact: b"results".as_slice().into(),
             format: temper_engine_domain_forge_tiers::Format::Lines,
         },
-    };
+    }
+}
+
+#[test]
+fn a_follow_setting_round_trips_its_wire_value_and_every_slot() {
+    follow_round_trip(follow_value());
+}
+
+#[test]
+fn a_task_owned_follow_round_trips_stored_and_wire_values() {
+    let mut follow = follow_value();
+    follow.owner = d::FollowOwner::Task(52);
+    follow_round_trip(follow);
+}
+
+fn follow_round_trip(follow: d::Follow) {
+    use skein_lib::{Reader, Writer};
+    use temper_client_protocol_wire::v1;
     let wire = d::follow_record(&follow).unwrap();
     let mut writer = Writer::new(usize::try_from(wire.measure()).unwrap());
     wire.encode(&mut writer).unwrap();

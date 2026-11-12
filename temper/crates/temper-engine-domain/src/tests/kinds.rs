@@ -1277,6 +1277,71 @@ fn judge_follow(
 }
 
 #[test]
+fn a_follow_task_owner_must_be_a_live_standing_role_of_its_project() {
+    use jig_domain_tasks as tasks;
+    let (source, _, task) = super::projection_settled::live_task(None, tasks::Executor::Agent { charter: 1 });
+    let standing = source.tasks().task(task).unwrap().clone();
+    for (project, label, phase, expected) in [
+        (2, 3, Some(tasks::Phase::Waiting), None),
+        (2, 2, Some(tasks::Phase::Waiting), Some("follow 1: its owner task 52 is not a live standing role of project 2")),
+        (3, 3, Some(tasks::Phase::Waiting), Some("follow 1: its owner task 52 is not a live standing role of project 2")),
+        (2, 3, Some(tasks::Phase::Ended(tasks::Ending::Failed { reason: b"done".as_slice().into() })), Some("follow 1: its owner task 52 is not a live standing role of project 2")),
+        (2, 3, None, Some("follow 1: its owner task 52 is not a live standing role of project 2")),
+    ] {
+        let (mut domain, env) = follow_root();
+        if let Some(phase) = phase {
+            let mut row = standing.clone();
+            row.number = 52;
+            row.project = project;
+            row.label = label;
+            row.phase = phase;
+            let record = if matches!(row.phase, tasks::Phase::Ended(_)) {
+                tasks::Stored::Ended(Box::new(row))
+            } else {
+                tasks::Stored::Live(Box::new(row))
+            };
+            tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), tasks::Event::Restore { record }, &mut Queue::uncapped());
+        }
+        let mut value = follow_value();
+        value.owner = settings::FollowOwner::Task(52);
+        let record = settings::follow_record(&value).unwrap();
+        assert_eq!(settings::follow_from(record), value);
+        let answer = judge_follow(&mut domain, &env, 1, value);
+        match expected {
+            Some(why) => assert_eq!(answer, connector::Judged::Refuse { why: why.as_bytes().into() }),
+            None => assert!(matches!(answer, connector::Judged::Accept { .. }), "{answer:?}"),
+        }
+    }
+}
+
+#[test]
+fn a_task_owned_follows_hold_is_admitted_only_for_a_project_owner() {
+    use jig_domain_people::{ApplicationScope, Role};
+    for (role, authorized) in [(Role::Owner, true), (Role::Observer, false)] {
+        let (mut domain, env) = reader_in(Some(role), 2);
+        let mut value = follow_value();
+        value.owner = settings::FollowOwner::Task(52);
+        domain.forge.keep_settings(&env.with(env.limits.forge), 2, None, &[settings::Asked {
+            kind: 12, scope: 2, number: 1,
+            edit: settings::Edit::Set(settings::SizedValue { size: 128, value: settings::Value::Follow(value) }),
+        }], &mut Queue::uncapped());
+        let act = forge::FollowAct::Hold { after: [0xaa; 32], reason: b"wait for source fix".as_slice().into() };
+        domain.application = Some((OWNER, crate::Application::Follow { project: 2, follow: 1, act: act.clone() }));
+        let mut requests = Queue::uncapped();
+        requests.push(jig_domain_core::Request::Ask { connector: domain.config.forge_connector, ask: jig_domain_core::Ask::Application {
+            request: Token::new(21), token: Token::new(22), owner: OWNER, person: 1,
+            scope: ApplicationScope::Project(2), role: Some(role), retention: skein_lib::Duration::from_secs(60),
+        }});
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        crate::route::route_core_requests(&mut domain, &env, &mut decision, requests);
+        let Some(Work::Forge(forge::Event::FollowAct { authorized: admitted, act: received, .. })) = domain.work.pop() else { panic!("follow act") };
+        assert_eq!(received, act);
+        assert_eq!(admitted, authorized, "{role:?}");
+        crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+    }
+}
+
+#[test]
 fn a_follow_refusal_names_the_follow_and_the_failing_member() {
     let base = follow_value();
     // Each change reaches one refusal after the forge's structural judgement.

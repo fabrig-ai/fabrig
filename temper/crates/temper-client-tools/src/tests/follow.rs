@@ -290,6 +290,21 @@ fn follow_show_prints_the_whole_setting_and_oldest_first_entries() {
     }
 }
 #[test]
+fn follow_show_names_a_task_owner_in_text_and_json() {
+    let mut parts = row().into_parts();
+    let mut setting = parts.setting.into_parts();
+    setting.owner = w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap());
+    parts.setting = w::Follow::new(&w::CEILINGS, setting).unwrap();
+    let panel = panel(&[w::FollowView::new(&w::CEILINGS, parts).unwrap()]);
+    let text = read(&panel, true, false);
+    assert_eq!(text.status, 0);
+    assert!(skein_lib::bytes::find(&text.stdout, b"\nowner: task 52\n").is_some());
+    let json = read(&panel, true, true);
+    assert_eq!(json.status, 0);
+    assert!(skein_lib::bytes::find(&json.stdout, br#""owner":{"task":52}"#).is_some());
+}
+
+#[test]
 fn follow_reads_handle_empty_missing_refused_and_named_projects() {
     assert_eq!(read(&panel(&[]), false, false).stdout.as_ref(), b"no follows\n");
     assert_eq!(read(&panel(&[]), true, false).status, 2);

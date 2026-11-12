@@ -9,7 +9,7 @@ use crate::protection;
 fn protection_fields_have_v15_golden_bytes_and_round_trip() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
-    assert_eq!(STORE_VERSION, 15);
+    assert_eq!(STORE_VERSION, 16);
     for (name, flags, bypass) in [
         ("unset", 0, Bypass::Never),
         ("queue", 1, Bypass::Never),
