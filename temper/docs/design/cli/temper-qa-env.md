@@ -22,3 +22,12 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Absent:** Triage and pass commands are refused.
 - The running triage or pass session the agent's commands record for.
 - **Notes:** Set by the loop for the agent it starts.
+
+### `TEMPER_INTERNAL_QA_AREA`
+
+- **Set:** internal
+- **Sets**
+- **Form:** AREA
+- **Absent:** Set by the loop from request.area, or owner when absent.
+- The area under which the deployment starts a request's goal.
+- **Notes:** Given to request.command and request.state; never read by the tool.

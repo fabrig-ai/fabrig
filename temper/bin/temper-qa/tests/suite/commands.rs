@@ -7,7 +7,7 @@ use std::{
 use temper_qa_tool::{CaseInput, Exit, FindingInput, Home, Ledger};
 
 const CASE: &[u8] = br#"{"surface":"web","page":"work","setup":"fresh","steps":[{"do":"open Work","expect":"Drafts lists the draft"}]}"#;
-fn home() -> (Scratch, Home) {
+pub(super) fn home() -> (Scratch, Home) {
     let scratch = Scratch::new("qa-commands");
     std::fs::write(
         scratch.path().join("qa.json"),
@@ -24,7 +24,7 @@ fn home() -> (Scratch, Home) {
     .expect("session");
     (scratch, home)
 }
-fn run(home: &Home, arguments: &[&str], session: Option<&str>, stdin: Option<&[u8]>) -> Output {
+pub(super) fn run(home: &Home, arguments: &[&str], session: Option<&str>, stdin: Option<&[u8]>) -> Output {
     let mut command = Command::new(skein_scratch::paths::binary("temper-qa"));
     command
         .args(arguments)
@@ -43,7 +43,7 @@ fn run(home: &Home, arguments: &[&str], session: Option<&str>, stdin: Option<&[u
     }
     child.wait_with_output().expect("tool output")
 }
-fn success(output: &Output, stdout: &[u8]) {
+pub(super) fn success(output: &Output, stdout: &[u8]) {
     assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.stdout, stdout);
     assert!(output.stderr.is_empty());

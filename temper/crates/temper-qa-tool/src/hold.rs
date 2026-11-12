@@ -1,8 +1,8 @@
 //! A pass's drive session and its one-shot clients (qa/places.md, 5).
 mod server;
 
+use crate::{Home, Refusal, faces::Environment, place::PlacePaths, refused};
 pub use server::Holder;
-use crate::{Home, Refusal, faces::Environment, refused};
 use std::{
     fs::{self, File, OpenOptions},
     io::{Read, Write},
@@ -13,7 +13,7 @@ use std::{
 };
 
 pub const WATCH: Duration = Duration::from_secs(5);
-const START: Duration = Duration::from_secs(300);
+const START: Duration = Duration::from_mins(5);
 const STOP: Duration = Duration::from_secs(70);
 const TICK: Duration = Duration::from_millis(10);
 const REQUEST_LIMIT: usize = 64 * 1024;
@@ -34,7 +34,7 @@ impl Reply {
 pub struct Drive {
     home: Home,
     session: u64,
-    place: PathBuf,
+    place: PlacePaths,
     setups: PathBuf,
 }
 impl Drive {
@@ -46,23 +46,31 @@ impl Drive {
             Ok(Self {
                 home: home.clone(),
                 session,
-                place,
-                setups: home.directory.join("passes").join(number.to_string()).join("setups"),
+                place: PlacePaths::new(&std::path::absolute(place).map_err(io_refusal)?),
+                setups: std::path::absolute(home.directory.join("passes").join(number.to_string()).join("setups"))
+                    .map_err(io_refusal)?,
             })
         })
     }
 
     fn lock(&self) -> Result<File, Refusal> {
         OpenOptions::new()
-            .read(true).write(true).create(true).truncate(false).mode(0o600)
-            .open(self.place.join("drive.lock"))
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .mode(0o600)
+            .open(&self.place.drive_lock)
             .map_err(|why| refused(format!("drive.lock: {why}")))
     }
     fn busy(&self) -> Refusal {
-        refused(format!("the drive session is open at {}; close it first: temper-qa pass close", self.place.display()))
+        refused(format!(
+            "the drive session is open at {}; close it first: temper-qa pass close",
+            self.place.directory.display()
+        ))
     }
     fn absent(&self) -> Refusal {
-        refused(format!("no drive session is open at {}: temper-qa pass open first", self.place.display()))
+        refused(format!("no drive session is open at {}: temper-qa pass open first", self.place.directory.display()))
     }
     fn running(&self) -> Result<bool, Refusal> {
         self.home.read(|ledger| Ok(ledger.pass_command_session(self.session).is_ok()))
@@ -73,26 +81,41 @@ impl Drive {
         self.scripts()?;
         let lock = self.lock()?;
         lock.try_lock().map_err(|_| self.busy())?;
-        let log = OpenOptions::new().write(true).create(true).truncate(true).mode(0o600)
-            .open(self.place.join("drive.log")).map_err(|why| refused(format!("drive.log: {why}")))?;
+        let log = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(self.place.directory.join("drive.log"))
+            .map_err(|why| refused(format!("drive.log: {why}")))?;
         let mut command = Command::new(std::env::current_exe().map_err(|why| refused(format!("temper-qa: {why}")))?);
         crate::faces::captured(&mut command, environment);
-        let mut child = command.args(["pass", "hold"]).stdin(Stdio::null())
-            .stderr(log.try_clone().map_err(|why| refused(format!("drive.log: {why}")))?)
-            .stdout(log).process_group(0).spawn().map_err(|why| refused(format!("pass hold: {why}")))?;
+        // Release the probe before spawn: the child may take its lock before spawn returns.
         drop(lock);
+        let mut child = command
+            .args(["pass", "hold"])
+            .stdin(Stdio::null())
+            .stderr(log.try_clone().map_err(|why| refused(format!("drive.log: {why}")))?)
+            .stdout(log)
+            .process_group(0)
+            .spawn()
+            .map_err(|why| refused(format!("pass hold: {why}")))?;
         let clock = skein_shell::Clock::new();
         let started = now(&clock);
         let request = format!("start {}", child.id());
         loop {
             if let Some(status) = child.try_wait().map_err(|why| refused(format!("pass hold: {why}")))? {
-                return Ok(Reply { status: status.code().and_then(|code| u8::try_from(code).ok()).unwrap_or(1),
-                    text: tail(&fs::read_to_string(self.place.join("drive.log")).unwrap_or_default()) });
+                return Ok(Reply {
+                    status: status.code().and_then(|code| u8::try_from(code).ok()).unwrap_or(1),
+                    text: tail(&fs::read_to_string(self.place.directory.join("drive.log")).unwrap_or_default()),
+                });
             }
-            if let Ok(stream) = UnixStream::connect(self.place.join("drive.sock")) {
+            if let Ok(stream) = UnixStream::connect(self.place.directory.join("drive.sock")) {
                 let reply = exchange(stream, &request, Some((started, START)), &clock);
                 if let Ok(reply) = reply {
-                    if reply.status != 0 { let _ = child.wait(); }
+                    if reply.status != 0 {
+                        let _ = child.wait();
+                    }
                     return Ok(reply);
                 }
                 // A stale socket is removed by the new holder; keep waiting for its start.
@@ -111,7 +134,9 @@ impl Drive {
         if line.contains(['\r', '\n']) || line.len() > REQUEST_LIMIT.saturating_sub(6) {
             return Err(refused("a drive line must be one line of at most 65530 bytes"));
         }
-        if line == "end" { return self.close(); }
+        if line == "end" {
+            return self.request("end", None);
+        }
         self.request(&format!("line {line}"), None)
     }
     pub fn close(&self) -> Result<Reply, Refusal> {
@@ -119,32 +144,49 @@ impl Drive {
         // The response precedes socket removal and lock release. Do not report a free place early.
         let lock = self.lock()?;
         lock.lock().map_err(|why| refused(format!("drive.lock: {why}")))?;
-        let lines = match fs::read_to_string(self.place.join("box/session/lines")) {
+        let lines = match fs::read_to_string(self.place.scratch.join("session/lines")) {
             Ok(lines) => lines,
             Err(why) if why.kind() == std::io::ErrorKind::NotFound => String::new(),
             Err(why) => return Err(refused(format!("session/lines: {why}"))),
         };
         reply.text.push_str("kept lines:\n");
-        for line in lines.lines() { reply.text.push_str(line); reply.text.push('\n'); }
+        for line in lines.lines() {
+            reply.text.push_str(line);
+            reply.text.push('\n');
+        }
         Ok(reply)
     }
     fn request(&self, request: &str, bound: Option<(Duration, Duration)>) -> Result<Reply, Refusal> {
         let lock = self.lock().map_err(|_| self.absent())?;
-        if lock.try_lock().is_ok() { return Err(self.absent()); }
-        let stream = UnixStream::connect(self.place.join("drive.sock")).map_err(|_| self.absent())?;
+        if lock.try_lock().is_ok() {
+            return Err(self.absent());
+        }
+        let stream = UnixStream::connect(self.place.directory.join("drive.sock")).map_err(|_| self.absent())?;
         exchange(stream, request, bound, &skein_shell::Clock::new())
     }
 
     fn scripts(&self) -> Result<Vec<PathBuf>, Refusal> {
-        let setup = fs::read_to_string(self.place.join("setup")).map_err(|why| {
+        let setup = fs::read_to_string(&self.place.setup).map_err(|why| {
             if why.kind() == std::io::ErrorKind::NotFound {
-                refused(format!("no setup is restored at {}: temper-qa pass setup NAME first", self.place.display()))
-            } else { refused(format!("setup: {why}")) }
+                refused(format!(
+                    "no setup is restored at {}: temper-qa pass setup NAME first",
+                    self.place.directory.display()
+                ))
+            } else {
+                refused(format!("setup: {why}"))
+            }
         })?;
         let words: Vec<_> = setup.split_whitespace().collect();
-        if words == ["fresh"] { return Ok(Vec::new()); }
-        let [name, hash] = words.as_slice() else { return Err(refused("setup: expected NAME HASH or fresh")); };
-        if !recipe_name(name) || hash.len() != 64 || !hash.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)) {
+        if words == ["fresh"] {
+            return Ok(Vec::new());
+        }
+        let [name, hash] = words.as_slice() else {
+            return Err(refused("setup: expected NAME HASH or fresh"));
+        };
+        if !recipe_name(name)
+            || hash.len() != 64
+            || !hash.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
             return Err(refused("setup: expected NAME HASH or fresh"));
         }
         let mut name = (*name).to_owned();
@@ -152,8 +194,6 @@ impl Drive {
         let mut scripts = Vec::new();
         loop {
             let fail = |why| refused(format!("recipe {name}: {why}"));
-            if visited.contains(&name) { return Err(fail("cycle in after chain".into())); }
-            if visited.len() == 9 { return Err(fail("more than eight parents".into())); }
             visited.push(name.clone());
             let directory = self.setups.join(&name);
             let recipe = fs::read_to_string(directory.join("recipe")).map_err(|why| fail(why.to_string()))?;
@@ -161,17 +201,38 @@ impl Drive {
                 return Err(fail("recipe exceeds its size or line bound".into()));
             }
             let mut lines = recipe.lines();
-            if lines.next() != Some("recipe 1") { return Err(fail("expected recipe 1".into())); }
+            if lines.next() != Some("recipe 1") {
+                return Err(fail("expected recipe 1".into()));
+            }
             let script = directory.join("scripts.json");
             match fs::metadata(&script) {
-                Ok(metadata) if metadata.is_file() => { File::open(&script).map_err(|why| fail(why.to_string()))?; scripts.push(script); }
+                Ok(metadata) if metadata.is_file() => {
+                    File::open(&script).map_err(|why| fail(why.to_string()))?;
+                    scripts.push(script);
+                }
                 Ok(_) => return Err(fail("scripts.json is not a file".into())),
-                Err(why) if why.kind() == std::io::ErrorKind::NotFound => {},
+                Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
                 Err(why) => return Err(fail(why.to_string())),
             }
-            let Some(after) = lines.next().and_then(|line| line.strip_prefix("after ")) else { break; };
+            let Some(second) = lines.next() else {
+                return Err(fail("no closing check".into()));
+            };
+            if second == "after" || second.starts_with("after\t") {
+                return Err(fail("invalid after record".into()));
+            }
+            let Some(after) = second.strip_prefix("after ") else {
+                break;
+            };
             let parent = after.strip_prefix('"').and_then(|value| value.strip_suffix('"')).unwrap_or(after);
-            if !recipe_name(parent) { return Err(fail("invalid after recipe name".into())); }
+            if !recipe_name(parent) {
+                return Err(fail("invalid after recipe name".into()));
+            }
+            if visited.iter().any(|name| name == parent) {
+                return Err(fail("cycle in after chain".into()));
+            }
+            if visited.len() == 9 {
+                return Err(fail("more than eight parents".into()));
+            }
             name = parent.into();
         }
         scripts.reverse();
@@ -179,16 +240,29 @@ impl Drive {
     }
 }
 fn recipe_name(name: &str) -> bool {
-    !name.is_empty() && name.len() <= 64 && name.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
+    !name.is_empty()
+        && name.len() <= 64
+        && name.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
         && name.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
-fn now(clock: &skein_shell::Clock) -> Duration { Duration::from_nanos(clock.now().now.as_nanos()) }
+fn now(clock: &skein_shell::Clock) -> Duration {
+    Duration::from_nanos(clock.now().now.as_nanos())
+}
 fn tail(text: &str) -> String {
     let lines: Vec<_> = text.lines().collect();
     let first = lines.len().saturating_sub(40);
-    lines.iter().skip(first).map(|line| format!("{line}\n")).collect()
+    let mut text = lines.iter().skip(first).copied().collect::<Vec<_>>().join("\n");
+    if !text.is_empty() {
+        text.push('\n');
+    }
+    text
 }
-fn exchange(mut stream: UnixStream, request: &str, bound: Option<(Duration, Duration)>, clock: &skein_shell::Clock) -> Result<Reply, Refusal> {
+fn exchange(
+    mut stream: UnixStream,
+    request: &str,
+    bound: Option<(Duration, Duration)>,
+    clock: &skein_shell::Clock,
+) -> Result<Reply, Refusal> {
     stream.set_nonblocking(true).map_err(io_refusal)?;
     let packet = format!("{request}\n");
     let mut sent = 0;
@@ -201,7 +275,7 @@ fn exchange(mut stream: UnixStream, request: &str, bound: Option<(Duration, Dura
             match stream.write(packet.as_bytes().get(sent..).expect("packet suffix")) {
                 Ok(0) => return Err(refused("drive socket closed writing request")),
                 Ok(count) => sent += count,
-                Err(why) if why.kind() == std::io::ErrorKind::WouldBlock => {},
+                Err(why) if why.kind() == std::io::ErrorKind::WouldBlock => {}
                 Err(why) => return Err(io_refusal(why)),
             }
         }
@@ -217,4 +291,7 @@ fn exchange(mut stream: UnixStream, request: &str, bound: Option<(Duration, Dura
     let (status, text) = text.split_once('\n').ok_or_else(|| refused("drive socket: missing status"))?;
     Ok(Reply { status: status.parse().map_err(|_| refused("drive socket: invalid status"))?, text: text.into() })
 }
-fn io_refusal(why: std::io::Error) -> Refusal { refused(format!("drive session: {why}")) }
+#[expect(clippy::needless_pass_by_value, reason = "map_err consumes the IO error at this boundary")]
+fn io_refusal(why: std::io::Error) -> Refusal {
+    refused(format!("drive session: {why}"))
+}

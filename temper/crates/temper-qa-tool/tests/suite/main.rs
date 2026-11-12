@@ -2,12 +2,14 @@
 mod builds;
 mod configuration;
 mod fuzzy;
-mod home;
 mod hold;
+mod home;
 mod ledger;
 mod passes;
+mod place;
 mod reference;
 mod run;
+mod run_passes;
 mod world;
 
 use temper_qa_tool::{CaseInput, Ledger, Pages};
