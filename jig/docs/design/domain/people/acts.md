@@ -368,7 +368,11 @@ refused for its grace.
   goes on from its step with its grace, its project closed from the
   start as from its decision, so a deletion a restart cut ends whole
   and no start serves a half-deleted project; a grace past a bound
-  lowered since is given as that bound. Its own answer is kept while it
+  lowered since is given as that bound. Until its own rows go, an
+  answer kept under a key that named the project (a roster's set roles
+  among them) stays though its roles were erased when it closed: a start
+  links such an answer to the project's kept deletion, never refusing it
+  for the roles it lacks (../engine/restart.md). Its own answer is kept while it
   lasts: sent again under its key, the deletion is answered removed
   until it ends. After, an owner's is kept still, for the retention it
   advertises as any of the party's answers is (1): sent again under its
