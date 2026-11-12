@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en"
+><head
+><meta charset="utf-8"
+><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"
+><title
+>Let us design Away mode. · temper</title
+><link rel="stylesheet" href="../skein-ui.css"
+><link rel="stylesheet" href="../../../../../../crates/temper-client-shell-web/temper.css"
+><link rel="stylesheet" href="../../../../../../crates/temper-client-shell-web/task-pages.css"
+><link rel="stylesheet" href="../overlay.css"
+><link rel="prev" href="06.html"
+><link rel="next" href="08.html"
+><script src="../journey.js" defer
+></script
+></head
+><body
+><div id="app"
+><nav aria-label="Hello" class="temper-rail"
+><a aria-label="temper home" class="temper-brand" href="/projects/1"
+><span
+>temper</span
+></a
+><details data-folds-away="" class="temper-rail-unfold"
+><summary
+>Show the rail</summary
+></details
+><details class="temper-projects"
+><summary
+>Hello</summary
+><div class="temper-projects-menu"
+><div class="temper-projects-row"
+><button type="button" aria-pressed="true"
+>Hello</button
+><span class="temper-projects-repo"
+><a aria-label="work/hello ↗" class="temper-repository-link" href="http://127.0.0.1:39129/user/oauth2/temper?redirect_to=%2Fwork%2Fhello" rel="noopener noreferrer" target="_blank"
+><span
+>work/hello ↗</span
+></a
+></span
+></div
+><div class="temper-projects-acts"
+><button type="button" class="temper-project-rename"
+>Rename Hello</button
+><form aria-label="New project" class="temper-project-new"
+><label for="skein-ui-label-153"
+>New project</label
+><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-153"
+><button type="button"
+>Create</button
+></form
+><a aria-label="How work runs for Hello" href="/projects/1/settings"
+><span
+>How work runs for Hello</span
+></a
+><a aria-label="Deployment" href="/accounts"
+><span
+>Deployment</span
+></a
+></div
+></div
+></details
+><button type="button" class="temper-away-chip"
+>Away: off</button
+><div class="temper-rail-nav"
+><a aria-label="Home" href="/projects/1"
+><span
+>Home</span
+></a
+><a aria-label="Needs you" href="/?project=1"
+><span
+>Needs you</span
+></a
+><a aria-label="Work" aria-current="page" href="/projects/1/work"
+><span
+>Work</span
+></a
+><a aria-label="Ask temper" href="/projects/1/ask"
+><span
+>Ask temper</span
+></a
+><div class="temper-rail-sep"
+></div
+><a aria-label="How work runs" href="/projects/1/settings"
+><span
+>How work runs</span
+></a
+></div
+><div class="temper-rail-new"
+><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-85" aria-expanded="false"
+>New draft or change</button
+><div role="menu" aria-label="New draft or change" id="skein-ui-menu-85" hidden=""
+><div role="menuitem" aria-label="Draft" aria-describedby="skein-ui-description-86"
+><span
+>Draft</span
+><span id="skein-ui-description-86"
+>A design session that ends in a goal, best had in the terminal.</span
+></div
+><div role="menuitem" aria-label="Change" aria-describedby="skein-ui-description-87"
+><span
+>Change</span
+><span id="skein-ui-description-87"
+>Ask for one change.</span
+></div
+><div role="menuitem" aria-label="Ask temper" aria-describedby="skein-ui-description-88"
+><span
+>Ask temper</span
+><span id="skein-ui-description-88"
+>Ask about this project, or change how its work runs.</span
+></div
+></div
+></div
+><div class="temper-rail-foot"
+><button type="button" class="temper-away"
+>Away<div class="temper-away-track"
+></div
+></button
+><section data-region="temper-link"
+><div role="status" aria-label="Live" class="temper-live"
+><span
+>Live</span
+></div
+></section
+><a aria-label="Deployment" href="/accounts"
+><span
+>Deployment</span
+></a
+><div class="temper-rail-person"
+><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-48" aria-expanded="false"
+>Owner</button
+><div role="menu" aria-label="Owner" id="skein-ui-menu-48" hidden=""
+><div role="menuitem"
+>Accounts</div
+><div role="menuitem"
+>What temper remembers about you</div
+><div role="menuitem"
+>Sign out</div
+></div
+></div
+></div
+><button type="button" class="temper-night-switch"
+>Night mode</button
+></nav
+><main class="temper-mode-split temper-session"
+><div class="temper-session-top"
+><nav aria-label="Where" class="temper-crumbs"
+><a aria-label="Chats" class="temper-back" href="/chats"
+><span
+>Chats</span
+></a
+><div class="temper-trail"
+><a aria-label="Hello" href="/projects/1"
+><span
+>Hello</span
+></a
+><a aria-label="Chats" href="/chats"
+><span
+>Chats</span
+></a
+></div
+><h1 aria-label="T2 · Let us design Away mode."
+><span
+>Let us design Away mode.</span
+></h1
+></nav
+><div class="temper-session-right"
+><p aria-label="T2" class="temper-byline"
+><span
+>T2</span
+></p
+><div role="group" aria-label="The draft" class="temper-seg"
+><button data-journey-next="08.html" type="button"
+>Chat</button
+><button type="button" aria-pressed="true" class="temper-seg-split"
+>Split</button
+><button type="button" aria-keyshortcuts="Control+\"
+>Draft</button
+></div
+><button type="button" class="temper-to-terminal"
+>Terminal, full screen</button
+><button type="button" class="temper-chat-goal temper-goal-primary"
+>Start goal…</button
+><div role="status" aria-label="waiting on your words" class="temper-status-waiting temper-state-needs"
+><span
+>waiting on your words</span
+></div
+><button type="button"
+>Pause</button
+><button type="button"
+>Close</button
+><p aria-label="76 spent · of 1046016"
+><span
+>76 spent · of 1046016</span
+></p
+></div
+></div
+><section aria-label="Conversation" class="temper-convo"
+><div class="temper-thread"
+><div role="log" aria-label="Conversation"
+><div class="temper-thread-inner"
+><div aria-label="Today · Wednesday 11 November" class="temper-day"
+><p aria-label="Today · Wednesday 11 November"
+><span
+>Today · Wednesday 11 November</span
+></p
+></div
+><section class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-person"
+><div class="temper-who"
+><p aria-label="You"
+><span
+>You</span
+></p
+><time aria-label="23:03"
+><span
+>23:03</span
+></time
+></div
+><div class="temper-says"
+><p aria-label="Let us design Away mode."
+><span
+>Let us design Away mode.</span
+></p
+></div
+></div
+></section
+></section
+><div class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-agent"
+><div class="temper-who"
+><p aria-label="Temper"
+><span
+>Temper</span
+></p
+><time aria-label="23:03"
+><span
+>23:03</span
+></time
+></div
+><div class="temper-says"
+><p
+><span
+>Hello from the local fake model.</span
+></p
+></div
+></div
+></section
+></div
+><div class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-person"
+><div class="temper-who"
+><p aria-label="You"
+><span
+>You</span
+></p
+><time aria-label="23:03"
+><span
+>23:03</span
+></time
+></div
+><div class="temper-says"
+><p aria-label="Write this up as a draft beside us."
+><span
+>Write this up as a draft beside us.</span
+></p
+></div
+></div
+></section
+></div
+><div class="temper-turn"
+><div class="temper-who"
+><time aria-label="23:03"
+><span
+>23:03</span
+></time
+></div
+><div class="temper-turn-tool"
+><p
+><span
+>Wrote</span
+></p
+><p class="temper-tool-file"
+><span
+>away-mode.md</span
+></p
+><p class="temper-details"
+><span
+>29 lines</span
+></p
+><button type="button"
+>Show</button
+></div
+></div
+><div class="temper-turn"
+><section class="temper-turn"
+><div class="temper-message temper-by-agent"
+><div class="temper-who"
+><p aria-label="Temper"
+><span
+>Temper</span
+></p
+><time aria-label="23:03"
+><span
+>23:03</span
+></time
+></div
+><div class="temper-says"
+><p
+><span
+>I wrote an Away mode draft with its purpose, return flow and open questions.</span
+></p
+></div
+></div
+></section
+></div
+></div
+></div
+><button type="button" data-to-log-end="" class="temper-latest"
+>Latest</button
+></div
+><div class="temper-choice"
+></div
+><form aria-label="Message" class="temper-session-foot"
+><div class="temper-session-composer"
+><textarea aria-label="Message" placeholder="Reply to T2" enterkeyhint="send"
+></textarea
+><button type="button" disabled=""
+>Send</button
+></div
+><div class="temper-foot-row"
+><p aria-label="Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft" class="temper-session-hint"
+><span
+>Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft</span
+></p
+><details data-folds-away="" class="temper-model"
+><summary
+>Model<span id="skein-ui-description-379"
+> GPT-6.1 Sol · high</span
+></summary
+><div class="temper-model-menu"
+><p aria-label="A change applies from the next turn." class="temper-model-note"
+><span
+>A change applies from the next turn.</span
+></p
+><div class="temper-model-from"
+><span
+><strong
+>OpenAI</strong
+></span
+><span
+>your ChatGPT plan</span
+></div
+><ul
+><li
+><button type="button" aria-pressed="true"
+>GPT-6.1 Sol<div class="temper-model-tag"
+><span
+>default</span
+></div
+></button
+></li
+><li
+><button type="button"
+>GPT-6 Astra</button
+></li
+><li
+><button type="button"
+>GPT-6.1 Terra</button
+></li
+><li
+><button type="button"
+>GPT-6 Luna</button
+></li
+></ul
+><div class="temper-model-from"
+><span
+><strong
+>Claude</strong
+></span
+><a aria-label="Connect a plan or key ›" href="/accounts/connect"
+><span
+>Connect a plan or key ›</span
+></a
+></div
+><div role="group" aria-label="Effort" class="temper-model-effort"
+><span
+>Effort</span
+><div
+><button type="button"
+>low</button
+><button type="button"
+>medium</button
+><button type="button" aria-pressed="true"
+>high</button
+><button type="button"
+>xhigh</button
+><button type="button"
+>max</button
+></div
+></div
+></div
+></details
+></div
+></form
+></section
+><section aria-label="Away mode" class="temper-doc"
+><div class="temper-doc-inner"
+><p class="temper-doc-path"
+><span
+>docs/design/draft/away-mode.md</span
+><span
+>edited just now</span
+></p
+><div class="temper-doc-sec"
+><div
+><h2
+><span
+>Away mode</span
+></h2
+><div class="temper-doc-muted"
+><p
+><span
+>Draft, 2026-11-05, with the user.</span
+></p
+></div
+></div
+></div
+><div class="temper-doc-sec"
+><div class="temper-doc-changed"
+><h3
+><span
+>Purpose</span
+></h3
+><p
+><span
+>Away mode lets the person step away from ongoing work.</span
+><span
+>
+</span
+><span
+>Agents keep working within the authority already granted.</span
+><span
+>
+</span
+><span
+>They leave a clear account of progress for the person's return.</span
+></p
+><p
+><span
+>The person chooses when to leave and when to return.</span
+><span
+>
+</span
+><span
+>Away mode does not grant extra authority.</span
+></p
+><p class="temper-doc-note"
+><span
+>Added by T2 just now</span
+></p
+></div
+></div
+><div class="temper-doc-sec"
+><div
+><h3
+><span
+>When the person returns</span
+></h3
+><p
+><span
+>Show the work completed while the person was away.</span
+><span
+>
+</span
+><span
+>Keep the decisions that need the person in one place.</span
+><span
+>
+</span
+><span
+>Make each question name the goal and the choice it needs.</span
+></p
+><p
+><span
+>The person can answer questions before starting more work.</span
+><span
+>
+</span
+><span
+>The conversation and its document remain available.</span
+></p
+></div
+></div
+><div class="temper-doc-sec"
+><div
+><h3
+><span
+>Open questions</span
+></h3
+><ul
+><li
+><span
+>Where should the person switch away mode on?</span
+></li
+><li
+><span
+>Should it apply to one project or every project?</span
+></li
+><li
+><span
+>How should urgent questions be shown on return?</span
+></li
+></ul
+><p
+><span
+>These choices remain for the person to settle.</span
+></p
+></div
+></div
+></div
+></section
+></main
+><nav aria-label="Sections" class="temper-tabbar"
+><a aria-label="Home" href="/projects/1"
+><span
+>Home</span
+></a
+><a aria-label="Needs" href="/?project=1"
+><span
+>Needs</span
+></a
+><a aria-label="Work" aria-current="page" href="/projects/1/work"
+><span
+>Work</span
+></a
+><a aria-label="Ask temper" href="/projects/1/ask"
+><span
+>Ask</span
+></a
+></nav
+></div
+></body
+></html
+>

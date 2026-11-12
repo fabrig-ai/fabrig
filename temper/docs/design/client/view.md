@@ -154,7 +154,7 @@
 - **Every node a person acts on has a role and a name,** since skein's
   fake person finds nodes only by them; nothing a person must know is
   said by style alone (skein's `ui/README.md`, section 8).
-- **The look:** the mockups' (`mockups/style.css`),
+- **The look:** the mockups' (`web/mockups/style.css`),
   as style tokens each shell interprets or ignores; the terminal prints
   none, and the browser's stylesheet draws them (`web/look.md`).
   The composers are text areas that submit on Enter (skein-ui's
@@ -674,7 +674,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   time of the shell's iteration (`line.md`, 2; `web/README.md`, 2.1) and says each
   time the domain's documents carry against it, both nanoseconds since
   the epoch. The same documents at the same time give the same words.
-- **Five forms, the mockups' own** (`mockups/pages.js`, and the TUI's,
+- **Five forms, the mockups' own** (`web/mockups/pages.js`, and the TUI's,
   `tui/whole-story/`). For a time T,
   E is the whole minutes from T to now, and 0 when T is ahead of now,
   as a machine's clock behind the engine's makes it:
@@ -719,7 +719,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   an ago (`pages/README.md`, 2, *The approval page*); a remembered line's change, the
   day's rule's words (`pages/remembered.md`); on the TUI's launchpad a
   left-off row's last activity, dated, and a need's wait, an ago
-  (`tui/launchpad.md`, 4 and 5). The task pages and the
+  (`tui/pages/launchpad.md`, 4 and 5). The task pages and the
   accounts page say their moments as their sections do (`pages/accounts.md`, 2, `pages/goal.md`, 2, `pages/task.md`, 2
   ), in universal time, and so does a full deployment's earliest end
   (1, the pages not about the work).

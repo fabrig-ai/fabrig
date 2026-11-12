@@ -485,11 +485,13 @@ pub(super) fn read_failed(
         ),
         StepStage::Ci
         | StepStage::Run(_)
+        | StepStage::ContainsHead
         | StepStage::BaseCi
         | StepStage::Compare
-        | StepStage::ContainsHead
         | StepStage::CatchUp
-        | StepStage::Reviews(_) => {
+        | StepStage::Reviews(_)
+        | StepStage::FollowCheck(_)
+        | StepStage::Paths => {
             return false;
         }
     };

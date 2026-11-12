@@ -62,6 +62,7 @@ fn goal_template() -> core::Template {
 
 fn repository(home: bool, number: u32, name: &[u8]) -> forge::Repository {
     forge::Repository {
+        contexts: Box::new([]),
         workflows: [b"checks.yml".as_slice(), b"ci.yml", b"fuzzy.yml"].map(Box::from).into(),
         project: PROJECT,
         home,
@@ -510,6 +511,7 @@ fn committed_rules_and_item_overlays_feed_the_same_inputs() {
     let (mut domain, env) = fixture();
     assert!(document(&domain, PROJECT, READER).words.is_none());
     let rule = settings::LandingRule {
+        sets: Box::new([]),
         pattern: forge::GatePattern {
             segments: Box::new([b"branch".as_slice().into()]),
             last: forge::GateLast::Open(Box::new([])),
@@ -695,6 +697,7 @@ fn roles_fixture(
                 value: settings::SizedValue {
                     size: 32,
                     value: settings::Value::Rule(settings::LandingRule {
+                        sets: Box::new([]),
                         pattern: forge::GatePattern {
                             segments: Box::new([b"branch".as_slice().into()]),
                             last: forge::GateLast::Open(Box::new([])),

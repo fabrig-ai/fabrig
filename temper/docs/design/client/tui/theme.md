@@ -47,7 +47,7 @@
   |---|---|---|---|---|---|
   | `tui-top` | top | lines | `╭ ╮ ╰ ╯`, `─`, `│`, faint, its title in it, with sides | 1 | signing in's lines; the launchpad's header |
   | `tui-sections` | body | lines | none | 1 | the launchpad's sections and notes |
-  | `tui-pane` | side, `Side { percent: 50 }` | lines | `│` down, faint, no sides, no title | 1 | a chat's draft at half (`pages.md`, *A design session*) |
+  | `tui-pane` | side, `Side { percent: 50 }` | lines | `│` down, faint, no sides, no title | 1 | a chat's draft at half (`pages/design-session.md`, 1) |
   | `tui-working` | bottom | lines | none | 0 | a chat's running line |
   | `tui-box` | bottom | lines | `─`, faint, no sides: a rule above, its title in it, one below | 0 | the box, and a send's refusal under it; on a chat, the chat's title, drawn in its rule |
   | `tui-list` | bottom | lines | none | 0 | a list in the quiet line's place |
@@ -74,7 +74,7 @@
   | `tui-byline` | dim | aligned to the end | "written by the status agent HH:MM" |
   | `tui-head` | bold | | "Where you left off", "Needs you", "Start"; a printed proposal's "Before" and "After" |
   | `tui-signal` | accent | | a need's mark, "?", "$", "✓" or "•", the count of what needs the person, "Proposal"; a printed person's ring `○`; a draft's section's "new" |
-| `tui-why` | accent | | a walked need's reason line (`launchpad.md`, 6) |
+| `tui-why` | accent | | a walked need's reason line (`pages/launchpad.md`, 6) |
   | `tui-said` | with a band, the band; else dim | a band where the theme has one; the mark `❯`, dim with a band, else accent | the person's words |
   | `tui-agent` | none | the mark `✦`, accent | the agent's texts, a delegate's words, a card |
   | `tui-run` | dim | the mark `▸`, dim | a run's line |
@@ -87,7 +87,7 @@
   | `tui-option` | bold | its description dim | a list choice: its name, and its words as its description |
   | `tui-command` | bold | active name plain; its description dim | a command: its name, and its words as its description |
   | `tui-note` | dim | | a note |
-  | `tui-spaced` | none | a blank row between two children | the launchpad's sections, with a blank row before the first, under the header's frame (`launchpad.md`, 3); the conversation's entries |
+  | `tui-spaced` | none | a blank row between two children | the launchpad's sections, with a blank row before the first, under the header's frame (`pages/launchpad.md`, 3); the conversation's entries |
   | `tui-bullets` | none | the mark `•`, no paint | the group around an agent's text's Markdown blocks |
   | `tui-left-off` | none | the mark " ", a space | the launchpad's left-off chats' list |
   | `tui-picked` | accent, over the band where there is one | a band where the theme has one; the mark `❯`, accent | the launchpad's selected left-off chat |
@@ -138,7 +138,7 @@
     `Start.kept` before the root is given the rest, since jig's store
     reads only its own records; one absent or unreadable reads as Auto,
     so the next run starts in the theme the last one took.
-  - *Written* when the person takes a theme (`pages.md`, *`/theme`*), Auto
+  - *Written* when the person takes a theme (`pages/README.md`, 2, *`/theme`*), Auto
     included: a `jig_client::Request::Save` of that record alone, among
     the report's duties' requests, after the root's. The native shell
     answers each `Save` and `Erase` once, in the order asked (jig's

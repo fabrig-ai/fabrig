@@ -240,7 +240,7 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
     }
 }
 fn merge(checkout: &mut Checkout, at: &[u8], transport: &mut impl Transport, theirs: u64) -> Answer {
-    // git-transcripts' merge-in-progress records this refusal before even an already-contained head.
+    // temper-git-transcripts' merge-in-progress records this refusal before even an already-contained head.
     if checkout.exists(&path(at, b".git/MERGE_HEAD")) {
         return Answer {
             exit: 128,

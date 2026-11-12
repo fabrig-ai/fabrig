@@ -96,6 +96,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StatusTask { .. }
             | forge::Event::StatusRefused { .. }
             | forge::Event::StatusHeard { .. }
+            | forge::Event::SetDraft { .. }
             | forge::Event::SetAway { .. }
             | forge::Event::Overturn { .. }
             | forge::Event::Decided { .. }
@@ -141,6 +142,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Relayed { .. }
             | forge::Event::StartConflicted { .. }
             | forge::Event::ReviewRequested { .. }
+            | forge::Event::ReviewsChanged { .. }
             | forge::Event::StepChange { .. }
             | forge::Event::SavedWork { .. }
             | forge::Event::Closer { .. }
@@ -166,6 +168,9 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Restored { .. }
             | forge::Event::ReadAfresh
             | forge::Event::ProducedTitle { .. }
+            | forge::Event::Follow { .. }
+            | forge::Event::FollowChangeAmended { .. }
+            | forge::Event::FollowAct { .. }
             | forge::Event::SettleOutbox => true,
         },
     }

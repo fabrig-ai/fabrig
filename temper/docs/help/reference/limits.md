@@ -82,6 +82,15 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.decided_per_project`: count, 1,024. Bounds retained decided and asked rows per project.
 - `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.
 - `forge.judge_criteria`: count, 8. Bounds criteria in each deployment or project judge table.
+- `forge.follows`: count, 2. Follows per project.
+- `forge.follow_paths`: count, 8. Path prefixes per follow.
+- `forge.follow_queue`: count, 16. Queued landings per follow.
+- `forge.follow_merge`: count, 8. Landings per follow change.
+- `forge.follow_commits`: count, 8. Commits retained per follow entry.
+- `forge.follow_files`: count, 32. Files retained per follow entry.
+- `forge.follow_message_bytes`: bytes, 512. Message bytes retained per follow commit.
+- `forge.follow_skips`: count, 8. Skips retained per follow.
+- `forge.follow_reason_bytes`: bytes, 256. Bytes per follow skip reason.
 - `forge.landing_rules`: count, 4. Bounds landing rules per scope.
 - `forge.brief_sections`: count, 40. Bounds forge brief sections gathered at once.
 - `forge.brief_bytes`: bytes, 4,608. Bounds bytes retained for one gathered forge brief section.

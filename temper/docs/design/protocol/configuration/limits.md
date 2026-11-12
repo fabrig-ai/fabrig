@@ -60,6 +60,12 @@
   keeps 7 days (`../../domain/forge/attention.md`, 5): 1,024 in both profiles, so a
   busy night's every task fits beside the day before. The forge's family
   holds it times `forge.judge_projects`.
+- **A project's follows:** `forge.follows` per project, 2 in `small` and
+  8 in `standard`; `forge.follow_queue`, 16 and 64; and, in both,
+  `forge.follow_paths` 8, `forge.follow_merge` 8, `forge.follow_commits`
+  8, `forge.follow_files` 32, `forge.follow_message_bytes` 512,
+  `forge.follow_skips` 8 and `forge.follow_reason_bytes` 256, as
+  `../../domain/forge/follows.md`, section 10 bounds them.
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.
@@ -499,3 +505,39 @@ minimum. Task batch refusals preserve the codec field and ceiling. When
 a task record drives the map value past the fixed profile ceiling, the
 refusal names `TaskRecord`, its batch capacity and both sizes, and says to
 reduce task record capacities; that ceiling has no scalar override.
+
+## 1. Open questions
+
+- **The real-browser check of watch sizing.** The domain story uses the
+  pages' watch sets without HTTP, a browser or a kernel (`limits.md`).
+  Checking Home at 1440 CSS pixels and a long chat at 420 while fresh tools
+  clients read is a manual check after landing, as the `watch-room` request
+  assigns it. Default: that check, with no additional browser-tier story.
+
+- **A party's fair share of the watch rooms.** A party's room is the
+  deployment's (`limits.md`), so one person with every stream leaves another
+  none, and the refusal they meet is the streams'. Nothing has asked for
+  less, and a smaller share would lock a person's own tabs out again.
+  Default: none.
+
+- **`views.`'s other names.** `views.runs`, `views.subjects_per_change`,
+  `views.text_bytes` and `views.facts` are still taken and change nothing
+  the root holds (`limits.md`), where `views.watchers` and
+  `views.watchers_per_party` are refused. Nobody was misled by them on
+  record. Default: they stay until one is.
+
+- **Profiles' numbers** beyond fabrig's development, which sizes
+  `standard`'s work (`stock.md`): `small`'s, and each profile's machine
+  concurrency, from the first deployments' measurements (jig's
+  `protocol/configuration.md`, section 8). Default: as written.
+
+- **The rest of an assignment's transcript and of a person's read.**
+  The turn's check (`limits.md`) holds the resume window's share of each
+  hub's `transcript_bytes`, and the turn's share of
+  `root.loads.read_bytes`. The answered calls an assignment carries
+  beside its window (`core.call_records`, each within
+  `core.call_answer_bytes`), and the owner's task record and ancestors
+  a read carries with its row, have no bound the start can name: jig
+  gives neither's worst case. Default: the hub refuses an assignment
+  past its bound at run time, and the documents leave room beside the
+  turn for the read's evidence (../setup/init.md, 1).

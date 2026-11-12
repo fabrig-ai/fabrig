@@ -1,5 +1,5 @@
 //! Holds: a client's hold on a workspace, from its prepare to its release,
-//! and the operations it runs there, one at a time (domain/worker.md, 4.2
+//! and the operations it runs there, one at a time (domain/worker/README.md, 4.2
 //! steps 2, 7 and 8, and 5).
 //!
 //! A prepare that passes the entrance holds a workspace ([`crate::cache`]) and
@@ -261,7 +261,7 @@ enum PrepareStep {
         ours: Commit,
         base: Commit,
     },
-    /// A producer's merge start asks whether its branch holds the base (domain/worker.md, 5).
+    /// A producer's merge start asks whether its branch holds the base (domain/worker/checkouts.md).
     CompareBase {
         repository: u32,
         ours: Commit,
@@ -1285,7 +1285,7 @@ fn after_replaced_pin(holding: &Holding, repository: u32, ours: Commit, pushed: 
     }
 }
 
-/// A supplied landing never grants write authority (temper/docs/design/domain/worker.md, 5).
+/// A supplied landing never grants write authority (temper/docs/design/domain/worker/checkouts.md).
 fn pin_branch(repository: &Repository) -> Option<&[u8]> {
     if repository.push.is_some() { repository.landing.as_deref() } else { None }
 }
@@ -1365,7 +1365,7 @@ fn after_merged(repository: u32, last: u32) -> Next {
     if repository < last { Next::Step(PrepareStep::Fetch { repository: after(repository) }) } else { Next::Ready }
 }
 
-/// The named step and git's fault, outside the checkout's facts (worker.md, 4.4).
+/// The named step and git's fault, outside the checkout's facts (domain/worker/jobs.md).
 fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
     let (fault, output) = match done {
         Done::Failed { fault } => (fault.name(), b"".as_slice()),

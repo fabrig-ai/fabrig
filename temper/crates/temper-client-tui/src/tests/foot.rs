@@ -1,4 +1,4 @@
-//! The foot's states and hand-written frames (client/tui/pages.md and client/tui/theme.md).
+//! The foot's states and hand-written frames (client/tui/pages/README.md and client/tui/theme.md).
 use super::{fixtures as f, goldens};
 use crate::{
     Event as TuiEvent, Scheme, Told, Tui, look,
@@ -2095,9 +2095,10 @@ fn walk_review(root: &mut Domain) {
                     role: 1,
                     required: 1,
                     counted: 0,
-                    behind: 0,
+                    sets: Box::new([]),
                     whole: true,
                     yours: d::forge::approvals::Yours::Counts,
+                    size: None,
                 }]),
             },
         }),

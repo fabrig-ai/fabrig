@@ -3,6 +3,41 @@ use crate::{records, v11};
 use temper_engine_domain_forge as forge;
 
 #[test]
+fn a_changes_follows_round_trip_and_restore_with_the_configured_merge_bound() {
+    use skein_lib::{Env, Queue, Time, Wall};
+    use temper_engine_domain_forge_change::State;
+    let mut row = fixtures::change_row(State::Producing { requested: false });
+    let mut sha1 = [0_u8; 32];
+    sha1[..20].fill(0xaa);
+    let follows = forge::ChangeFollows { follow: 3, commits: Box::new([sha1, [0xbb; 32]]) };
+    row.follows = Some(follows.clone());
+    let task = row.task;
+    let stored = forge::Stored::Change(Box::new(row));
+    let mut limits = fixtures::LIMITS;
+    limits.follow_merge = 2;
+    let bounds = crate::bounds(&limits, limits.client.op_bytes).expect("two landings fit");
+    let bytes = records::encode(&stored);
+    let decoded = records::decode(&bytes, &bounds).expect("stored follows");
+    assert_eq!(decoded, stored);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut restarted = forge::Domain::new(
+        &limits,
+        91,
+        skein_forge_client::Config { namespace: Box::new([7; 16]), writers: Box::new([]) },
+        &[],
+        &[],
+        false,
+    )
+    .unwrap();
+    restarted.restore_begin(env.wall);
+    forge::step(&mut restarted, &env, forge::Event::Restore { record: decoded }, &mut Queue::uncapped());
+    assert_eq!(restarted.change(task).unwrap().follows, Some(follows));
+    limits.follow_merge = 1;
+    let smaller = crate::bounds(&limits, limits.client.op_bytes).expect("smaller merge bound");
+    assert_eq!(records::decode(&bytes, &smaller), Err(crate::Undecodable));
+}
+
+#[test]
 fn each_family_of_names_holds_and_topics_round_trips_unchanged() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for (name, row) in fixtures::names_holds_and_topics() {
@@ -2175,4 +2210,53 @@ fn a_closers_selection_progress_round_trips_with_its_owned_bytes() {
     assert_eq!(forge::stored_bytes(&cloned), Some(held));
     drop(cloned);
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
+fn landed_drafts_round_trip_the_smallest_and_full_rows_and_keys() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for full in [false, true] {
+        let path: Box<[u8]> = if full {
+            let mut path = skein_lib::Writer::new(1024);
+            path.put(&[b'p'; 1021]).unwrap();
+            path.put(b".md").unwrap();
+            path.finish()
+        } else {
+            b".md".as_slice().into()
+        };
+        let row = forge::Stored::LandedDraft(forge::LandedDraft {
+            repository: skein_forge::api::Repository {
+                forge: if full { u16::MAX } else { 0 },
+                repository: if full { u32::MAX } else { 0 },
+            },
+            path,
+            project: if full { u32::MAX } else { 0 },
+            branch: if full { Box::from([b'b'; 1024]) } else { Box::new([]) },
+            commit: if full { [255; 32] } else { [0; 32] },
+            title: if full { Box::from([b't'; 200]) } else { Box::new([]) },
+            writer: if full { u64::MAX } else { 0 },
+            at: skein_lib::Wall::from_nanos(if full { u64::MAX } else { 0 }),
+            chat: full.then_some(u64::MAX),
+            goal: full.then_some(u64::MAX),
+            ready: full,
+        });
+        let bytes = records::encode(&row);
+        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+        assert_eq!(key.first(), Some(&41));
+        assert_eq!(crate::keys::decode(&key, &fixtures::LIMITS), Some(forge::stored_key(&row)));
+        assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+    }
+}
+
+#[test]
+fn pull_size_is_omitted_without_changing_the_stored_pull() {
+    use skein_forge::api::{Answer, Size};
+    let mut pull = fixtures::pull();
+    let expected = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(Answer::Pull(pull.clone())))));
+    pull.size = Some(Size { files: 19, additions: u64::MAX, deletions: 12 });
+    let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(Answer::Pull(pull)))));
+    let encoded = records::encode(&row);
+    assert_eq!(encoded, records::encode(&expected), "size changes no stored byte");
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&encoded, &bounds), Ok(expected));
 }

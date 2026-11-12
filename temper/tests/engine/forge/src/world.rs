@@ -68,6 +68,15 @@ pub const LIMITS: top::Limits = top::Limits {
     decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -105,6 +114,8 @@ struct Pending {
     generation: u64,
 }
 
+mod follows;
+
 struct ReadScript {
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
     comparisons_too_large: bool,
@@ -138,6 +149,7 @@ pub struct World {
     hints: Vec<skein_forge::api::Hint>,
     signatures: bool,
     pull_snapshot: Option<skein_forge::api::Pull>,
+    held_compares: Option<Vec<(u64, top::Event)>>,
     read_script: ReadScript,
     landing_config: Option<(u32, temper_engine_domain_forge_change::Way, Box<[top::RepositoryGates]>)>,
 }
@@ -523,6 +535,7 @@ impl World {
             hints: Vec::new(),
             signatures,
             pull_snapshot: None,
+            held_compares: None,
             read_script: ReadScript { ancestry: None, comparisons_too_large: false, files_excess: None },
             landing_config: None,
         };
@@ -789,6 +802,7 @@ impl World {
             edit: top::settings::Edit::Set(top::settings::SizedValue {
                 size: 64,
                 value: top::settings::Value::Rule(top::settings::LandingRule {
+                    sets: Box::new([]),
                     pattern: top::GatePattern {
                         segments: [b"forge".as_slice(), b"forge.example", b"org", b"repo", b"branch"]
                             .map(Box::from)
@@ -804,6 +818,14 @@ impl World {
             }),
         };
         self.top.keep_settings(&self.env, 1, None, &[item], &mut self.top_out);
+        self.take_top();
+        self.run_for(1);
+    }
+
+    /// Commit the forge's settings and drive the resulting live-change wakes.
+    pub fn keep_settings(&mut self, revision: u64, items: &[top::settings::Asked]) {
+        self.top.keep_settings(&self.env, revision, None, items, &mut self.top_out);
+        top::fire(&mut self.top, &self.env, &mut self.top_out);
         self.take_top();
         self.run_for(1);
     }
@@ -1178,7 +1200,9 @@ impl World {
                 top::Request::ApplicationPart { request, .. } => {
                     top::step(&mut self.top, &self.env, top::Event::Adopt { request }, &mut self.top_out);
                 }
-                top::Request::MakingCopied { .. }
+                top::Request::FollowRun { .. }
+                | top::Request::CancelFollow { .. }
+                | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::ApplicationDone { .. }
                 | top::Request::MarkedForges
@@ -1283,6 +1307,7 @@ impl World {
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
                 | top::Request::BriefReady { .. }
@@ -1440,7 +1465,7 @@ impl World {
                     } else {
                         result
                     };
-                    self.to_top.push((
+                    let event = (
                         pending.generation,
                         top::Event::Client(skein_forge_client::Event::Answered {
                             free: 0,
@@ -1449,7 +1474,14 @@ impl World {
                             cost: 1,
                             result,
                         }),
-                    ));
+                    );
+                    if matches!(pending.op, skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. }))
+                        && let Some(held) = &mut self.held_compares
+                    {
+                        held.push(event);
+                    } else {
+                        self.to_top.push(event);
+                    }
                 }
                 hook @ forge::Request::Hook { .. } => self.hear(&hook),
             }
@@ -1519,8 +1551,10 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
+        top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },
         top::Stored::Decided(row) => top::Key::Decided { project: row.project, number: row.number },
         top::Stored::Looked(row) => top::Key::Looked { party: row.party, project: row.project },

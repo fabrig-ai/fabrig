@@ -1,4 +1,4 @@
-//! The TUI's left-off reads (temper/docs/design/client/tui/launchpad.md, 2).
+//! The TUI's left-off reads (temper/docs/design/client/tui/pages/launchpad.md, 2).
 use super::Request;
 use crate::{Limits, owner::Owner};
 use jig_client::{Client, Handle, Latest, Told, Watchable, contract as c, shapes};

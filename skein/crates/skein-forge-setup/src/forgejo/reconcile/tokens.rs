@@ -121,13 +121,15 @@ impl Tokens {
                 Err(why) => Err(why),
             },
             Phase::Settings => match reply(event)? {
-                Reply::Document(Document::ApiSettings(settings)) if settings.max_response_items > 0 => {
+                Reply::Document(document) => {
+                    let Document::ApiSettings(settings) = *document else { return Err(Why::Unexpected) };
+                    if settings.max_response_items == 0 {
+                        return Err(Why::Unexpected);
+                    }
                     self.cap = Some(settings.max_response_items);
                     Ok(self.listing(machine))
                 }
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             Phase::Listing => self.rows(machine, reply(event)?),
             Phase::Delete => match reply(event)? {
@@ -137,14 +139,13 @@ impl Tokens {
                 }
             },
             Phase::Create => match reply(event)? {
-                Reply::Document(Document::Token(token)) => {
+                Reply::Document(document) => {
+                    let Document::Token(token) = *document else { return Err(Why::Unexpected) };
                     let value = token.value.ok_or(Why::Unexpected)?;
                     self.phase = Phase::Written;
                     Ok(Need::Write { item: self.item, bytes: value })
                 }
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
-                    Err(unexpected(other))
-                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => Err(unexpected(other)),
             },
             Phase::Written => match event.written() {
                 Ok(()) => Ok(self.next(machine)),

@@ -1,4 +1,4 @@
-//! Words shared by the browser and TUI (temper/docs/design/client/tui/launchpad.md, 2).
+//! Words shared by the browser and TUI (temper/docs/design/client/tui/pages/launchpad.md, 2).
 /// A run of calls (temper/docs/design/client/pages/README.md, its calls).
 pub use crate::pages::chat_line::Run;
 /// The terminal's vocabulary (temper/docs/design/client/pages/README.md, A chat's terminal).
@@ -29,14 +29,14 @@ pub fn home_headline(w: &Words, name: &[u8], facts: &Facts, now: Wall) -> (Box<[
     let intro = crate::pages::home::intro_words(w, name, facts, &mut times);
     (intro.headline, times.next)
 }
-/// All projects' headline and its next tick (temper/docs/design/client/tui/launchpad.md, 2).
+/// All projects' headline and its next tick (temper/docs/design/client/tui/pages/launchpad.md, 2).
 #[must_use]
 pub fn all_home_headline(w: &Words, facts: &all_home::Facts, now: Wall) -> (Box<[u8]>, Option<Wall>) {
     let mut times = Times::new(now);
     let headline = crate::pages::all_home::headline(w, facts, &mut times);
     (headline, times.next)
 }
-/// All projects' lede, without its strong runs (temper/docs/design/client/tui/launchpad.md, 2).
+/// All projects' lede, without its strong runs (temper/docs/design/client/tui/pages/launchpad.md, 2).
 #[must_use]
 pub fn joined_brief(_w: &Words, brief: &all_home::Brief) -> Box<[u8]> {
     let mut words: Box<[u8]> = Box::default();
@@ -51,13 +51,13 @@ pub fn joined_brief(_w: &Words, brief: &all_home::Brief) -> Box<[u8]> {
 pub fn chat_state(line: &c::TaskLine, me: &c::Me, w: &Words) -> Box<[u8]> {
     crate::pages::chats::status_name(line, me, w)
 }
-/// A need's kind (temper/docs/design/client/tui/launchpad.md, 5).
+/// A need's kind (temper/docs/design/client/tui/pages/launchpad.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum NeedKind {
     Question,
     Other,
 }
-/// A need's line (temper/docs/design/client/tui/launchpad.md, 5).
+/// A need's line (temper/docs/design/client/tui/pages/launchpad.md, 5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NeedLine {
     pub kind: NeedKind,

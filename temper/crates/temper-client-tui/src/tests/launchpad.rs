@@ -1,4 +1,4 @@
-//! The launchpad's states and hand-written frames (temper/docs/design/client/tui/launchpad.md and temper/docs/design/client/tui/theme.md).
+//! The launchpad's states and hand-written frames (temper/docs/design/client/tui/pages/launchpad.md and temper/docs/design/client/tui/theme.md).
 use super::{fixtures as f, goldens};
 use crate::{
     Local, Scheme, Told, Tui, look,

@@ -15,6 +15,7 @@ pub mod builders;
 pub mod calls;
 pub mod changes;
 pub mod chat;
+pub mod drafts;
 pub mod members;
 pub mod remembered;
 pub mod roles;
@@ -103,6 +104,8 @@ pub struct Pages {
     ask_line: Box<[u8]>,
     ask_with: Option<(u32, Box<[u8]>)>,
     changes: Option<changes::Changes>,
+    drafts: Option<drafts::Drafts>,
+    draft_starts: skein_lib::Set<jig_client::Key>,
     stock_ways: Option<crate::forge::stock_ways::StockWays>,
     chats: Option<chats::Chats>,
     rail_handles: RailHandles,
@@ -154,6 +157,10 @@ pub enum Act {
     OpenStart {
         draft: Option<Box<[u8]>>,
         chat: Option<u64>,
+    },
+    OpenLanded {
+        draft: work::LandedDraft,
+        start: bool,
     },
     StartDraft {
         words: Box<[u8]>,
@@ -386,6 +393,8 @@ impl Pages {
             ask_line: Box::default(),
             ask_with: None,
             changes: None,
+            drafts: None,
+            draft_starts: skein_lib::Set::with_capacity(u32::MAX),
             stock_ways: None,
             chats: None,
             rail_handles: RailHandles::None,
@@ -547,6 +556,10 @@ impl Pages {
         self.stock_ways.as_ref()
     }
     #[must_use]
+    pub const fn drafts(&self) -> Option<&drafts::Drafts> {
+        self.drafts.as_ref()
+    }
+    #[must_use]
     pub const fn changes(&self) -> Option<&changes::Changes> {
         self.changes.as_ref()
     }
@@ -644,6 +657,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     }
     match event {
         Event::Act { act: Act::OpenStart { draft, chat } } => start_goal::open(pages, client, draft, chat),
+        Event::Act { act: Act::OpenLanded { draft, start } } => {
+            start_goal::open_landed(pages, env, client, draft, start, out);
+        }
         Event::Act { act: Act::StartDraft { words } } => {
             if let Some(start) = &mut pages.start {
                 start.draft_field(words);
@@ -747,6 +763,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
             if let Some(page) = pages.stock_ways.take() {
                 page.leave(out);
+            }
+            if let Some(drafts) = pages.drafts.take() {
+                drafts.leave(out);
             }
             if let Some(changes) = pages.changes.take() {
                 changes.leave(out);
@@ -1281,6 +1300,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     redirect_chat(pages, client, out);
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
+#[expect(clippy::too_many_lines, reason = "routes each page's reply, including the launchpad's cross-project reads")]
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if let Told::Answered { key, outcome } = &told
         && let Some(open) = &mut pages.confirm
@@ -1329,6 +1349,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         if let Some(toasted) = page.toasted() {
             pages.needs.say(toasted, env.now);
         }
+        return true;
+    }
+    if let Some(drafts) = &mut pages.drafts
+        && drafts.told(&told, client, env.limits.forge, out)
+    {
         return true;
     }
     if let Some(changes) = &mut pages.changes
@@ -1633,6 +1658,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         && !pages.roles_open
         && !pages.team_open
         && pages.changes.is_none()
+        && pages.drafts.is_none()
         && pages.stock_ways.is_none()
         && pages.home.is_none()
         && pages.all_home.is_none()
@@ -1742,6 +1768,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         if let Address::Welcome { .. } = address {
             pages.welcome = Some(welcome::Welcome::new());
         }
+        if let Some(drafts) = pages.drafts.take() {
+            drafts.leave(out);
+        }
         if let Some(changes) = pages.changes.take() {
             changes.leave(out);
             pages.next = pages.next.max(changes.next());
@@ -1763,6 +1792,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         leave_conversations(pages, out);
         pages.rail_handles = if rail_chats(&address) { RailHandles::Pending } else { RailHandles::None };
         if let Some(project) = work_project(&address) {
+            pages.drafts = Some(drafts::Drafts::new(project, &mut pages.next, env.limits.forge, out));
             // Goals and chats precede Changes' growing range, including the rail's chats.
             let mut page = goals::Goals::new(pages.next);
             if let Address::Goals { filter, .. } = address {
@@ -2254,6 +2284,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
             crate::acts::step(pages, env, act, out);
         }
         Act::OpenStart { .. }
+        | Act::OpenLanded { .. }
         | Act::StartDraft { .. }
         | Act::StartName { .. }
         | Act::StartWay { .. }

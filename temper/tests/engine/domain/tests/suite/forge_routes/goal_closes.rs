@@ -28,6 +28,7 @@ fn goal_world_in(template: u32, branch: bool) -> (World, engine::Assignment, Box
         .with_close_job(Some(b".temper/close"), true)
         .with_goal_closer()
         .with_landing_deployment(Box::new([engine::LandingRule {
+            sets: Box::new([]),
             connector: 1,
             kind: 4,
             enforce: true,

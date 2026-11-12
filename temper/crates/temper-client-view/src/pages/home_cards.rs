@@ -35,8 +35,11 @@ pub(crate) fn cards(
             question = w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]);
         }
         ask::text(b, Role::Paragraph, &question, look::ASK_QUESTION);
-        if let needs::Need::Card(card) = need {
-            super::needs::why_line(b, root, w, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
+        match need {
+            needs::Need::Card(card) => {
+                super::needs::why_line(b, root, w, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
+            }
+            needs::Need::Approval(row) => super::approval::size(b, row, w),
         }
         b.open(Role::Slot);
         b.style(look::NEED_ACTS);
@@ -80,14 +83,7 @@ pub(crate) fn cards(
                 if row.yours == temper_client_domain::forge::approvals::Yours::Counts
                     && skein_ui::markdown::safe_url(&row.address)
                 {
-                    let forge = w.say(
-                        match row.kind {
-                            temper_client_domain::forge::forges::Kind::GitHub => Word::ApprovalGitHub,
-                            temper_client_domain::forge::forges::Kind::Forgejo => Word::ApprovalForgejo,
-                        },
-                        &[],
-                    );
-                    let label = w.say(Word::ApprovalReview, &[Hole::Name(forge)]);
+                    let label = super::approval::review_words(row, w);
                     b.open(Role::Link);
                     b.style(look::RECOMMENDED);
                     b.name(&label);

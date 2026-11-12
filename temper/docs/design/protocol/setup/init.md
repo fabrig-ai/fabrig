@@ -256,7 +256,7 @@ runs it (`box.md`).
   (../configuration/stock.md).
 - **Its `application.limits`** are temper's `standard` with
   `checkout.workspaces` and `git_component.operations` 4, the least the
-  worker's slots take (`../../domain/worker.md`, section 6);
+  worker's slots take (`../../domain/worker/README.md`, section 5);
   `checkout.message_bytes` the agent's payload, so the checkout accepts
   the agent's largest call; `forge.client.op_bytes` the engine's result
   bound, which the root holds it to, and `forge_component.body_bytes`
@@ -638,3 +638,51 @@ override.
   dormant until the person sets up an owned Forgejo: its fetch, its
   preparation, Forgejo's web and the runner's daemon; the engine takes
   the handover and reconciles (`owned.md`, 5).
+
+## 4. Open questions
+
+- **A start holding the engine's documents to temper's clients** (`init.md`, 1):
+  no start compares `documents.text_bytes` with what the web and terminal
+  clients receive, so a deployment past 512 starts, and those clients
+  refuse a document whose text is longer. A test holds `temper-box init`'s
+  documents to them; a deployment's own override is held by nothing.
+
+- **The deployment's own UX:** what `temper-box init` alone writes and says
+  beyond `init.md`, 2, and how a server is set up. For now it is the cheapest
+  bare deployment.
+
+- **Flags of their own** (`--welcome`, `--playground`), when a
+  deployment wants some of the box's parts and not others (`init.md`, 2).
+
+- **Four agents on a laptop** (`init.md`, 1, 3): measure their combined resident
+  memory, including any program an agent launches, after landing. The
+  box-and-serve figures in `README.status.md` exclude agent processes and
+  do not size four of them. Each agent declares 2 GiB, carried unenforced;
+  the start checks slots and their related limits, without comparing that
+  declaration with laptop memory. The default is four slots, reversible
+  by the person; workspace disk use depends on the repositories cached
+  in the four workspaces. The process, browser and live checks follow
+  landing (`../../testing/README.md`, section 7).
+
+- **Discovering models per account** (`init.md`, 3): provider-list reads and their
+  retained names are the catalogue's lists step
+  (`../../draft/model-catalogue.md`, sections 5 and 7). Default: the binary's
+  stock and model settings added by name through Settings, Models or
+  Ask temper; neither generated configuration document holds models.
+
+- **The LLM providers out of the document,** each a design of its own;
+  the scripted provider, the playground's (`playground.md`), may become the binary's
+  stock first, its endpoint the fake LLM's port, the machine's.
+
+- **Good defaults for a person's real work:** landing rules and the
+  memory bound. Default: `init.md`, 3's, refined once a first run works; the
+  charters and limits are sized for a project of fabrig's scale
+  (../configuration/stock.md).
+
+- **A task's text past what the clients receive** (`init.md`, 1). A client reads a
+  spec in pieces of `documents.text_bytes`, 512, where the request
+  `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the web and
+  terminal clients' `text` raised (jig's `client/domain/contract/README.md`, 4).
+  Default: 512. The user's to choose, with no answer yet. A run's `read_task`
+  is outside it where its worker or its process's local agent names a reply
+  bound, reading in that room (`../../domain/routing.md`, 2).

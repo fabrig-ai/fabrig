@@ -2,14 +2,14 @@
 
 2026-11-04. How [reference-case.md](reference-case.md) gets built: the
 milestones that carry `reference-code-production.md` and
-`reference-landing.md` into the design and the code, until the case
+`archive/reference-landing.md` into the design and the code, until the case
 walks whole as `v0.1.0.md`'s rung C. It designs nothing: each milestone
 executes a part of the drafts and writes its own design as it goes.
 `notes.md` holds the reasons for the choices cited here, N1 to N23;
 where the design lags each is the drafts' statuses.
 
 Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`
-and `worker.md` are temper's `../domain/` documents; jig's and smith's
+and `../domain/worker/README.md` are temper's `../domain/` documents; jig's and smith's
 are named as theirs.
 
 ## 1. In one page
@@ -137,7 +137,7 @@ section 14 it adds.
 
 ### M2. The goal lands
 
-- **Executes:** `reference-landing.md`, sections 1 to 4 and 7 (L, its
+- **Executes:** `archive/reference-landing.md`, sections 1 to 4 and 7 (L, its
   way into main, what moves g while L lives, its bounds, main's queue,
   a small change); `reference-code-production.md`, section 12 (ready to
   land, L made).
@@ -152,7 +152,7 @@ section 14 it adds.
   into g while L is held; the landing rule for main; L's CI, the full
   gate; three repairs.
 - **Walk:** steps 23, 24 and 28, L ending at landed until M8; and
-  `reference-landing.md`, section 9's second story (L held past its
+  `archive/reference-landing.md`, section 9's second story (L held past its
   repairs, released after a change into g).
 
 ### M3. Designers and the cut
@@ -229,7 +229,7 @@ section 14 it adds.
 
 - **Executes:** `reference-code-production.md`, section 7, and section
   6, step 1's kept start.
-- **Design:** `worker.md`, 4.1 and section 5 (a checkout from g's tip
+- **Design:** `../domain/worker/README.md`, 4.1 and `../domain/worker/checkouts.md` (a checkout from g's tip
   with its dependencies' pushed heads merged in); `../domain/forge/change/README.md`
   (the early start, its once rule, its refusal on a conflict, an
   amendment refused for dropping a dependency started from); `landing.md`,
@@ -245,11 +245,11 @@ section 14 it adds.
 
 - **Executes:** `reference-code-production.md`, sections 6, step 5 (a
   merge into g refused for a conflict) and 11 (catching up);
-  `reference-landing.md`, sections 3, step 6 (L's update in conflict)
+  `archive/reference-landing.md`, sections 3, step 6 (L's update in conflict)
   and 5.
 - **Design:** jobs are designed and, by M7a, built (jig's
   `domain/model.md`, 3.2, `jig/docs/design/domain/tasks/lifecycle.md`, 3.1, `jig/docs/design/domain/engine/executors.md`,
-  5 and `jig/docs/design/domain/hosts/hub.md`, 9; `worker.md`, 4.4); temper's worker
+  5 and `jig/docs/design/domain/hosts/hub.md`, 9; `../domain/worker/jobs.md`); temper's worker
   declares no kind yet. The merge job is not
   designed: `landing.md`, 5.3, `../domain/forge/change/repairs.md` and `../domain/forge/README.md`, 6, temper's
   `../protocol/tooling.md`, sections 1 and 4, and
@@ -265,13 +265,13 @@ section 14 it adds.
 - **Configures:** `merge_job`, the project's kind that merges and
   recounts its counted baselines; the coordinator's charter:
   catch-ups, landing news paced at most once in 30 minutes (N23).
-- **Walk:** steps 12, 16 and 21; `reference-landing.md`, section 9's
+- **Walk:** steps 12, 16 and 21; `archive/reference-landing.md`, section 9's
   first story (L's update conflicts, settled by the merge job and a
   resolution on g).
 
 ### M8. Tiers and verdicts on main
 
-- **Executes:** `reference-landing.md`, section 6 (main's tiers, the
+- **Executes:** `archive/reference-landing.md`, section 6 (main's tiers, the
   verdict, L living to cleared): `after-landing.md`, sections 2 to 6,
   designed and not built, with what of sections 10 and 11 they need.
 - **Design:** `after-landing.md`, sections 1 and 3: a tier names the
@@ -282,7 +282,7 @@ section 14 it adds.
   cleared; skein's reads.
 - **Configures:** main's tiers, the slow suites; the verification bound,
   two hours.
-- **Walk:** a chat's small fix into main (`reference-landing.md`, section
+- **Walk:** a chat's small fix into main (`archive/reference-landing.md`, section
   7), verified: green clears it; a red reruns, blames, bisects. Then,
   with M2, step 25 and 28's L given its result at cleared.
 
@@ -290,7 +290,7 @@ section 14 it adds.
 
 - **Executes:** `reference-code-production.md`, section 10 (g's tier,
   its reds as news, triage, a repair into g while merges go on);
-  `reference-landing.md`, section 6 (a red to its goal, triage, a repair
+  `archive/reference-landing.md`, section 6 (a red to its goal, triage, a repair
   into main naming it, cleared by it): `after-landing.md`, section 7.
 - **Design:** `after-landing.md`, sections 1 to 3 (a goal branch's tier,
   judging no landing, its reds as news); `../domain/agent/tools.md`, 1 and
@@ -300,7 +300,7 @@ section 14 it adds.
   following goal branches, at most once per 20 minutes); the
   coordinator's charter: triage along the way and after landing, notes
   on what it learns.
-- **Walk:** steps 20 and 25 to 27; `reference-landing.md`, section 9's
+- **Walk:** steps 20 and 25 to 27; `archive/reference-landing.md`, section 9's
   third story.
 
 ### M10. The case
@@ -368,9 +368,9 @@ section 14 it adds.
 ## 6. Left out
 
 - **The drafts' Later and open questions** (`reference-code-production.md`,
-  sections 16 and 17; `reference-landing.md`, sections 11 and 12): the
+  sections 16 and 17; `archive/reference-landing.md`, sections 11 and 12): the
   numbers reopen them (`notes.md`, section 5).
-- **A red of no live goal filed as a finding** (`reference-landing.md`,
+- **A red of no live goal filed as a finding** (`archive/reference-landing.md`,
   section 6): findings are not built, and the case has none.
 - **`after-landing.md`, sections 8 and 9,** trailers and what the forge
   shows: the reference needs neither (`notes.md`, section 6).

@@ -1471,6 +1471,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::SetUp { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
                 | top::Request::Save { .. }
@@ -1514,6 +1515,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::Settled { .. }
                 | top::Request::RestartDone { .. }
                 | top::Request::StatusRun { .. }
+                | top::Request::FollowRun { .. }
+                | top::Request::CancelFollow { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::MakingCopied { .. }

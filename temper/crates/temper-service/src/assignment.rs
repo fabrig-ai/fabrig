@@ -139,7 +139,7 @@ pub fn down(
     })
 }
 /// A job's assignment and its forge workspace as the worker link carries them
-/// (temper/docs/design/domain/worker.md, 4.4).
+/// (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn job_down(
     job: host::JobAssignment,

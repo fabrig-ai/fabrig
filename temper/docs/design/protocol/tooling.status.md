@@ -1,9 +1,9 @@
 # tooling: status
 
-2026-11-10. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-11. Where temper's code lags or departs from [tooling.md](tooling.md).
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
-  contract, since neither kind is built (`../domain/worker.md`, 4.4): no
+  contract, since neither kind is built (`../domain/worker/jobs.md`): no
   project names one, and the worker declares the merge and close kinds alone,
   though the job capability that would run them is built
   (`temper-worker-domain-tooling`). 2: the project's `prepare_timeout`
@@ -20,4 +20,4 @@
   the repository its items name `home`, and none under `repos/`
   (`temper/crates/temper-worker-domain/src/jobs.rs`), because the
   checkout lays a workspace's repositories out by name
-  (`../domain/worker.md`, section 5) and no kind built needs `repos/`.
+  (`../domain/worker/checkouts.md`) and no kind built needs `repos/`.

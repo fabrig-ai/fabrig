@@ -17,12 +17,8 @@ use skein_forge::forgejo::document::{Document, Row};
 
 /// The answers this dialect's plans read (forge/setup/forgejo.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(clippy::large_enum_variant, reason = "the gate moves a decoded document whole without another allocation")
-)]
 pub(crate) enum Reply {
-    Document(Document),
+    Document(Box<Document>),
     Rows(Box<[Row]>),
     Empty,
     Status(u16),

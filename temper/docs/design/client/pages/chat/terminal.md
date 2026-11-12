@@ -73,7 +73,7 @@
     the dots stand: the words being written and a call under way keep it. Or
     while the chat waits on its delegates or on an account: "✦",
     pulsing, then the bar's status words, with "Writing" presented as
-    "Working" (`../../tui/pages.md`, *The foot*); "waiting on 1 delegate" and "Waiting for
+    "Working" (`../../tui/pages/README.md`, 1); "waiting on 1 delegate" and "Waiting for
     an account" keep their words. It draws no clock.
   - *The box:* the composer, "❯" before its text area, its name, placeholder,
     hint's keys and bounds as a chat's (`composer.md`, 1, *Where the focus stands*), with no

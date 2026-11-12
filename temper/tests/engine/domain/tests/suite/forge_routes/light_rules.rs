@@ -28,6 +28,7 @@ fn pushed_change_with_resolutions(conflict: bool, resolutions: Option<u32>) -> (
         StoryLimits { resolutions, ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         enforce: true,
