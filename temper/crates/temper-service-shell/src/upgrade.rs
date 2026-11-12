@@ -1,5 +1,8 @@
 //! One report renderer for shells and worlds (protocol/binaries.md, upgrade).
-use jig_protocol_store::{BackRefusal, Event, KeptWire, Owner};
+use jig_protocol_store::{BackRefusal, Event, KeptMap, KeptWire, Owner, Undecoded};
+#[cfg(test)]
+#[path = "upgrade/tests.rs"]
+mod decode_tests;
 use std::fmt::Write;
 use temper_service::upgrade::Report;
 use temper_shell::directories::Directories;
@@ -28,6 +31,14 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
                 rehearsal = true;
                 kept = wires.as_deref();
                 fresh = *marked;
+            }
+            Event::Decoded { records, .. } => {
+                writeln!(text, "{binary} upgrade: decoded {records} records").expect("string write");
+            }
+            Event::Undecodable { family, version, at, .. } => {
+                passed = false;
+                write!(text, "{binary} upgrade: record not decodable: {family} {version}, ").expect("string write");
+                place(&mut text, at);
             }
             Event::Patched { of, patch, counts, .. } => {
                 writeln!(
@@ -102,6 +113,25 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
     (text, u8::from(!passed || !report.done))
 }
 
+fn place(text: &mut String, at: &Undecoded) {
+    match at {
+        Undecoded::Record { map, key } => {
+            let map = match map {
+                KeptMap::Store => "store",
+                KeptMap::Secrets => "secrets",
+            };
+            write!(text, "{map} key ").expect("string write");
+            for byte in key {
+                write!(text, "{byte:02x}").expect("string write");
+            }
+            text.push('\n');
+        }
+        Undecoded::Frame { transcript, offset } => {
+            writeln!(text, "transcript {transcript} at {offset}").expect("string write");
+        }
+    }
+}
+
 fn workers(text: &mut String, binary: &str, kept: Option<&[KeptWire]>, fresh: bool) {
     let Some(kept) = kept else {
         writeln!(text, "{binary} upgrade: workers may stay: unknown; the copy keeps no wires").expect("string write");
@@ -172,9 +202,11 @@ mod tests {
             ),
         ] {
             let mut report = report(Event::Rehearsing { owner: Token::new(1), wires: kept, fresh });
+            report.events.push(Event::Decoded { owner: Token::new(1), records: 17 });
             report.restored = true;
             let (text, code) = lines("temper-engine", &report, &dirs, b"/backup");
             assert_eq!(code, 0, "{text}");
+            assert!(text.contains("decoded 17 records\n"), "{text}");
             assert!(text.contains(words), "{text}");
         }
         for (why, remedy) in [

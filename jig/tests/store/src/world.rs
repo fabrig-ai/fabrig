@@ -587,7 +587,9 @@ impl World {
                         self.refusal = Some(why);
                         return None;
                     }
-                    other @ (Event::Rehearsing { .. }
+                    other @ (Event::Decoded { .. }
+                    | Event::Undecodable { .. }
+                    | Event::Rehearsing { .. }
                     | Event::Back { .. }
                     | Event::BackRefused { .. }
                     | Event::Closed { .. }
@@ -675,7 +677,7 @@ impl World {
                         self.pending = *pending;
                         terminal = true;
                     }
-                    if matches!(event, Event::OpenRefused { .. } | Event::Corrupt { .. }) {
+                    if matches!(event, Event::Undecodable { .. } | Event::OpenRefused { .. } | Event::Corrupt { .. }) {
                         terminal = true;
                     }
                     result.push(event);

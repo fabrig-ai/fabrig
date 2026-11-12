@@ -4,6 +4,8 @@ use alloc::boxed::Box;
 use generations::{Copying, Progress, Removing};
 use skein_io::file;
 use skein_lib::{List, Queue, Token};
+mod decode;
+pub(crate) use decode::records;
 
 #[derive(Debug)]
 enum Stage {

@@ -587,7 +587,12 @@ impl Store {
                 }
             }
             // Worlds have no printed open progress lines.
-            Event::Rehearsing { .. } | Event::Back { .. } | Event::BackRefused { .. } | Event::Closed { .. } => {
+            Event::Decoded { .. }
+            | Event::Undecodable { .. }
+            | Event::Rehearsing { .. }
+            | Event::Back { .. }
+            | Event::BackRefused { .. }
+            | Event::Closed { .. } => {
                 unreachable!("an engine store never rehearses or goes back")
             }
             Event::Patched { .. } => self.patched = self.patched.checked_add(1).expect("bounded patch count"),

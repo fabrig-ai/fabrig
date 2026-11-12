@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_core::{CoreKey, CoreRecord, Key, Record};
 use skein_lib::{Queue, Token};
 
+#[expect(clippy::too_many_lines, reason = "the ordered open checks include the rehearsal's pre-plan walk")]
 pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, below: &mut crate::Below) {
     if store.phase != Phase::Closed {
         refuse(store, owner, OpenRefusal::Failed, above);
@@ -51,6 +52,9 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         Ok(compared) => compared,
         Err(why) => return refuse(store, owner, why, above),
     };
+    if !crate::rehearsal::records(store, owner, found_levels, above) {
+        return;
+    }
     if compared == format::Compared::Behind
         && let Err(why) = pending(store, found_levels, binary)
     {

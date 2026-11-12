@@ -57,6 +57,7 @@ fn source_world(format: codec::component::Format, extra: Vec<Row>, sets: jig_pro
     rows.extend(extra);
     let mut world = World::unopened_observed(0xba5e, limits, None);
     world.lay(&[
+        Item::directory(b"transcripts").mode(0o700),
         Item::directory(b"generations"),
         Item::directory(b"generations/1"),
         Item::directory(b"generations/1/store"),
@@ -139,6 +140,31 @@ fn real_jig_set_versions_are_baseline_at_zero_and_binary_at_one() {
             assert_eq!(world.refusal(), Some(&OpenRefusal::Format { family, found, wanted }));
         }
     }
+}
+
+#[test]
+fn baseline_rehearsal_decodes_first_kept_versions_before_patches() {
+    let limits = patches::limits();
+    let format = codec::component::Format {
+        application: root::APPLICATION.version,
+        deployment: root::DEPLOYMENT,
+        ..fixed::BASELINE.format
+    };
+    let rows = patches::Records::story()
+        .rows(1)
+        .into_iter()
+        .map(|(key, value)| (keys::application(&key, limits.store.key).expect("application key"), value))
+        .collect();
+    let mut world = source_world(format, rows, baseline_fixture_sets());
+    let before = world.contents();
+    let events = world.rehearse();
+    assert!(matches!(events.get(1), Some(jig_protocol_store::Event::Decoded { records: 8, .. })), "{events:?}");
+    assert!(matches!(events.last(), Some(jig_protocol_store::Event::Opened { pending: true, .. })), "{events:?}");
+    assert_eq!(world.contents(), before);
+    let closed = world.request(jig_protocol_store::Request::Close { owner: skein_lib::Token::new(900) });
+    assert!(matches!(closed.as_slice(), [jig_protocol_store::Event::Closed { removed: true, .. }]));
+    assert!(world.scratch_contents().is_empty());
+    assert_eq!(world.contents(), before);
 }
 
 #[test]

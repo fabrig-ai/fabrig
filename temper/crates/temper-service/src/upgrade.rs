@@ -24,6 +24,7 @@ pub(crate) struct State {
     closing: bool,
     pub(crate) closed: bool,
     pub(crate) back: bool,
+    pub(crate) undecodable: bool,
 }
 impl State {
     pub(crate) fn new(rehearsal: bool) -> Self {
@@ -40,6 +41,7 @@ impl State {
             closing: false,
             closed: false,
             back: false,
+            undecodable: false,
         }
     }
 }
@@ -64,7 +66,7 @@ pub(crate) fn advance(engine: &mut Engine) -> bool {
     if state.report.done {
         return false;
     }
-    if !state.closing && (engine.domain.rehearsed() || engine.end.is_some() || state.back) {
+    if !state.closing && (engine.domain.rehearsed() || engine.end.is_some() || state.back || state.undecodable) {
         state.report.restored = engine.domain.rehearsed();
         state.report.end = engine.end.take();
         state.report.elapsed = engine.env.now.saturating_since(began);

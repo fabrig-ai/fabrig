@@ -185,7 +185,9 @@ pub(super) fn answer(engine: &mut crate::Engine) {
                 route::up(&mut engine.store.routes, event, &mut engine.store.routed);
             }
             // This shell prints no per-open progress lines.
-            protocol::Event::Rehearsing { .. }
+            protocol::Event::Decoded { .. }
+            | protocol::Event::Undecodable { .. }
+            | protocol::Event::Rehearsing { .. }
             | protocol::Event::Back { .. }
             | protocol::Event::BackRefused { .. }
             | protocol::Event::Closed { .. } => unreachable!("an engine store never rehearses or goes back"),

@@ -433,7 +433,7 @@ pub mod keys;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
     KeptWire, Load, Older, OpenRefusal, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets,
-    TranscriptRead, Write,
+    TranscriptRead, Undecoded, Write,
 };
 
 #[cfg(test)]

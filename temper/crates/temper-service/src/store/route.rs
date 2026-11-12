@@ -236,7 +236,9 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         }
         store::Event::Switched { .. } => root(into, engine::StoreInput::Switched),
         store::Event::OpenRefused { .. } | store::Event::SecretsNotReady { .. } => stop(routes, into),
-        store::Event::Rehearsing { .. }
+        store::Event::Decoded { .. }
+        | store::Event::Undecodable { .. }
+        | store::Event::Rehearsing { .. }
         | store::Event::Back { .. }
         | store::Event::BackRefused { .. }
         | store::Event::Closed { .. }

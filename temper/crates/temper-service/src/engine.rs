@@ -717,11 +717,16 @@ pub(crate) fn answer(engine: &mut Engine) {
                 engine.store.installation = installation;
             }
             jig_protocol_store::Event::OpenRefused { why, .. } => open_refused(engine, why),
-            event @ (jig_protocol_store::Event::Rehearsing { .. }
+            event @ (jig_protocol_store::Event::Decoded { .. }
+            | jig_protocol_store::Event::Undecodable { .. }
+            | jig_protocol_store::Event::Rehearsing { .. }
             | jig_protocol_store::Event::Back { .. }
             | jig_protocol_store::Event::BackRefused { .. }
             | jig_protocol_store::Event::Closed { .. }) => {
                 let state = engine.upgrade.as_mut().expect("upgrade store event");
+                if let jig_protocol_store::Event::Undecodable { .. } = &event {
+                    state.undecodable = true;
+                }
                 if let jig_protocol_store::Event::Closed { .. } = &event {
                     state.closed = true;
                 }

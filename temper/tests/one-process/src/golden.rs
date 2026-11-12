@@ -513,24 +513,8 @@ pub fn read(directory: &Path) {
     stories::setup_settings(world::Phase::Story);
     PATCHED.with(|lines| lines.borrow_mut().clear());
     let start = temper_playground::stories::A.start(fixtures::SEED, skein_sim::Config::calm().wall);
-    let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
-    let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
-    let sections =
-        document.pointer_mut("/engine/limits/overrides/brief.sections").expect("kept brief section override");
-    *sections = sections.as_u64().expect("brief section count").max(u64::from(BRIEF_SECTIONS)).into();
-    let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
-        panic!("golden world defaults")
-    };
-    for (name, count) in [
-        ("tasks.charters", jig.charters.len()),
-        ("core.templates", jig.templates.len()),
-        ("authority.executors", jig.rules.ceiling.delegation.kinds.len()),
-    ] {
-        let count = u64::try_from(count).expect("configured default count");
-        let bound = document["engine"]["limits"]["overrides"].get_mut(name).expect("kept count override");
-        *bound = bound.as_u64().expect("count override").max(count).into();
-    }
-    let configuration = serde_json::to_vec(&document).expect("startup configuration");
+    let configuration = read_configuration(directory);
+    let document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
     let mut disk = files::load(directory);
     // The terminal keeps its token; ctl additionally reads the engine's address.
     machine::lay_handover(&mut disk, b"client/private/address", format!("http://{}\n", fixtures::CLIENTS).as_bytes());
@@ -588,4 +572,26 @@ pub fn read(directory: &Path) {
     let expected = std::fs::read_to_string(directory.join("patched.txt")).expect("per-patch table");
     PATCHED.with(|lines| assert_eq!(lines.borrow().concat(), expected, "one reviewed line per applied patch"));
     world::lower_store(None);
+}
+
+/// The kept world configuration with current admission bounds for its defaults.
+pub(crate) fn read_configuration(directory: &Path) -> Vec<u8> {
+    let configuration = std::fs::read(directory.join("configuration.json")).expect("kept startup configuration");
+    let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("kept configuration JSON");
+    let sections =
+        document.pointer_mut("/engine/limits/overrides/brief.sections").expect("kept brief section override");
+    *sections = sections.as_u64().expect("brief section count").max(u64::from(BRIEF_SECTIONS)).into();
+    let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
+        panic!("golden world defaults")
+    };
+    for (name, count) in [
+        ("tasks.charters", jig.charters.len()),
+        ("core.templates", jig.templates.len()),
+        ("authority.executors", jig.rules.ceiling.delegation.kinds.len()),
+    ] {
+        let count = u64::try_from(count).expect("configured default count");
+        let bound = document["engine"]["limits"]["overrides"].get_mut(name).expect("kept count override");
+        *bound = bound.as_u64().expect("count override").max(count).into();
+    }
+    serde_json::to_vec(&document).expect("startup configuration")
 }

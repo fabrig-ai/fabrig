@@ -1,6 +1,7 @@
 //! Real owner sets and a mark-only upgrade (temper/docs/design/protocol/baseline.md, 4 and 8).
 pub mod check;
 mod maps;
+pub mod rehearsal;
 pub mod story;
 use crate::{fixtures, referee, world};
 use jig_protocol_store::{KeptMap, Owner, PatchSets, codec, keys};

@@ -504,6 +504,13 @@ pub enum Generations {
     Missing { generation: u64 },
 }
 
+/// The first record refused by a rehearsal's kept text (protocol/store/opening.md, 5).
+#[derive(Debug)]
+pub enum Undecoded {
+    Record { map: crate::KeptMap, key: Box<[u8]> },
+    Frame { transcript: Box<str>, offset: u64 },
+}
+
 /// What the component answers.
 #[derive(Debug)]
 pub enum Event {
@@ -511,6 +518,16 @@ pub enum Event {
         owner: Token,
         wires: Option<Box<[KeptWire]>>,
         fresh: bool,
+    },
+    Decoded {
+        owner: Token,
+        records: u64,
+    },
+    Undecodable {
+        owner: Token,
+        family: Box<str>,
+        version: u32,
+        at: Undecoded,
     },
     Back {
         owner: Token,
