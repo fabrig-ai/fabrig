@@ -38,7 +38,14 @@ fn queue(repository: &[u8], branch: &[u8], count: u32, red: bool) -> w::ChangesQ
     }
     w::ChangesQueue::new(
         &w::CEILINGS,
-        w::ChangesQueueParts { repository: repository.into(), branch: branch.into(), red, changes },
+        w::ChangesQueueParts {
+            way: w::Way::Queue,
+            in_flight: None,
+            repository: repository.into(),
+            branch: branch.into(),
+            red,
+            changes,
+        },
     )
     .unwrap()
 }
@@ -415,4 +422,63 @@ fn a_changes_task_bar_opens_with_its_projects_changes_breadcrumb() {
     assert_eq!(first.name.as_deref(), Some(b"Changes".as_slice()));
     let id = first.id;
     assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/7/changes".as_slice()));
+}
+
+#[test]
+fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
+    let mut busy = queue(b"work/hello", b"main", 1, false).into_parts();
+    busy.way = w::Way::Turn;
+    busy.in_flight = Some(
+        w::TrainLanding::new(
+            &w::CEILINGS,
+            w::TrainLandingParts {
+                task: 61,
+                member: 51,
+                round: 2,
+                step: w::LandingStep::Held,
+                title: b"In flight".as_slice().into(),
+                ready_since: SIX_MIN_AGO,
+            },
+        )
+        .unwrap(),
+    );
+    let mut waiting = busy.changes.get(0).unwrap().clone().into_parts();
+    waiting.title = b"Waiting behind".as_slice().into();
+    waiting.checks_since = None;
+    busy.changes = List::from_boxed(Box::new([w::ChangesQueued::new(&w::CEILINGS, waiting).unwrap()]));
+    let mut free = queue(b"work/hello", b"release", 2, false).into_parts();
+    free.way = w::Way::Turn;
+    for (index, title) in [(0, b"First waiting".as_slice()), (1, b"Second waiting".as_slice())] {
+        let mut row = free.changes.get(index).unwrap().clone().into_parts();
+        row.title = title.into();
+        row.task = 71 + u64::from(index);
+        row.checks_since = None;
+        *free.changes.get_mut(index).unwrap() = w::ChangesQueued::new(&w::CEILINGS, row).unwrap();
+    }
+    let value = panel(
+        &[w::ChangesQueue::new(&w::CEILINGS, busy).unwrap(), w::ChangesQueue::new(&w::CEILINGS, free).unwrap()],
+        0,
+        false,
+        b"main",
+    );
+    let (mut root, watch) = opened();
+    show(&mut root, watch, &value);
+    let text = main_words(&root);
+    for expected in [
+        "Train · work/hello main",
+        "Landing 61 · member 51 · round 2",
+        "held",
+        "Train · work/hello release",
+        "2nd",
+        "1st",
+    ] {
+        assert!(contains(&text, expected), "{expected}");
+    }
+    let mut previous = 0;
+    for expected in ["In flight", "Waiting behind", "First waiting", "Second waiting"] {
+        let position = skein_lib::bytes::find(&text, expected.as_bytes()).unwrap();
+        assert!(position > previous, "{expected}");
+        previous = position;
+    }
+    assert!(!contains(&text, "Checking now"));
 }

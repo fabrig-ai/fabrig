@@ -834,9 +834,32 @@ pub enum ChangeWord {
     HeldCleared,
     HeldUncleared,
     RepairReview,
+    WayQueue,
+    WayTurn,
+    InLanding,
+    Train,
+    TrainFlight,
+    Round,
+    Merge,
+    Squash,
+    Judging,
+    Leaving,
+    Recording,
+    Telling,
+    Cancelled,
+    Proved,
+    PrefixJudgement,
+    RoundHead,
+    LeftConflict,
+    LeftHeadMoved,
+    LeftCancelled,
+    LeftHeld,
+    LeftRefused,
+    LeftFailed,
+    RunnerFaults,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 107] = [
+pub const CHANGES: [ChangeRow; 130] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -944,6 +967,33 @@ pub const CHANGES: [ChangeRow; 107] = [
     (ChangeWord::HeldUncleared, &[b"landed, uncleared"], &[]),
     (ChangeWord::NotRequired, &[b"Not required"], &[]),
     (ChangeWord::RepairReview, &[b"Repairing: a person asked for changes on the forge."], &[]),
+    (ChangeWord::WayQueue, &[b"Way: queue."], &[]),
+    (ChangeWord::WayTurn, &[b"Way: turn."], &[]),
+    (ChangeWord::InLanding, &[b"Landing: task ", b"."], &[Number]),
+    (ChangeWord::Train, &[b"Train \xc2\xb7 ", b" ", b""], &[Name, Name]),
+    (
+        ChangeWord::TrainFlight,
+        &[b"Landing ", b" \xc2\xb7 member ", b" \xc2\xb7 round ", b""],
+        &[Number, Number, Number],
+    ),
+    (ChangeWord::Round, &[b"Round ", b""], &[Number]),
+    (ChangeWord::Merge, &[b"merge"], &[]),
+    (ChangeWord::Squash, &[b"squash"], &[]),
+    (ChangeWord::Judging, &[b"judging"], &[]),
+    (ChangeWord::Leaving, &[b"leaving"], &[]),
+    (ChangeWord::Recording, &[b"recording"], &[]),
+    (ChangeWord::Telling, &[b"telling"], &[]),
+    (ChangeWord::Cancelled, &[b"cancelled"], &[]),
+    (ChangeWord::Proved, &[b"proved"], &[]),
+    (ChangeWord::PrefixJudgement, &[b"Judgement at ", b": ", b""], &[Name, Name]),
+    (ChangeWord::RoundHead, &[b"Round head: ", b""], &[Name]),
+    (ChangeWord::LeftConflict, &[b"Left: conflict"], &[]),
+    (ChangeWord::LeftHeadMoved, &[b"Left: head moved"], &[]),
+    (ChangeWord::LeftCancelled, &[b"Left: cancelled"], &[]),
+    (ChangeWord::LeftHeld, &[b"Left: held"], &[]),
+    (ChangeWord::LeftRefused, &[b"Left: judgement refused by gate ", b""], &[Number]),
+    (ChangeWord::LeftFailed, &[b"Left: gate ", b" failed"], &[Number]),
+    (ChangeWord::RunnerFaults, &[b"Runner faults: ", b""], &[Number]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -966,6 +1016,14 @@ impl ChangeWord {
 #[expect(clippy::too_many_lines, reason = "exhaustive change vocabulary with its name bounds")]
 pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
     match word {
+        ChangeWord::Train => {
+            if index == 0 {
+                2048
+            } else {
+                1024
+            }
+        }
+        ChangeWord::RoundHead | ChangeWord::PrefixJudgement => 64,
         ChangeWord::Repository => {
             if index == 0 {
                 513
@@ -982,7 +1040,27 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::RedLine
         | ChangeWord::ClearedLine
         | ChangeWord::UnclearedLine => 7,
-        ChangeWord::ReadyLine
+        ChangeWord::WayQueue
+        | ChangeWord::WayTurn
+        | ChangeWord::InLanding
+        | ChangeWord::TrainFlight
+        | ChangeWord::Round
+        | ChangeWord::Merge
+        | ChangeWord::Squash
+        | ChangeWord::Judging
+        | ChangeWord::Leaving
+        | ChangeWord::Recording
+        | ChangeWord::Telling
+        | ChangeWord::Cancelled
+        | ChangeWord::Proved
+        | ChangeWord::LeftConflict
+        | ChangeWord::LeftHeadMoved
+        | ChangeWord::LeftCancelled
+        | ChangeWord::LeftHeld
+        | ChangeWord::LeftRefused
+        | ChangeWord::LeftFailed
+        | ChangeWord::RunnerFaults
+        | ChangeWord::ReadyLine
         | ChangeWord::ReadyAloneLine
         | ChangeWord::HeldReady
         | ChangeWord::HeldPreparing

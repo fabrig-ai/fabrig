@@ -386,6 +386,8 @@ fn changes(work: Work) -> w::ChangesPanel {
                 w::ChangesQueue::new(
                     &w::CEILINGS,
                     w::ChangesQueueParts {
+                        way: w::Way::Queue,
+                        in_flight: None,
                         repository: b"work/project".as_slice().into(),
                         branch: b"main".as_slice().into(),
                         red: false,

@@ -286,11 +286,19 @@ fn a_landing_is_read_through_its_watch_while_it_proves_and_after_it_lands() {
             else {
                 panic!("landing document")
             };
+            let train = view.train.as_ref().expect("train identity");
+            assert_eq!((train.repository, train.branch.as_ref()), (REPO, b"main".as_slice()));
+            assert_eq!(view.round.branch, world.landing(LANDING).landing.round.branch);
+            assert_eq!(view.round.pull, world.landing(LANDING).landing.round.pull);
+            assert!(view.round.pull.is_some());
+            assert_eq!(view.round.combined, Some(landing::Combine::Merge));
+            assert_eq!(view.step, top::LandingStep::Proving);
             assert_eq!((view.task, view.phase, view.turn), (LANDING, landing::Phase::Proving, None));
             let member = &view.members[0];
             assert_eq!(member.change, CHANGE);
             assert_eq!(member.candidate, Some(world.landing(LANDING).landing.members[0].candidate.expect("candidate")));
             assert!(member.base.is_some());
+            assert_eq!(member.head, world.landing(LANDING).landing.members[0].head);
             assert!(matches!(member.gates[0].proof, top::GateProof::Dispatched { attempt: 1, .. }));
             assert!(member.gates[0].key.is_some());
             proving = true;
@@ -298,11 +306,41 @@ fn a_landing_is_read_through_its_watch_while_it_proves_and_after_it_lands() {
         }
     }
     assert!(proving, "the watch saw its dispatched gate before completion");
-    landings::drive_landing(&mut world, LANDING);
+    let mut saw_turn = false;
+    let mut finished = false;
+    for position in 0..80 {
+        let entry = 1000 + position * 2;
+        let decision = landings::step_landing(&mut world, LANDING, entry);
+        let top::Document::Landing(view) = world.document(landings::PROJECT, LANDING).expect("step watch") else {
+            panic!("landing document")
+        };
+        if view.step == top::LandingStep::Turn {
+            saw_turn = true;
+        }
+        let judgement = view.members[0].judgement.as_ref().expect("prefix judgement");
+        assert_eq!(Some(judgement.prefix), view.members[0].candidate);
+        assert_eq!(judgement.verdict, change::Status::Passed);
+        temper_engine_forge_world::changes::change_step_task(
+            &mut world,
+            CHANGE,
+            entry + 1,
+            change::Status::Passed,
+            Box::new([]),
+            false,
+            false,
+        );
+        if decision == landing::Decision::Finish {
+            finished = true;
+            break;
+        }
+    }
+    assert!(saw_turn && finished, "the watch saw the turn before the landing ended");
     let top::Document::Landing(view) = world.document(landings::PROJECT, LANDING).expect("ended landing watch") else {
         panic!("landing document")
     };
     assert_eq!(view.phase, landing::Phase::Landed);
+    assert_eq!(view.step, top::LandingStep::Landed);
+    assert_eq!(view.round.combined, Some(landing::Combine::Merge));
     let member = &view.members[0];
     assert_eq!(member.landed, member.candidate);
     assert_eq!(member.landed, Some(translate::commit(world.branch(b"main"))));
@@ -319,6 +357,7 @@ fn a_landing_is_read_through_its_watch_while_it_proves_and_after_it_lands() {
         assert_eq!(view.landings.len(), usize::from(ended));
         if ended {
             assert_eq!(view.landings[0].task, LANDING);
+            assert_eq!(view.landings[0].train.as_ref().expect("train").branch.as_ref(), b"main");
         }
     }
 }

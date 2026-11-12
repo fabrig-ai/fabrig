@@ -660,6 +660,8 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
         landed_more: 0,
         queues: Box::new([
             f::ChangesQueue {
+                way: temper_engine_domain_forge_change::Way::Queue,
+                in_flight: None,
                 repository: b"shop/app".as_slice().into(),
                 branch: b"main".as_slice().into(),
                 red: false,
@@ -679,6 +681,8 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
                 ]),
             },
             f::ChangesQueue {
+                way: temper_engine_domain_forge_change::Way::Queue,
+                in_flight: None,
                 repository: b"shop/app".as_slice().into(),
                 branch: b"stable".as_slice().into(),
                 red: false,
@@ -705,6 +709,7 @@ fn landings() -> Box<temper_engine_domain_forge::Document> {
         project: 7,
         turn: Some(50),
         landings: Box::new([f::LandingLine {
+            train: None,
             task: 50,
             phase: temper_engine_domain_forge_landing::Phase::Waiting,
             changes: Box::new([44, 45]),

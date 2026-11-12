@@ -4878,6 +4878,8 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesQueue::new(
                     &v::CEILINGS,
                     v::ChangesQueueParts {
+                        way: v::Way::Queue,
+                        in_flight: None,
                         repository: b"jeremy/fabrig".as_slice().into(),
                         branch: b"main".as_slice().into(),
                         red: false,

@@ -104,6 +104,7 @@ fn proof() -> w::PublicGateProof {
     w::PublicGateProof::new(
         &w::CEILINGS,
         w::PublicGateProofParts {
+            faults: 0,
             number: u64::MAX,
             kind: w::PublicGateKind::Check,
             blocks: true,
@@ -113,6 +114,14 @@ fn proof() -> w::PublicGateProof {
     .unwrap()
 }
 
+fn judgement(limits: &w::Limits) -> w::PublicJudgement {
+    let mut gates = List::with_capacity(limits.public_judgement_gates);
+    for _ in 0..limits.public_judgement_gates {
+        gates.push(gate()).unwrap();
+    }
+    w::PublicJudgement::new(limits, w::PublicJudgementParts { prefix: [255; 32], verdict: w::PublicCi::Failed, gates })
+        .unwrap()
+}
 fn member(limits: &w::Limits) -> w::PublicMember {
     let mut gates = List::with_capacity(limits.public_member_gates);
     for _ in 0..limits.public_member_gates {
@@ -121,6 +130,11 @@ fn member(limits: &w::Limits) -> w::PublicMember {
     w::PublicMember::new(
         limits,
         w::PublicMemberParts {
+            head: Some([255; 32]),
+            left: Some(w::PublicLeave::Refused(
+                w::PublicGateNumber::new(limits, w::PublicGateNumberParts { gate: u64::MAX }).unwrap(),
+            )),
+            judgement: Some(judgement(limits)),
             task: u16::MAX,
             base: Some([255; 32]),
             candidate: Some([255; 32]),
@@ -139,6 +153,8 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
     w::PublicLanding::new(
         limits,
         w::PublicLandingParts {
+            combined: Some(w::PublicCombined::Squash),
+            step: Some(w::PublicLandingStep::Held),
             phase: w::PublicLandingPhase::Held,
             hold: Some(w::PublicLandingHold::Faults),
             preparation: u32::MAX,
@@ -213,6 +229,7 @@ fn refuse_landings_overages(value: &w::PublicLandings, bytes: &[u8], limits: w::
 fn refuse_landing_overages(value: &w::PublicLanding, bytes: &[u8], limits: w::Limits) {
     for smaller in [
         w::Limits { public_member_gates: limits.public_member_gates.checked_sub(1).unwrap(), ..limits },
+        w::Limits { public_judgement_gates: limits.public_judgement_gates.checked_sub(1).unwrap(), ..limits },
         w::Limits { public_landing_members: limits.public_landing_members.checked_sub(1).unwrap(), ..limits },
     ] {
         assert_eq!(
@@ -254,5 +271,5 @@ fn public_limits_follow_the_panels() {
         (crate::PUBLIC_VERSION, crate::PUBLIC_CHANGE, crate::PUBLIC_LANDINGS, crate::PUBLIC_LANDING),
         (1, 1, 2, 3)
     );
-    assert_eq!(public_bounds(&BOUNDS), [822, 67_405, 1562]);
+    assert_eq!(public_bounds(&BOUNDS), [822, 67_405, 8102]);
 }
