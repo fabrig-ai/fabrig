@@ -1,5 +1,6 @@
 ╭─ temper · Hello ──────────────────────────────────────────── 127.0.0.1:8367 ─╮
-│ 3 changes landed overnight.                                                  │
+│ 3 changes landed in Hello. One thing needs you.                              │
+│ Hello: csv-export is two of three tasks in; one waits on you.                │
 │                                   written by the status agent 07:42 · /brief │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
@@ -11,7 +12,6 @@
    ? Hello   csv-export: comma or semicolon? · asked 20 min ago    n walks them
 
  Start
-   /draft    a design session that ends in a draft and a goal
 ────────────────────────────────────────────────────────────────────────────────
 ❯
 ────────────────────────────────────────────────────────────────────────────────
@@ -25,6 +25,7 @@ away.
 --
 aaabbbbbbaaacccccaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
 a..............................................................................a
+a..............................................................................a
 a...................................dddddddddddddddddddddddddddddddddddddddddd.a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ................................................................................
@@ -36,7 +37,6 @@ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ...e.cccccccc...............................ddddddddddddddddddd....dddddddddddd.
 ................................................................................
 .ccccc..........................................................................
-...ccccccccccdddddddddddddddddddddddddddddddddddddddddddddddd...................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 ee..............................................................................
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

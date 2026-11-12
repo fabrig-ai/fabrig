@@ -1,9 +1,9 @@
-╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:45695 ─╮
-│ Hello is ready.                                                              │
+╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:45085 ─╮
+│ Nothing needs you.                                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
  Where you left off
-   Hello   Add a CSV export to the report, a chat · today 01:31 ·…     /chats 1
+   Hello   Add a CSV export to the report, a chat · today 01:47 ·…     /chats 1
 
  Start
    /draft    a design session that ends in a draft and a goal

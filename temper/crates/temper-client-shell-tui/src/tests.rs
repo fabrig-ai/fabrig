@@ -2426,7 +2426,13 @@ fn the_launchpad_takes_its_own_words() {
         }
         typed(&mut host, b"/change Add a CSV export");
         let duties = give(&mut host, Event::Send);
+        let mut duties = admit(&mut host, duties);
         if !missing_template {
+            if sent_ask(&duties).is_empty() {
+                host.clocks(host.env.now.saturating_add(host.env.limits.client.domain.requests.first), host.env.wall);
+                let more = host.report(Report::Due);
+                duties.asked.extend(admit(&mut host, more).asked);
+            }
             let asks = sent_ask(&duties);
             let [(exchange, _)] = asks.as_slice() else { panic!("one change start: {asks:?}") };
             let answer = w::Final::Refused(
@@ -3009,25 +3015,6 @@ fn waiting_at(chat: bool) -> Host {
         &watches,
         &w::Subject::Inbox(w::SubjectInbox::new(&w::CEILINGS, w::SubjectInboxParts { window }).expect("inbox subject")),
     );
-    let mut inbox = records::owner_inbox_record().into_parts();
-    inbox.party = 7;
-    let duties =
-        delivery(&mut host, inbox_watch, &w::DeliveryValue::Inbox(w::Inbox::new(&w::CEILINGS, inbox).expect("inbox")));
-    let query = read_exchange(&duties, "inbox");
-    if !chat {
-        let updates = read_exchange(&duties, "updates");
-        read_reply(
-            &mut host,
-            updates,
-            &w::ReadValue::Inbox(
-                w::InboxPage::new(
-                    &w::CEILINGS,
-                    w::InboxPageParts { selection: None, cut: false, rows: Box::default(), before: None, after: None },
-                )
-                .expect("empty updates"),
-            ),
-        );
-    }
     let entry = w::InboxEntry::new(
         &w::CEILINGS,
         w::InboxEntryParts {
@@ -3048,12 +3035,29 @@ fn waiting_at(chat: bool) -> Host {
     .expect("entry");
     let mut writer = Writer::new(usize::try_from(entry.measure()).expect("entry size"));
     entry.encode(&mut writer).expect("entry fits");
-    let page = w::InboxPage::new(
-        &w::CEILINGS,
-        w::InboxPageParts { selection: None, cut: false, rows: pieces(&[writer.finish()]), before: None, after: None },
-    )
-    .expect("inbox page");
-    let duties = read_reply(&mut host, query, &w::ReadValue::Inbox(page));
+    let entries = pieces(&[writer.finish()]);
+    let mut inbox = records::owner_inbox_record().into_parts();
+    inbox.party = 7;
+    if !chat {
+        inbox.needs = entries.clone();
+        inbox.cached_needs = 1;
+        inbox.updates = Box::default();
+    }
+    let duties =
+        delivery(&mut host, inbox_watch, &w::DeliveryValue::Inbox(w::Inbox::new(&w::CEILINGS, inbox).expect("inbox")));
+    let duties = admit_watches(&mut host, duties);
+    let duties = if chat {
+        let query = read_exchange(&duties, "inbox");
+        let page = w::InboxPage::new(
+            &w::CEILINGS,
+            w::InboxPageParts { selection: None, cut: false, rows: entries, before: None, after: None },
+        )
+        .expect("inbox page");
+        let duties = read_reply(&mut host, query, &w::ReadValue::Inbox(page));
+        admit_watches(&mut host, duties)
+    } else {
+        duties
+    };
     let query = read_exchange(&duties, "question");
     let mut question = records::read_wire_question().into_parts();
     question.words = w::DocumentText::new(
