@@ -295,8 +295,15 @@ settings (decided 2026-11-03).
       none in a row whose jig level is set: a store from before the
       baseline, or not at it (temper's `draft/upgrades.md`, 4.1);
     - then any owner's store level behind: the patch path (`opening.md`, 2).
-      No jig patch moves a family of jig's own yet, so jig's families'
-      versions and layouts are held to the binary's. The application's
+      Each of jig's families' versions must be its version at the
+      store's jig level: `BASELINE`'s, moved by each block of jig's
+      patches up to that level (jig's patch 1 moves `tasks` 9 to 10 and
+      `settings` 1 to 2, temper's `protocol/baseline.md`, 9); a family
+      no patch up to that level moves keeps `BASELINE`'s. Another
+      version refuses `Format` naming the family, the version found and
+      the version at that level. Jig's patches rewrite each to the
+      binary's in the sealing commit; the layouts are not compared here,
+      the levels and the versions naming them. The application's
       version is not compared: its patches rewrite it to the binary's
       in the sealing commit. The deployment and the header's commits
       are checked as before; both version checks, the row's own and
