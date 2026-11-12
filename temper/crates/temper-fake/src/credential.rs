@@ -20,12 +20,10 @@ pub fn added_key(index: u32) -> u64 {
 pub fn credential(seed: u64, stream: u64) -> [u8; 40] {
     let mut rng = Rng::new(seed ^ stream);
     let mut hex = [0_u8; 40];
-    for pair in hex.chunks_exact_mut(2) {
+    for [high, low] in hex.as_chunks_mut::<2>().0 {
         let byte = u8::try_from(rng.below(256)).expect("byte draw");
-        let high = byte.wrapping_shr(4);
-        let low = byte & 15;
-        *pair.first_mut().expect("two digits") = digit(high);
-        *pair.last_mut().expect("two digits") = digit(low);
+        *high = digit(byte.wrapping_shr(4));
+        *low = digit(byte & 15);
     }
     hex
 }

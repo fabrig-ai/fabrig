@@ -408,7 +408,7 @@ fn disabled_routes_and_wrong_methods_carry_the_policy_and_clear_returns() {
         );
         pump(&mut service, &mut peer);
         ending(&peer, expected, b"");
-        assert!(!header(&peer, "content-security-policy").is_empty());
+        assert_ne!(header(&peer, "content-security-policy").len(), 0);
     }
 }
 #[test]

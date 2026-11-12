@@ -2423,7 +2423,7 @@ fn account_transfer_restart(case: &str) {
                 1,
                 &scratch.path().join("exported-login"),
             );
-            assert!(!moving["accounts"]["party"].as_array().expect("moving account").is_empty());
+            assert_ne!((moving["accounts"]["party"].as_array().expect("moving account")).len(), 0);
         },
         support::forge_land::fake_face(support::sign_in::restart_issued_issuer(&paths[0]), no_model_scripts()),
     );

@@ -590,7 +590,7 @@ fn the_test_service_may_link_the_program_protocol() {
         PathBuf::from("fixture/service/Cargo.toml"),
         "[package]\nname = \"jig-test-service\"\n[dependencies]\nsmith-protocol-program.workspace = true\n",
     );
-    assert!(test_worker_smith_breaches(&[service]).is_empty());
+    assert_eq!(test_worker_smith_breaches(&[service]).len(), 0);
 }
 
 #[test]

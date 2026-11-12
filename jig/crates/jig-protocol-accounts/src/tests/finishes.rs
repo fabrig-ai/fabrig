@@ -13,7 +13,7 @@ fn a_held_address_is_read_only_to_hand_it_to_its_sign_in() {
     let Some(Next::Driver(request)) = finishes.read(exchange, Some(Secret::new(bytes::copy_of(value)))) else {
         panic!("driver request")
     };
-    assert!(request == driver::Request::Redirected { account: 7, uri: Secret::new(bytes::copy_of(value)) });
+    assert_eq!(request, driver::Request::Redirected { account: 7, uri: Secret::new(bytes::copy_of(value)) });
     assert!(!finishes.pending());
     assert!(finishes.read(exchange, None).is_none());
 }

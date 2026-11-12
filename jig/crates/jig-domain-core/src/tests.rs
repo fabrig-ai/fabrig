@@ -2525,7 +2525,7 @@ fn a_watch_whose_task_has_an_oversized_whole_value_is_refused_unknown() {
     );
     assert_eq!(out.len(), 1);
     assert_watch_refusal(&out[0], WatchRefusal::Unknown);
-    assert!((core.watch_flights() == 0));
+    assert_eq!(core.watch_flights(), 0);
     assert!(core.view_names.is_empty());
     assert_eq!(core.views.watchers(), 0);
 }
@@ -2542,7 +2542,7 @@ fn an_unwatch_waits_for_its_delivery_then_ends_as_a_held_output() {
     let Held::WatchEnded { watcher: got, why } = held.as_ref() else { panic!("watch ending") };
     assert_eq!(*got, watcher);
     assert_eq!(*why, views::End::Unwatched);
-    assert!((core.watch_flights() == 0));
+    assert_eq!(core.watch_flights(), 0);
 }
 
 fn assert_watch_refusal(request: &Request, why: WatchRefusal) {
@@ -2727,7 +2727,7 @@ fn taking_a_changed_delivery_after_signin_expiry_ends_instead_of_making_a_docume
     let Request::Held(held) = out.pop().unwrap() else { panic!("held signed-out ending") };
     let Held::WatchEnded { why, .. } = held.as_ref() else { panic!("no document after expiry") };
     assert_eq!(*why, views::End::SignedOut);
-    assert!((core.watch_flights() == 0));
+    assert_eq!(core.watch_flights(), 0);
 }
 
 fn open_run_watch(core: &mut Core, limits: &Limits, number: u64) {

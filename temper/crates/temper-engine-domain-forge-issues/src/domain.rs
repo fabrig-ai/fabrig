@@ -368,10 +368,7 @@ fn valid_history(goal: &GoalView, last: &Projected) -> bool {
             }
         }
     }
-    if goal.finished.is_none() && has(&last.milestones, MilestoneKey::Finished) {
-        return false;
-    }
-    true
+    !(goal.finished.is_none() && has(&last.milestones, MilestoneKey::Finished))
 }
 
 fn body(goal: &GoalView) -> Box<[u8]> {

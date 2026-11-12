@@ -97,7 +97,7 @@ fn adopt(input: Input, calls: bool) -> (Context, Exchange) {
     let codec::Prepared { client, context } = codec::prepare(input, &limits()).expect("positive admission");
     let peer = Exchange::prepared(client, endpoint, Some(credential), limits().client, scripts(calls));
     assert!(peer.queries.is_empty(), "preparation starts no wire request");
-    assert!(peer.requests.is_empty());
+    assert_eq!(peer.requests.len(), 0);
     (context, peer)
 }
 

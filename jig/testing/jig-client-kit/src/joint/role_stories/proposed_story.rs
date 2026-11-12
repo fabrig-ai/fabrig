@@ -26,5 +26,5 @@ fn an_outside_allotment_goal_is_shown_as_proposed_before_send_and_named_in_the_a
         })
         .collect();
     assert_eq!(answers, vec![people::Outcome::Proposed { proposal: 1, to: 0 }]);
-    assert!(world.front().session.driver.world.peers.as_ref().expect("actual worker").workers[0].seen.is_empty());
+    assert_eq!(world.front().session.driver.world.peers.as_ref().expect("actual worker").workers[0].seen.len(), 0);
 }

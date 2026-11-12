@@ -418,9 +418,8 @@ fn every_box_form_carries_record_and_refuses_it_repeated() {
                 words.push("--record");
             }
             let command = configured(&words).expect("box recording switch");
-            let found = match command {
-                Command::Box { record, .. } | Command::BoxFakeBackends { record, .. } => record,
-                _ => panic!("box form"),
+            let (Command::Box { record: found, .. } | Command::BoxFakeBackends { record: found, .. }) = command else {
+                panic!("box form");
             };
             assert_eq!(found, record, "{words:?}");
         }

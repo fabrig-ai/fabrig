@@ -27,6 +27,6 @@ fn a_public_board_is_read_over_http_bytes_through_the_service() {
             .expect("seconds");
         assert!(max_age <= jig_client_protocol_world::fixtures::public_service_limits().clients.public.max_age);
         assert_eq!(hidden.status, 404, "private seed {seed}");
-        assert!(hidden.body.is_empty());
+        assert_eq!(hidden.body.len(), 0);
     }
 }

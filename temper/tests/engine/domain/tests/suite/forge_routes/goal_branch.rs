@@ -421,7 +421,7 @@ fn an_untracked_task_naming_its_own_goal_branch_is_refused() {
     );
     world.until(Until::Ready);
     assert_eq!(world.external(1, raw::Op::Git(raw::Git::Clone)), before, "no branch is made");
-    assert!(world.assigned.is_empty());
+    assert_eq!(world.assigned.len(), 0);
     world.close();
 }
 

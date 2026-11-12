@@ -595,14 +595,13 @@ impl Referee {
                 let engine = host.service.engine().expect("engine");
                 if key {
                     unreachable!("LLM key replacement goes through the client");
-                } else {
-                    engine.put_application(1, 2, skein_lib::Secret::new(b"application-token-2".as_slice().into()));
-                    engine.parties_in().push(core::Event::Account(jig_domain_accounts::Event::Credential {
-                        number: 1,
-                        generation: 2,
-                        valid: skein_lib::Duration::from_secs(60),
-                    }));
                 }
+                engine.put_application(1, 2, skein_lib::Secret::new(b"application-token-2".as_slice().into()));
+                engine.parties_in().push(core::Event::Account(jig_domain_accounts::Event::Credential {
+                    number: 1,
+                    generation: 2,
+                    valid: skein_lib::Duration::from_secs(60),
+                }));
             }
         }
     }

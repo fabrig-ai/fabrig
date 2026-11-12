@@ -230,10 +230,7 @@ fn relative(path: &[u8], bound: u32) -> bool {
             start = index.checked_add(1).expect("bounded path");
         }
     }
-    if path.get(start..) == Some(b"..".as_slice()) || start == path.len() {
-        return false;
-    }
-    true
+    !(path.get(start..) == Some(b"..".as_slice()) || start == path.len())
 }
 fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     let mut size = 0_usize;

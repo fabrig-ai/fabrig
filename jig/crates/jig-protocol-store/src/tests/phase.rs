@@ -1119,7 +1119,7 @@ fn patch_one_alone_rewrites_held_labels_but_keeps_shelves_at_version_one() {
     let events = disk.open(&mut store);
     assert_eq!(patched(&events), [(crate::Owner::Application, 1, crate::Counts { records: 7, commits: 2 })]);
     assert_fixture_opened(&events, 2);
-    assert!(disk.sites.is_empty());
+    assert_eq!(disk.sites.len(), 0);
     fixture_rows(&mut store, 1, 1);
 }
 #[test]
@@ -1565,7 +1565,7 @@ fn a_secret_file_with_group_bits_or_another_link_refuses_private() {
         let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
         let events = disk.open(&mut store);
         assert_check(&events, &store, crate::Check::Private { name });
-        assert!(disk.check_entries.is_empty());
+        assert_eq!(disk.check_entries.len(), 0);
         assert_abandoned_at(disk, before.store_last);
     }
 }

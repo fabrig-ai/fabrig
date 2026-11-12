@@ -84,7 +84,7 @@ impl Measured {
     fn acknowledge_answers(&mut self) {
         for _ in 0..self.domain.kept_answers() {
             let Some(LinkUp::Answer { run, attempt, .. }) = self.domain.answer_at(0) else { panic!("kept answer") };
-            assert!(self.step(Event::Down(LinkDown::Acknowledge { run, attempt })).is_empty());
+            assert_eq!(self.step(Event::Down(LinkDown::Acknowledge { run, attempt })).len(), 0);
         }
     }
 
@@ -299,7 +299,7 @@ fn beyond(host: &mut Measured, limits: &Limits) {
         Token::new(1),
         bytes(limits.event_bytes + 1),
     );
-    assert!(host.step(large).is_empty());
+    assert_eq!(host.step(large).len(), 0);
 }
 
 /// A delivery still in flight as its run ended settles, and the run answers.
@@ -339,9 +339,9 @@ fn paths(limits: Limits) {
     assert_eq!(host.step(unprepared).len(), 1, "answered");
     for owner in owners.iter().skip(1) {
         assert_eq!(host.step(Event::Prepared { owner: *owner, workspace: *owner }), [Asked::Start]);
-        assert!(host.step(Event::Agent(FromAgent::Started { owner: *owner, agent: *owner })).is_empty());
+        assert_eq!(host.step(Event::Agent(FromAgent::Started { owner: *owner, agent: *owner })).len(), 0);
     }
-    assert!(host.step(Event::CancelAll { reason: Reason::Contact }).is_empty());
+    assert_eq!(host.step(Event::CancelAll { reason: Reason::Contact }).len(), 0);
     while host.domain.is_ready() {
         host.resume();
     }
@@ -363,7 +363,7 @@ fn paths(limits: Limits) {
         panic!("admitted");
     };
     assert_eq!(host.step(Event::Prepared { owner, workspace: owner }), [Asked::Start]);
-    assert!(host.step(Event::Agent(FromAgent::Started { owner, agent: owner })).is_empty());
+    assert_eq!(host.step(Event::Agent(FromAgent::Started { owner, agent: owner })).len(), 0);
     assert_eq!(
         host.step(Event::Agent(FromAgent::Faulted { owner, fault: AgentFailure::NoProgress })).len(),
         1,
@@ -407,7 +407,7 @@ fn transcripts_and_delivery_feedback_keep_their_order() {
     assert!(host.meter.held() >= u64::from(limits.slots) * (limits.charter_bytes + limits.transcript_bytes));
     for owner in owners {
         assert_eq!(host.step(Event::Prepared { owner, workspace: owner }), [Asked::Start]);
-        assert!(host.step(Event::Agent(FromAgent::Started { owner, agent: owner })).is_empty());
+        assert_eq!(host.step(Event::Agent(FromAgent::Started { owner, agent: owner })).len(), 0);
         let [Asked::Delivery { owner: call }] = host.step(jig_host_world::fixtures::called(
             owner,
             Token::new(51),
@@ -450,13 +450,14 @@ fn transcripts_and_delivery_feedback_keep_their_order() {
 
 fn fill_refusals(host: &mut Measured, owner: Token, inbox: u32) {
     for name in 0..inbox {
-        assert!(
+        assert_eq!(
             host.step(Event::Agent(FromAgent::Refused {
                 owner,
                 name: Token::new(u64::from(name)),
                 reason: jig_domain_host::MessageRefusal::Full
             }))
-            .is_empty()
+            .len(),
+            0
         );
     }
 }
@@ -534,7 +535,7 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
         panic!("prepare")
     };
     assert_eq!(host.step(Event::Prepared { owner, workspace: owner }), [Asked::Start]);
-    assert!(host.step(Event::Agent(FromAgent::Started { owner, agent: owner })).is_empty());
+    assert_eq!(host.step(Event::Agent(FromAgent::Started { owner, agent: owner })).len(), 0);
     while host.domain.pop_activity().is_some() {}
     let before = host.meter.held();
     for offset in 0..limits.told / 2 {
@@ -545,12 +546,12 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
             offset: u64::from(offset),
             bytes: bytes(u64::from(limits.piece_bytes)),
         };
-        assert!(host.step(Event::Agent(FromAgent::Piece { owner, piece })).is_empty());
+        assert_eq!(host.step(Event::Agent(FromAgent::Piece { owner, piece })).len(), 0);
     }
     let payloads = u64::from(limits.told / 2) * (u64::from(limits.piece_bytes) + 256 + 64);
     assert!(host.meter.held() >= before + payloads, "all maximum input payloads stay owned by the hub");
     for _ in limits.told / 2..limits.told {
-        assert!(host.step(Event::Agent(FromAgent::Activity { owner, activity: AgentActivity::LongDone })).is_empty());
+        assert_eq!(host.step(Event::Agent(FromAgent::Activity { owner, activity: AgentActivity::LongDone })).len(), 0);
     }
     let mut pieces = 0;
     let mut activity = 0;

@@ -169,7 +169,7 @@ fn restore_keeps_pending_settings_without_repeating_party_admission() {
     let mut second = proposal(1);
     second.number += 1;
     let out = h.send(Event::Restore { record: Stored::PersonProposal(Box::new(second.clone())) });
-    assert!(out.is_empty());
+    assert_eq!(out.len(), 0);
     assert_eq!(h.domain.person_proposal(PROPOSER, PROPOSAL), Some(proposal(1)));
     assert_eq!(h.domain.person_proposal(PROPOSER, second.number), Some(second));
     assert!(!h.domain.ready());
@@ -314,8 +314,8 @@ fn restore_retains_pending_settings_proposals_without_repeating_party_admission(
     let mut second = proposal(1);
     second.number += 1;
     let out = h.send(Event::Restore { record: Stored::PersonProposal(Box::new(second)) });
-    assert!(out.is_empty());
+    assert_eq!(out.len(), 0);
     assert_eq!(h.domain.person_proposals().len(), 2);
-    assert!(h.send(Event::Check).is_empty());
+    assert_eq!(h.send(Event::Check).len(), 0);
     assert!(h.domain.checked());
 }

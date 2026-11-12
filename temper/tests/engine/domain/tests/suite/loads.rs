@@ -552,7 +552,7 @@ fn startup_rows_bytes_and_soft_cuts_retain_range_and_failed_step_before_switch()
             Some(root::StartStop::Load(loads::RestoreFailure { range: loads::Kind::Deployment, failure }))
         );
         assert_eq!(driver.root.start_phase(), Some(jig_domain_core::start::Phase::LoadCore));
-        assert!(driver.switches.is_empty());
+        assert_eq!(driver.switches.len(), 0);
         assert!(!driver.transactions.iter().flatten().any(|write| matches!(write, root::Write::Wires)));
         driver.send(root::Event::Store(root::StoreInput::Unloaded { owner }));
         driver.pump();
@@ -654,7 +654,7 @@ fn a_later_forge_load_fit_failure_keeps_its_range_and_connector_step() {
     );
     assert_eq!(driver.root.start_phase(), Some(jig_domain_core::start::Phase::RestoreConnector { connector: 0 }));
     assert!(driver.stopped);
-    assert!(driver.switches.is_empty());
+    assert_eq!(driver.switches.len(), 0);
     assert!(!driver.transactions.iter().flatten().any(|write| matches!(write, root::Write::Wires)));
 }
 

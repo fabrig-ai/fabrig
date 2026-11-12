@@ -30,7 +30,6 @@ fn capture() -> Capture {
     }
 }
 
-#[must_use]
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let captured = capture();
     match run(&captured, version, commit) {

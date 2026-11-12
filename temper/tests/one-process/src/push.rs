@@ -152,7 +152,7 @@ impl skein_world::Referee<Proc> for Judge {
                 String::from_utf8_lossy(&answer.output),
                 String::from_utf8_lossy(&answer.error)
             );
-            assert!(answer.error.is_empty());
+            assert_eq!(answer.error.len(), 0);
         }
         match self.stage {
             Stage::First if caller.answers.len() == 4 && push.received().len() == 1 => {

@@ -432,8 +432,8 @@ pub fn object(digits: &[u8]) -> Option<git::Commit> {
         return None;
     }
     let mut raw = [0; 32];
-    for (pair, byte) in digits.chunks_exact(2).zip(raw.iter_mut()) {
-        *byte = nibble(*pair.first()?)?.checked_mul(16)?.checked_add(nibble(*pair.get(1)?)?)?;
+    for (&[high, low], byte) in digits.as_chunks::<2>().0.iter().zip(raw.iter_mut()) {
+        *byte = nibble(high)?.checked_mul(16)?.checked_add(nibble(low)?)?;
     }
     Some(git::Commit::new(raw))
 }

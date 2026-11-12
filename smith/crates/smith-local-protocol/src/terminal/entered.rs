@@ -44,9 +44,9 @@ pub fn entered(line: Box<[u8]>) -> Entered {
 }
 
 fn value(line: &[u8], prefix: &[u8]) -> Option<Box<[u8]>> {
-    let bytes = match line.strip_prefix(prefix) {
-        Some(bytes) => bytes.trim_ascii(),
-        None => return None,
+    let bytes = {
+        let bytes = line.strip_prefix(prefix)?;
+        bytes.trim_ascii()
     };
     if bytes.is_empty() {
         return None;

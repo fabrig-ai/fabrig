@@ -224,7 +224,7 @@ fn a_red_meets_the_triager_and_prover_then_clears() {
         finding.number
     };
     assert_news(&world, triager.task, None, number, None);
-    assert!(red_findings::news(&world, prover.task).is_empty());
+    assert_eq!(red_findings::news(&world, prover.task).len(), 0);
     until(&mut world, LANDING_TICKS, "change learns the red verdict", |world| {
         matches!(change(world, red).change.state, State::Red { .. })
     });

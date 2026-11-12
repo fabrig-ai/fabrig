@@ -267,7 +267,7 @@ fn the_accounts_watch_reaches_the_root_and_returns_whole_cut_facts() {
             assert_eq!(line.number(), 7);
             assert!(line.cut());
             assert_eq!(line.provider(), &Some(3));
-            assert!(!line.sources().is_empty());
+            assert_ne!(line.sources().len(), 0);
             delivered = true;
         }
     }

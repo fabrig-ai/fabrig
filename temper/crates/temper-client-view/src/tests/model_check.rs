@@ -760,7 +760,7 @@ fn sign_in_again_follows_the_place_and_the_selected_source() {
                 let tree = b.finish();
                 let links: Vec<_> = tree.nodes().iter().filter(|n| n.role == Role::Link).collect();
                 if kind == d::WayKind::Key && !welcome {
-                    assert!(links.is_empty());
+                    assert_eq!(links.len(), 0);
                     continue;
                 }
                 assert_eq!(links.len(), 1);

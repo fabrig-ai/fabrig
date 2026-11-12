@@ -18,7 +18,6 @@ use std::{
 use temper_client_shell_web::journey;
 
 /// Run the journeys binary (temper/docs/design/testing/tools.md, 4.2–4.3).
-#[must_use]
 #[expect(
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-client-journeys' arguments and environment, once (skein/docs/foundation/cli.md, 6)"

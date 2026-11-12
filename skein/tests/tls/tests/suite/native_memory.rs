@@ -468,7 +468,7 @@ fn queued_header_drops_after_withdrawal_without_allocation() {
         assert!(count > 0 && count <= i64::from(client::LARGEST_READ));
 
         assert!(pair.read.is_none(), "box ownership moved out of Fill");
-        assert!(pair.withdraw().is_empty());
+        assert_eq!(pair.withdraw().len(), 0);
 
         let span = Span::start();
         assert!(pair.up(winner).is_empty(), "disposed winner emits no observation");
@@ -490,8 +490,8 @@ fn queued_header_drops_after_finish_without_allocation() {
         assert!(count > 0 && count <= i64::from(client::LARGEST_READ));
 
         assert!(pair.read.is_none(), "box ownership moved out of Fill");
-        assert!(pair.withdraw().is_empty());
-        assert!(pair.finish().is_empty());
+        assert_eq!(pair.withdraw().len(), 0);
+        assert_eq!(pair.finish().len(), 0);
         let span = Span::start();
         assert!(pair.up(winner).is_empty(), "disposed winner emits no observation");
         let step = span.end();
@@ -512,7 +512,7 @@ fn queued_body_drops_after_withdrawal_without_allocation() {
         assert!(count > 0 && count <= i64::from(client::LARGEST_READ));
         assert!(count >= i64::from(client::MAX_PLAINTEXT), "maximum record body pressure: {versions:?}, count={count}");
         assert!(pair.read.is_none(), "box ownership moved out of Fill");
-        assert!(pair.withdraw().is_empty());
+        assert_eq!(pair.withdraw().len(), 0);
 
         let span = Span::start();
         assert!(pair.up(winner).is_empty(), "disposed winner emits no observation");
@@ -534,8 +534,8 @@ fn queued_body_drops_after_finish_without_allocation() {
         assert!(count > 0 && count <= i64::from(client::LARGEST_READ));
         assert!(count >= i64::from(client::MAX_PLAINTEXT), "maximum record body pressure: {versions:?}, count={count}");
         assert!(pair.read.is_none(), "box ownership moved out of Fill");
-        assert!(pair.withdraw().is_empty());
-        assert!(pair.finish().is_empty());
+        assert_eq!(pair.withdraw().len(), 0);
+        assert_eq!(pair.finish().len(), 0);
         let span = Span::start();
         assert!(pair.up(winner).is_empty(), "disposed winner emits no observation");
         let step = span.end();

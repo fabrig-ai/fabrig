@@ -400,7 +400,7 @@ fn without_records_serves_past_a_zero_cap() {
             skein_fake_peers_tests::assert_panic(result, "frozen record count fits");
         } else {
             assert!(result.unwrap().starts_with(b"HTTP/1.1 200"));
-            assert!(world.peer.observations().is_empty());
+            assert_eq!((world.peer.observations()).len(), 0);
             world.settle();
         }
     }
@@ -491,7 +491,7 @@ fn two_setup_hooks_each_receive_the_change_with_their_own_signature() {
             .strip_suffix(b"\r")
             .unwrap();
         let mut signed = [0; 32];
-        for (byte, digits) in signed.iter_mut().zip(signature.chunks_exact(2)) {
+        for (byte, digits) in signed.iter_mut().zip(signature.as_chunks::<2>().0) {
             *byte = u8::from_str_radix(std::str::from_utf8(digits).unwrap(), 16).unwrap();
         }
         let mut hmac = skein_lib::sha256::Hmac::new(secrets[index].as_bytes());
@@ -624,7 +624,7 @@ fn tls_refuses_a_github_peer_and_limits_below_one_record() {
     for mut peer in [github, forgejo] {
         assert_eq!(peer.tls(), Err(Error::Limits));
         assert_eq!(peer.address(), None);
-        assert!(peer.observations().is_empty());
+        assert_eq!((peer.observations()).len(), 0);
     }
 }
 

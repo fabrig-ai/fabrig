@@ -308,7 +308,7 @@ fn a_producer_that_cleans_the_conflict_needs_no_resolution() {
     assert_eq!(row.change.last_head, Some(translate::commit(head)));
     assert_eq!(row.change.state, change::State::Checking { head: translate::commit(head) });
     assert_eq!(row.result.head, Some(translate::commit(head)), "the final push is checked afresh");
-    assert!(world.jobs.is_empty());
+    assert_eq!(world.jobs.len(), 0);
     assert_eq!(world.assigned.len(), 3, "no resolution");
     passed_ci(&mut world, head);
     landed(&mut world, task, head);

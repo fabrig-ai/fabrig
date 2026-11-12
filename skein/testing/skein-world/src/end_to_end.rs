@@ -845,7 +845,7 @@ mod tests {
         assert!(!capture.overflowed);
         capture.push(b"x", Expectation::Supervise);
         assert!(capture.overflowed);
-        assert!(capture.bytes.is_empty());
+        assert_eq!(capture.bytes.len(), 0);
         assert_eq!(capture.bytes.capacity(), 0);
     }
 

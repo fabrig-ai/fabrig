@@ -20,7 +20,7 @@ fn written_out(tag: &[u8], beneath: &Digest, part: &Digest) -> Digest {
 }
 fn digest(hex: &[u8; 64]) -> Digest {
     let mut bytes = [0_u8; 32];
-    for (byte, pair) in bytes.iter_mut().zip(hex.chunks_exact(2)) {
+    for (byte, pair) in bytes.iter_mut().zip(hex.as_chunks::<2>().0) {
         for digit in pair {
             let value = char::from(*digit).to_digit(16).expect("a hex digit");
             *byte = byte

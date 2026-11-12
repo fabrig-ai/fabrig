@@ -73,8 +73,9 @@ fn a_foreman_with_a_task_becomes_retired() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the kept v13 golden pins the closer upgrade")]
 fn a_v13_closer_upgrades_with_no_question_relay() {
-    let before = include_bytes!("../../golden/v13/record_closer_full.bin").to_vec().into_boxed_slice();
+    let before = bytes::copy_of(include_bytes!("../../golden/v13/record_closer_full.bin"));
     let bytes = patched(13, 2, b"Closer", before);
     let row = crate::v14::Closer::decode(&crate::v14::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("upgraded closer");
@@ -85,8 +86,9 @@ fn a_v13_closer_upgrades_with_no_question_relay() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the kept v14 golden pins the closer's question relay")]
 fn a_v14_closer_keeps_its_question_relay_through_r2() {
-    let before = include_bytes!("../../golden/v14/record_closer_full.bin").to_vec().into_boxed_slice();
+    let before = bytes::copy_of(include_bytes!("../../golden/v14/record_closer_full.bin"));
     let bytes = patched(14, 3, b"Closer", before.clone());
     assert_eq!(bytes, before, "R2 only adds declarations and variants");
     let closer =

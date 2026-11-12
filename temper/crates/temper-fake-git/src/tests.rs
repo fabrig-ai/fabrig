@@ -454,7 +454,7 @@ fn hosts_without_an_ip_and_port_fail_before_opening_a_socket() {
         );
         assert_eq!(answer.exit, 128);
         assert_eq!(answer.stderr, stderr);
-        assert!(net.connected.is_empty());
+        assert_eq!(net.connected.len(), 0);
     }
 }
 #[test]

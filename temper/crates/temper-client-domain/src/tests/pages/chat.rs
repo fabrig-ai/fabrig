@@ -2685,7 +2685,7 @@ fn a_decided_card_stays_when_the_document_arrives_after_its_line() {
     proposals(&mut f, &[]);
     making_page(&mut f, 1);
     assert!(reads(&mut f.out).is_empty(), "document and line must not restart the read");
-    assert!(f.chat.departures().is_empty());
+    assert_eq!((f.chat.departures()).len(), 0);
     assert_eq!(f.chat.cards.get(0).unwrap().handle, handle);
 }
 #[test]

@@ -488,11 +488,11 @@ fn the_deadline_takes_the_earlier_domain_or_view_time_from_the_same_clocks() {
 #[test]
 fn the_patch_queue_is_reserved_once_at_start() {
     let mut host = fixture();
-    assert!(!host.patches().is_empty());
+    assert_ne!(host.patches().len(), 0);
     assert!(host.patches.is_empty());
     assert_eq!(host.patches.room(), host.bounds.tree.patches);
     host.went(b"/chats");
-    assert!(!host.patches().is_empty());
+    assert_ne!(host.patches().len(), 0);
     assert!(host.patches.is_empty());
     assert_eq!(host.patches.room(), host.bounds.tree.patches);
 }

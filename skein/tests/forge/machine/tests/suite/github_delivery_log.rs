@@ -76,7 +76,7 @@ fn github_first_log_poll_keeps_newest_without_older_hints() {
         release(&mut world, number);
     }
     poll(&mut world, vec![FIRST.into()]);
-    assert!(hints(&world).is_empty());
+    assert_eq!(hints(&world).len(), 0);
     assert!(world.facts().is_empty());
     // The next poll stops at the newest guid, leaving the older rows unread.
     let id = release(&mut world, 4);
@@ -123,7 +123,7 @@ fn github_log_age_bound_reports_one_gap_and_rereads_installations() {
     requests.extend(INSTALLATIONS.map(String::from));
     poll(&mut world, requests);
     poll(&mut world, vec![FIRST.into()]);
-    assert!(hints(&world).is_empty());
+    assert_eq!(hints(&world).len(), 0);
     assert_eq!(world.facts().len(), 1);
     assert!(matches!(world.facts()[0], Event::Fact { forge: FORGE, fact: Fact::Gap }));
     finish(&mut world);
@@ -176,6 +176,6 @@ fn github_log_401_stops_the_forge_with_key_refused() {
     poll(&mut world, vec![FIRST.into()]);
     world.run_for(LOG_POLL);
     assert_eq!(world.stopped(), Some((FORGE, Stopped::KeyRefused)));
-    assert!(hints(&world).is_empty());
+    assert_eq!(hints(&world).len(), 0);
     finish(&mut world);
 }

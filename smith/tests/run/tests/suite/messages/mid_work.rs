@@ -124,7 +124,7 @@ fn queued_work_is_offered_after_the_calls_results_and_read_by_the_next_told_turn
         tail(&world, 1)
     );
     assert_eq!(fences(&world), [None, Some(Token::new(7)), Some(Token::new(7))]);
-    assert!(world.waiting().is_empty());
+    assert_eq!((world.waiting()).len(), 0);
     assert!(matches!(world.answer(), run::Answer::Accepted { turns: 3, .. }));
     assert_eq!(terminals(&world), [(Token::new(7), "read")]);
 }

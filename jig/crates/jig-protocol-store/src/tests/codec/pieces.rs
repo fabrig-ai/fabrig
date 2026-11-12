@@ -176,7 +176,7 @@ fn wire_round_trip<T>(
 fn task_segments(count: u32) -> Box<[Box<[u8]>]> {
     let mut values = List::with_capacity(count);
     for _ in 0..count {
-        values.push(Box::from([b'a'].as_slice())).expect("segment count");
+        values.push(Box::from(b"a".as_slice())).expect("segment count");
     }
     values.into_boxed()
 }
@@ -222,7 +222,7 @@ fn an_authority_is_one_piece_by_its_bytes() {
 fn a_name_is_one_piece_by_the_hold_bytes() {
     let limits = task_limits();
     // Two segments share the fixture's 16 bytes.
-    let mut value = task::Name { connector: 1, path: Box::new([Box::from([b'a'].as_slice()), Box::new([b'b'; 15])]) };
+    let mut value = task::Name { connector: 1, path: Box::new([Box::from(b"a".as_slice()), Box::new([b'b'; 15])]) };
     let mut writer = fixtures::task_writer();
     writer.resource = value.clone();
     let row = task::Stored::Writer(writer.clone());
@@ -350,7 +350,7 @@ fn a_batch_at_its_bytes_encodes_in_every_shape() {
     let mut values = List::with_capacity(u32::try_from(parameter_count).unwrap());
     for name in 0..parameter_count {
         values
-            .push(task::Parameter::Bytes { name: u32::try_from(name).unwrap(), value: Box::new([b'p']) })
+            .push(task::Parameter::Bytes { name: u32::try_from(name).unwrap(), value: Box::new(*b"p") })
             .expect("parameter count");
     }
     parameters.spec.parameters = values.into_boxed();

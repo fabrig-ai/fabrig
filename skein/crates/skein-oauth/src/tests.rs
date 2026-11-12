@@ -76,10 +76,10 @@ fn refresh_request_is_measured_and_matches_the_wire_contract() {
     let request = request();
     let expected = br#"{"grant_type":"refresh_token","client_id":"client-1","refresh_token":"refresh-old"}"#;
     assert_eq!(encode_request(&request, &limits()).expect("encode"), boxed(expected));
-    assert!(decode_request(&parse(expected), &limits()).expect("decode") == request);
+    assert_eq!(decode_request(&parse(expected), &limits()).expect("decode"), request);
     let escaped = RefreshRequest { client_id: boxed(b"c\"\n"), refresh_token: secret(b"r\\\t") };
     let body = encode_request(&escaped, &limits()).expect("escaping");
-    assert!(decode_request(&parse(&body), &limits()).expect("unescape") == escaped);
+    assert_eq!(decode_request(&parse(&body), &limits()).expect("unescape"), escaped);
     let mut exact = limits();
     exact.document_bytes = u32::try_from(expected.len()).expect("fits");
     assert_eq!(encode_request(&request, &exact).expect("exact cap"), boxed(expected));
@@ -95,27 +95,29 @@ fn server_response_supports_both_rotating_and_stable_refresh_tokens() {
         body.as_ref(),
         br#"{"access_token":"access-new","token_type":"Bearer","refresh_token":"refresh-new","expires_in":30}"#
     );
-    assert!(decode_response(&parse(&body), &limits()).expect("decode") == response);
+    assert_eq!(decode_response(&parse(&body), &limits()).expect("decode"), response);
     let stable = parse(br#"{"access_token":"access-new","expires_in":30,"ignored":[1,true,null]}"#);
     let expected = TokenResponse { refresh_token: None, ..response };
-    assert!(decode_response(&stable, &limits()).expect("optional token_type and refresh_token") == expected);
-    assert!(
-        decode_response(&parse(br#"{"access_token":"a","token_type":"MAC","expires_in":30}"#), &limits())
-            == Err(DecodeError::WrongType)
+    assert_eq!(decode_response(&stable, &limits()).expect("optional token_type and refresh_token"), expected);
+    assert_eq!(
+        decode_response(&parse(br#"{"access_token":"a","token_type":"MAC","expires_in":30}"#), &limits()),
+        Err(DecodeError::WrongType)
     );
-    assert!(
-        decode_response(&parse(br#"{"access_token":"a","expires_in":0}"#), &limits()) == Err(DecodeError::Malformed)
+    assert_eq!(
+        decode_response(&parse(br#"{"access_token":"a","expires_in":0}"#), &limits()),
+        Err(DecodeError::Malformed)
     );
-    assert!(
-        decode_response(&parse(br#"{"access_token":"a","expires_in":-1}"#), &limits()) == Err(DecodeError::WrongType)
+    assert_eq!(
+        decode_response(&parse(br#"{"access_token":"a","expires_in":-1}"#), &limits()),
+        Err(DecodeError::WrongType)
     );
-    assert!(
-        decode_response(&parse(br#"{"access_token":"a","refresh_token":null,"expires_in":1}"#), &limits())
-            == Err(DecodeError::WrongType)
+    assert_eq!(
+        decode_response(&parse(br#"{"access_token":"a","refresh_token":null,"expires_in":1}"#), &limits()),
+        Err(DecodeError::WrongType)
     );
-    assert!(
-        decode_response(&parse(br#"{"access_token":"a","expires_in":1,"expires_in":2}"#), &limits())
-            == Err(DecodeError::Malformed)
+    assert_eq!(
+        decode_response(&parse(br#"{"access_token":"a","expires_in":1,"expires_in":2}"#), &limits()),
+        Err(DecodeError::Malformed)
     );
 }
 
@@ -123,32 +125,32 @@ fn server_response_supports_both_rotating_and_stable_refresh_tokens() {
 fn bounded_decoders_refuse_wrong_grants_tokens_and_larger_preparsed_documents() {
     let mut bounded = limits();
     bounded.client_bytes = 1;
-    assert!(
-        decode_request(&parse(&encode_request(&request(), &limits()).expect("encode")), &bounded)
-            == Err(DecodeError::TooLarge)
+    assert_eq!(
+        decode_request(&parse(&encode_request(&request(), &limits()).expect("encode")), &bounded),
+        Err(DecodeError::TooLarge)
     );
     bounded = limits();
     bounded.token_bytes = 1;
-    assert!(
-        decode_response(&parse(&encode_response(&response(), &limits()).expect("encode")), &bounded)
-            == Err(DecodeError::TooLarge)
+    assert_eq!(
+        decode_response(&parse(&encode_response(&response(), &limits()).expect("encode")), &bounded),
+        Err(DecodeError::TooLarge)
     );
     let value = parse(&encode_request(&request(), &limits()).expect("encode"));
     bounded = limits();
     bounded.document_bytes = 10;
-    assert!(decode_request(&value, &bounded) == Err(DecodeError::TooLarge));
+    assert_eq!(decode_request(&value, &bounded), Err(DecodeError::TooLarge));
     bounded = limits();
     bounded.tokens = 3;
-    assert!(decode_request(&value, &bounded) == Err(DecodeError::TooLarge));
+    assert_eq!(decode_request(&value, &bounded), Err(DecodeError::TooLarge));
     bounded = limits();
     bounded.depth = 0;
-    assert!(decode_request(&value, &bounded) == Err(DecodeError::TooLarge));
+    assert_eq!(decode_request(&value, &bounded), Err(DecodeError::TooLarge));
     bounded = limits();
     bounded.string_bytes = 4;
-    assert!(decode_request(&value, &bounded) == Err(DecodeError::TooLarge));
-    assert!(
-        decode_request(&parse(br#"{"grant_type":"password","client_id":"c","refresh_token":"r"}"#), &limits())
-            == Err(DecodeError::Malformed)
+    assert_eq!(decode_request(&value, &bounded), Err(DecodeError::TooLarge));
+    assert_eq!(
+        decode_request(&parse(br#"{"grant_type":"password","client_id":"c","refresh_token":"r"}"#), &limits()),
+        Err(DecodeError::Malformed)
     );
     assert_eq!(
         encode_response(&TokenResponse { access_token: secret(b"x\r\nheader"), ..response() }, &limits()),
@@ -191,21 +193,21 @@ fn jwt_claims_extract_selected_metadata_once_and_use_injected_wall_time() {
     assert_eq!(claims.metadata.as_ref(), b"acct-7");
     assert_eq!(claims.expires_at, Some(wall(120)));
     assert_eq!(claims.valid, Some(Duration::from_secs(20)));
-    assert!(
-        read_claims(WITH_EXP, &selector(), wall(130), &limits()).expect("expired metadata").valid
-            == Some(Duration::ZERO)
+    assert_eq!(
+        read_claims(WITH_EXP, &selector(), wall(130), &limits()).expect("expired metadata").valid,
+        Some(Duration::ZERO)
     );
     let optional = read_claims(NO_EXP, &selector(), wall(100), &limits()).expect("no expiry claim");
     assert_eq!(optional.expires_at, None);
     assert_eq!(optional.valid, None);
-    assert!(read_claims(BAD_ACCOUNT, &selector(), wall(100), &limits()) == Err(DecodeError::Malformed));
-    assert!(read_claims(DUPLICATE, &selector(), wall(100), &limits()) == Err(DecodeError::Malformed));
+    assert_eq!(read_claims(BAD_ACCOUNT, &selector(), wall(100), &limits()), Err(DecodeError::Malformed));
+    assert_eq!(read_claims(DUPLICATE, &selector(), wall(100), &limits()), Err(DecodeError::Malformed));
     let mut bounded = limits();
     bounded.document_bytes = 40;
-    assert!(read_claims(WITH_EXP, &selector(), wall(100), &bounded) == Err(DecodeError::TooLarge));
+    assert_eq!(read_claims(WITH_EXP, &selector(), wall(100), &bounded), Err(DecodeError::TooLarge));
     bounded = limits();
     bounded.token_bytes = 30;
-    assert!(read_claims(WITH_EXP, &selector(), wall(100), &bounded) == Err(DecodeError::TooLarge));
+    assert_eq!(read_claims(WITH_EXP, &selector(), wall(100), &bounded), Err(DecodeError::TooLarge));
 }
 
 #[test]
@@ -252,7 +254,7 @@ fn saved_token_records_round_trip_with_optional_fields() {
         ],
         |record| {
             let encoded = encode_record(&record, &limits()).expect("encoding");
-            assert!(decode_record(&encoded, &limits()).expect("record") == record);
+            assert_eq!(decode_record(&encoded, &limits()).expect("record"), record);
         },
     );
 }
@@ -270,11 +272,11 @@ fn record_bounds_hold_with_and_without_a_refresh_token() {
         let encoded = encode_record(&record, &limits()).expect("token caps");
         let mut exact = limits();
         exact.record_bytes = u32::try_from(encoded.len()).expect("bounded length");
-        assert!(decode_record(&encoded, &exact).expect("exact record cap") == record);
+        assert_eq!(decode_record(&encoded, &exact).expect("exact record cap"), record);
         assert_eq!(encode_record(&record, &exact).expect("exact record cap"), encoded);
         exact.record_bytes = exact.record_bytes.checked_sub(1).expect("record is nonempty");
         assert_eq!(encode_record(&record, &exact), Err(DecodeError::TooLarge));
-        assert!(decode_record(&encoded, &exact) == Err(DecodeError::TooLarge));
+        assert_eq!(decode_record(&encoded, &exact), Err(DecodeError::TooLarge));
         record.access_token = secret(&[b'a'; 513]);
         assert_eq!(encode_record(&record, &limits()), Err(DecodeError::TooLarge));
     }
@@ -296,7 +298,7 @@ fn a_record_encodes_the_independent_schema_bytes() {
 
 #[test]
 fn a_record_decodes_the_independent_schema_bytes() {
-    assert!(decode_record(RECORD_BYTES, &limits()).expect("decode") == byte_record());
+    assert_eq!(decode_record(RECORD_BYTES, &limits()).expect("decode"), byte_record());
 }
 
 #[test]
@@ -372,29 +374,32 @@ fn jwt_rotation_keeps_claims_and_expiry_but_checked_overflow_never_reuses_a_name
     .expect("claims accompany access");
     assert_eq!(candidate.metadata, Some(boxed(b"acct-7")));
     assert_eq!(candidate.expires_at, wall(120), "JWT expiry and exchange validity both cap grants");
-    assert!(
-        decode_record(&encode_record(&candidate, &limits()).expect("kept"), &limits()).expect("restored") == candidate
+    assert_eq!(
+        decode_record(&encode_record(&candidate, &limits()).expect("kept"), &limits()).expect("restored"),
+        candidate
     );
     let mut full = previous.refresh_state().expect("record has refresh state");
     full.generation = u64::MAX;
-    assert!(rotate(&full, &answer, Some(&selector()), wall(100), &limits()) == Err(DecodeError::TooLarge));
-    assert!(
+    assert_eq!(rotate(&full, &answer, Some(&selector()), wall(100), &limits()), Err(DecodeError::TooLarge));
+    assert_eq!(
         rotate(
             &previous.refresh_state().expect("record has refresh state"),
             &response(),
             None,
             Wall::from_nanos(u64::MAX),
             &limits()
-        ) == Err(DecodeError::TooLarge)
+        ),
+        Err(DecodeError::TooLarge)
     );
-    assert!(
+    assert_eq!(
         rotate(
             &previous.refresh_state().expect("record has refresh state"),
             &TokenResponse { expires_in: u64::MAX, ..response() },
             None,
             wall(100),
             &limits()
-        ) == Err(DecodeError::TooLarge)
+        ),
+        Err(DecodeError::TooLarge)
     );
 }
 
@@ -447,7 +452,7 @@ fn unsupported_record_versions_consistently_produce_the_version_error() {
             ("a_record_of_another_version_is_refused: 1", { let mut input = boxed(RECORD_BYTES); *input.get_mut(1).expect("version low byte") = 1; input }),
             ("a_record_of_another_version_is_refused: 4", { let mut input = boxed(RECORD_BYTES); *input.get_mut(1).expect("version low byte") = 4; input }),
         ],
-        |input| assert!(decode_record(&input, &limits()) == Err(DecodeError::Version)),
+        |input| assert_eq!(decode_record(&input, &limits()), Err(DecodeError::Version)),
     );
 }
 
@@ -499,9 +504,9 @@ fn a_token_response_reads_scope_id_token_and_earliest() {
         earliest_refresh_at: Some(wall(90)),
         ..response()
     };
-    assert!(decode_response(&parse(input), &limits()).expect("response") == expected);
+    assert_eq!(decode_response(&parse(input), &limits()).expect("response"), expected);
     let encoded = encode_response(&expected, &limits()).expect("encoded");
-    assert!(decode_response(&parse(&encoded), &limits()).expect("round trip") == expected);
+    assert_eq!(decode_response(&parse(&encoded), &limits()).expect("round trip"), expected);
 }
 #[test]
 fn an_unreadable_earliest_refresh_time_is_ignored() {

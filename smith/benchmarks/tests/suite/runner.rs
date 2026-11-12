@@ -157,7 +157,7 @@ fn a_recorded_answer_is_observed_before_the_tree_settles() {
     assert_eq!(result.forced, Forced::No);
     assert!(result.answered.is_some_and(|answer| answer >= result.start && answer <= result.end));
     assert_eq!(result.counts.method, Method::Walk);
-    assert!(result.tree.live_pids.is_empty());
+    assert_eq!(result.tree.live_pids.len(), 0);
 }
 
 #[test]
@@ -186,7 +186,7 @@ fn a_prepared_adapter_observes_the_answer_through_the_common_supervisor() {
     let observing = result.observing.expect("prepared observer retained");
     assert_eq!(observing.classify(result.exit, result.forced).end, End::Completed);
     assert!(result.answered.is_some_and(|answer| answer >= result.start && answer <= result.end));
-    assert!(result.tree.live_pids.is_empty());
+    assert_eq!(result.tree.live_pids.len(), 0);
 }
 
 #[test]
@@ -203,10 +203,10 @@ fn an_answer_with_a_lingering_grandchild_keeps_its_forced_teardown() {
             .expect("settled replay tree");
     assert_eq!(classification(&result).end, End::Completed);
     assert_eq!(result.forced, Forced::Killed);
-    assert!(!classification(&result).warnings.is_empty());
+    assert_ne!(classification(&result).warnings.len(), 0);
     assert!(result.tree.live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty()));
-    assert!(result.tree.live_pids.is_empty());
-    assert!(!result.tree.killed_pids.is_empty());
+    assert_eq!(result.tree.live_pids.len(), 0);
+    assert_ne!(result.tree.killed_pids.len(), 0);
 }
 
 #[test]
@@ -231,7 +231,7 @@ fn a_program_without_an_answer_ends_at_the_hard_deadline() {
         result.exit
     );
     assert!(result.answered.is_none());
-    assert!(result.tree.live_pids.is_empty());
+    assert_eq!(result.tree.live_pids.len(), 0);
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn an_overflowing_stderr_retains_its_prefix_and_settles_the_tree() {
     assert_eq!(result.stderr, b"error\n".iter().copied().cycle().take(bounds().stderr).collect::<Vec<u8>>());
     assert_eq!(result.forced, Forced::Killed);
     assert!(result.answered.is_none());
-    assert!(result.tree.live_pids.is_empty());
+    assert_eq!(result.tree.live_pids.len(), 0);
     assert!(
         result.end < result.start.checked_add(bounds().hard).expect("guard fits"),
         "the overflow, not the hard deadline, began the teardown"
@@ -263,7 +263,7 @@ fn an_overflowing_stdout_retains_its_prefix_and_settles_the_tree() {
     assert_eq!(result.stdout, b"output\n".iter().copied().cycle().take(bounds().stdout).collect::<Vec<u8>>());
     assert_eq!(result.forced, Forced::Killed);
     assert!(result.answered.is_none());
-    assert!(result.tree.live_pids.is_empty());
+    assert_eq!(result.tree.live_pids.len(), 0);
     assert!(
         result.end < result.start.checked_add(bounds().hard).expect("guard fits"),
         "the overflow, not the hard deadline, began the teardown"
@@ -281,6 +281,6 @@ fn stderr_at_its_bound_is_complete_and_a_settled_overflow_still_fails() {
         let result = execute(&clock, command, Box::new([]), Capture::Raw, policy).expect("short stderr settles");
         assert_eq!(result.error.as_deref(), error);
         assert_eq!(result.stderr, b"12345678");
-        assert!(result.tree.live_pids.is_empty());
+        assert_eq!(result.tree.live_pids.len(), 0);
     }
 }

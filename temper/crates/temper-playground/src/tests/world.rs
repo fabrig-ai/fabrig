@@ -111,7 +111,7 @@ fn the_world_starts_calm_and_prints_its_sign_in_link() {
 fn keeping_links_leaves_them_for_the_harness() {
     let mut world = story::world(start(Links::Keep));
     idle(&mut world);
-    assert!(world.printed().is_empty());
+    assert_eq!(world.printed().len(), 0);
     let Process::Service(service) = world.process(0) else { panic!("service first") };
     assert!(service.service.links().pop().is_some());
     assert!(service.service.links().is_empty());

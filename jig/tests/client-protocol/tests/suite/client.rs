@@ -103,7 +103,7 @@ fn stop(task: u64) -> Ask {
 }
 fn assert_one_refusal(story: &Story) {
     let answers = story.answered(STOP);
-    let [Outcome::Answered(Answered::Jig(contract::Answer::Refused { refusal: _, .. }))] = answers.as_slice() else {
+    let [Outcome::Answered(Answered::Jig(contract::Answer::Refused { .. }))] = answers.as_slice() else {
         panic!("one refusal: {answers:?}");
     };
     assert_eq!(story.made(fixtures::FIRST_OWNER), 1);

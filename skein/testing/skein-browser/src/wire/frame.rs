@@ -73,7 +73,7 @@ mod tests {
     #[test]
     fn split_and_combined_messages() {
         let mut framer = Framer::new(4);
-        assert!(framer.push(b"ab").expect("valid chunk").is_empty());
+        assert_eq!(framer.push(b"ab").expect("valid chunk").len(), 0);
         let messages = framer.push(b"cd\0x\0").expect("two valid messages");
         assert_eq!(messages.first().expect("first message").as_ref(), b"abcd");
         assert_eq!(messages.get(1).expect("second message").as_ref(), b"x");
@@ -90,7 +90,7 @@ mod tests {
     #[test]
     fn ending_half_a_message() {
         let mut framer = Framer::new(2);
-        assert!(framer.push(b"a").expect("valid chunk").is_empty());
+        assert_eq!(framer.push(b"a").expect("valid chunk").len(), 0);
         assert_eq!(framer.end(), Err(FrameError::EndedMidMessage));
     }
 }

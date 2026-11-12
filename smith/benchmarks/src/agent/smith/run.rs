@@ -10,7 +10,7 @@ pub(in crate::agent) fn home(source: &std::path::Path) -> Result<std::path::Path
 }
 
 pub(in crate::agent) fn takes_arguments(arguments: &[String]) -> bool {
-    arguments.len().is_multiple_of(2) && arguments.chunks_exact(2).all(|pair| pair[0] == "-c")
+    arguments.len().is_multiple_of(2) && arguments.as_chunks::<2>().0.iter().all(|pair| pair[0] == "-c")
 }
 
 pub(in crate::agent) fn source_arm(work: Work<'_>, identity: &Identity) -> Result<(crate::arm::ArmRef, String), Fault> {

@@ -36,7 +36,7 @@ fn old_records_patch_in_order_and_the_root_continues() {
     world.crash(902);
     // The fixture check committed this start's mark after the patch seal.
     assert_eq!(world.open_switched(), Some(last + 1));
-    assert!(world.patched().is_empty());
+    assert_eq!((world.patched()).len(), 0);
     assert_eq!(world.active(), b"2\n");
     assert_eq!(world.commit(Box::new([Write::Save(root::header(last + 2)), Write::Wires])), Some(last + 2));
     world.crash(903);

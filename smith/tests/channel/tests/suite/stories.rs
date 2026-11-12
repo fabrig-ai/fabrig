@@ -349,7 +349,7 @@ fn the_start_keeps_workspace_paths_saved_answers_and_grant_values_below_the_doma
         answered: 1,
         window: 2,
     }));
-    assert!(world.agent_grant_value(3, 4) == Some(initial_grant()));
+    assert_eq!(world.agent_grant_value(3, 4), Some(initial_grant()));
     assert!(world.observations().contains(&Observation::AgentSavedHost {
         activation: 6,
         tool: Box::from(*b"check"),
@@ -661,8 +661,8 @@ fn grants_refreshed_while_a_call_is_in_flight_reach_the_table() {
     world.settle();
     world.host_refreshes_grant(3, 5, refreshed_grant());
     world.settle();
-    assert!(world.agent_grant_value(3, 4) == Some(initial_grant()));
-    assert!(world.agent_grant_value(3, 5) == Some(refreshed_grant()));
+    assert_eq!(world.agent_grant_value(3, 4), Some(initial_grant()));
+    assert_eq!(world.agent_grant_value(3, 5), Some(refreshed_grant()));
     assert!(world.observations().contains(&Observation::AgentGrant {
         account: 3,
         generation: 5,
@@ -671,8 +671,8 @@ fn grants_refreshed_while_a_call_is_in_flight_reach_the_table() {
     world.host_refreshes_grant(3, 6, latest_grant());
     world.settle();
     assert!(world.agent_grant_value(3, 4).is_none());
-    assert!(world.agent_grant_value(3, 5) == Some(refreshed_grant()));
-    assert!(world.agent_grant_value(3, 6) == Some(latest_grant()));
+    assert_eq!(world.agent_grant_value(3, 5), Some(refreshed_grant()));
+    assert_eq!(world.agent_grant_value(3, 6), Some(latest_grant()));
 }
 
 #[test]

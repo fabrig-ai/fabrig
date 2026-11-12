@@ -51,5 +51,5 @@ fn attribute_fixture_reports_inner_and_outer_exceptions() {
         breaches(path, &source),
         ["fixture/source.rs:2: lint exception must use expect", "fixture/source.rs:3: lint exception must use expect",]
     );
-    assert!(breaches(path, "#![expect(dead_code, reason = \"fixture\")]\n").is_empty());
+    assert_eq!(breaches(path, "#![expect(dead_code, reason = \"fixture\")]\n").len(), 0);
 }

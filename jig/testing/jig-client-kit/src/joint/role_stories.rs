@@ -163,7 +163,7 @@ fn an_observer_is_refused_a_request_and_told_why() {
     let mut world = super::world(super::turn());
     crate::stories::shared::a_roles::an_observer_sees_why_creation_is_unavailable(&mut world);
     let engine = &world.front().session.driver.world;
-    assert!(engine.peers.as_ref().expect("actual worker").workers[0].seen.is_empty());
+    assert_eq!(engine.peers.as_ref().expect("actual worker").workers[0].seen.len(), 0);
     assert!(!engine.store.rows.values().any(|row| matches!(
         row,
         jig_test_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(_)))

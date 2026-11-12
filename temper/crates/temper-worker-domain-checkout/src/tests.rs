@@ -148,7 +148,7 @@ impl Harness {
                     assert_eq!(owner, hold, "an operation is the hold's");
                     op = next;
                 }
-                Request::Prepared { client: to, prepared: Prepared::Ready { workspace: _, .. } } => {
+                Request::Prepared { client: to, prepared: Prepared::Ready { .. } } => {
                     assert_eq!(to, Token::new(client), "the client's token is echoed");
                     return hold;
                 }

@@ -103,7 +103,7 @@ fn every_later_request_carries_the_issued_id() {
         let Some(Request::Tokens { record, .. }) = step(&mut client, answered(http.id, 200, &token_body(), 3)) else {
             panic!("tokens")
         };
-        assert!(record.issued_client_id == Some(boxed(b"client-1")));
+        assert_eq!(record.issued_client_id, Some(boxed(b"client-1")));
     }
 }
 

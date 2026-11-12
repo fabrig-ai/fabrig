@@ -44,7 +44,7 @@ fn the_manifest_posts_once_and_history_waits_for_continue() {
     let link = std::str::from_utf8(&link.value).expect("manifest link UTF-8");
     let (page, state) = link.split_once("?state=").expect("manifest state");
     assert!(page.ends_with("/forges/1/github/manifest"));
-    assert!(!state.is_empty());
+    assert_ne!(state, "");
     let origin = page.strip_suffix("forges/1/github/manifest").expect("clients origin");
     let layer = github.github_layer().expect("GitHub layer");
     let manifest = layer.manifest(state.as_bytes()).expect("page posted its manifest with ctl's state");

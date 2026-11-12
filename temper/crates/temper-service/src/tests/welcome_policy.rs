@@ -342,7 +342,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     driver.forge = Some(ForgeStand::with(&[(&owner, &first, 7), (&owner, &second, 8)]).at_forge(2));
     driver.settle();
     let before = policies(&driver);
-    assert!(before.is_empty());
+    assert_eq!(before.len(), 0);
     sign_in_owner(&mut driver);
     driver.send(Event::Forge(Box::new(forge::Event::Connection {
         forge: 2,

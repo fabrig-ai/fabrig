@@ -60,8 +60,8 @@ fn a_second_github_reconcile_writes_nothing() {
     let (needs, requests) = (world.needs().len(), world.github_requests().len());
     reconcile(&mut world, 2);
     done(&world, 2);
-    assert!(writes(&world, needs).is_empty());
-    assert!(mutations(&world, requests).is_empty());
+    assert_eq!(writes(&world, needs).len(), 0);
+    assert_eq!(mutations(&world, requests).len(), 0);
     closed(&mut world);
 }
 
@@ -80,7 +80,7 @@ fn a_young_or_future_stray_stays_until_past_state_life() {
     for id in [young, boundary, future] {
         assert!(world.github_installation_ids().contains(&id));
     }
-    assert!(mutations(&world, 0).is_empty());
+    assert_eq!(mutations(&world, 0).len(), 0);
     world.advance_to(Time::from_nanos(1));
     reconcile(&mut world, 2);
     done(&world, 2);
@@ -130,7 +130,7 @@ fn reconcile_sets_the_hook_to_the_apps_invalid_host() {
     let requests = world.github_requests().len();
     reconcile(&mut world, 2);
     done(&world, 2);
-    assert!(mutations(&world, requests).is_empty());
+    assert_eq!(mutations(&world, requests).len(), 0);
     closed(&mut world);
 }
 
@@ -167,8 +167,8 @@ fn a_failed_second_listing_page_does_not_drop_accepted_or_uninstall() {
             matches!(world.heard().last(), Some(Heard::Stop { failure, .. }) if failure.step == Stage::Installation)
         );
         assert_eq!(accepted(&world), before);
-        assert!(writes(&world, 0).is_empty());
-        assert!(mutations(&world, 0).is_empty());
+        assert_eq!(writes(&world, 0).len(), 0);
+        assert_eq!(mutations(&world, 0).len(), 0);
         assert_eq!(world.github_installation_ids(), [1, 2, 3]);
         closed(&mut world);
     }
@@ -184,8 +184,8 @@ fn a_key_the_fake_refuses_stops_before_any_mutation() {
         matches!(world.heard().last(), Some(Heard::Stop { failure, .. }) if failure.step == Stage::App && failure.subject.as_ref() == b"7" && failure.why == Why::Refused(401))
     );
     assert_eq!(world.github_requests().len(), 1);
-    assert!(writes(&world, 0).is_empty());
-    assert!(mutations(&world, 0).is_empty());
+    assert_eq!(writes(&world, 0).len(), 0);
+    assert_eq!(mutations(&world, 0).len(), 0);
     closed(&mut world);
 }
 
