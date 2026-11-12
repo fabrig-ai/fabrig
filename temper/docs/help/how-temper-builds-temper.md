@@ -21,7 +21,7 @@ You write a design draft and start a goal from it. Designers cut it into parts a
 
 - Coding agents make parts in parallel, each in a slot on a worker. Add a worker or a slot to go faster; each worker keeps its checkouts cached.
 - Every part lands into the goal’s own branch, whose tests run along the way; main’s landings come in by catch-ups, so a goal never drifts far.
-- Questions go up only as far as they must: a foreman first, then the goal’s coordinator, then you.
+- Questions go up only as far as they must: the goal’s agent, then you.
 
 ## 4. Landing many
 
@@ -37,6 +37,6 @@ Parts land into their goals’ branches many an hour; a goal done lands into mai
 | **Branches** | A branch per goal, caught up from main | From straight to main to a branch per goal |
 | **Landing** | Each part into its goal’s branch, many an hour; the goal into main whole | From one change at a time to whole goals |
 | **QA** | Agents walk main after each landing | Later |
-| **Questions** | A foreman, then the goal’s coordinator, then you | From everything to you to only what agents cannot settle |
+| **Questions** | The goal’s agent, then you | From everything to you to only what agents cannot settle |
 
 Each row is a setting, unless it says otherwise. Tell the chat what to keep, and what to change.
