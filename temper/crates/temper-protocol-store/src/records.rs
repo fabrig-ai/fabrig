@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v13 as w};
+use crate::{Bounds, Undecodable, v14 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as d;
@@ -111,30 +111,9 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
     writer.finish()
 }
 
-// Before the additive closer relay member, a closer ended immediately after `done`.
-// Accept only that exact missing optional tail, not a truncated relay payload.
-fn decode_wire(bytes: &[u8], bounds: &Bounds) -> Result<w::Row, Undecodable> {
-    let mut reader = Reader::new(bytes);
-    match w::Row::decode(bounds.limits(), &mut reader) {
-        Ok(row) => Ok(row),
-        Err(problem) => {
-            if problem.path != w::Path::CloserRelay
-                || problem.reason != skein_codec::Reason::Short
-                || reader.remaining() != 0
-            {
-                return Err(Undecodable::Malformed);
-            }
-            let mut writer = Writer::new(bytes.len().checked_add(1).expect("stored row and optional tail fit usize"));
-            writer.put(bytes).expect("row-sized writer");
-            writer.put(&[0]).expect("optional tail room");
-            w::Row::decode(bounds.limits(), &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))
-        }
-    }
-}
-
 /// Decode one supported row with the checked startup bounds.
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
-    let row = decode_wire(bytes, bounds)?;
+    let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable::Malformed))?;
     Ok(match row.into_parts().value {
         w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
