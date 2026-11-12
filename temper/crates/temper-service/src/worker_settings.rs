@@ -85,6 +85,11 @@ pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &Limits) -> ro
         reply_bytes: agent.limits.bodies.host_reply_text,
         bounds: agent.bounds.clone(),
         stop_bound: worker.jig.stop_bound,
+        drain: worker.jig.graces.drain,
+        after_grace: skein_lib::Duration::from_nanos(worker.jig.stop_bound.as_nanos()
+            .saturating_sub(worker.jig.limits.link.ping.as_nanos())
+            .saturating_sub(worker.jig.limits.link.silence.as_nanos())
+            .saturating_sub(worker.jig.graces.grace.as_nanos())),
         watermark: root::WATERMARK,
     }
 }

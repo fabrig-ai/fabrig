@@ -234,11 +234,21 @@ impl Worker {
             sink.push(note.into());
         }
     }
+    /// One process: the engine has drained, so cancel at once, git closed first.
     pub fn stop(&mut self) {
+        self.shutdown(false);
+    }
+    /// A worker alone keeps git open for its runs' terminal saves and pushes.
+    pub fn drain(&mut self) {
+        self.shutdown(true);
+    }
+    fn shutdown(&mut self, drain: bool) {
         if !self.stopping {
             self.stopping = true;
-            self.git_request(temper_worker_protocol_git::Request::Shutdown);
-            self.events.push(root::Event::Shutdown);
+            if !drain {
+                self.git_request(temper_worker_protocol_git::Request::Shutdown);
+            }
+            self.events.push(root::Event::Shutdown { drain });
         }
     }
     /// Whether every agent process the worker spawned has closed, one still
@@ -763,7 +773,17 @@ impl Worker {
             root::Request::CancelRelay { run, attempt, call } => {
                 self.link_down(self.env.now, link::Event::CancelRelay { run, attempt, call });
             }
-            root::Request::Stop => self.link_down(self.env.now, link::Event::Stop),
+            root::Request::Stop => {
+                self.git_request(temper_worker_protocol_git::Request::Shutdown);
+                self.link_down(self.env.now, link::Event::Stop);
+            }
+            root::Request::Abandon => {
+                self.notes.push(crate::worker_alone::Note::StopBoundPassed { abandoned: self.root.abandoned() });
+                self.abort();
+                if let Connection::Socket(remote) = &mut self.connection {
+                    remote.end = Some(crate::worker_alone::End::Aborted);
+                }
+            }
             root::Request::Process(request) => self.process(*request),
             root::Request::Decode { agent, run, start } => {
                 let start = worker_route::decode(run, *start, &self.agent);
@@ -827,19 +847,7 @@ impl Worker {
             smith::Down::Message { .. }
             | smith::Down::Answer { .. }
             | smith::Down::Acknowledge { .. }
-            | smith::Down::Cancel => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
-        };
-        let Some(values) = values else {
-            self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
-            return;
-        };
-        let message = sending(message, &values, &self.agent);
-        let process = self.processes.get_mut(&owner).expect("root owns process");
-        let token = owner;
-        let sent = match message {
-            smith::Down::Start { start, window } => {
-                process.send_start(start, window, values, token, &mut self.process_events, &mut self.io)
-            }
+            | smith::Down::Cancel
             | smith::Down::Drain => Some(host::Values { paths: Box::default(), credentials: Box::default() }),
         };
         let Some(values) = values else {
@@ -873,6 +881,7 @@ impl Worker {
                 process.send_acknowledge(turn, token, &mut self.process_events, &mut self.io)
             }
             smith::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io),
+            smith::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io),
         };
         if sent.is_err() {
             self.events.push(root::Event::Process(Box::new(smith::process::Event::Unsent { owner })));
@@ -1172,7 +1181,8 @@ fn sending(message: smith::Down, values: &host::Values, agent: &Agent) -> smith:
         | smith::Down::Message { .. }
         | smith::Down::Answer { .. }
         | smith::Down::Acknowledge { .. }
-        | smith::Down::Cancel) => other,
+        | smith::Down::Cancel
+        | smith::Down::Drain) => other,
     }
 }
 
@@ -1237,6 +1247,9 @@ impl crate::Service {
         }
     }
 }
+
+#[cfg(test)]
+mod stopping_tests;
 
 #[cfg(test)]
 mod merge_tests {

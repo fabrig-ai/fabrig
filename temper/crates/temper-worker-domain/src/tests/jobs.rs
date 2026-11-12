@@ -301,7 +301,7 @@ fn a_job_retry_during_preparation_keeps_the_first_decoded_spec() {
     let rows = git(&mut h, preparing, false);
     assert!(requested(&rows), "the first, decoded spec starts");
     let owner = owner(&rows);
-    let rows = h.step(Event::Shutdown);
+    let rows = h.step(Event::Shutdown { drain: true });
     assert_eq!(&*rows, [Request::Link(host::LinkUp::Draining)], "shutdown schedules the job's cancellation");
     crate::resume(&mut h.domain, &h.env, &mut h.out);
     let mut stopped = List::with_capacity(h.out.len());

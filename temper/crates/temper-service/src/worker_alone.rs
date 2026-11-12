@@ -78,7 +78,7 @@ impl Service {
             self.worker.abort();
             self.worker.set_end(End::Aborted);
         } else {
-            self.worker.stop();
+            self.worker.drain();
         }
     }
     pub fn notes(&mut self) -> &mut Queue<Note> {

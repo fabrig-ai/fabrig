@@ -114,7 +114,7 @@ fn a_worker_shutting_down_waits_for_the_engine_to_have_its_turns() {
     h.say(parked(1));
     h.gone();
     h.run(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
-    assert!(!h.run(Event::Shutdown).contains(&Request::Stop));
+    assert!(!h.run(Event::Shutdown { drain: true }).contains(&Request::Stop));
     let rows = h.run(Event::Link(host::LinkDown::TurnKept { run: RUN, attempt: ATTEMPT, turn: 1 }));
     assert!(rows.contains(&Request::Stop));
 }

@@ -54,6 +54,10 @@ pub enum Event {
     /// end, which its deadline bounds, so that a push that lands is reported
     /// landed. With nothing under way, nothing happens.
     Abort { hold: Token },
+    /// The attempt's stop bound passed: cancel even a push or save in flight,
+    /// never verify it or start another operation on this hold. Its terminal
+    /// still comes; a push known to have landed is reported landed.
+    Cut { hold: Token },
     /// Give the workspace of `hold` back to the cache, aborting what is under
     /// way first, as `Abort` does. Answered by exactly one `Released`, once
     /// nothing touches the workspace.
