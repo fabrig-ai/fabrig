@@ -2777,19 +2777,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "skein-browser-world"
+name = "skein-browser-rig"
 version = "0.0.0"
 dependencies = [
  "skein-browser",
  "skein-fake-person-browser",
- "skein-heap",
- "skein-http",
  "skein-io",
  "skein-lib",
  "skein-shell",
  "skein-ui",
- "skein-ui-web",
  "skein-world",
+]
+
+[[package]]
+name = "skein-browser-world"
+version = "0.0.0"
+dependencies = [
+ "skein-browser",
+ "skein-browser-rig",
+ "skein-fake-person-browser",
+ "skein-heap",
+ "skein-io",
+ "skein-lib",
+ "skein-ui",
+ "skein-ui-web",
 ]
 
 [[package]]
