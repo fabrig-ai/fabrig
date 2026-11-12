@@ -163,7 +163,8 @@ fn kept_result(d: &mut Domain, failing: p::Failures, number: u64, tip: api::Comm
     row.branch = TierBranch::Absent;
     row.flight = None;
     row.result = Some(Receipt {
-        logs: Box::new([]), passed: false,
+        logs: Box::new([]),
+        passed: false,
         failures: Some(failing),
         run: ReceiptRun { id: RUN, number: 17, url: URL.into() },
         candidate: tip,
@@ -500,7 +501,8 @@ fn a_goal_run_dispatches_even_with_a_receipt_for_its_tip() {
             record: Stored::Receipt {
                 key: ReceiptKey { project: 5, repository: REPO, check: Check::Tier(TIER.into()), key: NEXT_TIP },
                 receipt: Receipt {
-                    logs: Box::new([]), passed: true,
+                    logs: Box::new([]),
+                    passed: true,
                     failures: Some(failures(&[])),
                     candidate: NEXT_TIP,
                     ended: env().wall,

@@ -2011,7 +2011,10 @@ pub fn is_root_read(owner: Token) -> bool {
 
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "bounded landing failure snapshots remain in the existing durable save request")]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "bounded landing failure snapshots remain in the existing durable save request"
+)]
 pub enum Request {
     Decided {
         to: skein_lib::ReplyTo,
@@ -2067,7 +2070,10 @@ pub enum Request {
     BoxRemove {
         forge: u16,
     },
-    LandingNews { task: u64, step: LandingNews },
+    LandingNews {
+        task: u64,
+        step: LandingNews,
+    },
     LandingDecision {
         task: u64,
         decision: landing::Decision,
@@ -2517,4 +2523,10 @@ pub struct LoggedChange {
 
 /// The five landing transitions reported to its member's goal (domain/landing.md, 4.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum LandingNews { Joined, Proving, Landed, Left, Held }
+pub enum LandingNews {
+    Joined,
+    Proving,
+    Landed,
+    Left,
+    Held,
+}

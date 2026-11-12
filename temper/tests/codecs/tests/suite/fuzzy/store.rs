@@ -351,7 +351,8 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
             key: [9; 32],
         },
         receipt: forge::Receipt {
-            logs: Box::new([]), failures: if rng.below(2) == 0 { None } else { Some(failures) },
+            logs: Box::new([]),
+            failures: if rng.below(2) == 0 { None } else { Some(failures) },
             passed: false,
             run: forge::ReceiptRun { id: rng.next_u64(), number: rng.next_u64(), url: Box::new([]) },
             candidate: [10; 32],

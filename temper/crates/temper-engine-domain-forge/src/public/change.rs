@@ -115,7 +115,9 @@ impl Domain {
             c::State::Recreating { .. } => w::PublicStep::Recreating,
             c::State::Reopening { .. } => w::PublicStep::Reopening,
             c::State::Checking { .. } => w::PublicStep::Checking,
-            c::State::Judging { .. } | c::State::Gating { .. } | c::State::CancellingGates { .. } => w::PublicStep::Gating,
+            c::State::Judging { .. } | c::State::Gating { .. } | c::State::CancellingGates { .. } => {
+                w::PublicStep::Gating
+            }
             c::State::Queued { .. } => w::PublicStep::Queued,
             c::State::First { .. } => w::PublicStep::First,
             c::State::Ready { .. } => w::PublicStep::Ready,

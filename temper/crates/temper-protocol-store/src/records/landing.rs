@@ -42,7 +42,10 @@ fn encode_phase(phase: &d::Phase) -> w::LandingPhase {
                     .expect(FITS),
             ),
         ),
-        d::Phase::Held { was, why: d::Hold::Prepare | d::Hold::Record { .. } | d::Hold::Timeout { .. } | d::Hold::Turn } => (encode_place(was), None),
+        d::Phase::Held {
+            was,
+            why: d::Hold::Prepare | d::Hold::Record { .. } | d::Hold::Timeout { .. } | d::Hold::Turn,
+        } => (encode_place(was), None),
         d::Phase::Waiting
         | d::Phase::Preparing
         | d::Phase::Proving
@@ -136,7 +139,10 @@ fn encode_member(member: &d::Member) -> w::LandingMember {
             gates,
             asked: member.asked,
             landed: member.landed,
-            left: match member.left { Some(why) => Some(encode_leave(why)), None => None },
+            left: match member.left {
+                Some(why) => Some(encode_leave(why)),
+                None => None,
+            },
         },
     )
     .expect(FITS)
@@ -159,7 +165,10 @@ fn decode_member(member: w::LandingMember) -> d::Member {
         gates: proofs.into_boxed(),
         asked,
         landed,
-        left: match left { Some(why) => Some(decode_leave(why)), None => None },
+        left: match left {
+            Some(why) => Some(decode_leave(why)),
+            None => None,
+        },
     }
 }
 fn encode_operation(op: top::Operation) -> w::LandingOperation {
@@ -247,7 +256,8 @@ fn encode_round(round: &d::Round) -> w::LandingRound {
     .expect(FITS)
 }
 fn decode_round(round: w::LandingRound) -> d::Round {
-    let w::LandingRoundParts { branch, pull, upstream, combined, recorded, told, ending, failure, judging } = round.into_parts();
+    let w::LandingRoundParts { branch, pull, upstream, combined, recorded, told, ending, failure, judging } =
+        round.into_parts();
     d::Round {
         branch,
         pull,
@@ -290,7 +300,9 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
                 d::Phase::Held { why: d::Hold::Record { member }, .. } => Some(w::LandingOwnHold::Record(
                     w::LandingRecordHold::new(&w::CEILINGS, w::LandingRecordHoldParts { member }).expect(FITS),
                 )),
-                d::Phase::Held { why: d::Hold::Timeout { member, gate, run }, .. } => Some(w::LandingOwnHold::Timeout(w::LandingTimeout::new(&w::CEILINGS, w::LandingTimeoutParts { member, gate, run }).expect(FITS))),
+                d::Phase::Held { why: d::Hold::Timeout { member, gate, run }, .. } => Some(w::LandingOwnHold::Timeout(
+                    w::LandingTimeout::new(&w::CEILINGS, w::LandingTimeoutParts { member, gate, run }).expect(FITS),
+                )),
                 d::Phase::Held { why: d::Hold::Turn, .. } => Some(w::LandingOwnHold::Turn),
                 d::Phase::Held { why: d::Hold::Faults { .. }, .. }
                 | d::Phase::Waiting
@@ -368,8 +380,13 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
             task,
             project,
             phase: match own_hold {
-                Some(w::LandingOwnHold::Turn) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Turn },
-                Some(w::LandingOwnHold::Timeout(value)) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Timeout { member: value.member(), gate: value.gate(), run: value.run() } },
+                Some(w::LandingOwnHold::Turn) => {
+                    d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Turn }
+                }
+                Some(w::LandingOwnHold::Timeout(value)) => d::Phase::Held {
+                    was: Box::new(decode_phase(phase)),
+                    why: d::Hold::Timeout { member: value.member(), gate: value.gate(), run: value.run() },
+                },
                 Some(w::LandingOwnHold::Prepare) => {
                     d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Prepare }
                 }
@@ -447,7 +464,8 @@ pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, 
     let w::ReceiptParts { failures, passed, run, candidate, ended, logs } = receipt.into_parts();
     let w::ReceiptRunParts { id, number, url } = run.into_parts();
     Ok(top::Receipt {
-        logs, failures: match failures {
+        logs,
+        failures: match failures {
             Some(f) => Some(super::verification::decode_failures(f)?),
             None => None,
         },
@@ -461,11 +479,17 @@ pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, 
 fn encode_leave(why: d::Leave) -> w::LandingLeave {
     match why {
         d::Leave::Conflict => w::LandingLeave::Conflict,
-        d::Leave::HeadMoved { head } => w::LandingLeave::HeadMoved(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: head }).expect(FITS)),
+        d::Leave::HeadMoved { head } => {
+            w::LandingLeave::HeadMoved(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: head }).expect(FITS))
+        }
         d::Leave::Cancelled => w::LandingLeave::Cancelled,
         d::Leave::Held => w::LandingLeave::Held,
-        d::Leave::Refused { gate } => w::LandingLeave::Refused(w::LandingGateRefused::new(&w::CEILINGS, w::LandingGateRefusedParts { gate }).expect(FITS)),
-        d::Leave::Failed { gate, run } => w::LandingLeave::Failed(w::LandingGateFailed::new(&w::CEILINGS, w::LandingGateFailedParts { gate, run }).expect(FITS)),
+        d::Leave::Refused { gate } => w::LandingLeave::Refused(
+            w::LandingGateRefused::new(&w::CEILINGS, w::LandingGateRefusedParts { gate }).expect(FITS),
+        ),
+        d::Leave::Failed { gate, run } => w::LandingLeave::Failed(
+            w::LandingGateFailed::new(&w::CEILINGS, w::LandingGateFailedParts { gate, run }).expect(FITS),
+        ),
     }
 }
 fn decode_leave(why: w::LandingLeave) -> d::Leave {

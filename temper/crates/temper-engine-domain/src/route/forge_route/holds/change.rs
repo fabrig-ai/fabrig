@@ -93,7 +93,10 @@ fn waiting(words: &mut List<u8>, state: &change::State, row: &forge::ChangeRow) 
             append(words, b"its gates at ");
             head(words, Some(at));
         }
-        change::State::Judging { target, .. } => { append(words, b"its gates at "); head(words, Some(&target.prefix)); }
+        change::State::Judging { target, .. } => {
+            append(words, b"its gates at ");
+            head(words, Some(&target.prefix));
+        }
         change::State::First { head: at, .. } => {
             append(words, b"the forge to settle whether ");
             head(words, Some(at));

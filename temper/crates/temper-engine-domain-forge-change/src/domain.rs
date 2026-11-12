@@ -1199,7 +1199,9 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
     change.repairs = change.repairs.checked_add(1).expect("repair count below limit");
     match why {
         Repair::Semantic => {}
-        Repair::Ci | Repair::Gate(_) | Repair::LandingAt { .. } | Repair::Landing { .. } | Repair::Review { .. } => change.clean = Box::new([]),
+        Repair::Ci | Repair::Gate(_) | Repair::LandingAt { .. } | Repair::Landing { .. } | Repair::Review { .. } => {
+            change.clean = Box::new([])
+        }
     }
     change.state = State::Repairing { requested: true, why };
     change.since = now;
@@ -1458,12 +1460,28 @@ pub fn review_failed(change: &Change, number: u64, head: [u8; 32], now: Wall, li
     let (current, asked) = match &change.state {
         State::Gating { head, asked } => (*head, asked),
         State::Judging { target, asked, .. } => (target.prefix, asked),
-        State::Producing { .. } | State::Opening { .. } | State::Recreating { .. } | State::Reopening { .. }
-        | State::Checking { .. } | State::Ready { .. } | State::Preparing { .. } | State::CancellingGates { .. }
-        | State::Queued { .. } | State::First { .. } | State::Updating { .. } | State::WaitingProducer { .. }
-        | State::Resolving { .. } | State::Repairing { .. } | State::Landing { .. } | State::Landed { .. }
-        | State::NoChange { .. } | State::Ended | State::Held { .. } | State::Red { .. }
-        | State::Cleared { .. } | State::Uncleared { .. } => return next,
+        State::Producing { .. }
+        | State::Opening { .. }
+        | State::Recreating { .. }
+        | State::Reopening { .. }
+        | State::Checking { .. }
+        | State::Ready { .. }
+        | State::Preparing { .. }
+        | State::CancellingGates { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+        | State::Updating { .. }
+        | State::WaitingProducer { .. }
+        | State::Resolving { .. }
+        | State::Repairing { .. }
+        | State::Landing { .. }
+        | State::Landed { .. }
+        | State::NoChange { .. }
+        | State::Ended
+        | State::Held { .. }
+        | State::Red { .. }
+        | State::Cleared { .. }
+        | State::Uncleared { .. } => return next,
     };
     if current != head || !asked.contains(&number) {
         return next;
@@ -1487,8 +1505,15 @@ pub fn review_failed(change: &Change, number: u64, head: [u8; 32], now: Wall, li
         }
     }
     if let State::Judging { head, ready_since, target, .. } = &change.state {
-        next.state = State::Judging { head: *head, ready_since: *ready_since, target: target.clone(), asked: remaining.into_boxed() };
-    } else { next.state = State::Gating { head, asked: remaining.into_boxed() }; }
+        next.state = State::Judging {
+            head: *head,
+            ready_since: *ready_since,
+            target: target.clone(),
+            asked: remaining.into_boxed(),
+        };
+    } else {
+        next.state = State::Gating { head, asked: remaining.into_boxed() };
+    }
     next.since = now;
     next
 }
@@ -1615,7 +1640,9 @@ fn ready(
             }
             prepare_due(change, head, main, ready_since, now, limits)
         }
-        Some(Ask::Repair { gate, candidate }) => repair_due(change, Repair::LandingAt { gate, candidate }, facts, now, limits),
+        Some(Ask::Repair { gate, candidate }) => {
+            repair_due(change, Repair::LandingAt { gate, candidate }, facts, now, limits)
+        }
         Some(Ask::Resolve { base }) => conflict_due(change, base, Some(head), facts, standing, now, limits),
         Some(Ask::Landed { .. }) => unreachable!("landed ask returned before the phase"),
     }
@@ -1705,10 +1732,17 @@ fn prepared(
 
 /// A clean review given at the member's head carries to its conflict-free prefix.
 #[must_use]
-pub fn prefix_verdict(change: &Change, gate: Gate, reports: &[crate::GateReport], head: [u8; 32], prefix: [u8; 32]) -> Status {
+pub fn prefix_verdict(
+    change: &Change,
+    gate: Gate,
+    reports: &[crate::GateReport],
+    head: [u8; 32],
+    prefix: [u8; 32],
+) -> Status {
     let mut result = Status::Unknown;
     for report in reports {
-        let clean = gate.kind != GateKind::Check && gate.freshness == Freshness::Clean
+        let clean = gate.kind != GateKind::Check
+            && gate.freshness == Freshness::Clean
             && (report.head == head || change.clean.contains(&report.head));
         if report.number == gate.number && (report.head == prefix || clean) {
             match report.status {
@@ -1725,7 +1759,11 @@ pub fn prefix_verdict(change: &Change, gate: Gate, reports: &[crate::GateReport]
 fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     let State::Judging { head, ready_since, target, asked } = change.state.clone() else { unreachable!("judging") };
     if facts.branch != Some(head) {
-        if change.last_head == facts.branch && let Some(head) = facts.branch { return take_pushed_head(change, head, now); }
+        if change.last_head == facts.branch
+            && let Some(head) = facts.branch
+        {
+            return take_pushed_head(change, head, now);
+        }
         return hold(change, Hold::BranchMoved);
     }
     if let Some(Ask::Repair { gate, candidate }) = facts.ask {
@@ -1739,26 +1777,38 @@ fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Ste
         return Stepped { change, decision: Decision::Wait { until: None } };
     }
     for failure in &change.gate_failures {
-        if failure.count >= 2 { return hold(change.clone(), Hold::Failed); }
+        if failure.count >= 2 {
+            return hold(change.clone(), Hold::Failed);
+        }
     }
     let mut waiting_gate = false;
     for gate in &change.gates.clone() {
-        if !gate.blocking { continue; }
+        if !gate.blocking {
+            continue;
+        }
         match prefix_verdict(&change, *gate, &facts.gates, head, target.prefix) {
             Status::Failed => return repair_due(change, Repair::Gate(gate.number), facts, now, limits),
             Status::Passed => {}
             Status::Unknown if !asked.contains(&gate.number) && facts.live_gate.is_none() => {
                 let mut collected = List::with_capacity(limits.gates);
-                for number in &asked { collected.push(*number).expect("bounded gates"); }
+                for number in &asked {
+                    collected.push(*number).expect("bounded gates");
+                }
                 collected.push(gate.number).expect("bounded gates");
-                change.state = State::Judging { head, ready_since, target: target.clone(), asked: collected.into_boxed() };
+                change.state =
+                    State::Judging { head, ready_since, target: target.clone(), asked: collected.into_boxed() };
                 change.since = now;
-                return Stepped { change, decision: Decision::Delegate(Delegate::Gate { number: gate.number, head: target.prefix }) };
+                return Stepped {
+                    change,
+                    decision: Decision::Delegate(Delegate::Gate { number: gate.number, head: target.prefix }),
+                };
             }
             Status::Unknown | Status::Pending => waiting_gate = true,
         }
     }
-    if waiting_gate { return waiting(change, now, limits); }
+    if waiting_gate {
+        return waiting(change, now, limits);
+    }
     change.state = State::Ready { head, ready_since };
     Stepped { change, decision: Decision::Wait { until: None } }
 }

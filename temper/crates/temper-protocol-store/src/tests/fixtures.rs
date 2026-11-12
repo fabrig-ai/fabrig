@@ -1061,7 +1061,8 @@ pub fn tier_row() -> top::TierRow {
         flight: Some(tier_flight()),
         held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
         result: Some(top::Receipt {
-            logs: Box::new([]), passed: false,
+            logs: Box::new([]),
+            passed: false,
             failures: Some(failures.clone()),
             candidate: [4; 32],
             ended: skein_lib::Wall::EPOCH,

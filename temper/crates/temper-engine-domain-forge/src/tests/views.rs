@@ -15,7 +15,7 @@ fn row(task: u64, phase: policy::Phase) -> LandingRow {
             stale_proofs: 2,
             branch: Box::from(b"main".as_slice()),
             members: Box::new([policy::Member {
-left: None,
+                left: None,
                 change: fixtures::CHANGE,
                 repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
                 pull: 1,
@@ -133,7 +133,8 @@ fn a_gate_whose_key_another_landing_dispatched_is_waiting() {
     d.landing.faults.insert((61, 0, 0), flight).unwrap();
     assert_eq!(view(&d, 61).members[0].gates[0].proof, GateProof::Dispatched { attempt: 2, run: Some(7) });
     let receipt = Receipt {
-        logs: Box::new([]), failures: None,
+        logs: Box::new([]),
+        failures: None,
         passed: true,
         candidate: fixtures::HEAD,
         ended: env().wall,

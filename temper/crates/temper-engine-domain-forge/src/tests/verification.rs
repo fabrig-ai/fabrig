@@ -416,7 +416,8 @@ fn green(d: &mut Domain, number: u64, commits: &[skein_forge::api::Commit]) -> Q
     let row = d.tiers.get_mut(&(REPO, Box::from(TIER))).expect("tier");
     row.task = Some(TIER_TASK);
     row.result = Some(Receipt {
-        logs: Box::new([]), failures: None,
+        logs: Box::new([]),
+        failures: None,
         passed: true,
         run: ReceiptRun { id: number, number, url: Box::new([]) },
         candidate: run.tip,

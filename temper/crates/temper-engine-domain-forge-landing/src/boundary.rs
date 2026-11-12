@@ -223,7 +223,7 @@ pub struct GateFacts {
 
 /// Fresh facts for one member, in the landing's member order.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "independent member observations") ]
+#[expect(clippy::struct_excessive_bools, reason = "independent member observations")]
 pub struct MemberFacts {
     pub ready: bool,
     pub cancelled: bool,

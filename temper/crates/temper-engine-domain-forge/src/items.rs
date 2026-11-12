@@ -210,7 +210,9 @@ impl Domain {
                 change::Delegate::Gate { .. } => {
                     let branch = if let change::State::Judging { target, .. } = &row.change.state {
                         target.branch.clone()
-                    } else { row.branch.clone() };
+                    } else {
+                        row.branch.clone()
+                    };
                     (Start::Branch(branch), None, None, None, false)
                 }
             },

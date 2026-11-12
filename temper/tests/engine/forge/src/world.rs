@@ -217,11 +217,17 @@ impl World {
         let (project, way, gates) = self.landing_config.clone().expect("landing configured");
         assert!(self.project_landing(project, way, gates));
     }
-    pub fn runner_setup_faults(&mut self, faults: u32) { self.forge_env.limits.setup_faults = faults; }
+    pub fn runner_setup_faults(&mut self, faults: u32) {
+        self.forge_env.limits.setup_faults = faults;
+    }
     #[must_use]
-    pub fn first_waiting_change(&self) -> Option<u64> { self.top.first_waiting(REPO, b"main", &[], self.env.wall) }
+    pub fn first_waiting_change(&self) -> Option<u64> {
+        self.top.first_waiting(REPO, b"main", &[], self.env.wall)
+    }
     #[must_use]
-    pub fn landing_leave_words(&self, task: u64) -> Option<Box<[u8]>> { self.top.landing_leave_words(task, 0) }
+    pub fn landing_leave_words(&self, task: u64) -> Option<Box<[u8]>> {
+        self.top.landing_leave_words(task, 0)
+    }
     #[must_use]
     pub fn change(&self, task: u64) -> &top::ChangeRow {
         self.top.change(task).expect("fixture change")
@@ -270,16 +276,29 @@ impl World {
     }
 
     #[must_use]
-    pub fn workspace_item(&self, seed: top::items::Seed) -> Option<top::items::Item> { self.top.workspace_item(seed) }
+    pub fn workspace_item(&self, seed: top::items::Seed) -> Option<top::items::Item> {
+        self.top.workspace_item(seed)
+    }
     pub fn pull_brief(&mut self, task: u64, head: skein_forge::api::Commit) -> Box<[u8]> {
         let row = self.top.change(task).expect("change");
         let section = Token::new(901);
         let (number, _, _, _) = row.review_target().expect("review target");
-        self.event(top::Event::PlanBrief { section, partner: None, source: top::BriefSource::Pull {
-            item: top::BriefItem { repository: row.repository.repository, number }, head: top::BriefCommit(head),
-        } });
-        self.event(top::Event::GatherPlanned { task, section, parts: 2, bytes: 2048, ci_budget: 2048,
-            deadline: self.env.now.saturating_add(Duration::from_secs(30)), });
+        self.event(top::Event::PlanBrief {
+            section,
+            partner: None,
+            source: top::BriefSource::Pull {
+                item: top::BriefItem { repository: row.repository.repository, number },
+                head: top::BriefCommit(head),
+            },
+        });
+        self.event(top::Event::GatherPlanned {
+            task,
+            section,
+            parts: 2,
+            bytes: 2048,
+            ci_budget: 2048,
+            deadline: self.env.now.saturating_add(Duration::from_secs(30)),
+        });
         self.run_for(1);
         self.top.take_brief(section).expect("gathered pull brief")
     }

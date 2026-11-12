@@ -125,7 +125,7 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
         }
     }
     Some(landing::Member {
-left: None,
+        left: None,
         change: task,
         repository: landing::Repository { forge: row.repository.forge, repository: row.repository.repository },
         // A producing member has no pull yet; the top fills it before reading.
@@ -256,7 +256,10 @@ pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context
     let mut held = List::with_capacity(env.limits.forge.landing_members);
     for member in &row.landing.members {
         if let Some(task) = domain.core.tasks.task(member.change)
-            && let tasks::Phase::Held { .. } = task.phase { held.push(member.change).expect("bounded members"); }
+            && let tasks::Phase::Held { .. } = task.phase
+        {
+            held.push(member.change).expect("bounded members");
+        }
     }
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
     domain.forge.offered_landing(task);
@@ -421,9 +424,12 @@ fn landing_result_words(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u
         }
         append(&mut words, b" ");
         let Some(commit) = member.landed else {
-            append(&mut words, b"change "); append(&mut words, skein_lib::Decimal::of(member.change).as_bytes());
+            append(&mut words, b"change ");
+            append(&mut words, skein_lib::Decimal::of(member.change).as_bytes());
             append(&mut words, b" left: ");
-            if let Some(why) = domain.forge.landing_leave_words(task, 0) { append(&mut words, &why); }
+            if let Some(why) = domain.forge.landing_leave_words(task, 0) {
+                append(&mut words, &why);
+            }
             append(&mut words, b"\n");
             continue;
         };
@@ -595,7 +601,10 @@ pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -
 fn prepare_failure(context: &tasks::RunContext) -> Box<[u8]> {
     for word in &context.inbox {
         if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job)
-            && let Some(files) = conflict_files(&word.words) { return files; }
+            && let Some(files) = conflict_files(&word.words)
+        {
+            return files;
+        }
         if let tasks::MessageKind::Escalation { .. } = word.kind {
             return word.words.clone();
         }
@@ -613,18 +622,20 @@ pub(super) fn tell(domain: &mut Domain, env: &Env<Limits>, task: u64, step: forg
     }
 }
 
-
 fn conflict_files(bytes: &[u8]) -> Option<Box<[u8]>> {
     let length = u32::try_from(bytes.len()).ok()?;
     let limits = skein_json::tokenizer::Limits { depth: 8, string: length, number: 20, chunk: 256, length };
-    let document = skein_json::parse(bytes, &limits, &skein_json::document::Limits { tokens: length, text: length }).ok()?;
+    let document =
+        skein_json::parse(bytes, &limits, &skein_json::document::Limits { tokens: length, text: length }).ok()?;
     let conflict = document.member(0, b"conflict")?;
     let files = document.member(conflict, b"files")?;
     let mut words = List::with_capacity(8192);
     for at in files.checked_add(1)?..document.value_end(files)? {
         let token = document.token(at)?;
         if token.kind == skein_json::Kind::String {
-            if !words.is_empty() { append(&mut words, b", "); }
+            if !words.is_empty() {
+                append(&mut words, b", ");
+            }
             append(&mut words, document.text(token)?);
         }
     }

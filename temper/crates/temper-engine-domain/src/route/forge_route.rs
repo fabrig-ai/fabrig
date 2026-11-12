@@ -3775,9 +3775,12 @@ fn change_delegate(
         })
         .ok()?;
     let (base, branch) = if let forge_change::Delegate::Gate { .. } = kind
-        && let forge_change::State::Judging { target, .. } = &row.change.state {
+        && let forge_change::State::Judging { target, .. } = &row.change.state
+    {
         (target.base.clone(), target.branch.clone())
-    } else { (row.base.clone(), row.branch.clone()) };
+    } else {
+        (row.base.clone(), row.branch.clone())
+    };
     parameters.push(tasks::Parameter::Bytes { name: 2, value: base }).ok()?;
     parameters.push(tasks::Parameter::Bytes { name: 3, value: branch }).ok()?;
     let change_contract = tasks::Contract::Change {
@@ -3929,7 +3932,9 @@ fn review_words(
     }
     let (pull, branch, base) = if let forge_change::State::Judging { target, .. } = &row.change.state {
         (target.pull, target.branch.as_ref(), target.base.as_ref())
-    } else { (row.pull?, row.branch.as_ref(), row.base.as_ref()) };
+    } else {
+        (row.pull?, row.branch.as_ref(), row.base.as_ref())
+    };
     let number = skein_lib::Decimal::of(pull);
     let head = commit_text(head);
     let identity: [&[u8]; 9] = [
@@ -3965,7 +3970,9 @@ fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<B
         forge_change::Repair::Gate(number) => number,
         forge_change::Repair::LandingAt { gate, .. } | forge_change::Repair::Landing { gate } => {
             let mut words = List::with_capacity(48);
-            append(&mut words, b"Repair landing gate "); append(&mut words, skein_lib::Decimal::of(u64::from(gate)).as_bytes()); append(&mut words, b" at ");
+            append(&mut words, b"Repair landing gate ");
+            append(&mut words, skein_lib::Decimal::of(u64::from(gate)).as_bytes());
+            append(&mut words, b" at ");
             return Some(words.into_boxed());
         }
     };
@@ -4073,7 +4080,9 @@ fn repair_words(
             }
         }
         forge_change::Repair::Gate(_) => 1,
-        forge_change::Repair::LandingAt { .. } | forge_change::Repair::Landing { .. } => b"failed at landing candidate".len(),
+        forge_change::Repair::LandingAt { .. } | forge_change::Repair::Landing { .. } => {
+            b"failed at landing candidate".len()
+        }
     };
     // Keep the opening, head and an explicit name even under a small task spec bound.
     if usize::try_from(identity.room()).ok()? < opening.len().checked_add(14)?.checked_add(name_bytes)? {
@@ -4092,7 +4101,9 @@ fn repair_words(
         }
         forge_change::Repair::Gate(_) => append(&mut identity, b"changes requested"),
         forge_change::Repair::Review { .. } => append(&mut identity, b"changes requested on the forge"),
-        forge_change::Repair::LandingAt { .. } | forge_change::Repair::Landing { .. } => append(&mut identity, b"failed at landing candidate"),
+        forge_change::Repair::LandingAt { .. } | forge_change::Repair::Landing { .. } => {
+            append(&mut identity, b"failed at landing candidate")
+        }
     }
     let mut words = List::with_capacity(room);
     append(&mut words, identity.as_slice());

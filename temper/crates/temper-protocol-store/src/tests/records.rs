@@ -1246,7 +1246,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                         project: 5,
                         phase: phase.clone(),
                         members: Box::new([l::Member {
-left: None,
+                            left: None,
                             change: 51,
                             repository: l::Repository { forge: 1, repository: 2 },
                             pull: 7,
@@ -1296,7 +1296,8 @@ fn receipts_preserve_the_check_key_run_and_verdict() {
                     key: [3; 32],
                 },
                 receipt: forge::Receipt {
-                    logs: Box::new([]), failures: None,
+                    logs: Box::new([]),
+                    failures: None,
                     passed,
                     run: forge::ReceiptRun { id: 7, number: 8, url: Box::from(b"https://forge/run/7".as_slice()) },
                     candidate: [4; 32],
@@ -2185,13 +2186,34 @@ fn a_closers_selection_progress_round_trips_with_its_owned_bytes() {
 #[test]
 fn prefix_judgement_and_candidate_failure_snapshots_survive_the_store() {
     use temper_engine_domain_forge_change::{Judgement, Repair, State};
-    let target = Judgement { landing: 81, round: 3, pull: 17, branch: b"temper/1/l81".as_slice().into(), base: b"goal".as_slice().into(), prefix: [4; 32] };
+    let target = Judgement {
+        landing: 81,
+        round: 3,
+        pull: 17,
+        branch: b"temper/1/l81".as_slice().into(),
+        base: b"goal".as_slice().into(),
+        prefix: [4; 32],
+    };
     for state in [
         State::Judging { head: [1; 32], ready_since: skein_lib::Wall::from_nanos(7), target, asked: Box::new([9, 12]) },
         State::Repairing { requested: true, why: Repair::LandingAt { gate: 3, candidate: [4; 32] } },
-    ] { new_family_round_trip(&forge::Stored::Change(Box::new(fixtures::change_row(state)))); }
+    ] {
+        new_family_round_trip(&forge::Stored::Change(Box::new(fixtures::change_row(state))));
+    }
     new_family_round_trip(&forge::Stored::Receipt {
-        key: forge::ReceiptKey { project: 5, repository: skein_forge::api::Repository { forge: 1, repository: 2 }, check: forge::Check::Gate(b"test".as_slice().into()), key: [3; 32] },
-        receipt: forge::Receipt { failures: None, passed: false, candidate: [4; 32], ended: skein_lib::Wall::from_nanos(5), run: forge::ReceiptRun { id: 6, number: 7, url: b"https://forge/run/6".as_slice().into() }, logs: b"Failed job: test\nFailed step: compile\nEnd of its log:\nbroken source\n".as_slice().into() },
+        key: forge::ReceiptKey {
+            project: 5,
+            repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+            check: forge::Check::Gate(b"test".as_slice().into()),
+            key: [3; 32],
+        },
+        receipt: forge::Receipt {
+            failures: None,
+            passed: false,
+            candidate: [4; 32],
+            ended: skein_lib::Wall::from_nanos(5),
+            run: forge::ReceiptRun { id: 6, number: 7, url: b"https://forge/run/6".as_slice().into() },
+            logs: b"Failed job: test\nFailed step: compile\nEnd of its log:\nbroken source\n".as_slice().into(),
+        },
     });
 }

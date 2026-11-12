@@ -806,7 +806,9 @@ fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u
         return None;
     }
     match value {
-        change::State::Judging { target, asked, .. } => skein_lib::len_u64(target.branch.len()).checked_add(skein_lib::len_u64(target.base.len()))?.checked_add(skein_lib::len_u64(asked.len()).checked_mul(8)?),
+        change::State::Judging { target, asked, .. } => skein_lib::len_u64(target.branch.len())
+            .checked_add(skein_lib::len_u64(target.base.len()))?
+            .checked_add(skein_lib::len_u64(asked.len()).checked_mul(8)?),
         change::State::NoChange { words } => Some(skein_lib::len_u64(words.len())),
         change::State::Gating { asked, .. } => {
             skein_lib::len_u64(asked.len()).checked_mul(u64::try_from(size_of::<u64>()).ok()?)

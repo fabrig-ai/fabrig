@@ -296,13 +296,23 @@ pub struct Ci {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
     /// Rebase the last known head onto the requested main tip.
-    Prepare { head: Commit, main: Commit },
+    Prepare {
+        head: Commit,
+        main: Commit,
+    },
     /// Repair a real gate failure at the landing's candidate.
-    Repair { gate: u16, candidate: Commit },
+    Repair {
+        gate: u16,
+        candidate: Commit,
+    },
     /// The landing's prefix is on the train's branch.
-    Landed { prefix: Commit },
+    Landed {
+        prefix: Commit,
+    },
     /// Resolve the prepare job's conflict against this round's base.
-    Resolve { base: Commit },
+    Resolve {
+        base: Commit,
+    },
     Judge(Judgement),
 }
 

@@ -506,9 +506,11 @@ pub(crate) fn finish_brief_plan(
             forge_change::Delegate::Repair(forge_change::Repair::Gate(_)) => {
                 (Some(forge::BriefSource::Reviews { item, head: forge::BriefCommit(head) }), false)
             }
-            forge_change::Delegate::Repair(forge_change::Repair::Ci | forge_change::Repair::LandingAt { .. } | forge_change::Repair::Landing { .. }) => {
-                (Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }), false)
-            }
+            forge_change::Delegate::Repair(
+                forge_change::Repair::Ci
+                | forge_change::Repair::LandingAt { .. }
+                | forge_change::Repair::Landing { .. },
+            ) => (Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }), false),
             forge_change::Delegate::Repair(forge_change::Repair::Semantic) => {
                 (Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }), true)
             }

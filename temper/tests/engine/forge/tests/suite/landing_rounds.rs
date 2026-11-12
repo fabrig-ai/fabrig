@@ -357,6 +357,11 @@ fn cancelling_after_the_prefix_is_recorded_tells_the_change_landed_as_its_pull_s
     assert!(matches!(world.change(CHANGE).change.state, change::State::Landed { merge, .. } if merge == prefix));
     assert_eq!(world.change(CHANGE).change.landing, None);
     assert_eq!(world.inspect(&raw::Read::Pull { number: pull }), before);
-    assert!(world.take_seen().iter().any(|request| matches!(request, top::Request::LandingNews { task: LANDING, step: top::LandingNews::Landed })));
+    assert!(
+        world.take_seen().iter().any(|request| matches!(
+            request,
+            top::Request::LandingNews { task: LANDING, step: top::LandingNews::Landed }
+        ))
+    );
     assert!(!world.take_calls().iter().any(|op| matches!(op, api::Op::Write(_))));
 }

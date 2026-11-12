@@ -33,7 +33,8 @@ fn pending(landings: Box<[p::Landing]>, part: p::Part, failing: p::Failures) -> 
     run.part = part;
     kept.branch = TierBranch::Absent;
     kept.result = Some(Receipt {
-        logs: Box::new([]), failures: Some(failing),
+        logs: Box::new([]),
+        failures: Some(failing),
         passed: false,
         run: ReceiptRun { id: RUN, number: 17, url: URL.into() },
         candidate: NEXT_TIP,

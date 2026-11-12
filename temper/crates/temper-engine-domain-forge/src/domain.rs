@@ -1246,9 +1246,14 @@ impl Domain {
     pub fn change_for_brief(&self, repository: u32, number: u64) -> Option<&ChangeRow> {
         for (_, row) in &self.changes {
             if row.repository.repository == repository {
-                if row.pull == Some(number) { return Some(row); }
+                if row.pull == Some(number) {
+                    return Some(row);
+                }
                 if let change::State::Judging { target, .. } = &row.change.state
-                    && target.pull == number { return Some(row); }
+                    && target.pull == number
+                {
+                    return Some(row);
+                }
             }
         }
         None
@@ -3362,8 +3367,17 @@ fn unasked(row: &mut ChangeRow, kind: change::Delegate) -> change::State {
         }
         (change::Delegate::Gate { number, .. }, change::State::Judging { head, ready_since, target, asked }) => {
             let mut remaining = List::with_capacity(u32::try_from(asked.len()).expect("bounded gates"));
-            for prior in asked { if *prior != number { remaining.push(*prior).expect("same room"); } }
-            change::State::Judging { head: *head, ready_since: *ready_since, target: target.clone(), asked: remaining.into_boxed() }
+            for prior in asked {
+                if *prior != number {
+                    remaining.push(*prior).expect("same room");
+                }
+            }
+            change::State::Judging {
+                head: *head,
+                ready_since: *ready_since,
+                target: target.clone(),
+                asked: remaining.into_boxed(),
+            }
         }
         (change::Delegate::Gate { number, .. }, change::State::Gating { head, asked }) => {
             let mut remaining = List::with_capacity(u32::try_from(asked.len()).expect("bounded gate list"));

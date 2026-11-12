@@ -39,7 +39,7 @@ pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
             project: PROJECT,
             phase: landing::Phase::Waiting,
             members: Box::new([landing::Member {
-left: None,
+                left: None,
                 change: change.task,
                 repository: landing::Repository {
                     forge: change.repository.forge,

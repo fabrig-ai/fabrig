@@ -889,7 +889,9 @@ pub(super) fn brief_reviews(
     for remark in &row.gate_remarks {
         let prefix = if let change::State::Repairing { why: change::Repair::Gate(gate), .. } = row.change.state {
             domain.landing_refused_at(row.task, gate)
-        } else { None };
+        } else {
+            None
+        };
         if reviewed.is_none() && (remark.head == head.0 || prefix == Some(remark.head)) {
             append(&mut words, b"Gate remarks: ");
             append(&mut words, &remark.words);
