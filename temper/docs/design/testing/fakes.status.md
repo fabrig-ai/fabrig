@@ -22,3 +22,5 @@
   `Feed`, and the user's request of 11-04 asked that no crate under
   `temper/crates` do so. No reason is recorded, and no debt item holds
   them.
+- **Not yet:** 2: `temper-box fake forge` has no `--state` [in flight: change 1368].
+- **Not yet:** 1: `temper-twin` has no `--takes` and no `--from` [in flight: change 1375].
