@@ -70,7 +70,7 @@ fn reason(why: &Why) -> Reason {
     }
 }
 
-/// The word temper's client writes with (temper-service's forge.rs:12;
+/// The word temper's client writes with (temper-engine-service's forge.rs:12;
 /// protocol/forge/README.md, section 3), framed as `skein_forge::marker` frames it.
 const WORD: &[u8] = b"temper";
 

@@ -241,9 +241,12 @@ impl Composition {
                 return;
             }
             root::PartyRequest::Deliver(root::Delivery::Forges { watcher, forges }) => {
-                let mut record =
-                    temper_service::family::forges(forges, self.linked, &temper_client_protocol_wire::v1::CEILINGS)
-                        .expect("forge document");
+                let mut record = temper_engine_service::family::forges(
+                    forges,
+                    self.linked,
+                    &temper_client_protocol_wire::v1::CEILINGS,
+                )
+                .expect("forge document");
                 crate::front::Joint::with_playground_forges(&mut record, self.playground.as_ref());
                 Some(Event::Application(clients::FromApplication::Delivery {
                     watcher,
@@ -255,15 +258,18 @@ impl Composition {
                 Some(Event::Application(clients::FromApplication::Delivery {
                     watcher,
                     family: temper_client_protocol_wire::FORGE,
-                    record: temper_service::family::ways_panel(*document, &temper_client_protocol_wire::v1::CEILINGS)
-                        .expect("ways document"),
+                    record: temper_engine_service::family::ways_panel(
+                        *document,
+                        &temper_client_protocol_wire::v1::CEILINGS,
+                    )
+                    .expect("ways document"),
                 }))
             }
             root::PartyRequest::Deliver(root::Delivery::Approvals { watcher, document }) => {
                 Some(Event::Application(clients::FromApplication::Delivery {
                     watcher,
                     family: temper_client_protocol_wire::FORGE,
-                    record: temper_service::family::approvals(
+                    record: temper_engine_service::family::approvals(
                         *document,
                         &crate::fixtures::forge_settings(),
                         &temper_client_protocol_wire::v1::CEILINGS,
@@ -275,7 +281,7 @@ impl Composition {
                 Some(Event::Application(clients::FromApplication::Delivery {
                     watcher,
                     family: temper_client_protocol_wire::FORGE,
-                    record: temper_service::family::trials(rows, &temper_client_protocol_wire::v1::CEILINGS)
+                    record: temper_engine_service::family::trials(rows, &temper_client_protocol_wire::v1::CEILINGS)
                         .expect("trial document"),
                 }))
             }
@@ -283,7 +289,7 @@ impl Composition {
                 Some(Event::Application(clients::FromApplication::Delivery {
                     watcher,
                     family: temper_client_protocol_wire::FORGE,
-                    record: temper_service::family::document(
+                    record: temper_engine_service::family::document(
                         *document,
                         &crate::fixtures::forge_settings(),
                         &temper_client_protocol_wire::v1::CEILINGS,
@@ -295,7 +301,7 @@ impl Composition {
                 Some(Event::Application(clients::FromApplication::Delivery {
                     watcher,
                     family: temper_client_protocol_wire::FORGE,
-                    record: temper_service::family::panel(
+                    record: temper_engine_service::family::panel(
                         *panel,
                         &crate::fixtures::forge_settings(),
                         &temper_client_protocol_wire::v1::CEILINGS,
@@ -317,7 +323,7 @@ impl Composition {
             | root::PartyRequest::SignInRefused { .. }
             | root::PartyRequest::WatchRefused { .. }
             | root::PartyRequest::RunText { .. }
-            | root::PartyRequest::Deliver(_)) => temper_service::clients::translation::to_component(request),
+            | root::PartyRequest::Deliver(_)) => temper_engine_service::clients::translation::to_component(request),
         };
         if let Some(event) = event {
             self.event(event);
@@ -334,7 +340,7 @@ impl Composition {
         Event::Application(clients::FromApplication::Answered {
             to,
             family: temper_client_protocol_wire::FORGE,
-            record: temper_service::family::answer(
+            record: temper_engine_service::family::answer(
                 outcome,
                 &temper_client_protocol_wire::v1::CEILINGS,
                 &self.env.limits.wire,
@@ -347,7 +353,7 @@ impl Composition {
         Event::Application(clients::FromApplication::Read {
             reply,
             family: temper_client_protocol_wire::FORGE,
-            record: temper_service::family::forge_read(answer, &[], &temper_client_protocol_wire::v1::CEILINGS),
+            record: temper_engine_service::family::forge_read(answer, &[], &temper_client_protocol_wire::v1::CEILINGS),
         })
     }
 
@@ -687,12 +693,12 @@ impl Composition {
             }
             request => request,
         };
-        match temper_service::family::to_root(
+        match temper_engine_service::family::to_root(
             &jig_protocol_config::Directories::working(),
             request,
             &crate::fixtures::forge_settings(),
             None,
-            &temper_service::family::Deployment { welcome: true, owned: true, program_login: None },
+            &temper_engine_service::family::Deployment { welcome: true, owned: true, program_login: None },
             None,
             &temper_client_protocol_wire::v1::CEILINGS,
         ) {

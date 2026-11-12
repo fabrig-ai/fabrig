@@ -171,7 +171,7 @@ impl Driver {
     }
 
     /// Offer an input with the service's retained-head discipline: a refusal
-    /// waits ahead of later root inputs (temper-service's `engine.rs:124`,
+    /// waits ahead of later root inputs (temper-engine-service's `engine.rs:124`,
     /// retried at `engine.rs:320`). Store terminals can still advance durability.
     pub fn send_retaining(&mut self, event: engine::Event) {
         if crate::waits_for_start(&self.root, &event) {
@@ -593,7 +593,7 @@ pub fn say_ask(sign_in: u64, task: u64, key: u8) -> engine::Event {
     })
 }
 
-/// The service renders a transcript window's turns as text (temper-service
+/// The service renders a transcript window's turns as text (temper-engine-service
 /// store/ranges.rs); this world's turns are text already, so each turn's
 /// rendering is its own bytes' end within the tail.
 fn transcript_texts(texts: Option<engine::TranscriptTexts>, rows: &[Record]) -> Option<engine::TranscriptTexts> {

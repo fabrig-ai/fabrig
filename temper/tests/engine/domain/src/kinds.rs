@@ -14,8 +14,8 @@ pub const SEED: u64 = 9763;
 #[must_use]
 pub fn configuration(limits: &engine::Limits) -> engine::Config {
     let mut config = walking::config(SEED);
-    config.core.kinds = temper_service::stock::kinds(limits, config.core.connectors[0]);
-    config.kinds_stock = temper_service::stock::forge(limits);
+    config.core.kinds = temper_engine_service::stock::kinds(limits, config.core.connectors[0]);
+    config.kinds_stock = temper_engine_service::stock::forge(limits);
     config.core.defaults.charters = [1, 2, 4]
         .map(|number| {
             let mut charter = walking::charter();

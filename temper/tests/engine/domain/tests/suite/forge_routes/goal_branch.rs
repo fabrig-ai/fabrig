@@ -29,7 +29,7 @@ pub(super) fn stock_defaults() -> jig_domain_core::settings::Defaults {
         source: jig_domain_core::settings::ModelSource::Stock,
         estimated: false,
     };
-    temper_service::stock::with_models(
+    temper_engine_service::stock::with_models(
         Box::new([catalogue]),
         temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes,
     )

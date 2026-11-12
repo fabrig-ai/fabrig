@@ -3,10 +3,17 @@
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
-pub use temper_engine_service::*;
-pub use temper_worker_service::{
-    Worker, WorkerJobEnding, WorkerRuntime, identities, program_sources, worker_alone, worker_route, worker_settings,
+pub use temper_engine_service::{
+    AccountsRuntime, ForgeRuntime, HandoverRead, HandoverRemoval, HandoverUnread, JobDiagnostic, JobDiagnosticEnding,
+    Listening, STAGES, Stage, Unsettled, clients, stock,
 };
+#[cfg(test)]
+use temper_engine_service::{assignment, family, forges, workers};
+use temper_engine_service::{forge, store, tokens, values};
+use temper_worker_service::Worker;
+#[cfg(test)]
+use temper_worker_service::worker_route;
+pub use temper_worker_service::{WorkerJobEnding, WorkerRuntime, program_sources, worker_alone, worker_settings};
 pub mod startup;
 pub use startup::{Named, StoreLimits, named, startup, store_limits};
 pub mod diagnostics;
@@ -37,9 +44,10 @@ impl From<worker_alone::Note> for Note {
 }
 
 pub use temper_engine_service::{End as EngineEnd, Note as EngineNote, Stop as EngineStop};
-pub mod translate {
-    pub use temper_engine_service::translate::*;
-    pub use temper_worker_service::worker_route::translate::{Assigned, preparation, value, work, workspace};
+#[cfg(test)]
+mod translate {
+    pub use temper_engine_service::translate::{identity, items, limits, parts};
+    pub use temper_worker_service::worker_route::translate::{preparation, workspace};
 }
 impl From<worker_alone::End> for End {
     fn from(end: worker_alone::End) -> Self {

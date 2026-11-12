@@ -32,7 +32,7 @@ fn status_world(allowed: bool, funded: bool) -> World {
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     // The same signed-in person returns for the next sitting.
     limits.people.sign_in_lifetime = Duration::from_secs(7200);
-    let mut defaults = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
+    let mut defaults = temper_engine_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     // Scripted workers use the same small run bounds as the other forge stories.
     for charter in &mut defaults.charters {
         let number = charter.number;

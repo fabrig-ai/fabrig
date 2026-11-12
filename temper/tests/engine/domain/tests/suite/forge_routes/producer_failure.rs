@@ -139,7 +139,7 @@ fn stock_search_chat() -> (World, engine::Assignment) {
         endpoints: Box::default(),
     };
     let limits = temper_engine_domain_world::forge_routes::box_limits();
-    let defaults = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
+    let defaults = temper_engine_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     let mut world = World::configured_stock_limits(&defaults, &model, &limits);
     world.adopt();
     let mut event = protocol::hello_slots(CHANNEL, 2, Box::default());

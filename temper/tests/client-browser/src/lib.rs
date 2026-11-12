@@ -483,7 +483,7 @@ mod tests {
             &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
         )
         .expect("engine document");
-        let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+        let engine = temper_engine_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
             .expect("account deployment admits stock settings");
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         core.defaults
@@ -494,7 +494,7 @@ mod tests {
             documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
         let shape = temper_service::startup::shape(&deployment, &jig_protocol_config::Directories::working())
             .expect("browser deployment admits stock settings");
-        assert_eq!(shape, temper_service::startup::Shape::Standalone);
+        assert_eq!(shape, temper_service_core::startup::Shape::Standalone);
     }
     #[test]
     fn the_accounts_provider_keeps_the_stock_offer() {
@@ -524,7 +524,7 @@ mod tests {
             &jig_protocol_config::Directories::working(),
         )
         .expect("browser deployment admits two sign-in providers");
-        assert_eq!(shape, temper_service::startup::Shape::Standalone);
+        assert_eq!(shape, temper_service_core::startup::Shape::Standalone);
         let engine = super::configuration::stock_engine(&value);
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         let defaults = &core.defaults;

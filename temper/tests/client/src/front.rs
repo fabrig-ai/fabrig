@@ -951,7 +951,7 @@ impl Joint {
     /// The small profile carries a whole turn while an activity page can size it.
     #[must_use]
     pub fn with_large_turns(seed: u64, limits: &client::Limits) -> Self {
-        let profile = temper_service::limits::profile(temper_service::limits::Profile::Small).root;
+        let profile = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small).root;
         Self::with_turn_bytes(seed, limits, profile.journal.transcript_bytes, profile.loads.read_bytes, None)
     }
     /// A committed turn past jig small's cap, with a configured whole-read allowance.
@@ -1336,7 +1336,7 @@ impl Joint {
             limits.brief.budgets.pull = 384;
             limits.brief.budgets.ci = 384;
             if settings {
-                config.core.kinds = temper_service::stock::kinds(&limits, connector);
+                config.core.kinds = temper_engine_service::stock::kinds(&limits, connector);
                 let owner = config.core.owners[0].clone();
                 config.core.owners =
                     Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);
