@@ -696,7 +696,7 @@ fn hard_ending(ending: Ending, failure: RunFailure) -> Ending {
         RunFailure::Budget { exhausted: Exhausted::Overflow(_), .. } => failed_ending(failure),
         RunFailure::Transcript(_)
         | RunFailure::Model(_)
-        | RunFailure::Budget { exhausted: _, .. }
+        | RunFailure::Budget { .. }
         | RunFailure::Policy(_)
         | RunFailure::Cancelled
         | RunFailure::Stale => match ending {

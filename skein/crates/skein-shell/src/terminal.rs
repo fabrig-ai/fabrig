@@ -62,7 +62,7 @@ impl Kept {
     /// Writes `leave` to `output` with blocking writes, then restores the kept modes.
     /// Errors are ignored: this runs inside a panic (runtime/shell.md, 6.3).
     /// Take the function back from the hook before calling [`Self::restore`].
-    #[must_use]
+    #[must_use = "the abort hook must be installed"]
     pub fn on_abort(&self, output: Fd, leave: &'static [u8]) -> Box<dyn Fn() + Send + Sync> {
         let fd = self.fd;
         let modes = self.modes;

@@ -10,9 +10,11 @@ extern crate alloc;
 use alloc::boxed::Box;
 
 #[rustfmt::skip]
-// The schema compiler writes this module to generated/v4.rs.
-#[path = "generated/v4.rs"]
-pub mod v4;
+mod generated {
+    pub mod v4;
+}
+
+pub use generated::v4;
 
 pub use v4::{
     Budget, BudgetParts, CEILINGS, ChangeRule, ChangeRuleParts, Charter, CharterParts, Contract, ContractParts,
@@ -41,6 +43,7 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = 4;
 
+    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
     const TEXT: &str = include_str!("../schema/charter-v4.schema");
 
     /// The current schema's family fingerprint.

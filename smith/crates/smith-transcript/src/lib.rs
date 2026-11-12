@@ -89,6 +89,7 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = 7;
 
+    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
     const TEXT: &str = include_str!("../schema/transcript-v7.schema");
 
     /// The current schema's family fingerprint.

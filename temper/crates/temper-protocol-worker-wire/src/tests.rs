@@ -17,9 +17,11 @@ fn items_refuse_another_version_before_reading_the_body() {
     assert_eq!(v1::Items::decode(&limits, &mut Reader::new(&bytes)), Ok(value));
 
     let other = crate::wire::VERSION.checked_sub(1).expect("a preceding version").to_be_bytes();
-    let mut changed = bytes.into_vec();
-    changed.get_mut(..2).expect("version prefix").copy_from_slice(&other);
-    for bytes in [changed.as_slice(), other.as_slice()] {
+    let mut changed = bytes;
+    for (byte, value) in changed.iter_mut().zip(other) {
+        *byte = value;
+    }
+    for bytes in [changed.as_ref(), other.as_slice()] {
         assert_eq!(
             v1::Items::decode(&limits, &mut Reader::new(bytes)).expect_err("another version"),
             v1::Problem { path: v1::Path::ItemsVersion, reason: Reason::Version }

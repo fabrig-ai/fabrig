@@ -13,9 +13,11 @@ extern crate alloc;
 pub mod fixture;
 
 #[rustfmt::skip]
-// The schema compiler writes this module to generated/v6.rs.
-#[path = "generated/v6.rs"]
-pub mod v6;
+mod generated {
+    pub mod v6;
+}
+
+pub use generated::v6;
 
 mod frame;
 pub mod kind;
@@ -68,6 +70,7 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = 6;
 
+    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
     const TEXT: &str = include_str!("../schema/channel-v6.schema");
 
     /// The current schema's family fingerprint.

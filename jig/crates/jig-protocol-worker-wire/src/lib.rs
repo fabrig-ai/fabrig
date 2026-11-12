@@ -121,8 +121,9 @@ pub mod wire {
     pub const FAMILY: &str = "jig-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = wire::VERSION;
+    pub const VERSION: u16 = 9;
 
+    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
     const TEXT: &str = include_str!("../schema/worker-wire-v9.schema");
 
     /// The current schema's family fingerprint.
