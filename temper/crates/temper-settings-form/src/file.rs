@@ -269,6 +269,8 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
         b"project-classes",
         b"charter-words",
         b"project-words",
+        b"project-areas",
+        b"project-triager",
     ]
     .contains(&kind)
     {

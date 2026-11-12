@@ -74,6 +74,10 @@ pub enum Shape {
     PathSet,
     CharterWords,
     ProjectWords,
+    ProjectAreas,
+    ProjectTriager,
+    Area,
+    AreaOwner,
 }
 /// A shape's own row.
 #[derive(Debug)]
@@ -304,6 +308,8 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"forge-charter" => Some(Shape::ForgeCharter),
         b"charter-words" => Some(Shape::CharterWords),
         b"project-words" => Some(Shape::ProjectWords),
+        b"project-areas" => Some(Shape::ProjectAreas),
+        b"project-triager" => Some(Shape::ProjectTriager),
         b"template-goal" => Some(Shape::TemplateGoal),
         b"project-ways" => Some(Shape::ProjectWays),
         b"project-questions" => Some(Shape::ProjectQuestions),

@@ -30,8 +30,8 @@ settings show forge-charter NUMBER [--revision REVISION]
   forge-charter (kind): one of forge-charter; required. One of the forge's charters
   NUMBER (number): a number from 1 to 2; required. 1 the change's charter, 2 its reviews'
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
-settings show project-ways|project-questions|project-classes|project-words PROJECT [--revision REVISION]
-  project-ways|project-questions|project-classes|project-words (kind): one of project-ways, project-questions, project-classes or project-words; required. A project's ways, questions, classes or words
+settings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]
+  project-ways|project-questions|project-classes|project-words|project-areas|project-triager (kind): one of project-ways, project-questions, project-classes, project-words, project-areas or project-triager; required. A project's ways, questions, classes or words
   PROJECT (project): a project's name or number; required. The project by number or name
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 settings show charter-words NUMBER [--revision REVISION]

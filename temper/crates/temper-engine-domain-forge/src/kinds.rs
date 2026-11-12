@@ -298,7 +298,13 @@ impl Domain {
     pub fn erase_project_settings(&mut self, project: u32, out: &mut Queue<Request>) {
         let mut erases = List::with_capacity(self.setting_rows.capacity());
         for (key, _) in &self.setting_rows {
-            if (key.kind == 2 || key.kind == 6 || key.kind == 7 || key.kind == 8 || key.kind == 10)
+            if (key.kind == 2
+                || key.kind == 6
+                || key.kind == 7
+                || key.kind == 8
+                || key.kind == 10
+                || key.kind == 12
+                || key.kind == 13)
                 && key.scope == project
             {
                 erases.push(*key).expect("bounded project setting rows");
@@ -326,6 +332,8 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -347,6 +355,8 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::Goal(_)
                     | Value::CharterWords(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -368,6 +378,8 @@ impl Domain {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -388,7 +400,9 @@ impl Domain {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::CharterWords(_)
-                    | Value::Classes(_),
+                    | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_),
                 ..
             })
             | None => None,
@@ -409,6 +423,8 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -589,6 +605,8 @@ impl Domain {
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::Classes(_)
+                    | Value::ProjectAreas(_)
+                    | Value::ProjectTriager(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -635,6 +653,8 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
                 | Value::Ways(_)
                 | Value::CharterWords(_)
                 | Value::Classes(_)
+                | Value::ProjectAreas(_)
+                | Value::ProjectTriager(_)
                 | Value::ProjectWords(_),
             size,
         }) => (*size, None),
