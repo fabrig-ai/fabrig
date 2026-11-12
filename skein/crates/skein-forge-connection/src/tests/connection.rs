@@ -181,6 +181,23 @@ fn a_json_response_is_decoded_through_its_body_end() {
 }
 
 #[test]
+fn document_length_refusal_carries_the_component_bound() {
+    use skein_forge::{decode::Malformed, forgejo::plans::Body};
+    const BODY: &[u8] = br#"{"id":2,"login":"writer"}"#;
+    let mut h = fixtures::ConnectionHarness::new();
+    let limit = u32::try_from(BODY.len()).unwrap().checked_sub(1).unwrap();
+    h.env.limits.body_bytes_in = limit;
+    h.start_forgejo(request::Request::User, None).expect("valid request");
+    let heard = h.answer(&fixtures::ok(BODY));
+    assert_eq!(
+        heard.last(),
+        Some(&Heard::Done(Body::Malformed(Malformed::DocumentTooLong { limit, size: skein_lib::len_u64(BODY.len()) })))
+    );
+    assert_eq!(h.connection.phase(), Phase::Closed, "a refused document closes the connection");
+    assert_eq!(h.forgejo.heard(&mut h.connection), None, "one terminal");
+}
+
+#[test]
 fn a_malformed_document_closes_without_reading_more() {
     let mut h = fixtures::ConnectionHarness::new();
     h.start_forgejo(request::Request::User, None).expect("valid request");

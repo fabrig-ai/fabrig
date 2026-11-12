@@ -44,6 +44,7 @@ pub mod composer;
 pub mod connect_model;
 pub mod decided;
 pub mod delegation;
+pub mod delete_project;
 pub mod goal;
 pub mod goals;
 pub mod home;
@@ -145,6 +146,7 @@ pub struct Pages {
     seen: u64,
     seeing: Option<(u64, jig_client::Key)>,
     pub(crate) confirm: Option<crate::acts::Confirm>,
+    pub(crate) deleting: Option<delete_project::Open>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
@@ -321,6 +323,9 @@ pub enum Act {
     Again {
         again: bool,
     },
+    DeleteProject {
+        project: u32,
+    },
     Confirm,
     Cancel,
     Go {
@@ -438,6 +443,7 @@ impl Pages {
             seen: 0,
             seeing: None,
             confirm: None,
+            deleting: None,
         }
     }
     #[must_use]
@@ -539,6 +545,10 @@ impl Pages {
     #[must_use]
     pub fn availability(&self, client: &Client) -> Option<bool> {
         Some(self.accounts_document(client)?.usable)
+    }
+    #[must_use]
+    pub const fn deleting_project(&self) -> Option<&delete_project::Open> {
+        self.deleting.as_ref()
     }
     #[must_use]
     pub const fn confirmation(&self) -> Option<&crate::acts::Confirm> {
@@ -993,7 +1003,8 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act {
             act:
-                act @ (Act::Close
+                act @ (Act::DeleteProject { .. }
+                | Act::Close
                 | Act::StartOver
                 | Act::Stop
                 | Act::DelegateFate { .. }
@@ -1310,9 +1321,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
 }
 #[expect(
     clippy::too_many_lines,
-    reason = "routes replies beside their page watches, including the launchpad's cross-project reads"
+    reason = "routes project deletion and launchpad replies beside their page watches without changing their order"
 )]
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if delete_project::told(pages, &told, out) {
+        pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
+        return false;
+    }
     if let Told::Answered { key, outcome } = &told
         && let Some(open) = &mut pages.confirm
         && open.sent == Some(*key)
@@ -1881,6 +1896,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
         pages.choice = choice::Draft::default();
         pages.confirm = None;
+        pages.deleting = None;
     }
     if let Some(page) = &mut pages.connect_model {
         let source = match &address {
@@ -2216,6 +2232,10 @@ fn task_told(
     reason = "confirmation dispatch lists every page act, including start goal and Home's repository sheet"
 )]
 fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act, out: &mut Queue<Request>) {
+    if act == Act::Confirm && pages.deleting.is_some() {
+        delete_project::confirm(pages, client, out);
+        return;
+    }
     if let Act::Confirm = act
         && let Some(page) = &mut pages.task
         && let Some(open) = &pages.confirm
@@ -2238,11 +2258,13 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         None => false,
     };
     match act {
+        Act::DeleteProject { project } => delete_project::open(pages, client, project),
         Act::Stop if pages.chat.is_some() => {
             pages.chat.as_mut().expect("open chat").act(env, client, Act::Stop, &mut pages.serial, out);
         }
         Act::Stop => {}
         Act::Close | Act::StartOver => {
+            pages.deleting = None;
             let restarting = act == Act::StartOver;
             if let Some(chat) = &mut pages.chat {
                 if restarting {
@@ -2291,6 +2313,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
             }
         }
         Act::Cancel => {
+            pages.deleting = None;
             pages.confirm = None;
             if let Some(chat) = &mut pages.chat {
                 chat.closing = None;
@@ -2298,6 +2321,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
             }
         }
         act @ Act::Decide { object, .. } => {
+            pages.deleting = None;
             if let Some(open) = &pages.stop_asking
                 && open.object() == object
             {

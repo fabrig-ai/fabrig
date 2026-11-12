@@ -110,6 +110,7 @@ impl Expectations for People {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one total match checks each refusal's supplied facts")]
 fn filled(why: Refusal) -> bool {
     match why {
         Refusal::Forgotten { oldest } => oldest != 0,
@@ -175,6 +176,12 @@ fn filled(why: Refusal) -> bool {
             Moved::PlacedHold { revision } => revision != 0,
             Moved::Note { revision } => revision != 0,
         },
+        Refusal::LiveTasks { tasks, .. } => {
+            !tasks.is_empty()
+                && tasks.len() <= 32
+                && tasks.iter().all(|task| *task != 0)
+                && tasks.windows(2).all(|pair| pair[0] < pair[1])
+        }
         Refusal::Circle { tasks, cut } => {
             (cut || !tasks.is_empty()) && tasks.len() <= 32 && tasks.iter().all(|task| *task != 0)
         }

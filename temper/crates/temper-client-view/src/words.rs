@@ -169,6 +169,9 @@ pub enum Word {
     StartOverTitle,
     CloseGoal,
     CloseTaskTitle,
+    DeleteProject,
+    DeleteProjectTitle,
+    DeleteProjectSays,
     CloseTask,
     AcceptTitle,
     RejectTitle,
@@ -824,6 +827,7 @@ pub enum Word {
     CreateProject,
     NoProjectYet,
     ProjectNotYours,
+    ProjectDeleted,
     NoProjectLine,
     ProjectName,
     NoProjectSetUp,
@@ -1827,7 +1831,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2378;
+const PHRASES: u32 = 2383;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1854,10 +1858,10 @@ const PHRASES: u32 = 2378;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4317;
+const SEGMENTS: u32 = 4328;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 57319;
-const ALL: [Word; 1694] = [
+const ENGLISH_BYTES: u32 = 57532;
+const ALL: [Word; 1698] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2012,6 +2016,9 @@ const ALL: [Word; 1694] = [
     Word::StartOverTitle,
     Word::CloseGoal,
     Word::CloseTaskTitle,
+    Word::DeleteProject,
+    Word::DeleteProjectTitle,
+    Word::DeleteProjectSays,
     Word::CloseTask,
     Word::AcceptTitle,
     Word::RejectTitle,
@@ -2652,6 +2659,7 @@ const ALL: [Word; 1694] = [
     Word::CreateProject,
     Word::NoProjectYet,
     Word::ProjectNotYours,
+    Word::ProjectDeleted,
     Word::NoProjectLine,
     Word::ProjectName,
     Word::NoProjectSetUp,
@@ -3641,6 +3649,9 @@ impl Word {
             Self::StartOverTitle => 3749,
             Self::CloseGoal => 3750,
             Self::CloseTaskTitle => 3751,
+            Self::DeleteProject => 5677,
+            Self::DeleteProjectTitle => 5678,
+            Self::DeleteProjectSays => 5679,
             Self::CloseTask => 3752,
             Self::AcceptTitle => 3755,
             Self::RejectTitle => 3756,
@@ -4394,6 +4405,7 @@ impl Word {
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
             Self::ProjectNotYours => 2201,
+            Self::ProjectDeleted => 5707,
             Self::NoProjectLine => 2197,
             Self::ProjectName => 2198,
             Self::NoProjectSetUp => 2199,
@@ -5853,6 +5865,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::StartOverTitle => (&[b"Start over?"], &[]),
         Word::CloseGoal => (&[b"Close goal"], &[]),
         Word::CloseTaskTitle => (&[b"Close this task?"], &[]),
+        Word::DeleteProject => (&[b"Delete project"], &[]),
+        Word::DeleteProjectTitle => (&[b"Delete ", b"?"], &[Name]),
+        Word::DeleteProjectSays => (&[b"", b" leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can\xe2\x80\x99t be undone."], &[Name]),
         Word::CloseTask => (&[b"Close task"], &[]),
         Word::AcceptTitle => (&[b"Accept this proposal?"], &[]),
         Word::RejectTitle => (&[b"Reject this proposal?"], &[]),
@@ -6429,6 +6444,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::CreateProject => (&[b"Create"], &[]),
         Word::NoProjectYet => (&[b"No project yet"], &[]),
         Word::ProjectNotYours => (&[b"Project ", b" is not one of yours."], &[Number]),
+        Word::ProjectDeleted => (&[b"Project ", b" was deleted."], &[Number]),
         Word::NoProjectLine => (&[b"Make your first one, or ask an owner to add you to theirs."], &[]),
         Word::ProjectName => (&[b"Project name"], &[]),
         Word::NoProjectSetUp => (&[b"Setting temper up makes your first project."], &[]),

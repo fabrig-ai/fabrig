@@ -15,6 +15,8 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         // Only settings admission emits Full; a forge application carries no settings value.
         | p::Refusal::Full { .. }
         | p::Refusal::Judged { .. }
+        // Only an owner's RemoveProject emits LiveTasks; forge requests never carry that ask.
+        | p::Refusal::LiveTasks { .. }
         // Only finishing an account sign-in emits SignInRedirect.
         | p::Refusal::SignInRedirect { .. } => {
             return Err(w::Problem { path: w::Path::RefusalTag, reason: skein_codec::Reason::Bound });

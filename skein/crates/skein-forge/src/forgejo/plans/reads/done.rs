@@ -40,14 +40,8 @@ impl Plan {
             | State::Searching { .. }) => {
                 let document = match body {
                     super::Body::Document(document) => document,
-                    super::Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
-                        return Err(if field == b"log" {
-                            api::Error::InvalidAnswer
-                        } else {
-                            api::Error::TooLarge(Excess::unnamed())
-                        });
-                    }
-                    super::Body::Malformed(_) | super::Body::Empty | super::Body::Raw { .. } => {
+                    super::Body::Malformed(error) => return Err(crate::forgejo::plans::failure::malformed(error)),
+                    super::Body::Empty | super::Body::Raw { .. } => {
                         return Err(api::Error::InvalidAnswer);
                     }
                 };

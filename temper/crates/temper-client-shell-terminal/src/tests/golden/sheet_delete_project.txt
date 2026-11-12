@@ -1,0 +1,76 @@
+== How work runs in demo. == Live
+demo:
+  [1] temper
+  [2] demo · playground/widget (pressed)
+  [3] Rename demo
+  New project:
+    [4] New project: (empty) (enter sends)
+    [5] Create
+  [6] How work runs for demo
+  [7] Deployment
+  [8] Home
+  [9] Needs you
+  [10] Work
+  [11] How work runs (current)
+  New draft or change:
+    [12] Draft
+      A design session that ends in a goal, best had in the terminal.
+    [13] Change
+      Ask for one change.
+  [14] Away
+  [15] Set up temper
+  [16] Deployment
+  * Pat
+demo · how work runs
+Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.
+How work runs:
+  [17] How work runs (current)
+  [18] Repositories
+## The path of a change
+## What reaches you
+on demo
+Agents decide, then tell you
+- wording and names inside a spec
+- retrying or splitting a task
+- test-only changes
+Listed in Decided for you for 24 hours, to overturn.
+Asks you
+- implementation choices a spec leaves open
+- a new dependency
+- a departure from a landed design
+While you’re away, they are decided with the recommended choice and listed.
+Always waits for you
+- money past a budget
+- what can’t be undone: rewriting history, a force-push, deleting unlanded work
+- changes to this page
+- anything an agent can’t place
+Away or not.
+Questions a goal can answer from its plan
+Questions a goal can answer from its plan:
+  [19] ( ) Answered by the goal, kept in its decisions
+  [20] ( ) Asked of me too
+  [21] (*) Not asked: each agent decides alone
+Away until
+When it isn’t turned off by hand.
+Away until:
+  [22] (*) 08:00, the end of quiet hours
+  [23] ( ) I turn it off
+## What the project shows
+Chats can write drafts
+A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.
+On
+[24] [x] Chats can write drafts
+Goals
+Bigger work from a draft: a plan, tasks, landing.
+Hidden
+[25] [ ] Goals
+Changes
+The landing queue, as Work's filter.
+Hidden
+[26] [ ] Changes
+[27] Delete project
+Delete demo?
+  ## Delete demo?
+  demo leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can’t be undone.
+  [28] Keep it
+  [29] Delete project
