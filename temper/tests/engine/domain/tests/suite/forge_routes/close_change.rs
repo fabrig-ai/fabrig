@@ -35,7 +35,18 @@ fn goal_world(command: bool, authority: bool) -> (World, engine::Assignment, Box
         approvals: Box::new([]),
     }]));
     world.adopt();
-    let mut event = protocol::hello_slots(CHANNEL, 2, Box::new([]));
+    hello_close_worker(&mut world);
+    let request = goal_request(&world, true);
+    let goal = assigned_chat(&mut world, 92, request);
+    let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
+    world.until(Until::Ready);
+    let head = branch_tip(&mut world, &branch);
+    (world, goal, branch, head)
+}
+
+fn hello_close_worker(world: &mut World) {
+    let hosting = world.assigned.iter().map(|run| protocol::hosting(run.task, run.attempt, jig_domain_link::Phase::Active)).collect();
+    let mut event = protocol::hello_slots(CHANNEL, 2, hosting);
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
     else {
         panic!("hello")
@@ -47,12 +58,6 @@ fn goal_world(command: bool, authority: bool) -> (World, engine::Assignment, Box
         deadline: Duration::from_secs(600),
     }]);
     world.send(event);
-    let request = goal_request(&world, true);
-    let goal = assigned_chat(&mut world, 92, request);
-    let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
-    world.until(Until::Ready);
-    let head = branch_tip(&mut world, &branch);
-    (world, goal, branch, head)
 }
 
 fn make_change(
@@ -242,6 +247,189 @@ fn a_malformed_close_request_refuses_the_start() {
     ] {
         refused(true, true, request, extra, b"malformed close request parameter 17.");
     }
+}
+
+fn fail_close_until_held(world: &mut World, task: u64, mut job: host::JobAssignment, detail: &[u8]) {
+    for attempt in 0..=world.env.limits.tasks.retries.permanent.retries {
+        if attempt != 0 {
+            job = next_job(world, task);
+        }
+        let event = world.protocol.answer_job(
+            CHANNEL,
+            job.run.raw(),
+            job.attempt.raw(),
+            host::JobEnding::Failed {
+                failure: host::JobFailure::Failed,
+                detail: detail.into(),
+                work: host::Work { left: None, saved: None },
+            },
+        );
+        world.send(event);
+    }
+    for _ in 0..STEPS {
+        if matches!(live_task(world, task).escalation, tasks::Escalation::Waiting { .. })
+            && change_row(world, task).producer_failure.as_deref().is_some_and(|words| words.windows(detail.len()).any(|part| part == detail))
+        {
+            break;
+        }
+        world.tick();
+    }
+    assert!(matches!(
+        live_task(world, job.run.raw()).phase,
+        tasks::Phase::Held { why: tasks::Hold::Failures(_), .. }
+    ), "job phase: {:?}", live_task(world, job.run.raw()).phase);
+    assert!(matches!(change_row(world, task).change.state, change::State::Held { why: change::Hold::Failed, .. }));
+    assert!(matches!(live_task(world, task).phase, tasks::Phase::Held { .. }));
+}
+
+fn release_job(world: &mut World, goal: &engine::Assignment, child: u64) {
+    let tasks::Escalation::Waiting { revision, holder: tasks::EscalationHolder::Task(holder), .. } =
+        live_task(world, child).escalation
+    else {
+        panic!("job escalation: {:?}", live_task(world, child).escalation)
+    };
+    assert_eq!(holder, goal.task);
+    let answer = world.scripted_call(
+        goal,
+        94,
+        engine::Tool::DecideEscalation { task: child, revision, decision: engine::EscalationChoice::Release },
+    );
+    assert!(matches!(answer, engine::CallAnswer::EscalationDecided { .. }), "{answer:?}");
+}
+
+#[test]
+fn a_released_close_job_keeps_its_writable_workspace() {
+    let (mut world, goal, branch, _) = goal_world(true, true);
+    let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    let first = next_job(&mut world, task);
+    let child = first.run.raw();
+    let items = world.job_workspaces.get(&child).expect("first workspace").repositories.clone();
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0].start, engine::ForgeStart::Branch(branch));
+    assert_eq!(items[0].push.as_deref(), Some(change_row(&world, task).branch.as_ref()));
+    fail_close_until_held(&mut world, task, first, b"exit 1: close: unknown tag");
+    release_job(&mut world, &goal, child);
+    let retry = next_job(&mut world, task);
+    assert_eq!(retry.run.raw(), child);
+    let released = &world.job_workspaces.get(&child).expect("released workspace").repositories;
+    assert_eq!(released[0].push, items[0].push);
+    assert_eq!(*released, items);
+    finish_job(&mut world, &retry);
+    world.close();
+}
+
+fn close_ending(world: &mut World, task: u64) -> tasks::Ending {
+    for _ in 0..STEPS {
+        if let Some(ended) = super::goal_landing::ended(world, task) {
+            let tasks::Phase::Ended(ending) = &ended.phase else { panic!("terminal phase") };
+            return ending.clone();
+        }
+        world.tick();
+    }
+    panic!("close change did not end: {:?}", change_row(world, task))
+}
+
+#[test]
+fn a_released_close_jobs_push_opens_and_lands_its_change() {
+    let (mut world, goal, branch, tip) = goal_world(true, true);
+    let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    let first = next_job(&mut world, task);
+    let child = first.run.raw();
+    fail_close_until_held(&mut world, task, first, b"exit 1: close: unknown tag");
+    release_job(&mut world, &goal, child);
+    let retry = next_job(&mut world, task);
+    let own = change_row(&world, task).branch.clone();
+    assert_eq!(world.external(2, raw::Op::Git(raw::Git::Create { branch: own.clone(), commit: tip })), raw::Answer::Branch(raw::Created::Created));
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &own, b"status", b"settled", 2).expect("released close pushed");
+    finish_job(&mut world, &retry);
+    assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::Change { .. })));
+    assert!(matches!(change_row(&world, task).change.state, change::State::Landed { .. }));
+    assert_eq!(world.merges, 1);
+    let number = change_row(&world, task).pull.expect("released job opened pull");
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number })) else { panic!("pull") };
+    assert_eq!(pull.base, branch);
+    assert_eq!(pull.commit, head);
+    assert_eq!(pull.merged, Some(branch_tip(&mut world, &branch)));
+    world.close();
+}
+
+#[test]
+fn a_released_close_job_with_nothing_to_push_ends_its_change() {
+    let (mut world, goal, branch, _) = goal_world(true, true);
+    let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    let first = next_job(&mut world, task);
+    let child = first.run.raw();
+    fail_close_until_held(&mut world, task, first, b"exit 1: close: unknown tag");
+    release_job(&mut world, &goal, child);
+    let retry = next_job(&mut world, task);
+    finish_job(&mut world, &retry);
+    assert_eq!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { words: b"Nothing to settle.".as_slice().into() }));
+    assert!(change_row(&world, task).pull.is_none());
+    assert_eq!(world.merges, 0);
+    world.close();
+}
+
+#[test]
+fn a_released_close_job_that_fails_again_holds_its_change_with_the_new_words() {
+    let (mut world, goal, branch, _) = goal_world(true, true);
+    let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    let first = next_job(&mut world, task);
+    let child = first.run.raw();
+    fail_close_until_held(&mut world, task, first, b"exit 1: close: unknown tag");
+    let revision = live_task(&world, task).revisions.hold;
+    release_job(&mut world, &goal, child);
+    let retry = next_job(&mut world, task);
+    fail_close_until_held(&mut world, task, retry, b"exit 1: close: another unknown tag");
+    assert!(live_task(&world, task).revisions.hold > revision);
+    let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, task).phase else { panic!("change held with account") };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("failure account") };
+    assert!(core::str::from_utf8(words).expect("hold words").contains("exit 1: close: another unknown tag"));
+    assert_eq!(change_row(&world, task).delegate, Some((child, change::Delegate::Close)));
+    world.close();
+}
+
+#[test]
+fn releasing_a_close_change_supersedes_its_held_job() {
+    let (mut world, goal, branch, _) = goal_world(true, true);
+    let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    let first = next_job(&mut world, task);
+    let child = first.run.raw();
+    let items = world.job_workspaces.get(&child).expect("first workspace").repositories.clone();
+    fail_close_until_held(&mut world, task, first, b"exit 1: close: unknown tag");
+    let revision = live_task(&world, task).revisions.hold;
+    let answer = world.scripted_call(&goal, 95, engine::Tool::Release { target: task, revision, again: None });
+    assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
+    let fresh = next_job(&mut world, task);
+    assert_ne!(fresh.run.raw(), child);
+    let old = super::goal_landing::ended(&world, child).expect("held job cancelled before fresh attempt");
+    let tasks::Phase::Ended(tasks::Ending::Cancelled { reason, .. }) = &old.phase else { panic!("superseded job: {:?}", old.phase) };
+    assert_eq!(reason.as_ref(), format!("superseded by its change's fresh close job, task {}", fresh.run.raw()).as_bytes());
+    assert_eq!(world.job_workspaces.get(&fresh.run.raw()).expect("fresh writable workspace").repositories, items);
+    assert_eq!(change_row(&world, task).delegate, Some((fresh.run.raw(), change::Delegate::Close)));
+    finish_job(&mut world, &fresh);
+    assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
+    world.close();
+}
+
+#[test]
+fn a_released_close_job_keeps_its_writable_workspace_after_restart() {
+    let (mut world, goal, branch, _) = goal_world(true, true);
+    let task = make_change(&mut world, &goal, &branch, REQUEST, None);
+    let first = next_job(&mut world, task);
+    let child = first.run.raw();
+    let items = world.job_workspaces.get(&child).expect("first workspace").repositories.clone();
+    fail_close_until_held(&mut world, task, first, b"exit 1: close: unknown tag");
+    world.drain_cut();
+    world.restart_same();
+    world.until(Until::Ready);
+    hello_close_worker(&mut world);
+    release_job(&mut world, &goal, child);
+    let retry = next_job(&mut world, task);
+    assert_eq!(retry.run.raw(), child);
+    assert_eq!(world.job_workspaces.get(&child).expect("restored writable workspace").repositories, items);
+    finish_job(&mut world, &retry);
+    assert!(matches!(close_ending(&mut world, task), tasks::Ending::Done(tasks::TaskResult::NoChange { .. })));
+    world.close();
 }
 
 #[test]

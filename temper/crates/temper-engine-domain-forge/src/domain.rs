@@ -3474,8 +3474,11 @@ fn delegate_result(
     }
     let owned = row.change.owns_turn;
     let mut ended = false;
-    if let change::State::Held { was, why: change::Hold::Stalled } = &row.change.state
-        && delegate_wait(was)
+    if let change::State::Held { was, why } = &row.change.state
+        && ((*why == change::Hold::Stalled && delegate_wait(was))
+            || (*why == change::Hold::Failed
+                && kind == change::Delegate::Close
+                && **was == (change::State::Producing { requested: true })))
     {
         row.change.state = (**was).clone();
         row.change.owns_turn = false;
@@ -4784,7 +4787,13 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
     }
     let facts = change_facts(d, env, &row, pending, base_tip);
     let mut heard = change_standing(d, &row, pending);
-    if row.delegate_status != change::Status::Unknown {
+    // A close job's failure escalation is not its terminal: jig still names it
+    // live, including under its Failures hold (domain/forge/change/repairs.md).
+    let live_close = match row.delegate {
+        Some((_, change::Delegate::Close)) => pending.heard.delegate_live,
+        Some(_) | None => false,
+    };
+    if row.delegate_status != change::Status::Unknown && !live_close {
         row.delegate = None;
     }
     let mut reviewed = false;
