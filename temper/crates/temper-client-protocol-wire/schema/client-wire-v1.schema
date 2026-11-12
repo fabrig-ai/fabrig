@@ -84,7 +84,36 @@ enum MakeFrom { empty, copy: MakeCopy }
 record MakeInto { project: u32 home: bool }
 record MakeRepository { forge: u16 org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto }
 record DismissMaking { forge: u16 org: bytes 1024 name: bytes 1024 into: option u32 }
-enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount }
+# Findings (temper/docs/design/client/forge/records.md; domain/areas.md, 5 and 7).
+enum FindingKind { qa, flake, red, review, feedback }
+enum Severity { low, medium, high }
+enum FindingState { new, routed, backlog, dropped }
+record HolderTask { number: u64 }
+record HolderParty { number: u64 }
+record HolderRole { number: u32 }
+enum Holder { task: HolderTask, party: HolderParty, role: HolderRole }
+enum Filer { task: HolderTask, party: HolderParty }
+record FileFinding { project: u32 kind: FindingKind severity: Severity area: option text 32 title: text 200 body: text 4096 }
+record HandFinding { project: u32 number: u32 area: text 32 why: text 200 }
+record FindingRoute { task: u64 }
+record FindingDrop { reason: text 400 }
+enum Triage { route: FindingRoute, backlog, drop: FindingDrop }
+record TriageFinding { project: u32 number: u32 act: Triage }
+record Filed { number: u32 }
+record FindingAreas { areas: list 16 text 32 }
+record FindingsFull { count: u32 }
+record FindingWords { field: text 32 }
+record FindingNotYours { holder: Holder }
+enum FindingRefusal { no_area: FindingAreas, full: FindingsFull, not_yours: FindingNotYours, no_finding, no_goal, ended, words: FindingWords }
+record FindingRefused { reason: FindingRefusal }
+record FindingsSubject { project: u32 state: option FindingState mine: bool }
+record FindingRow { number: u32 kind: FindingKind severity: Severity area: option text 32 state: FindingState title: text 200 holder: Holder at: u64 why: option text 200 }
+record FindingRead { project: u32 number: u32 }
+record FindingDetail { row: FindingRow body: text 4096 filer: Filer goal: option u64 reason: option text 400 }
+enum FindingResult { finding: FindingDetail, no_finding }
+versioned record FindingAnswer { result: FindingResult }
+
+enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount, file_finding: FileFinding, hand_finding: HandFinding, triage_finding: TriageFinding }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -173,7 +202,7 @@ record NotDrawn { words: text 512 }
 enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, rule: RuleView, roles: RolesView, not_drawn: NotDrawn }
 versioned record ViewAnswer { view: View }
 
-enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead }
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead, finding: FindingRead }
 versioned record Reading { read: Read }
 
 # temper/docs/design/client/forge/records.md: no playground is no record.
@@ -193,7 +222,7 @@ record LandingsSubject { project: u32 ended: bool }
 record ChangesSubject { project: u32 }
 record StatusSubject { project: u32 }
 record DecidedSubject { project: u32 }
-enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject }
+enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject, findings: FindingsSubject }
 enum LandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
 record Receipted { run: u64 number: u64 address: bytes 2048 }
 record Dispatched { attempt: u16 run: option u64 }
@@ -270,7 +299,7 @@ record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
 enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full, not_failed }
 record MakeRefused { why: MakeRefusal }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, filed: Filed, handed, triaged, finding_refused: FindingRefused }
 versioned record Answer { outcome: Outcome }
 
 # Values of temper's settings kinds (temper/docs/design/domain/routing.md, 6;
@@ -301,3 +330,6 @@ enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: Area
 record Area { name: text 32 words: text 480 owner: AreaOwner }
 record ProjectAreas { areas: list 16 Area }
 record ProjectTriager { owner: AreaOwner }
+
+record AreaRow { name: text 32 words: text 480 owner: AreaOwner holder: option Holder }
+versioned record Findings { project: u32 rows: list 128 FindingRow areas: list 16 AreaRow triager: option AreaOwner holder: Holder cut: bool }

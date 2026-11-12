@@ -8,6 +8,7 @@ use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 mod refusals;
+mod findings;
 mod ways;
 pub use ways::ways_panel;
 
@@ -153,6 +154,9 @@ pub fn to_root(
                         | w::Request::Reachable(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
+                        | w::Request::FileFinding(_)
+                        | w::Request::HandFinding(_)
+                        | w::Request::TriageFinding(_)
                         | w::Request::TryAccount(_)
                         | w::Request::Dismiss(_)
                         | w::Request::SetAway(_)
@@ -361,6 +365,12 @@ pub fn to_root(
                         request: root::Application::Overturn { project: value.project(), number: value.number() },
                     }));
                 }
+                value @ (w::Request::FileFinding(_) | w::Request::HandFinding(_) | w::Request::TriageFinding(_)) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope, reply_to, sign_in, key, digest, carried,
+                        request: findings::request(value).expect("findings request"),
+                    }));
+                }
                 w::Request::Adopt(value) => value,
             };
             let a = request.into_parts();
@@ -406,6 +416,11 @@ pub fn to_root(
                             answer = Some(playground_answer(row, demo, limits));
                         }
                         None
+                    }
+                    w::Read::Finding(read) => {
+                        if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
+                            forge_settings_query(w::Read::Finding(read))
+                        } else { None }
                     }
                     w::Read::View(read) => {
                         if scope == jig_domain_people::ApplicationScope::Project(read.project()) {
@@ -489,6 +504,11 @@ pub fn to_root(
                         scope: jig_domain_people::ApplicationScope::Own,
                         connector: wire::FORGE,
                         subject: Token::new(forge::AWAY_SUBJECT),
+                    },
+                    w::Watch::Findings(subject) => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Project(subject.project()),
+                        connector: wire::FORGE,
+                        subject: Token::new(forge::findings_subject(subject.project(), findings::state(subject.state()), subject.mine())),
                     },
                     w::Watch::Decided(subject) => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Project(subject.project()),
@@ -863,11 +883,11 @@ pub fn answer(
         Some(
             root::ApplicationAnswer::Adopt(
                 forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
-            )
-            | root::ApplicationAnswer::FileFinding(_)
-            | root::ApplicationAnswer::HandFinding(_)
-            | root::ApplicationAnswer::TriageFinding(_),
+            ),
         ) => return None,
+        Some(root::ApplicationAnswer::FileFinding(value)) => findings::file_answer(value, limits)?,
+        Some(root::ApplicationAnswer::HandFinding(value)) => findings::hand_answer(value, limits)?,
+        Some(root::ApplicationAnswer::TriageFinding(value)) => findings::triage_answer(value, limits)?,
         Some(root::ApplicationAnswer::Try(root::TryAnswer::Tried)) => w::Outcome::Tried,
         Some(root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs)) => w::Outcome::NotTheirs,
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
@@ -1484,7 +1504,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             .ok()?;
             Some(wire::landing_panel(&panel))
         }
-        forge::Document::Findings(_) => None,
+        forge::Document::Findings(value) => findings::document(value, limits),
         forge::Document::Aways(value) => aways(value, limits),
         forge::Document::Decisions(value) => decisions(value, limits),
         forge::Document::Status(value) => project_status(value, limits),
@@ -1861,7 +1881,7 @@ fn panel_tiers(lines: Box<[Box<[u8]>]>) -> List<Box<[u8]>> {
 pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], limits: &w::Limits) -> Option<Box<[u8]>> {
     use forge::settings::Edit;
     match answer {
-        root::ForgeReadAnswer::Finding(_) => None,
+        root::ForgeReadAnswer::Finding(value) => findings::read_answer(value, limits),
         root::ForgeReadAnswer::View(view) => ways::view_answer(*view, limits),
         root::ForgeReadAnswer::ProgramEnvironment => {
             let record = w::ProgramEnvironmentAnswer::new(
@@ -1912,6 +1932,7 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
 
 fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
     match read {
+        w::Read::Finding(value) => Some(root::ForgeRead::Finding { project: value.project(), number: value.number() }),
         w::Read::ProgramEnvironment => Some(root::ForgeRead::ProgramEnvironment),
         w::Read::Setting(value) => {
             Some(root::ForgeRead::Setting { kind: value.kind(), scope: value.scope(), number: value.number() })
