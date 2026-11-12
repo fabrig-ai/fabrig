@@ -8,7 +8,7 @@ use std::{
 
 #[derive(Debug)]
 pub enum Action {
-    Line(Box<[u8]>),
+    Line(WalkLine),
     Print(String),
     End,
     Finished(Exit),
@@ -68,8 +68,8 @@ impl Walk {
     fn next(&mut self) -> Action {
         match self.lines.pop_front() {
             Some(line) => {
-                self.current = Some(line.source);
-                Action::Line(line.line)
+                self.current = Some(line.source.clone());
+                Action::Line(line)
             }
             None => Action::End,
         }
@@ -96,4 +96,15 @@ pub(super) fn check_scratch(from: Option<&str>, config: bool, data: bool) -> Res
         return Err("fresh walk requires no config/ and no data/ in scratch".into());
     }
     Ok(())
+}
+
+impl WalkLine {
+    /// Only the recipe owning the line supplies its files (client/recipe.md, 5.1).
+    #[must_use]
+    pub fn files(&self, setups: &Path) -> Option<PathBuf> {
+        match &self.source {
+            Source::Recipe { name, .. } => Some(setups.join(name).join("files")),
+            Source::Walk => None,
+        }
+    }
 }
