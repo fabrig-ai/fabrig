@@ -5224,6 +5224,7 @@ dependencies = [
  "temper-client-shell-tui",
  "temper-client-shell-web",
  "temper-client-tui",
+ "temper-shell",
  "temper-version",
 ]
 
