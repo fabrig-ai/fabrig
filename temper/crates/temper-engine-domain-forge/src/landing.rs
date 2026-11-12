@@ -3101,6 +3101,8 @@ pub(crate) fn closing(d: &mut Domain, env: &Env<Limits>, task: u64, ending: crat
         return;
     }
     if let Some(mut row) = d.landing.rows.get(&task).cloned() {
+        let tell_landed = !row.landing.round.told && row.landing.members.first().expect("member").landed.is_some();
+        row.landing.round.told |= tell_landed;
         row.landing.phase = policy::Phase::Cancelled;
         d.landing.due.remove(&task);
         for member in &row.landing.members {
@@ -3124,6 +3126,7 @@ pub(crate) fn closing(d: &mut Domain, env: &Env<Limits>, task: u64, ending: crat
         }
         let project = row.landing.project;
         save(d, row, out);
+        if tell_landed { emit(out, Request::LandingNews { task, step: crate::LandingNews::Landed }); }
         wake_project_ready(d, project, out);
     } else if let Some(change) = d.changes.get(&task)
         && let Some(landing) = change.change.landing

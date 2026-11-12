@@ -1725,7 +1725,18 @@ pub fn prefix_verdict(change: &Change, gate: Gate, reports: &[crate::GateReport]
 fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     let State::Judging { head, ready_since, target, asked } = change.state.clone() else { unreachable!("judging") };
     if facts.branch != Some(head) {
+        if change.last_head == facts.branch && let Some(head) = facts.branch { return take_pushed_head(change, head, now); }
         return hold(change, Hold::BranchMoved);
+    }
+    if let Some(Ask::Repair { gate, .. }) = facts.ask {
+        if facts.live_gate.is_some() {
+            return Stepped { change, decision: Decision::CancelGates { head: target.prefix } };
+        }
+        return repair_due(change, Repair::Landing { gate }, facts, now, limits);
+    }
+    if change.landing != Some(target.landing) {
+        change.state = State::Ready { head, ready_since };
+        return Stepped { change, decision: Decision::Wait { until: None } };
     }
     for failure in &change.gate_failures {
         if failure.count >= 2 { return hold(change.clone(), Hold::Failed); }

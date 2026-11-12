@@ -92,7 +92,7 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
         Phase::Waiting | Phase::Preparing | Phase::Proving | Phase::Proved { .. } | Phase::Turn { .. } => {}
     }
     for (index, (member, fresh)) in next.members.iter().zip(&facts.members).enumerate() {
-        if member.landed.is_some() { continue; }
+        if member.landed.is_some() || member.candidate == Some(fresh.main) { continue; }
         let why = if let Some(gate) = fresh.refused { Some(crate::Leave::Refused { gate }) }
             else if fresh.cancelled { Some(crate::Leave::Cancelled) }
             else if member.head.is_some() && member.head != Some(fresh.head) {

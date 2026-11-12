@@ -8,6 +8,7 @@ mod hooks;
 mod landing;
 mod landing_rounds;
 mod landing_judgement;
+mod landing_leaving;
 mod memory;
 mod protection;
 mod public;
