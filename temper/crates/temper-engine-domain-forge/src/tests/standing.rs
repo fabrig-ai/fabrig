@@ -633,6 +633,10 @@ fn approval_waits_name_only_the_rules_touched_sets() {
     }
 }
 
+fn facts_at(head: [u8; 32], reviews_complete: bool, reviewers: Box<[Reviewer]>) -> ReviewFacts {
+    ReviewFacts { size: None, head: Some(head), reviews_complete, reviewers, unmapped: Box::new([]) }
+}
+
 #[test]
 fn approval_waits_keep_the_heads_first_time_and_order() {
     let (mut d, _) = fixture();
@@ -651,13 +655,7 @@ fn approval_waits_keep_the_heads_first_time_and_order() {
     second.change.owns_turn = false;
     second.change.state = change::State::Queued { head: HEAD, ready_since: env().wall };
     d.changes.insert(52, second).expect("second change");
-    let facts = ReviewFacts {
-        size: None,
-        head: Some(HEAD),
-        reviews_complete: false,
-        reviewers: Box::new([]),
-        unmapped: Box::new([]),
-    };
+    let facts = facts_at(HEAD, false, Box::new([]));
     let a = Wall::from_nanos(10);
     let b = Wall::from_nanos(20);
     let c = Wall::from_nanos(30);
@@ -679,17 +677,7 @@ fn approval_waits_keep_the_heads_first_time_and_order() {
     let waits = d.approval_waits(env().wall, &LIMITS);
     assert_eq!(waits.len(), 2);
     assert_eq!([(waits[0].task, waits[0].since), (waits[1].task, waits[1].since)], [(52, b), (CHANGE, c)]);
-    assert!(d.keep_review_facts(
-        c,
-        52,
-        ReviewFacts {
-            size: None,
-            head: Some(fixtures::BASE),
-            reviews_complete: true,
-            reviewers: Box::new([]),
-            unmapped: Box::new([])
-        }
-    ));
+    assert!(d.keep_review_facts(c, 52, facts_at(fixtures::BASE, true, Box::new([]))));
     d.changes.get_mut(&52).expect("second").change.last_head = Some(fixtures::BASE);
     let waits = d.approval_waits(env().wall, &LIMITS);
     assert_eq!(waits.len(), 2);
@@ -704,13 +692,7 @@ fn approval_waits_keep_the_heads_first_time_and_order() {
     d.keep_review_facts(
         c,
         CHANGE,
-        ReviewFacts {
-            size: None,
-            head: Some(fixtures::BASE),
-            reviews_complete: true,
-            reviewers: Box::new([Reviewer { head: fixtures::BASE, ..reviewers()[0] }]),
-            unmapped: Box::new([]),
-        },
+        facts_at(fixtures::BASE, true, Box::new([Reviewer { head: fixtures::BASE, ..reviewers()[0] }])),
     );
     let waits = d.approval_waits(env().wall, &LIMITS);
     assert_eq!(waits[0].short.len(), 2);
@@ -718,18 +700,16 @@ fn approval_waits_keep_the_heads_first_time_and_order() {
     d.keep_review_facts(
         c,
         CHANGE,
-        ReviewFacts {
-            size: None,
-            head: Some(fixtures::BASE),
-            reviews_complete: true,
-            reviewers: Box::new([Reviewer {
+        facts_at(
+            fixtures::BASE,
+            true,
+            Box::new([Reviewer {
                 role: 2,
                 head: fixtures::BASE,
                 verdict: skein_forge::api::Verdict::RequestChanges,
                 ..reviewers()[0]
             }]),
-            unmapped: Box::new([]),
-        },
+        ),
     );
     assert_eq!(
         d.approval_waits(env().wall, &LIMITS).len(),
