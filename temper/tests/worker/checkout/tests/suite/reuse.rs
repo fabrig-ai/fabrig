@@ -397,7 +397,7 @@ fn a_noisy_run_across_restarts_holds_the_referees() {
 fn a_restart_keeps_the_count_of_facts_dropped_before_it() {
     for reuse in [true, false] {
         let mut world =
-            World::new(Settings { checkout: Limits { workspaces: 2, facts: 3, ..LIMITS }, ..settings(reuse, 1) });
+            World::new(Settings { checkout: Limits { workspaces: 2, facts: 2, ..LIMITS }, ..settings(reuse, 1) });
         world.submit(Time::ZERO, plan(0));
         world.submit(Time::ZERO, plan(1));
         world.run(ITERATIONS);
@@ -407,7 +407,7 @@ fn a_restart_keeps_the_count_of_facts_dropped_before_it() {
         let client = world.submit(world.now(), plan(0));
         world.run(ITERATIONS);
         ready(&world, client);
-        assert!(before > 0, "simultaneous holds exceed the three-fact queue");
+        assert!(before > 0, "simultaneous holds exceed the two-fact queue");
         assert_eq!(after, before, "the cumulative fact counters retain their lost count");
     }
 }
