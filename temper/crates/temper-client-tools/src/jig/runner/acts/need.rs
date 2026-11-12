@@ -1,4 +1,4 @@
-//! A person Create made whole (temper/docs/design/client/ctl/tools.md, 3).
+//! A person Create made whole (client/ctl/tools.md, 3).
 use super::{Call, Failed, Limits, Prepared, Request, c, number, value, words};
 use crate::jig::{
     call::{Value, Values},

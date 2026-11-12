@@ -414,10 +414,18 @@ fn answered(
         | Outcome::Lost => None,
     };
     let Some(answer) = answer else {
-        let operation = jig::render::outcome::Operation::of(&Ask::Family {
-            scope: c::Scope::Project(pending.project),
-            record: family(Box::default()),
-        });
+        let tool = match pending.act {
+            Act::File => &rows::FINDING_FILE,
+            Act::Hand => &rows::FINDING_HAND,
+            Act::Route => &rows::FINDING_ROUTE,
+            Act::Backlog => &rows::FINDING_BACKLOG,
+            Act::Drop => &rows::FINDING_DROP,
+            Act::List | Act::Show => unreachable!("act refusal"),
+        };
+        let operation = jig::render::outcome::Operation::for_call(
+            &Ask::Family { scope: c::Scope::Project(pending.project), record: family(Box::default()) },
+            tool,
+        );
         let printed = jig::render::outcome::print(
             &operation,
             outcome,

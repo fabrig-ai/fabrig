@@ -1162,7 +1162,7 @@ pub const PROJECT_MAKE: Tool = Tool {
     notes: b"Copies policy 1 as it is now. A key replay returns the first project's number. Add a repository with repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY.\n",
 };
 
-// Findings and needs (temper/docs/design/client/ctl/tools.md, 2 and 3).
+// Findings and needs (client/ctl/tools.md, 2 and 3).
 pub const FINDING_LIST_AT: u8 = 76;
 pub const FINDING_SHOW_AT: u8 = 77;
 pub const FINDING_FILE_AT: u8 = 78;
