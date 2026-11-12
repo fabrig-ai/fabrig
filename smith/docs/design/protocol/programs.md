@@ -173,10 +173,19 @@ open is section 9.
   status, sign-in, sign-out and runs, runs with:
   - `CLAUDE_CONFIG_DIR` set to the source's configuration directory;
   - none of `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
-    `CLAUDE_CODE_OAUTH_TOKEN`, nor a cloud provider's variables, which
+    `CLAUDE_CODE_OAUTH_TOKEN`, a named profile's `ANTHROPIC_PROFILE`,
+    federation's `ANTHROPIC_FEDERATION_RULE_ID` and
+    `ANTHROPIC_ORGANIZATION_ID`, nor a cloud provider's variables, which
     Claude Code takes before a subscription's login (in `-p`,
-    `ANTHROPIC_API_KEY` whenever it is present), so that a key in the
-    host's own environment never stands in for the subscription.
+    `ANTHROPIC_API_KEY` whenever it is present; jig's
+    `domain/providers.md`, 3.3), so that a credential in the host's own
+    environment never stands in for the subscription.
+  - What no variable removes, an `oidc_federation` profile active in
+    `~/.config/anthropic`, outside the configuration directory, or a
+    Claude apps gateway session, which Claude Code also takes before the
+    login, the status's check catches: its `authMethod` is not
+    `claude.ai`, so the source is *signed in otherwise* (section 3) and
+    no run takes it.
 - **The settings file** in the directory is the agent's (5.3): written
   whole, by durable replace (skein's `runtime/io/files.md`, 2), with the same content
   for every run, so that runs on one source never race over it.
@@ -325,6 +334,10 @@ open is section 9.
   over allow rules, the permission mode and a hook's allow, so every
   call of a built-in tool reaches the permission prompt, and smith's
   policy (5.4), before it runs.
+- **No way of signing in restricted:** the settings never set
+  `forceLoginMethod` or `forceLoginOrgUUID`, so Claude Code's own ways
+  of signing in, and its own choices among them, stay its own (jig's
+  `domain/providers.md`, 3.2).
 - **The agent's own MCP server** serves the run's tools: each host tool
   the charter declares, `finish`, and `deliver`, `save` and `wait` when
   granted (domain/run.md, 5.1), `remove` with modify, and the prompt tool. It is

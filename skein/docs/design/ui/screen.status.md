@@ -1,8 +1,8 @@
 # ui-screen: status
 
-2026-11-09. Where skein's code lags or departs from [screen.md](screen.md).
+2026-11-12. Where skein's code lags or departs from [screen.md](screen.md).
 
-No known implementation gap. Sections 3, 5 and 6.2 include rules without
+Beside the entry below, no known implementation gap. Sections 3, 5 and 6.2 include rules without
 sides, border-end titles, end-only titles two glyphs across from a
 rule's end, end alignment, bands, unlabelled fields, marks,
 description paints, opt-in active-name paints, focused-value paints, child spacing and options-menu selection. Paging
@@ -18,3 +18,5 @@ a later read-final Escape is a key, while a whole late OSC answer is
 consumed. Section 9's renderer, key and simulated-terminal rows cover
 these paths. Section 10 keeps log-edge reporting and the other deferred
 rendering and input extensions.
+
+- **Not yet:** 8: *Lent to a child*, `Terminal::lend`, `lent` and `resume` [in flight: change 1927].

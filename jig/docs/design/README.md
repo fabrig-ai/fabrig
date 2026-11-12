@@ -711,8 +711,9 @@ application as its first user.
 
 - **`domain/`:** jig's domain layer: the model, tasks, authority,
   connectors, the core, the application's root, parties, hosts, LLM
-  accounts (`accounts.md`) and the LLM providers' terms they keep
-  (`providers.md`), and testing. Its `README.md` gives the reading order
+  accounts (`accounts.md`), the LLM providers' terms they keep
+  (`providers.md`) and a program's login in a lent terminal
+  (`terminal-login.md`), and testing. Its `README.md` gives the reading order
   and the names, and the decisions it took on what this document left
   open.
 - **`client/domain/`:** jig's client: `jig-client`, what it holds and

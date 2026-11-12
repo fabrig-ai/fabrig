@@ -191,7 +191,9 @@
     the party's sign-ins under way, and how the last ended: made,
     renewed, or refused for a subject another holder holds; the checks
     they asked of a program's login that a host has yet to answer, with
-    those hosts; and two facts a client waits on: *usable*, that an
+    those hosts; whether a terminal of theirs can be lent, their
+    program's login under way in it, and how the last ended
+    (`../../../domain/terminal-login.md`, 5); and two facts a client waits on: *usable*, that an
     account which serves the party's work (their own, those whose uses
     name them, and the deployment's: `../../../domain/accounts.md`, 4.3)
     has a source usable on a host, and *settled*, that no sign-in or
