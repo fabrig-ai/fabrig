@@ -333,7 +333,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 182] = [
+pub static NAMES: [Name; 183] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,

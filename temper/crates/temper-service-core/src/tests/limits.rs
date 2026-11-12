@@ -41,9 +41,10 @@ fn preparation_overrides_refuse_zero_naming_the_value_and_minimum() {
         assert_eq!(limits.checkout.preparations, value);
         if value == 0 {
             assert_eq!(problems.problems.len(), 1);
-            let mut out = Writer::new(256);
+            let expected = b"application.limits.overrides.checkout.preparations: 0; requires at least 1\n";
+            let mut out = Writer::new(expected.len());
             render_problem(problems.problems.get(0).unwrap(), &mut out, false);
-            assert_eq!(out.finish().as_ref(), b"application.limits.overrides.checkout.preparations: 0; requires at least 1\n");
+            assert_eq!(out.finish().as_ref(), expected);
         } else {
             assert!(problems.is_empty(), "a nonzero override starts");
         }

@@ -1083,10 +1083,10 @@ impl World {
         assert!(client.operation.is_some(), "an operation runs only while its client waits for one to end");
         let limits = self.settings.checkout;
         if client.operation == Some(Operation::Prepare) {
-            assert!(self.preparing.contains(&owner), "only prepares admitted in arrival order may ask io");
             assert!(self.preparing_io.insert(owner), "one operation per prepare");
             let count = u32::try_from(self.preparing_io.len()).expect("small");
             assert!(count <= limits.preparations, "io never holds more prepares than preparation permits");
+            assert!(self.preparing.contains(&owner), "only prepares admitted in arrival order may ask io");
             self.stats.most_preparing_io = self.stats.most_preparing_io.max(count);
         }
         let timeout = if op.is_remote() { limits.remote_timeout } else { limits.local_timeout };

@@ -2526,7 +2526,7 @@ fn an_active_abort_keeps_the_permit_until_any_operation_end() {
     for done in [Done::Succeeded, failed(Fault::Broken), failed(Fault::Cancelled), failed(Fault::TimedOut)] {
         let mut h = Harness::new(Limits { preparations: 1, ..LIMITS });
         let (first, _) = h.begin(1, one(b"a"));
-        let second = waiting(&mut h, 2, one(b"b"));
+        let second = waiting(&mut h, 2, other_store(b"b"));
         assert_eq!(h.one(Event::Abort { hold: first }), Request::Cancel { owner: first });
         h.none(Event::Abort { hold: first });
         let requests = h.step(Event::Done { owner: first, done: done.clone() });
