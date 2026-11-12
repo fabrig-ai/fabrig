@@ -290,7 +290,7 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
                 attempt: 2,
                 kind: 3,
                 verb: b"merge".as_slice().into(),
-                ending: crate::worker::JobEnding::Refused(reason),
+                ending: crate::WorkerJobEnding::Refused(reason),
                 why: b"workspace items".as_slice().into(),
             })
         );
@@ -373,10 +373,7 @@ fn failed_jobs_name_the_workers_why_once() {
             if let crate::Note::WorkerJob { run, attempt, kind, verb, ending, why } = note {
                 assert_eq!((run, attempt, kind, verb.as_ref()), (JOB.raw(), 2, 3, b"merge".as_slice()));
                 assert_eq!(why.as_ref(), expected_why);
-                assert_eq!(
-                    ending,
-                    crate::worker::JobEnding::Failed { failure, detail: detail.clone() }
-                );
+                assert_eq!(ending, crate::WorkerJobEnding::Failed { failure, detail: detail.clone() });
                 found += 1;
             }
         }

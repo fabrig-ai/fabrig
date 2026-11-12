@@ -416,7 +416,8 @@ impl World {
         own.checkout.name_bytes = checkout.name_bytes;
         own.checkout.conflicts = checkout.conflicts;
         own.checkout.path_bytes = checkout.path_bytes;
-        let limits = temper_service::worker_settings::payload_limits(&temper_service::limits::worker(&own)).expect("worker payload limits");
+        let limits = temper_service::worker_settings::payload_limits(&temper_service::limits::worker(&own))
+            .expect("worker payload limits");
         let story = self.merge_job.as_mut().expect("merge story");
         story.job = Some(job.run.raw());
         if let Some(repository) = &story.cached_repository {

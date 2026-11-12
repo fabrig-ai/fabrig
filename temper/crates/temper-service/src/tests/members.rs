@@ -147,7 +147,12 @@ fn every_row_is_a_member_its_decoder_takes() {
     for (parent, what, shape, name) in [
         ("application", What::Half(startup::EngineWhat::CharterStored), "application", "charter"),
         ("application.landing", What::Half(startup::EngineWhat::LandingStored), "landing", "deployment"),
-        ("application.landing.projects[]", What::Half(startup::EngineWhat::ProjectLandingStored), "landing-project", "rules"),
+        (
+            "application.landing.projects[]",
+            What::Half(startup::EngineWhat::ProjectLandingStored),
+            "landing-project",
+            "rules",
+        ),
     ] {
         let changed = gone(&document, parent, name);
         let problems =

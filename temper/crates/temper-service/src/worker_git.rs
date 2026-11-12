@@ -1,5 +1,5 @@
 //! Git's records at the worker layer, with identity values below the root.
-use crate::{worker_settings::Limits, settings};
+use crate::{settings, worker_settings::Limits};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, Segment, What};
 use skein_io::kernel;

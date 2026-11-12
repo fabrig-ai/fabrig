@@ -1903,9 +1903,11 @@ fn job_stderr_forms_escape_and_bound_their_why() {
                     kind: 3,
                     verb: b"merge".as_slice().into(),
                     ending: match ending {
- JobDiagnosticEnding::Failed { failure, detail } => temper_service::WorkerJobEnding::Failed { failure, detail },
- JobDiagnosticEnding::Refused(reason) => temper_service::WorkerJobEnding::Refused(reason),
- },
+                        JobDiagnosticEnding::Failed { failure, detail } => {
+                            temper_service::WorkerJobEnding::Failed { failure, detail }
+                        }
+                        JobDiagnosticEnding::Refused(reason) => temper_service::WorkerJobEnding::Refused(reason),
+                    },
                     why: why.into(),
                 }
             } else {

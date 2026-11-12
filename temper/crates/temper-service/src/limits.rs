@@ -81,7 +81,7 @@ pub struct Forges {
     /// Maximum configured job-log origins per forge (protocol/configuration/limits.md).
     pub log_origins: u32,
 }
-pub use temper_service_core::limits::{Profile, Refused, FORGE_INSTALLATIONS, FORGE_TOKEN_BYTES};
+pub use temper_service_core::limits::{FORGE_INSTALLATIONS, FORGE_TOKEN_BYTES, Profile, Refused};
 const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     // Logical calls retained, queued and in flight, from the engine forge world fixture.
     pending: 4,
@@ -429,13 +429,14 @@ pub fn profile(profile: Profile) -> Limits {
                 url_bytes: 2048,
                 secret_bytes: 512,
             },
-        }, };
- limits.checkout = shared.checkout;
- limits.git_component = shared.git_component;
- limits.forge.forges = shared.peer.forges;
- limits.forges.installations = shared.peer.installations;
- limits.forge_component.token_bytes = shared.peer.token_bytes;
- limits
+        },
+    };
+    limits.checkout = shared.checkout;
+    limits.git_component = shared.git_component;
+    limits.forge.forges = shared.peer.forges;
+    limits.forges.installations = shared.peer.installations;
+    limits.forge_component.token_bytes = shared.peer.token_bytes;
+    limits
 }
 /// Set one dotted field name byte for byte.
 pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
@@ -579,8 +580,15 @@ pub use crate::worker_settings::job_kinds;
 #[cfg(feature = "worker")]
 #[must_use]
 pub fn worker(limits: &Limits) -> crate::worker_settings::Limits {
- crate::worker_settings::Limits { checkout: limits.checkout, git_component: limits.git_component,
- peer: temper_service_core::limits::Peer { forges: limits.forge.forges, installations: limits.forges.installations, token_bytes: limits.forge_component.token_bytes } }
+    crate::worker_settings::Limits {
+        checkout: limits.checkout,
+        git_component: limits.git_component,
+        peer: temper_service_core::limits::Peer {
+            forges: limits.forge.forges,
+            installations: limits.forges.installations,
+            token_bytes: limits.forge_component.token_bytes,
+        },
+    }
 }
 #[cfg(test)]
 mod making_tests {

@@ -1,8 +1,8 @@
 //! Shared startup vocabulary, bounded problems and lines (protocol/services.md, 3).
+use crate::limits;
 use alloc::boxed::Box;
 use jig_protocol_config as config;
 use skein_lib::{Decimal, List, Writer};
-use crate::limits;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum What<E> {
     Jig(config::What),
@@ -46,7 +46,7 @@ pub enum What<E> {
         ask: u64,
         reply: u64,
     },
- Half(E),
+    Half(E),
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Problem<W> {
@@ -96,7 +96,7 @@ impl<E> Problems<What<E>> {
     }
 }
 fn words<E>(what: &What<E>) -> &'static [u8] {
- match what {
+    match what {
  What::Standalone => b"standalone takes one worker, joined to the engine by the in-process name \"workers\"",
  What::WorkerAlone => b"a worker alone takes one worker dialling a plaintext loopback socket, and only application.workers and application.limits",
  What::Absolute => b"must be an absolute path",
@@ -241,129 +241,152 @@ fn checkout<E>(what: &What<E>, writer: &mut Writer, length: &mut usize, measurin
             }
             true
         }
- What::Jig(_) | What::Standalone | What::WorkerAlone | What::Absolute | What::Profile | What::Override(_) | What::Against { .. } | What::Past { .. } | What::Short { .. } | What::Within { .. } | What::CallInput { .. } | What::Half(_) => false,
- }
+        What::Jig(_)
+        | What::Standalone
+        | What::WorkerAlone
+        | What::Absolute
+        | What::Profile
+        | What::Override(_)
+        | What::Against { .. }
+        | What::Past { .. }
+        | What::Short { .. }
+        | What::Within { .. }
+        | What::CallInput { .. }
+        | What::Half(_) => false,
+    }
 }
+/// Render a shared variant after the half has dispatched its own `Half` variant.
 #[expect(clippy::too_many_lines, reason = "one exhaustive shared vocabulary for both rendering passes")]
 pub fn render_problem<E>(problem: &Problem<What<E>>, writer: &mut Writer, measuring: bool) -> usize {
- let mut length = 0;
- if checkout(&problem.what, writer, &mut length, measuring) { return length; }
-        render_path(&problem.path, writer, &mut length, measuring);
+    let mut length = 0;
+    if checkout(&problem.what, writer, &mut length, measuring) {
+        return length;
+    }
+    render_path(&problem.path, writer, &mut length, measuring);
+    put(writer, &mut length, measuring, b": ");
+    if let Some(file) = &problem.file {
+        put(writer, &mut length, measuring, file);
         put(writer, &mut length, measuring, b": ");
-        if let Some(file) = &problem.file {
-            put(writer, &mut length, measuring, file);
-            put(writer, &mut length, measuring, b": ");
+    }
+    put(writer, &mut length, measuring, words(&problem.what));
+    match &problem.what {
+        What::Half(_) => unreachable!("half rendered by its service"),
+        What::Checkout { .. } => unreachable!("checkout capacity rendered whole"),
+        What::Jig(
+            what @ (config::What::PolicyEnvelope { .. }
+            | config::What::AmendmentEnvelope { .. }
+            | config::What::CodecCeiling { .. }
+            | config::What::Capacity { .. }
+            | config::What::CodecArithmetic
+            | config::What::StoreCodec),
+        ) => codec_words(*what, writer, &mut length, measuring),
+        What::CallInput { bytes, input, ask, reply } => {
+            put(writer, &mut length, measuring, Decimal::of(*bytes).as_bytes());
+            put(
+                writer,
+                &mut length,
+                measuring,
+                b" bytes, short of the agent's call input (profile.declared.tool_payload), ",
+            );
+            put(writer, &mut length, measuring, Decimal::of(*input).as_bytes());
+            put(writer, &mut length, measuring, b" bytes; raise it to at least ");
+            put(writer, &mut length, measuring, Decimal::of(*input).as_bytes());
+            put(writer, &mut length, measuring, b" bytes, or omit it to follow the agent's call input\n");
+            render_path(&problem.path, writer, &mut length, measuring);
+            put(writer, &mut length, measuring, b": call input ");
+            put(writer, &mut length, measuring, Decimal::of(*ask).as_bytes());
+            put(writer, &mut length, measuring, b" bytes; wire answer ");
+            put(writer, &mut length, measuring, Decimal::of(*bytes).as_bytes());
+            put(writer, &mut length, measuring, b" bytes; smith host_reply_bytes ");
+            put(writer, &mut length, measuring, Decimal::of(*reply).as_bytes());
+            put(writer, &mut length, measuring, b" bytes");
         }
-        put(writer, &mut length, measuring, words(&problem.what));
-        match &problem.what {
- What::Half(_) => unreachable!("half rendered by its service"),
-            What::Checkout { .. } => unreachable!("checkout capacity rendered whole"),
-            What::Jig(
-                what @ (config::What::PolicyEnvelope { .. }
-                | config::What::AmendmentEnvelope { .. }
-                | config::What::CodecCeiling { .. }
-                | config::What::Capacity { .. }
-                | config::What::CodecArithmetic
-                | config::What::StoreCodec),
-            ) => codec_words(*what, writer, &mut length, measuring),
-            What::CallInput { bytes, input, ask, reply } => {
-                put(writer, &mut length, measuring, Decimal::of(*bytes).as_bytes());
-                put(
-                    writer,
-                    &mut length,
-                    measuring,
-                    b" bytes, short of the agent's call input (profile.declared.tool_payload), ",
-                );
-                put(writer, &mut length, measuring, Decimal::of(*input).as_bytes());
-                put(writer, &mut length, measuring, b" bytes; raise it to at least ");
-                put(writer, &mut length, measuring, Decimal::of(*input).as_bytes());
-                put(writer, &mut length, measuring, b" bytes, or omit it to follow the agent's call input\n");
-                render_path(&problem.path, writer, &mut length, measuring);
-                put(writer, &mut length, measuring, b": call input ");
-                put(writer, &mut length, measuring, Decimal::of(*ask).as_bytes());
-                put(writer, &mut length, measuring, b" bytes; wire answer ");
-                put(writer, &mut length, measuring, Decimal::of(*bytes).as_bytes());
-                put(writer, &mut length, measuring, b" bytes; smith host_reply_bytes ");
-                put(writer, &mut length, measuring, Decimal::of(*reply).as_bytes());
-                put(writer, &mut length, measuring, b" bytes");
-            }
-            What::Against { other } => put(writer, &mut length, measuring, other),
-            What::Past { bytes, bound } => {
-                put(writer, &mut length, measuring, Decimal::of(*bytes).as_bytes());
-                put(writer, &mut length, measuring, b" bytes, past its bound of ");
-                put(writer, &mut length, measuring, Decimal::of(*bound).as_bytes());
-            }
-            What::Short { bytes, of, needs } => {
-                put(writer, &mut length, measuring, Decimal::of(*bytes).as_bytes());
-                put(writer, &mut length, measuring, b" bytes, short of ");
-                put(writer, &mut length, measuring, of);
-                put(writer, &mut length, measuring, b", ");
-                put(writer, &mut length, measuring, Decimal::of(*needs).as_bytes());
-                put(writer, &mut length, measuring, b" bytes");
-            }
-            What::Within { bytes, limit, bound } => {
-                put(writer, &mut length, measuring, Decimal::of(*bytes).as_bytes());
-                put(writer, &mut length, measuring, b" bytes, past ");
-                put(writer, &mut length, measuring, limit);
-                put(writer, &mut length, measuring, b" of ");
-                put(writer, &mut length, measuring, Decimal::of(*bound).as_bytes());
-            }
-            What::Jig(config::What::Operations { operations, delegates, goals }) => {
-                operation_counts(*operations, *delegates, *goals, writer, &mut length, measuring);
-            }
-            What::Jig(
-                config::What::Reserve { charter }
-                | config::What::Budget { charter }
-                | config::What::Grace { template: charter },
-            ) => {
-                put(writer, &mut length, measuring, Decimal::of(u64::from(*charter)).as_bytes());
-            }
-            What::Jig(
-                config::What::Because(_)
-                | config::What::Json
-                | config::What::Stored
-                | config::What::Unknown
-                | config::What::Missing
-                | config::What::Duplicate
-                | config::What::Kind
-                | config::What::Bound
-                | config::What::SlotsPastHub
-                | config::What::Form
-                | config::What::Unique
-                | config::What::Refers
-                | config::What::Plaintext
-                | config::What::Confidential
-                | config::What::NoProvider
-                | config::What::ProviderKey { .. }
-                | config::What::Digest
-                | config::What::Message
-                | config::What::Silence
-                | config::What::StopBound
-                | config::What::Override
-                | config::What::Unreadable
-                | config::What::Relative,
-            )
-            | What::WorkerAlone
-            | What::Standalone
-            | What::Absolute
-            | What::Profile
-            | What::Override(_) => {}
+        What::Against { other } => put(writer, &mut length, measuring, other),
+        What::Past { bytes, bound } => {
+            put(writer, &mut length, measuring, Decimal::of(*bytes).as_bytes());
+            put(writer, &mut length, measuring, b" bytes, past its bound of ");
+            put(writer, &mut length, measuring, Decimal::of(*bound).as_bytes());
         }
-        put(writer, &mut length, measuring, b"\n");
- length
+        What::Short { bytes, of, needs } => {
+            put(writer, &mut length, measuring, Decimal::of(*bytes).as_bytes());
+            put(writer, &mut length, measuring, b" bytes, short of ");
+            put(writer, &mut length, measuring, of);
+            put(writer, &mut length, measuring, b", ");
+            put(writer, &mut length, measuring, Decimal::of(*needs).as_bytes());
+            put(writer, &mut length, measuring, b" bytes");
+        }
+        What::Within { bytes, limit, bound } => {
+            put(writer, &mut length, measuring, Decimal::of(*bytes).as_bytes());
+            put(writer, &mut length, measuring, b" bytes, past ");
+            put(writer, &mut length, measuring, limit);
+            put(writer, &mut length, measuring, b" of ");
+            put(writer, &mut length, measuring, Decimal::of(*bound).as_bytes());
+        }
+        What::Jig(config::What::Operations { operations, delegates, goals }) => {
+            operation_counts(*operations, *delegates, *goals, writer, &mut length, measuring);
+        }
+        What::Jig(
+            config::What::Reserve { charter }
+            | config::What::Budget { charter }
+            | config::What::Grace { template: charter },
+        ) => {
+            put(writer, &mut length, measuring, Decimal::of(u64::from(*charter)).as_bytes());
+        }
+        What::Jig(
+            config::What::Because(_)
+            | config::What::Json
+            | config::What::Stored
+            | config::What::Unknown
+            | config::What::Missing
+            | config::What::Duplicate
+            | config::What::Kind
+            | config::What::Bound
+            | config::What::SlotsPastHub
+            | config::What::Form
+            | config::What::Unique
+            | config::What::Refers
+            | config::What::Plaintext
+            | config::What::Confidential
+            | config::What::NoProvider
+            | config::What::ProviderKey { .. }
+            | config::What::Digest
+            | config::What::Message
+            | config::What::Silence
+            | config::What::StopBound
+            | config::What::Override
+            | config::What::Unreadable
+            | config::What::Relative,
+        )
+        | What::WorkerAlone
+        | What::Standalone
+        | What::Absolute
+        | What::Profile
+        | What::Override(_) => {}
+    }
+    put(writer, &mut length, measuring, b"\n");
+    length
 }
 pub fn render_past(past: u32, writer: &mut Writer, length: &mut usize, measuring: bool) {
- if past > 0 { put(writer, length, measuring, b"and "); put(writer, length, measuring, Decimal::of(u64::from(past)).as_bytes()); put(writer, length, measuring, b" more\n"); }
+    if past > 0 {
+        put(writer, length, measuring, b"and ");
+        put(writer, length, measuring, Decimal::of(u64::from(past)).as_bytes());
+        put(writer, length, measuring, b" more\n");
+    }
 }
-fn render<E>(problems: &Problems<What<E>>, writer: &mut Writer, measuring: bool) -> usize {
- let mut length: usize = 0;
- for problem in &problems.problems { length = length.checked_add(render_problem(problem, writer, measuring)).expect("bounded diagnostics"); }
- render_past(problems.past, writer, &mut length, measuring); length
+fn render(problems: &SharedProblems, writer: &mut Writer, measuring: bool) -> usize {
+    let mut length: usize = 0;
+    for problem in &problems.problems {
+        length = length.checked_add(render_problem(problem, writer, measuring)).expect("bounded diagnostics");
+    }
+    render_past(problems.past, writer, &mut length, measuring);
+    length
 }
 #[must_use]
-pub fn lines<E>(problems: &Problems<What<E>>) -> Box<[u8]> {
- let length = render(problems, &mut Writer::new(0), true); let mut writer = Writer::new(length);
- assert_eq!(render(problems, &mut writer, false), length, "diagnostic passes measure identically"); writer.finish()
+pub fn lines(problems: &SharedProblems) -> Box<[u8]> {
+    let length = render(problems, &mut Writer::new(0), true);
+    let mut writer = Writer::new(length);
+    assert_eq!(render(problems, &mut writer, false), length, "diagnostic passes measure identically");
+    writer.finish()
 }
 /// A half with no additional startup problems (protocol/services.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -371,22 +394,44 @@ pub enum SharedOnly {}
 pub type SharedWhat = What<SharedOnly>;
 pub type SharedProblems = Problems<SharedWhat>;
 impl SharedWhat {
- #[must_use]
- pub fn extend<E>(self) -> What<E> {
- match self {
- What::Jig(what) => What::Jig(what),
- What::Standalone => What::Standalone,
- What::WorkerAlone => What::WorkerAlone,
- What::Absolute => What::Absolute,
- What::Profile => What::Profile,
- What::Override(what) => What::Override(what),
- What::Against { other } => What::Against { other },
- What::Checkout { conflicts, path_bytes, repositories, stdout, stdout_of, agent_conflicts, agent_paths, saved, engine, worker } => What::Checkout { conflicts, path_bytes, repositories, stdout, stdout_of, agent_conflicts, agent_paths, saved, engine, worker },
- What::Past { bytes, bound } => What::Past { bytes, bound },
- What::Short { bytes, of, needs } => What::Short { bytes, of, needs },
- What::Within { bytes, limit, bound } => What::Within { bytes, limit, bound },
- What::CallInput { bytes, input, ask, reply } => What::CallInput { bytes, input, ask, reply },
- What::Half(half) => match half {},
- }
- }
+    #[must_use]
+    pub fn extend<E>(self) -> What<E> {
+        match self {
+            What::Jig(what) => What::Jig(what),
+            What::Standalone => What::Standalone,
+            What::WorkerAlone => What::WorkerAlone,
+            What::Absolute => What::Absolute,
+            What::Profile => What::Profile,
+            What::Override(what) => What::Override(what),
+            What::Against { other } => What::Against { other },
+            What::Checkout {
+                conflicts,
+                path_bytes,
+                repositories,
+                stdout,
+                stdout_of,
+                agent_conflicts,
+                agent_paths,
+                saved,
+                engine,
+                worker,
+            } => What::Checkout {
+                conflicts,
+                path_bytes,
+                repositories,
+                stdout,
+                stdout_of,
+                agent_conflicts,
+                agent_paths,
+                saved,
+                engine,
+                worker,
+            },
+            What::Past { bytes, bound } => What::Past { bytes, bound },
+            What::Short { bytes, of, needs } => What::Short { bytes, of, needs },
+            What::Within { bytes, limit, bound } => What::Within { bytes, limit, bound },
+            What::CallInput { bytes, input, ask, reply } => What::CallInput { bytes, input, ask, reply },
+            What::Half(half) => match half {},
+        }
+    }
 }

@@ -187,7 +187,8 @@ impl Joint {
         agent.host_limits.message_bytes =
             settings.jig.limits.hub.event_bytes.checked_add(temper_worker_domain::SEPARATOR).unwrap();
         agent.host_limits.call_bytes = u64::from(settings.limits.checkout.message_bytes);
-        let stand = fixtures::worker_peers::socket_stand_with_limits(&worker, &agent, &limits::worker(&settings.limits));
+        let stand =
+            fixtures::worker_peers::socket_stand_with_limits(&worker, &agent, &limits::worker(&settings.limits));
         let room = settings.jig.limits.io.largest_room();
         let limits = crate::workers::limits(settings).unwrap();
         let mut joint = Self {

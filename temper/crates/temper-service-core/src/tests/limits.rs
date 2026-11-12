@@ -21,13 +21,23 @@ use skein_lib::Duration;
 fn profiles_keep_the_shared_checkout_git_and_peer_envelopes() {
     let expected = Shared {
         checkout: Checkout {
-            workspaces: 3, repositories: 2, name_bytes: 256, message_bytes: 4096,
-            conflicts: 512, path_bytes: 255, remote_timeout: Duration::from_secs(60),
-            local_timeout: Duration::from_secs(10), facts: 256,
+            workspaces: 3,
+            repositories: 2,
+            name_bytes: 256,
+            message_bytes: 4096,
+            conflicts: 512,
+            path_bytes: 255,
+            remote_timeout: Duration::from_secs(60),
+            local_timeout: Duration::from_secs(10),
+            facts: 256,
         },
         git_component: GitComponent {
-            operations: 3, stdout_bytes: 131_072, stderr_bytes: 512,
-            read_bytes: 4096, sweep_entries: 16, sweep_bytes: 4080,
+            operations: 3,
+            stdout_bytes: 131_072,
+            stderr_bytes: 512,
+            read_bytes: 4096,
+            sweep_entries: 16,
+            sweep_bytes: 4080,
         },
         peer: Peer { forges: 3, installations: 8, token_bytes: 512 },
     };
@@ -47,15 +57,39 @@ fn shared_overrides_apply_only_to_the_named_field() {
         (b"checkout.message_bytes", Shared { checkout: Checkout { message_bytes: 7, ..small.checkout }, ..small }),
         (b"checkout.conflicts", Shared { checkout: Checkout { conflicts: 7, ..small.checkout }, ..small }),
         (b"checkout.path_bytes", Shared { checkout: Checkout { path_bytes: 7, ..small.checkout }, ..small }),
-        (b"checkout.remote_timeout_ms", Shared { checkout: Checkout { remote_timeout: Duration::from_millis(7), ..small.checkout }, ..small }),
-        (b"checkout.local_timeout_ms", Shared { checkout: Checkout { local_timeout: Duration::from_millis(7), ..small.checkout }, ..small }),
+        (
+            b"checkout.remote_timeout_ms",
+            Shared { checkout: Checkout { remote_timeout: Duration::from_millis(7), ..small.checkout }, ..small },
+        ),
+        (
+            b"checkout.local_timeout_ms",
+            Shared { checkout: Checkout { local_timeout: Duration::from_millis(7), ..small.checkout }, ..small },
+        ),
         (b"checkout.facts", Shared { checkout: Checkout { facts: 7, ..small.checkout }, ..small }),
-        (b"git_component.operations", Shared { git_component: GitComponent { operations: 7, ..small.git_component }, ..small }),
-        (b"git_component.stdout_bytes", Shared { git_component: GitComponent { stdout_bytes: 7, ..small.git_component }, ..small }),
-        (b"git_component.stderr_bytes", Shared { git_component: GitComponent { stderr_bytes: 7, ..small.git_component }, ..small }),
-        (b"git_component.read_bytes", Shared { git_component: GitComponent { read_bytes: 7, ..small.git_component }, ..small }),
-        (b"git_component.sweep_entries", Shared { git_component: GitComponent { sweep_entries: 7, ..small.git_component }, ..small }),
-        (b"git_component.sweep_bytes", Shared { git_component: GitComponent { sweep_bytes: 7, ..small.git_component }, ..small }),
+        (
+            b"git_component.operations",
+            Shared { git_component: GitComponent { operations: 7, ..small.git_component }, ..small },
+        ),
+        (
+            b"git_component.stdout_bytes",
+            Shared { git_component: GitComponent { stdout_bytes: 7, ..small.git_component }, ..small },
+        ),
+        (
+            b"git_component.stderr_bytes",
+            Shared { git_component: GitComponent { stderr_bytes: 7, ..small.git_component }, ..small },
+        ),
+        (
+            b"git_component.read_bytes",
+            Shared { git_component: GitComponent { read_bytes: 7, ..small.git_component }, ..small },
+        ),
+        (
+            b"git_component.sweep_entries",
+            Shared { git_component: GitComponent { sweep_entries: 7, ..small.git_component }, ..small },
+        ),
+        (
+            b"git_component.sweep_bytes",
+            Shared { git_component: GitComponent { sweep_bytes: 7, ..small.git_component }, ..small },
+        ),
         (b"forge.forges", Shared { peer: Peer { forges: 7, ..small.peer }, ..small }),
         (b"forges.installations", Shared { peer: Peer { installations: 7, ..small.peer }, ..small }),
         (b"forge_component.token_bytes", Shared { peer: Peer { token_bytes: 7, ..small.peer }, ..small }),
@@ -74,7 +108,10 @@ fn shared_overrides_apply_only_to_the_named_field() {
 /// The common grammar refuses unknown names and malformed integers, not engine ranges.
 #[test]
 fn shared_limits_grammar_checks_names_and_integer_representations() {
-    use crate::startup::{configured_limits, problems::{SharedProblems, SharedWhat as What}};
+    use crate::startup::{
+        configured_limits,
+        problems::{SharedProblems, SharedWhat as What},
+    };
     use jig_protocol_config::{self as config, Path};
     for (input, expected) in [
         (br#"{"profile":"small","overrides":{"checkout.conflicts":7,"forge.change_policy.tasks":0,"forge.changes":18446744073709551615}}"#.as_slice(), None),

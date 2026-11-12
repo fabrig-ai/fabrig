@@ -1,21 +1,32 @@
 //! The worker's start and checks (protocol/services.md, 5).
-pub(super) mod checks;
 mod application;
 pub(super) mod checkout;
-use crate::{Service, Worker, WorkerRuntime, settings};
+pub(super) mod checks;
 use crate::worker_settings::Limits;
+use crate::{Service, Worker, WorkerRuntime, settings};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path, read};
 use skein_lib::List;
-use temper_worker_domain as worker_domain;
 use temper_service_core::limits;
-use temper_service_core::startup::{Shape, member, indexed, own, at, worker_limit, short, against, call_answer, call_input_path, nearest_document, CallAnswer};
-use temper_service_core::startup::problems::{SharedWhat as What, SharedProblems as Problems};
-use temper_service_core::startup::problems::{What as SharedWhat, Problems as SharedProblems};
+use temper_service_core::startup::problems::{Problems as SharedProblems, What as SharedWhat};
+use temper_service_core::startup::problems::{SharedProblems as Problems, SharedWhat as What};
+use temper_service_core::startup::{
+    CallAnswer, Shape, against, at, call_answer, call_input_path, indexed, member, nearest_document, own, short,
+    worker_limit,
+};
+use temper_worker_domain as worker_domain;
 /// The paths opened for a local worker (protocol/services.md, 5).
 #[derive(Debug)]
-pub struct NamedWorker { pub root: Box<[u8]>, pub agent: Box<[u8]>, pub program: Box<[u8]> }
-fn problem(path: Path, what: What) -> Problems { let mut problems = Problems::empty(); problems.push(path, what); problems }
+pub struct NamedWorker {
+    pub root: Box<[u8]>,
+    pub agent: Box<[u8]>,
+    pub program: Box<[u8]>,
+}
+fn problem(path: Path, what: What) -> Problems {
+    let mut problems = Problems::empty();
+    problems.push(path, what);
+    problems
+}
 pub(super) fn build(
     worker: Option<settings::Worker>,
     agent: Option<&settings::Agent>,
@@ -87,7 +98,11 @@ pub(super) fn git_limits<E>(limits: &Limits, git: &limits::GitComponent, problem
 }
 
 /// Byte relationships retain the quantities the worker's admission check compared.
-fn worker_payload<E>(limits: &worker_domain::Limits, unfit: worker_domain::Unfit, problems: &mut SharedProblems<SharedWhat<E>>) -> bool {
+fn worker_payload<E>(
+    limits: &worker_domain::Limits,
+    unfit: worker_domain::Unfit,
+    problems: &mut SharedProblems<SharedWhat<E>>,
+) -> bool {
     use worker_domain::Unfit;
     const MESSAGE: &[u8] = b"agent.json profile.declared.tool_payload less the 2-byte separator";
     match unfit {
@@ -243,7 +258,12 @@ pub(super) fn check_worker_part(
     agent: &settings::Agent,
 ) -> Result<(), Problems> {
     let mut problems = Problems::empty();
-    if let Err(what) = part.call_answer.compose(&mut part.worker.jig.limits, agent.tool_payload(), agent.host_ask_input(), agent.host_reply_text()) {
+    if let Err(what) = part.call_answer.compose(
+        &mut part.worker.jig.limits,
+        agent.tool_payload(),
+        agent.host_ask_input(),
+        agent.host_reply_text(),
+    ) {
         problems.push(call_input_path(indexed(0)), what);
     }
     call_answer(indexed(0), part.worker.jig.limits.core.call_answer_bytes, &mut problems);
@@ -271,32 +291,83 @@ pub(super) fn check_worker_part(
 }
 
 fn loopback(address: &config::Address) -> bool {
- match address { config::Address::Addr(skein_io::Addr::Ip(socket)) => socket.ip().is_loopback(), config::Address::Addr(skein_io::Addr::InProcess(_)) | config::Address::Host { .. } => false }
+    match address {
+        config::Address::Addr(skein_io::Addr::Ip(socket)) => socket.ip().is_loopback(),
+        config::Address::Addr(skein_io::Addr::InProcess(_)) | config::Address::Host { .. } => false,
+    }
 }
-fn document(input: &[u8], directories: &config::Directories, check_start: bool) -> Result<skein_json::Document, Problems> {
- let document = match config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: u32::try_from(input.len()).unwrap_or(u32::MAX), depth: 32 }) { Ok(document) => document, Err(found) => return Err(problem(found.path, What::Jig(found.what))) };
- if nearest_document(&document) != Shape::WorkerAlone { return Err(problem(Path::root(), What::WorkerAlone)); }
- validate(&document, directories, check_start)?; Ok(document)
+fn document(
+    input: &[u8],
+    directories: &config::Directories,
+    check_start: bool,
+) -> Result<skein_json::Document, Problems> {
+    let document = match config::document(
+        input,
+        &config::DocumentLimits { bytes: 1_048_576, tokens: u32::try_from(input.len()).unwrap_or(u32::MAX), depth: 32 },
+    ) {
+        Ok(document) => document,
+        Err(found) => return Err(problem(found.path, What::Jig(found.what))),
+    };
+    if nearest_document(&document) != Shape::WorkerAlone {
+        return Err(problem(Path::root(), What::WorkerAlone));
+    }
+    validate(&document, directories, check_start)?;
+    Ok(document)
 }
-fn validate(document: &skein_json::Document, directories: &config::Directories, check_start: bool) -> Result<(), Problems> {
- let mut problems = Problems::empty(); let root = Path::root();
- let Some(mut whole) = application::object(document, 0, &root, &mut problems) else { return Err(problems); };
- let worker_at = application::required(&mut whole, document, b"workers", &root, &mut problems);
- let application_at = application::required(&mut whole, document, b"application", &root, &mut problems);
- application::finish_shape(document, whole, &root, &mut problems);
- let ats = match worker_at {
- Some(at) => match read::list(document, at, document.len()) { Ok(ats) => ats, Err(what) => { problems.push(root.member(b"workers"), What::Jig(what)); List::with_capacity(0) } }, None => List::with_capacity(0) };
- let mut workers = List::with_capacity(ats.len());
- for (index, at) in ats.iter().enumerate() {
- if check_start { checks::raw_worker(document, *at, &indexed(index), &mut problems); }
- match config::worker(document, *at, directories) { Ok(worker) => { workers.push(worker).expect("bounded workers"); }, Err(found) => problems.append(found, &indexed(index)) }
- }
- if worker_at.is_some() && ats.len() != 1 { problems.push(root.member(b"workers"), What::WorkerAlone); }
- for (index, worker) in workers.iter().enumerate() { if !loopback(&worker.engine) { problems.push(indexed(index).member(b"engine"), What::WorkerAlone); } }
- if let Some(at) = application_at { let _part = application::read(document, at, directories, &mut problems); }
- if problems.is_empty() { Ok(()) } else { Err(problems) }
+fn validate(
+    document: &skein_json::Document,
+    directories: &config::Directories,
+    check_start: bool,
+) -> Result<(), Problems> {
+    let mut problems = Problems::empty();
+    let root = Path::root();
+    let Some(mut whole) = application::object(document, 0, &root, &mut problems) else {
+        return Err(problems);
+    };
+    let worker_at = application::required(&mut whole, document, b"workers", &root, &mut problems);
+    let application_at = application::required(&mut whole, document, b"application", &root, &mut problems);
+    application::finish_shape(document, whole, &root, &mut problems);
+    let ats = match worker_at {
+        Some(at) => match read::list(document, at, document.len()) {
+            Ok(ats) => ats,
+            Err(what) => {
+                problems.push(root.member(b"workers"), What::Jig(what));
+                List::with_capacity(0)
+            }
+        },
+        None => List::with_capacity(0),
+    };
+    let mut workers = List::with_capacity(ats.len());
+    for (index, at) in ats.iter().enumerate() {
+        if check_start {
+            checks::raw_worker(document, *at, &indexed(index), &mut problems);
+        }
+        match config::worker(document, *at, directories) {
+            Ok(worker) => {
+                workers.push(worker).expect("bounded workers");
+            }
+            Err(found) => problems.append(found, &indexed(index)),
+        }
+    }
+    if worker_at.is_some() && ats.len() != 1 {
+        problems.push(root.member(b"workers"), What::WorkerAlone);
+    }
+    for (index, worker) in workers.iter().enumerate() {
+        if !loopback(&worker.engine) {
+            problems.push(indexed(index).member(b"engine"), What::WorkerAlone);
+        }
+    }
+    if let Some(at) = application_at {
+        let _part = application::read(document, at, directories, &mut problems);
+    }
+    if problems.is_empty() { Ok(()) } else { Err(problems) }
 }
-pub(super) fn application(document: &skein_json::Document, at: u32, directories: &config::Directories) -> Result<(), Problems> {
- let mut problems = Problems::empty(); let _part = application::read(document, at, directories, &mut problems);
- if problems.is_empty() { Ok(()) } else { Err(problems) }
+pub(super) fn application(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+) -> Result<(), Problems> {
+    let mut problems = Problems::empty();
+    let _part = application::read(document, at, directories, &mut problems);
+    if problems.is_empty() { Ok(()) } else { Err(problems) }
 }

@@ -1,21 +1,22 @@
 //! One worker root and its channels, with values below the domain (jig's
 //! protocol/service.md, 6).
-mod diagnostics;
 pub(crate) mod credentials;
+mod diagnostics;
 mod jobs;
 #[cfg(test)]
 #[path = "tests/worker_jobs.rs"]
 mod tests;
 pub mod translate;
+use crate::worker_job_ending::JobEnding;
 use crate::{
     identities::IdentityTable,
     settings::{Agent, Files},
     worker_route, worker_settings,
 };
 use alloc::boxed::Box;
+use credentials::{Scheme, Table, Value};
 use jig_domain_host as hub;
 use jig_domain_link::SourceName;
-use credentials::{Scheme, Table, Value};
 use jig_protocol_config::{Problems, What};
 use jig_protocol_worker_link as link;
 use skein_channel::{Lower, LowerEvent};
@@ -1276,11 +1277,4 @@ mod merge_tests {
         jig.core.tasks.result_bytes = bound.result;
         assert_eq!(crate::limits::jobs(&jig).as_ref(), [merge, bound]);
     }
-}
-
-/// A worker job's ending, in the host's words (protocol/services.md, 5).
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum JobEnding {
- Failed { failure: hub::JobFailure, detail: Box<[u8]> },
- Refused(hub::JobRefusal),
 }

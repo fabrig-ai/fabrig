@@ -11,13 +11,23 @@ fn duration(value: u64) -> Result<Duration, Refused> {
 #[expect(clippy::too_many_lines, reason = "one exhaustive table of scalar dotted field paths")]
 pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused> {
     if temper_service_core::limits::shared_name(name) {
- let mut shared = temper_service_core::limits::Shared { checkout: limits.checkout, git_component: limits.git_component,
- peer: temper_service_core::limits::Peer { forges: limits.forge.forges, installations: limits.forges.installations, token_bytes: limits.forge_component.token_bytes } };
- temper_service_core::limits::apply(&mut shared, name, value)?;
- limits.checkout = shared.checkout; limits.git_component = shared.git_component;
- limits.forge.forges = shared.peer.forges; limits.forges.installations = shared.peer.installations; limits.forge_component.token_bytes = shared.peer.token_bytes;
- return Ok(());
- }
+        let mut shared = temper_service_core::limits::Shared {
+            checkout: limits.checkout,
+            git_component: limits.git_component,
+            peer: temper_service_core::limits::Peer {
+                forges: limits.forge.forges,
+                installations: limits.forges.installations,
+                token_bytes: limits.forge_component.token_bytes,
+            },
+        };
+        temper_service_core::limits::apply(&mut shared, name, value)?;
+        limits.checkout = shared.checkout;
+        limits.git_component = shared.git_component;
+        limits.forge.forges = shared.peer.forges;
+        limits.forges.installations = shared.peer.installations;
+        limits.forge_component.token_bytes = shared.peer.token_bytes;
+        return Ok(());
+    }
     if find(name).is_none() {
         return Err(Refused::Unknown);
     }

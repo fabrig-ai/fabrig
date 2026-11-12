@@ -4,9 +4,10 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 use alloc::boxed::Box;
-#[cfg(feature = "worker")]
-pub use worker::JobEnding as WorkerJobEnding;
+#[path = "worker/job_ending.rs"]
+mod worker_job_ending;
 pub use temper_engine_domain::{JobDiagnostic, JobDiagnosticEnding, RunRefusalDiagnostic};
+pub use worker_job_ending::JobEnding as WorkerJobEnding;
 pub mod diagnostics;
 pub mod forge;
 pub mod forges;
@@ -202,7 +203,7 @@ pub enum Note {
         attempt: u64,
         kind: u32,
         verb: Box<[u8]>,
-        ending: worker::JobEnding,
+        ending: WorkerJobEnding,
         why: Box<[u8]>,
     },
     /// A forge read refusal with its task, tool, layer and authority findings.

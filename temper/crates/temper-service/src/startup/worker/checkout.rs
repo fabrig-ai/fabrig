@@ -1,10 +1,10 @@
 //! The checkout's capacity, whole (protocol/configuration/limits.md).
 //! Git's earlier check defers stdout here, where both links' rooms are known.
-use temper_service_core::startup::problems::{Problems, What};
-use crate::{worker_settings::Limits, settings};
-use temper_service_core::limits;
+use crate::{settings, worker_settings::Limits};
 use jig_protocol_config::{self as config, Path};
 use temper_protocol_worker_wire::v1 as payload;
+use temper_service_core::limits;
+use temper_service_core::startup::problems::{Problems, What};
 
 fn short(has: u64, needs: u64) -> Option<(u32, u32)> {
     if has < needs {

@@ -1,7 +1,7 @@
 //! Engine startup problems around the core's vocabulary (protocol/services.md, 3).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
-use temper_service_core::startup::problems::{put, render_path, render_problem, render_past};
+use temper_service_core::startup::problems::{put, render_past, render_path, render_problem};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum EngineWhat {
     Room(temper_engine_domain::room::Short),
@@ -12,29 +12,12 @@ pub enum EngineWhat {
     Connectors,
     OldAgentCommand,
     NoWebhooks,
-    TierChanges {
-        count: u32,
-        bound: u32,
-        ceiling: u32,
-    },
-    StorePage {
-        transcript: u32,
-        frame: u32,
-        page: u32,
-        ceiling: u32,
-    },
+    TierChanges { count: u32, bound: u32, ceiling: u32 },
+    StorePage { transcript: u32, frame: u32, page: u32, ceiling: u32 },
     StoreMap(jig_protocol_store::sizes::SizeRefusal),
-    StoreTask {
-        needs: u32,
-        has: u32,
-        batch_bytes: u32,
-    },
+    StoreTask { needs: u32, has: u32, batch_bytes: u32 },
     Agent,
-    Admission {
-        why: jig_domain_fleet::AgentShortfall,
-        offered: u64,
-        required: u64,
-    },
+    Admission { why: jig_domain_fleet::AgentShortfall, offered: u64, required: u64 },
     Adapter,
     Redirect(super::Listener),
     NoHub,
@@ -53,7 +36,7 @@ pub type What = temper_service_core::startup::problems::What<EngineWhat>;
 pub type Problem = temper_service_core::startup::problems::Problem<What>;
 pub type Problems = temper_service_core::startup::problems::Problems<What>;
 fn words(what: EngineWhat) -> &'static [u8] {
- match what {
+    match what {
         EngineWhat::EngineAlone => b"an engine alone takes no local worker, one plaintext loopback listener and workers with distinct digest paths",
         EngineWhat::UnbuiltWorker => b"this build serves an engine alone",
         EngineWhat::Loopback => b"must be a socket address on loopback",
@@ -248,16 +231,34 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
     put(writer, length, measuring, b"; raise it in engine.limits.overrides");
 }
 fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
- let mut length = 0_usize;
- for problem in &problems.problems {
- let what = match problem.what {
- What::Half(what) => what,
-What::Jig(_) | What::Standalone | What::WorkerAlone | What::Absolute | What::Profile | What::Override(_) | What::Against { .. } | What::Checkout { .. } | What::Past { .. } | What::Short { .. } | What::Within { .. } | What::CallInput { .. } => { length = length.checked_add(render_problem(problem, writer, measuring)).expect("bounded diagnostics"); continue; }
- };
- render_path(&problem.path, writer, &mut length, measuring); put(writer, &mut length, measuring, b": ");
- if let Some(file) = &problem.file { put(writer, &mut length, measuring, file); put(writer, &mut length, measuring, b": "); }
- put(writer, &mut length, measuring, words(what));
- match what {
+    let mut length = 0_usize;
+    for problem in &problems.problems {
+        let what = match problem.what {
+            What::Half(what) => what,
+            What::Jig(_)
+            | What::Standalone
+            | What::WorkerAlone
+            | What::Absolute
+            | What::Profile
+            | What::Override(_)
+            | What::Against { .. }
+            | What::Checkout { .. }
+            | What::Past { .. }
+            | What::Short { .. }
+            | What::Within { .. }
+            | What::CallInput { .. } => {
+                length = length.checked_add(render_problem(problem, writer, measuring)).expect("bounded diagnostics");
+                continue;
+            }
+        };
+        render_path(&problem.path, writer, &mut length, measuring);
+        put(writer, &mut length, measuring, b": ");
+        if let Some(file) = &problem.file {
+            put(writer, &mut length, measuring, file);
+            put(writer, &mut length, measuring, b": ");
+        }
+        put(writer, &mut length, measuring, words(what));
+        match what {
             EngineWhat::Room(short) => put(writer, &mut length, measuring, &short.words()),
             EngineWhat::Stock(floor) => stock(floor, writer, &mut length, measuring),
             EngineWhat::TierChanges { count, bound, ceiling } => {
@@ -284,11 +285,30 @@ What::Jig(_) | What::Standalone | What::WorkerAlone | What::Absolute | What::Pro
                 admission(why, offered, required, writer, &mut length, measuring);
             }
             EngineWhat::Redirect(listener) => redirect_listener(listener, writer, &mut length, measuring),
-EngineWhat::EngineAlone | EngineWhat::UnbuiltWorker | EngineWhat::Loopback | EngineWhat::Connectors | EngineWhat::OldAgentCommand | EngineWhat::NoWebhooks | EngineWhat::Agent | EngineWhat::Adapter | EngineWhat::NoHub | EngineWhat::Credentials | EngineWhat::Escalation | EngineWhat::Provider | EngineWhat::BoxSignIn | EngineWhat::Handover | EngineWhat::MissingNull | EngineWhat::InlineSeedPolicy | EngineWhat::LandingStored | EngineWhat::ProjectLandingStored | EngineWhat::CharterStored => {},
- }
- put(writer, &mut length, measuring, b"\n");
- }
- render_past(problems.past, writer, &mut length, measuring); length
+            EngineWhat::EngineAlone
+            | EngineWhat::UnbuiltWorker
+            | EngineWhat::Loopback
+            | EngineWhat::Connectors
+            | EngineWhat::OldAgentCommand
+            | EngineWhat::NoWebhooks
+            | EngineWhat::Agent
+            | EngineWhat::Adapter
+            | EngineWhat::NoHub
+            | EngineWhat::Credentials
+            | EngineWhat::Escalation
+            | EngineWhat::Provider
+            | EngineWhat::BoxSignIn
+            | EngineWhat::Handover
+            | EngineWhat::MissingNull
+            | EngineWhat::InlineSeedPolicy
+            | EngineWhat::LandingStored
+            | EngineWhat::ProjectLandingStored
+            | EngineWhat::CharterStored => {}
+        }
+        put(writer, &mut length, measuring, b"\n");
+    }
+    render_past(problems.past, writer, &mut length, measuring);
+    length
 }
 #[must_use]
 pub fn lines(problems: &Problems) -> Box<[u8]> {
@@ -298,8 +318,12 @@ pub fn lines(problems: &Problems) -> Box<[u8]> {
     writer.finish()
 }
 
+#[cfg(feature = "worker")]
 pub(super) fn from_worker(found: temper_service_core::startup::problems::SharedProblems) -> Problems {
- let mut result = Problems::empty();
- for problem in found.problems.into_boxed() { result.push_file(problem.path, problem.what.extend(), problem.file); }
- result.past = result.past.saturating_add(found.past); result
+    let mut result = Problems::empty();
+    for problem in found.problems.into_boxed() {
+        result.push_file(problem.path, problem.what.extend(), problem.file);
+    }
+    result.past = result.past.saturating_add(found.past);
+    result
 }

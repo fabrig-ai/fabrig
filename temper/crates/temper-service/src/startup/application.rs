@@ -358,7 +358,10 @@ pub fn parse(
             problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Jig(config::What::Refers));
         }
         if sign_in.is_some() {
-            problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Half(crate::startup::EngineWhat::BoxSignIn));
+            problems.push(
+                path.member(b"machine").member(b"owned").member(b"sign_in"),
+                What::Half(crate::startup::EngineWhat::BoxSignIn),
+            );
         }
     }
     if let Some(sign_in) = &sign_in {

@@ -537,7 +537,10 @@ fn problems_print_one_line_each_with_their_path() {
     let mut problems = Problems::empty();
     let forge = Path::root().member(b"application").member(b"forges").child(Segment::Index(0));
     problems.push(forge.member(b"user"), What::Jig(config::What::Missing));
-    problems.push(Path::root().member(b"application").member(b"webhooks"), What::Half(crate::startup::EngineWhat::NoWebhooks));
+    problems.push(
+        Path::root().member(b"application").member(b"webhooks"),
+        What::Half(crate::startup::EngineWhat::NoWebhooks),
+    );
     assert_eq!(
         &*lines(&problems),
         b"application.forges[0].user: missing\napplication.webhooks: needs application.webhooks\n".as_slice()
@@ -931,7 +934,10 @@ fn admission_model_words_use_tokens_and_missing_names_make_no_amount_claim() {
         ),
     ] {
         let mut problems = Problems::empty();
-        problems.push(Path::root().member(b"model"), What::Half(crate::startup::EngineWhat::Admission { why, offered: 1024, required: 8192 }));
+        problems.push(
+            Path::root().member(b"model"),
+            What::Half(crate::startup::EngineWhat::Admission { why, offered: 1024, required: 8192 }),
+        );
         assert_eq!(&*lines(&problems), expected.as_bytes());
     }
 }
@@ -1862,6 +1868,13 @@ fn a_worker_alone_applies_its_names_without_engine_range_checks() {
     assert_eq!(crate::startup::shape(&input, &directories).unwrap(), crate::startup::Shape::WorkerAlone);
     let part = crate::startup::worker_part(&input, &directories).unwrap();
     assert_eq!(part.limits.checkout.conflicts, 7);
-    let service = crate::startup::worker_alone(part, &fixtures::files(), &fixtures::startup_agent(), fixtures::worker_runtime(), 7).unwrap();
+    let service = crate::startup::worker_alone(
+        part,
+        &fixtures::files(),
+        &fixtures::startup_agent(),
+        fixtures::worker_runtime(),
+        7,
+    )
+    .unwrap();
     assert_eq!(service.worker.as_ref().unwrap().env.limits.checkout.conflicts, 7);
 }

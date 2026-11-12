@@ -101,7 +101,10 @@ fn a_checkout_with_one_repository_can_start() {
 #[test]
 fn default_engine_and_worker_grants_fit_the_channel_and_link() {
     let own = crate::limits::profile(crate::limits::Profile::Small);
-    for limits in [crate::translate::limits(&own).unwrap(), crate::worker_settings::payload_limits(&crate::limits::worker(&own)).unwrap()] {
+    for limits in [
+        crate::translate::limits(&own).unwrap(),
+        crate::worker_settings::payload_limits(&crate::limits::worker(&own)).unwrap(),
+    ] {
         assert_eq!(payload::largest(&limits).unwrap().grant, 7057);
         assert_eq!(jig_protocol_worker_wire::CEILINGS.application_value_secret, 8192);
         let worker = fixtures::worker_settings();
@@ -402,7 +405,11 @@ fn standalone_shapes() -> [(Shape, Path, What); 9] {
             Path::root().member(b"application").member(b"clients").member(b"listener"),
             What::Half(crate::startup::EngineWhat::Loopback),
         ),
-        (Shape::Connectors, Path::root().member(b"engine").member(b"connectors"), What::Half(crate::startup::EngineWhat::Connectors)),
+        (
+            Shape::Connectors,
+            Path::root().member(b"engine").member(b"connectors"),
+            What::Half(crate::startup::EngineWhat::Connectors),
+        ),
         (
             Shape::Program,
             Path::root().member(b"workers").child(config::Segment::Index(0)).member(b"agent").member(b"program"),
@@ -827,7 +834,10 @@ fn an_engine_alone_names_each_shape_departure() {
         (
             b"engine.hosts.listener",
             br#"[{"socket":"127.0.0.1:0"},{"in_process":"workers"}]"#,
-            vec![(listener.clone(), What::Half(crate::startup::EngineWhat::EngineAlone)), (listener.child(Index(1)), What::Half(crate::startup::EngineWhat::EngineAlone))],
+            vec![
+                (listener.clone(), What::Half(crate::startup::EngineWhat::EngineAlone)),
+                (listener.child(Index(1)), What::Half(crate::startup::EngineWhat::EngineAlone)),
+            ],
         ),
         (
             b"engine.hosts.listener",
@@ -844,11 +854,18 @@ fn an_engine_alone_names_each_shape_departure() {
             br#"[{"socket":"127.0.0.1:0","transport":"tls"}]"#,
             vec![(listener.child(Index(0)).member(b"transport"), What::Jig(config::What::Unknown))],
         ),
-        (b"engine.hosts.workers", b"[]", vec![(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))]),
+        (
+            b"engine.hosts.workers",
+            b"[]",
+            vec![(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone))],
+        ),
         (
             b"engine.hosts.workers",
             br#"[{"name":"worker-a","digest":"same"},{"name":"worker-b","digest":"same"}]"#,
-            vec![(hosts.member(b"workers").child(Index(1)).member(b"digest"), What::Half(crate::startup::EngineWhat::EngineAlone))],
+            vec![(
+                hosts.member(b"workers").child(Index(1)).member(b"digest"),
+                What::Half(crate::startup::EngineWhat::EngineAlone),
+            )],
         ),
     ];
     for (member, value, expected) in rows {
@@ -864,7 +881,10 @@ fn the_socket_listener_in_the_old_hostsocket_case_now_names_both_local_worker_li
         shape_problems(&input),
         vec![
             (Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),
-            (Path::root().member(b"application").member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone)),
+            (
+                Path::root().member(b"application").member(b"workers"),
+                What::Half(crate::startup::EngineWhat::EngineAlone)
+            ),
         ]
     );
 }

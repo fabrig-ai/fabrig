@@ -15,12 +15,18 @@ mod calls_tests;
 mod checkout;
 #[cfg(feature = "worker")]
 mod checkout {
- use super::{Problems, settings};
- use crate::limits;
- use jig_protocol_config as config;
- pub(super) fn capacity(engine: Option<&config::Limits>, workers: &[config::Worker], own: &limits::Limits, agent: Option<&settings::Agent>, problems: &mut Problems) {
- super::worker::checkout::capacity(engine, workers, &limits::worker(own), agent, problems);
- }
+    use super::{Problems, settings};
+    use crate::limits;
+    use jig_protocol_config as config;
+    pub(super) fn capacity(
+        engine: Option<&config::Limits>,
+        workers: &[config::Worker],
+        own: &limits::Limits,
+        agent: Option<&settings::Agent>,
+        problems: &mut Problems,
+    ) {
+        super::worker::checkout::capacity(engine, workers, &limits::worker(own), agent, problems);
+    }
 }
 pub(crate) mod checks;
 mod problems;
@@ -37,7 +43,7 @@ pub(crate) use problems::admission_words;
 pub use problems::{EngineWhat, Problem, Problems, What, lines};
 use skein_lib::List;
 
-use temper_service_core::startup::{nearest_document, CallAnswer};
+use temper_service_core::startup::{CallAnswer, nearest_document};
 pub use temper_service_core::startup::{Shape, nearest};
 
 /// Refuse a shape this build does not serve (protocol/binaries.md, 1, and protocol/cluster.md, 1).
@@ -47,9 +53,11 @@ pub fn unbuilt(shape: Shape, worker: bool) -> Option<Problem> {
         return None;
     }
     match shape {
-        Shape::Standalone | Shape::WorkerAlone => {
-            Some(Problem { path: Path::root().member(b"workers"), what: What::Half(EngineWhat::UnbuiltWorker), file: None })
-        }
+        Shape::Standalone | Shape::WorkerAlone => Some(Problem {
+            path: Path::root().member(b"workers"),
+            what: What::Half(EngineWhat::UnbuiltWorker),
+            file: None,
+        }),
         Shape::EngineAlone => None,
     }
 }
@@ -133,7 +141,11 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
 pub use worker::NamedWorker;
 #[cfg(not(feature = "worker"))]
 #[derive(Debug)]
-pub struct NamedWorker { pub root: Box<[u8]>, pub agent: Box<[u8]>, pub program: Box<[u8]> }
+pub struct NamedWorker {
+    pub root: Box<[u8]>,
+    pub agent: Box<[u8]>,
+    pub program: Box<[u8]>,
+}
 fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
     NamedWorker {
         root: own.root.clone(),
@@ -244,17 +256,22 @@ struct Parsed {
 impl Parsed {
     fn compose(&mut self, agent: &settings::Agent) -> Result<(), Problems> {
         let mut problems = Problems::empty();
-        if let Err(what) = self.engine_call_answer.compose(&mut self.engine.limits, agent.tool_payload(), agent.host_ask_input(), agent.host_reply_text()) {
+        if let Err(what) = self.engine_call_answer.compose(
+            &mut self.engine.limits,
+            agent.tool_payload(),
+            agent.host_ask_input(),
+            agent.host_reply_text(),
+        ) {
             problems.push(call_input_path(Path::root().member(b"engine")), what.extend());
         }
         checks::call_answer(Path::root().member(b"engine"), self.engine.limits.core.call_answer_bytes, &mut problems);
         for (index, worker) in self.workers.iter_mut().enumerate() {
-            if let Err(what) = self
-                .worker_call_answers
-                .get(index)
-                .expect("one provenance per parsed worker")
-                .compose(&mut worker.limits, agent.tool_payload(), agent.host_ask_input(), agent.host_reply_text())
-            {
+            if let Err(what) = self.worker_call_answers.get(index).expect("one provenance per parsed worker").compose(
+                &mut worker.limits,
+                agent.tool_payload(),
+                agent.host_ask_input(),
+                agent.host_reply_text(),
+            ) {
                 problems.push(call_input_path(indexed(index)), what.extend());
             }
             checks::call_answer(indexed(index), worker.limits.core.call_answer_bytes, &mut problems);
@@ -469,7 +486,9 @@ fn load_document(
             #[cfg(feature = "worker")]
             if let Err(found) = worker::application(document, at, directories) {
                 let found = problems::from_worker(found);
-                for found in found.problems.into_boxed() { problems.push_file(found.path, found.what, found.file); }
+                for found in found.problems.into_boxed() {
+                    problems.push_file(found.path, found.what, found.file);
+                }
                 problems.past = problems.past.saturating_add(found.past);
             }
         }
@@ -671,7 +690,9 @@ pub fn check(
     #[cfg(feature = "worker")]
     if shape(document, directories)? == Shape::WorkerAlone {
         let mut part = worker_part(document, directories)?;
-        if let Err(found) = worker::check_worker_part(&mut part, files, agent) { return Err(problems::from_worker(found)); }
+        if let Err(found) = worker::check_worker_part(&mut part, files, agent) {
+            return Err(problems::from_worker(found));
+        }
         return Ok(());
     }
     checked_start(document, directories, files, Some(agent), seeds, forges, setup)?;
@@ -887,7 +908,11 @@ pub fn with_setup_given(
         checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
     engine.program_environment = program_environment;
     #[cfg(feature = "worker")]
-    let worker = match worker::build(worker, agent, &crate::limits::worker(&engine.limits), files, runtime, seeds.seed) { Ok(worker) => worker, Err(found) => return Err(problems::from_worker(found)) };
+    let worker = match worker::build(worker, agent, &crate::limits::worker(&engine.limits), files, runtime, seeds.seed)
+    {
+        Ok(worker) => worker,
+        Err(found) => return Err(problems::from_worker(found)),
+    };
     #[cfg(not(feature = "worker"))]
     let worker = {
         drop(worker);
@@ -986,12 +1011,23 @@ fn checked_worker(
     }
 }
 
-
 #[cfg(feature = "worker")]
 pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
- match worker::worker_part(input, directories) { Ok(part) => Ok(part), Err(found) => Err(problems::from_worker(found)) }
+    match worker::worker_part(input, directories) {
+        Ok(part) => Ok(part),
+        Err(found) => Err(problems::from_worker(found)),
+    }
 }
 #[cfg(feature = "worker")]
-pub fn worker_alone(part: WorkerPart, files: &settings::Files, agent: &settings::Agent, runtime: WorkerRuntime, seed: u64) -> Result<Service, Problems> {
- match worker::worker_alone(part, files, agent, runtime, seed) { Ok(service) => Ok(service), Err(found) => Err(problems::from_worker(found)) }
+pub fn worker_alone(
+    part: WorkerPart,
+    files: &settings::Files,
+    agent: &settings::Agent,
+    runtime: WorkerRuntime,
+    seed: u64,
+) -> Result<Service, Problems> {
+    match worker::worker_alone(part, files, agent, runtime, seed) {
+        Ok(service) => Ok(service),
+        Err(found) => Err(problems::from_worker(found)),
+    }
 }
