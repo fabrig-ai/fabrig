@@ -12,6 +12,8 @@ use skein_lib::{Duration, Env, Id, Queue, Token};
 pub(crate) struct Job {
     result_bound: u32,
     stopped: bool,
+    /// Once delivery begins, shutdown cannot promise an interruption with no effect.
+    delivery_began: bool,
     left: Option<Token>,
     state: State,
 }
@@ -87,7 +89,7 @@ pub(crate) fn assign(domain: &mut Hub, env: &Env<Limits>, job: JobAssignment, ou
     }
     let result_bound = bound.expect("validated kind").result;
     let JobAssignment { run, attempt, kind, spec, deadline, workspace, grants: _ } = job;
-    let job = Job { result_bound, stopped: false, left: None, state: State::Preparing { kind, spec, deadline } };
+    let job = Job { result_bound, stopped: false, delivery_began: false, left: None, state: State::Preparing { kind, spec, deadline } };
     let id = domain.hosted.insert(Hosted::job(run, attempt, job)).expect("checked slot capacity");
     domain.names.insert(run, id).expect("one name per slot");
     match workspace {
@@ -185,6 +187,7 @@ pub(crate) fn reported(domain: &mut Hub, env: &Env<Limits>, event: FromJob, out:
                                         };
                                         let call_id = domain.calls.insert(call).expect("one delivery per job slot");
                                         *delivering = true;
+                                        job.delivery_began = true;
                                         out.push(Request::DeliverJob { owner: call_id.token(), workspace, delivery });
                                     }
                                     Ending::Finished { result }
@@ -237,7 +240,7 @@ pub(crate) fn stop(domain: &mut Hub, id: Id<Hosted>, reason: Reason, out: &mut Q
             }
             // Shutdown may interrupt only work whose delivery has not begun
             // (domain/hosts/hub.md, 9). A begun delivery owns its answer.
-            let keep_ending = was_cancelled || reason == Reason::Shutdown && delivering;
+            let keep_ending = was_cancelled || reason == Reason::Shutdown && job.delivery_began;
             State::Running {
                 workspace,
                 started,

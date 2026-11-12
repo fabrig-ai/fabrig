@@ -206,25 +206,27 @@ fn a_cancelled_job_is_stopped_and_answered_once_its_processes_are_gone() {
 /// jig/docs/design/domain/hosts/hub.md, 9: a begun delivery settles even after cancel and Gone.
 #[test]
 fn a_cancelled_job_waits_for_its_delivery() {
+    for reason in [Reason::Engine, Reason::Contact] {
     let mut h = harness();
     let owner = active(&mut h);
     let call = delivering(&mut h, owner);
-    assert_eq!(
-        &*h.step(Event::Down(LinkDown::Cancel { run: RUN, attempt: ATTEMPT })),
-        [Request::Job(ToJob::Stop { owner })]
-    );
+    assert!(h.step(Event::CancelAll { reason }).is_empty());
+    crate::resume_runs(&mut h.domain, &h.env, &mut h.out);
+    assert_eq!(h.out.pop(), Some(Request::Job(ToJob::Stop { owner })));
+    assert!(h.out.is_empty());
     assert!(h.step(gone(owner)).is_empty());
     assert_eq!(
         &*h.step(delivery(call, DeliveryOutcome::Delivered)),
         [
             Request::Release { workspace: SPACE },
             answer(JobEnding::Failed {
-                failure: JobFailure::Cancelled(Reason::Engine),
+                failure: JobFailure::Cancelled(reason),
                 detail: Box::new([]),
                 work: Work { left: Some(SPACE), saved: None }
             })
         ]
     );
+    }
 }
 
 /// jig/docs/design/domain/hosts/hub.md, 9: a capability's deadline has its typed failure.
@@ -479,6 +481,27 @@ fn shutdown_during_a_job_delivery_keeps_the_deliverys_result_not_cancellation() 
             DeliveryOutcome::Stale | DeliveryOutcome::Refused | DeliveryOutcome::Failed => JobEnding::Failed {
                 failure: JobFailure::Undelivered(outcome), detail: Box::new([]), work,
             },
+        };
+        assert_eq!(requests.as_ref(), [Request::Release { workspace: SPACE }, answer(ending)]);
+    }
+}
+
+#[test]
+fn shutdown_after_a_job_delivery_settles_does_not_erase_its_effect() {
+    for outcome in [DeliveryOutcome::Delivered, DeliveryOutcome::Failed] {
+        let mut h = harness();
+        let owner = active(&mut h);
+        let call = delivering(&mut h, owner);
+        assert!(h.step(delivery(call, outcome)).is_empty());
+        h.step(Event::CancelAll { reason: Reason::Shutdown });
+        crate::resume_runs(&mut h.domain, &h.env, &mut h.out);
+        assert_eq!(h.out.pop(), Some(Request::Job(ToJob::Stop { owner })));
+        assert!(h.out.is_empty());
+        let requests = h.step(gone(owner));
+        let ending = if outcome == DeliveryOutcome::Delivered {
+            JobEnding::Finished { result: b"r".as_slice().into(), work: Work { left: Some(SPACE), saved: None } }
+        } else {
+            failed(JobFailure::Undelivered(outcome))
         };
         assert_eq!(requests.as_ref(), [Request::Release { workspace: SPACE }, answer(ending)]);
     }

@@ -277,11 +277,12 @@ fn sign_out_after_shutdown_answers_closed_without_starting_work() {
 
 #[test]
 fn shutdown_answers_closed_only_for_sign_outs_that_never_started() {
+    for ending in [host::Event::Drain, host::Event::CancelAll { reason: host::Reason::Shutdown }] {
     let mut world = World::new();
     let check = command(&world.sources(&[b"a"]), b"a", Operation::Check);
     assert!(world.step(host::Event::Down(host::LinkDown::SignOut { name: name_of(b"a") })).is_empty());
     assert_eq!(
-        world.step(host::Event::CancelAll { reason: host::Reason::Shutdown }),
+        world.step(ending),
         vec![
             host::Request::Up(host::LinkUp::Draining),
             host::Request::Up(host::LinkUp::SignedOut {
@@ -292,6 +293,7 @@ fn shutdown_answers_closed_only_for_sign_outs_that_never_started() {
     );
     assert!(world.checked(check, LoginState::Usable).is_empty());
     assert!(world.host.sources_settled());
+    }
 }
 
 fn list_grant() -> jig_domain_link::Grant {

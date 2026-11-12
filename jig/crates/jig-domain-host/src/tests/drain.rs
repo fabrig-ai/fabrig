@@ -14,7 +14,7 @@ fn a_drain_asks_active_and_waiting_runs_once_and_announces_before_their_outputs(
         Request::Agent(ToAgent::Drain { agent: waiting }),
     ]);
     assert!(h.step(Event::Drain).is_empty());
-    for _ in 0..2 {
+    for _ in 0_u32..2 {
         let requests = h.step(jobs::opened());
         let [Request::Hello { .. }, Request::Up(LinkUp::Draining)] = requests.as_ref() else {
             panic!("hello while draining: {requests:?}");
@@ -112,7 +112,7 @@ fn cancel_after_a_drain_stops_live_runs_but_not_one_already_stopping() {
     assert_eq!(h.out.pop(), Some(Request::Agent(ToAgent::Cancel { agent: second })));
     assert!(h.out.is_empty());
     assert!(h.step(Event::CancelAll { reason: Reason::Shutdown }).is_empty());
-    for _ in 0..2 {
+    for _ in 0_u32..2 {
         crate::resume(&mut h.domain, &h.env, &mut h.out);
         assert!(h.out.is_empty());
     }
