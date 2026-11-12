@@ -72,16 +72,7 @@ impl Worker {
     pub(crate) fn abort(&mut self) {
         match *self {}
     }
-    pub(crate) fn set_end(&mut self, _end: crate::End) {
-        match *self {}
-    }
     pub(crate) fn stop(&mut self) {
-        match *self {}
-    }
-    pub(crate) fn end(&self) -> Option<&crate::End> {
-        match *self {}
-    }
-    pub(crate) fn notes(&mut self) -> &mut skein_lib::Queue<crate::Note> {
         match *self {}
     }
     pub(crate) fn submitted(&mut self) -> &mut skein_lib::Queue<skein_io::kernel::Submit> {
@@ -111,5 +102,21 @@ impl Worker {
     }
     pub(crate) fn up(&mut self, _now: skein_lib::Time, _event: skein_io::Event) {
         match *self {}
+    }
+}
+
+/// The shell's worker adapter cannot be instantiated without the worker component.
+pub mod worker_alone {
+    pub use crate::worker_vocabulary::{End, Note, Stop};
+    #[derive(Debug)]
+    pub enum Service {}
+    impl Service {
+        pub fn notes(&mut self) -> &mut skein_lib::Queue<Note> {
+            match *self {}
+        }
+        #[must_use]
+        pub fn end(&self) -> Option<&End> {
+            match *self {}
+        }
     }
 }

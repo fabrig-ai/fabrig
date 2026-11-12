@@ -3,6 +3,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 mod limits;
 mod long_pass;
+mod process;
 mod startup;
 mod tokens;
 mod values;

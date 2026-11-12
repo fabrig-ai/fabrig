@@ -6520,6 +6520,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-link",
  "jig-protocol-config",
+ "skein-io",
  "skein-json",
  "skein-lib",
  "skein-world",

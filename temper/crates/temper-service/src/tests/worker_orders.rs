@@ -48,7 +48,7 @@ fn queued_message(name: Token, words: &[u8]) -> root::Event {
 /// Leave a socket note untaken while translating a real process record;
 /// the link waits until its consumer drains the note.
 fn hold_notes_while_translating(stand: &mut fixtures::WorkerStand) {
-    stand.worker.notes().push(crate::Note::Linked {
+    stand.worker.notes().push(crate::worker_alone::Note::Linked {
         worker: Box::from(&b"worker-a"[..]),
         address: Box::new(([127, 0, 0, 1], 7100).into()),
     });

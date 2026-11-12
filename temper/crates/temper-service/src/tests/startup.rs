@@ -1876,5 +1876,5 @@ fn a_worker_alone_applies_its_names_without_engine_range_checks() {
         7,
     )
     .unwrap();
-    assert_eq!(service.worker.as_ref().unwrap().env.limits.checkout.conflicts, 7);
+    assert_eq!(service.worker.env.limits.checkout.conflicts, 7);
 }

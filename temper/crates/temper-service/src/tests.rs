@@ -25,6 +25,7 @@ mod clients;
 mod clients_unwatch;
 mod worker;
 mod worker_admission;
+mod worker_alone;
 mod worker_git;
 #[path = "tests/worker_job_answers.rs"]
 mod worker_jobs;

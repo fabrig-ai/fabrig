@@ -1,5 +1,5 @@
 //! The standalone start, composed from the engine and worker shells (protocol/services.md, 7).
-use crate::{path, prefixed, program_login};
+use crate::{Service, path, prefixed, program_login};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
 use std::os::unix::fs::FileTypeExt;
@@ -18,7 +18,7 @@ pub fn prepare(
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
-) -> Result<service::Service, String> {
+) -> Result<Service, String> {
     prepare_with_store(binary, environment, working, directories, bytes, owned).map(|(service, _)| service)
 }
 pub fn prepare_with_store(
@@ -28,7 +28,7 @@ pub fn prepare_with_store(
     directories: &Directories,
     bytes: &[u8],
     owned: &mut Vec<Fd>,
-) -> Result<(service::Service, Box<[u8]>), String> {
+) -> Result<(Service, Box<[u8]>), String> {
     prepare_with_limits(
         binary,
         environment,
@@ -58,13 +58,13 @@ fn prepare_with_limits(
     link_secret: Option<Secret>,
     local_secret: Option<Secret>,
     given: &service::stock::Given,
-) -> Result<(service::Service, Box<[u8]>, u32), String> {
+) -> Result<(Service, Box<[u8]>, u32), String> {
     if service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
         == service::startup::Shape::WorkerAlone
     {
         return worker::alone(directories, bytes, owned, environment)
-            .map(|service| (service, Box::new([]) as Box<[u8]>, 0));
+            .map(|service| (Service::Worker(service), Box::new([]) as Box<[u8]>, 0));
     }
     let setup::Deployment { mut named, checked, limits, .. } =
         setup::check_with(bytes, &jig_directories(directories), given)?;
@@ -121,7 +121,7 @@ fn prepare_with_limits(
         }
     }
     engine::adopt(&mut service, &named.deployment, bundle, user, owned)?;
-    Ok((service, named.deployment, limits.line_bytes))
+    Ok((Service::Joined(service), named.deployment, limits.line_bytes))
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
@@ -175,7 +175,7 @@ pub fn prepare_in(
     environment: &[EnvironmentEntry],
     working: &[u8],
     directories: &Directories,
-) -> Result<service::Service, String> {
+) -> Result<Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
     let result = prepare(binary, environment, working, directories, &bytes, &mut owned);
@@ -191,7 +191,7 @@ pub fn prepare_in_with(
     working: &[u8],
     directories: &Directories,
     given: &service::stock::Given,
-) -> Result<service::Service, String> {
+) -> Result<Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
     let result =
