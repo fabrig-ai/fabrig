@@ -76,7 +76,11 @@ impl Bridge {
             | Event::Opened { .. }
             | Event::OpenRefused { .. }
             | Event::Site { .. }
-            | Event::Rehearsing { .. } | Event::Back { .. } | Event::BackRefused { .. } | Event::Closed { .. } | Event::Patched { .. }
+            | Event::Rehearsing { .. }
+            | Event::Back { .. }
+            | Event::BackRefused { .. }
+            | Event::Closed { .. }
+            | Event::Patched { .. }
             | Event::Committed { .. }
             | Event::Failed { .. }
             | Event::FrameTooLarge { .. }

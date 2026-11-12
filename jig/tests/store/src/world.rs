@@ -587,7 +587,11 @@ impl World {
                         self.refusal = Some(why);
                         return None;
                     }
-                    other @ (Event::Rehearsing { .. } | Event::Back { .. } | Event::BackRefused { .. } | Event::Closed { .. } | Event::Switched { .. }
+                    other @ (Event::Rehearsing { .. }
+                    | Event::Back { .. }
+                    | Event::BackRefused { .. }
+                    | Event::Closed { .. }
+                    | Event::Switched { .. }
                     | Event::Committed { .. }
                     | Event::Failed { .. }
                     | Event::FrameTooLarge { .. }
@@ -626,7 +630,9 @@ impl World {
 
     /// A caller-owned root beside the deployment, adopted on all three lanes.
     pub fn scratch_root(&mut self) -> Root {
-        if let Some(root) = self.scratch { return root; }
+        if let Some(root) = self.scratch {
+            return root;
+        }
         let handle = if let Some(index) = self.scratch_disk {
             self.machine.reopen_root(index)
         } else {
@@ -637,7 +643,9 @@ impl World {
         let mut token = None;
         for io in &mut self.io {
             let found = io.adopt_root(fd).expect("scratch adoption fits");
-            if let Some(token) = token { assert_eq!(found, token); }
+            if let Some(token) = token {
+                assert_eq!(found, token);
+            }
             token = Some(found);
         }
         let root = Root { token: token.expect("three drivers"), fd };
@@ -662,12 +670,20 @@ impl World {
                 if let Event::Site { owner, of, key, site, at, patcher } = event {
                     answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
                 } else {
-                    if let Event::Opened { last, pending, .. } = &event { self.next = last + 1; self.pending = *pending; terminal = true; }
-                    if matches!(event, Event::OpenRefused { .. } | Event::Corrupt { .. }) { terminal = true; }
+                    if let Event::Opened { last, pending, .. } = &event {
+                        self.next = last + 1;
+                        self.pending = *pending;
+                        terminal = true;
+                    }
+                    if matches!(event, Event::OpenRefused { .. } | Event::Corrupt { .. }) {
+                        terminal = true;
+                    }
                     result.push(event);
                 }
             }
-            if terminal || self.halted || self.reached_cut() { return result; }
+            if terminal || self.halted || self.reached_cut() {
+                return result;
+            }
             events = if let Some(request) = answer { self.request(request) } else { self.settle() };
         }
         panic!("rehearsal did not settle");
@@ -677,9 +693,34 @@ impl World {
         self.request(Request::Back { owner: OWNER, root: self.root })
     }
 
+    /// A second process asks Back while this world's first process keeps its lock.
+    pub fn competing_back(&mut self) -> Vec<Event> {
+        let handle = self.machine.reopen_root(0);
+        let pid = self.sim.spawn_process();
+        let fd = self.sim.root(pid, Handle::new(handle.raw()));
+        let (mut io, limits) = drivers(fd, &self.env.limits);
+        let [public, private, transcripts] = &mut io;
+        let seeded = jig_protocol_store::seed([public, private, transcripts], 5);
+        let component = Store::on_directory(&self.env.limits, root::APPLICATION, &[], seeded);
+        let old_store = std::mem::replace(&mut self.store, component);
+        let old_io = std::mem::replace(&mut self.io, io);
+        let old_limits = std::mem::replace(&mut self.file_limits, limits);
+        let old_root = std::mem::replace(&mut self.root, Root { token: Token::new(1), fd });
+        let old_pid = std::mem::replace(&mut self.pid, pid);
+        let answer = self.back();
+        self.store = old_store;
+        self.io = old_io;
+        self.file_limits = old_limits;
+        self.root = old_root;
+        self.pid = old_pid;
+        answer
+    }
+
     #[must_use]
     pub fn scratch_contents(&mut self) -> BTreeMap<Vec<u8>, Option<Vec<u8>>> {
-        let Some(index) = self.scratch_disk else { return BTreeMap::new(); };
+        let Some(index) = self.scratch_disk else {
+            return BTreeMap::new();
+        };
         self.contents_at(index)
     }
 

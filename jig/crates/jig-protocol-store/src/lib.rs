@@ -8,11 +8,10 @@ mod baseline;
 #[path = "../patches/mod.rs"]
 pub mod patches;
 
+mod back;
 pub mod boundary;
 pub mod codec;
 mod commits;
-mod back;
-mod rehearsal;
 mod directory;
 pub mod ended;
 pub mod format;
@@ -24,6 +23,7 @@ mod loads;
 mod open;
 mod pages;
 mod patching;
+mod rehearsal;
 pub use patching::Counts;
 pub use patching::sets::{JIG, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets};
 mod reads;
@@ -335,7 +335,9 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
         return;
     }
     match request {
-        Request::Rehearse { owner, directory, scratch, installation } => rehearsal::begin(store, owner, directory, scratch, installation, above, below),
+        Request::Rehearse { owner, directory, scratch, installation } => {
+            rehearsal::begin(store, owner, directory, scratch, installation, above, below)
+        }
         Request::Back { owner, root } => back::begin(store, owner, root, above, below),
         Request::Close { .. } => unreachable!("close routed before stopped guard"),
         Request::Switch { owner } => patching::switch::ask(store, env, owner, above, below),
@@ -369,7 +371,9 @@ pub fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue<Event>
     if rehearsal::closing(store) {
         rehearsal::closing_up(store, io, above, below);
     } else if rehearsal::preparing(store) {
-        let arrived = match io { Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) => a };
+        let arrived = match io {
+            Io::Store(a) | Io::Secrets(a) | Io::Transcripts(a) => a,
+        };
         rehearsal::up(store, arrived, above, below);
     } else if store.back.is_some() {
         back::up(store, env, io, above, below);
@@ -426,8 +430,9 @@ pub mod tasks_v9;
 pub mod core_v6;
 pub mod keys;
 pub use boundary::{
-    Arrived, BackRefusal, KeptWire, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io, Load, Older,
-    OpenRefusal, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets, TranscriptRead, Write,
+    Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
+    KeptWire, Load, Older, OpenRefusal, Request, Restore, Root, Row, SecretOwner, SecretRow, SecretValue, Secrets,
+    TranscriptRead, Write,
 };
 
 #[cfg(test)]

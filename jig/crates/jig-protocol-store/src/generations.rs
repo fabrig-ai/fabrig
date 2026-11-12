@@ -189,8 +189,9 @@ fn next(removing: &mut Removing, queue: &mut Queue<file::Request>) -> Progress {
 }
 fn fail(removing: &mut Removing, queue: &mut Queue<file::Request>) -> Progress {
     removing.step = Step::Failing;
-    // At most DEPTH levels, with no work between the closes.
-    for _ in 0..DEPTH {
+    // The bounded removal stack, with no work between the closes.
+    let depth = removing.levels.len();
+    for _ in 0..depth {
         if removing.levels.is_empty() {
             break;
         }
@@ -340,7 +341,14 @@ pub(crate) struct Copying {
 pub(crate) fn copy(root: Root, from: u64, chunk: u32, below: &mut crate::Below) -> Copying {
     copy_between(root, root, from, from.checked_add(1).unwrap_or(0), chunk, below)
 }
-pub(crate) fn copy_between(source_root: Root, root: Root, from: u64, to: u64, chunk: u32, below: &mut crate::Below) -> Copying {
+pub(crate) fn copy_between(
+    source_root: Root,
+    root: Root,
+    from: u64,
+    to: u64,
+    chunk: u32,
+    below: &mut crate::Below,
+) -> Copying {
     let valid = from != 0 && to != 0 && chunk != 0;
     if valid {
         below.transcripts.push(file::Request::MakeDirectory {

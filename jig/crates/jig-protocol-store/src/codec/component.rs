@@ -280,7 +280,9 @@ pub(crate) fn kept_wires(bytes: &[u8]) -> Option<Box<[crate::KeptWire]>> {
     let mut wires = List::with_capacity(crate::component_v3::CEILINGS.wires_wires);
     for wire in row.wires() {
         let name = core::str::from_utf8(wire.name()).ok()?;
-        wires.push(crate::KeptWire { name: Box::from(name), version: wire.version() }).expect("decoded wire count fits");
+        wires
+            .push(crate::KeptWire { name: Box::from(name), version: wire.version() })
+            .expect("decoded wire count fits");
     }
     Some(wires.into_boxed())
 }

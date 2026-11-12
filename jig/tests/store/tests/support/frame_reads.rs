@@ -179,7 +179,11 @@ pub(crate) fn decode(
                 | Event::SecretsLoaded { .. }
                 | Event::SecretsNotReady { .. }
                 | Event::Corrupt { .. }
-                | Event::Rehearsing { .. } | Event::Back { .. } | Event::BackRefused { .. } | Event::Closed { .. } | Event::Patched { .. }) => panic!("decode event {other:?}"),
+                | Event::Rehearsing { .. }
+                | Event::Back { .. }
+                | Event::BackRefused { .. }
+                | Event::Closed { .. }
+                | Event::Patched { .. }) => panic!("decode event {other:?}"),
             }
         }
         let event = match below.transcripts.pop().expect("read or stop") {

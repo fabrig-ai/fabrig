@@ -507,10 +507,23 @@ pub enum Generations {
 /// What the component answers.
 #[derive(Debug)]
 pub enum Event {
-    Rehearsing { owner: Token, wires: Option<Box<[KeptWire]>>, fresh: bool },
-    Back { owner: Token, to: u64 },
-    BackRefused { owner: Token, why: BackRefusal },
-    Closed { owner: Token, removed: bool },
+    Rehearsing {
+        owner: Token,
+        wires: Option<Box<[KeptWire]>>,
+        fresh: bool,
+    },
+    Back {
+        owner: Token,
+        to: u64,
+    },
+    BackRefused {
+        owner: Token,
+        why: BackRefusal,
+    },
+    Closed {
+        owner: Token,
+        removed: bool,
+    },
     /// Both stores are open and checked; `last` is the last durable commit.
     /// `installation` is the installation's identifier (protocol/store/README.md 4.4): the
     /// kept one, or, in an empty store, the drawn one its first commit keeps.

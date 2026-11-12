@@ -827,7 +827,13 @@ fn transcripts_made(
     store.directory.opening = Opening::TranscriptsOpen;
     open_directory(root, Box::from(generations::TRANSCRIPTS), &mut below.transcripts);
 }
-fn transcripts_opened(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
+fn transcripts_opened(
+    store: &mut Store,
+    env: &Env<Limits>,
+    arrived: Arrived,
+    above: &mut Queue<Event>,
+    below: &mut Below,
+) {
     let Some(opened) = opened(arrived) else {
         return refuse(store, above);
     };
