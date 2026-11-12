@@ -4,6 +4,8 @@
 
 - **Not yet:** 2: `role show`'s talk line and `--report`; 3: `role talk` and `role talk --leave` (`../../domain/agent/standing.md`, sections 7 and 8) [in flight: change 778].
 
+- **Not yet:** 3: `settings file`'s decoder still refuses parts on a charter whose runs resume, `charter.parts: a charter that resumes takes no parts`, which jig admits (jig's `domain/tasks/standing.md`, 5.4) [in flight: change 778].
+
 - **Not yet:** 2: `role list` and `role show`; 3: `role start` (`../../domain/agent/standing.md`, section 6) [in flight: change 108].
 
 - **Not yet:** 3: `project remove PROJECT`, absent from `temper-client-tools`' table, so no ctl call makes jig's `RemoveProject` [in flight: change 35].

@@ -326,9 +326,9 @@ agent must name.
   member's path, its indices from 0 as a document's are: a name that is
   no reason, or one every run is offered, `settings file item 1:
   charter.parts[1].on[0]: "answer" goes to every run and chooses no
-  part`; a name twice; an empty `on`; more
-  parts than `tasks.charter_parts`; and parts on a charter whose runs
-  resume, `charter.parts: a charter that resumes takes no parts`. jig's
+  part`; a name twice; an empty `on`; and more
+  parts than `tasks.charter_parts`. A charter whose runs resume may hold
+  parts, as jig admits them (jig's `domain/tasks/standing.md`, 5.4). jig's
   refusal of a change names the charter and no part
   (`../../draft/per-wake.status.md`, 3), so a malformed part prints as
   `settings apply: out of shape; item 1; charter 5: shape`.
