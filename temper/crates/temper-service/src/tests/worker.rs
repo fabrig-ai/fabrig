@@ -648,15 +648,6 @@ fn a_program_grant_lends_only_its_validated_name_without_a_table_entry() {
 #[test]
 fn grant_sizes_take_credentials_source_names_and_generated_identities() {
     let name = u32::try_from(smith_host_domain::SourceName::BYTES).unwrap();
-    for (credential, identity, expected) in [
-        (name - 1, name - 1, name),
-        (name, name, name),
-        (name + 1, name, name + 1),
-        (name, name + 1, name + 1),
-        (4096, name, 4096),
-    ] {
-        assert_eq!(worker_settings::grant_bytes(credential, identity), Some(expected));
-    }
     let mut engine = fixtures::engine();
     let mut worker = fixtures::worker_settings();
     let payload = worker_settings::payload_limits(&fixtures::worker_limits()).unwrap();

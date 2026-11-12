@@ -10,7 +10,7 @@ pub mod forge;
 pub mod forges;
 pub use forge::ForgeRuntime;
 pub mod limits;
-pub mod long_pass;
+pub use temper_service_core::long_pass;
 pub mod settings;
 pub mod startup;
 pub mod stock;
@@ -21,7 +21,7 @@ pub use system::{STAGES, Service, Stage, iterate, iterate_stage};
 pub mod store;
 #[cfg(test)]
 mod tests;
-pub mod tokens;
+pub use temper_service_core::tokens;
 
 pub mod accounts;
 pub mod assignment;
@@ -342,13 +342,7 @@ pub enum Listening {
     Webhooks,
 }
 
-/// The peer's refusal code, or a local opening/decoding refusal.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Refusal {
-    Peer(u16),
-    Terms,
-    Malformed,
-}
+pub use temper_service_core::Refusal;
 
 pub use jig_protocol_engine_workers::Loss as EngineWorkerLoss;
 pub use jig_protocol_worker_wire::Loss as WorkerLoss;
