@@ -12,6 +12,96 @@ pub fn encode_document_text(value: &c::DocumentText, out: &mut Encoder) {
     out.boolean(value.cut);
     out.object_end();
 }
+pub fn encode_overlay(value: &c::Overlay, out: &mut Encoder) {
+    out.object_start();
+    if let Some(value) = &value.rest {
+        out.key(b"rest");
+        out.boolean(*value);
+    }
+    if let Some(value) = &value.model {
+        out.key(b"model");
+        encode_setting_model(value, out);
+    }
+    if let Some(value) = &value.alternatives {
+        out.key(b"alternatives");
+        out.array_start(); for value in value { encode_setting_model(value, out); } out.array_end();
+    }
+    if let Some(value) = &value.inspect {
+        out.key(b"inspect");
+        out.boolean(*value);
+    }
+    if let Some(value) = &value.modify {
+        out.key(b"modify");
+        out.boolean(*value);
+    }
+    if let Some(value) = &value.shell {
+        out.key(b"shell");
+        out.boolean(*value);
+    }
+    if let Some(value) = &value.agents {
+        out.key(b"agents");
+        out.boolean(*value);
+    }
+    if let Some(value) = &value.tools {
+        out.key(b"tools");
+        out.unsigned(*value);
+    }
+    if let Some(value) = &value.hosts {
+        out.key(b"hosts");
+        encode_setting_hosts(value, out);
+    }
+    if let Some(value) = &value.waiting {
+        out.key(b"waiting");
+        out.unsigned(value.as_nanos());
+    }
+    if let Some(value) = &value.resume {
+        out.key(b"resume");
+        out.boolean(*value);
+    }
+    if let Some(value) = &value.turns {
+        out.key(b"turns");
+        out.unsigned(u64::from(*value));
+    }
+    if let Some(value) = &value.time {
+        out.key(b"time");
+        out.unsigned(value.as_nanos());
+    }
+    if let Some(value) = &value.reserve_turns {
+        out.key(b"reserve_turns");
+        out.unsigned(u64::from(*value));
+    }
+    if let Some(value) = &value.reserve_time {
+        out.key(b"reserve_time");
+        out.unsigned(value.as_nanos());
+    }
+    if let Some(value) = &value.call_timeout {
+        out.key(b"call_timeout");
+        out.unsigned(value.as_nanos());
+    }
+    if let Some(value) = &value.spend {
+        out.key(b"spend");
+        out.unsigned(*value);
+    }
+    if let Some(value) = &value.documents {
+        out.key(b"documents");
+        out.array_start(); for value in value { encode_document(value, out); } out.array_end();
+    }
+    if !value.instructions.bytes().is_empty() { out.key(b"instructions"); encode_text(&value.instructions, out); }
+    if !value.parts.is_empty() { out.key(b"parts"); encode_parts(&value.parts, out); }
+    out.object_end();
+}
+fn encode_parts(parts: &skein_lib::List<c::CharterPart>, out: &mut Encoder) {
+    out.array_start();
+    for part in parts {
+        out.object_start(); out.key(b"on"); out.array_start();
+        for (index, name) in c::REASON_NAMES.iter().enumerate() {
+            let bit = 1_u32.checked_shl(u32::try_from(index).expect("reason index")).expect("reason bit");
+            if part.on & bit != 0 { out.string(name); }
+        }
+        out.array_end(); out.key(b"instructions"); encode_text(&part.instructions, out); out.object_end();
+    }
+    out.array_end();
+}
 pub fn encode_charter(value: &c::Charter, out: &mut Encoder) {
     out.object_start();
     out.key(b"rest");

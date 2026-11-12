@@ -6,6 +6,7 @@ extern crate alloc;
 mod classes;
 pub mod fields;
 pub mod file;
+pub mod overlay;
 mod json;
 mod kinds;
 pub mod page;

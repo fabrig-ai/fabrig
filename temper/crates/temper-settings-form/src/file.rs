@@ -307,8 +307,16 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
     }
 }
 fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
-    let fields = d.object(at, &[b"setting", b"set", b"edit"])?;
+    let fields = d.object(at, &[b"setting", b"set", b"edit", b"overlay"])?;
     let setting = setting(d, field(&fields, b"setting")?)?;
+    if let Some(at) = optional(&fields, b"overlay") {
+        if optional(&fields, b"set").is_some() || optional(&fields, b"edit").is_some() {
+            return Err(error(b"item", b"exactly one of set, edit or overlay required"));
+        }
+        let c::Setting::Charter(n) = setting else { return Err(error(b"overlay", b"charter required")); };
+        let overlay = values::overlay(d, at, n.number)?;
+        return Ok(c::SettingItem { setting, edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Overlay(Box::new(overlay)) }) });
+    }
     let edit = match (optional(&fields, b"set"), optional(&fields, b"edit")) {
         (Some(at), None) => {
             let value = match setting {

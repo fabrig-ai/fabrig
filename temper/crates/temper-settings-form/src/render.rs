@@ -166,6 +166,7 @@ fn named_value_text(setting: c::Setting, value: &c::SettingValue, limits: &Limit
 }
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
+        c::SettingValue::Overlay(v) => values::encode_overlay(v, out),
         c::SettingValue::Model(v) => values::encode_catalogue(v, out),
         c::SettingValue::Charter(v) => values::encode_charter(v, out),
         c::SettingValue::Template(v) => values::encode_template(v, out),
@@ -231,7 +232,8 @@ fn value_details_text(value: &c::SettingValue, out: &mut Text) {
                 out.put(b"\n");
             }
         }
-        c::SettingValue::Model(_)
+        c::SettingValue::Overlay(_)
+        | c::SettingValue::Model(_)
         | c::SettingValue::Policy(_)
         | c::SettingValue::Application(_)
         | c::SettingValue::Rules(_) => {}
@@ -407,6 +409,7 @@ pub fn encode(value: &c::ReadValue, out: &mut Encoder) {
                 Some(value) => encode_named_value(document.setting, value, out),
                 None => out.null(),
             }
+            if let Some(overlay) = &document.overlay { out.key(b"overlay"); values::encode_overlay(overlay, out); }
             if let Some(state) = &document.application {
                 out.key(b"application");
                 encode_application(state, out);
@@ -479,6 +482,7 @@ fn inventory_text(document: &c::SettingsDocument, out: &mut Text) {
         }
         out.put(b": ");
         match line.follows {
+            c::SettingFollows::Overlay => out.put(b"overlay"),
             c::SettingFollows::Default => {
                 out.put(b"default");
                 if let Some(last) = line.last
@@ -628,6 +632,7 @@ fn encode_inventory(document: &c::SettingsDocument, out: &mut Encoder) {
         }
         out.key(b"follows");
         out.string(match line.follows {
+            c::SettingFollows::Overlay => b"overlay",
             c::SettingFollows::Default => b"default",
             c::SettingFollows::Change => b"change",
         });

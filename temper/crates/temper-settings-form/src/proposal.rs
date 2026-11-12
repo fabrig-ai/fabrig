@@ -218,7 +218,8 @@ fn encode_application_value(kind: u32, value: &view::SettingValue, out: &mut ske
                 return;
             }
         }
-        view::SettingValue::Model(_)
+        view::SettingValue::Overlay(_)
+        | view::SettingValue::Model(_)
         | view::SettingValue::Charter(_)
         | view::SettingValue::Template(_)
         | view::SettingValue::Policy(_)

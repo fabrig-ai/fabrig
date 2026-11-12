@@ -37,6 +37,32 @@ pub struct Charter {
     pub documents: List<CharterDocument>,
     pub parts: List<CharterPart>,
 }
+/// Literal text and optional replacements (client/ctl/overlays.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Overlay {
+    pub rest: Option<bool>,
+    pub model: Option<SettingModel>,
+    pub alternatives: Option<List<SettingModel>>,
+    pub inspect: Option<bool>,
+    pub modify: Option<bool>,
+    pub shell: Option<bool>,
+    pub agents: Option<bool>,
+    pub tools: Option<u64>,
+    pub hosts: Option<SettingHosts>,
+    pub waiting: Option<Duration>,
+    pub resume: Option<bool>,
+    pub turns: Option<u32>,
+    pub time: Option<Duration>,
+    pub reserve_turns: Option<u32>,
+    pub reserve_time: Option<Duration>,
+    pub call_timeout: Option<Duration>,
+    pub spend: Option<u64>,
+    pub documents: Option<List<CharterDocument>>,
+    pub instructions: Text,
+    pub parts: List<CharterPart>,
+    /// Unresolved directory names; empty after assembly.
+    pub charters: List<Box<[u8]>>,
+}
 /// The store names in bit order (temper/docs/design/client/ctl/tools.md, 3).
 pub const REASON_NAMES: [&[u8]; 14] = [
     b"first",
@@ -371,6 +397,7 @@ pub enum Setting {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SettingDocument {
+    pub overlay: Option<Box<Overlay>>,
     pub setting: Setting,
     pub revision: u32,
     pub value: Option<SettingValue>,
@@ -396,6 +423,7 @@ pub enum SettingFault {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingFollows {
+    Overlay,
     Default,
     Change,
 }
@@ -456,6 +484,7 @@ pub struct SettingSet {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
+    Overlay(Box<Overlay>),
     Model(Box<CatalogueEntry>),
     Application(Box<[u8]>),
     Charter(Box<Charter>),
