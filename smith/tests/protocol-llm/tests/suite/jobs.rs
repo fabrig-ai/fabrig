@@ -32,7 +32,7 @@ fn world(configuration: client_peer::Configuration, job_input: &[u8]) -> World {
         codec::completion_bound(&client, settings.limits.decoded_call_bytes).expect("native receiving");
     settings.limits.session.completion_blocks = client.output_items;
     settings.limits.session.failure_bytes = client.detail_bytes;
-    let bounds = smith_protocol_llm::fixture::small(
+    let bounds = smith_protocol_llm_fixtures::small(
         client,
         codec::Stated::from_tools(&settings.limits.session.tools, client.input).expect("effective bounds"),
     );
@@ -129,7 +129,7 @@ fn decoded(name: &[u8], input: &[u8]) -> llm::Decoded {
         tools::Grants { inspect: false, modify: false, shell: true },
         &[],
         llm::Asker::Main,
-        &smith_protocol_llm::fixture::small(client, codec::stated()),
+        &smith_protocol_llm_fixtures::small(client, codec::stated()),
     )
 }
 

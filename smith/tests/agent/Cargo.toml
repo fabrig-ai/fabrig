@@ -8,7 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-smith-protocol-llm = { workspace = true, features = ["fixture"] }
+smith-protocol-llm.workspace = true
+smith-protocol-llm-fixtures.workspace = true
 skein-llm-kit.workspace = true
 skein-lib.workspace = true
 smith-domain = { workspace = true, features = ["fixture"] }

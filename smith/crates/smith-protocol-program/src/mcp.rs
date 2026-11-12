@@ -57,8 +57,8 @@ pub struct Limits {
 }
 
 /// Small listener limits for deterministic scenarios (testing-strategy.md, 1).
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture {
+#[cfg(test)]
+pub(crate) mod fixture {
     use super::Limits;
     use skein_lib::Time;
 

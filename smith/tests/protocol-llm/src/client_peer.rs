@@ -9,7 +9,7 @@ use skein_llm::client;
 use skein_llm_kit::fake::Exchange;
 use smith_domain::{Event, llm};
 
-pub use smith_protocol_llm::fixture::schemas;
+pub use smith_protocol_llm_fixtures::schemas;
 
 pub use crate::fixture::{Configuration, configurations};
 

@@ -15,7 +15,8 @@ smith-agent-world.workspace = true
 smith-agent-service.workspace = true
 smith-protocol-events = { workspace = true, features = ["fixture"] }
 smith-events = { workspace = true, features = ["fixture"] }
-smith-protocol-llm = { workspace = true, features = ["fixture"] }
+smith-protocol-llm.workspace = true
+smith-protocol-llm-fixtures.workspace = true
 smith-session-world.workspace = true
 smith-domain-tools.workspace = true
 smith-tools-world.workspace = true

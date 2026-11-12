@@ -478,7 +478,7 @@ fn an_admitted_opening_fits_the_derived_request_with_escaped_host_text() {
     )
     .expect("schemas");
     let mut translated =
-        smith_protocol_llm::fixture::prompt(prompt, &application, &limits.llm.translation).expect("translated opening");
+        smith_protocol_llm_fixtures::prompt(prompt, &application, &limits.llm.translation).expect("translated opening");
     translated.output_ceiling(skein_llm::Provider::OpenAi, 4096).expect("configured model output");
     let prepared = skein_llm::client::Client::prepare(
         skein_llm::Call {
