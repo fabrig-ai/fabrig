@@ -318,6 +318,7 @@ fn a_start_from_ask_keeps_its_templates_models() {
         (true, None, true),
         (true, Some(llm(b"unoffered")), false),
     ] {
+        for act in [Act::StartChat, Act::AskHow] {
         let mut page = Page::new(me.clone(), Address::Ask { project: fixtures::PROJECT });
         page.words(b"My workflow");
         assert_eq!(page.pages.choice.requested, Some(expected.clone()));
@@ -325,11 +326,12 @@ fn a_start_from_ask_keeps_its_templates_models() {
             page.pages.choice.requested = requested.clone();
         }
         assert_eq!(page.pages.choice.valid(&me), valid);
-        page.act(Act::StartChat);
+        page.act(act);
         if valid {
             assert_eq!(page.task().llm, requested);
         } else {
             assert!(fixtures::acts::sent(&mut page.out).is_empty(), "an unoffered draft sends no Create");
+        }
         }
     }
 }
@@ -971,6 +973,86 @@ fn the_first_message_carries_the_words() {
     page.act(crate::pages::Act::StartChat);
     assert_eq!(page.task().spec.words.bytes(), b"A way to work\n\nWrite this up as a draft beside us.");
 }
+#[test]
+fn asking_how_sends_once_without_touching_the_composer() {
+    use crate::{Address, pages::Act};
+    let fixed = b"Briefly, how does temper work, from my ask to main? And how do these three differ?";
+    assert_eq!(crate::pages::chat::document::HOW_TEMPER_WORKS, fixed);
+    for words in [b"".as_slice(), b"My way of working", &[b'x'; 1024]] {
+        let mut me = asking_me();
+        // An oversized composer must not bar this bounded first message.
+        me.words_bytes = u32::try_from(fixed.len()).unwrap();
+        let mut page = Page::new(me, Address::Ask { project: fixtures::PROJECT });
+        page.words(words);
+        let before = page.pages.chats().unwrap().words.clone();
+        let beyond = page.pages.chats().unwrap().beyond;
+        for _ in 0..PRESSES {
+            page.act(Act::AskHow);
+        }
+        page.act(Act::StartChat);
+        let task = page.task();
+        assert_eq!(task.executor, Executor::Agent { charter: ASKING });
+        assert_eq!(task.spec.words.bytes(), fixed);
+        assert!(task.symbols.is_empty());
+        assert!(page.out.is_empty());
+        assert_eq!(page.pages.chats().unwrap().words, before);
+        let key = page.pages.chats().unwrap().start.unwrap();
+        page.event(crate::pages::Event::Told {
+            told: Told::Answered { key, outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                what: Made::Tasks { tasks: List::from_boxed(Box::new([fixtures::acts::TASK])) },
+            }))) },
+        });
+        assert_eq!(page.out.pop(), Some(Request::Show { address: Address::Chat { task: fixtures::acts::TASK } }));
+        assert!(page.out.is_empty());
+        let chats = page.pages.chats().unwrap();
+        assert!(chats.start.is_none());
+        assert_eq!(chats.words, before);
+        assert_eq!(chats.beyond, beyond);
+        page.event(crate::pages::Event::Went { address: Address::Chat { task: fixtures::acts::TASK } });
+        assert_eq!(page.pages.chat().unwrap().composer_focus, 1);
+    }
+}
+
+#[test]
+fn asking_how_keeps_start_guards_and_refusals() {
+    use crate::{Address, pages::Act};
+    for (me, address) in [
+        (fixtures::chats::me(), Address::Ask { project: fixtures::PROJECT }),
+        (asking_me(), Address::NewChat { draft: false }),
+        (asking_me(), Address::Home { project: fixtures::PROJECT }),
+    ] {
+        let mut page = Page::new(me, address);
+        page.words(b"Keep these words");
+        page.act(Act::AskHow);
+        assert!(page.out.is_empty());
+        assert!(page.pages.chats().unwrap().start.is_none());
+        assert_eq!(page.pages.chats().unwrap().words.as_ref(), b"Keep these words");
+    }
+    let mut me = asking_me();
+    me.projects.get_mut(0).unwrap().creating = None;
+    let mut page = Page::new(me, Address::Ask { project: fixtures::PROJECT });
+    page.words(b"Keep these words");
+    page.act(Act::AskHow);
+    assert_eq!(page.pages.chats().unwrap().refusal, Some(jig_client::shapes::NotOffered::Creating));
+    assert_eq!(page.pages.chats().unwrap().words.as_ref(), b"Keep these words");
+    assert!(page.out.is_empty());
+
+    let mut page = Page::new(asking_me(), Address::Ask { project: fixtures::PROJECT });
+    page.words(b"Keep these words");
+    page.act(Act::AskHow);
+    let key = page.pages.chats().unwrap().start.unwrap();
+    page.task();
+    let outcome = jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Refused { refusal: Refusal::NotOffered, at: None }));
+    page.event(crate::pages::Event::Told { told: Told::Answered { key, outcome: outcome.clone() } });
+    let chats = page.pages.chats().unwrap();
+    assert_eq!(chats.outcome, Some(outcome));
+    assert_eq!(chats.words.as_ref(), b"Keep these words");
+    assert!(chats.start.is_none());
+    assert!(page.out.is_empty());
+    page.act(Act::StartChat);
+    assert_eq!(page.task().spec.words.bytes(), b"Keep these words");
+}
+
 #[test]
 fn the_chat_opens_in_split() {
     for (me, charter) in [(fixtures::chats::me(), 1), (drafting_me(), 12)] {

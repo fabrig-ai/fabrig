@@ -1294,6 +1294,7 @@ impl Chat {
             | Act::AskLine { .. }
             | Act::AskWith { .. }
             | Act::ChatWords { .. }
+            | Act::AskHow
             | Act::StartChat
             | Act::WayTab { .. }
             | Act::WayStop { .. }

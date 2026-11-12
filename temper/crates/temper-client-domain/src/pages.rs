@@ -238,6 +238,8 @@ pub enum Act {
         words: Box<[u8]>,
     },
     StartChat,
+    /// Start Ask temper with its explanation, leaving the composer alone.
+    AskHow,
     /// Show a tab of Ask temper's ways in place (client/pages/README.md).
     WayTab {
         project: u32,
@@ -907,6 +909,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::StartChat } => start_chat(pages, env, client, out),
+        Event::Act { act: Act::AskHow } => ask_how(pages, env, client, out),
         Event::Act { act: Act::WayTab { project, tab } } => {
             if (pages.address == (Address::Ask { project }) || pages.address == (Address::Settings { project }))
                 && let Some(page) = &mut pages.stock_ways
@@ -2437,6 +2440,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::AskLine { .. }
         | Act::AskWith { .. }
         | Act::ChatWords { .. }
+        | Act::AskHow
         | Act::StartChat
         | Act::WayTab { .. }
         | Act::WayStop { .. }
@@ -2704,11 +2708,19 @@ fn start_chat(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Q
     let me = pages.me(client);
     if let Some(chats) = &mut pages.chats {
         if let Address::Ask { project } | Address::Home { project } = pages.address {
-            chats.ask_chat(env, me, Some(project), chats.words.clone(), &pages.choice, &mut pages.serial, out);
+            chats.ask_chat(env, me, Some(project), false, &pages.choice, &mut pages.serial, out);
         } else {
             let draft = pages.address == (Address::NewChat { draft: true });
             chats.start(env, me, pages.project, &pages.choice, draft, &mut pages.serial, out);
         }
+    }
+}
+
+fn ask_how(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
+    let Address::Ask { project } = pages.address else { return };
+    let me = pages.me(client);
+    if let Some(chats) = &mut pages.chats {
+        chats.ask_chat(env, me, Some(project), true, &pages.choice, &mut pages.serial, out);
     }
 }
 

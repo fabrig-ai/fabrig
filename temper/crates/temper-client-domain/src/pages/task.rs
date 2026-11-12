@@ -475,6 +475,7 @@ impl Task {
             | Act::AskLine { .. }
             | Act::AskWith { .. }
             | Act::ChatWords { .. }
+            | Act::AskHow
             | Act::StartChat
             | Act::WayTab { .. }
             | Act::WayStop { .. }
@@ -619,6 +620,7 @@ impl Task {
             | Act::AskLine { .. }
             | Act::AskWith { .. }
             | Act::ChatWords { .. }
+            | Act::AskHow
             | Act::StartChat
             | Act::WayTab { .. }
             | Act::WayStop { .. }

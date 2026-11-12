@@ -67,6 +67,8 @@ pub enum Word {
     ReachUnder,
 
     WaysLede,
+    AskHow,
+    AskHowHint,
     HowChange,
     HowOwn,
     HowOwnLine,
@@ -1991,7 +1993,7 @@ const PHRASES: u32 = 2510;
 const SEGMENTS: u32 = 4568;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
 const ENGLISH_BYTES: u32 = 59480;
-const ALL: [Word; 1824] = [
+const ALL: [Word; 1826] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2046,6 +2048,8 @@ const ALL: [Word; 1824] = [
     Word::ReachPathSet,
     Word::ReachUnder,
     Word::WaysLede,
+    Word::AskHow,
+    Word::AskHowHint,
     Word::HowChange,
     Word::HowOwn,
     Word::HowOwnLine,
@@ -3963,6 +3967,8 @@ impl Word {
             Self::Pause => 3532,
             Self::Resume => 3533,
             Self::WaysLede => 4302,
+            Self::AskHow => 9023,
+            Self::AskHowHint => 9024,
             Self::HowChange => 4900,
             Self::HowOwn => 4901,
             Self::HowOwnLine => 4902,
@@ -6340,7 +6346,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),
         Word::Pause => (&[b"Pause"], &[]),
         Word::Resume => (&[b"Resume"], &[]),
-        Word::WaysLede => (&[b"Pick a way for ", b", or ask temper to build your own."], &[Name]),
+        Word::WaysLede => (&[b"Choose how work runs, or describe how you work below."], &[]),
+        Word::AskHow => (&[b"How does temper work?"], &[]),
+        Word::AskHowHint => (&[b"Sends: ", b""], &[Name]),
         Word::HowChange => (&[b"Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it."], &[]),
         Word::HowOwn => (&[b"A way of its own"], &[]),
         Word::HowOwnLine => (&[b"", b" runs settings of its own, drawn below."], &[Name]),
