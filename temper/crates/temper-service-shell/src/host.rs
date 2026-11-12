@@ -229,6 +229,14 @@ pub fn ending_with_binary(
                     failure.set, failure.held, failure.additional, failure.limit
                 )
             }
+            Stop::Setting(key) => {
+                let setting = match key.kind {
+                    3 => format!("forge-charter {}", key.number),
+                    6 => format!("project-questions {}", key.scope),
+                    _ => format!("application kind {}, {}, {}", key.kind, key.scope, key.number),
+                };
+                format!("{binary} serve: restart refused: {setting}: retired stored setting\n")
+            }
             Stop::Binding => format!("{binary} serve: deployment namespace binding refused\n"),
             Stop::StoreOpen { why } => {
                 let deployment = super::path(store);

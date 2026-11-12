@@ -1385,25 +1385,19 @@ fn questions_are_a_plans_member() {
 }
 
 #[test]
-fn questions_foreman_is_offered_alone_and_in_a_batch() {
-    const ONE_CHANGE: usize = 1;
-    for (input, count) in [
-        (br#"{"words":"Small fix","questions":"foreman"}"#.as_slice(), ONE_CHANGE),
-        (
-            br#"{"changes":[{"name":"a","words":"First fix"},{"words":"Small fix","questions":"foreman","after":["a"]}]}"#.as_slice(),
-            TWO_CHANGES,
-        ),
+fn questions_foreman_is_refused_alone_and_in_a_batch() {
+    for input in [
+        br#"{"words":"Small fix","questions":"foreman"}"#.as_slice(),
+        br#"{"changes":[{"name":"a","words":"First fix"},{"words":"Small fix","questions":"foreman","after":["a"]}]}"#.as_slice(),
     ] {
-        let (mut world, chat) = plan_world(true);
-        let answer = plan_change(&mut world, &chat, input);
-        let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("delegated: {answer:?}") };
-        assert_eq!(made.len(), count);
-        assert!(world.call_errors.is_empty());
-        let task = made.last().expect("foreman change").task;
-        let change = live(&world, task);
-        assert_eq!(change.spec.words.as_ref(), b"Small fix");
-        assert!(change.spec.parameters.contains(&tasks::Parameter::Number { name: 14, value: 1 }));
-        assert!(change.authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Charter(6)));
+        let input = smith_domain_run::HostInput::attested(input.into()).expect("change input");
+        assert_eq!(
+            temper_engine_smith::call(
+                smith_domain_run::CallName { activation: 1, completion: 1, position: 1 },
+                b"change", &input,
+            ).expect_err("retired route"),
+            temper_engine_smith::Problem::Range(b"questions"),
+        );
     }
 }
 

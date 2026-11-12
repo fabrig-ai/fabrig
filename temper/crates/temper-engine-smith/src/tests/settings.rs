@@ -737,9 +737,9 @@ fn a_runs_proposal_carries_the_forges_charter_number() {
 fn settings_proposals_carry_typed_project_questions() {
     for (input, kind, value) in [
         (
-            br#"{"against":1,"reason":"questions","items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#.as_slice(),
+            br#"{"against":1,"reason":"questions","items":[{"setting":{"kind":"project-questions","project":7},"set":"up"}]}"#.as_slice(),
             6,
-            temper_engine_domain_forge::settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman),
+            temper_engine_domain_forge::settings::Value::Questions(temper_engine_domain_forge_change::Route::Up),
         ),
         (
             br#"{"against":1,"reason":"classes","items":[{"setting":{"kind":"project-classes","project":7},"set":{"items":[{"kind":"implementation","class":"decide"}],"sets":[]}}]}"#,

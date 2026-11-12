@@ -634,7 +634,6 @@ fn the_way_is_chosen_and_sends_the_whole_record() {
 fn the_questions_select_sends_its_route() {
     for browser in [false, true] {
         for (label, route, value) in [
-            ("Answered by the goal, kept in its decisions", w::QuestionsRoute::Foreman, b"foreman".as_slice()),
             ("Asked of me too", w::QuestionsRoute::Up, b"up".as_slice()),
             ("Not asked: each agent decides alone", w::QuestionsRoute::None, b"none".as_slice()),
         ] {
@@ -652,7 +651,6 @@ fn the_questions_select_sends_its_route() {
                 asked: Asked::Questions(Route::None),
             }));
             let expected = match route {
-                w::QuestionsRoute::Foreman => Route::Foreman,
                 w::QuestionsRoute::Up => Route::Up,
                 w::QuestionsRoute::None => Route::None,
             };

@@ -133,6 +133,7 @@ pub(crate) fn root(engine: &mut Engine) {
         }
         Some(root::StartStop::ForgeFit { phase, failure }) => Stop::ForgeFit { phase, failure },
         Some(root::StartStop::Binding) => Stop::Binding,
+        Some(root::StartStop::Setting(key)) => Stop::Setting(key),
         None => match engine.domain.journal_stop() {
             Some(why) => Stop::Journal { why },
             None => Stop::Binding,

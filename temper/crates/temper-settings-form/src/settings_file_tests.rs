@@ -735,13 +735,14 @@ fn project_values_refuse_missing_unknown_and_wrong_members() {
         let why = file::decode(&kind_file(PROJECT_WAYS, value), &Limits::standard()).expect_err("malformed ways");
         assert!(skein_lib::bytes::find(&why, member).is_some(), "{why:?}");
     }
-    for route in [b"\"none\"".as_slice(), b"\"foreman\"", b"\"up\""] {
+    for route in [b"\"none\"".as_slice(), b"\"up\""] {
         file::decode(&kind_file(br#"{"kind":"project-questions","project":7}"#, route), &Limits::standard())
             .expect("valid route");
     }
-    for value in [b"\"other\"".as_slice(), b"true", b"{}"] {
-        file::decode(&kind_file(br#"{"kind":"project-questions","project":7}"#, value), &Limits::standard())
+    for value in [b"\"foreman\"".as_slice(), b"\"other\"", b"true", b"{}"] {
+        let why = file::decode(&kind_file(br#"{"kind":"project-questions","project":7}"#, value), &Limits::standard())
             .expect_err("malformed route");
+        assert!(skein_lib::bytes::find(&why, b"project-questions").is_some());
     }
 }
 

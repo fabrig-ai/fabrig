@@ -938,7 +938,7 @@ fn question_parts() -> w::ChangePanelParts {
             7,
             1,
             b"Which branch?".as_slice(),
-            w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: Some(15) }).unwrap()),
+            w::Stands::Asked,
         ),
         (8, 2, b"Which check?".as_slice(), w::Stands::Taken),
     ] {
@@ -950,7 +950,7 @@ fn question_parts() -> w::ChangePanelParts {
     parts.questions = w::Questions::new(
         &w::CEILINGS,
         w::QuestionsParts {
-            route: w::Route::Foreman,
+            route: w::Route::Up,
             taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 2, limit: 4 }).unwrap(),
             open,
         },
@@ -965,17 +965,12 @@ fn change_show_prints_its_questions() {
     assert_eq!(text.status, 0);
     f::check_golden("change_questions", &text.stdout);
     let json = change::print(Some(&value), true, None, b"", &f::limits_root(), &change::Holds::new());
-    contains(&json.stdout, br#""questions":{"route":"foreman","taken":2,"limit":4,"open":[{"asker":7,"number":1,"line":"Which branch?","stands":"foreman","foreman":15},{"asker":8,"number":2,"line":"Which check?","stands":"taken"}]}"#);
+    contains(&json.stdout, br#""questions":{"route":"up","taken":2,"limit":4,"open":[{"asker":7,"number":1,"line":"Which branch?","stands":"asked"},{"asker":8,"number":2,"line":"Which check?","stands":"taken"}]}"#);
 }
 #[test]
-fn change_show_names_questions_without_a_made_foreman_and_answers_held() {
+fn change_show_names_asked_and_held_questions() {
     for (stands, text, json) in [
-        (
-            w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: None }).unwrap()),
-            b"with foreman".as_slice(),
-            br#""stands":"foreman""#.as_slice(),
-        ),
-        (w::Stands::Asked, b"asked of requester", br#""stands":"asked""#),
+        (w::Stands::Asked, b"asked of requester".as_slice(), br#""stands":"asked""#.as_slice()),
         (w::Stands::Held, b"answered, held for dependencies", br#""stands":"held""#),
     ] {
         let mut parts = question_parts();

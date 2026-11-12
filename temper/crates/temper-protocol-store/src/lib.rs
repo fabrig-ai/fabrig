@@ -44,7 +44,11 @@ pub fn application(
 
 /// A malformed row, which the routing reports before stopping the engine.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Undecodable;
+pub enum Undecodable {
+    Malformed,
+    /// The setting's identity survives refusal of a retired stored value.
+    Setting(temper_engine_domain_forge::settings::SettingKey),
+}
 
 /// Schema limits checked once alongside the forge's key bounds.
 #[derive(Clone, PartialEq, Eq, Debug)]

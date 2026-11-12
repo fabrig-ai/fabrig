@@ -279,6 +279,7 @@ pub struct Domain {
     pub(crate) follow_reads: Map<Token, crate::follows::Pending>,
     pub(crate) tier_ops: crate::tiers::State,
     pub(crate) tiers: Map<(skein_forge::api::Repository, Box<[u8]>), crate::TierRow>,
+    pub(crate) refused_settings: Map<crate::settings::SettingKey, ()>,
     pub(crate) setting_rows: Map<crate::settings::SettingKey, crate::settings::Edit>,
     pub(crate) setting_stock: Option<Box<[crate::settings::Stock]>>,
     pub(crate) held_rules: crate::settings::HeldRules,
@@ -894,6 +895,10 @@ impl Domain {
             tier_ops: crate::tiers::State::new(l),
             tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
             setting_rows: Map::with_capacity(
+                crate::settings::rows(l)
+                    .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?,
+            ),
+            refused_settings: Map::with_capacity(
                 crate::settings::rows(l)
                     .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?,
             ),
@@ -7793,6 +7798,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
                     Outboxed { entry, held, handoff: if held { Handoff::Handed } else { Handoff::Restored } },
                 )
                 .expect("restored entry within limits");
+        }
+        Stored::RefusedSetting(key) => {
+            d.refused_settings.insert(key, ()).expect("refused setting identity fits");
         }
         Stored::Setting(row) => {
             d.setting_rows.insert(row.key, row.edit).expect("restored setting within limits");

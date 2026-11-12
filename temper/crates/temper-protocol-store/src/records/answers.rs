@@ -293,8 +293,8 @@ pub(super) fn decode(value: w::Answer, bounds: &Bounds) -> Result<d::Answer, Und
                 .forge()
                 .client
                 .answer_bytes
-                .checked_sub(u32::try_from(path.len()).or(Err(Undecodable))?)
-                .ok_or(Undecodable)?;
+                .checked_sub(u32::try_from(path.len()).or(Err(Undecodable::Malformed))?)
+                .ok_or(Undecodable::Malformed)?;
             d::Answer::Directory { head, path, entries: decode_directory(&entries, bounds, room)?, truncated }
         }
         w::Answer::File(value) => {
@@ -384,14 +384,14 @@ fn decode_summaries(bytes: &[u8], bounds: &Bounds) -> Result<Box<[d::Summary]>, 
     let mut reader = Reader::new(bytes);
     let mut values = List::with_capacity(bounds.forge().client.rows);
     for _ in 0..=bounds.forge().client.rows {
-        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable))? else {
+        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))? else {
             return Ok(values.into_boxed());
         };
-        let item = w::Summary::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable))?;
+        let item = w::Summary::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?;
         let value = api::decode_summary(item, bounds)?;
-        values.push(value).or(Err(Undecodable))?;
+        values.push(value).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }
 fn encode_comments(values: &[d::Comment]) -> Box<[u8]> {
     let mut size = 0_usize;
@@ -415,14 +415,14 @@ fn decode_comments(bytes: &[u8], bounds: &Bounds) -> Result<Box<[d::Comment]>, U
     let mut reader = Reader::new(bytes);
     let mut values = List::with_capacity(bounds.forge().client.rows);
     for _ in 0..=bounds.forge().client.rows {
-        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable))? else {
+        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))? else {
             return Ok(values.into_boxed());
         };
-        let item = w::Comment::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable))?;
+        let item = w::Comment::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?;
         let value = api::decode_comment(item);
-        values.push(value).or(Err(Undecodable))?;
+        values.push(value).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }
 fn encode_reviews(values: &[d::Review]) -> Box<[u8]> {
     let mut size = 0_usize;
@@ -446,14 +446,14 @@ fn decode_reviews(bytes: &[u8], bounds: &Bounds) -> Result<Box<[d::Review]>, Und
     let mut reader = Reader::new(bytes);
     let mut values = List::with_capacity(bounds.forge().client.rows);
     for _ in 0..=bounds.forge().client.rows {
-        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable))? else {
+        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))? else {
             return Ok(values.into_boxed());
         };
-        let item = w::Review::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable))?;
+        let item = w::Review::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?;
         let value = api::decode_review(item);
-        values.push(value).or(Err(Undecodable))?;
+        values.push(value).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }
 
 fn encode_statuses(values: &[d::Status]) -> Box<[u8]> {
@@ -478,14 +478,14 @@ fn decode_statuses(bytes: &[u8], bounds: &Bounds) -> Result<Box<[d::Status]>, Un
     let mut reader = Reader::new(bytes);
     let mut values = List::with_capacity(bounds.forge().client.rows);
     for _ in 0..=bounds.forge().client.rows {
-        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable))? else {
+        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))? else {
             return Ok(values.into_boxed());
         };
-        let item = w::Status::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable))?;
+        let item = w::Status::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?;
         let value = api::decode_status(item);
-        values.push(value).or(Err(Undecodable))?;
+        values.push(value).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }
 fn encode_remarks(values: &[d::Remark]) -> Box<[u8]> {
     let mut size = 0_usize;
@@ -509,14 +509,14 @@ fn decode_remarks(bytes: &[u8], bounds: &Bounds) -> Result<Box<[d::Remark]>, Und
     let mut reader = Reader::new(bytes);
     let mut values = List::with_capacity(bounds.forge().client.rows);
     for _ in 0..=bounds.forge().client.rows {
-        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable))? else {
+        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))? else {
             return Ok(values.into_boxed());
         };
-        let item = w::Remark::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable))?;
+        let item = w::Remark::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?;
         let value = api::decode_remark(item);
-        values.push(value).or(Err(Undecodable))?;
+        values.push(value).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }
 fn encode_files(values: &[d::File]) -> Box<[u8]> {
     let mut size = 0_usize;
@@ -540,14 +540,14 @@ fn decode_files(bytes: &[u8], bounds: &Bounds) -> Result<Box<[d::File]>, Undecod
     let mut reader = Reader::new(bytes);
     let mut values = List::with_capacity(bounds.forge().client.rows);
     for _ in 0..=bounds.forge().client.rows {
-        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable))? else {
+        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))? else {
             return Ok(values.into_boxed());
         };
-        let item = w::File::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable))?;
+        let item = w::File::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?;
         let value = api::decode_file(item);
-        values.push(value).or(Err(Undecodable))?;
+        values.push(value).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }
 fn encode_paths(values: &[Box<[u8]>]) -> List<Box<[u8]>> {
     let mut paths = List::with_capacity(u32::try_from(values.len()).expect("bounded paths"));
@@ -664,24 +664,24 @@ fn encode_directory(values: &[d::Entry]) -> Box<[u8]> {
     writer.finish()
 }
 fn decode_directory(bytes: &[u8], bounds: &Bounds, mut room: u32) -> Result<Box<[d::Entry]>, Undecodable> {
-    let width = u32::try_from(skein_forge::measure::ENTRY_BYTES).or(Err(Undecodable))?;
-    let capacity = room.checked_div(width).ok_or(Undecodable)?;
+    let width = u32::try_from(skein_forge::measure::ENTRY_BYTES).or(Err(Undecodable::Malformed))?;
+    let capacity = room.checked_div(width).ok_or(Undecodable::Malformed)?;
     let mut values = List::with_capacity(capacity);
     let mut reader = Reader::new(bytes);
     for _ in 0..=capacity {
-        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable))? else {
+        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))? else {
             return Ok(values.into_boxed());
         };
-        let item = w::DirectoryEntry::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable))?;
+        let item = w::DirectoryEntry::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?;
         let w::DirectoryEntryParts { name, kind } = item.into_parts();
-        let charge = u32::try_from(name.len()).or(Err(Undecodable))?.checked_add(width).ok_or(Undecodable)?;
-        room = room.checked_sub(charge).ok_or(Undecodable)?;
+        let charge = u32::try_from(name.len()).or(Err(Undecodable::Malformed))?.checked_add(width).ok_or(Undecodable::Malformed)?;
+        room = room.checked_sub(charge).ok_or(Undecodable::Malformed)?;
         let kind = match kind {
             w::DirectoryKind::File => d::EntryKind::File,
             w::DirectoryKind::Directory => d::EntryKind::Directory,
             w::DirectoryKind::Submodule => d::EntryKind::Submodule,
         };
-        values.push(d::Entry { name, kind }).or(Err(Undecodable))?;
+        values.push(d::Entry { name, kind }).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }

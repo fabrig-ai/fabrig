@@ -768,11 +768,6 @@ static HOLDS: [Holds; samples::N] = [
             },
             Part::Described {
                 role: Role::Disclosure,
-                name: "Foreman",
-                description: "When a coding agent asks: answers from the goal’s design, or passes it up",
-            },
-            Part::Described {
-                role: Role::Disclosure,
                 name: "Status agent",
                 description: "When you look at Home after landings: writes the lines at its top",
             },

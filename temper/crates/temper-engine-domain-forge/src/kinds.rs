@@ -163,6 +163,11 @@ impl Domain {
                         number: item.number,
                         slot: SettingSlot::Replaced(revision),
                     };
+                    if self.refused_settings.contains_key(&key) {
+                        judged.push(settings::Judged::Refuse(settings::Refusal::Retired))
+                            .expect("one judgement per item");
+                        continue;
+                    }
                     match self.setting_rows.get(&key) {
                         Some(Edit::Set(value)) => Edit::Set(value.clone()),
                         Some(Edit::Remove | Edit::Reset) | None => {

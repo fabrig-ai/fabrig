@@ -218,7 +218,7 @@ fn a_projects_questions_set_on_the_tab_reach_its_next_change() {
     run(&mut world, person, vec![see(Find::named(Role::Option, b"Answered by the goal, kept in its decisions"))]);
     assert_eq!(
         world.root(person).person().forge().questions(PROJECT),
-        Some(temper_client_domain::forge::ways::Route::Foreman)
+        Some(temper_client_domain::forge::ways::Route::Up)
     );
     let agent = fixtures::agent(&mut world);
     let call = fixtures::give(
@@ -278,5 +278,5 @@ fn a_projects_questions_set_on_the_tab_reach_its_next_change() {
             }
         })
         .expect("stored change");
-    assert_eq!(row.questions.route, temper_engine_domain_forge_change::Route::Foreman);
+    assert_eq!(row.questions.route, temper_engine_domain_forge_change::Route::Up);
 }

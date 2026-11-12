@@ -53,7 +53,7 @@ fn values() -> [(u32, settings::Value); 14] {
         (2, settings::Value::Rule(project)),
         (3, settings::Value::Charter(23)),
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::None)),
-        (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman)),
+        (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (
             8,

@@ -64,12 +64,12 @@ pub(super) fn decode_decided(row: w::Decided) -> Result<d::Decided, Undecodable>
     match took {
         Some(index) => {
             if !d::DECIDED_OPTIONS.contains(&options.len()) || options.get(usize::from(index)).is_none() {
-                return Err(Undecodable);
+                return Err(Undecodable::Malformed);
             }
         }
         None => {
             if !options.is_empty() || !why.is_empty() || overturned {
-                return Err(Undecodable);
+                return Err(Undecodable::Malformed);
             }
         }
     }
@@ -97,8 +97,8 @@ pub(super) fn encode_reach(reach: temper_protocol_reaches::Reach) -> w::Reach {
 }
 pub(super) fn decode_reach(record: w::Reach) -> Result<temper_protocol_reaches::Reach, Undecodable> {
     use temper_client_protocol_wire::v1;
-    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable))?);
-    record.encode(&mut writer).or(Err(Undecodable))?;
-    let record = v1::Reach::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable))?;
-    temper_protocol_reaches::reach_from(&record).ok_or(Undecodable)
+    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable::Malformed))?);
+    record.encode(&mut writer).or(Err(Undecodable::Malformed))?;
+    let record = v1::Reach::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))?;
+    temper_protocol_reaches::reach_from(&record).ok_or(Undecodable::Malformed)
 }

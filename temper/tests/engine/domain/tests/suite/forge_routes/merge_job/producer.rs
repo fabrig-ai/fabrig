@@ -7,7 +7,7 @@ fn live_producer(world: World) -> (World, u64, engine::Assignment, u64, u64) {
     live_producer_with_route(world, false)
 }
 
-fn live_producer_with_route(mut world: World, foreman: bool) -> (World, u64, engine::Assignment, u64, u64) {
+fn live_producer_with_route(mut world: World, questions_up: bool) -> (World, u64, engine::Assignment, u64, u64) {
     world.adopt();
     world.send(protocol::hello_slots(CHANNEL, 3, Box::new([])));
     let ask = adoption_chat(&world);
@@ -29,7 +29,7 @@ fn live_producer_with_route(mut world: World, foreman: bool) -> (World, u64, eng
         tasks::Parameter::Bytes { name: 3, value: BRANCH.into() },
         tasks::Parameter::Bytes { name: 10, value: b"Small fix".as_slice().into() },
     ];
-    if foreman {
+    if questions_up {
         // This route leaves half the producer's funding for concurrent delegates.
         parameters.push(tasks::Parameter::Number { name: 14, value: 1 });
     }

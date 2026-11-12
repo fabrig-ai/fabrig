@@ -45,21 +45,21 @@ fn decode_segments(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Un
     let mut segments = List::with_capacity(bounds.forge().name_bytes);
     let mut size = 0_u32;
     for _ in 0..=bounds.forge().name_bytes {
-        let item = skein_codec::piece::split(&mut reader).or(Err(Undecodable))?;
+        let item = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))?;
         let Some(segment) = item else {
             return Ok(segments.into_boxed());
         };
         let segment =
-            w::Segment::decode(bounds.limits(), &mut Reader::new(&segment)).or(Err(Undecodable))?.into_parts().name;
+            w::Segment::decode(bounds.limits(), &mut Reader::new(&segment)).or(Err(Undecodable::Malformed))?.into_parts().name;
         size = size
-            .checked_add(u32::try_from(segment.len()).or(Err(Undecodable))?.checked_add(1).ok_or(Undecodable)?)
-            .ok_or(Undecodable)?;
+            .checked_add(u32::try_from(segment.len()).or(Err(Undecodable::Malformed))?.checked_add(1).ok_or(Undecodable::Malformed)?)
+            .ok_or(Undecodable::Malformed)?;
         if size > bounds.forge().name_bytes {
-            return Err(Undecodable);
+            return Err(Undecodable::Malformed);
         }
-        segments.push(segment).or(Err(Undecodable))?;
+        segments.push(segment).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }
 pub(super) fn encode_what(value: &d::What) -> w::What {
     match value {
@@ -111,11 +111,11 @@ pub(super) fn decode_branches(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<
     for name in &names {
         measured = measured
             .checked_add(u64::from(width))
-            .ok_or(Undecodable)?
+            .ok_or(Undecodable::Malformed)?
             .checked_add(skein_lib::len_u64(name.len()))
-            .ok_or(Undecodable)?;
+            .ok_or(Undecodable::Malformed)?;
         if measured > u64::from(bounds.forge().client.answer_bytes) {
-            return Err(Undecodable);
+            return Err(Undecodable::Malformed);
         }
     }
     Ok(names)
@@ -124,15 +124,15 @@ fn decode_names(bytes: &[u8], bounds: &Bounds, capacity: u32) -> Result<Box<[Box
     let mut reader = Reader::new(bytes);
     let mut contexts = List::with_capacity(capacity);
     for _ in 0..=capacity {
-        let item = skein_codec::piece::split(&mut reader).or(Err(Undecodable))?;
+        let item = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))?;
         let Some(item) = item else {
             return Ok(contexts.into_boxed());
         };
         let item =
-            w::AnswerName::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable))?.into_parts().name;
-        contexts.push(item).or(Err(Undecodable))?;
+            w::AnswerName::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?.into_parts().name;
+        contexts.push(item).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }
 pub(super) fn decode_protection(value: w::RepositoryProtection, bounds: &Bounds) -> Result<d::Protection, Undecodable> {
     Ok(match value {

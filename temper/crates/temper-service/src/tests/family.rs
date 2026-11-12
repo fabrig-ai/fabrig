@@ -2463,7 +2463,7 @@ fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
 fn a_panels_questions_map_field_for_field() {
     for (route, expected_route) in [
         (change::Route::None, w::Route::None),
-        (change::Route::Foreman, w::Route::Foreman),
+        (change::Route::Up, w::Route::Up),
         (change::Route::Up, w::Route::Up),
     ] {
         let mut value = panel();
@@ -2471,14 +2471,6 @@ fn a_panels_questions_map_field_for_field() {
         let mut expected = List::with_capacity(5);
         for (index, (stands, wire)) in [
             (forge::PanelStands::Taken, w::Stands::Taken),
-            (
-                forge::PanelStands::Foreman(None),
-                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: None }).unwrap()),
-            ),
-            (
-                forge::PanelStands::Foreman(Some(15)),
-                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: Some(15) }).unwrap()),
-            ),
             (forge::PanelStands::Asked, w::Stands::Asked),
             (forge::PanelStands::Held, w::Stands::Held),
         ]

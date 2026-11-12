@@ -1,14 +1,12 @@
 //! The relay's policy alone (temper/docs/design/domain/forge/change/questions.md, 1).
 use crate::{
-    Asked, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, RelayAct, RelayHeard, Route, Settled, Stands, relay,
+    Asked, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, RelayAct, RelayHeard, Route, Stands, relay,
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
 
 const ASKER: u64 = 10;
 const NEXT_ASKER: u64 = 11;
-const FOREMAN: u64 = 12;
-const OTHER_FOREMAN: u64 = 13;
 const NUMBER: u64 = 20;
 const NEXT_NUMBER: u64 = 21;
 // One question has already been taken in the head fixture.
@@ -18,7 +16,7 @@ const ONE_MORE: u32 = 2;
 const ROOM: usize = 2;
 
 fn heard() -> RelayHeard<'static> {
-    RelayHeard { asked: &[], foreman: None, answer: None, ended: &[], kept: false, released: false }
+    RelayHeard { asked: &[], answer: None, ended: &[], kept: false, released: false }
 }
 
 fn open(asker: u64, number: u64, stands: Stands) -> Open {
@@ -32,7 +30,7 @@ fn open(asker: u64, number: u64, stands: Stands) -> Open {
 }
 
 fn head(stands: Stands) -> Questions {
-    Questions { route: Route::Foreman, taken: TAKEN, open: Box::new([open(ASKER, NUMBER, stands)]) }
+    Questions { route: Route::Up, taken: TAKEN, open: Box::new([open(ASKER, NUMBER, stands)]) }
 }
 
 fn asked() -> Asked<'static> {
@@ -47,39 +45,17 @@ fn ask(reasons: &[u8]) -> RelayAct {
     RelayAct::Ask { asker: ASKER, number: NUMBER, reasons: bytes::copy_of(reasons) }
 }
 
-fn settled(settled: Settled<'_>) -> crate::Relayed {
-    relay(
-        &head(Stands::Foreman { task: Some(FOREMAN) }),
-        &RelayHeard { foreman: Some((FOREMAN, settled)), ..heard() },
-        &super::LIMITS,
-        ROOM,
-    )
-}
-
 #[test]
 fn a_new_question_waits_its_turn_behind_the_head() {
-    let q = head(Stands::Foreman { task: Some(FOREMAN) });
+    let q = head(Stands::Asked);
     let result = relay(&q, &RelayHeard { asked: &[asked()], ..heard() }, &super::LIMITS, ROOM);
     assert_eq!(
         result.questions.open.as_ref(),
-        &[open(ASKER, NUMBER, Stands::Foreman { task: Some(FOREMAN) }), open(NEXT_ASKER, NEXT_NUMBER, Stands::Taken),]
+        &[open(ASKER, NUMBER, Stands::Asked), open(NEXT_ASKER, NEXT_NUMBER, Stands::Taken),]
     );
     assert_eq!(result.questions.taken, TAKEN);
     assert!(result.acts.is_empty());
     assert!(!result.more);
-}
-
-#[test]
-fn the_head_gets_a_foreman_under_foreman() {
-    let q = head(Stands::Taken);
-    let limits = crate::Limits { questions: ONE_MORE, ..super::LIMITS };
-    let result = relay(&q, &heard(), &limits, 0);
-    assert_eq!(result.acts.as_ref(), &[RelayAct::Foreman { asker: ASKER, number: NUMBER }]);
-    assert_eq!(result.questions, Questions { taken: ONE_MORE, ..head(Stands::Foreman { task: None }) });
-    assert!(!result.more);
-    let waiting = relay(&result.questions, &heard(), &limits, ROOM);
-    assert_eq!(waiting.questions, result.questions);
-    assert!(waiting.acts.is_empty());
 }
 
 #[test]
@@ -91,47 +67,6 @@ fn the_head_goes_up_under_up() {
     let waiting = relay(&result.questions, &heard(), &super::LIMITS, ROOM);
     assert_eq!(waiting.questions, result.questions);
     assert!(waiting.acts.is_empty());
-}
-
-#[test]
-fn a_foremans_answer_answers_the_asker_and_the_next_is_worked() {
-    let q = head(Stands::Foreman { task: Some(FOREMAN) });
-    let result = relay(
-        &q,
-        &RelayHeard { asked: &[asked()], foreman: Some((FOREMAN, Settled::Answer(b"Use the path."))), ..heard() },
-        &super::LIMITS,
-        ROOM,
-    );
-    assert_eq!(
-        result.acts.as_ref(),
-        &[answer(b"Use the path."), RelayAct::Foreman { asker: NEXT_ASKER, number: NEXT_NUMBER },]
-    );
-    assert_eq!(result.questions.open.as_ref(), &[open(NEXT_ASKER, NEXT_NUMBER, Stands::Foreman { task: None })]);
-    assert_eq!(result.questions.taken, ONE_MORE);
-}
-
-#[test]
-fn a_foremans_finish_opens_with_the_finish_line() {
-    let result = settled(Settled::Finish(b"Keep the completed work."));
-    assert_eq!(
-        result.acts.as_ref(),
-        &[answer(b"Finish: the work done holds; list the rest under Left.\nKeep the completed work.")]
-    );
-    assert!(result.questions.open.is_empty());
-}
-
-#[test]
-fn a_foremans_escalation_goes_up_with_its_reasons() {
-    let result = settled(Settled::Escalate(b"The design leaves this open."));
-    assert_eq!(result.acts.as_ref(), &[ask(b"Foreman:\nThe design leaves this open.")]);
-    assert_eq!(result.questions, head(Stands::Asked));
-}
-
-#[test]
-fn a_failed_foreman_goes_up_too() {
-    let result = settled(Settled::Failed(b"The foreman was cancelled."));
-    assert_eq!(result.acts.as_ref(), &[ask(b"Foreman:\nThe foreman was cancelled.")]);
-    assert_eq!(result.questions, head(Stands::Asked));
 }
 
 #[test]
@@ -179,13 +114,11 @@ fn past_the_bound_the_head_holds_once() {
 }
 
 #[test]
-fn released_past_the_bound_it_goes_up_without_a_foreman() {
-    for route in [Route::Foreman, Route::Up] {
-        let q = Questions { route, taken: super::LIMITS.questions, ..head(Stands::Taken) };
-        let result = relay(&q, &RelayHeard { released: true, ..heard() }, &super::LIMITS, ROOM);
-        assert_eq!(result.acts.as_ref(), &[ask(b"")]);
-        assert_eq!(result.questions, Questions { route, ..head(Stands::Asked) });
-    }
+fn released_past_the_bound_it_goes_up() {
+    let q = Questions { taken: super::LIMITS.questions, ..head(Stands::Taken) };
+    let result = relay(&q, &RelayHeard { released: true, ..heard() }, &super::LIMITS, ROOM);
+    assert_eq!(result.acts.as_ref(), &[ask(b"")]);
+    assert_eq!(result.questions, head(Stands::Asked));
 }
 
 fn left(answered: bool) -> RelayAct {
@@ -193,18 +126,13 @@ fn left(answered: bool) -> RelayAct {
 }
 
 #[test]
-fn an_ended_asker_reports_each_question_and_cancels_its_foreman() {
-    for (stands, answered, cancel) in [
-        (Stands::Taken, false, None),
-        (Stands::Foreman { task: Some(FOREMAN) }, false, Some(FOREMAN)),
-        (Stands::Foreman { task: None }, false, None),
-        (Stands::Held { answer: Box::from(b"Unused".as_slice()) }, true, None),
+fn an_ended_asker_reports_each_question() {
+    for (stands, answered) in [
+        (Stands::Taken, false),
+        (Stands::Held { answer: Box::from(b"Unused".as_slice()) }, true),
     ] {
         let result = relay(&head(stands), &RelayHeard { ended: &[ASKER], kept: true, ..heard() }, &super::LIMITS, 1);
-        let mut expected = vec![left(answered)];
-        if let Some(task) = cancel {
-            expected.push(RelayAct::Cancel { task });
-        }
+        let expected = vec![left(answered)];
         assert_eq!(result.acts.as_ref(), expected);
         assert!(result.questions.open.is_empty());
         assert!(!result.more);
@@ -236,8 +164,6 @@ fn an_asked_question_of_an_ended_asker_reports_at_its_answer() {
 fn no_room_keeps_an_ended_question_until_it_can_be_reported_once() {
     for stands in [
         Stands::Taken,
-        Stands::Foreman { task: Some(FOREMAN) },
-        Stands::Foreman { task: None },
         Stands::Asked,
         Stands::Held { answer: Box::from(b"Unused".as_slice()) },
     ] {
@@ -247,10 +173,10 @@ fn no_room_keeps_an_ended_question_until_it_can_be_reported_once() {
             Stands::Asked | Stands::Held { .. } => {
                 (head(Stands::Held { answer: Box::from(b"Unused".as_slice()) }), true)
             }
-            Stands::Taken | Stands::Foreman { .. } => (q, false),
+            Stands::Taken => (q, false),
         };
         assert_eq!(result.questions, expected);
-        assert!(result.acts.is_empty(), "a foreman stays whole while the notice waits");
+        assert!(result.acts.is_empty(), "a question stays whole while the notice waits");
         assert!(result.more);
         let next = relay(&result.questions, &RelayHeard { ended: &[ASKER], ..heard() }, &super::LIMITS, 1);
         assert_eq!(next.acts[0], left(answered));
@@ -278,7 +204,6 @@ fn an_ended_question_shares_message_room_with_the_next_question() {
 fn a_live_askers_question_is_never_reported_as_ended() {
     for stands in [
         Stands::Taken,
-        Stands::Foreman { task: Some(FOREMAN) },
         Stands::Asked,
         Stands::Held { answer: Box::from(b"Use the path.".as_slice()) },
     ] {
@@ -287,10 +212,8 @@ fn a_live_askers_question_is_never_reported_as_ended() {
         for act in &result.acts {
             match act {
                 RelayAct::Left { .. } => reported = true,
-                RelayAct::Foreman { .. }
-                | RelayAct::Answer { .. }
+                RelayAct::Answer { .. }
                 | RelayAct::Ask { .. }
-                | RelayAct::Cancel { .. }
                 | RelayAct::Hold => {}
             }
         }
@@ -346,12 +269,11 @@ fn joined_test(prefix: &[u8], suffix: &[u8]) -> Box<[u8]> {
 
 #[test]
 fn route_none_relays_nothing() {
-    let q = Questions { route: Route::None, ..head(Stands::Foreman { task: Some(FOREMAN) }) };
+    let q = Questions { route: Route::None, ..head(Stands::Asked) };
     let result = relay(
         &q,
         &RelayHeard {
             asked: &[asked()],
-            foreman: Some((FOREMAN, Settled::Answer(b"Unused"))),
             answer: Some(b"Unused"),
             ended: &[ASKER],
             released: true,
@@ -387,13 +309,9 @@ fn an_open_queue_takes_only_the_questions_that_fit() {
 #[test]
 fn no_room_preserves_each_message_before_it_is_sent() {
     let heard_answer = RelayHeard { answer: Some(b"Use the path."), ..heard() };
-    let heard_foreman = RelayHeard { foreman: Some((FOREMAN, Settled::Answer(b"Use the path."))), ..heard() };
-    let heard_escalation = RelayHeard { foreman: Some((FOREMAN, Settled::Escalate(b"Choose."))), ..heard() };
     for (q, h) in [
         (Questions { route: Route::Up, ..head(Stands::Taken) }, heard()),
         (head(Stands::Asked), heard_answer),
-        (head(Stands::Foreman { task: Some(FOREMAN) }), heard_foreman),
-        (head(Stands::Foreman { task: Some(FOREMAN) }), heard_escalation),
         (head(Stands::Held { answer: Box::from(b"Use the path.".as_slice()) }), heard()),
     ] {
         let result = relay(&q, &h, &super::LIMITS, 0);
@@ -401,20 +319,6 @@ fn no_room_preserves_each_message_before_it_is_sent() {
         assert!(result.acts.is_empty());
         assert!(result.more);
     }
-}
-
-#[test]
-fn a_result_for_another_foreman_leaves_the_head_waiting() {
-    let q = head(Stands::Foreman { task: Some(FOREMAN) });
-    let result = relay(
-        &q,
-        &RelayHeard { foreman: Some((OTHER_FOREMAN, Settled::Answer(b"Unused"))), ..heard() },
-        &super::LIMITS,
-        ROOM,
-    );
-    assert_eq!(result.questions, q);
-    assert!(result.acts.is_empty());
-    assert!(!result.more);
 }
 
 #[test]

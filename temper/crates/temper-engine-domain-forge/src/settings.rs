@@ -342,6 +342,7 @@ pub enum Refusal {
     Charter,
     Value,
     Replaced,
+    Retired,
     Way,
     Classes(temper_protocol_reaches::Refusal),
     /// Invalid setting words (temper/docs/design/protocol/configuration/settings.md, 2).
@@ -370,6 +371,7 @@ impl Refusal {
             Self::DeploymentSets => b"a deployment's rule names no path set",
             Self::Charter => b"a charter outside 1 to tasks.charters, or the forge's charter removed",
             Self::Value => b"a value of another kind",
+            Self::Retired => b"retired stored setting",
             Self::Replaced => b"the replaced value is no longer kept",
             Self::FollowPaths => b"more paths than forge.follow_paths",
             Self::FollowPath => b"a malformed path or one past 256 bytes",

@@ -1820,7 +1820,7 @@ const PHRASES: u32 = 2345;
 const SEGMENTS: u32 = 4232;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
 const ENGLISH_BYTES: u32 = 56704;
-const ALL: [Word; 1661] = [
+const ALL: [Word; 1659] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,

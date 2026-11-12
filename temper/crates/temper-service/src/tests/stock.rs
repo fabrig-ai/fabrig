@@ -1154,47 +1154,6 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 }
 
 #[test]
-fn the_foremans_charter_reads_and_gives_a_verdict() {
-    let engine = single_engine();
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
-    let mut expected = defaults.charters.iter().find(|charter| charter.number == 4).unwrap().clone();
-    expected.number = 6;
-    expected.policy.instructions = include_bytes!("../stock/foreman.txt").as_slice().into();
-    assert_eq!(*foreman, expected);
-    assert_eq!(foreman.wake, jig_domain_tasks::WakePolicy::DEFAULT);
-    assert_eq!(foreman.policy.instructions.as_ref(), include_bytes!("../stock/foreman.txt"));
-    assert!(foreman.policy.inspect);
-    assert!(!foreman.policy.modify);
-    assert!(!foreman.policy.shell);
-    assert!(!foreman.policy.agents);
-    for authority in [
-        &defaults.rules.ceiling,
-        &defaults.policies.get(&1).expect("policy 1").policy.ceiling,
-        &defaults.policies.get(&1).expect("policy 1").policy.roles[0].authority,
-    ] {
-        assert!(authority.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(6)));
-    }
-}
-
-#[test]
-fn the_foremans_words_name_the_three_verdicts() {
-    let engine = single_engine();
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
-    let words = core::str::from_utf8(&foreman.policy.instructions).expect("foreman instructions");
-    for phrase in [
-        "answer:",
-        "finish:",
-        "escalate:",
-        "never edit, push or run anything",
-        "The producer finishes with form change, its report in the field body within its contract's bound; name no other form.",
-    ] {
-        assert!(words.contains(phrase), "missing foreman instruction: {phrase}");
-    }
-}
-
-#[test]
 fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
     let bytes = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
     let document =
@@ -1470,12 +1429,6 @@ fn the_coders_words_say_what_a_resume_holds() {
     let words = include_str!("../stock/coding.txt");
     assert!(words.contains("After an answer, your head may be a commit titled Merge and an id: temper merged your landing branch's tip into your work before this run, so that tip's files belong there, and your earlier edits are in that head, so git status shows none of them."));
     assert!(words.contains("Settle a merge's conflicts before you ask: a run that parks with a conflict marker left keeps none of that run's edits."));
-}
-
-#[test]
-fn the_foremans_words_keep_a_resumed_merge() {
-    let words = include_str!("../stock/foreman.txt");
-    assert!(words.contains("A producer going on after an answer may hold a merge of its landing branch's tip, committed as its head or, with conflicts, staged in progress: other tasks' files there are by design and its earlier edits are in its head, so never tell it to remove them or restore its tree."));
 }
 
 #[test]
@@ -1988,7 +1941,6 @@ fn stock_words_hold_no_placeholder_a_run_cannot_fill() {
         include_str!("../stock/chat.txt"),
         include_str!("../stock/coding.txt"),
         include_str!("../stock/review.txt"),
-        include_str!("../stock/foreman.txt"),
         include_str!("../stock/status.txt"),
         include_str!("../stock/trial.txt"),
     ] {

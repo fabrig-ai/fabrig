@@ -745,7 +745,7 @@ fn a_proposal_of_a_projects_ways_is_kept_then_accepted() {
 fn a_project_member_reads_its_kinds_at_their_revisions() {
     use temper_engine_domain_forge_change::Route;
     let mut driver = kinds::driver();
-    let earlier = [settings::Value::Rule(rule()), settings::Value::Questions(Route::Foreman), project_ways()];
+    let earlier = [settings::Value::Rule(rule()), settings::Value::Questions(Route::Up), project_ways()];
     let later = [
         settings::Value::Rule(settings::LandingRule { ci: true, ..rule() }),
         settings::Value::Questions(Route::Up),

@@ -1211,6 +1211,8 @@ pub enum CallPayload {
 #[expect(clippy::large_enum_variant, reason = "the durable change row keeps role choices and merge-job state inline")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
+    /// Identity only: a stored setting the codec refused, never its retired value.
+    RefusedSetting(crate::settings::SettingKey),
     /// The connector part of a live named call.
     Call {
         key: NamedCall,

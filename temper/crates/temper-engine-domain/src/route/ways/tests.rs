@@ -333,7 +333,7 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
         }
     }
     // Each row varies a role source or the words the forge holds for it.
-    for (goal, review, duplicate, missing, foreman, drafting, words, names) in [
+    for (goal, review, duplicate, missing, questions_up, drafting, words, names) in [
         (
             false,
             false,
@@ -362,7 +362,7 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
             false,
             Some(TemplateExecutor::Charter(12)),
             RoleWords::Stock,
-            &["Chat", "Ask temper", "Drafter", "Coordinator", "Coding agent", "Reviewer", "Foreman", "Status agent"][..],
+            &["Chat", "Ask temper", "Drafter", "Coordinator", "Coding agent", "Reviewer", "Status agent"][..],
         ),
         (
             false,
@@ -383,7 +383,7 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
             true,
             Some(TemplateExecutor::Chosen),
             RoleWords::Stock,
-            &["Chat", "Ask temper", "Coding agent", "Foreman", "Status agent"][..],
+            &["Chat", "Ask temper", "Coding agent", "Status agent"][..],
         ),
         (
             false,
@@ -416,7 +416,7 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
             &["Chat", "Ask temper", "Coding agent", "Status agent"][..],
         ),
     ] {
-        let (mut domain, env) = roles_fixture(goal, review, duplicate, missing, foreman, drafting, words);
+        let (mut domain, env) = roles_fixture(goal, review, duplicate, missing, questions_up, drafting, words);
         let mut expected = None;
         for address in [b"roles".as_slice(), b"ROLES", b"roles @revision 3", b"roles extra"] {
             let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -454,7 +454,6 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
                     b"Drafter" => "When you start a draft",
                     b"Coordinator" => "For each goal",
                     b"Coding agent" | b"Reviewer" => "For each change",
-                    b"Foreman" => "When a coding agent asks",
                     b"Status agent" => "When you look at Home after landings",
                     _ => panic!("unexpected role"),
                 };
@@ -620,7 +619,7 @@ fn roles_fixture(
     review: bool,
     duplicate: bool,
     missing: bool,
-    foreman: bool,
+    questions_up: bool,
     drafting: Option<TemplateExecutor>,
     words: RoleWords,
 ) -> (Domain, Env<crate::Limits>) {
@@ -672,8 +671,8 @@ fn roles_fixture(
         (
             6,
             1,
-            settings::Value::Questions(if foreman {
-                temper_engine_domain_forge_change::Route::Foreman
+            settings::Value::Questions(if questions_up {
+                temper_engine_domain_forge_change::Route::Up
             } else {
                 temper_engine_domain_forge_change::Route::None
             }),
