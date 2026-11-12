@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
 
-- **Not yet:** the whole document: the owned-forge landing story on an Anthropic key, `TEMPER_TEST_LIVE_ANTHROPIC_KEY`, `scripts/proof-live.sh forge-land-claude-key`, and profile `live-temper` running it in place of the ChatGPT story [in flight: change 1829].
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
   the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
