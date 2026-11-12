@@ -304,7 +304,9 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
         Stored::Finding(row) => {
             let replacing = d.findings.contains_key(&(row.project, row.number));
             let mut held = 0_u32;
-            for _ in d.findings.range((row.project, 0)..=(row.project, u32::MAX)) { held = held.saturating_add(1); }
+            for _ in d.findings.range((row.project, 0)..=(row.project, u32::MAX)) {
+                held = held.saturating_add(1);
+            }
             room(K::Finding, Rows(K::Finding), held, l.findings_per_project, replacing)?;
             room(K::Finding, Rows(K::Finding), d.findings.len(), l.findings(), replacing)
         }

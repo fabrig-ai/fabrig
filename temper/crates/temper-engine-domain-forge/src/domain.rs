@@ -6352,7 +6352,11 @@ fn ci_hint(d: &mut Domain, env: &Env<Limits>, hint: &skein_forge::api::Hint, out
                 subscribed = true;
                 break;
             }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
+            Topic::Ci { .. }
+            | Topic::Landings { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     if subscribed {
@@ -7164,7 +7168,11 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
             Topic::Ci { .. } if subscriber.goal_tasks.is_some() => {
                 emit(out, Request::GoalUntopic { goal: subscriber.task, topic: subscriber.topic.clone() });
             }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
+            Topic::Ci { .. }
+            | Topic::Landings { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     d.rebuild_settings();
@@ -7229,7 +7237,11 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             Topic::Ci { repository, head } if !ci.as_slice().contains(&(*repository, *head)) => {
                 ci.push((*repository, *head)).expect("subscription capacity");
             }
-            Topic::Ci { .. } | Topic::Landings { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
+            Topic::Ci { .. }
+            | Topic::Landings { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     let mut changes = List::with_capacity(env.limits.changes);
@@ -7670,7 +7682,9 @@ impl Domain {
                 for (key, _) in &self.subscriptions {
                     let repository = match &key.1 {
                         Topic::Findings { .. } => {
-                            if need.task(key.0, None) { return Key::Subscription { task: key.0, topic: key.1.clone() }; }
+                            if need.task(key.0, None) {
+                                return Key::Subscription { task: key.0, topic: key.1.clone() };
+                            }
                             continue;
                         }
                         Topic::Landings { repository, .. }

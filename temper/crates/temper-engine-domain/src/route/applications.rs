@@ -55,7 +55,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::Overturn { project, .. }
         | Application::FileFinding(forge::FileFinding { project, .. })
         | Application::HandFinding(forge::HandFinding { project, .. })
-        | Application::TriageFinding(forge::TriageFinding { project, .. }) => people::ApplicationScope::Project(*project),
+        | Application::TriageFinding(forge::TriageFinding { project, .. }) => {
+            people::ApplicationScope::Project(*project)
+        }
     };
     let carried = match &request {
         Application::Try { .. } => {
@@ -77,7 +79,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::Looked { .. }
         | Application::SetAway { .. }
         | Application::Overturn { .. }
-        | Application::FileFinding(_) | Application::HandFinding(_) | Application::TriageFinding(_) => carried,
+        | Application::FileFinding(_)
+        | Application::HandFinding(_)
+        | Application::TriageFinding(_) => carried,
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });

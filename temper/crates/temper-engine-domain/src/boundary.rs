@@ -652,7 +652,10 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
-    Finding { project: u32, number: u32 },
+    Finding {
+        project: u32,
+        number: u32,
+    },
     /// A view block, read in the project's scope (temper/docs/design/client/forge/records.md).
     View {
         project: u32,

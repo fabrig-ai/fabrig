@@ -86,7 +86,9 @@ pub struct Limits {
 impl Limits {
     /// Retained decided and asked rows in the family (temper/docs/design/domain/forge/attention.md, 5).
     #[must_use]
-    pub const fn findings(&self) -> u32 { self.judge_projects.saturating_mul(self.findings_per_project) }
+    pub const fn findings(&self) -> u32 {
+        self.judge_projects.saturating_mul(self.findings_per_project)
+    }
     #[must_use]
     pub const fn decided(&self) -> u32 {
         self.judge_projects.saturating_mul(self.decided_per_project)

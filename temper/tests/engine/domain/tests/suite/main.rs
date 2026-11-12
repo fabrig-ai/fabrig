@@ -14,11 +14,11 @@ mod configuring;
 mod document_limits;
 mod escalation;
 mod fabrig_scale;
+mod findings;
 mod forge_routes;
 mod hello_refused;
 mod host_calls;
 mod issue_projection;
-mod findings;
 mod loads;
 mod mark;
 mod memory;
@@ -47,6 +47,7 @@ mod ways;
 mod fuzzy {
     mod endings;
     mod escalation;
+    mod findings;
     mod loads;
     #[expect(clippy::duplicate_mod, reason = "the same crash cases run in both profiles")]
     #[path = "../removal.rs"]

@@ -47,11 +47,15 @@ pub use status::{
 };
 mod away;
 pub mod findings;
-pub use findings::{Holder, Filer, FindingKind, Severity, FindingState, Finding, FileFinding, HandFinding, TriageFinding, Triage, FindingRefusal, FileFindingAnswer, HandFindingAnswer, TriageFindingAnswer, FindingWrite, FindingRow, AreaRow, Findings, FindingAnswer, owner, findings_subject};
 pub use away::{
     AWAY_SUBJECT, AskedView, Away, AwaysView, DECIDED_DAY_NS, DECIDED_KEPT_NS, DECIDED_OPTION_BYTES, DECIDED_OPTIONS,
     DECIDED_QUESTION_BYTES, DECIDED_WHY_BYTES, DECISIONS_SHOWN, Decided, DecidedCall, DecisionView, DecisionsView,
     OverturnAnswer, SetAwayAnswer, decided_subject,
+};
+pub use findings::{
+    AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingKind, FindingRefusal, FindingRow,
+    FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity, Triage, TriageFinding,
+    TriageFindingAnswer, findings_subject, owner,
 };
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, PersonFact};
@@ -496,7 +500,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::LandingLog(row) => landing_log::row_bytes(row),
         Stored::Finding(row) => {
             let mut bytes = skein_lib::len_u64(row.title.len()).checked_add(skein_lib::len_u64(row.body.len()))?;
-            for field in [&row.area, &row.why, &row.reason].into_iter().flatten() { bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?; }
+            for field in [&row.area, &row.why, &row.reason].into_iter().flatten() {
+                bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?;
+            }
             Some(bytes)
         }
         Stored::Decided(row) => {

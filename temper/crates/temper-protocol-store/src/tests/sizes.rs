@@ -265,6 +265,7 @@ fn a_full_finding_reaches_its_bound_without_growing_the_application_row() {
     assert!(bound < u64::from(APPLICATION_ROW_BYTES));
     let full = crate::v11::Row::decode(&limits, &mut skein_lib::Reader::new(&encoded)).unwrap();
     let crate::v11::Value::Finding(finding) = full.into_parts().value else { panic!("finding value") };
-    let mut parts = finding.into_parts(); parts.body = vec![b'b'; 4097].into();
-    assert!(crate::v11::Finding::new(&crate::v11::CEILINGS, parts).is_err());
+    let mut parts = finding.into_parts();
+    parts.body = Box::new([b'b'; 4097]);
+    crate::v11::Finding::new(&crate::v11::CEILINGS, parts).unwrap_err();
 }

@@ -213,7 +213,10 @@ pub fn key(random: &mut Rng) -> top::Key {
         30 => top::Key::ProjectFacts { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         32 => top::Key::Away { party: number, project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         34 => top::Key::Closer(number),
-        35 => top::Key::Finding { project: u32::try_from(random.below(4_294_967_296)).expect("u32"), number: u32::try_from(random.below(4_294_967_296)).expect("u32") },
+        35 => top::Key::Finding {
+            project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+            number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+        },
         33 => top::Key::Decided {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
@@ -1142,7 +1145,20 @@ pub fn tier_goals() -> Box<[top::TierGoal]> {
 }
 
 pub fn finding() -> top::Finding {
-    top::Finding { project: u32::MAX, number: u32::MAX, kind: top::FindingKind::Feedback, severity: top::Severity::High,
-        area: Some(vec![b'a'; 32].into()), state: top::FindingState::Dropped, title: vec![b't'; 200].into(), body: vec![b'b'; 4096].into(),
-        filer: top::Filer::Task(u64::MAX), at: skein_lib::Wall::from_nanos(u64::MAX), why: Some(vec![b'w'; 200].into()), hander: Some(top::Filer::Party(u64::MAX)), goal: Some(u64::MAX), reason: Some(vec![b'r'; 400].into()) }
+    top::Finding {
+        project: u32::MAX,
+        number: u32::MAX,
+        kind: top::FindingKind::Feedback,
+        severity: top::Severity::High,
+        area: Some(Box::new([b'a'; 32])),
+        state: top::FindingState::Dropped,
+        title: Box::new([b't'; 200]),
+        body: Box::new([b'b'; 4096]),
+        filer: top::Filer::Task(u64::MAX),
+        at: skein_lib::Wall::from_nanos(u64::MAX),
+        why: Some(Box::new([b'w'; 200])),
+        hander: Some(top::Filer::Party(u64::MAX)),
+        goal: Some(u64::MAX),
+        reason: Some(Box::new([b'r'; 400])),
+    }
 }

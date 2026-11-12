@@ -860,16 +860,19 @@ pub fn answer(
                 w::Outcome::MakeRefused(w::MakeRefused::new(limits, w::MakeRefusedParts { why }).ok()?)
             }
         },
-        Some(temper_engine_domain::ApplicationAnswer::Adopt(
-            forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
-        )) => return None,
+        Some(
+            root::ApplicationAnswer::Adopt(
+                forge::ApplicationOutcome::MakeKept | forge::ApplicationOutcome::MakeRefused(_),
+            )
+            | root::ApplicationAnswer::FileFinding(_)
+            | root::ApplicationAnswer::HandFinding(_)
+            | root::ApplicationAnswer::TriageFinding(_),
+        ) => return None,
         Some(root::ApplicationAnswer::Try(root::TryAnswer::Tried)) => w::Outcome::Tried,
         Some(root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs)) => w::Outcome::NotTheirs,
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
         Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
         Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)) => w::Outcome::Away,
-        // Findings acquire their client wire in the following change.
-        Some(root::ApplicationAnswer::FileFinding(_) | root::ApplicationAnswer::HandFinding(_) | root::ApplicationAnswer::TriageFinding(_)) => return None,
         Some(root::ApplicationAnswer::Overturn(answer)) => match answer {
             forge::OverturnAnswer::Overturned => w::Outcome::Overturned,
             forge::OverturnAnswer::Already => w::Outcome::OverturnRefused(

@@ -55,7 +55,9 @@ pub(crate) fn document(
         && domain.core.people.role(party, project).is_some()
         && let Some((state, mine)) = temper_engine_domain_forge::findings::findings_filter(subject.raw(), project)
     {
-        Some(temper_engine_domain_forge::Document::Findings(super::findings::document(domain, project, party, state, mine)))
+        Some(temper_engine_domain_forge::Document::Findings(super::findings::document(
+            domain, project, party, state, mine,
+        )))
     } else if connector == domain.config.forge_connector {
         domain.forge.document(subject.raw(), scope, party, env.wall, &env.limits.forge)
     } else {
@@ -98,7 +100,7 @@ pub(crate) fn document(
                                 | temper_engine_domain_forge::Document::Landings(_)
                                 | temper_engine_domain_forge::Document::Aways(_)
                                 | temper_engine_domain_forge::Document::Decisions(_)
-                                 | temper_engine_domain_forge::Document::Findings(_)
+                                | temper_engine_domain_forge::Document::Findings(_)
                                 | temper_engine_domain_forge::Document::Status(_)
                                 | temper_engine_domain_forge::Document::Changes(_)
                                 | temper_engine_domain_forge::Document::Dismissals(_)) => {

@@ -1462,7 +1462,10 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         | root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
                         | root::Application::SetAway { .. }
-                        | root::Application::Overturn { .. } | root::Application::FileFinding(_) | root::Application::HandFinding(_) | root::Application::TriageFinding(_) => {
+                        | root::Application::Overturn { .. }
+                        | root::Application::FileFinding(_)
+                        | root::Application::HandFinding(_)
+                        | root::Application::TriageFinding(_) => {
                             panic!("manifest or install")
                         }
                         root::Application::Forge(ask) => {
