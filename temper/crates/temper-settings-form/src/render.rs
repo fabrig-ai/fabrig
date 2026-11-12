@@ -948,7 +948,7 @@ pub fn application_value_text(kind: u32, bytes: &[u8], out: &mut Text) -> bool {
 fn overlay_marks(overlay: &c::Overlay, out: &mut Text) {
     out.put(b"overlay replaces: ");
     let mut any = false;
-    for field in crate::fields::members(crate::fields::Shape::Overlay) {
+    for field in crate::fields::members(crate::fields::Shape::Charter) {
         if overlay.replaces(field.name) {
             if any {
                 out.put(b", ");

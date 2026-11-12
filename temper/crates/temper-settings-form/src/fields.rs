@@ -350,6 +350,11 @@ pub fn members(shape: Shape) -> &'static [Field] {
     }
     FIELDS.get(start..end).expect("grouped fields")
 }
+// client/ctl/overlays.md, 1: replaced members share the charter's rows.
+fn overlay_replaces(field: &Field) -> bool {
+    field.shape == Shape::Charter && ![b"number".as_slice(), b"instructions", b"parts", b"wake"].contains(&field.name)
+}
+
 /// `charter.model.name`, or from any shape, `model.name`: each word after
 /// the first a member reached through `Value::Shape`, a list's member
 /// with or without `[]` (`policy.roles[].number`); for the pages' check.
@@ -377,8 +382,10 @@ pub fn resolve(path: &[u8]) -> Option<&'static Field> {
                 None => (word, false),
             };
             let mut found = None;
-            for member in members(shape?) {
-                if member.name == name && (!listed || member.list.is_some()) {
+            let current = shape?;
+            for member in &FIELDS {
+                let belongs = member.shape == current || (current == Shape::Overlay && overlay_replaces(member));
+                if belongs && member.name == name && (!listed || member.list.is_some()) {
                     found = Some(member);
                     break;
                 }
