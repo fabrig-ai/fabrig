@@ -81,6 +81,7 @@ const TOOL_CRATES: &[&str] = &[
     "temper-playground-serve-tool",
     "temper-stage-one-tool",
     "temper-twin-tool",
+    "temper-qa-tool",
 ];
 fn tool_crate(path: &Path) -> bool {
     path.file_name().is_some_and(|name| TOOL_CRATES.iter().any(|tool| name == *tool))

@@ -6279,6 +6279,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-qa"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-qa-tool",
+]
+
+[[package]]
+name = "temper-qa-tool"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-scratch",
+ "skein-shell",
+ "temper-test-env",
+ "temper-version",
+]
+
+[[package]]
 name = "temper-real-loop-world"
 version = "0.0.0"
 dependencies = [
