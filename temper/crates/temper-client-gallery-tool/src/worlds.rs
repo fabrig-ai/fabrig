@@ -643,7 +643,9 @@ fn world_in_layout(
                             Some(c::Delivery::Accounts(Box::new(doc)))
                         }
                         c::Subject::Tasks { query, window } => {
-                            let mut tasks = if query.tracked == Some(true) {
+                            let mut tasks = if settings == Some("how-follows") && query.label == Some(3) {
+                                ways::standing()
+                            } else if query.tracked == Some(true) {
                                 goal_window(w, window, goals)
                             } else {
                                 task_window(w, window)
@@ -770,7 +772,9 @@ fn world_in_layout(
                     }
                 }
                 jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) } => {
-                    let value = if let Some(name) = view {
+                    let value = if settings == Some("how-follows") && matches!(what, c::Read::Project { .. }) {
+                        Some(c::ReadValue::Project(Box::new(ways::how_project())))
+                    } else if let Some(name) = view {
                         match &what {
                             c::Read::Activity { .. } => Some(c::ReadValue::Activity(Box::new(views::activity(name)))),
                             _ => read_value(w, &what, then, goals),
@@ -967,6 +971,10 @@ fn world_in_layout(
                         }
                         w::Watch::Ways(subject) if (asking || how) && !asking_chat => {
                             ways::deliver(&mut root, watch, subject.project(), settings, &mut out);
+                            continue;
+                        }
+                        w::Watch::Follows(_) if settings == Some("how-follows") => {
+                            ways::follows(&mut root, watch, &mut out);
                             continue;
                         }
                         w::Watch::Change(subject) => subject,

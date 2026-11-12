@@ -198,6 +198,8 @@ from the engine's own answers, is where the look is tuned.
 | `night-how` | `how` with the night switch pressed: the path's marks by night |
 | `how-reaches` | hand-made deliveries, Draft first current, its classes the whole story's `how.html`'s: wording, retries, implementation choices and test-only changes decided, then a path set, "vsr’s protocol core", asking even when away, and a new dependency and a departure Away may decide: What reaches you's three columns, "While you’re away, all but changes to vsr’s protocol core are decided with the recommended choice and listed.", and its rows, the question route and "Away until" |
 | `night-how-reaches` | `how-reaches` with the night switch pressed: the columns' chips and marks by night |
+| `how-follows` | `how-draft` with a hand-made `follows` document, project document and standing roles: What follows a landing's box "cowsql/vsr-rs follows cowsql/vsr", "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat.", "Each waits for Pat's word.", its check's workflow, "2 behind · check passes at" its source commit's twelve digits, its chips "code hears the landing", "an agent ports" and "code checks"; the box "Tiers on main" from the path's tier, "code runs" and "an agent repairs"; Budgets' head "a week · renews Tuesday", a standing role's row, its title, "a standing role · 28 left" and "40", then "Goals", "80" (`../pages/settings.md`, 2) |
+| `night-how-follows` | `how-follows` with the night switch pressed: the chips' marks, code's square among them, by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Deployment's frame |
