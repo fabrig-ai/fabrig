@@ -5871,6 +5871,8 @@ dependencies = [
  "jig-channel-kit",
  "jig-domain-core",
  "jig-domain-host",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "jig-protocol-config",
  "jig-protocol-engine-workers",
  "jig-protocol-store",
@@ -5890,6 +5892,8 @@ dependencies = [
  "temper-box-machine",
  "temper-client-bundle",
  "temper-client-protocol-wire",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
  "temper-fake",
  "temper-forge-setup",
  "temper-forge-setup-shell",
@@ -6620,24 +6624,12 @@ dependencies = [
 name = "temper-service-shell"
 version = "0.0.0"
 dependencies = [
- "jig-domain-core",
- "jig-domain-host",
- "jig-domain-people",
- "jig-domain-tasks",
  "jig-protocol-config",
- "jig-protocol-engine-workers",
- "jig-protocol-store",
- "jig-protocol-worker-wire",
- "skein-channel",
- "skein-forge",
- "skein-forge-connection",
  "skein-io",
  "skein-lib",
  "skein-scratch",
  "skein-shell",
- "temper-engine-domain",
- "temper-engine-domain-forge",
- "temper-service",
+ "temper-service-core",
  "temper-shell",
 ]
 
@@ -6885,6 +6877,7 @@ name = "temper-worker-shell"
 version = "0.0.0"
 dependencies = [
  "jig-channel-kit",
+ "jig-domain-host",
  "jig-domain-link",
  "jig-protocol-config",
  "serde_json",
@@ -6898,6 +6891,7 @@ dependencies = [
  "temper-launcher",
  "temper-playground",
  "temper-service",
+ "temper-service-core",
  "temper-service-shell",
  "temper-shell",
  "temper-worker-domain",
