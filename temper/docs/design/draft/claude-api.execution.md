@@ -6,7 +6,7 @@
 
 | Milestone | Draft parts | Owner | Needs | Its walk | State |
 |---|---|---|---|---|---|
-| M1, step 1: `anthropic` offering keys beside Claude Code's program, a direct endpoint beside the program's, the route by source (account, source, host and endpoint chosen together), Claude's cache prices, a key's list read directly, the key's words on the pages and in the help, the dialect's tests for what current models refuse | 2 to 7, 8.1, 9 | temper/migration | none | after landing, on a real Claude Console key whose account was made after 2026-08-31: a chat turn and a delegated change on Opus 5.5 through `ctl`, on a deployment with no Claude Code (`claude-api.md`, section 9) | not started; in v0.1.0 (`v0.1.0.md`, section 5) |
+| M1, step 1: `anthropic` offering keys beside Claude Code's program, a direct endpoint beside the program's, the route by source (account, source, host and endpoint chosen together), Claude's cache prices, a key's list read directly, the key's words on the pages and in the help, the dialect's tests for what current models refuse | 2 to 7, 8.1, 9 | temper/migration | none | after landing, on a real Claude Console key whose account was made after 2026-08-31: a chat turn and a delegated change on Opus 5.5 through `ctl`, on a deployment with no Claude Code (`claude-api.md`, section 9) | landed; its walk after landing waits for the user's key; in v0.1.0 (`v0.1.0.md`, section 5) |
 | M2, step 2: the parts of 8.2 the user picks | 8.2 | temper/migration | M1, and the user's word on which parts | its own, once designed | not started; for v0.1.0 or after, by the user's word once M1 has landed |
 
 ## 2. Order and v0.1.0

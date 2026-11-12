@@ -211,8 +211,8 @@ fn a_delegate_waits_for_a_host_declaring_its_charters_model() {
     let specialist = config.core.defaults.charters[1].policy.model.clone();
     config.core.settings.models = Box::new([config.core.settings.models[0].clone(), specialist]);
     config.core.settings.endpoints = Box::new([
-        core::EndpointFacts { providers: Box::new([]), number: 1, dialect: 3, program: None },
-        core::EndpointFacts { providers: Box::new([]), number: 2, dialect: 3, program: None },
+        core::EndpointFacts { direct: Box::new([]), providers: Box::new([]), number: 1, dialect: 3, program: None },
+        core::EndpointFacts { direct: Box::new([]), providers: Box::new([]), number: 2, dialect: 3, program: None },
     ]);
     let mut world = World::new(Setup { seed: 151, configuration: Some(config), limits, ..Setup::default() });
     let chat = world.assigned.as_ref().expect("chat").task;

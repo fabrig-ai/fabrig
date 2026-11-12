@@ -84,6 +84,7 @@ fn configuration(limits: &core::Limits) -> core::Config {
         connectors: Box::new([]),
         settings: core::Settings {
             endpoints: Box::new([core::EndpointFacts {
+                direct: Box::new([]),
                 providers: Box::new([]),
                 number: 1,
                 dialect: 3,

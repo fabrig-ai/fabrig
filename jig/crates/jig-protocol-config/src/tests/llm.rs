@@ -377,6 +377,65 @@ fn a_models_program_comes_from_its_endpoint() {
     assert!(engine.llm.models[0].model.window <= 272_000);
 }
 
+fn both_ways_provider() -> Box<[u8]> {
+    let document = fixtures::with(&program_endpoint(true, "claude_code"), br#""dialect": 3,"#, br#""dialect": 2,"#);
+    let document = fixtures::with(
+        &document,
+        br#""sources":{"programs":["claude_code"]}"#,
+        br#""endpoint":"fake","direct":"anthropic-api","sources":{"keys":true,"programs":["claude_code"]}"#,
+    );
+    fixtures::with(
+        &document,
+        br#""endpoints": [{"#,
+        br#""endpoints": [{
+            "name":"anthropic-api","number":4,"dialect":2,"provider":"fake-provider",
+            "address":{"socket":"127.0.0.1:7101"},"transport":"plaintext",
+            "headers":[],"connect_ms":10000,"handshake_ms":10000
+        }, {"#,
+    )
+}
+
+#[test]
+fn a_providers_direct_way_reaches_core_settings() {
+    let engine = fixtures::engine(&both_ways_provider()).expect("program and direct ways at one address");
+    assert_eq!(engine.llm.providers[0].direct.as_deref(), Some(b"anthropic-api".as_slice()));
+    let settings = crate::core(&engine, [0; 16], 1).settings;
+    let direct = settings.direct_endpoint(1).expect("credential endpoint");
+    assert_eq!(direct.number, 4);
+    assert_eq!(direct.direct.as_ref(), &[1]);
+    assert!(direct.providers.is_empty());
+    assert_eq!(direct.program, None);
+    let program = &settings.endpoints[1];
+    assert_eq!(program.number, 1);
+    assert_eq!(program.providers.as_ref(), &[1]);
+    assert!(program.direct.is_empty());
+    assert_eq!(engine.llm.models[0].model.endpoint, program.number);
+    assert_eq!(engine.llm.models[0].model.program.as_deref(), Some(b"claude_code".as_slice()));
+    assert!(settings.direct_endpoint(99).is_none());
+
+    let engine = fixtures::engine(fixtures::ENGINE_SMALL).unwrap();
+    assert!(engine.llm.providers[0].direct.is_none());
+    assert!(crate::core(&engine, [0; 16], 1).settings.direct_endpoint(1).is_none());
+}
+
+#[test]
+fn an_invalid_direct_way_is_refused_at_the_providers_direct() {
+    let document = both_ways_provider();
+    let path = fixtures::path(&[b"llm", b"providers"]).child(crate::Segment::Index(0)).member(b"direct");
+    for (from, to) in [
+        (br#""direct":"anthropic-api""#.as_slice(), br#""direct":"missing""#.as_slice()),
+        (br#""direct":"anthropic-api""#, br#""direct":"fake""#),
+        (br#""number":4,"dialect":2"#, br#""number":4,"dialect":3"#),
+        (br#""program": "claude_code","#, b""),
+        (br#""keys":true"#, br#""keys":false"#),
+    ] {
+        let invalid = fixtures::with(&document, from, to);
+        let Err(problems) = fixtures::engine(&invalid) else { panic!("invalid direct way accepted: {to:?}") };
+        assert_eq!(problems.problems.as_slice(), &[crate::Problem { path: path.clone(), what: What::Refers }]);
+        assert_eq!(problems.past, 0);
+    }
+}
+
 #[test]
 #[expect(clippy::disallowed_macros, reason = "tests are ordinary Rust (programming-model.md, 10.2)")]
 fn model_shown_and_picker_reach_the_client_catalogue() {

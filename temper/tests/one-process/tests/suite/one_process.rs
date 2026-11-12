@@ -3,6 +3,10 @@ use skein_world::domain::Verdict;
 use temper_one_process_world::referee::{restart, secrets};
 use temper_one_process_world::{fixtures, world};
 #[test]
+fn claude_keys_can_stand_alone_follow_a_login_and_belong_to_the_deployment() {
+    temper_one_process_world::claude_keys::walk();
+}
+#[test]
 fn a_fresh_goals_unencodable_review_releases_the_host_and_cancels() {
     temper_one_process_world::review_delivery::walk(0);
 }

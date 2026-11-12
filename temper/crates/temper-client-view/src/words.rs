@@ -1589,8 +1589,6 @@ pub enum Word {
     WelcomeBoxServer,
     WelcomeModelSignInTime,
     WelcomeModelProgramTime,
-    WelcomeKeyTitle,
-    WelcomeKeyBody,
     WelcomeKeyField,
     WelcomeKeyFacts,
     WelcomePasteOpen,
@@ -1863,7 +1861,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2414;
+const PHRASES: u32 = 2413;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1890,10 +1888,10 @@ const PHRASES: u32 = 2414;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4384;
+const SEGMENTS: u32 = 4385;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 57764;
-const ALL: [Word; 1729] = [
+const ENGLISH_BYTES: u32 = 57740;
+const ALL: [Word; 1727] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -3426,8 +3424,6 @@ const ALL: [Word; 1729] = [
     Word::WelcomeBoxServer,
     Word::WelcomeModelSignInTime,
     Word::WelcomeModelProgramTime,
-    Word::WelcomeKeyTitle,
-    Word::WelcomeKeyBody,
     Word::WelcomeKeyField,
     Word::WelcomeKeyFacts,
     Word::WelcomePasteOpen,
@@ -5260,8 +5256,6 @@ impl Word {
             Self::WelcomeBoxServer => 3028,
             Self::WelcomeModelSignInTime => 3029,
             Self::WelcomeModelProgramTime => 3030,
-            Self::WelcomeKeyTitle => 3361,
-            Self::WelcomeKeyBody => 3362,
             Self::WelcomeKeyField => 3363,
             Self::WelcomeKeyFacts => 3364,
             Self::WelcomePasteOpen => 3366,
@@ -6305,10 +6299,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
         Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
         Word::WelcomeModelSignInTime => (&[b"Sign in, in a new tab \xc2\xb7 about a minute"], &[]),
-        Word::WelcomeKeyTitle => (&[b"An OpenAI API key"], &[]),
-        Word::WelcomeKeyBody => (&[b"From OpenAI\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[]),
         Word::WelcomeKeyField => (&[b"Key, pasted once"], &[]),
-        Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once OpenAI refuses a run."], &[]),
+        Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once ", b" refuses a run."], &[Name]),
         Word::WelcomePasteOpen => (&[b"Open ", b"\xe2\x80\x99s sign-in \xe2\x80\xba"], &[Name]),
         Word::WelcomePasteField => (&[b"Address of the page that couldn\xe2\x80\x99t be reached"], &[]),
         Word::WelcomePasteFinish => (&[b"Finish connecting"], &[]),

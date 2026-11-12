@@ -1413,11 +1413,14 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     });
     for (table, field, replacement) in [("providers", "name", provider), ("endpoints", "name", route)] {
         let entries = value["engine"]["llm"][table].as_array_mut().expect("init LLM table");
-        entries.retain(|entry| entry[field] != "openai" && entry[field] != "anthropic");
+        entries
+            .retain(|entry| entry[field] != "openai" && entry[field] != "anthropic" && entry[field] != "anthropic-api");
         entries.insert(0, replacement);
     }
     let endpoints = agent["endpoints"].as_array_mut().expect("agent endpoints");
-    endpoints.retain(|endpoint| endpoint["name"] != "openai" && endpoint["name"] != "anthropic");
+    endpoints.retain(|endpoint| {
+        endpoint["name"] != "openai" && endpoint["name"] != "anthropic" && endpoint["name"] != "anthropic-api"
+    });
     endpoints.insert(0, endpoint);
     if agent["programs"].is_null() {
         agent["programs"] = serde_json::json!({});

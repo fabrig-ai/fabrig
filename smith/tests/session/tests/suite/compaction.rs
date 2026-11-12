@@ -598,6 +598,45 @@ fn the_new_window_opens_with_the_task_the_preamble_and_the_summary() {
 }
 
 #[test]
+fn the_new_windows_first_request_drops_the_old_windows_signed_thinking() {
+    let limits = skein_llm_kit::limits().native().request_document();
+    let replay = skein_llm::Replay {
+        provider: skein_llm::Provider::Anthropic,
+        value: skein_llm::Json::from_bytes(
+            br#"{"type":"thinking","thinking":"consider","signature":"signed-opaque"}"#,
+            &limits,
+        )
+        .expect("signed thinking"),
+    };
+    let thinking = llm::Block::Opaque { bytes: replay.to_bytes(&limits).expect("native replay envelope") };
+    let mut world = started(4854);
+    world.complete(
+        Box::new([thinking.clone(), llm::Block::Text { text: bytes(b"first answer"), replay: None }]),
+        llm::Stop::EndTurn,
+        usage(),
+    );
+    continue_with(&mut world, b"go on");
+    assert!(is_summary(&world));
+    assert_eq!(world.prompts.last().expect("compaction request").messages[1].content[0], thinking);
+    world.complete(
+        Box::new([thinking, llm::Block::Text { text: bytes(b"summary"), replay: None }]),
+        llm::Stop::EndTurn,
+        llm::Usage { output_tokens: Some(40), ..usage() },
+    );
+    assert_eq!(world.prompts.len(), 3, "the first request after compaction");
+    let opened = world.prompts.last().expect("new window request");
+    assert!(
+        opened
+            .messages
+            .iter()
+            .flat_map(|message| &message.content)
+            .all(|block| { matches!(block, llm::Block::Text { replay: None, .. }) }),
+        "the new window holds only text, with neither old nor compaction thinking"
+    );
+    world.close();
+}
+
+#[test]
 fn a_restored_window_reads_its_summary_after_the_preamble() {
     let mut old = asked(4852);
     old.complete(said(&[b's'; 2_500]), llm::Stop::EndTurn, llm::Usage { output_tokens: Some(40), ..usage() });
