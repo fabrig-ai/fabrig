@@ -68,6 +68,8 @@ fn configured(verification_bound_ms: u64) -> World {
         None,
         StoryLimits {
             kinds: true,
+            // A role's follow inherits its owner's grant to dispatch the follow check.
+            workflow_dispatch: true,
             tier: Some(tier_runs::Tier::default()),
             person_executor: true,
             spec_bytes: Some(4096),
@@ -149,7 +151,11 @@ fn world_with_bound(person: bool, has_area: bool, verification_bound_ms: u64) ->
     let triager = assigned_chat(&mut world, 120, people::Ask::Create { project, batch });
     let people::Ask::Create { project, mut batch } = world.chat(PROJECT, b"Own ports") else { panic!("role ask") };
     batch[0].label = 3;
-    batch[0].budget = people::Budget::AsAllowed { cap: Some(100) };
+    batch[0].tracked = None;
+    batch[0].flags.conversation = false;
+    batch[0].flags.ended_by = people::EndedBy::Standing;
+    batch[0].budget = people::Budget::Named;
+    batch[0].authority.spend = 100;
     let role = assigned_chat(&mut world, 121, people::Ask::Create { project, batch });
     let owner = if person { s::FollowOwner::Person(1) } else { s::FollowOwner::Task(role.task) };
     let area_owner = if person { s::AreaOwner::Party(1) } else { s::AreaOwner::Task(role.task) };
