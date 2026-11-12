@@ -953,6 +953,11 @@ pub(super) fn brief_ci(
     let Some(row) = domain.change_for_brief(item.repository, item.number) else {
         return Some(BriefRead::Failed(unnamed()));
     };
+    if let change::State::Repairing { why: change::Repair::LandingAt { gate, candidate }, .. } = row.change.state {
+        let words = domain.candidate_failure_words(row.task, gate, candidate)?;
+        let kept = crate::text::fit(&words, skein_lib::usize_of(bytes), b"...");
+        return Some(BriefRead::Got { left: skein_lib::len_u64(words.len().saturating_sub(kept.len())), bytes: kept });
+    }
     if let change::State::Repairing { why: change::Repair::Landing { gate }, .. } = row.change.state {
         let words = domain.landing_failure_words(row.task, gate)?;
         let kept = crate::text::fit(&words, skein_lib::usize_of(bytes), b"...");

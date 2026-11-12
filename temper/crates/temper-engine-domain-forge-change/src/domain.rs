@@ -1199,7 +1199,7 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
     change.repairs = change.repairs.checked_add(1).expect("repair count below limit");
     match why {
         Repair::Semantic => {}
-        Repair::Ci | Repair::Gate(_) | Repair::Landing { .. } | Repair::Review { .. } => change.clean = Box::new([]),
+        Repair::Ci | Repair::Gate(_) | Repair::LandingAt { .. } | Repair::Landing { .. } | Repair::Review { .. } => change.clean = Box::new([]),
     }
     change.state = State::Repairing { requested: true, why };
     change.since = now;
@@ -1297,7 +1297,7 @@ fn repairing(
 fn ci_reason(why: Repair) -> bool {
     match why {
         Repair::Ci | Repair::Semantic => true,
-        Repair::Gate(_) | Repair::Landing { .. } | Repair::Review { .. } => false,
+        Repair::Gate(_) | Repair::LandingAt { .. } | Repair::Landing { .. } | Repair::Review { .. } => false,
     }
 }
 
@@ -1615,7 +1615,7 @@ fn ready(
             }
             prepare_due(change, head, main, ready_since, now, limits)
         }
-        Some(Ask::Repair { gate, candidate: _ }) => repair_due(change, Repair::Landing { gate }, facts, now, limits),
+        Some(Ask::Repair { gate, candidate }) => repair_due(change, Repair::LandingAt { gate, candidate }, facts, now, limits),
         Some(Ask::Resolve { base }) => conflict_due(change, base, Some(head), facts, standing, now, limits),
         Some(Ask::Landed { .. }) => unreachable!("landed ask returned before the phase"),
     }
@@ -1728,11 +1728,11 @@ fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Ste
         if change.last_head == facts.branch && let Some(head) = facts.branch { return take_pushed_head(change, head, now); }
         return hold(change, Hold::BranchMoved);
     }
-    if let Some(Ask::Repair { gate, .. }) = facts.ask {
+    if let Some(Ask::Repair { gate, candidate }) = facts.ask {
         if facts.live_gate.is_some() {
             return Stepped { change, decision: Decision::CancelGates { head: target.prefix } };
         }
-        return repair_due(change, Repair::Landing { gate }, facts, now, limits);
+        return repair_due(change, Repair::LandingAt { gate, candidate }, facts, now, limits);
     }
     if change.landing != Some(target.landing) {
         change.state = State::Ready { head, ready_since };

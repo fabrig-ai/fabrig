@@ -130,7 +130,7 @@ impl Domain {
                     c::Repair::Gate(gate) => w::PublicRepair::Gate(
                         w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: *gate }).ok()?,
                     ),
-                    c::Repair::Landing { gate } => w::PublicRepair::Landing(
+                    c::Repair::LandingAt { gate, .. } | c::Repair::Landing { gate } => w::PublicRepair::Landing(
                         w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: u64::from(*gate) })
                             .ok()?,
                     ),

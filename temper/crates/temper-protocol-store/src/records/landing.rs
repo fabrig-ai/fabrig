@@ -425,6 +425,7 @@ pub(super) fn encode_receipt_value(receipt: &top::Receipt) -> w::Receipt {
             run,
             candidate: receipt.candidate,
             ended: receipt.ended.as_nanos(),
+            logs: receipt.logs.clone(),
         },
     )
     .expect(FITS)
@@ -443,10 +444,10 @@ pub(super) fn decode_receipt(row: w::ReceiptRow) -> Result<top::Stored, crate::U
     })
 }
 pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, crate::Undecodable> {
-    let w::ReceiptParts { failures, passed, run, candidate, ended } = receipt.into_parts();
+    let w::ReceiptParts { failures, passed, run, candidate, ended, logs } = receipt.into_parts();
     let w::ReceiptRunParts { id, number, url } = run.into_parts();
     Ok(top::Receipt {
-        failures: match failures {
+        logs, failures: match failures {
             Some(f) => Some(super::verification::decode_failures(f)?),
             None => None,
         },

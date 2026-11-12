@@ -1747,8 +1747,11 @@ fn a_prefix_reviews_words_name_the_round_and_repairs_return_to_the_changes_pull(
     row.change.state = State::Judging { head: SHA1, ready_since: skein_lib::Wall::EPOCH,
         target: Judgement { landing: 81, round: 3, pull: 17, branch: b"temper/1/l81".as_slice().into(), base: b"goal".as_slice().into(), prefix: SHA256 }, asked: Box::new([9]) };
     let words = super::review_words(&row, 9, &SHA256, &[], 1024).expect("round identity");
-    let prefix = format!("Review this change at the named head\nPull request: #17\nBranch: temper/1/l81\nBase: goal\nHead: {}\n", core::str::from_utf8(&super::commit_text(&SHA256)).unwrap());
-    assert!(words.starts_with(prefix.as_bytes()), "{}", String::from_utf8_lossy(&words));
+    let mut prefix = skein_lib::List::with_capacity(1024);
+    super::append(&mut prefix, b"Review this change at the named head\nPull request: #17\nBranch: temper/1/l81\nBase: goal\nHead: ");
+    super::append(&mut prefix, &commit_text(&SHA256));
+    super::append(&mut prefix, b"\n");
+    assert!(words.starts_with(prefix.as_slice()), "{words:?}");
     row.change.state = State::Repairing { requested: false, why: super::forge_change::Repair::Gate(9) };
     let words = super::review_words(&row, 9, &SHA1, &[], 1024).expect("own identity");
     assert!(words.starts_with(b"Review this change at the named head\nPull request: #42\nBranch: temper/7\nBase: main\nHead: "));

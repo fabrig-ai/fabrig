@@ -81,6 +81,8 @@ pub enum Repair {
     Landing { gate: u16 },
     /// A person's request for changes on the forge, at the head they reviewed (domain/forge/change/gates.md, 1).
     Review { head: Commit },
+    /// The failed candidate pins the receipt and its job-log snapshot through repair.
+    LandingAt { gate: u16, candidate: Commit },
 }
 
 /// The part of a change's authority its next delegate needs.

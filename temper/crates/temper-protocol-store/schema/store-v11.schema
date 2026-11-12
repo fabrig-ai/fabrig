@@ -164,7 +164,8 @@ record AuthorityHold { lack: AuthorityLack had: u64 released: bool task: u64 spe
 enum ChangeHold { stalled, repairs, resolutions, updates, branch_moved, branch_missing, pull_closed, retargeted, failed, rejected, authority: AuthorityHold, questions }
 enum EffectResult { none, pending, made, conflict, failed }
 record LandingRepair { gate: u16 }
-enum Repair { ci, gate: Number, semantic, landing: LandingRepair, review: Commit }
+record LandingRepairAt { gate: u16 candidate: fixed 32 }
+enum Repair { ci, gate: Number, semantic, landing: LandingRepair, review: Commit, landing_at: LandingRepairAt }
 record RepairValue { why: Repair }
 record DelegateGate { number: u64 head: fixed 32 }
 record MergeDelegate { base: Commit from: option fixed 32 }
@@ -311,7 +312,7 @@ enum TierBranch { absent, pending: TierBranchEntry, made }
 enum TierFault { setup, completion, no_step, cancelled, other_commit, lost, missing_workflow }
 record TierProbeBranch { landing: u32 branch: TierBranch }
 record TierFlight { entry: u64 start: option u64 since: option u64 waiting: bool next: option u64 run: option u64 pending: list 65536 JobAttempt fault: option TierFault report: option ReceiptRun }
-record Receipt { failures: option Failures passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
+record Receipt { failures: option Failures passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 logs: bytes 8192 }
 record TierGoal { goal: u64 branch: bytes 4096 tip: option fixed 32 ran: option fixed 32 failing: Failures started: option u64 }
 record TierRow { observations: bytes 8192 repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 759 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault result: option Receipt received: bool goals: list 256 TierGoal goal: option u64 started: option u64 }
 record ReceiptRow { key: ReceiptKey receipt: Receipt }

@@ -155,9 +155,9 @@ fn a_repair_ask_delegates_a_landing_repair_counted_against_repairs() {
     f.contains_base = Status::Failed;
     f.ask = Some(Ask::Repair { gate: 3, candidate: NEW });
     let repairing = decide(&ready(), &f, &heard());
-    assert_eq!(repairing.decision, Decision::Delegate(Delegate::Repair(Repair::Landing { gate: 3 })));
+    assert_eq!(repairing.decision, Decision::Delegate(Delegate::Repair(Repair::LandingAt { gate: 3, candidate: NEW })));
     assert_eq!(repairing.change.repairs, 1);
-    assert_eq!(repairing.change.state, State::Repairing { requested: true, why: Repair::Landing { gate: 3 } });
+    assert_eq!(repairing.change.state, State::Repairing { requested: true, why: Repair::LandingAt { gate: 3, candidate: NEW } });
     let mut exhausted = ready();
     exhausted.repairs = LIMITS.repairs;
     assert_eq!(decide(&exhausted, &f, &heard()).decision, Decision::Hold(Hold::Repairs));

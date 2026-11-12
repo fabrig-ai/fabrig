@@ -1236,7 +1236,7 @@ fn advance(
                             return;
                         }
                         let receipt = Receipt {
-                            failures: None,
+                            logs: Box::new([]), failures: None,
                             passed: ended.outcome == policy::Verdict::Passed,
                             candidate,
                             ended: env.wall,
@@ -2663,7 +2663,7 @@ pub(crate) fn receipt_bytes(key: &ReceiptKey, receipt: &Receipt) -> Option<u64> 
     let name = match &key.check {
         Check::Gate(name) | Check::Tier(name) => name,
     };
-    let mut held = skein_lib::len_u64(name.len()).checked_add(skein_lib::len_u64(receipt.run.url.len()))?;
+    let mut held = skein_lib::len_u64(name.len()).checked_add(skein_lib::len_u64(receipt.run.url.len()))?.checked_add(skein_lib::len_u64(receipt.logs.len()))?;
     if let Some(failures) = &receipt.failures {
         held = held.checked_add(crate::tiers::failures_bytes(failures)?)?;
     }
@@ -2966,6 +2966,18 @@ impl Domain {
         }
         prefix
     }
+    /// The candidate pins its failure snapshot even after the landing's live row retires.
+    #[must_use]
+    pub fn candidate_failure_words(&self, change: u64, gate: u16, candidate: api::Commit) -> Option<Box<[u8]>> {
+        let change = self.change(change)?;
+        let project = self.repository(change.repository)?.project;
+        let name = &self.landing.gates(project, change.repository).get(usize::from(gate))?.name;
+        for (key, receipt) in &self.landing.receipts {
+            if key.project == project && key.repository == change.repository && key.check == Check::Gate(name.clone())
+                && receipt.candidate == candidate && !receipt.passed { return Some(receipt.logs.clone()); }
+        }
+        None
+    }
     /// The failed jobs are read before the receipt is committed; repairs use that snapshot.
     #[must_use]
     pub fn landing_failure_words(&self, change: u64, gate: u16) -> Option<Box<[u8]>> {
@@ -3255,8 +3267,9 @@ fn failed_jobs(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, 
         return;
     }
     row.landing.round.failure = log.into_boxed();
+    let row_logs = row.landing.round.failure.clone();
     save(d, row, out);
-    let receipt = Receipt { failures: None, passed: false, candidate: run.commit, ended: env.wall, run: ReceiptRun { id: run.id, number: run.number, url: run.url } };
+    let receipt = Receipt { logs: row_logs, failures: None, passed: false, candidate: run.commit, ended: env.wall, run: ReceiptRun { id: run.id, number: run.number, url: run.url } };
     put_receipt(d, env, key.clone(), receipt, out);
     finish_flight(d, &key, out);
     collect(d, env, owner, p, out);

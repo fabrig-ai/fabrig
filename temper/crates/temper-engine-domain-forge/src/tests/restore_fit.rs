@@ -59,7 +59,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
                 key: [0; 32],
             },
             receipt: Receipt {
-                failures: None,
+                logs: Box::new([]), failures: None,
                 passed: true,
                 run: ReceiptRun { id: n, number: n, url: Box::new([]) },
                 candidate: [0; 32],

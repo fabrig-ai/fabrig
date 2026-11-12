@@ -90,7 +90,7 @@ fn verification_keeps_every_verdict_and_repair_and_receipts_keep_failures() {
                         key: [3; 32],
                     },
                     receipt: d::Receipt {
-                        failures: value,
+                        logs: Box::new([]), failures: value,
                         passed: false,
                         run: d::ReceiptRun { id: 7, number: 8, url: Box::new([]) },
                         candidate: [4; 32],

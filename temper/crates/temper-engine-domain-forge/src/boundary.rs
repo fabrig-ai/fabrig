@@ -1092,6 +1092,8 @@ pub struct LandingHeard {
 /// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Receipt {
+    /// Failed workflow jobs, captured before this receipt is published (domain/landing.md, 7.3).
+    pub logs: Box<[u8]>,
     pub failures: Option<temper_engine_domain_forge_tiers::Failures>,
     pub passed: bool,
     pub run: ReceiptRun,
@@ -2009,6 +2011,7 @@ pub fn is_root_read(owner: Token) -> bool {
 
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::large_enum_variant, reason = "bounded landing failure snapshots remain in the existing durable save request")]
 pub enum Request {
     Decided {
         to: skein_lib::ReplyTo,

@@ -1860,7 +1860,7 @@ fn observation(
                 p::Outcome::Fault => unreachable!("completed observation"),
             };
             Some(crate::Receipt {
-                passed: *outcome == p::Outcome::Passed,
+                logs: Box::new([]), passed: *outcome == p::Outcome::Passed,
                 failures: Some(failures),
                 candidate: candidate(row.record.run.as_ref().expect("followed run")).0,
                 ended: env.wall,

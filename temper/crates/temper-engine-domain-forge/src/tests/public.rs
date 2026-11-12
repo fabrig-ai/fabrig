@@ -398,7 +398,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             ReceiptKey { project: 5, repository: REPO, check: Check::Gate(Box::from(MARKERS[3])), key: [7; 32] },
             Receipt {
-                failures: None,
+                logs: Box::new([]), failures: None,
                 passed: false,
                 run: ReceiptRun { id: 7, number: 7, url: Box::from(RUN) },
                 candidate: CANDIDATE,
@@ -770,7 +770,7 @@ fn maximal_proofs(d: &mut Domain) {
             .insert(
                 ReceiptKey { project: 5, repository: REPO, check: Check::Gate(name), key: [7; 32] },
                 Receipt {
-                    failures: None,
+                    logs: Box::new([]), failures: None,
                     passed: false,
                     run: ReceiptRun { id: 7, number: 7, url: Box::from(RUN) },
                     candidate: CANDIDATE,

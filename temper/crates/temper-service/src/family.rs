@@ -735,7 +735,7 @@ fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
                         }
                         change::Repair::Semantic => w::Reason::Semantic,
                         // landing.md 3: the top's task
-                        change::Repair::Landing { .. } => return None,
+                        change::Repair::LandingAt { .. } | change::Repair::Landing { .. } => return None,
                     },
                 },
             )
