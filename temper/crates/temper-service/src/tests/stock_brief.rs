@@ -106,7 +106,7 @@ fn workspace(writable: bool) -> run::Workspace {
 }
 
 #[test]
-fn every_stock_charter_admits_its_whole_maximal_brief() {
+fn every_stock_charter_admits_its_maximal_brief_with_receiving_fitting() {
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
     assert_eq!(limits.host_part, 399_961);
@@ -128,7 +128,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (13, false),
     ] {
         let assignment = assignment(number, open, 14_592);
-        let charter = temper_engine_smith::charter(&assignment);
+        let mut charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
         let workspace = if number == 9 || number == 10 || number == 11 || number == 12 || number == 13 {
@@ -147,7 +147,28 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
             run::brief_bytes(&charter.brief).unwrap(),
             i64::from(room).checked_sub(i64::try_from(run::brief_bytes(&charter.brief).unwrap()).unwrap()).unwrap()
         );
+        let original = temper_engine_smith::charter(&assignment);
+        let receiving = run::charter_room(workspace.as_ref(), &limits).unwrap();
+        eprintln!(
+            "receiving row: charter {number} open={open}: owned={} room={receiving}",
+            charter.owned_bytes().unwrap()
+        );
+        temper_protocol_brief::fit_brief(&mut charter, workspace.as_ref(), &limits);
+        if number == 5 {
+            assert_eq!(original.owned_bytes().unwrap(), 79_982);
+            assert_eq!(receiving, 65_463);
+            assert!(original.owned_bytes().unwrap() > receiving, "the goal's larger charter needs receiving fitting");
+            assert_ne!(charter.brief, original.brief);
+        } else {
+            assert_eq!(charter.brief, original.brief, "charter {number} keeps its whole maximal brief");
+        }
+        let sections = core::mem::take(&mut charter.brief.sections);
+        assert_eq!(&charter, &without_brief(original), "fixed declarations stay whole");
+        charter.brief.sections = sections;
         let fitted = run::brief_bytes(&charter.brief).unwrap();
+        if number == 5 {
+            assert_eq!(fitted, 2_844, "the goal's brief fits the joint receiving bound");
+        }
         let mut domain = run::Domain::new(&limits, 7);
         let mut out = Queue::uncapped();
         run::step(
