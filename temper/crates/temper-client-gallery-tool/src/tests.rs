@@ -11,7 +11,7 @@ fn names_are_the_promised_ones() {
         names.push(sample.name);
     }
     if temper_test_env::rewrite() {
-        fs::write(Path::new(env!("CARGO_MANIFEST_DIR")).join("names.txt"), format!("{}\n", names.join("\n"))).unwrap();
+        fs::write(skein_scratch::paths::package().join("names.txt"), format!("{}\n", names.join("\n"))).unwrap();
     } else {
         let promised: Vec<&str> = include_str!("../names.txt").lines().collect();
         assert_eq!(names, promised);
@@ -843,6 +843,63 @@ static HOLDS: [Holds; samples::N] = [
                 name: "An agent, an agent when needed, a person, code; no merge tool above the dotted line",
             },
             Part::NoRole { role: Role::Table },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "how-follows",
+        heading: "Draft first, then agents build it on its own branch",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What follows a landing" },
+            Part::Named { role: Role::Text, name: "code triggers, agents judge" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "cowsql/vsr-rs follows cowsql/vsr" },
+            Part::Text {
+                text: "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat. Each waits for Pat's word. Its check: .forgejo/workflows/vsr-tests.yml.",
+            },
+            Part::Text { text: "2 behind · check passes at abababababab" },
+            Part::Named { role: Role::Text, name: "code hears the landing" },
+            Part::Named { role: Role::Text, name: "an agent ports" },
+            Part::Named { role: Role::Text, name: "code checks" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "Tiers on main" },
+            Part::Text {
+                text: "Code runs each after landings on main: fuzz (fuzzing for 6 hours). A red reaches the goals whose changes landed in it, and their agents repair it.",
+            },
+            Part::Named { role: Role::Text, name: "code runs" },
+            Part::Named { role: Role::Text, name: "an agent repairs" },
+            Part::Named { role: Role::Text, name: "a week · renews Tuesday" },
+            Part::Named { role: Role::Text, name: "Owns the tests" },
+            Part::Named { role: Role::Text, name: "a standing role · 28 left" },
+            Part::Named { role: Role::Text, name: "40" },
+            Part::Named { role: Role::Text, name: "Goals" },
+            Part::Named { role: Role::Text, name: "80" },
+        ],
+    },
+    Holds {
+        name: "night-how-follows",
+        heading: "Draft first, then agents build it on its own branch",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "What follows a landing" },
+            Part::Named { role: Role::Text, name: "code triggers, agents judge" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "cowsql/vsr-rs follows cowsql/vsr" },
+            Part::Text {
+                text: "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat. Each waits for Pat's word. Its check: .forgejo/workflows/vsr-tests.yml.",
+            },
+            Part::Text { text: "2 behind · check passes at abababababab" },
+            Part::Named { role: Role::Text, name: "code hears the landing" },
+            Part::Named { role: Role::Text, name: "an agent ports" },
+            Part::Named { role: Role::Text, name: "code checks" },
+            Part::Named { role: Role::Heading { level: 3 }, name: "Tiers on main" },
+            Part::Text {
+                text: "Code runs each after landings on main: fuzz (fuzzing for 6 hours). A red reaches the goals whose changes landed in it, and their agents repair it.",
+            },
+            Part::Named { role: Role::Text, name: "code runs" },
+            Part::Named { role: Role::Text, name: "an agent repairs" },
+            Part::Named { role: Role::Text, name: "a week · renews Tuesday" },
+            Part::Named { role: Role::Text, name: "Owns the tests" },
+            Part::Named { role: Role::Text, name: "a standing role · 28 left" },
+            Part::Named { role: Role::Text, name: "40" },
+            Part::Named { role: Role::Text, name: "Goals" },
+            Part::Named { role: Role::Text, name: "80" },
             Part::Pressed { name: "Night mode" },
         ],
     },

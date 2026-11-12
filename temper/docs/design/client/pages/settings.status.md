@@ -63,10 +63,6 @@ world's `the_three_ways_draw_ci_and_tiers_or_neither` and the gallery's
 `how`, `how-approve`, `how-draft` and `how-yours` hold it; their render
 check follows landing.
 
-- **Not yet:** 2, *Roles*: the view `roles` gives the drafter no row,
-  and a role's `who` says when it runs alone, so Roles says no
-  charter's words (`../../domain/forge/change/branch-path.md`, *The
-  project's roles*) [in flight: change 314].
 
 `README.md`, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and `../view.md`, 3, *The rail*, *The rail's parts*, *Projects in the rail* and *All

@@ -11,7 +11,34 @@ each draft landed in its repositories that its writer says is ready, by
 its commit, title, chat and, once started, its goal; Work lists the ready
 ones under Drafts, each starting a goal at the project's way; its render
 check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
-`draft/surfaces.status.md`, 5).
+`draft/surfaces.status.md`, 5). Landed QA's milestone Q1: `temper-qa`
+watches main's ref, triages each goal's landing into cases in main's
+order, and keeps the deployment's builds of landed tips until no pass
+can need them, all in one ledger; its passes follow in Q2 and Q3
+(`testing/qa/README.md`; `draft/landed-qa.status.md`).
+
+A follow across projects is the whole story's milestone F1
+(`domain/forge/follows.md`): kind 12, a follow of a branch of a
+repository its project adopts as context, each project's context
+adoption kept beside the writer's; the forge hearing the source's
+landings into a queue kept across a restart; a follow task making one
+follow change per landing in order, its words made by code, parameter
+18 naming what it follows; the owner's start, hold, skip and merge in
+`temper ctl`, keeping the chain whole; the follow's check dispatched by
+its change with the followed commit; and lag and parity in the forge's
+`follows` document. A standing role as owner waits on R1; the follow
+change's words carry no diff, and a person's follow's holds reach the
+project's escalation role, each asked of the user
+(`domain/forge/follows.status.md`; `draft/follows.status.md`).
+
+How work runs' What follows a landing and a role's budget are the whole
+story's milestone P3d, by goal 1016 (`client/pages/settings.md`, 2): a box
+a follow of the project's, from the forge's `follows` document, its words
+made from its setting, its lag and parity and who acts' chips, then a box
+of the project's path's tiers after landing; Budgets' rows for its live
+standing roles under its open period; and Roles the charters its standing
+roles and follows run (`domain/forge/change/branch-path.md`). Their render
+check and walk follow landing (`client/pages/settings.md`, 3).
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -77,6 +104,7 @@ Design documents:
 - [`domain/agent/tools.md`](domain/agent/tools.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
 - [`domain/forge/README.md`](domain/forge/README.status.md)
+- [`domain/forge/follows.md`](domain/forge/follows.status.md)
 - [`domain/forge/adoption.md`](domain/forge/adoption.status.md)
 - [`domain/forge/attention.md`](domain/forge/attention.status.md)
 - [`domain/forge/branches.md`](domain/forge/branches.status.md)
@@ -135,6 +163,11 @@ Design documents:
 - [`testing/fakes.md`](testing/fakes.status.md)
 - [`testing/live-tier.md`](testing/live-tier.status.md)
 - [`testing/process-tier.md`](testing/process-tier.status.md)
+- [`testing/qa/README.md`](testing/qa/README.status.md)
+- [`testing/qa/builds.md`](testing/qa/builds.status.md)
+- [`testing/qa/landings.md`](testing/qa/landings.status.md)
+- [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
+- [`testing/qa/triage.md`](testing/qa/triage.status.md)
 - [`testing/real-loop.md`](testing/real-loop.status.md)
 - [`testing/reference-case.md`](testing/reference-case.status.md)
 
@@ -162,6 +195,7 @@ Drafts:
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
+- [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)

@@ -2,6 +2,9 @@
 
 2026-11-11. Where the tree's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 1: parameter 18, the source landings a follow change
+  follows, its route `up` and no early start [in flight: change 99].
+
 - **Not yet:** 3, *Its own writes are its own* and *Its branch moved*'s words: an update's made head is not recorded as its branch's head, so a goal's landing on its held branch takes it for drift and holds `BranchMoved`; a let-go update is judged against the base's tip read now, not the base it asked for; a close-out's or catch-up's merge into the goal's branch takes no writer slot the landing sees; and a `BranchMoved` hold names neither head (`temper-engine-domain-forge/src/domain.rs`, `change_outcome`, `change_facts`; `temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`) [in flight: change 596].
 
 - **Not yet:** 1, `reruns`, and 2, step 3, *The runner's failures run again*, with step 7's attempt in the landed result: a change's CI failed by the runner is repaired like any other, and no configuration names `forge.change_policy.reruns` (`temper-engine-domain-forge-change/src/domain.rs`, `checking`, `gating`) [in flight: change 601].

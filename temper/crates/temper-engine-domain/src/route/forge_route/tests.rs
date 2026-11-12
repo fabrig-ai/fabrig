@@ -271,6 +271,7 @@ fn not_installed_ends_the_roots_adoption_part_as_missing_access() {
 
 fn adopted(forge: u16) -> super::forge::Repository {
     super::forge::Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: forge == 1,
@@ -1250,9 +1251,11 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
@@ -3435,6 +3438,76 @@ fn change_start_fixture() -> (super::Domain, skein_lib::Env<super::Limits>, Box<
     (domain, env, context)
 }
 
+fn follows_start(text: &[u8], route: Option<u64>) -> (bool, skein_lib::Queue<super::Work>) {
+    use super::tasks;
+    let (mut domain, mut env, mut context) = change_start_fixture();
+    env.limits.forge.follow_merge = 2;
+    context.requester = tasks::Party::Task(33);
+    let mut parameters = skein_lib::List::with_capacity(4);
+    for parameter in &context.spec.parameters {
+        parameters.push(parameter.clone()).unwrap();
+    }
+    parameters.push(tasks::Parameter::Bytes { name: 18, value: text.into() }).unwrap();
+    if let Some(value) = route {
+        parameters.push(tasks::Parameter::Number { name: 14, value }).unwrap();
+    }
+    context.spec.parameters = parameters.into_boxed();
+    if let Some(follows) = super::change_follows(text, env.limits.forge.follow_merge) {
+        follow_fixture(&mut domain, &env, context.project, &follows.commits);
+    }
+    (super::start_change(&mut domain, &env, &context), domain.work)
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "parameter fixtures join text fragments at both commit widths")]
+fn a_changes_start_keeps_follows_in_order_and_defaults_its_questions_up() {
+    use super::{Work, forge, forge_change};
+    let mut first = [0_u8; 32];
+    first[..20].fill(0xaa);
+    let mut second = [0_u8; 32];
+    second[..20].fill(0xbb);
+    for (text, expected, route, questions) in [
+        (
+            [b"3:".as_slice(), &[b'a'; 40], b",", &[b'b'; 40]].concat(),
+            Box::<[_]>::from([first, second]),
+            None,
+            forge_change::Route::Up,
+        ),
+        (
+            [b"3:".as_slice(), &[b'c'; 64]].concat(),
+            Box::<[_]>::from([[0xcc; 32]]),
+            Some(1),
+            forge_change::Route::Foreman,
+        ),
+    ] {
+        let (accepted, mut work) = follows_start(&text, route);
+        assert!(accepted, "{text:?}");
+        let Some(Work::Forge(forge::Event::Change { row })) = work.pop() else { panic!("change row") };
+        assert_eq!(row.follows, Some(forge::ChangeFollows { follow: 3, commits: expected }));
+        assert_eq!(row.questions.route, questions);
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "malformed parameter fixtures join bounded text fragments")]
+fn malformed_follows_refuses_the_change_start_without_queuing_work() {
+    let commit = [b'a'; 40];
+    for text in [
+        commit.to_vec(), // no colon
+        b"3:".to_vec(),
+        [b"x:".as_slice(), &commit].concat(),
+        [b"3:".as_slice(), &[b'A'; 40]].concat(),
+        [b"3:".as_slice(), &[b'a'; 39]].concat(),
+        [b"3:".as_slice(), &commit, b",", &commit, b",", &commit].concat(),
+        [b"4294967296:".as_slice(), &commit].concat(),
+        [b"3:".as_slice(), &commit, b","].concat(),
+    ] {
+        let (accepted, work) = follows_start(&text, None);
+        assert!(!accepted, "malformed follows: {text:?}");
+        assert!(work.is_empty(), "no row or step for malformed parameter 18");
+    }
+}
+
 #[test]
 fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
     use super::{Work, forge, tasks};
@@ -4270,6 +4343,83 @@ fn a_close_jobs_spec_is_its_command_and_its_request() {
     assert_eq!(
         super::close::spec(b"fabrig", b".temper/close", request, bound.checked_sub(1).expect("nonempty spec")),
         None
+    );
+}
+
+fn follow_fixture(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>, project: u32, commits: &[[u8; 32]]) {
+    use super::forge;
+    let mut queue = skein_lib::List::uncapped();
+    for commit in commits {
+        queue
+            .push(forge::FollowEntry {
+                before: SHA1,
+                after: *commit,
+                pull: None,
+                commits: Box::new([]),
+                more_commits: 0,
+                files: None,
+                more_files: 0,
+                change: None,
+                state: forge::FollowState::NotMade,
+                word: true,
+                remake: false,
+            })
+            .unwrap();
+    }
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore {
+            record: forge::Stored::Follow(forge::FollowRow {
+                project,
+                follow: 3,
+                source: skein_forge::api::Repository { forge: 1, repository: 1 },
+                branch: b"main".as_slice().into(),
+                heard: Some(SHA1),
+                task: Some(33),
+                stopped: None,
+                queue: queue.into_boxed(),
+                skips: Box::new([]),
+                parity: None,
+                questions: Box::new([]),
+                pending: None,
+            }),
+        },
+        &mut skein_lib::Queue::uncapped(),
+    );
+}
+#[test]
+fn follow_parameter_admission_names_missing_wrong_requester_and_live_commits() {
+    use super::{follow_route, forge, tasks};
+    let (mut domain, env, context) = change_start_fixture();
+    follow_fixture(&mut domain, &env, context.project, &[SHA1, SHA256]);
+    let follows = forge::ChangeFollows { follow: 3, commits: Box::new([SHA1]) };
+    let missing = forge::ChangeFollows { follow: 3, commits: Box::new([[0x11; 32]]) };
+    let words = follow_route::check(&domain, context.project, tasks::Party::Task(33), &missing, None, &[]).unwrap_err();
+    assert!(words.starts_with(b"follows: 111111111111") && words.ends_with(b"the follow's queue lacks this commit"));
+    let words = follow_route::check(&domain, context.project, tasks::Party::Task(34), &follows, None, &[]).unwrap_err();
+    assert!(words.starts_with(b"follows: abcdef012345") && words.ends_with(b"the requester is not that follow's task"));
+    let mut change = change_row(None);
+    change.task = context.task;
+    change.repository = skein_forge::api::Repository { forge: 1, repository: 1 };
+    change.follows = Some(follows.clone());
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(change)) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let words = follow_route::check(&domain, context.project, tasks::Party::Task(33), &follows, None, &[]).unwrap_err();
+    assert!(
+        words.starts_with(b"follows: abcdef012345") && words.ends_with(b"another live follow change names this commit")
+    );
+    assert_eq!(
+        follow_route::check(&domain, context.project, tasks::Party::Task(33), &follows, None, &[context.task]),
+        Ok(())
+    );
+    assert_eq!(
+        follow_route::check(&domain, context.project, tasks::Party::Task(33), &follows, Some(context.task), &[]),
+        Ok(())
     );
 }
 

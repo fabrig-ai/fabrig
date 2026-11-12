@@ -41,7 +41,12 @@ pub enum GateKind {
     Person,
     /// A configured check supplies a verdict.
     Check,
+    /// The follow workflow dispatched by the change itself.
+    Follow,
 }
+
+/// The follow gate is outside the configured gates' u32 namespace.
+pub const FOLLOW_CHECK_GATE: u64 = u64::MAX;
 
 /// One gate the change or its project asks for.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -330,6 +335,8 @@ pub struct Facts {
     pub delegate: Option<Delegate>,
     /// A catch-up's commit (`ChangeRow::catch_up`), `None` for every other change.
     pub catch_up: Option<Commit>,
+    /// This change follows source landings and never starts early (domain/forge/follows.md, 4).
+    pub follows: bool,
     /// A close job produces this change (temper/docs/design/domain/forge/change/README.md, 1).
     pub close: bool,
     /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge/change/README.md, 2).
@@ -436,6 +443,8 @@ pub enum Delegate {
 /// The effect the top should commit after checking authority.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Effect {
+    /// Dispatch or retry the follow check at this head.
+    FollowCheck { head: Commit },
     /// Run the next failed runner job again without moving the head.
     Rerun { head: Commit },
     /// Open a pull request for the pushed branch.

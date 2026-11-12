@@ -517,7 +517,10 @@ fn a_starting_inbox_keeps_question_and_answer_references() {
     ) else {
         panic!("start conversion")
     };
-    assert_eq!(messages[0].label.as_ref(), b"2 asks (question 4)");
+    assert_eq!(
+        messages[0].label.as_ref(),
+        b"2 asks (question 4; answer with message target=2, form=answer, question=4)"
+    );
     assert_eq!(messages[0].text.as_ref(), b"The plan?");
     assert_eq!(messages[1].label.as_ref(), b"1 answers question 4");
     assert_eq!(messages[1].text.as_ref(), b"Approved.");

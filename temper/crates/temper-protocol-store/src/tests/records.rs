@@ -3,6 +3,41 @@ use crate::{records, v11};
 use temper_engine_domain_forge as forge;
 
 #[test]
+fn a_changes_follows_round_trip_and_restore_with_the_configured_merge_bound() {
+    use skein_lib::{Env, Queue, Time, Wall};
+    use temper_engine_domain_forge_change::State;
+    let mut row = fixtures::change_row(State::Producing { requested: false });
+    let mut sha1 = [0_u8; 32];
+    sha1[..20].fill(0xaa);
+    let follows = forge::ChangeFollows { follow: 3, commits: Box::new([sha1, [0xbb; 32]]) };
+    row.follows = Some(follows.clone());
+    let task = row.task;
+    let stored = forge::Stored::Change(Box::new(row));
+    let mut limits = fixtures::LIMITS;
+    limits.follow_merge = 2;
+    let bounds = crate::bounds(&limits, limits.client.op_bytes).expect("two landings fit");
+    let bytes = records::encode(&stored);
+    let decoded = records::decode(&bytes, &bounds).expect("stored follows");
+    assert_eq!(decoded, stored);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut restarted = forge::Domain::new(
+        &limits,
+        91,
+        skein_forge_client::Config { namespace: Box::new([7; 16]), writers: Box::new([]) },
+        &[],
+        &[],
+        false,
+    )
+    .unwrap();
+    restarted.restore_begin(env.wall);
+    forge::step(&mut restarted, &env, forge::Event::Restore { record: decoded }, &mut Queue::uncapped());
+    assert_eq!(restarted.change(task).unwrap().follows, Some(follows));
+    limits.follow_merge = 1;
+    let smaller = crate::bounds(&limits, limits.client.op_bytes).expect("smaller merge bound");
+    assert_eq!(records::decode(&bytes, &smaller), Err(crate::Undecodable));
+}
+
+#[test]
 fn each_family_of_names_holds_and_topics_round_trips_unchanged() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for (name, row) in fixtures::names_holds_and_topics() {

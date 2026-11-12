@@ -161,6 +161,7 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         | w::Outcome::Tried
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
+        | w::Outcome::Follow(_)
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
@@ -268,6 +269,7 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::Tried
         | w::Outcome::Drafted(_)
         | w::Outcome::DraftRefused(_)
+        | w::Outcome::Follow(_)
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
@@ -560,6 +562,21 @@ pub fn playground(record: &[u8], limits: &w::Limits) -> Option<forge::Playground
         owner: answer.owner,
         name: answer.name,
         cues: answer.cues.into_boxed(),
+    })
+}
+
+/// The forge's keyed follow act (temper/docs/design/domain/forge/follows.md, 5).
+#[must_use]
+pub fn follow_act(value: w::FollowActRequest, limits: &w::Limits) -> Option<jig_client::Ask> {
+    let project = value.project();
+    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::FollowAct(value) }).ok()?;
+    Some(jig_client::Ask::Family {
+        scope: jig_client::contract::Scope::Project(project),
+        record: jig_client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::requesting(&record),
+        },
     })
 }
 

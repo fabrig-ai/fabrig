@@ -1905,6 +1905,8 @@ pub enum Event {
     QuestionOwedNotice { task: u64, message: u64 },
     /// Core-numbered notice after a park with nothing pending.
     NothingAwaitedNotice { task: u64, message: u64 },
+    /// Core supplies the oldest open question's bounded reason; no message is numbered.
+    QuestionParked { task: u64, question: u64, reason: Box<[u8]> },
     /// A caller cancels its own unanswered question.
     CancelQuestion { reply_to: ReplyTo, task: u64, question: u64 },
     /// Root numbers the notice that a kept task goes on (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 1).
@@ -1964,6 +1966,8 @@ pub enum Request {
     QuestionOwedDue { task: u64 },
     /// Number the always-waking notice for an idle result-ended task.
     NothingAwaitedDue { task: u64 },
+    /// Finish an idle park's question wake with words from the core's question cache.
+    QuestionParked { task: u64, question: crate::OpenQuestion },
     /// Make the idle task's closer instead of numbering a notice (domain/tasks/lifecycle.md, 11).
     CloserDue { task: u64 },
     /// Root supplies one message number for the notice that a kept task goes on (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 1).

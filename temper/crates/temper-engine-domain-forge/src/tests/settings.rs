@@ -8,8 +8,18 @@ use alloc::boxed::Box;
 use skein_lib::List;
 
 // Tiny admission bounds: two gates and roles, five base segments, eight bytes each.
-const BOUNDS: Bounds =
-    Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 3, segments: 5, segment_bytes: 8, templates: 4 };
+const BOUNDS: Bounds = Bounds {
+    landing_rules: 4,
+    gates: 2,
+    roles: 2,
+    charters: 3,
+    segments: 5,
+    segment_bytes: 8,
+    templates: 4,
+    follows: 2,
+    follow_paths: 2,
+    name_bytes: 32,
+};
 const PROJECT: u32 = 1;
 const FIRST_RULE: u32 = 1;
 const GATE: RuleGate = RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Exact };
@@ -557,5 +567,96 @@ fn a_projects_kinds_are_judged() {
             value: Some(Value::ProjectWords(ProjectWords { headline, lede })),
         };
         assert_eq!(judge(&item, &BOUNDS), expected, "project words {item:?}");
+    }
+}
+
+pub(super) fn follow() -> crate::settings::Follow {
+    use crate::settings::{Follow, FollowCheck, FollowOwner, FollowSource, FollowStart, FollowTarget};
+    Follow {
+        source: FollowSource {
+            repository: skein_forge::api::Repository { forge: 1, repository: 13 },
+            branch: b"main".as_slice().into(),
+            paths: Box::new([b"src".as_slice().into(), b"include".as_slice().into()]),
+        },
+        target: FollowTarget {
+            repository: skein_forge::api::Repository { forge: 1, repository: 12 },
+            branch: b"main".as_slice().into(),
+        },
+        owner: FollowOwner::Person(4),
+        start: FollowStart::Owner,
+        producer: None,
+        check: FollowCheck {
+            workflow: b".forgejo/workflows/tests.yml".as_slice().into(),
+            artifact: b"results".as_slice().into(),
+            format: temper_engine_domain_forge_tiers::Format::Junit,
+        },
+    }
+}
+
+#[test]
+fn follows_judge_numbers_paths_producers_and_checks_at_their_bounds() {
+    use crate::settings::FollowStart;
+    let base = follow();
+    let item = Item { kind: 12, scope: PROJECT, number: 1, value: Some(Value::Follow(base.clone())) };
+    assert_eq!(Kind::of(12), Some(Kind::Follow));
+    assert_eq!(Kind::Follow.number(), 12);
+    assert_eq!(judge(&item, &BOUNDS), Ok(()));
+    assert_eq!(judge(&Item { number: BOUNDS.follows, ..item.clone() }, &BOUNDS), Ok(()));
+    for number in [0, BOUNDS.follows + 1] {
+        assert_eq!(judge(&Item { number, ..item.clone() }, &BOUNDS), Err(Refusal::Number));
+    }
+    assert_eq!(judge(&Item { scope: 0, ..item.clone() }, &BOUNDS), Err(Refusal::Scope));
+    assert_eq!(judge(&Item { value: Some(Value::Charter(1)), ..item.clone() }, &BOUNDS), Err(Refusal::Value));
+    assert_eq!(judge(&Item { value: None, ..item.clone() }, &BOUNDS), Ok(()));
+    for (paths, expected) in [
+        (Box::<[Box<[u8]>]>::default(), Ok(())),
+        (Box::new([Box::<[u8]>::from([b'a'; 256])]), Ok(())),
+        (Box::new([Box::<[u8]>::from([b'a'; 257])]), Err(Refusal::FollowPath)),
+        (Box::new([b"a".as_slice().into(), b"b".as_slice().into(), b"c".as_slice().into()]), Err(Refusal::FollowPaths)),
+    ] {
+        let mut value = base.clone();
+        value.source.paths = paths;
+        assert_eq!(judge(&Item { value: Some(Value::Follow(value)), ..item.clone() }, &BOUNDS), expected);
+    }
+    for path in [b"/src".as_slice(), b"src/", b"a//b", b""] {
+        let mut value = base.clone();
+        value.source.paths = Box::new([path.into()]);
+        assert_eq!(
+            judge(&Item { value: Some(Value::Follow(value)), ..item.clone() }, &BOUNDS),
+            Err(Refusal::FollowPath),
+            "{path:?}"
+        );
+    }
+    for (producer, good) in [
+        (b"".as_slice(), true),
+        (b";;", true),
+        (b"6;3.1 0.0 2;3.0", true),
+        (b"6;3.1;", true),
+        (b"6", false),
+        (b"0;;", false),
+        (b"6;256;", false),
+        (b"6;3.256;", false),
+        (b"6;3  ;", false),
+        (b"6;;;", false),
+    ] {
+        let mut value = base.clone();
+        value.producer = Some(producer.into());
+        value.start = FollowStart::Code;
+        assert_eq!(
+            judge(&Item { value: Some(Value::Follow(value)), ..item.clone() }, &BOUNDS),
+            if good { Ok(()) } else { Err(Refusal::FollowProducer) },
+            "{producer:?}"
+        );
+    }
+    for workflow in [true, false] {
+        for (length, good) in [(0, false), (256, true), (257, false)] {
+            let mut value = base.clone();
+            let member = if workflow { &mut value.check.workflow } else { &mut value.check.artifact };
+            *member = vec![b'x'; length].into_boxed_slice();
+            assert_eq!(
+                judge(&Item { value: Some(Value::Follow(value)), ..item.clone() }, &BOUNDS),
+                if good { Ok(()) } else { Err(Refusal::FollowCheck) }
+            );
+        }
     }
 }

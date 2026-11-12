@@ -201,7 +201,7 @@ fn the_page_commands_is_what_the_table_renders() {
     ]);
     let write = temper_test_env::rewrite();
     if write {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference/commands.md");
+        let path = skein_scratch::paths::tree().join("docs/help/reference/commands.md");
         std::fs::write(path, &rendered).expect("write commands reference");
         return;
     }
@@ -249,7 +249,19 @@ fn the_page_see_is_what_the_addresses_render() {
 #[test]
 fn every_ctl_group_page_is_what_the_table_renders() {
     use temper_client_tools::{help, table::GROUPS};
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference");
+    let directory = skein_scratch::paths::tree().join("docs/help/reference");
+    if temper_test_env::rewrite() {
+        for group in GROUPS {
+            let mut measured =
+                skein_lib::Writer::new(usize::try_from(temper_client_tools::limits::TEXT).expect("text bound"));
+            help::reference(group, &mut measured).expect("reference within renderer's text bound");
+            let mut out = skein_lib::Writer::new(measured.written());
+            help::reference(group, &mut out).expect("reference within renderer's text bound");
+            let name = format!("ctl-{}", core::str::from_utf8(group.name).expect("group name"));
+            std::fs::write(directory.join(name).with_extension("md"), out.finish()).expect("write group reference");
+        }
+        return;
+    }
     let expected = GROUPS
         .iter()
         .map(|group| format!("ctl-{}", core::str::from_utf8(group.name).expect("group name")))

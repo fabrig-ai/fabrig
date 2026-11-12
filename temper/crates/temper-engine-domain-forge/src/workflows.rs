@@ -204,7 +204,11 @@ pub(crate) fn answered(
             let row = d.repositories.get_mut(&repository).expect("answer's adopted repository");
             if row.workflows != names {
                 row.workflows = names;
-                out.push(Request::Save { read_afresh: None, release: None, record: Stored::Repository(row.clone()) });
+                out.push(Request::Save {
+                    read_afresh: None,
+                    release: None,
+                    record: Stored::Repository(row.as_ref().clone()),
+                });
             }
         }
         None => mark(d, repository),

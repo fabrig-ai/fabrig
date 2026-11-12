@@ -1,5 +1,6 @@
 //! Parts follow their facts, drawings keep every stop and columns keep every subject
 //! (temper/docs/design/client/pages/settings.md, 2; temper/docs/design/draft/surfaces.md, 12).
+mod landings;
 use jig_client::contract::TemplateBudget;
 use skein_lib::{List, Rng};
 use skein_ui::{Builder, Role};
@@ -51,6 +52,15 @@ fn current(rng: &mut Rng) -> Read {
 
 fn facts(rng: &mut Rng) -> Facts {
     Facts {
+        period: None,
+        standing: (0..rng.below(4))
+            .map(|number| how::Standing {
+                number,
+                title: format!("Role {number}").into_bytes().into_boxed_slice(),
+                left: amount(rng),
+                budget: amount(rng),
+            })
+            .collect(),
         roles: false,
         asking: rng.chance(500),
         read: match rng.below(4) {
@@ -87,6 +97,7 @@ fn check_parts(facts: &Facts, seed: u64, step: u32) {
         Some(TemplateBudget::Amount(_) | TemplateBudget::AsAllowed { cap: Some(_) | None } | TemplateBudget::Given)
         | None => None,
     };
+    assert_eq!(shown.standing, facts.standing, "standing roles do not depend on Goals");
     assert_eq!(shown.budget, figure, "seed {seed}, step {step}, {facts:?}: Budgets needs Goals and a figure");
 }
 
@@ -95,10 +106,11 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
     let count = u32::try_from(rng.between(0, u64::from(limits.branch_path_stops))).expect("wire count");
     let mut stops = List::with_capacity(count);
     for index in 0..count {
-        let (actor, step) = match rng.below(4) {
+        let (actor, step) = match rng.below(5) {
             0 => (w::Actor::Person, w::PathStep::Ask),
             1 => (w::Actor::Agent, w::PathStep::Produce),
             2 => (w::Actor::Code, w::PathStep::Check),
+            3 => (w::Actor::Code, w::PathStep::Verify),
             _ => (w::Actor::Bar, w::PathStep::Branch),
         };
         let words = rng.next_u64().to_string().into_bytes().into_boxed_slice();
@@ -121,7 +133,14 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
                         actor,
                         step,
                         words,
-                        opens: w::Opens::Nothing,
+                        opens: if rng.chance(500) {
+                            w::Opens::Tier(
+                                w::OpensTier::new(limits, w::OpensTierParts { name: b"tier".as_slice().into() })
+                                    .expect("tier"),
+                            )
+                        } else {
+                            w::Opens::Nothing
+                        },
                         card,
                     },
                 )
@@ -217,7 +236,7 @@ fn sweep(
 ) {
     let mut rng = Rng::new(seed);
     let initial = facts(&mut rng);
-    let mut settings = initial;
+    let mut settings = initial.clone();
     let mut route = path(&mut rng, limits);
     check_parts(&settings, seed, 0);
     check_drawing(&route, bounds, seed, 0);
@@ -251,9 +270,11 @@ fn parts_and_drawing_follow_only_the_current_facts() {
     let limits = forge::wire_limits(&fixtures::domain_limits().forge).expect("world wire limits");
     let domain = fixtures::domain_limits();
     let bounds = fixtures::view_bounds(&domain, &fixtures::phrasebooks(&domain)).tree;
+    let mut drawing = landings::Drawing::new();
     let mut combinations = BTreeSet::new();
     let mut lengths = BTreeSet::new();
     for seed in 1..=SEEDS {
+        drawing.check(seed, &limits);
         assert!(
             catch_unwind(std::panic::AssertUnwindSafe(|| sweep(
                 seed,
