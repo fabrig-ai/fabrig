@@ -54,7 +54,10 @@ fn setting(domain: &mut Domain, env: &Env<Limits>, kind: u32, value: forge::sett
     );
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "one decision pins charter standing, task hand-off and fallback after an end")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one decision pins charter standing, task hand-off and fallback after an end"
+)]
 fn task_hand_news_and_charter_standing_use_the_same_decision() {
     let (source, source_env, source_task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
     let template = source.core.tasks.task(source_task).unwrap().clone();
