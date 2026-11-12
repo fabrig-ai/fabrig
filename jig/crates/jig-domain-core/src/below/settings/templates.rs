@@ -111,7 +111,8 @@ pub fn valid_executor(
 
 /// Validate every effective executor before publishing merged templates, including on restore.
 /// An override retained after its template was dropped has no merged value to validate.
-pub(crate) fn valid(
+#[must_use]
+pub fn valid(
     current: &super::Current,
     settings: &crate::Settings,
     overrides: &[jig_domain_people::TemplateOverride],
@@ -141,7 +142,8 @@ pub(crate) fn valid(
     true
 }
 
-pub(crate) fn list_bound(limits: &crate::Limits) -> Option<u64> {
+#[must_use]
+pub fn list_bound(limits: &crate::Limits) -> Option<u64> {
     let fields = u64::from(jig_domain_tasks::VERDICT_FIELDS.min(limits.tasks.result_bytes))
         .checked_mul(u64::try_from(size_of::<jig_domain_tasks::FieldRule>()).ok()?)?
         .checked_add(u64::from(limits.tasks.result_bytes))?;
@@ -155,7 +157,8 @@ pub(crate) fn list_bound(limits: &crate::Limits) -> Option<u64> {
     )
 }
 
-pub(crate) fn valid_current_executor(
+#[must_use]
+pub fn valid_current_executor(
     current: &super::Current,
     settings: &crate::Settings,
     template: &Template,

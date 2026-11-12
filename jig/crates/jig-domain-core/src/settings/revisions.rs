@@ -2,19 +2,11 @@
 //! section 2; domain/people/acts.md, section 1). The tasks child keeps each
 //! counter. The core compares the revision a party named before changing state,
 //! and translates the current hold reason without exposing a child's types.
+
 use crate::Core;
+pub use crate::below::settings::revisions::*;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-
-/// A held revision's key and the history row it enters as.
-#[must_use]
-pub fn history_copy(number: u32) -> (crate::Key, crate::Key) {
-    use crate::{CoreKey, Key, settings};
-    (
-        Key::Core(CoreKey::Settings(settings::Key::Held(number))),
-        Key::Core(CoreKey::Settings(settings::Key::History(number))),
-    )
-}
 
 impl Core {
     /// Shared release admission, in the party route's original order.
