@@ -12,6 +12,9 @@ pub struct Ledger {
     pub builds: Vec<Build>,
     pub sessions: Vec<Session>,
     pub lines: Vec<Line>,
+    pub passes: Vec<crate::Pass>,
+    pub findings: Vec<crate::Finding>,
+    pub notes: Vec<crate::Note>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Landing {
@@ -37,6 +40,10 @@ pub struct Case {
     pub surface: String,
     pub page: String,
     pub asks: Vec<Ask>,
+    pub state: crate::CaseState,
+    pub pass: Option<u64>,
+    pub blocks: u64,
+    pub outcomes: Vec<crate::Outcome>,
     pub queued: u64,
     pub line: bool,
 }
@@ -65,7 +72,10 @@ pub enum BuildState {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Session {
     pub number: u64,
-    pub landing: u64,
+    pub kind: crate::SessionKind,
+    pub landing: Option<u64>,
+    pub pass: Option<u64>,
+    pub before: Option<crate::Before>,
     pub effort: String,
     pub started: u64,
     pub ended: Option<u64>,
@@ -94,11 +104,15 @@ pub struct Line {
 pub enum CaseAnswer {
     Queued(u64),
     Joined { number: u64, landings: Vec<u64> },
+    Waiting { number: u64, pass: u64, finding: u64 },
 }
 impl std::fmt::Display for CaseAnswer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Queued(number) => write!(f, "case {number} queued"),
+            Self::Waiting { number, pass, finding } => {
+                write!(f, "case {number} joined pass {pass}, waiting on finding {finding}")
+            }
             Self::Joined { number, landings } => write!(f, "case {number} joined: landings {}", numbers(landings)),
         }
     }
@@ -155,7 +169,9 @@ impl Ledger {
         setups: Vec<String>,
         now: u64,
     ) -> Result<u64, Refusal> {
-        if let Some(session) = self.running_sessions().first() {
+        if let Some(session) =
+            self.running_sessions().into_iter().find(|session| session.kind == crate::SessionKind::Triage)
+        {
             return Err(refused(format!("session {} is running", session.number)));
         }
         if self.next_landing().map(|next| next.number) != Some(landing) {
@@ -164,7 +180,10 @@ impl Ledger {
         let number = next_number(self.sessions.iter().map(|session| session.number));
         self.sessions.push(Session {
             number,
-            landing,
+            kind: crate::SessionKind::Triage,
+            landing: Some(landing),
+            pass: None,
+            before: None,
             effort: effort.into(),
             started: now,
             ended: None,
@@ -183,18 +202,22 @@ impl Ledger {
             .iter()
             .find(|session| session.number == number && session.ended.is_none())
             .ok_or_else(|| refused(format!("session {number} is not running")))?;
+        if session.kind != crate::SessionKind::Triage {
+            return Err(refused(format!("session {number} is a pass session")));
+        }
+        let landing = session.landing.expect("triage landing");
         match self.next_landing() {
-            Some(next) if next.number == session.landing => Ok(session),
+            Some(next) if next.number == landing => Ok(session),
             Some(next) => Err(refused(format!(
                 "session {number} triages landing {}, which is not next: landing {} is not triaged",
-                session.landing, next.number
+                landing, next.number
             ))),
             None => Err(refused(format!("session {number} is not running"))),
         }
     }
 
     pub fn answer_none(&mut self, session: u64, why: &str) -> Result<u64, Refusal> {
-        let number = self.command_session(session)?.landing;
+        let number = self.command_session(session)?.landing.expect("triage landing");
         if why.trim().is_empty() {
             return Err(refused("no QA needs a line saying why"));
         }
@@ -208,7 +231,7 @@ impl Ledger {
 
     pub fn add_case(&mut self, session: u64, input: &CaseInput, now: u64) -> Result<CaseAnswer, Refusal> {
         let session = self.command_session(session)?;
-        let number = session.landing;
+        let number = session.landing.expect("triage landing");
         if let Some(Answer::None { .. }) =
             self.landings.iter().find(|landing| landing.number == number).and_then(|landing| landing.answer.as_ref())
         {
@@ -217,9 +240,26 @@ impl Ledger {
         input.check(session)?;
         let ask =
             Ask { landing: number, setup: input.setup.clone(), adds: input.adds.clone(), steps: input.steps.clone() };
-        let answer = if let Some(case) =
-            self.cases.iter_mut().find(|case| case.surface == input.surface && case.page == input.page)
-        {
+        let waiting = self.waiting_match(input);
+        let answer = if let Some((pass, finding)) = waiting {
+            let number = next_number(self.cases.iter().map(|case| case.number));
+            self.cases.push(Case {
+                number,
+                surface: input.surface.clone(),
+                page: input.page.clone(),
+                asks: vec![ask],
+                state: crate::CaseState::Assigned,
+                pass: Some(pass),
+                blocks: 0,
+                outcomes: Vec::new(),
+                queued: now,
+                line: false,
+            });
+            self.passes.iter_mut().find(|record| record.number == pass).expect("waiting pass").cases.push(number);
+            CaseAnswer::Waiting { number, pass, finding }
+        } else if let Some(case) = self.cases.iter_mut().find(|case| {
+            case.state == crate::CaseState::Queued && case.surface == input.surface && case.page == input.page
+        }) {
             case.asks.push(ask);
             CaseAnswer::Joined { number: case.number, landings: case.landings() }
         } else {
@@ -229,6 +269,10 @@ impl Ledger {
                 surface: input.surface.clone(),
                 page: input.page.clone(),
                 asks: vec![ask],
+                state: crate::CaseState::Queued,
+                pass: None,
+                blocks: 0,
+                outcomes: Vec::new(),
                 queued: now,
                 line: false,
             });
@@ -252,7 +296,10 @@ impl Ledger {
             .iter()
             .find(|session| session.number == number && session.ended.is_none())
             .ok_or_else(|| refused(format!("session {number} is not running")))?;
-        let landing_number = session.landing;
+        if session.kind == crate::SessionKind::Pass {
+            return self.end_pass_session(number, exit, tokens, now, area, &[]);
+        }
+        let landing_number = session.landing.expect("triage landing");
         let landing = self
             .landings
             .iter_mut()
@@ -357,9 +404,11 @@ impl Ledger {
                     && (self.builds.iter().any(|newer| {
                         self.reached(newer) && newer.order.zip(build.order).is_some_and(|(newer, older)| newer > older)
                     }) || !self.cases.iter().any(|case| {
-                        case.landings()
-                            .iter()
-                            .any(|number| build.holds.as_ref().is_some_and(|holds| holds.contains(number)))
+                        case.state == crate::CaseState::Queued
+                            && case
+                                .landings()
+                                .iter()
+                                .any(|number| build.holds.as_ref().is_some_and(|holds| holds.contains(number)))
                     }))
             })
             .collect()
@@ -377,7 +426,7 @@ impl Ledger {
 
     /// Record each waiting case's line once; returns the new line numbers.
     pub fn waiting_lines(&mut self, bound: u64, now: u64, area: &str) -> Vec<u64> {
-        let waiting: Vec<_> = self.cases.iter().filter(|case| !case.line && now.saturating_sub(case.queued) >= bound &&
+        let waiting: Vec<_> = self.cases.iter().filter(|case| case.state == crate::CaseState::Queued && !case.line && now.saturating_sub(case.queued) >= bound &&
             !self.builds.iter().any(|build| self.reached(build) && case.landings().iter().all(|number| build.holds.as_ref().is_some_and(|holds| holds.contains(number)))))
             .map(|case| (case.number, format!("case {} ({} on {}; landings {}) has waited past {bound} seconds for a kept build holding its landings", case.number, case.page, case.surface, numbers(&case.landings())))).collect();
         let mut lines = Vec::new();
@@ -412,7 +461,7 @@ impl Ledger {
     }
 }
 
-fn next_number(numbers: impl Iterator<Item = u64>) -> u64 {
+pub(crate) fn next_number(numbers: impl Iterator<Item = u64>) -> u64 {
     numbers.max().unwrap_or(0).checked_add(1).expect("ledger numbers fit u64")
 }
 pub(crate) fn numbers(values: &[u64]) -> String {
