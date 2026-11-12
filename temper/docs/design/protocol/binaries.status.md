@@ -1,7 +1,8 @@
 # binaries: status
 
-2026-11-11. Where the tree's code lags or departs from [binaries.md](binaries.md).
+2026-11-12. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
+- **Not yet:** 5: serve pins its agent's program and document [in flight: change 1749].
 - **Not yet:** 1, 4 and 5: `temper-service`'s worker half is its `worker` feature, which `temper-worker-shell`, the box and the worlds switch on, so `temper-worker`'s closure holds the engine's domain, `temper-engine-smith` and `temper-box-machine` as its row's exceptions, and the rows exclude neither `temper-service` nor, from the worker, `temper-forge-setup` and `temper-protocol-records-forge` (`services.status.md`)
 
 

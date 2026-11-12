@@ -1,6 +1,9 @@
 # configuration: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-12. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 3: the drain's bound, the stop bound's figures and the worker unit's stop timeout [in flight: change 1757].
+- **Not yet:** 4: read once, pinned [in flight: change 1749].
 
 `settings.md`, section 7 has no known gap in the engine and workers' shared output
 room. Init's templates and the owned example give the engine the

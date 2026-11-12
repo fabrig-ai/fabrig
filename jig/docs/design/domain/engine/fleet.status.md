@@ -1,7 +1,8 @@
 # fleet: status
 
-2026-11-11. Where the tree's code lags or departs from [fleet.md](fleet.md).
+2026-11-12. Where the tree's code lags or departs from [fleet.md](fleet.md).
 
+- **Not yet:** *The grace is derived from that bound*: jig's profiles give `fleet.grace` 120 seconds [in flight: change 1757].
 - **Not yet:** the whole document: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance.  the point-load fences remain `README.status.md`, 4.2 and 5.3.
