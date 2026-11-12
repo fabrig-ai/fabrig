@@ -113,12 +113,14 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
                     WORKER.binary,
                     &directories,
                     &captured.environment,
-                    false,
-                    |bytes, owned, _| {
+                    crate::served::SERVED,
+                    |_| Ok(()),
+                    |bytes, owned, ()| {
                         crate::worker::alone(&directories, bytes, owned, &captured.environment).map(|service| {
-                            temper_service_shell::Prepared { service, store: Box::new([]), line_bytes: 0 }
+                            temper_service_shell::Prepared { service, store: Box::new([]), adoption: () }
                         })
                     },
+                    |_, _, ()| Ok(()),
                 )
                 .map_err(|why| (1, why))?
                 {

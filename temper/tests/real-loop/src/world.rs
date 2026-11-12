@@ -1066,7 +1066,7 @@ fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], childr
         obligations.read(worker, declared);
     }
     let active_program =
-        service.service.as_ref().and_then(temper_service::Service::worker_domain).is_some_and(|worker| {
+        service.service.as_ref().and_then(crate::service::Driven::worker_domain).is_some_and(|worker| {
             worker.hosting().iter().any(|hosting| {
                 hosting.phase == jig_domain_link::Phase::Active
                     && declared.iter().any(|left| {
@@ -1276,7 +1276,7 @@ fn pending_llm(observations: &[skein_fake_peers::llm::Observation]) -> bool {
 }
 
 fn contact_cancelled(worker: &ServiceHost) -> bool {
-    let Some(domain) = worker.service.as_ref().and_then(temper_service::Service::worker_domain) else { return false };
+    let Some(domain) = worker.service.as_ref().and_then(crate::service::Driven::worker_domain) else { return false };
     let hub = domain.host();
     (0..hub.kept_answers()).any(|index| {
         matches!(

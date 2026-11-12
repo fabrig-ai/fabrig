@@ -2,6 +2,7 @@
 
 2026-11-11. Where skein's code lags or departs from [README.md](README.md).
 
+
 `elements.md` and `README.md`, section 5 have no known gap in a field's options: listbox and
 option mapping, retained active selection, arrows, Enter without a
 paired Submit, prefix completion on Tab and pointer presses retaining

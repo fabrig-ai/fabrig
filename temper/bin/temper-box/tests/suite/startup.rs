@@ -877,7 +877,9 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         let result = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()));
         match expected {
             Some(line) if member != "tool_payload" => {
-                let mut service = result.expect("charter shortfalls warn");
+                let temper_box_shell::Service::Joined(mut service) = result.expect("charter shortfalls warn") else {
+                    panic!("standalone service")
+                };
                 assert_eq!(
                     service.notes().pop(),
                     Some(temper_service::Note::StartupWarning { line: line.trim_end().as_bytes().into() }),
@@ -973,7 +975,8 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
     let own = &own;
     assert!(worker.jig.limits.hub.event_bytes >= u64::from(agent.bounds.message_bytes));
     assert!(u64::from(own.checkout.message_bytes) >= agent.host_limits.call_bytes);
-    let prepared = service::worker_settings::prepare(worker, agent, own).expect("complete worker bounds");
+    let prepared = service::worker_settings::prepare(worker, agent, &service::limits::worker(own))
+        .expect("complete worker bounds");
     // Each receiver one byte below its sender's bound fails its own rule.
     let mut short = prepared.root.clone();
     short.host.event_bytes = u64::from(agent.bounds.message_bytes).checked_sub(1).expect("nonempty message");

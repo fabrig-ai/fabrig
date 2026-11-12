@@ -2,6 +2,7 @@
 use std::{net::SocketAddr, path::Path};
 use temper_engine_domain_forge as forge;
 use temper_protocol_records::{self as records, Item};
+use temper_protocol_records_forge as forge_records;
 
 pub(crate) fn seed(path: &Path, address: SocketAddr, github: Option<crate::github::Fixture>) {
     let mut record = forgejo_record(address);
@@ -55,7 +56,7 @@ pub fn seed_forgejo(
     hook: &[u8],
     admin: Option<&[u8]>,
 ) {
-    let origin = records::Origin {
+    let origin = forge_records::Origin {
         kind: skein_forge_connection::settings::Kind::Forgejo,
         api: SocketAddr::new(
             std::str::from_utf8(&record.place.api.host).expect("fixture host").parse().expect("fixture IP"),
