@@ -89,6 +89,7 @@ fn result(b: &mut Builder, value: &WordResult, words: &Words) {
         }
         WordResult::Failed => caption(b, words, P::ResultFailed),
         WordResult::Cancelled => caption(b, words, P::ResultCancelled),
+        WordResult::Job => caption(b, words, P::ResultJob),
     }
 }
 fn kind(b: &mut Builder, value: &MessageKind, words: &Words) {
