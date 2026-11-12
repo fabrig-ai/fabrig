@@ -143,7 +143,14 @@ pub(crate) fn act(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bind
 }
 
 /// The way's button, within the calling page's acts row.
-pub(crate) fn act_button(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bindings: &mut Bindings, project: u32) {
+pub(crate) fn act_button(
+    b: &mut Builder,
+    ways: &StockWays,
+    index: u32,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+) {
     if let Some(act) = ways.act(index) {
         let (word, act) = match act {
             WayAct::Use => (Word::WaysUse, Act::UseWay { project, way: index }),

@@ -5,7 +5,7 @@ use crate::{
     words::{Word, Words},
 };
 use alloc::boxed::Box;
-use skein_ui::{Builder, Role, Run, State, phrases::Hole};
+use skein_ui::{Builder, Role, Run, State};
 use temper_client_domain::forge::stock_ways::{State as WaysState, StockWays};
 use temper_client_domain::{Domain, pages::Act};
 
@@ -136,7 +136,15 @@ fn opening(b: &mut Builder, root: &Domain, ways: &StockWays, w: &Words, bindings
     }
 }
 
-fn foot(b: &mut Builder, root: &Domain, ways: &StockWays, index: u32, w: &Words, bindings: &mut Bindings, project: u32) {
+fn foot(
+    b: &mut Builder,
+    root: &Domain,
+    ways: &StockWays,
+    index: u32,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+) {
     b.open(Role::Slot);
     b.style(look::WAYS_FOOT);
     super::ways::legend(b, w);
@@ -144,7 +152,7 @@ fn foot(b: &mut Builder, root: &Domain, ways: &StockWays, index: u32, w: &Words,
     b.style(look::WAYS_ACTS);
     b.open(Role::Button);
     b.name(&w.say(Word::AskHow, &[]));
-    b.hint(&w.say(Word::AskHowHint, &[Hole::Name(temper_client_domain::pages::chat::document::HOW_TEMPER_WORKS.into())]));
+    b.hint(&w.say(Word::AskHowHint, &[]));
     let pending = match root.pages().chats() {
         Some(chats) => chats.start.is_some(),
         None => false,

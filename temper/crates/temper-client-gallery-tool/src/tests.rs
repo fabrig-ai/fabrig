@@ -153,6 +153,7 @@ enum Part {
     Configured { value: bool },
     Reader { role: jig_client::contract::HeldRole },
     After { first: skein_ui::Style, then: skein_ui::Style },
+    Buttons { style: skein_ui::Style, names: &'static [&'static str] },
     Links { style: skein_ui::Style, names: &'static [&'static str] },
     NoStyle { style: skein_ui::Style },
     Selected { name: &'static str },
@@ -168,6 +169,11 @@ enum Part {
     Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
 }
+const ASK_KEEP: Part =
+    Part::Buttons { style: temper_client_view::look::WAYS_ACTS, names: &["How does temper work?", "Keep it"] };
+const ASK_USE: Part =
+    Part::Buttons { style: temper_client_view::look::WAYS_ACTS, names: &["How does temper work?", "Use this"] };
+const ASK_ALONE: Part = Part::Buttons { style: temper_client_view::look::WAYS_ACTS, names: &["How does temper work?"] };
 const REMEMBERED_THREE: &[&str] = &[
     "Keep answers concise and start with the result.",
     "Ask temper chat 14 · Today · Thursday 22 October",
@@ -1248,6 +1254,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-ask",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
@@ -3724,6 +3731,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-first-run",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::StyleCount { style: temper_client_view::look::RAIL_SEP, count: 1 },
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
@@ -3757,6 +3765,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-approve",
         heading: "Ask temper",
         parts: &[
+            ASK_USE,
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 0 },
             Part::Named { role: Role::Group, name: "You approve" },
             Part::Text { text: "An agent makes each change; nothing reaches main until you approve it." },
@@ -3782,6 +3791,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-draft",
         heading: "Ask temper",
         parts: &[
+            ASK_USE,
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 2 },
             Part::Named { role: Role::Group, name: "Draft first" },
             Part::Text {
@@ -3813,6 +3823,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-card",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::Named { role: Role::Group, name: "Agents review" },
             Part::Named { role: Role::Region, name: "Review" },
             Part::Expanded { name: "review, an agent" },
@@ -3835,6 +3846,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-card-person",
         heading: "Ask temper",
         parts: &[
+            ASK_USE,
             Part::Named { role: Role::Group, name: "You approve" },
             Part::Named { role: Role::Region, name: "You approve" },
             Part::Expanded { name: "you approve, a person" },
@@ -3849,6 +3861,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-yours",
         heading: "Ask temper",
         parts: &[
+            ASK_ALONE,
             Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
             Part::Named { role: Role::Group, name: "Yours" },
             Part::Path { stops: &["you ask, a person", "produce, an agent", "merge, code", "main, a branch"] },
@@ -3860,6 +3873,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-refused",
         heading: "Ask temper",
         parts: &[
+            ASK_USE,
             Part::Named { role: Role::Group, name: "You approve" },
             Part::Named { role: Role::Button, name: "Use this" },
             Part::Named { role: Role::Alert, name: "" },
@@ -3874,6 +3888,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-member",
         heading: "Ask temper",
         parts: &[
+            ASK_ALONE,
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
             Part::Named { role: Role::Group, name: "Agents review" },
             Part::Named { role: Role::List, name: "The way a change goes" },
@@ -3886,6 +3901,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-kept",
         heading: "Ask temper",
         parts: &[
+            ASK_ALONE,
             Part::Text { text: "Agents review is now this project's own, as revision 1." },
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
             Part::Named { role: Role::Group, name: "Agents review" },
@@ -3898,6 +3914,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-typing",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
@@ -3914,6 +3931,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-sending",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
@@ -3930,6 +3948,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-refused",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
@@ -5335,6 +5354,18 @@ fn each_state_holds_what_its_name_says() {
                 Part::Text { text } => {
                     assert!(has_text(tree, text), "{}: missing text {text:?}", sample.name);
                 }
+                Part::Buttons { style, names } => {
+                    let nodes = tree.nodes();
+                    let start =
+                        nodes.iter().position(|node| node.styles.as_slice().contains(style)).expect("button row");
+                    let end = start + usize::try_from(nodes[start].size).expect("row span");
+                    let actual: Vec<_> = nodes[start..end]
+                        .iter()
+                        .filter(|node| node.role == Role::Button)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("button name")).expect("English"))
+                        .collect();
+                    assert_eq!(actual, *names, "{}: buttons in order", sample.name);
+                }
                 Part::Named { role, name } => {
                     find(tree, *role, name, sample.name);
                 }
@@ -5815,6 +5846,10 @@ fn asking_gallery_states_list_the_template_and_send_readiness() {
             .find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Send"))
             .expect("send");
         assert_eq!(send.states.as_slice().contains(&skein_ui::State::Disabled), disabled, "{name}");
+        let how = find(view.tree(), Role::Button, "How does temper work?", name);
+        let how = view.tree().find(how).expect("how button");
+        assert_eq!(how.states.as_slice().contains(&skein_ui::State::Disabled), sending, "{name}");
+        assert!(has_text(view.tree(), "Choose how work runs, or describe how you work below."), "{name}");
     }
 }
 
