@@ -78,6 +78,9 @@ fn fixed(refusal: &Refusal) -> bool {
         | Refusal::Unknown
         | Refusal::NameTaken
         | Refusal::ProgramNameReserved
+        | Refusal::NoTerminal
+        | Refusal::LoginUnderWay
+        | Refusal::NotLending
         | Refusal::NotOffered
         | Refusal::KeyConflict
         | Refusal::NoEscalationHolder => true,

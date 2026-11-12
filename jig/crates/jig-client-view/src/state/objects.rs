@@ -471,6 +471,7 @@ fn delivered_name(value: &jig_client::contract::Delivery, key: ObjectKey) -> Opt
         | Delivery::RunState(_)
         | Delivery::Settings(_)
         | Delivery::Deployment(_)
+        | Delivery::Terminal(_)
         | Delivery::Accounts(_) => None,
         Delivery::Task(task) => {
             if key == ObjectKey::Task(task.chip.task) {
@@ -536,6 +537,7 @@ pub(crate) fn dropping(domain: &mut crate::Ui, watch: jig_client::Handle, value:
         | jig_client::contract::Delivery::RunState(_)
         | jig_client::contract::Delivery::Settings(_)
         | jig_client::contract::Delivery::Deployment(_)
+        | jig_client::contract::Delivery::Terminal(_)
         | jig_client::contract::Delivery::Accounts(_)
         | jig_client::contract::Delivery::Task(_)
         | jig_client::contract::Delivery::Tree(_)
@@ -1053,6 +1055,7 @@ pub(crate) fn contexts(value: &jig_client::contract::Delivery, capacity: u32) ->
         | jig_client::contract::Delivery::RunState(_)
         | jig_client::contract::Delivery::Settings(_)
         | jig_client::contract::Delivery::Deployment(_)
+        | jig_client::contract::Delivery::Terminal(_)
         | jig_client::contract::Delivery::Accounts(_) => {}
     }
     rows

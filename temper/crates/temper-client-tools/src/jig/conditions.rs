@@ -68,7 +68,8 @@ pub fn holds(condition: &Condition, facts: &Facts<'_>) -> Option<bool> {
                 None
             }
         }
-        c::Delivery::Project(_)
+        c::Delivery::Terminal(_)
+        | c::Delivery::Project(_)
         | c::Delivery::Proposal(_)
         | c::Delivery::Chips(_)
         | c::Delivery::Tasks(_)

@@ -4,13 +4,13 @@ use skein_io::{Event, Io, Limits, Request, Window};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Env, Queue, Time, Token, Wall};
 use skein_shell::{
-    Clock, Config, Host, Input, Keys, Watch, close_startup_fd, drive, open_signals, open_terminal, raw_input,
+    Clock, Config, Host, Input, Kept, Keys, Watch, close_startup_fd, drive, open_signals, open_terminal, raw_input,
     take_foreground,
 };
 use std::{
     collections::VecDeque,
     fs::File,
-    io::Read as _,
+    io::{Read as _, Write as _},
     os::unix::process::CommandExt,
     process::{Command, ExitCode},
 };
@@ -129,7 +129,8 @@ impl Host for Terminal {
 #[expect(clippy::disallowed_methods, reason = "skein's round: reads the terminal fixture command line")]
 fn main() -> ExitCode {
     skein_fail_stop::install();
-    match std::env::args().nth(1).as_deref() {
+    let option = std::env::args().nth(1);
+    match option.as_deref() {
         Some("child") => return child(),
         Some("foreground") => {
             let status = Command::new(std::env::current_exe().expect("the fixture's executable"))
@@ -147,9 +148,14 @@ fn main() -> ExitCode {
         }
         Some(_) | None => {}
     }
-    let Input::Terminal { kept, .. } = raw_input(Fd::new(0), Keys::Pass).expect("terminal input") else {
+    let keys = if option.as_deref() == Some("kept-signal") { Keys::Signal } else { Keys::Pass };
+    let Input::Terminal { kept, .. } = raw_input(Fd::new(0), keys).expect("terminal input") else {
         return ExitCode::FAILURE;
     };
+    if matches!(option.as_deref(), Some("kept-pass" | "kept-signal")) {
+        modes_cycle(kept);
+        return ExitCode::SUCCESS;
+    }
     let result = run();
     kept.restore().expect("startup modes restored after drive");
     result
@@ -199,4 +205,20 @@ fn run() -> ExitCode {
     };
     let _exit = drive(&mut kernel, &Clock::new(), &mut host);
     ExitCode::SUCCESS
+}
+
+fn modes_cycle(kept: Kept) {
+    let mut input = File::open("/dev/fd/0").expect("the terminal as a blocking file");
+    eprintln!("raw");
+    input.read_exact(&mut [0]).expect("the person observed raw modes");
+    kept.set_kept().expect("kept modes without giving them up");
+    eprintln!("kept");
+    input.read_exact(&mut [0; 2]).expect("the person observed kept modes and sent a line");
+    kept.set_raw().expect("startup raw modes again");
+    eprintln!("raw again");
+    input.read_exact(&mut [0]).expect("the person observed raw modes again");
+    kept.restore().expect("kept modes at the end");
+    eprintln!("restored");
+    input.read_exact(&mut [0; 2]).expect("the person observed restored modes and sent a line");
+    std::io::stdout().write_all(b"done").expect("a final marker before terminal EOF");
 }

@@ -420,6 +420,7 @@ fn keeps_requested(outcome: &Outcome) -> bool {
                 | c::DocumentOutcome::PoolSet { .. }
                 | c::DocumentOutcome::EscalationDecided { .. }
                 | c::DocumentOutcome::AccountKeyKept { .. }
+                | c::DocumentOutcome::AccountLoginAsked { .. }
                 | c::DocumentOutcome::AccountProgramDeclared { .. }
                 | c::DocumentOutcome::AccountMovedIn { .. }
                 | c::DocumentOutcome::AccountRemoved { .. }

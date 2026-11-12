@@ -372,7 +372,10 @@ fn account_key_digest(ask: &w::Ask) -> Option<([u8; 32], Option<crate::CarriedKi
         w::AccountChange::ReplaceKey(row) => Some((*row.digest(), Some(crate::CarriedKind::Key))),
         w::AccountChange::FinishSignIn(row) => Some((*row.digest(), None)),
         w::AccountChange::MoveIn(row) => Some((*row.digest(), Some(crate::CarriedKind::Moved))),
-        w::AccountChange::DeclareProgram(_)
+        w::AccountChange::LoginProgram(_)
+        | w::AccountChange::CancelLogin(_)
+        | w::AccountChange::LoginEnded(_)
+        | w::AccountChange::DeclareProgram(_)
         | w::AccountChange::CheckProgram(_)
         | w::AccountChange::RemoveKey(_)
         | w::AccountChange::Resume(_)
@@ -429,7 +432,10 @@ fn carried_bound(ask: &w::Ask, key_bytes: u32, moved_bytes: u64, redirect_bytes:
         w::AccountChange::FinishSignIn(_) => u64::from(redirect_bytes),
         w::AccountChange::MoveIn(_) => moved_bytes,
         w::AccountChange::AddKey(_) | w::AccountChange::ReplaceKey(_) => u64::from(key_bytes),
-        w::AccountChange::DeclareProgram(_)
+        w::AccountChange::LoginProgram(_)
+        | w::AccountChange::CancelLogin(_)
+        | w::AccountChange::LoginEnded(_)
+        | w::AccountChange::DeclareProgram(_)
         | w::AccountChange::CheckProgram(_)
         | w::AccountChange::RemoveKey(_)
         | w::AccountChange::Resume(_)

@@ -1,6 +1,11 @@
 # programs: status
 
-2026-11-10. Where smith's code lags or departs from [programs.md](programs.md).
+2026-11-12. Where smith's code lags or departs from [programs.md](programs.md).
+
+- **Not yet:** 4.2: Claude Code's environment without
+  `CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_PROFILE`, federation's and the
+  cloud providers' variables; 5.3: settings that never set
+  `forceLoginMethod` or `forceLoginOrgUUID` [in flight: change 1934].
 
 Sections 2 and 5.1 have no known gap in Linux's program-child launch:
 status checks and print runs use the agent's own `--program-child`

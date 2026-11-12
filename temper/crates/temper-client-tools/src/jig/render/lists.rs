@@ -71,6 +71,7 @@ pub(super) fn tree(delivery: &c::Delivery, project: Option<u32>, book: &Phrasebo
         | c::Delivery::RunState(_)
         | c::Delivery::Settings(_)
         | c::Delivery::Deployment(_)
+        | c::Delivery::Terminal(_)
         | c::Delivery::Accounts(_) => unreachable!("tree watch delivers a tree"),
     }
 }
