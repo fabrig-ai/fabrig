@@ -1,4 +1,4 @@
-//! A single-home service, with five saved steps per tick (qa/README.md, 4–5).
+//! A single-home service, with saved steps per tick (qa/README.md, 4–5).
 use crate::faces::{ClockFace, Environment, GitFace, Moment, ProcessCommand, Processes, Signal};
 use crate::{Exit, Home, Ledger, Refusal, brief::Inputs, refused, watch::watch};
 use std::{
@@ -88,6 +88,12 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         let result =
             self.probe().and_then(|()| home.transact(|ledger| Ok(self.triage(ledger))).and_then(|result| result));
         self.outcome("triage", result, now);
+        let result = home
+            .transact(|ledger| {
+                Ok(crate::requests::step(&home, ledger, &mut self.processes, &self.environment, now.wall))
+            })
+            .and_then(|result| result);
+        self.outcome("requests", result, now);
         let result = home.transact(|ledger| {
             ledger.waiting_lines(home.configuration.bounds.build_wait, now.wall, &home.configuration.owner);
             Ok(())
