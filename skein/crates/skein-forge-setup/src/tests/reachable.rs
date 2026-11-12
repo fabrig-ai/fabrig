@@ -456,7 +456,7 @@ fn wrong_reply_kinds_stop_each_picker_request() {
                 "a_reply_of_another_kind_is_unexpected_at_each_request: ADMIN_CHECK 1",
                 (
                     at(ADMIN_CHECK),
-                    Event::Reply(Reply::Document(Document::RepoSearch { ok: true })),
+                    Event::Reply(Reply::Document(Box::new(Document::RepoSearch { ok: true }))),
                     failure(Stage::Admin, Why::Unexpected),
                 ),
             ),
@@ -464,7 +464,7 @@ fn wrong_reply_kinds_stop_each_picker_request() {
                 "a_reply_of_another_kind_is_unexpected_at_each_request: ADMIN_CHECK 2",
                 (
                     at(ADMIN_CHECK),
-                    Event::Reply(Reply::Document(Document::RepoSearch { ok: false })),
+                    Event::Reply(Reply::Document(Box::new(Document::RepoSearch { ok: false }))),
                     failure(Stage::Admin, Why::Unexpected),
                 ),
             ),
@@ -476,7 +476,7 @@ fn wrong_reply_kinds_stop_each_picker_request() {
                 "a_reply_of_another_kind_is_unexpected_at_each_request: SETTINGS 1",
                 (
                     at(SETTINGS),
-                    Event::Reply(Reply::Document(Document::RepoSearch { ok: true })),
+                    Event::Reply(Reply::Document(Box::new(Document::RepoSearch { ok: true }))),
                     failure(Stage::Token, Why::Unexpected),
                 ),
             ),
@@ -484,7 +484,7 @@ fn wrong_reply_kinds_stop_each_picker_request() {
                 "a_reply_of_another_kind_is_unexpected_at_each_request: SETTINGS 2",
                 (
                     at(SETTINGS),
-                    Event::Reply(Reply::Document(Document::RepoSearch { ok: false })),
+                    Event::Reply(Reply::Document(Box::new(Document::RepoSearch { ok: false }))),
                     failure(Stage::Token, Why::Unexpected),
                 ),
             ),
@@ -496,7 +496,7 @@ fn wrong_reply_kinds_stop_each_picker_request() {
                 "a_reply_of_another_kind_is_unexpected_at_each_request: SEARCH 1",
                 (
                     at(SEARCH),
-                    Event::Reply(Reply::Document(Document::RepoSearch { ok: true })),
+                    Event::Reply(Reply::Document(Box::new(Document::RepoSearch { ok: true }))),
                     failure(Stage::Token, Why::Unexpected),
                 ),
             ),
@@ -504,7 +504,7 @@ fn wrong_reply_kinds_stop_each_picker_request() {
                 "a_reply_of_another_kind_is_unexpected_at_each_request: SEARCH 2",
                 (
                     at(SEARCH),
-                    Event::Reply(Reply::Document(Document::RepoSearch { ok: false })),
+                    Event::Reply(Reply::Document(Box::new(Document::RepoSearch { ok: false }))),
                     failure(Stage::Token, Why::Unexpected),
                 ),
             ),
@@ -552,7 +552,7 @@ fn wrong_reply_kinds_stop_each_picker_request() {
                 "a_reply_of_another_kind_is_unexpected_at_both: CONNECTED_SETTINGS 3",
                 (
                     connected_at(CONNECTED_SETTINGS),
-                    Event::Reply(Reply::Document(Document::RepoSearch { ok: false })),
+                    Event::Reply(Reply::Document(Box::new(Document::RepoSearch { ok: false }))),
                     connected_failure(Why::Unexpected),
                 ),
             ),
@@ -576,7 +576,7 @@ fn wrong_reply_kinds_stop_each_picker_request() {
                 "a_reply_of_another_kind_is_unexpected_at_both: CONNECTED_LISTING 3",
                 (
                     connected_at(CONNECTED_LISTING),
-                    Event::Reply(Reply::Document(Document::RepoSearch { ok: false })),
+                    Event::Reply(Reply::Document(Box::new(Document::RepoSearch { ok: false }))),
                     connected_failure(Why::Unexpected),
                 ),
             ),

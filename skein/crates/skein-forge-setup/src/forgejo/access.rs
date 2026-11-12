@@ -126,7 +126,8 @@ impl Access {
     fn answer(&mut self, shared: &mut Shared, answer: Reply) -> Result<Move, Why> {
         match self.phase {
             Phase::Repository => match answer {
-                Reply::Document(Document::Repository(repo)) => {
+                Reply::Document(document) => {
+                    let Document::Repository(repo) = *document else { return Err(Why::Unexpected) };
                     if let Some(id) = self.id
                         && repo.id != id
                     {
@@ -137,12 +138,14 @@ impl Access {
                     self.phase = Phase::Permission;
                     Ok(Move::Send(Request::Permission { at, login: self.bot.clone() }))
                 }
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },
             Phase::Permission => match answer {
-                Reply::Document(Document::Permission(permission)) => match permission.permission {
+                Reply::Document(document) => {
+                    let Document::Permission(permission) = *document else { return Err(Why::Unexpected) };
+                    match permission.permission {
                     Permission::Write | Permission::Admin | Permission::Owner => Ok(self.hook(shared)),
                     Permission::None | Permission::Read => {
                         self.phase = Phase::Add;
@@ -152,8 +155,9 @@ impl Access {
                             permission: Grant::Write,
                         }))
                     }
-                },
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                }
+                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },
@@ -164,11 +168,13 @@ impl Access {
                 }
             },
             Phase::Settings => match answer {
-                Reply::Document(Document::ApiSettings(settings)) if settings.max_response_items > 0 => {
+                Reply::Document(document) => {
+                    let Document::ApiSettings(settings) = *document else { return Err(Why::Unexpected) };
+                    if settings.max_response_items == 0 { return Err(Why::Unexpected); }
                     shared.cap = Some(settings.max_response_items);
                     Ok(self.listing(shared))
                 }
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },
@@ -180,8 +186,11 @@ impl Access {
                 }
             },
             Phase::Save => match answer {
-                Reply::Document(Document::Hook(_)) => Ok(Move::Done),
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                Reply::Document(document) => {
+                    let Document::Hook(_) = *document else { return Err(Why::Unexpected) };
+                    Ok(Move::Done)
+                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },

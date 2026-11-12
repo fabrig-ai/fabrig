@@ -6,7 +6,7 @@ use crate::{
 };
 use skein_forge::forgejo::{document::Document, request::Request};
 fn user(user: skein_forge::forgejo::document::User) -> Event {
-    Event::Reply(Reply::Document(Document::User(user)))
+    Event::Reply(Reply::Document(Box::new(Document::User(user))))
 }
 #[test]
 fn an_admin_token_of_a_plain_user_stops_at_the_admin() {
@@ -395,10 +395,10 @@ fn the_orgs_are_made_before_the_first_repository_is_read() {
         fixtures::send(Request::CreateOrg { person: b"ada".as_slice().into(), name: b"acme".as_slice().into() })
     );
     assert_eq!(
-        run.step(Event::Reply(Reply::Document(Document::Org(skein_forge::forgejo::document::Org {
+        run.step(Event::Reply(Reply::Document(Box::new(Document::Org(skein_forge::forgejo::document::Org {
             id: 8,
             name: b"acme".as_slice().into()
-        })))),
+        }))))),
         fixtures::send(Request::RepositoryById { id: 9 })
     );
 }

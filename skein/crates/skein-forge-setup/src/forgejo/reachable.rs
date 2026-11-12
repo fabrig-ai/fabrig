@@ -152,7 +152,9 @@ impl Reachable {
     fn repositories(&mut self, state: State, event: Event) -> Result<Need, Why> {
         match state {
             State::Settings => match reply(event)? {
-                Reply::Document(Document::ApiSettings(settings)) if settings.max_response_items > 0 => {
+                Reply::Document(document) => {
+                    let Document::ApiSettings(settings) = *document else { return Err(Why::Unexpected) };
+                    if settings.max_response_items == 0 { return Err(Why::Unexpected); }
                     self.limit = core::cmp::min(self.limit, settings.max_response_items);
                     self.state = State::Search;
                     let page = Page { page: Some(self.page), limit: Some(self.limit) };
@@ -161,7 +163,7 @@ impl Reachable {
                         Token::Api => Request::UserRepos { page },
                     }))
                 }
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },

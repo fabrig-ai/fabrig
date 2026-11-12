@@ -56,7 +56,7 @@ fn go(machine: &mut Copy, event: Event) -> Need {
     need
 }
 fn document(document: Document) -> Event {
-    Event::Reply(Reply::Document(document))
+    Event::Reply(Reply::Document(Box::new(document)))
 }
 fn status(status: u16) -> Event {
     Event::Reply(Reply::Status(status))
@@ -65,11 +65,12 @@ fn org() -> Event {
     document(Document::Org(Org { id: 1, name: b"first".as_slice().into() }))
 }
 fn repository(id: u64) -> Event {
-    let Event::Reply(Reply::Document(Document::Repository(mut repository))) =
+    let Event::Reply(Reply::Document(document)) =
         fixtures::repository(id, b"first", b"copied")
     else {
         panic!("repository fixture")
     };
+    let Document::Repository(mut repository) = *document else { panic!("repository fixture") };
     repository.default_branch = BRANCH.into();
     document(Document::Repository(repository))
 }

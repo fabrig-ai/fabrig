@@ -57,7 +57,7 @@ pub enum Observation {
         user: u64,
         repository: Box<[u8]>,
         op: api::Op,
-        result: Result<api::Answer, api::Error>,
+        result: Box<Result<api::Answer, api::Error>>,
     },
     Delivery {
         post: Option<forgejo::delivery::Post>,

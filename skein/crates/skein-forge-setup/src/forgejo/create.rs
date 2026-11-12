@@ -260,7 +260,10 @@ impl Create {
     fn answer(&mut self, answer: Reply) -> Result<Need, Why> {
         match self.state {
             State::Org => match answer {
-                Reply::Document(Document::Org(_)) => Ok(self.repository()),
+                Reply::Document(document) => {
+                    let Document::Org(_) = *document else { return Err(Why::Unexpected) };
+                    Ok(self.repository())
+                }
                 Reply::Status(404) => {
                     let owner = match &self.owner {
                         Some(owner) => owner.clone(),
@@ -269,18 +272,22 @@ impl Create {
                     self.state = State::MakeOrg;
                     Ok(self.send(Request::CreateOrg { person: owner, name: self.at.owner.clone() }))
                 }
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },
             State::MakeOrg => match answer {
-                Reply::Document(Document::Org(_)) => Ok(self.repository()),
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                Reply::Document(document) => {
+                    let Document::Org(_) = *document else { return Err(Why::Unexpected) };
+                    Ok(self.repository())
+                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },
             State::Repository => match answer {
-                Reply::Document(Document::Repository(repository)) => {
+                Reply::Document(document) => {
+                    let Document::Repository(repository) = *document else { return Err(Why::Unexpected) };
                     self.remember(repository.id, repository.default_branch)?;
                     Ok(match self.source {
                         Source::Empty => self.access(),
@@ -301,17 +308,18 @@ impl Create {
                     }
                     Source::Copy { .. } => self.mark(),
                 }),
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },
             State::MakeRepository => match answer {
-                Reply::Document(Document::CreatedRepository(repository)) => {
+                Reply::Document(document) => {
+                    let Document::CreatedRepository(repository) = *document else { return Err(Why::Unexpected) };
                     self.remember(repository.id, repository.default_branch)?;
                     Ok(self.access())
                 }
                 Reply::Status(409) => Ok(self.repository()),
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },
@@ -333,17 +341,21 @@ impl Create {
     fn copy_answer(&mut self, answer: Reply) -> Result<Need, Why> {
         match self.state {
             State::Migrate => match answer {
-                Reply::Document(Document::CreatedRepository(repository)) => {
+                Reply::Document(document) => {
+                    let Document::CreatedRepository(repository) = *document else { return Err(Why::Unexpected) };
                     self.remember(repository.id, repository.default_branch)?;
                     Ok(self.copy_branch(false))
                 }
                 Reply::Status(409) => Err(Why::Taken),
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },
             State::CopyBranch { restart } => match answer {
-                Reply::Document(Document::Branch(_)) => Ok(self.access()),
+                Reply::Document(document) => {
+                    let Document::Branch(_) = *document else { return Err(Why::Unexpected) };
+                    Ok(self.access())
+                }
                 Reply::Status(404) => {
                     if restart {
                         self.state = State::Delete;
@@ -352,7 +364,7 @@ impl Create {
                         Err(Why::Empty)
                     }
                 }
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },
@@ -379,7 +391,8 @@ impl Create {
     fn file_answer(&mut self, answer: Reply) -> Result<Need, Why> {
         match self.state {
             State::Branch => match answer {
-                Reply::Document(Document::Branch(branch)) => {
+                Reply::Document(document) => {
+                    let Document::Branch(branch) = *document else { return Err(Why::Unexpected) };
                     self.state = State::Raw;
                     Ok(self.send(Request::Raw {
                         at: self.at.clone(),
@@ -387,7 +400,7 @@ impl Create {
                         reference: branch.commit,
                     }))
                 }
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },
@@ -399,8 +412,11 @@ impl Create {
                 }
             },
             State::File => match answer {
-                Reply::Document(Document::CreatedFile { .. }) => Ok(self.file_done()),
-                other @ (Reply::Document(_) | Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
+                Reply::Document(document) => {
+                    let Document::CreatedFile { .. } = *document else { return Err(Why::Unexpected) };
+                    Ok(self.file_done())
+                }
+                other @ (Reply::Rows(_) | Reply::Empty | Reply::Status(_) | Reply::Down) => {
                     Err(unexpected(other))
                 }
             },

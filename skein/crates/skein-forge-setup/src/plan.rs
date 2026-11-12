@@ -65,7 +65,7 @@ pub enum Event {
 /// An HTTP answer decoded by the host.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Reply {
-    Document(Document),
+    Document(Box<Document>),
     /// A page of rows: a list, or a repository search that answered `ok`.
     Rows(Box<[Row]>),
     Empty,
