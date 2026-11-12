@@ -1180,6 +1180,7 @@ pub(crate) fn toast(
         Toasted::Later => (w.say(Word::ToastLater, &[]), None),
         Toasted::NotSent => (w.say(Word::ToastNotSent, &[]), None),
         Toasted::Paused => (w.say(Word::ToastPaused, &[]), None),
+        Toasted::LeftTalk => (w.say(Word::LeftTalk, &[]), None),
         Toasted::Resumed => (w.say(Word::ToastResumed, &[]), None),
         Toasted::AwayOn { project, until } => {
             let name =
@@ -1263,6 +1264,7 @@ pub(crate) fn toast(
         | Toasted::Later
         | Toasted::NotSent
         | Toasted::Paused
+        | Toasted::LeftTalk
         | Toasted::Resumed => b.text(Run::Plain, &said),
     }
     if let Toasted::AwayOn { project, .. } = toast {

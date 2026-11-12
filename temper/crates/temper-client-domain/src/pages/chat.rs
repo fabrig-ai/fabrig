@@ -1317,6 +1317,7 @@ impl Chat {
             | Act::DeleteProject { .. }
             | Act::StartOver
             | Act::DelegateFate { .. }
+            | Act::LeaveTalk
             | Act::Pause
             | Act::Amend
             | Act::AmendWords { .. }

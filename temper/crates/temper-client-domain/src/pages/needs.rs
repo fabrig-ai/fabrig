@@ -187,6 +187,7 @@ pub enum Toasted {
     NotSent,
     Paused,
     Resumed,
+    LeftTalk,
     Proposed {
         to: contract::Recipient,
     },
@@ -852,6 +853,7 @@ pub(crate) fn act(
                     | Toasted::Later
                     | Toasted::NotSent
                     | Toasted::Paused
+                    | Toasted::LeftTalk
                     | Toasted::Resumed
                     | Toasted::Proposed { .. }
                     | Toasted::Refused { .. } => {}

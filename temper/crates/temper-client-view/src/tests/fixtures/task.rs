@@ -210,8 +210,28 @@ pub fn agent_root_with_page(
     tree: Option<c::Delivery>,
     page: c::ActivityPage,
 ) -> temper_client_domain::Domain {
+    agent_root_for(document, tree, page, fixture_me(b"Shop").party.number, TASK)
+}
+pub fn agent_root_as(
+    document: c::Task,
+    tree: Option<c::Delivery>,
+    page: c::ActivityPage,
+    party: u64,
+) -> temper_client_domain::Domain {
+    let number = document.chip.task;
+    agent_root_for(document, tree, page, party, number)
+}
+fn agent_root_for(
+    document: c::Task,
+    tree: Option<c::Delivery>,
+    page: c::ActivityPage,
+    party: u64,
+    number: u64,
+) -> temper_client_domain::Domain {
     use jig_client::{Event as E, Up};
     use temper_client_domain::{Event, Request};
+    let mut reader = fixture_me(b"Shop");
+    reader.party.number = party;
     let limits = domain_limits();
     let env = Env { now: NO_TIME, wall: AT_EPOCH, limits };
     let mut root = temper_client_domain::unlinked(&limits, SEED);
@@ -220,7 +240,7 @@ pub fn agent_root_with_page(
         &mut root,
         &env,
         Event::Start {
-            address: temper_client_domain::Address::Task { task: TASK },
+            address: temper_client_domain::Address::Task { task: number },
             kept: List::with_capacity(0),
             with: None,
         },
@@ -242,8 +262,8 @@ pub fn agent_root_with_page(
                     },
             } => {
                 let value = match subject {
-                    c::Subject::Me => Some(c::Delivery::Me(Box::new(fixture_me(b"Shop")))),
-                    c::Subject::Task { task: TASK } => Some(c::Delivery::Task(Box::new(document.clone()))),
+                    c::Subject::Me => Some(c::Delivery::Me(Box::new(reader.clone()))),
+                    c::Subject::Task { task } if task == number => Some(c::Delivery::Task(Box::new(document.clone()))),
                     c::Subject::Tree { .. } => tree.clone(),
                     c::Subject::Task { .. }
                     | c::Subject::Chips { .. }
@@ -269,10 +289,9 @@ pub fn agent_root_with_page(
             Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
-                        down:
-                            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task: TASK }) },
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Task { task }) },
                     },
-            } => Some(Up::ReadDone {
+            } if task == number => Some(Up::ReadDone {
                 read,
                 result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(document.clone())))),
             }),

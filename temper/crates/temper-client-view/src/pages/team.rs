@@ -376,10 +376,27 @@ fn card(
             if parts.sessions {
                 sessions::draw(b, w, &facts.sessions);
             }
+            if parts.report
+                && let Some(report) = &facts.report
+            {
+                draw_report(b, w, report);
+            }
             b.close();
         }
         b.close();
     }
+    b.close();
+}
+fn draw_report(b: &mut Builder, w: &Words, report: &team::Now) {
+    b.open(Role::Region);
+    b.style(look::TEAM_REPORT);
+    let kicker = if let Some(changed) = report.changed {
+        w.say(Word::TeamReportAt, &[Hole::Name(w.session_clock(changed))])
+    } else {
+        w.say(Word::TeamReport, &[])
+    };
+    paragraph(b, &kicker, look::TEAM_KICKER);
+    draw_body(b, report);
     b.close();
 }
 fn draw_now(b: &mut Builder, w: &Words, now: &team::Now, times: &mut Times) {
@@ -391,6 +408,10 @@ fn draw_now(b: &mut Builder, w: &Words, now: &team::Now, times: &mut Times) {
         w.say(Word::TeamNow, &[])
     };
     paragraph(b, &kicker, look::TEAM_KICKER);
+    draw_body(b, now);
+    b.close();
+}
+fn draw_body(b: &mut Builder, now: &team::Now) {
     let mut list = false;
     let mut start = 0;
     for end in 0..=now.body.len() {
@@ -423,5 +444,4 @@ fn draw_now(b: &mut Builder, w: &Words, now: &team::Now, times: &mut Times) {
     if now.cut {
         text(b, Role::Paragraph, "…".as_bytes());
     }
-    b.close();
 }
