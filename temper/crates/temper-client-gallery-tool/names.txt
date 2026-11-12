@@ -373,6 +373,7 @@ task-solo-T3
 task-solo-T9
 team
 team-alone
+team-hand
 team-role
 told-cannot
 told-not-set-up

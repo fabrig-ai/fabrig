@@ -509,6 +509,22 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "team-hand",
+        heading: "Who owns what on shop",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Hand an area to a role" },
+            Part::Named { role: Role::Choice, name: "core" },
+            Part::Named { role: Role::Choice, name: "tests" },
+            Part::Named { role: Role::Choice, name: "A new area" },
+            Part::Named { role: Role::Choice, name: "Prover" },
+            Part::Named { role: Role::Choice, name: "Write one with Ask temper" },
+            Part::Named { role: Role::Button, name: "Not now" },
+            Part::Named { role: Role::Button, name: "Hand it over" },
+            Part::Absent { role: Role::Choice, name: "Prover, from the stock" },
+            Part::Absent { role: Role::Choice, name: "Porter, from the stock" },
+        ],
+    },
+    Holds {
         name: "team-role",
         heading: "Who owns what on shop",
         parts: &[
@@ -532,7 +548,9 @@ static HOLDS: [Holds; samples::N] = [
                 role: Role::Paragraph,
                 name: "A standing role · owns tests, and Anything else, since 2 November · started by you",
             },
+            Part::Named { role: Role::Button, name: "+ Hand an area to a role" },
             Part::Named { role: Role::Button, name: "Pause" },
+            Part::Named { role: Role::Button, name: "Give the area back" },
             Part::Named { role: Role::Paragraph, name: "Its Now · written at 02:41" },
             Part::Named { role: Role::Paragraph, name: "Sessions this week" },
             Part::Named { role: Role::Paragraph, name: "Sun 01:52 · running" },
@@ -580,7 +598,9 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Link, name: "Talk to it" },
             Part::Named { role: Role::Paragraph, name: "Owner · core" },
             Part::Named { role: Role::Cell, name: "21 of 40" },
+            Part::Named { role: Role::Button, name: "+ Hand an area to a role" },
             Part::Named { role: Role::Button, name: "Pause" },
+            Part::Named { role: Role::Button, name: "Give the area back" },
             Part::Named { role: Role::Paragraph, name: "Its Now · written at 02:41" },
             Part::Named { role: Role::Paragraph, name: "Sessions this week" },
             Part::Named { role: Role::Paragraph, name: "Sun 01:52 · running" },
@@ -5053,6 +5073,17 @@ fn descendants<'a>(tree: &'a skein_ui::Tree, role: Role, name: &str, sample: &st
     let start = nodes.iter().position(|node| node.id == id).expect("subtree root");
     let end = start + usize::try_from(nodes[start].size).expect("subtree span");
     &nodes[start..end]
+}
+#[test]
+fn team_hand_opens_the_sheet_with_the_first_area_and_role() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "team-hand").expect("hand-off sample");
+    let root = samples::domain(&sample);
+    let open = root.pages().hand_area().expect("hand-off sheet is open");
+    assert_eq!(open.area.as_deref(), Some(b"core".as_slice()));
+    assert_eq!(open.role, Some(52));
+    assert!(open.apply);
+    let (view, _, _) = built_root(&sample, ViewInputs::new(), &root);
+    find(view.tree(), Role::Dialog, "Hand an area to a role", sample.name);
 }
 #[test]
 #[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]

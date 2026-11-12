@@ -81,7 +81,7 @@ fn areas_parts_follow_holders_and_offered_talk() {
     assert!(!parts.areas && !parts.areas_empty);
     assert_eq!(parts.standing.as_slice(), &[52]);
 }
-fn send(f: &mut Reads, areas: team::Areas) {
+pub(super) fn send(f: &mut Reads, areas: team::Areas) {
     let (handle, watch, subject) = f.findings.last().unwrap().clone();
     let mut rows = List::with_capacity(areas.rows.len());
     for area in areas.rows.into_boxed() {

@@ -452,7 +452,7 @@ impl Standing {
         let activity = if let Some(document) = self.document(client) { Some(document.activity) } else { None };
         Some((task, activity))
     }
-    fn document<'a>(&self, client: &'a Client) -> Option<&'a c::Task> {
+    pub(super) fn document<'a>(&self, client: &'a Client) -> Option<&'a c::Task> {
         card_document(self.card, self.chosen(), self.read, client)
     }
 

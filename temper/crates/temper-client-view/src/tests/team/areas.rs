@@ -22,8 +22,9 @@ fn holder_role(number: u32) -> w::Holder {
 fn owner_task(number: u64) -> w::AreaOwner {
     w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap())
 }
-fn facts() -> Facts {
+pub(super) fn facts() -> Facts {
     Facts {
+        member: true,
         people: List::from_boxed(Box::new([
             person(true, b"Alex", HeldRole::Owner, Some(Waits::default())),
             person(false, b"Sam", HeldRole::Member, Some(Waits { questions: 1, ..Waits::default() })),
