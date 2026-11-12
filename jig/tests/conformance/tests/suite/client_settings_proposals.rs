@@ -1,7 +1,7 @@
 //! Settings proposal documents cross the client wire contract.
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_client_scripted_engine::wire;
 use jig_client_test_records::settings_proposals as values;
 use skein_lib::{Reader, Writer};
@@ -26,7 +26,7 @@ fn submitted(
     let bearer = jig_engine_clients_kit::fixtures::signed_in(&mut peer);
     let keyed = w::Keyed::new(
         limits.wire(),
-        w::KeyedParts { key: [7; 16], owner: w::Owner::Jig, version: 19, request: encoded!(ask), value: None },
+        w::KeyedParts { key: [7; 16], owner: w::Owner::Jig, version: 20, request: encoded!(ask), value: None },
     )
     .expect("keyed request");
     let socket = peer.post(b"/jig/v1/request", encoded!(&keyed), Some(&bearer));
@@ -200,7 +200,7 @@ fn a_running_choice_refusal_keeps_its_reason() {
     let answer =
         w::Final::Refused(w::Refused::new(limits.wire(), w::RefusedParts { refusal, at: None }).expect("refused"));
     let owned =
-        w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 19, record: encoded!(&answer) })
+        w::Owned::new(limits.wire(), w::OwnedParts { owner: w::Owner::Jig, version: 20, record: encoded!(&answer) })
             .expect("owned refusal");
     assert_eq!(
         translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), &limits),

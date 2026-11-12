@@ -1,5 +1,5 @@
 //! Fixed attempt admission and receiving bounds (protocol/client/README.md, 10; client/domain/client/README.md, 11).
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::Duration;
 /// Retained connector accounts have their own bound (client/domain/contract/documents.md, 3).
 pub(crate) const HOLD_ACCOUNT_BYTES: u32 = 512;
@@ -177,7 +177,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.activity_page_rows, &mut wire.proposed_task_resources, &mut wire.retained_action_batch_value,
         &mut wire.history_page_rows, &mut wire.note_acts, &mut wire.note_page_rows, &mut wire.object_page_rows,
         &mut wire.ended_page_rows, &mut wire.inbox_page_selection_some, &mut wire.inbox_page_rows,
-        &mut wire.settings_review_items, &mut wire.charter_instructions, &mut wire.charter_part_instructions, &mut wire.revision_document_items,
+        &mut wire.settings_review_items, &mut wire.overlay_instructions, &mut wire.charter_instructions, &mut wire.charter_part_instructions, &mut wire.revision_document_items,
         &mut wire.settings_document_settings,
     ]);
     #[rustfmt::skip]
@@ -198,6 +198,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.document_specification_parameters, &mut wire.document_specification_inputs,
         &mut wire.proposed_task_dependencies, &mut wire.retained_amendment_dependencies_some,
         &mut wire.amendment_state_dependencies, &mut wire.note_tasks, &mut wire.subject_chips_tasks,
+        &mut wire.overlay_documents_some, &mut wire.overlay_parts, &mut wire.overlay_alternatives_some,
         &mut wire.charter_documents, &mut wire.charter_parts, &mut wire.charter_alternatives, &mut wire.setting_model_efforts,
         &mut wire.setting_policy_projections, &mut wire.setting_policy_roles,
         &mut wire.setting_policy_requirements, &mut wire.setting_policy_permissions,

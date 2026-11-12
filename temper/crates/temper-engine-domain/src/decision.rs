@@ -75,6 +75,12 @@ pub enum Delivery {
         owner: Token,
         range: jig_domain_notes::Range,
     },
+    /// Tell a new finding holder only after the areas/triager save commits (domain/areas.md, 5).
+    FindingsOwned {
+        project: u32,
+        task: u64,
+        words: Box<[u8]>,
+    },
     /// Move a leaver's standing roles only after the saved roster commits.
     MoveStanding {
         project: u32,
@@ -469,6 +475,7 @@ impl Decision {
         let within = match &delivery {
             Delivery::Push(push) => push.payload.len() <= skein_push::PAYLOAD_BYTES,
             Delivery::Result { words, .. } => words.len() <= skein_lib::usize_of(limits.result_bytes),
+            Delivery::FindingsOwned { words, .. } => words.len() <= skein_lib::usize_of(limits.transcript_bytes),
             Delivery::Trials { rows, .. } => {
                 rows.len().saturating_mul(size_of::<temper_engine_domain_trials::Row>())
                     <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))

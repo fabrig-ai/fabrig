@@ -69,8 +69,8 @@ fn page(
                 times.next = [times.next, Some(expires)].into_iter().flatten().min();
             }
             ask::answered_lines(b, root, &answered, w, bindings);
-            let needs = session.needs(inbox, root.forge().approvals());
-            super::home_cards::cards(b, root, &needs, true, w, bindings, times);
+            let needs = session.all(inbox, root.forge().approvals());
+            super::home_cards::all(b, root, &needs, true, w, bindings, times);
         }
         b.close();
     }

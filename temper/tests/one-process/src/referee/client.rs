@@ -2,7 +2,7 @@
 pub(crate) mod cache;
 use jig_client::contract as client;
 use jig_client_protocol_link::translate;
-use jig_client_protocol_wire::v19 as wire;
+use jig_client_protocol_wire::v20 as wire;
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::{
     Reader,

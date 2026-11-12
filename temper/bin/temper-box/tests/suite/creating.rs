@@ -67,7 +67,7 @@ fn offered(frame: &Frame) -> &[u32] {
 }
 
 fn browser_frame(frame: &Frame, models: &[jig_protocol_engine_clients::Model]) -> jig_client::contract::Me {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let wire =
         jig_protocol_engine_clients::translate::owner::frame(frame, models, &w::CEILINGS).expect("stock wire offer");
     let mut writer = Writer::new(usize::try_from(wire.measure()).expect("me bytes"));
@@ -86,7 +86,7 @@ fn the_cluster_offers_every_stock_charter_but_the_trial() {
     let mut expected: Vec<_> =
         engine.charters.iter().filter(|charter| charter.number != 10).map(|charter| charter.number).collect();
     expected.sort_unstable();
-    assert_eq!(expected.len(), 8, "stock agents except the trial, including the standing role");
+    assert_eq!(expected.len(), 11, "stock agents except the trial, including the standing roles");
     assert_eq!(offered(&frame), expected);
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
     let words = jig_client::contract::Text::new(b"Hello".as_slice().into(), engine.limits.core.people.words)
@@ -104,7 +104,7 @@ fn the_cluster_offers_every_stock_charter_but_the_trial() {
 fn the_browser_receives_a_complete_stock_me_offer() {
     let mut engine = cluster_engine("browser-creating");
     // Isolate the receiver from the cluster's independently checked offer capacity.
-    engine.limits.core.documents.lines = 9;
+    engine.limits.core.documents.lines = 12;
     let frame = stock_frame(&engine);
     assert_eq!(offered(&frame).len(), engine.charters.iter().filter(|charter| charter.number != 10).count());
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
@@ -125,7 +125,7 @@ fn the_forgejo_fixture_offers_every_stock_charter_but_the_trial() {
     let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
     let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
     let engine = configured_engine(&value);
-    assert_eq!(engine.charters.len(), 9);
+    assert_eq!(engine.charters.len(), 12);
     let mut expected: Vec<_> =
         engine.charters.iter().filter(|charter| charter.number != 10).map(|charter| charter.number).collect();
     expected.sort_unstable();

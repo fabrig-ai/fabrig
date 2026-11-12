@@ -47,7 +47,7 @@ impl Side {
         }
     }
     fn send(&mut self, now: Time, request: Request) {
-        use jig_client_protocol_wire::v19 as w;
+        use jig_client_protocol_wire::v20 as w;
         use skein_lib::Reader;
         if matches!(&request, Request::CloseStream) {
             self.stream_epoch += 1;
@@ -78,7 +78,7 @@ impl Side {
         self.connections.down(now, request, &mut self.down);
     }
     fn receipts(&mut self, event: &Event) -> Vec<Receipt> {
-        use jig_client_protocol_wire::v19 as w;
+        use jig_client_protocol_wire::v20 as w;
         use skein_lib::Reader;
         let mut receipts: Vec<_> = self
             .wire
@@ -98,6 +98,7 @@ impl Side {
                         attempt: *exchange,
                         final_answer: matches!(value, w::KeyedAnswer::FinalAnswer(_)),
                         unconfigured_model: false,
+                        closed_project: false,
                         words: None,
                     });
                 }
@@ -160,7 +161,7 @@ impl Bytes {
             name: Box::new([]),
         });
         settings.served = jig_client_kit::test::list([
-            clients::Served { family: None, first: 19, last: 19 },
+            clients::Served { family: None, first: 20, last: 20 },
             clients::Served { family: Some(1), first: 1, last: 1 },
             clients::Served { family: Some(2), first: 1, last: 1 },
         ]);
@@ -513,7 +514,10 @@ impl Bytes {
             | clients::Request::Claimed { .. } => {
                 panic!("Ops fixture mints no sign-ins")
             }
-            clients::Request::LocalLink { .. } | clients::Request::LinkSignedIn | clients::Request::Closed => {}
+            clients::Request::StreamFailed { .. }
+            | clients::Request::LocalLink { .. }
+            | clients::Request::LinkSignedIn
+            | clients::Request::Closed => {}
         }
     }
     fn application(&mut self, joint: &mut Joint, request: clients::ToApplication) {

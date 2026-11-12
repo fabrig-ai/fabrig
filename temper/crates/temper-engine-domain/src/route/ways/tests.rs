@@ -555,9 +555,11 @@ fn committed_rules_and_item_overlays_feed_the_same_inputs() {
         number: 1,
         value: settings::SizedValue { size: RULE_BYTES, value: settings::Value::Rule(rule.clone()) },
     }]);
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::super::kinds::ask(
         &mut domain,
         &env,
+        &mut decision,
         0,
         connector::Ask::KeepSettings {
             revision: 2,
@@ -652,7 +654,7 @@ fn roles_fixture(
 ) -> (Domain, Env<crate::Limits>) {
     let mut config = resume_fixture::config(7);
     let mut limits = resume_fixture::limits();
-    limits.tasks.charters = 12;
+    limits.tasks.charters = 16;
     limits.templates = 6;
     let mut charters = List::uncapped();
     for number in 1..=12 {

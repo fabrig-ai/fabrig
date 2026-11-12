@@ -98,6 +98,7 @@ fn inventory_text(document: &c::SettingsDocument, vocabulary: &dyn Parts, out: &
         }
         out.put(b": ");
         match line.follows {
+            c::SettingFollows::Overlay => out.put(b"overlay"),
             c::SettingFollows::Default => {
                 out.put(b"default");
                 if let Some(last) = line.last

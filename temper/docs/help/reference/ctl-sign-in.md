@@ -2,14 +2,16 @@
 
 Kind: reference
 
-Sign in with the link the deployment printed.
+Sign in with a printed link or a service file.
 
 ## sign-in
 
 ```
 sign-in FILE
   FILE (file): a file; required. The file holding the link, or - for stdin
-Sign in with the link the deployment printed
+sign-in --service FILE
+  --service FILE: a file; required. The private file party make wrote
+Sign in with a printed link or a service file
 Prints: Your party, as me prints it
 --json: the record sign_in.
 Key: none.
@@ -17,5 +19,7 @@ It writes the token and the engine's address into DIR. A link
 signs in once, and expires; `the sign-in link was refused` (exit
 1) asks for a fresh link. With every sign-in in use, it says when
 the earliest ends and until when this link stays usable. It leaves
-the link's file as it was.
+the link's file as it was. With --service FILE, sign in as the
+service at the address FILE holds. FILE must be owner-only and
+in party make's form; otherwise exit 1 before sending anything.
 ```

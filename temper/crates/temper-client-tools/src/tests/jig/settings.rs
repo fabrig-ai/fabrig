@@ -158,6 +158,7 @@ fn a_settings_file_charter_names_documents() {
     let wire = jig_client_protocol_wire::SettingDocument::new(
         &bounds.settings,
         jig_client_protocol_wire::SettingDocumentParts {
+            overlay: None,
             setting: jig_client_protocol_wire::Setting::Charter(
                 jig_client_protocol_wire::SettingNumber::new(
                     &bounds.settings,
@@ -227,6 +228,7 @@ fn settings_show_charter_renders_its_documents() {
             let answer = read(
                 &argv,
                 c::ReadValue::Setting(Box::new(c::SettingDocument {
+                    overlay: None,
                     setting,
                     revision: 5,
                     value: Some(value.clone()),
@@ -570,6 +572,7 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
         root.serve(
             call,
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
                 setting: request.setting,
                 revision: 6,
                 value: Some(value),
@@ -617,6 +620,7 @@ fn setting_json(setting: c::Setting, value: c::SettingValue) -> Vec<u8> {
     root.serve(
         number,
         c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision: 5,
             value: Some(value),
@@ -706,6 +710,7 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
         let wire = jig_client_protocol_wire::SettingDocument::new(
             &bounds.settings,
             jig_client_protocol_wire::SettingDocumentParts {
+                overlay: None,
                 setting: jig_client_protocol_link::translate::settings::wire_setting(&setting, &bounds.settings)
                     .expect("wire selector"),
                 revision: 5,
@@ -1058,6 +1063,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
         let answer = read(
             &argv,
             c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
                 setting,
                 revision: 5,
                 value: Some(value.clone()),
@@ -1859,6 +1865,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
             root.serve(
                 call,
                 c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                    overlay: None,
                     setting,
                     revision: 6,
                     value: Some(value.clone()),
@@ -1880,6 +1887,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
                 root.serve(
                     call,
                     c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                        overlay: None,
                         setting,
                         revision: 6,
                         value: Some(value),
@@ -2152,6 +2160,10 @@ fn forge_value(kind: u32) -> Box<[u8]> {
         br#"{"items":[{"setting":{"kind":"charter-words","number":1},"set":"reviews every change"}]}"#.as_slice()
     } else if kind == 10 {
         br#"{"items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review every change."}}]}"#.as_slice()
+    } else if kind == 14 {
+        br#"{"items":[{"setting":{"kind":"project-areas","project":7},"set":{"areas":[{"name":"tests","words":"C tests","owner":{"task":42}}]}}]}"#.as_slice()
+    } else if kind == 15 {
+        br#"{"items":[{"setting":{"kind":"project-triager","project":7},"set":{"owner":{"charter":14}}}]}"#.as_slice()
     } else if kind == 3 {
         br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":6}]}"#.as_slice()
     } else if kind == 12 {
@@ -2229,6 +2241,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
         (vec!["settings", "show", "forge-charter", "1"], 3, 0, "forge-charter 1", false),
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", false),
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", true),
+        (vec!["settings", "show", "project-areas", "7"], 14, 7, "project-areas 7", false),
+        (vec!["settings", "show", "project-triager", "7"], 15, 7, "project-triager 7", false),
         (vec!["settings", "show", "project-words", "7"], 10, 7, "project-words 7", false),
         (vec!["settings", "show", "project-words", "shop"], 10, fixtures::PROJECT, "project-words", false),
         (vec!["settings", "show", "template-goal", "1"], 11, 0, "template-goal 1", false),
@@ -2289,6 +2303,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                     10 => "\"value\":{\"headline\":\"Our way\",\"lede\":\"We review every change.\"}",
                     11 => "\"design\":true,\"close_out\":true",
                     12 => "\"workflow\":\"tests.yml\"",
+                    14 => "\"owner\":{\"task\":42}",
+                    15 => "\"owner\":{\"charter\":14}",
                     _ => "\"ci\":false",
                 };
                 assert!(text.contains(expected), "{text}");
@@ -2372,6 +2388,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 10 => "We review every change.",
                 11 => "\"design\":true,\"close_out\":true",
                 12 => "\"workflow\":\"tests.yml\"",
+                14 => "\"owner\":{\"task\":42}",
+                15 => "\"owner\":{\"charter\":14}",
                 _ => "\"ci\":false",
             };
             assert!(text.contains(expected), "{text}");
@@ -2910,6 +2928,7 @@ fn serve_policy_value(root: &mut fixtures::Harness, call: u32, setting: c::Setti
     root.serve(
         call,
         c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision: 5,
             value: Some(value.clone()),
@@ -3100,6 +3119,7 @@ fn settings_show_template_resources_apply_again_unchanged() {
     let wire = jig_client_protocol_wire::SettingDocument::new(
         &bounds.settings,
         jig_client_protocol_wire::SettingDocumentParts {
+            overlay: None,
             setting: jig_client_protocol_wire::Setting::Template(
                 jig_client_protocol_wire::SettingNumber::new(
                     &bounds.settings,
@@ -3127,6 +3147,7 @@ fn settings_show_template_resources_are_readable_when_present() {
         let printed = read(
             &["settings", "show", "template", "4"],
             c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
                 setting,
                 revision: 5,
                 value: Some(c::SettingValue::Template(template)),
@@ -3166,6 +3187,7 @@ fn reference_goal_template_resources_survive_apply_and_show() {
         root.serve(
             call,
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
                 setting,
                 revision: 5,
                 value: Some(c::SettingValue::Template(template.clone())),
@@ -3206,6 +3228,7 @@ fn goal_template_wire_round_trip(file: &[u8], change: &c::ChangeSettings, templa
     let wire = w::SettingDocument::new(
         &bounds.settings,
         w::SettingDocumentParts {
+            overlay: None,
             setting: w::Setting::Template(
                 w::SettingNumber::new(&bounds.settings, w::SettingNumberParts { number: 4 }).expect("template number"),
             ),
@@ -3733,6 +3756,7 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     root.serve(
         call,
         c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision: 5,
             value: Some(value.clone()),
@@ -3769,3 +3793,6 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     let text = core::str::from_utf8(&bytes).unwrap();
     assert!(text.contains("model 4") && text.contains("GPT-6.1 Terra"), "{text}");
 }
+
+#[path = "settings_overlays.rs"]
+mod overlays;

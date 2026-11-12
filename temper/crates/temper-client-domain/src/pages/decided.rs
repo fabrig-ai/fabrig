@@ -319,7 +319,7 @@ impl Pages {
         Document::Unwatched
     }
 }
-fn wanted(root: &Domain) -> List<u32> {
+pub(super) fn wanted(root: &Domain) -> List<u32> {
     let pages = &root.pages;
     let mut wanted = List::with_capacity(u32::try_from(DECIDED_PROJECTS).expect("decision bound fits"));
     if !pages.watching {

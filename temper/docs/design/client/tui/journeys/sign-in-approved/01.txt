@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:40445                                     │
+│ Sign in this terminal to 127.0.0.1:38263                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ JCGX-RRDK, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:40445/terminal?code=JCGX-RRDK                  │
+│ SWST-HWRJ, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:38263/terminal?code=SWST-HWRJ                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:40445/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:38263/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

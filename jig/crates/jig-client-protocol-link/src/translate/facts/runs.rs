@@ -3,7 +3,7 @@ use super::retry_notice;
 use crate::Limits;
 use crate::translate::text_problem;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::{Wall, bytes};
 
 pub(crate) fn run_stage(value: &w::RunStage) -> c::RunStage {

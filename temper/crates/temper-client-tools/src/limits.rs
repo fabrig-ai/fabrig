@@ -44,12 +44,11 @@ pub fn client() -> client::Limits {
             requests,
             // A jig ask reserves this much, so the table holds `requests` asks.
             ask_bytes: requests.bytes / u64::from(requests.requests),
-            // Match the native shells' room for four projects' documents and session watches.
-            handles: 28,
-            watches: 26,
+            handles: 33, // Four findings subjects and one live-goals menu.
+            watches: 31, // Four findings subjects and one live-goals menu.
             turn_bytes: 1_048_576,
             backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(2) },
-            authority: 18, // Eighteen executor places size grants, delegation kinds and notes' scopes.
+            authority: 22, // The stock's 20 executors and two deployment charters fit whole.
             heartbeat: Duration::from_secs(30),
             reads: 32, // Sixteen inbox cards, seven decisions and nine other Home/session reads.
             parts: 16,

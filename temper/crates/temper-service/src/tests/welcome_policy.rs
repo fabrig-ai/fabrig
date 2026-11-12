@@ -141,7 +141,7 @@ fn a_fresh_init_names_the_standard_profiles() {
     for at in (1..document.len().checked_sub(1).unwrap()).step_by(2) {
         let member = document.text(document.token(at).unwrap()).expect("override name");
         assert!(
-            !member.starts_with(b"people.") && !member.starts_with(b"authority."),
+            !member.starts_with(b"people.") && (!member.starts_with(b"authority.") || member == b"authority.executors"),
             "init overrides {} instead of taking standard",
             str::from_utf8(member).unwrap()
         );
@@ -150,7 +150,10 @@ fn a_fresh_init_names_the_standard_profiles() {
         }
     }
     task_overrides.sort_unstable();
-    assert_eq!(task_overrides.as_slice(), ["tasks.inbox_bytes", "tasks.message_bytes", "tasks.result_bytes"]);
+    assert_eq!(
+        task_overrides.as_slice(),
+        ["tasks.charters", "tasks.executor_kinds", "tasks.inbox_bytes", "tasks.message_bytes", "tasks.result_bytes"]
+    );
     let (_, limits) = generated();
     assert_eq!(limits.tasks.inbox_messages, 82);
     assert_eq!(limits.tasks.message_bytes, 10_660);
@@ -209,7 +212,7 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
     let offered = project.creating.as_ref().expect("owner may start a chat");
     let core::acts::Bounds::Create { procedures, charters, .. } = &offered.within else { panic!("create bounds") };
     assert_eq!(procedures.iter().map(|procedure| procedure.code).collect::<Vec<_>>(), [2, 3, 4, 6]);
-    assert_eq!(charters.as_slice(), &[1, 2, 4, 5, 9, 11, 12, 13]);
+    assert_eq!(charters.as_slice(), &[1, 2, 4, 5, 9, 11, 12, 13, 14, 15, 16]);
     let charters = charters.as_slice().to_vec();
     for (number, (turns, seconds)) in charters.into_iter().zip([
         (64, 3600),
@@ -219,6 +222,9 @@ fn a_fresh_box_me_lists_the_stock_charters_at_fabrig_scale() {
         (4, 300),
         (64, 3600),
         (64, 3600),
+        (800, 28_800),
+        (800, 28_800),
+        (800, 28_800),
         (800, 28_800),
     ]) {
         let token = Token::new(1000 + u64::from(number));
@@ -307,7 +313,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     // Init runs the Standard profile; also prove the stricter product question.
     assert_eq!(limits.policy_bytes, 16_384);
     assert!(config.core.seed_projects.is_empty());
-    assert_eq!(config.kinds_stock.len(), 13);
+    assert_eq!(config.kinds_stock.len(), 16);
     let stock = config.core.defaults.policies.get(&1).expect("stock policy 1");
     let snapshot =
         core::policy_snapshot(&stock.policy, &stock.permissions, &stock.templates).expect("whole stock policy");
@@ -428,8 +434,8 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
         "the next welcome selection exceeds the profile's project capacity"
     );
     let bytes = people::policy_bytes(&snapshot).expect("exact joined snapshot bytes");
-    // The standing charter adds one executor place in each of four policy authorities.
-    assert_eq!(bytes, 5982);
+    // The standing charters each add an executor place in four policy authorities.
+    assert_eq!(bytes, 6078);
     std::eprintln!(
         "real init joined policy: {bytes}/8192 requested bytes, configured bound {}; profile project capacity {capacity}; adopted=2; owner=39, repositories=64 bytes each; next welcome MakeProject refuses Projects",
         limits.policy_bytes

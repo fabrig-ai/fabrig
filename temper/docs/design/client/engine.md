@@ -57,6 +57,10 @@ does for the client:
   (`forge/records.md`). temper gives it no `Mint` in standalone: the printed link and
   services' credentials are jig's own ways of signing in (jig's
   `protocol/client/sign-in.md`).
+- **A stream refused by jig's component** emits a journal line through
+  the service's operator notes and the shell's stderr. It names the
+  client's sign-in number and the queue bound or translation path and
+  reason, with no document content (jig's `protocol/client/README.md`, 5).
 - **The forge's request, decoded before the root** (jig's
   `protocol/client/README.md`, section 8). An application request of the
   family `FORGE` at `CLIENT_VERSION` is decoded by

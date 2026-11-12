@@ -153,7 +153,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::Application { request, token, owner, retention, role, person, .. } => {
-            super::applications::admitted(domain, request, token, owner, retention, role, person, env);
+            super::applications::admitted(domain, request, token, owner, retention, role, person, env, decision);
             None
         }
         core::Ask::ApplicationPartAnswered { request, outcome } => {
@@ -161,7 +161,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::Effect(ask) => {
-            forge_route::effect_ask(domain, env, connector, ask);
+            forge_route::effect_ask(domain, env, decision, connector, ask);
             None
         }
         core::Ask::Gather { section, budget } => Some(brief::GatherRequest::Gather { connector, section, budget }),

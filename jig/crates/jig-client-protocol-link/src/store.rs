@@ -1,7 +1,7 @@
 //! Durability before exchanges, and owner-versioned restoration (protocol/client/README.md, 7).
 use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::{List, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
 #[derive(Debug)]
 struct Held {
