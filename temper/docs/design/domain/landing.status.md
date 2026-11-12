@@ -10,13 +10,6 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   main's tip and its candidate, so a rule by path covers every member.
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.
-- **Not yet:** 5.2, 16: the real-process story
-  `a_turn_landing_is_found_after_a_runner_cancellation_and_restarts`
-  has no supplied passing result at three threads after update recovery.
-  The forge world covers a lost prepare found or made again and landed,
-  and a late copy's drift hold; that is not the real-Forgejo restart
-  proof. The process trial is reserved for after landing
-  [in flight: change 1708].
 
 - **Not yet:** 4.1: `with`; pin-only members; a stack of
   members in one repository, whose second member a later landing takes
