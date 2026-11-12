@@ -90,7 +90,8 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
         let directories = jig_protocol_config::Directories::working();
         let starting = crate::startup::named(&document, &directories).unwrap_err();
         let reading =
-            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+                .unwrap_err();
         for problems in [starting, reading] {
             assert_eq!(
                 crate::startup::lines(&problems).as_ref(),
@@ -109,7 +110,8 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     );
     let directories = jig_protocol_config::Directories::working();
     let starting = crate::startup::named(&document, &directories).unwrap_err();
-    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .unwrap_err();
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),

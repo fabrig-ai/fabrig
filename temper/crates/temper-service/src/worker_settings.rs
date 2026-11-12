@@ -219,9 +219,8 @@ pub(crate) fn git_component(limits: limits::GitComponent) -> temper_worker_proto
     }
 }
 
-/// The worker's agent profile, which the binary reads from smith's
-/// agent configuration, as jig's reference service's `Agent`
-/// (`lib.rs:36-41`); 09 builds the worker's host half from it.
+/// The worker's host profile and its declaration to the engine
+/// (temper/docs/design/protocol/services.md, 3 and 5).
 #[derive(Debug)]
 pub struct Agent {
     /// Receiving run bounds, including the protocol's measured schema costs.
@@ -240,9 +239,6 @@ const _: () = assert!(
 );
 
 impl Agent {
-    pub(crate) fn charter_bytes(&self) -> u64 {
-        self.host_limits.charter_bytes
-    }
     pub(crate) fn tool_payload(&self) -> u32 {
         self.tool_payload
     }
@@ -258,17 +254,30 @@ impl Agent {
     pub(crate) fn outcome_bytes(&self) -> u64 {
         self.host_limits.outcome_bytes
     }
-    pub(crate) fn run_limits(&self) -> &smith_domain_run::Limits {
-        &self.run_limits
-    }
-    pub(crate) fn bounds(&self) -> &jig_domain_link::Bounds {
-        &self.bounds
-    }
-    pub(crate) fn programs(&self) -> &[settings::Program] {
-        &self.programs
-    }
-    pub(crate) fn resolves_endpoint(&self, name: &[u8]) -> bool {
-        self.endpoints.resolve(name).is_some()
+    /// The allowances and names checked by the engine (protocol/services.md, 3).
+    #[must_use]
+    pub fn declaration(&self) -> temper_service_core::agent::Declaration {
+        let mut programs =
+            skein_lib::List::with_capacity(u32::try_from(self.programs.len()).expect("bounded program declarations"));
+        for program in &self.programs {
+            programs.push(program.adapter.name().into()).expect("one name per program");
+        }
+        let mut endpoints = skein_lib::List::with_capacity(self.endpoints.entries().len());
+        for endpoint in self.endpoints.entries() {
+            endpoints.push(endpoint.name.clone()).expect("one name per endpoint");
+        }
+        temper_service_core::agent::Declaration {
+            charter_bytes: self.host_limits.charter_bytes,
+            tool_payload: self.tool_payload,
+            host_ask_input: self.limits.bodies.host_ask_input,
+            host_reply_text: self.limits.bodies.host_reply_text,
+            turn_body: self.limits.bodies.turn_body,
+            outcome_bytes: self.host_limits.outcome_bytes,
+            run_limits: self.run_limits,
+            programs: programs.into_boxed(),
+            endpoints: endpoints.into_boxed(),
+            bounds: self.bounds.clone(),
+        }
     }
 }
 

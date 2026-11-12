@@ -6614,6 +6614,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-world",
+ "smith-domain-run",
 ]
 
 [[package]]

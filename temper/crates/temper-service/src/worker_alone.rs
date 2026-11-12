@@ -34,7 +34,7 @@ impl Service {
         worker_settings::prepare(settings, agent, limits)?;
         let worker_operations = worker_settings::configured_operations(&limits.git_component)
             .ok_or(worker_settings::problem(b"limits", What::Bound))?;
-        let operations = crate::system::worker_alone_operations(&io_limits, worker_operations)
+        let operations = Process::operations_for(&io_limits, worker_operations)
             .ok_or(worker_settings::problem(b"limits", What::Bound))?;
         Ok(Self {
             worker: Worker::new(settings, agent, limits, files, runtime, seed)?,
