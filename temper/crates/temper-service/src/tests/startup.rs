@@ -1372,11 +1372,7 @@ fn landing_check_timeout_refuses_out_of_range_at_its_member() {
 #[test]
 fn landing_attempts_defaults_and_keeps_endpoints_by_queue_and_turn() {
     for by in ["queue", "turn"] {
-        for (setting, expected) in [
-            ("", 3),
-            (r#""landing_attempts":1,"#, 1),
-            (r#""landing_attempts":255,"#, 255),
-        ] {
+        for (setting, expected) in [("", 3), (r#""landing_attempts":1,"#, 1), (r#""landing_attempts":255,"#, 255)] {
             let projects = format!(r#"[{{"project":1,"by":"{by}",{setting}"gates":[]}}]"#);
             assert_landing_projects_start(projects.as_bytes());
             let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
@@ -1397,11 +1393,7 @@ fn landing_attempts_refuses_invalid_values_at_its_member_by_queue_and_turn() {
             (r#""3""#, "wrong value kind"),
         ] {
             let projects = format!(r#"[{{"project":1,"by":"{by}","landing_attempts":{value}}}]"#);
-            let document = fixtures::with(
-                &fixtures::document(),
-                b"application.landing.projects",
-                projects.as_bytes(),
-            );
+            let document = fixtures::with(&fixtures::document(), b"application.landing.projects", projects.as_bytes());
             let Err(problems) = fixtures::start(
                 &document,
                 &config::Directories::working(),

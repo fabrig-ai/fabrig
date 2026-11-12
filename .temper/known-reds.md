@@ -7,6 +7,5 @@ Failing on this goal's branch and no live change's; delivery checks pass them. E
 - test temper-real-loop-world::suite terminal::up_down_and_the_page_up_line_read_the_conversation
 - test temper-real-loop-world::suite terminal::a_person_at_the_terminal_reads_a_run_of_calls
 - test temper-real-loop-world::suite lock::two_acts_on_one_directory_take_its_lock_in_turn
-- test temper-box-shell tests::configuration::the_pages_configuration_are_what_the_tables_render
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/standing.rs
 - lint temper-client-view unfulfilled_lint_expectations temper/crates/temper-client-view/src/pages/home_cards.rs
