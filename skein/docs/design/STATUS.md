@@ -1,9 +1,11 @@
 # Status
 
-2026-11-11. Where skein's code lags or departs from its design, and its
+2026-11-12. Where skein's code lags or departs from its design, and its
 design from its drafts, from the status files below. A job's log reads
 by its start as well as its end, in both dialects (`forge/README.status.md`,
-3.2). The full-screen
+3.2). A terminal lent to a child, and a child given the service's own
+descriptors, are being built (`ui/screen.status.md`, 8;
+`runtime/shell.status.md`, 6.3; `runtime/io/processes.status.md`, 1). The full-screen
 shell's renderer, keys, drawing and simulated terminal are built, with
 panic restoration and simulated resizes. Rules, border-end titles, bands,
 options menus, marks, unlabelled fields, a token's focused value's

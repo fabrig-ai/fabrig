@@ -269,6 +269,10 @@ io keeps the contract of a stream (../lib.md, 7) as the side below:
   crossed `End`. An answer
   already on its way may still arrive, and the side above drops it. No
   other `Bytes` or `Room` come without a demand.
+- **`Io::cancel_read` pauses a readable pipe:** it withdraws the
+  demand and cancels its read in flight, `Io::read_cancelled` true once both
+  settle (bytes that win the race meet the old demand first); repeated
+  withdrawal is inert, and the next `Stream` demand starts reading again.
 - **`End` comes once nothing io holds can meet a demand:** with one
   outstanding, when it can never be met; with none, only when nothing is
   held. It comes once, and ends reading only. A read that crosses it is
