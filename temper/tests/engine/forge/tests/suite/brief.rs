@@ -6,6 +6,8 @@ use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{REPO, World, changes, translate};
 
+mod cutoff;
+
 const SECTION: Token = Token::new(245);
 const BYTES: u32 = 2048;
 
@@ -309,7 +311,7 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
                 format!("Head: {pinned}"),
                 "Title: Change".into(),
                 "Description".into(),
-                "[files omitted from page 1: past forge.client.answer_bytes (65536): at least 65537 bytes; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]".into(),
+                "[files omitted from page 1: past forge.client.answer_bytes (65536): at least 65537 bytes; the pull changes 1 files; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]".into(),
             ] {
                 assert!(text.contains(&context), "missing context {context}: {text}");
             }
