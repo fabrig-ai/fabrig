@@ -9,8 +9,6 @@ pub struct Open {
     pub name: Box<[u8]>,
     pub sent: Option<Key>,
     pub failed: Option<Outcome>,
-    /// Kept across refusals so another press uses the same request name.
-    pub key: Option<Key>,
 }
 /// The same ownership that offers Rename offers deletion (client/pages/settings.md, 1).
 #[must_use]
@@ -29,7 +27,7 @@ pub(super) fn open(pages: &mut Pages, client: &Client, project: u32) {
     let Some(row) = super::switcher::owned(pages.me(client), Some(project)) else { return };
     let name = row.name.bytes().into();
     pages.confirm = None;
-    pages.deleting = Some(Open { project, name, sent: None, failed: None, key: None });
+    pages.deleting = Some(Open { project, name, sent: None, failed: None });
 }
 pub(super) fn confirm(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
     let Some(open) = &pages.deleting else { return };
@@ -45,15 +43,8 @@ pub(super) fn confirm(pages: &mut Pages, client: &Client, out: &mut Queue<Reques
         return;
     };
     let open = pages.deleting.as_mut().expect("open deletion sheet");
-    let key = match open.key {
-        Some(key) => key,
-        None => {
-            pages.serial = pages.serial.checked_add(1).expect("page keys fit");
-            let key = Key { asker: crate::owner::Owner::Pages.asker(), number: pages.serial };
-            open.key = Some(key);
-            key
-        }
-    };
+    pages.serial = pages.serial.checked_add(1).expect("page keys fit");
+    let key = Key { asker: crate::owner::Owner::Pages.asker(), number: pages.serial };
     open.sent = Some(key);
     open.failed = None;
     out.push(Request::Client(jig_client::Event::Send {

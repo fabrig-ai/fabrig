@@ -791,6 +791,7 @@ pub enum Word {
     CreateProject,
     NoProjectYet,
     ProjectNotYours,
+    ProjectDeleted,
     NoProjectLine,
     ProjectName,
     NoProjectSetUp,
@@ -1781,7 +1782,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2335;
+const PHRASES: u32 = 2336;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1808,10 +1809,10 @@ const PHRASES: u32 = 2335;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4198;
+const SEGMENTS: u32 = 4201;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56738;
-const ALL: [Word; 1650] = [
+const ENGLISH_BYTES: u32 = 56759;
+const ALL: [Word; 1651] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2574,6 +2575,7 @@ const ALL: [Word; 1650] = [
     Word::CreateProject,
     Word::NoProjectYet,
     Word::ProjectNotYours,
+    Word::ProjectDeleted,
     Word::NoProjectLine,
     Word::ProjectName,
     Word::NoProjectSetUp,
@@ -4265,6 +4267,7 @@ impl Word {
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
             Self::ProjectNotYours => 2201,
+            Self::ProjectDeleted => 5675,
             Self::NoProjectLine => 2197,
             Self::ProjectName => 2198,
             Self::NoProjectSetUp => 2199,
@@ -6183,6 +6186,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::CreateProject => (&[b"Create"], &[]),
         Word::NoProjectYet => (&[b"No project yet"], &[]),
         Word::ProjectNotYours => (&[b"Project ", b" is not one of yours."], &[Number]),
+        Word::ProjectDeleted => (&[b"Project ", b" was deleted."], &[Number]),
         Word::NoProjectLine => (&[b"Make your first one, or ask an owner to add you to theirs."], &[]),
         Word::ProjectName => (&[b"Project name"], &[]),
         Word::NoProjectSetUp => (&[b"Setting temper up makes your first project."], &[]),
