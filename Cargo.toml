@@ -66,6 +66,7 @@ members = [
     "skein/testing/skein-codegen",
     "skein/testing/skein-conformance",
     "skein/testing/skein-browser",
+    "skein/testing/skein-browser-rig",
     "skein/testing/skein-echo-client",
     "skein/testing/skein-fake-channel",
     "skein/testing/skein-protocol-kit",
@@ -450,6 +451,7 @@ skein-fail-stop = { path = "skein/crates/skein-fail-stop" }
 skein-sim = { path = "skein/crates/skein-sim" }
 skein-conformance = { path = "skein/testing/skein-conformance" }
 skein-browser = { path = "skein/testing/skein-browser" }
+skein-browser-rig = { path = "skein/testing/skein-browser-rig" }
 skein-heap = { path = "skein/testing/skein-heap" }
 skein-scratch = { path = "skein/testing/skein-scratch" }
 skein-echo-domain = { path = "skein/examples/echo/domain" }

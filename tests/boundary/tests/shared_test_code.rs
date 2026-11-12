@@ -35,21 +35,6 @@ const EXCEPTIONS: &[Exception] = &[
         until: "G8: smith/testing/smith-end-to-end-kit",
     },
     Exception {
-        package: "skein-browser-world",
-        path: "skein/tests/browser/tests/support",
-        until: "G8: skein/testing/skein-browser-rig",
-    },
-    Exception {
-        package: "skein-browser-world",
-        path: "skein/tests/browser/src/pages.rs",
-        until: "G8: skein/testing/skein-browser-rig",
-    },
-    Exception {
-        package: "temper-real-loop-world",
-        path: "temper/tests/real-loop/tests/support/mod.rs",
-        until: "G8: the world's library's terminal module",
-    },
-    Exception {
         package: "temper-client-shell-terminal",
         path: "temper/crates/temper-client-shell-terminal/tests/support/world.rs",
         until: "its area, when it next works on its library's tests (tools/crates/design.md, 3.2)",
