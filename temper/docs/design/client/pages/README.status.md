@@ -2,7 +2,7 @@
 
 2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** `Talk { project, task }`'s row: no address, page or path.
+- **Not yet:** `Talk { project, task }`'s row: no address, page or path [in flight: change 2024].
 
 
 - **Not yet:** `Work { project, filter }`'s row: the subject `drafts` is
