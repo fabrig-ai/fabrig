@@ -95,6 +95,12 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         self.outcome("triage", result, now);
         let result = self.passes();
         self.outcome("passes", result, now);
+        let result = home
+            .transact(|ledger| {
+                Ok(crate::requests::step(&home, ledger, &mut self.processes, &self.environment, now.wall))
+            })
+            .and_then(|result| result);
+        self.outcome("requests", result, now);
         let result = home.transact(|ledger| {
             ledger.waiting_lines(home.configuration.bounds.build_wait, now.wall, &home.configuration.owner);
             Ok(())

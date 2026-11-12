@@ -3,13 +3,16 @@ use crate::{Exit, Refusal, refused};
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
-    fs::File,
+    fs::{self, File, OpenOptions},
+    io::{BufRead, BufReader, Write},
     os::unix::{
         ffi::OsStrExt,
+        fs::OpenOptionsExt,
         process::{CommandExt, ExitStatusExt},
     },
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
+    time::Duration,
 };
 
 pub type Environment = Vec<(Box<[u8]>, Box<[u8]>)>;
@@ -211,7 +214,15 @@ pub enum Signal {
     Term,
     Kill,
 }
+/// A bounded deployment command's answer, separated from its diagnostic stderr.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CommandAnswer {
+    pub exit: Exit,
+    pub last_stdout: Option<String>,
+}
 pub trait Processes {
+    /// Run to exit with closed stdin, keeping both streams at `command.output`.
+    fn run(&mut self, command: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal>;
     fn start(&mut self, command: &ProcessCommand) -> Result<u64, Refusal>;
     fn poll(&mut self, process: u64) -> Result<Option<Exit>, Refusal>;
     fn signal(&mut self, process: u64, signal: Signal) -> Result<(), Refusal>;
@@ -228,6 +239,76 @@ impl RealProcesses {
     }
 }
 impl Processes for RealProcesses {
+    fn run(&mut self, request: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal> {
+        let (program, arguments) = request.arguments.split_first().ok_or_else(|| refused("command needs a program"))?;
+        // Files drain both streams without pipes filling while we wait. Only stdout
+        // supplies the answer; the output keeps stderr followed by stdout.
+        let stdout_path = request.output.with_extension("stdout");
+        let mut run = || -> Result<CommandAnswer, Refusal> {
+            let stdout = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o600)
+                .open(&stdout_path)
+                .map_err(|why| refused(format!("stdout: {why}")))?;
+            let mut output = OpenOptions::new()
+                .write(true)
+                .read(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o600)
+                .open(&request.output)
+                .map_err(|why| refused(format!("output: {why}")))?;
+            let mut command = Command::new(program);
+            captured(&mut command, &request.environment);
+            let mut child = command
+                .args(arguments)
+                .current_dir(&request.directory)
+                .stdin(Stdio::null())
+                .stdout(stdout)
+                .stderr(output.try_clone().map_err(|why| refused(format!("output: {why}")))?)
+                .process_group(0)
+                .spawn()
+                .map_err(|why| refused(format!("{program}: {why}")))?;
+            let clock = skein_shell::Clock::default();
+            let started = clock.now().now.as_nanos();
+            let exit = loop {
+                if let Some(status) = child.try_wait().map_err(|why| refused(format!("{program}: {why}")))? {
+                    break status.code().map_or_else(|| Exit::Signal(status.signal().unwrap_or(0)), Exit::Code);
+                }
+                if clock.now().now.as_nanos().saturating_sub(started) >= seconds.saturating_mul(1_000_000_000) {
+                    self.signal(u64::from(child.id()), Signal::Kill)?;
+                    child.wait().map_err(|why| refused(format!("{program}: {why}")))?;
+                    break Exit::Bound;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            let mut stdout = BufReader::new(File::open(&stdout_path).map_err(|why| refused(format!("stdout: {why}")))?);
+            let mut last = None;
+            let mut line = Vec::new();
+            loop {
+                line.clear();
+                if stdout.read_until(b'\n', &mut line).map_err(|why| refused(format!("stdout: {why}")))? == 0 {
+                    break;
+                }
+                output.write_all(&line).map_err(|why| refused(format!("output: {why}")))?;
+                if !String::from_utf8_lossy(&line).trim().is_empty() {
+                    last = Some(line.clone());
+                }
+            }
+            let last_stdout = last.map(|line| String::from_utf8_lossy(&line).trim_end_matches(['\r', '\n']).to_owned());
+            Ok(CommandAnswer { exit, last_stdout })
+        };
+        let result = run();
+        let cleanup = fs::remove_file(&stdout_path);
+        match cleanup {
+            Ok(()) => (),
+            Err(why) if why.kind() == std::io::ErrorKind::NotFound => (),
+            Err(why) => return Err(refused(format!("stdout: {why}"))),
+        }
+        result
+    }
     fn start(&mut self, request: &ProcessCommand) -> Result<u64, Refusal> {
         let (program, arguments) = request.arguments.split_first().ok_or_else(|| refused("command needs a program"))?;
         let input = File::open(&request.stdin).map_err(|why| refused(format!("stdin: {why}")))?;

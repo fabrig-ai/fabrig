@@ -9,7 +9,10 @@ use std::{
 };
 use temper_qa_tool::{
     Exit, Home, Ledger, Refusal,
-    faces::{ClockFace, Commit, Entry, Environment, GitFace, Moment, ProcessCommand, Processes, Signal},
+    faces::{
+        ClockFace, CommandAnswer, Commit, Entry, Environment, GitFace, Moment, ProcessCommand, Processes,
+        RealProcesses, Signal,
+    },
     runner::Run,
 };
 
@@ -189,6 +192,8 @@ pub struct Agents {
     pub commands: Vec<ProcessCommand>,
     pub notifications: Vec<Vec<u8>>,
     pub signals: Vec<(u64, Signal)>,
+    pub bounded: Vec<(ProcessCommand, u64)>,
+    pub command_bound: bool,
     processes: BTreeMap<u64, Process>,
 }
 impl Agents {
@@ -197,6 +202,13 @@ impl Agents {
     }
 }
 impl Processes for Agents {
+    fn run(&mut self, command: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal> {
+        self.bounded.push((command.clone(), seconds));
+        if self.command_bound {
+            return Ok(CommandAnswer { exit: Exit::Bound, last_stdout: None });
+        }
+        RealProcesses::new(command.environment.clone()).run(command, seconds)
+    }
     fn start(&mut self, command: &ProcessCommand) -> Result<u64, Refusal> {
         self.commands.push(command.clone());
         assert!(command.stdin.is_file());
@@ -372,8 +384,10 @@ impl World {
         Self { scratch, home }
     }
     pub fn start(&self, git: Git, agents: &[Agent]) -> Loop {
+        self.start_with_environment(git, agents, vec![(b"CAPTURED".as_slice().into(), b"kept".as_slice().into())])
+    }
+    pub fn start_with_environment(&self, git: Git, agents: &[Agent], environment: Environment) -> Loop {
         let processes = Agents { next: agents.iter().copied().collect(), ..Agents::default() };
-        let environment: Environment = vec![(b"CAPTURED".as_slice().into(), b"kept".as_slice().into())];
         Run::start(self.home.clone(), git, processes, Clock::default(), environment).expect("run")
     }
     pub fn ledger(&self) -> Ledger {

@@ -16,12 +16,13 @@ mod pass_files;
 mod passes;
 mod recording;
 mod report;
+mod requests;
 pub mod runner;
 mod text;
 pub mod watch;
 
 pub use case::{CaseInput, Step};
-pub use cli::{HOME, SESSION, TABLE, main};
+pub use cli::{AREA, HOME, SESSION, TABLE, main};
 pub use config::{Agent, Bounds, Configuration, Git, RequestConfiguration};
 pub use findings::{Check, Finding, FindingAnswer, FindingInput, FindingState, Note};
 pub use home::Home;
