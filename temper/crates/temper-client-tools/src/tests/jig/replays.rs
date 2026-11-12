@@ -261,7 +261,7 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["revision", "restore", "4", "--key", "restore-4"],
     &["project", "fund", "1", "200", "--key", "fund"],
     &["project", "amend", "1", "--visibility", "public", "--key", "visibility"],
-    &["project", "remove", "1", "--key", "drop-1"],
+    &["project", "delete", "1", "--key", "drop-1"],
     &["forge", "setup", "3", "--key", "setup"],
     &["forge", "connect", "3", "github", "--key", "connect"],
     &["forge", "replace", "3", "file", "--key", "replace"],

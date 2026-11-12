@@ -66,7 +66,7 @@ you can change them as any setting (temper help settings).
   no confirmation, or Delete on How work runs in the client, confirmed
   by its name; the playground's reset deletes `Demo`. ctl can delete a
   fresh store's default project too. An owner's deletion is refused while
-  it has live tasks, naming their live roots in jig's words:
+  it has live tasks, naming their live roots in the engine's words:
   `project delete: This project has live tasks; end them first: 12, 15`.
   Close its chats or cancel its roots, wait for them to end, then use a new
   key: the refused key keeps its refusal. Deletion takes no new work at

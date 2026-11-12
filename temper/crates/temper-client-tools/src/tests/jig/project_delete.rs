@@ -23,15 +23,16 @@ fn me(chat: bool, name: &[u8]) -> c::Me {
 
 #[test]
 fn project_delete_builds_the_ask_from_the_call_alone() {
-    for (selector, chat, listed, expected) in [
-        ("3", true, true, b"deleted: project 3, fabrig\n".as_slice()),
-        ("fabrig", false, true, b"deleted: project 3, fabrig\n".as_slice()),
-        ("3", false, true, b"deleted: project 3, fabrig\n".as_slice()),
-        ("3", false, false, b"deleted: project 3\n".as_slice()),
+    for (selector, chat, name, expected) in [
+        ("3", true, Some(b"fabrig".as_slice()), b"deleted: project 3, fabrig\n".as_slice()),
+        ("fabrig", false, Some(b"fabrig".as_slice()), b"deleted: project 3, fabrig\n".as_slice()),
+        ("3", false, Some(b"fabrig".as_slice()), b"deleted: project 3, fabrig\n".as_slice()),
+        ("3", true, Some(b"".as_slice()), b"deleted: project 3\n".as_slice()),
+        ("3", false, None, b"deleted: project 3\n".as_slice()),
     ] {
         let mut root = f::signed_in(f::PARTY);
-        let mut membership = me(chat, b"fabrig");
-        if !listed {
+        let mut membership = me(chat, name.unwrap_or(b""));
+        if name.is_none() {
             membership.projects = List::with_capacity(0);
         }
         root.deliver(c::Delivery::Me(Box::new(membership)));

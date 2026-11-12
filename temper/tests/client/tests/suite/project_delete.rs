@@ -64,8 +64,5 @@ fn an_owner_ends_live_work_deletes_the_project_and_replays_the_answer() {
     assert!(shown.stdout.is_empty());
     assert_eq!(shown.stderr.as_ref(), b"project 1 was deleted\n");
 
-    assert_eq!(
-        text(&mut world, replay, &[b"project", b"delete", b"1", b"--key", b"drop-2"]),
-        "deleted: project 1\n"
-    );
+    assert_eq!(text(&mut world, replay, &[b"project", b"delete", b"1", b"--key", b"drop-2"]), "deleted: project 1\n");
 }
