@@ -49,7 +49,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     for (name, count) in [
         ("core.policy_bytes", 8192),
         // Holds charter 5's resolved models, shared instructions and four parts.
-        ("core.run_bytes", 16_384),
+        ("core.run_bytes", 32_768),
         ("authority.grants", 16),
         // The standing charters, closer procedure and close job are delegation targets.
         ("authority.executors", 21),
@@ -82,7 +82,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
     // The creation offer carries nine stock charters and four procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 11.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value["application"] = serde_json::json!({
@@ -320,7 +320,7 @@ mod tests {
         for charter in &engine.charters {
             assert!(u64::from(charter.policy.turns) <= turns, "charter {} exceeds agent turns", charter.number);
         }
-        assert_eq!(engine.charters.len(), 13);
+        assert_eq!(engine.charters.len(), 12);
         assert_eq!(
             usize::try_from(engine.limits.core.documents.lines).expect("line capacity"),
             engine.charters.iter().filter(|charter| charter.number != 10).count()

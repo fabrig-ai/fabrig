@@ -200,20 +200,20 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         reason,
     } = row.into_parts();
     if number == 0 || !d::settings::words_fit(&title, 200) || !d::findings::body_fits(&body) {
-        return Err(Undecodable);
+        return Err(Undecodable::Malformed);
     }
     if let Some(words) = &why
         && !d::settings::words_fit(words, 200)
     {
-        return Err(Undecodable);
+        return Err(Undecodable::Malformed);
     }
     if let Some(words) = &reason
         && !d::findings::reason_fits(words)
     {
-        return Err(Undecodable);
+        return Err(Undecodable::Malformed);
     }
     if why.is_some() != hander.is_some() {
-        return Err(Undecodable);
+        return Err(Undecodable::Malformed);
     }
     Ok(d::Finding {
         project,

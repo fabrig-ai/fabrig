@@ -10,9 +10,9 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
 
 ## 1. In one page
 
-- **An area** (section 2) is a project's setting, kind 12: a name, what
+- **An area** (section 2) is a project's setting, kind 14: a name, what
   it covers in words, and its owner.
-- **The triager** (section 6) is a project's setting too, kind 13: the
+- **The triager** (section 6) is a project's setting too, kind 15: the
   owner of what has no area.
 - **An owner** (section 3) is a task, a party, a role of the project's
   people, or the standing role a charter runs in the project.
@@ -38,7 +38,7 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   the area's owner as its scope ("vsr's tests: the C test suite under
   `test/`, its flakes and the tiers' reds").
 - **Its owner:** an owner (section 3).
-- **A project's areas** are the value of kind 12, at most 16, in the
+- **A project's areas** are the value of kind 14, at most 16, in the
   order their owners wrote them
   (`../protocol/configuration/settings.md`, 2). With none, every
   finding is the triager's.
@@ -83,7 +83,7 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   3. else role 0, the project's owners.
 - **Always exactly one,** and never stored: the forge keeps a finding's
   area, and the root reads the rule at each act and each read, so a
-  change of kind 12 or 13, a task's end or a member's leaving moves the
+  change of kind 14 or 15, a task's end or a member's leaving moves the
   findings it concerns in the same decision, with nothing to reconcile.
 - **A project with no standing role and no setting** keeps its people
   as the owners of everything, as at Pair: every finding is role 0's.
@@ -127,7 +127,7 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   `findings` read with `mine` (`../client/forge/records.md`), each a card
   (`../client/pages/needs-you.md`, 1). Nothing is sent: the card
   leaves when the finding leaves `new` or stops being theirs.
-- **An owner changed** by a save of kind 12 or 13: in the decision after
+- **An owner changed** by a save of kind 14 or 15: in the decision after
   the one that saved it, each task holding open findings, `new` or
   `backlog`, that it didn't hold before the save hears one news,
   `Findings on project P are yours now: N1, N2, …`, their numbers in
@@ -143,7 +143,7 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   item. A project changes how it routes by changing words, the areas'
   or the triager's rules.
 - **A way names it** (`../protocol/configuration/settings.md`, 8):
-  Draft first's items set kind 13 to `charter 14`, the stock's triager
+  Draft first's items set kind 15 to `charter 14`, the stock's triager
   (`../protocol/configuration/stock.md`), and the way brings that
   standing role, started with it by the way's act, with the stock's
   weekly budget.
@@ -175,8 +175,8 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   task as news with no agent's run, and a person owner's Needs you
   listing it; one filed with none reaching the triager; a hand-off
   reaching the area's owner with its why; a finding no area fits staying
-  with the triager; an act by one who doesn't own it refused; kinds 12
-  and 13 judged; a save moving open findings and telling their new
+  with the triager; an act by one who doesn't own it refused; kinds 14
+  and 15 judged; a save moving open findings and telling their new
   owners.
 - **Fuzzy:** random areas, triagers, owners standing or not, filings,
   hand-offs and saves: after each step every finding has exactly one

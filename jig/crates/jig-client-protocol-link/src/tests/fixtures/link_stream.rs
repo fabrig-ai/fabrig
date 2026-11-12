@@ -283,6 +283,54 @@ impl Harness {
     }
 }
 
+pub const EXCHANGE_ROOM: u32 = 8;
+impl Harness {
+    pub fn admitted_stream() -> Self {
+        let limits = Limits::new(*limits().client(), EXCHANGE_ROOM).unwrap();
+        let mut harness = Self::new(&limits);
+        harness.open(WATCH, frame_subject());
+        harness.stream_record(&hello_event(HEARTBEAT));
+        let (exchange, _) = harness.opening();
+        harness.answer(exchange, &open_answer(&w::OpenAnswer::Admitted));
+        harness.clear();
+        harness
+    }
+    pub fn fill_reads(&mut self) -> Queue<Token> {
+        let mut exchanges = Queue::uncapped();
+        while self.link.has_exchange_room() {
+            self.link.step(
+                Time::ZERO,
+                Event::Read { read: Token::new(100), what: Readable::Jig(history_read()) },
+                &mut self.out,
+            );
+            let Some(Request::Exchange { exchange, message: Message::Read(_), .. }) = self.out.pop() else {
+                panic!("one read fills one exchange");
+            };
+            exchanges.push(exchange);
+        }
+        exchanges
+    }
+    pub fn assert_no_watch_exchange(&self) {
+        for request in &self.out {
+            if let Request::Exchange { message: Message::Watch(_) | Message::Unwatch(_), .. } = request {
+                panic!("no watch exchange: {request:?}");
+            }
+        }
+    }
+    pub fn unwatching(&self) -> (Token, u64) {
+        let mut found = None;
+        for request in &self.out {
+            if let Request::Exchange { exchange, message: Message::Unwatch(bytes), .. } = request {
+                assert!(found.is_none(), "one closing exchange");
+                let close = w::WatchClose::decode(limits().wire(), &mut Reader::new(bytes)).unwrap();
+                assert_eq!(close.stream(), &STREAM);
+                found = Some((*exchange, close.watch()));
+            }
+        }
+        found.expect("closing exchange")
+    }
+}
+
 pub fn not_served() -> w::NotServed {
     let lim = *limits().wire();
     let owner = w::Owner::Family(w::Family::new(&lim, w::FamilyParts { number: 19 }).unwrap());

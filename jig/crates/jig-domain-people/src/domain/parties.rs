@@ -188,6 +188,8 @@ pub(super) fn make_service(
         | Ask::AnswerPerson { .. }
         | Ask::Move { .. }
         | Ask::DecideProposal { .. }
+        | Ask::Talk { .. }
+        | Ask::Leave { .. }
         | Ask::Say { .. }
         | Ask::AnswerQuestion { .. }
         | Ask::Amend { .. }

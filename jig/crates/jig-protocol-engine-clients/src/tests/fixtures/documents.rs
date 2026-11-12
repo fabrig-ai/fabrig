@@ -145,6 +145,8 @@ pub fn hold() -> d::HoldLine {
 }
 pub fn task_with_hold() -> d::Task {
     d::Task {
+        talk: None,
+        session: None,
         dependency_facts: List::with_capacity(0),
         kept_account: None,
         run_wait: None,

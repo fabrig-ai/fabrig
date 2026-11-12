@@ -20,6 +20,8 @@ use skein_lib::{Id, List};
 #[must_use]
 pub const fn act_phrase(act: ActKind) -> JigPhrase {
     match act {
+        ActKind::Talk => JigPhrase::ActTalk,
+        ActKind::Leave => JigPhrase::ActLeave,
         ActKind::Message => JigPhrase::ActWrite,
         ActKind::Answer => JigPhrase::ActAnswer,
         ActKind::Take => JigPhrase::ActTake,

@@ -10,9 +10,7 @@ use skein_lib::{Decimal, Duration, List, Map, Writer};
 use temper_engine_domain as domain;
 use temper_protocol_worker_wire as payload;
 
-pub(super) fn at(index: usize, path: Path) -> Path {
-    path.child(Segment::Index(u32::try_from(index).expect("bounded configuration")))
-}
+pub(super) use temper_service_core::startup::{against, at, call_answer, own, short};
 fn charter_path(engine: &config::Engine, index: usize) -> Path {
     let number = Decimal::of(u64::from(engine.charters.get(index).expect("checked charter index").number));
     let mut name = Writer::new(8_usize.checked_add(number.as_bytes().len()).expect("setting name fits"));
@@ -25,12 +23,9 @@ fn charter_path(engine: &config::Engine, index: usize) -> Path {
 pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mut Problems) {
     for (index, charter) in engine.charters.iter().enumerate() {
         if let Err(short) = host.check(charter.number, &charter.policy) {
-            problems.push(charter_path(engine, index), What::Room(short));
+            problems.push(charter_path(engine, index), What::Half(crate::startup::EngineWhat::Room(short)));
         }
     }
-}
-pub(super) fn own(name: &[u8]) -> Path {
-    Path::root().member(b"application").member(b"limits").member(b"overrides").member(name)
 }
 /// The binary's stock fits before any listener opens (protocol/configuration/stock.md).
 /// The caller selects `Given::Stock`; worlds size their own defaults.
@@ -43,12 +38,9 @@ pub(crate) fn stock(engine: &config::Engine, problems: &mut Problems) {
     {
         problems.push(
             Path::root().member(b"engine").member(b"limits").member(b"overrides").member(floor.limit),
-            What::Stock(floor),
+            What::Half(crate::startup::EngineWhat::Stock(floor)),
         );
     }
-}
-pub(super) fn against(problems: &mut Problems, name: &[u8], other: &'static [u8]) {
-    problems.push(own(name), What::Against { other });
 }
 /// Named compatibility checks on the envelope runtime and store actually use.
 pub fn engine_envelope(root: &domain::Limits, problems: &mut Problems) {
@@ -94,23 +86,26 @@ pub(super) fn loopback(address: &config::Address) -> bool {
 fn engine_alone(engine: &config::Engine, workers: &[config::Worker], problems: &mut Problems) {
     let hosts = Path::root().member(b"engine").member(b"hosts");
     if !workers.is_empty() {
-        problems.push(Path::root().member(b"workers"), What::EngineAlone);
+        problems.push(Path::root().member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone));
     }
     if engine.hosts.listener.len() != 1 {
-        problems.push(hosts.member(b"listener"), What::EngineAlone);
+        problems.push(hosts.member(b"listener"), What::Half(crate::startup::EngineWhat::EngineAlone));
     }
     for (index, address) in engine.hosts.listener.iter().enumerate() {
         if !loopback(address) {
-            problems.push(at(index, hosts.member(b"listener")), What::EngineAlone);
+            problems.push(at(index, hosts.member(b"listener")), What::Half(crate::startup::EngineWhat::EngineAlone));
         }
     }
     if engine.hosts.workers.is_empty() {
-        problems.push(hosts.member(b"workers"), What::EngineAlone);
+        problems.push(hosts.member(b"workers"), What::Half(crate::startup::EngineWhat::EngineAlone));
     }
     for (index, worker) in engine.hosts.workers.iter().enumerate() {
         for previous in engine.hosts.workers.iter().take(index) {
             if previous.digest == worker.digest {
-                problems.push(at(index, hosts.member(b"workers")).member(b"digest"), What::EngineAlone);
+                problems.push(
+                    at(index, hosts.member(b"workers")).member(b"digest"),
+                    What::Half(crate::startup::EngineWhat::EngineAlone),
+                );
                 break;
             }
         }
@@ -148,11 +143,14 @@ pub fn standalone(
     match clients.listener {
         config::Address::Addr(Addr::Ip(socket)) if socket.ip().is_loopback() => {}
         config::Address::Addr(Addr::Ip(_) | Addr::InProcess(_)) | config::Address::Host { .. } => {
-            problems.push(root.member(b"application").member(b"clients").member(b"listener"), What::Loopback);
+            problems.push(
+                root.member(b"application").member(b"clients").member(b"listener"),
+                What::Half(crate::startup::EngineWhat::Loopback),
+            );
         }
     }
     if engine.connectors.as_ref() != [1] {
-        problems.push(root.member(b"engine").member(b"connectors"), What::Connectors);
+        problems.push(root.member(b"engine").member(b"connectors"), What::Half(crate::startup::EngineWhat::Connectors));
     }
     if alone {
         return;
@@ -177,7 +175,10 @@ pub fn standalone(
             None => false,
         };
         if old_command {
-            problems.push(path.member(b"agent").member(b"arguments"), What::OldAgentCommand);
+            problems.push(
+                path.member(b"agent").member(b"arguments"),
+                What::Half(crate::startup::EngineWhat::OldAgentCommand),
+            );
         } else if command {
             let absolute = match worker.agent.arguments.get(2) {
                 Some(value) => value.starts_with(b"/"),
@@ -207,13 +208,17 @@ pub fn standalone(
 pub fn hub(engine: &config::Engine, problems: &mut Problems) {
     let path = Path::root().member(b"engine");
     if engine.limits.core.fleet.engine_slots != 0 {
-        problems.push(path.member(b"limits").member(b"overrides").member(b"fleet.engine_slots"), What::NoHub);
+        problems.push(
+            path.member(b"limits").member(b"overrides").member(b"fleet.engine_slots"),
+            What::Half(crate::startup::EngineWhat::NoHub),
+        );
     }
     for (index, charter) in engine.charters.iter().enumerate() {
         match charter.hosts {
             fleet::Kinds::Workers => {}
             fleet::Kinds::Engine | fleet::Kinds::Both => {
-                problems.push(charter_path(engine, index).member(b"hosts"), What::NoHub);
+                problems
+                    .push(charter_path(engine, index).member(b"hosts"), What::Half(crate::startup::EngineWhat::NoHub));
             }
         }
     }
@@ -249,7 +254,7 @@ pub fn provider(engine: &config::Engine, problems: &mut Problems) {
             config::ProviderKind::Deployment if provider.number == 0 => {
                 problems.push(
                     at(index, Path::root().member(b"engine").member(b"providers")).member(b"number"),
-                    What::Provider,
+                    What::Half(crate::startup::EngineWhat::Provider),
                 );
             }
             config::ProviderKind::Deployment | config::ProviderKind::Link | config::ProviderKind::Application => {}
@@ -264,7 +269,7 @@ pub fn credentials(engine: &config::Engine, workers: &[config::Worker], forges: 
         bound = bound.min(worker.limits.core.accounts.credentials);
     }
     if forges > bound {
-        problems.push(own(b"forge.forges"), What::Credentials);
+        problems.push(own(b"forge.forges"), What::Half(crate::startup::EngineWhat::Credentials));
     }
 }
 /// Check the optional listener and the secret paths that require it.
@@ -278,7 +283,10 @@ pub fn webhooks(members: &super::application::Members, problems: &mut Problems) 
                 }
             }
             config::Address::Addr(_) | config::Address::Host { .. } => {
-                problems.push(path.member(b"webhooks").member(b"listener"), What::Loopback);
+                problems.push(
+                    path.member(b"webhooks").member(b"listener"),
+                    What::Half(crate::startup::EngineWhat::Loopback),
+                );
             }
         }
     }
@@ -291,7 +299,7 @@ pub fn limits(
     problems: &mut Problems,
 ) {
     #[cfg(feature = "worker")]
-    super::worker::git_limits(limits, git, problems);
+    super::worker::git_limits(&limits::worker(limits), git, problems);
     let sign_in = limits.sign_in;
     for (name, value) in [
         (b"sign_in.members".as_slice(), sign_in.members),
@@ -352,6 +360,7 @@ pub(super) fn names(remote: Option<u64>, limits: &limits::Limits, problems: &mut
         against(problems, b"checkout.name_bytes", b"forge.name_bytes");
     }
 }
+#[cfg(not(feature = "worker"))]
 fn bounded(bounds: &payload::Bounds, engine: bool, problems: &mut Problems) -> Option<payload::v1::Limits> {
     let ceilings = payload::v1::CEILINGS;
     let repositories: &[u8] = b"checkout.repositories";
@@ -395,6 +404,8 @@ fn bounded(bounds: &payload::Bounds, engine: bool, problems: &mut Problems) -> O
     }
     payload::limits(bounds)
 }
+#[cfg(feature = "worker")]
+use super::worker::checks::bounded;
 /// Each side's application records fit jig's fields and the worker's admission.
 pub fn channel(
     engine: Option<&payload::Bounds>,
@@ -421,11 +432,21 @@ pub fn channel(
         Some(worker) => bounded(worker, false, problems),
         None => None,
     };
+    #[cfg(not(feature = "worker"))]
     let ceilings = jig_protocol_worker_wire::CEILINGS;
     let mut sizes = [None, None];
     for (index, side) in [engine, worker].iter().enumerate() {
         if let Some(side) = side {
-            *sizes.get_mut(index).expect("two sides") = payload::largest(side);
+            #[cfg(feature = "worker")]
+            {
+                let prefix: &[u8] = if index == 0 { b"engine" } else { b"workers" };
+                *sizes.get_mut(index).expect("two sides") = super::worker::checks::largest(side, prefix, problems);
+            }
+            #[cfg(not(feature = "worker"))]
+            {
+                *sizes.get_mut(index).expect("two sides") = payload::largest(side);
+            }
+            #[cfg(not(feature = "worker"))]
             if let Some(largest) = *sizes.get(index).expect("two sides") {
                 for (name, bytes, bound) in [
                     (b"workspace_items".as_slice(), largest.items, ceilings.workspace_items),
@@ -481,41 +502,11 @@ fn resume_window(bytes: u32) -> Option<u64> {
     let carrier = u64::try_from(size_of::<Box<[u8]>>()).ok()?;
     bytes.checked_add(carrier.checked_sub(4)?.checked_mul(bytes / 4)?)
 }
-pub(super) fn short(problems: &mut Problems, path: Path, bytes: u64, of: &'static [u8], needs: Option<u64>) {
-    match needs {
-        Some(needs) if bytes < needs => problems.push(path, What::Short { bytes, of, needs }),
-        Some(_) => {}
-        None => problems.push(path, What::Jig(config::What::Bound)),
-    }
-}
 fn forge_result(bytes: u32, result: u32, problems: &mut Problems) {
     short(problems, own(b"forge.client.op_bytes"), u64::from(bytes), b"tasks.result_bytes", Some(u64::from(result)));
 }
-/// Answers made at decode must fit their whole settled-call allowance
-/// (protocol/documentation.md, 5).
-pub(super) fn call_answer(path: Path, bytes: u32, problems: &mut Problems) {
-    short(
-        problems,
-        super::call_input_path(path),
-        u64::from(bytes),
-        b"temper's documentation answer (read_docs)",
-        Some(u64::from(temper_engine_smith::DOC_ANSWER)),
-    );
-}
-/// Only an agent running locally must hold the answer in its tool payload.
-pub(super) fn agent_answer(agent: &settings::Agent, problems: &mut Problems) {
-    short(
-        problems,
-        at(0, Path::root().member(b"workers"))
-            .member(b"agent")
-            .member(b"profile")
-            .member(b"declared")
-            .member(b"tool_payload"),
-        u64::from(agent.tool_payload()),
-        b"temper's documentation answer (read_docs)",
-        Some(u64::from(temper_engine_smith::DOC_ANSWER)),
-    );
-}
+#[cfg(feature = "worker")]
+pub(super) use super::worker::checks::agent_answer;
 /// Each process checks the turn bounds its own document can know
 /// (protocol/configuration/settings.md, 7). A worker alone knows its agent and hub.
 pub fn turns(
@@ -569,6 +560,9 @@ pub fn turns(
                 turn.checked_add(u64::try_from(size_of::<domain::Record>()).expect("record slot")),
             );
         }
+        #[cfg(feature = "worker")]
+        super::worker::checks::turns(workers, agent, problems);
+        #[cfg(not(feature = "worker"))]
         for (index, worker) in workers.iter().enumerate() {
             let path = at(index, Path::root().member(b"workers")).member(b"limits").member(b"overrides");
             short(
@@ -706,7 +700,7 @@ pub fn root(
                 at(index_of(&numbers, project), engine_path.member(b"projects"))
                     .member(b"policy")
                     .member(b"escalation_role"),
-                What::Escalation,
+                What::Half(crate::startup::EngineWhat::Escalation),
             ),
             domain::Refused::Permissions { project, bytes } => (
                 at(index_of(&numbers, project), engine_path.member(b"projects")).member(b"roles"),
@@ -746,7 +740,10 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
     for (index, endpoint) in engine.llm.endpoints.iter().enumerate() {
         let agrees = agent.resolves_endpoint(&endpoint.name);
         if !agrees {
-            problems.push(at(index, Path::root().member(b"engine").member(b"llm").member(b"endpoints")), What::Agent);
+            problems.push(
+                at(index, Path::root().member(b"engine").member(b"llm").member(b"endpoints")),
+                What::Half(crate::startup::EngineWhat::Agent),
+            );
         }
     }
     for (index, provider) in engine.llm.providers.iter().enumerate() {
@@ -763,7 +760,7 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
                             .member(b"sources")
                             .member(b"programs"),
                     ),
-                    What::Adapter,
+                    What::Half(crate::startup::EngineWhat::Adapter),
                 );
             }
         }
@@ -777,8 +774,41 @@ pub fn admission(
     agent: &settings::Agent,
     problems: &mut Problems,
 ) -> Problems {
+    let mut needs = jig_domain_core::settings::fleet_needs::configured(core, &engine.limits.core);
+    let warnings = admission_needs(&needs, engine, agent, problems);
+    if !warnings.is_empty() || !problems.is_empty() {
+        return warnings;
+    }
+    // Credential sources must fit the same charter models on the provider's direct way.
+    for charter in &mut needs.charters {
+        for need in &mut charter.models {
+            for model in &engine.llm.models {
+                if model.model.name != need.name {
+                    continue;
+                }
+                for provider in &engine.llm.providers {
+                    if provider.number == model.model.provider
+                        && let Some(direct) = &provider.direct
+                    {
+                        for endpoint in &engine.llm.endpoints {
+                            if endpoint.name == *direct {
+                                need.endpoint = endpoint.number;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    admission_needs(&needs, engine, agent, problems)
+}
+fn admission_needs(
+    needs: &fleet::Needs,
+    engine: &config::Engine,
+    agent: &settings::Agent,
+    problems: &mut Problems,
+) -> Problems {
     use fleet::AgentShortfall;
-    let needs = jig_domain_core::settings::fleet_needs::configured(core, &engine.limits.core);
     let bounds = agent.bounds();
     let mut warnings = Problems::empty();
     // A charter warning must not mask a deployment's receiving shortfall.
@@ -790,7 +820,11 @@ pub fn admission(
         if offered < required {
             problems.push(
                 Path::root().member(b"engine").member(b"limits"),
-                What::Admission { why, offered: u64::from(offered), required: u64::from(required) },
+                What::Half(crate::startup::EngineWhat::Admission {
+                    why,
+                    offered: u64::from(offered),
+                    required: u64::from(required),
+                }),
             );
             break;
         }
@@ -811,17 +845,18 @@ pub fn admission(
                         charter_index(engine, charter.version.charter),
                         u32::try_from(model).expect("configured model"),
                     ),
-                    What::Agent,
+                    What::Half(crate::startup::EngineWhat::Agent),
                 );
                 return warnings;
             }
         }
     }
-    let Some(why) = fleet::shortfall(&needs, bounds, fleet::HostKind::Worker) else { return warnings };
+    let Some(why) = fleet::shortfall(needs, bounds, fleet::HostKind::Worker) else { return warnings };
     let engine_path = Path::root().member(b"engine");
     let path = match why {
         AgentShortfall::Model { charter, model } => {
-            warnings.push(model_path(charter_index(engine, charter), model), What::Agent);
+            warnings
+                .push(model_path(charter_index(engine, charter), model), What::Half(crate::startup::EngineWhat::Agent));
             return warnings;
         }
         AgentShortfall::Window { charter, model } | AgentShortfall::Output { charter, model } => {
@@ -838,8 +873,11 @@ pub fn admission(
         AgentShortfall::Spend => engine_path.member(b"rules").member(b"maximum_run_spend"),
         AgentShortfall::Message | AgentShortfall::Inbox | AgentShortfall::Unacknowledged => return warnings,
     };
-    let figures = fleet::figures(&needs, bounds, fleet::HostKind::Worker, why).expect("selected numerical shortfall");
-    warnings.push(path, What::Admission { why, offered: figures.offered, required: figures.required });
+    let figures = fleet::figures(needs, bounds, fleet::HostKind::Worker, why).expect("selected numerical shortfall");
+    warnings.push(
+        path,
+        What::Half(crate::startup::EngineWhat::Admission { why, offered: figures.offered, required: figures.required }),
+    );
     warnings
 }
 fn admission_charter_path(index: usize) -> Path {
@@ -935,7 +973,7 @@ pub fn redirect_ports(
             && port != 0
             && port == redirect.port
         {
-            problems.push(redirect.path.clone(), What::Redirect(listener));
+            problems.push(redirect.path.clone(), What::Half(crate::startup::EngineWhat::Redirect(listener)));
         }
     }
 }
@@ -1073,9 +1111,9 @@ pub(crate) fn secret_value_bound(jig: &config::Engine, own: &limits::Limits) -> 
     Ok(crate::store::layout(&root, &root.forge, &jig.limits.store)?.secrets.value)
 }
 
-fn task_record_binds(codec: &jig_protocol_store::tasks_v9::Limits) -> bool {
-    match jig_protocol_store::tasks_v9::Value::encoded_bound(codec) {
-        Some(bytes) => jig_protocol_store::tasks_v9::TaskRecord::encoded_bound(codec) == bytes.checked_sub(1),
+fn task_record_binds(codec: &jig_protocol_store::tasks_v10::Limits) -> bool {
+    match jig_protocol_store::tasks_v10::Value::encoded_bound(codec) {
+        Some(bytes) => jig_protocol_store::tasks_v10::TaskRecord::encoded_bound(codec) == bytes.checked_sub(1),
         None => false,
     }
 }
@@ -1104,13 +1142,17 @@ fn map_value(refused: crate::store::Refusal) -> Option<(u32, u32)> {
 fn task_store_refusal(engine: &config::Engine, refused: crate::store::Refusal) -> Problems {
     if let Some((needs, has)) = map_value(refused)
         && let Some(codec) = jig_protocol_store::codec::tasks::limits(&engine.limits.core.tasks)
-        && jig_protocol_store::tasks_v9::Row::encoded_bound(&codec) == Some(u64::from(needs))
+        && jig_protocol_store::tasks_v10::Row::encoded_bound(&codec) == Some(u64::from(needs))
         && task_record_binds(&codec)
     {
         let mut problems = Problems::empty();
         problems.push(
             Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.batch_bytes"),
-            What::StoreTask { needs, has, batch_bytes: engine.limits.core.tasks.batch_bytes },
+            What::Half(crate::startup::EngineWhat::StoreTask {
+                needs,
+                has,
+                batch_bytes: engine.limits.core.tasks.batch_bytes,
+            }),
         );
         return problems;
     }
@@ -1122,9 +1164,10 @@ pub(crate) fn store_refusal(refused: crate::store::Refusal) -> Problems {
         crate::store::Refusal::ReadRoom { read, needs } => {
             (own(b"root.loads.read_bytes"), What::Short { bytes: read, of: b"a read's room", needs })
         }
-        crate::store::Refusal::Page { transcript, frame, page, ceiling } => {
-            (own(b"root.loads.transcript_bytes"), What::StorePage { transcript, frame, page, ceiling })
-        }
+        crate::store::Refusal::Page { transcript, frame, page, ceiling } => (
+            own(b"root.loads.transcript_bytes"),
+            What::Half(crate::startup::EngineWhat::StorePage { transcript, frame, page, ceiling }),
+        ),
         crate::store::Refusal::Transcript { bytes, ceiling } => (
             own(b"root.loads.transcript_bytes"),
             What::Within {
@@ -1133,9 +1176,10 @@ pub(crate) fn store_refusal(refused: crate::store::Refusal) -> Problems {
                 bound: u64::from(ceiling),
             },
         ),
-        crate::store::Refusal::Map(why) => {
-            (Path::root().member(b"engine").member(b"limits").member(b"store"), What::StoreMap(why))
-        }
+        crate::store::Refusal::Map(why) => (
+            Path::root().member(b"engine").member(b"limits").member(b"store"),
+            What::Half(crate::startup::EngineWhat::StoreMap(why)),
+        ),
     };
     let mut problems = Problems::empty();
     problems.push(path, what);
@@ -1151,4 +1195,20 @@ pub(crate) fn membership(problem: Problem) -> (Path, config::What) {
             (hosts.child(Segment::Index(worker)).member(b"name"), config::What::Bound)
         }
     }
+}
+
+#[cfg(not(feature = "worker"))]
+/// Only an agent running locally must hold the answer in its tool payload.
+pub(super) fn agent_answer(agent: &settings::Agent, problems: &mut Problems) {
+    short(
+        problems,
+        at(0, Path::root().member(b"workers"))
+            .member(b"agent")
+            .member(b"profile")
+            .member(b"declared")
+            .member(b"tool_payload"),
+        u64::from(agent.tool_payload()),
+        b"temper's documentation answer (read_docs)",
+        Some(u64::from(temper_service_core::DOC_ANSWER)),
+    );
 }

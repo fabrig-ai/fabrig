@@ -488,7 +488,7 @@ fn a_members_absent_wake_round_trips_without_a_default() {
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured batch");
     let bytes = writer.finish();
-    let value = crate::people_v14::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
+    let value = crate::people_v15::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
     assert_eq!(codec::people::decode_ask(value, &limits), Ok(ask));
 }
 
@@ -674,8 +674,8 @@ fn charter_documents_obey_lowered_limits_in_every_settings_record() {
             codec::settings::limits(&fewer_documents).unwrap(),
             codec::settings::limits(&fewer_segments).unwrap(),
             shorter_segments,
-            crate::settings_v1::Limits { document_path: core::DOCUMENT_PATH_BYTES - 1, ..limits },
-            crate::settings_v1::Limits { document_heading_some: core::DOCUMENT_HEADING_BYTES - 1, ..limits },
+            crate::settings_v2::Limits { document_path: core::DOCUMENT_PATH_BYTES - 1, ..limits },
+            crate::settings_v2::Limits { document_heading_some: core::DOCUMENT_HEADING_BYTES - 1, ..limits },
         ] {
             assert_eq!(codec::settings::encode(&row, &lowered, &[]).unwrap_err().reason, skein_codec::Reason::Bound);
             assert_eq!(

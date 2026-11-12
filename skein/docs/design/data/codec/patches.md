@@ -217,10 +217,12 @@ against the two kept texts its versions name.
     type equal or widened with no integer wider, and no versioned
     record, held field or site in reach;
   - each site's refusals.
-- **Pieces are not opened:** a `pieces` field's items are copied, so
-  pieces of a type whose conversion is not a copy are refused
-  (`Pieces`). Opening them is jig's responsibility, for nested
-  values (`README.md`, section 10).
+- **Pieces are opened when their items convert:** a `pieces` field
+  whose items' conversion copies is copied as its bytes; one whose
+  items' conversion is not a copy is opened, each piece converted as
+  its type (4). Pieces whose items' conversion stops, a site or a held
+  field in reach, are refused (`Pieces`): the walk does not stop
+  inside a piece (`README.md`, section 10).
 - **An identity plan** is a kept version planned to itself: every
   declaration its own, nothing written, a versioned record's version
   unchanged. It copies a record but stops at its held fields, and
@@ -246,7 +248,7 @@ text) and what is wrong:
 | `Value` | a value its type does not take (2), past its width or bound, or not UTF-8 |
 | `Site` | a site naming an added declaration or a field of one, a field site in a written declaration, a `written` value without its site |
 | `Stray` | a `refuses` line after no site |
-| `Pieces` | pieces of a type whose conversion is not a copy, or, in an identity plan, that reaches a held field |
+| `Pieces` | pieces of a type whose conversion reaches a site or a held field, or, in an identity plan, that reaches a held field |
 | `Room` | past the capacity's patches |
 
 ## 4. The machine
@@ -270,6 +272,10 @@ next_pass(plan, root)           the next plan, over those bytes
     conversion of its record;
   - a list's count, then each item's conversion; an option's presence,
     then its value's;
+  - an opened `pieces` field (3), piece by piece: each old piece
+    decoded by the old text's item type, converted as that type, and
+    written with its new length before it, as `piece::write` frames
+    it; the field's new bytes then held to its new bound (`Built`);
   - a type's conversion by `diff.md`, 3, level by level: equal and widened
     levels as they are, a wrapped level's presence put before it, an
     integer at its new width, a named type by its declaration's
@@ -526,6 +532,7 @@ impl Patcher {
     pub fn versions(&self, plan: PlanIx) -> Versions;
     pub fn counterpart(&self, plan: PlanIx, old: DeclIx) -> Option<DeclIx>;
     pub fn source(&self, plan: PlanIx, new: DeclIx) -> Option<DeclIx>;
+    pub fn copies(&self, plan: PlanIx, old: DeclIx) -> bool; // its conversion copies (5)
 
     pub fn start(&mut self, plan: PlanIx, root: DeclIx, record: Box<[u8]>) -> Result<(), Halt>;
     pub fn next(&mut self) -> Result<Step, Halt>;
@@ -573,6 +580,10 @@ impl Build {                         // the new value, in preorder
   `plan_from` finds each, `source` names the root in the one before
   (and `counterpart` in the one after), and `next_pass` starts each
   after the first over the last `finish`'s bytes.
+- **`copies`** reads the plan's own flag for an old declaration, the
+  one the walk reads to copy pieces or open them: a reader that must
+  tell opened pieces from copied ones (the patch goldens, `skein-codegen`)
+  asks it rather than repeat the planning.
 - **A machine per family.** `keep` refuses another family's text
   (`Family`), a version kept already (`Twice`), and past the
   capacity's versions or text (`Room`). Plans name kept versions, so

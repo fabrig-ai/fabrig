@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"A settings file is a `file`; sections are JSON object shapes, bullets their members, types, bounds and meanings. Read with `settings show` by kind and number; edit and set whole. Bounds are what ctl sends; deployment refusals name `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment units, as in model prices. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.";
+pub const INTRO: &[u8] = b"Each section is a JSON object shape; bullets name members, types, bounds and effects on work. A settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse it, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
@@ -138,7 +138,7 @@ fn value(value: &Value, forms: &[Form], limits: &Limits, out: &mut Text) {
             unreachable!("nested shape has a form")
         }
         Value::Setting => out.put(
-            b"the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` or `project-words`",
+            b"the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `follow` or `dependency`",
         ),
     }
 }

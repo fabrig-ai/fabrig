@@ -76,6 +76,12 @@ impl Bridge {
             | Event::Opened { .. }
             | Event::OpenRefused { .. }
             | Event::Site { .. }
+            | Event::Decoded { .. }
+            | Event::Undecodable { .. }
+            | Event::Rehearsing { .. }
+            | Event::Back { .. }
+            | Event::BackRefused { .. }
+            | Event::Closed { .. }
             | Event::Patched { .. }
             | Event::Committed { .. }
             | Event::Failed { .. }
@@ -237,6 +243,7 @@ pub fn ending(key: &domain::Key) -> Option<u64> {
             | people::Key::EndedRead { .. }
             | people::Key::ReadConversation { .. }
             | people::Key::Roles(..)
+            | people::Key::Deleted(..)
             | people::Key::Deletion(..)
             | people::Key::Public(..)
             | people::Key::Policy(..)

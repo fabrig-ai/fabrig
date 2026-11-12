@@ -111,7 +111,7 @@ fn tier_decoding_checks_names_policy_invariants_and_configured_bounds() {
         if name.len() <= 32 {
             let mut row = fixtures::tier_row();
             row.tier = name;
-            assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable));
+            assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable::Malformed));
         }
     }
     for case in 0_u8..5 {
@@ -138,7 +138,11 @@ fn tier_decoding_checks_names_policy_invariants_and_configured_bounds() {
             },
             _ => unreachable!(),
         }
-        assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable), "case {case}");
+        assert_eq!(
+            records::decode(&records::encode(&d::Stored::Tier(row)), &bounds),
+            Err(Undecodable::Malformed),
+            "case {case}"
+        );
     }
     let full = records::encode(&d::Stored::Tier(fixtures::tier_row()));
     for field in 0_u8..3 {
@@ -150,12 +154,12 @@ fn tier_decoding_checks_names_policy_invariants_and_configured_bounds() {
             _ => unreachable!(),
         }
         let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
-        assert_eq!(records::decode(&full, &bounds), Err(Undecodable));
+        assert_eq!(records::decode(&full, &bounds), Err(Undecodable::Malformed));
     }
     let row = d::Stored::Tier(fixtures::tier_row());
     let bytes = records::encode(&row);
     for len in [0, 1, 2, bytes.len() - 1] {
-        assert_eq!(records::decode(&bytes[..len], &bounds), Err(Undecodable));
+        assert_eq!(records::decode(&bytes[..len], &bounds), Err(Undecodable::Malformed));
     }
 }
 #[test]
@@ -177,7 +181,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     full.goal = Some(7);
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
     let row = records::encode(&d::Stored::Tier(full));
-    assert_eq!(skein_lib::len_u64(row.len()), crate::v11::TierRow::encoded_bound(l).unwrap() + 3);
+    assert_eq!(skein_lib::len_u64(row.len()), crate::v13::TierRow::encoded_bound(l).unwrap() + 3);
     assert_eq!(row.len(), 178_063);
 }
 
@@ -234,7 +238,7 @@ fn tier_operation_lists_refuse_one_past_their_configured_bounds() {
             jobs.push(skein_forge::api::JobAttempt { head: [4; 32], run: 71, job: 99, attempt: 1 }).unwrap();
             flight.pending = jobs.into_boxed();
         }
-        assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable));
+        assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable::Malformed));
     }
 }
 
@@ -296,10 +300,14 @@ fn tier_goals_refuse_empty_branches_unordered_duplicates_and_excess_holds() {
             }
             _ => unreachable!(),
         }
-        assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable), "case {case}");
+        assert_eq!(
+            records::decode(&records::encode(&d::Stored::Tier(row)), &bounds),
+            Err(Undecodable::Malformed),
+            "case {case}"
+        );
     }
     let mut limits = fixtures::LIMITS;
-    limits.holds = crate::v11::CEILINGS.tier_row_goals;
+    limits.holds = crate::v13::CEILINGS.tier_row_goals;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_some());
     limits.holds += 1;
     assert!(crate::bounds(&limits, limits.client.op_bytes).is_none());

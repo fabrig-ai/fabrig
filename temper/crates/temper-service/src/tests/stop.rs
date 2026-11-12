@@ -34,10 +34,16 @@ fn a_drain_closes_accounts_then_the_store() {
 #[test]
 fn signals_routed_from_io_drain_then_abort() {
     let mut service = fixtures::ready();
-    service.told.push(skein_io::Event::Shutdown { signal: skein_io::kernel::ServiceSignal::Terminate, from: None });
+    service
+        .process
+        .told()
+        .push(skein_io::Event::Shutdown { signal: skein_io::kernel::ServiceSignal::Terminate, from: None });
     fixtures::turn(&mut service);
     assert_eq!(service.end(), None);
-    service.told.push(skein_io::Event::Shutdown { signal: skein_io::kernel::ServiceSignal::Terminate, from: None });
+    service
+        .process
+        .told()
+        .push(skein_io::Event::Shutdown { signal: skein_io::kernel::ServiceSignal::Terminate, from: None });
     fixtures::turn(&mut service);
     assert_eq!(service.end(), Some(&End::Aborted));
     for _ in 0_u32..16 {
@@ -148,11 +154,11 @@ fn non_format_open_refusals_preserve_their_own_reason() {
 }
 
 #[test]
-fn stores_before_embedded_people_v14_refuse_at_startup() {
+fn stores_before_embedded_people_v15_refuse_at_startup() {
     // Store 6 named a repository by its id alone; 7 has no Binding family;
     // 8 embeds people v11 refusal tags.
     let wanted = temper_protocol_store::STORE_VERSION;
-    assert_eq!(wanted, 11);
+    assert_eq!(wanted, 13);
     for found in [6, 7, 8, 9] {
         refused(OpenRefusal::Format { family: Family::Application, found, wanted });
     }
@@ -161,7 +167,7 @@ fn stores_before_embedded_people_v14_refuse_at_startup() {
 #[test]
 fn a_store_without_forge_records_refuses_at_startup() {
     let wanted = temper_protocol_store::STORE_VERSION;
-    assert_eq!(wanted, 11);
+    assert_eq!(wanted, 13);
     refused(OpenRefusal::Format { family: Family::Application, found: 10, wanted });
 }
 

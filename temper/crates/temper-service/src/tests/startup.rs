@@ -41,7 +41,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 
 #[test]
 fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
-    let document = transcript_document(3_687_491);
+    let document = transcript_document(4_270_603);
     fixtures::start(
         &document,
         &config::Directories::working(),
@@ -55,13 +55,13 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
     .expect("a whole frame exactly at Small's page ceiling starts");
     let opened =
         crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent())).unwrap();
-    assert_eq!(opened.store.store.page.bytes, 3_687_555);
+    assert_eq!(opened.store.store.page.bytes, 4_270_667);
 }
 
 #[test]
 fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
-    let document = transcript_document(3_687_492);
-    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 3687556 bytes, needs a store page past the profile's ceiling of 3687555 bytes\n";
+    let document = transcript_document(4_270_604);
+    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 4270668 bytes, needs a store page past the profile's ceiling of 4270667 bytes\n";
     let named = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&named).as_ref(), expected);
     let opened =
@@ -86,7 +86,7 @@ fn startup_names_map_sizing_without_inventing_a_records_bound() {
     let mut problems = Problems::empty();
     crate::startup::checks::records(&engine.jig, &engine.limits, &mut problems);
     assert_eq!(problems.problems.len(), 1);
-    let What::StoreMap(jig_protocol_store::sizes::SizeRefusal::Key { needs, has: 0 }) =
+    let What::Half(crate::startup::EngineWhat::StoreMap(jig_protocol_store::sizes::SizeRefusal::Key { needs, has: 0 })) =
         problems.problems.get(0).unwrap().what
     else {
         panic!("the map's key admission is the only cause: {problems:?}");
@@ -537,13 +537,16 @@ fn problems_print_one_line_each_with_their_path() {
     let mut problems = Problems::empty();
     let forge = Path::root().member(b"application").member(b"forges").child(Segment::Index(0));
     problems.push(forge.member(b"user"), What::Jig(config::What::Missing));
-    problems.push(Path::root().member(b"application").member(b"webhooks"), What::NoWebhooks);
+    problems.push(
+        Path::root().member(b"application").member(b"webhooks"),
+        What::Half(crate::startup::EngineWhat::NoWebhooks),
+    );
     assert_eq!(
         &*lines(&problems),
         b"application.forges[0].user: missing\napplication.webhooks: needs application.webhooks\n".as_slice()
     );
     for _ in 0..config::PROBLEMS {
-        problems.push(Path::root(), What::NoWebhooks);
+        problems.push(Path::root(), What::Half(crate::startup::EngineWhat::NoWebhooks));
     }
     assert_eq!(problems.past, 2);
     assert!(lines(&problems).ends_with(b"and 2 more\n"), "capped diagnostics name overflow");
@@ -931,7 +934,10 @@ fn admission_model_words_use_tokens_and_missing_names_make_no_amount_claim() {
         ),
     ] {
         let mut problems = Problems::empty();
-        problems.push(Path::root().member(b"model"), What::Admission { why, offered: 1024, required: 8192 });
+        problems.push(
+            Path::root().member(b"model"),
+            What::Half(crate::startup::EngineWhat::Admission { why, offered: 1024, required: 8192 }),
+        );
         assert_eq!(&*lines(&problems), expected.as_bytes());
     }
 }
@@ -955,11 +961,9 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
         service.engine.as_ref().unwrap().store.opening_limits().core,
         temper_engine_domain::core_limits(&service.engine.as_ref().unwrap().env.limits),
     );
-    let refused = core::str::from_utf8(&document).unwrap().replacen(
-        "\"overrides\":{\"checkout.name_bytes\"",
-        "\"overrides\":{\"root.loads.rows\":0,\"checkout.name_bytes\"",
-        1,
-    );
+    let mut refused: serde_json::Value = serde_json::from_slice(&document).unwrap();
+    refused["application"]["limits"]["overrides"]["root.loads.rows"] = 0_u32.into();
+    let refused = serde_json::to_vec(&refused).unwrap();
     for (name, input, expected) in [
         (
             "serve",
@@ -969,7 +973,7 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
                 service.engine.as_ref().expect("engine").env.limits.forge,
             )),
         ),
-        ("limits", refused.as_bytes(), Err(b"engine.limits: past its bound\n".as_slice())),
+        ("limits", refused.as_slice(), Err(b"engine.limits: past its bound\n".as_slice())),
     ] {
         let found = crate::store_limits(input, &directories, Some(&fixtures::startup_agent()));
         let found = found.map(|limits| (limits.store, limits.forge)).map_err(|problems| lines(&problems));
@@ -1079,14 +1083,14 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     agent.host_limits.messages = 82;
     let part = crate::startup::worker_part(&input, &directories).unwrap();
     let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
-    let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.forge.forges).unwrap();
+    let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
     assert_eq!(
         link.room,
         jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn).unwrap() + 8
     );
     let operations = crate::system::worker_alone_operations(
         &part.worker.jig.limits.io,
-        crate::worker_settings::operations(&part.limits.git_component.into()).unwrap(),
+        crate::worker_settings::operations(&crate::worker_settings::git_component(part.limits.git_component)).unwrap(),
     )
     .unwrap();
     let mut files = settings::Files { entries: List::with_capacity(2) };
@@ -1366,6 +1370,51 @@ fn landing_check_timeout_refuses_out_of_range_at_its_member() {
             panic!("out-of-range delivery bound started")
         };
         assert_eq!(lines(&problems).as_ref(), b"application.landing.projects[0].check_timeout_ms: past its bound\n");
+    }
+}
+
+#[test]
+fn landing_attempts_defaults_and_keeps_endpoints_by_queue_and_turn() {
+    for by in ["queue", "turn"] {
+        for (setting, expected) in [("", 3), (r#""landing_attempts":1,"#, 1), (r#""landing_attempts":255,"#, 255)] {
+            let projects = format!(r#"[{{"project":1,"by":"{by}",{setting}"gates":[]}}]"#);
+            assert_landing_projects_start(projects.as_bytes());
+            let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
+            let (members, problems) = application(&input, &fixtures::engine().jig);
+            assert!(problems.is_empty(), "{:?}", lines(&problems));
+            assert_eq!(members.unwrap().landings.get(&1).unwrap().landing_attempts, expected);
+        }
+    }
+}
+
+#[test]
+fn landing_attempts_refuses_invalid_values_at_its_member_by_queue_and_turn() {
+    for by in ["queue", "turn"] {
+        for (value, refusal) in [
+            ("0", "past its bound"),
+            ("256", "past its bound"),
+            ("-1", "past its bound"),
+            (r#""3""#, "wrong value kind"),
+        ] {
+            let projects = format!(r#"[{{"project":1,"by":"{by}","landing_attempts":{value}}}]"#);
+            let document = fixtures::with(&fixtures::document(), b"application.landing.projects", projects.as_bytes());
+            let Err(problems) = fixtures::start(
+                &document,
+                &config::Directories::working(),
+                &fixtures::files(),
+                &fixtures::startup_agent(),
+                &fixtures::seeds(),
+                None,
+                fixtures::worker_runtime(),
+                fixtures::forge_runtime(),
+            ) else {
+                panic!("invalid landing attempts started: {by}, {value}")
+            };
+            assert_eq!(
+                lines(&problems).as_ref(),
+                format!("application.landing.projects[0].landing_attempts: {refusal}\n").as_bytes()
+            );
+        }
     }
 }
 
@@ -1819,7 +1868,7 @@ fn a_task_store_value_refusal_names_batch_bytes_and_inbox_messages() {
     let mut problems = Problems::empty();
     problems.push(
         Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"tasks.batch_bytes"),
-        What::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 },
+        What::Half(crate::startup::EngineWhat::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 }),
     );
     assert_eq!(lines(&problems).as_ref(), b"engine.limits.overrides.tasks.batch_bytes: the store's map value, 1001 bytes, past its bound of 1000 bytes; binding record tasks-v9.TaskRecord with tasks.batch_bytes 512; fixed profile ceiling engine.limits.store.value; reduce tasks.batch_bytes, tasks.inbox_messages or the task record's spec/message/result/authority capacities; this ceiling has no scalar override\n");
 }
@@ -1849,4 +1898,26 @@ fn an_unbuilt_worker_refuses_only_shapes_that_need_it() {
         }
     }
     assert!(failures.is_empty(), "wrong build acceptance: {failures:?}");
+}
+
+#[test]
+fn a_worker_alone_applies_its_names_without_engine_range_checks() {
+    let input = fixtures::with(
+        &fixtures::worker_alone_document(),
+        b"application.limits.overrides",
+        br#"{"checkout.conflicts":7,"forge.change_policy.tasks":0,"forge.changes":1025}"#,
+    );
+    let directories = config::Directories::working();
+    assert_eq!(crate::startup::shape(&input, &directories).unwrap(), crate::startup::Shape::WorkerAlone);
+    let part = crate::startup::worker_part(&input, &directories).unwrap();
+    assert_eq!(part.limits.checkout.conflicts, 7);
+    let service = crate::startup::worker_alone(
+        part,
+        &fixtures::files(),
+        &fixtures::startup_agent(),
+        fixtures::worker_runtime(),
+        7,
+    )
+    .unwrap();
+    assert_eq!(service.worker.env.limits.checkout.conflicts, 7);
 }

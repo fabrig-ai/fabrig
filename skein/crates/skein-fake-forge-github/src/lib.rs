@@ -15,6 +15,7 @@ pub use skein_fake_forge_http::Faults;
 pub mod app;
 pub mod delivery;
 pub mod fixture;
+pub mod image;
 pub mod inline;
 pub mod installations;
 pub mod keys;

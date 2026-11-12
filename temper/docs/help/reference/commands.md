@@ -26,6 +26,27 @@ Print this binary's patch levels, its store's and families' versions, and its wi
 
 Reads no configuration and no store.
 
+### temper-engine upgrade --check
+
+`temper-engine upgrade --check [DIRECTORIES] DIRECTORY`
+
+Rehearses an upgrade over a copy; switches nothing.
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+- `DIRECTORY`: A stopped deployment's data directory or a copy of one; never written.
+
+Uses the configuration serve would read and a scratch copy under the cache directory. Reports the patches, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when patches and restores pass, 1 when a start would be refused.
+
+### temper-engine upgrade --back
+
+`temper-engine upgrade --back [DIRECTORIES]`
+
+Makes the previous generation active again, before the patched one's first commit.
+
+- `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
+
+Stop the deployment first, then start the old binary after going back. Past the patched generation's first commit, going back is restoring a backup.
+
 ### temper-engine help
 
 `temper-engine help [NAME | pages | --search WORDS...]`
@@ -256,6 +277,18 @@ As temper-engine help, above.
 
 As temper-engine versions, above.
 
+### temper-box upgrade --check
+
+`temper-box upgrade --check [DIRECTORIES] DIRECTORY`
+
+As temper-engine upgrade --check, above.
+
+### temper-box upgrade --back
+
+`temper-box upgrade --back [DIRECTORIES]`
+
+As temper-engine upgrade --back, above.
+
 ### temper-box forge fetch
 
 `temper-box forge fetch [DIRECTORIES] FORGE`
@@ -362,9 +395,9 @@ Run the TUI in front of the box that started it, signed in by the link the box h
 
 ### temper-box fake llm
 
-`temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]`
 
-`temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]`
 
 Serve a fake LLM provider: the demo's, from the configuration, or one from a JSON document. Internal: it may change without notice.
 
@@ -372,9 +405,9 @@ Serve a fake LLM provider: the demo's, from the configuration, or one from a JSO
 
 ### temper-box fake forge
 
-`temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`
 
-`temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`
 
 Serve a fake forge: forge FORGE of the configuration, or one from a JSON document. Internal: it may change without notice.
 

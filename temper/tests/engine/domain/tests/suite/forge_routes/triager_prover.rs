@@ -52,7 +52,7 @@ fn world() -> World {
     world.send(hello);
     let items: Box<[_]> = Box::new([
         kinds::item(
-            12,
+            14,
             1,
             1,
             &settings::Value::ProjectAreas(settings::ProjectAreas {
@@ -64,7 +64,7 @@ fn world() -> World {
             }),
         ),
         kinds::item(
-            13,
+            15,
             1,
             1,
             &settings::Value::ProjectTriager(settings::ProjectTriager { owner: AreaOwner::Charter(14) }),

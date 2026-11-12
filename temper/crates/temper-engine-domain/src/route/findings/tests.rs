@@ -87,7 +87,7 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
     setting(
         &mut domain,
         &env,
-        12,
+        14,
         forge::settings::Value::ProjectAreas(forge::settings::ProjectAreas {
             areas: Box::new([forge::settings::Area {
                 name: b"tests".as_slice().into(),
@@ -99,7 +99,7 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
     setting(
         &mut domain,
         &env,
-        13,
+        15,
         forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Task(task) }),
     );
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -163,7 +163,7 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
     setting(
         &mut domain,
         &env,
-        12,
+        14,
         forge::settings::Value::ProjectAreas(forge::settings::ProjectAreas {
             areas: Box::new([forge::settings::Area {
                 name: b"tests".as_slice().into(),
@@ -175,7 +175,7 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
     setting(
         &mut domain,
         &env,
-        13,
+        15,
         forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Charter(14) }),
     );
     assert_eq!(holder(&domain, 1, Some(b"tests")), Holder::Task(40));
@@ -219,7 +219,7 @@ fn a_subscription_refusal_leaves_the_filing_unwritten() {
     setting(
         &mut domain,
         &env,
-        13,
+        15,
         forge::settings::Value::ProjectTriager(forge::settings::ProjectTriager { owner: AreaOwner::Task(task) }),
     );
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);

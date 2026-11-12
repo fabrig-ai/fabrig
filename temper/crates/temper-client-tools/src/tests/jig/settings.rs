@@ -350,6 +350,18 @@ fn document_name_parts_and_fixed_byte_bounds_name_the_refused_member() {
     }
 }
 #[test]
+fn a_resuming_charter_keeps_its_parts_in_a_settings_file() {
+    let file = with_parts(&charter_file(DOCUMENTS), PARTS, true);
+    let decoded = settings_file::decode(&file, &crate::limits::tools()).expect("resuming charter with parts");
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Charter(charter) }) =
+        &decoded.get(0).expect("charter item").edit
+    else {
+        panic!("charter");
+    };
+    assert!(charter.resume);
+    assert_eq!(charter.parts, parts());
+}
+#[test]
 fn document_shape_refusals_name_the_member_and_a_heading_is_optional() {
     for (member, value) in [
         ("forge", "null"),
@@ -396,7 +408,6 @@ fn document_shape_refusals_name_the_member_and_a_heading_is_optional() {
             r#""question" twice"#,
         ),
         (r#"[{"on":[],"instructions":"x"}]"#, false, "charter.parts[0].on", "names no kind"),
-        (PARTS, true, "charter.parts", "a charter that resumes takes no parts"),
         ("null", false, "charter.parts", "expected array"),
         (r#"[{"instructions":"x"}]"#, false, "charter.parts[0].on", "missing member"),
         (r#"[{"on":["first"]}]"#, false, "charter.parts[0].instructions", "missing member"),
@@ -2136,17 +2147,19 @@ fn forge_value(kind: u32) -> Box<[u8]> {
     } else if kind == 7 {
         br#"{"items":[{"setting":{"kind":"project-ways","project":7},"set":{"drafts":true,"goals":false,"changes":false,"way":0}}]}"#.as_slice()
     } else if kind == 6 {
-        br#"{"items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#.as_slice()
+        br#"{"items":[{"setting":{"kind":"project-questions","project":7},"set":"up"}]}"#.as_slice()
     } else if kind == 9 {
         br#"{"items":[{"setting":{"kind":"charter-words","number":1},"set":"reviews every change"}]}"#.as_slice()
     } else if kind == 10 {
         br#"{"items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review every change."}}]}"#.as_slice()
-    } else if kind == 12 {
+    } else if kind == 14 {
         br#"{"items":[{"setting":{"kind":"project-areas","project":7},"set":{"areas":[{"name":"tests","words":"C tests","owner":{"task":42}}]}}]}"#.as_slice()
-    } else if kind == 13 {
+    } else if kind == 15 {
         br#"{"items":[{"setting":{"kind":"project-triager","project":7},"set":{"owner":{"charter":14}}}]}"#.as_slice()
     } else if kind == 3 {
         br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":6}]}"#.as_slice()
+    } else if kind == 12 {
+        br#"{"items":[{"setting":{"kind":"follow","project":7,"number":1},"set":{"source":{"forge":1,"repository":12,"branch":"main","paths":["src"]},"target":{"forge":1,"repository":13,"branch":"stable"},"owner":{"person":4},"start":"owner","check":{"workflow":"tests.yml","artifact":"results","format":"junit"}}}]}"#.as_slice()
     } else if kind == 11 {
         br#"{"items":[{"setting":{"kind":"template-goal","number":1},"set":{"design":true,"close_out":true}}]}"#
             .as_slice()
@@ -2201,7 +2214,10 @@ fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::Re
     })))
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table joins each forge setting kind in text and JSON")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the setting read table covers current and historical values in both formats"
+)]
 fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_json() {
     use temper_client_protocol_wire::v1 as w;
     for (argv, kind, scope, label, stock) in [
@@ -2217,11 +2233,19 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
         (vec!["settings", "show", "forge-charter", "1"], 3, 0, "forge-charter 1", false),
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", false),
         (vec!["settings", "show", "charter-words", "1"], 9, 0, "charter-words 1", true),
-        (vec!["settings", "show", "project-areas", "7"], 12, 7, "project-areas 7", false),
-        (vec!["settings", "show", "project-triager", "7"], 13, 7, "project-triager 7", false),
+        (vec!["settings", "show", "project-areas", "7"], 14, 7, "project-areas 7", false),
+        (vec!["settings", "show", "project-triager", "7"], 15, 7, "project-triager 7", false),
         (vec!["settings", "show", "project-words", "7"], 10, 7, "project-words 7", false),
         (vec!["settings", "show", "project-words", "shop"], 10, fixtures::PROJECT, "project-words", false),
         (vec!["settings", "show", "template-goal", "1"], 11, 0, "template-goal 1", false),
+        (vec!["settings", "show", "follow", "1", "--project", "7"], 12, 7, "follow 1 --project 7", false),
+        (
+            vec!["settings", "show", "follow", "1", "--project", "shop", "--revision", "5"],
+            12,
+            fixtures::PROJECT,
+            "follow 1 --project",
+            false,
+        ),
         (vec!["settings", "show", "project-questions", "7"], 6, 7, "project-questions 7", false),
         (vec!["settings", "show", "project-ways", "7"], 7, 7, "project-ways 7", false),
         (vec!["settings", "show", "project-classes", "7"], 8, 7, "project-classes 7", false),
@@ -2264,14 +2288,15 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             if json {
                 let expected = match kind {
                     3 => "\"value\":6",
-                    6 => "\"value\":\"foreman\"",
+                    6 => "\"value\":\"up\"",
                     7 => "\"drafts\":true",
                     8 => "\"class\":\"ask-away\"",
                     9 => "\"value\":\"reviews every change\"",
                     10 => "\"value\":{\"headline\":\"Our way\",\"lede\":\"We review every change.\"}",
                     11 => "\"design\":true,\"close_out\":true",
-                    12 => "\"owner\":{\"task\":42}",
-                    13 => "\"owner\":{\"charter\":14}",
+                    12 => "\"workflow\":\"tests.yml\"",
+                    14 => "\"owner\":{\"task\":42}",
+                    15 => "\"owner\":{\"charter\":14}",
                     _ => "\"ci\":false",
                 };
                 assert!(text.contains(expected), "{text}");
@@ -2342,7 +2367,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             assert!(text.contains(if json { "\"revision\":5" } else { ", revision 5" }), "{text}");
             let expected = match kind {
                 3 => "6",
-                6 => "\"foreman\"",
+                6 => "\"up\"",
                 7 => "\"drafts\":true",
                 8 => {
                     if json {
@@ -2354,8 +2379,9 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 9 => "reviews every change",
                 10 => "We review every change.",
                 11 => "\"design\":true,\"close_out\":true",
-                12 => "\"owner\":{\"task\":42}",
-                13 => "\"owner\":{\"charter\":14}",
+                12 => "\"workflow\":\"tests.yml\"",
+                14 => "\"owner\":{\"task\":42}",
+                15 => "\"owner\":{\"charter\":14}",
                 _ => "\"ci\":false",
             };
             assert!(text.contains(expected), "{text}");

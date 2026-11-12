@@ -2,6 +2,8 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+
+
 Section 9 has the `ask-temper-start` account (`b14f146fc5`), the
 two-step `project-landing` print and the three `night-*` gallery states.
 The five journeys' prints include the unpressed night switch, with no
@@ -14,6 +16,8 @@ in this drawing route. Temper/ui's rendered comparison of all
 three requests remains `journeys.md`, section 10's after-landing work; replayed prints
 establish no rendered equality. The unrelated retained `chat-draft`
 inventory and redaction gaps below remain.
+
+Section 8.1 also accepts prebuilt recording inputs through `again --prepared DIR NAME`; its fresh private scratch directory stays beneath DIR and no child build runs.
 
 Section 8.1 has no known gap in a save's control found outside a menu:
 `temper-client-shell-web`'s `journey.rs`, `control`, skips a node under
@@ -94,5 +98,5 @@ template, where a box now starts a design session
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
 - **Departs:**
   - 3.6: the API-key field carries a pasted trailing newline rather than trimming it. Redaction preserves that newline and replaces both the whole-value and trimmed-value digests, matching what the host carries so the replay holds.
-  - 5.1: a `--redact` TEXT that is empty or starts `--` is the usage line, exit 2, so such a text can't be named, because a TEXT left out must not take the next flag for one.
-  - 6: the refusal's process tests (`temper/tools/journeys/tests/suite/refusals.rs`) compare the listings of the journeys' root and of `tools/journeys`, a level each, and the print's test compares a whole root, where the section has nothing written on any path. No test traces a process's every write, so that `add`'s writes all stand after its last scan is seen by reading `add`.
+  - 5.1: a `--redact` TEXT that is empty or starts `--` is a table refusal with usage, exit 2, so such a text can't be named, because a TEXT left out must not take the next flag for one.
+  - 6: the refusal's process tests (`temper/bin/temper-client-journeys/tests/suite/refusals.rs`) compare the listings of the journeys' root and of `crates/temper-client-journeys-tool`, a level each, and the print's test compares a whole root, where the section has nothing written on any path. No test traces a process's every write, so that `add`'s writes all stand after its last scan is seen by reading `add`.

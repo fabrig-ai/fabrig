@@ -46,6 +46,7 @@ pub enum Verdict {
 /// A reviewer identity and project role verified by the root's people child.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Reviewer {
+    pub at: skein_lib::Wall,
     pub person: u64,
     pub role: u32,
     pub head: skein_forge::api::Commit,
@@ -172,6 +173,38 @@ pub(crate) fn approval_count(
     (counted.into_boxed(), None)
 }
 
+/// Union exactly the counted people, retaining their counted review and the earliest eight.
+#[must_use]
+pub fn sign_offs(
+    approvals: &[(u32, Freshness)],
+    head: skein_forge::api::Commit,
+    clean: &[skein_forge::api::Commit],
+    reviewers: &[Reviewer],
+) -> Box<[crate::SignOff]> {
+    let mut kept = skein_lib::Map::uncapped();
+    for (role, freshness) in approvals {
+        let (counted, _) = approval_count(*role, *freshness, head, clean, reviewers);
+        for review in counted {
+            if !kept.contains_key(&review.person) {
+                kept.insert(review.person, crate::SignOff { person: review.person, head: review.head, at: review.at })
+                    .expect("admitted reviewers");
+            }
+        }
+    }
+    let mut ordered = skein_lib::Map::uncapped();
+    for (_, signed) in &kept {
+        ordered.insert((signed.at, signed.person), *signed).expect("distinct people");
+    }
+    let mut signed = List::uncapped();
+    for (_, review) in &ordered {
+        if skein_lib::usize_of(signed.len()) == crate::SIGN_OFFS {
+            break;
+        }
+        signed.push(*review).expect("bounded sign-offs");
+    }
+    signed.into_boxed()
+}
+
 /// Judge one configured criterion against the change's coherent evidence.
 #[must_use]
 pub fn judge(
@@ -220,7 +253,8 @@ mod tests {
     fn approvals_count_distinct_people_at_the_named_head() {
         let head = [1; 32];
         let old = [2; 32];
-        let review = |person, role, head, verdict| Reviewer { person, role, head, verdict };
+        let review =
+            |person, role, head, verdict| Reviewer { at: skein_lib::Wall::from_nanos(0), person, role, head, verdict };
         let approved = api::Verdict::Approve;
         let first = review(7, 3, head, approved);
         let second = review(8, 3, head, approved);
@@ -251,5 +285,72 @@ mod tests {
             ),
             Verdict::Refuse
         );
+    }
+
+    #[test]
+    fn sign_offs_keep_exactly_the_counted_people_and_the_earliest_eight() {
+        use super::sign_offs;
+        use crate::SignOff;
+        use alloc::boxed::Box;
+        use skein_lib::List;
+        use skein_lib::Wall;
+        type Case = (&'static str, Box<[(u32, Freshness)]>, Box<[Reviewer]>, Box<[SignOff]>);
+        let head = [1; 32];
+        let clean = [2; 32];
+        let stale = [3; 32];
+        let review =
+            |person, role, head, verdict, at| Reviewer { person, role, head, verdict, at: Wall::from_nanos(at) };
+        let signed = |person, head, at| SignOff { person, head, at: Wall::from_nanos(at) };
+        let approve = api::Verdict::Approve;
+        let first = review(4, 1, head, approve, 10);
+        let other = review(7, 2, head, approve, 5);
+        let exact: Box<[_]> = Box::new([(1, Freshness::Exact)]);
+        let clean_approval: Box<[_]> = Box::new([(1, Freshness::Clean)]);
+        let mut nine = List::with_capacity(9);
+        let mut eight = List::with_capacity(8);
+        for person in (1..=9).rev() {
+            nine.push(review(person, 1, head, approve, person / 2)).unwrap();
+        }
+        for person in 1..=8 {
+            eight.push(signed(person, head, person / 2)).unwrap();
+        }
+        let cases: [Case; 13] = [
+            ("exact role", exact.clone(), Box::new([first, other]), Box::new([signed(4, head, 10)])),
+            ("no approvals", Box::new([]), Box::new([first]), Box::new([])),
+            ("other role", exact.clone(), Box::new([other]), Box::new([])),
+            ("comment", exact.clone(), Box::new([review(4, 1, head, api::Verdict::Comment, 10)]), Box::new([])),
+            ("changes", exact.clone(), Box::new([review(4, 1, head, api::Verdict::RequestChanges, 10)]), Box::new([])),
+            ("conflict", exact.clone(), Box::new([first, review(4, 1, head, api::Verdict::Comment, 11)]), Box::new([])),
+            (
+                "clean conflict",
+                clean_approval.clone(),
+                Box::new([first, review(4, 1, clean, api::Verdict::RequestChanges, 11)]),
+                Box::new([]),
+            ),
+            (
+                "uncounted conflict",
+                exact.clone(),
+                Box::new([first, review(4, 1, stale, api::Verdict::RequestChanges, 11)]),
+                Box::new([signed(4, head, 10)]),
+            ),
+            ("exact predecessor", exact.clone(), Box::new([review(4, 1, clean, approve, 10)]), Box::new([])),
+            (
+                "clean predecessor",
+                clean_approval.clone(),
+                Box::new([review(4, 1, clean, approve, 10)]),
+                Box::new([signed(4, clean, 10)]),
+            ),
+            ("stale", clean_approval, Box::new([review(4, 1, stale, approve, 10)]), Box::new([])),
+            (
+                "union",
+                Box::new([(1, Freshness::Exact), (1, Freshness::Clean), (2, Freshness::Exact)]),
+                Box::new([first, first, other]),
+                Box::new([signed(7, head, 5), signed(4, head, 10)]),
+            ),
+            ("earliest eight with ties", exact, nine.into_boxed(), eight.into_boxed()),
+        ];
+        for (name, approvals, reviewers, expected) in cases {
+            assert_eq!(sign_offs(&approvals, head, &[clean], &reviewers).as_ref(), expected.as_ref(), "{name}");
+        }
     }
 }

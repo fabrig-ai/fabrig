@@ -29,19 +29,26 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(number));
             return;
         }
+        c::Setting::Application { kind: kind @ (12 | 13), scope, number } => {
+            out.put(if kind == 12 { b"follow " } else { b"dependency " });
+            out.number(u64::from(number));
+            out.put(b" --project ");
+            out.number(u64::from(scope));
+            return;
+        }
         c::Setting::Application { kind: 11, number, .. } => {
             out.put(b"template-goal ");
             out.number(u64::from(number));
             return;
         }
-        c::Setting::Application { kind: kind @ (6 | 7 | 8 | 10 | 12 | 13), scope, .. } => {
+        c::Setting::Application { kind: kind @ (6 | 7 | 8 | 10 | 14 | 15), scope, .. } => {
             out.put(match kind {
                 6 => b"project-questions ",
                 7 => b"project-ways ",
                 8 => b"project-classes ",
                 10 => b"project-words ",
-                12 => b"project-areas ",
-                13 => b"project-triager ",
+                14 => b"project-areas ",
+                15 => b"project-triager ",
                 _ => unreachable!("project setting without a number"),
             });
             out.number(u64::from(scope));
@@ -95,23 +102,34 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
                 1 | 2 => out.string(b"landing-rule"),
                 3 => out.string(b"forge-charter"),
                 11 => out.string(b"template-goal"),
+                12 => out.string(b"follow"),
+                13 => out.string(b"dependency"),
                 6 => out.string(b"project-questions"),
                 7 => out.string(b"project-ways"),
                 8 => out.string(b"project-classes"),
                 9 => out.string(b"charter-words"),
                 10 => out.string(b"project-words"),
-                12 => out.string(b"project-areas"),
-                13 => out.string(b"project-triager"),
+                14 => out.string(b"project-areas"),
+                15 => out.string(b"project-triager"),
                 _ => out.unsigned(u64::from(kind)),
             }
-            if kind == 2 || kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 12 || kind == 13 {
+            if kind == 2
+                || kind == 6
+                || kind == 7
+                || kind == 8
+                || kind == 10
+                || kind == 12
+                || kind == 13
+                || kind == 14
+                || kind == 15
+            {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
             } else if kind != 1 && kind != 3 && kind != 9 && kind != 11 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
-            if kind != 6 && kind != 7 && kind != 8 && kind != 10 && kind != 12 && kind != 13 {
+            if kind != 6 && kind != 7 && kind != 8 && kind != 10 && kind != 14 && kind != 15 {
                 out.key(b"number");
                 out.unsigned(u64::from(number));
             }

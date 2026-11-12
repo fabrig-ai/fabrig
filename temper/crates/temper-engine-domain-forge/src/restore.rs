@@ -19,6 +19,7 @@ pub enum RestoreSet {
     ProjectionTimers,
     References,
     Watches,
+    FollowQueue,
     LandingFlights,
     LandingMembers,
     LandingsKept,
@@ -26,6 +27,7 @@ pub enum RestoreSet {
     LandingAsks,
     LandingEntries,
     NameBytes,
+    ContextProjects,
 }
 
 /// The first configured bound a restored row or derived set could not fit.
@@ -187,6 +189,16 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 d.landing.rows.contains_key(&row.landing.task),
             )
         }
+        Stored::Follow(row) => {
+            field(K::Follow, RestoreSet::FollowQueue, count(row.queue.len()), u64::from(l.follow_queue))?;
+            let mut held = 0_u32;
+            for _ in d.follow_rows.range((row.project, 0)..=(row.project, u32::MAX)) {
+                held = held.saturating_add(1);
+            }
+            let replacing = d.follow_rows.contains_key(&(row.project, row.follow));
+            room(K::Follow, Rows(K::Follow), held, l.follows, replacing)?;
+            room(K::Follow, Rows(K::Follow), d.follow_rows.len(), d.follow_rows.capacity(), replacing)
+        }
         Stored::Tier(row) => room(
             K::Tier,
             Rows(K::Tier),
@@ -238,13 +250,17 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             named_payload(l, answer)?;
             room(K::Call, Rows(K::Call), d.named_calls.len(), d.named_calls.capacity(), d.named_calls.contains_key(key))
         }
-        Stored::Repository(row) => room(
-            K::Repository,
-            Rows(K::Repository),
-            d.repositories.len(),
-            d.repositories.capacity(),
-            d.repositories.contains_key(&row.provider),
-        ),
+        Stored::Repository(row) => {
+            let contexts = count(row.contexts.len()).saturating_add(u64::from(row.role == crate::Role::Context));
+            field(K::Repository, RestoreSet::ContextProjects, contexts, u64::from(l.judge_projects))?;
+            room(
+                K::Repository,
+                Rows(K::Repository),
+                d.repositories.len(),
+                d.repositories.capacity(),
+                d.repositories.contains_key(&row.provider),
+            )
+        }
         Stored::Hold(row) => {
             room(K::Hold, Rows(K::Hold), d.holds.len(), d.holds.capacity(), d.holds.contains_key(&row.name))
         }
@@ -294,6 +310,17 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.project_facts.capacity(),
             d.project_facts.contains_key(&row.project),
         ),
+        Stored::LandedDraft(row) => {
+            let replacing = crate::drafts::held(d, &(row.repository, row.path.clone())).is_some();
+            room(K::LandedDraft, Rows(K::LandedDraft), crate::drafts::count(d, row.project), crate::DRAFTS, replacing)?;
+            room(
+                K::LandedDraft,
+                Rows(K::LandedDraft),
+                crate::drafts::len(d),
+                crate::DRAFTS.saturating_mul(l.judge_projects),
+                replacing,
+            )
+        }
         Stored::Away(row) => room(
             K::Away,
             Rows(K::Away),
@@ -344,6 +371,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 d.bindings.contains_key(address),
             )
         }
+        Stored::RefusedSetting(key) => room(
+            K::Setting,
+            Rows(K::Setting),
+            d.setting_rows.len().saturating_add(d.refused_settings.len()),
+            d.setting_rows.capacity(),
+            d.refused_settings.contains_key(key),
+        ),
         Stored::Setting(row) => {
             if let crate::settings::Edit::Set(crate::settings::SizedValue {
                 value: crate::settings::Value::Rule(rule),
@@ -362,7 +396,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             room(
                 K::Setting,
                 Rows(K::Setting),
-                d.setting_rows.len(),
+                d.setting_rows.len().saturating_add(d.refused_settings.len()),
                 d.setting_rows.capacity(),
                 d.setting_rows.contains_key(&row.key),
             )

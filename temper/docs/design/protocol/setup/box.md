@@ -80,6 +80,17 @@ temper-box
   at, is named on its stderr, and its group stays dormant; of two
   started groups of one kind, the one of the higher number runs, and the
   other is named and stays dormant.
+- **A newer build at a later start.** A stopped box's directories start
+  with another build installed at the same paths, the files of
+  `temper-box`, `fake-claude` beside it and the bundle's directory
+  replaced while it was stopped. Every program the box runs is its own
+  executable, run again for its steps and its agents' host, or a path
+  its configuration names, never a copy in its data, so the engine, its
+  agents, its adapters and the served bundle all run the new build, and
+  nothing the old. Its owned Forgejo, repositories and tasks come back
+  as they were; a store the build cannot read refuses serve's start by
+  name (`../store.md`, 5), a step's failure as 2 has it. The process
+  tier proves it (`../../testing/process-tier.md`).
 - **A forge's group, removed.** At a forge's removal
   (`../../domain/forge/adoption.md`, 1) serve asks `remove N`, and again at each of
   its starts until it is answered `removed N`. The box stops the group's
@@ -621,9 +632,9 @@ temper.json and agent.json through their effective directory flags; peer
 commands read absolute effective document paths. Changing only the parent's
 parsed bytes is insufficient.
 
-Build the loopback bundle once, then start even with empty configuration:
+Build the bundle once, then start even with empty configuration:
 
-    scripts/bundle.sh --loopback DIR && temper-box --fake-backends --bundle DIR
+    scripts/bundle.sh DIR && temper-box --fake-backends --bundle DIR
 
 The flag overrides an init-shaped source's application.clients.bundle;
 without it, that configured bundle is used. Missing both refuses with the
@@ -643,8 +654,8 @@ the printed link names them. A stopped box holds none, so a port the kernel
 hands on meanwhile refuses its restart, naming the port. An init-shaped
 source's listeners stay its own.
 
-`TEMPER_INTERNAL_FAKE_BOX_PORTS`, the process tier's and never a person's
-(`../../testing/process-tier.md`), names a new sandbox's nine ports, separated
+`TEMPER_INTERNAL_FAKE_BOX_PORTS`, the process tier's and QA's places', never a person's
+(`../../testing/process-tier.md`; `../../testing/qa/places.md`, 2), names a new sandbox's nine ports, separated
 by commas: init's five, clients, owned, forge, llm and webhooks, then the
 peers' github, oauth, llm and forgejo. A new sandbox holds each of them or
 refuses to start, naming the port and the variable, as it does a value that
@@ -700,6 +711,26 @@ model's first added key. A supervised issuer is `fake issuer`, using
 inherited-listener support. It never substitutes a self-bound startup race
 for that contract.
 
+**Scripts given.** `--scripts FILE`, repeatable, gives the fake model
+scripts in place of those the box generates, and `--strict` its strict
+switch (skein's `testing/fakes/llm.md`, 2.5), at every start, of a new
+sandbox or a retained one: QA's (`../../draft/landed-qa.md`, 6) and the
+process tier's. Each FILE is a JSON object of the document form's script
+members, `cued`, `asked` and `otherwise`, each optional (`playground.md`,
+the document form). Before any step starts the box reads them in the
+order given and joins them: `cued` and `asked` each in that order, the
+first file's first, and `otherwise` the last file's that holds one. A
+file that does not read, a member it does not know, a cue repeating one
+before it in its group, or a join past the document form's bounds
+refuses the start, naming the file. The join is written to
+`C'/llm-scripts.json`, 0o600, replacing the last start's, and the `fake
+model` step's arguments add `--scripts C'/llm-scripts.json`, and
+`--strict` with `--strict`; a start without `--scripts` removes the
+file, and `llm.json`'s generated scripts answer again. The retained
+`llm.json` never changes: its listener, keys, TLS, models and outputs
+stay. So scripts are the start's, the same at every place, and never
+change while the box runs.
+
 The box owns the peers' held listeners before spawning them. First
 preparation transfers its reservations exactly once; on reuse the ordinary
 box listener mechanism binds the retained documents' addresses. Each is
@@ -710,9 +741,19 @@ are revalidated on both paths; edits are not silently replaced.
 Held listeners provide the ordinary fake peers' readiness and accept
 backlog. Restart, backoff, give-up and reverse-order shutdown use the
 ordinary supervisor. The playground's reset ends no peer of these, so a
-person's newly connected model or issuer runs on. Peer memory lasts one launch: a restarted peer
-uses the same seed and output files, but does not recover in-memory Apps or
-other changes. Effective configuration and temper's data remain retained.
+person's newly connected model or issuer runs on. The fake forges keep
+their state across a restart: the `fake github` and `fake forgejo` steps'
+arguments add `--state D'/github-forge.state` and `--state
+D'/forgejo-forge.state` (`../../testing/fakes.md`, 2), written at each
+one's orderly stop, so a stopped box's data holds its Apps,
+installations, repositories, pull requests and CI as they stood, and a
+copy of that data holds them (`../../draft/landed-qa.md`, 6). A forge
+that exits otherwise starts again from what its last orderly stop wrote,
+or from its seed when none has. The model and the issuer keep their
+memory for one launch: a restarted one uses the same seed, scripts and
+output files, and so answers as before. A state a newer build cannot
+read refuses that step's start, naming the file, as a store refused by
+name does. Effective configuration and temper's data remain retained.
 
 **Sources to copy** (`../../draft/repository-copies.md`, 6): the `fake forgejo`
 peer's document names two, and `box: copy source ADDRESS` prints each
@@ -874,3 +915,57 @@ remains until C3 moves it to the client's `temper box` (`../../cli/README.md`, 6
   front has ended, and the binary takes the foreground back in the loop's
   drain hook (skein's `runtime/shell.md`, section 11), between that turn and its
   submissions, since neither of skein's terminal calls is step code's.
+
+## 7. Open questions
+
+- **Repeated admission during fake-box preparation** (`box.md`, 5): share a
+  checked protocol document and typed deployment between preparation,
+  step assembly and peer validation, preserving admission of every
+  changed retained/source document and the order of refusals. Ordinary
+  boxes still discover their environment and generate independent fresh
+  provider keys. Default: retain those checks and keys; further startup
+  cost work follows `../../testing/README.md`, section 7, with its measured
+  causes in `temper/docs/development/limits-heavy.md`.
+
+- **A box killed outright on macOS** (`box.md`, 1): its steps have no parent-death
+  signal, so they can keep running and hold the next start's ports. A
+  lifetime guard on macOS needs a mechanism of its own; until one is
+  designed, the box's ordered stop, including a hangup, is its cleanup.
+
+- **A box started in the background of a terminal** (`box.md`, 6): `temper-box &`
+  from a shell with job control has a terminal on its standard input and
+  output, so it runs its front, which takes the terminal's foreground
+  from the shell. `--no-tui` keeps it off. Telling a background start
+  from a foreground one needs the box to read its terminal's foreground
+  group, which skein's `runtime/shell.md`, 6.3 does not give yet.
+
+- **The terminal after a front killed outright** (`box.md`, 6): the front's modes
+  and screen stay on the terminal, as any program's killed outright do
+  (skein's `runtime/shell.md`, 6.3). The box could keep the modes at its start and
+  set them back once it takes the foreground again. It needs a reason
+  first: a front leaves them only when it is killed, by the box's close
+  after two graces or from outside.
+
+- **The fake box's retained ports under concurrent stories** (`box.md`, 5):
+  prove the story-supplied ports across a stopped box's restart in the
+  after-landing tiers (`../../testing/README.md`, 7), beside other test
+  processes drawing their own ports. Focused proof holds the choice and
+  retention rules; the process and browser walks hold the running box.
+
+- **A fake fetch for the fake box,** so that a journey prints the
+  percentage: a walk's fetch lasts seconds, its `fetched` lines keep the
+  page moving, and `again` takes no page while it moves
+  (`../../client/web/journeys.md`, 8.1).
+
+- **The other fake peers' refused connections** (`box.md`, 5): the issuer's log
+  takes a line for each connection it turns away at its cap, from skein's
+  OAuth peer's count; `fake github`, `fake forgejo` and `fake model` turn
+  theirs away silently, and skein's forge and LLM peers count none. Each
+  takes the same count and line when a walk meets its cap.
+
+- **The time of day on the terminal's error lines** (`box.md`, 2;
+  `../../draft/box-link-first.md`, 6): the user may prefer none. Default:
+  kept.
+
+- **A launchd agent for the box** on macOS, as `box.md`, 4 arranges systemd
+  (`../../draft/macos.md`, section 7).

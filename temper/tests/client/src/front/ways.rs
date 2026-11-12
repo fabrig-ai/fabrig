@@ -28,8 +28,22 @@ pub fn fixture(seed: u64, limits: &client::Limits, reader: Reader) -> Joint {
 
 /// Keep existing callers' repositories; path stories adopt CI and both tiers or neither.
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one fixture joins the stock, policy and reader identity")]
 pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repository: Option<Repository>) -> Joint {
+    configured(seed, limits, reader, repository, false)
+}
+/// A follow's target and a separately owned source project (client/pages/settings.md, 2).
+#[must_use]
+pub fn follows(seed: u64, limits: &client::Limits) -> Joint {
+    configured(seed, limits, Reader::Owner, None, true)
+}
+#[expect(clippy::too_many_lines, reason = "the fixture joins stock, policy, projects and reader identity")]
+fn configured(
+    seed: u64,
+    limits: &client::Limits,
+    reader: Reader,
+    repository: Option<Repository>,
+    projects: bool,
+) -> Joint {
     let mut engine_limits = engine_limits();
     engine_limits.tasks.charters = 16; // Kind 9's stock lines run up to charter 16.
     engine_limits.tasks.spec_bytes = engine_limits.tasks.spec_bytes.max(512);
@@ -106,6 +120,9 @@ pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repos
         people::InitialOwner { project: 0, identity: owner.clone() },
         people::InitialOwner { project: 1, identity: owner },
     ]);
+    if projects {
+        super::first_run_projects(&mut config, &mut engine_limits);
+    }
     let bootstrap = oracle::config::copy(&config);
     let accounts = temper_engine_domain_world::fixtures::account_rows(&config.core.settings.llm_providers);
     let mut cold = Driver::cold(Store::with_limits(&engine_limits), bootstrap, &engine_limits);
@@ -187,6 +204,7 @@ pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repos
                     .insert(
                         1,
                         engine::ProjectLanding {
+                            landing_attempts: engine::LANDING_ATTEMPTS,
                             check_timeout: None,
                             by: engine::Way::Queue,
                             close_job: None,
@@ -221,6 +239,7 @@ pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repos
         if matches!(repository, Repository::Yours) {
             use temper_engine_domain_forge::{self as forge, settings};
             let own = settings::LandingRule {
+                sets: Box::new([]),
                 pattern: forge::GatePattern {
                     segments: Box::new([b"branch".as_slice().into()]),
                     last: forge::GateLast::Open(Box::new([])),

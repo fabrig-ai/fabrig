@@ -637,6 +637,7 @@ fn missing_scope(request: &Request, scopes: &Scopes) -> Option<&'static [u8]> {
         | Request::Commits { .. }
         | Request::Contents { .. }
         | Request::Raw { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::RepositoryById { .. }
         | Request::RepoSearch { .. }
@@ -790,6 +791,7 @@ fn table(service: &Service, request: &Request, user: u64) -> Option<documents::A
         | Request::UserOf { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }

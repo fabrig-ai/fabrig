@@ -72,7 +72,7 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, 
         let mut pending = Status {
             state: Check::Pending,
             author: env.limits.ci,
-            at: domain::clock(env),
+            at: domain::clock(env).max(domain.floor),
             rerun: false,
             description: copy_of(b"CI pending"),
             link: Box::new([]),
@@ -159,7 +159,7 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
     let mut status = Status {
         state,
         author: env.limits.ci,
-        at: domain::clock(env),
+        at: domain::clock(env).max(domain.floor),
         rerun,
         description: description(state),
         link: Box::new([]),
@@ -190,7 +190,7 @@ pub(crate) fn rerun(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, 
     let mut pending = Status {
         state: Check::Pending,
         author: env.limits.ci,
-        at: domain::clock(env),
+        at: domain::clock(env).max(domain.floor),
         rerun: true,
         description: copy_of(b"CI pending"),
         link: Box::new([]),
@@ -241,7 +241,15 @@ pub(crate) fn status(
         id,
         commit,
         &context,
-        Status { state, author: user, at: domain::clock(env), rerun: true, description, link, job: None },
+        Status {
+            state,
+            author: user,
+            at: domain::clock(env).max(domain.floor),
+            rerun: true,
+            description,
+            link,
+            job: None,
+        },
     ) {
         return Err(Error::Full);
     }
@@ -317,7 +325,7 @@ pub(crate) fn reported(
     if env.limits.status_updates {
         let heads = repository.heads(commit);
         for &number in &heads {
-            repository.touch(number, domain::clock(env));
+            repository.touch(number, domain::clock(env).max(domain.floor));
         }
     }
     let job = crate::actions::reference(repository, commit, &context);

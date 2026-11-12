@@ -1,6 +1,6 @@
 //! Root store requests and terminals, with temper's decoded families.
 //! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
-use super::ranges;
+use super::{UnreadableRow, ranges};
 use ::core::mem::size_of;
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -19,6 +19,8 @@ pub struct Routes {
     limits: engine::loads::Limits,
     families: families::Bounds,
     page_failure: Option<store::restore::Failure>,
+    row_failure: Option<UnreadableRow>,
+    pub(crate) patch_context: store::patches::Context,
 }
 #[derive(Debug)]
 pub(super) struct Flight {
@@ -43,12 +45,19 @@ impl Routes {
             limits: limits.loads,
             families,
             page_failure: None,
+            row_failure: None,
+            patch_context: store::patches::Context::default(),
         }
     }
     /// The store's typed cause for the refused startup page.
     #[must_use]
     pub(crate) fn page_failure(&self) -> Option<&store::restore::Failure> {
         self.page_failure.as_ref()
+    }
+    /// The application row refused before the root heard it.
+    #[must_use]
+    pub(crate) fn row_failure(&self) -> Option<&UnreadableRow> {
+        self.row_failure.as_ref()
     }
     /// Whether every routed load has had its terminal.
     #[must_use]
@@ -231,12 +240,18 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
                 root(into, engine::StoreInput::ReadLoaded { load, result });
             }
         }
-        store::Event::Site { owner, of, site, patcher, .. } => {
-            into.push(Up::Ask(dispatch(owner, of, site, patcher)));
+        store::Event::Site { owner, of, site, at, patcher, key: _ } => {
+            into.push(Up::Ask(dispatch(owner, of, site, at, patcher, &mut routes.patch_context)));
         }
         store::Event::Switched { .. } => root(into, engine::StoreInput::Switched),
         store::Event::OpenRefused { .. } | store::Event::SecretsNotReady { .. } => stop(routes, into),
-        store::Event::Patched { .. }
+        store::Event::Decoded { .. }
+        | store::Event::Undecodable { .. }
+        | store::Event::Rehearsing { .. }
+        | store::Event::Back { .. }
+        | store::Event::BackRefused { .. }
+        | store::Event::Closed { .. }
+        | store::Event::Patched { .. }
         | store::Event::Opened { .. }
         | store::Event::Kept { .. }
         | store::Event::Carried { .. }
@@ -274,9 +289,13 @@ fn page(
     let mut last = flight.after.clone();
     let mut scanned = flight.after.clone();
     for row in rows {
-        let Some(mut record) = decode(row, &routes.families) else {
-            root(into, engine::StoreInput::Unloaded { owner: flight.root });
-            return;
+        let mut record = match decode(row, &routes.families) {
+            Ok(record) => record,
+            Err(failure) => {
+                routes.row_failure = Some(failure);
+                root(into, engine::StoreInput::Unloaded { owner: flight.root });
+                return;
+            }
         };
         let key = record.key();
         scanned = Some(key.clone());
@@ -474,13 +493,17 @@ fn page_failed(routes: &Routes, flight: &Flight, into: &mut Queue<Up>) {
     }
 }
 
-fn decode(row: store::Row, bounds: &families::Bounds) -> Option<engine::Record> {
-    Some(match row {
-        store::Row::Jig(row) => engine::Record::Core(row),
-        store::Row::Application { key, value } => {
-            engine::Record::Forge { row: Box::new(families::records::row(&key, &value, bounds).ok()?) }
-        }
-    })
+fn decode(row: store::Row, bounds: &families::Bounds) -> Result<engine::Record, UnreadableRow> {
+    match row {
+        store::Row::Jig(row) => Ok(engine::Record::Core(row)),
+        store::Row::Application { key, value } => match families::records::row(&key, &value, bounds) {
+            Ok(row) => Ok(engine::Record::Forge { row: Box::new(row) }),
+            Err(families::Undecodable::Setting(key)) => {
+                Ok(engine::Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::RefusedSetting(key)) })
+            }
+            Err(families::Undecodable::Malformed) => Err(UnreadableRow { key }),
+        },
+    }
 }
 
 fn page_bytes(record: &engine::Record, kept: u64) -> Option<(u64, u64)> {
@@ -489,17 +512,26 @@ fn page_bytes(record: &engine::Record, kept: u64) -> Option<(u64, u64)> {
     Some((payload, kept.checked_add(slot)?))
 }
 
-/// No owner has registered a written patch site in this build. Hand the
-/// machine back with the named refusal, so the active generation is preserved.
+/// Route each written site to its owner with the deployment's admitted inputs.
 fn dispatch(
     owner: Token,
     of: store::Owner,
     site: skein_codec::patch::Site,
-    patcher: Box<skein_codec::patch::Patcher>,
+    at: skein_codec::value::Node,
+    mut patcher: Box<skein_codec::patch::Patcher>,
+    context: &mut store::patches::Context,
 ) -> store::Request {
+    let (old, new) = patcher.parts();
     let result = match of {
-        store::Owner::Skein | store::Owner::Smith | store::Owner::Jig | store::Owner::Application => {
-            Err(skein_codec::patch::Halt::NoSite(site))
+        store::Owner::Skein => {
+            skein_oauth::patches::written(site, old, new, at, &mut skein_oauth::patches::Context::default())
+        }
+        store::Owner::Smith => {
+            smith_transcript::patches::written(site, old, new, at, &mut smith_transcript::patches::Context::default())
+        }
+        store::Owner::Jig => store::patches::written(site, old, new, at, context),
+        store::Owner::Application => {
+            families::patches::written(site, old, new, at, &mut families::patches::Context::default())
         }
     };
     store::Request::Site { owner, patcher, result }

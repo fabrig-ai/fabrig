@@ -652,7 +652,9 @@ fn a_change_into_a_goal_branch_being_made_reads_it_once_made() {
     let waiting = fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
     assert!(waiting.contains(&Request::ChangeDecision {
         task: fixtures::CHANGE,
-        decision: change::Decision::Wait { until: None },
+        decision: change::Decision::Wait {
+            until: Some(Wall::from_nanos(env().wall.as_nanos().saturating_add(LIMITS.change_policy.stall.as_nanos())))
+        },
         entry: None,
         evidence: None
     }));
@@ -664,6 +666,45 @@ fn a_change_into_a_goal_branch_being_made_reads_it_once_made() {
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
     let (_, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
+}
+
+#[test]
+fn a_change_waiting_for_its_base_to_be_made_is_bounded_by_its_stall() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = fresh();
+    fixtures::connect(&mut d);
+    making(&mut d);
+    let mut row = fixtures::opening_row();
+    row.base = GOAL_BRANCH.into();
+    row.pending = None;
+    row.effect = change::EffectResult::None;
+    let since = row.change.since;
+    outputs(&mut d, Event::Change { row });
+    fixtures::step_change(&mut d);
+    let waiting = fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+    let until = Wall::from_nanos(since.as_nanos().saturating_add(LIMITS.change_policy.stall.as_nanos()));
+    assert!(waiting.contains(&Request::ChangeDecision {
+        task: fixtures::CHANGE,
+        decision: change::Decision::Wait { until: Some(until) },
+        entry: None,
+        evidence: None
+    }));
+    d.wait_change(&env(), fixtures::CHANGE, Some(until));
+    let mut later = env();
+    let wake = fixtures::advance(&mut d, &mut later, LIMITS.change_policy.stall);
+    let mut signalled = false;
+    for request in &wake {
+        signalled |= *request == Request::WakeProcedure { task: fixtures::CHANGE };
+    }
+    assert!(signalled);
+    at_step(&mut d, &later, fixtures::change_step());
+    let held = at_answer(&mut d, &later, Ok(Answer::Commit(fixtures::HEAD)));
+    assert!(held.contains(&Request::ChangeDecision {
+        task: fixtures::CHANGE,
+        decision: change::Decision::Hold(change::Hold::Stalled),
+        entry: None,
+        evidence: None
+    }));
 }
 
 #[test]
@@ -1234,7 +1275,7 @@ fn merge_into_goal(d: &mut Domain) -> Box<[Request]> {
 }
 
 #[test]
-fn a_merge_into_a_held_goal_branch_saves_only_an_owned_heads_advance() {
+fn a_merge_into_a_held_goal_branch_saves_its_head_whatever_the_previous_record() {
     for owned in [Some(true), Some(false), None] {
         let mut d = fresh();
         take(&mut d);
@@ -1246,28 +1287,36 @@ fn a_merge_into_a_held_goal_branch_saves_only_an_owned_heads_advance() {
         }
         let requests = merge_into_goal(&mut d);
         let advanced = BranchHead { name: name(GOAL_BRANCH), commit: MERGED, owned: true };
-        assert_eq!(
+        assert!(
             requests.contains(&Request::Save {
                 read_afresh: None,
                 release: None,
                 record: Stored::BranchHead(advanced.clone())
             }),
-            owned == Some(true),
             "owned={owned:?}: {requests:?}"
         );
-        match owned {
-            Some(owned) => {
-                let expected = BranchHead { name: name(GOAL_BRANCH), commit: if owned { MERGED } else { TIP }, owned };
-                assert_eq!(d.heads.get(&name(GOAL_BRANCH)), Some(&expected), "owned={owned}");
-            }
-            None => assert_eq!(d.heads.get(&name(GOAL_BRANCH)), None),
-        }
+        assert_eq!(d.heads.get(&name(GOAL_BRANCH)), Some(&advanced), "owned={owned:?}");
         for request in &requests {
             if let Request::Save { record: Stored::BranchHead(head), .. } = request {
-                assert_eq!(owned, Some(true), "an unowned or absent head is read afresh");
                 assert_eq!(head, &advanced);
             }
         }
+        let mut landing = fixtures::opening_row();
+        landing.task = OTHER;
+        landing.change.task = OTHER;
+        landing.branch = GOAL_BRANCH.into();
+        landing.pending = None;
+        landing.effect = temper_engine_domain_forge_change::EffectResult::None;
+        landing.change.state = temper_engine_domain_forge_change::State::Checking { head: TIP };
+        landing.change.last_head = Some(TIP);
+        outputs(&mut d, Event::Change { row: landing });
+        fixtures::connect(&mut d);
+        held_branch::step_at_head_for(&mut d, OTHER, MERGED);
+        assert_eq!(
+            d.change(OTHER).unwrap().change.state,
+            temper_engine_domain_forge_change::State::Checking { head: MERGED }
+        );
+        assert_eq!(d.change(OTHER).unwrap().drift, None);
     }
 }
 

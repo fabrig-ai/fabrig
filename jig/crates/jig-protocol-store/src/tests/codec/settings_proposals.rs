@@ -233,7 +233,7 @@ fn a_restore_reason_and_left_out_one_past_their_bounds_are_refused() {
     let mut domain = fixtures::CORE_LIMITS;
     domain.people.words = 7;
     let limits = crate::codec::people::limits(&domain).unwrap();
-    let wider = crate::people_v14::Limits {
+    let wider = crate::people_v15::Limits {
         ask_restore_reason: limits.ask_restore_reason + 1,
         outcome_restored_left_out: limits.outcome_restored_left_out + 1,
         ..limits

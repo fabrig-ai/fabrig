@@ -10,7 +10,7 @@
 use super::fixtures;
 use crate::startup::{Problems, checks, lines};
 
-// The stock catalogue holds thirteen charters and six templates.
+// The stock catalogue holds twelve charters and six templates.
 // Authority and task executor places hold its eighteen delegation kinds.
 const ENGINE_OVERRIDES: &str = r#""tasks.charters":13,"core.templates":6,"authority.executors":21,"tasks.executor_kinds":21,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
 const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
@@ -140,7 +140,7 @@ fn the_checkouts_repositories_past_the_agents_directories_name_both_limits() {
     let worker = fixtures::worker_settings();
     let own = crate::limits::profile(crate::limits::Profile::Small);
     let mut found = Problems::empty();
-    checks::worker(&crate::worker_settings::root_limits(&worker, &agent, &own), &mut found);
+    checks::worker(&crate::worker_settings::root_limits(&worker, &agent, &crate::limits::worker(&own)), &mut found);
     assert_eq!(
         &*lines(&found),
         b"application.limits.overrides.checkout.repositories: must agree with the agent's directories\n"
@@ -312,7 +312,7 @@ fn worker_limits() -> temper_worker_domain::Limits {
     crate::worker_settings::root_limits(
         &fixtures::worker_settings(),
         &fixtures::startup_agent(),
-        &crate::limits::profile(crate::limits::Profile::Small),
+        &crate::limits::worker(&crate::limits::profile(crate::limits::Profile::Small)),
     )
 }
 

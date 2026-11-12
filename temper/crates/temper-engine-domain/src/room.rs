@@ -154,7 +154,19 @@ pub(crate) fn approval_rows(limits: &crate::Limits) -> u32 {
     let row = u32::try_from(size_of::<crate::ApprovalRow>())
         .expect("approval row size fits u32")
         .saturating_add(limits.forge.name_bytes.saturating_mul(2))
-        .saturating_add(u32::try_from(temper_engine_domain_forge::LOGGED_TITLE_BYTES).expect("bounded title"));
+        .saturating_add(u32::try_from(temper_engine_domain_forge::LOGGED_TITLE_BYTES).expect("bounded title"))
+        .saturating_add(
+            u32::try_from(size_of::<crate::ApprovalSet>())
+                .expect("approval set size fits u32")
+                .saturating_add(40)
+                .saturating_mul(6),
+        )
+        .saturating_add(
+            u32::try_from(size_of::<crate::ApprovalPerson>())
+                .expect("approval person size fits u32")
+                .saturating_add(64)
+                .saturating_mul(16),
+        );
     limits
         .journal
         .result_bytes

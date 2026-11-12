@@ -91,6 +91,8 @@ impl Harness {
             | w::Request::FileFinding(_)
             | w::Request::HandFinding(_)
             | w::Request::TriageFinding(_)
+            | w::Request::SetDraft(_)
+            | w::Request::FollowAct(_)
             | w::Request::TryAccount(_)
             | w::Request::Dismiss(_)
             | w::Request::EndPlayground

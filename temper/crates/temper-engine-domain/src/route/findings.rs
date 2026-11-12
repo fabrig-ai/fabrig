@@ -201,7 +201,7 @@ fn commit(
 pub(super) fn settings_holders(domain: &Domain, items: &[forge::settings::Asked]) -> List<(u32, u32, Holder)> {
     let mut projects = Map::uncapped();
     for item in items {
-        if item.kind == 12 || item.kind == 13 {
+        if item.kind == 14 || item.kind == 15 {
             projects.insert(item.scope, ()).expect("one project per settings scope");
         }
     }

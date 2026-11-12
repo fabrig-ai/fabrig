@@ -776,7 +776,8 @@ impl Frame {
                 self.hold_stores = Some(());
                 self.reply(fd, &encode!(w::SignOutAnswer::SignedOut));
             }
-            b"/jig/v1/stream-gone" | b"/jig/v1/unwatch" => self.reply(fd, &[]),
+            b"/jig/v1/stream-gone" => self.reply(fd, &[]),
+            b"/jig/v1/unwatch" => self.reply(fd, &encode!(w::CloseAnswer::Closed)),
             _ => panic!("unexpected HTTP route"),
         }
     }

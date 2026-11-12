@@ -13,10 +13,12 @@ mod closer;
 mod completed_reads;
 mod connect;
 mod dismissed;
+mod drafts;
 mod early;
 mod findings;
 pub(crate) mod fixtures;
 mod flight;
+mod follow_check;
 mod forge_user;
 mod goal_branch;
 mod goal_start;
@@ -39,6 +41,7 @@ mod release;
 mod removal;
 mod requires;
 mod restore_fit;
+mod rules_by_path;
 mod runs;
 mod saved_close;
 mod settings;
@@ -121,6 +124,16 @@ const LIMITS: Limits = Limits {
     findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -135,6 +148,7 @@ const LIMITS: Limits = Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         repairs: 3,
         resolutions: 3,
         updates: 3,
@@ -310,6 +324,7 @@ fn ready(d: &mut Domain) -> Box<[Request]> {
 }
 pub(crate) fn adopted() -> Repository {
     Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: true,
@@ -524,6 +539,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -554,6 +570,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
+        | Request::FollowRun { .. }
+        | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
@@ -618,6 +636,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -648,6 +667,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
+        | Request::FollowRun { .. }
+        | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
@@ -705,6 +726,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::GoalUntopic { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
+        | Request::Reviewed { .. }
         | Request::Read { .. }
         | Request::BriefClient { .. }
         | Request::BriefReady { .. }
@@ -735,6 +757,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::BoxGroup { .. }
         | Request::BoxRemove { .. }
         | Request::StatusRun { .. }
+        | Request::FollowRun { .. }
+        | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
         | Request::FileRedFinding { .. }
@@ -1066,6 +1090,7 @@ fn workspace_items_are_sized_context_is_read_only_and_saved_work_starts_the_next
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     let item = d
         .workspace_item(items::Seed {
+            project: 5,
             modify: false,
             task: 7,
             parent: None,
@@ -1089,6 +1114,7 @@ fn a_workspace_item_names_its_forges_git_identity() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let item = d
         .workspace_item(items::Seed {
+            project: 5,
             modify: false,
             task: 7,
             parent: None,
@@ -2808,7 +2834,7 @@ fn two_forges_repositories_with_one_id_resolve_apart() {
         repository.provider.forge = forge;
         repository.home = forge == 1;
         outputs(&mut d, Event::Restore { record: Stored::Repository(repository.clone()) });
-        assert_eq!(d.repository_tag(5, tag(forge, REPO.repository)), Some(&repository));
+        assert_eq!(d.repository_tag(5, tag(forge, REPO.repository)).as_ref(), Some(&repository));
     }
     for forge in [1, 3] {
         let provider = skein_forge::api::Repository { forge, repository: REPO.repository };
@@ -2960,7 +2986,7 @@ fn setup_failures_name_the_held_step_until_state_changes() {
     }
 }
 
-/// A merge job keeps its repository's name (temper/docs/design/domain/worker.md, 4.4).
+/// A merge job keeps its repository's name (temper/docs/design/domain/worker/jobs.md).
 #[test]
 fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
     use temper_engine_domain_forge_change as change;
@@ -2977,6 +3003,7 @@ fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
         outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         let item = d
             .workspace_item(items::Seed {
+                project: 5,
                 modify: false,
                 task: CHILD,
                 parent: Some(fixtures::CHANGE),
@@ -3057,6 +3084,7 @@ fn workspace_landing_is_for_every_writable_producer_start() {
                 }
                 let item = d
                     .workspace_item(items::Seed {
+                        project: 5,
                         modify: false,
                         task: 90,
                         parent: Some(task),
@@ -3317,6 +3345,7 @@ fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let item = d
         .workspace_item(items::Seed {
+            project: 5,
             modify: false,
             task: 7,
             parent: None,

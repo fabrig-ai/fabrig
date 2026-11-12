@@ -147,7 +147,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     value["engine"]["connectors"] = serde_json::json!([1]);
     for (name, count) in [
         ("core.load_slots", 8),
-        ("core.run_bytes", 16_384),
+        ("core.run_bytes", 32_768),
         ("core.templates", 6),
         ("documents.rows", 2),
         ("documents.lines", DOCUMENT_LINES),

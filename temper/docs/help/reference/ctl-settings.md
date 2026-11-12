@@ -42,6 +42,16 @@ settings show template-goal NUMBER [--revision REVISION]
   template-goal (kind): one of template-goal; required. A goal template's work
   NUMBER (number): a number from 1 to 4294967295; required. The template's number
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
+settings show follow NUMBER --project PROJECT [--revision REVISION]
+  follow (kind): one of follow; required. A project's follow
+  NUMBER (number): a number from 1 to 4294967295; required. The follow's number
+  --project PROJECT: a project's name or number; required. The follow's project
+  --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
+settings show dependency NUMBER --project PROJECT [--revision REVISION]
+  dependency (kind): one of dependency; required. A project's dependency
+  NUMBER (number): a number from 1 to 4294967295; required. The dependency's number
+  --project PROJECT: a project's name or number; required. The dependent project
+  --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 Read one setting's value whole
 Prints: `KIND N, revision R`, or `rules, revision R`, then the whole value; project classes in words; temper's settings also show their state
 --json: the record setting.

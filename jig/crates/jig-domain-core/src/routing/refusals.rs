@@ -25,6 +25,7 @@ pub(crate) fn person_message_refusal(core: &Core, problem: tasks::Problem) -> pe
     task_answer(core, problem)
 }
 
+#[expect(clippy::too_many_lines, reason = "total task refusal translation preserves each party answer")]
 fn task_answer(core: &Core, problem: tasks::Problem) -> people::Outcome {
     let tasks::Problem { task, why, blocked_by, capacity } = problem;
     if let Some(capacity) = capacity
@@ -37,6 +38,9 @@ fn task_answer(core: &Core, problem: tasks::Problem) -> people::Outcome {
         None => Box::new([]),
     };
     let refusal = match why {
+        tasks::Refusal::NotStanding => people::Refusal::NotOffered,
+        tasks::Refusal::TalkOpen { party } => people::Refusal::Taken { by: party },
+        tasks::Refusal::NoTalk => people::Refusal::NotWaiting,
         tasks::Refusal::Unproposable => {
             people::Refusal::Authority { lacking: people::Lack::Approver, proposable: Some(people::Accepter::Nobody) }
         }

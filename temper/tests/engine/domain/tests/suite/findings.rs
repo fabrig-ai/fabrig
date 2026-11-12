@@ -121,10 +121,10 @@ pub(crate) fn settings(driver: &mut Driver, areas: Option<s::ProjectAreas>, tria
 fn send_settings(driver: &mut Driver, areas: Option<s::ProjectAreas>, triager: Option<s::AreaOwner>) {
     let mut items = vec![];
     if let Some(areas) = areas {
-        items.push(kinds::item(12, 1, 1, &s::Value::ProjectAreas(areas)));
+        items.push(kinds::item(14, 1, 1, &s::Value::ProjectAreas(areas)));
     }
     if let Some(owner) = triager {
-        items.push(kinds::item(13, 1, 1, &s::Value::ProjectTriager(s::ProjectTriager { owner })));
+        items.push(kinds::item(15, 1, 1, &s::Value::ProjectTriager(s::ProjectTriager { owner })));
     }
     driver.serial += 1;
     let serial = driver.serial;

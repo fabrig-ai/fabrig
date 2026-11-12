@@ -77,7 +77,7 @@ login is imported.
 
 - **First preparation:** absent or empty C runs ordinary init in
   C'/D'/K', retaining init's listeners. Give --bundle DIR to name the
-  separately built loopback bundle; C stays untouched. A nonempty C is
+  separately built bundle; C stays untouched. A nonempty C is
   accepted only for the current init-shaped standalone configuration,
   and its public agent document; it reads and copies no charters, which
   are the binary's stock (`stock.md`). --bundle overrides
@@ -99,8 +99,10 @@ login is imported.
   after validating it; other effective edits and data remain. Without that
   override, the retained bundle is authoritative. The box prints these
   effective directories. Compatible v1 peer documents are revalidated and
-  retained; the seeded output files follow ../setup/playground.md. Peer in-memory
-  state lasts one launch, independently of retained configuration and data.
+  retained; the seeded output files follow ../setup/playground.md. The fake
+  forges' state is kept in D' across launches (../setup/box.md, 5); the
+  other peers' in-memory state lasts one launch, independently of
+  retained configuration and data.
   A later required document or adapter schema that cannot safely reuse an
   older sandbox is refused by name with explicit reset instructions;
   startup never migrates or deletes E or silently omits a required peer.
@@ -115,8 +117,9 @@ login is imported.
   pure transformation is temper-fake's, with bounded bytes and explicit
   paths/sockets as inputs; files and listeners belong to temper's shell.
 - **Browser:** --bundle DIR, or source application.clients.bundle,
-  names a provisioned loopback-navigation bundle (../../client/web/README.md,
-  2.6). Build it once with scripts/bundle.sh --loopback DIR, then run
+  names a provisioned bundle (../../client/web/README.md,
+  2.6), whose page takes its loopback navigation from its address
+  (../../client/web/README.md, 2.1). Build it once with scripts/bundle.sh DIR, then run
   temper box --fake-backends --bundle DIR. Refuse before sandbox mutation
   only when no bundle is known or its shape/types/size are invalid. The
   refusal names that bundle command and --bundle; no hand-edited setting
@@ -187,7 +190,11 @@ finds it written and swaps in its own: the provider's one model, the model
 and the endpoint, each found by Anthropic's name and replaced where it stands,
 not doubled, so that one model, `fake-claude`, the fake model serves through
 an Anthropic-dialect endpoint in both effective documents, ahead of the
-scripted model as init's stands. An init-shaped document without them is
+scripted model as init's stands. The fake box offers Claude through its fake
+program alone: the rewrite drops the provider's `keys` and `direct` and the
+`anthropic-api` endpoint from both documents, so that nothing of it reaches
+Anthropic. An init-shaped document without the provider, its model or the
+`anthropic` endpoint is
 refused by name. It keeps the configured `documents.lines`
 capacity, raising it to at least 3 so that the Model step offers OpenAI,
 demo and Anthropic without shrinking creating's executor lists. If the override
@@ -208,3 +215,13 @@ The required retained documents are temper.json, agent.json, github.json,
 oauth.json, llm.json and forgejo.json. One validation path checks every
 required file before any child starts. A missing required file refuses by
 name with reset instructions, without generating a replacement on reuse.
+
+## 2. Open questions
+
+- **A configuration directory moved or copied.** The agent's paths are
+  absolute (`README.md`, section 4), so they still name the old place: the agent's
+  configuration is read there, or the start is refused, naming the
+  member, when it is gone. Default: the person edits the two members;
+  standalone could derive them from its own binary and its
+  configuration directory, as no check can tell temper's binary from
+  another program today (`README.md`, section 2).

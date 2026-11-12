@@ -1,0 +1,10 @@
+recipe 1
+after "b0-plan"
+ctl task answer 1 2 "Go ahead. The CSV's first line must be the header fruit,count." --key qa-b0-answer
+ctl task show 2 --until ended
+ctl task show 1 --until phase:idle
+ctl chat show 1
+web reload "/tasks/1"
+web see "CSV export was added and merged."
+ctl inbox --kind questions
+web see "Nothing needs you."

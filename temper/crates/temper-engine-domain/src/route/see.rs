@@ -226,10 +226,10 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
             Address::Gates { repository: (*repository).into() }
         }
         [b"settings", b"project-areas"] => {
-            Address::Setting(Setting::Application { kind: 12, scope: project, number: 1 })
+            Address::Setting(Setting::Application { kind: 14, scope: project, number: 1 })
         }
         [b"settings", b"project-triager"] => {
-            Address::Setting(Setting::Application { kind: 13, scope: project, number: 1 })
+            Address::Setting(Setting::Application { kind: 15, scope: project, number: 1 })
         }
         [b"settings", b"project-words"] => {
             Address::Setting(Setting::Application { kind: 10, scope: project, number: 1 })
@@ -241,6 +241,14 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"settings", b"project-classes"] => {
             Address::Setting(Setting::Application { kind: 8, scope: project, number: 1 })
         }
+        [b"settings", b"dependency", number] => match small(number) {
+            Some(number) => Address::Setting(Setting::Application { kind: 13, scope: project, number }),
+            None => Address::Unknown,
+        },
+        [b"settings", b"follow", number] => match small(number) {
+            Some(number) => Address::Setting(Setting::Application { kind: 12, scope: project, number }),
+            None => Address::Unknown,
+        },
         [b"settings", b"charter", number] => setting_number(b"charter", number),
         [b"settings", b"template", number] => setting_number(b"template", number),
         [b"settings", b"policy", number] => setting_number(b"policy", number),

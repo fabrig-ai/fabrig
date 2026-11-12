@@ -32,6 +32,7 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             .expect("bounded approvals");
     }
     let value_bytes = size(&settings::Value::Rule(settings::LandingRule {
+        sets: Box::new([1, 2, 3, 4, 5, 6]),
         pattern: forge::GatePattern {
             segments: segments.into_boxed(),
             last: forge::GateLast::Exact(word(segment_bytes)),
@@ -41,6 +42,29 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
         up_to_date: true,
         gates: gates.into_boxed(),
         approvals: approvals.into_boxed(),
+    }));
+    let mut paths = List::with_capacity(limits.forge.follow_paths);
+    for _ in 0..limits.forge.follow_paths {
+        paths.push(word(256)).expect("bounded follow paths");
+    }
+    let follow_bytes = size(&settings::Value::Follow(settings::Follow {
+        source: settings::FollowSource {
+            repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+            branch: word(limits.forge.name_bytes),
+            paths: paths.into_boxed(),
+        },
+        target: settings::FollowTarget {
+            repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+            branch: word(limits.forge.name_bytes),
+        },
+        owner: settings::FollowOwner::Person(1),
+        start: settings::FollowStart::Code,
+        producer: Some(word(8192)),
+        check: settings::FollowCheck {
+            workflow: word(256),
+            artifact: word(256),
+            format: temper_engine_domain_forge_tiers::Format::Lines,
+        },
     }));
     let mut areas = List::with_capacity(16);
     for _ in 0_u32..16 {
@@ -133,12 +157,28 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             number: 12,
             scope: KindScope::Project,
             connector,
+            value_bytes: follow_bytes,
+            per_scope: limits.forge.follows,
+            charters: 1,
+        },
+        Kind {
+            number: 13,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::Dependency(settings::Dependency { project: 1 })),
+            per_scope: limits.forge.dependencies,
+            charters: 0,
+        },
+        Kind {
+            number: 14,
+            scope: KindScope::Project,
+            connector,
             value_bytes: size(&settings::Value::ProjectAreas(settings::ProjectAreas { areas: areas.into_boxed() })),
             per_scope: 1,
             charters: 0,
         },
         Kind {
-            number: 13,
+            number: 15,
             scope: KindScope::Project,
             connector,
             value_bytes: size(&settings::Value::ProjectTriager(settings::ProjectTriager {

@@ -35,6 +35,7 @@ pub fn decode_request(value: &Json, limits: &Limits) -> Result<Request, DecodeEr
         return Err(DecodeError::limit(crate::Cap::Request, limits.request));
     }
     let tokens = value.view();
+    validate_options(tokens)?;
     let marks = markers(tokens, limits)?;
     if !json::boolean(required(tokens, b"stream")?)? {
         return Err(DecodeError::WrongType);
@@ -113,7 +114,6 @@ pub fn decode_request(value: &Json, limits: &Limits) -> Result<Request, DecodeEr
             .push(Message { role, content: blocks.into_boxed() })
             .or(Err(DecodeError::limit(crate::Cap::HistoryItems, limits.history_items)))?;
     }
-    let choice = tool_choice(tokens)?;
     let prompt = Prompt {
         model,
         instructions,
@@ -121,7 +121,7 @@ pub fn decode_request(value: &Json, limits: &Limits) -> Result<Request, DecodeEr
         messages: messages.into_boxed(),
         reasoning_effort: None,
         affinity: None,
-        choice,
+        choice: tool_choice(tokens)?,
         max_output_tokens: Some(max),
     };
     match super::request::validate(&prompt, u32::MAX, limits) {
@@ -129,6 +129,20 @@ pub fn decode_request(value: &Json, limits: &Limits) -> Result<Request, DecodeEr
         Err(crate::Error::Limit { which, bound }) => Err(DecodeError::TooLarge { which, bound }),
         Err(crate::Error::Invalid | crate::Error::Unsupported) => Err(DecodeError::Malformed),
     }
+}
+
+fn validate_options(tokens: (&Document, json::Span)) -> Result<(), DecodeError> {
+    for field in [b"temperature".as_slice(), b"top_p", b"top_k"] {
+        if optional(tokens, field)?.is_some() {
+            return Err(DecodeError::Malformed);
+        }
+    }
+    if let Some(thinking) = optional(tokens, b"thinking")?
+        && json::text_ref(required(thinking, b"type")?)? == b"disabled"
+    {
+        return Err(DecodeError::Malformed);
+    }
+    Ok(())
 }
 
 fn output_cap(tokens: (&Document, json::Span)) -> Result<u32, DecodeError> {

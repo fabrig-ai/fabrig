@@ -1,0 +1,10 @@
+recipe 1
+after "project-landing"
+web reload "/chats"
+web press link "+ New chat"
+web input textbox "What do you want done?" "Let us design Away mode."
+web press button "Send"
+web see "Hello from the local fake model."
+web press button "+ Draft"
+web see "I wrote an Away mode draft with its purpose, return flow and open questions."
+web see "docs/design/draft/away-mode.md"

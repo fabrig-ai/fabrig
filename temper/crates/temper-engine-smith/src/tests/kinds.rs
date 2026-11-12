@@ -8,6 +8,7 @@ const BOUNDS: Bounds = Bounds { segments: 5, segment_bytes: 12, gates: 2, approv
 
 fn deployment() -> settings::LandingRule {
     settings::LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([
                 Box::from(b"forge".as_slice()),
@@ -32,12 +33,13 @@ fn deployment() -> settings::LandingRule {
     }
 }
 
-fn values() -> [(u32, settings::Value); 22] {
+fn values() -> [(u32, settings::Value); 21] {
     let mut project = deployment();
     project.pattern.last = GateLast::Open(Box::from(b"topic/".as_slice()));
     project.enforce = false;
     project.ci = true;
     project.up_to_date = false;
+    project.sets = Box::new([6, 5, 4, 3, 2, 1]);
     [
         (9, settings::Value::CharterWords(Box::from([b'l'; 120].as_slice()))),
         (
@@ -51,7 +53,6 @@ fn values() -> [(u32, settings::Value); 22] {
         (2, settings::Value::Rule(project)),
         (3, settings::Value::Charter(23)),
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::None)),
-        (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Foreman)),
         (6, settings::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (
             8,
@@ -61,7 +62,7 @@ fn values() -> [(u32, settings::Value); 22] {
         ),
         (7, settings::Value::Ways(settings::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
         (
-            12,
+            14,
             settings::Value::ProjectAreas(settings::ProjectAreas {
                 areas: Box::new([settings::Area {
                     name: b"tests".as_slice().into(),
@@ -70,9 +71,9 @@ fn values() -> [(u32, settings::Value); 22] {
                 }]),
             }),
         ),
-        (13, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Task(u64::MAX) })),
+        (15, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Task(u64::MAX) })),
         (
-            12,
+            14,
             settings::Value::ProjectAreas(settings::ProjectAreas {
                 areas: Box::new([settings::Area {
                     name: b"tests".as_slice().into(),
@@ -81,9 +82,9 @@ fn values() -> [(u32, settings::Value); 22] {
                 }]),
             }),
         ),
-        (13, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Party(u64::MAX) })),
+        (15, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Party(u64::MAX) })),
         (
-            12,
+            14,
             settings::Value::ProjectAreas(settings::ProjectAreas {
                 areas: Box::new([settings::Area {
                     name: b"tests".as_slice().into(),
@@ -92,9 +93,9 @@ fn values() -> [(u32, settings::Value); 22] {
                 }]),
             }),
         ),
-        (13, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Role(u32::MAX) })),
+        (15, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Role(u32::MAX) })),
         (
-            12,
+            14,
             settings::Value::ProjectAreas(settings::ProjectAreas {
                 areas: Box::new([settings::Area {
                     name: b"tests".as_slice().into(),
@@ -104,7 +105,7 @@ fn values() -> [(u32, settings::Value); 22] {
             }),
         ),
         (
-            13,
+            15,
             settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Charter(u32::MAX) }),
         ),
         (11, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false })),
@@ -138,9 +139,11 @@ fn each_kind_round_trips_its_value() {
             settings::Value::Classes(_) => 8,
             settings::Value::CharterWords(_) => 9,
             settings::Value::ProjectWords(_) => 10,
+            settings::Value::Follow(_) => 12,
+            settings::Value::Dependency(_) => 13,
             settings::Value::Goal(_) => 11,
-            settings::Value::ProjectAreas(_) => 12,
-            settings::Value::ProjectTriager(_) => 13,
+            settings::Value::ProjectAreas(_) => 14,
+            settings::Value::ProjectTriager(_) => 15,
         };
         let bytes = encode(&value);
         assert_eq!(decode(kind, &bytes, &BOUNDS).expect("shaped value").value, value);
@@ -191,5 +194,49 @@ fn size_is_the_encodings_length() {
     for (_, value) in values() {
         let bytes = encode(&value);
         assert_eq!(size(&value), u32::try_from(bytes.len()).expect("bounded encoding"));
+    }
+}
+
+#[test]
+fn follows_round_trip_all_members_and_require_a_whole_record() {
+    use settings::{Follow, FollowCheck, FollowOwner, FollowSource, FollowStart, FollowTarget, Value};
+    let base = Follow {
+        source: FollowSource {
+            repository: skein_forge::api::Repository { forge: 1, repository: 12 },
+            branch: b"main".as_slice().into(),
+            paths: Box::new([b"src".as_slice().into(), b"include/vsr.h".as_slice().into()]),
+        },
+        target: FollowTarget {
+            repository: skein_forge::api::Repository { forge: 2, repository: 13 },
+            branch: b"stable".as_slice().into(),
+        },
+        owner: FollowOwner::Person(4),
+        start: FollowStart::Owner,
+        producer: Some(b"6;3.1;".as_slice().into()),
+        check: FollowCheck {
+            workflow: b"tests.yml".as_slice().into(),
+            artifact: b"results".as_slice().into(),
+            format: temper_engine_domain_forge_tiers::Format::Junit,
+        },
+    };
+    let mut automatic = base.clone();
+    automatic.start = FollowStart::Code;
+    automatic.check.format = temper_engine_domain_forge_tiers::Format::Lines;
+    automatic.producer = None;
+    automatic.source.branch = Box::new([]);
+    automatic.source.paths = Box::new([]);
+    for follow in [base, automatic] {
+        let value = Value::Follow(follow);
+        let bytes = encode(&value);
+        let measured = size(&value);
+        assert_eq!(decode(12, &bytes, &BOUNDS), Some(settings::SizedValue { value, size: measured }));
+        assert_eq!(usize::try_from(measured).unwrap(), bytes.len());
+        for end in 0..bytes.len() {
+            assert!(decode(12, &bytes[..end], &BOUNDS).is_none());
+        }
+        let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).unwrap());
+        trailing.put(&bytes).unwrap();
+        trailing.put(&[0]).unwrap();
+        assert!(decode(12, &trailing.finish(), &BOUNDS).is_none());
     }
 }

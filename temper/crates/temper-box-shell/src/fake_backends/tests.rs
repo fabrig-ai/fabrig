@@ -49,13 +49,16 @@ fn start(source: &Directories, bundle: Option<&Path>) -> Result<Prepared, String
     start_chosen(source, bundle, None)
 }
 fn start_chosen(source: &Directories, bundle: Option<&Path>, chosen: Option<&Chosen>) -> Result<Prepared, String> {
+    start_options(source, &Options { bundle: bundle.map(Path::to_path_buf), ..Options::default() }, chosen)
+}
+fn start_options(source: &Directories, options: &Options, chosen: Option<&Chosen>) -> Result<Prepared, String> {
     let adapter = crate::path(&source.config).parent().expect("scratch root").join("fake-claude");
     if !adapter.exists() {
         write(&adapter, b"#!/bin/sh\nexit 1\n", false).expect("fixture adapter");
         fs::set_permissions(&adapter, fs::Permissions::from_mode(0o700)).expect("executable fixture adapter");
     }
     // Use the source fixture's explicit absence of optional executables.
-    prepare(source, bundle, &adapter, chosen, &[])
+    prepare(source, options, &adapter, chosen, &[])
 }
 fn provision_bundle(path: &Path) -> PathBuf {
     make_private(&path.join("0000000000000001"), skein_shell::effective_user()).expect("private fixture bundle");
@@ -232,6 +235,149 @@ fn configure(words: &[&[u8]]) -> Result<crate::Command, String> {
     let environment = [(Box::<[u8]>::from(b"HOME".as_slice()), Box::<[u8]>::from(b"/fixture/home".as_slice()))];
     let args = words.iter().map(|word| Box::<[u8]>::from(*word)).collect::<Vec<_>>();
     crate::configure_with(&args, &environment, b"/fixture")
+}
+
+#[test]
+fn script_flags_resolve_in_order_and_require_fake_backends() {
+    let command = configure(&[
+        b"--scripts",
+        b"first.json",
+        b"--config",
+        b"/c",
+        b"--strict",
+        b"--fake-backends",
+        b"--scripts",
+        b"/second.json",
+    ])
+    .expect("repeatable scripts with interleaved directory settings");
+    let crate::Command::BoxFakeBackends { scripts, strict, .. } = command else { panic!("fake box") };
+    assert_eq!(scripts, [PathBuf::from("/fixture/first.json"), PathBuf::from("/second.json")]);
+    assert!(strict);
+    assert!(matches!(
+        configure(&[b"--fake-backends", b"--strict"]),
+        Ok(crate::Command::BoxFakeBackends { strict: true, .. })
+    ));
+    for words in [
+        vec![b"--scripts".as_slice(), b"first.json"],
+        vec![b"--strict"],
+        vec![b"--fake-backends", b"--scripts"],
+        vec![b"--fake-backends", b"--scripts", b""],
+        vec![b"--fake-backends", b"--scripts", b"bad\0path"],
+        vec![b"--fake-backends", b"--strict", b"--strict"],
+    ] {
+        assert!(configure(&words).is_err(), "{words:?}");
+    }
+}
+
+#[test]
+fn given_scripts_join_at_each_start_without_replacing_the_model() {
+    let scratch = Scratch::new("scripts-each-start");
+    let source = provisioned_source(&scratch);
+    let a = scratch.0.join("a.json");
+    let b = scratch.0.join("b.json");
+    fs::write(
+        &a,
+        br#"{"cued":[{"cue":"A","turns":["a"]}],"asked":[{"cue":"A","turns":["asked a"]}],"otherwise":["X"]}"#,
+    )
+    .expect("first scripts");
+    fs::write(&b, br#"{"cued":[{"cue":"B","turns":["b"]}],"asked":[{"cue":"B","turns":["asked b"]}]}"#)
+        .expect("second scripts");
+    let options = Options { scripts: vec![a, b.clone()], strict: true, ..Options::default() };
+    let fresh = start_options(&source, &options, None).expect("fresh scripts");
+    let model = crate::path(&fresh.directories.config).join("llm.json");
+    let original = fs::read(&model).expect("generated model document");
+    let joined = crate::path(&fresh.directories.config).join("llm-scripts.json");
+    assert_eq!(fs::metadata(&joined).expect("join metadata").mode() & 0o777, 0o600);
+    assert_eq!(
+        read_json(&joined),
+        serde_json::json!({
+            "cued":[{"cue":"A","turns":["a"]},{"cue":"B","turns":["b"]}],
+            "asked":[{"cue":"A","turns":["asked a"]},{"cue":"B","turns":["asked b"]}],
+            "otherwise":["X"]
+        })
+    );
+    assert_model_script_arguments(&fresh, Some(&joined), true);
+    drop(fresh);
+    // Last present fallback replaces; an absent fallback above did not erase X.
+    fs::write(&b, br#"{"otherwise":[]}"#).expect("replace second scripts");
+    let retained = start_options(&source, &options, None).expect("retained scripts");
+    assert_eq!(read_json(&joined)["otherwise"], serde_json::json!([]));
+    assert_model_script_arguments(&retained, Some(&joined), true);
+    assert_eq!(fs::read(&model).expect("retained model"), original);
+    drop(retained);
+    let plain = start(&source, None).expect("later start without scripts");
+    assert!(!joined.exists());
+    assert_model_script_arguments(&plain, None, false);
+    assert_eq!(fs::read(&model).expect("retained model"), original);
+    drop(plain);
+    let strict = start_options(&source, &Options { strict: true, ..Options::default() }, None).expect("strict alone");
+    assert_model_script_arguments(&strict, None, true);
+    assert!(!joined.exists());
+    assert_eq!(fs::read(&model).expect("retained model"), original);
+}
+
+fn assert_model_script_arguments(prepared: &Prepared, scripts: Option<&Path>, strict: bool) {
+    for step in &prepared.steps {
+        if step.name() != b"fake model" {
+            assert!(
+                !step.arguments().iter().any(|word| [b"--scripts".as_slice(), b"--strict"].contains(&word.as_ref()))
+            );
+            continue;
+        }
+        let mut expected = Vec::new();
+        if let Some(path) = scripts {
+            expected.extend([Box::from(b"--scripts".as_slice()), bytes(path)]);
+        }
+        if strict {
+            expected.push(Box::from(b"--strict".as_slice()));
+        }
+        assert_eq!(step.arguments().get(6..).expect("base peer arguments"), expected);
+    }
+}
+
+#[test]
+fn script_join_refuses_the_file_before_start() {
+    let scratch = Scratch::new("scripts-refused");
+    let source = provisioned_source(&scratch);
+    let prepared = start(&source, None).expect("sandbox");
+    let model = crate::path(&prepared.directories.config).join("llm.json");
+    let original = fs::read(&model).expect("model document");
+    let joined = crate::path(&prepared.directories.config).join("llm-scripts.json");
+    drop(prepared);
+    let first = scratch.0.join("first.json");
+    let second = scratch.0.join("second.json");
+    let options = Options { scripts: vec![first.clone(), second.clone()], ..Options::default() };
+    // Each individual group fits; their joined list crosses the document reader's bound.
+    let full = (0..temper_fake::ENTRIES)
+        .map(|i| serde_json::json!({"cue":format!("cue {i}"),"turns":["ok"]}))
+        .collect::<Vec<_>>();
+    for (a, b, detail) in [
+        (
+            serde_json::json!({"cued":[{"cue":"same","turns":["a"]}]}),
+            Some(serde_json::json!({"cued":[{"cue":"same","turns":["b"]}]})),
+            "unique",
+        ),
+        (
+            serde_json::json!({"asked":[{"cue":"same","turns":["a"]}]}),
+            Some(serde_json::json!({"asked":[{"cue":"same","turns":["b"]}]})),
+            "unique",
+        ),
+        (serde_json::json!({}), Some(serde_json::json!({"mystery":[]})), "mystery"),
+        (serde_json::json!({"cued":full}), Some(serde_json::json!({"cued":[{"cue":"extra","turns":["b"]}]})), "bound"),
+        (serde_json::json!({}), None, "second.json"),
+    ] {
+        fs::write(&first, serde_json::to_vec(&a).expect("first JSON")).expect("first scripts");
+        if let Some(b) = b {
+            fs::write(&second, serde_json::to_vec(&b).expect("second JSON")).expect("second scripts");
+        } else {
+            fs::remove_file(&second).expect("unreadable second file");
+        }
+        let error = start_options(&source, &options, None).err().expect("refuse before steps start");
+        assert!(error.contains(second.to_str().expect("path")), "{error}");
+        assert!(error.contains(detail), "{error}");
+        assert!(!joined.exists(), "no unvalidated join published");
+        assert_eq!(fs::read(&model).expect("retained model"), original);
+    }
 }
 
 #[test]
@@ -557,18 +703,22 @@ fn empty_configuration_refuses_before_creating_data_or_cache() {
     let scratch = Scratch::new("empty");
     let source = scratch.dirs();
     // Missing provisioning refuses for both absent C and present empty C.
-    missing_bundle_refuses(&source);
+    assert_eq!(
+        missing_bundle_refuses(&source),
+        "application.clients.bundle: no provisioned bundle; run scripts/bundle.sh DIR && temper-box --fake-backends --bundle BUNDLE (directory flags as usual)"
+    );
     make_private(crate::path(&source.config), skein_shell::effective_user()).expect("empty configuration");
     missing_bundle_refuses(&source);
 }
 
-fn missing_bundle_refuses(source: &Directories) {
+fn missing_bundle_refuses(source: &Directories) -> String {
     let error = start(source, None).err().expect("no bundle");
-    assert!(error.contains("scripts/bundle.sh --loopback DIR"), "{error}");
+    assert!(error.contains("scripts/bundle.sh DIR"), "{error}");
     assert!(error.contains("application.clients.bundle"), "{error}");
     assert!(error.contains("temper-box --fake-backends --bundle BUNDLE"), "{error}");
     assert!(!crate::path(&source.data).exists(), "refuse before data mutation");
     assert!(!crate::path(&source.cache).exists(), "refuse before cache mutation");
+    error
 }
 
 #[test]
@@ -769,6 +919,12 @@ fn reuse_refuses_a_missing_effective_bundle_and_preserves_edits() {
     let error = start(&source, None).err().expect("missing retained bundle refused");
     assert!(error.contains("absent-retained-bundle"), "{error}");
     assert_eq!(read_json(&document), edited);
+
+    edited["application"]["clients"]["bundle"] = serde_json::Value::Null;
+    store_json(&document, &edited);
+    let error = start(&source, None).err().expect("unnamed retained bundle refused");
+    assert_eq!(error, "application.clients.bundle: effective document must name its bundle");
+    assert_eq!(read_json(&document), edited);
 }
 
 #[test]
@@ -835,10 +991,11 @@ fn effective_commands_reopen_the_retained_directories() {
     let (steps, _) = crate::box_command::configuration_steps(
         &prepared.directories,
         &prepared.bytes,
-        backends::steps(&prepared.directories.config, &prepared.peers),
+        backends::steps(&prepared.directories.config, &prepared.directories.data, &prepared.peers, None, false),
     )
     .expect("steps");
-    let prefix = backends::steps(&prepared.directories.config, &prepared.peers);
+    let prefix =
+        backends::steps(&prepared.directories.config, &prepared.directories.data, &prepared.peers, None, false);
     assert_eq!(&steps.always[..prefix.len()], prefix.as_ref());
     for step in steps.always[prefix.len()..]
         .iter()

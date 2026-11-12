@@ -64,6 +64,7 @@ pub(super) fn run_with(
     let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], 0);
     let mut component = protocol::Store::on_directory(&limits, application, &[], seeded);
     assert!(component.wires(&temper_service::store::WIRES));
+    component.patch_sets(temper_service::store::PATCH_SETS);
     let mut host = StoreHost {
         store: component,
         limits,

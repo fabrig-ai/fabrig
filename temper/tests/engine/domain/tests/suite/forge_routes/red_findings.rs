@@ -24,7 +24,7 @@ fn world() -> (World, u64) {
     let triager = assigned_chat(&mut world, 92, ask);
     tiers::baseline(&mut world);
     let items: Box<[_]> = Box::new([kinds::item(
-        13,
+        15,
         1,
         1,
         &forge_top::settings::Value::ProjectTriager(forge_top::settings::ProjectTriager {

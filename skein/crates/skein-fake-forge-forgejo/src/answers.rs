@@ -88,6 +88,9 @@ pub fn pull(config: &Config, setup: &Store, id: u64, pull: &a::Pull) -> d::PullR
         // Forgejo exposes a boolean: false while mergeability is checking.
         mergeable: pull.mergeable,
         requested_reviewers: reviewers.into_boxed(),
+        changed_files: Some(pull.size.files),
+        additions: Some(pull.size.additions),
+        deletions: Some(pull.size.deletions),
     }
 }
 #[must_use]
@@ -256,6 +259,7 @@ fn pull_answer(config: &Config, setup: &Store, request: &Request, value: &a::Pul
         | Request::UserOf { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }
@@ -339,6 +343,7 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
         | Request::UserOf { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }
@@ -624,6 +629,7 @@ fn collaborators(
         | Request::UserOf { .. }
         | Request::Org { .. }
         | Request::CreateOrg { .. }
+        | Request::ChangeFiles { .. }
         | Request::CreateFile { .. }
         | Request::Migrate { .. }
         | Request::DeleteRepository { .. }

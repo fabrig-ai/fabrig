@@ -25,8 +25,9 @@ whom; its delegates, their states, and the
   one's hold's (`executors.md`, 3), and the results that came since (the plan, for a
   coordinator); its earlier
   attempts and why they failed; the calls its task committed since its
-  last turn, when it does not resume; the proposals and escalations
-  waiting for its decision; the index of its notes; for a run that
+  last turn, when it does not resume; what waits for it, the waiting
+  section: the questions asked of it still open (1.2) and the proposals
+  and escalations waiting for its decision; the index of its notes; for a run that
   explains to its person, that person's preferences, whole (2.1); for a
   standing task, its Now, whole (../tasks/standing.md, section 6); a
   transcript's tail,
@@ -84,6 +85,10 @@ How it counts decides what becomes of the task:
   6). The task backs off within that class's allowance and, past it,
   is held for `Failures` of that class, its hold naming the reason.
 
+A brief that fails, however it counts, gives its brief slot back at once,
+its sections still gathering dropped, before its task pauses or backs
+off, so another task's brief takes the slot while it waits.
+
 Which is which, by what `executors.md`, 1 prepares:
 
 | The failure | Counts as | Section and words |
@@ -115,6 +120,48 @@ and its chip say it beside the count, and on the hold, whose words say it
 failure as it happens, with the task, for the application's log: only there
 does a failure that then resolves itself leave a trace once the notice moves
 on.
+
+### 1.2 The open questions in the waiting section
+
+A question a delegate asks stays open until it is answered or ends
+(../tasks/lifecycle.md, 8), but its message is taken from the inbox
+by the turn that reads it (../tasks/messages.md, 2). A run that reads
+a question and ends without answering it would leave the next run
+nothing to go on, so every brief shows the open questions:
+
+- **Which.** Each question asked of the task that is still open: its
+  asker holds the question's credit (../tasks/lifecycle.md, 8), with
+  the task as its answerer, and the task has heard no answer to it.
+  A question this run's start carries as a message is left out, since
+  the run reads it whole as a message.
+- **Which runs.** Every run that starts from a brief. A run that resumes
+  has no brief; its window already holds the question it read
+  (`executors.md`, 2).
+- **Its form.** The waiting section, core kind `Waiting`, opens with
+  the line `Questions asked of you, still open, oldest first:` and
+  lists them oldest first, each as one line and then its words whole,
+  as its asker sent them:
+
+  ```
+  Task 12 asks (question 40); answer with message target=12, form=answer, question=40:
+  Which of the two error forms does 3.2 mean?
+  ```
+
+  The number is the one `message`'s answer form takes: the number of
+  the message the task heard, never a number the asker was itself
+  asked by.
+- **Its place.** Optional, as every section but those a run runs for,
+  and kept before every other optional section; past its budget it is
+  cut from its end, as a core section's text is, and says how much.
+- **Its words.** Read from what the core keeps of each open question
+  for its asker's credit, with no store read where it keeps them. If
+  the core keeps a question's words nowhere, the brief loads them from
+  the question's activity line, as other core sections load what they
+  show.
+
+The same open questions are among every run's reasons
+(../tasks/messages.md, 6), and one left open wakes the task again
+(../tasks/lifecycle.md, 2).
 
 ## 2. Notes
 
@@ -228,7 +275,12 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
   tasks up, which a delegate works for, is later (`README.md`, section 10).
 - **Read by those runs, whole in their brief:** the core section
   `preferences` (section 1), present where the run's task's requester is a
-  person and its authority holds the asking family: the scope's index lines,
+  person and the asking family is one its run's charter names and its
+  authority holds, as a host family is offered (`executors.md`, 1), so that
+  a run whose charter names no asking family reads no person's preferences,
+  whatever its authority holds; a charter whose record carries no mask
+  names every family, the asking one among them, as it decodes
+  (`RunPolicy::EVERY_FAMILY`). The section holds the scope's index lines,
   every one, in name order, the oldest first, each `N. DESCRIPTION`, `N` its
   place from 1, or the one line `None kept.`. It is required, and its budget
   holds `notes.party_entries` lines of `notes.party_bytes` numbered, so it is

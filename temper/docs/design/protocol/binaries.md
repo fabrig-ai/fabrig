@@ -43,7 +43,8 @@ test doubles   temper-box fake llm|forge|oauth|git ...
 - **The TUI on an engine** is the client's, `temper-client [ADDRESS]`
   below; the box runs it in front of itself by `internal tui`, until the
   client's `temper box` does (`../draft/cli.md`, section 5).
-- **The deployment's client, `temper-client`** (`crates/temper-client`;
+- **The deployment's client, `temper-client`** (`bin/temper-client`, its
+  crate `crates/temper-client-shell`, `../cli/README.md`, 2;
   `../draft/deployment-binaries.md`, section 4 and section 9's first item), a binary of its
   own for a person's machine or an automation's. Its table holds three of
   the client's `temper` rows, the same rows run by the same code (`components.md`):
@@ -74,10 +75,10 @@ test doubles   temper-box fake llm|forge|oauth|git ...
     jig's client crates, skein's, and `temper-shell` (`components.md`), which
     every binary of temper's starts from; none of the engine's, the
     worker's, smith's agent, the box or the forge's setup, its row in 4
-    holding it with its exceptions. Built alone,
-    as the release job builds it (`cargo build -p temper-client --bin
-    temper-client`), `temper-protocol-records` is built without its
-    `forge` feature.
+    holding it with its exceptions. Of the forges' records it links the
+    codecs alone, `temper-protocol-records`; their reading at start is
+    `temper-protocol-records-forge`'s, which it never links
+    (`components.md`).
   - **Its file** is the Cargo target `temper-client`. The name a
     deployment's people run it by is the user's to choose
     (`../draft/deployment-binaries.status.md`, Open), and the release job
@@ -187,7 +188,7 @@ default; the document is `temper.json` in the configuration directory
   Their rows, and run as `claude`'s, are `temper-agent-shell`'s
   constants, which the agent's table holds too (3).
 - **`temper-box versions`:** what this binary speaks and keeps, one line
-  each: every owner's patch level (none before the first release), its
+  each: every owner's patch level (0 at the baseline, `baseline.md`), its
   families' and the store's versions, and its wires, as jig's store
   keeps them (jig's `protocol/store/records.md`, 3). It reads no
   configuration and no store. Its row and its lines are
@@ -198,7 +199,14 @@ default; the document is `temper.json` in the configuration directory
   never writes: it works in a scratch copy under the cache directory,
   with the configuration `temper-box serve` would read; the open patches
   and checks as a start would, restores, and stops before its switch
-  step. It prints a line per patch with its counts and time, the time
+  step. Before its plan it decodes every record of every kept family
+  by its version's kept text, patched or not (jig's
+  `protocol/store/opening.md`, 5, "Every record decoded"); the first
+  that does not decode is printed, `record not decodable: {family}
+  {version}, {map} key {hex}` (a frame: `{family} {version},
+  transcript {name} at {offset}`), and the rehearsal ends there, exit
+  1; else `decoded {records} records`. It prints a line per patch with
+  its counts and time, the time
   of the whole, and the refusal a start would meet, in a start's words,
   or that the patches and the restores pass, saying that what follows
   the switch is not rehearsed; then whether the workers may stay: yes
@@ -263,7 +271,7 @@ default; the document is `temper.json` in the configuration directory
 Standalone, one person's machine:
 
 ```
-temper-box serve                           one process, one loop: temper-service's system module
+temper-box serve                           one process, one loop: temper-service, both halves composed (services.md, 6)
 ├── the engine's service               section 6
 │   ├── listens: the in-process name "workers"; the clients' listener and, when configured, the webhooks' listener, TCP on loopback
 │   └── connects: each kept forge's API (HTTP; TLS unless the forge is on loopback)
@@ -315,23 +323,20 @@ of each:
 - **Code two binaries share is a crate each links,** never one binary's
   package another links: `temper-shell` (the commands' table and its
   renderings, the directories, `help`, the engine's link file) for every
-  binary; `temper-service-shell` (serve's run, its host, its lines and
-  endings, the files a document names, `jig_directories`) for every
-  binary that serves; `temper-engine-shell` for the engine's commands
-  and its start, and `temper-worker-shell` for the worker's half of a
-  start and `program-login`, each of which the box links too.
-- **A binary's features are its package's.** `temper-service`'s worker
-  half is its `worker` feature (`components.md`), which the box's binary,
-  `temper-worker-shell` and the worlds turn on and `temper-engine`
-  leaves off. `temper-worker-shell`'s switch is one of
-  `tests/boundary/tests/cli.rs`'s feature exceptions, until
-  `../draft/cli.execution.md`'s C5 makes the worker's half crates of its
-  own (the user, 2026-11-09). Cargo unifies the
-  features of what one invocation builds, so the gate, which builds the
-  workspace whole, builds the service with it, and only a binary's own
-  build (`cargo build -p PACKAGE --bin NAME`, the release job's) and its
-  package's own tests build it without; a break there shows at that
-  build (`../draft/deployment-binaries.md`, section 8).
+  binary; `temper-service-shell` (serve's run and its host, the files a
+  document names, `jig_directories`) for every binary that serves, each
+  binary's shell giving it the service it drives and that service's
+  lines (`services.md`, 7); `temper-engine-shell` for the engine's
+  commands and an engine's start, and `temper-worker-shell` for the
+  worker's half of a start and `program-login`, each of which the box
+  links too, composing the standalone start from both.
+- **A binary links its package's dependencies,** and no Cargo feature
+  chooses what (`../draft/cli.md`, 3.2): the engine's service, the
+  worker's and the one process composing them are crates of their own
+  (`services.md`), `temper-engine` linking the engine's,
+  `temper-worker` the worker's and `temper-box` the composition, so a
+  binary built alone (`cargo build -p PACKAGE --bin NAME`, the release
+  job's) links what it links built with the workspace.
 
 ## 2. `temper-engine`
 
@@ -374,13 +379,14 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
   reading no configuration and no store:
   - `level OWNER LEVEL` for `skein`, `smith`, `jig` and `temper`, the
     binary's patch level of each (jig's `protocol/store/opening.md`, 5,
-    `levels`), `none` before the owner's first patch;
+    `levels`), from the sets it hands its store (`baseline.md`, 4): 0 at
+    the baseline, then its owner's count of landed patches;
   - `store VERSION`, jig's store's component version, then `family
     NAME VERSION` for jig's families, `core`, `tasks`, `people`,
     `notes`, `accounts` and `settings`, and `temper`'s, `STORE_VERSION`
     (`README.md`, section 7; jig's `format::current`);
   - `wire NAME VERSION` for each wire the engine speaks to its workers,
-    in the order `temper-service`'s `store::WIRES` gives them.
+    in the order `temper-engine-service`'s `store::WIRES` gives them.
 - **`upgrade`** is `binaries.md`'s `temper-box upgrade`, on this binary.
 - **No command is an unknown command:** `temper-engine: no command WORDS;
   temper-engine --help lists them`, the words given as far as a command
@@ -388,8 +394,10 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
 - **The bundle is in it,** as in the box's (`../client/web/README.md`,
   2.6): of a deployment's binaries, only the engine's serves the web
   client.
-- **What it links** (1): its row in 4 excludes the
-  worker's domain, `temper-worker-`, `jig-protocol-worker-agents`,
+- **What it links** (1): the engine's service, `temper-engine-service`
+  (`services.md`, 4); its row in 4 excludes the composition,
+  `temper-service`, the
+  worker's domain and service, `temper-worker-`, `jig-protocol-worker-agents`,
   `jig-protocol-worker-link` and smith's host half, `smith-host-`, and
   smith's agent: `smith-agent-`, `smith-local-`, `smith-inline-agent`,
   `smith-domain`, `smith-domain-`, `smith-protocol-channel`,
@@ -571,17 +579,18 @@ hold, and its exceptions, each with its reason.
 
 | Package | Rules | Exceptions |
 |---|---|---|
-| `temper-client` | temper only `temper-client`, `temper-client-domain`, `temper-client-protocol-wire`, `temper-client-shell-cli`, `temper-client-shell-terminal`, `temper-client-shell-tui`, `temper-client-tools`, `temper-client-tui`, `temper-client-view`, `temper-shell`, `temper-docs` and `temper-version`; jig only `jig-client`, `jig-client-domain`, `jig-client-protocol-http`, `jig-client-protocol-link`, `jig-client-protocol-wire`, `jig-client-shell-native` and `jig-client-view`; smith only none | `temper-settings-form`, `temper-protocol-records`, `temper-protocol-reaches`, `jig-protocol-transcript`, `smith-transcript` |
-| `temper-engine` | temper not `temper-worker-`; jig not `jig-protocol-worker-agents` and `jig-protocol-worker-link`; smith not `smith-host-`, `smith-agent-`, `smith-local-`, `smith-inline-agent`, `smith-domain`, `smith-domain-`, `smith-protocol-channel`, `smith-protocol-events`, `smith-protocol-llm`, `smith-protocol-machine`, `smith-protocol-program` and `smith-events` | `smith-domain`, `smith-domain-run`, `smith-domain-session`, `smith-domain-tools` (2) |
-| `temper-worker` | temper not `temper-engine-`, `temper-box-`, `temper-fake`, `temper-fake-`, `temper-init`, `temper-client-bundle`, `temper-client-shell-web`, `temper-forge-setup-shell` and `temper-agent-shell`; smith not `smith-agent-shell`, `smith-agent-service`, `smith-local-` and `smith-inline-agent` | `temper-engine-domain` and the nine `temper-engine-domain-` crates its closure holds, `temper-engine-smith`, `temper-box-machine` (5) |
+| `temper-client` | temper only `temper-client`, `temper-client-shell`, `temper-client-domain`, `temper-client-protocol-wire`, `temper-client-shell-cli`, `temper-client-shell-terminal`, `temper-client-shell-tui`, `temper-client-redaction`, `temper-client-tools`, `temper-client-tui`, `temper-client-view`, `temper-shell`, `temper-docs` and `temper-version`; jig only `jig-client`, `jig-client-domain`, `jig-client-protocol-http`, `jig-client-protocol-link`, `jig-client-protocol-wire`, `jig-client-shell-native` and `jig-client-view`; smith only none | `temper-settings-form`, `temper-protocol-records`, `temper-protocol-reaches`, `jig-protocol-transcript`, `smith-transcript` |
+| `temper-engine` | temper not `temper-worker-` and `temper-service`; jig not `jig-protocol-worker-agents` and `jig-protocol-worker-link`; smith not `smith-host-`, `smith-agent-`, `smith-local-`, `smith-inline-agent`, `smith-domain`, `smith-domain-`, `smith-protocol-channel`, `smith-protocol-events`, `smith-protocol-llm`, `smith-protocol-machine`, `smith-protocol-program` and `smith-events` | `smith-domain`, `smith-domain-run`, `smith-domain-session`, `smith-domain-tools` (2) |
+| `temper-worker` | temper not `temper-engine-`, `temper-box-`, `temper-fake`, `temper-fake-`, `temper-init`, `temper-client-bundle`, `temper-client-shell-web`, `temper-forge-setup`, `temper-forge-setup-shell`, `temper-protocol-records-forge`, `temper-agent-shell` and `temper-service`; smith not `smith-agent-shell`, `smith-agent-service`, `smith-local-` and `smith-inline-agent` | none (5) |
 | `temper-agent` | temper only `temper-agent`, `temper-agent-shell`, `temper-shell`, `temper-docs`, `temper-launcher`, `temper-fetch`, `temper-fetch-shell` and `temper-version`; jig only none | none |
 
 - **The client's exceptions:** `temper-settings-form`, the settings
   form and its words, `no_std` and neither the client's nor the
   engine's, which ctl's tools (`temper-client-tools`) render and the
   engine decodes; `temper-protocol-records`, the forges' pasted bundle's
-  codec, which the client encodes and the engine decodes, built without
-  its `forge` feature (`../client/README.status.md`, 2);
+  codec, which the client encodes and the engine decodes, without the
+  records' reading at start, `temper-protocol-records-forge`
+  (`../client/README.status.md`, 2);
   `temper-protocol-reaches`, what reaches a person, `no_std`, whose
   subjects the client's forge pages and the engine share; and
   `jig-protocol-transcript` with `smith-transcript` beneath it, jig's
@@ -592,10 +601,10 @@ hold, and its exceptions, each with its reason.
 - **The client links no `jig-protocol-accounts`:** its CLI shell's
   manifest names none, since no code of the client uses it, and with it
   go jig's engine protocol, its store and its domain crates.
-- **The worker's exceptions** are `temper-service`'s, whose `worker`
-  feature composes the engine's half too, until
-  `../draft/cli.execution.md`'s C5 makes the worker's half crates of its
-  own (5); each names that reason.
+- **The services' crates** (`services.md`): the engine's row keeps out
+  the worker's service and the composition, `temper-service`; the
+  worker's keeps out the engine's service, the forge's setup and its
+  records' reading at start, and the composition, with no exception.
 
 smith's crates and skein's are the agent's to hold: smith's agent and
 what it rests on. The box links every crate the four hold but their
@@ -649,14 +658,13 @@ public  temper-worker help [NAME | pages | --search WORDS...]
   credentials.md, section 3): it reads the worker's part alone, makes
   the source's directory and replaces itself by the program's sign-in.
 - **What it links** (1): `temper-worker-shell`,
-  `temper-service-shell`, `temper-shell` and `temper-version`, and
-  `temper-service` with its `worker` feature, which until
-  `../draft/cli.execution.md`'s C5 composes the engine's half too, so
-  its closure holds the engine's domain and `temper-service`'s other
-  dependencies (`temper-forge-setup`, `temper-box-machine`, the forge kit). Its
-  row in 4 names those of them it excludes as its exceptions, each for
-  that reason. It links no
-  `temper-engine-shell`, `temper-client-bundle`, `temper-fake`,
+  `temper-service-shell`, `temper-shell` and `temper-version`, and the
+  worker's service, `temper-worker-service`, on `temper-service-core`
+  (`services.md`, 5), so its closure holds none of the engine's: no
+  engine's domain or service, no `temper-engine-smith`, no forge's setup
+  or its records' reading at start, no `temper-box-machine`, and no
+  composition, `temper-service`; its row in 4 has no exception. It links
+  no `temper-engine-shell`, `temper-client-bundle`, `temper-fake`,
   `temper-forge-setup-shell`, smith's agent shell or smith's agent
   service.
 - **Its package,** `bin/temper-worker`, has skein's layout

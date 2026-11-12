@@ -288,13 +288,25 @@ struct Page {
 }
 impl Page {
     fn new() -> Self {
-        let (mut root, me) = fixtures::root_with_watch(Some(fixtures::PROJECT));
+        let mut limits = fixtures::domain_limits();
+        limits.client.domain.rows = PAGE_ROWS;
+        // Work keeps its four lists alongside the frame and per-goal reads.
+        limits.client.domain.handles = 64;
+        limits.client.domain.reads = 32;
+        limits.client.exchanges = 32;
+        let (mut root, me, _) = fixtures::root_at(
+            Address::Inbox {
+                filter: temper_client_domain::address::Filter {
+                    project: Some(fixtures::PROJECT),
+                    ..temper_client_domain::address::Filter::ALL
+                },
+            },
+            &limits,
+        );
         let mut frame = root.pages().me(root.client()).unwrap().clone();
         frame.projects.get_mut(EMPTY).unwrap().templates =
             List::from_boxed(Box::new([template(jig_client::shapes::GOAL, b"goal", true)]));
         fixtures::deliver_me(&mut root, me, frame);
-        let mut limits = fixtures::domain_limits();
-        limits.client.domain.rows = PAGE_ROWS;
         let mut page = Self { root, out: Queue::uncapped(), watch: me, me, limits };
         page.event(temper_client_domain::Event::Went {
             place: temper_client_domain::Place::Address(Address::Goals {
@@ -307,9 +319,13 @@ impl Page {
                 request:
                     jig_client::UnlinkedRequest::Down {
                         down:
-                            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) },
+                            jig_client::Down::Open {
+                                watch,
+                                subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }),
+                            },
                     },
             } = request
+                && query.tracked == Some(true)
             {
                 page.watch = *watch;
             }

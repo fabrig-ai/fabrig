@@ -43,6 +43,7 @@ pub(crate) enum Word {
     AccountAdded,
     KeyTitle,
     KeyTitleA,
+    KeyConsoleDetails,
     SignInDescription,
     PlanPays,
     DeploymentPays,
@@ -434,6 +435,7 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::ProgramNotOffered, b"This provider offers you no program login. Choose another way to connect."),
     (Word::ResumeNotOffered, b"This source isn't limited, so there's nothing to resume. Its state above is current."),
     (Word::ExpiringPlan, b"Expiring: sign in again before it ends."),
+    (Word::KeyConsoleDetails, "From the Claude Console, under API keys. What temper’s agents use is billed to the key’s organization.".as_bytes()),
 ];
 // Both names are borrowed; no configured name is replaced by a guessed brand.
 pub(crate) fn provider_words(name: &[u8]) -> (&[u8], &[u8]) {
@@ -441,6 +443,13 @@ pub(crate) fn provider_words(name: &[u8]) -> (&[u8], &[u8]) {
         b"openai" => (b"OpenAI", b"ChatGPT"),
         b"anthropic" => (b"Anthropic", b"Claude"),
         name => (name, name),
+    }
+}
+pub(crate) fn key_description(brand: &[u8], words: &Words) -> Box<[u8]> {
+    if brand == b"Anthropic" {
+        say(words, Word::KeyConsoleDetails, &[])
+    } else {
+        words.say(crate::words::Word::ModelKeyDescription, &[Hole::Name(crate::choice::shown(brand, words))])
     }
 }
 pub(crate) fn join(parts: &[&[u8]]) -> Box<[u8]> {

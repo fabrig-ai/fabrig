@@ -11,18 +11,15 @@ extern crate alloc;
 #[cfg(any(test, feature = "fixture"))]
 pub mod fixture;
 
-/// Archived version-6 codec, without supplied system context.
-#[rustfmt::skip]
-#[path = "generated/v6.rs"]
-pub mod v6;
-
 #[rustfmt::skip]
 mod generated {
+    /// Archived version-6 codec, without supplied system context.
+    pub mod v6;
     /// Current bounded transcript codec, written from transcript-v7.schema.
     pub mod v7;
 }
 
-pub use generated::v7;
+pub use generated::{v6, v7};
 
 pub use v7::{
     Affinity, AffinityParts, AfterFailedWrite, AfterFailedWriteParts, AllowedCalls, AllowedCallsParts, Ambiguous,
@@ -64,6 +61,7 @@ pub const ROOT: &str = "Turn";
 /// and starts the next run afresh from its brief (smith/docs/design/protocol/transcript.md, 12).
 pub const FRESH_WINDOWS: &str = "fresh-windows";
 
+#[path = "../patches/mod.rs"]
 pub mod patches;
 
 /// Decode an archived version-6 or current turn; version 6 has no supplied system context.

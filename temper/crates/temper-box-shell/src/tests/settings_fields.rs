@@ -224,8 +224,8 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // The fixture has one model, thirteen charters, six templates, one policy and the rules.
-    const STOCK_VALUES: usize = 22;
+    // The fixture has one model, twelve charters, six templates, one policy and the rules.
+    const STOCK_VALUES: usize = 21;
     let llm = llm();
     let models = models(&llm);
     let stock = temper_service::stock::with_models(

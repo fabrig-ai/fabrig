@@ -48,7 +48,7 @@ fn queued_message(name: Token, words: &[u8]) -> root::Event {
 /// Leave a socket note untaken while translating a real process record;
 /// the link waits until its consumer drains the note.
 fn hold_notes_while_translating(stand: &mut fixtures::WorkerStand) {
-    stand.worker.notes().push(crate::Note::Linked {
+    stand.worker.notes().push(crate::worker_alone::Note::Linked {
         worker: Box::from(&b"worker-a"[..]),
         address: Box::new(([127, 0, 0, 1], 7100).into()),
     });
@@ -245,7 +245,7 @@ fn a_link_invocations_whole_output_precedes_the_next_invocation() {
     settings.jig.limits.core.accounts.accounts = ASSIGNMENT_GRANTS;
     settings.jig.limits.core.accounts.credentials = 0;
     let mut own = fixtures::worker_limits();
-    own.forge.forges = 0;
+    own.peer.forges = 0;
     let agent = fixtures::worker_agent();
     let mut stand = socket_stand_with_limits(&settings, &agent, &own);
     let mut peer = LinkPeer::with_limits(&settings, &agent, &own);
@@ -296,7 +296,7 @@ fn a_link_invocations_whole_output_precedes_the_next_invocation() {
     }
     for account in 1..=ASSIGNMENT_GRANTS {
         let value = stand.worker.values.value(account, 1, fixtures::NOW).expect("the whole batch was dispatched");
-        assert_eq!(value.scheme, jig_protocol_accounts::table::Scheme::Key);
+        assert_eq!(value.scheme, crate::worker::credentials::Scheme::Key);
         assert_eq!(value.token.expose(), account.to_be_bytes());
     }
     assert_eq!(stand.worker.engine.len(), 1, "the assignment follows all its values in the same invocation");

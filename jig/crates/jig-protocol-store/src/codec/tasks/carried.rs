@@ -1,5 +1,5 @@
 //! Values carried by core rows in their own family (protocol/store/records.md, 1).
-use crate::tasks_v9 as wire;
+use crate::tasks_v10 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Reader, Writer};
@@ -320,6 +320,11 @@ pub(super) fn encode_refusal(value: &tasks::Refusal, limits: &Limits) -> Result<
         tasks::Refusal::Contract => wire::Refusal::Contract,
         tasks::Refusal::AuthorityShape => wire::Refusal::AuthorityShape,
         tasks::Refusal::Inputs => wire::Refusal::Inputs,
+        tasks::Refusal::NotStanding => wire::Refusal::NotStanding,
+        tasks::Refusal::NoTalk => wire::Refusal::NoTalk,
+        tasks::Refusal::TalkOpen { party } => {
+            wire::Refusal::TalkOpen(wire::TalkOpen::new(limits, wire::TalkOpenParts { party: *party })?)
+        }
         tasks::Refusal::State => wire::Refusal::State,
         tasks::Refusal::Goals => wire::Refusal::Goals,
         tasks::Refusal::Grace => wire::Refusal::Grace,
@@ -379,6 +384,9 @@ pub(super) fn decode_refusal(value: wire::Refusal) -> tasks::Refusal {
         wire::Refusal::Contract => tasks::Refusal::Contract,
         wire::Refusal::AuthorityShape => tasks::Refusal::AuthorityShape,
         wire::Refusal::Inputs => tasks::Refusal::Inputs,
+        wire::Refusal::NotStanding => tasks::Refusal::NotStanding,
+        wire::Refusal::NoTalk => tasks::Refusal::NoTalk,
+        wire::Refusal::TalkOpen(value) => tasks::Refusal::TalkOpen { party: value.party() },
         wire::Refusal::State => tasks::Refusal::State,
         wire::Refusal::Goals => tasks::Refusal::Goals,
         wire::Refusal::Grace => tasks::Refusal::Grace,

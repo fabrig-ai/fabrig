@@ -323,6 +323,7 @@ fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
                     Answer::Pull(api::Pull {
                         queued: None,
                         dequeued: None,
+                        size: None,
                         reviewers: Box::new([]),
                         number: 9,
                         state: api::State::Open,

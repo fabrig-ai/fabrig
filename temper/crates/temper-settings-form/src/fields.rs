@@ -67,6 +67,12 @@ pub enum Shape {
     LandingLast,
     ForgeCharter,
     TemplateGoal,
+    Dependency,
+    Follow,
+    FollowSource,
+    FollowTarget,
+    FollowOwner,
+    FollowCheck,
     ProjectWays,
     ProjectQuestions,
     ProjectClasses,
@@ -186,6 +192,7 @@ pub enum Limit {
     LandingOpen,
     LandingGates,
     LandingApprovals,
+    LandingSets,
     ClassesItems,
     ClassesSets,
     ClassWords,
@@ -263,7 +270,8 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             | Limit::LandingExact
             | Limit::LandingOpen
             | Limit::LandingGates
-            | Limit::LandingApprovals => landing_limit(limit, limits),
+            | Limit::LandingApprovals
+            | Limit::LandingSets => landing_limit(limit, limits),
         },
     })
 }
@@ -292,6 +300,7 @@ fn landing_limit(limit: Limit, limits: &crate::Limits) -> u32 {
             .min(kinds::CEILINGS.landing_open_value),
         Limit::LandingGates => limits.kinds.landing_rule_gates.min(kinds::CEILINGS.landing_rule_gates),
         Limit::LandingApprovals => limits.kinds.landing_rule_approvals.min(kinds::CEILINGS.landing_rule_approvals),
+        Limit::LandingSets => limits.kinds.landing_rule_sets.min(kinds::CEILINGS.landing_rule_sets),
         _ => unreachable!("landing limit"),
     }
 }
@@ -311,6 +320,8 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"project-areas" => Some(Shape::ProjectAreas),
         b"project-triager" => Some(Shape::ProjectTriager),
         b"template-goal" => Some(Shape::TemplateGoal),
+        b"follow" => Some(Shape::Follow),
+        b"dependency" => Some(Shape::Dependency),
         b"project-ways" => Some(Shape::ProjectWays),
         b"project-questions" => Some(Shape::ProjectQuestions),
         b"project-classes" => Some(Shape::ProjectClasses),

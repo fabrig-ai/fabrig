@@ -16,11 +16,12 @@ pub use entry::main;
 pub const AGENT: Table = Table {
     binary: "temper-agent",
     line: "the deployment's agent, which its worker runs for each run.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    // The identity is main's (temper/docs/design/cli/README.md, 3).
+    version: "",
+    commit: "",
     commands: &[temper_shell::table::HELP, RUN, LIST, RELAY, PROGRAM_CHILD, CLAUDE],
     settings: &[],
-    variables: &[&temper_shell::environment::INTERNAL_DUMP_LLM, &temper_version::INTERNAL_COMMIT],
+    variables: &[&temper_shell::environment::INTERNAL_DUMP_LLM, &temper_shell::environment::INTERNAL_COMMIT],
     more: "temper-agent COMMAND --help prints one command; temper-agent help pages lists the pages.",
 };
 
@@ -93,10 +94,10 @@ enum Command {
     Claude { arguments: Box<[Box<[u8]>]> },
 }
 
-fn configure(reached: Reached<'_>) -> Result<Command, (u8, String)> {
+fn configure(reached: Reached<'_>, version: &'static str, commit: &'static str) -> Result<Command, (u8, String)> {
     let (command, arguments) = match reached {
         Reached::Help => return Ok(Command::Print(AGENT.help())),
-        Reached::Version => return Ok(Command::Print(AGENT.version_line())),
+        Reached::Version => return Ok(Command::Print(Table { version, commit, ..AGENT }.version_line())),
         Reached::CommandHelp(command) => return Ok(Command::Print(AGENT.command_help(command))),
         Reached::Unknown(why) => return Err((2, why)),
         Reached::Command(command, arguments) => (command, arguments),

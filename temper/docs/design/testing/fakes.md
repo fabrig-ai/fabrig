@@ -69,7 +69,7 @@ skein's (skein's `testing/fakes/llm.md`):
   design (skein's `testing/fakes/llm.md`, and skein's `oauth/README.md`, section 5;
   smith's `protocol/programs.md`, section 8); temper's stories code
   against the fake LLM's script.
-- **A live run's twin,** `tools/twin` (crate `temper-twin`), a
+- **A live run's twin,** `bin/temper-twin` (crate `temper-twin-tool` in `crates/temper-twin-tool`), a
   developer's tool, never shipped: it turns a stopped deployment's
   transcripts into a fake LLM document that replays the run's agents
   (`real-loop.md`, "The ladder's twins").
@@ -126,6 +126,44 @@ skein's (skein's `testing/fakes/llm.md`):
     run in the walk's order on a fresh deployment, as the fuzzy stories'
     numbers do. A value missed shows as the twin's run failing, and is
     added.
+  - **What differs on another deployment,** for a twin that QA replays
+    on a box of its own (`qa/setups.md`, 4.2), is taken from the
+    conversation rather than replaced: `--takes FILE`, a JSON list of
+    `{"name", "value", "before", "after"}`, at most 8, each name
+    distinct, the names, `before` and `after` within skein's bounds
+    (skein's `testing/fakes/llm.md`, 2.6), and `value` the recorded
+    bytes as `--replace` leaves them. Applied after `--replace`, in each
+    script's turns: in a call's arguments, a JSON number whose token is
+    `value` becomes `"{{#NAME}}"`, and `value` inside a JSON string
+    `{{NAME}}`; in a text line, `{{NAME}}`. Each turn so changed gains a
+    take for each name it uses, `{"take", "before", "after"}`, first
+    among its lines, in `--takes`' order. A take that no turn uses is
+    refused, naming it, and so is a turn past the form's bounds with
+    its takes. The report counts each take's uses. Whether each finds
+    its value on replay, the twin's run proves, as for cues.
+  - **Where a take applies,** when its value also stands for something
+    else (a task's number `2` beside a depth of 2 or a constant in
+    written source): a take may carry `"only"`, a list of 1 to 8
+    places, and then replaces its value at those places alone; without
+    it, everywhere as above. A place is
+    `{"call", "argument", "prefix", "suffix"}`, every member optional:
+    with `call`, the arguments of the calls of that name, and with
+    `argument` too, only the value an RFC 6901 pointer names in them;
+    without `call`, the text lines, and `argument` is refused. There, a
+    JSON number whose token is `value` is replaced as above, and inside
+    a string or a text line an occurrence of `value` counts only with
+    `prefix` directly before it and `suffix` directly after, each 0 to
+    256 bytes of the decoded text and kept as they are. So
+    `{"call": "message", "argument": "/target"}` takes a message's
+    target alone, and `{"prefix": "PR #"}` a text's pull request alone.
+    A place that matches nothing is not refused itself; a take that
+    then matches nothing is.
+  - **From a twin already made,** `--from FILE` in place of `--data`,
+    `--base` and `--cue`: FILE a document of the twin's output form,
+    whose scripts are taken as they are, `--replace` and then `--takes`
+    applied to them, and the document written to `--out` as a twin
+    from transcripts is. So a fixture whose run's data directory is gone
+    gains its takes by the tool, not by hand.
   - **Its tests:** step tests from recorded frames; and a round trip, a
     fuzzy story's run turned into its twin and the twin run to the same
     end.
@@ -217,6 +255,26 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   git route's `objects` call gives a commit's tree, which the case's
   referee reads for main once the last merge is observed, before the
   forge stops.
+- **Its state kept, as a process:** `temper-box fake forge --document
+  FILE [--state STATE]`. With `--state`, the forge's state lasts across
+  its restarts in STATE (skein's `testing/fakes/forge.md`, 2.7 and 5;
+  `testing/fakes/github.md`, 1.7):
+  - **At its start,** a STATE present, this user's private single-link
+    regular file as a retained output is (`../protocol/setup/playground.md`,
+    its outputs), is read and the forge built from its image in place of
+    seeding the document's repositories, sources, App and accounts; the
+    document's listener, outputs, limits and CI are read as ever. STATE
+    absent, the forge is seeded from the document as before.
+  - **At its orderly stop,** on its termination signal, once its peer
+    has shut down: the forge's image written to a new private file
+    beside STATE and renamed over it. A forge that exits otherwise
+    writes nothing, so its next start reads what its last orderly stop
+    wrote.
+  - **A STATE it cannot read,** one that does not decode, holds past the
+    limits, or is no private regular file, refuses the start before the
+    listener is served, with one line on stderr, `temper-box fake forge:
+    state STATE refused: WHY`, STATE the path as given, and exit 1. The
+    file is left as it is.
 
 ## 3. The machine, and the fake git program
 
@@ -292,7 +350,7 @@ loop (`real-loop.md`) and from another process.
   `PATH`; the settings present; the remote a `https` URL, or a loopback
   `http` one.
 - **Checked against real git:** its answers to the transcripts of
-  `tools/git-transcripts` match real git's, masked (../protocol/git.md,
+  `temper-git-transcripts` match real git's, masked (../protocol/git.md,
   section 9).
 - **Where it runs:** the one-process world (`README.md`, 2.5) on the typed transport;
   the real loop (`real-loop.md`) over the git route of the forge peer it hosts, so

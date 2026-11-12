@@ -107,12 +107,14 @@ pub struct Kinds {
 pub const READ_KINDS: [u16; 1] = [1];
 
 /// Forge grants needed by the change procedure (domain/forge/README.md, section 4 and domain/forge/change/README.md).
-pub const CHANGE_KINDS: [u16; 6] = [2, 3, 4, 10, 11, 12];
+pub const CHANGE_KINDS: [u16; 7] = [2, 3, 4, 10, 11, 12, 17];
 
 /// One adopted repository, with provider name and project ownership.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Repository {
     pub project: u32,
+    /// Other projects reading this repository (domain/forge/follows.md, 8).
+    pub contexts: Box<[u32]>,
     /// This project's selected repository for goal issue projections and chats' saved work.
     pub home: bool,
     pub provider: skein_forge::api::Repository,
@@ -130,6 +132,43 @@ pub struct Repository {
     pub settings: skein_forge::api::Settings,
     /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 7).
     pub workflows: Box<[Box<[u8]>]>,
+}
+impl Repository {
+    /// This project's adoption role (domain/forge/follows.md, 8).
+    #[must_use]
+    pub fn role_for(&self, project: u32) -> Option<Role> {
+        if self.project == project {
+            Some(self.role)
+        } else if self.contexts.contains(&project) {
+            Some(Role::Context)
+        } else {
+            None
+        }
+    }
+
+    /// Project-scoped facts; context never carries a writer's home or effects.
+    #[must_use]
+    pub fn for_project(&self, project: u32) -> Option<Self> {
+        let role = self.role_for(project)?;
+        let mut row = self.clone();
+        row.project = project;
+        row.role = role;
+        if role == Role::Context {
+            row.home = false;
+            row.kinds = Kinds {
+                read: self.kinds.read,
+                push: false,
+                open: false,
+                land: false,
+                review: false,
+                status: false,
+                comment: false,
+                issue: false,
+                branch: false,
+            };
+        }
+        Some(row)
+    }
 }
 /// The git identity a forge's repositories are pushed and fetched with: an
 /// application credential numbered by the deployment's configuration
@@ -182,6 +221,7 @@ pub enum Ask {
         into: Option<crate::MakeInto>,
     },
     Adopt(Adoption),
+    SetDraft(crate::SetDraft),
     SetUp {
         forge: Making,
         first: SetUpFirst,
@@ -245,6 +285,7 @@ pub enum AppWay {
 /// A retained application answer; adoption and making outcomes are durable.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Answered {
+    Follow(Option<Box<[u8]>>),
     Make(MakeAnswer),
     Adopt(ApplicationOutcome),
     SetUp(SetUpAnswer),
@@ -262,6 +303,7 @@ pub enum Answered {
     FileFinding(crate::FileFindingAnswer),
     HandFinding(crate::HandFindingAnswer),
     TriageFinding(crate::TriageFindingAnswer),
+    SetDraft(crate::SetDraftAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -665,6 +707,7 @@ pub struct Adopted {
 /// The connector's outcome, kept under the people child's application token.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ApplicationOutcome {
+    Follow(Option<Box<[u8]>>),
     Adopted(AdoptedRepository),
     CoreRefused(jig_domain_people::Refusal),
     ForgeRefused(AdoptionRefusal),
@@ -919,9 +962,29 @@ pub enum Ending {
     Cancelled,
     Failed { line: Box<[u8]> },
 }
+/// The source landings a change follows (temper/docs/design/domain/forge/follows.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ChangeFollows {
+    pub follow: u32,
+    pub commits: Box<[skein_forge::api::Commit]>,
+}
+/// The change's durable exact-head workflow progress (domain/forge/follows.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FollowCheck {
+    pub follow: u32,
+    pub source: skein_forge::api::Commit,
+    pub head: skein_forge::api::Commit,
+    pub definition: Box<[u8]>,
+    pub key: Option<[u8; 32]>,
+    pub flight: Option<TierFlight>,
+    pub page: u32,
+    pub faults: u32,
+    pub held: Option<Box<[u8]>>,
+}
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
     pub ending: Option<Ending>,
@@ -945,7 +1008,7 @@ pub struct ChangeRow {
     pub pull: Option<u64>,
     pub pending: Option<u64>,
     pub effect: change::EffectResult,
-    /// The one child requested by this procedure, and its latest result.
+    /// The current child and its latest standing; a held close job stays named while live.
     pub delegate: Option<(u64, change::Delegate)>,
     pub delegate_status: change::Status,
     /// Bounded current verdict per gate, retained through clean updates.
@@ -965,8 +1028,6 @@ pub struct ChangeRow {
     /// The LLM choices by role it was made with (domain/forge/change/README.md, 1, and domain/forge/change/gates.md, 3).
     pub producing_llm: Option<jig_domain_tasks::LlmChoice>,
     pub review_llm: Option<jig_domain_tasks::LlmChoice>,
-    /// The foreman's charter captured when made (domain/forge/change/questions.md, 1).
-    pub foreman_charter: u32,
     pub effect_account: Option<EffectAccount>,
     /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
@@ -976,6 +1037,8 @@ pub struct ChangeRow {
     pub questions: change::Questions,
     /// The red landing this change repairs (temper/docs/design/domain/agent/tools.md, 1).
     pub repairs: Option<skein_forge::api::Commit>,
+    pub follows: Option<ChangeFollows>,
+    pub follow_check: Option<FollowCheck>,
     /// The commit this catch-up merges (temper/docs/design/domain/forge/change/README.md, 2).
     pub catch_up: Option<skein_forge::api::Commit>,
     /// The close request (temper/docs/design/domain/forge/change/README.md, 1).
@@ -1127,6 +1190,7 @@ pub struct GateRemark {
 /// releasing its durable outbox entry.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeEvidence {
+    pub touched: crate::Touched,
     /// State to restore if the root does not authorize this effect.
     pub prior: change::Change,
     pub head: Option<skein_forge::api::Commit>,
@@ -1136,6 +1200,7 @@ pub struct ChangeEvidence {
     pub gates: Box<[change::GateReport]>,
     pub reviews: Box<[skein_forge::api::Review]>,
     pub reviews_complete: bool,
+    pub size: Option<skein_forge::api::Size>,
 }
 /// Coherent merge facts for a landing member, read in the landing's step.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1166,6 +1231,8 @@ pub enum CallPayload {
 #[expect(clippy::large_enum_variant, reason = "the durable change row keeps role choices and merge-job state inline")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
+    /// Identity only: a stored setting the codec refused, never its retired value.
+    RefusedSetting(crate::settings::SettingKey),
     /// The connector part of a live named call.
     Call {
         key: NamedCall,
@@ -1243,6 +1310,7 @@ pub enum Stored {
     },
     /// The playground's durable progress (temper/docs/design/protocol/setup/playground.md).
     Playground(Playground),
+    Follow(crate::FollowRow),
     Tier(TierRow),
     Verification(Verification),
     LandingLog(LandingLog),
@@ -1257,6 +1325,7 @@ pub enum Stored {
     Away(crate::Away),
     Decided(crate::Decided),
     Finding(crate::Finding),
+    LandedDraft(crate::LandedDraft),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -1306,6 +1375,8 @@ pub enum Key {
     Away { party: u64, project: u32 },
     Decided { project: u32, number: u32 },
     Closer(u64),
+    LandedDraft { repository: skein_forge::api::Repository, path: Box<[u8]> },
+    Follow { project: u32, follow: u32 },
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1396,6 +1467,17 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// Keep the merge judgement in the decision admitting its effect.
+    Signed {
+        task: u64,
+        signed: Box<[SignOff]>,
+    },
+    SetDraft {
+        request: Token,
+        token: Token,
+        party: u64,
+        call: crate::SetDraft,
+    },
     SetAway {
         request: Token,
         token: Token,
@@ -1465,6 +1547,23 @@ pub enum Event {
     StatusHeard {
         task: u64,
         report: Option<Box<[u8]>>,
+    },
+    FollowChangeAmended {
+        task: u64,
+        follows: ChangeFollows,
+        words: Box<[u8]>,
+    },
+    FollowAct {
+        request: Token,
+        token: Token,
+        retention: skein_lib::Duration,
+        project: u32,
+        follow: u32,
+        act: crate::follows::FollowAct,
+        authorized: bool,
+    },
+    Follow {
+        row: crate::FollowRow,
     },
     TierTask {
         repository: skein_forge::api::Repository,
@@ -1812,7 +1911,7 @@ pub enum Event {
         title: Box<[u8]>,
         report: Box<[u8]>,
     },
-    /// Resolve the named child's terminal result before stepping again.
+    /// Resolve the named child's terminal result or close job's failure hold before stepping again.
     DelegateResult {
         task: u64,
         child: u64,
@@ -1846,6 +1945,10 @@ pub enum Event {
     ReviewRequested {
         task: u64,
         head: skein_forge::api::Commit,
+    },
+    /// Re-derive the queue after the root keeps changed review facts (domain/forge/queues.md).
+    ReviewsChanged {
+        task: u64,
     },
     /// Gather fresh forge facts and step one registered change.
     StepChange {
@@ -1946,6 +2049,8 @@ pub enum Event {
         task: u64,
         entry: u64,
         prior: change::Change,
+        /// Holds, refusals and pending dependencies end the turn; an approval wait does not.
+        leaves_queue: bool,
     },
     /// Subscribe a live task to a topic.
     Subscribe {
@@ -2030,8 +2135,17 @@ pub enum Request {
     StatusRun {
         project: u32,
         words: Box<[u8]>,
+        signers: Box<[u64]>,
     },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
+    FollowRun {
+        project: u32,
+        follow: u32,
+    },
+    CancelFollow {
+        project: u32,
+        task: u64,
+    },
     TierRun {
         repository: skein_forge::api::Repository,
         tier: Box<[u8]>,
@@ -2321,6 +2435,11 @@ pub enum Request {
     ProjectionFailed {
         goal: u64,
     },
+    /// A ready change's fresh review evidence for the root to judge (domain/forge/change/gates.md, 2).
+    Reviewed {
+        task: u64,
+        evidence: ChangeEvidence,
+    },
     /// A change policy step and its checked effect entry, when any.
     ChangeDecision {
         task: u64,
@@ -2514,7 +2633,19 @@ pub struct LoggedLanding {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LoggedChange {
+    pub signed: Box<[SignOff]>,
     pub task: u64,
     pub pull: Option<u64>,
     pub title: Box<[u8]>,
 }
+
+/// Approval evidence retained at admission (temper/docs/design/domain/forge/change/gates.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct SignOff {
+    pub person: u64,
+    pub head: skein_forge::api::Commit,
+    pub at: skein_lib::Wall,
+}
+
+/// Maximum distinct people retained with one change.
+pub const SIGN_OFFS: usize = 8;

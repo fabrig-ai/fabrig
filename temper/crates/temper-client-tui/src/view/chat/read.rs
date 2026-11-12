@@ -1,4 +1,4 @@
-//! The browser terminal's conversation walk (temper/docs/design/client/pages/README.md and temper/docs/design/client/tui/pages.md).
+//! The browser terminal's conversation walk (temper/docs/design/client/pages/README.md and temper/docs/design/client/tui/pages/README.md).
 use super::{Entry, Piece, Words, printed, shared};
 use alloc::boxed::Box;
 use jig_client::{
@@ -220,7 +220,15 @@ fn owner(root: &Domain, chat: &Chat, line: &c::Activity, words: &Words) -> Optio
             }
             Some(Entry::Agent { words: words.view().say(Word::DecisionMade, &[]), growing: false })
         }
-        c::Activity::Stood { .. } | c::Activity::SessionEnded { .. } | c::Activity::Kept { .. } => {
+        c::Activity::NowWritten { line, .. } => Some(Entry::Agent {
+            words: skein_lib::bytes::concat(&[&words.view().say(Word::NowWritten, &[]), line.bytes()]),
+            growing: false,
+        }),
+        c::Activity::Stood { .. }
+        | c::Activity::TalkOpened { .. }
+        | c::Activity::TalkEnded { .. }
+        | c::Activity::SessionEnded { .. }
+        | c::Activity::Kept { .. } => {
             Some(Entry::Agent { words: words.view().say(Word::DependencyParked, &[]), growing: false })
         }
         c::Activity::Turn { .. } => {
@@ -263,7 +271,10 @@ pub(crate) fn last_reply(root: &Domain) -> Option<(c::TurnName, Box<[u8]>)> {
                 c::Activity::Heard(_)
                 | c::Activity::Notified { .. }
                 | c::Activity::Decided { .. }
+                | c::Activity::NowWritten { .. }
                 | c::Activity::Stood { .. }
+                | c::Activity::TalkOpened { .. }
+                | c::Activity::TalkEnded { .. }
                 | c::Activity::SessionEnded { .. }
                 | c::Activity::Kept { .. }
                 | c::Activity::RunBegan { .. }

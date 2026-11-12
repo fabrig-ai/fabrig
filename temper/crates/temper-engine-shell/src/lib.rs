@@ -9,6 +9,7 @@ pub use temper_shell::directories;
 
 mod binary;
 pub mod commands;
+pub mod served;
 pub use binary::{main, versions};
 pub use commands::ENGINE;
 
@@ -16,6 +17,7 @@ pub mod forge;
 pub mod forge_sign_in;
 pub mod serve;
 pub mod setup;
+pub mod upgrade;
 const CONFIG_BYTES: u32 = 1 << 20;
 
 fn prefixed(command: &str, why: &str) -> String {

@@ -71,6 +71,7 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 w::Request::RemoveForge(_) => false,
                 w::Request::DismissMaking(_)
                 | w::Request::MakeRepository(_)
+                | w::Request::FollowAct(_)
                 | w::Request::Adopt(_)
                 | w::Request::SetUp(_)
                 | w::Request::SetAway(_)
@@ -79,6 +80,7 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 | w::Request::FileFinding(_)
                 | w::Request::HandFinding(_)
                 | w::Request::TriageFinding(_)
+                | w::Request::SetDraft(_)
                 | w::Request::TryAccount(_)
                 | w::Request::Dismiss(_)
                 | w::Request::Replace(_)
@@ -263,6 +265,9 @@ fn answer_words(answer: w::Outcome, end: bool) -> Option<AnswerWords> {
         | w::Outcome::Handed
         | w::Outcome::Triaged
         | w::Outcome::FindingRefused(_)
+        | w::Outcome::Drafted(_)
+        | w::Outcome::DraftRefused(_)
+        | w::Outcome::Follow(_)
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)

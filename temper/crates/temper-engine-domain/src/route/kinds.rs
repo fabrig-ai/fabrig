@@ -7,6 +7,8 @@ use skein_lib::{Decimal, Env, List, Queue};
 use temper_engine_domain_forge::settings;
 
 use crate::{Decision, Domain, Limits, Work};
+mod dependencies;
+mod follows;
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "the forge dispatcher selects only the settings asks")]
 pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, number: u16, ask: connector::Ask) {
@@ -33,7 +35,7 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             domain.forge.keep_settings(&super::environment_forge(env), revision, proposal, &asked, &mut out);
             super::findings::settings_saved(domain, env, decision, holders.as_slice());
             for item in &asked {
-                if item.kind == 12 || item.kind == 13 {
+                if item.kind == 14 || item.kind == 15 {
                     temper_engine_domain_forge::findings::mark_findings(item.scope, &mut out);
                 }
             }
@@ -53,16 +55,8 @@ pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             domain.forge.keep_proposal_settings(proposal, &asked, &mut out);
         }
         connector::Ask::RestoreSettings { owner, proposal, items } => {
-            let answers = restore(domain, &bounds(&env.limits), env.limits.authority.roles, proposal, &items, &mut out);
-            let mut judged = List::uncapped();
-            for answer in answers {
-                let answer = judgement(answer);
-                judged.push(answer).expect("one judgement per restored item");
-            }
-            domain.work.push(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored {
-                owner,
-                judged: judged.into_boxed(),
-            })));
+            let judged = restore(domain, &bounds(&env.limits), env.limits.authority.roles, proposal, &items, &mut out);
+            domain.work.push(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored { owner, judged })));
         }
         connector::Ask::ForgetReplaced { before } => domain.forge.forget_replaced(before, &mut out),
         connector::Ask::DropProposalSettings { proposal } => domain.forge.drop_proposal_settings(proposal, &mut out),
@@ -81,34 +75,58 @@ fn restore(
     proposal: u64,
     items: &[application::Restored],
     out: &mut Queue<temper_engine_domain_forge::Request>,
-) -> Box<[settings::Judged]> {
-    let mut answers = domain.forge.restore_settings(bounds, proposal, items, out);
+) -> Box<[connector::Judged]> {
+    let answers = domain.forge.restore_settings(bounds, proposal, items, out);
     let kept = domain.forge.proposal_settings(proposal);
+    let mut judged = List::uncapped();
     let mut accepted = List::uncapped();
     let mut refused = false;
-    for (key, edit) in kept {
-        let asked = settings::Asked { kind: key.kind, scope: key.scope, number: key.number, edit };
-        if way_refusal(domain, None, &asked).is_some()
-            || owner_refusal(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked).is_some()
-        {
-            for (item, answer) in items.iter().zip(answers.iter_mut()) {
-                if (item.kind, item.scope, item.number) == (key.kind, key.scope, key.number) {
-                    *answer = settings::Judged::Refuse(
-                        owner_refusal(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked)
-                            .unwrap_or(settings::Refusal::Way),
-                    );
-                }
+    for (item, answer) in items.iter().zip(answers.iter()) {
+        let mut answer = match answer.clone() {
+            settings::Judged::Refuse(settings::Refusal::Retired) => connector::Judged::Refuse {
+                why: settings::retired_words(settings::SettingKey {
+                    kind: item.kind,
+                    scope: item.scope,
+                    number: item.number,
+                    slot: settings::SettingSlot::Change,
+                }),
+            },
+            settings::Judged::Refuse(why) if item.kind == 13 => {
+                connector::Judged::Refuse { why: dependencies::words(item.number, &[&why.words()]) }
             }
-            refused = true;
-        } else {
-            accepted.push(asked).expect("one retained edit per accepted restore");
+            settings::Judged::Refuse(why) if item.kind == 12 => {
+                connector::Judged::Refuse { why: follows::words(item.number, &[&why.words()]) }
+            }
+            settings::Judged::Accept { .. } | settings::Judged::Same | settings::Judged::Refuse(_) => {
+                judgement(answer.clone())
+            }
+        };
+        for (key, edit) in &kept {
+            if (item.kind, item.scope, item.number) != (key.kind, key.scope, key.number) {
+                continue;
+            }
+            let asked = settings::Asked { kind: key.kind, scope: key.scope, number: key.number, edit: edit.clone() };
+            let why = match way_refusal(domain, None, &asked) {
+                Some(_) => Some(settings::Refusal::Way.words().into()),
+                None => follows::refusal(domain, &asked)
+                    .or(dependencies::refusal(domain, &asked))
+                    .or(owner_refusal_words(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked)),
+            };
+            if let Some(why) = why {
+                answer = connector::Judged::Refuse { why };
+                refused = true;
+            } else {
+                accepted.push(asked).expect("one retained edit per accepted restore");
+            }
+            break;
         }
+        judged.push(answer).expect("one judgement per restored item");
     }
     if refused {
         domain.forge.drop_proposal_settings(proposal, out);
         domain.forge.keep_proposal_settings(proposal, &accepted.into_boxed(), out);
     }
-    answers
+    judged.into_boxed()
 }
 
 fn judgement(answer: settings::Judged) -> connector::Judged {
@@ -136,8 +154,8 @@ fn judge(
     let Some(asked) = typed(domain, proposal, item) else {
         return connector::Judged::Refuse {
             why: match item.kind {
-                12 => b"areas: value does not decode".as_slice().into(),
-                13 => b"triager: value does not decode".as_slice().into(),
+                14 => b"areas: value does not decode".as_slice().into(),
+                15 => b"triager: value does not decode".as_slice().into(),
                 _ => settings::Refusal::Value.words(),
             },
         };
@@ -145,13 +163,20 @@ fn judge(
     let answers = domain.forge.judge_settings(bounds, core::slice::from_ref(&asked));
     let answer = answers.first().expect("one forge judgement per item").clone();
     match answer {
+        settings::Judged::Refuse(why) if asked.kind == 13 => {
+            connector::Judged::Refuse { why: dependencies::words(asked.number, &[&why.words()]) }
+        }
+        settings::Judged::Refuse(why) if asked.kind == 12 => {
+            connector::Judged::Refuse { why: follows::words(asked.number, &[&why.words()]) }
+        }
         settings::Judged::Refuse(_) => judgement(answer),
         settings::Judged::Accept { .. } | settings::Judged::Same => {
-            match way_refusal(domain, Some(owner), &asked).or(approval_refusal(domain, &asked)).or(owner_refusal_words(
-                domain,
-                &settings::Bounds { roles: owner_roles, ..*bounds },
-                &asked,
-            )) {
+            match way_refusal(domain, Some(owner), &asked)
+                .or(approval_refusal(domain, &asked))
+                .or(follows::refusal(domain, &asked))
+                .or(dependencies::refusal(domain, &asked))
+                .or(owner_refusal_words(domain, &settings::Bounds { roles: owner_roles, ..*bounds }, &asked))
+            {
                 Some(why) => connector::Judged::Refuse { why },
                 None => judgement(answer),
             }
@@ -166,7 +191,9 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
     };
     let ways = match value {
         settings::Value::Ways(ways) => ways,
-        settings::Value::Rule(_)
+        settings::Value::Dependency(_)
+        | settings::Value::Follow(_)
+        | settings::Value::Rule(_)
         | settings::Value::Charter(_)
         | settings::Value::Goal(_)
         | settings::Value::Questions(_)
@@ -226,7 +253,9 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
     };
     let rule = match value {
         settings::Value::Rule(rule) => rule,
-        settings::Value::Charter(_)
+        settings::Value::Dependency(_)
+        | settings::Value::Follow(_)
+        | settings::Value::Charter(_)
         | settings::Value::Questions(_)
         | settings::Value::Classes(_)
         | settings::Value::Goal(_)
@@ -300,14 +329,19 @@ pub(super) fn covers_repository(
 
 /// The project's members with `role` who count as people on `forge` (domain/forge/change/gates.md, 3).
 pub(super) fn eligible_people(domain: &Domain, project: u32, forge: u16, role: u32) -> u32 {
-    let mut count = 0_u32;
-    let Some(members) = domain.core.people.project_members(project) else { return count };
+    eligible_members(domain, project, forge, role).len()
+}
+
+/// Eligible members in the people domain's order (domain/forge/change/questions.md, 2).
+pub(super) fn eligible_members(domain: &Domain, project: u32, forge: u16, role: u32) -> List<u64> {
+    let mut people = List::uncapped();
+    let Some(members) = domain.core.people.project_members(project) else { return people };
     for member in members {
         if member.role.number() == role && super::forge_route::forge_human(domain, project, forge, member.person) {
-            count = count.saturating_add(1);
+            people.push(member.person).expect("project members bound eligible people");
         }
     }
-    count
+    people
 }
 
 fn approval_words(project: u32, host: &[u8], approval: &settings::RuleApproval, count: u32) -> Box<[u8]> {
@@ -352,11 +386,15 @@ fn bounds(limits: &Limits) -> settings::Bounds {
         segment_bytes: limits.authority.segment_bytes.min(limits.forge.name_bytes),
         charters: limits.tasks.charters,
         templates: limits.templates,
+        follows: limits.forge.follows,
+        dependencies: limits.forge.dependencies,
+        follow_paths: limits.forge.follow_paths,
+        name_bytes: limits.forge.name_bytes,
     }
 }
 
 fn typed(domain: &Domain, proposal: Option<u64>, item: &application::Item) -> Option<settings::Asked> {
-    let edit = match &item.edit {
+    let mut edit = match &item.edit {
         application::Edit::Set(_) => {
             let mut kept = None;
             if let Some(proposal) = proposal {
@@ -384,6 +422,7 @@ fn typed(domain: &Domain, proposal: Option<u64>, item: &application::Item) -> Op
         application::Edit::Remove => settings::Edit::Remove,
         application::Edit::Reset => settings::Edit::Reset,
     };
+    follows::defaults(domain, &mut edit);
     Some(settings::Asked { kind: item.kind, scope: item.scope, number: item.number, edit })
 }
 
@@ -499,7 +538,9 @@ fn read_refusal(
                                 || *kind == 8
                                 || *kind == 10
                                 || *kind == 12
-                                || *kind == 13)
+                                || *kind == 13
+                                || *kind == 14
+                                || *kind == 15)
                                 && *scope == project
                         }
                         crate::ForgeRead::ProposalItems { .. } | crate::ForgeRead::ProgramEnvironment => false,
@@ -662,7 +703,9 @@ fn owner_refusal(domain: &Domain, bounds: &settings::Bounds, asked: &settings::A
         | settings::Value::Classes(_)
         | settings::Value::Goal(_)
         | settings::Value::CharterWords(_)
-        | settings::Value::ProjectWords(_) => None,
+        | settings::Value::ProjectWords(_)
+        | settings::Value::Dependency(_)
+        | settings::Value::Follow(_) => None,
     }
 }
 fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, owner: settings::AreaOwner) -> bool {

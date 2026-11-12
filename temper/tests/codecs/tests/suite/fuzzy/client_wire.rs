@@ -215,6 +215,10 @@ fn drawn_rule(rng: &mut Rng) -> v1::LandingRule {
             )
             .expect("bounded approvals");
     }
+    let mut sets = List::with_capacity(6);
+    for _ in 0..rng.below(7) {
+        sets.push(u8::try_from(rng.below(256)).expect("u8 draw")).expect("bounded sets");
+    }
     v1::LandingRule::new(
         limits,
         v1::LandingRuleParts {
@@ -224,6 +228,7 @@ fn drawn_rule(rng: &mut Rng) -> v1::LandingRule {
             up_to_date: rng.chance(500),
             gates,
             approvals,
+            sets,
         },
     )
     .expect("bounded rule")

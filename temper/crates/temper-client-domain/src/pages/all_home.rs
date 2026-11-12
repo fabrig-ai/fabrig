@@ -7,10 +7,16 @@ use super::{
 };
 use crate::{Domain, address::Filter, forge, owner::Owner};
 use alloc::boxed::Box;
-use jig_client::{Client, Key, Told, contract::Me};
+use jig_client::{
+    Client, Handle, Key, Told,
+    contract::{Me, MeProject},
+};
 use skein_lib::{Env, List, Map, Queue, Wall, bytes};
+use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const ACROSS: u32 = 16;
+/// Home alone reads these projects’ follows (client/pages/home.md, 1, *Its reads*).
+pub const FOLLOWED: u32 = 4;
 #[derive(Debug, PartialEq, Eq)]
 pub struct Facts {
     pub projects: Box<[Project]>,
@@ -18,6 +24,51 @@ pub struct Facts {
     pub decided: Box<[Decided]>,
     pub showing: u32,
     pub away: Option<Spell>,
+    pub follows: Box<[Relation]>,
+}
+/// What follows what (temper/docs/design/client/pages/home.md, 1).
+#[derive(Debug, PartialEq, Eq)]
+pub enum Relation {
+    Follow { project: u32, name: Box<[u8]>, source: Box<[u8]>, line: Box<[u8]>, stopped: Option<Box<[u8]>> },
+    Dependency { project: u32, name: Box<[u8]>, dependency: Box<[u8]> },
+}
+/// Answered panels in the reader's project order, follows before dependencies.
+#[must_use]
+pub fn relations(panels: &[w::FollowsPanel], projects: &[MeProject]) -> Box<[Relation]> {
+    let mut boxes = List::uncapped();
+    for project in projects.iter().take(usize::try_from(FOLLOWED).expect("four projects fit")) {
+        for panel in panels {
+            if panel.project() != project.project {
+                continue;
+            }
+            for row in panel.follows() {
+                boxes
+                    .push(Relation::Follow {
+                        project: project.project,
+                        name: project.name.bytes().into(),
+                        source: row.source().into(),
+                        line: bytes::concat(&[
+                            &forge::follows::lag(row.lag()),
+                            b" \xc2\xb7 ",
+                            &forge::follows::parity(row.parity().as_ref()),
+                        ]),
+                        stopped: row.stopped().clone(),
+                    })
+                    .expect("relation boxes grow");
+            }
+            for row in panel.dependencies() {
+                boxes
+                    .push(Relation::Dependency {
+                        project: project.project,
+                        name: project.name.bytes().into(),
+                        dependency: forge::follows::dependency_name(row.project(), projects),
+                    })
+                    .expect("relation boxes grow");
+            }
+            break;
+        }
+    }
+    boxes.into_boxed()
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct Project {
@@ -73,6 +124,7 @@ impl Facts {
                 Needs::Unknown => 0,
             },
             showing: self.showing,
+            follows: u32::try_from(self.follows.len()).expect("relation boxes fit"),
             to_begin: false,
         }
     }
@@ -81,21 +133,34 @@ impl Facts {
 #[derive(Debug)]
 pub(crate) struct AllHome {
     homes: List<(u32, Home)>,
+    follows: List<(u32, Handle)>,
+    limits: forge::Limits,
     statuses: bool,
     project: Option<u32>,
 }
 impl AllHome {
-    pub(super) fn new(statuses: bool, project: Option<u32>) -> Self {
-        Self { homes: List::with_capacity(ACROSS), statuses, project }
+    pub(super) fn new(statuses: bool, project: Option<u32>, limits: forge::Limits) -> Self {
+        Self { homes: List::with_capacity(ACROSS), follows: List::with_capacity(FOLLOWED), limits, statuses, project }
     }
     pub(super) fn leave(&self, out: &mut Queue<Request>) {
+        for (_, handle) in &self.follows {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle: *handle }));
+        }
         for (_, home) in &self.homes {
             home.leave(out);
         }
     }
+    pub(super) fn stop_follows(&mut self, out: &mut Queue<Request>) {
+        for (_, handle) in &self.follows {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle: *handle }));
+        }
+        self.follows.clear();
+    }
     pub(super) fn configure(
         &mut self,
         me: Option<&Me>,
+        own: Option<u32>,
+        follows: bool,
         next: &mut u64,
         limits: forge::Limits,
         out: &mut Queue<Request>,
@@ -105,7 +170,13 @@ impl AllHome {
         }
         let mut homes = List::with_capacity(ACROSS);
         if let Some(me) = me {
-            for row in &me.projects {
+            for (index, row) in me.projects.iter().enumerate() {
+                if index >= usize::try_from(ACROSS).expect("project bound fits") {
+                    break;
+                }
+                if own == Some(row.project) {
+                    continue;
+                }
                 if self.project.is_some() && self.project != Some(row.project) {
                     continue;
                 }
@@ -130,8 +201,57 @@ impl AllHome {
                 homes.push((row.project, home)).expect("first ACROSS projects fit");
             }
         }
-        self.leave(out);
+        for (_, home) in &self.homes {
+            home.leave(out);
+        }
         self.homes = homes;
+        self.configure_follows(if follows { me } else { None }, next, out);
+    }
+    fn configure_follows(&mut self, me: Option<&Me>, next: &mut u64, out: &mut Queue<Request>) {
+        let mut follows = List::with_capacity(FOLLOWED);
+        if let Some(me) = me {
+            for row in me.projects.iter().take(usize::try_from(FOLLOWED).expect("four projects fit")) {
+                let mut found = None;
+                for (index, (project, _)) in self.follows.iter().enumerate() {
+                    if *project == row.project {
+                        found = Some(u32::try_from(index).expect("four indices fit"));
+                        break;
+                    }
+                }
+                let handle = match found {
+                    Some(index) => self.follows.swap_remove(index).expect("held follows watch").1,
+                    None => {
+                        let Some(subject) = forge::follows::watch(row.project, &self.limits) else { continue };
+                        let handle = Handle { asker: Owner::Pages.asker(), number: *next };
+                        *next = next.checked_add(1).expect("page handles fit");
+                        out.push(Request::Client(jig_client::Event::Watch { handle, subject }));
+                        handle
+                    }
+                };
+                follows.push((row.project, handle)).expect("first four projects fit");
+            }
+        }
+        for (_, handle) in &self.follows {
+            out.push(Request::Client(jig_client::Event::Unwatch { handle: *handle }));
+        }
+        self.follows = follows;
+    }
+    fn relations(&self, client: &Client, projects: &[MeProject]) -> Box<[Relation]> {
+        let mut panels = List::with_capacity(FOLLOWED);
+        for (_, handle) in &self.follows {
+            let Some(document) = client.document(*handle) else { continue };
+            if document.state == jig_client::State::Ended {
+                continue;
+            }
+
+            if let Some(jig_client::Latest::Family(record)) = document.latest
+                && let Some(limits) = forge::wire_limits(&self.limits)
+                && let Some(panel) = wire::decode_follows_panel(&record.bytes, &limits)
+            {
+                panels.push(panel).expect("first four panels fit");
+            }
+        }
+        relations(panels.as_slice(), projects)
     }
     pub(super) fn told(
         &mut self,
@@ -142,6 +262,20 @@ impl AllHome {
     ) -> bool {
         for (_, home) in self.homes.iter_mut() {
             if home.told(told, client, limits, out) {
+                return true;
+            }
+        }
+        for (_, handle) in &self.follows {
+            if match told {
+                Told::Changed { handle: changed } | Told::Ended { handle: changed, .. } => handle == changed,
+                Told::Link { .. }
+                | Told::Kept { .. }
+                | Told::Answered { .. }
+                | Told::Pending { .. }
+                | Told::Dropped { .. }
+                | Told::Text { .. }
+                | Told::Page { .. } => false,
+            } {
                 return true;
             }
         }
@@ -162,10 +296,9 @@ impl AllHome {
 }
 fn reads(root: &Domain) -> Option<&AllHome> {
     match root.pages.address() {
-        crate::Address::AllHome => root.pages.all_home.as_ref(),
+        crate::Address::AllHome | crate::Address::Home { .. } => root.pages.all_home.as_ref(),
         crate::Address::Inbox { .. } => root.pages.needs_decided.as_ref(),
-        crate::Address::Home { .. }
-        | crate::Address::Team { .. }
+        crate::Address::Team { .. }
         | crate::Address::Ask { .. }
         | crate::Address::NewChat { .. }
         | crate::Address::Chats { .. }
@@ -214,6 +347,12 @@ pub fn facts(root: &Domain, wall: Wall) -> Facts {
             }
             let mut status = Status::Unknown;
             if let Some(reads) = &root.pages.all_home {
+                if let crate::Address::Home { project } = root.pages.address
+                    && project == row.project
+                    && let Some(home) = &root.pages.home
+                {
+                    status = home.shown_status();
+                }
                 for (project, home) in &reads.homes {
                     if *project == row.project {
                         status = home.shown_status();
@@ -263,7 +402,15 @@ pub fn facts(root: &Domain, wall: Wall) -> Facts {
         Some(reads) => reads.rows(root, wall),
         None => (Box::default(), 0),
     };
-    Facts { projects: projects.into_boxed(), needs, decided, showing, away }
+    let mut follows = Box::default();
+    if root.pages.address == crate::Address::AllHome
+        && !root.pages.launchpad
+        && let Some(reads) = &root.pages.all_home
+        && let Some(me) = root.pages().me(root.client())
+    {
+        follows = reads.relations(root.client(), me.projects.as_slice());
+    }
+    Facts { projects: projects.into_boxed(), needs, decided, showing, away, follows }
 }
 /// Reconcile only the seven displayed tasks, then send each settled project's entry look.
 pub(super) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<crate::Request>) {

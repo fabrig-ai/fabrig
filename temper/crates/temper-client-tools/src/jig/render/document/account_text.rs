@@ -6,6 +6,7 @@ use skein_json::{Document, document::Kind};
 use skein_lib::List;
 
 const DOT: &[u8] = b" \xc2\xb7 ";
+const READINESS_PAYERS: &[u8] = b"readiness payers: a project payer's row is for work the project pays for itself, while a party's pool work uses the party payer's row\n";
 
 pub(super) fn text(bytes: &[u8], viewer: Option<u64>, out: &mut Text) {
     let length = u32::try_from(bytes.len()).expect("bounded account projection");
@@ -59,13 +60,14 @@ pub(super) fn text(bytes: &[u8], viewer: Option<u64>, out: &mut Text) {
             }
             out.put(b"\n");
         }
-        p.readiness(accounts, None, b"readiness: ", out);
+        let mut explained = false;
+        p.readiness(accounts, None, b"readiness: ", &mut explained, out);
         let deployment = p.field(accounts, b"deployment_facts");
         if p.kind(deployment) != Kind::Null {
             out.put(b"deployment:\n");
             p.accounts(p.field(accounts, b"deployment"), p.field(deployment, b"program_hosts"), out);
             p.offers(deployment, out);
-            p.readiness(deployment, Some(accounts), b"deployment readiness: ", out);
+            p.readiness(deployment, Some(accounts), b"deployment readiness: ", &mut explained, out);
         }
         if p.flag(accounts, b"readiness_cut") {
             out.put(b"readiness cut: true (jig)\n");
@@ -320,7 +322,17 @@ impl Projection {
             }
         }
     }
-    fn readiness(&self, object: u32, party: Option<u32>, prefix: &[u8], out: &mut Text) {
+    fn readiness_payer(&self, payer: u32, out: &mut Text) {
+        for key in [b"party".as_slice(), b"project"] {
+            if let Some(number) = self.document.member(payer, key) {
+                out.put(key);
+                out.put(b" payer ");
+                self.scalar(number, out);
+            }
+        }
+    }
+    fn readiness(&self, object: u32, party: Option<u32>, prefix: &[u8], explained: &mut bool, out: &mut Text) {
+        let mut project = false;
         for row in &self.items(self.field(object, b"readiness")) {
             let mut same = false;
             if let Some(party) = party {
@@ -335,7 +347,9 @@ impl Projection {
             out.put(b"provider ");
             self.scalar(self.field(*row, b"provider"), out);
             out.put(DOT);
-            self.payer(self.field(*row, b"payer"), out);
+            let payer = self.field(*row, b"payer");
+            self.readiness_payer(payer, out);
+            project |= self.document.member(payer, b"project").is_some();
             out.put(DOT);
             self.scalar(self.field(*row, b"readiness"), out);
             let settled = self.field(*row, b"settled");
@@ -345,6 +359,10 @@ impl Projection {
                 self.scalar(settled, out);
             }
             out.put(b"\n");
+        }
+        if project && !*explained {
+            out.put(READINESS_PAYERS);
+            *explained = true;
         }
     }
     fn same_readiness(&self, row: u32, previous: u32) -> bool {

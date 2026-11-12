@@ -640,7 +640,8 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
 #[expect(clippy::disallowed_macros, reason = "ordinary fixtures build versioned row bytes")]
 fn startup_records() -> skein_lib::List<(u64, skein_lib::Secret)> {
     use skein_lib::{List, Secret};
-    use temper_protocol_records::{self as records, Item, Origin};
+    use temper_protocol_records::{self as records, Item};
+    use temper_protocol_records_forge::Origin;
     let mut kept = List::with_capacity(64);
     for number in [1, 2, 4, 5, 6, 7, 8, 9, 77] {
         let kind = if number == 1 || number == 7 {
@@ -705,7 +706,8 @@ fn startup_records() -> skein_lib::List<(u64, skein_lib::Secret)> {
 fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
     use jig_protocol_store::{SecretOwner, Secrets};
     use skein_lib::List;
-    use temper_protocol_records::{self as records, NotConnected};
+    use temper_protocol_records as records;
+    use temper_protocol_records_forge::NotConnected;
     let (mut service, token) = records_service();
     let kept = startup_records();
     for (number, value) in &kept {

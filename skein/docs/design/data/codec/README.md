@@ -35,8 +35,8 @@ records kept in files or stores.
   other, so what decodes encodes back to the same bytes.
 - **Versioned.** A schema is one version of a family, and a family has
   one current version. A record kept beyond a channel carries its
-  version. A reader reads the current version and refuses another. The
-  baseline is the first release (section 5): until it, no version moves
+  version. A reader reads the current version and refuses another. A
+  family's baseline is its owner's (section 5): until it, no version moves
   and nothing is translated; from it on, kept versions are read as
   generic values and patched to the current one (`patches.md`).
 - **Read at run time too.** `skein-codec` reads a schema's text as step
@@ -238,12 +238,16 @@ reserved for fields.
 
 ## 5. Versions
 
-- **The baseline is the first release.** Until it, a family's version
+- **A family's baseline:** for the families a temper deployment stores,
+  the store temper's `main` wrote at `bc23255eb7` (temper's
+  `protocol/baseline.md`; the user, 2026-11-11); for every other family
+  a build stores, sends or embeds, the first release. Until it, a family's version
   keeps its number: a change a reader would notice changes the schema,
   its generated code and its golden bytes in place. A record an older
   build kept is then not told apart by its version, so nothing is kept
   across builds that change its family: a store from an older build is
-  started afresh. Versions move at a release, not at a landing.
+  started afresh. From it, a version moves in the landing whose patch
+  moves it (`command.md`, 2).
 - **From the baseline on, any change a reader would notice is a new
   version:** a new schema, whose generated code replaces the old. There
   is one version at a time, and no promise of stability to anyone
@@ -719,11 +723,12 @@ impl Fingerprints {
   `usize::try_from(..).expect(..)` for a bound's `u32`, where step code writes
   `usize_of` (../../runtime/lib.md, 6). Printing `usize_of` regenerates every tree's codecs,
   with no reader's gain yet.
-- **Pieces of a converted type:** a patch whose conversion of a
-  `pieces` field's items is not a copy, or an identity plan whose
-  pieces reach a held field, is refused when planned (`patches.md`, 3). jig,
-  which patches values nested across families, opens them:
-  each piece converted as its type, its length back-patched.
+- **Pieces whose items stop:** pieces whose items' conversion reaches a
+  site or a held field, or an identity plan whose pieces reach a held
+  field, are refused when planned (`patches.md`, 3); pieces whose items
+  convert without stopping are opened by the walk (`patches.md`, 4).
+  Stopping inside a piece would lift it: the stop's `at` a node of the
+  decoded piece, the piece's length written once its value is whole.
 - **Carried parts that stop:** a written function's `carry` converts in
   place, so a part with a site or a held field in reach is refused
   (`patches.md`, 5). Drafts would lift it behind the same calls: the function

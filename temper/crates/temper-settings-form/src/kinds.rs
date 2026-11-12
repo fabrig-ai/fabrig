@@ -6,6 +6,13 @@ use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
+mod follow;
+
+fn dependency(d: &Decoder<'_>, at: u32) -> Result<w::Dependency, Error> {
+    let fields = d.object(at, &[b"project"])?;
+    w::Dependency::new(&d.kinds, w::DependencyParts { project: number(d, &fields, b"project")? })
+        .or(Err(error(b"", b"wire value bound")))
+}
 
 fn hex(d: &Decoder<'_>, at: u32, most: u32, name: &[u8]) -> Result<Box<[u8]>, Error> {
     match d.hex(at, most, name) {
@@ -59,13 +66,24 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
                 b"project-questions" => 6,
                 b"project-classes" => 8,
                 b"project-words" => 10,
-                b"project-areas" => 12,
-                b"project-triager" => 13,
+                b"project-areas" => 14,
+                b"project-triager" => 15,
                 _ => unreachable!("project kind selected"),
             },
             scope: project,
             number: 1,
         });
+    }
+    if kind == b"follow" || kind == b"dependency" {
+        let project = number(d, fields, b"project")?;
+        let number = number(d, fields, b"number")?;
+        if project == 0 {
+            return Err(error(b"project", b"from 1"));
+        }
+        if number == 0 {
+            return Err(error(b"number", b"from 1"));
+        }
+        return Ok(c::Setting::Application { kind: if kind == b"follow" { 12 } else { 13 }, scope: project, number });
     }
     let number = number(d, fields, b"number")?;
     if number == 0 {
@@ -100,7 +118,7 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
 pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
-    if kind == 12 {
+    if kind == 14 {
         let record = match areas(d, at) {
             Ok(record) => record,
             Err(why) => return Err(why.at(b"project-areas")),
@@ -109,11 +127,29 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
         record.encode(&mut out).expect("measured record");
         return Ok(out.finish());
     }
-    if kind == 13 {
+    if kind == 15 {
         let fields = d.object(at, &[b"owner"])?;
         let owner = area_owner(d, field(&fields, b"owner")?)?;
         let record = w::ProjectTriager::new(&d.kinds, w::ProjectTriagerParts { owner })
             .or(Err(error(b"project-triager", b"wire value bound")))?;
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
+    if kind == 13 {
+        let record = match dependency(d, at) {
+            Ok(value) => value,
+            Err(why) => return Err(why.at(b"dependency")),
+        };
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
+    if kind == 12 {
+        let record = match follow::read(d, at) {
+            Ok(value) => value,
+            Err(why) => return Err(why.at(b"follow")),
+        };
         let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
         record.encode(&mut out).expect("measured record");
         return Ok(out.finish());
@@ -154,9 +190,8 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
         };
         let route = match word {
             b"none" => w::QuestionsRoute::None,
-            b"foreman" => w::QuestionsRoute::Foreman,
             b"up" => w::QuestionsRoute::Up,
-            _ => return Err(error(b"project-questions", b"none, foreman or up required")),
+            _ => return Err(error(b"project-questions", b"none or up required")),
         };
         let record = w::ProjectQuestions::new(&d.kinds, w::ProjectQuestionsParts { route })
             .or(Err(error(b"project-questions", b"wire value bound")))?;
@@ -235,7 +270,7 @@ fn ways(d: &Decoder<'_>, at: u32) -> Result<w::ProjectWays, Error> {
     .or(Err(error(b"", b"wire value bound")))
 }
 fn rule(d: &Decoder<'_>, at: u32) -> Result<w::LandingRule, Error> {
-    let fields = d.object(at, &[b"pattern", b"enforce", b"ci", b"up_to_date", b"gates", b"approvals"])?;
+    let fields = d.object(at, &[b"pattern", b"enforce", b"ci", b"up_to_date", b"gates", b"approvals", b"sets"])?;
     let pattern = match pattern(d, field(&fields, b"pattern")?) {
         Ok(value) => value,
         Err(why) => return Err(why.at(b"pattern")),
@@ -272,9 +307,24 @@ fn rule(d: &Decoder<'_>, at: u32) -> Result<w::LandingRule, Error> {
             up_to_date: boolean(d, &fields, b"up_to_date")?,
             gates,
             approvals,
+            sets: rule_sets(d, optional(&fields, b"sets"))?,
         },
     )
     .or(Err(error(b"", b"wire value bound")))
+}
+fn rule_sets(d: &Decoder<'_>, at: Option<u32>) -> Result<List<u8>, Error> {
+    let Some(at) = at else { return Ok(List::with_capacity(0)) };
+    let positions = d.array(at, d.kinds.landing_rule_sets.min(w::CEILINGS.landing_rule_sets), b"sets")?;
+    let mut sets = List::with_capacity(positions.len());
+    for at in &positions {
+        let number = match d.number(*at) {
+            Ok(value) => value,
+            Err(why) => return Err(why.at(b"sets")),
+        };
+        let number = u8::try_from(number).or(Err(error(b"sets", b"u8 bound")))?;
+        sets.push(number).expect("counted sets");
+    }
+    Ok(sets)
 }
 fn pattern(d: &Decoder<'_>, at: u32) -> Result<w::LandingPattern, Error> {
     let fields = d.object(at, &[b"segments", b"last"])?;
@@ -368,7 +418,7 @@ fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
 pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
-        12 => {
+        14 => {
             let Ok(value) = w::ProjectAreas::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {
                 return false;
@@ -389,7 +439,7 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.array_end();
             out.object_end();
         }
-        13 => {
+        15 => {
             let Ok(value) = w::ProjectTriager::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {
                 return false;
@@ -420,7 +470,6 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             }
             out.string(match value.route() {
                 w::QuestionsRoute::None => b"none",
-                w::QuestionsRoute::Foreman => b"foreman",
                 w::QuestionsRoute::Up => b"up",
             });
         }
@@ -465,6 +514,23 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.key(b"lede");
             out.string(value.lede());
             out.object_end();
+        }
+        13 => {
+            let Ok(value) = w::Dependency::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"project");
+            out.unsigned(u64::from(value.project()));
+            out.object_end();
+        }
+        12 => {
+            let Ok(value) = w::Follow::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            follow::render(&value, out);
         }
         11 => {
             let Ok(value) = w::TemplateGoal::decode(&w::CEILINGS, &mut reader) else { return false };
@@ -544,6 +610,14 @@ fn render_rule(value: &w::LandingRule, out: &mut Encoder) {
         out.object_end();
     }
     out.array_end();
+    if !value.sets().is_empty() {
+        out.key(b"sets");
+        out.array_start();
+        for set in value.sets() {
+            out.unsigned(u64::from(*set));
+        }
+        out.array_end();
+    }
     out.object_end();
 }
 

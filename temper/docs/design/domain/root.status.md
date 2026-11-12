@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-10. Where temper's code lags or departs from [root.md](root.md).
+2026-11-12. Where temper's code lags or departs from [root.md](root.md).
 
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past
@@ -116,19 +116,17 @@ LINKED`, as for every link jig's start cannot make
 
 - **Not yet:** 6.2: a goal's design writer's brief line: no brief says
   that `deliver` pushes Markdown straight to the goal branch
-  (`temper-engine-domain/src/assemble.rs`, `plan_home_access`)
-  [in flight: change 98].
+  (`temper-engine-domain/src/assemble.rs`, `plan_home_access`).
 - **Not yet:** 6.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
-  `BriefSource`), and a merge-queue ejection's reason. 8.1: the
-  rehearsing root, `temper-box upgrade --check`.
+  `BriefSource`), and a merge-queue ejection's reason.
 - **Not yet:** 8.1: the forge's link of its restored records panics at
   the first it cannot make, `forge link KIND -> NEED for KEY`, where
   step 3 refuses the start naming the record and what it links to, as
   jig's children's do
   (`temper-engine-domain-forge/src/reconcile.rs`, `reconcile`;
-  `missing_link` already finds the link). The request
+  `missing_link` already finds the link). Serve retains its fail-stop report and backtrace. The request
   `store-crash-safe` of 2026-11-09 asks that a store failing a link
   check at start stop with a reason, not a panic; its plan built that
   in jig alone.

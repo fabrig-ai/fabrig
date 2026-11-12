@@ -21,7 +21,7 @@ const PRUNED_HISTORY: u32 = 1;
 const OWNER_PERSON: u64 = 1;
 const OTHER: u64 = 8;
 // Holds stock charter 5's shared instructions and four parts through restoration.
-const STOCK_RUN_BYTES: u32 = 16_384;
+const STOCK_RUN_BYTES: u32 = 32_768;
 const POLICY_CAP: u64 = 16_384;
 const PRIOR_POLICY_CAP: u64 = POLICY_CAP + 1;
 const POLICY_NUMBER: u32 = 1;
@@ -298,8 +298,10 @@ fn stock_limits() -> engine::Limits {
     limits.tasks.charters = 17;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
-    // The per-row loaded payload includes charter 5's shared instructions and parts.
+    // The page and its per-row payload hold charter 5's instructions and parts.
     limits.loads.transcript_bytes = STOCK_RUN_BYTES;
+    limits.loads.bytes = STOCK_RUN_BYTES;
+    limits.loads.reply_bytes = STOCK_RUN_BYTES;
     limits
 }
 

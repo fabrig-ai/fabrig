@@ -19,6 +19,7 @@ const GOLDENS: &[(Option<u8>, &str)] = &[
     (Some(jig::rows::ROLE_START_AT), "help_role_start"),
     (Some(jig::rows::ROLE_LIST_AT), "help_role_list"),
     (Some(jig::rows::ROLE_SHOW_AT), "help_role_show"),
+    (Some(jig::rows::ROLE_TALK_AT), "help_role_talk"),
     (Some(jig::rows::CHAT_CREATE_AT), "help_chat_start"),
     (Some(jig::rows::TASK_TEXT_AT), "help_task_text"),
     (Some(jig::rows::LIFT_AT), "help_hold_lift"),
@@ -69,6 +70,47 @@ fn the_help_prints_as_its_golden_files() {
             .expect("write help golden");
         }
         assert_eq!(fixtures::help(*tool), fixtures::golden(name), "{name}");
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the help test compares rendered UTF-8 with the page's quoted lines")]
+fn review_recipe_quotes_the_waiting_changes_output() {
+    use temper_client_protocol_wire::v1 as w;
+    let page = temper_docs::find(b"review-before-landing").expect("review recipe");
+    let checking = page.text.split("## Checking it took\n").nth(1).expect("checking section");
+    let mut parts = super::change::approval_parts();
+    parts.step = w::Step::First;
+    parts.ci = w::Ci::Passed;
+    let mut approval = parts.approvals.get(0).expect("waiting approval").clone().into_parts();
+    approval.number = 1;
+    approval.role = 1;
+    approval.freshness = w::RuleFreshness::Exact;
+    *parts.approvals.get_mut(0).expect("waiting approval") = w::Approval::new(&w::CEILINGS, approval).unwrap();
+    let panel = w::ChangePanel::new(&w::CEILINGS, parts).expect("waiting change");
+    let output =
+        crate::change::print(Some(&panel), false, None, b"", &fixtures::limits_root(), &crate::change::Holds::new());
+    assert_eq!(output.status, 0);
+    let output = core::str::from_utf8(&output.stdout).expect("text output");
+    let mut quoted = List::with_capacity(2);
+    for block in checking.split("```\n").skip(1).step_by(2) {
+        for line in block.lines() {
+            if line.starts_with("approval:") || line.starts_with("next:") {
+                quoted.push(line).expect("two quoted output lines");
+            }
+        }
+    }
+    assert_eq!(quoted.len(), 2, "quote both the approval and next lines");
+    for line in quoted.as_slice() {
+        let expected = line
+            .replace("PROJECT", "1")
+            .replace("ROLE", "1")
+            .replace("URL", core::str::from_utf8(panel.pull().as_ref().expect("pull request").address()).unwrap());
+        let mut found = false;
+        for rendered in output.lines() {
+            found |= rendered == expected;
+        }
+        assert!(found, "quoted line differs from ctl: {expected}\n{output}");
     }
 }
 
@@ -236,7 +278,7 @@ const USAGES: &[(u8, &[u8])] = &[
     (jig::rows::SIGN_IN_AT, b"sign-in FILE\nsign-in --service FILE\n"),
     (jig::rows::PARTY_MAKE_AT, b"party make --project PROJECT --role ROLE --out FILE TEXT [--key KEY]\n"),
     (jig::rows::HELP_AT, b"help [GROUP [VERB]]\n"),
-    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\n"),
+    (jig::rows::SETTING_AT, b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions|project-classes|project-words|project-areas|project-triager PROJECT [--revision REVISION]\nsettings show charter-words NUMBER [--revision REVISION]\nsettings show template-goal NUMBER [--revision REVISION]\nsettings show follow NUMBER --project PROJECT [--revision REVISION]\nsettings show dependency NUMBER --project PROJECT [--revision REVISION]\n"),
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
@@ -458,6 +500,10 @@ fn the_account_reference_is_what_the_table_renders() {
     reference_matches(b"account", b"ctl-account");
 }
 #[test]
+fn the_draft_reference_is_what_the_table_renders() {
+    reference_matches(b"draft", b"ctl-draft");
+}
+#[test]
 fn the_forge_reference_is_what_the_table_renders() {
     reference_matches(b"forge", b"ctl-forge");
 }
@@ -540,6 +586,21 @@ fn task_answer_help_says_a_person_task_may_ask_for_less() {
     assert!(text.contains("a person task may ask for less"));
     let help = fixtures::help(Some(jig::rows::ANSWER_AT));
     assert!(skein_lib::bytes::find(&help, b"a person task may ask for less").is_some());
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_types,
+    clippy::disallowed_methods,
+    reason = "the help test collapses whitespace to check the answer form's words"
+)]
+fn task_answer_help_distinguishes_choices_from_words() {
+    let sentence = b"CHOICE answers only a task with choices; a task taking words is answered with TEXT alone.";
+    let page = temper_docs::find(b"ctl-task").expect("task reference");
+    let text: String = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(skein_lib::bytes::find(text.as_bytes(), sentence).is_some());
+    let help = fixtures::help(Some(jig::rows::ANSWER_AT));
+    assert!(skein_lib::bytes::find(&help, sentence).is_some());
 }
 
 #[test]

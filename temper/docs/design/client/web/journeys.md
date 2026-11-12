@@ -6,7 +6,7 @@ browser's client (`README.md`) recorded on a fresh `temper box
 natively through the shipped host and printed as the client's own pages,
 linked so that the same clicks walk them. The look is tuned on those
 pages, and the committed journeys are kept current by a test. They are not the mockups' journeys
-(`../mockups/README.md`, 4), which are worlds walked in the mockups.
+(`mockups/README.md`, 4), which are worlds walked in the mockups.
 The TUI's journeys are `../tui/journeys.md`'s, sharing this document's
 file (3.2), redaction (3.6) and last scan (3.7). Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
 print, 6 the tests, 7 editing the look, 8 a recording gone stale, 9 the
@@ -18,7 +18,7 @@ journeys, 10 what is open.
   10-26). A page a journey records looks as its print does:
   `temper.css` over skein's sheet, tuned on the print. The mockups are
   reconciled to it gradually, and stay the design of what is not built
-  yet (`../mockups/README.md`, 1; `look.md`).
+  yet (`mockups/README.md`, 1; `look.md`).
 - **One seam, the host's.** The browser shell gives its host each
   report of a turn and carries out what the host asks back. The
   recorder keeps what crosses that seam; the replay gives it back to
@@ -40,7 +40,7 @@ journeys, 10 what is open.
   journey that starts past the first page says how to reach it in a
   setup file beside its recording (8.2).
 - **Printed as static pages** by `temper-client-journeys`, under
-  `docs/design/client/journeys/`: a page per mark, one tag per line, the
+  `docs/design/client/web/journeys/`: a page per mark, one tag per line, the
   acted control leading to the next page, the shell's stylesheets
   linked from the checkout, then an empty `overlay.css`; beside them the
   journey's `../README.md`, its description. No browser, no box, the same
@@ -70,8 +70,9 @@ journeys, 10 what is open.
   `tests/host.rs` uses the library instead of including the modules by
   path. The replay runs this host, never a copy.
 - **The `journey` module** (the file, the recorder, the replay) builds
-  natively, for the program and the tests, and in the browser only with
-  the `record` feature: the shipped bundle holds none of it.
+  on every target, the shipped bundle's among them; the redaction's and
+  the last scan's shared code, which the TUI's journeys use too, is
+  `temper-client-redaction`'s (3.6, 3.7).
 - **The seam** is `host::Host`'s, and the shell's turn and the replay
   call it alike:
   - `clocks(now, wall)`, at the turn's start, as today;
@@ -104,9 +105,10 @@ journeys, 10 what is open.
 
 ### 3.1 The recorder
 
-- **In a bundle of its own:** `scripts/bundle.sh --loopback --record
-  OUT` builds the shell with its `record` feature beside
-  `loopback-navigation`; the shipped bundle has neither. The recorder
+- **On by the page's setting:** the page loaded with
+  `internal-record=1` and `internal-loopback-navigation=1` on a loopback
+  origin runs the recorder (`README.md`, 2.1); without them, or elsewhere,
+  the same bundle records nothing and installs no key. The recorder
   adds nothing to the page: no node, no style, no request.
 - **What it hears:** in `Shell::turn`, beside the host, the start's
   facts once, then each turn's clocks, each report given to
@@ -409,14 +411,15 @@ reprint names them whole (5.1), its recordings having passed the scan.
 
 ### 5.1 The program
 
-`temper-client-journeys` (`tools/journeys`), a program of temper's
-workspace beside the gallery (`gallery.md`):
+`temper-client-journeys` (`bin/temper-client-journeys`), an internal binary
+whose crate is `crates/temper-client-journeys-tool`, beside the gallery
+(`gallery.md`; `../../testing/tools.md`, 3–4):
 
 - `cargo run -p temper-client-journeys -- add [--redact TEXT]... NAME
   FILE` takes a saved recording as the journey NAME, replacing one of
   that name, redacts it (3.6), proves it (4.3), scans it (3.7) and prints
   it, in memory until the scan has passed. A NAME is `[a-z][a-z0-9-]*`.
-- `cargo run -p temper-client-journeys -- --help` says what `add` takes
+- `cargo run -p temper-client-journeys -- add --help` says what `add` takes
   out and what it leaves to the person (3.8).
 - `cargo run -p temper-client-journeys` reprints every journey from its
   recording. A stale one is named with its turn and line, its print
@@ -429,7 +432,7 @@ workspace beside the gallery (`gallery.md`):
 
 ### 5.2 What it writes
 
-Under `docs/design/client/journeys/`:
+Under `docs/design/client/web/journeys/`:
 
 - **A journey's directory,** `NAME/`: its `recording`; its
   `../README.md`, the journey's description, what it walks and what each
@@ -495,7 +498,7 @@ them the same:
 
 ```sh
 python3 -m http.server 8766
-# http://localhost:8766/docs/design/client/journeys/
+# http://localhost:8766/docs/design/client/web/journeys/
 ```
 
 ## 6. Its tests
@@ -508,8 +511,8 @@ python3 -m http.server 8766
   event no control gives; a control's recorded name changed, holding;
   an act with no event, kept nowhere; and the proof refusing a mark
   whose html differs.
-- **The print, in `tools/journeys`' own tests:** every committed
-  journey reprinted into a scratch directory equals its directory and
+- **The print, in `crates/temper-client-journeys-tool`'s own tests:** every
+  committed journey reprinted into a scratch directory equals its directory and
   the files beside it, byte for byte; one that differs or is stale
   fails, naming `cargo run -p temper-client-journeys`. A reprint keeps a
   journey's README.
@@ -526,8 +529,8 @@ python3 -m http.server 8766
   saves, an exchange or a write in flight among them; and the check
   refusing a new walk whose acts, values, events or key marks differ.
 - **A setup, natively,** in the journey module's tests and
-  `tools/journeys`' own: a setup's lines read back, each record among
-  them, and another version, a line out of its place, a second `reload`
+  `crates/temper-client-journeys-tool`'s own: a setup's lines read back, each
+  record among them, and another version, a line out of its place, a second `reload`
   and an unknown role each unreadable; `after` joining a named setup's
   steps without its `reload`, and a chain of two, a missing name and a
   name of its own refused; every committed setup read; and
@@ -540,7 +543,7 @@ python3 -m http.server 8766
   downloads (skein's `testing/browser.md`, section 9). No default test starts a
   browser or a box.
 - **The recording bundle stays built:** the gate's browser-target
-  check builds the shell with `loopback-navigation` and `record` too.
+  check builds the shell, recorder and all, as the bundle holds it.
 - **The recorder's keys and download** have no browser story: the first
   journey's recording proves them, and the browser tier proves only
   what a browser alone shows (`testing.md`). That a save
@@ -558,6 +561,11 @@ python3 -m http.server 8766
   across deliveries among them; a length prefix of every byte before a
   key; and what must pass: `x`s, `task-` words, `code_challenge=`, and
   the committed journeys.
+- **The binary's table,** in `bin/temper-client-journeys`' suite: help,
+  version, the internal commands' pages and argument refusals, with no build
+  or child started (`../../testing/tools.md`, 6). Its `arguments` and
+  `refusals` process tests live there too; the library and look-refresh
+  script tests stay in `crates/temper-client-journeys-tool`.
 - **The refusal, as a process:** no original's bytes on stdout or stderr,
   a failed proof's among them, and nothing written on any path; in the
   print's tests, a refused `add` leaves its root as it was.
@@ -579,7 +587,7 @@ check are `look-requests.md`, sections 1 to 7. The journeys' side:
   names, roles and regions, which the view sets, never by a part's
   position among its siblings.
 - **The diff is the request:** the overlay's rules and the pages'
-  changes, under `docs/design/client/journeys/`.
+  changes, under `docs/design/client/web/journeys/`.
 - **Requests stack** on a branch of the person's own, `look-requests`,
   one commit each, named by exactly one `Look-request: NAME` trailer
   (NAME `[a-z0-9][a-z0-9-]*`, unique on the branch), which a rebase keeps.
@@ -637,9 +645,15 @@ reprint carries, since its acts are events, not controls.
 
 ### 8.1 Again
 
+`again --prepared DIR NAME` uses prebuilt `temper-box`, `fake-claude`,
+`temper-client` for TUI, and `bundle/index.html` in DIR. It builds nothing
+and creates its fresh private scratch directory beneath DIR. An optional
+`cache` subdirectory supplies pinned downloads. Without this
+option, the recorder builds its inputs in a system scratch directory.
+
 `cargo run -p temper-client-journeys -- again NAME`, in
-`tools/journeys`. Its walk's logic is the journey module's, beside the
-recorder and the replay, natively and without io: it takes each save's
+`crates/temper-client-journeys-tool`. Its walk's logic is the journey module's,
+beside the recorder and the replay, natively and without io: it takes each save's
 bytes and answers what to do next. The program reads the saves from the
 person's downloads and drives the box and the browser, as ordinary Rust
 over skein's harness.
@@ -657,8 +671,8 @@ over skein's harness.
   is no state a still page shows: such a journey is refused before
   anything starts, and walked anew.
 - **A fresh fake box** (3.5): `temper box --fake-backends`, built from
-  the checkout with the recording bundle (`scripts/bundle.sh --loopback
-  --record`), running a copy of the built binary and its fake-claude,
+  the checkout with the bundle (`scripts/bundle.sh`), its printed link
+  opened with the page's recording settings (3.1), running a copy of the built binary and its fake-claude,
   every directory fresh in a scratch directory under `/tmp`;
   its printed sign-in link opened.
 - **Headless Chromium, as the browser tier drives it** (`testing.md`

@@ -182,5 +182,21 @@ pub(crate) const OTHER: Table = Table {
     ..DEMO
 };
 
+pub(crate) const FRONT_BARE: Table =
+    Table { binary: "demo", commands: &[Command { reach: Reach::Words(&[]), forms: &["OUT"], ..SERVE }], ..OTHER };
+pub(crate) const FRONT_WORDS: Table = Table {
+    commands: &[
+        Command { reach: Reach::Words(&["internal"]), set: Set::Internal, ..SERVE },
+        Command {
+            reach: Reach::Words(&["internal", "list"]),
+            set: Set::Internal,
+            forms: &["OUT", "--check OUT"],
+            ..SERVE
+        },
+    ],
+    ..OTHER
+};
+pub(crate) const FRONT_RUN_AS: Table = Table { commands: &[Command { reach: Reach::RunAs("git"), ..SERVE }], ..OTHER };
+
 // Compile the shared fixtures together.
 const _: (Table, TestTable, Table) = (DEMO, DEMO_TESTS, OTHER);

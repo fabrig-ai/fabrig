@@ -7,11 +7,7 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[features]
-record = ["temper-client-shell-tui/record"]
-
 [dependencies]
-temper-version.workspace = true
 temper-service-shell.workspace = true
 temper-engine-shell.workspace = true
 temper-agent-shell.workspace = true
@@ -66,6 +62,8 @@ skein-fake-forge-domain.workspace = true
 skein-kv.workspace = true
 
 [dev-dependencies]
+temper-engine-domain.workspace = true
+jig-domain-tasks.workspace = true
 temper-test-env.workspace = true
 jig-domain-authority.workspace = true
 temper-fixtures.workspace = true
@@ -78,7 +76,6 @@ jig-client.workspace = true
 jig-client-protocol-wire.workspace = true
 skein-forge-client.workspace = true
 jig-domain-fleet.workspace = true
-rustls = { workspace = true, features = ["std"] }
 temper-client-shell-terminal.workspace = true
 jig-protocol-config.workspace = true
 skein-world.workspace = true

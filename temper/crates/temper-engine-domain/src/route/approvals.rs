@@ -36,9 +36,36 @@ pub struct ApprovalRow {
     pub role: u32,
     pub required: u32,
     pub counted: u32,
-    pub behind: u32,
+    pub sets: Box<[ApprovalSet]>,
     pub whole: bool,
     pub yours: YourReview,
+    pub signed: Box<[ApprovalPerson]>,
+    pub can_sign: Box<[ApprovalPerson]>,
+    pub can_sign_more: u32,
+    pub size: Option<ApprovalSize>,
+}
+
+/// The forge's counts narrowed for an approval row (client/forge/records.md, `approvals`).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct ApprovalSize {
+    pub files: u32,
+    pub additions: u32,
+    pub deletions: u32,
+    pub cut: bool,
+}
+
+/// A touched path set of this row's approval (domain/forge/change/questions.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ApprovalSet {
+    pub number: u8,
+    pub name: Box<[u8]>,
+}
+
+/// A signer at the head or a person who can still sign (domain/forge/change/questions.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ApprovalPerson {
+    pub person: u64,
+    pub name: Box<[u8]>,
 }
 
 /// One watcher's approvals document (client/forge/records.md).
@@ -58,7 +85,17 @@ impl Approvals {
                 .saturating_add(size_of::<ApprovalRow>())
                 .saturating_add(row.owner.len())
                 .saturating_add(row.name.len())
-                .saturating_add(row.title.len());
+                .saturating_add(row.title.len())
+                .saturating_add(size_of_val(row.sets.as_ref()));
+            for people in [&row.signed, &row.can_sign] {
+                bytes = bytes.saturating_add(size_of_val(people.as_ref()));
+                for person in people {
+                    bytes = bytes.saturating_add(person.name.len());
+                }
+            }
+            for set in &row.sets {
+                bytes = bytes.saturating_add(set.name.len());
+            }
         }
         bytes
     }
@@ -89,6 +126,10 @@ fn cut(rows: Box<[ApprovalRow]>, bound: u32) -> Approvals {
 }
 
 /// One wait as `party` sees it, or none (domain/forge/change/questions.md, 2).
+#[expect(
+    clippy::too_many_lines,
+    reason = "the watcher-specific approval carries both signer eligibility and forge size"
+)]
 pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Option<ApprovalRow> {
     let role = domain.core.people.role(party, wait.project)?;
     let mut chosen = None;
@@ -110,7 +151,37 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
             return None;
         }
     }
-    let yours = if super::kinds::eligible_people(domain, wait.project, wait.forge, approval.role) < approval.required {
+    let eligible = super::kinds::eligible_members(domain, wait.project, wait.forge, approval.role);
+    let mut signed = List::with_capacity(8);
+    for review in approval.counted.iter().take(8) {
+        signed.push(person(domain, review.person)).expect("eight signed people");
+    }
+    let mut can_sign = List::with_capacity(8);
+    let mut can_sign_more = 0_u32;
+    if eligible.as_slice().contains(&party) {
+        can_sign.push(person(domain, party)).expect("watcher first");
+    }
+    for &member in &eligible {
+        if member == party {
+            continue;
+        }
+        let mut counted = false;
+        for review in &approval.counted {
+            if review.person == member {
+                counted = true;
+                break;
+            }
+        }
+        if counted {
+            continue;
+        }
+        if can_sign.len() < 8 {
+            can_sign.push(person(domain, member)).expect("eight eligible people");
+        } else {
+            can_sign_more = can_sign_more.saturating_add(1);
+        }
+    }
+    let yours = if eligible.len() < approval.required {
         YourReview::TooFew
     } else if !super::forge_route::forge_human(domain, wait.project, wait.forge, party) {
         YourReview::NoAccount
@@ -119,6 +190,22 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
     } else {
         YourReview::Counts
     };
+    let mut sets = List::with_capacity(6);
+    let classes = domain.forge.project_classes(wait.project);
+    for number in 1_u8..=6 {
+        let bit = 1_u8.checked_shl(u32::from(number.saturating_sub(1))).expect("six path sets");
+        if approval.sets & bit == 0 {
+            continue;
+        }
+        let mut name: Box<[u8]> = Box::default();
+        for set in &classes.sets {
+            if set.number == number {
+                name.clone_from(&set.name);
+                break;
+            }
+        }
+        sets.push(ApprovalSet { number, name }).expect("six path sets");
+    }
     Some(ApprovalRow {
         task: wait.task,
         project: wait.project,
@@ -134,10 +221,39 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
         role: approval.role,
         required: approval.required,
         counted: u32::try_from(approval.counted.len()).expect("bounded counted people"),
-        behind: wait.behind,
+        sets: sets.into_boxed(),
         whole: wait.whole,
         yours,
+        signed: signed.into_boxed(),
+        can_sign: can_sign.into_boxed(),
+        can_sign_more,
+        size: match wait.size {
+            Some(size) => Some(narrow(size)),
+            None => None,
+        },
     })
+}
+
+fn person(domain: &Domain, person: u64) -> ApprovalPerson {
+    let name = match domain.core.people.identity(person) {
+        Some(identity) => {
+            let name = if identity.name.is_empty() { &identity.login } else { &identity.name };
+            Box::from(skein_lib::bytes::utf8_prefix(name, 64))
+        }
+        None => Box::default(),
+    };
+    ApprovalPerson { person, name }
+}
+
+fn narrow(size: skein_forge::api::Size) -> ApprovalSize {
+    ApprovalSize {
+        files: u32::try_from(size.files).unwrap_or(u32::MAX),
+        additions: u32::try_from(size.additions).unwrap_or(u32::MAX),
+        deletions: u32::try_from(size.deletions).unwrap_or(u32::MAX),
+        cut: size.files > u64::from(u32::MAX)
+            || size.additions > u64::from(u32::MAX)
+            || size.deletions > u64::from(u32::MAX),
+    }
 }
 
 /// Whether a proposal sets an enforcing approval covering an owned forge's writable repository
@@ -168,4 +284,4 @@ pub(super) fn owned_approval(domain: &Domain, items: &[(settings::SettingKey, se
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

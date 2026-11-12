@@ -5,7 +5,9 @@
   and lands; a *fork* of an upstream (`README.md`, section 8); or *context*, read
   only. An owner of the project adopts it in the client, through the
   adoption form (`../../client/forge/family.md`, 4). A repository temper writes
-  belongs to one project; others may adopt it as context.
+  belongs to one project; others may adopt it as context, and each such
+  adoption is kept for its project beside the writer's, so that the
+  project's lookups, runs and follows read it (`follows.md`, section 8).
 - **A repository is named by its owner and name, and kept by the forge's
   id for it.** The adoption names the forge, the repository's owner and
   its name; the connector first locates it, a read whose answer is the
@@ -683,3 +685,46 @@ repository's record what it found there, which CI's card names (`change/branch-p
 - **Every workflow there is kept,** a dispatch-only one among them: CI's
   card leaves out those the repository's test gates and tiers dispatch
   (`change/branch-path.md`), since those settings change apart from the record.
+
+## 8. Open questions
+
+- **A workflow that runs on no pull request** (`adoption.md`, 7; `change/branch-path.md`, *CI's card*):
+  CI's card names every workflow file on the landing branch but those
+  the repository's test gates and tiers dispatch, so a release's or a
+  schedule's workflow is named though it reports nothing at a change's
+  head; and it names each by its file, not by the `name` its file gives
+  it. Telling them apart reads each file and its triggers, a read per
+  workflow at each change of the directory. Default: by file, every one
+  but the dispatched.
+
+- **What a refused copy leaves** (`adoption.md`, 5; skein's `forge/setup/README.md`,
+  section 6): Forgejo keeps an empty repository at the name of a source
+  it could not clone, and only the same address asked again takes it
+  away: asked from another, the row holds no `copying` and stops at
+  `Taken`. Default: so, and the person deletes it on the forge.
+
+- **A merge style per repository,** named by the project rather than the
+  forge's (`adoption.md`, 4). Default: on Forgejo the repository's default (skein's
+  `forge/README.md`, section 10); on GitHub the first the repository allows of
+  merge, squash and rebase; either shown at adoption.
+
+- **A change whose forge is not connected,** or whose repository is not
+  reachable (an installation suspended, a repository it does not select):
+  it waits, its stall not counting the wait, and nothing is narrowed
+  (`adoption.md`, 1, 3). The alternative is holding it for a person past a bound.
+  Default: it waits, and the client shows why.
+
+- **`Forbidden` and `Missing` taken as access lacking** on a repository
+  an installation suspended or stopped selecting (`adoption.md`, 3), rather than as
+  facts that narrow what temper may do there. Default: access lacking,
+  while the installation's events say so; any other refusal narrows, as
+  ever.
+
+- **Signed commits required** on a landing branch (`adoption.md`, 4): temper's
+  workers do not sign. Default: landing there is a wait for someone
+  else's merge, said at adoption; signing is later.
+
+- **Connecting a forge as another user** (`adoption.md`, 1): refused, since the keys
+  and echoes already on the forge are the old user's. Moving a
+  deployment to another App or user is later; a forge goes whole, by
+  its removal (`adoption.md`, 1).

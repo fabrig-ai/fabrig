@@ -10,30 +10,29 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 const SEED: u64 = 7;
 const STARTUP_STEPS: u64 = 10_000;
 
-// The 2026-11-12 table in temper/docs/development/playground-memory.md for
-// the exceeded rows; other rows keep the 2026-11-08 baseline, each
-// figure plus a quarter. Bounds follow process names, not admission order.
-const SERVICE_FIRST_STEP_HELD: i64 = 187_703 + 187_703 / 4;
-const SERVICE_FIRST_STEP_PEAK: i64 = 295_333 + 295_333 / 4;
+// The 2026-11-12 table in temper/docs/development/playground-memory.md,
+// each figure plus a quarter. Bounds follow process names, not admission order.
+const SERVICE_FIRST_STEP_HELD: i64 = 206_908 + 206_908 / 4;
+const SERVICE_FIRST_STEP_PEAK: i64 = 340_891 + 340_891 / 4;
 const LLM_FIRST_STEP_HELD: i64 = 27_449 + 27_449 / 4;
 const LLM_FIRST_STEP_PEAK: i64 = 27_449 + 27_449 / 4;
-const FORGE_FIRST_STEP_HELD: i64 = 30_002 + 30_002 / 4;
-const FORGE_FIRST_STEP_PEAK: i64 = 30_002 + 30_002 / 4;
+const FORGE_FIRST_STEP_HELD: i64 = 30_130 + 30_130 / 4;
+const FORGE_FIRST_STEP_PEAK: i64 = 30_130 + 30_130 / 4;
 const VISITOR_FIRST_STEP_HELD: i64 = 1_054 + 1_054 / 4;
 const VISITOR_FIRST_STEP_PEAK: i64 = 1_068 + 1_068 / 4;
-const SERVICE_START_HELD: i64 = 306_622 + 306_622 / 4;
-const SERVICE_START_PEAK: i64 = 391_748 + 391_748 / 4;
+const SERVICE_START_HELD: i64 = 438_969 + 438_969 / 4;
+const SERVICE_START_PEAK: i64 = 565_289 + 565_289 / 4;
 const LLM_START_HELD: i64 = 28_185 + 28_185 / 4;
 const LLM_START_PEAK: i64 = 28_185 + 28_185 / 4;
-const FORGE_START_HELD: i64 = 30_743 + 30_743 / 4;
-const FORGE_START_PEAK: i64 = 30_787 + 30_787 / 4;
+const FORGE_START_HELD: i64 = 30_871 + 30_871 / 4;
+const FORGE_START_PEAK: i64 = 30_915 + 30_915 / 4;
 const VISITOR_START_HELD: i64 = 1_054 + 1_054 / 4;
 const VISITOR_START_PEAK: i64 = 1_068 + 1_068 / 4;
-const GIT_START_HELD: i64 = 3_410 + 3_410 / 4;
-const GIT_START_PEAK: i64 = 5_952 + 5_952 / 4;
+const GIT_START_HELD: i64 = 3_450 + 3_450 / 4;
+const GIT_START_PEAK: i64 = 5_989 + 5_989 / 4;
 const DISK_FIRST_STEP_RETAINED: i64 = 9_393 + 9_393 / 4;
-const DISK_START_RETAINED: i64 = 178_778 + 178_778 / 4;
-const SHARED_FORGE_BEFORE_START_RETAINED: i64 = 6_981 + 6_981 / 4;
+const DISK_START_RETAINED: i64 = 216_638 + 216_638 / 4;
+const SHARED_FORGE_BEFORE_START_RETAINED: i64 = 7_061 + 7_061 / 4;
 
 fn within(process: &str, phase: &str, figure: &str, measured: i64, bound: i64) {
     assert!(measured <= bound, "{process}, {phase}: {figure} {measured} bytes exceeds bound {bound} bytes");

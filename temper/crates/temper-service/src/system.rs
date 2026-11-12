@@ -6,10 +6,10 @@ use crate::{
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, What};
 use skein_io::{
-    self as io, Io,
+    self as io,
     kernel::{Complete, Fd, Submit},
 };
-use skein_lib::{Env, List, Queue, Time, Token, Wall};
+use skein_lib::{List, Queue, Time, Token, Wall};
 pub(crate) const ACCOUNT_APPLICATION: &[u8] = b"temper";
 
 /// The engine root, its protocol children and the kernel queues.
@@ -17,16 +17,8 @@ pub(crate) const ACCOUNT_APPLICATION: &[u8] = b"temper";
 pub struct Service {
     pub(crate) engine: Option<engine::Engine>,
     pub(crate) worker: Option<Worker>,
-    io: Io,
-    io_env: Env<io::Limits>,
-    pub(crate) completions: Queue<Complete>,
-    pub(crate) submissions: Queue<Submit>,
-    raw_submissions: Queue<Submit>,
-    kernel: skein_io::kernel::Routes,
-    pub(crate) told: Queue<io::Event>,
+    pub(crate) process: temper_service_core::process::Process,
     box_pipe: Option<BoxPipe>,
-    signals: Option<Token>,
-    signals_closing: bool,
     // Keep the generational handles even after claim: a failed restore must
     // close any listener whose component never reached its Listen.
     held_listeners: List<Token>,
@@ -92,9 +84,9 @@ impl Service {
             },
             held_listeners: self.held_listeners.len(),
             listener_closes: self.listeners_closing,
-            signals_closing: self.signals_closing,
-            operations: self.kernel.has_operations(),
-            submissions: self.submissions.len(),
+            signals_closing: self.process.signals_closing(),
+            operations: self.process.has_operations(),
+            submissions: self.process.submission_count(),
         }
     }
 
@@ -104,8 +96,8 @@ impl Service {
             self.is_empty()
                 || self.work_pending(now)
                 || self.next_deadline().is_some()
-                || self.kernel.has_operations()
-                || !self.submissions.is_empty(),
+                || self.process.has_operations()
+                || self.process.submission_count() != 0,
             "service would wait forever with nothing in flight: end={:?}; state={:?}; pending={:?}",
             self.end(),
             self.wait_state(),
@@ -168,11 +160,7 @@ impl Service {
         let forges = crate::forge::prepare(&settings, forges)?;
         Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None, None)
     }
-    #[expect(
-        clippy::too_many_arguments,
-        clippy::too_many_lines,
-        reason = "startup keeps the checked settings and runtime facts together"
-    )]
+    #[expect(clippy::too_many_arguments, reason = "startup keeps the checked settings and runtime facts together")]
     pub(crate) fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -273,67 +261,13 @@ impl Service {
         Ok(Self {
             worker,
             engine: Some(engine),
-            io: Io::new(&io_limits),
-            io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: io_limits },
-            // Every live kernel operation can complete in one reap batch.
-            completions: Queue::with_capacity(operations),
-            // The shell can publish the whole credited operation population at once.
-            submissions: Queue::with_capacity(operations),
-            // Staged successors and cancels share the aggregate operation credit.
-            raw_submissions: Queue::with_capacity(operations),
-            told: Queue::uncapped(),
-            // Live routes and completed targets awaiting cancel publication use the same credit.
-            kernel: skein_io::kernel::Routes::new(operations),
+            process: temper_service_core::process::Process::new(io_limits, operations, operations),
             box_pipe: None,
-            signals: None,
-            signals_closing: false,
             held_listeners: List::with_capacity(io_limits.sockets),
             listeners_closing: 0,
             // The binary-facing channel holds one admitted pending sign-in population.
             links: Queue::with_capacity(own.sign_in.pending),
             local_links: Queue::with_capacity(own.sign_in.pending),
-        })
-    }
-    // The stock small profile's Prepared::room:
-    // twice its worker root output bound of 5,099. These kernel-facing
-    // process queues retain that capacity independently of the watermark.
-    #[cfg(feature = "worker")]
-    const WORKER_ALONE_QUEUE: u32 = 10_198;
-
-    /// Build the worker and shared IO without allocating any engine children.
-    #[cfg(feature = "worker")]
-    pub(crate) fn worker_alone(
-        settings: &settings::Worker,
-        limits: &limits::Limits,
-        agent: &settings::Agent,
-        files: &settings::Files,
-        runtime: crate::WorkerRuntime,
-        seed: u64,
-    ) -> Result<Self, Problems> {
-        let io_limits = settings.jig.limits.io;
-        crate::worker_settings::prepare(settings, agent, limits)?;
-        let queue = Self::WORKER_ALONE_QUEUE;
-        let worker_operations = crate::worker_settings::configured_operations(&limits.git_component)
-            .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;
-        let operations = worker_alone_operations(&io_limits, worker_operations)
-            .ok_or(crate::worker_settings::problem(b"limits", What::Bound))?;
-        Ok(Self {
-            engine: None,
-            worker: Some(Worker::new(settings, agent, limits, files, runtime, seed)?),
-            io: Io::new(&io_limits),
-            io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: io_limits },
-            completions: Queue::with_capacity(queue),
-            submissions: Queue::with_capacity(queue),
-            raw_submissions: Queue::with_capacity(operations),
-            told: Queue::uncapped(),
-            kernel: skein_io::kernel::Routes::new(operations),
-            box_pipe: None,
-            signals: None,
-            signals_closing: false,
-            held_listeners: List::with_capacity(io_limits.sockets),
-            listeners_closing: 0,
-            links: Queue::with_capacity(queue),
-            local_links: Queue::with_capacity(queue),
         })
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
@@ -369,6 +303,39 @@ impl Service {
     #[must_use]
     pub fn setup_page(&self, forge: u16, state: &[u8], now: Time) -> Option<&[u8]> {
         self.engine.as_ref()?.setup.page(forge, state, now)
+    }
+    /// Test seam: replace this service's patch sets before `adopt_store`
+    /// (protocol/baseline.md, 4). Production keeps the binary's sets.
+    pub fn patch_sets(&mut self, sets: jig_protocol_store::PatchSets) {
+        self.engine.as_mut().expect("engine patch sets").store.patch_sets(sets);
+    }
+    /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
+    pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
+        let engine = self.engine.as_mut().expect("rehearsal has an engine");
+        engine.domain.rehearse();
+        crate::upgrade::prepare(engine, true);
+        engine.store.host.adopt_mode(
+            directory,
+            user,
+            engine.store.installation,
+            jig_protocol_store::host::Adoption::Rehearse { scratch },
+        )
+    }
+    /// Ask jig to make the previous generation active, with the deployment stopped.
+    pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
+        let engine = self.engine.as_mut().expect("going back has an engine");
+        crate::upgrade::prepare(engine, false);
+        engine.store.host.adopt_mode(
+            directory,
+            user,
+            engine.store.installation,
+            jig_protocol_store::host::Adoption::Back,
+        )
+    }
+    /// Retained through teardown for shells and worlds alike.
+    #[must_use]
+    pub fn upgrade_report(&self) -> Option<&crate::upgrade::Report> {
+        Some(&self.engine.as_ref()?.upgrade.as_ref()?.report)
     }
     /// Adopt the binary's deployment directory.
     pub fn adopt_store(&mut self, root: Fd, effective_user: u32) -> Result<(), Fd> {
@@ -406,13 +373,9 @@ impl Service {
                 Some(worker) => worker.work_pending(now),
                 None => false,
             }
-            || self.io.is_ready()
-            || self.io.is_due(now)
-            || !self.completions.is_empty()
-            || !self.told.is_empty()
-            || !self.raw_submissions.is_empty()
+            || self.process.work_pending(now)
             || self.end().is_some() && self.listeners_closing < self.held_listeners.len()
-            || self.end().is_some() && self.signals.is_some() && !self.signals_closing
+            || self.end().is_some() && self.process.signals_pending()
             || self.end().is_some()
                 && match &self.box_pipe {
                     Some(pipe) => pipe.state != BoxPipeState::Closing,
@@ -426,14 +389,14 @@ impl Service {
         crate::diagnostics::Pending {
             work_pending: self.work_pending(now),
             worker_runs: self.worker_runs(),
-            io_ready: self.io.is_ready(),
-            io_due: self.io.is_due(now),
-            completions: self.completions.len(),
-            told: self.told.len(),
-            raw_submissions: self.raw_submissions.len(),
+            io_ready: self.process.io().is_ready(),
+            io_due: self.process.io().is_due(now),
+            completions: self.process.completion_count(),
+            told: self.process.told_count(),
+            raw_submissions: self.process.raw_submission_count(),
             ended: self.end().is_some(),
-            signals: self.signals.is_some(),
-            signals_closing: self.signals_closing,
+            signals: self.process.has_signals(),
+            signals_closing: self.process.signals_closing(),
             box_pipe_pending: self.end().is_some()
                 && match &self.box_pipe {
                     Some(pipe) => pipe.state != BoxPipeState::Closing,
@@ -459,25 +422,12 @@ impl Service {
             {
                 worker.abort();
             }
-        } else if let Some(worker) = &mut self.worker {
-            if worker.stopping() {
-                worker.abort();
-                worker.set_end(End::Aborted);
-            } else {
-                worker.stop();
-            }
         }
     }
     /// How this service ended, once it has.
     #[must_use]
     pub fn end(&self) -> Option<&End> {
-        match &self.engine {
-            Some(engine) => engine.end.as_ref(),
-            None => match &self.worker {
-                Some(worker) => worker.end(),
-                None => None,
-            },
-        }
+        self.engine.as_ref().expect("joined service has an engine").end.as_ref()
     }
     /// Sent forge entries left without their outcome when this stop reached its bound.
     #[must_use]
@@ -509,7 +459,7 @@ impl Service {
         if self.held_listeners.room() == 0 {
             return Err(fd);
         }
-        match self.io.adopt_listener(fd, addr) {
+        match self.process.io_mut().adopt_listener(fd, addr) {
             Ok(entity) => {
                 self.held_listeners.push(entity).expect("one handle per admitted listener");
                 Ok(())
@@ -528,42 +478,33 @@ impl Service {
         if line_bytes == 0 {
             return Err(BoxRefusal::ZeroLine);
         }
-        if self.io_env.limits.sockets.saturating_sub(self.io.sockets()) < 2 {
-            return Err(BoxRefusal::Sockets { limit: self.io_env.limits.sockets });
+        if self.process.env().limits.sockets.saturating_sub(self.process.io().sockets()) < 2 {
+            return Err(BoxRefusal::Sockets { limit: self.process.env().limits.sockets });
         }
         self.engine.as_mut().expect("box engine").box_link = box_link::Link::new(line_bytes, true);
-        let requests = self.io.adopt_write_pipe(requests, None).expect("two reserved pipe slots");
-        let answers = self.io.adopt_read_pipe(answers).expect("second reserved pipe slot");
+        let requests = self.process.io_mut().adopt_write_pipe(requests, None).expect("two reserved pipe slots");
+        let answers = self.process.io_mut().adopt_read_pipe(answers).expect("second reserved pipe slot");
         self.box_pipe = Some(BoxPipe {
             requests,
             answers,
             state: BoxPipeState::Open,
             reading: false,
             output: BoxOutput::Idle,
-            read_bytes: line_bytes.min(self.io_env.limits.intake),
+            read_bytes: line_bytes.min(self.process.env().limits.intake),
         });
         Ok(())
     }
     /// Adopt the shell's termination-signal source.
     pub fn adopt_signals(&mut self, descriptor: Fd) -> Result<(), Fd> {
-        if self.signals.is_some() {
-            return Err(descriptor);
-        }
-        match self.io.adopt_signals_for(descriptor, Token::new(1)) {
-            Ok(source) => {
-                self.signals = Some(source);
-                Ok(())
-            }
-            Err(descriptor) => Err(descriptor),
-        }
+        self.process.adopt_signals(descriptor)
     }
     /// Kernel completions, filled by the shell.
     pub const fn completions(&mut self) -> &mut Queue<Complete> {
-        &mut self.completions
+        self.process.completions()
     }
     /// Kernel submissions, taken by the shell.
     pub const fn submissions(&mut self) -> &mut Queue<Submit> {
-        &mut self.submissions
+        self.process.submissions()
     }
     /// Printed sign-in links, taken by the binary.
     pub const fn links(&mut self) -> &mut Queue<Box<[u8]>> {
@@ -575,32 +516,25 @@ impl Service {
     }
     /// Bound listeners, taken by the binary before other diagnostics.
     pub fn listening(&mut self) -> &mut Queue<crate::Note> {
-        match &mut self.engine {
-            Some(engine) => &mut engine.listening,
-            None => self.worker.as_mut().expect("worker alone").notes(),
-        }
+        &mut self.engine.as_mut().expect("joined service has an engine").listening
     }
     /// Operator diagnostics, taken by the binary.
     pub fn notes(&mut self) -> &mut Queue<crate::Note> {
-        match &mut self.engine {
-            Some(engine) => {
-                if let Some(worker) = &mut self.worker {
-                    worker.drain_notes(&mut engine.notes);
-                }
-                &mut engine.notes
-            }
-            None => self.worker.as_mut().expect("worker alone").notes(),
+        let engine = self.engine.as_mut().expect("joined service has an engine");
+        if let Some(worker) = &mut self.worker {
+            worker.drain_notes(&mut engine.notes);
         }
+        &mut engine.notes
     }
     /// Root, component and I/O deadlines on the injected clock.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        skein_lib::earliest(self.next_policy_deadline(), self.io.next_deadline())
+        skein_lib::earliest(self.next_policy_deadline(), self.process.io().next_deadline())
     }
     /// Maximum simultaneous kernel operations, for the shell's ring.
     #[must_use]
     pub fn operations(&self) -> u32 {
-        self.raw_submissions.capacity()
+        self.process.operations()
     }
     /// Every owned child has closed and every queue and kernel route is empty.
     #[must_use]
@@ -630,77 +564,72 @@ impl Service {
                 }
                 None => true,
             }
-            && self.io.is_empty()
-            && self.completions.is_empty()
-            && self.submissions.is_empty()
-            && self.raw_submissions.is_empty()
-            && self.told.is_empty()
-            && self.kernel.is_empty()
+            && self.process.is_empty()
     }
     fn route_components(&mut self) {
         if let Some(engine) = &mut self.engine {
             for _ in 0..engine.store.submitted.len() {
-                if self.raw_submissions.room() == 0 {
+                if self.process.room() == 0 {
                     break;
                 }
-                self.raw_submissions.push(engine.store.submitted.pop().expect("store submissions"));
+                self.process.raw_submissions().push(engine.store.submitted.pop().expect("store submissions"));
             }
             if engine.store.opened || engine.end.is_some() {
                 for _ in 0..engine.setup.io.len() {
-                    if self.raw_submissions.room() < io::MAX_OUT_DOWN.submissions || !self.io.takes() {
+                    if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
                         break;
                     }
                     let request = engine.setup.io.pop().expect("setup IO requests");
-                    io::down(&mut self.io, &self.io_env, crate::setup::tag(request), &mut self.raw_submissions);
+                    self.process.down(crate::setup::tag(request));
                 }
                 for _ in 0..engine.forge.io.len() {
-                    if self.raw_submissions.room() < io::MAX_OUT_DOWN.submissions || !self.io.takes() {
+                    if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
                         break;
                     }
                     let request = engine.forge.io.pop().expect("forge io requests");
-                    io::down(&mut self.io, &self.io_env, crate::forge::tag(request), &mut self.raw_submissions);
+                    self.process.down(crate::forge::tag(request));
                 }
                 for _ in 0..engine.clients.io.len() {
-                    if self.raw_submissions.room() < io::MAX_OUT_DOWN.submissions || !self.io.takes() {
+                    if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
                         break;
                     }
                     let request = engine.clients.io.pop().expect("client io requests");
-                    io::down(&mut self.io, &self.io_env, request, &mut self.raw_submissions);
+                    self.process.down(request);
                 }
                 for _ in 0..engine.workers.host.io.len() {
-                    if self.raw_submissions.room() < io::MAX_OUT_DOWN.submissions || !self.io.takes() {
+                    if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
                         break;
                     }
                     let request = engine.workers.host.io.pop().expect("worker io requests");
-                    io::down(&mut self.io, &self.io_env, request, &mut self.raw_submissions);
+                    self.process.down(request);
                 }
             }
             if (engine.store.opened || engine.end.is_some())
                 && let Some(accounts) = &mut engine.accounts
             {
                 for _ in 0..accounts.io.len() {
-                    if self.raw_submissions.room() < io::MAX_OUT_DOWN.submissions || !self.io.takes() {
+                    if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
                         break;
                     }
                     let request = accounts::tag(accounts.io.pop().expect("account io requests"));
-                    io::down(&mut self.io, &self.io_env, request, &mut self.raw_submissions);
+                    self.process.down(request);
                 }
             }
         }
         if let Some(worker) = &mut self.worker {
             for _ in 0..worker.submitted().len() {
-                if self.raw_submissions.room() == 0 {
+                if self.process.room() == 0 {
                     break;
                 }
                 let submit = worker.submitted().pop().expect("worker kernel submissions");
-                self.raw_submissions.push(submit);
+                self.process.raw_submissions().push(submit);
             }
             for _ in 0..worker.io().len() {
-                if self.raw_submissions.room() < io::MAX_OUT_DOWN.submissions || !self.io.takes() {
+                if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
                     break;
                 }
                 let request = worker.io().pop().expect("worker io requests");
-                io::down(&mut self.io, &self.io_env, request, &mut self.raw_submissions);
+                self.process.down(request);
             }
         }
     }
@@ -718,11 +647,11 @@ impl Service {
     }
     #[cfg(test)]
     pub(crate) fn publish_staged(&mut self) {
-        self.kernel.publish(&mut self.raw_submissions, &mut self.submissions);
+        self.process.publish();
     }
     #[cfg(test)]
     pub(crate) fn complete_staged(&mut self, complete: Complete) -> Complete {
-        self.kernel.complete(complete, &self.raw_submissions)
+        self.process.complete(complete)
     }
     fn complete(&mut self, complete: Complete) {
         if store::owns(complete.op) {
@@ -731,10 +660,10 @@ impl Service {
             self.worker
                 .as_mut()
                 .expect("worker operation prefix")
-                .complete(self.io_env.now, complete)
+                .complete(self.process.env().now, complete)
                 .expect("worker operation owner");
         } else {
-            io::up(&mut self.io, &self.io_env, complete, &mut self.told, &mut self.raw_submissions);
+            self.process.up(complete);
         }
     }
 }
@@ -780,50 +709,23 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
         iterate_stage(service, stage, now, wall);
     }
 }
-/// One stage of a pass, in the loop's order (protocol/README.md, 6.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Stage {
-    Io,
-    Route,
-    Engine,
-    Worker,
-    Out,
-}
-pub const STAGES: [Stage; 5] = [Stage::Io, Stage::Route, Stage::Engine, Stage::Worker, Stage::Out];
+pub use temper_service_core::{STAGES, Stage};
 
 /// Run one stage with the pass's times (protocol/README.md, 6.1).
-#[expect(clippy::too_many_lines, reason = "the five ordered stages include supervised worker shutdown")]
 pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall) {
     match stage {
         Stage::Io => {
-            service.io_env.now = now;
-            service.io_env.wall = wall;
+            service.process.clock(now, wall);
             if let Some(engine) = &mut service.engine {
                 engine::clock(engine, now, wall);
             }
-            for _ in 0..service.io_env.limits.sockets.checked_add(service.io_env.limits.refusals).expect("io entries") {
-                if !service.io.is_ready() || service.raw_submissions.room() < io::MAX_OUT_RESUME.submissions {
-                    break;
-                }
-                io::resume(&mut service.io, &service.io_env, &mut service.told, &mut service.raw_submissions);
-            }
-            if !service.io.is_ready() {
-                for _ in 0..service.completions.len() {
-                    if service.raw_submissions.room() < io::MAX_OUT_UP.submissions {
-                        break;
-                    }
-                    let complete = service.completions.pop().expect("completion count");
-                    let complete = service.kernel.complete(complete, &service.raw_submissions);
+            service.process.resume();
+            if !service.process.io().is_ready() {
+                for _ in 0..service.process.completion_count() {
+                    let Some(complete) = service.process.take_completion() else { break };
                     service.complete(complete);
                 }
-                if service.completions.is_empty() {
-                    for _ in 0..service.io_env.limits.sockets.checked_mul(2).expect("io timers") {
-                        if !service.io.is_due(now) || service.raw_submissions.room() < io::MAX_OUT_FIRE.submissions {
-                            break;
-                        }
-                        io::fire(&mut service.io, &service.io_env, &mut service.told, &mut service.raw_submissions);
-                    }
-                }
+                service.process.fire();
             }
         }
         Stage::Route => {
@@ -857,24 +759,14 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
                 if runs {
                     worker.iterate(now, wall);
                 }
-                if let Some(engine) = &mut service.engine {
-                    if let Some(problems) = worker.refused() {
-                        if engine.drain.is_none() && engine.end.is_none() {
-                            stop::shutdown(engine);
-                        }
-                        if let Some(End::Drained) = engine.end {
-                            engine.end = Some(End::Stopped(Stop::Start(problems.clone())));
-                        }
+                if let Some(engine) = &mut service.engine
+                    && let Some(problems) = worker.refused()
+                {
+                    if engine.drain.is_none() && engine.end.is_none() {
+                        stop::shutdown(engine);
                     }
-                } else {
-                    if worker.end().is_none()
-                        && let Some(problems) = worker.refused()
-                    {
-                        worker.set_end(End::Stopped(Stop::Start(problems.clone())));
-                        worker.abort();
-                    }
-                    if worker.is_empty() && worker.end().is_none() {
-                        worker.set_end(End::Drained);
+                    if let Some(End::Drained) = engine.end {
+                        engine.end = Some(End::Stopped(Stop::Start(problems.clone())));
                     }
                 }
             }
@@ -904,38 +796,32 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
                     service.local_links.push(link);
                 }
             }
-            service.kernel.publish(&mut service.raw_submissions, &mut service.submissions);
-            service.io.reclaim();
+            service.process.publish();
         }
     }
 }
 fn close_sources(service: &mut Service) {
     if service.end().is_some() {
         for _ in service.listeners_closing..service.held_listeners.len() {
-            if service.raw_submissions.room() < io::MAX_OUT_DOWN.submissions {
+            if service.process.room() < io::MAX_OUT_DOWN.submissions {
                 break;
             }
             let entity = *service.held_listeners.get(service.listeners_closing).expect("held listener");
             service.listeners_closing = service.listeners_closing.checked_add(1).expect("one close per held listener");
-            io::down(&mut service.io, &service.io_env, io::Request::Close { entity }, &mut service.raw_submissions);
+            service.process.down(io::Request::Close { entity });
         }
     }
-    if service.end().is_some()
-        && !service.signals_closing
-        && service.raw_submissions.room() >= io::MAX_OUT_DOWN.submissions
-        && let Some(entity) = service.signals
-    {
-        service.signals_closing = true;
-        io::down(&mut service.io, &service.io_env, io::Request::Close { entity }, &mut service.raw_submissions);
+    if service.end().is_some() {
+        service.process.close_signals();
     }
     if service.end().is_some()
-        && service.raw_submissions.room() >= io::MAX_OUT_DOWN.submissions.saturating_mul(2)
+        && service.process.room() >= io::MAX_OUT_DOWN.submissions.saturating_mul(2)
         && let Some(pipe) = &mut service.box_pipe
         && pipe.state != BoxPipeState::Closing
     {
         pipe.state = BoxPipeState::Closing;
         for entity in [pipe.requests, pipe.answers] {
-            io::down(&mut service.io, &service.io_env, io::Request::Close { entity }, &mut service.raw_submissions);
+            service.process.down(io::Request::Close { entity });
         }
     }
 }
@@ -949,11 +835,11 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
     false
 }
 fn route_events(service: &mut Service) {
-    for _ in 0..service.told.len() {
+    for _ in 0..service.process.told_count() {
         if box_notes_full(service) {
             break;
         }
-        let event = service.told.pop().expect("io event count");
+        let event = service.process.told().pop().expect("io event count");
         if let io::Event::Shutdown { .. } = event {
             service.shutdown();
             continue;
@@ -976,7 +862,7 @@ fn route_events(service: &mut Service) {
         let error = if let io::Event::Failed { error, .. } = &event { Some(*error) } else { None };
         if owner == Some(Token::new(1)) {
             if let io::Event::Closed { .. } = event {
-                service.signals = None;
+                service.process.signals_closed();
             }
             continue;
         }
@@ -994,7 +880,7 @@ fn route_events(service: &mut Service) {
         if let Some(worker) = &mut service.worker
             && worker.accepts(&event)
         {
-            worker.up(service.io_env.now, event);
+            worker.up(service.process.env().now, event);
         } else if let Some(engine) = &mut service.engine {
             if let Some(owner) = owner
                 && crate::tokens::prefix(owner) == 11
@@ -1020,7 +906,7 @@ fn route_events(service: &mut Service) {
                 if let Some(accounts) = &mut engine.accounts {
                     accounts.up(accounts::untag(event));
                 }
-            } else if !engine.workers.up(service.io_env.now, event, &mut engine.events) && engine.end.is_none() {
+            } else if !engine.workers.up(service.process.env().now, event, &mut engine.events) && engine.end.is_none() {
                 let address = engine.workers.host.listener_address(owner);
                 engine.workers.notes.push(crate::Note::WorkerListenerFailed { address, error });
                 engine.end = Some(End::Stopped(Stop::Listener { listener: crate::Listening::Workers, address, error }));
@@ -1058,7 +944,7 @@ fn box_notes_full(service: &Service) -> bool {
     let Some(pipe) = &service.box_pipe else { return false };
     pipe.state == BoxPipeState::Open
         && engine.notes.room() == 0
-        && match service.told.iter().next() {
+        && match service.process.next_event() {
             Some(event) => box_owner(event, pipe),
             None => false,
         }
@@ -1129,43 +1015,28 @@ fn box_io(service: &mut Service) {
     if pipe.state != BoxPipeState::Open {
         return;
     }
-    if !pipe.reading && service.raw_submissions.room() >= io::MAX_OUT_DOWN.submissions && service.io.takes() {
-        io::down(
-            &mut service.io,
-            &service.io_env,
-            io::Request::Stream {
-                stream: pipe.answers,
-                down: Down::Demand { read: Read::Scan { until: Delimiter::LF, max: pipe.read_bytes }, room: 0 },
-            },
-            &mut service.raw_submissions,
-        );
+    if !pipe.reading && service.process.room() >= io::MAX_OUT_DOWN.submissions && service.process.io().takes() {
+        service.process.down(io::Request::Stream {
+            stream: pipe.answers,
+            down: Down::Demand { read: Read::Scan { until: Delimiter::LF, max: pipe.read_bytes }, room: 0 },
+        });
         pipe.reading = true;
     }
     let engine = service.engine.as_mut().expect("box engine");
     if engine.box_link.write.is_some()
-        && service.raw_submissions.room() >= io::MAX_OUT_DOWN.submissions
-        && service.io.takes()
+        && service.process.room() >= io::MAX_OUT_DOWN.submissions
+        && service.process.io().takes()
     {
         if pipe.output == BoxOutput::Room {
             let line = engine.box_link.write.take().expect("box line ready");
-            io::down(
-                &mut service.io,
-                &service.io_env,
-                io::Request::Stream { stream: pipe.requests, down: Down::Send(line) },
-                &mut service.raw_submissions,
-            );
+            service.process.down(io::Request::Stream { stream: pipe.requests, down: Down::Send(line) });
             pipe.output = BoxOutput::Idle;
         } else if pipe.output == BoxOutput::Idle {
             // Full output credit waits for the preceding line to leave io.
-            io::down(
-                &mut service.io,
-                &service.io_env,
-                io::Request::Stream {
-                    stream: pipe.requests,
-                    down: Down::Demand { read: Read::Nothing, room: service.io_env.limits.output },
-                },
-                &mut service.raw_submissions,
-            );
+            service.process.down(io::Request::Stream {
+                stream: pipe.requests,
+                down: Down::Demand { read: Read::Nothing, room: service.process.env().limits.output },
+            });
             pipe.output = BoxOutput::Waiting;
         }
     }
@@ -1298,14 +1169,14 @@ mod box_tests {
             let mut service = fixtures::started();
             let mut line_bytes = 256;
             match expected {
-                BoxRefusal::Sockets { limit } => service.io_env.limits.sockets = limit,
+                BoxRefusal::Sockets { limit } => service.process.env_mut().limits.sockets = limit,
                 BoxRefusal::Adopted => service.adopt_box(Fd::new(3), Fd::new(4), line_bytes).unwrap(),
                 BoxRefusal::NoEngine => service.engine = None,
                 BoxRefusal::ZeroLine => line_bytes = 0,
             }
-            let before = (service.io.sockets(), service.submissions.len());
+            let before = (service.process.io().sockets(), service.process.submission_count());
             assert_eq!(service.adopt_box(Fd::new(5), Fd::new(6), line_bytes), Err(expected));
-            assert_eq!((service.io.sockets(), service.submissions.len()), before);
+            assert_eq!((service.process.io().sockets(), service.process.submission_count()), before);
             // In particular, no close or adoption was submitted for either fd.
         }
     }

@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 69] = [
+const SHAPES: [Shape; 75] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -64,6 +64,12 @@ const SHAPES: [Shape; 69] = [
     Shape::LandingLast,
     Shape::ForgeCharter,
     Shape::TemplateGoal,
+    Shape::Dependency,
+    Shape::Follow,
+    Shape::FollowSource,
+    Shape::FollowTarget,
+    Shape::FollowOwner,
+    Shape::FollowCheck,
     Shape::ProjectWays,
     Shape::ProjectQuestions,
     Shape::ProjectClasses,
@@ -311,6 +317,8 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && kind != b"project-words"
                         && kind != b"project-areas"
                         && kind != b"project-triager"
+                        && kind != b"follow"
+                        && kind != b"dependency"
                     {
                         continue;
                     }
@@ -431,6 +439,12 @@ fn matches_base(edit: Edit) -> bool {
     }
 }
 
+fn optional_follow(field: &Field) -> bool {
+    (field.shape == Shape::Follow && [b"start".as_slice(), b"producer"].contains(&field.name))
+        || (field.shape == Shape::FollowSource && [b"branch".as_slice(), b"paths"].contains(&field.name))
+        || (field.shape == Shape::FollowTarget && field.name == b"branch")
+}
+
 #[test]
 fn every_generated_file_decodes() {
     decodes(Edit::Base);
@@ -449,6 +463,7 @@ fn every_generated_file_decodes() {
             || (field.shape == Shape::Llm && field.name == b"later")
             || (field.shape == Shape::LlmLater && field.name == b"subagents")
             || (field.shape == Shape::ClassItem && field.name == b"words")
+            || optional_follow(field)
         {
             decodes(Edit::Omit(field));
         }
@@ -470,6 +485,7 @@ fn a_member_left_out_is_refused_naming_it() {
         if field.shape == Shape::Item
             || (field.shape == Shape::Setting && field.name == b"project")
             || (field.shape == Shape::Template && field.name == b"resources")
+            || (field.shape == Shape::LandingRule && field.name == b"sets")
             || (field.shape == Shape::Charter
                 && [b"wake".as_slice(), b"tools", b"rest", b"parts"].contains(&field.name))
             || (field.shape == Shape::Llm && field.name == b"later")
@@ -477,6 +493,7 @@ fn a_member_left_out_is_refused_naming_it() {
             || (field.shape == Shape::Model && field.name == b"provider")
             || (field.shape == Shape::Document && field.name == b"heading")
             || (field.shape == Shape::ClassItem && [b"set".as_slice(), b"words"].contains(&field.name))
+            || optional_follow(field)
         {
             continue;
         }
@@ -631,7 +648,7 @@ Kind: reference
 
 Every member of a settings value: its type, its bound and what it does to work, as a settings file sets it and `settings show` prints it.
 
-A settings file is a `file`; sections are JSON object shapes, bullets their members, types, bounds and meanings. Read with `settings show` by kind and number; edit and set whole. Bounds are what ctl sends; deployment refusals name `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment units, as in model prices. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.
+Each section is a JSON object shape; bullets name members, types, bounds and effects on work. A settings file is `file`. Read `settings show KIND N`, edit and set it whole. Ctl sends these bounds; the deployment may refuse it, naming its fault: `shape`, `count`, `reference`, `rules`, `budget`, `grace` or `owner`. Spend uses deployment model-price units. Hex is lower-case hexadecimal bytes: `666f726765` is `forge`.
 
 ## file
 
@@ -654,7 +671,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` or `project-words`, or null.
+- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words`, `project-words`, `follow` or `dependency`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }

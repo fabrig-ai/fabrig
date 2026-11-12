@@ -390,6 +390,17 @@ pub struct Turn {
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Line {
+    /// Binds a conversation value for later text and call arguments; emits no part.
+    ///
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.6.
+    Take {
+        /// Distinct turn-local name: 1 to 32 ASCII letters, digits or underscores.
+        name: Box<[u8]>,
+        /// Nonempty prefix of at most 256 bytes, searched newest first.
+        before: Box<[u8]>,
+        /// Nonempty suffix of at most 256 bytes, ending the captured value.
+        after: Box<[u8]>,
+    },
     /// Ends the turn for the named credential indices, or every call when empty.
     Fail {
         /// The provider failure class.
@@ -474,11 +485,14 @@ pub struct Failure {
     pub error: Error,
     /// Evidence supplied by the script.
     pub report: Report,
+    /// Provider text, or empty for the route's default message.
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.5.
+    pub message: Box<[u8]>,
     /// Reply parts before the failing line.
     pub parts: Box<[Part]>,
 }
 impl From<Error> for Failure {
     fn from(error: Error) -> Failure {
-        Failure { error, report: Report::none(), parts: Box::new([]) }
+        Failure { error, report: Report::none(), message: Box::new([]), parts: Box::new([]) }
     }
 }

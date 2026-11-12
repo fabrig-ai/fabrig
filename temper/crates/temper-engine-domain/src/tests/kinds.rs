@@ -23,6 +23,7 @@ fn rule(ci: bool) -> settings::SizedValue {
     settings::SizedValue {
         size: RULE_BYTES,
         value: settings::Value::Rule(settings::LandingRule {
+            sets: Box::new([]),
             pattern: forge::GatePattern {
                 segments: Box::new([Box::from(b"forge".as_slice())]),
                 last: forge::GateLast::Open(Box::default()),
@@ -566,6 +567,7 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
     let limits = resume_fixture::limits();
     let mut config = resume_fixture::config(7);
     let deployment = Box::new([crate::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         pattern: authority::Pattern {
@@ -579,7 +581,9 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
         approvals: Box::new([crate::Approval { role: 0, people: 1, freshness: crate::Freshness::Exact }]),
     }]);
     let mut projects = skein_lib::Map::with_capacity(1);
-    projects.insert(PROJECT, deployment.as_slice().into()).unwrap();
+    let mut project = deployment.clone();
+    project[0].sets = Box::new([3, 1]);
+    projects.insert(PROJECT, project.as_slice().into()).unwrap();
     config.kinds_stock = crate::landing_stock(deployment.as_slice(), &projects, 1, 4);
     for item in &mut config.kinds_stock {
         if item.kind == 3 {
@@ -597,6 +601,7 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
     let expected = settings::SizedValue {
         size: 0,
         value: settings::Value::Rule(settings::LandingRule {
+            sets: Box::new([]),
             pattern: forge::GatePattern {
                 segments: Box::new([Box::from(b"forge".as_slice())]),
                 last: forge::GateLast::Open(Box::new([])),
@@ -617,7 +622,10 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
         }),
     };
     assert_eq!(domain.forge.setting(1, 0, 1), Some(&expected));
-    assert_eq!(domain.forge.setting(2, PROJECT, 1), Some(&expected));
+    let settings::Value::Rule(mut project) = expected.value.clone() else { panic!("rule fixture") };
+    project.sets = Box::new([3, 1]);
+    let expected_project = settings::SizedValue { size: 0, value: settings::Value::Rule(project) };
+    assert_eq!(domain.forge.setting(2, PROJECT, 1), Some(&expected_project));
     assert_eq!(
         domain.forge.setting(3, 0, 1),
         Some(&settings::SizedValue { size: CHARTER_BYTES, value: settings::Value::Charter(1) })
@@ -834,6 +842,7 @@ fn a_proposals_items_say_whether_an_approval_covers_an_owned_forgejo() {
         let mut config = resume_fixture::config(7);
         config.forges.first_mut().unwrap().mode = mode;
         let repository = forge::Repository {
+            contexts: Box::new([]),
             workflows: Box::default(),
             project: PROJECT,
             home: true,
@@ -1056,7 +1065,7 @@ fn a_restore_refuses_a_way_the_project_does_not_offer() {
 fn a_project_reads_its_own_kinds_with_a_role_there() {
     use jig_domain_core::reads::{Answer, Why};
     use jig_domain_people::{ApplicationScope, DEPLOYMENT, Role};
-    for kind in [2, 6, 7, 8, 10, 12, 13] {
+    for kind in [2, 6, 7, 8, 10, 12, 13, 14, 15] {
         for (role, membership, scope, query_scope, good) in [
             (Some(Role::Member), PROJECT, ApplicationScope::Project(PROJECT), PROJECT, true),
             (None, PROJECT, ApplicationScope::Project(PROJECT), PROJECT, false),
@@ -1073,6 +1082,11 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                     size: 1,
                 },
                 7 => ways(0),
+                13 => settings::SizedValue {
+                    value: settings::Value::Dependency(settings::Dependency { project: 2 }),
+                    size: 4,
+                },
+                12 => settings::SizedValue { value: settings::Value::Follow(follow_value()), size: 128 },
                 8 => settings::project_stock(8).expect("project classes stock"),
                 10 => settings::SizedValue {
                     value: settings::Value::ProjectWords(settings::ProjectWords {
@@ -1081,11 +1095,11 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                     }),
                     size: 33,
                 },
-                12 => settings::SizedValue {
+                14 => settings::SizedValue {
                     value: settings::Value::ProjectAreas(settings::ProjectAreas { areas: Box::new([]) }),
                     size: 4,
                 },
-                13 => settings::SizedValue {
+                15 => settings::SizedValue {
                     value: settings::Value::ProjectTriager(settings::ProjectTriager {
                         owner: settings::AreaOwner::Role(0),
                     }),
@@ -1152,4 +1166,405 @@ fn only_the_owner_reads_the_program_environment() {
             Delivery::Read { reply: READ_REPLY, answer: Answer::None(why) }
         );
     }
+}
+
+fn follow_value() -> settings::Follow {
+    settings::Follow {
+        source: settings::FollowSource {
+            repository: skein_forge::api::Repository { forge: 1, repository: 13 },
+            branch: b"main".as_slice().into(),
+            paths: Box::new([b"src".as_slice().into()]),
+        },
+        target: settings::FollowTarget {
+            repository: skein_forge::api::Repository { forge: 1, repository: 12 },
+            branch: b"stable".as_slice().into(),
+        },
+        owner: settings::FollowOwner::Person(1),
+        start: settings::FollowStart::Owner,
+        producer: None,
+        check: settings::FollowCheck {
+            workflow: b"tests.yml".as_slice().into(),
+            artifact: b"results".as_slice().into(),
+            format: temper_engine_domain_forge_tiers::Format::Junit,
+        },
+    }
+}
+
+fn follow_repository(number: u32, role: forge::Role, push: bool) -> forge::Repository {
+    forge::Repository {
+        project: 2,
+        contexts: Box::new([]),
+        home: false,
+        provider: skein_forge::api::Repository { forge: 1, repository: number },
+        host: b"forge.example".as_slice().into(),
+        owner: b"org".as_slice().into(),
+        name: b"repo".as_slice().into(),
+        prefix: Box::new([]),
+        role,
+        ci: true,
+        checks: Box::new([]),
+        kinds: forge::Kinds {
+            read: true,
+            push,
+            open: push,
+            land: push,
+            review: push,
+            status: push,
+            comment: push,
+            issue: push,
+            branch: push,
+        },
+        protection: forge::Protection::Absent,
+        settings: skein_forge::api::Settings {
+            default_branch: if role == forge::Role::Context {
+                b"main".as_slice().into()
+            } else {
+                b"stable".as_slice().into()
+            },
+            merge: true,
+            squash: false,
+            rebase: false,
+        },
+        workflows: Box::new([]),
+    }
+}
+
+fn follow_root() -> (Domain, Env<RootLimits>) {
+    let (mut domain, env) = reader_in(Some(jig_domain_people::Role::Observer), 2);
+    domain.forge.give_settings_defaults(Box::new([settings::Stock {
+        kind: 3,
+        scope: 0,
+        number: 1,
+        value: charter(1),
+    }]));
+    domain.forge.restore_begin(env.wall);
+    for repository in
+        [follow_repository(12, forge::Role::Owned, true), follow_repository(13, forge::Role::Context, false)]
+    {
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            forge::Event::Restore { record: forge::Stored::Repository(repository) },
+            &mut Queue::uncapped(),
+        );
+    }
+    (domain, env)
+}
+
+fn judge_follow(
+    domain: &mut Domain,
+    env: &Env<RootLimits>,
+    number: u32,
+    follow: settings::Follow,
+) -> connector::Judged {
+    domain.kinds = Box::new([KindValue {
+        kind: 12,
+        scope: 2,
+        number,
+        value: settings::SizedValue { value: settings::Value::Follow(follow), size: 128 },
+    }]);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    judge(
+        domain,
+        env,
+        &mut decision,
+        None,
+        Box::new([application::Item { kind: 12, scope: 2, number, edit: application::Edit::Set(Box::new([])) }]),
+    );
+    let answer = answer(domain)[0].clone();
+    crate::domain::close(domain, env, decision, &mut Queue::uncapped());
+    answer
+}
+
+#[test]
+fn a_follow_refusal_names_the_follow_and_the_failing_member() {
+    let base = follow_value();
+    // Each change reaches one refusal after the forge's structural judgement.
+    for (fault, expected) in [
+        ("source", "follow 1: its source 1/12 is not adopted by project 2 as context"),
+        ("target", "follow 1: its target 1/13 is not a repository project 2 owns and temper writes"),
+        ("readonly", "follow 1: its target 1/12 is not a repository project 2 owns and temper writes"),
+        ("owner", "follow 1: its owner 99 is not a person of project 2"),
+        ("deployment owner", "follow 1: its owner 1 is not a person of project 2"),
+        ("paths", "follow 1: more paths than forge.follow_paths"),
+        ("/src", "follow 1: a malformed path or one past 256 bytes"),
+        ("src/", "follow 1: a malformed path or one past 256 bytes"),
+        ("a//b", "follow 1: a malformed path or one past 256 bytes"),
+        ("", "follow 1: a malformed path or one past 256 bytes"),
+        ("producer", "follow 1: its producer does not spell change parameter 11"),
+        ("charter", "follow 1: its producer's charter 99 is not offered by the settings"),
+        ("workflow empty", "follow 1: a check with an empty member or one past 256 bytes"),
+        ("workflow long", "follow 1: a check with an empty member or one past 256 bytes"),
+        ("artifact empty", "follow 1: a check with an empty member or one past 256 bytes"),
+        ("artifact long", "follow 1: a check with an empty member or one past 256 bytes"),
+        ("fixed source", "follow 1: its source and target are fixed; remove it and add another"),
+        ("fixed target", "follow 1: its source and target are fixed; remove it and add another"),
+        ("zero", "follow 0: a number this kind does not have"),
+        ("past", "follow 3: a number this kind does not have"),
+    ] {
+        let (mut domain, env) = follow_root();
+        let mut value = base.clone();
+        let mut number = 1;
+        match fault {
+            "source" => value.source.repository = value.target.repository,
+            "target" => value.target.repository = value.source.repository,
+            "readonly" => forge::step(
+                &mut domain.forge,
+                &env.with(env.limits.forge),
+                forge::Event::Restore {
+                    record: forge::Stored::Repository(follow_repository(12, forge::Role::Owned, false)),
+                },
+                &mut Queue::uncapped(),
+            ),
+            "owner" => value.owner = settings::FollowOwner::Person(99),
+            "deployment owner" => {
+                domain.core.people =
+                    reader_in(Some(jig_domain_people::Role::Owner), jig_domain_people::DEPLOYMENT).0.core.people;
+            }
+            "paths" => {
+                let mut paths = List::uncapped();
+                for _ in 0..=env.limits.forge.follow_paths {
+                    paths.push(b"src".as_slice().into()).unwrap();
+                }
+                value.source.paths = paths.into_boxed();
+            }
+            "/src" | "src/" | "a//b" | "" => value.source.paths = Box::new([fault.as_bytes().into()]),
+            "producer" => value.producer = Some(b"6;3.x;".as_slice().into()),
+            "charter" => value.producer = Some(b"99;;".as_slice().into()),
+            "workflow empty" => value.check.workflow = Box::new([]),
+            "workflow long" => value.check.workflow = Box::new([b'w'; 257]),
+            "artifact empty" => value.check.artifact = Box::new([]),
+            "artifact long" => value.check.artifact = Box::new([b'a'; 257]),
+            "fixed source" | "fixed target" => {
+                let kept = settings::SizedValue { size: 128, value: settings::Value::Follow(base.clone()) };
+                domain.forge.keep_settings(
+                    &env.with(env.limits.forge),
+                    2,
+                    None,
+                    &[settings::Asked { kind: 12, scope: 2, number: 1, edit: settings::Edit::Set(kept) }],
+                    &mut Queue::uncapped(),
+                );
+                if fault == "fixed source" {
+                    value.source.branch = b"other".as_slice().into();
+                } else {
+                    value.target.branch = b"other".as_slice().into();
+                }
+            }
+            "zero" => number = 0,
+            "past" => number = env.limits.forge.follows + 1,
+            _ => unreachable!("fault table"),
+        }
+        assert_eq!(
+            judge_follow(&mut domain, &env, number, value),
+            connector::Judged::Refuse { why: expected.as_bytes().into() },
+            "{fault}"
+        );
+    }
+}
+
+#[test]
+fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
+    use jig_domain_people::{ApplicationScope, Role};
+    let (mut domain, env) = follow_root();
+    let mut value = follow_value();
+    value.source.branch = Box::new([]);
+    value.target.branch = Box::new([]);
+    value.producer = Some(Box::new([]));
+    let expected = follow_value();
+    let size = settings::follow_record(&expected).unwrap().measure();
+    assert_eq!(
+        judge_follow(&mut domain, &env, 1, value.clone()),
+        connector::Judged::Accept { size, charters: Box::new([]) }
+    );
+    domain.kinds = Box::new([KindValue {
+        kind: 12,
+        scope: 2,
+        number: 1,
+        value: settings::SizedValue { value: settings::Value::Follow(value), size: 1 },
+    }]);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector::Ask::KeepSettings {
+            revision: 2,
+            proposal: None,
+            items: Box::new([application::Item {
+                kind: 12,
+                scope: 2,
+                number: 1,
+                edit: application::Edit::Set(Box::new([])),
+            }]),
+        },
+    );
+    committed_writes(&mut domain, &env, decision);
+    assert_eq!(domain.forge.follow(2, 1), Some(&expected));
+    assert_eq!(
+        crate::route::see::address(b"settings follow 1", 2),
+        crate::route::see::Address::Setting(jig_domain_core::settings::Setting::Application {
+            kind: 12,
+            scope: 2,
+            number: 1
+        })
+    );
+    for role in [Some(Role::Observer), Some(Role::Member), None] {
+        let (mut reader, read_env) = reader_in(role, 2);
+        reader.forge.keep_settings(
+            &read_env.with(read_env.limits.forge),
+            2,
+            None,
+            &[settings::Asked {
+                kind: 12,
+                scope: 2,
+                number: 1,
+                edit: settings::Edit::Set(settings::SizedValue {
+                    value: settings::Value::Follow(expected.clone()),
+                    size,
+                }),
+            }],
+            &mut Queue::uncapped(),
+        );
+        let read = read_forge(
+            &mut reader,
+            &read_env,
+            READ_SIGN_IN,
+            ApplicationScope::Project(2),
+            crate::ForgeRead::Setting { kind: 12, scope: 2, number: 1 },
+        );
+        if role.is_some() {
+            assert_eq!(
+                read,
+                Delivery::ForgeRead {
+                    reply: READ_REPLY,
+                    answer: crate::ForgeReadAnswer::Setting(Some(settings::SizedValue {
+                        value: settings::Value::Follow(expected.clone()),
+                        size
+                    }))
+                }
+            );
+        } else {
+            assert_eq!(
+                read,
+                Delivery::Read {
+                    reply: READ_REPLY,
+                    answer: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Unknown)
+                }
+            );
+        }
+    }
+}
+
+#[test]
+fn restoring_a_retired_setting_names_it_and_keeps_current_settings() {
+    for (kind, scope, number, words) in [
+        (6, 2, 1, b"project-questions 2: retired stored setting".as_slice()),
+        (3, 0, 3, b"forge-charter 3: retired stored setting".as_slice()),
+    ] {
+        let (mut domain, env) = root();
+        domain.forge.restore_begin(env.wall);
+        let key = settings::SettingKey { kind, scope, number, slot: settings::SettingSlot::Replaced(2) };
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        crate::restart::restore_page_row(
+            &mut domain,
+            &env,
+            Record::Forge { row: Box::new(forge::Stored::RefusedSetting(key)) },
+        );
+        crate::route::route_into(&mut domain, &env, &mut decision);
+        let before = domain.forge.setting(3, 0, 1).cloned();
+        let current = domain.core.current.newest();
+        ask(
+            &mut domain,
+            &env,
+            &mut decision,
+            connector::Ask::RestoreSettings {
+                owner: RESTORE_OWNER,
+                proposal: PROPOSAL,
+                items: Box::new([application::Restored {
+                    kind,
+                    scope,
+                    number,
+                    edit: application::RestoredEdit::Set { revision: 2 },
+                }]),
+            },
+        );
+        let Some(Work::Core(Event::EffectConnector(connector::Event::SettingsRestored { owner, judged }))) =
+            domain.work.pop()
+        else {
+            panic!("restore judgement")
+        };
+        assert_eq!(owner, RESTORE_OWNER);
+        assert_eq!(judged.as_ref(), &[connector::Judged::Refuse { why: words.into() }]);
+        assert_eq!(domain.forge.setting(3, 0, 1).cloned(), before);
+        assert_eq!(domain.core.current.newest(), current);
+        assert!(domain.forge.proposal_settings(PROPOSAL).is_empty());
+    }
+}
+
+#[test]
+fn dependency_structural_refusals_name_the_dependency_and_restore_rechecks_the_target() {
+    for (scope, number, project, reason) in [
+        (0, 1, 2, "dependency 1: a scope this kind does not have"),
+        (PROJECT, 0, 2, "dependency 0: a number this kind does not have"),
+        (PROJECT, 5, 2, "dependency 5: a number this kind does not have"),
+        (PROJECT, 1, 0, "dependency 1: a value of another kind"),
+    ] {
+        let (mut domain, env) = root();
+        domain.kinds = Box::new([KindValue {
+            kind: 13,
+            scope,
+            number,
+            value: settings::SizedValue {
+                value: settings::Value::Dependency(settings::Dependency { project }),
+                size: 4,
+            },
+        }]);
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        judge(
+            &mut domain,
+            &env,
+            &mut decision,
+            None,
+            Box::new([application::Item { kind: 13, scope, number, edit: application::Edit::Set(Box::new([])) }]),
+        );
+        assert_eq!(answer(&mut domain).as_ref(), &[connector::Judged::Refuse { why: reason.as_bytes().into() }]);
+        crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
+    }
+    let (mut domain, env) = root();
+    let mut out = Queue::uncapped();
+    let value =
+        settings::SizedValue { value: settings::Value::Dependency(settings::Dependency { project: 99 }), size: 4 };
+    domain.forge.keep_settings(
+        &crate::translate::environment_forge(&env),
+        2,
+        None,
+        &[settings::Asked { kind: 13, scope: PROJECT, number: 1, edit: settings::Edit::Set(value) }],
+        &mut out,
+    );
+    domain.forge.keep_settings(
+        &crate::translate::environment_forge(&env),
+        3,
+        None,
+        &[settings::Asked { kind: 13, scope: PROJECT, number: 1, edit: settings::Edit::Remove }],
+        &mut out,
+    );
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector::Ask::RestoreSettings {
+            owner: RESTORE_OWNER,
+            proposal: PROPOSAL,
+            items: Box::new([restored(13, PROJECT, 1, application::RestoredEdit::Set { revision: 3 })]),
+        },
+    );
+    assert_eq!(
+        restored_answer(&mut domain, RESTORE_OWNER).as_ref(),
+        &[connector::Judged::Refuse {
+            why: b"dependency 1: project 99 is not a project of this deployment".as_slice().into()
+        }]
+    );
+    assert!(domain.forge.proposal_settings(PROPOSAL).is_empty());
+    crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
 }

@@ -15,6 +15,7 @@ pub(crate) mod reads;
 mod recovery;
 mod role;
 pub(crate) mod specification;
+pub(crate) mod talk;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileEnd {
     Keep,
@@ -206,6 +207,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::GOAL_START_AT
         | rows::ROLE_START_AT
         | rows::NEED_ASK_AT
+        | rows::ROLE_TALK_AT
         | rows::CHAT_CREATE_AT..=rows::CANCEL_AT
         | rows::LIFT_AT
         | rows::TASK_DECIDE_AT
@@ -218,7 +220,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::PARTY_MAKE_AT
         | rows::PROJECT_FUND_AT
         | rows::PROJECT_AMEND_AT
-        | rows::PROJECT_REMOVE_AT => {
+        | rows::PROJECT_DELETE_AT => {
             acts::start(runner, client, env, called, out);
         }
         rows::TREE_AT => reads::start(runner, client, env, called, out),

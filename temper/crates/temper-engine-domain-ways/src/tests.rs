@@ -15,6 +15,7 @@ const OTHER: u32 = 10;
 
 fn rule(last: GateLast, ci: bool, up_to_date: bool) -> LandingRule {
     LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern { segments: Box::new([b"branch".as_slice().into()]), last },
         enforce: true,
         ci,
@@ -150,7 +151,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (7, 1, Edit::Set(Value::Ways(ProjectWays { drafts: true, goals: true, changes: false, way: 4 }))),
                 (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::DraftFirst)))),
                 (
-                    13,
+                    15,
                     1,
                     Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager {
                         owner: temper_engine_domain_forge::settings::AreaOwner::Charter(14),
@@ -169,7 +170,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (7, 1, Edit::Set(Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, way: 4 }))),
                 (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::DraftFirst)))),
                 (
-                    13,
+                    15,
                     1,
                     Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager {
                         owner: temper_engine_domain_forge::settings::AreaOwner::Charter(14),
@@ -194,7 +195,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
         }
         let got = items(way, PROJECT, ways);
         for item in &got {
-            assert_ne!(item.kind, 12, "a way never touches project areas");
+            assert_ne!(item.kind, 14, "a way never touches project areas");
         }
         assert_eq!(got, expected_items.into_boxed());
     }
@@ -490,6 +491,7 @@ fn derive_keeps_the_branch_and_repository() {
         ),
     ] {
         let inputs = Inputs {
+            sets: Box::default(),
             branch: b"topic".as_slice().into(),
             repository,
             rules: Box::default(),

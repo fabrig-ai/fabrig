@@ -71,6 +71,7 @@ impl Word {
                 (113, b"Settings history is full; oldest held revision ", &[HoleKind::Number])
             }
             Self::Hold(HoldWord::Circle) => (91, b"Held for a circle of waits", &[]),
+            Self::Refusal(RefusalWord::LiveTasks) => (130, b"This project has live tasks; end them first:", &[]),
             Self::Refusal(RefusalWord::Circle) => (92, b"These tasks would wait for one another", &[]),
             Self::Refusal(RefusalWord::Dependency) => (93, b"The added dependency has ended", &[]),
             Self::Refusal(RefusalWord::Kept) => (94, b"This answer waits for pending dependencies", &[]),

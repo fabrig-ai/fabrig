@@ -23,7 +23,7 @@ pub enum Address {
     Builders { project: u32 },
     Role { project: u32, charter: u32 },
     Rule { project: u32, kind: u32, number: u32 },
-    Team { project: u32 },
+    Team { project: u32, role: Option<u64> },
     Ask { project: u32 },
     Adopt { project: u32 },
     Work { project: u32, filter: WorkFilter },
@@ -162,7 +162,17 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Home { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"".as_slice()),
         Address::Work { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"work".as_slice()),
         Address::Goals { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"goals".as_slice()),
-        Address::Team { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"team".as_slice()),
+        Address::Team { project, role: Some(role) } => {
+            return skein_lib::bytes::concat(&[
+                b"/projects/",
+                Decimal::of(u64::from(*project)).as_bytes(),
+                b"/team?role=",
+                Decimal::of(*role).as_bytes(),
+            ]);
+        }
+        Address::Team { project, role: None } => {
+            (b"projects".as_slice(), Some(u64::from(*project)), b"team".as_slice())
+        }
         Address::Changes { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"changes".as_slice()),
         Address::Settings { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"settings".as_slice()),
         Address::Models { project } => {
@@ -303,7 +313,7 @@ pub fn parse(path: &[u8]) -> Place {
         }
         (b"projects", _, b"team") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
-            Address::Team { project }
+            Address::Team { project, role: parse_team(fields) }
         }
         (b"projects", _, b"changes") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
@@ -393,6 +403,24 @@ fn parse_work(query: &[u8]) -> WorkFilter {
         }
     }
     WorkFilter::All
+}
+
+fn parse_team(query: &[u8]) -> Option<u64> {
+    let mut rest = query;
+    for _ in 0..query.len() {
+        if rest.is_empty() {
+            break;
+        }
+        let end = skein_lib::bytes::find(rest, b"&").unwrap_or(rest.len());
+        let field = rest.get(..end).expect("separator in query");
+        rest = rest.get(end..).expect("separator in query").strip_prefix(b"&").unwrap_or(b"");
+        if let Some(value) = field.strip_prefix(b"role=")
+            && let Some(role) = decimal(value)
+        {
+            return Some(role);
+        }
+    }
+    None
 }
 
 fn parse_goals(query: &[u8]) -> GoalsFilter {

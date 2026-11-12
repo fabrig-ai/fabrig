@@ -33,6 +33,8 @@ fn document_offers_fit_the_object_and_preserve_actor_specific_refusals() {
         panic!("task")
     };
     assert_eq!(find(&value.acts, Act::Message), Some(&Admission::Allowed));
+    assert_eq!(find(&value.acts, Act::Talk), None);
+    assert_eq!(find(&value.acts, Act::Leave), None);
     assert_eq!(find(&value.acts, Act::Stop), Some(&Admission::Allowed));
     assert_eq!(find(&value.acts, Act::Answer), None);
     assert_eq!(find(&value.acts, Act::Take), None);

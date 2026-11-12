@@ -704,10 +704,13 @@ impl Protocol {
                 | top::Request::LandingDecision { .. }
                 | top::Request::Decided { .. }
                 | top::Request::StatusRun { .. }
+                | top::Request::FollowRun { .. }
+                | top::Request::CancelFollow { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }
                 | top::Request::BriefReady { .. }
@@ -858,6 +861,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Closer(row) => top::Key::Closer(row.task),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
+        top::Stored::RefusedSetting(key) => top::Key::Setting(*key),
         top::Stored::Setting(row) => top::Key::Setting(row.key),
         top::Stored::Making(row) => top::Key::Making(row.key.clone()),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
@@ -869,8 +873,10 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::ForgeNumber { .. } => top::Key::ForgeNumber,
         top::Stored::Playground(_) => top::Key::Playground,
+        top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },
         top::Stored::Decided(row) => top::Key::Decided { project: row.project, number: row.number },
         top::Stored::Finding(row) => top::Key::Finding { project: row.project, number: row.number },

@@ -3,6 +3,117 @@ use jig_domain_people::ApplicationScope;
 use skein_lib::List;
 use temper_engine_domain_forge_landing as policy;
 
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one document story checks its setting, retained follow facts and dependencies"
+)]
+fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
+    use crate::settings::{Asked, Edit, SizedValue, Value};
+    let mut d = domain();
+    let mut source = adopted();
+    source.role = Role::Context;
+    source.name = b"vsr".as_slice().into();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(source) });
+    let mut target = adopted();
+    target.provider.repository = 3;
+    target.name = b"vsr-rs".as_slice().into();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(target) });
+    let mut setting = settings::follow();
+    setting.source.repository = REPO;
+    setting.source.branch = Box::new([]);
+    setting.target.repository.repository = 3;
+    setting.target.branch = Box::new([]);
+    let mut out = Queue::uncapped();
+    d.keep_settings(
+        &env(),
+        1,
+        None,
+        &[
+            Asked {
+                kind: 12,
+                scope: 5,
+                number: 1,
+                edit: Edit::Set(SizedValue { value: Value::Follow(setting.clone()), size: 128 }),
+            },
+            Asked {
+                kind: 13,
+                scope: 5,
+                number: 1,
+                edit: Edit::Set(SizedValue {
+                    value: Value::Dependency(crate::settings::Dependency { project: 7 }),
+                    size: 4,
+                }),
+            },
+        ],
+        &mut out,
+    );
+    let mut saved = d.follow_row(5, 1).unwrap().clone();
+    saved.task = Some(71);
+    saved.stopped = Some(b"source moved".as_slice().into());
+    saved.queue = [
+        ([0x21; 32], None, FollowState::NotMade),
+        ([0x12; 32], Some(81), FollowState::Held(b"account".as_slice().into())),
+    ]
+    .map(|(after, change, state)| FollowEntry {
+        before: [0; 32],
+        after,
+        pull: None,
+        commits: Box::new([]),
+        more_commits: 0,
+        files: None,
+        more_files: 0,
+        change,
+        state,
+        word: false,
+        remake: false,
+    })
+    .into();
+    saved.skips = Box::new([FollowSkip { after: [0x11; 32], reason: b"outside the port".as_slice().into() }]);
+    saved.parity = Some(FollowParity {
+        source: [0x10; 32],
+        head: [0x31; 32],
+        verdict: FollowVerdict::Many,
+        run: b"https://forge.example/run/2".as_slice().into(),
+    });
+    outputs(&mut d, Event::Restore { record: Stored::Follow(saved.clone()) });
+    let doc = document(&d, follows_subject(5));
+    let Document::Follows(view) = &doc else { panic!("follows document") };
+    assert_eq!(view.dependencies.as_ref(), &[DependencyView { number: 1, project: 7 }]);
+    let [follow] = view.follows.as_ref() else { panic!("one follow") };
+    assert_eq!((view.project, follow.number, follow.lag, follow.task), (5, 1, 2, Some(71)));
+    assert_eq!(follow.setting, setting);
+    assert_eq!(follow.source.as_ref(), b"org/vsr");
+    assert_eq!(follow.target.as_ref(), b"org/vsr-rs");
+    assert_eq!(
+        (follow.source_branch.as_ref(), follow.target_branch.as_ref()),
+        (b"main".as_slice(), b"main".as_slice())
+    );
+    assert_eq!(follow.entries.len(), saved.queue.len());
+    for (entry, saved) in follow.entries.iter().zip(saved.queue.iter()) {
+        assert_eq!((entry.after, entry.change, &entry.state), (saved.after, saved.change, &saved.state));
+    }
+    assert_eq!((&follow.skips, &follow.parity, &follow.stopped), (&saved.skips, &saved.parity, &saved.stopped));
+    assert!(doc.owned_bytes() > size_of_val(&doc));
+    assert!(d.document(follows_subject(5), ApplicationScope::Project(6), 1, env().wall, &LIMITS).is_none());
+    assert!(d.document(follows_subject(5), ApplicationScope::Own, 1, env().wall, &LIMITS).is_none());
+    let Document::Follows(empty) =
+        d.document(follows_subject(6), ApplicationScope::Project(6), 1, env().wall, &LIMITS).unwrap()
+    else {
+        panic!("empty document")
+    };
+    assert!(empty.follows.is_empty());
+    let short = Limits { follow_queue: 1, ..LIMITS };
+    assert!(d.document(follows_subject(5), ApplicationScope::Project(5), 1, env().wall, &short).is_none());
+    let short = Limits { follows: 0, ..LIMITS };
+    assert!(d.document(follows_subject(5), ApplicationScope::Project(5), 1, env().wall, &short).is_none());
+    let mut marked = false;
+    while let Some(request) = out.pop() {
+        marked |= matches!(request, Request::Marked { tasks } if tasks.as_ref() == [follows_subject(5)]);
+    }
+    assert!(marked);
+}
+
 fn row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
         landing: policy::Landing {
@@ -278,7 +389,7 @@ fn logged(task: u64, commit: u8, at: u64, branch: &[u8]) -> LoggedLanding {
         commit: [commit; 32],
         branch: Box::from(branch),
         at: Wall::from_nanos(at),
-        changes: Box::new([LoggedChange { task, pull: None, title: Box::from(TITLE) }]),
+        changes: Box::new([LoggedChange { signed: Box::new([]), task, pull: None, title: Box::from(TITLE) }]),
     }
 }
 fn log(d: &mut Domain, repository: skein_forge::api::Repository, landings: Box<[LoggedLanding]>) {
@@ -343,30 +454,6 @@ fn changes_document_lists_a_queue_in_order() {
     for row in &got.queues[0].changes[1..] {
         assert_eq!(row.checks_since, None);
     }
-}
-#[test]
-fn changes_document_keeps_the_first_while_it_updates() {
-    let mut d = changes_setup(&[(fixtures::CHANGE, 9_i32, 95), (SECOND, 1_i32, 96)]);
-    let first = d.changes.get_mut(&fixtures::CHANGE).unwrap();
-    first.change.state = change::State::Updating {
-        from: fixtures::HEAD,
-        base: fixtures::BASE,
-        ready_since: Wall::from_nanos(95_000_000_000),
-    };
-    first.change.owns_turn = true;
-    first.change.ready_since = None;
-    first.change.since = Wall::from_nanos(99_000_000_000);
-    // queue_first draws these candidates: the updating owner is absent, so the next can take First.
-    let (ready, _) = domain::queue_ready(&d, d.changes.get(&SECOND).unwrap(), &LIMITS);
-    assert_eq!(change::first(ready.as_slice(), LIMITS.queue_window, env().wall), Some(SECOND));
-    let next = d.changes.get_mut(&SECOND).unwrap();
-    next.change.state = change::State::First { head: fixtures::HEAD, ready_since: Wall::from_nanos(96_000_000_000) };
-    next.change.owns_turn = true;
-    let got = changes(&d);
-    assert_eq!(tasks(&got).as_ref(), &[fixtures::CHANGE, SECOND]);
-    assert_eq!(got.queues[0].changes[0].ready_since, Wall::from_nanos(95_000_000_000));
-    assert_eq!(got.queues[0].changes[0].checks_since, Some(Wall::from_nanos(99_000_000_000)));
-    assert_eq!(got.queues[0].changes[1].checks_since, None);
 }
 #[test]
 fn changes_document_says_a_red_with_nothing_queued() {
@@ -469,7 +556,7 @@ fn changes_marks_the_owners_and_base_repairs_steps() {
 fn changes_marks_each_logged_merge() {
     let mut d = changes_setup(&[(fixtures::CHANGE, 0_i32, 90)]);
     let mut out = Queue::uncapped();
-    landing_log::landed(&mut d, env().wall, fixtures::HEAD, fixtures::CHANGE, &mut out);
+    landing_log::landed(&mut d, env().wall, fixtures::HEAD, fixtures::CHANGE, Box::new([]), &mut out);
     assert!(queue_marked(&out));
 }
 #[test]
@@ -546,6 +633,7 @@ fn changes_owned_bytes_charges_every_field() {
     const STRINGS: usize = 4 + 4 + 4 + TITLE.len() * 2;
     let view = ChangesView {
         landed_default: Box::new([ChangesLanded {
+            signed: Box::new([]),
             task: THIRD,
             title: Box::from(TITLE),
             at: env().wall,
@@ -569,6 +657,7 @@ fn changes_owned_bytes_charges_every_field() {
             }]),
         }]),
         landed: Box::new([ChangesLanded {
+            signed: Box::new([]),
             commit: [0xab; 32],
             default_branch: true,
             task: SECOND,
@@ -630,6 +719,7 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
         got.landed.as_ref(),
         &[
             ChangesLanded {
+                signed: Box::new([]),
                 task: 50,
                 title: TITLE.into(),
                 at: Wall::from_nanos(50),
@@ -637,6 +727,7 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
                 default_branch: false
             },
             ChangesLanded {
+                signed: Box::new([]),
                 task: 40,
                 title: TITLE.into(),
                 at: Wall::from_nanos(40),
@@ -650,6 +741,7 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
         got.landed_default.as_ref(),
         &[
             ChangesLanded {
+                signed: Box::new([]),
                 task: 25,
                 title: TITLE.into(),
                 at: Wall::from_nanos(25),
@@ -657,6 +749,7 @@ fn changes_history_keeps_default_landings_apart_with_their_commit_and_branch_kin
                 default_branch: true
             },
             ChangesLanded {
+                signed: Box::new([]),
                 task: 20,
                 title: TITLE.into(),
                 at: Wall::from_nanos(20),

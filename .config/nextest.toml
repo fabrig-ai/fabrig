@@ -10,7 +10,7 @@
 #   skein:  package(/^skein-/), and forgejo-conformance, github-conformance
 #   smith:  package(/^smith(-|$)/)
 #   jig:    package(/^jig(-|$)/)
-#   temper: package(/^temper(-|$)/), and git-transcripts
+#   temper: package(/^temper(-|$)/)
 #   hearth: package(/^hearth(-|$)/)
 #
 # and the repository's own checks, under tests/ at the root:
@@ -52,8 +52,9 @@ default-filter = """
      | test(=live_sign_in::tests::a_refused_plan_is_reported_with_the_run_failure))
   & not binary(/^browser_/)
 ) | (
-  (package(/^temper(-|$)/) | package(=git-transcripts))
-  & not test(/^tests::sign_in::fuzzy_/) & not (kind(test) & test(/^fuzzy::/))
+  package(/^temper(-|$)/)
+  & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain)) & test(/^fuzzy::/))
+  & not (package(=temper-engine-domain-forge) & kind(lib) & test(/^fuzzy::/))
   & not binary(/^(process|live|live_github)$/)
   & not (binary(=proof_live) & test(/^rung_b0s_/))
   & not (binary(=live_github_managed) & test(=managed_ready_client))
@@ -100,8 +101,10 @@ default-filter = """
   & (kind(test) & test(/^fuzzy::/)) & not binary(=live)
   & not binary(/^browser_/)
 ) | (
-  (package(/^temper(-|$)/) | package(=git-transcripts))
-  & ((kind(test) & test(/^fuzzy::/)) | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
+  package(/^temper(-|$)/)
+  & (((kind(test) | package(=temper-engine-domain)) & test(/^fuzzy::/))
+     | (package(=temper-engine-domain-forge) & kind(lib) & test(/^fuzzy::/))
+     | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
 ) | (
   package(/^hearth(-|$)/) & (kind(test) & test(/^fuzzy::/))
@@ -161,7 +164,7 @@ test-threads = 1
 # Process stories and the two drivers' offline proofs, three at a time
 # (temper/docs/design/testing/process-tier.md).
 [profile.process-temper]
-default-filter = "(binary(=process) | (binary(=proof_live) & test(/^rung_b0s_/)) | (binary(=live_github_managed) & test(=managed_ready_client))) & (package(/^temper(-|$)/) | package(=git-transcripts))"
+default-filter = "(binary(=process) | (binary(=proof_live) & test(/^rung_b0s_/)) | (binary(=live_github_managed) & test(=managed_ready_client))) & package(/^temper(-|$)/)"
 global-timeout = "25m"
 test-threads = 3
 
@@ -174,13 +177,13 @@ test-group = "temper-sign-in-callback"
 # sign-ins the tier takes as inputs (temper/docs/design/testing/live-tier.md). The owner's
 # scripts ignore this filter and name their own story.
 [profile.live-temper]
-default-filter = "(binary(=live) & (test(=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & (package(/^temper(-|$)/) | package(=git-transcripts))"
+default-filter = "(binary(=live) & (test(=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & package(/^temper(-|$)/)"
 global-timeout = "50m"
 test-threads = 1
 retries = 0
 
 [profile.browser-temper]
-default-filter = "(package(=temper-client-browser-world) & binary(/^browser_/)) & (package(/^temper(-|$)/) | package(=git-transcripts))"
+default-filter = "(package(=temper-client-browser-world) & binary(/^browser_/)) & package(/^temper(-|$)/)"
 global-timeout = "120s"
 slow-timeout = { period = "40s" }
 test-threads = 1

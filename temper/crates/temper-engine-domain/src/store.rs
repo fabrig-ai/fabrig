@@ -912,12 +912,14 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::ChangePolicy { change, .. } => {
                         jig_domain_people::policy_change_bytes(change)
                     }
-                    jig_domain_people::Ask::Say { words, .. }
+                    jig_domain_people::Ask::Talk { words, .. }
+                    | jig_domain_people::Ask::Say { words, .. }
                     | jig_domain_people::Ask::AnswerQuestion { words, .. } => Some(skein_lib::len_u64(words.len())),
                     jig_domain_people::Ask::Move { reason, .. } | jig_domain_people::Ask::Cancel { reason, .. } => {
                         Some(skein_lib::len_u64(reason.len()))
                     }
-                    jig_domain_people::Ask::RemoveProject { .. }
+                    jig_domain_people::Ask::Leave { .. }
+                    | jig_domain_people::Ask::RemoveProject { .. }
                     | jig_domain_people::Ask::SetVisibility { .. }
                     | jig_domain_people::Ask::ChangeSettings { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
@@ -957,6 +959,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                 model_context_bytes(models)?.checked_add(payload)?.checked_add(program_answer_bytes(outcome)?)
             }
             jig_domain_people::Stored::Deletion { .. }
+            | jig_domain_people::Stored::Deleted { .. }
             | jig_domain_people::Stored::Public { .. }
             | jig_domain_people::Stored::SignIn { .. }
             | jig_domain_people::Stored::ReadResults { .. }
@@ -1213,6 +1216,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::Adopted { .. }
         | Outcome::Proposed { .. }
         | Outcome::Withdrawn { .. }
+        | Outcome::Left { .. }
         | Outcome::Stopped { .. }
         | Outcome::Cancelled { .. }
         | Outcome::Released { .. }

@@ -3,6 +3,7 @@ use crate::directories::jig_directories;
 pub(crate) mod check;
 mod control;
 pub mod git;
+mod state;
 use skein_fake_peers::{forge as forge_peer, llm as llm_peer, oauth as oauth_peer};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Submit};
 use skein_lib::{List, Queue, Time, Token, Wall};
@@ -63,6 +64,15 @@ pub const LLM_SETTINGS: Settings = Settings {
             twin: None,
             notes: "",
         },
+        Setting {
+            name: "scripts",
+            value: "SCRIPTS",
+            about: "Replace the document's scripts with this JSON file.",
+            fallback: Fallback::Text(""),
+            set: skein_shell::Set::Internal,
+            twin: None,
+            notes: "Requires --document.",
+        },
     ],
 };
 pub const FORGE_SETTINGS: Settings = Settings {
@@ -104,6 +114,15 @@ pub const FORGE_SETTINGS: Settings = Settings {
             set: skein_shell::Set::Internal,
             twin: None,
             notes: "",
+        },
+        Setting {
+            name: "state",
+            value: "STATE",
+            about: "Keep the forge's state across orderly stops.",
+            fallback: Fallback::Text(""),
+            set: skein_shell::Set::Internal,
+            twin: None,
+            notes: "A present file must be this user's private single-link regular file. A refused image leaves it unchanged.",
         },
     ],
 };
@@ -168,6 +187,9 @@ pub struct Arguments {
     pub ready: Option<Box<[u8]>>,
     pub seed: u64,
     pub observations: Option<PathBuf>,
+    pub state: Option<PathBuf>,
+    pub scripts: Option<PathBuf>,
+    pub strict: bool,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct Check {
@@ -195,7 +217,14 @@ pub(crate) fn configure(
             unreachable!("the command table dispatches fake rows")
         }
     };
-    let resolved = skein_shell::resolve(table, arguments, environment).map_err(|why| why.to_string())?;
+    let strict_count =
+        if kind == Kind::Llm { arguments.iter().filter(|word| word.as_ref() == b"--strict").count() } else { 0 };
+    if strict_count > 1 {
+        return Err("invalid arguments: repeated --strict".into());
+    }
+    let strict = strict_count == 1;
+    let filtered: Vec<_> = arguments.iter().filter(|word| !strict || word.as_ref() != b"--strict").cloned().collect();
+    let resolved = skein_shell::resolve(table, &filtered, environment).map_err(|why| why.to_string())?;
     let source = if resolved.value(0).origin == Origin::Default {
         if kind == Kind::Oauth {
             return Err("invalid arguments".into());
@@ -243,7 +272,22 @@ pub(crate) fn configure(
     } else {
         Some(super::path(&resolved.value(3).bytes).to_path_buf())
     };
-    Ok(super::Command::Fake { arguments: Arguments { kind, source, ready, seed, observations } })
+    let scripts = if kind == Kind::Llm && resolved.value(4).origin != Origin::Default {
+        if !matches!(source, Source::Document(_)) {
+            return Err("--scripts SCRIPTS requires --document FILE".into());
+        }
+        Some(super::path(&resolved.value(4).bytes).to_path_buf())
+    } else {
+        None
+    };
+    let state = if kind == Kind::Forge && resolved.value(4).origin != Origin::Default {
+        Some(super::path(&resolved.value(4).bytes).to_path_buf())
+    } else {
+        None
+    };
+    Ok(super::Command::Fake {
+        arguments: Arguments { kind, source, ready, seed, observations, state, scripts, strict },
+    })
 }
 
 fn forge_number(number: &[u8]) -> Result<u16, &'static str> {
@@ -282,10 +326,23 @@ pub fn run(arguments: &Arguments) -> Result<u8, String> {
         Ok(opened) => opened,
         Err(why) => {
             created.rollback();
+            let command = if arguments.kind == Kind::Forge && why.starts_with("state ") {
+                "temper-box fake forge"
+            } else {
+                command
+            };
             return Err(super::prefixed(command, &why));
         }
     };
     let exit = skein_shell::drive(&mut kernel, &skein_shell::Clock::new(), &mut host);
+    if exit == Exit::Code(0)
+        && host.stopped
+        && !host.failed
+        && let Some(path) = &arguments.state
+    {
+        let Peer::Forge(peer) = &host.peer else { unreachable!("only a forge keeps state") };
+        state::store(path, peer).map_err(|why| super::prefixed(command, &why))?;
+    }
     Ok(match exit {
         Exit::Code(code) => code,
         Exit::Signal(_) => 1,
@@ -446,12 +503,16 @@ fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(
     }
 }
 
-fn llm_configuration(source: &Source, seed: u64, created: &mut Created) -> Result<llm::Configuration, String> {
-    Ok(match source {
+fn llm_configuration(arguments: &Arguments, created: &mut Created) -> Result<llm::Configuration, String> {
+    let seed = arguments.seed;
+    Ok(match &arguments.source {
         Source::Document(path) => {
             let bytes = read_document(path, temper_fake::DOCUMENT_BYTES)?;
-            let document =
-                llm::Document::decode(&bytes).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+            let scripts =
+                arguments.scripts.as_ref().map(|path| read_document(path, temper_fake::DOCUMENT_BYTES)).transpose()?;
+            let document = llm::Document::decode_with_scripts(&bytes, scripts.as_deref())
+                .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?
+                .with_strict(arguments.strict);
             let key = credential(seed, credential::KEY);
             created.output(super::path(document.key()), &key)?;
             for (i, path) in document.added_keys().iter().enumerate() {
@@ -471,7 +532,7 @@ fn llm_configuration(source: &Source, seed: u64, created: &mut Created) -> Resul
             let file = skein_shell::read_private_file(path, demo::KEY_FILE_BYTES, skein_shell::effective_user())
                 .map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;
             let key = demo::key(file.expose()).map_err(|why| format!("{}: {}", path.display(), why.reason()))?;
-            llm::configuration(demo.llm(), key, seed)
+            llm::configuration(&demo.llm().clone().with_strict(arguments.strict), key, seed)
         }
         Source::Setup { .. } => unreachable!("LLM has document and demo forms"),
     })
@@ -482,7 +543,7 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
     let mut control_address = None;
     let (mut peer, shared, observations, writer, buffer) = match arguments.kind {
         Kind::Llm => {
-            let configuration = llm_configuration(&arguments.source, arguments.seed, created)?;
+            let configuration = llm_configuration(arguments, created)?;
             control_address = configuration.control;
             let observations = arguments
                 .observations
@@ -499,8 +560,11 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
         }
         Kind::Forge => {
             let (document, token) = forge_document(&arguments.source, arguments.seed, created)?;
-            let (peer, shared) =
+            let (mut peer, shared) =
                 forge::peer(&document, &token, arguments.seed).map_err(|why| format!("peer: {why:?}"))?;
+            if let Some(path) = &arguments.state {
+                state::restore(path, &mut peer)?;
+            }
             let mut buffer =
                 List::with_capacity(if arguments.observations.is_some() { limits::OBSERVATION_BYTES } else { 0 });
             let (observations, writer) = match &arguments.observations {

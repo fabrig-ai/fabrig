@@ -12,11 +12,11 @@ API jig's `client/domain/contract/README.md` and its protocol jig's
 `protocol/client/README.md`: this document takes them as given and cites them.
 The forge's parts of the client are `forge/README.md`, the browser `web/README.md`,
 and the agents' tools, `temper ctl`, `ctl/README.md`. temper is the source
-of truth for what it draws; the mockups (`mockups/`) design what it
+of truth for what it draws; the mockups (`web/mockups/`) design what it
 does not draw yet: their look, their parts and their order, their
 words and where each act leads. This document holds what each page
 reads, watches and does, and cites them for the rest
-(`mockups/README.md`, section 1). What is still open is listed in
+(`web/mockups/README.md`, section 1). What is still open is listed in
 section 5.
 
 ## 1. In one page
@@ -152,13 +152,17 @@ temper-client-shell-terminal    the terminal: temper's host, its settings and li
 temper-client-tui               the TUI: its state, its events, its pages as skein-ui's tree, its words, its look's names and its theme (6.11 to 6.16)
 └── skein-ui-screen             skein's full-screen shell's renderer: the theme, the frame, the focus (skein's ui-screen.md)
 temper-client-shell-tui         the TUI's host, its seam, and its loop over the native transport and skein's full-screen terminal (6.13, 6.16); its start (6.11, 6.12)
-└── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
+├── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
+└── temper-client-redaction     the journeys' shared originals, redaction and scan, which the TUI's and the browser's recorders share (tui/journeys.md, 2)
 temper-shell                    what every binary of temper's starts from: its table's rows and help, the three directories, the engine's link at rest (6.12)
 temper-box                      the box's binary; `temper-box open` runs the line client; `temper [ADDRESS]` runs the TUI (../protocol/binaries.md)
-temper-client                   the deployment's client: `temper-client [ADDRESS]` runs the TUI, `temper-client ctl` the agents' tools (../protocol/binaries.md)
-temper-client-shell-web         the browser: temper's shell, built for wasm32, its host ordinary Rust and a library on every target (web/README.md, 2.1)
+temper-client                   the deployment's client's binary, bin/temper-client: its `main` hands temper-version's line to its crate (../cli/README.md, 2)
+temper-client-shell             the deployment's client: `temper-client [ADDRESS]` runs the TUI, `temper-client ctl` the agents' tools (../protocol/binaries.md)
+temper-client-shell-web         the browser: temper's shell, a library for wasm32 and on every target, its host ordinary Rust (web/README.md, 2.1)
 ├── skein-ui-web                skein's browser parts: the page, the DOM, history, fetch, session storage
-└── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
+├── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
+└── temper-client-redaction     the journeys' shared originals, redaction and scan (web/journeys.md, 2)
+temper-client-web-page          the shipped page's entry, built for wasm32 into the bundle (web/README.md, 2.1)
 
 for agents
 temper-client-tools             the agents' tools on jig-client, beside the view (ctl/README.md, section 4)
@@ -171,8 +175,8 @@ jig-client-fake-person-browser  jig's attack stories (jig's `protocol/browser/te
 temper-client-world             tests/client: temper's client joined to temper's engine root (section 10)
 skein-fake-person-browser       the person in Chromium, through skein-browser (web/testing.md)
 temper-client-browser-world     tests/client-browser: the browser tier (web/testing.md)
-temper-client-gallery           tools/gallery: the browser's pages in named states, as static documents (web/gallery.md)
-temper-client-journeys          tools/journeys: recorded walks replayed through the shipped host and printed as pages (journeys.md)
+temper-client-gallery-tool      crates/temper-client-gallery-tool: the browser's pages in named states, as static documents (web/gallery.md)
+temper-client-journeys-tool     crates/temper-client-journeys-tool, run by bin/temper-client-journeys: recorded walks replayed through the shipped hosts and printed (web/journeys.md; tui/journeys.md); QA's drive session and recipes (drive.md; recipe.md)
 ```
 
 - **The crate graph.** `temper-client-domain` depends on skein-lib,
@@ -201,7 +205,7 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
     terminal (`testing.md`);
   - `limits`: the client's limits and their sum.
 - **`temper-client-tui`** holds, as modules: `state`, the TUI's own
-  state beside the client root (`tui/pages.md`); `event`, what its view makes of a
+  state beside the client root (`tui/pages/README.md`); `event`, what its view makes of a
   person's acts; `words`, its own phrases; `view`, its pages as
   skein-ui's tree, with a module of its own for each part of a screen
   (`view::launchpad`, `view::foot`, `view::chat`); `look`, its owner and
@@ -210,11 +214,11 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
   skein-lib, `jig-client`, `temper-client-domain` and
   `temper-client-view`, whose words it says where it says what the view
   says, through the view's shared surface, `temper_client_view::shared`
-  (`tui/pages.md`), and links no io.
+  (`tui/pages/README.md`), and links no io.
 - **`temper_client_view::shared`** is what the browser's terminal says
   that the TUI says too, as words and data with no tree: functions of
   the root and the view's words, each one the browser's view itself
-  builds from, so that the two say the same thing alike (`tui/pages.md`, *Its
+  builds from, so that the two say the same thing alike (`tui/pages/README.md`, *Its
   words*). The view's builders and bindings stay its own.
 - **`temper-client-shell-tui`** holds, as modules: `host`, the TUI's
   one seam (`tui/README.md`, 3); `run`, its loop (`tui/README.md`, 4); `limits`, the client's
@@ -402,8 +406,8 @@ credential.
   does (jig's `client/domain/objects.md`, section 1; jig's
   `client/domain/contract/documents.md`, 4). Closing a chat says only what closing
   changes (*The sheet,* below). Removing a forge says what goes and what stays on the
-  forge (`forge/deployment.md`); deleting a project asks for the project's
-  name, and sends nothing until it is typed whole (`pages/README.md`). Pause and Resume, on a
+  forge (`forge/deployment.md`); deleting a project names it and says what
+  goes with it (*The sheet,* below; `pages/settings.md`, 1). Pause and Resume, on a
   chat, a goal or an agent's task, are undone by each other and sent at once. A
   goal's Close says that what landed on its branch stays there (`pages/task.md`, 4). Where the document offers an act
   as proposable (jig's `client/domain/contract/documents.md`, 3), the card says
@@ -425,6 +429,7 @@ credential.
   | accepting a proposal | "Accept this proposal?" | its facts | "Not yet" | "Accept" |
   | rejecting a proposal | "Reject this proposal?" | its facts and reason | "Keep it" | "Reject" |
   | releasing a task | "Release this task?" | what releasing does; an uncertain effect's two choices | "Keep it held" | "Release" |
+  | deleting a project | "Delete NAME?", NAME the project's name as `me` gives it | "NAME leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can’t be undone." | "Keep it" | "Delete project" |
 
   - *What it changes,* under a hairline, each line present only where it holds,
     and no count at zero:
@@ -656,7 +661,7 @@ was answered with. A box enables it beside the printed link
     root's shown count moves with it.
 - **The TUI's flow,** on the TUI's sign-in screen (`../draft/tui.md`,
   4.1), its host and its view, the TUI's crates:
-  - *It asks* once each time its sign-in screen opens signed out (`tui/pages.md`:
+  - *It asks* once each time its sign-in screen opens signed out (`tui/pages/README.md`:
     at its start with no credential kept, and again after a sign-out or
     a kept credential the engine refused), while the root holds no ask:
     the host steps `Event::AskApproval`. A held credential's sign-in in
@@ -702,7 +707,7 @@ was answered with. A box enables it beside the printed link
     ```
 
     "The code expires in SPAN." is `view.md`, 6's *span* to the ask's expiry,
-    with its tick. On the screen, "Sign in this terminal" is `tui/pages.md`'s
+    with its tick. On the screen, "Sign in this terminal" is `tui/pages/README.md`'s
     first line, "Sign in this terminal to HOST:PORT", said once; the
     approval's lines follow it, then the paste's, "Paste the link temper
     printed, then Enter." and its field.
@@ -719,7 +724,7 @@ was answered with. A box enables it beside the printed link
     approval has ended or was not asked, or a pasted link has replaced
     it, asks again (`may_ask_again`), and its line says "Press Enter to
     ask again." The field has the focus on this screen and takes every
-    character, `q` and `a` among them (`tui/pages.md`), so no letter can be the
+    character, `q` and `a` among them (`tui/pages/README.md`), so no letter can be the
     key. While an approval waits, Enter in the empty field is the
     paste's "not a link" refusal, as before.
   - *A pasted link, sent,* replaces the approval's take (jig-client's
@@ -747,11 +752,11 @@ was answered with. A box enables it beside the printed link
     (`../draft/tui.md`, 4.1), as `temper-box open` keeps a link's (section
     4), before anything is told of the sign-in, and draws its first
     screen; the page says "Signed in. You can close this tab." (`pages/README.md`).
-  - *Not asked while the TUI signs in from the engine's link* (`tui/pages.md`):
+  - *Not asked while the TUI signs in from the engine's link* (`tui/pages/README.md`):
     the approval is asked when that ends with the TUI signed out, as the
     sign-in screen opens.
   - *The browser's way in beside the TUI's link:* a TUI signed in from
-    the engine's link (`tui/pages.md`) spends the engine's local link, never the
+    the engine's link (`tui/pages/README.md`) spends the engine's local link, never the
     printed link (`tui/README.md`, 2; jig's `protocol/client/sign-in.md`, *The local
     link*), so the link the box's terminal shows stays live for the
     browser, before the TUI signs in or after it. That link is the

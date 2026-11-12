@@ -365,7 +365,7 @@ impl Domain {
     #[must_use]
     pub fn project_areas(&self, project: u32) -> ProjectAreas {
         if let Some(crate::settings::SizedValue { value: crate::settings::Value::ProjectAreas(areas), .. }) =
-            self.setting(12, project, 1)
+            self.setting(14, project, 1)
         {
             return areas.clone();
         }
@@ -374,7 +374,7 @@ impl Domain {
     #[must_use]
     pub fn project_triager(&self, project: u32) -> Option<AreaOwner> {
         if let Some(crate::settings::SizedValue { value: crate::settings::Value::ProjectTriager(triager), .. }) =
-            self.setting(13, project, 1)
+            self.setting(15, project, 1)
         {
             return Some(triager.owner);
         }

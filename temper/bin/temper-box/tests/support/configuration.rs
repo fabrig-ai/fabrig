@@ -53,7 +53,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
-    // The stock carries thirteen charters, fourteen grants and twenty-one executor kinds.
+    // The stock carries twelve charters, fourteen grants and twenty-one executor kinds.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 6.into();
     // The standing charters, closer procedure and close job are delegation targets.
@@ -98,7 +98,7 @@ pub fn use_stock(value: &mut serde_json::Value) {
     }
     temper_playground::documents::settings::strip_models(value);
     value["engine"]["limits"]["overrides"]["authority.roles"] = 4.into();
-    value["engine"]["limits"]["overrides"]["core.run_bytes"] = 16_384.into();
+    value["engine"]["limits"]["overrides"]["core.run_bytes"] = 32_768.into();
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 6.into();
     // The standing charters, closer procedure and close job are delegation targets.

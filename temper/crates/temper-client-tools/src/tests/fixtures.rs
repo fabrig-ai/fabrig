@@ -56,7 +56,50 @@ pub(crate) fn owned(words: &[&str]) -> Box<[Box<[u8]>]> {
     owned.into_boxed()
 }
 /// One argv per table row and form; the help derivation shares these examples.
+pub(crate) const FOLLOW_START: &[&str] =
+    &["follow", "start", "--project", "shop", "1", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--key", "follow-start"];
+pub(crate) const FOLLOW_HOLD: &[&str] = &[
+    "follow",
+    "hold",
+    "--project",
+    "shop",
+    "1",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "--reason",
+    "waits",
+    "--key",
+    "follow-hold",
+];
+pub(crate) const FOLLOW_SKIP: &[&str] = &[
+    "follow",
+    "skip",
+    "--project",
+    "shop",
+    "1",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "--reason",
+    "build only",
+    "--key",
+    "follow-skip",
+];
+pub(crate) const FOLLOW_MERGE: &[&str] = &[
+    "follow",
+    "merge",
+    "--project",
+    "shop",
+    "1",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "--key",
+    "follow-merge",
+];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    FOLLOW_START,
+    FOLLOW_HOLD,
+    FOLLOW_SKIP,
+    FOLLOW_MERGE,
+    &["follow", "list", "--project", "shop"],
+    &["follow", "show", "--project", "shop", "1"],
     &["finding", "list", "--project", "shop"],
     &["finding", "show", "shop/12"],
     &["finding", "file", "--project", "shop", "--kind", "red", "title", "-", "--key", "file"],
@@ -84,6 +127,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"],
     &["role", "list", "--project", "shop"],
     &["role", "show", "41"],
+    &["role", "talk", "41", "Hello", "--key", "talk"],
+    &["role", "talk", "41", "--leave", "--key", "leave"],
     &["project", "make", "Second", "--key", "second-project"],
     &["repository", "make", "--project", "shop", "team/widget", "--key", "make"],
     &["repository", "copy", "--project", "shop", "source.invalid/team/widget", "--key", "copy"],
@@ -95,7 +140,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["task", "hand-back", "41"],
     &["task", "notes", "41", "--project", "shop"],
     &["project", "amend", "shop", "--visibility", "public", "--key", "visibility"],
-    &["project", "remove", "shop", "--key", "drop-shop"],
+    &["project", "delete", "shop", "--key", "drop-shop"],
     &[
         "goal",
         "start",
@@ -195,6 +240,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["settings", "show", "forge-charter", "1"],
     &["settings", "show", "project-classes", "shop"],
     &["settings", "show", "template-goal", "4"],
+    &["settings", "show", "follow", "1", "--project", "shop"],
+    &["settings", "show", "dependency", "1", "--project", "shop"],
     &["settings", "show", "charter-words", "12", "--revision", "5"],
     &["revision", "show", "5"],
     &["revision", "list"],
@@ -208,6 +255,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["landing", "show", "41"],
     &["landing", "list", "--project", "1"],
     &["task", "text", "1"],
+    &["draft", "ready", "--project", "shop", "draft.md", "--key", "draft-ready"],
+    &["draft", "not-ready", "--project", "shop", "draft.md", "--key", "draft-not-ready"],
+    &["draft", "list", "--project", "shop"],
 ];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
@@ -697,6 +747,7 @@ impl Harness {
                 | crate::jig::rows::FINDING_FILE_AT
                 | crate::jig::rows::FINDING_HAND_AT
                 | crate::jig::rows::FINDING_SHOW_AT
+                | crate::jig::rows::ROLE_TALK_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
                     if crate::jig::call::number(&call, 2).is_some() {
@@ -855,7 +906,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 102;
+pub(super) const TOOL_FORMS: u32 = 115;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.
@@ -965,3 +1016,6 @@ pub(crate) fn offer_programs(root: &mut Harness) {
     me.providers = provider_offers();
     root.deliver(c::Delivery::Me(Box::new(me)));
 }
+
+mod drafts;
+pub(crate) use drafts::*;

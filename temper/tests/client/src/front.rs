@@ -154,6 +154,8 @@ fn asking_limits(projects: u32, chats: u32) -> engine::Limits {
     engine_limits.templates = 3;
     engine_limits.people.initial_owners = projects + 1;
     engine_limits.people.requests = 16;
+    // Two fixture sign-ins, a member's ctl, its owner's ctl and a fresh replay.
+    engine_limits.people.sign_ins = 5;
     engine_limits.people.words = 512;
     engine_limits.tasks.message_bytes = 512;
     engine_limits.tasks.inbox_bytes = 1024;
@@ -310,6 +312,8 @@ impl Joint {
         engine_limits.journal.writes = 4096;
         engine_limits.journal.deliveries = 64;
         engine_limits.journal.held = 192;
+        // The delegated batch and dependency-bearing task row fit whole.
+        engine_limits.journal.transcript_bytes = 9_504;
         engine_limits.fleet.slots = tasks;
         engine_limits.fleet.attempts = tasks * 2;
         let mut front =
@@ -680,7 +684,7 @@ impl Joint {
             config.core.kinds = temper_service::stock::kinds(&engine_limits, config.core.connectors[0])
                 .into_vec()
                 .into_iter()
-                .filter(|kind| kind.number == 12 || kind.number == 13)
+                .filter(|kind| kind.number == 14 || kind.number == 15)
                 .collect();
             config.kinds_stock = Box::default();
             let kinds: Box<[a::Executor]> =
@@ -941,6 +945,16 @@ impl Joint {
         joint.engine.delivered.clear();
         joint.engine.immediate.clear();
         joint
+    }
+
+    /// Subsequent ctl clients sign in as the asking world's seeded owner.
+    pub fn asking_owner(&mut self) {
+        self.caller = fixtures::PARTY;
+        self.sign_in_identity = Some(jig_domain_people::Identity {
+            key: temper_engine_domain_forge::user_key(1, 8),
+            login: b"owner".as_slice().into(),
+            name: b"Owner".as_slice().into(),
+        });
     }
 
     /// Play a decoded run host call through the worker link. Decode and render
@@ -1285,7 +1299,7 @@ impl Joint {
         settings: bool,
         approval: bool,
     ) -> Self {
-        // Chat, reviewer, foreman and change procedure; chat/change/producer depth;
+        // Chat, reviewer and change procedure; chat/change/producer depth;
         // the same owner in the project and deployment.
         const SETTINGS_EXECUTORS: u32 = 4;
         const SETTINGS_DEPTH: u32 = 3;
@@ -1306,6 +1320,7 @@ impl Joint {
             let mut landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
                 connector,
                 kind: 4,
+                sets: Box::new([]),
                 enforce: true,
                 pattern: a::Pattern {
                     segments: [b"forge".as_slice(), fixtures::FORGE_HOST, b"acme", b"shop", b"branch"]
@@ -1392,8 +1407,8 @@ impl Joint {
             limits.journal.held = 1024;
             limits.journal.deliveries = 256;
             limits.journal.result_bytes = 4096;
-            // The deep task row includes its 32-byte optional session.
-            limits.journal.transcript_bytes = 8224;
+            // The deep task row includes its optional session and talk, 32 bytes each.
+            limits.journal.transcript_bytes = 8256;
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
             limits.brief.brief_bytes = 1024;
@@ -1407,17 +1422,8 @@ impl Joint {
                 config.core.owners =
                     Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);
                 limits.people.initial_owners = SETTINGS_OWNERS;
-                let mut foreman = config.core.defaults.charters[0].clone();
-                foreman.number = 6;
-                let mut charters = config.core.defaults.charters.into_vec();
-                charters.push(foreman);
-                config.core.defaults.charters = charters.into_boxed_slice();
-                rules.ceiling.delegation.kinds = Box::new([
-                    a::Executor::Charter(1),
-                    a::Executor::Charter(4),
-                    a::Executor::Charter(6),
-                    a::Executor::Procedure(2),
-                ]);
+                rules.ceiling.delegation.kinds =
+                    Box::new([a::Executor::Charter(1), a::Executor::Charter(4), a::Executor::Procedure(2)]);
                 policy.ceiling.delegation.kinds.clone_from(&rules.ceiling.delegation.kinds);
                 policy.roles[0].authority.delegation.kinds.clone_from(&rules.ceiling.delegation.kinds);
                 rules.ceiling.delegation.depth = SETTINGS_DEPTH;
@@ -1427,8 +1433,8 @@ impl Joint {
                 limits.authority.executors = SETTINGS_EXECUTORS;
                 limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
                 limits.documents.executors = SETTINGS_EXECUTORS;
-                // The task's closer and optional session each occupy 32 bytes in the deep row.
-                limits.journal.transcript_bytes = 8232;
+                // The task's closer, optional session and talk each occupy 32 bytes in the deep row.
+                limits.journal.transcript_bytes = 8264;
             }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();
@@ -1626,6 +1632,51 @@ impl Joint {
         let event = self.engine.protocol.answer_read(outcome);
         self.send(event);
         self.drain();
+    }
+    /// Send a family's ask through the same component as a page, retaining its answer for the story.
+    /// The synchronous caller owns the reserved attempt, outside the page's request table.
+    pub fn family_request(
+        &mut self,
+        who: ClientId,
+        key: skein_lib::RequestKey,
+        request: jig_client::Ask,
+    ) -> jig_client::Family {
+        let attempt = Token::new(u64::MAX);
+        self.request(
+            who,
+            Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { attempt, key, request, value: None },
+                },
+            },
+        );
+        self.drain();
+        let position = self
+            .callbacks
+            .iter()
+            .position(|(client, event)| {
+                *client == who
+                    && matches!(event, Event::Root(RootEvent::Client {
+                    event: jig_client::Event::Up { up: jig_client::Up::Answer { attempt: answered, .. } },
+                }) if *answered == attempt)
+            })
+            .expect("family request answered");
+        let (_, event) = self.callbacks.remove(position);
+        let Event::Root(RootEvent::Client {
+            event:
+                jig_client::Event::Up {
+                    up:
+                        jig_client::Up::Answer {
+                            envelope: RequestEnvelope::Final,
+                            answer: Some(jig_client::Answered::Family(record)),
+                            ..
+                        },
+                },
+        }) = event
+        else {
+            panic!("family request: {event:?}")
+        };
+        record
     }
     pub fn next_client_limits(&mut self, limits: client::Limits) {
         self.next_limits = Some(limits);

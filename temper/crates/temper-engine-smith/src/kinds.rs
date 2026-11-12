@@ -44,7 +44,6 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let record = v1::ProjectQuestions::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::Questions(match record.route() {
                 v1::QuestionsRoute::None => Route::None,
-                v1::QuestionsRoute::Foreman => Route::Foreman,
                 v1::QuestionsRoute::Up => Route::Up,
             })
         }
@@ -65,15 +64,19 @@ pub fn decode(kind: u32, bytes: &[u8], bounds: &Bounds) -> Option<settings::Size
             let parts = v1::ProjectWords::decode(&v1::CEILINGS, &mut reader).ok()?.into_parts();
             settings::Value::ProjectWords(settings::ProjectWords { headline: parts.headline, lede: parts.lede })
         }
+        13 => settings::Value::Dependency(settings::Dependency {
+            project: v1::Dependency::decode(&v1::CEILINGS, &mut reader).ok()?.project(),
+        }),
+        12 => settings::Value::Follow(settings::follow_from(v1::Follow::decode(&v1::CEILINGS, &mut reader).ok()?)),
         11 => {
             let record = v1::TemplateGoal::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::Goal(settings::TemplateGoal { design: record.design(), close_out: record.close_out() })
         }
-        12 => {
+        14 => {
             let record = v1::ProjectAreas::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::ProjectAreas(areas_from(record))
         }
-        13 => {
+        15 => {
             let record = v1::ProjectTriager::decode(&v1::CEILINGS, &mut reader).ok()?;
             settings::Value::ProjectTriager(settings::ProjectTriager { owner: owner_from(record.into_parts().owner) })
         }
@@ -125,6 +128,18 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
             record.encode(&mut writer).expect("measured room");
             writer.finish()
         }
+        settings::Value::Dependency(value) => {
+            let record = wire_dependency(*value);
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
+        settings::Value::Follow(follow) => {
+            let record = settings::follow_record(follow).expect("admitted follow fits the record");
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         settings::Value::Goal(goal) => {
             let record = wire_goal(*goal);
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
@@ -166,9 +181,17 @@ pub fn size(value: &settings::Value) -> u32 {
         settings::Value::CharterWords(line) => wire_charter_words(line).measure(),
         settings::Value::ProjectWords(words) => wire_project_words(words).measure(),
         settings::Value::Goal(goal) => wire_goal(*goal).measure(),
+        settings::Value::Dependency(value) => wire_dependency(*value).measure(),
+        settings::Value::Follow(follow) => {
+            settings::follow_record(follow).expect("admitted follow fits the record").measure()
+        }
         settings::Value::ProjectAreas(value) => wire_areas(value).measure(),
         settings::Value::ProjectTriager(value) => wire_triager(value).measure(),
     }
+}
+
+fn wire_dependency(value: settings::Dependency) -> v1::Dependency {
+    v1::Dependency::new(&v1::CEILINGS, v1::DependencyParts { project: value.project }).expect("fixed dependency field")
 }
 
 fn rule(record: v1::LandingRule) -> settings::LandingRule {
@@ -199,6 +222,7 @@ fn rule(record: v1::LandingRule) -> settings::LandingRule {
             .expect("decoded approval count");
     }
     settings::LandingRule {
+        sets: parts.sets.into_boxed(),
         pattern: GatePattern { segments: pattern.segments.into_boxed(), last },
         enforce: parts.enforce,
         ci: parts.ci,
@@ -275,6 +299,7 @@ fn wire_rule(rule: &settings::LandingRule) -> v1::LandingRule {
             up_to_date: rule.up_to_date,
             gates,
             approvals,
+            sets: List::from_boxed(rule.sets.clone()),
         },
     )
     .expect("rule within schema ceilings")
@@ -287,7 +312,6 @@ fn wire_charter(charter: u32) -> v1::ForgeCharter {
 fn wire_questions(route: Route) -> v1::ProjectQuestions {
     let route = match route {
         Route::None => v1::QuestionsRoute::None,
-        Route::Foreman => v1::QuestionsRoute::Foreman,
         Route::Up => v1::QuestionsRoute::Up,
     };
     v1::ProjectQuestions::new(&v1::CEILINGS, v1::ProjectQuestionsParts { route }).expect("fixed route field")

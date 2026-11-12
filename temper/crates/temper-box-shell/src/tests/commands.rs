@@ -11,6 +11,10 @@ fn command_words(command: &Command) -> Vec<&str> {
     match command {
         Command::Version => vec!["--version"],
         Command::Versions => vec!["versions"],
+        Command::Upgrade { request, .. } => match request {
+            temper_engine_shell::upgrade::Request::Check(_) => vec!["upgrade", "--check"],
+            temper_engine_shell::upgrade::Request::Back => vec!["upgrade", "--back"],
+        },
         Command::Usage(row) => match row.reach {
             Reach::Words(words) => words.to_vec(),
             Reach::RunAs(name) => vec![name],
@@ -49,6 +53,8 @@ fn every_row_parses_from_an_example() {
     let examples: &[(&[&str], &[&str])] = &[
         (&["help"], &["help", "pages"]),
         (&["versions"], &["versions"]),
+        (&["upgrade", "--check"], &["upgrade", "--check", "/backup"]),
+        (&["upgrade", "--back"], &["upgrade", "--back"]),
         (&["init"], &["init"]),
         (&["serve"], &["serve"]),
         (&[], &[]),
@@ -133,7 +139,7 @@ fn temper_help_lists_only_public_commands() {
         .filter(|line| !line.starts_with(' '))
         .filter_map(|line| line.split_whitespace().next())
         .collect();
-    assert_eq!(names, ["init", "serve", "program-login", "help", "versions"]);
+    assert_eq!(names, ["init", "serve", "program-login", "help", "versions", "upgrade", "upgrade"]);
     assert!(text.contains("temper-box [--config DIR]"));
 }
 
@@ -201,7 +207,7 @@ fn the_page_commands_is_what_the_table_renders() {
     ]);
     let write = temper_test_env::rewrite();
     if write {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference/commands.md");
+        let path = skein_scratch::paths::tree().join("docs/help/reference/commands.md");
         std::fs::write(path, &rendered).expect("write commands reference");
         return;
     }
@@ -249,7 +255,19 @@ fn the_page_see_is_what_the_addresses_render() {
 #[test]
 fn every_ctl_group_page_is_what_the_table_renders() {
     use temper_client_tools::{help, table::GROUPS};
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference");
+    let directory = skein_scratch::paths::tree().join("docs/help/reference");
+    if temper_test_env::rewrite() {
+        for group in GROUPS {
+            let mut measured =
+                skein_lib::Writer::new(usize::try_from(temper_client_tools::limits::TEXT).expect("text bound"));
+            help::reference(group, &mut measured).expect("reference within renderer's text bound");
+            let mut out = skein_lib::Writer::new(measured.written());
+            help::reference(group, &mut out).expect("reference within renderer's text bound");
+            let name = format!("ctl-{}", core::str::from_utf8(group.name).expect("group name"));
+            std::fs::write(directory.join(name).with_extension("md"), out.finish()).expect("write group reference");
+        }
+        return;
+    }
     let expected = GROUPS
         .iter()
         .map(|group| format!("ctl-{}", core::str::from_utf8(group.name).expect("group name")))
@@ -313,6 +331,22 @@ fn bundle_build_variable_is_internal_in_both_tables() {
         assert_eq!(bundle.set, Set::Internal, "{}: build variable is internal", table.binary);
         assert_eq!(bundle.way, skein_shell::Way::Reads, "{}: build variable is read", table.binary);
     }
+}
+
+#[test]
+fn tui_recording_variable_is_internal_and_read() {
+    let tui = TABLE
+        .commands
+        .iter()
+        .find(|command| command.reach == Reach::Words(&["internal", "tui"]))
+        .expect("the box's TUI command");
+    let record = tui
+        .variables
+        .iter()
+        .find(|variable| variable.name == "TEMPER_INTERNAL_RECORD")
+        .expect("internal tui must declare the recording variable");
+    assert_eq!(record.set, Set::Internal, "recording variable is internal");
+    assert_eq!(record.way, skein_shell::Way::Reads, "recording variable is read");
 }
 
 #[test]

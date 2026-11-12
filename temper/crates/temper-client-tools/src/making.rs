@@ -446,6 +446,9 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
             | w::Outcome::Handed
             | w::Outcome::Triaged
             | w::Outcome::FindingRefused(_)
+            | w::Outcome::Drafted(_)
+            | w::Outcome::DraftRefused(_)
+            | w::Outcome::Follow(_)
             | w::Outcome::NotTheirs
             | w::Outcome::Overturned
             | w::Outcome::OverturnRefused(_)

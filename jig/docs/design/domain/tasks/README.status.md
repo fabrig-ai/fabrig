@@ -1,9 +1,9 @@
 # tasks: status
 
-2026-11-10. Where jig's code lags or departs from [README.md](README.md).
+2026-11-11. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 5, 6 and 7: a task that stands, its renewal per period and its exemption from the stall's bound (`standing.md`, sections 2 and 4) [in flight: change 103].
-- **Not yet:** 3: a standing task's session (`standing.md`, 5.1) [in flight: change 106].
+- **Not yet:** 5, 6 and 7: a task that stands, its renewal per period and its exemption from the stall's bound (`standing.md`, sections 2 and 4).
+- **Not yet:** 3: a standing task's session (`standing.md`, 5.1).
 
 `lifecycle.md`, section 6's classified activation cause has no known gap. `FailedWithReason`
 uses the existing reason bound and retry policy, and keeps its UTF-8 words
@@ -57,12 +57,9 @@ parks without spending a try.
   offers no `result`, hears none of its changes end, and a closer-ended
   task's last success is never relayed, even while its run lives
   (`jig-domain-tasks/src/wake.rs`, `after_message` and `rule`;
-  `waiting.rs`, `next`) [in flight: change 100].
+  `waiting.rs`, `next`).
 
-- **Not yet:**  a drain; a project's scope; a
-  party's proposal of a release; a hold parked until an event.
-   a widening funded by whoever gives it (the task's existing funder is
-  charged); moving a task under another task; successors; questions that
-  outlive their asker.  markers.
-   a conversation's questions.
+- **Not yet:**  the drain, placed-hold scope, release proposal and parked hold remain `lifecycle.status.md`, 10.
+   widening, moves, successors and surviving questions remain `changes.status.md` (Not yet, the whole document).  markers remain `messages.status.md`, 3.
+   conversation questions remain `messages.status.md`, 5.
   7: the stories of these.

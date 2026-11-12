@@ -1012,7 +1012,8 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
     if !named.forges.is_empty() {
         forges.push(forge).expect("primary forge");
     }
-    let mut agent = agent::preflight(&named).expect("ordinary agent declarations");
+    let mut agent =
+        agent::preflight_worker(named.worker.as_ref().expect("named worker")).expect("ordinary agent declarations");
     assert_eq!(agent.programs.len(), 1, "owned example declares Claude Code");
     agent.programs[0].path = path.as_bytes().into();
     agent.programs[0].directory = path.as_bytes().into();

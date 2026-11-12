@@ -221,7 +221,19 @@ fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delega
     }
     w::WaysPanel::new(
         &w::CEILINGS,
-        w::WaysPanelParts { words: None, project, ways, current, own: path(b"own"), may_change },
+        w::WaysPanelParts {
+            rules: w::PathRules::new(
+                &w::CEILINGS,
+                w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
+            )
+            .unwrap(),
+            words: None,
+            project,
+            ways,
+            current,
+            own: path(b"own"),
+            may_change,
+        },
     )
     .unwrap()
 }
@@ -907,7 +919,7 @@ fn draft_first_starts_only_missing_roles_after_settings_and_keeps_settings_on_re
                 w::ProposalItem::new(
                     &w::CEILINGS,
                     w::ProposalItemParts {
-                        kind: 13,
+                        kind: 15,
                         scope: f::PROJECT,
                         number: 1,
                         edit: w::SettingEdit::Set(
@@ -929,7 +941,7 @@ fn draft_first_starts_only_missing_roles_after_settings_and_keeps_settings_on_re
         let mut expected_items = way_items(None);
         expected_items
             .push(c::SettingItem {
-                setting: c::Setting::Application { kind: 13, scope: f::PROJECT, number: 1 },
+                setting: c::Setting::Application { kind: 15, scope: f::PROJECT, number: 1 },
                 edit: c::SettingEdit::Set(c::SettingSet {
                     value: c::SettingValue::Application(triager.as_slice().into()),
                 }),

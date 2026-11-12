@@ -5,7 +5,7 @@ use temper_client_protocol_wire::v1 as w;
 pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
-        12 => {
+        14 => {
             let Ok(value) = w::ProjectAreas::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {
                 return false;
@@ -26,7 +26,7 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.array_end();
             out.object_end();
         }
-        13 => {
+        15 => {
             let Ok(value) = w::ProjectTriager::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {
                 return false;
@@ -69,7 +69,6 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             }
             out.string(match value.route() {
                 w::QuestionsRoute::None => b"none",
-                w::QuestionsRoute::Foreman => b"foreman",
                 w::QuestionsRoute::Up => b"up",
             });
         }
@@ -158,6 +157,14 @@ fn render_rule(value: &w::LandingRule, out: &mut Encoder) {
         out.object_end();
     }
     out.array_end();
+    if !value.sets().is_empty() {
+        out.key(b"sets");
+        out.array_start();
+        for set in value.sets() {
+            out.unsigned(u64::from(*set));
+        }
+        out.array_end();
+    }
     out.object_end();
 }
 

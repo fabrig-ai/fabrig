@@ -28,7 +28,7 @@ pub(super) fn plan_world(bound: Option<u32>) -> (World, engine::Assignment) {
             ..StoryLimits::default()
         },
     );
-    // The foreman's whole question and its contract share the required task section.
+    // The question and its contract share the required task section.
     world.env.limits.brief.budgets.task = 512;
     let client = world.env.limits.forge.client;
     world = world.with_forge_client(client);
@@ -578,27 +578,14 @@ fn a_restart_keeps_an_open_question_where_it_stood() {
 }
 
 #[test]
-fn questions_foreman_is_offered_with_control() {
-    let (mut world, requester) = plan_world(None);
-    let input = smith_domain_run::HostInput::attested(
-        br#"{"words":"Make the agreed fix","questions":"foreman"}"#.as_slice().into(),
-    )
-    .expect("change input");
-    let temper_engine_smith::Decoded::Call(decoded) = temper_engine_smith::call(
-        smith_domain_run::CallName { activation: requester.attempt, completion: 1, position: 1 },
-        b"change",
-        &input,
-    )
-    .expect("foreman change decodes") else {
-        panic!("change call")
-    };
-    call(&mut world, &requester, CALL, decoded.tool);
-    let Some(engine::CallAnswer::Delegated(made)) = world.answers.last() else { panic!("foreman change made") };
-    let change = made[0].task;
-    assert!(world.call_errors.is_empty());
-    assert!(live_task(&world, change).spec.parameters.contains(&tasks::Parameter::Number { name: 14, value: 1 }));
-    assert!(live_task(&world, change).authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Charter(6)));
-    assert_eq!(live_task(&world, change).authority.delegation.tasks, 7);
+fn questions_none_and_up_are_offered_with_control() {
+    let (_, requester) = plan_world(None);
+    let charter = temper_engine_smith::charter(&requester);
+    let tool = charter.grants.host_tools.iter().find(|tool| tool.name.as_ref() == b"change").expect("change offered");
+    let schema: serde_json::Value = serde_json::from_slice(&tool.schema).expect("change schema");
+    for properties in [&schema["properties"], &schema["properties"]["changes"]["items"]["properties"]] {
+        assert_eq!(properties["questions"]["enum"], serde_json::json!(["none", "up"]));
+    }
 }
 
 pub(super) fn wait_answer(world: &mut World, producer: u64, change: u64) {
@@ -774,6 +761,72 @@ fn an_asker_that_ends_drops_its_question() {
 }
 
 #[test]
+fn a_resolution_that_ends_with_a_relayed_question_still_holds_its_change() {
+    let (mut world, requester, change, producer) = up_world(None);
+    temper_engine_domain_world::kinds::produce(&mut world, change, &producer);
+    let landing = row(&world, change).base.clone();
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &landing, b"file", b"base moved", 1)
+        .expect("base conflicts with the producer");
+    let resolution = super::reviews::next_assignment(&mut world, 3);
+    let number = ask(&mut world, &resolution, change);
+    call(
+        &mut world,
+        &requester,
+        CALL + 1,
+        engine::Tool::Cancel { target: resolution.task, reason: b"stop the asker".as_slice().into() },
+    );
+    park_after_turn(&mut world, &resolution, None, 0);
+    for _ in 0..TICKS {
+        world.tick();
+        if matches!(live_task(&world, change).phase, tasks::Phase::Held { source: Some(_), .. })
+            && world.store.pending.is_empty()
+        {
+            break;
+        }
+    }
+    assert!(
+        matches!(&row(&world, change).change.state, State::Held { was, why: temper_engine_domain_forge_change::Hold::Failed }
+        if matches!(was.as_ref(), State::Resolving { .. }))
+    );
+    let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } = &live_task(&world, change).phase
+    else {
+        panic!("the ended resolution holds its change with its account: {:?}", live_task(&world, change).phase)
+    };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("resolution's account") };
+    assert_eq!(
+        words.as_ref(),
+        format!("its resolution, task {}, was cancelled: stop the asker", resolution.task).as_bytes()
+    );
+    assert_eq!(row(&world, change).questions.open[0].stands, Stands::Asked);
+    assert_eq!(live_task(&world, change).questions.len(), 1, "the change still owes its own answer");
+    assert!(matches!(live_task(&world, change).escalation,
+        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Task(holder), .. } if holder == requester.task));
+    world.drain_cut();
+    world.restart(true, true);
+    world.until(Until::Ready);
+    answer(&mut world, &requester, change, CALL + 2);
+    let revision = live_task(&world, change).revisions.hold;
+    call(&mut world, &requester, CALL + 3, engine::Tool::Release { target: change, revision, again: None });
+    for _ in 0..TICKS {
+        world.tick();
+    }
+    assert!(row(&world, change).questions.open.is_empty());
+    assert!(live_task(&world, change).questions.is_empty());
+    let expected = format!(
+        "Task {} ended; your answer to its question {number} goes no further: Which behavior should hold?",
+        resolution.task
+    );
+    assert_eq!(
+        replies(&world, requester.task, change)
+            .into_iter()
+            .filter(|word| word.kind == tasks::MessageKind::Words && word.words.as_ref() == expected.as_bytes())
+            .count(),
+        1
+    );
+    world.close();
+}
+
+#[test]
 fn a_producers_finish_waits_for_its_requesters_answer() {
     let (mut world, requester, change, producer) = up_world(None);
     let number = ask(&mut world, &producer, change);
@@ -872,7 +925,7 @@ fn a_batch_of_one_answers_then_asks_the_next_question() {
     );
 }
 
-fn fill_requester_inbox(world: &mut World, requester: &engine::Assignment) -> u32 {
+pub(super) fn fill_requester_inbox(world: &mut World, requester: &engine::Assignment) -> u32 {
     let mut target = Box::new(live_task(world, requester.task).clone());
     let mut header = world.store.header();
     // The change's terminal keeps one inbox slot; fill the ordinary slots.

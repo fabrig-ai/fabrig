@@ -42,6 +42,14 @@ impl core::fmt::Debug for Hosted {
             .finish_non_exhaustive()
     }
 }
+/// Operation issued once its roots are adopted (protocol/store/opening.md, 5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Adoption {
+    Open,
+    Rehearse { scratch: Fd },
+    Back,
+}
+
 impl Hosted {
     #[must_use]
     pub fn new(
@@ -78,6 +86,14 @@ impl Hosted {
     pub fn adopt(&mut self, fd: Fd, user: u32, installation: [u8; 16]) -> Result<(), Fd> {
         self.drivers.adopt(fd, user, Token::new(1), installation)
     }
+    pub fn adopt_mode(&mut self, fd: Fd, user: u32, installation: [u8; 16], mode: Adoption) -> Result<(), Fd> {
+        self.drivers.adopt_mode(fd, user, Token::new(1), installation, mode)
+    }
+    /// Whether adoption has issued its operation, rather than failed to clone a root.
+    #[must_use]
+    pub fn started(&self) -> bool {
+        self.drivers.started
+    }
     pub fn ask(&mut self, request: crate::Request) {
         match request {
             crate::Request::Secrets { owner, request } => {
@@ -86,6 +102,9 @@ impl Hosted {
                 }
             }
             request @ (crate::Request::Switch { .. }
+            | crate::Request::Rehearse { .. }
+            | crate::Request::Back { .. }
+            | crate::Request::Close { .. }
             | crate::Request::Open { .. }
             | crate::Request::Site { .. }
             | crate::Request::Commit { .. }
@@ -153,7 +172,11 @@ impl Hosted {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
-        !self.secrets.is_empty() || !self.sources.is_empty() || !self.above.is_empty() || self.drivers.work_pending(now)
+        !self.secrets.is_empty()
+            || !self.sources.is_empty()
+            || !self.above.is_empty()
+            || !self.closing && crate::patching::phase::ready(&self.component)
+            || self.drivers.work_pending(now)
     }
     #[must_use]
     pub fn closing(&self) -> bool {
@@ -276,7 +299,10 @@ pub struct Drivers {
     drivers: [Driver; 3],
     submitted: Queue<Submission>,
     adopted: bool,
+    started: bool,
     root: Option<Fd>,
+    scratch: Option<crate::Root>,
+    adoption: Adoption,
     owner: Token,
     installation: [u8; 16],
     closing: bool,
@@ -297,7 +323,10 @@ impl Drivers {
             drivers,
             submitted: Queue::with_capacity(KERNEL_HANDOFF_ENTRIES),
             adopted: false,
+            started: false,
             root: None,
+            scratch: None,
+            adoption: Adoption::Open,
             owner: Token::new(0),
             installation: [0; 16],
             closing: false,
@@ -317,10 +346,21 @@ impl Drivers {
         self.seeded
     }
     pub fn adopt(&mut self, fd: Fd, user: u32, owner: Token, installation: [u8; 16]) -> Result<(), Fd> {
+        self.adopt_mode(fd, user, owner, installation, Adoption::Open)
+    }
+    pub fn adopt_mode(
+        &mut self,
+        fd: Fd,
+        user: u32,
+        owner: Token,
+        installation: [u8; 16],
+        mode: Adoption,
+    ) -> Result<(), Fd> {
         if self.adopted || self.closing {
             return Err(fd);
         }
         self.adopted = true;
+        self.adoption = mode;
         self.owner = owner;
         self.installation = installation;
         for index in 0..3 {
@@ -330,6 +370,11 @@ impl Drivers {
             if index == 0 {
                 let file = driver.io.adopt_root(fd).expect("deployment root slot");
                 driver.handles.insert(file, ()).expect("owned deployment root");
+                if let Adoption::Rehearse { scratch } = mode {
+                    let token = driver.io.adopt_root(scratch).expect("scratch root slot");
+                    driver.handles.insert(token, ()).expect("owned scratch root");
+                    self.scratch = Some(crate::Root { token, fd: scratch });
+                }
             }
         }
         self.root = Some(fd);
@@ -342,6 +387,20 @@ impl Drivers {
             name: b".".as_slice().into(),
             no_follow: true,
         });
+        if let Adoption::Rehearse { scratch } = mode {
+            self.below.secrets.push(file::Request::OpenDirectory {
+                owner: ADOPT,
+                root: scratch,
+                name: b".".as_slice().into(),
+                no_follow: true,
+            });
+            self.below.transcripts.push(file::Request::OpenDirectory {
+                owner: ADOPT,
+                root: scratch,
+                name: b".".as_slice().into(),
+                no_follow: true,
+            });
+        }
         Ok(())
     }
     /// Typed store requests, with file effects retained in the host.
@@ -381,6 +440,12 @@ impl Drivers {
             }
         }
         false
+    }
+    fn root_count(&self) -> u32 {
+        match self.adoption {
+            Adoption::Open | Adoption::Back => 1,
+            Adoption::Rehearse { .. } => 2,
+        }
     }
     fn can_close(&self, index: usize) -> bool {
         // Root closure follows the other drivers’ handles and terminals.
@@ -475,20 +540,39 @@ impl Drivers {
                 if event.owner() == ADOPT {
                     if fd.is_none() {
                         if self.root.take().is_some() {
-                            above
-                                .push(crate::Event::OpenRefused { owner: self.owner, why: crate::OpenRefusal::Failed });
+                            above.push(match self.adoption {
+                                Adoption::Open | Adoption::Rehearse { .. } => {
+                                    crate::Event::OpenRefused { owner: self.owner, why: crate::OpenRefusal::Failed }
+                                }
+                                Adoption::Back => {
+                                    crate::Event::BackRefused { owner: self.owner, why: crate::BackRefusal::Unreadable }
+                                }
+                            });
                         }
-                    } else if !self.drivers.get(1).expect("driver index").handles.is_empty()
-                        && !self.drivers.get(2).expect("driver index").handles.is_empty()
+                    } else if self.drivers.get(1).expect("driver index").handles.len() >= self.root_count()
+                        && self.drivers.get(2).expect("driver index").handles.len() >= self.root_count()
                         && let Some(fd) = self.root.take()
                     {
+                        self.started = true;
                         crate::down(
                             component,
                             env,
-                            crate::Request::Open {
-                                owner: self.owner,
-                                root: crate::Root { token: Token::new(1), fd },
-                                installation: self.installation,
+                            match self.adoption {
+                                Adoption::Open => crate::Request::Open {
+                                    owner: self.owner,
+                                    root: crate::Root { token: Token::new(1), fd },
+                                    installation: self.installation,
+                                },
+                                Adoption::Rehearse { .. } => crate::Request::Rehearse {
+                                    owner: self.owner,
+                                    directory: crate::Root { token: Token::new(1), fd },
+                                    scratch: self.scratch.expect("adopted scratch"),
+                                    installation: self.installation,
+                                },
+                                Adoption::Back => crate::Request::Back {
+                                    owner: self.owner,
+                                    root: crate::Root { token: Token::new(1), fd },
+                                },
                             },
                             above,
                             &mut self.below,

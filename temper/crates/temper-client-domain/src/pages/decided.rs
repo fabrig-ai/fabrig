@@ -327,6 +327,9 @@ pub(super) fn wanted(root: &Domain) -> List<u32> {
     }
     match pages.address {
         Address::Home { project } => {
+            if pages.left_off.is_some() {
+                return launchpad_projects(root);
+            }
             wanted.push(project).expect("one Home project");
         }
         Address::AllHome | Address::Inbox { .. } => {
@@ -383,6 +386,38 @@ pub(super) fn wanted(root: &Domain) -> List<u32> {
     }
     wanted
 }
+fn launchpad_projects(root: &Domain) -> List<u32> {
+    let pages = &root.pages;
+    let capacity = u32::try_from(DECIDED_PROJECTS).expect("decision bound fits");
+    let mut wanted = List::with_capacity(capacity);
+    if let Some(inbox) = &pages.inbox {
+        for need in pages.needs.needs(inbox, root.forge().approvals()) {
+            let project = match need {
+                super::needs::Need::Card(card) => card.project,
+                super::needs::Need::Approval(row) => Some(row.project),
+            };
+            if let Some(project) = project
+                && !wanted.as_slice().contains(&project)
+            {
+                wanted.push(project).expect("four needs' projects");
+                if wanted.len() == capacity {
+                    return wanted;
+                }
+            }
+        }
+    }
+    if let Some(me) = pages.me(root.client()) {
+        for row in &me.projects {
+            if wanted.len() == capacity {
+                break;
+            }
+            if !wanted.as_slice().contains(&row.project) {
+                wanted.push(row.project).expect("four projects");
+            }
+        }
+    }
+    wanted
+}
 /// Keep watches and task reads while their projects and rows remain on the open page.
 pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let wanted = wanted(root);
@@ -391,7 +426,9 @@ pub(crate) fn reconcile(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Re
         None => false,
     };
     let beginning = match root.pages.address {
-        Address::Home { project } => super::home::facts(root, project, env.wall).to_begin(),
+        Address::Home { project } => {
+            root.pages.left_off.is_none() && super::home::facts(root, project, env.wall).to_begin()
+        }
         Address::AllHome
         | Address::Inbox { .. }
         | Address::NewChat { .. }

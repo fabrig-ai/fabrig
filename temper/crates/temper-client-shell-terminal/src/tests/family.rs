@@ -31,6 +31,8 @@ fn an_adoption_round_trips_through_the_family_record() {
             | w::Request::FileFinding(_)
             | w::Request::HandFinding(_)
             | w::Request::TriageFinding(_)
+            | w::Request::SetDraft(_)
+            | w::Request::FollowAct(_)
             | w::Request::TryAccount(_)
             | w::Request::Dismiss(_)
             | w::Request::SetAway(_)

@@ -79,7 +79,7 @@ fn an_areas_save_tells_the_new_task_once_in_the_next_decision() {
         matches!(heard[0].kind, tasks::MessageKind::News { subscription: n, class: tasks::NewsClass::Wakes } if n == subscription)
     );
     let save = driver.transactions[before..].iter().position(|writes| writes.iter().any(|write|
-        matches!(write, Write::Save(Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Setting(row) if row.key.kind == 12 && row.key.slot == s::SettingSlot::Change)))).expect("areas commit");
+        matches!(write, Write::Save(Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Setting(row) if row.key.kind == 14 && row.key.slot == s::SettingSlot::Change)))).expect("areas commit");
     let notice = driver.transactions[before..].iter().position(|writes| writes.iter().any(|write|
         matches!(write, Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if row.number == run.task && row.inbox.iter().any(|word| word.words.starts_with(b"Findings on project 1"))))).expect("news commit");
     assert_eq!(notice, save + 1, "news in the following decision");
@@ -125,7 +125,7 @@ fn a_save_groups_both_kinds_and_cuts_ordered_numbers_with_the_omitted_count() {
     }
     settings(&mut driver, Some(area(s::AreaOwner::Task(run.task))), Some(s::AreaOwner::Task(run.task)));
     let words = ownership_news(&driver, run.task);
-    assert_eq!(words.len(), 1, "one group across kinds 12 and 13");
+    assert_eq!(words.len(), 1, "one group across kinds 14 and 15");
     let expected = format!(
         "Findings on project 1 are yours now: {}, and 18 more",
         (1..=22).map(|n| n.to_string()).collect::<Vec<_>>().join(", ")

@@ -114,9 +114,14 @@ fn open_tabs(world: &mut World<Temper, Joint>) -> (u64, ClientId, ClientId) {
         .into(),
     );
     see_live(world, home);
+    let deadline = world.now().saturating_add(fixtures::WITHIN);
+    while world.now() < deadline && !chat_whole(world, long, chat) {
+        world.run(Until::Steps(2));
+    }
+    assert!(chat_whole(world, long, chat), "the chat's whole watch set is live");
     let held = world.front().open_watches();
     let room = usize::try_from(temper_engine_domain::VIEWS.watchers).expect("watch room fits usize");
-    assert!(held >= room, "the two tabs hold the old room: {held}");
+    assert!(held >= room, "the two tabs fill one stream's room: {held}");
     (chat, home, long)
 }
 

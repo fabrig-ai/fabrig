@@ -943,9 +943,18 @@ fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, p
     b.name(name);
     b.text(Run::Plain, name);
     b.close();
-    if missing {
+    let word = if let Address::Home { .. } = root.pages().address() {
+        match temper_client_domain::pages::team::missing(root, project) {
+            temper_client_domain::pages::team::Missing::Reading => None,
+            temper_client_domain::pages::team::Missing::Deleted => Some(Word::ProjectDeleted),
+            temper_client_domain::pages::team::Missing::NotOurs => Some(Word::ProjectNotYours),
+        }
+    } else {
+        Some(Word::ProjectNotYours)
+    };
+    if missing && let Some(word) = word {
         b.open(Role::Paragraph);
-        w.text(b, Word::ProjectNotYours, &[Hole::Number(u64::from(project))]);
+        w.text(b, word, &[Hole::Number(u64::from(project))]);
         b.close();
         let chats = w.say(Word::Chats, &[]);
         crate::link(b, &chats, bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All } }));

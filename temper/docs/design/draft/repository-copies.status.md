@@ -3,7 +3,8 @@
 2026-11-11. Where the design lags or departs from [repository-copies.md](repository-copies.md).
 
 - **Design lags:**
-  - 6, 8: skein's `forge/setup/forgejo.status.md`, 2: which workflow directory Actions reads when both are there is `unchecked`, so "a fact the conformance records" does not hold yet and the starter's place in a copy stands on no run; the facts a copy relies on were recorded at Forgejo 17.0.0, and the pin is 17.0.1; the two of a missing or private source's refusal are in the conformance and not recorded yet.
+  - 6, 8: the starter-workflow and pinned migration observations remain
+    `skein/docs/design/forge/setup/forgejo.status.md`, 2.
 - **Design departs:**
   - 5.4: `../client/pages/README.md`: the welcome's sheet strips `http://` as it does `https://`, and reads `OWNER/NAME` as `github.com`'s, as the greenfield mock's does; the wire's check stays the draft's (the request of ui-welcome, 2026-11-05).
   - 7: `../client/pages/README.md`: Ready's lead says "with acme/widget in it", or "with 2 repositories in it", where the draft has "copied into it" and "and N more", and Home's lines say each copy, as the greenfield mock's do (the request of ui-welcome, 2026-11-05).

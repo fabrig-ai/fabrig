@@ -10,8 +10,8 @@ for a project's life, works in short sessions and answers to a person.
 It revises `README.md`, sections 3, 5 and 6, `lifecycle.md`, sections 2,
 6 and 9, `messages.md`, section 6, `../engine/executors.md`, section 4,
 `../engine/briefs.md`, sections 1 and 2, `../authority.md`, section 7,
-and `../../protocol/configuration.md`, section 3, which say where it
-differs. It takes up `../../draft/notes-memory.md`, section 4, for a
+`../people/acts.md`, section 1, and `../../protocol/configuration.md`,
+section 3, which say where it differs. It takes up `../../draft/notes-memory.md`, section 4, for a
 standing task's Now alone.
 
 ## 1. In one page
@@ -32,9 +32,12 @@ standing task's Now alone.
   cache keeps, its context's bound, its work closed, a waking message
   its parts don't offer, or its rules changed. The next wake starts
   fresh. An engine restart ends none.
+- **A talk** (5.6): a person opens one with their words, and the session
+  it begins stays warm while they are there; leaving ends it.
 - **Its Now** (section 6): the note described `now` in its own scope,
   written by its runs, whole in every brief, read by its project's
-  people.
+  people; each write leaves its first line in the activity, so that
+  each session's last says what it did.
 
 ## 2. A task that stands
 
@@ -161,10 +164,12 @@ standing task's Now alone.
 ### 5.2 Its ends
 
 A session's end is a pure function of its record, the wall time of the
-wake's preparation, the session's context, its charter and the kinds
-that woke it. At a wake, the first of:
+wake's preparation, the session's context, its charter, the kinds
+that woke it and its talk (5.6). At a wake, the first of:
 
-- **Quiet:** more than its quiet span (5.3) has passed since `last`.
+- **Left:** its talk has lapsed (5.6).
+- **Quiet:** more than its quiet span (5.3) has passed since `last`,
+  and no talk is open.
 - **Bound:** its context is past its bound (5.3).
 - **Unoffered:** a kind that woke it (`messages.md`, 6) is not among
   those its session offers: the always-offered, and the kinds named in the
@@ -177,14 +182,18 @@ Judged where they happen, not at a wake:
 
 - **Closed:** its run parks with its work closed: the task left idle with
   no live delegate, no question of its own still open, and no proposal of
-  its own pending. Its timers and subscriptions do not count: they are
-  standing interests, not work it started.
+  its own pending, and no talk open (5.6). Its timers and subscriptions
+  do not count: they are standing interests, not work it started.
 - **Rules:** its instructions change: a move to a newer revision of the
   settings (`../engine/settings.md`, 4), or an amendment giving or
   changing its own instructions (`changes.md`). A live run goes on, to its
   end, under the instructions it started with.
+- **Talk:** a person opens a talk (5.6), so that the talk begins a
+  session of its own. A live run goes on, to its end, as at Rules.
+- **Left:** the talk's person leaves it (5.6). A live run goes on, to its
+  end, as at Rules.
 
-Nothing else ends a session: neither a restart (5.6), nor a failure, nor
+Nothing else ends a session: neither a restart (5.5), nor a failure, nor
 a hold. Each end writes a line, `SessionEnded`, in its activity, naming
 the session by its `first` and saying which end it was.
 
@@ -235,6 +244,54 @@ the session by its `first` and saying which end it was.
   ends interrupted (`lifecycle.md`, 2), and its next attempt goes on
   within its session.
 
+### 5.6 A talk
+
+A person talking with a standing task, in the terminal or on the web:
+their words wake it, its runs answer in their ordinary text, as an Open
+run's reply is (`../hosts/charters.md`, 1), and the session stays warm
+while they are there.
+
+- **Opened by their words.** A party's `Talk` (`../people/acts.md`, 1)
+  carries words, delivered as a `Message`'s are, a person's words, always
+  offered and never batched (`messages.md`, 3 and 6). With no talk open,
+  it opens one, and ends the task's open session, if any (5.2, Talk), so
+  that the talk's first words find a session of its own: a fresh run,
+  its brief holding its rules with the parts for words, its Now whole and
+  what woke it (5.4). With that party's talk open, it carries their words
+  into it. A standing task holds one talk at a time.
+- **Its record,** kept with the task beside its session and saved with
+  each decision that changes it, `None` while no talk is open:
+  - `party`: the person talking;
+  - `opened`: the wall time of the `Talk` that opened it;
+  - `last`: the wall time of their last `Talk`.
+- **While it is open,** its session is not ended by Quiet nor by Closed
+  (5.2): the person may read and think for longer than a cache keeps, and
+  each answer leaves the task's work closed. Bound, Unoffered, Fresh and
+  Rules end it as ever; the next run starts fresh within the talk, and
+  the session it begins is the talk's.
+- **It lapses** once more than `TALK_LAPSE`, 30 minutes, has passed since
+  the later of its `last` and its session's `last` (5.1): its person has
+  gone without leaving. A lapsed talk is judged as one left: at a wake,
+  the claim ends the talk and its session (5.2, Left), and a `Talk` by
+  any party first ends a lapsed talk so, then opens its own. Nothing else
+  watches a lapse: an idle task spends nothing on it.
+- **Left by `Leave`,** from its person or a maintainer: the talk ends,
+  and its session with it (5.2, Left), in that decision. A run live then
+  goes on to its end, and writes its Now before it parks, as every run
+  does (section 6), so the session's last Now is the talk's. A `Leave`
+  while no talk is open, or by another member while one is, is refused.
+- **Refused:** a `Talk` to a task that does not stand, as no talk; one
+  while another party's talk is open and not lapsed, naming that party;
+  and words a `Message` would refuse (`messages.md`, 2), as it refuses
+  them, with nothing opened.
+- **Its lines:** `TalkOpened { party }` as it opens, and
+  `TalkEnded { party, lapsed }` as it ends, left or lapsed, each in the
+  task's activity, so that a client reads a talk as the activity between
+  them (`../engine/executors.md`, 2), its words and the runs' turns,
+  never resumed once ended.
+- **Restored with the task** (5.5): its times are wall times, so a
+  restart neither ends nor lapses it.
+
 ## 6. Its Now
 
 - **Its own note scope:** the goal scope named by its own number, as a
@@ -253,6 +310,19 @@ the session by its `first` and saying which end it was.
   `brief_core_budgets.now` (`../../protocol/configuration.md`, 3); a
   Now past it is cut there, the section saying its bytes and the bound
   so that the run shortens it, and it never fails the brief.
+- **Its period beside it:** the section says, under its title, what the
+  task has spent in the period that funds it and its budget there, as
+  `../authority.md`, section 7 keeps them: "This period: spent S of B."
+  in the deployment's unit, so that a run reports what it spent and
+  knows what is left before it starts work.
+- **Each write leaves a line.** When a standing task's run writes its
+  Now, made whole or revised, the core adds `NowWritten { attempt,
+  line }` to the task's activity in the decision that saves the note:
+  the run's attempt, and the body's first line, cut to 512 bytes at a
+  character's edge, as `Stood`'s words are. So a session's last
+  `NowWritten` says what it did, the first line being where its runs
+  say it, and a client says which session wrote the Now without reading
+  the note.
 - **Written before every park.** The section's words ask the run to
   write its Now before it parks, so that whichever run turns out to be
   its session's last has left it current. A run that writes none leaves
@@ -290,6 +360,34 @@ Each is a contract the changes that build this document share:
 - **The core's model** (`jig-domain-core`): `Model.cache_life_ms: u32`,
   read by the session's quiet span (5.3).
 
+A talk and the Now's line (5.6 and section 6) add:
+
+- **The tasks child:** `Talk { party: u64, opened: Wall, last: Wall }`
+  and `TaskRecord.talk: Option<Talk>`; `SessionEnd`'s `Talk` and `Left`;
+  the constant `TALK_LAPSE`, 30 minutes; the session's judgement taking
+  the talk, open, lapsed or none, beside its other facts; and the
+  activity lines `Line::TalkOpened { party: u64 }`,
+  `Line::TalkEnded { party: u64, lapsed: bool }` and
+  `Line::NowWritten { attempt: u64, line: Box<[u8]> }`, its line at most
+  512 bytes.
+- **The store:** the record `Talk` and its option on `TaskRecord`;
+  `SessionEnd`'s `talk` and `left`; the activity lines `talk_opened`,
+  `talk_ended` and `now_written`. Every row stored before them decodes
+  as it did, a task with no talk.
+- **The people child and the core:** the party acts `Talk { project,
+  task, words }`, answered with the words' message number as a
+  `Message` is, and `Leave { project, task }`, answered with nothing
+  but its success (`../people/acts.md`, 1); their refusals, a task that
+  does not stand, another party's talk open, naming its party, and no
+  talk of theirs to leave.
+- **The client wire** (`../../client/domain/contract/requests.md`, 2):
+  `Ask::Talk { project: u32, task: u64, words: Text }` and
+  `Ask::Leave { project: u32, task: u64 }`, offered on a standing task's
+  document to whoever may send it a `Message` (`ActKind`'s `Talk` and
+  `Leave`); the task's document's `talk: Option<{ party, opened, last }>`
+  and `session: Option<{ first, last }>`, from its record; and the
+  activity lines `talk_opened`, `talk_ended` and `now_written`.
+
 ## 8. The world
 
 Focused, in the tasks child's world and the core's (`../testing.md`):
@@ -319,7 +417,25 @@ Focused, in the tasks child's world and the core's (`../testing.md`):
 - a non-standing task under a resuming charter with parts reading its
   instructions alone;
 - its Now whole in each brief, cut past its budget saying so, none yet
-  said; a person of its project reading it.
+  said; a person of its project reading it;
+- a talk: a person's `Talk` ending a warm session and the next run
+  starting fresh with the Now in its brief; the talk's later words
+  resuming past the quiet span, and a park with its work closed ending
+  nothing while it is open; Bound or a move ending its session and the
+  next run starting fresh within the talk; `Leave` ending the talk and
+  its session at once, a live run going on to its park; a talk lapsed
+  past `TALK_LAPSE` ending at the next wake's claim as left, and a
+  second party's `Talk` refused while the first is open and admitted
+  once it has lapsed; a `Talk` to a task that does not stand and a
+  `Leave` with no talk refused; a talk restored across a restart;
+- each write of its Now adding a `NowWritten` line with its first line,
+  cut at 512 bytes; another note, or another task's `now`, adding none;
+  and its brief's Now section saying its period's spend and budget.
+
+Fuzzy, beside those below: random talks, words, leaves and wake times,
+where no session resumes past its quiet span unless a talk was open and
+unlapsed at that wake, and every talk's `TalkOpened` has one
+`TalkEnded` once it ends.
 
 Fuzzy: random wake times and restarts, where no run resumes past its
 quiet span and every fresh run of an open task follows a `SessionEnded`
@@ -339,3 +455,6 @@ accounting referee).
   of the transcript's bytes.
 - **A standing task requested by a task,** so that one standing task may
   hand work to another.
+- **A talk's lapse,** `TALK_LAPSE`, 30 minutes, set from the first
+  talks' numbers; and whether a talk may hold two people at once, where
+  one talk at a time is refused to the second today (5.6).
