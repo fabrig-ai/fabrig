@@ -11,7 +11,6 @@
 
 - **Not yet:** "A resolution", its "It waits for its producer": a conflict met while a task that pushes the change's branch still lives is resolved at once, its pull pinned at the last head the change knew, so a push by that task fails every attempt of the resolution's brief, `the change's head moved` (`temper-engine-domain-forge-change/src/domain.rs`, `conflict_due`; `temper-engine-domain/src/assemble.rs`, `finish_brief_plan`) [in flight: change 37].
 
-- **Not yet:** "A pull section is pinned at the change's head", a resolution's read, "A resolution's moved head" and "A brief section's read that fails", its resolution row: a resolution's pull at a head another writer moved counts as capacity, and its change at resolving neither takes that head nor ends the resolution, so every try of its brief fails the same read at the same pin without bound, each taking a brief slot (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`; `temper-engine-domain-forge-change/src/domain.rs`, `advance`, `resolving`) [in flight: change 1566].
 
 - **Not yet:**
   - the whole document: the request-to-repair fuzzy coverage remains `gates.status.md`, 1.
