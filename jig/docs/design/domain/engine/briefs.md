@@ -190,8 +190,10 @@ prefers. The notes child domain knows scopes, entries and indexes:
 - **Whole, or by a line range.** A call writes a body whole, or, naming an
   entry and the revision it read, replaces a range of that body's lines:
   `first`, 1-based, and `remove`, a count of lines, 0 to insert, its body the
-  text that takes their place. An append is `first` the body's lines + 1 and
-  `remove` 0. Lines count as the answer's do, below. A newline is added only
+  text that takes their place. An append is `remove` 0 and `first` past the
+  body's last line: the body's lines + 1, or any line beyond it, which writes
+  at the end as the body's lines + 1 does, and is answered as that write is,
+  its `first` the line it changed. Lines count as the answer's do, below. A newline is added only
   where two lines would otherwise join, and nothing else of the body or the text
   changes, so a body with no final newline keeps none unless a line follows it.
   With `join: true`, the replacement continues the line before `first` without
@@ -204,7 +206,8 @@ prefers. The notes child domain knows scopes, entries and indexes:
 - **Stored whole.** A revision stores the resulting body, so that a reader, a
   client and `recall` see no parts, and a revision is a body as any other.
 - **Refusals say what to do next,** and each leaves the note as it was: moved
-  says the entry's revision; a range past the end says the body's lines; a
+  says the entry's revision; a `first` of 0, or a range that removes lines
+  past the end, says the body's lines; a
   result past `notes.body_bytes` says its bytes and the bound.
 - **Its answer says what changed.** A write answered carries, beside the
   note's name and revision, `lines`, the new body's lines, and, from the
