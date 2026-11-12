@@ -9,6 +9,7 @@ fn plan() -> Plan {
             scratch: "/scratch".into(),
             scripts: vec!["/build/one.script".into(), "/build/two.script".into()],
             strict: true,
+            ports: None,
         },
         "/browser/chromium".into(),
         OsStr::new("/bin"),
@@ -354,6 +355,7 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
         scratch: root.into(),
         scripts: vec![],
         strict: false,
+        ports: None,
     };
     let why = super::options::prepare(options.clone(), &[]).expect_err("missing binary before any process");
     assert!(why.contains("temper-box"));

@@ -119,22 +119,30 @@ pub struct PassStart {
 }
 
 impl Ledger {
+    fn takeable_build(&self, surfaces: &[String]) -> Option<&crate::Build> {
+        self.builds.iter().filter(|build| {
+            self.reached(build) && build.held.is_none() && build.order.is_some()
+                && self.cases.iter().any(|case| eligible(case, build, surfaces))
+        }).max_by_key(|build| build.order)
+    }
+
+    /// Called after the loop's resumes and starts (qa/ledger.md, 4.17).
+    pub fn update_place_wait(&mut self, surfaces: &[String], free: bool, now: u64) {
+        let pending = self.takeable_build(surfaces).is_some();
+        if let Some(wait) = self.place_waits.last_mut().filter(|wait| wait.to.is_none()) {
+            if !pending {
+                wait.to = Some(now);
+            }
+        } else if pending && !free {
+            self.place_waits.push(crate::PlaceWait { from: now, to: None });
+        }
+    }
+
     pub fn start_pass(&mut self, place: &str, surfaces: &[String], effort: &str, now: u64) -> Option<PassStart> {
         if self.passes.iter().any(|pass| pass.state == PassState::Running && pass.place == place) {
             return None;
         }
-        let build = self
-            .builds
-            .iter()
-            .filter(|build| {
-                self.reached(build)
-                    && build.held.is_none()
-                    && build.order.is_some()
-                    && self.cases.iter().any(|case| eligible(case, build, surfaces))
-            })
-            .max_by_key(|build| build.order)?
-            .commit
-            .clone();
+        let build = self.takeable_build(surfaces)?.commit.clone();
         let number = next_number(self.passes.iter().map(|pass| pass.number));
         self.passes.push(Pass {
             number,

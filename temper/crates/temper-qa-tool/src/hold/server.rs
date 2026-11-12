@@ -79,6 +79,9 @@ impl Holder {
             for script in scripts {
                 command.arg("--scripts").arg(script);
             }
+            if let Some(ports) = &drive.place.ports {
+                command.args(["--ports", ports]);
+            }
             let child = command
                 .arg("--strict")
                 .stdin(Stdio::from(OwnedFd::from(child_input)))
