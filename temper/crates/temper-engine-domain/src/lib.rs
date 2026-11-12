@@ -51,7 +51,7 @@ pub use limits::{
 };
 pub use link::{inbox_sender, inbox_words};
 pub use route::{
-    Approval, ForgePerson, Freshness, Gate, HostDelivery, HostRequest, LandingRule, OfferedModel, PersonForge,
+    Approval, AskHow, ForgePerson, Freshness, Gate, HostDelivery, HostRequest, LandingRule, OfferedModel, PersonForge,
     ProjectPerson, RepositoryIdentity, SeeAnswer, SeeLanding, SeeName, SeeNames, SeeNotRead, SeePerson, SeeProposal,
     SeeRead, SeeRepository, SeeSettings, SeeWords, adopt_repository_ask,
 };
