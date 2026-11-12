@@ -163,7 +163,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Party(crate::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
             domain.kinds = kinds;
-            match room_refusal(domain.host_part, &change.items) {
+            match room_refusal(domain, &change.items) {
                 Some(why) => {
                     let request = Request::Party(crate::PartyRequest::Deliver(Delivery::WebReply {
                         to: reply_to,
@@ -185,7 +185,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
         }
         Event::Party(crate::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
             domain.kinds = kinds;
-            match room_refusal(domain.host_part, &change.items) {
+            match room_refusal(domain, &change.items) {
                 Some(why) => {
                     let request = Request::Party(crate::PartyRequest::Deliver(Delivery::WebReply {
                         to: reply_to,
@@ -425,11 +425,16 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
         let Some(work) = domain.work.pop() else { break };
         match work {
             Work::StartDone(phase) => {
-                if phase == core::start::Phase::LoadCore
-                    && let Err(short) = domain.check_room()
-                {
-                    domain.stop_start(crate::StartStop::Room(short));
-                    return;
+                if phase == core::start::Phase::LoadCore {
+                    // Rebuild current charters over the restored settings before judging their room.
+                    if !domain.core.settings_restored(&environment_core(env)) {
+                        domain.stop_core();
+                        return;
+                    }
+                    if let Err(short) = domain.check_room() {
+                        domain.stop_start(crate::StartStop::Room(short));
+                        return;
+                    }
                 }
                 let mut output = Queue::uncapped();
                 let action = domain.core.start_done(&environment_core(env), phase, &mut output);
@@ -740,20 +745,35 @@ pub(crate) fn refuse_forge_fit(domain: &mut Domain) -> bool {
 /// Only charter values set at an entrance are checked; resets and stored
 /// proposal acceptances retain their admitted values (temper/docs/design/domain/agent/tools.md).
 pub(crate) fn room_refusal(
-    host: Option<crate::room::HostPart>,
+    domain: &Domain,
     items: &[core::settings::Item],
 ) -> Option<people::Refusal> {
-    let host = host?;
+    use core::settings::{Edit, Setting, Value};
+    let host = domain.host_part?;
     for (index, item) in items.iter().enumerate() {
-        if let core::settings::Setting::Charter(number) = item.setting
-            && let core::settings::Edit::Set(core::settings::Value::Charter(charter)) = &item.edit
-            && let Err(short) = host.check(number, &charter.policy)
+        if let Setting::Charter(_) = item.setting
+            && let Edit::Set(value) = &item.edit
         {
-            return Some(people::Refusal::Judged {
-                at: u32::try_from(index).expect("bounded settings items"),
-                setting: item.setting,
-                why: short.words(),
-            });
+            let made;
+            let charter = match value {
+                Value::Charter(charter) => charter,
+                Value::Overlay(overlay) => {
+                    let Some(default) = domain.core.current.default_value(item.setting).and_then(Value::as_charter) else {
+                        // Jig refuses an overlay without a default as reference.
+                        continue;
+                    };
+                    made = core::settings::overlaid(default, overlay);
+                    &made
+                }
+                Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => continue,
+            };
+            if let Err(short) = host.check(charter) {
+                return Some(people::Refusal::Judged {
+                    at: u32::try_from(index).expect("bounded settings items"),
+                    setting: item.setting,
+                    why: short.words(),
+                });
+            }
         }
     }
     None

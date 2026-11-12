@@ -46,7 +46,7 @@ fn parts(bytes: u32) -> Box<[core::CharterPart]> {
 fn overlay(instructions: u32, part: Option<u32>) -> settings::Overlay {
     let mut overlay = settings::Overlay::empty();
     overlay.instructions = super::bytes(instructions);
-    overlay.parts = part.map_or_else(|| Box::new([]) as Box<[_]>, parts);
+    overlay.parts = match part { Some(bytes) => parts(bytes), None => Box::new([]) };
     overlay.shell = Some(false);
     overlay
 }
@@ -55,6 +55,7 @@ fn overlay_items(overlay: settings::Overlay) -> Box<[Item]> {
     Box::new([Item { setting: Setting::Charter(CHARTER), edit: Edit::Set(Value::Overlay(Box::new(overlay))) }])
 }
 
+#[expect(clippy::wildcard_enum_match_arm, reason = "the fixture replaces items at the two party settings entrances")]
 fn with_items(input: PartyInput, items: Box<[Item]>) -> PartyInput {
     match input {
         PartyInput::ChangeSettings { reply_to, sign_in, key, digest, kinds, mut change } => {
@@ -119,9 +120,9 @@ fn a_partys_change_counts_every_part() {
     // Instructions alone leave 4,000 bytes; the part and its blank line leave 998.
     let host = crate::room::HostPart { bound: 5_001, ..HOST };
     let mut charter = short_charter();
-    let item = |charter| Box::new([Item {
-        setting: Setting::Charter(CHARTER), edit: Edit::Set(Value::Charter(Box::new(charter))),
-    }]) as Box<[_]>;
+    fn item(charter: crate::Charter) -> Box<[Item]> {
+        Box::new([Item { setting: Setting::Charter(CHARTER), edit: Edit::Set(Value::Charter(Box::new(charter))) }])
+    }
     let (mut root, env) = owner_root();
     root.host_part = Some(host);
     charter.parts = parts(3_000);
@@ -158,7 +159,7 @@ fn party_settings_judge_overlays_over_the_default() {
                     at: 0, setting: Setting::Charter(CHARTER), why: WORDS.into(),
                 }));
             } else if propose {
-                assert!(matches!(reply, people::Reply::Outcome(people::Outcome::Proposed { .. })), "{reply:?}");
+                let people::Reply::Outcome(people::Outcome::Proposed { .. }) = reply else { panic!("{reply:?}") }; 
             } else {
                 assert_eq!(reply, people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 }));
             }
@@ -177,7 +178,7 @@ fn a_stored_overlay_is_judged_over_the_new_default_after_restore() {
     old_default.policy.instructions = Box::new([]);
     let old = settings::overlaid(&old_default, &overlay);
     // Under the old default the overlay left more than the brief floor.
-    assert!(HOST.room(&old.policy) >= crate::room::BRIEF_ROOM);
+    assert!(HOST.room(&old) >= crate::room::BRIEF_ROOM);
     crate::restart::restore_page_row(&mut root, &env, crate::Record::Core(core::Record::Core(
         core::CoreRecord::Settings(settings::Record::Changed {
             setting: Setting::Charter(CHARTER),
@@ -370,9 +371,9 @@ fn a_runs_proposal_judges_overlays_over_the_default() {
             };
             assert_eq!(call.answer, core::SettledAnswer::Host { error: true, body: WORDS.into() });
         } else {
-            assert!(matches!(root.work.pop(), Some(crate::Work::Core(core::Event::NamedAction {
+            let Some(crate::Work::Core(core::Event::NamedAction {
                 action: core::NamedAction::ProposeSettings { .. }, ..
-            }))), "the fitting overlay reaches jig");
+            })) = root.work.pop() else { panic!("the fitting overlay reaches jig") };
         }
         assert!(root.work.is_empty());
     }

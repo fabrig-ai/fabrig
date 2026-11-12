@@ -668,7 +668,7 @@ impl Domain {
             if let jig_domain_core::settings::Setting::Charter(number) = setting
                 && let Some(charter) = self.core.current.charter(number)
             {
-                host.check(number, &charter.policy)?;
+                host.check(charter)?;
             }
         }
         Ok(())
