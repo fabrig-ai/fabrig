@@ -611,7 +611,7 @@ mod startup;
 pub use startup::*;
 pub use temper_worker_service_fixtures::agent;
 pub use worker::{
-    AGENT_JSON, NOW, PINNED_AGENT_JSON, PINNED_TEMPER, TEMPER, assignment as worker_assignment, chat_assignment,
+    AGENT_JSON, NOW, PINNED_AGENT_JSON, PINNED_TEMPER, assignment as worker_assignment, chat_assignment,
     one_repository, pinned_agent, spawn, worker,
 };
 
