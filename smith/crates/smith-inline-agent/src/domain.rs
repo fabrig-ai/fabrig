@@ -260,6 +260,7 @@ fn spawn(agent: &mut Domain, env: &Env<Limits>, client: Token, start: host::Star
 }
 
 /// Handle one command in the shared agent parent vocabulary.
+#[expect(clippy::too_many_lines, reason = "each parent control has one typed route to its live root")]
 fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mut Queue<Output>) {
     match event {
         parent::Event::Spawn { client, start } => spawn(agent, env, client, start, out),
