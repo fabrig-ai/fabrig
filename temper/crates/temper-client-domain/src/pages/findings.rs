@@ -350,6 +350,7 @@ impl needs::Session {
         for need in &existing {
             rows.push(Need::Existing(*need)).expect("needs fit");
         }
+        let existing_count = rows.len();
         if inbox.filter.goal.is_none() && (inbox.filter.kind.is_none() || inbox.filter.kind == Some(Kind::Finding)) {
             for card in &self.findings.cards() {
                 if inbox.filter.project.is_none() || inbox.filter.project == Some(card.id.project) {
@@ -357,7 +358,11 @@ impl needs::Session {
                 }
             }
         }
-        // The browser list is oldest wait first, with Later marks last.
+        if rows.len() == existing_count {
+            return rows.into_boxed();
+        }
+        // A mixed finding feed is oldest wait first, with Later marks last.
+        // With no findings, the inbox and approvals keep their own ordering.
         for index in 1..rows.len() {
             let mut at = index;
             while at > 0 {
