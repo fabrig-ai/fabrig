@@ -285,8 +285,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         );
     } else if let temper_client_domain::Address::Changes { project } = root.pages().address() {
         crate::pages::changes::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
-    } else if let temper_client_domain::Address::Team { project } = root.pages().address() {
-        crate::pages::team::main(&mut builder, root, &view.forge_words, *project, times.now);
+    } else if let temper_client_domain::Address::Team { project, .. } = root.pages().address() {
+        crate::pages::team::main(&mut builder, root, &view.forge_words, *project, &mut view.pages, &mut times);
     } else if let temper_client_domain::Address::AllHome = root.pages().address() {
         crate::pages::all_home::main(&mut builder, root, &view.forge_words, &mut view.pages, &mut times, view.rows);
     } else if let temper_client_domain::Address::Home { project } = root.pages().address() {

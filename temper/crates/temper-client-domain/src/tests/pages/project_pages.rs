@@ -270,7 +270,7 @@ fn choosing_a_project_keeps_the_builders_tab_or_team() {
     me.projects.get_mut(1).expect("chosen project").project = CHOSEN;
     for (address, expected) in [
         (Address::Builders { project: OPEN }, Address::Builders { project: CHOSEN }),
-        (Address::Team { project: OPEN }, Address::Team { project: CHOSEN }),
+        (Address::Team { project: OPEN, role: None }, Address::Team { project: CHOSEN, role: None }),
     ] {
         let mut f = fixture();
         deliver(&mut f, me.clone());
