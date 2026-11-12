@@ -23,6 +23,8 @@ pub const TIER: u8 = 28;
 pub const VERIFICATION: u8 = 29;
 /// Retained landings per repository (protocol/store.md, 2).
 pub const LANDING_LOG: u8 = 30;
+/// Findings (protocol/store.md, 2).
+pub const FINDING: u8 = 31;
 /// Repositories being made (temper/docs/design/protocol/store.md, 2).
 pub const MAKING: u8 = 35;
 /// A person's dismissals (temper/docs/design/protocol/store.md, 2).
@@ -239,6 +241,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
         forge::Key::Away { party, project } => {
             writer.tag(AWAY).u64(*party).u64(u64::from(*project));
         }
+        forge::Key::Finding { project, number } => {
+            writer.tag(FINDING).u64(u64::from(*project)).u64(u64::from(*number));
+        }
         forge::Key::Decided { project, number } => {
             writer.tag(DECIDED).u64(u64::from(*project)).u64(u64::from(*number));
         }
@@ -361,6 +366,10 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
         }),
         PROJECT_FACTS => forge::Key::ProjectFacts { project: u32::try_from(reader.u64()?).ok()? },
         AWAY => forge::Key::Away { party: reader.u64()?, project: u32::try_from(reader.u64()?).ok()? },
+        FINDING => forge::Key::Finding {
+            project: u32::try_from(reader.u64()?).ok()?,
+            number: u32::try_from(reader.u64()?).ok()?,
+        },
         DECIDED => forge::Key::Decided {
             project: u32::try_from(reader.u64()?).ok()?,
             number: u32::try_from(reader.u64()?).ok()?,
@@ -443,6 +452,9 @@ fn read_branch(reader: &mut KeyReader<'_>, limits: &forge::Limits) -> Option<Box
 }
 fn write_topic(writer: &mut KeyWriter, topic: &forge::Topic) {
     match topic {
+        forge::Topic::Findings { project } => {
+            writer.tag(4).u64(u64::from(*project));
+        }
         forge::Topic::Landings { repository, branch } => {
             writer.tag(0);
             write_repository(writer, *repository);
@@ -467,6 +479,9 @@ fn write_topic(writer: &mut KeyWriter, topic: &forge::Topic) {
 }
 fn read_topic(reader: &mut KeyReader<'_>, limits: &forge::Limits) -> Option<forge::Topic> {
     let tag = reader.tag()?;
+    if tag == 4 {
+        return Some(forge::Topic::Findings { project: u32::try_from(reader.u64()?).ok()? });
+    }
     let repository = read_repository(reader)?;
     match tag {
         0 => Some(forge::Topic::Landings { repository, branch: read_branch(reader, limits)? }),

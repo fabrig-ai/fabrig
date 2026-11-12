@@ -14,6 +14,7 @@ mod completed_reads;
 mod connect;
 mod dismissed;
 mod early;
+mod findings;
 pub(crate) mod fixtures;
 mod flight;
 mod forge_user;
@@ -117,6 +118,7 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
     roles: 4,
