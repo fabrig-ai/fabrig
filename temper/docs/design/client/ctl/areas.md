@@ -129,17 +129,41 @@ The table grows area by area, each with its stories (`testing.md`).
    answer reaches it for replay even after the task ends. The numbered
    question form of `tools.md`, 3 keeps its separate question read and answer.
 
-   An answer past what its contract asks, a report's words or the
-   reason of the choice it names, reaches the engine and is refused as
-   past its contract (exit 2). The act's read gave the contract, so the
-   refusal names the bound: `task answer: Limit reached: task 44's reason
-   for choice 1 is at most 128 bytes`, or `task 44's words are at most 128
-   bytes`, and JSON's `bound` beside the refusal. The same refusal for any
-   other cause (a choice the contract lacks, an answer of another form, a
-   `--cannot` or an `--approve` past the deployment's result bound) has no
-   bound the task asks for, and prints as it is; so does a restored
-   request, which read nothing. TEXT's bound in the tool's line is the most
-   any call takes: the tool's notes say a person task may ask for less.
+   An answer its contract does not take reaches the engine and is
+   refused as past its contract (exit 2): the client checks nothing
+   first, since a keyed answer must reach the engine for its replay.
+   The act's read gave the contract, so after jig's words the refusal
+   says what the task takes:
+
+   - **Past its bound,** a report's words or the reason of the choice it
+     names: `task answer: Limit reached: task 44's reason for choice 1
+     is at most 128 bytes`, or `task 44's words are at most 128 bytes`;
+     JSON's `bound`.
+   - **A choice for a task that takes words:** `task answer: Limit
+     reached: task 44 takes words, at most 4096 bytes, not a choice`,
+     then the line `answer instead: task answer 44 --rev 3 TEXT`, REV
+     the call's own; JSON's `takes` (`"words"`), `bound` and
+     `answer_instead`, that call as a string.
+   - **A choice for a task that takes an approval:** `task answer: Limit
+     reached: task 44 takes an approval, not a choice`, then `answer
+     instead: task answer 44 --rev 3 --approve STATE [TEXT]`; JSON's
+     `takes` (`"approval"`) and `answer_instead`.
+   - **A choice the contract lacks,** its choices read whole (not cut)
+     and at least one: `task answer: Limit reached: task 44 has no
+     choice 2; its choices are 1, 3`, the codes in the read's order,
+     comma-separated; JSON's `choices`, an array of those codes.
+
+   The `answer instead:` call names no key: the refused answer's key
+   replays its refusal. JSON's keys sit beside the refusal, as
+   `read_again` does. The same refusal for any other cause has nothing
+   the task asks for, and prints as it is: an answer within its bounds,
+   words or an approval for a task with choices, a choice its read's cut
+   choices lack, a choice for a change's or a job's contract, a
+   `--cannot` or an `--approve` past the deployment's result bound; so
+   does a restored request, which read nothing. TEXT's bound in the
+   tool's line is the most any call takes: the tool's notes say a person
+   task may ask for less, and that CHOICE answers only a task with
+   choices, a task that takes words being answered with TEXT alone.
 
 4. **jig's plumbing whole:** `create`, `propose`, `compound --project
    PROJECT FILE`, a batch, a proposal or a compound request as JSON
