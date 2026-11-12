@@ -1,5 +1,5 @@
 //! The job capability beside smith and the checkout: routing and translation
-//! only (temper/docs/design/domain/worker.md, 4.4).
+//! and temper's own one-member prepare (temper/docs/design/domain/worker.md, 4.4).
 
 mod prepare;
 
@@ -15,7 +15,7 @@ use crate::{Domain, Limits, Request, route, tooling, wire};
 #[derive(Debug)]
 pub(crate) struct Spec {
     title: Box<[u8]>,
-    own: Option<prepare::Request>,
+    own: Option<Box<prepare::Request>>,
     result: Option<(Box<[u8]>, u8)>,
     value: Option<Result<wire::JobSpec, wire::Undecodable>>,
 }
@@ -67,9 +67,13 @@ pub(crate) fn assign(
     }
     let own = match &spec {
         Ok(spec) if job.kind == JobKind(1) && spec.command.is_empty() => {
-            let Some(request) = prepare::decode(&spec.request) else { return refuse(domain, run, attempt, b"prepare request", env, out); };
-            if !prepare::check(&request, &items) { return refuse(domain, run, attempt, b"prepare items", env, out); }
-            Some(request)
+            let Some(request) = prepare::decode(&spec.request) else {
+                return refuse(domain, run, attempt, b"prepare request", env, out);
+            };
+            if !prepare::check(&request, &items, &env.limits) {
+                return refuse(domain, run, attempt, b"prepare items", env, out);
+            }
+            Some(Box::new(request))
         }
         Ok(_) if job.kind == JobKind(1) => return refuse(domain, run, attempt, b"prepare command", env, out),
         Ok(_) | Err(wire::Undecodable) => None,
@@ -123,7 +127,9 @@ pub(crate) fn run(
     let spec = domain.job_specs.get_mut(&(hosting.run, hosting.attempt)).expect("an admitted job has a staged spec");
     let own = spec.own.is_some();
     let result = spec.result.take();
-    if own && result.is_none() { return start_refused(domain, env, owner, b"prepare result"); }
+    if own && result.is_none() {
+        return start_refused(domain, env, owner, b"prepare result");
+    }
     let spec = spec.value.take().expect("a job starts once");
     let spec = match spec {
         Ok(spec) => spec,
@@ -414,5 +420,6 @@ pub(crate) fn candidate(domain: &mut Domain, owner: Token, outcome: &crate::chec
     let hosting = domain.host.hosting(owner).expect("a job prepared a candidate");
     let job = domain.job_specs.get_mut(&(hosting.run, hosting.attempt)).expect("own request lives through preparation");
     let request = job.own.as_ref().expect("a candidate belongs to temper's prepare");
-    job.result = Some(prepare::result(request.member, outcome, 4_096).expect("an empty conflict result fits the prepare bound"));
+    job.result =
+        Some(prepare::result(request.member, outcome, 4_096).expect("an empty conflict result fits the prepare bound"));
 }

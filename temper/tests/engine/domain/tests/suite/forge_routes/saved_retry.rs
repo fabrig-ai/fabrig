@@ -60,6 +60,12 @@ impl Remote for Git<'_> {
             raw::Created::Exists => Created::Exists,
         })
     }
+    fn push_new(&mut self, _: &[u8], branch: &[u8], commit: u64) -> Result<Option<u64>, Fault> {
+        let raw::Answer::PushNew { existing } = self.call(raw::Git::PushNew { branch: branch.into(), commit }) else {
+            panic!("push-new")
+        };
+        Ok(existing)
+    }
     fn push(&mut self, _: &[u8], branch: &[u8], commit: u64, expected: Option<u64>) -> Result<Pushed, Fault> {
         let raw::Answer::Pushed(pushed) = self.call(raw::Git::Push { branch: branch.into(), commit, expected }) else {
             panic!("push")
@@ -153,7 +159,9 @@ impl Workspace {
     fn prepare(&mut self, world: &mut World, run: &engine::Assignment) -> Token {
         let repository = &run.workspace.repositories[0];
         let start = match &repository.start {
-            engine::ForgeStart::Commit(commit) => checkout::Start::Commit { commit: checkout::git::Commit::new(*commit) },
+            engine::ForgeStart::Commit(commit) => {
+                checkout::Start::Commit { commit: checkout::git::Commit::new(*commit) }
+            }
             engine::ForgeStart::Base(branch) => checkout::Start::Base { branch: branch.clone() },
             engine::ForgeStart::Branch(branch) => checkout::Start::Branch { branch: branch.clone() },
             engine::ForgeStart::Saved(branch) => checkout::Start::Saved { branch: branch.clone() },

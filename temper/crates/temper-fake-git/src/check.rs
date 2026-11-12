@@ -228,8 +228,8 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::Origin { .. }
         | Command::DiffPaths { .. }
         | Command::MergeBases { .. }
-            | Command::BringsList { .. }
-            | Command::IsAncestor { .. } => None,
+        | Command::BringsList { .. }
+        | Command::IsAncestor { .. } => None,
     }
 }
 fn parse(args: &[&[u8]]) -> Option<Command> {
@@ -330,13 +330,19 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             parent: invocation::object(parent)?,
             merging: Some(invocation::object(second)?),
         },
-        [b"merge-base", b"--all", head, upstream] => Command::MergeBases { head: invocation::object(head)?, upstream: invocation::object(upstream)? },
+        [b"merge-base", b"--all", head, upstream] => {
+            Command::MergeBases { head: invocation::object(head)?, upstream: invocation::object(upstream)? }
+        }
         [b"rev-list", b"--max-count=1", rest @ .., b"--"] => {
             let (base, bases) = rest.split_last()?;
             let base = invocation::object(base.strip_prefix(b"^")?)?;
             let mut ids = Vec::new();
-            for id in bases { ids.push(invocation::object(id)?); }
-            if ids.is_empty() { return None; }
+            for id in bases {
+                ids.push(invocation::object(id)?);
+            }
+            if ids.is_empty() {
+                return None;
+            }
             Command::BringsList { bases: ids.into(), base }
         }
         [b"merge-base", b"--is-ancestor", old, commit] => {

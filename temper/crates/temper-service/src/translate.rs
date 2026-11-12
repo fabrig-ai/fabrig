@@ -93,7 +93,9 @@ fn repository_item(
 }
 fn start(start: &engine::ForgeStart, limits: &v1::Limits) -> Result<v1::Start, v1::Problem> {
     Ok(match start {
-        engine::ForgeStart::Commit(commit) => v1::Start::Commit(v1::Commit::new(limits, v1::CommitParts { commit: *commit })?),
+        engine::ForgeStart::Commit(commit) => {
+            v1::Start::Commit(v1::Commit::new(limits, v1::CommitParts { commit: *commit })?)
+        }
         engine::ForgeStart::Base(branch) => {
             v1::Start::Base(v1::Branch::new(limits, v1::BranchParts { branch: branch.clone() })?)
         }

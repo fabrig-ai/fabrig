@@ -448,7 +448,9 @@ impl Domain {
         let mut merge_kind = None;
         let mut close_kind = None;
         for bound in &config.core.jobs {
-            if bound.kind.0 == forge::PREPARE_KIND { prepare_kind = Some(*bound); }
+            if bound.kind.0 == forge::PREPARE_KIND {
+                prepare_kind = Some(*bound);
+            }
             if bound.kind.0 == forge::CLOSE_KIND {
                 close_kind = Some(*bound);
             }

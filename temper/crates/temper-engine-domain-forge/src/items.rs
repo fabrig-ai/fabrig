@@ -58,19 +58,37 @@ type CheckoutSelection = (Start, Option<Box<[u8]>>, Option<u64>, Option<Box<[u8]
 impl Domain {
     /// One landing job's repository and new writable branch (worker.md, 4.4).
     #[must_use]
-    pub fn prepare_item(&self, provider: api::Repository, branch: Box<[u8]>, base: api::Commit, holder: u64) -> Option<Item> {
+    pub fn prepare_item(
+        &self,
+        provider: api::Repository,
+        branch: Box<[u8]>,
+        base: api::Commit,
+        holder: u64,
+    ) -> Option<Item> {
         let repository = self.repository(provider)?;
         let credential = match self.records.get(&provider.forge) {
             Some(record) => Some(u32::from(record.number)),
             None => self.identities.get(&provider.forge).copied(),
         };
-        let bytes = u64::try_from(size_of::<Item>()).ok()?
+        let bytes = u64::try_from(size_of::<Item>())
+            .ok()?
             .checked_add(skein_lib::len_u64(repository.name.len()))?
             .checked_add(skein_lib::len_u64(repository.host.len()))?
             .checked_add(skein_lib::len_u64(repository.owner.len()))?
             .checked_add(skein_lib::len_u64(branch.len()))?;
-        Some(Item { delivers: false, provider, name: repository.name.clone(), host: repository.host.clone(), owner: repository.owner.clone(),
-            start: Start::Commit(base), push: Some(branch), landing: None, holder: Some(holder), credential, bytes })
+        Some(Item {
+            delivers: false,
+            provider,
+            name: repository.name.clone(),
+            host: repository.host.clone(),
+            owner: repository.owner.clone(),
+            start: Start::Commit(base),
+            push: Some(branch),
+            landing: None,
+            holder: Some(holder),
+            credential,
+            bytes,
+        })
     }
 
     /// The project's context repositories are added to every checkout read-only.
@@ -232,9 +250,12 @@ impl Domain {
             None if delivers && push.is_some() => selected_landing,
             None => match &start {
                 Start::Merge { .. } if push.is_some() => selected_landing,
-                Start::Commit(_) | Start::Base(_) | Start::Branch(_) | Start::Saved(_) | Start::Merge { .. } | Start::Merged { .. } => {
-                    None
-                }
+                Start::Commit(_)
+                | Start::Base(_)
+                | Start::Branch(_)
+                | Start::Saved(_)
+                | Start::Merge { .. }
+                | Start::Merged { .. } => None,
             },
         };
         let name = repository.name.clone();

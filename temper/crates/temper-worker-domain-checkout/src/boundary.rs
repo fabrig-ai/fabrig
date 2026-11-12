@@ -143,10 +143,22 @@ pub enum Start {
     /// in progress. The next commit records both parents even if unchanged.
     Merge { branch: Box<[u8]>, base: Commit },
     /// A one-member landing, combined during preparation (worker.md, 4.4).
-    Prepare { base: Commit, head: Commit, upstream: Option<Commit>, squash: bool, message: Message, squash_message: Message },
+    Prepare { request: Box<CandidateSpec> },
     /// The tip of a base branch with each head merged into it in order, each
     /// merge committed (domain/worker.md, section 5).
     Merged { branch: Box<[u8]>, heads: Box<[Commit]> },
+}
+
+/// A one-member merge train's frozen inputs (worker.md, 4.4). Boxed only
+/// for prepares, so other checkout starts do not carry its messages.
+#[derive(PartialEq, Eq, Debug)]
+pub struct CandidateSpec {
+    pub base: Commit,
+    pub head: Commit,
+    pub upstream: Option<Commit>,
+    pub squash: bool,
+    pub message: Message,
+    pub squash_message: Message,
 }
 
 /// A commit's message.

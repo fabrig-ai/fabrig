@@ -394,6 +394,34 @@ fn git_branch_moves_share_the_domain() {
         Ok(api::Answer::Commit(SECOND))
     );
 }
+#[test]
+fn git_push_new_uploads_and_reports_the_atomic_existing_head() {
+    let mut h = fixtures::Harness::new(fixtures::config());
+    assert!(Name::PushNew.repository() && Name::PushNew.writes());
+    let commit = Call::CommitTree { parent: FIRST, merging: None, tree: tree(), message: boxed(b"candidate") };
+    ask(&mut h, &commit);
+    let Answer::Stored(Some(candidate)) = answer(&h, commit.name()) else { panic!("stored candidate") };
+    let call = Call::PushNew { repository: boxed(b"org/repo"), branch: boxed(b"landing"), commit: candidate };
+    let encoded = client::encode(&call, &h.env.limits.git()).expect("new route");
+    assert_eq!(encoded.target.as_ref(), b"/.fake/git/push-new");
+    ask(&mut h, &call);
+    assert_eq!(h.body().as_ref(), br#"{"existing":null}"#);
+    assert_eq!(answer(&h, Name::PushNew), Answer::PushNew { existing: None });
+    ask(&mut h, &call);
+    assert_eq!(answer(&h, Name::PushNew), Answer::PushNew { existing: Some(candidate) });
+    let other = Call::CommitTree { parent: candidate, merging: None, tree: tree(), message: boxed(b"another") };
+    ask(&mut h, &other);
+    let Answer::Stored(Some(other)) = answer(&h, other.name()) else { panic!("stored other") };
+    let call = Call::PushNew { repository: boxed(b"org/repo"), branch: boxed(b"landing"), commit: other };
+    ask(&mut h, &call);
+    assert_eq!(answer(&h, Name::PushNew), Answer::PushNew { existing: Some(candidate) });
+    assert_eq!(
+        h.domain.inspect(&h.fake_env.limits, b"org/repo", &api::Read::Branch { branch: boxed(b"landing") }),
+        Ok(api::Answer::Commit(candidate))
+    );
+    assert!(!h.domain.has(b"org/repo").contains(&other));
+}
+
 fn route_calls() -> [Call; 10] {
     [
         Call::Clone { repository: boxed(b"org/repo") },

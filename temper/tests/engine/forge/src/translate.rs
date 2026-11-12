@@ -419,6 +419,7 @@ pub fn answer_as(
         | forge::Answer::Jobs(_)
         | forge::Answer::Comments(_)
         | forge::Answer::Pulls(_)
+        | forge::Answer::PushNew { .. }
         | forge::Answer::Pushed(_) => panic!("new client does not ask these fake routes"),
     }
 }

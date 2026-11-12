@@ -5,7 +5,7 @@
 
 use skein_lib::Token;
 use temper_fake_checkout::Checkout;
-use temper_fake_checkout::git::{self, Created, Pushed, Remote, What};
+use temper_fake_checkout::git::{self, Pushed, Remote, What};
 use temper_worker_domain_checkout::git::{Commit, Done, Fault, Missing, Op, Place, Want};
 
 /// The domain's name for the fake's commit `fake`.
@@ -184,9 +184,9 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
         }
         Op::Create { at, remote, branch, commit, identity: _, account: _ } => {
             assert_cloned(disk, &at);
-            match git::create(forge, &remote, &branch, fake(commit)) {
-                Ok(Created::Created) => Done::Succeeded,
-                Ok(Created::Exists) => Done::Exists,
+            match forge.push_new(&remote, &branch, fake(commit)) {
+                Ok(None) => Done::Succeeded,
+                Ok(Some(_)) => Done::Exists,
                 Err(fault) => failed(fault),
             }
         }
@@ -248,9 +248,10 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 Some(second) => {
                     match git::commit_merging(forge, disk, &path(&at), fake(parent), fake(second), &message) {
                         Ok(committed) => Done::Committed { commit: commit(committed) },
-                        Err(git::CommitFailure::Unresolved { files }) => {
-                            Done::Conflicted { files: files.into_iter().map(Vec::into_boxed_slice).collect(), cut: false }
-                        }
+                        Err(git::CommitFailure::Unresolved { files }) => Done::Conflicted {
+                            files: files.into_iter().map(Vec::into_boxed_slice).collect(),
+                            cut: false,
+                        },
                         Err(git::CommitFailure::NotFetched) => panic!("both merge parents are locally fetched"),
                     }
                 }
@@ -289,7 +290,10 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             if merged.conflicts.is_empty() {
                 Done::Merged
             } else {
-                Done::Conflicted { files: merged.conflicts.into_iter().map(Vec::into_boxed_slice).collect(), cut: false }
+                Done::Conflicted {
+                    files: merged.conflicts.into_iter().map(Vec::into_boxed_slice).collect(),
+                    cut: false,
+                }
             }
         }
         Op::Push { at, remote, commit, branch, expected, identity: _, account: _ } => {
@@ -322,7 +326,7 @@ pub fn perform_within(forge: &mut impl Remote, disk: &mut Checkout, op: Op, conf
             let most = usize::try_from(conflicts).expect("conflicts fits usize");
             let cut = cut || files.len() > most;
             Done::Conflicted { files: files.into_iter().take(most).collect(), cut }
-        },
+        }
         done => done,
     }
 }

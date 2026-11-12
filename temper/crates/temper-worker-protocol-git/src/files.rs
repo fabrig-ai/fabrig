@@ -268,7 +268,9 @@ impl Scan {
                 Next::Run(invocation::Command::Add)
             } else {
                 Next::End(git::Done::Conflicted {
-                    files: core::mem::replace(&mut self.marked, List::with_capacity(0)).into_boxed(), cut: false })
+                    files: core::mem::replace(&mut self.marked, List::with_capacity(0)).into_boxed(),
+                    cut: false,
+                })
             });
         };
         self.at = 0;

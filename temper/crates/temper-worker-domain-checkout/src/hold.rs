@@ -100,8 +100,8 @@
 //! one place ([`tell`]), and what the new state implies (a closed hold is
 //! retired, and its workspace idle again) in another ([`follow`]).
 
-mod design;
 mod candidate;
+mod design;
 
 use alloc::boxed::Box;
 use core::mem;
@@ -188,7 +188,10 @@ enum State {
 /// place in the spec.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum PrepareStep {
-    Candidate { repository: u32, step: candidate::Step },
+    Candidate {
+        repository: u32,
+        step: candidate::Step,
+    },
     Store {
         repository: u32,
         look: bool,
@@ -382,7 +385,16 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
     domain.facts.push(Fact::Held { client, cached });
     let tips = List::with_capacity(count(repositories.len()));
     let conflicts = List::with_capacity(count(repositories.len()));
-    let holding = Holding { client, workspace, stores, repositories, tips, conflicts, fetched: List::uncapped(), candidate: None };
+    let holding = Holding {
+        client,
+        workspace,
+        stores,
+        repositories,
+        tips,
+        conflicts,
+        fetched: List::uncapped(),
+        candidate: None,
+    };
     let hold = Hold { holding, state: State::Closed };
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
@@ -648,7 +660,9 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
     reason = "the preparation transition table handles every terminal workspace outcome together"
 )]
 fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: Done, limits: &Limits) -> Next {
-    if let PrepareStep::Candidate { repository, step } = step { return candidate::after(holding, repository, step, done); }
+    if let PrepareStep::Candidate { repository, step } = step {
+        return candidate::after(holding, repository, step, done);
+    }
     match &done {
         Done::Fetched { commit } => remember_fetch(holding, step, *commit),
         Done::Succeeded
@@ -667,7 +681,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
     }
     let last = count(holding.repositories.len()).checked_sub(1).expect("a spec names a repository");
     match step {
-        PrepareStep::Candidate { repository, step } => candidate::after(holding, repository, step, done),
+        PrepareStep::Candidate { .. } => unreachable!("candidate preparation was dispatched before the fetch memo"),
         PrepareStep::Store { repository, look } => match done {
             Done::Succeeded => {
                 cache.made(borrowed(holding, repository).store);
@@ -1176,8 +1190,11 @@ fn checked_out_merge(holding: &mut Holding, repository: u32, ours: Commit, base:
             }
             Some(base)
         }
-        Start::Base { .. } | Start::Branch { .. } | Start::Prepare { .. }
-        | Start::Commit { .. } | Start::Saved { .. } => {
+        Start::Base { .. }
+        | Start::Branch { .. }
+        | Start::Prepare { .. }
+        | Start::Commit { .. }
+        | Start::Saved { .. } => {
             unreachable!("only merge starts check out here")
         }
     };
@@ -1191,7 +1208,8 @@ fn start_want(start: &Start) -> Want {
         | Start::Saved { branch }
         | Start::Merge { branch, .. }
         | Start::Merged { branch, .. } => Want::Branch { branch: copy_of(branch) },
-        Start::Commit { commit } | Start::Prepare { base: commit, .. } => Want::Commit { commit: *commit },
+        Start::Commit { commit } => Want::Commit { commit: *commit },
+        Start::Prepare { request } => Want::Commit { commit: request.base },
     }
 }
 
@@ -1267,7 +1285,9 @@ fn fetch_base(holding: &Holding, repository: u32, ours: Commit, base: Commit, he
 /// Pin writable items after their start; a producer merge keeps its contained-resume path.
 fn fetched_start(holding: &Holding, repository: u32, ours: Commit) -> Next {
     let spec = nth(holding, repository);
-    if let Start::Prepare { .. } = spec.start { return candidate::first(repository); }
+    if let Start::Prepare { .. } = spec.start {
+        return candidate::first(repository);
+    }
     let merge = match spec.start {
         Start::Merge { .. } => true,
         Start::Base { .. }
@@ -1294,8 +1314,11 @@ fn after_start(holding: &Holding, repository: u32, ours: Commit, pin: Option<Com
             fetch_base(holding, repository, ours, *heads.first().expect("admitted heads are nonempty"), Some(0))
         }
         Start::Saved { .. } if spec.push.is_some() => fetch_push(holding, repository, ours),
-        Start::Base { .. } | Start::Branch { .. } | Start::Prepare { .. }
-        | Start::Commit { .. } | Start::Saved { .. } => {
+        Start::Base { .. }
+        | Start::Branch { .. }
+        | Start::Prepare { .. }
+        | Start::Commit { .. }
+        | Start::Saved { .. } => {
             let landing = if landing_branch(spec).is_some() { pin } else { None };
             Next::Step(PrepareStep::CheckOut { repository, commit: ours, landing, pushed: Some(ours) })
         }
@@ -1317,8 +1340,7 @@ fn after_replaced_pin(holding: &Holding, repository: u32, ours: Commit, pushed: 
             fetch_base(holding, repository, ours, *heads.first().expect("admitted heads are nonempty"), Some(0))
         }
         Start::Saved { .. } => Next::Step(PrepareStep::CheckOut { repository, commit: ours, landing: None, pushed }),
-        Start::Base { .. } | Start::Branch { .. } | Start::Prepare { .. }
-        | Start::Commit { .. } => {
+        Start::Base { .. } | Start::Branch { .. } | Start::Prepare { .. } | Start::Commit { .. } => {
             Next::Step(PrepareStep::CheckOut { repository, commit: ours, landing: None, pushed: Some(ours) })
         }
     }
@@ -1425,8 +1447,15 @@ fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
         }
     };
     let step: &[u8] = match step {
-        PrepareStep::Candidate { .. }
-        | PrepareStep::Store { .. } => b"store",
+        PrepareStep::Candidate { step, .. } => match step {
+            candidate::Step::Head => b"fetch member",
+            candidate::Step::Upstream => b"fetch upstream",
+            candidate::Step::Checkout => b"check out base",
+            candidate::Step::Merge => b"merge member",
+            candidate::Step::Brings => b"compare upstream",
+            candidate::Step::Commit { .. } => b"commit candidate",
+        },
+        PrepareStep::Store { .. } => b"store",
         PrepareStep::Look { .. } => b"look",
         PrepareStep::Make => b"make",
         PrepareStep::Clone { .. } => b"clone",
@@ -1580,7 +1609,7 @@ fn prepare_step(
                 Start::Base { branch } => copy_of(branch),
                 Start::Branch { .. }
                 | Start::Prepare { .. }
-        | Start::Commit { .. }
+                | Start::Commit { .. }
                 | Start::Saved { .. }
                 | Start::Merge { .. }
                 | Start::Merged { .. } => {
@@ -1981,7 +2010,9 @@ fn push_commit(
     };
     let op = if let Start::Prepare { .. } = spec.start {
         Op::Create { at, remote, commit, branch, identity, account }
-    } else { Op::Push { at, remote, commit, branch, expected, identity, account } };
+    } else {
+        Op::Push { at, remote, commit, branch, expected, identity, account }
+    };
     io(id, op, env, out);
     State::Pushing { push, step: PushStep::Push { repository }, asked: Asked::Nothing }
 }
@@ -2238,7 +2269,17 @@ fn fits(spec: &Spec, limits: &Limits) -> bool {
     for (place, repository) in spec.repositories.iter().enumerate() {
         let start = match &repository.start {
             Start::Base { branch } | Start::Branch { branch } | Start::Saved { branch } => named(branch, limits),
-            Start::Prepare { message, squash_message, .. } => limits.conflicts > 0 && limits.path_bytes > 0 && repositories == 1 && repository.push.is_some() && message_fits(message, limits) && message_fits(squash_message, limits),
+            Start::Prepare { request } => {
+                limits.conflicts > 0
+                    && limits.path_bytes > 0
+                    && repositories == 1
+                    && repository.push.is_some()
+                    && repository.save.is_none()
+                    && repository.expected.is_none()
+                    && repository.landing.is_none()
+                    && message_fits(&request.message, limits)
+                    && message_fits(&request.squash_message, limits)
+            }
             Start::Commit { .. } => true,
             Start::Merged { branch, heads } => {
                 named(branch, limits)

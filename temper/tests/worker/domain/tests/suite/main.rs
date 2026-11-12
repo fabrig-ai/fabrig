@@ -6,8 +6,8 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 mod close;
 mod jobs;
 mod merge;
-mod prepare;
 mod orders;
+mod prepare;
 mod runtime;
 mod runtime_memory;
 mod whole;

@@ -141,7 +141,7 @@ impl World {
                         assert_eq!(title, &self.title);
                         assert!(body.is_empty());
                     }
-                    git::Op::Create { at, .. } if self.kind.bound.kind == JobKind(1) => {
+                    git::Op::Create { at, .. } | git::Op::Push { at, .. } if self.kind.bound.kind == JobKind(1) => {
                         assert_eq!(at.repository, self.repository);
                         self.report.pushes += 1;
                     }

@@ -1146,7 +1146,7 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                     Op::CheckOut { .. } => Done::Succeeded,
                     Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
                     Op::Brings { .. } => Done::Brings { brings: false },
-            Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
+                    Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
                     other @ (Op::Point { .. }
                     | Op::Store { .. }
                     | Op::Make { .. }
@@ -1676,7 +1676,8 @@ fn merge_marker_refusal_preserves_second_parent_until_commit_and_verification_ad
     let asked = io(h.one(Event::Push { hold, message: message() }), hold);
     let Op::Commit { parent, merging, .. } = asked else { panic!("merge commit") };
     assert_eq!((parent, merging), (commit(1), Some(commit(7))));
-    let end = h.one(Event::Done { owner: hold, done: Done::Conflicted { files: Box::new([bytes(b"src/a")]), cut: false } });
+    let end =
+        h.one(Event::Done { owner: hold, done: Done::Conflicted { files: Box::new([bytes(b"src/a")]), cut: false } });
     assert_eq!(
         end,
         Request::Pushed {
@@ -1750,7 +1751,9 @@ fn oversized_or_duplicate_terminal_paths_are_dropped_without_retention() {
 
 #[test]
 fn releasing_an_inflight_merge_waits_for_its_terminal_and_never_exposes_a_ready_workspace() {
-    for done in [Done::Merged, Done::Conflicted { files: Box::new([bytes(b"src/a")]), cut: false }, failed(Fault::Cancelled)] {
+    for done in
+        [Done::Merged, Done::Conflicted { files: Box::new([bytes(b"src/a")]), cut: false }, failed(Fault::Cancelled)]
+    {
         let mut h = Harness::new(MERGES);
         let (hold, _) = h.prepare(1, merge_spec());
         h.next(hold, Done::Succeeded);

@@ -219,7 +219,9 @@ fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
                     Box::from(b"two".as_slice()),
                     Box::from(b"three".as_slice()),
                     Box::from(b"four".as_slice()),
-                ]), cut: false }
+                ]),
+                cut: true,
+            }
         };
         assert_eq!(component.done(), Some((fixtures::OWNER, done)), "merging commit: {merging}");
     }

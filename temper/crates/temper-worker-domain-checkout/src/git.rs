@@ -178,7 +178,8 @@ pub enum Done {
     /// records both parents. No commit was made by the merge operation.
     Merged,
     /// Merge left conflicts, or a merge commit refused remaining markers.
-    /// Paths are bounded by the checkout's conflict/path limits.
+    /// Paths are bounded by the checkout's conflict/path limits; cut records
+    /// a retained prefix rather than the whole listing.
     Conflicted { files: Box<[Box<[u8]>]>, cut: bool },
     /// `Make`, `Store`, `Clone`, `Create`, `CheckOut`, `Push`: done as asked.
     Succeeded,

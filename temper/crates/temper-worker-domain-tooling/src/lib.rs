@@ -1,6 +1,7 @@
 //! The worker's job capability (temper/docs/design/domain/worker.md, 4.4):
 //! a project's command runs in its job's directory with the arguments and
-//! environment of temper/docs/design/protocol/tooling.md, 2.
+//! environment of temper/docs/design/protocol/tooling.md, 2. An empty command
+//! for kind 1 runs temper's own prepare, without a process (worker.md, 4.4).
 //!
 //! Sans-io: the parent routes file and process requests to the protocol
 //! layer. A process deadline is data; the protocol layer kills the process

@@ -70,10 +70,7 @@ fn config(seed: u64) -> engine::Config {
     let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     jig.core.tasks = temper_engine_domain_world::forge_routes::box_limits().tasks;
     config.core.jobs = temper_service::limits::jobs(&jig);
-    assert_eq!(
-        config.core.jobs.as_ref(),
-        [temper_service::limits::merge_bound(), temper_service::limits::close_bound()]
-    );
+    assert!(config.core.jobs.contains(&temper_service::limits::close_bound()));
     let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
     let mut extended = kinds.to_vec();
     let close = jig_domain_authority::Executor::Job(temper_engine_domain_forge::CLOSE_KIND);

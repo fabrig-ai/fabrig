@@ -386,13 +386,21 @@ fn brings_invocations_use_each_merge_base_as_a_positive_and_exclude_the_base() {
     let sha256 = b"cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd";
     let rows: [(Command, &[&[u8]]); 2] = [
         (Command::MergeBases { head, upstream }, &[b"merge-base", b"--all", ID, sha256]),
-        (Command::BringsList { bases: Box::new([head, upstream]), base }, &[b"rev-list", b"--max-count=1", ID, sha256, b"^abababababababababababababababababababab", b"--"]),
+        (
+            Command::BringsList { bases: Box::new([head, upstream]), base },
+            &[b"rev-list", b"--max-count=1", ID, sha256, b"^abababababababababababababababababababab", b"--"],
+        ),
     ];
     for (command, expected) in rows {
         let arguments = invocation::arguments(&command);
         let actual = arguments.get(SETTINGS.len()..).expect("fixed settings");
         assert_eq!(actual.len(), expected.len());
-        for (actual, expected) in actual.iter().zip(expected) { assert_eq!(actual.as_ref(), *expected); }
+        for (actual, expected) in actual.iter().zip(expected) {
+            assert_eq!(actual.as_ref(), *expected);
+        }
     }
-    assert_eq!(invocation::environment(b"/home", Some(git::Kind::Brings), None), invocation::environment(b"/home", None, None));
+    assert_eq!(
+        invocation::environment(b"/home", Some(git::Kind::Brings), None),
+        invocation::environment(b"/home", None, None)
+    );
 }

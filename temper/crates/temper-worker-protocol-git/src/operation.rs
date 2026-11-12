@@ -306,10 +306,13 @@ impl Operation {
         match child.exited {
             Some(kernel::Exit::Code(code)) => match &self.op {
                 Some(op) => {
-                    let mut next = sequence::after(op, &self.command, code, stdout, &tail, child.stderr.dropped(), checkout);
-                    if let Next::End(git::Done::Conflicted { cut, .. }) = &mut next { *cut |= child.dropped > 0; }
+                    let mut next =
+                        sequence::after(op, &self.command, code, stdout, &tail, child.stderr.dropped(), checkout);
+                    if let Next::End(git::Done::Conflicted { cut, .. }) = &mut next {
+                        *cut |= child.dropped > 0;
+                    }
                     next
-                },
+                }
                 None => sequence::failed(git::Fault::Broken, &tail, child.stderr.dropped()),
             },
             Some(kernel::Exit::Signal(_)) | None => sequence::failed(git::Fault::Broken, &tail, child.stderr.dropped()),

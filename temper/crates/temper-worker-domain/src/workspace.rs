@@ -438,7 +438,10 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
             crate::jobs::candidate(domain, owner, &outcome);
             checkout::Prepared::Ready { workspace, conflicts: Box::new([]) }
         }
-        ready @ (checkout::Prepared::Ready { .. } | checkout::Prepared::Refused { .. } | checkout::Prepared::Failed { .. } | checkout::Prepared::Aborted) => ready,
+        ready @ (checkout::Prepared::Ready { .. }
+        | checkout::Prepared::Refused { .. }
+        | checkout::Prepared::Failed { .. }
+        | checkout::Prepared::Aborted) => ready,
     };
     let record = domain.workspaces.get_mut(id).expect("a workspace lives until it is released");
     let items = record.items;

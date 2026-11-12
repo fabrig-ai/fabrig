@@ -125,7 +125,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             advance(&mut job, env, event, out);
             let ended = match job.state {
                 State::Ending | State::Stopped => job.process_gone,
-                State::Preparing | State::Writing { .. } | State::Spawning | State::Running | State::Reading { .. } => false,
+                State::Preparing | State::Writing { .. } | State::Spawning | State::Running | State::Reading { .. } => {
+                    false
+                }
             };
             if ended {
                 out.push(Request::Gone { owner, detail: job.tail });
@@ -178,7 +180,13 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
         return;
     }
     if own {
-        let job = Job { kind: kind.clone(), directory: run.directory, state: State::Preparing, tail: Box::new([]), process_gone: true };
+        let job = Job {
+            kind: kind.clone(),
+            directory: run.directory,
+            state: State::Preparing,
+            tail: Box::new([]),
+            process_gone: true,
+        };
         domain.jobs.insert(run.owner, job).expect("admitted own job");
         out.push(Request::Started { owner: run.owner });
         return;
@@ -211,10 +219,22 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
     match event {
         Event::Run { .. } => unreachable!("Run is handled at admission"),
         Event::Prepared { owner, result, code } => {
-            if !match job.state { State::Preparing => true, State::Writing { .. } | State::Spawning | State::Running | State::Reading { .. } | State::Ending | State::Stopped => false } { return; }
+            if !match job.state {
+                State::Preparing => true,
+                State::Writing { .. }
+                | State::Spawning
+                | State::Running
+                | State::Reading { .. }
+                | State::Ending
+                | State::Stopped => false,
+            } {
+                return;
+            }
             let end = if (code == 0 || code == 3) && within(&result, job.kind.bound.result) {
                 End::Finished { result, deliver: code == 0 && job.kind.delivers }
-            } else { End::Failed { detail: Box::from(b"own prepare result".as_slice()) } };
+            } else {
+                End::Failed { detail: Box::from(b"own prepare result".as_slice()) }
+            };
             job.state = State::Ending;
             out.push(Request::Ended { owner, end });
         }
@@ -234,7 +254,12 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 job.state = State::Running;
                 out.push(Request::Started { owner });
             }
-            State::Preparing | State::Writing { .. } | State::Running | State::Reading { .. } | State::Ending | State::Stopped => {}
+            State::Preparing
+            | State::Writing { .. }
+            | State::Running
+            | State::Reading { .. }
+            | State::Ending
+            | State::Stopped => {}
         },
         Event::Exited { owner, exit, tail } => {
             job.tail = bounded_tail(tail, env.limits.tail_bytes);
@@ -257,7 +282,12 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 job.state = State::Ending;
                 out.push(Request::Ended { owner, end });
             }
-            State::Preparing | State::Writing { .. } | State::Spawning | State::Running | State::Ending | State::Stopped => {}
+            State::Preparing
+            | State::Writing { .. }
+            | State::Spawning
+            | State::Running
+            | State::Ending
+            | State::Stopped => {}
         },
         Event::Gone { owner } => {
             match job.state {
@@ -304,7 +334,12 @@ fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, ou
             job.state = State::Spawning;
             out.push(request);
         }
-        State::Preparing | State::Spawning | State::Running | State::Reading { .. } | State::Ending | State::Stopped => {}
+        State::Preparing
+        | State::Spawning
+        | State::Running
+        | State::Reading { .. }
+        | State::Ending
+        | State::Stopped => {}
     }
 }
 

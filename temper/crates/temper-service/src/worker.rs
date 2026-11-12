@@ -1228,11 +1228,11 @@ mod merge_tests {
             panic!("ready declares capabilities");
         };
         assert!(hello.jobs.contains(&JobBound {
-                kind: JobKind(3),
-                spec: 4_096,
-                result: 512,
-                deadline: skein_lib::Duration::from_secs(600)
-            }));
+            kind: JobKind(3),
+            spec: 4_096,
+            result: 512,
+            deadline: skein_lib::Duration::from_secs(600)
+        }));
     }
 
     /// temper/docs/design/domain/worker.md, 4.4.
@@ -1288,11 +1288,14 @@ mod merge_tests {
     }
     #[test]
     fn prepare_is_declared_on_the_worker_and_only_with_engine_room() {
-        let bound = JobBound { kind: JobKind(1), spec: 16_384, result: 4_096, deadline: skein_lib::Duration::from_secs(600) };
+        let bound =
+            JobBound { kind: JobKind(1), spec: 16_384, result: 4_096, deadline: skein_lib::Duration::from_secs(600) };
         let mut worker = crate::tests::fixtures::worker();
         let mut out = skein_lib::Queue::uncapped();
         temper_worker_domain::step(&mut worker.root, &worker.env, temper_worker_domain::Event::Ready, &mut out);
-        let temper_worker_domain::Request::Hello(hello) = out.pop().expect("worker hello") else { panic!("hello"); };
+        let temper_worker_domain::Request::Hello(hello) = out.pop().expect("worker hello") else {
+            panic!("hello");
+        };
         assert_eq!(hello.jobs.first(), Some(&bound));
         let kinds = crate::limits::job_kinds();
         let kind = kinds.first().expect("prepare");
@@ -1306,5 +1309,4 @@ mod merge_tests {
             assert_eq!(crate::limits::jobs(&jig).contains(&bound), admitted);
         }
     }
-
 }

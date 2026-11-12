@@ -308,9 +308,13 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
     match op {
         git::Op::Merge { .. } => {
             let files = output::conflict_paths(stdout, checkout)?;
-            if files.is_empty() { return None; }
+            if files.is_empty() {
+                return None;
+            }
             let mut kept = 0_usize;
-            for file in &files { kept = kept.checked_add(file.len())?.checked_add(1)?; }
+            for file in &files {
+                kept = kept.checked_add(file.len())?.checked_add(1)?;
+            }
             Some(Next::End(git::Done::Conflicted { cut: kept != stdout.len(), files }))
         }
         git::Op::Commit { .. } => {
