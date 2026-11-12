@@ -1,5 +1,5 @@
 //! Git's records at the worker layer, with identity values below the root.
-use crate::{limits, settings};
+use crate::{worker_settings::Limits, settings};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, Segment, What};
 use skein_io::kernel;
@@ -18,7 +18,7 @@ pub(crate) struct Git {
 impl Git {
     pub fn new(
         worker: &settings::Worker,
-        own: &limits::Limits,
+        own: &Limits,
         path: &[u8],
         root: kernel::Fd,
         seed: u64,

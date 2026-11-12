@@ -10,9 +10,7 @@ use skein_lib::{Decimal, Duration, List, Map, Writer};
 use temper_engine_domain as domain;
 use temper_protocol_worker_wire as payload;
 
-pub(super) fn at(index: usize, path: Path) -> Path {
-    path.child(Segment::Index(u32::try_from(index).expect("bounded configuration")))
-}
+pub(super) use temper_service_core::startup::{at, own, against, short, call_answer};
 fn charter_path(engine: &config::Engine, index: usize) -> Path {
     let number = Decimal::of(u64::from(engine.charters.get(index).expect("checked charter index").number));
     let mut name = Writer::new(8_usize.checked_add(number.as_bytes().len()).expect("setting name fits"));
@@ -29,9 +27,6 @@ pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mu
         }
     }
 }
-pub(super) fn own(name: &[u8]) -> Path {
-    Path::root().member(b"application").member(b"limits").member(b"overrides").member(name)
-}
 /// The binary's stock fits before any listener opens (protocol/configuration/stock.md).
 /// The caller selects `Given::Stock`; worlds size their own defaults.
 pub(crate) fn stock(engine: &config::Engine, problems: &mut Problems) {
@@ -46,9 +41,6 @@ pub(crate) fn stock(engine: &config::Engine, problems: &mut Problems) {
             What::Half(crate::startup::EngineWhat::Stock(floor)),
         );
     }
-}
-pub(super) fn against(problems: &mut Problems, name: &[u8], other: &'static [u8]) {
-    problems.push(own(name), What::Against { other });
 }
 /// Named compatibility checks on the envelope runtime and store actually use.
 pub fn engine_envelope(root: &domain::Limits, problems: &mut Problems) {
@@ -291,7 +283,7 @@ pub fn limits(
     problems: &mut Problems,
 ) {
     #[cfg(feature = "worker")]
-    super::worker::git_limits(limits, git, problems);
+    super::worker::git_limits(&limits::worker(limits), git, problems);
     let sign_in = limits.sign_in;
     for (name, value) in [
         (b"sign_in.members".as_slice(), sign_in.members),
@@ -352,6 +344,7 @@ pub(super) fn names(remote: Option<u64>, limits: &limits::Limits, problems: &mut
         against(problems, b"checkout.name_bytes", b"forge.name_bytes");
     }
 }
+#[cfg(not(feature = "worker"))]
 fn bounded(bounds: &payload::Bounds, engine: bool, problems: &mut Problems) -> Option<payload::v1::Limits> {
     let ceilings = payload::v1::CEILINGS;
     let repositories: &[u8] = b"checkout.repositories";
@@ -395,6 +388,8 @@ fn bounded(bounds: &payload::Bounds, engine: bool, problems: &mut Problems) -> O
     }
     payload::limits(bounds)
 }
+#[cfg(feature = "worker")]
+use super::worker::checks::bounded;
 /// Each side's application records fit jig's fields and the worker's admission.
 pub fn channel(
     engine: Option<&payload::Bounds>,
@@ -481,41 +476,11 @@ fn resume_window(bytes: u32) -> Option<u64> {
     let carrier = u64::try_from(size_of::<Box<[u8]>>()).ok()?;
     bytes.checked_add(carrier.checked_sub(4)?.checked_mul(bytes / 4)?)
 }
-pub(super) fn short(problems: &mut Problems, path: Path, bytes: u64, of: &'static [u8], needs: Option<u64>) {
-    match needs {
-        Some(needs) if bytes < needs => problems.push(path, What::Short { bytes, of, needs }),
-        Some(_) => {}
-        None => problems.push(path, What::Jig(config::What::Bound)),
-    }
-}
 fn forge_result(bytes: u32, result: u32, problems: &mut Problems) {
     short(problems, own(b"forge.client.op_bytes"), u64::from(bytes), b"tasks.result_bytes", Some(u64::from(result)));
 }
-/// Answers made at decode must fit their whole settled-call allowance
-/// (protocol/documentation.md, 5).
-pub(super) fn call_answer(path: Path, bytes: u32, problems: &mut Problems) {
-    short(
-        problems,
-        super::call_input_path(path),
-        u64::from(bytes),
-        b"temper's documentation answer (read_docs)",
-        Some(u64::from(temper_service_core::DOC_ANSWER)),
-    );
-}
-/// Only an agent running locally must hold the answer in its tool payload.
-pub(super) fn agent_answer(agent: &settings::Agent, problems: &mut Problems) {
-    short(
-        problems,
-        at(0, Path::root().member(b"workers"))
-            .member(b"agent")
-            .member(b"profile")
-            .member(b"declared")
-            .member(b"tool_payload"),
-        u64::from(agent.tool_payload()),
-        b"temper's documentation answer (read_docs)",
-        Some(u64::from(temper_service_core::DOC_ANSWER)),
-    );
-}
+#[cfg(feature = "worker")]
+pub(super) use super::worker::checks::agent_answer;
 /// Each process checks the turn bounds its own document can know
 /// (protocol/configuration/settings.md, 7). A worker alone knows its agent and hub.
 pub fn turns(
@@ -569,23 +534,8 @@ pub fn turns(
                 turn.checked_add(u64::try_from(size_of::<domain::Record>()).expect("record slot")),
             );
         }
-        for (index, worker) in workers.iter().enumerate() {
-            let path = at(index, Path::root().member(b"workers")).member(b"limits").member(b"overrides");
-            short(
-                problems,
-                path.member(b"hub.outcome_bytes"),
-                worker.limits.hub.outcome_bytes,
-                b"the agent's outcome (agent.json profile.declared.tool_payload)",
-                Some(agent.outcome_bytes()),
-            );
-            short(
-                problems,
-                path.member(b"hub.turn_bytes"),
-                worker.limits.hub.turn_bytes,
-                b"the agent's largest turn",
-                Some(turn),
-            );
-        }
+        #[cfg(feature = "worker")]
+        super::worker::checks::turns(workers, agent, problems);
     }
     if let Some(engine) = engine {
         let window = resume_window(engine.core.resume_bytes);

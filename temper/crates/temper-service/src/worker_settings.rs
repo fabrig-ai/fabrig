@@ -1,6 +1,7 @@
 //! The worker's checked construction bounds and payload sizes (protocol/README.md, 5).
-pub(crate) use crate::values::{grant_bytes, token_credential_bytes as credential_bytes};
-use crate::{limits, settings};
+pub(crate) use temper_service_core::values::{grant_bytes, token_credential_bytes as credential_bytes};
+use crate::settings;
+use temper_service_core::limits;
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path, Problems, What};
 use jig_protocol_worker_link as link;
@@ -38,7 +39,7 @@ pub(crate) fn problem(member: &[u8], what: What) -> Problems {
 }
 
 /// Check the root, host adapter and link before any state is allocated.
-pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &limits::Limits) -> Result<Prepared, Problems> {
+pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &Limits) -> Result<Prepared, Problems> {
     if !io::valid(&worker.jig.limits.io) {
         return Err(problem(b"limits", What::Bound));
     }
@@ -56,7 +57,7 @@ pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &limits::Limits) -
     host::Process::new(Token::new(0), &agent.limits, agent.host_limits.detail_bytes, agent.endpoints.clone())
         .or(Err(problem(b"agent", What::Bound)))?;
     let payload = payload_limits(own).ok_or(problem(b"limits", What::Bound))?;
-    let link = link_limits(&worker.jig, &payload, own.forge.forges).ok_or(problem(b"limits", What::Bound))?;
+    let link = link_limits(&worker.jig, &payload, own.peer.forges).ok_or(problem(b"limits", What::Bound))?;
     if !link::valid(&link) {
         return Err(problem(b"limits", What::Bound));
     }
@@ -73,7 +74,7 @@ pub fn prepare(worker: &settings::Worker, agent: &Agent, own: &limits::Limits) -
 }
 
 #[must_use]
-pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &limits::Limits) -> root::Limits {
+pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &Limits) -> root::Limits {
     let mut host = worker.jig.limits.hub;
     host.slots = worker.jig.slots;
     root::Limits {
@@ -90,19 +91,8 @@ pub fn root_limits(worker: &settings::Worker, agent: &Agent, own: &limits::Limit
 
 /// The worker accepts repository and path bytes only up to its checkout limits.
 #[must_use]
-pub fn payload_limits(own: &limits::Limits) -> Option<v1::Limits> {
-    let checkout = &own.checkout;
-    let mut limits = payload::limits(&payload::Bounds {
-        repositories: checkout.repositories,
-        name_bytes: checkout.name_bytes,
-        remote_bytes: checkout.name_bytes,
-        conflicts: checkout.conflicts,
-        path_bytes: checkout.path_bytes,
-        token_bytes: v1::CEILINGS.token_token,
-        entries: own.forges.installations,
-        entry_token_bytes: own.forge_component.token_bytes,
-        text_bytes: v1::CEILINGS.identity_name,
-    })?;
+pub fn payload_limits(own: &Limits) -> Option<v1::Limits> {
+    let mut limits = payload::limits(&own.bounds())?;
     limits.job_spec_command = limits::TOOLING_PATH_BYTES;
     limits.job_spec_request = limits::TOOLING_FILE_BYTES;
     Some(limits)
@@ -245,7 +235,7 @@ pub struct Agent {
 }
 
 const _: () = assert!(
-    crate::values::SOURCE_NAME_BYTES == smith_host_domain::SourceName::BYTES,
+    temper_service_core::values::SOURCE_NAME_BYTES == smith_host_domain::SourceName::BYTES,
     "engine and worker source name bounds agree"
 );
 
@@ -280,4 +270,32 @@ impl Agent {
     pub(crate) fn resolves_endpoint(&self, name: &[u8]) -> bool {
         self.endpoints.resolve(name).is_some()
     }
+}
+
+/// The worker's aggregate on the shared envelopes (protocol/services.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Limits { pub checkout: limits::Checkout, pub git_component: limits::GitComponent, pub peer: limits::Peer }
+impl Limits {
+ #[must_use]
+ pub fn shared(shared: limits::Shared) -> Self { Self { checkout: shared.checkout, git_component: shared.git_component, peer: shared.peer } }
+ #[must_use]
+ pub fn bounds(&self) -> payload::Bounds {
+ payload::Bounds { repositories: self.checkout.repositories, name_bytes: self.checkout.name_bytes, remote_bytes: self.checkout.name_bytes,
+ conflicts: self.checkout.conflicts, path_bytes: self.checkout.path_bytes, token_bytes: v1::CEILINGS.token_token,
+ entries: self.peer.installations, entry_token_bytes: self.peer.token_bytes, text_bytes: v1::CEILINGS.identity_name }
+ }
+}
+/// The worker's mirror of the close kind (protocol/services.md, 2).
+pub const CLOSE_KIND: u32 = 4;
+#[must_use]
+pub fn close_bound() -> jig_domain_link::JobBound {
+ jig_domain_link::JobBound { kind: jig_domain_link::JobKind(CLOSE_KIND), spec: limits::CLOSE_SPEC_BYTES, result: limits::CLOSE_RESULT_BYTES, deadline: limits::CLOSE_DEADLINE }
+}
+/// The worker's declared kinds, ascending (protocol/services.md, 5).
+#[must_use]
+pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {
+ Box::new([
+ temper_worker_domain::tooling::Kind { bound: limits::merge_bound(), verb: b"merge".as_slice().into(), delivers: true },
+ temper_worker_domain::tooling::Kind { bound: close_bound(), verb: b"close".as_slice().into(), delivers: true },
+ ])
 }

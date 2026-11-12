@@ -56,7 +56,7 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
         let engine = crate::workers::limits(&settings).expect("stock engine link limits");
         let mut worker = fixtures::worker_settings();
         worker.jig.limits = settings.jig.limits;
-        let payload = crate::worker_settings::payload_limits(&settings.limits).unwrap();
+        let payload = crate::worker_settings::payload_limits(&limits::worker(&settings.limits)).unwrap();
         let worker = crate::worker_settings::link_limits(&worker.jig, &payload, settings.limits.forge.forges)
             .expect("stock worker link limits");
         assert_eq!(engine.room, settings.jig.limits.io.output);
@@ -118,7 +118,7 @@ fn the_checkout_and_its_raise_fit_both_stock_links() {
         let engine = crate::workers::limits(&settings).expect("engine link at checkout capacity");
         let mut worker = fixtures::worker_settings();
         worker.jig.limits = settings.jig.limits;
-        let payload = crate::worker_settings::payload_limits(&settings.limits).unwrap();
+        let payload = crate::worker_settings::payload_limits(&limits::worker(&settings.limits)).unwrap();
         let worker = crate::worker_settings::link_limits(&worker.jig, &payload, settings.limits.forge.forges).unwrap();
         assert!(kit::valid(&engine), "{profile:?}, {conflicts}");
         assert!(jig_protocol_worker_link::valid(&worker), "{profile:?}, {conflicts}");
@@ -187,12 +187,12 @@ impl Joint {
         agent.host_limits.message_bytes =
             settings.jig.limits.hub.event_bytes.checked_add(temper_worker_domain::SEPARATOR).unwrap();
         agent.host_limits.call_bytes = u64::from(settings.limits.checkout.message_bytes);
-        let stand = fixtures::worker_peers::socket_stand_with_limits(&worker, &agent, &settings.limits);
+        let stand = fixtures::worker_peers::socket_stand_with_limits(&worker, &agent, &limits::worker(&settings.limits));
         let room = settings.jig.limits.io.largest_room();
         let limits = crate::workers::limits(settings).unwrap();
         let mut joint = Self {
             worker: stand.worker,
-            peer: LinkPeer::with_engine_limits(&worker, &agent, &settings.limits, &limits, room, room),
+            peer: LinkPeer::with_engine_limits(&worker, &agent, &limits::worker(&settings.limits), &limits, room, room),
             assignments: List::with_capacity(ASSIGNMENTS),
             unsent: List::with_capacity(REFUSALS),
             answers: List::with_capacity(REFUSALS),
@@ -351,7 +351,7 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
                     crate::worker_route::items(
                         assignment,
                         parts,
-                        &crate::worker_settings::payload_limits(&settings.limits).unwrap(),
+                        &crate::worker_settings::payload_limits(&limits::worker(&settings.limits)).unwrap(),
                     )
                     .unwrap(),
                 );

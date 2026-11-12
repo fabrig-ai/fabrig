@@ -101,7 +101,7 @@ fn a_checkout_with_one_repository_can_start() {
 #[test]
 fn default_engine_and_worker_grants_fit_the_channel_and_link() {
     let own = crate::limits::profile(crate::limits::Profile::Small);
-    for limits in [crate::translate::limits(&own).unwrap(), crate::worker_settings::payload_limits(&own).unwrap()] {
+    for limits in [crate::translate::limits(&own).unwrap(), crate::worker_settings::payload_limits(&crate::limits::worker(&own)).unwrap()] {
         assert_eq!(payload::largest(&limits).unwrap().grant, 7057);
         assert_eq!(jig_protocol_worker_wire::CEILINGS.application_value_secret, 8192);
         let worker = fixtures::worker_settings();
@@ -110,8 +110,8 @@ fn default_engine_and_worker_grants_fit_the_channel_and_link() {
     assert!(started(&fixtures::document(), &fixtures::files(), &fixtures::startup_agent()).is_empty());
     let worker =
         crate::startup::worker_part(&fixtures::worker_alone_document(), &config::Directories::working()).unwrap();
-    assert_eq!(worker.limits.forges.installations, crate::limits::FORGE_INSTALLATIONS);
-    assert_eq!(worker.limits.forge_component.token_bytes, crate::limits::FORGE_TOKEN_BYTES);
+    assert_eq!(worker.limits.peer.installations, crate::limits::FORGE_INSTALLATIONS);
+    assert_eq!(worker.limits.peer.token_bytes, crate::limits::FORGE_TOKEN_BYTES);
 }
 
 #[test]
@@ -150,7 +150,10 @@ fn a_worker_alone_takes_installation_and_token_bounds_from_its_configuration() {
     let limits = crate::worker_settings::payload_limits(&part.limits).unwrap();
     assert_eq!(limits.entries_entries, 3);
     assert_eq!(limits.entry_token, 64);
-    let engine_limits = crate::translate::limits(&part.limits).unwrap();
+    let mut engine = crate::limits::profile(crate::limits::Profile::Small);
+    crate::limits::apply(&mut engine, b"forges.installations", 3).unwrap();
+    crate::limits::apply(&mut engine, b"forge_component.token_bytes", 64).unwrap();
+    let engine_limits = crate::translate::limits(&engine).unwrap();
     assert_eq!(engine_limits.entries_entries, limits.entries_entries);
     assert_eq!(engine_limits.entry_token, limits.entry_token);
 }

@@ -1,44 +1,25 @@
-//! Worker construction and compatibility checks (protocol/README.md, 5, and protocol/cluster.md, 1).
-use super::checks::{against, at, own, short, worker_limit};
-use super::{
-    CallAnswer, NamedWorker, Problems, Shape, What, application, call_input_path, checks, indexed, member, problem,
-    shape,
-};
-use crate::{Service, Worker, WorkerRuntime, limits, settings};
+//! The worker's start and checks (protocol/services.md, 5).
+pub(super) mod checks;
+mod application;
+pub(super) mod checkout;
+use crate::{Service, Worker, WorkerRuntime, settings};
+use crate::worker_settings::Limits;
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path, read};
+use skein_lib::List;
 use temper_worker_domain as worker_domain;
-
-pub(super) fn checked(
-    workers: Box<[config::Worker]>,
-    own: Box<[application::Worker]>,
-    engine: &config::Engine,
-    limits: &limits::Limits,
-    agent: Option<&settings::Agent>,
-) -> Result<Option<settings::Worker>, Problems> {
-    let mut problems = Problems::empty();
-    if let Some(agent) = agent {
-        let worker = workers.into_iter().next().expect("one worker checked");
-        let own = own.into_iter().next().expect("one application worker checked");
-        let worker = settings::Worker { jig: worker, root: own.root, git: own.git };
-        checks::worker(&crate::worker_settings::root_limits(&worker, agent, limits), &mut problems);
-        checks::grants(engine, &worker.jig.limits, agent, &mut problems);
-        if !problems.is_empty() {
-            return Err(problems);
-        }
-        if let Err(found) = crate::worker_settings::prepare(&worker, agent, limits) {
-            return Err(Problems::jig(found, &Path::root()));
-        }
-        Ok(Some(worker))
-    } else {
-        Ok(None)
-    }
-}
-
+use temper_service_core::limits;
+use temper_service_core::startup::{Shape, member, indexed, own, at, worker_limit, short, against, call_answer, call_input_path, nearest_document, CallAnswer};
+use temper_service_core::startup::problems::{SharedWhat as What, SharedProblems as Problems};
+use temper_service_core::startup::problems::{What as SharedWhat, Problems as SharedProblems};
+/// The paths opened for a local worker (protocol/services.md, 5).
+#[derive(Debug)]
+pub struct NamedWorker { pub root: Box<[u8]>, pub agent: Box<[u8]>, pub program: Box<[u8]> }
+fn problem(path: Path, what: What) -> Problems { let mut problems = Problems::empty(); problems.push(path, what); problems }
 pub(super) fn build(
     worker: Option<settings::Worker>,
     agent: Option<&settings::Agent>,
-    limits: &limits::Limits,
+    limits: &Limits,
     files: &settings::Files,
     runtime: Option<WorkerRuntime>,
     seed: u64,
@@ -61,7 +42,7 @@ pub(super) fn build(
 
 /// Git's local rules are checked independently; the checkout's capacity
 /// reports stdout with the other carriers once both links' rooms are known.
-pub(super) fn git_limits(limits: &limits::Limits, git: &limits::GitComponent, problems: &mut Problems) {
+pub(super) fn git_limits<E>(limits: &Limits, git: &limits::GitComponent, problems: &mut SharedProblems<SharedWhat<E>>) {
     use temper_worker_protocol_git::{Unfit, check};
     let mut checked = crate::worker_settings::git_component(*git);
     // Repair just the reported rule in the local copy, then ask for the next.
@@ -98,7 +79,7 @@ pub(super) fn git_limits(limits: &limits::Limits, git: &limits::GitComponent, pr
                 checked.sweep_bytes = u32::try_from(skein_io::kernel::LONGEST_NAME).expect("kernel name bound");
             }
             Err(Unfit::Memory) => {
-                problems.push(own(b"git_component.operations"), What::Jig(config::What::Bound));
+                problems.push(own(b"git_component.operations"), SharedWhat::Jig(config::What::Bound));
                 break;
             }
         }
@@ -106,13 +87,13 @@ pub(super) fn git_limits(limits: &limits::Limits, git: &limits::GitComponent, pr
 }
 
 /// Byte relationships retain the quantities the worker's admission check compared.
-fn worker_payload(limits: &worker_domain::Limits, unfit: worker_domain::Unfit, problems: &mut Problems) -> bool {
+fn worker_payload<E>(limits: &worker_domain::Limits, unfit: worker_domain::Unfit, problems: &mut SharedProblems<SharedWhat<E>>) -> bool {
     use worker_domain::Unfit;
     const MESSAGE: &[u8] = b"agent.json profile.declared.tool_payload less the 2-byte separator";
     match unfit {
         Unfit::Events => problems.push(
             worker_limit(b"hub.event_bytes"),
-            What::Within {
+            SharedWhat::Within {
                 bytes: limits.host.event_bytes,
                 limit: MESSAGE,
                 bound: limits.agent.message_bytes.saturating_sub(worker_domain::SEPARATOR),
@@ -159,7 +140,7 @@ fn worker_payload(limits: &worker_domain::Limits, unfit: worker_domain::Unfit, p
 }
 /// The worker's rules against the agent's configuration, each naming both
 /// limits (temper-worker-domain's `unfit`).
-pub fn worker(limits: &worker_domain::Limits, problems: &mut Problems) {
+pub fn worker<E>(limits: &worker_domain::Limits, problems: &mut SharedProblems<SharedWhat<E>>) {
     use worker_domain::Unfit;
     let worker = at(0, Path::root().member(b"workers"));
     for unfit in &worker_domain::unfit(limits) {
@@ -168,7 +149,7 @@ pub fn worker(limits: &worker_domain::Limits, problems: &mut Problems) {
         }
         let (path, other): (Path, &'static [u8]) = match unfit {
             Unfit::Agent | Unfit::Unacknowledged => {
-                problems.push(worker.member(b"agent").member(b"configuration"), What::Jig(config::What::Bound));
+                problems.push(worker.member(b"agent").member(b"configuration"), SharedWhat::Jig(config::What::Bound));
                 continue;
             }
             Unfit::Directories => (own(b"checkout.repositories"), b"the agent's directories"),
@@ -190,7 +171,7 @@ pub fn worker(limits: &worker_domain::Limits, problems: &mut Problems) {
                 unreachable!("payload rule reported above")
             }
         };
-        problems.push(path, What::Against { other });
+        problems.push(path, SharedWhat::Against { other });
     }
 }
 
@@ -203,29 +184,18 @@ pub fn worker(limits: &worker_domain::Limits, problems: &mut Problems) {
 pub struct WorkerPart {
     call_answer: CallAnswer,
     pub worker: settings::Worker,
-    pub limits: limits::Limits,
+    pub limits: Limits,
     pub named: NamedWorker,
     pub files: Box<[config::File]>,
 }
 /// Read exactly a worker's part for serve and program-login (protocol/cluster.md, 1).
 pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
-    if shape(input, directories)? != Shape::WorkerAlone {
-        return Err(problem(Path::root(), What::WorkerAlone));
-    }
-    let document = config::document(
-        input,
-        &config::DocumentLimits {
-            bytes: 1_048_576,
-            tokens: u32::try_from(input.len()).expect("checked document"),
-            depth: 32,
-        },
-    )
-    .expect("checked shape document");
+    let document = document(input, directories, true)?;
     let at = member(&document, 0, b"workers").expect("checked workers");
     let ats = read::list(&document, at, document.len()).expect("checked worker list");
     let jig = config::worker(&document, *ats.get(0).expect("one worker"), directories).expect("checked worker");
     let mut problems = Problems::empty();
-    let (own, limits) = application::worker_alone(
+    let (own, limits) = application::read(
         &document,
         member(&document, 0, b"application").expect("checked application"),
         directories,
@@ -273,10 +243,10 @@ pub(super) fn check_worker_part(
     agent: &settings::Agent,
 ) -> Result<(), Problems> {
     let mut problems = Problems::empty();
-    if let Err(what) = part.call_answer.compose(&mut part.worker.jig.limits, agent) {
+    if let Err(what) = part.call_answer.compose(&mut part.worker.jig.limits, agent.tool_payload(), agent.host_ask_input(), agent.host_reply_text()) {
         problems.push(call_input_path(indexed(0)), what);
     }
-    checks::call_answer(indexed(0), part.worker.jig.limits.core.call_answer_bytes, &mut problems);
+    call_answer(indexed(0), part.worker.jig.limits.core.call_answer_bytes, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
     }
@@ -287,15 +257,46 @@ pub(super) fn check_worker_part(
             None => problems.push(file.at.clone(), What::Jig(config::What::Unreadable)),
         }
     }
-    super::checkout::capacity(None, core::slice::from_ref(&part.worker.jig), &part.limits, Some(agent), &mut problems);
+    checkout::capacity(None, core::slice::from_ref(&part.worker.jig), &part.limits, Some(agent), &mut problems);
     if !problems.is_empty() {
         return Err(problems);
     }
     worker(&crate::worker_settings::root_limits(&part.worker, agent, &part.limits), &mut problems);
-    checks::turns(None, core::slice::from_ref(&part.worker.jig), &part.limits, Some(agent), &mut problems);
+    checks::turns(core::slice::from_ref(&part.worker.jig), agent, &mut problems);
     checks::agent_answer(agent, &mut problems);
     if !problems.is_empty() {
         return Err(problems);
     }
     Ok(())
+}
+
+fn loopback(address: &config::Address) -> bool {
+ match address { config::Address::Addr(skein_io::Addr::Ip(socket)) => socket.ip().is_loopback(), config::Address::Addr(skein_io::Addr::InProcess(_)) | config::Address::Host { .. } => false }
+}
+fn document(input: &[u8], directories: &config::Directories, check_start: bool) -> Result<skein_json::Document, Problems> {
+ let document = match config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: u32::try_from(input.len()).unwrap_or(u32::MAX), depth: 32 }) { Ok(document) => document, Err(found) => return Err(problem(found.path, What::Jig(found.what))) };
+ if nearest_document(&document) != Shape::WorkerAlone { return Err(problem(Path::root(), What::WorkerAlone)); }
+ validate(&document, directories, check_start)?; Ok(document)
+}
+fn validate(document: &skein_json::Document, directories: &config::Directories, check_start: bool) -> Result<(), Problems> {
+ let mut problems = Problems::empty(); let root = Path::root();
+ let Some(mut whole) = application::object(document, 0, &root, &mut problems) else { return Err(problems); };
+ let worker_at = application::required(&mut whole, document, b"workers", &root, &mut problems);
+ let application_at = application::required(&mut whole, document, b"application", &root, &mut problems);
+ application::finish_shape(document, whole, &root, &mut problems);
+ let ats = match worker_at {
+ Some(at) => match read::list(document, at, document.len()) { Ok(ats) => ats, Err(what) => { problems.push(root.member(b"workers"), What::Jig(what)); List::with_capacity(0) } }, None => List::with_capacity(0) };
+ let mut workers = List::with_capacity(ats.len());
+ for (index, at) in ats.iter().enumerate() {
+ if check_start { checks::raw_worker(document, *at, &indexed(index), &mut problems); }
+ match config::worker(document, *at, directories) { Ok(worker) => { workers.push(worker).expect("bounded workers"); }, Err(found) => problems.append(found, &indexed(index)) }
+ }
+ if worker_at.is_some() && ats.len() != 1 { problems.push(root.member(b"workers"), What::WorkerAlone); }
+ for (index, worker) in workers.iter().enumerate() { if !loopback(&worker.engine) { problems.push(indexed(index).member(b"engine"), What::WorkerAlone); } }
+ if let Some(at) = application_at { let _part = application::read(document, at, directories, &mut problems); }
+ if problems.is_empty() { Ok(()) } else { Err(problems) }
+}
+pub(super) fn application(document: &skein_json::Document, at: u32, directories: &config::Directories) -> Result<(), Problems> {
+ let mut problems = Problems::empty(); let _part = application::read(document, at, directories, &mut problems);
+ if problems.is_empty() { Ok(()) } else { Err(problems) }
 }

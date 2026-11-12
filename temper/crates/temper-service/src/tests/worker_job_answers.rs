@@ -290,7 +290,7 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
                 attempt: 2,
                 kind: 3,
                 verb: b"merge".as_slice().into(),
-                ending: temper_engine_domain::JobDiagnosticEnding::Refused(reason),
+                ending: crate::worker::JobEnding::Refused(reason),
                 why: b"workspace items".as_slice().into(),
             })
         );
@@ -375,7 +375,7 @@ fn failed_jobs_name_the_workers_why_once() {
                 assert_eq!(why.as_ref(), expected_why);
                 assert_eq!(
                     ending,
-                    temper_engine_domain::JobDiagnosticEnding::Failed { failure, detail: detail.clone() }
+                    crate::worker::JobEnding::Failed { failure, detail: detail.clone() }
                 );
                 found += 1;
             }
