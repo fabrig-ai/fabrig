@@ -73,9 +73,15 @@ fn from_writes_a_twin_with_replacements_takes_and_a_use_report() {
     std::fs::write(&takes, br#"[{"name":"WORD","value":"new","before":"<","after":">"}]"#).expect("takes file");
     let out = scratch.path().join("out.json");
     let result = Command::new(env!("CARGO_BIN_EXE_temper-twin"))
-        .arg("--from").arg(source).arg("--out").arg(&out)
-        .args(["--replace", "off=new"]).arg("--takes").arg(&takes)
-        .output().expect("run temper-twin");
+        .arg("--from")
+        .arg(source)
+        .arg("--out")
+        .arg(&out)
+        .args(["--replace", "off=new"])
+        .arg("--takes")
+        .arg(&takes)
+        .output()
+        .expect("run temper-twin");
     assert_eq!(result.status.code(), Some(0), "{}", String::from_utf8_lossy(&result.stderr));
     assert_eq!(result.stdout, b"off: 1\ntake WORD: 1 uses\n");
     let bytes = std::fs::read(out).expect("output written");
@@ -91,10 +97,19 @@ fn from_refuses_transcript_options_before_opening_output() {
     let out = scratch.path().join("out.json");
     for (option, value) in [("--data", "directory"), ("--base", "base.json"), ("--cue", "1=brief")] {
         let result = Command::new(env!("CARGO_BIN_EXE_temper-twin"))
-            .arg("--from").arg(&source).arg("--out").arg(&out)
-            .args([option, value]).output().expect("run temper-twin");
+            .arg("--from")
+            .arg(&source)
+            .arg("--out")
+            .arg(&out)
+            .args([option, value])
+            .output()
+            .expect("run temper-twin");
         assert_eq!(result.status.code(), Some(2));
-        assert!(String::from_utf8_lossy(&result.stderr).contains("--from cannot be combined"), "{}", String::from_utf8_lossy(&result.stderr));
+        assert!(
+            String::from_utf8_lossy(&result.stderr).contains("--from cannot be combined"),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
         assert!(!out.exists());
     }
 }

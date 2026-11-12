@@ -21,7 +21,7 @@ const TWIN: Command = Command {
         "--data DIR --base FILE --out FILE [--cue TASK=PHRASE]... [--replace OLD=NEW]... [--takes FILE]",
         "--from FILE --out FILE [--replace OLD=NEW]... [--takes FILE]",
     ],
-    line: "Turn a cleanly stopped deployment's selected transcripts into a fake LLM document.",
+    line: "Make a fake LLM document from stopped transcripts or transform an existing twin.",
     arguments: &[],
     settings: &[&FLAGS],
     switches: &[],
@@ -49,7 +49,7 @@ const FLAGS: Settings = Settings {
             fallback: Fallback::Text("none with --from"),
             set: Set::Internal,
             twin: None,
-            notes: "",
+            notes: "Required without --from.",
         },
         Setting {
             name: "from",
@@ -159,7 +159,9 @@ fn parse(arguments: &[Box<[u8]>]) -> Result<Options, String> {
     let mut replaces = Vec::new();
     let mut args = arguments.iter();
     while let Some(arg) = args.next() {
-        if ![b"--data".as_slice(), b"--base", b"--out", b"--cue", b"--replace", b"--from", b"--takes"].contains(&arg.as_ref()) {
+        if ![b"--data".as_slice(), b"--base", b"--out", b"--cue", b"--replace", b"--from", b"--takes"]
+            .contains(&arg.as_ref())
+        {
             return Err(format!("unknown option: {}", String::from_utf8_lossy(arg).escape_debug()));
         }
         let value = args.next().ok_or_else(|| format!("{} takes a value", String::from_utf8_lossy(arg)))?;
@@ -209,7 +211,11 @@ fn convert(options: Options) -> Result<(), String> {
     let result = match source {
         Source::Document(path) => crate::from_document(&read(&path)?, &replaces, &values),
         Source::Transcripts { data, base, cues } => crate::twin(&Input {
-            data, base: read(&base)?.into_boxed_slice(), takes: cues, replaces: replaces.iter().map(|r| Replace { old:r.old.clone(),new:r.new.clone() }).collect(), values: values.clone(),
+            data,
+            base: read(&base)?.into_boxed_slice(),
+            takes: cues,
+            replaces: replaces.iter().map(|r| Replace { old: r.old.clone(), new: r.new.clone() }).collect(),
+            values: values.clone(),
         }),
     };
     let twin = result.map_err(|why| line(&why))?;

@@ -47,8 +47,13 @@ fn fixture(tasks: &[u64]) -> (Scratch, Input) {
         let position = TASKS.iter().position(|n| n == task).expect("fixture task");
         takes.push(Take { task: *task, cue: CUES[position].as_bytes().into() });
     }
-    let input =
-        Input { data: scratch.path().into(), base: base(), takes: takes.into_boxed_slice(), replaces: Box::new([]), values: Box::new([]) };
+    let input = Input {
+        data: scratch.path().into(),
+        base: base(),
+        takes: takes.into_boxed_slice(),
+        replaces: Box::new([]),
+        values: Box::new([]),
+    };
     (scratch, input)
 }
 fn limits() -> codec::View {

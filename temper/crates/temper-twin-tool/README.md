@@ -35,15 +35,46 @@ sequence; a later person's request needs its own script.
 
 A completion's ordered text and calls become one turn. Calls finish
 `tool_calls`, other completions `stop`. Output tokens are the recorded count,
-or 1 when absent. Arguments are embedded as recorded JSON, preserving their
-spacing and member order in the document; the fake subsequently applies its
-normal compact JSON encoding when it serves them. `--replace OLD=NEW` applies
+or 1 when absent. Untouched arguments are embedded as recorded JSON, preserving
+their spacing and member order; a subtree changed by a take is JSON-encoded.
+The fake applies its normal compact JSON encoding when it serves arguments. `--replace OLD=NEW` applies
 literal, non-overlapping byte substitutions to arguments and assistant text, in option
 order, counting occurrences per option. An empty OLD or a replacement that
-produces invalid object JSON is refused. Reports list turns per task and
-occurrences per replacement and opaque blocks dropped per task. An argument refusal
+produces invalid object JSON is refused. Reports list turns per task, occurrences per replacement, uses per take and
+opaque blocks dropped per task. An argument refusal
 prints its reason and usage and exits 2. A conversion refusal prints one line
 and exits 2; no output is opened on a conversion refusal.
+
+`--takes FILE` applies after replacements. FILE is a JSON list of at most eight
+`{"name","value","before","after"}` objects: `value` is the recorded text after
+`--replace`; `before` and `after` delimit its value in the replay's conversation.
+Names are distinct, 1–32 ASCII letters, digits or `_`; values are 1–256 bytes
+without a line feed, and delimiters 1–256 bytes each. A whole JSON number token
+becomes `"{{#NAME}}"`; occurrences inside decoded argument strings and assistant
+text become `{{NAME}}`. Every turn using a name gains its take line before its
+other lines, in FILE order. An unused take is refused by name. Counts are
+occurrences, not turns.
+
+When the recorded value also means something else, add `"only"`: one to eight
+places, each with optional `call`, `argument`, `prefix` and `suffix`. A `call`
+selects that call's arguments; `argument` narrows them to the value at an RFC 6901
+pointer (and needs `call`). Without `call`, the place selects assistant text.
+`prefix` and `suffix`, each at most 256 decoded bytes, constrain string/text
+occurrences and remain unchanged. Overlapping places count an occurrence once.
+For example, `{"call":"message","argument":"/target"}` leaves depth constants
+alone; `{"prefix":"PR #"}` takes just that number in assistant text.
+
+An existing twin can gain replacements and takes without its transcripts:
+
+```sh
+cargo run -p temper-twin -- --from twin.json --takes takes.json --out portable.json
+```
+
+`--from` cannot be combined with `--data`, `--base` or `--cue`. It preserves
+non-script members and transforms `cued`, `asked` and `otherwise`, including
+short text turns. Transcripts still replace only the two selected script lists,
+leaving the base's fallback unchanged. Both forms validate the output through
+temper-fake before opening `--out`.
 
 The bounds are the fake's: sixteen scripts, sixteen turns per script, sixteen lines
 per turn, 256-byte nonempty cues, 64 KiB answers, 256 KiB total scripts and
@@ -71,8 +102,10 @@ both conversions. These tests run without a service, ring or world. The B0
 real-loop smoke checks the story's landing path. Normal tests never rewrite
 fixtures. Regenerate B0's document from its cleanly stopped
 passing walk using the command named in `tests/real-loop/src/green_light.rs`.
-Task, question and pull numbers and fake-git identities recur. The scripts'
-forge reads infer their repository; no grant carries a listener address.
+The fixtures' takes bind message targets, pull numbers, heads and merges from
+the replay's conversation, rather than requiring the walk's numbers and git
+identities to recur. The scripts' forge reads infer their repository; no grant
+carries a listener address.
 
 ```sh
 env TEMPER_INTERNAL_BUNDLE=none NEXTEST_DOUBLE_SPAWN=0 cargo nextest run -p temper-twin-tool -p temper-twin

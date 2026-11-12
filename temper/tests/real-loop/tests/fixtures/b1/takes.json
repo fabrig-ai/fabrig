@@ -24,10 +24,14 @@
     "value": "2",
     "before": "request #",
     "after": " merged into main",
-    "only": [
-      {"prefix": "PR #"},
-      {"call": "finish", "argument": "/text", "prefix": "PR #"}
-    ]
+    "only": [{"call": "finish", "argument": "/text", "prefix": "PR #"}]
+  },
+  {
+    "name": "CHAT_PULL",
+    "value": "2",
+    "before": "PR #",
+    "after": ", merge ",
+    "only": [{"prefix": "PR #"}]
   },
   {
     "name": "HEAD",

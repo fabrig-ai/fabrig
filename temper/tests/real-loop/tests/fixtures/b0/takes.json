@@ -2,8 +2,8 @@
   {
     "name": "WORK",
     "value": "2",
-    "before": "Delegated tasks: ",
-    "after": " at spec revision ",
+    "before": "answer with message target=",
+    "after": ", form=answer",
     "only": [{"call": "message", "argument": "/target"}]
   },
   {

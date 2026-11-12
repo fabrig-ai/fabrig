@@ -162,8 +162,12 @@ pub(crate) fn checked(base: &Base) -> Result<Box<[u8]>, Refusal> {
 }
 
 pub(crate) fn transform(
-    base: &mut Base, groups: &[&str], replaces: &[Replace], counts: &mut [u32],
-    values: &[ValueTake], taken: &mut [u32],
+    base: &mut Base,
+    groups: &[&str],
+    replaces: &[Replace],
+    counts: &mut [u32],
+    values: &[ValueTake],
+    taken: &mut [u32],
 ) -> Result<(), Refusal> {
     for group in groups {
         let Some(raw) = base.get_mut(*group) else { continue };
@@ -195,7 +199,13 @@ fn json<T: serde::Serialize>(value: &T) -> Box<RawValue> {
     serde_json::value::to_raw_value(value).expect("JSON value")
 }
 
-fn turn(raw: &RawValue, replaces: &[Replace], counts: &mut [u32], values: &[ValueTake], taken: &mut [u32]) -> Result<Box<RawValue>, Refusal> {
+fn turn(
+    raw: &RawValue,
+    replaces: &[Replace],
+    counts: &mut [u32],
+    values: &[ValueTake],
+    taken: &mut [u32],
+) -> Result<Box<RawValue>, Refusal> {
     if replaces.is_empty() && values.is_empty() {
         return Ok(raw.to_owned());
     }
@@ -209,7 +219,8 @@ fn turn(raw: &RawValue, replaces: &[Replace], counts: &mut [u32], values: &[Valu
     } else {
         serde_json::from_str(raw.get()).expect("checked turn")
     };
-    let mut lines: Vec<Base> = serde_json::from_str(turn.get("lines").expect("turn lines").get()).expect("checked lines");
+    let mut lines: Vec<Base> =
+        serde_json::from_str(turn.get("lines").expect("turn lines").get()).expect("checked lines");
     let before = taken.to_vec();
     for line in &mut lines {
         if let Some(text) = line.get_mut("text") {
@@ -224,9 +235,10 @@ fn turn(raw: &RawValue, replaces: &[Replace], counts: &mut [u32], values: &[Valu
             let name: String = serde_json::from_str(call.get()).expect("checked call name");
             let arguments = line.get_mut("arguments").expect("call arguments");
             let bytes = replace(arguments.get().as_bytes(), replaces, counts)?;
-            let mut raw = RawValue::from_string(String::from_utf8(bytes)
-                .map_err(|_| Refusal::Bounds { what: "replacement arguments" })?)
-                .map_err(|_| Refusal::Bounds { what: "replacement arguments" })?;
+            let mut raw = RawValue::from_string(
+                String::from_utf8(bytes).map_err(|_| Refusal::Bounds { what: "replacement arguments" })?,
+            )
+            .map_err(|_| Refusal::Bounds { what: "replacement arguments" })?;
             if !raw.get().starts_with('{') {
                 return Err(Refusal::Bounds { what: "replacement arguments" });
             }
@@ -240,7 +252,9 @@ fn turn(raw: &RawValue, replaces: &[Replace], counts: &mut [u32], values: &[Valu
     for ((take, count), before) in values.iter().zip(taken.iter()).zip(&before) {
         if count != before {
             prefix.push(BTreeMap::from([
-                ("take".into(), json(&take.name)), ("before".into(), json(&take.before)), ("after".into(), json(&take.after)),
+                ("take".into(), json(&take.name)),
+                ("before".into(), json(&take.before)),
+                ("after".into(), json(&take.after)),
             ]));
         }
     }

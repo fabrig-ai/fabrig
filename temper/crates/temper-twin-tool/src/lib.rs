@@ -66,10 +66,15 @@ pub fn from_document(bytes: &[u8], replaces: &[Replace], values: &[ValueTake]) -
     let mut counts = vec![0; replaces.len()];
     let mut taken = vec![0; values.len()];
     document::transform(&mut base, &["cued", "asked", "otherwise"], replaces, &mut counts, values, &mut taken)?;
-    Ok(Twin { document: document::checked(&base)?, report: Report {
-        turns: Box::new([]), replaced: counts.into_boxed_slice(), dropped: Box::new([]),
-        taken: taken.into_boxed_slice(),
-    } })
+    Ok(Twin {
+        document: document::checked(&base)?,
+        report: Report {
+            turns: Box::new([]),
+            replaced: counts.into_boxed_slice(),
+            dropped: Box::new([]),
+            taken: taken.into_boxed_slice(),
+        },
+    })
 }
 fn transforms(replaces: &[Replace], values: &[ValueTake]) -> Result<(), Refusal> {
     takes::validate(values)?;
