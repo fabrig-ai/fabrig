@@ -85,6 +85,13 @@ How it counts decides what becomes of the task:
   6). The task backs off within that class's allowance and, past it,
   is held for `Failures` of that class, its hold naming the reason.
 
+A brief that fails, however it counts, gives its brief slot back at once,
+its sections still gathering dropped, before its task pauses or backs
+off, so another task's brief takes the slot while it waits; and a
+connector counts a section's failure as capacity only where room frees
+by itself, never where its next try would meet the same refusal again,
+so no brief retries one refused read on a slot without bound.
+
 Which is which, by what `executors.md`, 1 prepares:
 
 | The failure | Counts as | Section and words |
