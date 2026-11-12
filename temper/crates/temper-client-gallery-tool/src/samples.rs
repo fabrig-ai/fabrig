@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 407;
+pub const N: usize = 409;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -234,6 +234,8 @@ pub fn samples() -> [Sample; N] {
             address: Address::Settings { project: 1 },
             then: Shown,
         },
+        Sample { name: "how-follows", world: Reference, address: Address::Settings { project: 1 }, then: Shown },
+        Sample { name: "night-how-follows", world: Reference, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "how-reaches", world: Reference, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "night-how-reaches", world: Reference, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "night-home", world: FirstRun { step: 7 }, address: Address::Home { project: 1 }, then: Shown },
@@ -1370,7 +1372,7 @@ fn special_mockup(name: &str) -> Option<String> {
         "home-step-pair" => return Some("../whole-story/pair/home.html".to_owned()),
         "home-step-team" => return Some("../whole-story/team/home.html".to_owned()),
         "how-approve" => return Some("../web/whole-story/pair/how.html".to_owned()),
-        "how" | "how-draft" | "how-yours" | "how-card" | "night-how" | "how-reaches" | "night-how-reaches" => {
+        "how" | "how-draft" | "how-yours" | "how-card" | "night-how" | "how-reaches" | "night-how-reaches" | "how-follows" | "night-how-follows" => {
             return Some("../web/whole-story/how.html".to_owned());
         }
         "accounts-added" | "accounts-renewed" => return Some("accounts.html?world=reference&bare".to_owned()),
@@ -1721,6 +1723,7 @@ pub fn domain(sample: &Sample) -> Domain {
         "night-ask" => Some("ask-first-run"),
         "night-how" => Some("how"),
         "night-how-reaches" => Some("how-reaches"),
+        "night-how-follows" => Some("how-follows"),
         "night-chat-split" => Some("chat-draft-split"),
         "night-work" => Some("work"),
         "night-limits" => Some("limits"),

@@ -218,7 +218,7 @@ fn sweep(
 ) {
     let mut rng = Rng::new(seed);
     let initial = facts(&mut rng);
-    let mut settings = initial;
+    let mut settings = initial.clone();
     let mut route = path(&mut rng, limits);
     check_parts(&settings, seed, 0);
     check_drawing(&route, bounds, seed, 0);

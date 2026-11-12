@@ -5300,11 +5300,12 @@ const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 const CLASSES_OBJECTS_BYTES: u32 = 6400;
 // Six 40-byte set names, four commas and the last conjunction (client/forge/README.md, 4.1).
 const APPROVAL_SET_NAMES_BYTES: u32 = 253;
+const FOLLOW_WORDS: [Word; 12] = [Word::HowFollowMain, Word::HowFollowBranch, Word::HowFollowTouches, Word::HowFollowOwned,
+        Word::HowFollowTitle, Word::HowFollowOwnerWord, Word::HowFollowCheck, Word::HowFollowStopped,
+        Word::HowFollowStatus, Word::HowTiersTitle, Word::HowTiersWords, Word::HowTierChecks];
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
-    if [Word::HowFollowMain, Word::HowFollowBranch, Word::HowFollowTouches, Word::HowFollowOwned,
-        Word::HowFollowTitle, Word::HowFollowOwnerWord, Word::HowFollowCheck, Word::HowFollowStopped,
-        Word::HowFollowStatus, Word::HowTiersTitle, Word::HowTiersWords, Word::HowTierChecks].contains(&word) {
+    if FOLLOW_WORDS.contains(&word) {
         let bounds = temper_client_protocol_wire::v1::CEILINGS;
         let paths = bounds.follow_source_paths_item.checked_add(4).ok_or(Invalid::Overflow)?
             .checked_mul(bounds.follow_source_paths).ok_or(Invalid::Overflow)?;
@@ -5677,7 +5678,7 @@ impl Words {
     }
     #[must_use]
     pub fn capacity(&self) -> Option<u32> {
-        Some(self.ordinary_capacity()?.max(self.classes_capacity()?))
+        Some(self.ordinary_capacity()?.max(self.classes_capacity()?).max(self.follows_capacity()?))
     }
     /// Grouped classes occur only in Settings and a proposal's items (client/pages/settings.md, 2).
     pub(crate) fn classes_capacity(&self) -> Option<u32> {
@@ -5687,10 +5688,16 @@ impl Words {
         }
         Some(most)
     }
+    /// Landing boxes are priced only on How work runs (client/pages/settings.md, 2).
+    pub(crate) fn follows_capacity(&self) -> Option<u32> {
+        let mut most = 0;
+        for word in FOLLOW_WORDS { most = most.max(self.book.capacity(word.id(self.connector))?); }
+        Some(most)
+    }
     pub(crate) fn ordinary_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in ALL {
-            if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
+            if FOLLOW_WORDS.contains(&word) || [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
                 continue;
             }
             most = most.max(self.book.capacity(word.id(self.connector))?);
