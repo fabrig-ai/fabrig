@@ -40,3 +40,12 @@ clippy flags on main and no list names; change 1737 reported it.
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/boundary.rs
 - lint jig-protocol-store clippy::too_many_lines jig/crates/jig-protocol-store/src/tests/phase.rs
+
+Main at 37bc4d2488 (and still at f6ffc08436) moves the client wire only
+partly: jig-client-protocol-wire's VERSION is 20 and its schema file is
+client-v20.schema, but that file's header and the generated code still say
+jig-client-wire 19. The goal's version-constant test catches the mismatch, and
+it reaches the goal branch through change 1737's merge of main, 2026-11-12.
+The entry goes once main's header and VERSION agree.
+
+- test jig-client-protocol-wire tests::versions::version_constants_equal_the_family_headers
