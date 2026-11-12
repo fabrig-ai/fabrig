@@ -674,7 +674,6 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
 }
 pub fn form_setting_document(v: &c::SettingDocument) -> n::SettingDocument {
     n::SettingDocument {
-        overlay: None,
         setting: form_setting(v.setting),
         revision: v.revision,
         value: match &v.value {
@@ -715,7 +714,7 @@ pub fn form_setting_fault(v: c::SettingFault) -> n::SettingFault {
 pub fn form_setting_follows(v: &c::SettingFollows) -> n::SettingFollows {
     match v {
         c::SettingFollows::Default => n::SettingFollows::Default,
-        c::SettingFollows::Change => n::SettingFollows::Change,
+        c::SettingFollows::Overlay | c::SettingFollows::Change => n::SettingFollows::Change,
     }
 }
 
@@ -896,6 +895,7 @@ pub fn client_setting_set(v: &n::SettingSet) -> c::SettingSet {
 }
 pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
     match v {
+        c::SettingValue::Overlay(_) => n::SettingValue::Overlay,
         c::SettingValue::Model(x) => n::SettingValue::Model(Box::new(form_catalogue(x))),
         c::SettingValue::Application(x) => n::SettingValue::Application(x.clone()),
         c::SettingValue::Charter(x) => n::SettingValue::Charter(Box::new(form_charter(x))),
@@ -906,6 +906,7 @@ pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
 }
 pub fn client_setting_value(v: &n::SettingValue) -> c::SettingValue {
     match v {
+        n::SettingValue::Overlay => unreachable!("the settings form does not decode overlays"),
         n::SettingValue::Model(x) => c::SettingValue::Model(Box::new(client_catalogue(x))),
         n::SettingValue::Application(x) => c::SettingValue::Application(x.clone()),
         n::SettingValue::Charter(x) => c::SettingValue::Charter(Box::new(client_charter(x))),

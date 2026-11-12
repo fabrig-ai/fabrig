@@ -175,7 +175,10 @@ fn settings_finish_drops_cross_record_revision_rules() {
                     .push(Record::Charter {
                         charter: 1,
                         revision,
-                        value: CharterVersion { overlay: None, charter: Some(Box::new(core.charter(1).expect("charter").clone())) },
+                        value: CharterVersion {
+                            overlay: None,
+                            charter: Some(Box::new(core.charter(1).expect("charter").clone())),
+                        },
                     })
                     .expect("one stored version"),
                 Rule::ExtentAtHead => {
@@ -227,7 +230,10 @@ fn held_rows_past_each_limit_keep_their_refusal_detail() {
         let (mut core, mut env) = loaded();
         let (row, which) = if versions {
             env.limits.settings.versions = 0;
-            (Record::Charter { charter: 7, revision: 2, value: CharterVersion { overlay: None, charter: None } }, HeldLimit::Versions)
+            (
+                Record::Charter { charter: 7, revision: 2, value: CharterVersion { overlay: None, charter: None } },
+                HeldLimit::Versions,
+            )
         } else {
             env.limits.settings.revisions = 0;
             assert_eq!(restore(&mut core, &env, head(1)), Restored::Live);
@@ -337,20 +343,33 @@ fn an_empty_settings_range_keeps_the_supplied_defaults() {
 
 #[test]
 fn an_overlay_is_checked_whole_over_the_new_default_before_start() {
-    use crate::settings::{Overlay, Default};
+    use crate::settings::{Default, Overlay};
     let (mut core, env) = loaded();
     let rows = settings_rows(&core);
     let mut default = core.current.charter(1).unwrap().clone();
     default.policy.instructions = Box::new([]);
     let room = u64::from(env.limits.run_bytes) - crate::policy_owned_bytes(&default.policy).unwrap();
     default.policy.instructions = skein_lib::bytes::zeroed(usize::try_from(room).unwrap());
-    core.current.defaults.insert(Setting::Charter(1), Default { value: Value::Charter(Box::new(default)), revision: 1 }).unwrap();
-    for row in rows.into_boxed() { assert_ne!(restore(&mut core, &env, row), Restored::Rejected); }
-    assert!(core.restore_setting(Record::Changed {
-        setting: Setting::Charter(1), changed: Changed { revision: 1, value: Some(Value::Overlay(Box::new(Overlay {
-            instructions: b"B".as_slice().into(), ..Overlay::empty()
-        }))) },
-    }, &env.limits));
+    core.current
+        .defaults
+        .insert(Setting::Charter(1), Default { value: Value::Charter(Box::new(default)), revision: 1 })
+        .unwrap();
+    for row in rows.into_boxed() {
+        assert_ne!(restore(&mut core, &env, row), Restored::Rejected);
+    }
+    assert!(core.restore_setting(
+        Record::Changed {
+            setting: Setting::Charter(1),
+            changed: Changed {
+                revision: 1,
+                value: Some(Value::Overlay(Box::new(Overlay {
+                    instructions: b"B".as_slice().into(),
+                    ..Overlay::empty()
+                })))
+            },
+        },
+        &env.limits
+    ));
     assert!(!core.settings_restored(&env));
     let Some(Failure::Settings { failure, changed }) = core.start_failure() else { panic!("named settings failure") };
     assert_eq!(failure.setting, Setting::Charter(1));

@@ -166,6 +166,7 @@ fn named_value_text(setting: c::Setting, value: &c::SettingValue, limits: &Limit
 }
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
+        c::SettingValue::Overlay => out.null(),
         c::SettingValue::Model(v) => values::encode_catalogue(v, out),
         c::SettingValue::Charter(v) => values::encode_charter(v, out),
         c::SettingValue::Template(v) => values::encode_template(v, out),
@@ -231,7 +232,8 @@ fn value_details_text(value: &c::SettingValue, out: &mut Text) {
                 out.put(b"\n");
             }
         }
-        c::SettingValue::Model(_)
+        c::SettingValue::Overlay
+        | c::SettingValue::Model(_)
         | c::SettingValue::Policy(_)
         | c::SettingValue::Application(_)
         | c::SettingValue::Rules(_) => {}

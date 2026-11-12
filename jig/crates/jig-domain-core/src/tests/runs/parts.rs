@@ -464,10 +464,15 @@ fn overlay_run_preparation_selects_default_then_overlay_parts() {
     charter.policy.resume = false;
     charter.policy.instructions = b"S".as_slice().into();
     charter.parts = Box::new([part(Reasons::FIRST, b"F")]);
-    let overlay = crate::settings::Overlay { instructions: b"O".as_slice().into(),
-        parts: Box::new([part(Reasons::FIRST, b"OF"), part(Reasons::RESULT, b"skip")]), ..crate::settings::Overlay::empty() };
-    let items = [crate::settings::Item { setting: crate::settings::Setting::Charter(1),
-        edit: crate::settings::Edit::Set(crate::settings::Value::Overlay(Box::new(overlay))) }];
+    let overlay = crate::settings::Overlay {
+        instructions: b"O".as_slice().into(),
+        parts: Box::new([part(Reasons::FIRST, b"OF"), part(Reasons::RESULT, b"skip")]),
+        ..crate::settings::Overlay::empty()
+    };
+    let items = [crate::settings::Item {
+        setting: crate::settings::Setting::Charter(1),
+        edit: crate::settings::Edit::Set(crate::settings::Value::Overlay(Box::new(overlay))),
+    }];
     crate::settings::check_change(&core.current, &items, &core.settings, &core.connectors, &limits).unwrap();
     drop(crate::settings::apply(&mut core.current, &items, 1));
     charters::rebuild(&mut core.current, &limits);

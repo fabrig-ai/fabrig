@@ -107,7 +107,7 @@ fn inventory_text(document: &c::SettingsDocument, vocabulary: &dyn Parts, out: &
                     out.number(u64::from(last));
                 }
             }
-            c::SettingFollows::Change => {
+            c::SettingFollows::Overlay | c::SettingFollows::Change => {
                 out.put(b"changed in revision ");
                 if let Some(last) = line.last {
                     out.number(u64::from(last));

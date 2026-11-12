@@ -71,7 +71,9 @@ pub(crate) fn build(core: &Core) -> Settings {
         List::with_capacity(names.len().checked_add(current.applications.len()).expect("settings count"));
     for (&setting, ()) in &names {
         let (follows, last) = match current.changes.get(&setting) {
-            Some(change) => (if current.overlay(setting).is_some() { Follows::Overlay } else { Follows::Change }, change.revision),
+            Some(change) => {
+                (if current.overlay(setting).is_some() { Follows::Overlay } else { Follows::Change }, change.revision)
+            }
             None => (Follows::Default, current.defaults.get(&setting).expect("named default").revision),
         };
         let name = match current.value(setting) {

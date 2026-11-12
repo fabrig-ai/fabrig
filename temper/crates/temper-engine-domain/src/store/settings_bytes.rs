@@ -110,6 +110,7 @@ fn value(value: &Value) -> Option<u64> {
             .checked_add(
                 u64::from(rules.implies.len()).checked_mul(u64::try_from(size_of::<authority::Implication>()).ok()?)?,
             ),
+        Value::Overlay(_) => None,
         Value::Application(bytes) => Some(skein_lib::len_u64(bytes.len())),
     }
 }

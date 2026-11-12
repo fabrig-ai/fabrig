@@ -201,6 +201,9 @@ pub(crate) fn settings_restore_setting_value(
     limits: &Limits,
 ) -> Result<c::SettingValue, w::Problem> {
     Ok(match value {
+        w::SettingValue::Overlay(_) => {
+            return Err(w::Problem { path: w::Path::SettingSetValue, reason: skein_codec::Reason::Bound });
+        }
         w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(settings_restore_charter(item, limits)?)),
         w::SettingValue::Template(item) => c::SettingValue::Template(Box::new(documents_me_template(item, limits)?)),
         w::SettingValue::Policy(item) => {
@@ -903,7 +906,7 @@ pub(crate) fn settings_restore_setting_line(
 pub(crate) fn settings_restore_setting_follows(value: &w::SettingFollows, _limits: &Limits) -> c::SettingFollows {
     match value {
         w::SettingFollows::Default => c::SettingFollows::Default,
-        w::SettingFollows::Change => c::SettingFollows::Change,
+        w::SettingFollows::Overlay | w::SettingFollows::Change => c::SettingFollows::Change,
     }
 }
 
@@ -986,6 +989,9 @@ pub(crate) fn settings_wire_setting_value(
     limits: &w::Limits,
 ) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
+        c::SettingValue::Overlay => {
+            return Err(w::Problem { path: w::Path::SettingSetValue, reason: skein_codec::Reason::Bound });
+        }
         c::SettingValue::Charter(item) => w::SettingValue::Charter(Box::new(settings_wire_charter(item, limits)?)),
         c::SettingValue::Template(item) => w::SettingValue::Template(Box::new(settings_wire_template(item, limits)?)),
         c::SettingValue::Policy(item) => w::SettingValue::Policy(Box::new(settings_wire_setting_policy(item, limits)?)),

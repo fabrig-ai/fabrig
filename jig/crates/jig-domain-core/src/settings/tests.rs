@@ -27,7 +27,9 @@ fn charter(current: &mut Current) -> &mut Charter {
     match &mut current.defaults.get_mut(&Setting::Charter(1)).unwrap().value {
         Value::Charter(value) => value,
         Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!(),
-        Value::Overlay(_) | Value::Model(_) | Value::Application(_) => unreachable!("an application's setting: apps-core"),
+        Value::Overlay(_) | Value::Model(_) | Value::Application(_) => {
+            unreachable!("an application's setting: apps-core")
+        }
     }
 }
 #[test]
@@ -286,7 +288,9 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
             }
             Value::Policy(value) => Some((Setting::Policy(2), Value::Policy(value))),
             Value::Rules(_) => None,
-            Value::Overlay(_) | Value::Model(_) | Value::Application(_) => unreachable!("an application's setting: apps-core"),
+            Value::Overlay(_) | Value::Model(_) | Value::Application(_) => {
+                unreachable!("an application's setting: apps-core")
+            }
         };
         if let Some((setting, value)) = added {
             for erase in [Edit::Removed, Edit::Reset] {
@@ -702,7 +706,11 @@ fn a_held_revision_left_without_holders_is_released_by_the_start() {
     let mut old = core.charter(1).unwrap().clone();
     old.policy.instructions = b"An orphan version".as_slice().into();
     assert!(core.restore_setting(
-        Record::Charter { charter: 1, revision: 1, value: CharterVersion { overlay: None, charter: Some(Box::new(old)) } },
+        Record::Charter {
+            charter: 1,
+            revision: 1,
+            value: CharterVersion { overlay: None, charter: Some(Box::new(old)) }
+        },
         &limits
     ));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -1041,8 +1049,12 @@ fn overlay_replaces_fields_and_appends_text_and_parts() {
     default.policy.instructions = Box::from(b"A".as_slice());
     let part = |text: &[u8]| charters::CharterPart { on: tasks::Reasons::FIRST, instructions: Box::from(text) };
     default.parts = Box::new([part(b"p1"), part(b"p2")]);
-    let mut overlay = Overlay { shell: Some(!default.policy.shell), instructions: Box::from(b"B".as_slice()),
-        parts: Box::new([part(b"q1")]), ..Overlay::empty() };
+    let mut overlay = Overlay {
+        shell: Some(!default.policy.shell),
+        instructions: Box::from(b"B".as_slice()),
+        parts: Box::new([part(b"q1")]),
+        ..Overlay::empty()
+    };
     let mut expected = default.clone();
     expected.policy.shell = !default.policy.shell;
     expected.policy.instructions = Box::from(b"A\n\nB".as_slice());
@@ -1063,7 +1075,8 @@ fn overlay_requires_a_default_and_keeps_its_stored_identity() {
     let mut current = Current::new(configured.defaults, &limits, &[]);
     let value = Value::Overlay(Box::new(Overlay::empty()));
     let mut item = Item { setting: Setting::Charter(2), edit: Edit::Set(value.clone()) };
-    let failure = check_change(&current, &[item.clone()], &configured.settings, &configured.connectors, &limits).unwrap_err();
+    let failure =
+        check_change(&current, &[item.clone()], &configured.settings, &configured.connectors, &limits).unwrap_err();
     assert_eq!((failure.setting, failure.fault), (item.setting, Fault::Reference));
     item.setting = Setting::Charter(1);
     check_change(&current, &[item.clone()], &configured.settings, &configured.connectors, &limits).unwrap();

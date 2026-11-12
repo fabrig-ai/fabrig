@@ -312,7 +312,10 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
     if let settings::Setting::Charter(number) = setting {
         return match core.charter_at(number, revision) {
             Some(charter) => Answer::Setting(Box::new(SettingDocument {
-                overlay: match core.overlay_at(number, revision) { Some(overlay) => Some(Box::new(overlay.clone())), None => None },
+                overlay: match core.overlay_at(number, revision) {
+                    Some(overlay) => Some(Box::new(overlay.clone())),
+                    None => None,
+                },
                 setting,
                 revision,
                 value: Some(settings::Value::Charter(Box::new(charter.clone()))),
@@ -809,7 +812,9 @@ pub fn valid_revision(revision: &settings::Revision, limits: &Limits) -> bool {
                     }
                     settings::Value::Overlay(_) => {
                         charters = charters.saturating_add(1);
-                        if charters > limits.tasks.charters { return false; }
+                        if charters > limits.tasks.charters {
+                            return false;
+                        }
                     }
                     settings::Value::Template(_) => {
                         templates = templates.saturating_add(1);

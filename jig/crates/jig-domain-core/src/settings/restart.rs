@@ -231,7 +231,11 @@ impl Core {
                 return false;
             }
             if value.charter.is_none() {
-                let _refused = self.refuse_settings(Failure { setting: Setting::Charter(charter), fault: Fault::Shape, detail: None });
+                let _refused = self.refuse_settings(Failure {
+                    setting: Setting::Charter(charter),
+                    fault: Fault::Shape,
+                    detail: None,
+                });
                 return false;
             }
         }
@@ -528,7 +532,8 @@ impl Core {
         }
         for item in &items {
             if self.current.overlay(item.setting).is_some() {
-                for write in super::charters::stamp(&mut self.current, core::slice::from_ref(item), newest).into_boxed() {
+                for write in super::charters::stamp(&mut self.current, core::slice::from_ref(item), newest).into_boxed()
+                {
                     out.push(Request::Write(write));
                 }
             }
@@ -555,7 +560,9 @@ impl Core {
                         setting: item.setting,
                         edit: item.edit.clone(),
                         replaced: match &item.edit {
-                            Edit::Set(super::Value::Overlay(overlay)) => super::Replaced::Value(super::Value::Overlay(overlay.clone())),
+                            Edit::Set(super::Value::Overlay(overlay)) => {
+                                super::Replaced::Value(super::Value::Overlay(overlay.clone()))
+                            }
                             Edit::Set(_) | Edit::Removed | Edit::Reset => super::Replaced::Default,
                         },
                     })

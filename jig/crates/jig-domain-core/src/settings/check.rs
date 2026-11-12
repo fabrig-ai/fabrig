@@ -222,8 +222,11 @@ fn check_set(
         let stored = overlay_value(current, defaults, items, setting).expect("offered setting");
         let made = match stored {
             Value::Overlay(_) => {
-                let charter = current.made_charter(setting, stored)
-                    .ok_or(Failure { setting, fault: Fault::Reference, detail: None })?;
+                let charter = current.made_charter(setting, stored).ok_or(Failure {
+                    setting,
+                    fault: Fault::Reference,
+                    detail: None,
+                })?;
                 if charter.policy.resume && !charter.parts.is_empty() {
                     return Err(Failure { setting, fault: Fault::Shape, detail: None });
                 }
@@ -231,7 +234,12 @@ fn check_set(
                 shape(setting, &value, limits)?;
                 Some(value)
             }
-            Value::Charter(_) | Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => None,
+            Value::Charter(_)
+            | Value::Template(_)
+            | Value::Policy(_)
+            | Value::Rules(_)
+            | Value::Model(_)
+            | Value::Application(_) => None,
         };
         let fault = match made.as_ref().unwrap_or(stored) {
             Value::Charter(charter) => {
@@ -283,7 +291,12 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
     let valid = match value {
         Value::Overlay(_) => match setting {
             Setting::Charter(number) => number != 0,
-            Setting::Template(_) | Setting::Policy(_) | Setting::Model(_) | Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => false,
+            Setting::Template(_)
+            | Setting::Policy(_)
+            | Setting::Model(_)
+            | Setting::Rules
+            | Setting::Application { .. }
+            | Setting::ProjectPolicy { .. } => false,
         },
         Value::Charter(value) => {
             setting == Setting::Charter(value.number) && value.number != 0 && tasks::wake_valid(&value.wake)
@@ -370,18 +383,24 @@ fn overlay_fit(setting: Setting, overlay: &super::Overlay, limits: &Limits) -> R
         return Err(Failure { fault: Fault::Count, ..failure });
     }
     for part in &overlay.parts {
-        if part.on.is_empty() || !part.on.is_known() { return Err(failure); }
+        if part.on.is_empty() || !part.on.is_known() {
+            return Err(failure);
+        }
     }
     if let Some(documents) = &overlay.documents
-        && let Some(detail) = documents_fit(documents, limits) {
+        && let Some(detail) = documents_fit(documents, limits)
+    {
         return Err(document_failure(setting, detail));
     }
     if let Some(alternatives) = &overlay.alternatives
-        && alternatives.len() > skein_lib::usize_of(limits.settings.alternatives) {
+        && alternatives.len() > skein_lib::usize_of(limits.settings.alternatives)
+    {
         return Err(Failure { fault: Fault::Count, ..failure });
     }
     let bytes = crate::limits::overlay_policy_bytes(overlay).ok_or(failure)?;
-    if bytes > u64::from(limits.run_bytes) { return Err(failure); }
+    if bytes > u64::from(limits.run_bytes) {
+        return Err(failure);
+    }
     Ok(())
 }
 
