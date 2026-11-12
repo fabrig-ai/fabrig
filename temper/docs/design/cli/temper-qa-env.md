@@ -19,6 +19,6 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Set:** internal
 - **Reads**
 - **Form:** N
-- **Absent:** Triage commands are refused.
-- The running triage session the agent's commands record for.
+- **Absent:** Triage and pass commands are refused.
+- The running triage or pass session the agent's commands record for.
 - **Notes:** Set by the loop for the agent it starts.
