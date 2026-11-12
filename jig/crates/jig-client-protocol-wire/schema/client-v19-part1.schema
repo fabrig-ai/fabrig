@@ -28,7 +28,14 @@ record AccountFact { kind: u16 label: bytes 32 value: AccountFactValue seen: u64
 record AccountLine { list: option AccountList number: u32 place: u32 uses: option list 16 AccountUse plan: bool provider: option u32 display: DocumentText holder: AccountHolder sources: bytes 16777216 cut: bool provider_name: option DocumentText manage_usage: option bytes 2048 facts: list 24 AccountFact }
 record AccountSignIn { source: u32 provider: u32 holder: AccountHolder }
 record AccountLastEnd { source: u32 end: AccountEnd }
-record Accounts { program_hosts: bytes 16777216 accounts: bytes 16777216 signing: bytes 16777216 last_end: option AccountLastEnd usable: bool settled: bool cut: bool readiness: bytes 16777216 readiness_cut: bool }
+record TerminalLogin { number: u32 provider: u32 name: bytes 32 cancelled: bool }
+record Terminal { login: option TerminalLogin }
+record LoginEndSignedIn { source: u32 }
+record LoginEndNotFinished { exit: option LoginExit }
+record LoginEndRefused { refusal: AccountRefusal }
+enum LoginEnd { signed_in: LoginEndSignedIn, not_finished: LoginEndNotFinished, cancelled, refused: LoginEndRefused }
+record AccountLentEnd { number: u32 end: LoginEnd }
+record Accounts { program_hosts: bytes 16777216 accounts: bytes 16777216 signing: bytes 16777216 last_end: option AccountLastEnd lendable: bool lending: option TerminalLogin lent_end: option AccountLentEnd usable: bool settled: bool cut: bool readiness: bytes 16777216 readiness_cut: bool }
 record Account { list: option AccountList number: u32 place: u32 uses: option list 16 AccountUse plan: bool provider: option u32 display: DocumentText holder: AccountHolder sources: bytes 16777216 generation: option u64 state: AccountState usable: bool expiring: bool attention: bool spent_until: option u64 runs: bytes 16777216 waiting: bytes 16777216 cut: bool provider_name: option DocumentText manage_usage: option bytes 2048 facts: list 24 AccountFact }
 record Deployment { store: StoreFill hosts: bytes 16777216 attempts: bytes 16777216 accounts: bytes 16777216 tasks: Capacity workers: Capacity attempts_capacity: Capacity waiting_attempts: u32 proposals: Capacity projects: list 32 ProjectCapacity grace_bound: duration hello_refusals: list 32 HelloRefusalLine hosts_forgotten: u64 hello_refusals_forgotten: u64 person_room_refusals: list 32 PersonCapacityRefusal person_room_refusals_forgotten: u64 person_answer_retention: duration task_room_refusals: list 32 TaskCapacityRefusal task_room_refusals_forgotten: u64 cut: bool connectors: list 32 u16 connectors_cut: bool providers: bytes 16777216 providers_cut: bool key_bytes: u32 readiness: bytes 16777216 readiness_cut: bool }
 versioned record Kept { store_version: u16 record: bytes 65536 }
@@ -100,7 +107,7 @@ enum Malformed { project_mismatch, two_as_allowed, conversation_not_agent, cycle
 record RefusalJudged { at: u32 setting: Setting why: text 65536 }
 record RefusalMalformed { at: u32 why: Malformed }
 record RefusalForgotten { oldest: u32 }
-enum Refusal { malformed: RefusalMalformed, role: RefusalRole, taken: RefusalTaken, not_waiting, no_further, authority: RefusalAuthority, limit: RefusalLimit, moved: RefusalMoved, ended: RefusalEnded, unknown, not_offered, key_conflict, no_escalation_holder, llm: RefusalLlm, provider, account: RefusalAccount, circle: RefusalCircle, dependency: RefusalDependency, kept: RefusalKept, name_taken, account_move: RefusalAccountMove, stale: RefusalStale, full: RefusalFull, sign_in_redirect: RefusalSignInRedirect, judged: RefusalJudged, forgotten: RefusalForgotten, program_name_reserved, live_tasks: RefusalLiveTasks }
+enum Refusal { malformed: RefusalMalformed, role: RefusalRole, taken: RefusalTaken, not_waiting, no_further, authority: RefusalAuthority, limit: RefusalLimit, moved: RefusalMoved, ended: RefusalEnded, unknown, not_offered, key_conflict, no_escalation_holder, llm: RefusalLlm, provider, account: RefusalAccount, circle: RefusalCircle, dependency: RefusalDependency, kept: RefusalKept, name_taken, account_move: RefusalAccountMove, stale: RefusalStale, full: RefusalFull, sign_in_redirect: RefusalSignInRedirect, judged: RefusalJudged, forgotten: RefusalForgotten, program_name_reserved, live_tasks: RefusalLiveTasks, no_terminal, login_under_way, not_lending }
 record Done { outcome: Outcome }
 record Refused { refusal: Refusal at: option u32 }
 enum Final { done: Done, refused: Refused }
@@ -123,7 +130,7 @@ record Restore { revision: u32 reason: text 65536 }
 record ReadLists { provider: u32 }
 enum Ask { message: Message, answer: Answer, take: Take, hand_back: HandBack, decide: Decide, release: Release, amend: boxed Amend, stop: Stop, cancel: Cancel, move_task: Move, seen: Seen, edit_note: EditNote, delete_note: DeleteNote, change_policy: ChangePolicy, set_roles: SetRoles, make_service: MakeService, set_pool: SetPool, compound: Compound, create: Create, propose: Propose, withdraw: Withdraw, sign_in: AskSignIn, sign_out: AskSignOut, account_change: AskAccountChange, rename: Rename, make_project: MakeProject, change_settings: ChangeSettings, move_to_newest: MoveToNewest, lift: Lift, remove_project: RemoveProject, restore: Restore, set_visibility: SetVisibility, change_model: ChangeModel, read_lists: ReadLists, talk: Message, leave: Stop }
 enum ReadValue { tasks: TaskPage, project: Project, ended: boxed Ended, me: Me, task: Task, proposal: Proposal, escalation: Escalation, question: Question, person_task: PersonTask, result: ResultDocument, ended_page: EndedPage, history: HistoryPage, activity: ActivityPage, inbox: InboxPage, spend: SpendPage, notes: NotePage, deployment: Deployment, turn: ArchivedTurn, settings: SettingsDocument, setting: SettingDocument, revision: ReadRevisionAnswer, revisions: RevisionsPage, task_text: TaskText }
-enum DeliveryValue { project: Project, me: Me, task: boxed Task, proposal: Proposal, tree: Tree, chips: Chips, inbox: Inbox, tasks: Tasks, run_state: RunState, deployment: Deployment, accounts: Accounts, settings: SettingsDocument }
+enum DeliveryValue { project: Project, me: Me, task: boxed Task, proposal: Proposal, tree: Tree, chips: Chips, inbox: Inbox, tasks: Tasks, run_state: RunState, deployment: Deployment, accounts: Accounts, settings: SettingsDocument, terminal: Terminal }
 record OriginRevision { revision: u32 }
 enum SettingOrigin { default: OriginRevision, change: OriginRevision, not_offered }
 enum ReviewValue { value: SettingSet, too_large: Size, none }

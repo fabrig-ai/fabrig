@@ -319,6 +319,17 @@ pub enum Answer {
 /// Holder changes to LLM accounts (domain/accounts.md, section 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum AccountChange {
+    LoginProgram {
+        provider: u32,
+        name: Box<[u8]>,
+    },
+    CancelLogin {
+        number: u32,
+    },
+    LoginEnded {
+        number: u32,
+        exit: super::LoginExit,
+    },
     DeclareProgram {
         provider: u32,
         join: Option<u32>,

@@ -139,6 +139,9 @@ fn refusals_keep_every_engine_fact_and_moved_reads_the_current_object_without_lo
             | Refusal::Unknown
             | Refusal::NameTaken
             | Refusal::ProgramNameReserved
+            | Refusal::NoTerminal
+            | Refusal::LoginUnderWay
+            | Refusal::NotLending
             | Refusal::NotOffered
             | Refusal::NoEscalationHolder
             | Refusal::KeyConflict => {

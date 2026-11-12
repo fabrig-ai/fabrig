@@ -23,6 +23,7 @@ impl Frame {
             | w::Subject::Inbox(_)
             | w::Subject::Tasks(_)
             | w::Subject::Run(_)
+            | w::Subject::Terminal(_)
             | w::Subject::Settings => panic!("move watches only accounts and deployment"),
         };
         let document = w::Owned::new(
@@ -42,7 +43,10 @@ impl Frame {
             w::AccountChange::Written(_) => "written",
             w::AccountChange::MoveOut(_) => "move-out",
             w::AccountChange::MoveIn(_) => "move-in",
-            w::AccountChange::FinishSignIn(_)
+            w::AccountChange::LoginProgram(_)
+            | w::AccountChange::CancelLogin(_)
+            | w::AccountChange::LoginEnded(_)
+            | w::AccountChange::FinishSignIn(_)
             | w::AccountChange::AddKey(_)
             | w::AccountChange::ReplaceKey(_)
             | w::AccountChange::RemoveKey(_)

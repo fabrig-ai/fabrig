@@ -738,8 +738,36 @@ fn account_holder(value: c::AskAccountHolder) -> w::AskAccountHolder {
     }
 }
 
+fn login_exit(value: c::LoginExit, limits: &w::Limits) -> Result<w::LoginExit, w::Problem> {
+    Ok(match value {
+        c::LoginExit::Exited { code } => {
+            w::LoginExit::Exited(w::LoginExitExited::new(limits, w::LoginExitExitedParts { code })?)
+        }
+        c::LoginExit::Killed { signal } => {
+            w::LoginExit::Killed(w::LoginExitKilled::new(limits, w::LoginExitKilledParts { signal })?)
+        }
+        c::LoginExit::NotStarted => w::LoginExit::NotStarted,
+    })
+}
 fn account_change(value: &c::AccountChange, limits: &w::Limits) -> Result<w::AccountChange, w::Problem> {
     Ok(match value {
+        c::AccountChange::LoginProgram { provider, name } => {
+            if !c::valid_program_name(name) {
+                return Err(super::piece_problem(skein_codec::Reason::Malformed));
+            }
+            w::AccountChange::LoginProgram(w::AccountChangeLoginProgram::new(
+                limits,
+                w::AccountChangeLoginProgramParts { provider: *provider, name: name.clone() },
+            )?)
+        }
+        c::AccountChange::CancelLogin { number } => w::AccountChange::CancelLogin(w::AccountChangeCancelLogin::new(
+            limits,
+            w::AccountChangeCancelLoginParts { number: *number },
+        )?),
+        c::AccountChange::LoginEnded { number, exit } => w::AccountChange::LoginEnded(w::AccountChangeLoginEnded::new(
+            limits,
+            w::AccountChangeLoginEndedParts { number: *number, exit: login_exit(*exit, limits)? },
+        )?),
         c::AccountChange::MoveOut { account } => w::AccountChange::MoveOut(w::AccountChangeMoveOut::new(
             limits,
             w::AccountChangeMoveOutParts { account: *account },
