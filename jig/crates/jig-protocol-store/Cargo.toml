@@ -10,7 +10,6 @@ publish.workspace = true
 [dependencies]
 skein-oauth.workspace = true
 smith-transcript.workspace = true
-jig-protocol-accounts.workspace = true
 skein-lib.workspace = true
 skein-codec.workspace = true
 skein-kv.workspace = true

@@ -13,16 +13,19 @@ impl Maps {
     pub fn read(disk: &mut Machine) -> Self {
         let root = disk.reopen_root(0);
         let active = file(disk, root, b"active");
-        let active = std::str::from_utf8(&active).expect("active generation text")
-            .strip_suffix('\n').expect("active newline").parse().expect("active generation number");
+        let active = std::str::from_utf8(&active)
+            .expect("active generation text")
+            .strip_suffix('\n')
+            .expect("active newline")
+            .parse()
+            .expect("active generation number");
         let store = map(disk, root, format!("generations/{active}/store").as_bytes());
         let secrets = map(disk, root, format!("generations/{active}/secrets").as_bytes());
         disk.close(root);
         Self { active, store, secrets }
     }
     pub fn format(&self) -> jig_protocol_store::codec::component::Format {
-        let key = jig_protocol_store::keys::encode_own(&jig_protocol_store::keys::Own::Format, 64)
-            .expect("format key");
+        let key = jig_protocol_store::keys::encode_own(&jig_protocol_store::keys::Own::Format, 64).expect("format key");
         jig_protocol_store::codec::component::Format::decode(self.store.get(key.as_ref()).expect("format row"))
             .expect("format decodes")
     }
@@ -38,8 +41,12 @@ fn file(disk: &mut Machine, root: Opened, path: &[u8]) -> Vec<u8> {
 fn apply(rows: &mut Rows, ops: Box<[skein_kv::Op]>) {
     for op in ops {
         match op {
-            skein_kv::Op::Put { key, value } => { rows.insert(key.into_vec(), value.into_vec()); }
-            skein_kv::Op::Erase { key } => { rows.remove(key.as_ref()); }
+            skein_kv::Op::Put { key, value } => {
+                rows.insert(key.into_vec(), value.into_vec());
+            }
+            skein_kv::Op::Erase { key } => {
+                rows.remove(key.as_ref());
+            }
         }
     }
 }
@@ -48,7 +55,9 @@ fn map(disk: &mut Machine, root: Opened, path: &[u8]) -> Rows {
     let mut files = Vec::new();
     loop {
         let entries = disk.list(fd, 32, 4096).expect("map files");
-        if entries.is_empty() { break; }
+        if entries.is_empty() {
+            break;
+        }
         files.extend(entries.into_iter().map(|(_, name)| name));
     }
     files.sort();

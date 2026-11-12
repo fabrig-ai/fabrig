@@ -4,8 +4,10 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+mod patch_set;
 #[path = "../patches/mod.rs"]
 pub mod patches;
+pub use patch_set::JIG_PATCH_SET;
 
 #[rustfmt::skip]
 #[path = "generated/v1.rs"]

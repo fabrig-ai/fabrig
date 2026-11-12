@@ -4,9 +4,9 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 
+mod patch_set;
 #[path = "../patches/mod.rs"]
 pub mod patches;
-mod patch_set;
 pub use patch_set::PATCH_SET;
 
 use alloc::boxed::Box;

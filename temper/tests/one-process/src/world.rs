@@ -1293,10 +1293,16 @@ pub(crate) fn run_phase(
         *cell.borrow_mut() = None;
     });
     let records = std::mem::take(&mut *store.borrow_mut());
-    let patched = outcome.procs.iter().filter_map(|proc| match proc {
-        Proc::Service(service) => Some(service.observer.patched.as_slice()),
-        _ => None,
-    }).flatten().copied().collect();
+    let patched = outcome
+        .procs
+        .iter()
+        .filter_map(|proc| match proc {
+            Proc::Service(service) => Some(service.observer.patched.as_slice()),
+            _ => None,
+        })
+        .flatten()
+        .copied()
+        .collect();
     let result = Outcome {
         stopped: None,
         patched,

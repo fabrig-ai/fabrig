@@ -9,7 +9,7 @@ pub const FIXTURE_SETS: PatchSets = PatchSets {
     sets: &[
         jig_protocol_store::SKEIN_PATCH_SET,
         jig_protocol_store::SMITH_PATCH_SET,
-        jig_protocol_store::JIG_PATCH_SET,
+        jig_protocol_accounts::JIG_PATCH_SET,
         jig_protocol_store::PatchSet {
             patches: &["patch 1\nowner temper 1 after jig 0\nmark fresh-windows\n"],
             fresh: Some("fresh-windows"),
@@ -59,10 +59,22 @@ pub fn golden_ranges(directory: &Path) {
                 seen.insert(*name);
                 assert!(families.is_empty(), "reserved {name} key {key:02x?} in {families:?}");
                 match *name {
-                    "format" => { codec::component::Format::decode(value).expect("format at its own key"); }
-                    "layouts" => { codec::component::Layouts::decode(value).expect("layouts at their own key"); }
-                    "wires" => { jig_protocol_store::component_v3::Wires::decode(&jig_protocol_store::component_v3::CEILINGS, &mut skein_lib::Reader::new(value)).expect("wires at their own key"); }
-                    "installation" => { codec::accounts::Installation::decode(value).expect("installation at its own key"); }
+                    "format" => {
+                        codec::component::Format::decode(value).expect("format at its own key");
+                    }
+                    "layouts" => {
+                        codec::component::Layouts::decode(value).expect("layouts at their own key");
+                    }
+                    "wires" => {
+                        jig_protocol_store::component_v3::Wires::decode(
+                            &jig_protocol_store::component_v3::CEILINGS,
+                            &mut skein_lib::Reader::new(value),
+                        )
+                        .expect("wires at their own key");
+                    }
+                    "installation" => {
+                        codec::accounts::Installation::decode(value).expect("installation at its own key");
+                    }
                     _ => unreachable!("listed reserved row"),
                 }
             } else if families.len() != 1 {
@@ -77,30 +89,40 @@ pub fn golden_ranges(directory: &Path) {
 
 fn assert_levels(maps: &maps::Maps, application: u32) {
     let format = maps.format();
-    assert_eq!(format.levels, codec::component::Levels {
-        skein: Some(0), smith: Some(0), jig: Some(0), application: Some(application),
-    });
+    assert_eq!(
+        format.levels,
+        codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(0), application: Some(application) }
+    );
 }
 
 fn chat_window(maps: &maps::Maps) -> jig_domain_core::RunProof {
-    let key = keys::encode(&jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(1)), 64)
-        .expect("chat proof key");
+    let key =
+        keys::encode(&jig_domain_core::Key::Core(jig_domain_core::CoreKey::RunProof(1)), 64).expect("chat proof key");
     let bytes = maps.store.get(key.as_ref()).expect("chat proof");
     let jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof)) =
         codec::decode(&keys::decode(&key).expect("chat key"), bytes, &fixtures::codec(), fixtures::store_names())
             .expect("chat proof decodes")
-    else { panic!("chat proof record") };
+    else {
+        panic!("chat proof record")
+    };
     proof
 }
 
 /// A signal-stopped chat keeps its live window at level zero. An equal open
 /// patches nothing; the marked upgrade closes the window and switches once.
 pub fn fresh_windows() {
-    let story = world::Story::Chat { words: b"Hello" };
+    let scenario = world::Story::ChatReadThenWait { words: b"Hello" };
     let run = Rc::new(RefCell::new(referee::Run::default()));
     let settings = fixtures::calm(fixtures::SEED);
     let (first, mut disk, store) = world::with_patch_sets(temper_service::store::PATCH_SETS, || {
-        world::run_phase(settings, story, world::Phase::Story, temper_playground::machine::fresh(), referee::Store::new(), run.clone())
+        world::run_phase(
+            settings,
+            scenario,
+            world::Phase::Story,
+            temper_playground::machine::fresh(),
+            referee::Store::new(),
+            run.clone(),
+        )
     });
     assert!(first.drained && first.end == Some(temper_service::End::Drained));
     assert!(first.patched.is_empty(), "first start patches nothing");
@@ -111,7 +133,7 @@ pub fn fresh_windows() {
     assert!(!window.closed, "signal preserves the live chat window");
 
     let (equal, mut disk, store) = world::with_patch_sets(temper_service::store::PATCH_SETS, || {
-        world::run_phase(settings, story, world::Phase::SignIn, disk, store, run.clone())
+        world::run_phase(settings, scenario, world::Phase::SignIn, disk, store, run.clone())
     });
     assert!(equal.drained);
     assert!(equal.patched.is_empty(), "equal baseline levels patch nothing");
@@ -121,7 +143,7 @@ pub fn fresh_windows() {
     assert!(!chat_window(&equal_maps).window.expect("window retained").closed);
 
     let (patched, mut disk, store) = world::with_patch_sets(FIXTURE_SETS, || {
-        world::run_phase(settings, story, world::Phase::SignIn, disk, store, run.clone())
+        world::run_phase(settings, scenario, world::Phase::SignIn, disk, store, run.clone())
     });
     assert!(patched.drained);
     assert_eq!(patched.patched, vec![(Owner::Application, 1, jig_protocol_store::Counts { records: 0, commits: 0 })]);
@@ -136,7 +158,7 @@ pub fn fresh_windows() {
     assert_eq!(after.secrets, equal_maps.secrets, "mark-only patch preserves secret records");
 
     let (equal, mut disk, _) = world::with_patch_sets(FIXTURE_SETS, || {
-        world::run_phase(settings, story, world::Phase::SignIn, disk, store, run)
+        world::run_phase(settings, scenario, world::Phase::SignIn, disk, store, run)
     });
     assert!(equal.drained);
     assert!(equal.patched.is_empty(), "equal fixture levels patch nothing");
