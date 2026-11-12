@@ -133,6 +133,7 @@ fn subject_text(
         | c::Delivery::Chips(_)
         | c::Delivery::Settings(_)
         | c::Delivery::Deployment(_)
+        | c::Delivery::Terminal(_)
         | c::Delivery::Accounts(_) => unreachable!("wait subject"),
     }
     if let Some(result) = wait.result {

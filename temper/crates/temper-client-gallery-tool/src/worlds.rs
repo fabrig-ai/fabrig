@@ -840,7 +840,7 @@ fn world_in_layout(
                                 goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
                             }
                         }
-                        c::Subject::Chips { .. } => None,
+                        c::Subject::Terminal { .. } | c::Subject::Chips { .. } => None,
                     };
                     if let Some(document) = document {
                         deliver(&mut root, watch, document, &mut out);
@@ -4001,6 +4001,9 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
         program_hosts: hosts,
         accounts: rows,
         signing: List::with_capacity(0),
+        lendable: false,
+        lending: None,
+        lent_end: None,
         last_end: match then {
             Then::SignInReady | Then::Declined => Some(c::AccountLastEnd {
                 source: 43,

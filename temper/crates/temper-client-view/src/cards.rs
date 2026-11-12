@@ -42,6 +42,9 @@ pub fn refusal(b: &mut Builder, words: &Words, value: &c::Refusal) {
         | c::Refusal::Ended { .. }
         | c::Refusal::Unknown
         | c::Refusal::ProgramNameReserved
+        | c::Refusal::NoTerminal
+        | c::Refusal::LoginUnderWay
+        | c::Refusal::NotLending
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
         | c::Refusal::LiveTasks { .. }
@@ -137,6 +140,7 @@ fn decided(b: &mut Builder, words: &Words, how: &c::Decision) {
 fn owner_outcome(b: &mut Builder, words: &Words, value: &c::DocumentOutcome) {
     use c::DocumentOutcome as O;
     let word = match value {
+        O::AccountLoginAsked { .. } => return,
         O::Cancelled { .. } => P::Cancelled,
         O::Released { .. } | O::Lifted { .. } => P::Released,
         O::PersonTaken { .. } => P::Taken,

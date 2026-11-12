@@ -55,9 +55,6 @@ pub(crate) fn account_refusal(value: &w::AccountRefusal) -> c::AccountRefusal {
         w::AccountRefusal::Cancelled => c::AccountRefusal::Cancelled,
         w::AccountRefusal::Moving => c::AccountRefusal::Moving,
         w::AccountRefusal::NotStarted => c::AccountRefusal::NotStarted,
-        w::AccountRefusal::NoTerminal => c::AccountRefusal::NoTerminal,
-        w::AccountRefusal::LoginUnderWay => c::AccountRefusal::LoginUnderWay,
-        w::AccountRefusal::NotLending => c::AccountRefusal::NotLending,
     }
 }
 pub(crate) fn account_failure(value: &w::AccountFailure) -> c::AccountFailure {
@@ -208,15 +205,26 @@ pub(crate) fn accounts(value: w::Accounts, limits: &Limits) -> Result<c::Account
         cut: value.cut(),
     })
 }
+pub(crate) fn terminal(value: w::Terminal, limits: &Limits) -> Result<c::Terminal, w::Problem> {
+    let mut room = document_room(limits);
+    charge(&mut room, Some(u64::try_from(size_of::<c::Terminal>()).expect("a record's size fits u64")))?;
+    Ok(c::Terminal { login: terminal_login(value.login().as_ref(), &mut room)? })
+}
 /// The terminal's variable name shares the owning document's native byte budget.
-pub(crate) fn terminal_login(value: Option<&w::TerminalLogin>, room: &mut u64) -> Result<Option<c::TerminalLogin>, w::Problem> {
+pub(crate) fn terminal_login(
+    value: Option<&w::TerminalLogin>,
+    room: &mut u64,
+) -> Result<Option<c::TerminalLogin>, w::Problem> {
     let Some(value) = value else { return Ok(None) };
     if !c::valid_program_name(value.name()) {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
     charge(room, Some(len_u64(value.name().len())))?;
     Ok(Some(c::TerminalLogin {
-        number: value.number(), provider: value.provider(), name: skein_lib::bytes::copy_of(value.name()), cancelled: value.cancelled(),
+        number: value.number(),
+        provider: value.provider(),
+        name: skein_lib::bytes::copy_of(value.name()),
+        cancelled: value.cancelled(),
     }))
 }
 pub(crate) fn login_exit(value: &w::LoginExit) -> c::LoginExit {
@@ -229,9 +237,12 @@ pub(crate) fn login_exit(value: &w::LoginExit) -> c::LoginExit {
 pub(crate) fn login_end(value: &w::LoginEnd) -> c::LoginEnd {
     match value {
         w::LoginEnd::SignedIn(row) => c::LoginEnd::SignedIn { source: row.source() },
-        w::LoginEnd::NotFinished(row) => c::LoginEnd::NotFinished { exit: match row.exit() {
-            Some(exit) => Some(login_exit(exit)), None => None,
-        } },
+        w::LoginEnd::NotFinished(row) => c::LoginEnd::NotFinished {
+            exit: match row.exit() {
+                Some(exit) => Some(login_exit(exit)),
+                None => None,
+            },
+        },
         w::LoginEnd::Cancelled => c::LoginEnd::Cancelled,
         w::LoginEnd::Refused(row) => c::LoginEnd::Refused { refusal: account_refusal(row.refusal()) },
     }

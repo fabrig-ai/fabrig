@@ -131,6 +131,7 @@ impl Replay {
                 | Line::Kept { .. }
                 | Line::BoxLine(_)
                 | Line::BoxStage(_)
+                | Line::Lent { .. }
                 | Line::Found(_)
                 | Line::Opened { .. }
                 | Line::Send { .. }
@@ -145,6 +146,8 @@ impl Replay {
                 | Line::Browse(_)
                 | Line::StopBox
                 | Line::StopBoxAgain
+                | Line::Lend { .. }
+                | Line::Unlend
                 | Line::Quit => {
                     let report = self.report()?;
                     self.at += 1;
@@ -173,6 +176,7 @@ impl Replay {
         let report = match line {
             Line::Start => self.start.take().expect("the envelope starts once"),
             Line::Due => Report::Due,
+            Line::Lent { number, exit } => Report::Lent { number: *number, exit: *exit },
             Line::Key { key, event } => {
                 let made = super::event(&self.host, key);
                 if &made != event {
@@ -236,6 +240,8 @@ impl Replay {
             | Line::Quit
             | Line::StopBox
             | Line::StopBoxAgain
+            | Line::Lend { .. }
+            | Line::Unlend
             | Line::Deadline(_)
             | Line::Mark(_)
             | Line::End(_) => return Err(self.stale(b"nothing".as_slice().into())),
@@ -400,6 +406,7 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Kept { .. }
             | Line::BoxLine(_)
             | Line::BoxStage(_)
+            | Line::Lent { .. }
             | Line::Found(_)
             | Line::Opened { .. } => {
                 if !in_turn || !started {
@@ -431,6 +438,8 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::Browse(_)
             | Line::StopBox
             | Line::StopBoxAgain
+            | Line::Lend { .. }
+            | Line::Unlend
             | Line::Quit => {
                 if !in_turn || !may_ask {
                     return Err(bad());

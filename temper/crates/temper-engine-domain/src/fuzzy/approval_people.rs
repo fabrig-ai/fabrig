@@ -282,6 +282,7 @@ fn client_fixture(me: u64, env: &Env<client::Limits>) -> client::Domain {
             | c::Subject::Tasks { .. }
             | c::Subject::Run { .. }
             | c::Subject::Deployment
+            | c::Subject::Terminal { .. }
             | c::Subject::Accounts => continue,
         };
         client::step(

@@ -31,6 +31,29 @@ fn held_snapshot() -> Backend {
 }
 
 #[test]
+fn written_source_settings_do_not_restrict_sign_in() {
+    let mut backend = fixtures::resumable();
+    backend.files.pending = Some(Step::Mcp);
+    let mut below = Queue::uncapped();
+    backend.file_event(
+        &fixtures::env(0),
+        file::Event::Stored { owner: backend.token(Owner::Files), digest: skein_io::digest::digest(b"mcp") },
+        None,
+        &mut Queue::uncapped(),
+        &mut below,
+    );
+    let Some(Below::File { request: file::Request::Store { root, path, bytes, .. }, .. }) = below.pop() else {
+        panic!("source settings written after MCP configuration");
+    };
+    assert_eq!(root, backend.settings.directory.expect("programs root").file);
+    assert_eq!(path.as_ref(), b"source/settings.json");
+    let settings: serde_json::Value = serde_json::from_slice(&bytes).expect("settings JSON");
+    for key in ["forceLoginMethod", "forceLoginOrgUUID"] {
+        assert!(settings.get(key).is_none(), "{key} must not restrict sign-in");
+    }
+}
+
+#[test]
 fn an_answer_not_asked_for_fails_its_run_never_the_agent() {
     let files = Token::new(15);
     let native = Token::new(16);

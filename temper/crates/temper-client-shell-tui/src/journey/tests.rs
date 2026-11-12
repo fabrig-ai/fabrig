@@ -526,6 +526,8 @@ fn duties_keep_the_seams_order_and_fields() {
     let mut erased = skein_lib::List::with_capacity(RECORDS);
     erased.push(b"old".as_slice().into()).expect("one erased record");
     let duties = Duties {
+        lend: None,
+        unlend: false,
         stop: None,
         local: true,
         note: Some(temper_client_tui::Note::SignedOut),
@@ -757,6 +759,33 @@ fn front_reports_replay_through_box_line_read() {
     }
     assert!(records.contains(&Line::Front), "front start fact");
     assert_eq!(records.iter().filter(|line| matches!(line, Line::BoxLine(_))).count(), 2);
+    same_frames(walk);
+}
+
+#[test]
+fn lending_reports_and_duties_replay_through_the_host() {
+    use crate::host::tests::{delivery_report, terminal_document, watch};
+    use jig_client::contract::LoginExit;
+    use jig_client_protocol_wire::v19 as w;
+    let (mut walk, duties) = linked_walk_duties(true);
+    let duties = walk.admit(duties);
+    let subject = w::Subject::Terminal(
+        w::SubjectTerminal::new(&w::CEILINGS, w::SubjectTerminalParts { terminal: skein_lib::Rng::new(7).next_u64() })
+            .unwrap(),
+    );
+    let terminal = watch(&duties, &subject);
+    let duties = walk.reports(vec![delivery_report(terminal, &terminal_document(Some((1, false))))]);
+    assert!(duties.iter().any(|duties| duties.lend.as_ref().is_some_and(|lend| lend.number == 1)));
+    walk.mark();
+    let duties = walk.reports(vec![delivery_report(terminal, &terminal_document(Some((1, true))))]);
+    assert!(duties.iter().any(|duties| duties.unlend));
+    let duties = walk.reports(vec![Report::Lent { number: 1, exit: LoginExit::Killed { signal: 15 } }]);
+    walk.admit(duties.into_iter().next().unwrap());
+    walk.mark();
+    let records = lines(&walk.save()).unwrap();
+    assert!(records.contains(&Line::Lend { number: 1, name: b"work".as_slice().into() }));
+    assert!(records.contains(&Line::Unlend));
+    assert!(records.contains(&Line::Lent { number: 1, exit: LoginExit::Killed { signal: 15 } }));
     same_frames(walk);
 }
 

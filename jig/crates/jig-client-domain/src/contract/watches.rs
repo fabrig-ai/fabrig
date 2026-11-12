@@ -43,7 +43,9 @@ pub enum Subject {
     /// The signed-in party's accounts.
     Accounts,
     /// A terminal offered for a program's login (domain/terminal-login.md, 5).
-    Terminal { terminal: u64 },
+    Terminal {
+        terminal: u64,
+    },
 }
 
 /// A whole current watch value, except the run text stream.

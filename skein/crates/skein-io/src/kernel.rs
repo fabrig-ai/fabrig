@@ -200,6 +200,7 @@
 //!   child reads; `Way::Out` means it writes. `Way::Given` duplicates its
 //!   resolved parent descriptor without making a pipe or taking ownership.
 //!   `Way::Null` opens `/dev/null` read and write in the child, with no parent end.
+//!   `Way::Inherit` keeps the service's own descriptor 0, 1 or 2, without a parent end.
 //! - `PipeRead` and `PipeWrite` have the same count rules as `Recv` and
 //!   `Send`, with EOF at a zero read count. A pipe is closed by `Close`.
 //! - `Wait` observes an exit without reaping, or reaps after that observation;
@@ -578,7 +579,7 @@ impl core::fmt::Debug for EnvNames<'_> {
     }
 }
 
-/// A child descriptor: a pipe, a held listener or null (runtime/io/processes.md).
+/// A child descriptor: a pipe, a held listener, null or inherited (runtime/io/processes.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Pipe {
     pub child: u32,
@@ -597,6 +598,8 @@ pub enum Way {
     Given(Token),
     /// Open /dev/null for reading and writing in the child, without a parent end.
     Null,
+    /// Keep the service's own descriptor 0, 1 or 2 open in the child.
+    Inherit,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1204,10 +1207,10 @@ fn valid_spawn(spawn: &Spawn) -> bool {
     }
     for (at, pipe) in spawn.pipes.iter().enumerate() {
         let parent_valid = match pipe.way {
-            Way::In | Way::Out | Way::Null => pipe.parent.is_none(),
+            Way::In | Way::Out | Way::Null | Way::Inherit => pipe.parent.is_none(),
             Way::Given(_) => pipe.parent.is_some(),
         };
-        if i32::try_from(pipe.child).is_err() || !parent_valid {
+        if i32::try_from(pipe.child).is_err() || !parent_valid || (pipe.way == Way::Inherit && pipe.child > 2) {
             return false;
         }
         let Some(before) = spawn.pipes.get(..at) else {
@@ -1268,9 +1271,9 @@ fn may_fail(op: &Op, error: Error) -> bool {
     if let Op::Spawn { spawn } = op {
         for pipe in &spawn.pipes {
             match pipe.way {
-                Way::In | Way::Out | Way::Null if pipe.parent.is_some() => return false,
+                Way::In | Way::Out | Way::Null | Way::Inherit if pipe.parent.is_some() => return false,
                 Way::Given(_) if pipe.parent.is_none() => return false,
-                Way::In | Way::Out | Way::Given(_) | Way::Null => {}
+                Way::In | Way::Out | Way::Given(_) | Way::Null | Way::Inherit => {}
             }
         }
         return error != Error::TooLate && error != Error::Cancelled;
@@ -1478,7 +1481,7 @@ fn fits(op: &Op, done: &Done) -> bool {
                 for pipe in &spawn.pipes {
                     if match pipe.way {
                         Way::In | Way::Out | Way::Given(_) => pipe.parent.is_none(),
-                        Way::Null => pipe.parent.is_some(),
+                        Way::Null | Way::Inherit => pipe.parent.is_some(),
                     } {
                         return false;
                     }

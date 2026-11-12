@@ -58,6 +58,7 @@ mod compound;
 mod create;
 
 mod accounts;
+mod terminal_login;
 
 mod authority_models;
 

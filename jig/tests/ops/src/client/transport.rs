@@ -475,6 +475,7 @@ fn run_position(subject: &jig_client_domain::contract::Subject) -> SubjectRun {
         | jig_client_domain::contract::Subject::Tasks { .. }
         | jig_client_domain::contract::Subject::Settings
         | jig_client_domain::contract::Subject::Deployment
+        | jig_client_domain::contract::Subject::Terminal { .. }
         | jig_client_domain::contract::Subject::Accounts => unreachable!("only run watches continue"),
     }
 }

@@ -1504,7 +1504,7 @@ fn program_login_refuses_invalid_input_before_creation() {
             _ => {}
         }
         let why = refused(directory, if row == "bad-name" { "../escape" } else { "source" }.as_ref());
-        assert!(why.starts_with("temper program-login: "), "{row}: {why}");
+        assert!(why.starts_with("temper-box program-login: "), "{row}: {why}");
         assert_eq!(why.lines().count(), 1, "{row}: {why}");
         assert!(!why.contains("exec:"), "{row}: {why}");
         if row == "no-program" {
@@ -1580,7 +1580,7 @@ fn program_login_prepares_private_directories_through_each_supported_parent() {
         };
         configuration(directory, Some(&configured), std::path::Path::new("/nonexistent/claude"));
         let why = refused(directory, "source".as_ref());
-        assert!(why.starts_with("temper program-login: exec: "), "{row}: {why}");
+        assert!(why.starts_with("temper-box program-login: exec: "), "{row}: {why}");
         assert_eq!(why.lines().count(), 1);
         for path in [&programs, &programs.join("source")] {
             assert_eq!(fs::metadata(path).expect("created directory").permissions().mode() & 0o777, 0o700);
@@ -2404,7 +2404,7 @@ fn a_fetched_program_runs_through_its_launcher() {
     .unwrap();
     let file = directory.join("claude-code/2.1.311/claude");
     fs::create_dir_all(file.parent().unwrap()).unwrap();
-    fs::write(&file, format!("#!/bin/sh\nprintf '%s\\000' \"$@\" > '{}/arguments'\nprintf '%s' \"$DISABLE_AUTOUPDATER\" > '{}/updater'\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > '{}/source'\nprintf 'command stdout\\n'\nexit 0\n", directory.display(), directory.display(), directory.display())).unwrap();
+    fs::write(&file, format!("#!/bin/sh\nprintf '%s\\000' \"$@\" > '{}/arguments'\nprintf '%s %s' \"$DISABLE_AUTOUPDATER\" \"$DISABLE_UPDATES\" > '{}/updater'\nprintf '%s' \"$CLAUDE_CONFIG_DIR\" > '{}/source'\nprintf 'command stdout\\n'\nexit 0\n", directory.display(), directory.display(), directory.display())).unwrap();
     fs::OpenOptions::new().write(true).open(&file).unwrap().set_len(build.bytes).unwrap();
     fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
     let login = std::process::Command::new(&temper)
@@ -2422,7 +2422,7 @@ fn a_fetched_program_runs_through_its_launcher() {
         fs::read(directory.join("source")).unwrap(),
         directory.join("programs/some-name").as_os_str().as_bytes()
     );
-    assert_eq!(fs::read(directory.join("updater")).unwrap(), b"1");
+    assert_eq!(fs::read(directory.join("updater")).unwrap(), b"1 1");
     let launcher = directory.join("claude-code/claude");
     assert_eq!(fs::read_link(&launcher).unwrap(), temper);
     assert_eq!(fs::read_link(directory.join("claude-code/cache")).unwrap(), directory);
@@ -2436,7 +2436,7 @@ fn a_fetched_program_runs_through_its_launcher() {
     assert_eq!(output.stdout, b"command stdout\n");
     assert!(output.stderr.is_empty());
     assert_eq!(fs::read(directory.join("arguments")).unwrap(), b"one \xff\n'\0--two=$x\0");
-    assert_eq!(fs::read(directory.join("updater")).unwrap(), b"1");
+    assert_eq!(fs::read(directory.join("updater")).unwrap(), b"1 1");
     let began = clock.now().now;
     let direct = std::process::Command::new(&file).args(&odd).env_clear().output().unwrap();
     let direct_ns = clock.now().now.as_nanos().saturating_sub(began.as_nanos());

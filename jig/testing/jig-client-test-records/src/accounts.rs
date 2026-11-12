@@ -115,7 +115,7 @@ pub fn accounts_record(end: Option<w::AccountEnd>) -> w::Accounts {
     w::Accounts::new(
         &l,
         w::AccountsParts {
-            skein_bools: [true, false, true, false],
+            skein_bools: [false, true, false, true, false],
             readiness: Box::new([]),
             program_hosts: Box::new([]),
             accounts: pieces([
@@ -123,6 +123,8 @@ pub fn accounts_record(end: Option<w::AccountEnd>) -> w::Accounts {
                 encoded(other.measure(), |w| other.encode(w)),
             ]),
             signing: pieces([encoded(signing.measure(), |w| signing.encode(w))]),
+            lending: None,
+            lent_end: None,
             last_end: end
                 .map(|end| w::AccountLastEnd::new(&l, w::AccountLastEndParts { source: 11, end }).expect("literal")),
         },

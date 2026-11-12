@@ -74,7 +74,8 @@ fn build(reading: &reads::Reading) -> Result<acts::Request, &'static [u8]> {
                     }
                 }
             }
-            c::Delivery::Project(_)
+            c::Delivery::Terminal(_)
+            | c::Delivery::Project(_)
             | c::Delivery::Me(_)
             | c::Delivery::Task(_)
             | c::Delivery::Proposal(_)

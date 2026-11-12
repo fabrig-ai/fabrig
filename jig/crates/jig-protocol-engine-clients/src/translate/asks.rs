@@ -589,6 +589,10 @@ fn account_holder(value: &w::AskAccountHolder) -> p::AccountHolder {
 
 fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untranslatable> {
     Ok(match value {
+        // These receive typed interim refusals before core translation (domain/terminal-login.md, 5).
+        w::AccountChange::LoginProgram(_) | w::AccountChange::CancelLogin(_) | w::AccountChange::LoginEnded(_) => {
+            return Err(Untranslatable { path: w::Path::AskAccountChangeChange });
+        }
         w::AccountChange::DeclareProgram(row) => {
             if jig_domain_link::SourceName::new(row.name()).is_none() {
                 return Err(Untranslatable { path: w::Path::AccountChangeDeclareProgramName });

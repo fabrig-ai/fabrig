@@ -85,6 +85,10 @@ fn welcome_commands_wait_until_the_sign_in_lands() {
     clippy::too_many_lines,
     reason = "one table checks welcome dispatch, link, step facts, words, tokens and bounds"
 )]
+#[expect(
+    clippy::large_stack_arrays,
+    reason = "the fixed rows hold independent TUI states, including their terminal-login facts"
+)]
 fn the_welcome_says_each_state() {
     let empty = welcome_root(&[], false, Some(false), None);
     let linked = welcome_root(&[], true, Some(false), None);
@@ -294,7 +298,7 @@ fn the_welcome_says_each_state() {
             // Check the drawing at the Forge boundary too: the domain's connected row decides Model.
             let mut part = crate::view::welcome::read(root, &tui, &f::words(), f::NOW);
             let forge = part.steps.get_mut(1).unwrap();
-            assert!(forge.forge.as_deref() == Some("making its first repository…".as_bytes()));
+            assert!(forge.detail.as_deref() == Some("making its first repository…".as_bytes()));
             for (step, style) in part.steps.iter_mut().zip(FORGE) {
                 step.style = style;
             }
@@ -351,6 +355,8 @@ fn the_welcome_says_each_state() {
                         && let Some(forge) = forge
                     {
                         skein_lib::bytes::concat(&[label.as_bytes(), " · ".as_bytes(), forge.as_bytes()])
+                    } else if index == 2 && name == "Ready remains" {
+                        "3 Model · OpenAI API key".as_bytes().into()
                     } else {
                         label.as_bytes().into()
                     };
@@ -526,7 +532,7 @@ fn accounts(usable: bool) -> c::Accounts {
                 uses: None,
                 plan: false,
                 provider: Some(18),
-                provider_name: None,
+                provider_name: Some(c::DocumentText::complete(c::Text::new(b"openai".as_slice().into(), 32).unwrap())),
                 manage_usage: None,
                 display: c::DocumentText::complete(c::Text::new(b"Model".as_slice().into(), 32).unwrap()),
                 holder: c::AccountHolder::Party(73),
@@ -550,6 +556,9 @@ fn accounts(usable: bool) -> c::Accounts {
         program_hosts: List::with_capacity(0),
         accounts,
         signing: List::with_capacity(0),
+        lendable: false,
+        lending: None,
+        lent_end: None,
         last_end: None,
         usable,
         settled: true,
@@ -559,8 +568,31 @@ fn accounts(usable: bool) -> c::Accounts {
     }
 }
 // Watches and reads are answered only through the root's public deliveries.
-#[expect(clippy::manual_map, reason = "the fixture answers the optional playground without a closure")]
 fn welcome_root(rows: &[w::ForgeRow], linked: bool, model: Option<bool>, playground: Option<u16>) -> Domain {
+    if let Some(usable) = model {
+        return welcome_read(rows, linked, Some(accounts(usable)), playground);
+    }
+    welcome_read(rows, linked, None, playground)
+}
+
+pub(super) fn lending_root(kind: Option<c::AccountKind>) -> Domain {
+    let mut document = accounts(kind.is_some());
+    if let Some(kind) = kind {
+        for row in document.accounts.iter_mut() {
+            row.plan = kind == c::AccountKind::SignIn;
+            let provider = if kind == c::AccountKind::Program { b"anthropic".as_slice() } else { b"openai" };
+            row.provider_name = Some(c::DocumentText::complete(c::Text::new(provider.into(), 32).unwrap()));
+            for source in row.sources.iter_mut() {
+                source.kind = kind;
+                source.name = Some(b"work".as_slice().into());
+            }
+        }
+    }
+    welcome_read(&[row(w::Kind::Forgejo, connected())], false, Some(document), None)
+}
+
+#[expect(clippy::manual_map, reason = "the fixture answers the optional playground without a closure")]
+fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, playground: Option<u16>) -> Domain {
     let mut root = f::signed_out();
     let mut out = f::event(
         &mut root,
@@ -580,10 +612,10 @@ fn welcome_root(rows: &[w::ForgeRow], linked: bool, model: Option<bool>, playgro
                 Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Accounts) } => {
-                let Some(usable) = model else { continue };
+                let Some(accounts) = &model else { continue };
                 Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(accounts(usable)))),
+                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(accounts.clone()))),
                 }
             }
             jig_client::Down::Open { watch, subject }
