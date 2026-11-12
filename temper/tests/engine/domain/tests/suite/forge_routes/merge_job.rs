@@ -13,7 +13,7 @@ const STEPS: u32 = 200;
 #[path = "merge_job/producer.rs"]
 mod producer;
 
-fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
+pub(super) fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
     World::configured_limits(
         true,
         true,
@@ -118,7 +118,7 @@ fn finish_job(world: &mut World, job: &host::JobAssignment, result: &[u8]) {
     world.send(event);
 }
 
-fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
+pub(super) fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
     let branch = change_row(world, task).branch.clone();
     let merged = fake::merge_commit(
         &mut world.fake,
@@ -152,7 +152,7 @@ fn passed_ci(world: &mut World, head: u64) {
     );
 }
 
-fn landed(world: &mut World, task: u64, head: u64) {
+pub(super) fn landed(world: &mut World, task: u64, head: u64) {
     for _ in 0..STEPS {
         if matches!(change_row(world, task).change.state, change::State::Landed { .. }) {
             break;
@@ -229,7 +229,7 @@ fn assert_preserving_resolution(words: &[u8]) {
     }
 }
 
-fn finish_resolution(world: &mut World, resolution: &engine::Assignment) {
+pub(super) fn finish_resolution(world: &mut World, resolution: &engine::Assignment) {
     let event = world.protocol.answer(
         CHANNEL,
         resolution.task,

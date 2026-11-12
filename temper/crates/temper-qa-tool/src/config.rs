@@ -12,6 +12,7 @@ pub struct Configuration {
     pub builds: PathBuf,
     pub notify: Option<Vec<String>>,
     pub places: Vec<String>,
+    pub ports: std::collections::BTreeMap<String, String>,
     pub surfaces: Vec<String>,
     pub areas: std::collections::BTreeMap<String, String>,
     pub request: RequestConfiguration,
@@ -76,15 +77,9 @@ impl Configuration {
                 state: request.get("state").map(command_line).transpose()?,
                 area: request.get("area").map(d::string).transpose()?.unwrap_or_else(|| owner.clone()),
             };
-            let places = object.get("places").map(d::strings).transpose()?.unwrap_or_else(|| vec!["places/1".into()]);
-            if places.is_empty() || places.iter().any(|place| place.trim().is_empty()) {
-                return Err(refused("places needs at least one directory"));
-            }
-            let unique: std::collections::BTreeSet<_> = places.iter().collect();
-            if unique.len() != places.len() {
-                return Err(refused("places directories must be distinct"));
-            }
-            let surfaces = object.get("surfaces").map(d::strings).transpose()?.unwrap_or_else(|| vec!["web".into()]);
+            let (places, ports) = places(object.get("places"), home)?;
+            let surfaces =
+                object.get("surfaces").map(d::strings).transpose()?.unwrap_or_else(|| vec!["web".into(), "tui".into()]);
             for surface in &surfaces {
                 if surface != "web" && surface != "tui" {
                     return Err(refused(format!("surfaces: {surface} is neither web nor tui")));
@@ -119,6 +114,7 @@ impl Configuration {
                 builds,
                 notify,
                 places,
+                ports,
                 surfaces,
                 areas,
                 request,
@@ -127,6 +123,67 @@ impl Configuration {
         decode().map_err(|why: Refusal| refused(format!("qa.json: {why}")))
     }
 }
+type Places = (Vec<String>, std::collections::BTreeMap<String, String>);
+
+fn places(value: Option<&Value>, home: &Path) -> Result<Places, Refusal> {
+    let Some(value) = value else { return Ok((vec!["places/1".into()], std::collections::BTreeMap::new())) };
+    let values = d::array(value)?;
+    if values.is_empty() {
+        return Err(refused("places needs at least one directory"));
+    }
+    let mut names = Vec::new();
+    let mut ports = std::collections::BTreeMap::new();
+    let mut directories = std::collections::BTreeSet::new();
+    let mut used = std::collections::BTreeMap::new();
+    for value in values {
+        let (name, list) = if value.is_string() {
+            (d::string(value)?, None)
+        } else {
+            let object = d::object(value, &["directory", "ports"])?;
+            let name = nonempty(object, "directory")?;
+            let list = d::required(object, "ports").map_err(|why| refused(format!("place {name}: {why}")))?;
+            (name, Some(list))
+        };
+        if name.trim().is_empty() {
+            return Err(refused(format!("place {name:?}: directory is empty")));
+        }
+        let mut directory = PathBuf::new();
+        for part in path(home, &name).components() {
+            match part {
+                std::path::Component::CurDir => {}
+                std::path::Component::ParentDir => {
+                    directory.pop();
+                }
+                part => directory.push(part.as_os_str()),
+            }
+        }
+        if !directories.insert(directory) {
+            return Err(refused(format!("place {name}: places directories must be distinct")));
+        }
+        if let Some(list) = list {
+            let mut check = || -> Result<String, Refusal> {
+                let list = d::numbers(list)?;
+                let unique: std::collections::BTreeSet<_> = list.iter().copied().collect();
+                if list.len() != 9
+                    || unique.len() != 9
+                    || list.iter().any(|port| *port == 0 || *port > u64::from(u16::MAX))
+                {
+                    return Err(refused("ports must be nine distinct nonzero ports"));
+                }
+                for port in &list {
+                    if let Some(other) = used.insert(*port, name.clone()) {
+                        return Err(refused(format!("port {port} is shared with place {other}")));
+                    }
+                }
+                Ok(list.iter().map(u64::to_string).collect::<Vec<_>>().join(","))
+            };
+            ports.insert(name.clone(), check().map_err(|why| refused(format!("place {name}: {why}")))?);
+        }
+        names.push(name);
+    }
+    Ok((names, ports))
+}
+
 fn named_object<'a>(
     object: &'a Map<String, Value>,
     name: &str,

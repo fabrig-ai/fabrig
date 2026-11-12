@@ -1,7 +1,7 @@
 # Passes
 
 Provisional, 2026-11-12, from `../../draft/landed-qa.md`, sections 2, 7
-and 9, milestone Q3 of `../../draft/landed-qa.execution.md`. A pass
+and 9, milestones Q3 and Q4 of `../../draft/landed-qa.execution.md`. A pass
 judges a kept build of main: it takes the queued cases that build holds,
 runs one agent session over them all at a place, records each outcome
 and finding as it goes, and, with failed cases, waits on its findings'
@@ -76,8 +76,13 @@ The loop's third step (`README.md`, 4), for each free place
     from its setup's restored copy, restored between cases, cases on one
     setup sharing a restore where none changes what the next sees, the
     outcome's notes saying which; the green path only; a page's words
-    compared where the case gives them (its `see`, as a `web see` line),
-    the rest judged against the draft's promises; looks are a person's;
+    compared where the case gives them (its `see`, as a `web see` line
+    for a `web` case and a `tui see` line for a `tui` case), the rest
+    judged against the draft's promises; a `tui` case's steps are `tui`
+    lines, the TUI started at the first and signed in by the session
+    (`../../client/drive.md`, 3.3), and its finding's evidence the
+    screen's rows, `pass line "tui look"`'s answer saved to a file;
+    looks are a person's;
     each outcome recorded as reached and each finding as found; a
     finding never stops the pass; blocked, for the pass's own reasons,
     is not failed, for temper's; what is off the path a note, unless it

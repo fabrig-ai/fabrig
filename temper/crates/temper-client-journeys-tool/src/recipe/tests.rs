@@ -24,6 +24,28 @@ fn shown(lines: Vec<WalkLine>) -> Vec<String> {
     lines.into_iter().map(|line| format!("{} {}", line.source, String::from_utf8_lossy(&line.line))).collect()
 }
 #[test]
+fn forge_steps_walk_before_resets_and_checks_from_fresh_or_copy() {
+    let mut files = Files::new();
+    put(&mut files, "base", "recipe", b"recipe 1\nweb see \"Base\"\n");
+    put(&mut files, "gate", "recipe", b"recipe 1\nafter \"base\"\nforge commit 1 playground/widget \"gate\" \"a.txt\" \"x\\x0a\"\nforge checks 1 playground/widget\nweb see \"Green\"\ntui see \"Green\"\n");
+    let chain = read(&files, "gate").expect("forge recipe");
+    let fresh = [
+        "walk: web reload \"/\"",
+        "walk: tui stop",
+        "base:2 web see \"Base\"",
+        "gate:3 forge commit 1 playground/widget \"gate\" \"a.txt\" \"x\\x0a\"",
+        "gate:4 forge checks 1 playground/widget",
+        "walk: web reload \"/\"",
+        "walk: tui stop",
+        "gate:5 web see \"Green\"",
+        "gate:6 tui see \"Green\"",
+    ];
+    assert_eq!(shown(chain.lines(None).expect("fresh")), fresh);
+    assert_eq!(shown(chain.lines(Some("base")).expect("base copy")), &fresh[2..]);
+    assert_eq!(shown(chain.lines(Some("gate")).expect("gate copy")), &fresh[7..]);
+}
+
+#[test]
 fn reads_chain_and_walks_fresh_or_from_a_copy() {
     let files = three();
     let chain = read(&files, "last").expect("chain");
@@ -62,6 +84,7 @@ fn reads_chain_and_walks_fresh_or_from_a_copy() {
 #[test]
 fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
     let setups = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups");
+    let mut names = vec![];
     for entry in std::fs::read_dir(&setups).expect("committed QA setups") {
         let entry = entry.expect("setup entry");
         if !entry.file_type().expect("setup file type").is_dir() {
@@ -73,7 +96,19 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
         let check: Vec<_> = recipe.check.iter().map(|line| recipe.walk_line(line)).collect();
         assert!(!check.is_empty(), "{name} has a closing check");
         assert!(chain.lines(None).expect("fresh walk").ends_with(&check), "{name} ends on its own check");
+        assert_ne!(chain.hash(), [0; 32], "{name} has a chain hash");
+        names.push(name);
     }
+    let listed = command::catalogue(&Reader::Directory(&setups), names.clone());
+    for name in names {
+        assert!(
+            listed.iter().any(|line| line.starts_with(&format!("{name} ")) || line.starts_with(&format!("{name}:")))
+        );
+    }
+    assert!(
+        listed.iter().all(|line| !line.contains(": refused:")),
+        "recipe list reads every committed setup: {listed:?}"
+    );
 
     let chain = Chain::read(&setups, "chat-draft").expect("chat-draft chain");
     assert_eq!(chain.names().collect::<Vec<_>>(), ["welcome", "project-landing", "chat-draft"]);
@@ -95,6 +130,72 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
         project.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
         [br#"web see "work/hello is in Hello""#.as_slice()]
     );
+}
+
+/// B1's gate is the one its twin met, not today's acceptance text (testing/qa/setups.md, 4.4–5).
+#[test]
+fn b1_plan_commits_exactly_the_twins_gate_before_waiting_on_checks() {
+    use crate::line::Forge;
+    use serde_json::Value;
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let chain = Chain::read(&root.join("docs/development/qa/setups"), "b1-plan").expect("B1 plan chain");
+    let recipe = chain.recipes.last().expect("B1 plan");
+    assert_eq!(recipe.after.as_deref(), Some("widget"));
+    let mut steps = recipe.steps.iter();
+    let Record::Forge(Forge::Commit { forge, repository, message, files }) =
+        steps.next().expect("gate is the first step").line.record()
+    else {
+        panic!("B1 starts by committing its gate");
+    };
+    assert_eq!(*forge, 1);
+    assert_eq!(repository.as_ref(), b"playground/widget");
+    assert_eq!(message.as_ref(), b"CI: each pull request adds changes/<its number>.md");
+    let fixture: Value = serde_json::from_slice(
+        &std::fs::read(root.join("tests/real-loop/tests/fixtures/b1/forge.json")).expect("B1 forge fixture"),
+    )
+    .expect("B1 forge JSON");
+    let tree = fixture["repositories"]
+        .as_array()
+        .expect("repositories")
+        .iter()
+        .find(|repository| repository["name"] == "widget")
+        .expect("widget")["tree"]
+        .as_array()
+        .expect("widget tree");
+    assert_eq!(files.len(), 2, "exactly the workflow and contributing guide");
+    for path in [".forgejo/workflows/ci.yml", "CONTRIBUTING.md"] {
+        let entry = tree.iter().find(|entry| entry["path"] == path).expect("gate file in fixture");
+        let (_, content) =
+            files.iter().find(|(name, _)| name.as_ref() == path.as_bytes()).expect("gate file in recipe");
+        assert_eq!(
+            content.as_ref(),
+            entry["content"].as_str().expect("gate content").as_bytes(),
+            "{path} equals the twin's tree"
+        );
+    }
+    assert_eq!(
+        steps.next().expect("wait on the gate's checks before requesting work").line.record(),
+        &Record::Forge(Forge::Checks { forge: 1, repository: b"playground/widget".as_slice().into() })
+    );
+}
+
+#[test]
+fn tui_chat_waits_for_the_answer_but_checks_the_fresh_launchpad() {
+    let setups = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/development/qa/setups");
+    let chain = Chain::read(&setups, "tui-chat").expect("tui-chat chain");
+    assert_eq!(chain.names().collect::<Vec<_>>(), ["welcome", "project-landing", "tui-chat"]);
+    let recipe = chain.recipes.last().expect("tui-chat");
+    assert_eq!(
+        recipe.steps.iter().rev().take(2).map(|line| line.line.print()).collect::<Vec<_>>(),
+        [br#"web reload "/""#.as_slice(), br#"tui see "Hello from the local fake model.""#.as_slice()]
+    );
+    assert_eq!(
+        recipe.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
+        [br#"tui see "/chats 1""#.as_slice()]
+    );
+    assert_ne!(chain.hash(), [0; 32]);
+    assert!(!setups.join("tui-chat/scripts.json").exists());
 }
 
 #[test]
@@ -307,6 +408,8 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
             "/bundle",
             "--scratch",
             "/scratch",
+            "--ports",
+            "1,2,3,4,5,6,7,8,9",
             "--from",
             "middle",
             "--strict",
@@ -324,6 +427,12 @@ fn walk_plan_orders_scripts_and_strict_and_checks_scratch() {
     let [drive::Action::Start { process: drive::Process::Box, program }] = actions.as_slice() else {
         panic!("{actions:?}")
     };
+    assert!(
+        program
+            .environment
+            .iter()
+            .any(|(name, value)| name == "TEMPER_INTERNAL_FAKE_BOX_PORTS" && value == "1,2,3,4,5,6,7,8,9")
+    );
     let script_args = program.args.iter().skip_while(|arg| *arg != "--scripts").cloned().collect::<Vec<_>>();
     assert_eq!(
         script_args,

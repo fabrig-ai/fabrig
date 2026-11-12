@@ -310,7 +310,8 @@ pub fn check(domain: &mut Domain, env: &Env<Config>, repository: &[u8], number: 
     let id = *domain.names.get(repository).expect("a scenario repository");
     let repository = domain.repositories.get_mut(id).expect("a scenario repository");
     let item = repository.items.get_mut(&number).expect("a scenario item");
-    item.pull.as_mut().expect("a scenario pull").checked = crate::domain::clock(env).saturating_add(span);
+    item.pull.as_mut().expect("a scenario pull").checked =
+        crate::domain::clock(env).max(domain.floor).saturating_add(span);
 }
 
 fn validate_cue(cue: &Cue, limits: &crate::Limits) {

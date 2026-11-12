@@ -17,17 +17,33 @@ pub struct Options {
     pub scratch: PathBuf,
     pub scripts: Vec<PathBuf>,
     pub strict: bool,
+    pub ports: Option<String>,
 }
 impl Options {
     pub fn parse(arguments: &[Box<[u8]>]) -> Result<Self, String> {
         let (mut bin, mut bundle, mut scratch) = (None, None, None);
         let mut scripts = vec![];
         let mut strict = false;
+        let mut ports = None;
         let mut args = arguments.iter();
         while let Some(argument) = args.next() {
             let target = match argument.as_ref() {
                 b"--strict" if !strict => {
                     strict = true;
+                    continue;
+                }
+                b"--ports" if ports.is_none() => {
+                    let value = args.next().ok_or("missing --ports LIST")?;
+                    let list = String::from_utf8_lossy(value);
+                    let parsed = list.split(',').map(str::parse::<u16>).collect::<Result<Vec<_>, _>>();
+                    if !parsed.as_ref().is_ok_and(|values| {
+                        values.len() == 9
+                            && !values.contains(&0)
+                            && values.iter().collect::<std::collections::BTreeSet<_>>().len() == 9
+                    }) {
+                        return Err(format!("--ports {list}: expected nine distinct nonzero ports"));
+                    }
+                    ports = Some(list.into_owned());
                     continue;
                 }
                 b"--bin" => &mut bin,
@@ -50,6 +66,7 @@ impl Options {
             scratch: scratch.ok_or("missing --scratch DIR")?,
             scripts,
             strict,
+            ports,
         })
     }
 }
@@ -109,7 +126,11 @@ impl Plan {
         if self.options.strict {
             args.push("--strict".into());
         }
-        self.program("temper-box", args, Input::Null)
+        let mut program = self.program("temper-box", args, Input::Null);
+        if let Some(ports) = &self.options.ports {
+            program.environment.push(("TEMPER_INTERNAL_FAKE_BOX_PORTS".into(), ports.into()));
+        }
+        program
     }
     #[must_use]
     pub fn ctl(&self, args: &[Box<[u8]>], input: Input) -> Program {

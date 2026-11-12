@@ -59,7 +59,7 @@ pub(crate) fn dispatch(
         user,
         state: RunState::Running,
         conclusion: None,
-        created: domain::clock(env),
+        created: domain::clock(env).max(domain.floor),
         inputs: inputs.clone(),
     };
     crate::reports::failed(domain, &workflow, &probe, &env.limits.limits)?;
@@ -83,7 +83,7 @@ pub(crate) fn dispatch(
         user,
         state: RunState::Running,
         conclusion: None,
-        created: domain::clock(env),
+        created: domain::clock(env).max(domain.floor),
         inputs,
     };
     let mut jobs = List::with_capacity(u32::try_from(workflow.jobs.len()).expect("bounded jobs"));

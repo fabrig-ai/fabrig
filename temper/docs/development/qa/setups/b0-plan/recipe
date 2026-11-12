@@ -1,0 +1,8 @@
+recipe 1
+after "widget"
+ctl chat start --project widget --key qa-b0-plan "Add CSV export to widget. Before anything is changed, have the work tell me its plan and wait for my go-ahead."
+ctl inbox --until waiting
+ctl task show 1 --until phase:idle
+ctl chat show 1
+ctl inbox --kind questions
+web see "May I proceed?"

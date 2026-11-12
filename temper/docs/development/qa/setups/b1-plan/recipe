@@ -1,0 +1,11 @@
+recipe 1
+after "widget"
+forge commit 1 playground/widget "CI: each pull request adds changes/<its number>.md" ".forgejo/workflows/ci.yml" "on:\x0a  push:\x0a    branches: [main]\x0a  pull_request:\x0ajobs:\x0a  check:\x0a    runs-on: temper-host\x0a    steps:\x0a      - run: echo \"temper's starter check passed; replace this step with your own checks\"\x0a  changes:\x0a    if: ${{ github.event_name == 'pull_request' }}\x0a    runs-on: temper-host\x0a    steps:\x0a      - name: Each pull request adds changes/<its number>.md\x0a        run: |\x0a          echo 'pull_request.number=${{ github.event.pull_request.number }}'\x0a          auth=$(printf 'x-access-token:%s' \"${{ github.token }}\" | base64 -w0)\x0a          git -c \"http.extraHeader=Authorization: basic $auth\" clone --quiet --no-checkout \"${{ github.server_url }}/${{ github.repository }}.git\" repo\x0a          git -C repo checkout --quiet '${{ github.event.pull_request.head.sha }}'\x0a          test -f 'repo/changes/${{ github.event.pull_request.number }}.md' || { echo 'Missing changes/${{ github.event.pull_request.number }}.md'; exit 1; }\x0a" "CONTRIBUTING.md" "# Contributing\x0a\x0aEach pull request adds `changes/<its number>.md`: one line saying what it\x0achanges, for the next release's notes. CI checks it.\x0a"
+forge checks 1 playground/widget
+ctl chat start --project widget --key qa-b1-plan "Add CSV export to widget. Before anything is changed, have the work tell me its plan and wait for my go-ahead."
+ctl inbox --until waiting
+ctl task show 1 --until phase:idle
+ctl chat show 1
+ctl inbox --kind questions
+web reload "/"
+web see "I inspected src/main.rs: the widget is currently a hard-coded table of (name, count) pairs printed in aligned columns. Plan: add CSV output for that table, including a header row and properly escaped fields, while preserving the existing display behavior (likely with a command-line option to select CSV). Shall I go ahead?"

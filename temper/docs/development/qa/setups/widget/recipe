@@ -1,0 +1,8 @@
+recipe 1
+after "project-landing"
+ctl forge setup 1 --playground --key qa-widget
+ctl forge list --until made:1
+web reload "/projects/2"
+web see "playground/widget is in widget"
+ctl project show widget
+web see "Nothing needs you."

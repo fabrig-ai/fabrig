@@ -35,6 +35,7 @@ mod domain;
 mod limits;
 mod pieces;
 mod respond;
+mod take;
 #[cfg(test)]
 mod tests;
 
