@@ -5,20 +5,7 @@ use jig_protocol_accounts::table::{self, Table};
 use jig_protocol_engine_workers::{GrantValue, Scheme};
 use skein_lib::{List, Map, Secret, Time};
 
-/// A program source name's byte bound (protocol/credentials.md, 3).
-pub(crate) const SOURCE_NAME_BYTES: usize = 32;
-
-/// Credentials (including keys), a program source name, or a generated identity.
-pub(crate) fn grant_bytes(credential: u32, identity: u32) -> Option<u32> {
-    Some(credential.max(u32::try_from(SOURCE_NAME_BYTES).ok()?).max(identity))
-}
-
-/// A lent credential's bound: a key's is jig's key bound, the token bound capped by the client wire's
-/// (jig-protocol-config's `key_bytes`), so the token bound covers both. The wire's own ceiling also covers a
-/// moved account's file, which no worker is lent (protocol/credentials.md, 3).
-pub(crate) fn token_credential_bytes(token: u32) -> u32 {
-    token
-}
+pub(crate) use temper_service_core::values::{SOURCE_NAME_BYTES, grant_bytes, token_credential_bytes};
 
 /// A configured key can exceed the OAuth token bound. The worker has no
 /// provider declarations and reserves the key ceiling unconditionally.

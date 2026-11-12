@@ -780,16 +780,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
         iterate_stage(service, stage, now, wall);
     }
 }
-/// One stage of a pass, in the loop's order (protocol/README.md, 6.1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Stage {
-    Io,
-    Route,
-    Engine,
-    Worker,
-    Out,
-}
-pub const STAGES: [Stage; 5] = [Stage::Io, Stage::Route, Stage::Engine, Stage::Worker, Stage::Out];
+pub use temper_service_core::{STAGES, Stage};
 
 /// Run one stage with the pass's times (protocol/README.md, 6.1).
 #[expect(clippy::too_many_lines, reason = "the five ordered stages include supervised worker shutdown")]

@@ -4,7 +4,7 @@
 
 - **Not yet:** 1 and 2: the recorder is built only with `temper-client-shell-tui`'s `record` feature, which the journeys tool's build and `temper-box-shell`'s `record` switch on, and a build with it records every TUI it runs; no `TEMPER_INTERNAL_RECORD` is read.
 
-- **Not yet:** 2 and 5: the shared redaction and scan are `temper-client-shell-web`'s `journey` module's, which the crate links under `record`; there is no `temper-client-redaction`.
+- **Not yet:** 2 and 5: the shared redaction and scan are `temper-client-shell-web`'s `journey` module's, which the crate links under `record`; there is no `temper-client-redaction`. [in flight: change 1100]
 
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a
