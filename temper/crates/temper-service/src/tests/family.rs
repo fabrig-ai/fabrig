@@ -3158,7 +3158,10 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
         );
         assert_eq!(got.roles().len(), 1);
         let role = got.roles().get(0).unwrap();
-        assert_eq!((role.charter(), role.words(), role.budget(), role.running()), (14, b"Route findings".as_slice(), 25_000, entry.delegation));
+        assert_eq!(
+            (role.charter(), role.words(), role.budget(), role.running()),
+            (14, b"Route findings".as_slice(), 25_000, entry.delegation)
+        );
         assert_eq!(got.path(), &expected);
         assert_eq!(got.items().len(), 3);
         let set = got.items().get(0).unwrap();

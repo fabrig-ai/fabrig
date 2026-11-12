@@ -86,6 +86,7 @@ fn project_ways() -> ProjectWays {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the way rows pin the owned kinds and the settings left alone")]
 fn items_set_the_ways_rules_and_preserve_other_visibility() {
     let [approve, review, draft] = stock_ways();
     let mut no_classes = approve.clone();
@@ -148,7 +149,13 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 4, Edit::Remove),
                 (7, 1, Edit::Set(Value::Ways(ProjectWays { drafts: true, goals: true, changes: false, way: 4 }))),
                 (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::DraftFirst)))),
-                (13, 1, Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager { owner: temper_engine_domain_forge::settings::AreaOwner::Charter(14) }))),
+                (
+                    13,
+                    1,
+                    Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager {
+                        owner: temper_engine_domain_forge::settings::AreaOwner::Charter(14),
+                    })),
+                ),
             ]),
         ),
         (
@@ -161,7 +168,13 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 4, Edit::Remove),
                 (7, 1, Edit::Set(Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, way: 4 }))),
                 (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::DraftFirst)))),
-                (13, 1, Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager { owner: temper_engine_domain_forge::settings::AreaOwner::Charter(14) }))),
+                (
+                    13,
+                    1,
+                    Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager {
+                        owner: temper_engine_domain_forge::settings::AreaOwner::Charter(14),
+                    })),
+                ),
             ]),
         ),
         (

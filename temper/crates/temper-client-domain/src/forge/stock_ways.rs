@@ -448,13 +448,20 @@ impl StockWays {
                     jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(_))) => {
                         self.start_roles(remaining, client, serial, out);
                     }
-                    jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal, .. })) => {
+                    jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+                        refusal, ..
+                    })) => {
                         self.refused = Some(refusal.clone());
                     }
                     jig_client::Outcome::Answered(jig_client::Answered::Family(_))
-                    | jig_client::Outcome::NotKept | jig_client::Outcome::Unknown | jig_client::Outcome::Limit
-                    | jig_client::Outcome::Unconfirmed | jig_client::Outcome::Held | jig_client::Outcome::Unsent
-                    | jig_client::Outcome::Full { .. } | jig_client::Outcome::Lost => {}
+                    | jig_client::Outcome::NotKept
+                    | jig_client::Outcome::Unknown
+                    | jig_client::Outcome::Limit
+                    | jig_client::Outcome::Unconfirmed
+                    | jig_client::Outcome::Held
+                    | jig_client::Outcome::Unsent
+                    | jig_client::Outcome::Full { .. }
+                    | jig_client::Outcome::Lost => {}
                 }
                 return;
             }
@@ -498,7 +505,13 @@ impl StockWays {
             };
         }
     }
-    fn start_roles(&mut self, mut roles: Queue<w::WayRole>, client: &Client, serial: &mut u64, out: &mut Queue<Request>) {
+    fn start_roles(
+        &mut self,
+        mut roles: Queue<w::WayRole>,
+        client: &Client,
+        serial: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
         use jig_client::shapes::{self, GoalDraft, Judged};
         let Some(role) = roles.pop() else { return };
         let latest = match client.document(crate::pages::me_handle()) {
@@ -512,17 +525,30 @@ impl StockWays {
         let draft = GoalDraft {
             words: c::Text::new(role.words().into(), w::CEILINGS.way_role_words).expect("wire bounds role words"),
             executor: c::Executor::Agent { charter: role.charter() },
-            budget: role.budget(), deadline: None, priority: None, llm: None,
+            budget: role.budget(),
+            deadline: None,
+            priority: None,
+            llm: None,
         };
         let reason = c::Text::new(Box::default(), 0).expect("empty reason");
         let ask = match shapes::set_goal_from(me, self.project, 7, draft, reason) {
             Judged::Create(ask) | Judged::Propose { ask, .. } => ask,
-            Judged::Refused(why) => { self.refused = Some(why); return; }
-            Judged::NotOffered(_) => { self.refused = Some(c::Refusal::NotOffered); return; }
+            Judged::Refused(why) => {
+                self.refused = Some(why);
+                return;
+            }
+            Judged::NotOffered(_) => {
+                self.refused = Some(c::Refusal::NotOffered);
+                return;
+            }
         };
         *serial = serial.checked_add(1).expect("page requests fit");
         let key = Key { asker: Owner::Pages.asker(), number: *serial };
-        out.push(Request::Client(jig_client::Event::Send { key, name: None, request: jig_client::Ask::Jig(Box::new(ask)) }));
+        out.push(Request::Client(jig_client::Event::Send {
+            key,
+            name: None,
+            request: jig_client::Ask::Jig(Box::new(ask)),
+        }));
         self.pending = Some(Pending::Role { key, remaining: roles });
     }
     fn end(&mut self, out: &mut Queue<Request>) {

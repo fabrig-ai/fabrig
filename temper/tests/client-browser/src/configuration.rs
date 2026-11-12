@@ -51,15 +51,15 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         // Holds charter 5's resolved models, shared instructions and four parts.
         ("core.run_bytes", 16_384),
         ("authority.grants", 16),
-        // The standing charter, closer procedure and close job are delegation targets.
-        ("authority.executors", 18),
+        // The standing charters, closer procedure and close job are delegation targets.
+        ("authority.executors", 21),
         ("tasks.authority_grants", 16),
-        // The standing charter, closer procedure and close job are delegation targets.
-        ("tasks.executor_kinds", 18),
+        // The standing charters, closer procedure and close job are delegation targets.
+        ("tasks.executor_kinds", 21),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.
-        ("tasks.charters", 10),
+        ("tasks.charters", 16),
         ("core.templates", 6),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();

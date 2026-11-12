@@ -3,7 +3,7 @@
     "limits": {{
       "profile": "small",
       "overrides": {{
-        "authority.executors": 18,
+        "authority.executors": 21,
         "authority.grants": 14,
         "authority.projects": 2,
         "authority.requirements": 3,
@@ -52,11 +52,11 @@
         "tasks.authority_grants": 14,
         "tasks.authority_segments": 9,
         "tasks.batch": 1,
-        "tasks.charters": 10,
+        "tasks.charters": 16,
         "tasks.contract_choices": 2,
         "tasks.delegates": 4,
         "tasks.dependencies": 1,
-        "tasks.executor_kinds": 18,
+        "tasks.executor_kinds": 21,
         "tasks.funders": 4,
         "tasks.hold_bytes": 64,
         "tasks.hold_segments": 8,

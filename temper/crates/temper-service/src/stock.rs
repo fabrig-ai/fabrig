@@ -850,7 +850,13 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
             settings::Value::CharterWords(bytes::copy_of(b"owns its work for the project's life and keeps its Now")),
         ),
         (9, 14, settings::Value::CharterWords(bytes::copy_of(ways::TRIAGER_WORDS))),
-        (9, 15, settings::Value::CharterWords(bytes::copy_of(b"Owns its area's tests: triages their reds and flakes and makes the repairs."))),
+        (
+            9,
+            15,
+            settings::Value::CharterWords(bytes::copy_of(
+                b"Owns its area's tests: triages their reds and flakes and makes the repairs.",
+            )),
+        ),
         (9, 16, settings::Value::CharterWords(bytes::copy_of(b"Keeps its area's port in step with its source."))),
     ];
     let mut stock = List::with_capacity(17);

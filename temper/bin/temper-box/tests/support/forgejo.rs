@@ -402,7 +402,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     }
     super::configuration::use_stock(value);
     // Nine slots hold the stock charters.
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 10.into();
+    value["engine"]["limits"]["overrides"]["tasks.charters"] = 16.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 6.into();
     // The process uses stock's fourteen grants, beyond the world's ten-grant policy.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();

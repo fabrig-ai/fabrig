@@ -562,8 +562,16 @@ fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
     let limits = crate::limits::engine(&configured.jig.limits, &configured.limits).unwrap();
     let stock = crate::stock::forge(&limits);
     for (number, text, words) in [
-        (14, include_str!("../stock/triager.md"), "Routes what comes in to its area's owner, and triages what fits no area."),
-        (15, include_str!("../stock/prover.md"), "Owns its area's tests: triages their reds and flakes and makes the repairs."),
+        (
+            14,
+            include_str!("../stock/triager.md"),
+            "Routes what comes in to its area's owner, and triages what fits no area.",
+        ),
+        (
+            15,
+            include_str!("../stock/prover.md"),
+            "Owns its area's tests: triages their reds and flakes and makes the repairs.",
+        ),
         (16, include_str!("../stock/porter.md"), "Keeps its area's port in step with its source."),
     ] {
         let charter = defaults.charters.iter().find(|charter| charter.number == number).expect("stock role");
@@ -1880,16 +1888,24 @@ fn the_stock_ways_hold_their_words_and_settings() {
         assert_eq!(way.delegation, delegation, "{name:?}");
         if name == b"Draft first" {
             assert_eq!(way.triager, Some(forge::settings::AreaOwner::Charter(14)));
-            assert_eq!(way.roles.as_ref(), &[temper_engine_domain_ways::WayRole {
-                charter: 14,
-                words: b"Routes what comes in to its area's owner, and triages what fits no area.".as_slice().into(),
-                budget: 25_000,
-            }]);
+            assert_eq!(
+                way.roles.as_ref(),
+                &[temper_engine_domain_ways::WayRole {
+                    charter: 14,
+                    words: b"Routes what comes in to its area's owner, and triages what fits no area."
+                        .as_slice()
+                        .into(),
+                    budget: 25_000,
+                }]
+            );
             let items = temper_engine_domain_ways::items(way, 7, None);
             let item = items.iter().find(|item| item.kind == 13).unwrap();
-            assert_eq!(item.edit, temper_engine_domain_ways::Edit::Set(Value::ProjectTriager(forge::settings::ProjectTriager {
-                owner: forge::settings::AreaOwner::Charter(14),
-            })));
+            assert_eq!(
+                item.edit,
+                temper_engine_domain_ways::Edit::Set(Value::ProjectTriager(forge::settings::ProjectTriager {
+                    owner: forge::settings::AreaOwner::Charter(14),
+                }))
+            );
         } else {
             assert_eq!(way.triager, None);
             assert!(way.roles.is_empty());

@@ -227,7 +227,8 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         paths.push(path.clone()).expect("stock ways");
         let mut roles = List::uncapped();
         for role in &way.roles {
-            roles.push(ways::WayRoleEntry { role: role.clone(), running: role_running(domain, project, role.charter) })
+            roles
+                .push(ways::WayRoleEntry { role: role.clone(), running: role_running(domain, project, role.charter) })
                 .expect("stock way roles");
         }
         entries
@@ -306,7 +307,9 @@ pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
         Record::People(
             jig_domain_people::Stored::Roles { project, .. } | jig_domain_people::Stored::Policy { project, .. },
         ) => mark(domain, *project),
-        Record::Tasks(jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task)) if task.label == 3 => {
+        Record::Tasks(jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task))
+            if task.label == 3 =>
+        {
             mark(domain, task.project);
         }
         Record::Core(_) | Record::People(_) | Record::Tasks(_) | Record::Notes(_) | Record::Accounts(_) => {}

@@ -1107,12 +1107,20 @@ fn ways_panel_round_trips() {
     let mut way = parts.ways.get(0).unwrap().clone().into_parts();
     let item = way.items.get(0).unwrap().clone();
     way.items = List::with_capacity(10);
-    for _ in 0_u32..10 { way.items.push(item.clone()).unwrap(); }
+    for _ in 0_u32..10 {
+        way.items.push(item.clone()).unwrap();
+    }
     way.roles = List::with_capacity(4);
     for running in [false, true, false, true] {
-        way.roles.push(v1::WayRole::new(&limits, v1::WayRoleParts {
-            charter: 14, words: Box::new([b'w'; 480]), budget: 25_000, running,
-        }).unwrap()).unwrap();
+        way.roles
+            .push(
+                v1::WayRole::new(
+                    &limits,
+                    v1::WayRoleParts { charter: 14, words: Box::new([b'w'; 480]), budget: 25_000, running },
+                )
+                .unwrap(),
+            )
+            .unwrap();
     }
     *parts.ways.get_mut(0).unwrap() = v1::StockWay::new(&limits, way).expect("ten items and four roles fit");
     let panel = v1::WaysPanel::new(&limits, parts).unwrap();
