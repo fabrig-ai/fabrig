@@ -23,6 +23,7 @@ record = [
 loopback-navigation = ["skein-ui-web/loopback-navigation"]
 
 [dependencies]
+temper-client-redaction.workspace = true
 jig-client-protocol-wire.workspace = true
 jig-client.workspace = true
 jig-client-protocol-http.workspace = true

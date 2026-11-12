@@ -7,7 +7,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [features]
-record = ["dep:temper-client-shell-web", "dep:jig-client-protocol-wire"]
+record = ["dep:jig-client-protocol-wire"]
 
 [dependencies]
 skein-fail-stop.workspace = true
@@ -26,14 +26,13 @@ temper-client-domain.workspace = true
 temper-client-view.workspace = true
 temper-client-tui.workspace = true
 temper-client-shell-terminal.workspace = true
-temper-client-shell-web = { workspace = true, optional = true }
+temper-client-redaction.workspace = true
 [dev-dependencies]
 smith-transcript.workspace = true
 temper-client-protocol-wire.workspace = true
 skein-scratch.workspace = true
 jig-client-test-records.workspace = true
 skein-codec.workspace = true
-temper-client-shell-web.workspace = true
 jig-client-protocol-wire.workspace = true
 skein-sim.workspace = true
 skein-fake-machine.workspace = true
