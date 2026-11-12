@@ -307,7 +307,13 @@ impl ServiceHost {
         if self.restartable && self.settled() && self.lives.len() == usize::from(self.state == LifeState::Second) {
             assert!(self.lives.len() < LIVES, "bounded service lives");
             self.lives.push(Life {
-                drained: matches!(self.end(), Some(crate::End::Engine(temper_service::EngineEnd::Drained) | crate::End::Worker(temper_service::worker_alone::End::Drained))),
+                drained: matches!(
+                    self.end(),
+                    Some(
+                        crate::End::Engine(temper_service::EngineEnd::Drained)
+                            | crate::End::Worker(temper_service::worker_alone::End::Drained)
+                    )
+                ),
                 ran: self.runs.tasks[self.life_tasks..].to_vec(),
                 linked: self.linked() - self.life_links,
             });
@@ -347,7 +353,13 @@ impl ServiceHost {
     fn finish_bootstrap(&mut self) {
         let Some(service) = &mut self.service else { return };
         if !self.signals_adopted
-            && service.end().is_some_and(|end| !matches!(end, crate::End::Engine(temper_service::EngineEnd::Drained) | crate::End::Worker(temper_service::worker_alone::End::Drained)))
+            && service.end().is_some_and(|end| {
+                !matches!(
+                    end,
+                    crate::End::Engine(temper_service::EngineEnd::Drained)
+                        | crate::End::Worker(temper_service::worker_alone::End::Drained)
+                )
+            })
         {
             // A failed bootstrap will not reopen: close its retained signal
             // reader through the ended service's ordinary io lifecycle.
@@ -356,7 +368,13 @@ impl ServiceHost {
         }
         if !self.records_seeded
             && service.is_empty()
-            && matches!(service.end(), Some(crate::End::Engine(temper_service::EngineEnd::Drained) | crate::End::Worker(temper_service::worker_alone::End::Drained)))
+            && matches!(
+                service.end(),
+                Some(
+                    crate::End::Engine(temper_service::EngineEnd::Drained)
+                        | crate::End::Worker(temper_service::worker_alone::End::Drained)
+                )
+            )
         {
             self.service = None;
             fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github);
