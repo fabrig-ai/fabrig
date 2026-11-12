@@ -53,7 +53,6 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
         (2, d::Value::Rule(open)),
         (3, d::Value::Charter(u32::MAX)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::None)),
-        (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Foreman)),
         (6, d::Value::Questions(temper_engine_domain_forge_change::Route::Up)),
         (7, d::Value::Ways(d::ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX })),
         (9, d::Value::CharterWords(Box::from([b'l'; 120].as_slice()))),
@@ -94,14 +93,14 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
                 let wrong =
                     keys::encode(&forge::Key::Setting(d::SettingKey { number: 3, ..setting.key }), u32::MAX).unwrap();
-                assert_eq!(records::row(&wrong, &bytes, &bounds), Err(Undecodable));
+                assert_eq!(records::row(&wrong, &bytes, &bounds), Err(Undecodable::Malformed));
                 for end in 0..bytes.len() {
-                    assert_eq!(records::decode(&bytes[..end], &bounds), Err(Undecodable));
+                    assert_eq!(records::decode(&bytes[..end], &bounds), Err(Undecodable::Malformed));
                 }
                 let mut trailing = skein_lib::Writer::new(bytes.len() + 1);
                 trailing.put(&bytes).unwrap();
                 trailing.put(&[0]).unwrap();
-                assert_eq!(records::decode(&trailing.finish(), &bounds), Err(Undecodable));
+                assert_eq!(records::decode(&trailing.finish(), &bounds), Err(Undecodable::Malformed));
             }
         }
     }
@@ -121,7 +120,7 @@ fn settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_ke
                 &records::encode(&row(d::Edit::Set(d::SizedValue { value: d::Value::Classes(invalid), size: 1 }))),
                 &bounds
             ),
-            Err(Undecodable)
+            Err(Undecodable::Malformed)
         );
     }
 }
@@ -178,7 +177,7 @@ fn setting_rules_decode_at_each_bound_and_refuse_one_more() {
             if extra == 0 {
                 assert_eq!(decoded, Ok(row));
             } else {
-                assert_eq!(decoded, Err(Undecodable));
+                assert_eq!(decoded, Err(Undecodable::Malformed));
             }
         }
     }
@@ -201,7 +200,7 @@ fn setting_records_refuse_unknown_kinds_and_slot_tags() {
         let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Setting(row) }).unwrap();
         let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
         row.encode(&mut writer).unwrap();
-        assert_eq!(records::decode(&writer.finish(), &bounds), Err(Undecodable));
+        assert_eq!(records::decode(&writer.finish(), &bounds), Err(Undecodable::Malformed));
     }
     for (kind, value) in [
         (9, d::Value::CharterWords(Box::from(b"".as_slice()))),
@@ -225,11 +224,15 @@ fn setting_records_refuse_unknown_kinds_and_slot_tags() {
             key: d::SettingKey { kind, scope: 0, number: 1, slot: d::SettingSlot::Default },
             edit: d::Edit::Set(d::SizedValue { value, size: 1 }),
         });
-        assert_eq!(records::decode(&records::encode(&row), &bounds), Err(Undecodable), "invalid words for kind {kind}");
+        assert_eq!(
+            records::decode(&records::encode(&row), &bounds),
+            Err(Undecodable::Malformed),
+            "invalid words for kind {kind}"
+        );
     }
     let mut bytes = records::encode(&row(d::Edit::Remove));
     bytes[15] = 4; // Version, Value tag, kind, scope and number precede the slot.
-    assert_eq!(records::decode(&bytes, &bounds), Err(Undecodable));
+    assert_eq!(records::decode(&bytes, &bounds), Err(Undecodable::Malformed));
 }
 
 #[test]
@@ -292,6 +295,67 @@ fn a_follow_setting_round_trips_its_wire_value_and_every_slot() {
             assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
             let key = keys::encode(&forge::Key::Setting(key), u32::MAX).unwrap();
             assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+        }
+    }
+}
+
+#[test]
+fn retired_setting_tags_refuse_with_the_setting_identity() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let mut tag = skein_lib::Writer::new(1);
+    w::Route::Retired.encode(&mut tag).unwrap();
+    assert_eq!(tag.finish().as_ref(), &[1], "the retired route retains the old tag");
+    let mut tag = skein_lib::Writer::new(1);
+    w::Route::Up.encode(&mut tag).unwrap();
+    assert_eq!(tag.finish().as_ref(), &[2], "up is never read as the retired route");
+    for (kind, scope, number, value) in [
+        (
+            6,
+            2,
+            1,
+            w::SettingValue::Questions(
+                w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route: w::Route::Retired }).unwrap(),
+            ),
+        ),
+        (
+            3,
+            0,
+            3,
+            w::SettingValue::Charter(w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: 6 }).unwrap()),
+        ),
+    ] {
+        for slot in [d::SettingSlot::Change, d::SettingSlot::Replaced(2)] {
+            let key = d::SettingKey { kind, scope, number, slot };
+            let stored_slot = match slot {
+                d::SettingSlot::Change => w::SettingSlot::Change,
+                d::SettingSlot::Replaced(number) => {
+                    w::SettingSlot::Replaced(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
+                }
+                d::SettingSlot::Default | d::SettingSlot::Proposal(_) => {
+                    unreachable!("the test exercises current and replaced rows")
+                }
+            };
+            let row = w::SettingRow::new(
+                &w::CEILINGS,
+                w::SettingRowParts {
+                    kind,
+                    scope,
+                    number,
+                    slot: stored_slot,
+                    edit: w::SettingEdit::Set(
+                        w::SizedValue::new(&w::CEILINGS, w::SizedValueParts { value: value.clone(), size: 1 }).unwrap(),
+                    ),
+                },
+            )
+            .unwrap();
+            let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Setting(row) }).unwrap();
+            let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
+            row.encode(&mut bytes).unwrap();
+            let bytes = bytes.finish();
+            assert_eq!(records::decode(&bytes, &bounds), Err(Undecodable::Setting(key)));
+            let encoded_key = keys::encode(&forge::Key::Setting(key), u32::MAX).unwrap();
+            assert_eq!(records::row(&encoded_key, &bytes, &bounds), Err(Undecodable::Setting(key)));
+            assert_eq!(records::row(b"wrong key", &bytes, &bounds), Err(Undecodable::Malformed));
         }
     }
 }

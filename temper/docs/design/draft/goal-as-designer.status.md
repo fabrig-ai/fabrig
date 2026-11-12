@@ -1,6 +1,6 @@
 # goal-as-designer: status
 
-2026-11-11. Where the design lags or departs from [goal-as-designer.md](goal-as-designer.md).
+2026-11-12. Where the design lags or departs from [goal-as-designer.md](goal-as-designer.md).
 
 Section 8's first/later choice is carried by `per-wake.md`, section 5
 and `../protocol/configuration/reference.md`: template 4 chooses xhigh
@@ -28,6 +28,12 @@ reaches 100,000 bytes; the remaining fake-program and live proof is `smith/docs/
   - 2, 7: `../protocol/configuration/reference.md`: the reference's charters: the goal's and the designer's words and wake policy, the goal without a shell.
   - 9: `../protocol/configuration/stock.md`: stock instructions are held in `temper-service`'s source.
 - **Design departs:**
+  - 2, its roles table, and 10: the foreman. `../domain/forge/change/questions.md`,
+    1 has none: a change's questions go `up` to the goal's agent, or
+    nowhere. `stock-charters.md`, 3 retires it, the user's draft of
+    2026-11-12; this draft's foreman lines are rewritten by hand once that
+    draft's first milestone lands (`stock-charters.execution.md`, 3), and
+    `notes.md`, N1 keeps the reasons.
   - 2, 7, 10: `goal-runs-itself.md`, sections 1 to 7, replaces the
     agent's landing, close-out and finish with a closer: jig makes it
     when nothing is left to await, and temper settles the status tags,
@@ -55,7 +61,7 @@ reaches 100,000 bytes; the remaining fake-program and live proof is `smith/docs/
     user, 2026-11-10). The `"run"` form goes [in flight: change 98].
 - **Open:**
   - 6: whether the stock's window and output follow the reference's, to settle with the owner of `model-catalogue.md`. Until then they stay the stock's.
-  - 10: a spec past one call, a foreman before a repair, what a
+  - 10: a spec past one call, what a
     designer reads of goals beside it, and a goal's own notes across
     its runs remain open.
 

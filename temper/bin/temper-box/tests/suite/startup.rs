@@ -28,10 +28,10 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
         .output()
         .expect("serve");
     assert_eq!(output.status.code(), Some(1));
-    // Two executor places in four policy authorities add 64 bytes.
+    // Each executor place in four policy authorities adds 32 bytes.
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6014 bytes; raise it in engine.limits.overrides\n",
+        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5982 bytes; raise it in engine.limits.overrides\n",
         "stdout: {}",
         String::from_utf8_lossy(&output.stdout)
     );

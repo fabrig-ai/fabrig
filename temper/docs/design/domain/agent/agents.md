@@ -6,7 +6,6 @@
 | a repair (../forge/change/repairs.md) | as producing | the workspace's, from the change's branch, its brief carrying why; `finish` with a change; `message`, as producing | its new head passes its checks and is pushed |
 | resolving a conflict (../forge/change/repairs.md) | as producing | the workspace's, from a merge in progress; `finish` with a change; `message`, as producing | the merge is resolved, checked and pushed |
 | a review (../forge/change/gates.md, 1), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |
-| a foreman (../forge/change/questions.md, 1) | none | reads: the workspace's inspection, from the landing branch's tip, and the forge's; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (2); proposals and escalations to decide; while its run lives, its changes' results its wake policy wakes it for (below) | `delegate`, `change`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `deliver` mid-run, its design straight to its goal branch, where its charter sets `modify` (`tools.md`; ../forge/branches.md, 3); `wait` | its goal's report is written |
 | a standing role (`standing.md`) | its person's words; its own work's questions, results and the answers to its own questions; its timers; news its subscriptions class as waking, at a pace; proposals and escalations to decide | `goal`, `change`, `delegate`, `decided`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe`, `subscribe_forge`, `note`, its Now among its notes, `recall`, `message`, the forge's reads, `propose_settings` for its own rules; `wait` | only a cancel: a finish parks it (jig's `domain/tasks/standing.md`, section 2) |
@@ -33,16 +32,12 @@ under the forge's review charter, a reviewer's, whose instructions are
 to judge the change through its brief and the forge's reads and give a
 verdict, or fail saying why it cannot (../forge/change/gates.md, 1), and whose tools
 are the workspace's inspection and the forge's reads, never
-modification or the shell: a reviewer changes nothing. Its foremen run
-under the forge's foreman charter, whose instructions are to settle a
-question from the change's words, the design in its checkout and the
-change's pushed head, and give a verdict of answer, finish or escalate
-(../forge/change/questions.md, 1), with a reviewer's tools: a foreman changes nothing.
+modification or the shell: a reviewer changes nothing.
 
 The change's agents ask no one, and take no questions, answers or words
 (2), unless the change relays their questions (../forge/change/questions.md, 1): then
 its producing, its repairs and its resolutions ask the change, and hear
-its answers. Its reviews and its foremen never ask.
+its answers. Its reviews never ask.
 
 A refused forge read keeps its refusing layer and reason. Connector authority
 findings reach the agent as `ToolDenied`, with the findings intact. The root
@@ -233,7 +228,7 @@ of `../../draft/v0.1.0.md`, 2.1.
   `domain/authority.md`, section 3). The change itself takes no
   questions, answers or words (../forge/change/README.md, 1); its amendments and its
   cancel reach it as ../forge/README.md says. A plan's maker that wants its
-  changes' producers to ask makes them with `"foreman"` or `"up"`, and
+  changes' producers to ask makes them with `"up"`, and
   the change relays their questions (../forge/change/questions.md, 1); what follows is a
   chat's, whose changes take none.
 - **The chat delegates the work as a goal** when its person asks to
@@ -330,9 +325,7 @@ of `../../draft/v0.1.0.md`, 2.1.
     (`question.words.cut`), have no trailing lines: the first paragraph
     is the question, the rest the context, with nothing the agent saw
     and no choices, and they are answered by a reply alone. Any question
-    a person or an older goal wrote draws this way, and one a change
-    passes up with a foreman's reasons beneath it (../forge/change/questions.md, 1), whose
-    last lines are those reasons.
+    a person or an older goal wrote draws this way.
 - **The person answers in the inbox,** `temper ctl task answer TASK
   QUESTION TEXT` (`../../client/ctl/tools.md`, 3), Home's card or the inbox's
   page, and

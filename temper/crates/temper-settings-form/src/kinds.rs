@@ -161,9 +161,8 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
         };
         let route = match word {
             b"none" => w::QuestionsRoute::None,
-            b"foreman" => w::QuestionsRoute::Foreman,
             b"up" => w::QuestionsRoute::Up,
-            _ => return Err(error(b"project-questions", b"none, foreman or up required")),
+            _ => return Err(error(b"project-questions", b"none or up required")),
         };
         let record = w::ProjectQuestions::new(&d.kinds, w::ProjectQuestionsParts { route })
             .or(Err(error(b"project-questions", b"wire value bound")))?;
@@ -386,7 +385,6 @@ fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
     .or(Err(error(b"", b"wire value bound")))
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive renderer keeps each setting kind and its JSON form together")]
 pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {
@@ -411,7 +409,6 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             }
             out.string(match value.route() {
                 w::QuestionsRoute::None => b"none",
-                w::QuestionsRoute::Foreman => b"foreman",
                 w::QuestionsRoute::Up => b"up",
             });
         }

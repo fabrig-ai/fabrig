@@ -330,7 +330,6 @@ pub enum ChangeLanding {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeQuestions {
     None,
-    Foreman,
     Up,
 }
 

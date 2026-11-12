@@ -52,11 +52,6 @@ The check's binding:
     "by": "anchor"
   },
   {
-    "role": "foreman",
-    "number": 6,
-    "by": "anchor"
-  },
-  {
     "role": "triage",
     "number": 8,
     "by": "assignment"
@@ -95,7 +90,7 @@ Read your report note and the tree first at every wake; park with `wait` once yo
 
 A spec states what to make: design in your goal branch by path and section, status entries it closes, owned files and what to leave alone, checks, report, each requested deliverable and its evidence. Keep it short; design holds detail. For help trimming or replacement patches, identify existing facts at risk and require a before/after fact mapping with named retention assertions. Passing addition tests and page bounds cannot settle missing preservation evidence: unresolved acceptance. A spec may ask its coder for the lints and the focused tests of the packages it changes, as charter 2 runs them, and never for a slow tier or a walk, which run after landing.
 
-Give every designer's change "producer": 7, "questions": "up" and "llm": {"producer": {"main": {"model": "claude-opus-5-5", "effort": "xhigh"}, "sub_agents": [{"model": "claude-opus-5-5", "effort": "high"}]}}. A coding change uses the coding agent's default producer: give it "questions": "foreman" and "llm": {"producer": {"main": {"model": "gpt-6.1-sol", "effort": "high"}}}, or "medium" for mechanical work.
+Give every designer's change "producer": 7, "questions": "up" and "llm": {"producer": {"main": {"model": "claude-opus-5-5", "effort": "xhigh"}, "sub_agents": [{"model": "claude-opus-5-5", "effort": "high"}]}}. A coding change uses the coding agent's default producer: give it "questions": "up" and "llm": {"producer": {"main": {"model": "gpt-6.1-sol", "effort": "high"}}}, or "medium" for mechanical work.
 
 Make a larger batch in several calls. Do not issue dependent coding until all required design is confirmed landed into g. A push, delivery or designer report is insufficient. Use after only for live prerequisites; once design has landed into g, cite its path and section in words and omit its ended task from after.
 
@@ -237,19 +232,6 @@ Your report names the checks that ran and each Left item: what you found, where,
 A story that fails for code your change does not own: mark it ignored, its reason the fault in one line, and list it under Left. The change that fixes the fault removes the mark.
 ```
 
-## foreman: charter 6
-
-Instructions:
-
-```text
-You are a change's foreman. A producer working on the change asked it the question in your brief. Settle it from the change's words, the design in your checkout and the change's pushed head, which you read with read_branch and read_file; read what the question needs and nothing else. You only read: never edit, push or run anything. A producer going on after an answer may hold a merge of its landing branch's tip, committed as its head or, with conflicts, staged in progress: other tasks' files there are by design and its earlier edits are in its head, so never tell it to remove them or restore its tree. Finish with a verdict:
-- answer: the change's words, the design or the draft settle the question; your text is the answer, naming the words or the design section by path and section that settle it.
-- finish: the work done holds and the rest is outside what the change owns; your text tells the producer what to finish with and what to list under Left. The producer finishes with form change, its report in the field body within its contract's bound; name no other form.
-- escalate: nothing you read settles it, or it is a choice the draft leaves open; your text says why, for the change's requester. Never guess past what you read.
-
-A red the change did not cause is finish, with it under Left.
-```
-
 ## triage: charter 8
 
 Instructions:
@@ -266,10 +248,9 @@ You triage a red for a goal's coordinator. Read the tree, the design, the goal's
 - coding.not-owned | coding | Never fix what the change does not own; a story failing for code it does not own is marked ignored, the fault its reason | reference-code-production.md, 14
 - coding.pre-pr | coding | Run the project's checks, `.temper/pre-pr`, before delivering | reference-code-production.md, 6 and 14
 - coding.ask | coding | Where the change's words and the design leave a choice it cannot make, push what it has and ask its change, with options and a recommendation | reference-code-production.md, 8
-- foreman.verdicts | foreman | Read only; settle a question from the change's words and the design with a verdict of answer, finish or escalate | reference-code-production.md, 8 and 14
 - coordinator.cut | coordinator | The cut: read the draft and the designs, survey where worth it, shape the plan, then the shared design, a designer's change per family and its own changes, all into the goal's own branch | reference-code-production.md, 5
 - coordinator.families | coordinator | On a designer's result, the family's changes as one batch, each after its dependencies | reference-code-production.md, 5
-- coordinator.questions | coordinator | Coding changes relay questions through a foreman; a designer's change's questions come straight up; each relayed question is answered, amended, met by a new change or asked of the person | reference-code-production.md, 8
+- coordinator.questions | coordinator | Every change names questions up; each relayed question is answered, amended, met by a new change or asked of the person | stock-charters.md, 3; reference-code-production.md, 8
 - coordinator.holds | coordinator | A hold is released, amended then released, cancelled, or passed up to the person with its reasons | reference-code-production.md, 9
 - coordinator.llm | coordinator | Each coding change at gpt-6.1-sol at its spec's effort; each designer's change at Opus 5.5, xhigh, its sub-agents at high | reference-code-production.md, 14
 - coordinator.catch-up | coordinator | The coordinator makes no catch-up changes when main moves under its goal | temper/docs/design/protocol/configuration/reference.md
@@ -389,12 +370,6 @@ strings with your findings. Answer with this JSON object only:
     {
       "quote": "",
       "rule": "coding.ask",
-      "verdict": "reaches",
-      "where": ""
-    },
-    {
-      "quote": "",
-      "rule": "foreman.verdicts",
       "verdict": "reaches",
       "where": ""
     },

@@ -16,7 +16,7 @@ that changes the stock changes nothing of them.
   - *charter 5, the coordinator's:* instructions for the cut (a plan of
     changes it specifies itself, each made by `change` into its own
     goal branch with its dependencies, one batch per family:
-    `../../domain/agent/tools.md`, 1, each with questions `foreman`), for
+    `../../domain/agent/tools.md`, 1, each with questions `up`), for
     each question a change relays (`../../domain/forge/change/questions.md`, 1: answer it from the draft and the
     design; amend the change and answer what changed; make a new change,
     add it to the change's `after` by amendment and answer that the work
@@ -62,11 +62,6 @@ that changes the stock changes nothing of them.
     its words, then call `wait`, the answer reaching this run
     (`../../domain/forge/change/questions.md`, 1); its run
     sized for a change's work;
-  - *charter 6, the foreman's:* the stock's, at gpt-6.1-sol, its
-    instructions adding the reference's rules: the change's words and
-    the design in its checkout settle scope, a file outside the change's
-    own is `finish` with a Left item, never permission to edit it, and a
-    choice the draft leaves open is `escalate`;
   - *template 4, the goal template for drafts:* charter 5; ended by
     temper's goal closer, `ended_by` `{"closer": {"connector": 1,
     "code": 6}}` (jig's `protocol/configuration.md`, 3.2;
@@ -89,7 +84,7 @@ that changes the stock changes nothing of them.
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (`stock.md`): read with
   `temper ctl settings show --json`, charter 7 added to the rules' and
-  policy 1's delegation (and charters 5 and 6, the merge kind, job 3,
+  policy 1's delegation (and charter 5, the merge kind, job 3,
   the goal's closer, procedure 6, the close kind, job 4, and role 0,
   which the stock's delegation holds (`stock.md`), where their stored values
   predate it), so the coordinator may delegate to its designers, its
@@ -103,8 +98,9 @@ that changes the stock changes nothing of them.
   profile's `../README.md` gives them, then applied whole. The widening
   takes the drafter's charter 12 out of that delegation (`stock.md`), since the
   reference's work starts no design session, so that the stock's other
-  sixteen executors, the goal's closer and the close kind among them,
-  and charters 7 and 8 fill eighteen executor places: the profile's
+  fifteen executors, the goal's closer and the close kind among them,
+  and charters 7 and 8 fill seventeen executor places, the stock's
+  delegation holding no foreman's charter 6 (`stock.md`): the profile's
   `authority.executors` and `tasks.executor_kinds` are 18, which the
   box takes at its next start; the profile's limits (below) reserve
   room for further work.
@@ -139,7 +135,7 @@ that changes the stock changes nothing of them.
     1): a designer's change `"producer": 7` at the template's LLM
     choice, Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, with
     questions `up`, its designer's questions going straight to the
-    coordinator with no foreman (`../../domain/forge/change/questions.md`, 1); a
+    coordinator (`../../domain/forge/change/questions.md`, 1); a
     coding change the coding agent's charter, its default, at
     gpt-6.1-sol and the spec's effort, high or medium, on smith's direct
     backend with an OpenAI account's key (N20); its documents:
@@ -247,8 +243,8 @@ that changes the stock changes nothing of them.
   failures span files no one change owns, and acts on its report as on
   its own triage. Charter 8 joins the rules' and policy 1's delegation
   as charters 5 and 7 do. Charter 5 also gives each designer's change
-  `"questions": "up"`, so that a designer's question reaches it with no
-  foreman (`../../domain/forge/change/questions.md`, 1), the project's questions, kind 6,
+  `"questions": "up"`, so that a designer's question reaches it
+  (`../../domain/forge/change/questions.md`, 1), the project's questions, kind 6,
   being none on the stock.
 - **Charter 5 in parts** (`../../draft/per-wake.md`, sections 3 and 6;
   jig's `domain/tasks/messages.md`, 6). The bullets above say what charter 5's
@@ -330,8 +326,7 @@ that changes the stock changes nothing of them.
   section 7), each rule once, and nothing its tools' descriptions or its
   brief already say: a call's fields, a call's room, the wake policy's
   mechanics. The project's rules for building, testing, machines and
-  landing are charter 2's, which acts on them; charter 6 judges a
-  change by its words and the design, and charter 8 reads. Charter 5
+  landing are charter 2's, which acts on them, and charter 8 reads. Charter 5
   builds and tests nothing, so it holds only what a spec must carry of
   those rules: the delivery hook checks the changed packages' lints and
   focused tests with their direct dependents, and a spec asks for no
@@ -355,8 +350,9 @@ that changes the stock changes nothing of them.
     and its `application` member, `root.journal.run_bytes` 65,536,
     merged over the document's `application` as `limits.json` is: the
     journal's bound on a run's stored policy, which a charter's whole
-    policy must fit, so that the box's 24,576 refuses a charter of
-    31 KB. Its `../README.md` gives the commands. All of it before the
+    policy must fit: the stock's own bound (`stock.md`), kept here so
+    that the reference's room holds whatever the stock's profile
+    becomes. Its `../README.md` gives the commands. All of it before the
     first start;
   - `landing.json`, the document's `application.landing`, carried whole;
   - `settings.json`, applied once after the first start; then the rules
@@ -399,7 +395,7 @@ that changes the stock changes nothing of them.
   alone does not make a worker eligible to run it.
 
   The settings file sizes its charters and template to the box: charters
-  2, 5, 6, 7 and 8 take the stock's run, 800 turns and 8 hours (`stock.md`),
+  2, 5, 7 and 8 take the stock's run, 800 turns and 8 hours (`stock.md`),
   since a charter is a whole value and its run is no reason of the
   reference's; template 4's report takes the reference's `tasks.result_bytes`, 63,738; each
   charter names at most two documents, `tasks.charter_documents`,
@@ -472,9 +468,6 @@ that changes the stock changes nothing of them.
   ), and its stored policy, its parts with it, within
   `room.json`'s `root.journal.run_bytes`, so that an edition no host
   would take, or that a box can't store, is red there and not on a box.
-
-The reference's charter 6 also returns `finish` for a red the change did not
-cause, with that red on the asker's Left list (2026-11-04).
 
 ## 1. Open questions
 

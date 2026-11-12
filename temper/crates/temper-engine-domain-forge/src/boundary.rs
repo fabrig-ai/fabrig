@@ -1009,8 +1009,6 @@ pub struct ChangeRow {
     /// The LLM choices by role it was made with (domain/forge/change/README.md, 1, and domain/forge/change/gates.md, 3).
     pub producing_llm: Option<jig_domain_tasks::LlmChoice>,
     pub review_llm: Option<jig_domain_tasks::LlmChoice>,
-    /// The foreman's charter captured when made (domain/forge/change/questions.md, 1).
-    pub foreman_charter: u32,
     pub effect_account: Option<EffectAccount>,
     /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
@@ -1213,6 +1211,8 @@ pub enum CallPayload {
 #[expect(clippy::large_enum_variant, reason = "the durable change row keeps role choices and merge-job state inline")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
+    /// Identity only: a stored setting the codec refused, never its retired value.
+    RefusedSetting(crate::settings::SettingKey),
     /// The connector part of a live named call.
     Call {
         key: NamedCall,

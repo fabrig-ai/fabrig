@@ -203,7 +203,7 @@ fn a_stock_chat_reads_then_starts_a_durable_change_without_a_workspace_edit() {
 fn a_stock_chats_delegate_reports_the_landed_pull_and_merge_without_invented_checks() {
     let (mut world, _) = started_change();
     world.next_script(Script {
-        cue: b"Read only what the change needs".as_slice().into(),
+        cue: b"Run only what your change needs".as_slice().into(),
         turns: Box::new([
             call(b"read", br#"{"path":"README.md"}"#),
             call(b"write", br#"{"path":"README.md","content":"The answer is 42.\nTier walk: first.\n"}"#),
@@ -342,7 +342,7 @@ fn echo_change(mut world: World, request: &str, path: &str, content: &str) -> Wo
     world.scripts = super::VecDeque::from([
         script,
         Script {
-            cue: b"Read only what the change needs".as_slice().into(),
+            cue: b"Run only what your change needs".as_slice().into(),
             turns: Box::new([
                 call(b"write", format!(r#"{{"path":"{path}","content":"{content}"}}"#).as_bytes()),
                 call(b"finish", format!(r#"{{"title":"{request}","body":"{UNAVAILABLE}"}}"#).as_bytes()),
