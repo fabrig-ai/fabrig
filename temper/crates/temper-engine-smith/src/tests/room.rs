@@ -33,6 +33,19 @@ fn measured_limits() -> run::Limits {
     }
 }
 
+fn configured(policy: &engine::RunPolicy) -> engine::Charter {
+    engine::Charter {
+        number: 1,
+        rest: false,
+        policy: policy.clone(),
+        hosts: jig_domain_fleet::Kinds::Workers,
+        spend: 1,
+        wake: tasks::WakePolicy::DEFAULT,
+        documents: Box::new([]),
+        parts: Box::new([]),
+    }
+}
+
 fn largest() -> engine::Assignment {
     let mut assignment = assignment();
     assignment.run.authority.tools = engine::RunPolicy::EVERY_FAMILY;
@@ -61,7 +74,7 @@ fn the_table_is_smiths_measure() {
                     policy.agents = families & 8 != 0;
                     policy.tools = tools;
                     policy.instructions = instructions;
-                    let expected = table.non_brief(policy);
+                    let expected = table.non_brief(&configured(policy));
                     let change = charter(&assignment);
                     assert!(change.grants.deliver.is_some());
                     let measured = non_brief(&change, &limits);
@@ -86,10 +99,10 @@ fn a_charter_naming_settings_pays_for_its_tools() {
     let table = host_part(&limits);
     let mut assignment = largest();
     assignment.run.policy.tools = tasks::Tools(513);
-    let without = table.non_brief(&assignment.run.policy);
+    let without = table.non_brief(&configured(&assignment.run.policy));
     let without_smith = non_brief(&charter(&assignment), &limits);
     assignment.run.policy.tools = tasks::Tools(1_537);
-    let with = table.non_brief(&assignment.run.policy);
+    let with = table.non_brief(&configured(&assignment.run.policy));
     let with_smith = non_brief(&charter(&assignment), &limits);
     assert!(table.settings > 0);
     assert_eq!(with - without, table.settings);
@@ -124,9 +137,39 @@ fn policy_text_is_counted_as_smith_renders_it() {
                 }
                 assignment.run.policy.alternatives = models.into_boxed();
                 assignment.run.sources = sources.into_boxed();
-                assert_eq!(table.non_brief(&assignment.run.policy), non_brief(&charter(&assignment), &limits));
+                assert_eq!(
+                    table.non_brief(&configured(&assignment.run.policy)),
+                    non_brief(&charter(&assignment), &limits)
+                );
             }
         }
+    }
+}
+
+#[test]
+fn all_parts_are_counted_as_smith_renders_them() {
+    let limits = measured_limits();
+    let table = host_part(&limits);
+    for (instructions, first, last) in [
+        (b"".as_slice(), b"".as_slice(), b"".as_slice()),
+        (b"base", b"one", b"two"),
+        (b"base\n", b"one\n", b"two\n"),
+        (b"base", "λ".as_bytes(), b""),
+    ] {
+        let mut assignment = largest();
+        assignment.run.policy.instructions = instructions.into();
+        let mut source = configured(&assignment.run.policy);
+        // Distinct reasons still count together: admission covers the maximal selection.
+        source.parts = Box::new([
+            jig_domain_core::CharterPart { on: tasks::Reasons::FIRST, instructions: first.into() },
+            jig_domain_core::CharterPart { on: tasks::Reasons::WORDS, instructions: last.into() },
+        ]);
+        let mut joined = skein_lib::Writer::new(instructions.len() + first.len() + last.len() + 4);
+        for text in [instructions, b"\n\n", first, b"\n\n", last] {
+            joined.put(text).unwrap();
+        }
+        assignment.run.policy.instructions = joined.finish();
+        assert_eq!(table.non_brief(&source), non_brief(&charter(&assignment), &limits));
     }
 }
 
@@ -136,5 +179,5 @@ fn a_small_receiving_bound_does_not_change_the_measured_costs() {
     let table = host_part(&limits);
     let small = host_part(&run::Limits { host_part: 1, ..limits });
     assert_eq!(small, temper_engine_domain::room::HostPart { bound: 1, ..table });
-    assert_eq!(small.room(&assignment().run.policy), 0);
+    assert_eq!(small.room(&configured(&assignment().run.policy)), 0);
 }
