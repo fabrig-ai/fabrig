@@ -263,7 +263,14 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   liveness deadlines.** A liveness deadline's patience is its time less
   the run's start. A referee can return its own starved verdict through
   `Referee::starved() -> Option<Starved>`. The loop drains the forced
-  cleanup before passing that verdict on. `Starved::pass()` writes the
+  cleanup before passing that verdict on. The same cleanup precedes a
+  failure of the loop's patience, the referee's expectations or the
+  teardown policy check: it ends the owned trees, cancels and drains the
+  shared kernel, then reaps retained leaders and closes the descriptors
+  their outstanding records kept open. The diagnostic and scheduler
+  figures describe the failure before cleanup. This order holds when
+  panics abort; cleanup never depends on unwinding after the report.
+  `Starved::pass()` writes the
   `skein-world: starved:` line to stderr, naming the wait with `, by <what>`,
   and ends the test as a starved pass: in a one-process run
   (`TIERS_ONE_PROCESS` set, by `tools/tiers/design.md`'s one-process
