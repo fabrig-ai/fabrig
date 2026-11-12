@@ -288,7 +288,7 @@ fn restoring_domain(started: Wall) -> Domain {
 pub(crate) fn domain() -> Domain {
     domain_with_limits(&LIMITS)
 }
-fn domain_with_limits(limits: &Limits) -> Domain {
+pub(crate) fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         limits,
         4,
@@ -518,6 +518,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::ResourceRefused { .. }
+        | Request::HeadRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
@@ -615,6 +616,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::ResourceRefused { .. }
+        | Request::HeadRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
@@ -705,6 +707,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::ResourceRefused { .. }
+        | Request::HeadRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }

@@ -2386,6 +2386,13 @@ pub enum Request {
         resource: Option<Name>,
         cause: crate::RefusalCause,
     },
+    /// A new head did not fit (temper/docs/design/domain/forge/keeping-up.md, 1).
+    HeadRefused {
+        task: Option<u64>,
+        resource: Name,
+        configured: u64,
+        needed: u64,
+    },
     /// A goal's own branch could not be made (domain/forge/branches.md, 1).
     MakeFailed {
         task: u64,

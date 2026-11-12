@@ -44,7 +44,6 @@ fn writer_readoption_needs_collaborator_access_and_retries_as_admin() {
         fixtures::begin_adoption(&mut d, Token::new(key), fixtures::adoption());
         for answer in [
             Ok(api::Answer::Permission(api::UserPermission { user: 1, login: Box::new([]), permission })),
-            Ok(api::Answer::Branches(Box::new([]))),
             Ok(api::Answer::Settings(writer.settings.clone())),
             protection,
         ] {
@@ -142,7 +141,6 @@ fn context_beside_a_writer_preserves_its_home_and_readoption() {
             login: Box::from(b"".as_slice()),
             permission: api::Permission::Write,
         }),
-        api::Answer::Branches(Box::new([])),
         api::Answer::Settings(writer.settings),
         api::Answer::Protection(None),
     ] {
@@ -869,6 +867,83 @@ fn a_connected_forge_asks_no_access() {
                 owner: b"org".as_slice().into(),
                 name: b"repo".as_slice().into(),
             })
+        );
+    }
+}
+
+#[test]
+fn readoption_of_every_writer_role_skips_prefix_whose_heads_were_freed() {
+    use skein_forge::api;
+    for role in [Role::Owned, Role::Adopted, Role::Fork] {
+        let mut d = domain();
+        let mut writer = adopted();
+        writer.role = role;
+        d.repositories.insert(REPO, Box::new(writer.clone())).unwrap();
+        let mut adoption = fixtures::adoption();
+        adoption.role = role;
+        let request = Token::new(4);
+        fixtures::begin_adoption(&mut d, request, adoption);
+        fixtures::answer_next(
+            &mut d,
+            Ok(api::Answer::Permission(api::UserPermission {
+                user: 1,
+                login: Box::new([]),
+                permission: api::Permission::Admin,
+            })),
+        );
+        assert!(d.heads.is_empty(), "no owned head can prove the prefix's making");
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, api::Op::Read(api::Read::Settings));
+        fixtures::answer(&mut d, call, Ok(api::Answer::Settings(writer.settings)));
+        fixtures::answer_next(&mut d, Ok(api::Answer::Protection(None)));
+        let out =
+            fixtures::answer_next(&mut d, Ok(api::Answer::Collaborators { collaborators: Box::new([]), more: false }));
+        let mut succeeded = false;
+        for request in &out {
+            if let Request::Adopted { result: Ok(_), .. } = request {
+                succeeded = true;
+            }
+        }
+        assert!(succeeded, "{role:?}: {out:?}");
+    }
+}
+
+#[test]
+fn first_context_only_and_erased_adoptions_still_refuse_an_unowned_prefix() {
+    use skein_forge::api;
+    for (existing, erased) in [(None, false), (Some(Role::Context), false), (Some(Role::Owned), true)] {
+        let mut d = domain();
+        if let Some(role) = existing {
+            let mut row = adopted();
+            row.role = role;
+            d.repositories.insert(REPO, Box::new(row)).unwrap();
+        }
+        if erased {
+            outputs(&mut d, Event::ReleaseProject { project: 5, request: Token::new(9) });
+            assert!(d.repositories.is_empty());
+        }
+        let request = Token::new(4);
+        fixtures::begin_adoption(&mut d, request, fixtures::adoption());
+        fixtures::answer_next(
+            &mut d,
+            Ok(api::Answer::Permission(api::UserPermission {
+                user: 1,
+                login: Box::new([]),
+                permission: api::Permission::Admin,
+            })),
+        );
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, api::Op::Read(api::Read::Branches { prefix: b"temper/".as_slice().into() }));
+        let out =
+            fixtures::answer(&mut d, call, Ok(api::Answer::Branches(Box::new([b"temper/old".as_slice().into()]))));
+        assert!(out.contains(&Request::Adopted { reply_to: request, result: Err(api::Error::Refused) }));
+        outputs(
+            &mut d,
+            Event::ApplicationAnswered { request, outcome: people::Outcome::Refused(people::Refusal::Unknown) },
+        );
+        assert_eq!(
+            d.application_outcome(request),
+            Some(&ApplicationOutcome::ForgeRefused(AdoptionRefusal::PrefixOccupied))
         );
     }
 }

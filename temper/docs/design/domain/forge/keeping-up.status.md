@@ -1,6 +1,6 @@
 # keeping-up: status
 
-2026-11-11. Where the tree's code lags or departs from [keeping-up.md](keeping-up.md).
+2026-11-12. Where the tree's code lags or departs from [keeping-up.md](keeping-up.md).
 
 - **Not yet:** 1: follows own watches too [in flight: change 105].
 
