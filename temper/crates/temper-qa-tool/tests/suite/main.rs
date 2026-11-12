@@ -2,6 +2,7 @@
 mod builds;
 mod configuration;
 mod fuzzy;
+mod hold;
 mod home;
 mod ledger;
 mod passes;

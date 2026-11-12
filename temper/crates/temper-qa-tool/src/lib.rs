@@ -7,6 +7,7 @@ mod config;
 mod document;
 pub mod faces;
 mod findings;
+pub mod hold;
 mod home;
 mod ledger;
 mod pass_brief;

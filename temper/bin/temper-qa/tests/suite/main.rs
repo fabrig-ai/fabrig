@@ -1,6 +1,7 @@
 //! The tool's front and real command boundary (testing/tools.md, 6).
 mod builds;
 mod commands;
+mod hold;
 mod passes;
 mod place;
 use std::process::{Command, Stdio};
@@ -30,6 +31,10 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
         vec!["show", "--help"],
         vec!["lines", "--help"],
         vec!["report", "--help"],
+        vec!["pass", "open", "--help"],
+        vec!["pass", "hold", "--help"],
+        vec!["pass", "line", "--help"],
+        vec!["pass", "close", "--help"],
         vec!["nope"],
     ] {
         let output = Command::new(skein_scratch::paths::binary("temper-qa"))
@@ -63,6 +68,10 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                     "show",
                     "lines",
                     "report",
+                    "pass open",
+                    "pass hold",
+                    "pass line",
+                    "pass close",
                     "TEMPER_INTERNAL_QA_HOME",
                     "TEMPER_INTERNAL_QA_SESSION",
                 ] {
