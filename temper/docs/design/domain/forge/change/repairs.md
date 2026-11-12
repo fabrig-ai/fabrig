@@ -551,6 +551,15 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   a person reads why on the task, and releases it there. Default: so; whether
   the panel says it too stays open.
 
+- **A review's or a repair's brief under a drift hold** (`repairs.md`, *Another
+  writer's*): while its change is held for a moved head, each try of its brief
+  meets the same refusal and counts as capacity, taking a brief slot for its
+  reads every time, until a release takes the head or a cancel ends the task,
+  the loop a resolution no longer makes (a resolution's moved head, above).
+  Whether the change ends those too when it holds for a drift, as it ends a
+  resolution. Default: as it stands; the request of 2026-11-12 named a
+  resolution's brief alone.
+
 - **A forge out of reach or not connected** (`repairs.md`): `Unavailable` counts as
   transient, so a long outage holds each repair preparing through it, naming
   why; `NotConnected` pauses with no bound and no hold, its notice naming why.

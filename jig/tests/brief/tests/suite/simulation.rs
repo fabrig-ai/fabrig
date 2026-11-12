@@ -319,6 +319,104 @@ fn a_required_connectors_failure_passes_through_unchanged() {
 }
 
 #[test]
+fn a_required_connectors_failure_frees_its_slot_and_drops_the_other_gather() {
+    for fate in [GatherFate::Capacity, GatherFate::Transient, GatherFate::Permanent] {
+        let mut world = World::new(jig_domain_brief::Limits { briefs: 1, ..LIMITS });
+        let paused = Token::new(3);
+        world.put(paused, b"still gathering");
+        world.pause(paused);
+        let asked = begin(
+            &mut world,
+            Box::new([named_connector(2, b"pull", true, 0), named_connector(3, b"ci", true, 1)]),
+            LIMITS.brief_bytes,
+        );
+        assert_eq!(
+            asked,
+            [
+                GatherRequest::Gather { connector: 3, section: Token::new(2), budget: LIMITS.read_bytes },
+                GatherRequest::Gather { connector: 3, section: paused, budget: LIMITS.read_bytes },
+            ]
+        );
+        let why = failure(fate, b"pull", b"the change's head moved");
+        let failed =
+            world.step(GatherEvent::Missing { brief: Token::new(1), section: Token::new(2), why: why.clone() });
+        let done = world.settle(failed);
+        assert_eq!(done, [GatherRequest::Failed { brief: Token::new(1), why: GatherMissing::Failed, failure: why }]);
+        assert!(world.closed(paused));
+        assert!(!world.held(paused));
+        assert!(world.closed(Token::new(2)));
+        assert_eq!(world.env.now, Time::ZERO);
+        assert_eq!(world.domain.next_deadline(), None);
+
+        world.put(Token::new(4), b"next brief");
+        let admitted = world.step(GatherEvent::Plan {
+            brief: Token::new(2),
+            budget: LIMITS.brief_bytes,
+            deadline: Time::ZERO.saturating_add(Duration::from_secs(10)),
+            sections: Box::new([connector(4, true, 0)]),
+        });
+        assert_eq!(
+            admitted,
+            [GatherRequest::Gather { connector: 3, section: Token::new(4), budget: LIMITS.read_bytes }]
+        );
+        assert_eq!(
+            world.settle(admitted),
+            [GatherRequest::Complete {
+                brief: Token::new(2),
+                order: Box::new([GatherPlaced::Connector { connector: 3, kind: 7, token: Token::new(4), size: 10 }]),
+            }]
+        );
+    }
+}
+
+#[test]
+fn a_required_sections_deadline_frees_its_slot_and_drops_the_other_gather() {
+    let mut world = World::new(jig_domain_brief::Limits { briefs: 1, ..LIMITS });
+    for token in [Token::new(2), Token::new(3)] {
+        world.put(token, b"still gathering");
+        world.pause(token);
+    }
+    let asked = begin(
+        &mut world,
+        Box::new([named_connector(2, b"pull", true, 0), named_connector(3, b"ci", true, 1)]),
+        LIMITS.brief_bytes,
+    );
+    assert_eq!(asked.len(), 2);
+    assert!(world.settle(asked).is_empty());
+    let now = Time::ZERO.saturating_add(Duration::from_secs(11));
+    let expired = world.fire(now);
+    assert_eq!(
+        world.settle(expired),
+        [GatherRequest::Failed {
+            brief: Token::new(1),
+            why: GatherMissing::Late,
+            failure: failure(GatherFate::Transient, b"pull", b"not gathered by its deadline"),
+        }]
+    );
+    for token in [Token::new(2), Token::new(3)] {
+        assert!(world.closed(token));
+        assert!(!world.held(token));
+    }
+    assert_eq!(world.domain.next_deadline(), None);
+
+    world.put(Token::new(4), b"next brief");
+    let admitted = world.step(GatherEvent::Plan {
+        brief: Token::new(2),
+        budget: LIMITS.brief_bytes,
+        deadline: now.saturating_add(Duration::from_secs(10)),
+        sections: Box::new([connector(4, true, 0)]),
+    });
+    assert_eq!(admitted, [GatherRequest::Gather { connector: 3, section: Token::new(4), budget: LIMITS.read_bytes }]);
+    assert_eq!(
+        world.settle(admitted),
+        [GatherRequest::Complete {
+            brief: Token::new(2),
+            order: Box::new([GatherPlaced::Connector { connector: 3, kind: 7, token: Token::new(4), size: 10 }]),
+        }]
+    );
+}
+
+#[test]
 fn a_required_answer_past_its_read_or_cut_bound_fails_permanently() {
     const BUDGET: u32 = 40; // Below the connector's 128-byte read limit, so it must cut.
     for (preliminary, answer) in [
