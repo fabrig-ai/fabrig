@@ -8,6 +8,7 @@ temper-client-journeys-tool
 temper-stage-one-tool
 temper-playground temper/tests/playground/
 temper-playground-serve-tool
+temper-qa-tool
 skein-oauth-world
 fabrig-boundary
 hearth-render-world hearth/

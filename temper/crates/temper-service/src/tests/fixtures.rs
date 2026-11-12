@@ -2,6 +2,7 @@ use crate::{limits, settings};
 use jig_domain_host as host;
 use jig_domain_link::{Bounds, EndpointBound, Form, Grant};
 use skein_lib::{Secret, Token};
+use temper_protocol_records_forge as forge_records;
 
 // smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
 pub const DIALECT: u32 = 3;
@@ -1621,7 +1622,7 @@ fn seed_forge_rows(service: &mut crate::Service, forge: u16, token: &[u8], seed:
             api.expect("fixture forge record")
         }
     };
-    let origin = records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
+    let origin = forge_records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
     let secret_requests = engine.store.secret_requests;
     let original = if engine.store.host.mark_durable() {
         None
@@ -1848,4 +1849,8 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
             reply_bytes: None,
         },
     }
+}
+
+pub(crate) fn assert_worker_only(service: &crate::worker_alone::Service) {
+    let crate::worker_alone::Service { process: _, worker: _, held_listeners: _, listeners_closing: _ } = service;
 }

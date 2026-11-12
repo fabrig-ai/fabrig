@@ -1,4 +1,4 @@
-//! Root-numbered task notices
+//! Task continuations and root-numbered notices
 //! (jig/docs/design/domain/engine/README.md, 4.4).
 
 use crate::{Core, Limits};
@@ -21,6 +21,27 @@ pub(crate) fn question_owed_due(core: &mut Core, env: &Env<Limits>, task: u64, p
     crate::routing::step::step_tasks(core, env, tasks::Event::QuestionOwedNotice { task, message }, &mut follow);
     for _ in 0..follow.len() {
         pending.push(follow.pop().expect("question notice output count"));
+    }
+}
+
+pub(crate) fn question_parked(
+    core: &mut Core,
+    env: &Env<Limits>,
+    task: u64,
+    question: tasks::OpenQuestion,
+    pending: &mut Queue<tasks::Request>,
+) {
+    let words = core.open_question_words(question).expect("open credit retains its question activity");
+    let reason = tasks::open_question_reason(question, words);
+    let mut follow = Queue::uncapped();
+    crate::routing::step::step_tasks(
+        core,
+        env,
+        tasks::Event::QuestionParked { task, question: question.number, reason },
+        &mut follow,
+    );
+    for _ in 0..follow.len() {
+        pending.push(follow.pop().expect("question park output count"));
     }
 }
 

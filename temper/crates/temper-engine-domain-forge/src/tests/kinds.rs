@@ -12,8 +12,19 @@ use skein_lib::List;
 
 const GOAL: TemplateGoal = TemplateGoal { design: true, close_out: false };
 
-const BOUNDS: Bounds =
-    Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 8, segments: 8, segment_bytes: 32, templates: 4 };
+const BOUNDS: Bounds = Bounds {
+    landing_rules: 4,
+    gates: 2,
+    roles: 2,
+    charters: 8,
+    segments: 8,
+    segment_bytes: 32,
+    templates: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 2,
+    name_bytes: 32,
+};
 
 fn rule(ci: bool) -> SizedValue {
     SizedValue {
@@ -934,4 +945,119 @@ fn dropped_defaults_name_the_stored_ones_the_stock_no_longer_gives() {
     }
     d.give_settings_defaults(stock());
     assert_eq!(d.dropped_settings_defaults().as_ref(), &[(1, 0, 2)]);
+}
+
+#[test]
+fn follows_keep_only_accepted_values_in_number_order_and_restore_remove_and_reset() {
+    let mut d = domain();
+    let value = SizedValue { value: Value::Follow(settings::follow()), size: 128 };
+    let first = item(12, 1, 1, Edit::Set(value.clone()));
+    let second = item(12, 1, 2, Edit::Set(value));
+    assert!(d.follow(1, 1).is_none());
+    assert!(d.follows(1).is_empty());
+    let mut out = Queue::uncapped();
+    d.keep_proposal_settings(7, from_ref(&first), &mut out);
+    assert!(d.follow(1, 1).is_none(), "a proposal is not the current change");
+    assert_eq!(d.judge_settings(&BOUNDS, from_ref(&first)).as_ref(), &[Judged::Accept { size: 128, charter: None }]);
+    out.clear();
+    d.keep_settings(&env(), 2, Some(7), from_ref(&first), &mut out);
+    assert_eq!(out.pop(), Some(save(&first, SettingSlot::Change)));
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::Setting(key(&first, SettingSlot::Proposal(7))) }));
+    let row = d.follow_row(1, 1).expect("accepted follow record");
+    assert_eq!(
+        out.pop(),
+        Some(Request::Save { read_afresh: None, release: None, record: Stored::Follow(row.clone()) })
+    );
+    assert!(row.heard.is_none() && row.queue.is_empty(), "acceptance has no historical landings");
+    assert_eq!(out.pop(), Some(Request::Marked { tasks: Box::new([follows_subject(1)]) }));
+    assert_eq!(out.pop(), Some(Request::FollowRun { project: 1, follow: 1 }));
+    assert!(out.is_empty(), "acceptance starts the standing task, not a change");
+    d.keep_settings(&env(), 3, None, from_ref(&second), &mut out);
+    assert_eq!(d.follow(1, 1), Some(&settings::follow()));
+    assert_eq!(d.follows(1).as_ref(), &[(1, &settings::follow()), (2, &settings::follow())]);
+    assert!(d.follows(2).is_empty());
+    let mut restarted = domain();
+    restore(&mut restarted, &second, SettingSlot::Change);
+    restore(&mut restarted, &first, SettingSlot::Change);
+    assert_eq!(restarted.follows(1), d.follows(1));
+    for edit in [Edit::Remove, Edit::Reset] {
+        let asked = Asked { edit, ..first.clone() };
+        assert_eq!(
+            restarted.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(),
+            &[Judged::Accept { size: 0, charter: None }]
+        );
+        restarted.keep_settings(&env(), 4, None, from_ref(&asked), &mut out);
+        assert!(restarted.follow(1, 1).is_none());
+        assert_eq!(restarted.follows(1).len(), 1);
+        restarted.keep_settings(&env(), 5, None, from_ref(&first), &mut out);
+    }
+    restarted.erase_project_settings(1, &mut out);
+    assert!(restarted.follows(1).is_empty());
+}
+
+#[test]
+fn dependencies_ride_with_or_without_follows_and_erase_only_with_their_own_project() {
+    let mut d = domain();
+    let first = item(
+        13,
+        1,
+        1,
+        Edit::Set(SizedValue { value: Value::Dependency(crate::settings::Dependency { project: 2 }), size: 4 }),
+    );
+    let second = Asked { number: 2, ..first.clone() };
+    let mut out = Queue::uncapped();
+    d.keep_proposal_settings(7, from_ref(&first), &mut out);
+    assert!(d.dependencies(1).is_empty());
+    d.keep_settings(&env(), 2, None, from_ref(&second), &mut out);
+    d.keep_settings(&env(), 3, Some(7), from_ref(&first), &mut out);
+    let watched = crate::tiers::watched(&d);
+    assert!(watched.is_empty(), "dependencies watch no branch");
+    let Document::Follows(view) = d
+        .document(follows_subject(1), jig_domain_people::ApplicationScope::Project(1), 1, env().wall, &LIMITS)
+        .unwrap()
+    else {
+        panic!("follows document")
+    };
+    assert!(view.follows.is_empty());
+    assert_eq!(
+        view.dependencies.as_ref(),
+        &[DependencyView { number: 1, project: 2 }, DependencyView { number: 2, project: 2 }]
+    );
+    let other = item(
+        13,
+        2,
+        1,
+        Edit::Set(SizedValue { value: Value::Dependency(crate::settings::Dependency { project: 1 }), size: 4 }),
+    );
+    d.keep_settings(&env(), 4, None, from_ref(&other), &mut out);
+    d.erase_project_settings(2, &mut out);
+    assert!(d.dependencies(2).is_empty());
+    assert_eq!(d.dependencies(1).len(), 2, "removing the target leaves dependencies");
+    for edit in [Edit::Remove, Edit::Reset] {
+        let asked = Asked { edit, ..first.clone() };
+        assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Accept { size: 0, charter: None }]);
+        d.keep_settings(&env(), 4, None, from_ref(&asked), &mut out);
+        assert_eq!(d.dependencies(1).len(), 1);
+        d.keep_settings(&env(), 5, None, from_ref(&first), &mut out);
+    }
+    // A follow whose repository facts are unavailable must not hide the dependencies.
+    restore(
+        &mut d,
+        &item(12, 1, 1, Edit::Set(SizedValue { value: Value::Follow(settings::follow()), size: 128 })),
+        SettingSlot::Change,
+    );
+    let Document::Follows(view) = d
+        .document(follows_subject(1), jig_domain_people::ApplicationScope::Project(1), 1, env().wall, &LIMITS)
+        .unwrap()
+    else {
+        panic!("dependencies despite missing repository facts")
+    };
+    assert!(view.follows.is_empty());
+    assert_eq!(view.dependencies.len(), 2);
+    d.keep_proposal_settings(8, from_ref(&second), &mut out);
+    d.erase_project_settings(1, &mut out);
+    assert!(d.dependencies(1).is_empty());
+    for (key, _) in &d.setting_rows {
+        assert_ne!(key.kind, 13, "all slots erased: proposal, current and history");
+    }
 }

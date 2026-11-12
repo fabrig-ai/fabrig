@@ -18,8 +18,8 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         || path.ends_with("temper-worker-shell/src/binary.rs")
     {
         source.replace("std::process::ExitCode", "ExitCode").replace("process::ExitCode", "ExitCode")
-    } else if path.ends_with("temper-service-shell/src/lib.rs") {
-        // Serve's run reads the first link's secret from stdin (protocol/setup/box.md, 1).
+    } else if path.ends_with("temper-box-shell/src/serve.rs") {
+        // Boxed serve reads the first link's secret from stdin (protocol/setup/box.md, 1).
         // Its stdin guard is not a file lock; file locks and process operations stay guarded.
         source.replace("std::io::stdin().lock()", "BoxLinkInput")
     } else if path.ends_with("temper-worker-shell/src/program_login.rs") {
@@ -81,6 +81,7 @@ const TOOL_CRATES: &[&str] = &[
     "temper-playground-serve-tool",
     "temper-stage-one-tool",
     "temper-twin-tool",
+    "temper-qa-tool",
 ];
 fn tool_crate(path: &Path) -> bool {
     path.file_name().is_some_and(|name| TOOL_CRATES.iter().any(|tool| name == *tool))
@@ -146,7 +147,7 @@ fn binary_exit_codes_do_not_exempt_processes_or_file_locks() {
 }
 #[test]
 fn serve_stdin_guard_does_not_exempt_file_locks_or_processes() {
-    let path = Path::new("temper-service-shell/src/lib.rs");
+    let path = Path::new("temper-box-shell/src/serve.rs");
     for (source, expected) in [
         ("std::io::stdin().lock()", false),
         ("file.lock()", true),
@@ -165,6 +166,7 @@ fn the_scan_catches_each_form_and_passes_other_process_modules() {
         ("other.rs", "std::process::exit(1)", true),
         ("temper-box-shell/src/lib.rs", "std::io::stdin().lock()", true),
         ("temper-service-shell/src/host.rs", "std::io::stdin().lock()", true),
+        ("temper-service-shell/src/lib.rs", "std::io::stdin().lock()", true),
         ("other.rs", "CommandExt", true),
         ("other.rs", "try_lock", true),
         ("other.rs", "smith::process::Event", false),

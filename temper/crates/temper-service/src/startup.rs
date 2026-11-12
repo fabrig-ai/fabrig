@@ -7,11 +7,27 @@ mod worker;
 pub use crate::limits::{engine_reference, reference};
 pub use reference::{configuration_reference, engine_configuration_reference};
 #[cfg(feature = "worker")]
-pub use worker::{WorkerPart, worker_alone, worker_part};
+pub use worker::WorkerPart;
 #[cfg(test)]
 #[path = "tests/startup_calls.rs"]
 mod calls_tests;
+#[cfg(not(feature = "worker"))]
 mod checkout;
+#[cfg(feature = "worker")]
+mod checkout {
+    use super::{Problems, settings};
+    use crate::limits;
+    use jig_protocol_config as config;
+    pub(super) fn capacity(
+        engine: Option<&config::Limits>,
+        workers: &[config::Worker],
+        own: &limits::Limits,
+        agent: Option<&settings::Agent>,
+        problems: &mut Problems,
+    ) {
+        super::worker::checkout::capacity(engine, workers, &limits::worker(own), agent, problems);
+    }
+}
 pub(crate) mod checks;
 mod problems;
 #[cfg(test)]
@@ -24,16 +40,12 @@ pub use application::{Forge, Identity, Transport, USER_BYTES, User};
 pub use checks::redirect_ports;
 use jig_protocol_config::{self as config, Path, Segment, read};
 pub(crate) use problems::admission_words;
-pub use problems::{Problem, Problems, What, lines};
+pub use problems::{EngineWhat, Problem, Problems, What, lines};
 use skein_lib::List;
 
-/// The services selected by the document's members (protocol/cluster.md, 1).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Shape {
-    Standalone,
-    EngineAlone,
-    WorkerAlone,
-}
+use temper_service_core::startup::{CallAnswer, nearest_document};
+pub use temper_service_core::startup::{Shape, nearest};
+
 /// Refuse a shape this build does not serve (protocol/binaries.md, 1, and protocol/cluster.md, 1).
 #[must_use]
 pub fn unbuilt(shape: Shape, worker: bool) -> Option<Problem> {
@@ -41,32 +53,16 @@ pub fn unbuilt(shape: Shape, worker: bool) -> Option<Problem> {
         return None;
     }
     match shape {
-        Shape::Standalone | Shape::WorkerAlone => {
-            Some(Problem { path: Path::root().member(b"workers"), what: What::UnbuiltWorker, file: None })
-        }
+        Shape::Standalone | Shape::WorkerAlone => Some(Problem {
+            path: Path::root().member(b"workers"),
+            what: What::Half(EngineWhat::UnbuiltWorker),
+            file: None,
+        }),
         Shape::EngineAlone => None,
     }
 }
 fn member(document: &skein_json::Document, at: u32, name: &[u8]) -> Option<u32> {
     read::Object::new(document, at).ok()?.member(document, name)
-}
-fn nearest_document(document: &skein_json::Document) -> Shape {
-    let Some(engine) = member(document, 0, b"engine") else { return Shape::WorkerAlone };
-    let Some(hosts) = member(document, engine, b"hosts") else { return Shape::Standalone };
-    let Some(at) = member(document, hosts, b"listener") else { return Shape::Standalone };
-    let Ok(listeners) = read::list(document, at, document.len()) else { return Shape::Standalone };
-    let Some(first) = listeners.get(0) else { return Shape::Standalone };
-    if member(document, *first, b"socket").is_some() { Shape::EngineAlone } else { Shape::Standalone }
-}
-/// The document's nearest shape (protocol/cluster.md, 1), read from its
-/// members alone; `None` when the bytes are no JSON document whose root is an object.
-#[must_use]
-pub fn nearest(input: &[u8]) -> Option<Shape> {
-    let length = u32::try_from(input.len()).ok()?;
-    let document =
-        config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: length, depth: 32 }).ok()?;
-    read::Object::new(&document, 0).ok()?;
-    Some(nearest_document(&document))
 }
 /// Read and check the shape before opening any named file.
 pub fn shape_with(
@@ -141,11 +137,13 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
     };
     redirect_ports(&redirects, port, Listener::Webhooks, problems);
 }
+#[cfg(feature = "worker")]
+pub use worker::NamedWorker;
+#[cfg(not(feature = "worker"))]
 #[derive(Debug)]
 pub struct NamedWorker {
     pub root: Box<[u8]>,
     pub agent: Box<[u8]>,
-    /// The agent's program, `workers[0].agent.program`, which Claude Code's `claude` link names (protocol/setup/owned.md, 6).
     pub program: Box<[u8]>,
 }
 fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
@@ -197,7 +195,7 @@ pub fn store_limits(
     let mut parsed =
         load(document, directories, false)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     if !parsed.workers.is_empty() {
-        let agent = agent.ok_or(problem(indexed(0).member(b"agent"), What::Agent))?;
+        let agent = agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?;
         parsed.compose(agent)?;
         let mut problems = Problems::empty();
         checks::agent_answer(agent, &mut problems);
@@ -258,63 +256,34 @@ struct Parsed {
 impl Parsed {
     fn compose(&mut self, agent: &settings::Agent) -> Result<(), Problems> {
         let mut problems = Problems::empty();
-        if let Err(what) = self.engine_call_answer.compose(&mut self.engine.limits, agent) {
-            problems.push(call_input_path(Path::root().member(b"engine")), what);
+        if let Err(what) = self.engine_call_answer.compose(
+            &mut self.engine.limits,
+            agent.tool_payload(),
+            agent.host_ask_input(),
+            agent.host_reply_text(),
+        ) {
+            problems.push(call_input_path(Path::root().member(b"engine")), what.extend());
         }
         checks::call_answer(Path::root().member(b"engine"), self.engine.limits.core.call_answer_bytes, &mut problems);
         for (index, worker) in self.workers.iter_mut().enumerate() {
-            if let Err(what) = self
-                .worker_call_answers
-                .get(index)
-                .expect("one provenance per parsed worker")
-                .compose(&mut worker.limits, agent)
-            {
-                problems.push(call_input_path(indexed(index)), what);
+            if let Err(what) = self.worker_call_answers.get(index).expect("one provenance per parsed worker").compose(
+                &mut worker.limits,
+                agent.tool_payload(),
+                agent.host_ask_input(),
+                agent.host_reply_text(),
+            ) {
+                problems.push(call_input_path(indexed(index)), what.extend());
             }
             checks::call_answer(indexed(index), worker.limits.core.call_answer_bytes, &mut problems);
         }
         if problems.is_empty() { Ok(()) } else { Err(problems) }
     }
 }
-/// Raw membership preserves an explicit profile-default override (protocol/configuration/limits.md).
-#[derive(Clone, Copy, Debug)]
-enum CallAnswer {
-    Profile,
-    Explicit,
-}
-impl CallAnswer {
-    fn read(document: &skein_json::Document, at: u32) -> Self {
-        let Some(limits) = member(document, at, b"limits") else { return Self::Profile };
-        let Some(overrides) = member(document, limits, b"overrides") else { return Self::Profile };
-        if member(document, overrides, b"core.call_answer_bytes").is_some() { Self::Explicit } else { Self::Profile }
-    }
-    fn compose(self, limits: &mut config::Limits, agent: &settings::Agent) -> Result<(), What> {
-        match self {
-            Self::Profile => limits.core.call_answer_bytes = limits.core.call_answer_bytes.max(agent.tool_payload()),
-            Self::Explicit => {
-                if limits.core.call_answer_bytes < agent.tool_payload() {
-                    return Err(What::CallInput {
-                        bytes: u64::from(limits.core.call_answer_bytes),
-                        input: u64::from(agent.tool_payload()),
-                        ask: u64::from(agent.host_ask_input()),
-                        reply: u64::from(agent.host_reply_text()),
-                    });
-                }
-            }
-        }
-        Ok(())
-    }
-}
-fn call_input_path(path: Path) -> Path {
-    path.member(b"limits").member(b"overrides").member(b"core.call_answer_bytes")
-}
+use temper_service_core::startup::{call_input_path, indexed};
 fn problem(path: Path, what: What) -> Problems {
     let mut problems = Problems::empty();
     problems.push(path, what);
     problems
-}
-fn indexed(index: usize) -> Path {
-    Path::root().member(b"workers").child(Segment::Index(u32::try_from(index).expect("bounded workers")))
 }
 /// Parse jig's engine member and pass the supplied defaults, refusing document
 /// settings members (protocol/configuration/settings.md, 4 and 5).
@@ -401,7 +370,7 @@ fn watch_rooms(document: &skein_json::Document, engine: u32, problems: &mut Prob
     if !jig_domain_views::valid(&temper_engine_domain::views_for(streams)) {
         problems.push(
             Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"clients.streams"),
-            What::Against { other: b"representable watch rooms (clients.streams times 22, with two slots per watch)" },
+            What::Against { other: b"representable watch rooms (clients.streams times 26, with two slots per watch)" },
         );
     }
 }
@@ -419,7 +388,7 @@ fn inline_seed_policies(document: &skein_json::Document, engine: u32, problems: 
                     .member(b"projects")
                     .child(Segment::Index(u32::try_from(index).expect("bounded projects")))
                     .member(b"policy"),
-                What::InlineSeedPolicy,
+                What::Half(EngineWhat::InlineSeedPolicy),
             );
         }
     }
@@ -513,8 +482,15 @@ fn load_document(
                 problems.push(indexed(index).member(b"engine"), What::WorkerAlone);
             }
         }
-        if let Some(at) = application_at {
-            let _part = application::worker_alone(document, at, directories, &mut problems);
+        #[cfg(feature = "worker")]
+        if let Some(at) = application_at
+            && let Err(found) = worker::application(document, at, directories)
+        {
+            let found = problems::from_worker(found);
+            for found in found.problems.into_boxed() {
+                problems.push_file(found.path, found.what, found.file);
+            }
+            problems.past = problems.past.saturating_add(found.past);
         }
         return if problems.is_empty() { Ok((shape, None)) } else { Err(problems) };
     }
@@ -551,7 +527,7 @@ fn load_document(
         ));
     }
     if shape == Shape::EngineAlone && !ats.is_empty() {
-        problems.push(root.member(b"workers"), What::EngineAlone);
+        problems.push(root.member(b"workers"), What::Half(EngineWhat::EngineAlone));
     }
     checks::standalone(
         engine.as_ref().expect("required engine checked"),
@@ -560,7 +536,7 @@ fn load_document(
         &mut problems,
     );
     if shape == Shape::EngineAlone && !application.workers.is_empty() {
-        problems.push(root.member(b"application").member(b"workers"), What::EngineAlone);
+        problems.push(root.member(b"application").member(b"workers"), What::Half(EngineWhat::EngineAlone));
     } else if workers.len() != application.workers.len() {
         problems.push(root.member(b"application").member(b"workers"), What::Jig(config::What::Bound));
     }
@@ -714,7 +690,9 @@ pub fn check(
     #[cfg(feature = "worker")]
     if shape(document, directories)? == Shape::WorkerAlone {
         let mut part = worker_part(document, directories)?;
-        worker::check_worker_part(&mut part, files, agent)?;
+        if let Err(found) = worker::check_worker_part(&mut part, files, agent) {
+            return Err(problems::from_worker(found));
+        }
         return Ok(());
     }
     checked_start(document, directories, files, Some(agent), seeds, forges, setup)?;
@@ -737,7 +715,7 @@ pub(crate) fn checked_start_with(
 ) -> Result<CheckedStart, Problems> {
     let mut parsed = parse_with(document, directories, given)?;
     let agent = match parsed.workers.first() {
-        Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Agent))?),
+        Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
         None => None,
     };
     if let Some(agent) = agent {
@@ -803,7 +781,7 @@ pub(crate) fn checked_start_with(
     let not_set_up = List::with_capacity(0);
     #[cfg(feature = "worker")]
     let worker =
-        worker::checked(parsed.workers, parsed.application.workers, &parsed.engine, &parsed.application.limits, agent)?;
+        checked_worker(parsed.workers, parsed.application.workers, &parsed.engine, &parsed.application.limits, agent)?;
     #[cfg(not(feature = "worker"))]
     let worker: Option<settings::Worker> = None;
     let mut engine = settings::Engine {
@@ -930,7 +908,11 @@ pub fn with_setup_given(
         checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
     engine.program_environment = program_environment;
     #[cfg(feature = "worker")]
-    let worker = worker::build(worker, agent, &engine.limits, files, runtime, seeds.seed)?;
+    let worker = match worker::build(worker, agent, &crate::limits::worker(&engine.limits), files, runtime, seeds.seed)
+    {
+        Ok(worker) => worker,
+        Err(found) => return Err(problems::from_worker(found)),
+    };
     #[cfg(not(feature = "worker"))]
     let worker = {
         drop(worker);
@@ -998,5 +980,54 @@ fn prepare_forges(
     match crate::forge::prepare(engine, forges) {
         Ok(settings) => Ok(settings),
         Err(found) => Err(Problems::jig(found, &Path::root())),
+    }
+}
+
+#[cfg(feature = "worker")]
+fn checked_worker(
+    workers: Box<[config::Worker]>,
+    own: Box<[application::Worker]>,
+    engine: &config::Engine,
+    limits: &crate::limits::Limits,
+    agent: Option<&settings::Agent>,
+) -> Result<Option<settings::Worker>, Problems> {
+    let mut problems = Problems::empty();
+    let limits = &crate::limits::worker(limits);
+    if let Some(agent) = agent {
+        let worker = workers.into_iter().next().expect("one worker checked");
+        let own = own.into_iter().next().expect("one application worker checked");
+        let worker = settings::Worker { jig: worker, root: own.root, git: own.git };
+        checks::worker(&crate::worker_settings::root_limits(&worker, agent, limits), &mut problems);
+        checks::grants(engine, &worker.jig.limits, agent, &mut problems);
+        if !problems.is_empty() {
+            return Err(problems);
+        }
+        if let Err(found) = crate::worker_settings::prepare(&worker, agent, limits) {
+            return Err(Problems::jig(found, &Path::root()));
+        }
+        Ok(Some(worker))
+    } else {
+        Ok(None)
+    }
+}
+
+#[cfg(feature = "worker")]
+pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
+    match worker::worker_part(input, directories) {
+        Ok(part) => Ok(part),
+        Err(found) => Err(problems::from_worker(found)),
+    }
+}
+#[cfg(feature = "worker")]
+pub fn worker_alone(
+    part: WorkerPart,
+    files: &settings::Files,
+    agent: &settings::Agent,
+    runtime: WorkerRuntime,
+    seed: u64,
+) -> Result<crate::worker_alone::Service, Problems> {
+    match worker::worker_alone(part, files, agent, runtime, seed) {
+        Ok(service) => Ok(service),
+        Err(found) => Err(problems::from_worker(found)),
     }
 }

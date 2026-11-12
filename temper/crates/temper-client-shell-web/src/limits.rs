@@ -17,24 +17,18 @@ pub const BODY_BYTES: u32 = 33_554_432;
 pub const PIECE: u32 = 4096;
 /// Field text and a person's conversation words (client/view.md, 4).
 pub const CONVERSATION_TEXT: u32 = 512;
-/// The tier's window at its `long_text` floor (client/pages/chat/conversation.md, 2),
-/// a thirty-second of `document_bytes` (client/web/testing.md, 3).
-#[cfg(feature = "small-window")]
-const WINDOW_BYTES: Option<u64> = Some(32_768);
-/// The person's bundle reads the whole `document_bytes` window (client/pages/chat/conversation.md, 2).
-#[cfg(not(feature = "small-window"))]
-const WINDOW_BYTES: Option<u64> = None;
-/// The tier's whole bodies, goal words and turns fit its window (client/view.md, 4):
-/// the largest page `read_docs` answers, `temper_docs::PAGE_BYTES` (client/web/testing.md, 3).
-#[cfg(feature = "small-window")]
-pub const LONG_TEXT: u32 = 32_768;
 /// The person's `long_text` for whole bodies, goal words and turns (client/view.md, 4).
-#[cfg(not(feature = "small-window"))]
 pub const LONG_TEXT: u32 = 131_072;
 /// The root's bounds: `temper-client-shell-terminal`'s `native().client`.
 #[must_use]
-#[expect(clippy::arithmetic_side_effects, reason = "the request count is the nonzero constant declared here")]
 pub fn client() -> client::Limits {
+    client_for(false)
+}
+/// The page's limits with its internal small-window setting (client/web/README.md, 2.1).
+#[must_use]
+#[expect(clippy::arithmetic_side_effects, reason = "the request count is the nonzero constant declared here")]
+pub fn client_for(small_window: bool) -> client::Limits {
+    let long_text = if small_window { 32_768 } else { LONG_TEXT };
     let requests = RequestLimits {
         requests: 16,                   // Durable keyed requests.
         bytes: 16_777_216,              // Whole request-table payload bytes.
@@ -53,8 +47,9 @@ pub fn client() -> client::Limits {
             requests,
             // A jig ask reserves this much, so the table holds `requests` asks.
             ask_bytes: requests.bytes / u64::from(requests.requests),
-            handles: 24, // Holds four projects' decided watches.
-            watches: 22, // Holds four projects' decided and the shared session watches.
+            // Hold four projects' statuses, decided and follows, and the session's own watches.
+            handles: 28,
+            watches: 26,
             turn_bytes: 1_048_576,
             backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(30) },
             authority: 18, // Eighteen executor places size grants, delegation kinds and notes' scopes.
@@ -67,8 +62,8 @@ pub fn client() -> client::Limits {
             kept: 16,
             projects: 9, // Covers Small and Standard deployment membership capacity.
             text: CONVERSATION_TEXT,
-            long_text: LONG_TEXT,
-            turn_text: LONG_TEXT,
+            long_text,
+            turn_text: long_text,
             rows: 16, // Entries in a document's short lists.
             fields: 16,
             segments: 9,
@@ -80,7 +75,7 @@ pub fn client() -> client::Limits {
         client,
         // An account's row names eight uses.
         row_uses: 8,
-        window_bytes: WINDOW_BYTES,
+        window_bytes: if small_window { Some(32_768) } else { None },
     }
 }
 /// Checked words and the view bounds used at construction and accounting.

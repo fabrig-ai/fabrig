@@ -5,11 +5,23 @@ pub struct Browser<R> {
     pub fetch: crate::fetch::web::Fetch<R>,
     hidden: crate::hidden::web::Hidden<R>,
     tab: crate::tab::web::Tab,
+    navigation: super::Navigation,
 }
 impl<R: 'static> Browser<R> {
     #[must_use]
     pub fn new(fetch: crate::fetch::web::Fetch<R>) -> Self {
-        Self { hidden: crate::hidden::web::Hidden::new(fetch.clone()), fetch, tab: crate::tab::web::Tab::default() }
+        Self {
+            hidden: crate::hidden::web::Hidden::new(fetch.clone()),
+            fetch,
+            tab: crate::tab::web::Tab::default(),
+            navigation: super::Navigation::default(),
+        }
+    }
+    /// Allows plaintext loopback targets for a test page; off by default (ui/web/README.md, 8).
+    #[must_use]
+    pub fn with_loopback_navigation(mut self, on: bool) -> Self {
+        self.navigation.loopback = on;
+        self
     }
 }
 fn storage() -> Option<web_sys::Storage> {
@@ -42,7 +54,7 @@ impl<R: 'static> super::Platform for Browser<R> {
         self.tab.open(words)
     }
     fn point_tab(&mut self, to: &[u8]) {
-        self.tab.point(to, cfg!(feature = "loopback-navigation"));
+        self.tab.point(to, self.navigation.loopback);
     }
     fn close_tab(&mut self) {
         self.tab.close();
@@ -78,7 +90,7 @@ impl<R: 'static> super::Platform for Browser<R> {
         self.fetch.exchange(exchange);
     }
     fn navigate(&mut self, to: &[u8]) {
-        if !crate::navigation::allowed(to, cfg!(feature = "loopback-navigation")) {
+        if !self.navigation.allowed(to) {
             return;
         }
         let to = std::str::from_utf8(to).expect("visible ASCII navigation");

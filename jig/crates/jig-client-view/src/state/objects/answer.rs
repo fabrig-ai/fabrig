@@ -34,6 +34,7 @@ pub fn recovery(object: &Object) -> Recovery {
             Refusal::Forgotten { .. }
             | Refusal::Judged { .. }
             | Refusal::Full(_)
+            | Refusal::LiveTasks { .. }
             | Refusal::Circle { .. }
             | Refusal::Dependency { .. }
             | Refusal::Kept { .. }

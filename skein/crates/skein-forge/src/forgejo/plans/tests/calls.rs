@@ -631,6 +631,78 @@ fn body_revisions_match_literal_big_endian_digest_goldens() {
     );
 }
 
+fn past_document_length(op: Op, body: &[u8]) -> (Run, u32) {
+    let length = u32::try_from(body.len()).unwrap().checked_sub(1).unwrap();
+    let mut limits = fixtures::limits();
+    limits.json.length = length;
+    let mut run = Run::with_limits(limits, BOUNDS, op);
+    run.begin();
+    (run, length)
+}
+
+#[test]
+fn item_past_document_length_is_too_large() {
+    let (mut run, length) =
+        past_document_length(Op::Read(Read::Item { number: 1, after: 0, since: Time::ZERO }), ISSUE);
+    assert_eq!(
+        run.answer(200, ISSUE),
+        Step::Done(Err(Error::TooLarge(api::Excess::at_least(
+            api::Bound::Forge,
+            u64::from(length),
+            skein_lib::len_u64(ISSUE.len())
+        ))))
+    );
+}
+
+#[test]
+fn open_pull_preflight_past_document_length_is_too_large() {
+    let (mut run, length) = past_document_length(Op::Write(open_pull()), BRANCH);
+    assert_eq!(
+        run.answer(200, BRANCH),
+        Step::Done(Err(Error::TooLarge(api::Excess::at_least(
+            api::Bound::Forge,
+            u64::from(length),
+            skein_lib::len_u64(BRANCH.len()),
+        ))))
+    );
+}
+
+#[test]
+fn write_past_document_length_stays_timeout() {
+    let (mut run, _) = past_document_length(Op::Write(create_issue()), ISSUE);
+    assert_eq!(run.answer(201, ISSUE), Step::Done(Err(Error::Timeout)));
+}
+
+#[test]
+fn read_string_past_cap_is_unnamed_too_large() {
+    let mut limits = fixtures::limits();
+    limits.string_bytes = 0;
+    let mut run = Run::with_limits(limits, BOUNDS, Op::Read(Read::Item { number: 1, after: 0, since: Time::ZERO }));
+    run.begin();
+    assert_eq!(run.answer(200, ISSUE), Step::Done(Err(Error::TooLarge(api::Excess::unnamed()))));
+}
+
+#[test]
+fn malformed_json_stays_invalid_answer() {
+    let mut run = Run::known(Op::Read(Read::Item { number: 1, after: 0, since: Time::ZERO }));
+    run.begin();
+    assert_eq!(run.answer(200, b"{"), Step::Done(Err(Error::InvalidAnswer)));
+}
+
+#[test]
+fn comparison_past_document_length_is_too_large() {
+    let (mut run, length) = past_document_length(Op::Read(Read::Compare { before: BASE, after: HEAD }), LARGE_COMPARE);
+    assert_eq!(
+        run.answer(200, LARGE_COMPARE),
+        Step::Done(Err(Error::TooLarge(api::Excess {
+            bound: api::Bound::Forge,
+            limit: u64::from(length),
+            size: skein_lib::len_u64(LARGE_COMPARE.len()),
+            exact: false,
+        })))
+    );
+}
+
 const LARGE_COMPARE: &[u8] = br#"{"total_commits":22,"commits":[{"sha":"not read"}],"files":[{"filename":"a","status":null},{"filename":"b"},{"filename":"c"},{"filename":"d"},{"filename":"e"},{"filename":"f"},{"filename":"g"},{"filename":"h"},{"filename":"i"},{"filename":"j"},{"filename":"k"},{"filename":"l"}]}"#;
 const REVERSE_COMPARE: &[u8] = br#"{"total_commits":3,"commits":null,"files":[]}"#;
 // Reconstructed from walk-103's measured shape: two commits, three paths, six rows.

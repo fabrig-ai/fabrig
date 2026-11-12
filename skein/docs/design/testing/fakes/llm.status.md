@@ -1,6 +1,7 @@
 # fake-llm: status
 
-2026-11-07. Where skein's code lags or departs from [llm.md](llm.md).
+2026-11-12. Where skein's code lags or departs from [llm.md](llm.md).
+
 
 Section 3.2 has no known implementation gap in configured list bodies,
 status replacement between reads, credential observations or keeping

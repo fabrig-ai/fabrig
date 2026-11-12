@@ -995,10 +995,12 @@ impl World {
         let result = match self.forge.api(name, 1, api::op(op, client)) {
             Ok(answer) => {
                 let answer = api::answer(op, answer, client);
-                if skein_forge::measure::answer(&answer).expect("fake answer size") > u64::from(client.answer_bytes) {
+                if let Ok(answer) = &answer
+                    && skein_forge::measure::answer(answer).expect("fake answer size") > u64::from(client.answer_bytes)
+                {
                     Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))
                 } else {
-                    Ok(answer)
+                    answer
                 }
             }
             Err(error) => Err(api::error(

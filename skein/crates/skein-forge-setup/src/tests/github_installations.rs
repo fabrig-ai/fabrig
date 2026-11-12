@@ -603,7 +603,7 @@ fn bad_duplicate_or_excess_rows_stop_before_any_mutation() {
         Event::Reply(Reply::GitHubDocument(Document::Installation(installation(7, NOW, false)))),
         Event::Reply(Reply::GitHubDocument(Document::Done)),
         Event::Reply(Reply::Rows(Box::new([]))),
-        Event::Reply(Reply::Document(skein_forge::forgejo::document::Document::RepoSearch { ok: true })),
+        Event::Reply(Reply::Document(Box::new(skein_forge::forgejo::document::Document::RepoSearch { ok: true }))),
         Event::Reply(Reply::Empty),
         Event::Reply(Reply::GitHubRows(full_page(PAGE_CAP.checked_add(1).expect("one past cap")))),
     ] {

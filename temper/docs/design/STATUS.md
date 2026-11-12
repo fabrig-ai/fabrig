@@ -4,7 +4,72 @@
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;
-each document keeps its deferred work and open questions.
+each document keeps its deferred work and open questions. Landed
+drafts are the whole story's milestone P8, by goal 638: a project keeps
+each draft landed in its repositories that its writer says is ready, by
+`temper ctl draft ready`, read at the landing branch's head and kept with
+its commit, title, chat and, once started, its goal; Work lists the ready
+ones under Drafts, each starting a goal at the project's way; its render
+check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
+`draft/surfaces.status.md`, 5). QA's hands are landed-qa's milestone Q2,
+by goal 1000: a drive session on a fake box from a given build, taking a
+person's steps and looks a line at a time; recipes and their walk; the
+fake model's given scripts and strict switch; a store this build cannot
+read refused by name; and a box started again with a newer build, whose
+process-tier story runs after landing (`client/drive.md`;
+`client/recipe.md`; `protocol/setup/box.md`, 1 and 5; `protocol/store.md`,
+5; `draft/landed-qa.status.md`).
+
+Landed QA's milestones Q1 and Q3: `temper-qa`
+watches main's ref, triages each goal's landing into cases in main's
+order, and keeps the deployment's builds of landed tips until no pass
+can need them, all in one ledger; a pass, by goal 1210, takes the newest
+reached build with every web case it holds, restores each case's setup
+at a place from its copy or its recipe, drives the box a line at a time,
+records outcomes and findings as it goes, files its open findings as one
+request and one goal, and resumes on a build holding that goal's
+landing, two goals at most; its first passes follow landing, and the
+TUI's cases wait for Q4 (`testing/qa/README.md`; `testing/qa/passes.md`;
+`draft/landed-qa.status.md`).
+
+A follow across projects is the whole story's milestone F1
+(`domain/forge/follows.md`): kind 12, a follow of a branch of a
+repository its project adopts as context, each project's context
+adoption kept beside the writer's; the forge hearing the source's
+landings into a queue kept across a restart; a follow task making one
+follow change per landing in order, its words made by code, parameter
+18 naming what it follows; the owner's start, hold, skip and merge in
+`temper ctl`, keeping the chain whole; the follow's check dispatched by
+its change with the followed commit; and lag and parity in the forge's
+`follows` document. A standing role as owner waits on R1; the follow
+change's words carry no diff, and a person's follow's holds reach the
+project's escalation role, each asked of the user
+(`domain/forge/follows.status.md`; `draft/follows.status.md`). A
+project's dependency on another is milestone F2
+(`domain/forge/dependencies.md`): kind 13, naming another project of
+the deployment, carried in the `follows` document beside the follows
+and printed by `temper ctl follow list`, "dependency 1: fabrig depends
+on vsr-rs"; nothing acts on it, and Home on All projects' What follows
+what draws it beside the follows, from the first four projects'
+`follows` documents (`client/pages/home.md`, 1), within a shipped
+client's 26 watches (`protocol/configuration/limits.md`).
+
+T1's repair, goal 761, reads the launchpad's brief, Where you left off
+and Needs you across the person's projects, says why a walked need
+reached the person and when each need asked, dates a left-off row and
+draws the blank row under the header (`client/tui/pages/launchpad.md`).
+Its walk follows landing; team lines, `/talk` and `/tell` remain T3's,
+and Stop asking in the terminal remains the web's
+(`draft/surfaces.status.md`, 11).
+
+How work runs' What follows a landing and a role's budget are the whole
+story's milestone P3d, by goal 1016 (`client/pages/settings.md`, 2): a box
+a follow of the project's, from the forge's `follows` document, its words
+made from its setting, its lag and parity and who acts' chips, then a box
+of the project's path's tiers after landing; Budgets' rows for its live
+standing roles under its open period; and Roles the charters its standing
+roles and follows run (`domain/forge/change/branch-path.md`). Their render
+check and walk follow landing (`client/pages/settings.md`, 3).
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -15,6 +80,7 @@ Design documents:
 - [`client/ctl/results.md`](client/ctl/results.status.md)
 - [`client/ctl/testing.md`](client/ctl/testing.status.md)
 - [`client/ctl/tools.md`](client/ctl/tools.status.md)
+- [`client/drive.md`](client/drive.status.md)
 - [`client/engine.md`](client/engine.status.md)
 - [`client/forge/README.md`](client/forge/README.status.md)
 - [`client/forge/deployment.md`](client/forge/deployment.status.md)
@@ -42,6 +108,7 @@ Design documents:
 - [`client/pages/team.md`](client/pages/team.status.md)
 - [`client/pages/welcome.md`](client/pages/welcome.status.md)
 - [`client/pages/work.md`](client/pages/work.status.md)
+- [`client/recipe.md`](client/recipe.status.md)
 - [`client/testing.md`](client/testing.status.md)
 - [`client/tui/README.md`](client/tui/README.status.md)
 - [`client/tui/box.md`](client/tui/box.status.md)
@@ -70,6 +137,8 @@ Design documents:
 - [`domain/agent/tools.md`](domain/agent/tools.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
 - [`domain/forge/README.md`](domain/forge/README.status.md)
+- [`domain/forge/dependencies.md`](domain/forge/dependencies.status.md)
+- [`domain/forge/follows.md`](domain/forge/follows.status.md)
 - [`domain/forge/adoption.md`](domain/forge/adoption.status.md)
 - [`domain/forge/attention.md`](domain/forge/attention.status.md)
 - [`domain/forge/branches.md`](domain/forge/branches.status.md)
@@ -78,6 +147,7 @@ Design documents:
 - [`domain/forge/change/gates.md`](domain/forge/change/gates.status.md)
 - [`domain/forge/change/questions.md`](domain/forge/change/questions.status.md)
 - [`domain/forge/change/repairs.md`](domain/forge/change/repairs.status.md)
+- [`domain/forge/drafts.md`](domain/forge/drafts.status.md)
 - [`domain/forge/issues.md`](domain/forge/issues.status.md)
 - [`domain/forge/keeping-up.md`](domain/forge/keeping-up.status.md)
 - [`domain/forge/queues.md`](domain/forge/queues.status.md)
@@ -109,6 +179,7 @@ Design documents:
 - [`protocol/git.md`](protocol/git.status.md)
 - [`protocol/llm.md`](protocol/llm.status.md)
 - [`protocol/openid-provider.md`](protocol/openid-provider.status.md)
+- [`protocol/services.md`](protocol/services.status.md)
 - [`protocol/setup/README.md`](protocol/setup/README.status.md)
 - [`protocol/setup/box.md`](protocol/setup/box.status.md)
 - [`protocol/setup/github.md`](protocol/setup/github.status.md)
@@ -126,6 +197,14 @@ Design documents:
 - [`testing/fakes.md`](testing/fakes.status.md)
 - [`testing/live-tier.md`](testing/live-tier.status.md)
 - [`testing/process-tier.md`](testing/process-tier.status.md)
+- [`testing/qa/README.md`](testing/qa/README.status.md)
+- [`testing/qa/builds.md`](testing/qa/builds.status.md)
+- [`testing/qa/findings.md`](testing/qa/findings.status.md)
+- [`testing/qa/landings.md`](testing/qa/landings.status.md)
+- [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
+- [`testing/qa/passes.md`](testing/qa/passes.status.md)
+- [`testing/qa/places.md`](testing/qa/places.status.md)
+- [`testing/qa/triage.md`](testing/qa/triage.status.md)
 - [`testing/real-loop.md`](testing/real-loop.status.md)
 - [`testing/reference-case.md`](testing/reference-case.status.md)
 
@@ -153,6 +232,7 @@ Drafts:
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
+- [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)

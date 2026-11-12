@@ -11,12 +11,14 @@ role  Standing roles: start one, list them, read one and its Now
 proposal  Proposals: read one, decide it
 hold  Placed holds: lift one you may lift
 change  Changes: read a change's way to landing
+follow  Follows: read a project's follows and their lag and parity
 landing  Landings: read one or a project's landings
+draft  Landed drafts: say ready or not ready, list them
 repository  Repositories: make, copy or adopt one into a project
 forge  Forges: read them, set one up, connect it, accept an installation, read what it reaches
 account  LLM accounts: read them, connect one, manage its keys and sources, move one in or out
 model  Models: read those your party may use
 settings  The settings: read them, change them, or propose a change to their owners
 revision  Settings revisions: read one or the history, move running work to the newest
-project  Projects: make or remove one, read periods and pools, set spend and visibility
+project  Projects: make or delete one, read periods and pools, set spend and visibility
 playground  The playground: start it, or end it and set up temper

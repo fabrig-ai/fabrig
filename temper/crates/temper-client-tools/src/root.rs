@@ -23,10 +23,12 @@ pub struct Root {
     unlinked: bool,
     runner: runner::Runner,
     adopter: crate::forge::Adopter,
+    drafts: crate::drafts::Drafts,
     maker: crate::making::Maker,
     forges: crate::forges::Forges,
     changes: crate::change::Changes,
     landings: crate::landing::Landings,
+    follows: crate::follow::Follows,
     next: Option<u32>,
     recovery: crate::recovery::Recovery,
     deadline: Option<Time>,
@@ -85,10 +87,12 @@ impl Root {
             unlinked,
             runner,
             adopter: crate::forge::Adopter::new(),
+            drafts: crate::drafts::Drafts::new(),
             maker: crate::making::Maker::new(),
             forges: crate::forges::Forges::new(),
             changes: crate::change::Changes::new(),
             landings: crate::landing::Landings::new(),
+            follows: crate::follow::Follows::new(),
             next: Some(1),
             recovery: crate::recovery::Recovery::new(),
             deadline: None,
@@ -151,7 +155,9 @@ impl Root {
     pub fn kept_json(&mut self, json: bool) {
         self.runner.kept_json(json);
         self.adopter.kept_json(json);
+        self.drafts.kept_json(json);
         self.maker.kept_json(json);
+        self.follows.kept_json(json);
         self.forges.kept_json(json);
         self.changed();
     }
@@ -178,9 +184,13 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 .calls()
                 .checked_add(root.maker.calls())
                 .expect("bounded calls")
+                .checked_add(root.drafts.calls())
+                .expect("bounded calls")
                 .checked_add(root.adopter.calls())
                 .expect("bounded calls")
                 .checked_add(root.forges.calls())
+                .expect("bounded calls")
+                .checked_add(root.follows.calls())
                 .expect("bounded calls")
                 .checked_add(root.landings.calls())
                 .expect("bounded calls")
@@ -200,12 +210,16 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 let called = runner::Called { number, call_number, call, json, value };
                 if crate::making::owns(&called.call) {
                     crate::making::call(&mut root.maker, &root.client, env, called, &mut child);
+                } else if crate::follow::owns(&called.call) {
+                    crate::follow::call(&mut root.follows, &root.client, env, called, &mut child);
                 } else if crate::landing::owns(&called.call) {
                     crate::landing::call(&mut root.landings, &root.client, env, called, &mut child);
                 } else if crate::change::owns(&called.call) {
                     crate::change::call(&mut root.changes, &root.client, env, called, &mut child);
                 } else if crate::forges::owns(&called.call) {
                     crate::forges::call(&mut root.forges, &root.client, env, called, &mut child);
+                } else if crate::drafts::owns(&called.call) {
+                    crate::drafts::call(&mut root.drafts, &root.client, env, called, &mut child);
                 } else if forge {
                     crate::forge::call(&mut root.adopter, &root.client, &env.limits, called, &mut child);
                 } else {
@@ -458,15 +472,19 @@ fn route_owner(
                 | Told::Page { .. } => {}
             }
             crate::making::told(&mut root.maker, &root.client, env, &told, child);
+            crate::follow::told(&mut root.follows, &root.client, env, &told, child);
             crate::landing::told(&mut root.landings, &root.client, env, &told, child);
             crate::change::told(&mut root.changes, &root.client, env, &told, child);
             crate::forges::told(&mut root.forges, &root.client, env, &told, child);
+            crate::drafts::told(&mut root.drafts, &root.client, env, &told, child);
             crate::forge::told(&mut root.adopter, &env.limits, told, child);
         }
         Some(Owner::Pages) | None => out.push(Request::Fact { fact: temper_client_domain::Fact::UnknownAsker }),
     }
     if me_changed {
+        crate::drafts::ready(&mut root.drafts, &root.client, env, child);
         crate::making::ready(&mut root.maker, &root.client, env, child);
+        crate::follow::ready(&mut root.follows, &root.client, env, child);
         crate::landing::ready(&mut root.landings, &root.client, env, child);
         crate::change::ready(&mut root.changes, &root.client, env, child);
         crate::forge::ready(&mut root.adopter, &root.client, &env.limits, child);
@@ -493,6 +511,7 @@ pub fn fire(root: &mut Root, env: &Env<Limits>, out: &mut Queue<Request>) {
     jig::wait::fire(&mut root.runner, &root.client, &tools_env(env), &mut child);
     crate::making::fire(&mut root.maker, &root.client, env, &mut child);
     crate::change::fire(&mut root.changes, env, &mut child);
+    crate::drafts::fire(&mut root.drafts, &root.client, env, &mut child);
     crate::forges::fire(&mut root.forges, &root.client, env, &mut child);
     drain(root, env, &mut client, &mut child, out);
     root.client.reclaim();
@@ -507,6 +526,7 @@ fn deadline(root: &Root) -> Option<Time> {
         .next_deadline()
         .into_iter()
         .chain(jig::wait::next_deadline(&root.runner))
+        .chain(root.drafts.next_deadline())
         .chain(root.forges.next_deadline())
         .chain(root.maker.next_deadline())
         .chain(root.changes.next_deadline())

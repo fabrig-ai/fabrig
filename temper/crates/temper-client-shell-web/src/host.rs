@@ -76,8 +76,14 @@ pub struct Host {
 }
 impl Host {
     #[must_use]
-    pub fn new(seed: u64, now: Time, wall: Wall, zone_minutes: i32, ways: view::sign_in::Ways) -> Self {
-        let client = limits::client();
+    pub fn new(
+        client: root::Limits,
+        seed: u64,
+        now: Time,
+        wall: Wall,
+        zone_minutes: i32,
+        ways: view::sign_in::Ways,
+    ) -> Self {
         assert!(limits::valid(&client), "web capacities are checked");
         let (bounds, words) = limits::view(&client).expect("web view capacities are checked");
         let mut root = root::new(&client, seed);
@@ -432,7 +438,7 @@ mod zone_tests {
     #[test]
     fn the_host_keeps_the_shells_zone_before_start() {
         for zone in [0_i32, 120_i32, -300_i32] {
-            let host = Host::new(11, Time::ZERO, Wall::EPOCH, zone, view::sign_in::Ways::NONE);
+            let host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, zone, view::sign_in::Ways::NONE);
             assert_eq!(host.root.zone_minutes(), zone);
         }
     }
@@ -444,7 +450,7 @@ mod tab_tests {
 
     #[test]
     fn tab_requests_keep_their_order_and_do_not_depart() {
-        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         let to = b"https://issuer.example/sign-in".as_slice();
         for tab in [root::Tab::Open { provider: 17 }, root::Tab::Point { to: to.into() }, root::Tab::Close] {
             host.out.push(Request::Tab { tab });
@@ -464,7 +470,7 @@ mod tab_tests {
 
     #[test]
     fn a_tab_refusal_has_no_duty_yet() {
-        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let mut host = Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
         let duties = host.report(Report::TabRefused);
         assert!(duties.tab.is_empty());
         assert!(duties.asked.is_empty());

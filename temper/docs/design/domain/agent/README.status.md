@@ -9,6 +9,11 @@
   landing's among them, fails `the change's head moved`; only a head the
   answer reports is recorded (`answered`, `record_delegate_head`)
   [in flight: change 67].
+- **Not yet:** 4: a question's label reads `2 asks (question 4)`, without
+  the answer form (`temper-engine-domain/src/link.rs`, `inbox_sender`)
+  [in flight: change 839].
+- **Not yet:** 4: a question read once and still open is shown in no later
+  run's brief [in flight: change 838].
 
 `tools.md`'s `decided`, `agents.md`, 1, and `ask-temper.md`, 1 have no known implementation gap
 but the one below in what reaches a person, the whole story's milestone

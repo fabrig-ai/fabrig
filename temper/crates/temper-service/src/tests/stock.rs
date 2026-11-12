@@ -334,6 +334,18 @@ fn the_coordinators_parts_load_the_whole_first_edition_as_written() {
 }
 
 #[test]
+fn the_coordinator_prioritizes_relayed_questions_in_shared_instructions() {
+    let engine = engine(&generated());
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let charter = defaults.charters.iter().find(|charter| charter.number == 5).expect("stock coordinator");
+    let shared = core::str::from_utf8(&charter.policy.instructions).expect("shared UTF-8");
+    assert!(shared.contains(concat!(
+        "At each wake read your report note and tree first; after deciding, park with `wait`.\n\n",
+        "A question a change relays is answered before anything else, whatever woke you: every run is shown each question still open, with its asker, its number and how to answer, until you answer it with message in the answer form, as your part for questions says."
+    )));
+}
+
+#[test]
 fn the_coordinators_charter_makes_no_landing_close_out_or_catch_up() {
     let engine = engine(&generated());
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -606,7 +618,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         }
     }
     // The main model and eight alternatives each carry eight aligned cache-lifetime bytes.
-    assert_eq!(run, (11_418, Setting::Charter(5)));
+    assert_eq!(run, (11_676, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing role's charter executor.
@@ -1610,6 +1622,40 @@ fn kinds_are_declared_with_their_bounds() {
                 connector: CONNECTOR,
                 value_bytes: 2,
                 per_scope: 9,
+                charters: 0
+            },
+            Kind {
+                number: 12,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                // Repositories, branch length prefixes, paths, owner/start/options, producer and check.
+                value_bytes: 6
+                    + 4
+                    + 9
+                    + 4
+                    + limits.forge.follow_paths * (4 + 256)
+                    + 6
+                    + 4
+                    + 9
+                    + 9
+                    + 1
+                    + 1
+                    + 4
+                    + 8192
+                    + 4
+                    + 256
+                    + 4
+                    + 256
+                    + 1,
+                per_scope: limits.forge.follows,
+                charters: 1
+            },
+            Kind {
+                number: 13,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 4,
+                per_scope: limits.forge.dependencies,
                 charters: 0
             },
         ]

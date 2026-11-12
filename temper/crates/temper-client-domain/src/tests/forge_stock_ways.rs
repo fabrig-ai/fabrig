@@ -219,7 +219,19 @@ fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delega
     }
     w::WaysPanel::new(
         &w::CEILINGS,
-        w::WaysPanelParts { words: None, project, ways, current, own: path(b"own"), may_change },
+        w::WaysPanelParts {
+            rules: w::PathRules::new(
+                &w::CEILINGS,
+                w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
+            )
+            .unwrap(),
+            words: None,
+            project,
+            ways,
+            current,
+            own: path(b"own"),
+            may_change,
+        },
     )
     .unwrap()
 }

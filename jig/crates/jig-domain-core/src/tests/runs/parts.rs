@@ -169,6 +169,7 @@ fn preparing_parts(parts: bool, questions: bool) -> (Core, Limits) {
     let (mut core, limits) = tree_core();
     let mut root = new_row(&core, 1, tasks::Funder::Period { project: 1, period: 1 }, Some(4));
     root.wake.questions = questions;
+    root.wake.words = tasks::WakeRule::Never;
     fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([root]));
     let child = new_row(&core, 2, tasks::Funder::Task(1), None);
     fixtures::make_batch(&mut core, &limits, tasks::Party::Task(1), Box::new([child]));
@@ -247,8 +248,7 @@ fn sent_words_follow_prepared_parts_and_always_complete_their_route() {
     }
 }
 
-fn arrive(core: &mut Core, limits: &Limits, kind: tasks::MessageKind) {
-    let from = if kind == tasks::MessageKind::Question { tasks::Party::Task(2) } else { tasks::Party::Person(1) };
+fn arrive(core: &mut Core, limits: &Limits, from: tasks::Party, kind: tasks::MessageKind) {
     watch_outputs(
         core,
         limits,
@@ -343,11 +343,12 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
         Arrival::BeforeComplete,
         Arrival::BeforeWorkspace,
     ] {
-        for (name, parts, questions, kind, kept) in [
-            ("new question", true, true, tasks::MessageKind::Question, false),
-            ("non-waking question", true, false, tasks::MessageKind::Question, true),
-            ("person words", true, true, tasks::MessageKind::Words, false),
-            ("no parts", false, true, tasks::MessageKind::Question, false),
+        for (name, parts, questions, from, kind, kept) in [
+            ("new question", true, true, tasks::Party::Task(2), tasks::MessageKind::Question, false),
+            ("non-waking question", true, false, tasks::Party::Task(2), tasks::MessageKind::Question, false),
+            ("non-waking words", true, false, tasks::Party::Task(2), tasks::MessageKind::Words, true),
+            ("person words", true, true, tasks::Party::Person(1), tasks::MessageKind::Words, false),
+            ("no parts", false, true, tasks::Party::Task(2), tasks::MessageKind::Question, false),
         ] {
             let (mut core, limits) = preparing_parts(parts, questions);
             let prepared = core.contexts.get(&1).unwrap().clone();
@@ -375,7 +376,7 @@ fn arrivals_adding_reasons_invalidate_preparation_and_other_words_follow_parts()
             if arrival == Arrival::BeforeWorkspace {
                 watch_outputs(&mut core, &limits, Event::BriefAssembled { task: 1, failure: None });
             }
-            arrive(&mut core, &limits, kind);
+            arrive(&mut core, &limits, from, kind);
             assert_eq!(core.contexts.contains_key(&1), kept, "{arrival:?}: {name}: context current");
             if !kept {
                 let tasks::Phase::Active(tasks::Active::BackingOff { .. }) = core.tasks.task(1).unwrap().phase else {

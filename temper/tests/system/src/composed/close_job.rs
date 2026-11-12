@@ -270,7 +270,8 @@ impl World {
         assert_eq!(job.deadline, Duration::from_secs(600));
         story.job = Some(job.run.raw());
         let own = temper_service::limits::profile(temper_service::limits::Profile::Small);
-        let limits = temper_service::worker_settings::payload_limits(&own).expect("worker payload limits");
+        let limits = temper_service::worker_settings::payload_limits(&temper_service::limits::worker(&own))
+            .expect("worker payload limits");
         self.worker_events.push_back(link::job(job, workspace, &limits));
     }
 

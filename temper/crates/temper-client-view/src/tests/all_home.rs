@@ -69,6 +69,7 @@ fn facts(projects: Vec<Project>) -> Facts {
         decided: Box::default(),
         showing: 0,
         away: None,
+        follows: Box::default(),
     }
 }
 fn drawn(facts: &Facts, words: &Words) -> (Tree, Bindings) {
@@ -456,4 +457,122 @@ fn main_tree(root: &d::Domain, words: &Words) -> (Tree, Bindings) {
     let mut bindings = Bindings::new(128);
     pages::all_home::main(&mut b, root, words, &mut bindings, &mut Times::new(f::NOW), 40);
     (b.finish(), bindings)
+}
+
+#[test]
+fn the_shared_headline_and_joined_brief_are_the_pages_words() {
+    let mut projects = vec![project(1, "Hello", 3, 0), project(2, "shop", 1, 0)];
+    for project in &mut projects {
+        let brief = w::StatusBrief::new(
+            &w::CEILINGS,
+            w::StatusBriefParts {
+                at: BRIEF_AT - u64::from(project.project) * MINUTE,
+                landed: 1,
+                sentence: b"A change landed.".as_slice().into(),
+                lede: b"Ready for review. More details.".as_slice().into(),
+            },
+        )
+        .unwrap();
+        project.status = status(project.project, 1, 0, Some(0), Some(NOW), false, Some(brief));
+    }
+    let all = facts(projects);
+    let brief = h::brief(&all).unwrap();
+    for words in [f::words(), f::browser_words()] {
+        let (tree, _) = drawn(&all, &words);
+        let (headline, tick) = crate::shared::all_home_headline(&words, &all, Wall::from_nanos(NOW));
+        assert!(f::find(&tree, Role::Heading { level: 1 }, &headline).is_some());
+        assert_eq!(tick, None);
+        let plain = crate::shared::joined_brief(&words, &brief);
+        assert_eq!(plain.as_ref(), b"Hello: Ready for review. shop: Ready for review.");
+        let at = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&look::HOME_LEDE)).unwrap();
+        assert_eq!(plain, f::node_text(&tree, at));
+    }
+    let facts = facts(vec![project(1, "Hello", 3, 3)]);
+    let (_, tick) = crate::shared::all_home_headline(&f::words(), &facts, Wall::from_nanos(NOW));
+    assert_eq!(tick, Some(Wall::from_nanos(NOW + MINUTE)));
+}
+
+#[test]
+fn follows_boxes_keep_their_names_words_marks_and_wide_only_region() {
+    let mut facts = facts(vec![project(1, "vsr", 0, 0), project(2, "vsr-rs", 0, 0), project(4, "fabrig", 0, 0)]);
+    facts.follows = Box::new([
+        h::Relation::Follow {
+            project: 2,
+            name: b"vsr-rs".as_slice().into(),
+            source: b"acme/vsr".as_slice().into(),
+            line: "2 behind · check passes at 9c04d7e1a2b3".as_bytes().into(),
+            stopped: Some(b"Check is missing".as_slice().into()),
+        },
+        h::Relation::Dependency {
+            project: 4,
+            name: b"fabrig".as_slice().into(),
+            dependency: b"vsr-rs".as_slice().into(),
+        },
+    ]);
+    for words in [f::words(), f::browser_words()] {
+        let (tree, _) = drawn(&facts, &words);
+        let region = tree
+            .nodes()
+            .iter()
+            .position(|n| n.role == Role::Region && n.name.as_deref() == Some(b"What follows what"))
+            .unwrap();
+        let projects =
+            tree.nodes().iter().position(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Projects")).unwrap();
+        assert!(region > projects);
+        assert_eq!(tree.nodes()[region].styles.as_slice().contains(&look::HOME_WIDE), words.shell == Shell::Browser);
+        assert!(named(&tree, Role::Heading { level: 2 }, "What follows what"));
+        assert!(has(&tree, "across projects"));
+        for (name, chip, title, line, mark) in [
+            (
+                "vsr-rs follows acme/vsr",
+                "follows acme/vsr",
+                "vsr-rs",
+                "2 behind · check passes at 9c04d7e1a2b3",
+                look::HOW_WHO_CODE,
+            ),
+            (
+                "fabrig depends on vsr-rs",
+                "depends on vsr-rs",
+                "fabrig",
+                "Nothing follows its landings.",
+                look::HOW_WHO_NONE,
+            ),
+        ] {
+            let at = tree
+                .nodes()
+                .iter()
+                .position(|n| n.role == Role::Group && n.name.as_deref() == Some(name.as_bytes()))
+                .unwrap();
+            let end = at + usize::try_from(tree.nodes()[at].size).unwrap();
+            let nodes = &tree.nodes()[at..end];
+            assert!(nodes.iter().any(|n| n.role == Role::Text
+                && n.name.as_deref() == Some(chip.as_bytes())
+                && n.styles.as_slice().contains(&mark)));
+            assert!(f::node_text(&tree, at).windows(title.len()).any(|bytes| bytes == title.as_bytes()));
+            assert!(f::node_text(&tree, at).windows(line.len()).any(|bytes| bytes == line.as_bytes()));
+            assert!(nodes.iter().all(|n| n.binding.is_none()), "no box is a control");
+            if words.shell == Shell::Terminal {
+                let run = format!("{chip} {title} {line}");
+                assert!(
+                    f::node_text(&tree, at).windows(run.len()).any(|bytes| bytes == run.as_bytes()),
+                    "terminal box is one readable run"
+                );
+            } else {
+                assert!(
+                    nodes
+                        .iter()
+                        .any(|n| n.role == Role::Heading { level: 3 } && n.name.as_deref() == Some(title.as_bytes()))
+                );
+            }
+        }
+        assert!(has(&tree, "Stopped: Check is missing."));
+    }
+    facts.follows = Box::default();
+    for words in [f::words(), f::browser_words()] {
+        assert!(!named(&drawn(&facts, &words).0, Role::Region, "What follows what"));
+    }
+    // A project's Home never borrows the cross-project region.
+    let page = f::ReadPage::new(d::Address::Home { project: f::PROJECT });
+    let mut view = f::view_of(f::browser_words());
+    assert!(!named(f::build(&mut view, &page.root), Role::Region, "What follows what"));
 }

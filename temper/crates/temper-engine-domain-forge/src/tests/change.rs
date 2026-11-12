@@ -103,6 +103,34 @@ const LATER_ENTRY: u64 = FIRST_ENTRY + 1;
 const LATER_BRANCH: &[u8] = b"temper/52";
 
 #[test]
+fn a_follow_changes_saved_row_and_restored_row_keep_its_landings() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    let follows = ChangeFollows { follow: 3, commits: Box::new([fixtures::HEAD, fixtures::BASE]) };
+    row.follows = Some(follows.clone());
+    let mut saved = None;
+    for request in outputs(&mut d, Event::Change { row }) {
+        if let Request::Save { record: Stored::Change(row), .. } = request {
+            saved = Some(row);
+        }
+    }
+    let saved = saved.expect("saved change");
+    assert_eq!(saved.follows, Some(follows.clone()));
+    let stored = Stored::Change(saved);
+    let meter = skein_world::domain::heap::Meter::new();
+    meter.start();
+    let cloned = stored.clone();
+    let held = meter.end().held();
+    assert_eq!(stored_bytes(&cloned), Some(held));
+    drop(cloned);
+    let mut restored = domain();
+    outputs(&mut restored, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut restored, Event::Restore { record: stored });
+    assert_eq!(restored.change(fixtures::CHANGE).unwrap().follows, Some(follows));
+}
+
+#[test]
 fn a_ci_outage_excludes_unanswered_time_but_keeps_prior_stall_time() {
     use skein_forge::api::{Answer, Error};
     use temper_engine_domain_forge_change as c;
