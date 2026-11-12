@@ -2,4 +2,3 @@
 
 2026-11-11. Where the tree's code lags or departs from [told.md](told.md).
 
-- **Not yet:** the whole document: no `Told` page. [in flight: change 546]

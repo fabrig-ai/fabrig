@@ -2,7 +2,6 @@
 
 2026-11-10. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** `Told`'s row: no such page. [in flight: change 546]
 
 - **Not yet:** the whole document: no supplied record establishes a real-box walk of
   the offer, effort choice and Ask temper's chooser with a real provider. The `model-picker` account at `1d82a937df` records the picker

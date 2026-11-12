@@ -2,7 +2,6 @@
 
 2026-11-11. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
-- **Not yet:** 2: the `told-*` states and their night forms. [in flight: change 546]
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured

@@ -2,7 +2,6 @@
 
 2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 2.2: step 6's root files and the policy's `worker-src` and `manifest-src`; 2.7: no service worker, manifest or push glue in the shell. [in flight: change 546]
 - **Not yet:** 2.7, *Tested*: no browser-tier story turns push on. The
   browser kit can't do it offline: `skein-browser`'s requests and
   `fake-person-browser`'s steps can't grant a notification permission,
