@@ -23,6 +23,7 @@ pub fn forge_items(stock: &[temper_engine_domain_forge::settings::Stock]) -> Vec
             | settings::Value::CharterWords(_)
             | settings::Value::Classes(_)
             | settings::Value::ProjectWords(_)
+            | settings::Value::Dependency(_)
             | settings::Value::Follow(_) => {
                 unreachable!("these kinds have no stock defaults")
             }

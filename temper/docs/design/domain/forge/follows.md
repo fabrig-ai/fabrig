@@ -362,6 +362,9 @@ every setting is, its decision that project's owners'. Its value, a
   whole (`../../client/ctl/tools.md`, 2). Home's, Team's and How work
   runs' lines are drawn from that document (`../../draft/surfaces.md`,
   sections 3, 6 and 7).
+- **The project's dependencies** ride in the same document, after its
+  follows, and `follow list` prints a line each after the follows'
+  (`dependencies.md`, section 4).
 
 ## 8. Across projects
 
