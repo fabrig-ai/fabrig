@@ -4,6 +4,10 @@ use skein_lib::List;
 use temper_engine_domain_forge_landing as policy;
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one document story checks its setting, retained follow facts and dependencies"
+)]
 fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
     use crate::settings::{Asked, Edit, SizedValue, Value};
     let mut d = domain();
