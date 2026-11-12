@@ -586,7 +586,7 @@ fn refused_deployment_start(root: &Path) {
         assert!(output.stdout.is_empty(), "{name}");
         let location = if names_file { format!("{}: ", path.display()) } else { String::new() };
         let expected = if extra {
-            "temper-box fake llm: invalid arguments\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE]\n".into()
+            "temper-box fake llm: invalid arguments\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]\n".into()
         } else {
             format!("temper fake {kind}: {location}{reason}\n")
         };
