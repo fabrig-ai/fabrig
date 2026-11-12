@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v15 as w};
+use crate::{Bounds, Undecodable, v16 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as d;
@@ -309,6 +309,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         empty_intent_org: forge.name_bytes,
         empty_intent_repository: forge.name_bytes,
         landing_state_members: forge.landing_members,
+        landing_state_branch: forge.name_bytes,
         landing_member_gates: forge.gates,
         landing_row_asks: forge.landing_members,
         landing_row_entries: forge.entries,

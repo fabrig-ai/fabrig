@@ -13,13 +13,13 @@ fn process_engine(case: &str) -> jig_protocol_config::Engine {
     let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
     let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
     // Forge::Unreached omits Forgejo's overrides; include its whole-authority bounds here.
-    value["engine"]["limits"]["overrides"]["authority.grants"] = 14.into();
-    value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 14.into();
+    value["engine"]["limits"]["overrides"]["authority.grants"] = 15.into();
+    value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 15.into();
     // The standing charters, closer procedure and close job are delegation targets.
     value["engine"]["limits"]["overrides"]["authority.executors"] = 21.into();
     // The standing charters, closer procedure and close job are delegation targets.
     value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 21.into();
-    value["engine"]["limits"]["overrides"]["notes.scopes"] = 17.into();
+    value["engine"]["limits"]["overrides"]["notes.scopes"] = 18.into();
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
     // Parsing a fixture without a deployment; only its limits are used.

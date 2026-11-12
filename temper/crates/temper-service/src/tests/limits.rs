@@ -138,7 +138,7 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 43649366 bytes, past its bound of 4268588 bytes\n",
+            b"engine.limits.store: the store's map value, 43649366 bytes, past its bound of 4580852 bytes\n",
         );
     }
 }
@@ -723,7 +723,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 4_270_667);
+    assert_eq!(profile.store.page.bytes, 4_582_931);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 
@@ -974,4 +974,16 @@ fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
     assert!(limits::jobs(&jig).is_empty());
     jig.core.tasks.result_bytes = bound.result;
     assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
+}
+
+/// temper/docs/design/domain/worker/jobs.md.
+#[test]
+fn the_engine_declares_prepare_only_with_its_tasks_child_room() {
+    let bound = limits::prepare_bound();
+    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    for (spec, result, admitted) in [(16_384, 4_096, true), (16_383, 4_096, false), (16_384, 4_095, false)] {
+        jig.core.tasks.spec_bytes = spec;
+        jig.core.tasks.result_bytes = result;
+        assert_eq!(limits::jobs(&jig).contains(&bound), admitted);
+    }
 }

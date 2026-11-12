@@ -413,12 +413,12 @@ impl World {
                 };
                 Done::Fetched { commit: Commit::new(commit) }
             }
-            Op::Look { .. } | Op::DiffPaths { .. } | Op::IsAncestor { .. } => {
+            Op::Brings { .. } | Op::Look { .. } | Op::DiffPaths { .. } | Op::IsAncestor { .. } => {
                 panic!("this fixture has no producer retry")
             }
             Op::Merge { theirs, .. } => {
                 assert_eq!(theirs.raw(), BASE);
-                Done::Conflicted { files: Box::new([Box::from(PATH)]) }
+                Done::Conflicted { files: Box::new([Box::from(PATH)]), cut: false }
             }
             Op::Commit { title, body, merging, .. } => {
                 self.stats.commits += 1;
@@ -431,7 +431,7 @@ impl World {
                 let parent = (self.settings.merging && self.stats.saves == 0).then_some(Commit::new(BASE));
                 assert_eq!(merging, parent);
                 if self.unresolved {
-                    Done::Conflicted { files: Box::new([Box::from(PATH)]) }
+                    Done::Conflicted { files: Box::new([Box::from(PATH)]), cut: false }
                 } else {
                     Done::Committed { commit: Commit::new(LANDED) }
                 }

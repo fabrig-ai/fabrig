@@ -1,0 +1,36 @@
+patch 1
+owner temper 5 after jig 2
+
+family temper-store 15 to 16
+add RecordedMerge
+add MergeHow.recorded
+add LandingRepairAt
+add Repair.landing_at
+add Judgement
+add Judging
+add ChangeLive.judging
+add LandingTimeout
+add LandingGateRefused
+add LandingGateFailed
+add LandingLeave
+add LandingMember.left option LandingLeave none
+add LandingCombine
+add LandingRoundEnd
+add LandingRecordHold
+add LandingOwnHold
+add LandingRound
+add LandingState.branch bytes 4096 written
+add LandingState.round option LandingRound none
+add LandingState.own_hold option LandingOwnHold none
+written LandingState.branch
+refuses landing_branch_missing "the stored project repository has no landing branch"
+add LandingPrefix
+add LandingResolve
+add LandingAsk.landed
+add LandingAsk.resolve
+add LandingAsk.judge
+add LandingOperation.open
+add LandingOperation.close
+add LandingOperation.delete
+add LandingOperation.record
+add Receipt.logs bytes 8192 0x

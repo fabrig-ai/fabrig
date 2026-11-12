@@ -462,9 +462,13 @@ impl Domain {
             forge.give_settings_defaults(stock);
             None
         };
+        let mut prepare_kind = None;
         let mut merge_kind = None;
         let mut close_kind = None;
         for bound in &config.core.jobs {
+            if bound.kind.0 == forge::PREPARE_KIND {
+                prepare_kind = Some(*bound);
+            }
             if bound.kind.0 == forge::CLOSE_KIND {
                 close_kind = Some(*bound);
             }
@@ -479,6 +483,7 @@ impl Domain {
             forge.close_kind(bound.spec, bound.result);
         }
         let root_config = RootConfig {
+            prepare_kind,
             merge_kind,
             close_kind,
             forge_connector,

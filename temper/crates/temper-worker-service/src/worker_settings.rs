@@ -337,6 +337,11 @@ pub fn close_bound() -> jig_domain_link::JobBound {
 pub fn job_kinds() -> Box<[temper_worker_domain::tooling::Kind]> {
     Box::new([
         temper_worker_domain::tooling::Kind {
+            bound: limits::prepare_bound(),
+            verb: b"prepare".as_slice().into(),
+            delivers: true,
+        },
+        temper_worker_domain::tooling::Kind {
             bound: limits::merge_bound(),
             verb: b"merge".as_slice().into(),
             delivers: true,

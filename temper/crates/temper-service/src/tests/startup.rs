@@ -41,7 +41,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 
 #[test]
 fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
-    let document = transcript_document(4_270_603);
+    let document = transcript_document(4_582_867);
     fixtures::start(
         &document,
         &config::Directories::working(),
@@ -56,13 +56,13 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
     let opened =
         crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
             .unwrap();
-    assert_eq!(opened.store.store.page.bytes, 4_270_667);
+    assert_eq!(opened.store.store.page.bytes, 4_582_931);
 }
 
 #[test]
 fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
-    let document = transcript_document(4_270_604);
-    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 4270668 bytes, needs a store page past the profile's ceiling of 4270667 bytes\n";
+    let document = transcript_document(4_582_868);
+    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 4582932 bytes, needs a store page past the profile's ceiling of 4582931 bytes\n";
     let named = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&named).as_ref(), expected);
     let opened =
@@ -1777,4 +1777,130 @@ fn a_task_store_value_refusal_names_batch_bytes_and_inbox_messages() {
         What::Half(crate::startup::EngineWhat::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 }),
     );
     assert_eq!(lines(&problems).as_ref(), b"engine.limits.overrides.tasks.batch_bytes: the store's map value, 1001 bytes, past its bound of 1000 bytes; binding record tasks-v9.TaskRecord with tasks.batch_bytes 512; fixed profile ceiling engine.limits.store.value; reduce tasks.batch_bytes, tasks.inbox_messages or the task record's spec/message/result/authority capacities; this ceiling has no scalar override\n");
+}
+
+#[test]
+fn landing_gates_read_an_optional_boolean_base_at_its_path() {
+    for (member, expected) in [
+        ("", Some(false)),
+        (r#", "base":true"#, Some(true)),
+        (r#", "base":false"#, Some(false)),
+        (r#", "base":"true""#, None),
+    ] {
+        let projects = format!(
+            r#"[{{"project":1,"gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","blocking":true{member}}}]}}]}}]"#
+        );
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", projects.as_bytes());
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        if let Some(expected) = expected {
+            assert!(problems.is_empty(), "{:?}", lines(&problems));
+            assert_eq!(members.unwrap().landings.get(&1).unwrap().repositories[0].gates[0].base, expected);
+        } else {
+            assert!(members.is_none());
+            assert_eq!(
+                lines(&problems).as_ref(),
+                b"application.landing.projects[0].gates[0].gates[0].base: wrong value kind\n"
+            );
+        }
+    }
+}
+
+#[test]
+fn landing_gate_bounds_read_defaults_and_refuse_out_of_range_at_the_member() {
+    for (setting, timeout, retries) in [
+        ("", 3_600_000, 2),
+        (r#""gate_timeout_ms":60000,"gate_retries":0,"#, 60_000, 0),
+        (r#""gate_timeout_ms":86400000,"gate_retries":255,"#, 86_400_000, 255),
+    ] {
+        let projects = tier_projects("[]", setting);
+        assert_landing_projects_start(&projects);
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(problems.is_empty(), "{:?}", lines(&problems));
+        let members = members.unwrap();
+        let landing = members.landings.get(&1).unwrap();
+        assert_eq!(landing.gate_timeout, skein_lib::Duration::from_millis(timeout));
+        assert_eq!(landing.gate_retries, retries);
+    }
+    for (value, why) in [
+        ("59999", "past its bound"),
+        ("86400001", "past its bound"),
+        ("-1", "past its bound"),
+        (r#""60000""#, "wrong value kind"),
+    ] {
+        let projects = tier_projects("[]", &format!(r#""gate_timeout_ms":{value},"#));
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(members.is_none());
+        assert_eq!(
+            lines(&problems).as_ref(),
+            format!("application.landing.projects[0].gate_timeout_ms: {why}\n").as_bytes()
+        );
+    }
+}
+
+#[test]
+fn landing_gate_retries_refuse_non_u8_values_at_the_member() {
+    for (value, why) in [("256", "past its bound"), ("-1", "past its bound"), (r#""2""#, "wrong value kind")] {
+        let projects = tier_projects("[]", &format!(r#""gate_retries":{value},"#));
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(members.is_none());
+        assert_eq!(
+            lines(&problems).as_ref(),
+            format!("application.landing.projects[0].gate_retries: {why}\n").as_bytes()
+        );
+    }
+}
+
+#[test]
+fn landing_combine_reads_stock_each_value_and_problems_at_the_member() {
+    use temper_engine_domain::Combine::{Merge, Squash};
+    for (setting, main, other) in [
+        ("", Merge, Squash),
+        (r#""combine":{},"#, Merge, Squash),
+        (r#""combine":{"main":"squash"},"#, Squash, Squash),
+        (r#""combine":{"main":"merge","other":"merge"},"#, Merge, Merge),
+        (r#""combine":{"main":"squash","other":"squash"},"#, Squash, Squash),
+    ] {
+        let projects = tier_projects("[]", setting);
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(problems.is_empty(), "{:?}", lines(&problems));
+        let members = members.expect("valid combining");
+        let landing = members.landings.get(&1).expect("project");
+        assert_eq!((landing.combine_main, landing.combine_other), (main, other));
+    }
+    for member in ["main", "other"] {
+        let projects = tier_projects("[]", &format!(r#""combine":{{"{member}":"rebase"}},"#));
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(members.is_none());
+        assert_eq!(
+            lines(&problems).as_ref(),
+            format!("application.landing.projects[0].combine.{member}: invalid form\n").as_bytes()
+        );
+    }
+}
+
+#[test]
+fn a_worker_alone_applies_its_names_without_engine_range_checks() {
+    let input = fixtures::with(
+        &fixtures::worker_alone_document(),
+        b"application.limits.overrides",
+        br#"{"checkout.conflicts":7,"forge.change_policy.tasks":0,"forge.changes":1025}"#,
+    );
+    let directories = config::Directories::working();
+    assert_eq!(crate::startup::shape(&input, &directories).unwrap(), crate::startup::Shape::WorkerAlone);
+    let part = crate::startup::worker_part(&input, &directories).unwrap();
+    assert_eq!(part.limits.checkout.conflicts, 7);
+    let service = crate::startup::worker_alone(
+        part,
+        &fixtures::files(),
+        &fixtures::startup_agent(),
+        fixtures::worker_runtime(),
+        7,
+    )
+    .unwrap();
+    assert_eq!(service.worker.env.limits.checkout.conflicts, 7);
 }

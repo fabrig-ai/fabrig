@@ -13,7 +13,7 @@ fn start(value: &serde_json::Value) -> Result<temper_service::Service, String> {
         &serde_json::to_vec(&document).expect("deployment JSON"),
         &jig_protocol_config::Directories::working(),
         &fixtures::files(),
-        Some(&temper_playground::documents::agent()),
+        Some(&super::service::agent_settings()),
         &fixtures::seeds(),
         None,
         Some(temper_service::WorkerRuntime {

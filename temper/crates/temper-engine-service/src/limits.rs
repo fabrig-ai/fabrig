@@ -550,8 +550,20 @@ pub fn server(jig: &jig_protocol_config::Limits) -> crate::server::Limits {
 
 pub use temper_service_core::limits::{
     CLOSE_DEADLINE, CLOSE_RESULT_BYTES, CLOSE_SPEC_BYTES, MERGE_DEADLINE, MERGE_KIND, MERGE_RESULT_BYTES,
-    MERGE_SPEC_BYTES, TOOLING_PATH, merge_bound, merge_jobs,
+    MERGE_SPEC_BYTES, TOOLING_PATH, merge_bound, merge_jobs, prepare_bound,
 };
+
+/// Declare prepare only where the tasks child holds its bounds
+/// (temper/docs/design/domain/worker/jobs.md).
+#[must_use]
+pub fn prepare_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
+    let bound = prepare_bound();
+    if bound.spec <= jig.core.tasks.spec_bytes && bound.result <= jig.core.tasks.result_bytes {
+        Box::new([bound])
+    } else {
+        Box::new([])
+    }
+}
 
 /// The close job's kind and bounds (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
@@ -579,9 +591,9 @@ pub fn close_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
 /// The engine's declared kinds, ascending (temper/docs/design/domain/worker/jobs.md).
 #[must_use]
 pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
-    let mut jobs = List::with_capacity(2);
-    for bound in merge_jobs(jig).iter().chain(close_jobs(jig).iter()) {
-        jobs.push(*bound).expect("two built job kinds");
+    let mut jobs = List::with_capacity(3);
+    for bound in prepare_jobs(jig).iter().chain(merge_jobs(jig).iter()).chain(close_jobs(jig).iter()) {
+        jobs.push(*bound).expect("three built job kinds");
     }
     jobs.into_boxed()
 }

@@ -16,6 +16,9 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 
+/// The prepare job (temper/docs/design/domain/worker/jobs.md).
+pub const PREPARE_KIND: u32 = 1;
+
 /// The merge job (temper/docs/design/domain/worker/jobs.md).
 pub const MERGE_KIND: u32 = 3;
 /// The close job (temper/docs/design/domain/worker/jobs.md).
@@ -151,12 +154,15 @@ pub use panel::{
     PanelStands, PanelStep, PanelUsed, ReviewFacts, ReviewRead, UnmappedReview,
 };
 pub use temper_engine_domain_forge_landing::CHECK_NAME_BYTES;
-pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
+pub use temper_engine_domain_forge_landing::{
+    Combine as LandingCombine, Hold as LandingHold, Leave as LandingLeave, Phase as LandingPhase, Round as LandingRound,
+};
 pub use verification::LandingRed;
 pub use views::{
     APPROVALS_SUBJECT, ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, DependencyView, Document,
-    FollowLagEntry, FollowView, FollowsView, GateProof, LandingGate, LandingLine, LandingMember, LandingView,
-    LandingsView, changes_subject, follows_subject, landings_subject,
+    FollowLagEntry, FollowView, FollowsView, GateProof, LandingGate, LandingLine, LandingMember, LandingStep,
+    LandingTrain, LandingView, LandingsView, PrefixJudgement, TrainLanding, changes_subject, follows_subject,
+    landings_subject,
 };
 /// Connector-owned access to one exact effect on an adopted resource.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -898,6 +904,9 @@ fn change_state_bytes(value: &temper_engine_domain_forge_change::State, depth: u
         return None;
     }
     match value {
+        change::State::Judging { target, asked, .. } => skein_lib::len_u64(target.branch.len())
+            .checked_add(skein_lib::len_u64(target.base.len()))?
+            .checked_add(skein_lib::len_u64(asked.len()).checked_mul(8)?),
         change::State::NoChange { words } => Some(skein_lib::len_u64(words.len())),
         change::State::Gating { asked, .. } => {
             skein_lib::len_u64(asked.len()).checked_mul(u64::try_from(size_of::<u64>()).ok()?)

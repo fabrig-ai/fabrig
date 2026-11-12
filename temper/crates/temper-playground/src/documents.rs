@@ -182,8 +182,8 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
     }
     edit(&mut value);
     for (name, count) in [
-        // Three additional 8-byte executor places make the largest chat payload 1,149 bytes.
-        ("people.amendment_bytes", 1149),
+        // The stock chat amendment holds every declared grant and executor.
+        ("people.amendment_bytes", 1210),
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
@@ -222,8 +222,8 @@ pub fn chat_policy(value: &mut serde_json::Value) {
         // The standing charters, closer procedure and close job are delegation targets.
         ("authority.executors", 21),
         ("authority.segments", 8),
-        ("tasks.authority_grants", 14),
-        ("tasks.authority_bytes", 70),
+        ("tasks.authority_grants", 15),
+        ("tasks.authority_bytes", 75),
         // The standing charters, closer procedure and close job are delegation targets.
         ("tasks.executor_kinds", 21),
         ("tasks.result_bytes", 128),
@@ -277,8 +277,13 @@ pub fn agent_profile() -> smith_agent_service::profile::Profile {
 /// The hosted agent's derived service limits.
 #[must_use]
 pub fn agent_limits() -> smith_agent_service::Limits {
+    agent_limits_for(&agent_profile())
+}
+/// Derive the hosted agent at a harness's declared payload capacity.
+#[must_use]
+pub fn agent_limits_for(profile: &smith_agent_service::profile::Profile) -> smith_agent_service::Limits {
     let mut limits =
-        smith_agent_service::profile::derive(&agent_profile(), &agent_declarations()).expect("chat agent limits");
+        smith_agent_service::profile::derive(profile, &agent_declarations_for(profile)).expect("chat agent limits");
     limits.llm.accounts = 2;
     limits
 }
@@ -289,11 +294,26 @@ pub fn agent_declarations() -> smith_agent_service::profile::Configuration {
     declarations.endpoints[0].limits.output = 2048;
     declarations
 }
+/// The endpoint response holds the declared tool payload's escaped input.
+#[must_use]
+pub fn agent_declarations_for(
+    profile: &smith_agent_service::profile::Profile,
+) -> smith_agent_service::profile::Configuration {
+    let mut declarations = agent_declarations();
+    declarations.endpoints[0].limits.output =
+        declarations.endpoints[0].limits.output.max(profile.declared.tool_payload);
+    declarations
+}
 /// The hosted agent's complete configuration.
 #[must_use]
 pub fn agent_configuration() -> smith_agent_service::Config {
+    agent_configuration_for(&agent_profile())
+}
+/// The same endpoints and model at the harness's declared capacities.
+#[must_use]
+pub fn agent_configuration_for(profile: &smith_agent_service::profile::Profile) -> smith_agent_service::Config {
     let mut config = smith::configuration_with_limits(skein_llm::Provider::OpenAi, &smith::derive_limits());
-    config.limits = agent_limits();
+    config.limits = agent_limits_for(profile);
     config.channel_endpoints = channel::endpoints();
     let (destinations, _) = config.llm_endpoints.into_parts();
     let mut destination = destinations.into_boxed().into_vec().pop().expect("one LLM endpoint");
@@ -328,8 +348,13 @@ pub fn forges() -> List<temper_service::ForgeRuntime> {
 /// The service's hosted agent settings.
 #[must_use]
 pub fn agent() -> temper_service::settings::Agent {
-    let limits = agent_limits();
-    let host_limits = smith_local_service::profile::host_limits(&agent_profile(), &limits).expect("agent host limits");
+    agent_for(&agent_profile())
+}
+/// Service metadata derived from the profile used by the hosted agent.
+#[must_use]
+pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_service::settings::Agent {
+    let limits = agent_limits_for(profile);
+    let host_limits = smith_local_service::profile::host_limits(profile, &limits).expect("agent host limits");
     let channel = limits.channel;
     let mut protocol = smith_host_protocol::Limits {
         bodies: channel.bodies,
@@ -344,7 +369,7 @@ pub fn agent() -> temper_service::settings::Agent {
     let bounds = Bounds {
         program_endpoints: Box::new([]),
         endpoints: Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 512 }]),
-        turns: agent_profile().policy.max_turns,
+        turns: profile.policy.max_turns,
         // Story A's stock run allowance at its model's template prices.
         spend: 4200,
         time: Duration::from_secs(28_800),
@@ -357,7 +382,7 @@ pub fn agent() -> temper_service::settings::Agent {
     };
     temper_service::settings::Agent {
         run_limits: limits.domain.run,
-        tool_payload: agent_profile().declared.tool_payload,
+        tool_payload: profile.declared.tool_payload,
         programs: Box::new([]),
         endpoints: channel::endpoints(),
         limits: protocol,

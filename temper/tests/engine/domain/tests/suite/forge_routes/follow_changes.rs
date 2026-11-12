@@ -361,6 +361,10 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
         world = world.with_project_landing(
             2,
             engine::ProjectLanding {
+                gate_retries: 2,
+                gate_timeout: Duration::from_millis(3_600_000),
+                combine_main: engine::Combine::Merge,
+                combine_other: engine::Combine::Squash,
                 check_timeout: None,
                 close_job: None,
                 merge_job: None,

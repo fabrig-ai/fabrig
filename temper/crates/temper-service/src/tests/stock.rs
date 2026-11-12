@@ -75,9 +75,9 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing roles' charter executors.
-        (b"core.policy_bytes", 6078, Setting::Policy(1), "the stock's policy 1 needs 6078 bytes"),
+        (b"core.policy_bytes", 6423, Setting::Policy(1), "the stock's policy 1 needs 6423 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
-        (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
+        (b"authority.grants", 15, Setting::Rules, "the stock's rules need 15 grants"),
         // The standing charters, closer procedure and close job are delegation targets.
         (b"authority.executors", 20, Setting::Rules, "the stock's rules need 20 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
@@ -176,7 +176,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     // Two executor places in four authorities add 64 bytes to the policy.
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6078 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6423 bytes; raise it in engine.limits.overrides\n"
     );
 }
 

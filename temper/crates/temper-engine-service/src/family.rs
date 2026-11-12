@@ -8,6 +8,7 @@ use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;
 mod findings;
+mod landing_views;
 mod refusals;
 mod ways;
 pub use ways::ways_panel;
@@ -860,7 +861,7 @@ fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
                         }
                         change::Repair::Semantic => w::Reason::Semantic,
                         // landing.md 3: the top's task
-                        change::Repair::Landing { .. } => return None,
+                        change::Repair::LandingAt { .. } | change::Repair::Landing { .. } => return None,
                     },
                 },
             )
@@ -1717,24 +1718,50 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             Some(wire::dismissals(&document))
         }
         forge::Document::Landing(value) => {
+            let hold = landing_views::hold(&value.phase, limits);
+            let train = match value.train {
+                Some(train) => Some(landing_views::train(train, limits)?),
+                None => None,
+            };
+            let pull = match (value.round.pull, value.members.first()) {
+                (Some(number), Some(member)) => Some(
+                    w::Pull::new(
+                        limits,
+                        w::PullParts {
+                            number,
+                            address: pull_address(member.forge, &member.owner, &member.name, number, forges),
+                        },
+                    )
+                    .ok()?,
+                ),
+                (Some(_), None) | (None, _) => None,
+            };
+            let round = if value.round.branch.is_empty() {
+                None
+            } else {
+                Some(
+                    w::LandingRound::new(
+                        limits,
+                        w::LandingRoundParts {
+                            number: value.preparation,
+                            branch: value.round.branch,
+                            pull,
+                            combined: match value.round.combined {
+                                Some(value) => Some(landing_views::combined(value)),
+                                None => None,
+                            },
+                            step: landing_views::step(value.step),
+                            upstream: value.round.upstream,
+                            failure: value.round.failure,
+                        },
+                    )
+                    .ok()?,
+                )
+            };
             let mut members = List::with_capacity(u32::try_from(value.members.len()).ok()?);
             for member in value.members {
                 members.push(landing_member(member, forges, limits)?).ok()?;
             }
-            let hold = match &value.phase {
-                forge::LandingPhase::Held { why: forge::LandingHold::Faults { member, gate }, .. } => {
-                    Some(w::LandingHold::Faults(
-                        w::HeldFaults::new(limits, w::HeldFaultsParts { member: *member, gate: *gate }).ok()?,
-                    ))
-                }
-                forge::LandingPhase::Waiting
-                | forge::LandingPhase::Preparing
-                | forge::LandingPhase::Proving
-                | forge::LandingPhase::Proved { .. }
-                | forge::LandingPhase::Turn { .. }
-                | forge::LandingPhase::Landed
-                | forge::LandingPhase::Cancelled => None,
-            };
             let panel = w::LandingPanel::new(
                 limits,
                 w::LandingPanelParts {
@@ -1746,6 +1773,8 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                     preparation: value.preparation,
                     stale_proofs: value.stale_proofs,
                     turn: value.turn,
+                    train,
+                    round,
                 },
             )
             .ok()?;
@@ -1778,6 +1807,10 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                         w::LandingLine::new(
                             limits,
                             w::LandingLineParts {
+                                train: match line.train {
+                                    Some(train) => Some(landing_views::train(train, limits)?),
+                                    None => None,
+                                },
                                 task: line.task,
                                 phase: landing_phase(&line.phase),
                                 changes,
@@ -1930,6 +1963,27 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                         repository: queue.repository,
                         branch: queue.branch,
                         red: queue.red,
+                        way: match queue.way {
+                            change::Way::Queue => w::Way::Queue,
+                            change::Way::Turn => w::Way::Turn,
+                        },
+                        in_flight: match queue.in_flight {
+                            Some(value) => Some(
+                                w::TrainLanding::new(
+                                    limits,
+                                    w::TrainLandingParts {
+                                        task: value.task,
+                                        member: value.member,
+                                        round: value.round,
+                                        step: landing_views::step(value.step),
+                                        title: value.title,
+                                        ready_since: value.ready_since.as_nanos(),
+                                    },
+                                )
+                                .ok()?,
+                            ),
+                            None => None,
+                        },
                         changes,
                     },
                 )
@@ -2044,6 +2098,15 @@ fn landing_member(
     w::Member::new(
         limits,
         w::MemberParts {
+            head: member.head,
+            left: match member.left {
+                Some(value) => Some(landing_views::left(value, limits)?),
+                None => None,
+            },
+            judgement: match member.judgement {
+                Some(value) => Some(landing_views::judgement(value, limits)?),
+                None => None,
+            },
             change: member.change,
             forge: member.forge,
             owner: member.owner,

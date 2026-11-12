@@ -70,10 +70,7 @@ fn config(seed: u64) -> engine::Config {
     let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     jig.core.tasks = temper_engine_domain_world::forge_routes::box_limits().tasks;
     config.core.jobs = temper_engine_service::limits::jobs(&jig);
-    assert_eq!(
-        config.core.jobs.as_ref(),
-        [temper_service_core::limits::merge_bound(), temper_engine_service::limits::close_bound()]
-    );
+    assert!(config.core.jobs.contains(&temper_engine_service::limits::close_bound()));
     let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
     let mut extended = kinds.to_vec();
     let close = jig_domain_authority::Executor::Job(temper_engine_domain_forge::CLOSE_KIND);
@@ -96,6 +93,10 @@ fn config(seed: u64) -> engine::Config {
             .insert(
                 1,
                 engine::ProjectLanding {
+                    gate_retries: 2,
+                    combine_main: engine::Combine::Merge,
+                    combine_other: engine::Combine::Squash,
+                    gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                     landing_attempts: engine::LANDING_ATTEMPTS,
                     check_timeout: None,
                     by: engine::Way::Queue,

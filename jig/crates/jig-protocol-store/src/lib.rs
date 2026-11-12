@@ -160,6 +160,31 @@ pub fn seed(drivers: [&mut skein_io::file_layer::FileIo; 3], seed: u64) -> Seede
 }
 
 impl Store {
+    /// Public application rows for a written site's context, at the copy's current
+    /// levels (protocol/store/opening.md, 3). No serving codec runs over these bytes.
+    pub fn patch_page(
+        &mut self,
+        range: skein_kv::Range,
+        after: Option<&Cursor>,
+        rows: u32,
+    ) -> Result<PatchPage, OpenRefusal> {
+        let directory::Opening::Patching(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
+        let patching::phase::Patching::Walking(walking) = &**phase else { return Err(OpenRefusal::Failed) };
+        if !walking.at_site() || rows == 0 || rows > self.limits.store.ops {
+            return Err(OpenRefusal::Failed);
+        }
+        let ranges = pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?;
+        let page = pages::reader::walk(self, &ranges, after, rows).map_err(|failure| {
+            self.open_failed(restore::OpenFailure::Data(failure));
+            OpenRefusal::Failed
+        })?;
+        let mut found = skein_lib::List::with_capacity(rows);
+        for row in page.rows {
+            let key = keys::of_application(&row.row.key).ok_or(OpenRefusal::Failed)?;
+            found.push(skein_kv::Row { key: Box::from(key), value: row.row.value }).expect("bounded patch page");
+        }
+        Ok(PatchPage { rows: found.into_boxed(), next: page.next })
+    }
     /// A component over open stores; `models` are the configuration's, in its order.
     #[must_use]
     pub fn over(
@@ -264,6 +289,13 @@ impl Store {
     pub fn into_stores(self) -> Stores {
         self.stores
     }
+}
+
+/// A bounded page read while a patch is stopped at a written site (protocol/store/opening.md, 3).
+#[derive(Debug)]
+pub struct PatchPage {
+    pub rows: Box<[skein_kv::Row]>,
+    pub next: Option<Cursor>,
 }
 
 /// Whether these limits are representable: every edge bound they size

@@ -600,6 +600,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationDone { .. }
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::RestartDone { .. }
+                | top::Request::LandingNews { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::StatusRun { .. }
                 | top::Request::FollowRun { .. }

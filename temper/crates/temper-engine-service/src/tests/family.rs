@@ -1805,6 +1805,18 @@ fn a_fake_forges_panel_has_no_address_and_real_forgejos_keep_theirs() {
 
 fn landing_view() -> forge::LandingView {
     forge::LandingView {
+        train: Some(forge::LandingTrain {
+            repository: skein_forge::api::Repository { forge: 1, repository: 9 },
+            owner: b"acme".as_slice().into(),
+            name: b"shop".as_slice().into(),
+            branch: b"main".as_slice().into(),
+        }),
+        round: forge::LandingRound {
+            pull: Some(7),
+            combined: Some(forge::LandingCombine::Squash),
+            ..forge::LandingRound::new(b"temper/61/2".as_slice().into())
+        },
+        step: forge::LandingStep::Judging,
         task: 61,
         project: 7,
         phase: forge::LandingPhase::Proving,
@@ -1812,6 +1824,18 @@ fn landing_view() -> forge::LandingView {
         stale_proofs: 3,
         turn: Some(62),
         members: Box::new([forge::LandingMember {
+            head: Some([1; 32]),
+            left: Some(forge::LandingLeave::Refused { gate: 4 }),
+            judgement: Some(forge::PrefixJudgement {
+                prefix: [3; 32],
+                verdict: change::Status::Failed,
+                gates: Box::new([forge::PanelGate {
+                    number: 4,
+                    kind: change::GateKind::Agent,
+                    blocking: true,
+                    verdict: change::Status::Failed,
+                }]),
+            }),
             change: CHANGE_TASK,
             forge: 1,
             owner: Box::from(b"acme".as_slice()),
@@ -1851,11 +1875,29 @@ fn a_landing_view_encodes_to_its_panel() {
         (got.task(), got.project(), got.phase(), got.preparation(), got.stale_proofs(), got.turn()),
         (61, 7, &w::LandingPhase::Proving, 2, 3, &Some(62))
     );
+    let train = got.train().as_ref().unwrap();
+    assert_eq!(
+        (train.forge(), train.repository(), train.owner(), train.name(), train.branch()),
+        (1, 9, b"acme".as_slice(), b"shop".as_slice(), b"main".as_slice())
+    );
+    let round = got.round().as_ref().unwrap();
+    assert_eq!(
+        (round.number(), round.branch(), round.combined(), round.step()),
+        (2, b"temper/61/2".as_slice(), &Some(w::Combined::Squash), &w::LandingStep::Judging)
+    );
+    assert_eq!(round.pull().as_ref().unwrap().number(), 7);
+    assert_eq!(round.pull().as_ref().unwrap().address(), b"https://git.example/acme/shop/pulls/7");
     let member = got.members().get(0).unwrap();
     assert_eq!(
         (member.change(), member.forge(), member.base(), member.candidate(), member.landed()),
         (51, 1, &Some([2; 32]), &Some([3; 32]), &None)
     );
+    assert_eq!(member.head(), &Some([1; 32]));
+    let w::LandingLeave::Refused(refused) = member.left().as_ref().unwrap() else { panic!("refused judgement") };
+    assert_eq!(refused.gate(), 4);
+    let judgement = member.judgement().as_ref().unwrap();
+    assert_eq!((judgement.prefix(), judgement.verdict()), (&[3; 32], &w::Ci::Failed));
+    assert_eq!(judgement.gates().get(0).unwrap().number(), 4);
     assert_eq!(member.owner(), b"acme");
     assert_eq!(member.name(), b"shop");
     assert_eq!(member.branch(), b"temper/51");
@@ -1874,6 +1916,7 @@ fn a_landings_view_encodes_to_its_list() {
         project: 7,
         turn: Some(61),
         landings: Box::new([forge::LandingLine {
+            train: None,
             task: 61,
             phase: forge::LandingPhase::Turn { at: skein_lib::Wall::EPOCH },
             changes: Box::new([51]),
@@ -2956,6 +2999,8 @@ fn changes_document_encodes_and_decodes() {
         more: 3,
         landed_more: 4,
         queues: Box::new([forge::ChangesQueue {
+            way: change::Way::Queue,
+            in_flight: None,
             repository: Box::from(b"acme/shop".as_slice()),
             branch: Box::from(b"main".as_slice()),
             red: true,
@@ -3615,6 +3660,8 @@ fn the_worst_small_changes_document_fits_its_decision() {
     for task in 0..limits.forge.changes.min(32) {
         queues
             .push(forge::ChangesQueue {
+                way: change::Way::Queue,
+                in_flight: None,
                 repository: Box::from([b'r'; REPOSITORY_BYTES]),
                 branch: repeated(b'b', limits.forge.name_bytes),
                 red: true,
@@ -4957,4 +5004,19 @@ fn draft_answers_and_documents_preserve_the_whole_row_and_each_refusal() {
         );
     }
     assert_eq!(away_answer(None), w::Outcome::Unknown);
+}
+
+#[test]
+fn a_single_landing_panel_has_no_train_or_round() {
+    let mut view = landing_view();
+    view.train = None;
+    view.round.branch = Box::new([]);
+    view.round.pull = None;
+    view.round.combined = None;
+    let bytes = family::document(forge::Document::Landing(view), &fixtures::forge_table(&[]), &w::CEILINGS)
+        .expect("single landing panel");
+    let panel = wire::decode_landing_panel(&bytes, &w::CEILINGS).expect("single landing panel");
+    assert!(panel.round().is_none());
+    assert!(panel.train().is_none());
+    assert_eq!(panel.members().len(), 1);
 }

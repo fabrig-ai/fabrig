@@ -183,10 +183,13 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
         for phase in [landing::Phase::Waiting, landing::Phase::Landed, landing::Phase::Cancelled] {
             let row = crate::LandingRow {
                 landing: landing::Landing {
+                    round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
                     task: 60,
                     project: 5,
                     phase,
                     members: Box::new([landing::Member {
+                        left: None,
                         change: fixtures::CHANGE,
                         repository: landing::Repository { forge: 1, repository: 2 },
                         pull: 1,
@@ -199,6 +202,7 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
                     }]),
                     preparation: 0,
                     stale_proofs: 0,
+                    branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None]),
                 entries: Box::new([]),

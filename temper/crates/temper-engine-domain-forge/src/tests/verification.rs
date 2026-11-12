@@ -292,6 +292,7 @@ fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
         PROJECT,
         change::Way::Queue,
         Box::new([RepositoryGates { repository: REPO, gates: Box::new([]), tiers: tiers.into_boxed() }]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding { verdict: policy::Settings { retries: 2, suspects: policy::Suspects::Bisect }, bound: BOUND }
     ));
     d
@@ -432,6 +433,7 @@ fn green(d: &mut Domain, number: u64, commits: &[skein_forge::api::Commit]) -> Q
     let row = d.tiers.get_mut(&(REPO, Box::from(TIER))).expect("tier");
     row.task = Some(TIER_TASK);
     row.result = Some(Receipt {
+        logs: Box::new([]),
         failures: None,
         passed: true,
         run: ReceiptRun { id: number, number, url: Box::new([]) },

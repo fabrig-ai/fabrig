@@ -151,6 +151,8 @@ impl Operation {
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::CommitTree { .. }
+            | Command::MergeBases { .. }
+            | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => kind,
         }
@@ -180,6 +182,8 @@ impl Operation {
             | Command::DiffPaths { .. }
             | Command::DiffIndex { .. }
             | Command::WriteTree
+            | Command::MergeBases { .. }
+            | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => false,
         }
@@ -256,6 +260,7 @@ impl Operation {
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
                     | git::Op::DiffPaths { .. }
+                    | git::Op::Brings { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Commit { .. }
                     | git::Op::Push { .. },
@@ -286,6 +291,8 @@ impl Operation {
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::CommitTree { .. }
+            | Command::MergeBases { .. }
+            | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => false,
         };
@@ -301,7 +308,14 @@ impl Operation {
         }
         match child.exited {
             Some(kernel::Exit::Code(code)) => match &self.op {
-                Some(op) => sequence::after(op, &self.command, code, stdout, &tail, child.stderr.dropped(), checkout),
+                Some(op) => {
+                    let mut next =
+                        sequence::after(op, &self.command, code, stdout, &tail, child.stderr.dropped(), checkout);
+                    if let Next::End(git::Done::Conflicted { cut, .. }) = &mut next {
+                        *cut |= child.dropped > 0;
+                    }
+                    next
+                }
                 None => sequence::failed(git::Fault::Broken, &tail, child.stderr.dropped()),
             },
             Some(kernel::Exit::Signal(_)) | None => sequence::failed(git::Fault::Broken, &tail, child.stderr.dropped()),
@@ -331,6 +345,8 @@ impl Operation {
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::CommitTree { .. }
+            | Command::MergeBases { .. }
+            | Command::BringsList { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => b'\n',
         }
@@ -374,6 +390,7 @@ impl Operation {
                         | git::Op::CheckOut { .. }
                         | git::Op::Look { .. }
                         | git::Op::DiffPaths { .. }
+                        | git::Op::Brings { .. }
                         | git::Op::IsAncestor { .. }
                         | git::Op::Merge { .. }
                         | git::Op::Commit { .. }
@@ -640,6 +657,7 @@ fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
         | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
         | git::Op::DiffPaths { at, .. }
+        | git::Op::Brings { at, .. }
         | git::Op::IsAncestor { at, .. }
         | git::Op::Merge { at, .. }
         | git::Op::Commit { at, .. }

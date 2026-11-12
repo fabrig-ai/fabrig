@@ -37,8 +37,8 @@ const APPLICATION: &[u8] = br#"{
  "cued":[{"cue":"Call","turns":[{"lines":[{"call":"inspect","arguments":{"name":"anything"}}],"finish":"tool_calls","tokens":1}]}],
  "otherwise":["Fallback"]}},
 "limits":{"profile":"small","overrides":{}},"workers":[{"root":"workspaces","git":"/usr/bin/git"}],
-"landing":{"projects":[{"project":1,"by":"turn","check_timeout_ms":900000,"merge_job":".temper/merge","close_job":".temper/close","landing_attempts":3,"tier_retries":2,"verification_bound_ms":7200000,
- "gates":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true}],
+"landing":{"projects":[{"project":1,"by":"turn","combine":{"main":"merge","other":"squash"},"check_timeout_ms":900000,"landing_attempts":1,"merge_job":".temper/merge","close_job":".temper/close","gate_retries":2,"gate_timeout_ms":3600000,"tier_retries":2,"verification_bound_ms":7200000,
+ "gates":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true,"base":true}],
  "tiers":[{"name":"tier","workflow":"tier.yml","ignored":["docs"],"artifact":"failing","format":"lines","branch":"goal","span_ms":1200000,"description":"the slow suites"}]}]}]}
 }"#;
 

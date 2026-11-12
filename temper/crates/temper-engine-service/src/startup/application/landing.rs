@@ -371,9 +371,20 @@ fn repository_checks(
             let Some(mut object) = read::object(document, *at, "gate-check", &path, problems) else { continue };
             let check = check(&mut object, document, &path, limits, problems);
             let blocking = read::boolean(&mut object, document, b"blocking", &path, problems);
+            let base = match object.member(document, b"base") {
+                Some(at) => match config::read::boolean(document, at) {
+                    Ok(value) => Some(value),
+                    Err(what) => {
+                        problems.push(path.member(b"base"), What::Jig(what));
+                        None
+                    }
+                },
+                None => Some(false),
+            };
             read::finish(object, document, &path, problems);
             if let Some(check) = check
                 && let Some(blocking) = blocking
+                && let Some(base) = base
             {
                 for previous in &gates {
                     let previous: &engine::GateCheck = previous;
@@ -387,6 +398,7 @@ fn repository_checks(
                         workflow: check.workflow,
                         ignored: check.ignored,
                         blocking,
+                        base,
                     })
                     .expect("bounded gates");
             }
@@ -468,7 +480,15 @@ fn project_landing(
     limits: &temper_engine_domain_forge::Limits,
     problems: &mut Problems,
 ) -> Option<engine::ProjectLanding> {
+    let combining = combine(object, document, path, problems);
     let check_timeout = optional_check_timeout(object, document, path, problems);
+    let gate_retries = optional_integer(object, document, b"gate_retries", 2, u64::from(u8::MAX), path, problems);
+    let gate_timeout = optional_integer(object, document, b"gate_timeout_ms", 3_600_000, 86_400_000, path, problems);
+    if let Some(value) = gate_timeout
+        && value < 60_000
+    {
+        problems.push(path.member(b"gate_timeout_ms"), What::Jig(config::What::Bound));
+    }
     let landing_attempts = optional_landing_attempts(object, document, path, problems);
     let retries = optional_integer(object, document, b"tier_retries", 2, u64::from(u8::MAX), path, problems);
     let bound = optional_integer(object, document, b"verification_bound_ms", 7_200_000, u64::MAX, path, problems);
@@ -497,8 +517,13 @@ fn project_landing(
             repositories.push(checks).expect("bounded repositories");
         }
     }
+    let (combine_main, combine_other) = combining?;
     Some(engine::ProjectLanding {
         check_timeout,
+        combine_main,
+        combine_other,
+        gate_retries: u8::try_from(gate_retries?).expect("bounded gate retries"),
+        gate_timeout: skein_lib::Duration::from_millis(gate_timeout?),
         landing_attempts: landing_attempts?,
         by,
         close_job,
@@ -509,4 +534,38 @@ fn project_landing(
             verification_bound_ms: bound?,
         },
     })
+}
+
+fn combine(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<(engine::Combine, engine::Combine)> {
+    let Some(at) = object.member(document, b"combine") else {
+        return Some((engine::Combine::Merge, engine::Combine::Squash));
+    };
+    let path = path.member(b"combine");
+    let mut object = read::object(document, at, "landing-combine", &path, problems)?;
+    let main = combine_value(&mut object, document, b"main", b"merge", &path, problems);
+    let other = combine_value(&mut object, document, b"other", b"squash", &path, problems);
+    read::finish(object, document, &path, problems);
+    Some((main?, other?))
+}
+fn combine_value(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    name: &[u8],
+    default: &[u8],
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<engine::Combine> {
+    match optional_word(object, document, name, default, path, problems)?.as_ref() {
+        b"merge" => Some(engine::Combine::Merge),
+        b"squash" => Some(engine::Combine::Squash),
+        _ => {
+            read::form(false, path.member(name), problems);
+            None
+        }
+    }
 }

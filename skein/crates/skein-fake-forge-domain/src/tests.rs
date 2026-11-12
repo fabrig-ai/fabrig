@@ -128,6 +128,28 @@ fn conditional_push_never_moves_a_branch_whose_head_changed() {
 }
 
 #[test]
+fn push_new_uploads_only_under_an_empty_branch_lease() {
+    let mut h = Harness::new(calm());
+    let work = h.commit(FIRST, &[(b"one", b"one")]);
+    assert!(!h.domain.has(REPOSITORY).contains(&work));
+    let op = Op::Git(Git::PushNew { branch: copy_of(b"landing"), commit: work });
+    assert_eq!(h.call(ENGINE, op.clone()), Ok(Answer::PushNew { existing: None }));
+    assert_eq!(h.branch(b"landing"), Some(work));
+    assert!(h.domain.has(REPOSITORY).contains(&work), "a new branch uploads the commit");
+    assert_eq!(h.call(ENGINE, op), Ok(Answer::PushNew { existing: Some(work) }));
+    let next = h.commit(work, &[(b"one", b"two")]);
+    let op = Op::Git(Git::PushNew { branch: copy_of(b"landing"), commit: next });
+    assert_eq!(h.call(ENGINE, op), Ok(Answer::PushNew { existing: Some(work) }));
+    assert_eq!(h.branch(b"landing"), Some(work));
+    assert!(!h.domain.has(REPOSITORY).contains(&next), "a nonempty lease uploads nothing");
+    assert_eq!(
+        h.call(ENGINE, create_branch(b"rest", next)),
+        Err(Error::Missing(What::Commit)),
+        "REST Create still requires a remote commit"
+    );
+}
+
+#[test]
 fn a_converging_merge_dag_visits_each_commit_once() {
     let mut h = Harness::new(calm());
     let mut left = FIRST;

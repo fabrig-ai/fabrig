@@ -164,15 +164,20 @@ pub(super) fn get_report_format(input: &mut Reader<'_>, _limits: &Limits) -> Res
     }
 }
 pub(super) fn put_how(out: &mut Sink, v: api::MergeHow) {
-    out.u8(match v {
-        api::MergeHow::Style => 0,
-        api::MergeHow::FastForwardOnly => 1,
-    });
+    match v {
+        api::MergeHow::Style => out.u8(0),
+        api::MergeHow::FastForwardOnly => out.u8(1),
+        api::MergeHow::Recorded { commit } => {
+            out.u8(2);
+            out.u64(commit);
+        }
+    }
 }
 pub(super) fn get_how(input: &mut Reader<'_>, _limits: &Limits) -> Result<api::MergeHow, Refusal> {
     match codec::u8(input)? {
         0 => Ok(api::MergeHow::Style),
         1 => Ok(api::MergeHow::FastForwardOnly),
+        2 => Ok(api::MergeHow::Recorded { commit: u64(input)? }),
         _tag => Err(Refusal::Malformed("how")),
     }
 }

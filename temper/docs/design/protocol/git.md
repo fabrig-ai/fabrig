@@ -638,6 +638,23 @@ contains a head or a producer's base it would merge
 (`../domain/worker/checkouts.md`); the comparison alone is never a push
 receipt.
 
+`Brings { at, head, base, upstream }` asks whether fetched `head` holds a
+commit that fetched `base` lacks and fetched `upstream` holds: a prepare
+job's question of a member under `squash`, which brings its upstream's
+commits only by a merge (`../domain/worker/jobs.md`; `../domain/landing.md`,
+5.2). It is local, changes no file or ref, and needs no forge credential:
+
+```
+git merge-base --all <head> <upstream>                 the merge bases, one id a line
+git rev-list --max-count=1 <m>... ^<base> --           each merge base m a positive
+```
+
+A commit both hold and the base lacks lies below a merge base of the two
+that the base lacks, so the listing names one exactly when there is
+such a commit: `Brings { brings: true }`. An empty listing, or
+`merge-base` ending 1 with nothing printed (no commit in common), ends
+it with false. Any other exit, a malformed id, or output past
+`stdout_bytes` is `Broken`.
 
 `DiffPaths { at, before, after }` admits a design delivery's changed paths:
 

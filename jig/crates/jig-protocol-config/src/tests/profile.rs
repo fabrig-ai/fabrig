@@ -109,7 +109,7 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     const MAX_FRAME: u64 = 33_554_496;
     // The map pages include job specs, task/run revisions and placed references;
     // transcript framing and direct read room are unchanged.
-    for (kind, request, page) in [(Profile::Small, 65_536, 4_270_667), (Profile::Standard, 262_144, 100_883_575)] {
+    for (kind, request, page) in [(Profile::Small, 65_536, 4_582_931), (Profile::Standard, 262_144, 100_883_575)] {
         let configured = profile(kind);
         let codec = jig_protocol_store::codec::limits(&configured.core).expect("profile codec");
         assert_eq!(u64::from(configured.core.resume_bytes), request);
@@ -180,14 +180,14 @@ fn standard_page_holds_smiths_largest_turn() {
 }
 
 #[test]
-fn small_is_unchanged() {
+fn small_holds_composed_settings() {
     let limits = profile(Profile::Small);
     let tasks = limits.core.tasks;
     assert_eq!(tasks.tasks, 8);
     assert_eq!(tasks.batch, 2);
     assert_eq!(tasks.spec_bytes, 4_096);
     assert_eq!(tasks.result_bytes, 512);
-    assert_eq!(limits.store.store.value, 4_268_588);
+    assert_eq!(limits.store.store.value, 4_580_852);
 }
 
 #[test]

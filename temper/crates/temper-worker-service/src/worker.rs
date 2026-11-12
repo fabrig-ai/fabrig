@@ -1283,15 +1283,12 @@ mod merge_tests {
         let temper_worker_domain::Request::Hello(hello) = out.pop().expect("worker hello") else {
             panic!("ready declares capabilities");
         };
-        assert_eq!(
-            hello.jobs.first(),
-            Some(&JobBound {
-                kind: JobKind(3),
-                spec: 4_096,
-                result: 512,
-                deadline: skein_lib::Duration::from_secs(600)
-            })
-        );
+        assert!(hello.jobs.contains(&JobBound {
+            kind: JobKind(3),
+            spec: 4_096,
+            result: 512,
+            deadline: skein_lib::Duration::from_secs(600)
+        }));
     }
 
     /// temper/docs/design/domain/worker/jobs.md.
@@ -1305,12 +1302,28 @@ mod merge_tests {
         };
         let close =
             JobBound { kind: JobKind(4), spec: 16_384, result: 512, deadline: skein_lib::Duration::from_secs(600) };
-        assert_eq!(hello.jobs.as_ref(), [temper_service_core::limits::merge_bound(), close]);
+        assert!(hello.jobs.contains(&close));
         let kinds = crate::worker_settings::job_kinds();
-        assert_eq!(kinds.len(), 2);
-        let kind = &kinds[1];
+        let kind = kinds.last().expect("close declared");
         assert_eq!(kind.bound, close);
         assert_eq!(kind.verb.as_ref(), b"close");
+        assert!(kind.delivers);
+    }
+    #[test]
+    fn prepare_is_declared_on_the_worker() {
+        let bound =
+            JobBound { kind: JobKind(1), spec: 16_384, result: 4_096, deadline: skein_lib::Duration::from_secs(600) };
+        let mut worker = crate::tests::fixtures::worker();
+        let mut out = skein_lib::Queue::uncapped();
+        temper_worker_domain::step(&mut worker.root, &worker.env, temper_worker_domain::Event::Ready, &mut out);
+        let temper_worker_domain::Request::Hello(hello) = out.pop().expect("worker hello") else {
+            panic!("hello");
+        };
+        assert_eq!(hello.jobs.first(), Some(&bound));
+        let kinds = crate::worker_settings::job_kinds();
+        let kind = kinds.first().expect("prepare");
+        assert_eq!(kind.bound, bound);
+        assert_eq!(kind.verb.as_ref(), b"prepare");
         assert!(kind.delivers);
     }
 }

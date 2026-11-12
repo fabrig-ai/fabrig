@@ -6476,6 +6476,7 @@ dependencies = [
  "skein-ui",
  "skein-ui-web",
  "skein-world",
+ "smith-agent-service",
  "smith-agent-shell",
  "smith-channel",
  "smith-charter",
@@ -7103,6 +7104,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-host",
  "jig-domain-link",
+ "skein-json",
  "skein-lib",
  "smith-domain-run",
  "smith-domain-session",

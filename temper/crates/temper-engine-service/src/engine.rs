@@ -766,7 +766,12 @@ pub(crate) fn answer(engine: &mut Engine) {
                 engine.notes.try_push(crate::Note::Patched { of, patch, counts }).expect("patch progress note room");
             }
             event @ jig_protocol_store::Event::Site { .. } => {
-                crate::store::route::up(&mut engine.store.routes, event, &mut engine.store.routed);
+                crate::store::route::site(
+                    &mut engine.store.routes,
+                    &mut engine.store.host.component,
+                    event,
+                    &mut engine.store.routed,
+                );
             }
             jig_protocol_store::Event::Erased { owner } if crate::forge::gone::owns(owner) => {
                 crate::forge::gone::answer(engine, owner);

@@ -21,6 +21,7 @@ pub struct Routes {
     page_failure: Option<store::restore::Failure>,
     row_failure: Option<UnreadableRow>,
     pub(crate) patch_context: store::patches::Context,
+    application_patch_context: families::patches::Context,
 }
 #[derive(Debug)]
 pub(super) struct Flight {
@@ -47,6 +48,7 @@ impl Routes {
             page_failure: None,
             row_failure: None,
             patch_context: store::patches::Context::default(),
+            application_patch_context: families::patches::Context::default(),
         }
     }
     /// The store's typed cause for the refused startup page.
@@ -241,7 +243,15 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
             }
         }
         store::Event::Site { owner, of, site, at, patcher, key: _ } => {
-            into.push(Up::Ask(dispatch(owner, of, site, at, patcher, &mut routes.patch_context)));
+            into.push(Up::Ask(dispatch(
+                owner,
+                of,
+                site,
+                at,
+                patcher,
+                &mut routes.patch_context,
+                &mut routes.application_patch_context,
+            )));
         }
         store::Event::Switched { .. } => root(into, engine::StoreInput::Switched),
         store::Event::OpenRefused { .. } | store::Event::SecretsNotReady { .. } => stop(routes, into),
@@ -520,6 +530,7 @@ fn dispatch(
     at: skein_codec::value::Node,
     mut patcher: Box<skein_codec::patch::Patcher>,
     context: &mut store::patches::Context,
+    application: &mut families::patches::Context,
 ) -> store::Request {
     let (old, new) = patcher.parts();
     let result = match of {
@@ -530,9 +541,59 @@ fn dispatch(
             smith_transcript::patches::written(site, old, new, at, &mut smith_transcript::patches::Context::default())
         }
         store::Owner::Jig => store::patches::written(site, old, new, at, context),
-        store::Owner::Application => {
-            families::patches::written(site, old, new, at, &mut families::patches::Context::default())
-        }
+        store::Owner::Application => families::patches::written(site, old, new, at, application),
     };
     store::Request::Site { owner, patcher, result }
+}
+
+/// Read stored adoption settings for this landing alone; a later record inherits no input.
+pub(crate) fn site(routes: &mut Routes, component: &mut store::Store, mut event: store::Event, into: &mut Queue<Up>) {
+    routes.application_patch_context = families::patches::Context::default();
+    if let store::Event::Site { of: store::Owner::Application, site, at, patcher, .. } = &mut event
+        && *site == skein_codec::patch::Site::new(5, 0)
+    {
+        let (old, _) = patcher.parts();
+        if let Ok((project, repository)) = families::patches::Context::landing_project(old, *at) {
+            routes.application_patch_context.landing_branch =
+                landing_branch(component, &routes.families, project, repository);
+        }
+    }
+    up(routes, event, into);
+}
+
+fn landing_branch(
+    component: &mut store::Store,
+    bounds: &families::Bounds,
+    project: u32,
+    repository: Option<skein_forge::api::Repository>,
+) -> Option<Box<[u8]>> {
+    let mut after = None;
+    let mut branch = None;
+    // Every nonempty page consumes at least one adopted repository.
+    for _ in 0..=bounds.forge().repositories {
+        let page = component
+            .patch_page(skein_kv::Range { start: Box::new([2]), end: Some(Box::new([3])) }, after.as_ref(), 1)
+            .ok()?;
+        for row in page.rows {
+            let temper_engine_domain_forge::Stored::Repository(adopted) =
+                families::records::row(&row.key, &row.value, bounds).ok()?
+            else {
+                return None;
+            };
+            if adopted.project != project || (repository.is_some() && repository != Some(adopted.provider)) {
+                continue;
+            }
+            if let Some(prior) = &branch
+                && *prior != adopted.settings.default_branch
+            {
+                return None;
+            }
+            branch = Some(adopted.settings.default_branch);
+        }
+        after = page.next;
+        if after.is_none() {
+            return branch;
+        }
+    }
+    None
 }

@@ -91,6 +91,7 @@ pub(super) fn pushed(
             }
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -105,7 +106,7 @@ pub(super) fn pushed(
             let landing = super::failed_landing(failure);
             return super::complete_push(holding, id, push, repository, landing, asked, env, out);
         }
-        Done::Conflicted { files } => {
+        Done::Conflicted { files, .. } => {
             return super::complete_push(
                 holding,
                 id,
@@ -119,6 +120,7 @@ pub(super) fn pushed(
         }
         other @ (Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
         | Done::Succeeded
@@ -139,6 +141,7 @@ pub(super) fn pushed(
             }
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -163,6 +166,7 @@ pub(super) fn pushed(
             }
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -193,12 +197,14 @@ pub(super) fn pushed(
             | Done::Exists
             | Done::Rejected
             | Done::Failed { .. }
+            | Done::Brings { .. }
             | Done::FailedWithOutput { .. } => unreachable!("an ancestry query has its own terminals"),
         },
         Step::Merge => match done {
             Done::Merged => Step::Commit,
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Conflicted { .. }
             | Done::Succeeded
@@ -215,6 +221,7 @@ pub(super) fn pushed(
             Done::Succeeded => Step::Paths,
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -249,6 +256,7 @@ pub(super) fn pushed(
                 Step::Push
             }
             Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
