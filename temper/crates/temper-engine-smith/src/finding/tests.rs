@@ -109,6 +109,7 @@ fn row(number: u32) -> f::FindingRow {
         holder: f::Holder::Task(40),
         at: Wall::from_nanos(19),
         why: Some(b"flake".as_slice().into()),
+        hander: Some(f::Filer::Task(39)),
     }
 }
 #[test]
