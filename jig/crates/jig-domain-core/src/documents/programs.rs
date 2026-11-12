@@ -1,27 +1,11 @@
 //! Secret-free per-host login observations, joined at read time (accounts.md, 3.4).
+
+pub use crate::below::documents::programs::*;
 use crate::{Core, documents::DocumentLimits};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
-use jig_domain_fleet as fleet;
 use jig_domain_link::{LoginState, SignOutResult};
 use skein_lib::{List, Token, bytes};
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ProgramLogin {
-    pub name: Box<[u8]>,
-    pub state: Option<LoginState>,
-    pub sign_out: Option<SignOutResult>,
-    pub cleanup: bool,
-    pub cut: bool,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ProgramHost {
-    pub name: Box<[u8]>,
-    pub channel: u64,
-    pub connected: bool,
-    pub awaiting_logins: bool,
-    pub programs: List<ProgramLogin>,
-    pub cut: bool,
-}
 fn detail(value: &[u8], limits: &DocumentLimits, cut: &mut bool) -> Box<[u8]> {
     let bound = usize::try_from(limits.text_bytes.min(4_096)).unwrap_or(0);
     let end = value.len().min(bound);
@@ -118,16 +102,4 @@ pub(super) fn hosts(core: &Core, limits: &crate::Limits, holder: accounts::Holde
             .expect("bounded host facts");
     }
     (hosts, cut)
-}
-pub(super) fn logins_bound(limits: &DocumentLimits) -> Option<u64> {
-    List::<ProgramLogin>::price(limits.lines)?.checked_add(
-        u64::from(limits.lines).checked_mul(
-            u64::from(accounts::NAME).checked_add(u64::from(limits.text_bytes.min(4_096)).checked_mul(2)?)?,
-        )?,
-    )
-}
-pub(super) fn hosts_bound(limits: &DocumentLimits) -> Option<u64> {
-    List::<ProgramHost>::price(limits.lines)?.checked_add(
-        u64::from(limits.lines).checked_mul(u64::from(fleet::WORKER_NAME).checked_add(logins_bound(limits)?)?)?,
-    )
 }

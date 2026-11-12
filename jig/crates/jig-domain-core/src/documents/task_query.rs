@@ -1,51 +1,14 @@
 //! Fixed query keys and one bounded live scan per document (domain/engine/views.md, 2).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
+
+pub use crate::below::documents::task_query::*;
 use crate::{
     Core, Limits,
-    documents::{Cursor, DocumentLimits, ExecutorKind, Missing, TaskLine, Window},
+    documents::{Cursor, ExecutorKind, Missing, Window},
 };
 use core::cmp::Reverse;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Map, Wall};
-
-/// Lifecycle class selected by a task query.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum PhaseClass {
-    Working,
-    Waiting,
-    Held,
-    Closing,
-    Ended,
-}
-/// Direction is fixed; every tie goes by ascending task number.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum QueryOrder {
-    Number,
-    Changed,
-    Activity,
-    Priority,
-    Ended,
-}
-/// Fixed conjunctive keys; an absent key matches every value.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct TaskQuery {
-    pub project: Option<u32>,
-    pub requester: Option<tasks::Party>,
-    pub root: Option<u64>,
-    pub parent: Option<u64>,
-    pub label: Option<u32>,
-    pub phase: Option<PhaseClass>,
-    pub executor: Option<ExecutorKind>,
-    pub tracked: Option<bool>,
-    pub order: QueryOrder,
-}
-/// A bounded window over a query's live group.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Lines {
-    pub query: TaskQuery,
-    pub lines: List<TaskLine>,
-    pub next: Option<Cursor>,
-}
 
 pub(crate) fn admission(core: &Core, party: u64, query: &TaskQuery) -> Result<(), Missing> {
     if let Some(tasks::Party::Deployment { .. }) = query.requester {
@@ -176,10 +139,4 @@ pub fn lines(core: &Core, limits: &Limits, party: u64, query: &TaskQuery, window
         return Err(Missing::Unknown);
     }
     Ok(Lines { query: *query, lines, next })
-}
-pub(super) fn document_bound(limits: &DocumentLimits) -> Option<u64> {
-    List::<TaskLine>::price(limits.rows)?.checked_add(
-        u64::from(limits.rows)
-            .checked_mul(super::chip_heap_bound(limits)?.checked_add(List::<u64>::price(limits.lines)?)?)?,
-    )
 }
