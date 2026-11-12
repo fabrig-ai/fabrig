@@ -26,6 +26,7 @@ pub(crate) mod inbox;
 pub(crate) mod model_check;
 pub(crate) mod models;
 pub(crate) mod needs;
+pub(crate) mod findings;
 pub(crate) mod new_chat;
 mod only_you;
 pub(crate) mod remembered;

@@ -326,7 +326,7 @@ fn needs(
 ) {
     let Some(inbox) = root.pages().inbox() else { return };
     let session = root.pages().needs();
-    let open = session.needs(inbox, root.forge().approvals());
+    let open = session.all(inbox, root.forge().approvals());
     let (count, cut) = match facts.needs {
         Needs::Count { count, cut } => (count, cut),
         Needs::Unknown => (0, false),
@@ -356,7 +356,7 @@ fn needs(
         .min();
     }
     super::ask::answered_lines(b, root, &lines, w, bindings);
-    super::home_cards::cards(b, root, &open, false, w, bindings, times);
+    super::home_cards::all(b, root, &open, false, w, bindings, times);
     b.close();
 }
 fn row_words(b: &mut Builder, w: &Words, title: &[u8], when: &[u8]) {
