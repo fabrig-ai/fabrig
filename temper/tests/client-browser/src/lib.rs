@@ -379,6 +379,14 @@ impl Tier {
         configuration::private(&path, &serde_json::to_vec(&value).expect("reserved deployment JSON"));
         tier
     }
+    /// The box's serve step, on this deployment's directories rather than its startup command.
+    #[must_use]
+    pub fn box_serve(&self) -> Vec<std::ffi::OsString> {
+        let mut args = vec!["internal".into(), "serve".into()];
+        args.extend(configuration::flags(self.scratch.path()));
+        args.push("--box".into());
+        args
+    }
     #[must_use]
     pub fn setup(&self) -> Setup<'_> {
         let mut args = Vec::new();
