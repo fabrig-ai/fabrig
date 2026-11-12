@@ -27,12 +27,8 @@ pub fn index_key(scope: &Scope, party: u64, cursor: documents::Cursor, activity:
     Some(Key::Tasks(tasks::Update { party, at, task, object }.key()))
 }
 
-pub(super) fn inbox_position(
-    party: u64,
-    group: Group,
-    cursor: documents::Cursor,
-    activity: Option<u64>,
-) -> Option<Position> {
+#[must_use]
+pub fn inbox_position(party: u64, group: Group, cursor: documents::Cursor, activity: Option<u64>) -> Option<Position> {
     if group.updates() {
         let key =
             index_key(&Scope::Inbox { group, filter: Filter { project: None, goal: None } }, party, cursor, activity)?;
@@ -62,7 +58,8 @@ pub(super) fn inbox_position(
 }
 
 /// Verify the index's party and its joins before projecting an update.
-pub(super) fn valid_update(party: u64, row: &super::Row) -> bool {
+#[must_use]
+pub fn valid_update(party: u64, row: &super::Row) -> bool {
     if proposal_position(row).is_some() {
         return valid_proposal_update(party, row);
     }
@@ -111,7 +108,8 @@ pub(super) fn valid_update(party: u64, row: &super::Row) -> bool {
     row.inbox == Some(documents::Cursor::Inbox { task: update.task, object, at })
 }
 
-pub(super) fn is_update(key: &Key) -> bool {
+#[must_use]
+pub fn is_update(key: &Key) -> bool {
     match key {
         Key::Tasks(tasks::Key::Update { .. }) => true,
         Key::Tasks(
@@ -142,7 +140,7 @@ pub(super) fn is_update(key: &Key) -> bool {
 }
 
 /// An ended-delegate index row is joined to its ended owner by task number.
-pub(super) fn ended_delegate_row(
+pub fn ended_delegate_row(
     limits: &crate::Limits,
     requester: u64,
     row: &super::Row,
@@ -227,7 +225,8 @@ fn valid_proposal_update(party: u64, row: &super::Row) -> bool {
             })
 }
 
-pub(super) fn proposal_position(row: &super::Row) -> Option<Position> {
+#[must_use]
+pub fn proposal_position(row: &super::Row) -> Option<Position> {
     let crate::Record::Tasks(tasks::Stored::DecidedProposal(proposal)) = &row.value else { return None };
     let Some(documents::Cursor::Inbox { at: Some(at), .. }) = row.inbox else { return None };
     Some(Position::Owner(Key::Tasks(
