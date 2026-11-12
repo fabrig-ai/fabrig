@@ -176,3 +176,27 @@ fn a_start_attaches_its_mounts_in_order_then_enters_the_domain() {
         other @ Teardown::Live { .. } => panic!("refused Start passed Live: {other:?}"),
     }
 }
+
+
+#[test]
+fn a_drain_before_admission_is_delivered_once_and_cancel_can_override_it() {
+    use super::super::admission::Admission;
+    for cancel in [false, true] {
+        let mut service = service();
+        let run = Token::new(19);
+        channel_event(&mut service.stages, &mut service.frame, channel::Heard::Drain);
+        assert_eq!(service.stages.admission, Admission::Draining);
+        assert!(service.stages.domain_events.is_empty());
+        if cancel { channel_event(&mut service.stages, &mut service.frame, channel::Heard::Cancel); }
+        service.stages.admission.admit(run);
+        domain_down(&mut service.stages, Some(&mut service.frame));
+        let event = service.stages.domain_events.pop().expect("held control delivered");
+        match event {
+            domain::Event::Cancel { run: owner } => { assert!(cancel); assert_eq!(owner, run); }
+            domain::Event::Drain { run: owner } => { assert!(!cancel); assert_eq!(owner, run); }
+            other => panic!("held control, got {other:?}"),
+        }
+        domain_down(&mut service.stages, Some(&mut service.frame));
+        assert!(service.stages.domain_events.is_empty());
+    }
+}

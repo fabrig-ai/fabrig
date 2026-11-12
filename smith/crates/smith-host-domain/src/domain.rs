@@ -78,6 +78,7 @@ pub(crate) enum Sent {
     Ack(u32),
     Grant,
     Cancel,
+    Drain,
 }
 
 #[derive(Debug)]
@@ -89,6 +90,7 @@ pub(crate) struct Agent {
     tree: tree::State,
     word: word::State,
     host_stopped: bool,
+    turn_stop: bool,
     diagnostic: Option<Fault>,
     reading: reading::State,
     sending: Option<Sent>,
@@ -225,6 +227,20 @@ fn from_parent(
         }
         parent::Event::Drop { agent: token } => {
             drop_run(current(domain, token)?, token, env, out);
+            token
+        }
+        parent::Event::Drain { agent: token } => {
+            let agent = current(domain, token)?;
+            match agent.supervision {
+                State::Spawning | State::Watching(_) => {
+                    if !agent.turn_stop && !agent.host_stopped && !agent.word.last_word() {
+                        agent.turn_stop = true;
+                        agent.outbox.push(Down::Drain);
+                    }
+                }
+                State::Cancelled { .. } | State::Draining { .. } | State::Exiting { .. }
+                | State::Terminating { .. } | State::Killing | State::Closed => {}
+            }
             token
         }
         parent::Event::Stop { agent: token } => {
@@ -404,6 +420,7 @@ fn spawn(domain: &mut Domain, env: &Env<Limits>, client: Token, start: Start, ou
         tree: tree::State::Spawning { start },
         word: word::State::Open(word::Admission::Pending),
         host_stopped: false,
+        turn_stop: false,
         diagnostic: None,
         reading: reading::State::Idle,
         sending: None,
@@ -530,7 +547,7 @@ fn grant_name(agent: &mut Agent, grant: Grant) {
             | Down::Message { .. }
             | Down::Answer { .. }
             | Down::Acknowledge { .. }
-            | Down::Cancel) => old,
+            | Down::Cancel | Down::Drain) => old,
         };
         agent.outbox.push(next);
     }
@@ -715,7 +732,7 @@ fn settle_send(agent: &mut Agent, sent: Sent) {
             let turn = agent.turns.remove(&number).expect("ACK transmission still reserved");
             assert!(turn.stage == SendState::Sending, "ACK send terminal owns metadata");
         }
-        Sent::Start | Sent::Message | Sent::Busy { .. } | Sent::Grant | Sent::Cancel => {}
+        Sent::Start | Sent::Message | Sent::Busy { .. } | Sent::Grant | Sent::Cancel | Sent::Drain => {}
     }
 }
 
@@ -847,6 +864,7 @@ fn send_next(agent: &mut Agent, owner: Token, out: &mut Queue<Output>) {
                     Sent::Grant
                 }
                 Down::Cancel => Sent::Cancel,
+                Down::Drain => Sent::Drain,
             };
             (sent, message)
         }
@@ -874,7 +892,7 @@ fn disconnect(agent: &mut Agent, limits: &Limits, out: &mut Queue<Output>) {
                 agent.messages = agent.messages.checked_sub(1).expect("queued message count");
             }
             Down::Start { .. } => unreachable!("start never queued"),
-            Down::Grant { .. } | Down::Cancel => {}
+            Down::Grant { .. } | Down::Cancel | Down::Drain => {}
         }
     }
     let busy_count = agent.busy.len();

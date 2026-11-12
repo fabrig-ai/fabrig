@@ -32,8 +32,11 @@ fn working(settings: &Settings) -> World {
     )
 }
 
-fn scripted(settings: &Settings, turns: Box<[Turn]>, mut children: Vec<Script>) -> World {
-    let mut fixture = Fixture::new();
+fn scripted(settings: &Settings, turns: Box<[Turn]>, children: Vec<Script>) -> World {
+    scripted_in(settings, turns, children, Fixture::new())
+}
+
+fn scripted_in(settings: &Settings, turns: Box<[Turn]>, mut children: Vec<Script>, mut fixture: Fixture) -> World {
     fixture.checkout.program(b"cargo build", program(200, b"Finished\n", Exit::Code(0), &[]));
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
@@ -198,4 +201,108 @@ fn terminals(world: &World) -> Vec<(Token, &'static str)> {
             _ => None,
         })
         .collect()
+}
+
+
+#[test]
+fn drain_keeps_the_completion_and_tools_whole_without_reading_a_later_message() {
+    for at in [50, 150] {
+        let mut world = working(&settings());
+        world.drain_at(Time::from_nanos(at * 1_000_000));
+        message(&mut world, at + 10, 7, b"next activation");
+        world.run(10_000);
+        assert_eq!(world.prompts().len(), 1, "no next main completion");
+        assert!(matches!(world.completions()[0].terminal,
+            Some((_, smith_agent_world::CompletionTerminal::Completed(_)))));
+        assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 1, .. }));
+        assert_eq!(fences(&world), [None]);
+        assert_eq!(terminals(&world), [(Token::new(7), "unread")]);
+        assert!(world.turns()[0].messages.iter().flat_map(|message| &message.content).any(|block|
+            matches!(block, smith_domain::session::llm::Block::ToolResult {
+                result: smith_domain::session::llm::Returned::Owned { outcome: tools::Outcome::Exited { .. } }, ..
+            })), "the shell result is in the told turn");
+    }
+}
+
+#[test]
+fn drain_waits_for_the_sub_agents_whole_conversation() {
+    let turns = Box::new([
+        call(b"sub_agent", br#"{"brief":"@drain-child inspect","tools":["inspect"]}"#),
+        call(b"finish", br#"{"report":"Not reached.","source":"workspace"}"#),
+    ]);
+    let children = vec![Script {
+        cue: b"@drain-child".as_slice().into(),
+        turns: Box::new([
+            call(b"read", br#"{"path":"src/lib.rs"}"#),
+            smith_agent_world::fixture::says(Box::new([Line::Text { text: b"child done".as_slice().into() }]), 1),
+        ]),
+    }];
+    let mut world = scripted(&settings(), turns, children);
+    world.drain_at(Time::from_nanos(150_000_000));
+    world.run(10_000);
+    assert_eq!(world.prompts().len(), 3, "main and both child completions, no next main");
+    assert!(world.completions().iter().all(|completion| matches!(completion.terminal,
+        Some((_, smith_agent_world::CompletionTerminal::Completed(_))))));
+    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 1, .. }));
+    assert!(world.turns()[0].messages.iter().flat_map(|message| &message.content).any(|block|
+        matches!(block, smith_domain::session::llm::Block::ToolResult {
+            result: smith_domain::session::llm::Returned::Text { text, error: false, .. }, ..
+        } if text.windows(b"child done".len()).any(|bytes| bytes == b"child done"))));
+}
+
+#[test]
+fn drain_preserves_an_accepted_finish_and_its_checks() {
+    for at in [50, 150] {
+        let mut settings = settings();
+        settings.job = Job::Coding;
+        settings.check = Span::millis(200, 200);
+        let mut fixture = Fixture::new();
+        fixture.checkout.write(b"work/temper/src/lib.rs", b"pub fn answer() -> u32 { 43 }\n");
+        fixture.checkout.write(b"work/temper/.temper/pre-pr", b"#!checks\n");
+        let mut world = scripted_in(&settings, Box::new([
+            call(b"finish", br#"{"title":"Whole checked turn","body":"Work settled."}"#),
+        ]), Vec::new(), fixture);
+        world.drain_at(Time::from_nanos(at * 1_000_000));
+        world.run(10_000);
+        assert_eq!(world.prompts().len(), 1);
+        assert_eq!(world.checked(), [true]);
+        assert!(matches!(world.answer(), run::Answer::Accepted { turns: 1, .. }));
+    }
+}
+
+#[test]
+fn cancel_after_drain_cuts_the_completion() {
+    let mut settings = settings();
+    settings.cancel_at = Some(Duration::from_millis(75));
+    let mut world = working(&settings);
+    world.drain_at(Time::from_nanos(50_000_000));
+    world.run(10_000);
+    assert!(matches!(world.completions()[0].terminal,
+        Some((_, smith_agent_world::CompletionTerminal::Cancelled))));
+    assert!(world.turns().is_empty());
+    assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, turns: 0, .. }));
+}
+
+
+#[test]
+fn drain_while_awaiting_waiting_or_listening_starts_no_completion() {
+    for phase in ["awaiting", "waiting", "listening"] {
+        let settings = settings();
+        let mut charter = scripted_charter(&settings);
+        let cue = charter.brief.sections[0].text.clone();
+        let turn = if phase == "listening" {
+            charter.mode = run::Mode::Open;
+            smith_agent_world::fixture::says(Box::new([Line::Text { text: b"reply".as_slice().into() }]), 1)
+        } else {
+            call(b"wait", b"{}")
+        };
+        if phase == "awaiting" { charter.brief.sections = Box::default(); }
+        let mut world = World::with_workspace_scripts_charter(settings, None, None,
+            skein_fake_checkout::Checkout::new(), Box::new([Script { cue, turns: Box::new([turn]) }]), charter);
+        world.drain_at(Time::from_nanos(150_000_000));
+        world.run(10_000);
+        assert_eq!(world.prompts().len(), usize::from(phase != "awaiting"));
+        assert!(world.answered_at() < Time::from_nanos(200_000_000));
+        assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }));
+    }
 }

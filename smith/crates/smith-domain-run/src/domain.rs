@@ -154,6 +154,7 @@ fn take(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             run::turn(domain, conversation, record, sequence, opens_window, out);
         }
         Event::Cancel { run } => run::cancel(domain, run, out),
+        Event::Drain { run } => run::drain(domain, run, out),
         Event::Started { conversation, peer } => run::started(domain, conversation, peer, out),
         Event::JobsCancelled { conversation } => run::jobs_cancelled(domain, env, conversation, out),
         Event::Yielded { conversation, stop, text } => run::yielded(domain, env, conversation, stop, &text, out),

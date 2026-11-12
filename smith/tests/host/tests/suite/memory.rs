@@ -129,7 +129,7 @@ impl Measured {
                     | Down::Answer { .. }
                     | Down::Acknowledge { .. }
                     | Down::Grant { .. }
-                    | Down::Cancel => {}
+                    | Down::Cancel | Down::Drain => {}
                 },
                 Output::Parent(_)
                 | Output::Process(

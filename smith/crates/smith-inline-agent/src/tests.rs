@@ -723,3 +723,53 @@ fn invalid_limits_are_refused() {
     invalid.smith.run.conversations = u32::MAX;
     assert!(!crate::valid(&invalid));
 }
+
+
+#[test]
+fn a_parent_drain_keeps_the_completion_and_tells_its_turn_before_cancelling() {
+    let env = env();
+    let mut agent = Domain::new(&env.limits, configuration(), 1770);
+    let mut out = Queue::uncapped();
+    step(&mut agent, &env, Input::Parent(parent::Event::Spawn { client: Token::new(1), start: start() }), &mut out);
+    let mut completion = None;
+    while let Some(output) = out.pop() {
+        if let Output::Lower { agent, request: Lower::Complete { owner, .. } } = output {
+            completion = Some((agent, owner));
+        }
+    }
+    let (handle, owner) = completion.expect("provider request");
+    step(&mut agent, &env, Input::Parent(parent::Event::Drain { agent: handle }), &mut out);
+    assert!(out.is_empty(), "drain does not cancel the completion");
+    step(&mut agent, &env, Input::Below { agent: handle, terminal: Below::Completed {
+        owner,
+        completion: smith::llm::Completion {
+            reasoning_dropped: Box::default(),
+            content: Box::new([smith::llm::Said::Text { text: b"whole turn".as_slice().into(), replay: None }]),
+            stop: smith::llm::Stop::EndTurn,
+            usage: smith::llm::Usage::ZERO,
+        },
+    } }, &mut out);
+    let mut turn = false;
+    let mut answered = false;
+    for _ in 0_u32..8 {
+        while let Some(output) = out.pop() {
+            match output {
+                Output::Parent(parent::Request::Turn { turn: record, .. }) => {
+                    turn = true;
+                    assert_eq!(record.number, 1);
+                    step(&mut agent, &env, Input::Parent(parent::Event::Acknowledge { agent: handle, turn: 1 }), &mut Queue::uncapped());
+                }
+                Output::Parent(parent::Request::Answered { answer, .. }) => {
+                    assert!(turn, "turn before answer");
+                    assert_eq!(answer.result, host::RunResult::Failed { failure: host::RunFailure::Cancelled });
+                    answered = true;
+                }
+                Output::Lower { request: Lower::Complete { .. } | Lower::Cancel { .. }, .. } => panic!("no next provider or cut"),
+                Output::Parent(_) | Output::Lower { .. } => {}
+            }
+        }
+        agent.reclaim();
+        if agent.is_ready() { resume(&mut agent, &env, &mut out); }
+    }
+    assert!(turn && answered);
+}
