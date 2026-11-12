@@ -181,8 +181,10 @@ store keeps its row until the first patch it meets writes the levels.
   profile sets limits below a production deployment's. Where a later
   build raises a limit's floor (main's added brief section raised
   `brief.sections`' floor by one, to 8 when `tasks.charter_documents`
-  is 0), the test raises that override to this build's floor in the
-  copy it starts the service with, and the file stays as kept. Nothing
+  is 0), or configures more of a thing than the override bounds (its
+  default charters, against `tasks.charters` 9), the test raises that
+  override to this build's floor or count in the copy it starts the
+  service with, and the file stays as kept. Nothing
   else in the configuration is changed: a member the build refuses by
   name stays a red for the change that refused it
   (`../draft/upgrades.md`, 10).
