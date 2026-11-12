@@ -902,3 +902,29 @@ fn follows_use_the_binding_json_form_and_default_optional_members() {
         file::decode(&kind_file(selector, explicit), &Limits::standard()).unwrap_err();
     }
 }
+
+#[test]
+fn dependencies_round_trip_and_require_a_numeric_project() {
+    let selector = br#"{"kind":"dependency","project":3,"number":1}"#;
+    let json = br#"{"project":7}"#;
+    let items = file::decode(&kind_file(selector, json), &Limits::standard()).unwrap();
+    let item = items.get(0).unwrap();
+    assert_eq!(item.setting, c::Setting::Application { kind: 13, scope: 3, number: 1 });
+    let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
+    let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        setting: item.setting,
+        revision: 1,
+        value: Some(set.value.clone()),
+        application: None,
+        proposed: None,
+    }));
+    assert_eq!(shown(&document), joined(&[br#"{"setting":"#, selector, br#","revision":1,"value":"#, json, b"}"]));
+    for (json, reason) in
+        [(b"{}".as_slice(), b"missing member".as_slice()), (br#"{"project":"7"}"#, b"expected unsigned integer")]
+    {
+        assert_eq!(
+            file::decode(&kind_file(selector, json), &Limits::standard()).unwrap_err(),
+            joined(&[b"settings file item 1: dependency.project: ", reason])
+        );
+    }
+}

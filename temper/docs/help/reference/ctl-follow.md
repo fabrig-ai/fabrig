@@ -10,7 +10,7 @@ Follows: read a project's follows and their lag and parity.
 follow list --project PROJECT
   --project PROJECT: a project's name or number; required. The project
 List a project's follows, their lag and parity
-Prints: One line per follow: source and target branches, lag and parity; `no follows` when empty
+Prints: One line per follow: source and target branches, lag and parity; `no follows` when empty; then one line per dependency
 --json: the record follows.
 Key: none.
 `follow show --project PROJECT FOLLOW` reads one whole.

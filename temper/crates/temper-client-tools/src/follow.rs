@@ -23,7 +23,7 @@ pub use acts::{HOLD, MERGE, SKIP, START};
 pub const LIST: Tool = Tool {
     name: b"follow list",
     line: b"List a project's follows, their lag and parity",
-    prints: b"One line per follow: source and target branches, lag and parity; `no follows` when empty",
+    prints: b"One line per follow: source and target branches, lag and parity; `no follows` when empty; then one line per dependency",
     result: b"follows",
     forms: &[&[flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Never,
@@ -166,6 +166,10 @@ pub(crate) fn told(state: &mut Follows, client: &Client, env: &Env<Limits>, told
     if watch.panel != Some(handle) {
         return;
     }
+    let projects = match crate::forge::me(client) {
+        Some(me) => me.projects.as_slice(),
+        None => &[],
+    };
     let printed = match told {
         Told::Changed { .. } => {
             let Some(doc) = client.document(handle) else { return };
@@ -191,7 +195,7 @@ pub(crate) fn told(state: &mut Follows, client: &Client, env: &Env<Limits>, told
                             if watch.follow.is_some() && row.is_none() {
                                 missing(watch)
                             } else {
-                                print::print(&panel, row, watch.called.json, &env.limits)
+                                print::print(&panel, row, projects, watch.called.json, &env.limits)
                             }
                         }
                         Some(_) | None => render::failure(b"unexpected follows document", watch.called.json, 1),
@@ -212,10 +216,11 @@ pub(crate) fn told(state: &mut Follows, client: &Client, env: &Env<Limits>, told
                         w::FollowsPanelParts {
                             project: watch.project.expect("project"),
                             follows: skein_lib::List::with_capacity(0),
+                            dependencies: skein_lib::List::with_capacity(0),
                         },
                     )
                     .expect("empty follows");
-                    print::print(&panel, None, watch.called.json, &env.limits)
+                    print::print(&panel, None, projects, watch.called.json, &env.limits)
                 }
             }
             Why::NotAllowed => render::failure(b"not_allowed", watch.called.json, 2),
