@@ -240,6 +240,9 @@
         question · 4 min"); " · later" on a card marked later;
       - *its question* in `.q`, 17px; a funds card's "S of L used." and
         an approval's question as on *Needs you*;
+      - *an approval's size,* under its question, its row of chips as on
+        *Needs you* (`../forge/README.md`, 4.1, *Its size*), as
+        `pair/home.html` draws it; none without one;
       - *its reason line,* under the question, as *Needs you*'s on the
         signal ground, ending in "Stop asking" alone (`needs-you.md`, 1,
         *Why it reached you* and *Stop asking*);
@@ -261,7 +264,11 @@
       its from line and its question; its recommended act is a
       full-width button, at least 44 pixels tall, then "More", quiet,
       which opens *Needs you* at that card; an approval's recommended act
-      is its "Review on FORGE ↗". The browser's alone.
+      is its "Review on FORGE ↗". An approval's size reads as
+      `pair/phone-home.html` has it, "+A -D" alone, small and muted, with
+      no chip's border or ground, its files' words, " in N files", in an
+      element of their own that the phone's width hides. The browser's
+      alone.
   - *Chats,* a region named "Chats": its head the level-2 heading
     "Chats" and, at its right with any chat, "All N", named "All N
     chats", "All N+" where the rows are cut, to `Chats`; a line per chat

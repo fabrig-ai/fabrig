@@ -274,7 +274,8 @@ rest of the branch lands while a sign-off waits a night
   people counted, and `sets`, the sets of its rule the change touches
   there, bit `n − 1` for set `n`, none for a rule naming no set. No change
   waits behind one it shows, which is out of its queue (`../queues.md`), so a
-  row counts none. Reviews read
+  row counts none. It carries its pull request's size at that head, as its
+  approval evidence keeps it (`gates.md`, 2), none where it keeps none. Reviews read
   in part make a row as a whole read does. A change with no facts at its last
   head has none: one not yet judged, one that was held, and every change
   after a restart until its next step's facts are kept.
@@ -300,7 +301,11 @@ rest of the branch lands while a sign-off waits a night
   number in order, `ApprovalSet { number, name }`, its name the project's
   classes' as the forge holds them (`../attention.md`, 6), empty for a number
   the classes hold no set at; none for a rule naming no set. The client
-  says them on the card (`../../../client/forge/README.md`, 4.1).
+  says them on the card (`../../../client/forge/README.md`, 4.1). It carries
+  the size the forge's part gives, each count kept in 32 bits as the row's other
+  counts are, one past 4294967295 kept at it and the size marked cut, so
+  that the card says so (`../../../client/forge/records.md`, the subject
+  `approvals`).
 - **Its rows,** oldest first by when their facts were first kept, then by
   task: at most 32, and as many as one whole delivery holds at the largest
   row, as the trials' are bounded (`../../trial.md`, section 6); `more` counts the

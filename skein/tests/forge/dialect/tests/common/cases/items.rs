@@ -58,6 +58,9 @@ pub fn pull(merged: bool) -> PullRequest {
             merge_base: Some(forgejo::sha(1)),
             mergeable: true,
             requested_reviewers: Box::from([]),
+            changed_files: Some(1),
+            additions: Some(1),
+            deletions: Some(0),
         }
     } else {
         PullRequest {
@@ -70,6 +73,9 @@ pub fn pull(merged: bool) -> PullRequest {
             merge_base: Some(forgejo::sha(6)),
             mergeable: true,
             requested_reviewers: Box::from([forgejo::user(2)]),
+            changed_files: Some(3),
+            additions: Some(3),
+            deletions: Some(0),
         }
     }
 }

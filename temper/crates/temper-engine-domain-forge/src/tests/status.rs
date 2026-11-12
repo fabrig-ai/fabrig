@@ -73,6 +73,7 @@ fn observe_pull(d: &mut Domain) {
         ci: skein_forge::api::Ci::Passed,
         queued: None,
         dequeued: None,
+        size: None,
     };
     let pending = PendingStep {
         failed: change_ci::Failed::new(Box::new([])),

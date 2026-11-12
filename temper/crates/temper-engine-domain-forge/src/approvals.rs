@@ -20,6 +20,7 @@ pub struct ApprovalWait {
     pub since: Wall,
     /// Whether its reviews were read whole.
     pub whole: bool,
+    pub size: Option<skein_forge::api::Size>,
     /// Its enforcing approvals still short, in its panel's order, each with its people counted.
     pub short: Box<[ShortApproval]>,
 }
@@ -138,6 +139,7 @@ impl Domain {
                         title: crate::text::fit(&row.title, crate::LOGGED_TITLE_BYTES, "…".as_bytes()),
                         since,
                         whole: facts.reviews_complete,
+                        size: facts.size,
                         short: approvals.into_boxed(),
                     },
                 )
