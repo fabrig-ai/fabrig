@@ -527,9 +527,11 @@ fn committed_rules_and_item_overlays_feed_the_same_inputs() {
         number: 1,
         value: settings::SizedValue { size: RULE_BYTES, value: settings::Value::Rule(rule.clone()) },
     }]);
+    let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::super::kinds::ask(
         &mut domain,
         &env,
+        &mut decision,
         0,
         connector::Ask::KeepSettings {
             revision: 2,
