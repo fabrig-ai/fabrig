@@ -901,34 +901,75 @@ impl LinuxTree {
     }
 
     fn force_settle(&mut self, leader: Fd, retain_leader: bool) {
-        // A failed ring cleanup still settles each known identity through the
-        // adapter; this path is test-only and may block after SIGKILL.
-        if !self.finished {
-            if let Some(group) = &self.cgroup {
-                let _kill = fs::write(group.binary.join("cgroup.kill"), b"1");
+        if self.finished {
+            return;
+        }
+        // No starvation verdict here: cleanup must preserve an unwinding failure.
+        let deadline = Deadline::arm("the forced tree settlement", Duration::from_secs(2));
+        self.discover();
+        if let Some(group) = &self.cgroup {
+            let _kill = fs::write(group.binary.join("cgroup.kill"), b"1");
+        }
+        for &descriptor in self.children.values().chain(self.members.values()) {
+            let _killed = skein_shell::keeper::signal_kept_child(descriptor, Signal::Kill, Target::Child);
+        }
+        if !self.leader_reaped {
+            let _group = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
+            let _leader = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Child);
+            // The shared kernel owns a retained leader's wait. Observe its exit
+            // without reaping before listing the orphans it leaves to us.
+            while !exited(leader) && !deadline.passed() {
+                std::thread::sleep(core::time::Duration::from_millis(1));
             }
-            if !self.leader_reaped {
-                let _killed = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
-                if !retain_leader {
-                    skein_shell::keeper::abandon_binary(Some(leader), &[]);
-                    self.leader_reaped = true;
+            if !retain_leader && exited(leader) {
+                self.leader_reaped = skein_shell::keeper::poll_child(leader, true).is_ok();
+            }
+        }
+        loop {
+            self.refresh();
+            for &descriptor in self.children.values().chain(self.members.values()) {
+                let _killed = skein_shell::keeper::signal_kept_child(descriptor, Signal::Kill, Target::Child);
+            }
+            self.children.retain(|_, descriptor| {
+                if exited(*descriptor) {
+                    let _reaped = skein_shell::keeper::poll_child(*descriptor, true);
+                    skein_shell::keeper::close_keeper_fd(*descriptor);
+                    false
+                } else {
+                    true
                 }
+            });
+            // A child's exit may expose another generation. List again before
+            // deciding the tree is empty, even when the batch just reaped was empty.
+            self.refresh();
+            let live_members = self.members.values().any(|&descriptor| !exited(descriptor));
+            let populated = self.cgroup.as_mut().is_some_and(Cgroup::populated);
+            if self.children.is_empty() && !live_members && !populated || deadline.passed() {
+                break;
             }
-            loop {
-                self.refresh();
-                if self.children.is_empty() {
-                    break;
-                }
-                for &descriptor in self.children.values() {
-                    let _killed = skein_shell::keeper::signal_kept_child(descriptor, Signal::Kill, Target::Child);
-                    skein_shell::keeper::abandon_binary(Some(descriptor), &[descriptor]);
-                }
-                self.children.clear();
+            std::thread::sleep(core::time::Duration::from_millis(1));
+        }
+        let mut survivors = BTreeSet::new();
+        if !self.leader_reaped && !exited(leader) {
+            survivors.extend(self.leader);
+        }
+        for (&pid, &descriptor) in self.children.iter().chain(&self.members) {
+            if !exited(descriptor) {
+                survivors.insert(pid);
             }
-            if let Some(group) = self.cgroup.take() {
-                group.remove(retain_leader && !self.leader_reaped);
-            }
-            self.finished = true;
+        }
+        if let Some(group) = &self.cgroup {
+            survivors.extend(group.members());
+        }
+        for descriptor in
+            core::mem::take(&mut self.children).into_values().chain(core::mem::take(&mut self.members).into_values())
+        {
+            skein_shell::keeper::close_keeper_fd(descriptor);
+        }
+        self.finished = true;
+        report_left_running(&survivors.into_iter().collect::<Vec<_>>(), &mut std::io::stderr().lock());
+        if let Some(group) = self.cgroup.take() {
+            group.remove(retain_leader && !self.leader_reaped);
         }
     }
 }
@@ -1245,6 +1286,19 @@ impl Cgroup {
 }
 
 #[cfg(target_os = "linux")]
+fn report_left_running(pids: &[u32], stderr: &mut impl Write) {
+    if pids.is_empty() {
+        return;
+    }
+    let pids = pids.iter().map(u32::to_string).collect::<Vec<_>>().join(" ");
+    if std::thread::panicking() {
+        let _reported = writeln!(stderr, "skein-world: left running: {pids}");
+    } else {
+        crate::fail(&format!("left running: {pids}"));
+    }
+}
+
+#[cfg(target_os = "linux")]
 fn remove_cgroup(path: &Path) {
     if let Err(error) = fs::remove_dir(path) {
         if std::thread::panicking() {
@@ -1275,6 +1329,33 @@ impl Drop for LinuxTree {
 #[cfg(test)]
 mod tests {
     use super::{BUSY, Choice, Containment, NOT_SUPPORTED, choose};
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    #[should_panic(expected = "left running: 41 73")]
+    fn survivors_fail_outside_unwinding() {
+        super::report_left_running(&[], &mut Vec::new());
+        super::report_left_running(&[41, 73], &mut Vec::new());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn survivors_are_reported_once_without_a_second_panic_while_unwinding() {
+        struct Report<'a>(&'a core::cell::RefCell<Vec<u8>>);
+        impl Drop for Report<'_> {
+            fn drop(&mut self) {
+                super::report_left_running(&[41, 73], &mut *self.0.borrow_mut());
+            }
+        }
+        let stderr = core::cell::RefCell::new(Vec::new());
+        let failure = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
+            let _report = Report(&stderr);
+            crate::fail("the scenario's failure");
+        }))
+        .expect_err("the scenario still fails");
+        assert_eq!(failure.downcast_ref::<String>().map(String::as_str), Some("the scenario's failure"));
+        assert_eq!(*stderr.borrow(), b"skein-world: left running: 41 73\n");
+    }
 
     #[cfg(target_os = "linux")]
     #[test]
