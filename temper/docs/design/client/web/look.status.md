@@ -1,6 +1,8 @@
 # look: status
 
-2026-11-11. Where the tree's code lags or departs from [look.md](look.md).
+2026-11-12. Where the tree's code lags or departs from [look.md](look.md).
+
+- **Not yet:** the whole document: *The welcome's look*: the bar's end only while offline, temper box's line under the Welcome step's cards, and Model's and Ready's "Open Forgejo ↗" at its line's indent, muted [in flight: change 1991].
 
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and

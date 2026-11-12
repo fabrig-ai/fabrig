@@ -63,7 +63,11 @@
     phone the star and the title alone: the project, its "/" and the number go.
     "Draft" is a button pressed while the document shows: `Act::Mode` to Split,
     or back to Chat, its shortcut `Ctrl+\`; with no document, where
-    `chat_offers_draft` and the chat hasn't ended, "+ Draft", `Act::AddDraft`;
+    `chat_offers_draft` and the chat hasn't ended, "+ Draft", `Act::AddDraft`,
+    the write-up the browser's pane asks with "Write it up from this chat"
+    (`document.md`, 1): the browser's bar no longer draws "+ Draft" (the look
+    request `chat-bar`), and this look, kept as it is, does not decide that
+    (*Entered*, above);
     otherwise none. Nothing else of the bar draws: its status, Pause or Resume,
     Close, Start over, "Start goal…", the mode group and the spend are commands
     and the quiet line's.
