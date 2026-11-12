@@ -1983,11 +1983,19 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
 fn approvals_round_trip_each_review_of_yours_and_their_watch() {
     let limits = v1::CEILINGS;
     let mut rows = List::with_capacity(4);
-    for (yours, goal) in [
-        (v1::ApprovalYours::Counts, Some(u64::MAX)),
-        (v1::ApprovalYours::NoAccount, None),
-        (v1::ApprovalYours::TooFew, None),
-        (v1::ApprovalYours::OtherRole, None),
+    let size =
+        v1::ApprovalSize::new(&limits, v1::ApprovalSizeParts { files: 4, additions: 142, deletions: 18, cut: false })
+            .expect("approval size");
+    let saturated = v1::ApprovalSize::new(
+        &limits,
+        v1::ApprovalSizeParts { files: u32::MAX, additions: u32::MAX, deletions: u32::MAX, cut: true },
+    )
+    .expect("approval size at its bounds");
+    for (yours, goal, size) in [
+        (v1::ApprovalYours::Counts, Some(u64::MAX), None),
+        (v1::ApprovalYours::NoAccount, None, Some(size)),
+        (v1::ApprovalYours::TooFew, None, Some(saturated)),
+        (v1::ApprovalYours::OtherRole, None, None),
     ] {
         rows.push(
             v1::ApprovalRow::new(
@@ -2016,6 +2024,7 @@ fn approvals_round_trip_each_review_of_yours_and_their_watch() {
                     .expect("set at its name bound")])),
                     whole: true,
                     yours,
+                    size,
                 },
             )
             .expect("approval row at its byte bounds"),

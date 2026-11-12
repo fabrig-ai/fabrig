@@ -605,6 +605,11 @@
     `whole`, whether its reviews were read whole;
   - `yours`, `ApprovalYours`: `counts`, `no_account`, `too_few` or
     `other_role`, whether the watcher's review would count and, if not, why;
+  - `size`, option, last, `ApprovalSize`: the pull request's size at the
+    head its reviews were read at, as the forge counts it
+    (`../../domain/forge/change/questions.md`, 2): `files`, `additions`
+    and `deletions`, u32 each, a count past 4294967295 kept at it; and
+    `cut`, bool, whether one was; none where the forge gave none;
 
   then `more`, the rows past the bound. Times are nanoseconds since the
   epoch. Every client of the party's watches it once, for the session (`../pages/needs-you.md`, 1, *What the client

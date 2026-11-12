@@ -199,6 +199,7 @@ pub(in crate::tests) fn current() -> api::Pull {
     api::Pull {
         queued: None,
         dequeued: None,
+        size: None,
         number: 9,
         state: api::State::Open,
         head: Box::from(&b"topic"[..]),

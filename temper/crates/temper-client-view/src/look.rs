@@ -1452,6 +1452,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-only-item",
         b"temper-only-q",
         b"temper-team-shared",
+        b"temper-chips",
+        b"temper-size-files",
     ],
     regions: &[b"temper-link"],
 };
@@ -1927,6 +1929,10 @@ pub const ONLY: Style = Style { owner: owner(), token: 726 };
 pub const ONLY_ITEM: Style = Style { owner: owner(), token: 727 };
 /// An Only you question (temper/docs/design/client/pages/README.md, Only you).
 pub const ONLY_Q: Style = Style { owner: owner(), token: 728 };
+
+/// An approval's size (temper/docs/design/client/forge/README.md, 4.1).
+pub const CHIPS: Style = Style { owner: owner(), token: 730 };
+pub const SIZE_FILES: Style = Style { owner: owner(), token: 731 };
 
 #[cfg(test)]
 mod tests {

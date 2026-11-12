@@ -48,7 +48,8 @@ enum Kind { forgejo, github }
 # A change waiting on a person's review (client/forge/records.md; domain/forge/change/questions.md, 2).
 enum ApprovalYours { counts, no_account, too_few, other_role }
 record ApprovalSet { number: u8 name: bytes 40 }
-record ApprovalRow { task: u64 project: u32 goal: option u64 forge: u16 kind: Kind owner: bytes 1024 name: bytes 1024 pull: u64 address: bytes 2048 title: bytes 256 since: u64 scope: u32 rule: u32 role: u32 required: u32 counted: u32 sets: list 6 ApprovalSet whole: bool yours: ApprovalYours }
+record ApprovalSize { files: u32 additions: u32 deletions: u32 cut: bool }
+record ApprovalRow { task: u64 project: u32 goal: option u64 forge: u16 kind: Kind owner: bytes 1024 name: bytes 1024 pull: u64 address: bytes 2048 title: bytes 256 since: u64 scope: u32 rule: u32 role: u32 required: u32 counted: u32 sets: list 6 ApprovalSet whole: bool yours: ApprovalYours size: option ApprovalSize }
 versioned record Approvals { rows: list 32 ApprovalRow more: u32 }
 
 record Looked { project: u32 }

@@ -14,6 +14,15 @@ pub enum Yours {
     OtherRole,
 }
 
+/// The pull request's size at the reviewed head (temper/docs/design/client/forge/records.md, approvals).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Size {
+    pub files: u32,
+    pub additions: u32,
+    pub deletions: u32,
+    pub cut: bool,
+}
+
 /// A change waiting on a person's review on its forge
 /// (temper/docs/design/client/forge/records.md; temper/docs/design/client/forge/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -39,6 +48,7 @@ pub struct Row {
     pub sets: Box<[ApprovalSet]>,
     pub whole: bool,
     pub yours: Yours,
+    pub size: Option<Size>,
 }
 /// A path set touched by this approval's change (temper/docs/design/client/forge/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -212,6 +222,18 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
             counted: value.counted,
             sets: sets.into_boxed(),
             whole: value.whole,
+            size: match value.size {
+                Some(size) => {
+                    let size = size.into_parts();
+                    Some(Size {
+                        files: size.files,
+                        additions: size.additions,
+                        deletions: size.deletions,
+                        cut: size.cut,
+                    })
+                }
+                None => None,
+            },
             yours: match value.yours {
                 w::ApprovalYours::Counts => Yours::Counts,
                 w::ApprovalYours::NoAccount => Yours::NoAccount,

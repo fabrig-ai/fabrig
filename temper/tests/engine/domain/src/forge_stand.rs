@@ -134,6 +134,11 @@ impl ForgeStand {
     }
 
     pub fn push_branch(&mut self, repository: u32, branch: &[u8]) {
+        self.push_branch_with_file(repository, branch, b"file", b"review this diff");
+    }
+
+    /// Push a new branch whose one changed file is supplied by the story.
+    pub fn push_branch_with_file(&mut self, repository: u32, branch: &[u8], path: &[u8], content: &[u8]) {
         assert!(self.quiescent(), "push between stand calls");
         let name = self.repositories.get(&repository).expect("configured repository").clone();
         // Finish setup's CI before making the push's synchronous calls.
@@ -173,8 +178,7 @@ impl ForgeStand {
             self.out.pop(),
             Some(fake::Request::Reply { result: Ok(raw::Answer::Branch(raw::Created::Created)), .. })
         ));
-        fake::advance(&mut self.domain, &self.env, &name, branch, b"file", b"review this diff", 1)
-            .expect("pushed change head");
+        fake::advance(&mut self.domain, &self.env, &name, branch, path, content, 1).expect("pushed change head");
         // The push's zero-latency CI is complete before the engine starts.
         while self.domain.is_due(self.env.now) {
             fake::fire(&mut self.domain, &self.env, &mut self.out);

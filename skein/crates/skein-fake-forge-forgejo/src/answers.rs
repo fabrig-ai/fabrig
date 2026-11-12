@@ -88,6 +88,9 @@ pub fn pull(config: &Config, setup: &Store, id: u64, pull: &a::Pull) -> d::PullR
         // Forgejo exposes a boolean: false while mergeability is checking.
         mergeable: pull.mergeable,
         requested_reviewers: reviewers.into_boxed(),
+        changed_files: Some(pull.size.files),
+        additions: Some(pull.size.additions),
+        deletions: Some(pull.size.deletions),
     }
 }
 #[must_use]

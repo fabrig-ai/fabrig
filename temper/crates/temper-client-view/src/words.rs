@@ -1643,6 +1643,9 @@ pub enum Word {
     ApprovalObservers,
     ApprovalRole,
     ApprovalRoles,
+    ApprovalSizeLines,
+    ApprovalSizeFile,
+    ApprovalSizeFiles,
     ProposalOwnedApproval,
     ApproveTitle,
     ApproveTyping,
@@ -1789,7 +1792,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2342;
+const PHRASES: u32 = 2345;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1816,10 +1819,10 @@ const PHRASES: u32 = 2342;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4223;
+const SEGMENTS: u32 = 4232;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56681;
-const ALL: [Word; 1658] = [
+const ENGLISH_BYTES: u32 = 56704;
+const ALL: [Word; 1661] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -3406,6 +3409,9 @@ const ALL: [Word; 1658] = [
     Word::ApprovalObservers,
     Word::ApprovalRole,
     Word::ApprovalRoles,
+    Word::ApprovalSizeLines,
+    Word::ApprovalSizeFile,
+    Word::ApprovalSizeFiles,
     Word::ProposalOwnedApproval,
     Word::ApproveTitle,
     Word::ApproveTyping,
@@ -3520,6 +3526,9 @@ impl Word {
             Self::ApprovalObservers => 4143,
             Self::ApprovalRole => 4144,
             Self::ApprovalRoles => 4145,
+            Self::ApprovalSizeLines => 5674,
+            Self::ApprovalSizeFile => 5675,
+            Self::ApprovalSizeFiles => 5676,
             Self::ProposalOwnedApproval => 4146,
             Self::ApproveTitle => 4147,
             Self::ApproveTyping => 4148,
@@ -5640,6 +5649,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApprovalObservers => (&[b"observers"], &[]),
         Word::ApprovalRole => (&[b"someone with role ", b""], &[Number]),
         Word::ApprovalRoles => (&[b"people with role ", b""], &[Number]),
+        Word::ApprovalSizeLines => (&[b"+", b" -", b""], &[Name, Name]),
+        Word::ApprovalSizeFile => (&[b" in 1 file"], &[]),
+        Word::ApprovalSizeFiles => (&[b" in ", b" files"], &[Name]),
         Word::ApproveTitle => (&[b"Sign in a terminal?"], &[]),
         Word::ApproveTyping => (&[b"Type the code your terminal shows."], &[]),
         Word::ApproveUnread => (&[b"That isn\xe2\x80\x99t a terminal\xe2\x80\x99s code. Type the eight letters your terminal shows."], &[]),
