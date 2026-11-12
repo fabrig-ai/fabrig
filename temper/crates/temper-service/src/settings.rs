@@ -112,6 +112,7 @@ pub struct Engine {
     pub jig: jig_protocol_config::Engine,
     pub clients: crate::startup::application::Clients,
     pub sign_in: Option<SignIn>,
+    pub push: Option<Push>,
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
     pub demo: Option<Demo>,
@@ -159,6 +160,14 @@ pub struct Worker {
     pub root: Box<[u8]>,
     /// The absolute path of the git program, or none on this machine.
     pub git: Option<Box<[u8]>>,
+}
+
+/// Checked push key and destinations (domain/forge/attention.md, 7.3).
+#[derive(Debug)]
+pub struct Push {
+    pub key: skein_push::Vapid,
+    pub subject: Box<[u8]>,
+    pub services: Box<[Box<[u8]>]>,
 }
 
 /// Checked Google registration; the client secret is private startup input.

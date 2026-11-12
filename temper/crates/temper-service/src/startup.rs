@@ -15,6 +15,9 @@ mod checkout;
 pub(crate) mod checks;
 mod problems;
 #[cfg(test)]
+#[path = "tests/push_configuration.rs"]
+mod push_configuration;
+#[cfg(test)]
 #[path = "tests/welcome_policy.rs"]
 mod welcome_policy;
 use crate::{AccountsRuntime, Service, WorkerRuntime, settings};
@@ -175,6 +178,7 @@ pub struct Named {
     /// `application.clients.public`.
     pub public: Option<application::Origin>,
     pub sign_in: Option<SignIn>,
+    pub push: Option<application::push::Push>,
     /// `application.clients.bundle`, for the binary's read.
     pub bundle: Option<Box<[u8]>>,
     /// The bundle's limits, overrides applied.
@@ -658,6 +662,7 @@ pub fn named_with(
         link: parsed.engine.clients.link,
         public: parsed.application.clients.public,
         sign_in: parsed.application.sign_in,
+        push: parsed.application.push,
         bundle: parsed.application.clients.bundle,
         bundle_limits: parsed.application.limits.clients,
         webhooks: parsed.application.webhooks,
@@ -821,6 +826,7 @@ pub(crate) fn checked_start_with(
         jig: parsed.engine,
         clients: parsed.application.clients,
         sign_in: resolved.sign_in,
+        push: resolved.push,
         webhooks: resolved.webhooks,
         files: settings::Files { entries: files.entries.clone() },
         demo: parsed.application.demo,

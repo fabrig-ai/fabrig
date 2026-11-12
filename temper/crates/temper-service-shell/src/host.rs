@@ -79,6 +79,12 @@ impl skein_shell::Host for Host {
                 .and_then(|name| std::net::ToSocketAddrs::to_socket_addrs(&(name, port)).ok()?.next());
             self.service.resolved(forge, address);
         }
+        for (token, name, port) in self.service.unresolved_pushes() {
+            let address = std::str::from_utf8(&name)
+                .ok()
+                .and_then(|name| std::net::ToSocketAddrs::to_socket_addrs(&(name, port)).ok()?.next());
+            self.service.resolved_push(token, address);
+        }
         self.watch.ended(Part::Names, self.clock.now().now);
     }
     fn completions(&mut self) -> &mut Queue<Complete> {

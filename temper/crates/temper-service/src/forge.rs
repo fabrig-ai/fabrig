@@ -477,11 +477,18 @@ pub(crate) fn prepare(
 }
 
 pub(crate) fn config(
-    _settings: &settings::Engine,
+    settings: &settings::Engine,
     deployment: [u8; 16],
 ) -> (temper_engine_domain_forge::Config, Box<[forge::GitIdentity]>) {
     (
-        temper_engine_domain_forge::Config { push: None, namespace: Box::new(deployment), writers: Box::new([]) },
+        temper_engine_domain_forge::Config {
+            push: match &settings.push {
+                Some(push) => Some(push.services.clone()),
+                None => None,
+            },
+            namespace: Box::new(deployment),
+            writers: Box::new([]),
+        },
         Box::new([]),
     )
 }

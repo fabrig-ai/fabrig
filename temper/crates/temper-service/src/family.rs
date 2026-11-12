@@ -30,6 +30,7 @@ pub struct Deployment {
     pub welcome: bool,
     pub owned: bool,
     pub program_login: Option<Box<[u8]>>,
+    pub push: Option<[u8; 65]>,
 }
 
 /// Decode the keyed request, preserving its admission envelope and supplied digest.
@@ -1844,7 +1845,7 @@ fn deployment_answer(deployment: &Deployment, limits: &w::Limits) -> Box<[u8]> {
             welcome: deployment.welcome,
             owned: deployment.owned,
             program_login: deployment.program_login.clone(),
-            push: None,
+            push: deployment.push,
         },
     )
     .expect("checked deployment facts fit the wire");
