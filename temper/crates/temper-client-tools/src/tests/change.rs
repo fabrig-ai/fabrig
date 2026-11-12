@@ -1033,7 +1033,7 @@ fn resource_holds_keep_full_names_and_recovery_in_both_ctl_forms() {
     }
 }
 
-fn approval_parts() -> w::ChangePanelParts {
+pub(super) fn approval_parts() -> w::ChangePanelParts {
     let mut parts = panel(w::Step::Queued(
         w::Queued::new(&w::CEILINGS, w::QueuedParts { place: 1, ahead: List::with_capacity(0) }).unwrap(),
     ))

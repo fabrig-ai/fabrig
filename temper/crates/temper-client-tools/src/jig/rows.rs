@@ -285,6 +285,7 @@ pub const ANSWER: Tool = Tool {
 with task take before answering; task hand-back returns it to the role.
 Use the printed revision: a changed contract refuses a stale answer.
 Choice codes belong to the contract; TEXT explains the choice.
+CHOICE answers only a task with choices; a task taking words is answered with TEXT alone.
 TEXT's bound is the most any call takes; a person task may ask for less:
 task show prints what it asks, and a refusal past it names the bound.
 ",

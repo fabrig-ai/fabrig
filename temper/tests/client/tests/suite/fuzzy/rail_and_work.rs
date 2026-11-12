@@ -133,7 +133,18 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
             1 => Belongs::Chat(rng.between(1, OWNERS)),
             _ => Belongs::Nothing,
         };
-        facts.changes.push(Change { task: rng.between(1, CHANGE_ROWS), at, belongs }).expect("uncapped changes");
+        let parties = if rng.chance(500) { vec![1, 5] } else { vec![] };
+        let signed = if matches!(at, Where::Landed { .. }) {
+            let words = work::signed(1, &parties, Some(&jig_client_kit::stories::project()));
+            assert_eq!(words.is_some(), !parties.is_empty(), "only nonempty sign-offs have words");
+            words
+        } else {
+            None
+        };
+        facts
+            .changes
+            .push(Change { signed, task: rng.between(1, CHANGE_ROWS), at, belongs })
+            .expect("uncapped changes");
     }
     for _ in 0..rng.between(0, ROWS) {
         let ready = rng.chance(500);
@@ -157,7 +168,13 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
         if let Where::Landed { at, .. } = change.at {
             facts
                 .landed_default
-                .push(work::Landing { task: change.task, at, belongs: change.belongs, commit: [0xab; 32] })
+                .push(work::Landing {
+                    signed: change.signed.clone(),
+                    task: change.task,
+                    at,
+                    belongs: change.belongs,
+                    commit: [0xab; 32],
+                })
                 .expect("uncapped default landings");
         }
     }
@@ -186,7 +203,7 @@ impl Oracle {
             oracle.goals.entry(row.task).or_insert(*row);
         }
         for row in &facts.changes {
-            oracle.changes.entry(row.task).or_insert(*row);
+            oracle.changes.entry(row.task).or_insert(row.clone());
         }
         for row in &facts.chats {
             oracle.chats.entry(row.task).or_insert(*row);
@@ -297,6 +314,22 @@ impl Oracle {
             landed,
             "seed {seed}: Landed groups goals in the inclusive week, newest first, ties by change task"
         );
+        for card in &placed.in_flight {
+            for row in &card.changes {
+                assert_eq!(
+                    row.signed,
+                    self.changes.get(&row.task).expect("listed change").signed,
+                    "seed {seed}: card preserves its row's signers"
+                );
+            }
+        }
+        for row in &placed.landed {
+            assert_eq!(
+                row.signed,
+                self.changes.get(&row.change).expect("listed landing").signed,
+                "seed {seed}: landed row preserves its signers"
+            );
+        }
         assert_eq!(placed.goal_branches, 0, "this world lands its changes into default branches");
         let chats = self
             .chats
@@ -332,7 +365,7 @@ fn item_key(item: Item) -> (u8, u64) {
 
 fn cards(section: &List<Card>) -> Vec<((u8, u64), Vec<u64>)> {
     let mut cards: Vec<_> =
-        section.iter().map(|card| (item_key(card.item), card.changes.iter().copied().collect())).collect();
+        section.iter().map(|card| (item_key(card.item), card.changes.iter().map(|row| row.task).collect())).collect();
     cards.sort_unstable();
     cards
 }

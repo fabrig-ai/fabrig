@@ -22,7 +22,10 @@
     its `landed` and its `landed_default`); the person's chats' (*The Chats page*: the chats' query and its
     documents' notes); and the project's landed drafts, the subject `drafts`
     (`../forge/records.md`, *A project's landed drafts*), a watch refused or
-    ended counting as answered with none. Work under each filter, `Goals` and
+    ended counting as answered with none; and, to name who signed, the project's people, jig's
+    `Read::Project { project }` on opening and again on each `me`
+    delivery while none is pending, as Team reads them (`team.md`, 1,
+    *Its reads*), or the rail's read of it where one serves. Work under each filter, `Goals` and
     `Changes` open the same four, and a move among them keeps them open, as a
     move of Goals' filter keeps its reads; leaving them for any other page
     closes them.
@@ -124,7 +127,8 @@
     `budget` as the goal's page says it (`goal.md`, 2), left out with no budget. Then
     its headline, *Goals*' row's. Then, while it has delegates, its bar, done
     of total as *Goals*' "6 / 9" counts them. Then a row for each change on
-    the card: "✓", its title and "landed CLOCK"; or "·", its title and
+    the card: "✓", its title, " · signed by NAMES" while it kept
+    sign-offs (*Who signed*), and "landed CLOCK"; or "·", its title and
     "checking" or "queued 2nd", in *Changes*' words. Then, while it has a
     report, its byline: "Written by the goal at CLOCK", its report's `at`.
   - **A change's card:** the tag "change" in code's colour, `.who.c`; its
@@ -161,10 +165,27 @@
     in its change's `lineage_chips`, else its change's title (a goal's
     landing takes the goal's title as its words, `../../domain/forge/branches.md`,
     2), a link to the goal's `Task`; a change's row its change's title, a
-    link to its change's `Task`; and at its right its landing's commit,
+    link to its change's `Task`; then " · signed by NAMES", in the
+    byline's style, while the `landed_default` row the row was made from
+    kept sign-offs, a goal's row its newest landing's (*Who signed*); and
+    at its right its landing's commit,
     its first seven hex digits as a short commit is written
     (`../web/public.md`, 3, *A short commit*), after "a chat with you · " on a
     chat's change's row.
+  - **Who signed** (`../../domain/forge/change/gates.md`, 2, *Sign-offs
+    kept at landing*), as the whole story's `team/work.html` draws it: a
+    landed row's `signed`, from the changes' `landed` or `landed_default`
+    row it was made from, named as Team names people (`team.md`, 1):
+    "you" for the person reading, first, then the others in `signed`'s
+    order, each the member's name, or its login where the name is empty;
+    then, as one more item, the parties the project's document doesn't
+    list, "one other" or "N others", N in words from two to nine, then
+    digits. Two items are joined by " and ", more by ", " with " and "
+    before the last: "signed by you", "signed by you and Sam", "signed by
+    you, Sam and Kit", "signed by Sam and one other", "signed by two
+    others". While the project's people are unread, refused or failed, no
+    row says who signed. One pure function of the domain's,
+    `temper_client_domain::pages::work::signed`, gives the words.
   - **Under Drafts,** Work's head and filters, then the Drafts section alone.
   - **Before an answer and with nothing:** a section claims nothing until its
     reads have answered (`README.md`'s intro). With all three answered and nothing

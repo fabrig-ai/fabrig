@@ -2,7 +2,9 @@
 
 use alloc::boxed::Box;
 use core::cmp::Reverse;
+use jig_client::contract as c;
 use skein_lib::{Duration, List, Map, Set, Wall};
+use temper_client_protocol_wire::v1 as w;
 
 /// The four lists read for Work.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -49,11 +51,12 @@ pub struct Goal {
 }
 
 /// A change on its way or landed, and where it came from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Change {
     pub task: u64,
     pub at: Where,
     pub belongs: Belongs,
+    pub signed: Option<Box<[u8]>>,
 }
 
 /// A change's place in its queue or its landing time.
@@ -93,25 +96,34 @@ pub enum Item {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Card {
     pub item: Item,
-    pub changes: List<u64>,
+    pub changes: List<Row>,
+}
+
+/// A card's change and the words kept by its landed row.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Row {
+    pub task: u64,
+    pub signed: Option<Box<[u8]>>,
 }
 
 /// A default-branch landing and its task's provenance.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Landing {
     pub task: u64,
     pub commit: [u8; 32],
     pub at: Wall,
     pub belongs: Belongs,
+    pub signed: Option<Box<[u8]>>,
 }
 
 /// A week's goal or independent change at its newest default-branch landing.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Landed {
     pub item: Item,
     pub change: u64,
     pub commit: [u8; 32],
     pub at: Wall,
+    pub signed: Option<Box<[u8]>>,
 }
 
 /// Work's In flight, Drafts and Landed this week sections and its filters' counts.
@@ -273,7 +285,7 @@ fn landed_this_week(rows: &List<Landing>, start: Wall, wall: Wall) -> List<Lande
     let mut recent = Map::with_capacity(rows.len());
     for row in rows {
         if row.at >= start && row.at <= wall {
-            recent.insert((Reverse(row.at), row.task), *row).expect("one key per landing");
+            recent.insert((Reverse(row.at), row.task), row.clone()).expect("one key per landing");
         }
     }
     let mut tasks = Set::with_capacity(rows.len());
@@ -293,7 +305,7 @@ fn landed_this_week(rows: &List<Landing>, start: Wall, wall: Wall) -> List<Lande
             Belongs::Chat(_) | Belongs::Nothing => Item::Change(row.task),
         };
         landed
-            .push(Landed { item, change: row.task, commit: row.commit, at: row.at })
+            .push(Landed { item, change: row.task, commit: row.commit, at: row.at, signed: row.signed.clone() })
             .expect("no more rows than landings");
     }
     landed
@@ -338,7 +350,7 @@ fn ordered_changes(changes: &List<Change>) -> List<Change> {
         if !seen.insert(change.task).expect("one key per change row") {
             continue;
         }
-        let mut change = *change;
+        let mut change = change.clone();
         for next in ordered.iter_mut() {
             if change_before(&change, next) {
                 core::mem::swap(next, &mut change);
@@ -364,11 +376,12 @@ fn change_before(left: &Change, right: &Change) -> bool {
     }
 }
 
-fn belonging(changes: &List<Change>, owner: Belongs) -> List<u64> {
+fn belonging(changes: &List<Change>, owner: Belongs) -> List<Row> {
     let mut held = List::with_capacity(changes.len());
     for change in changes {
         if change.belongs == owner {
-            held.push(change.task).expect("no more owned changes than changes");
+            held.push(Row { task: change.task, signed: change.signed.clone() })
+                .expect("no more owned changes than changes");
         }
     }
     held
@@ -429,8 +442,65 @@ pub fn overrides(root: &crate::Domain, project: u32) -> Overrides {
     }
 }
 
+/// Name a landing's signers, reader first, leaving words out until people are read.
+#[must_use]
+pub fn signed(reader: u64, parties: &[u64], people: Option<&c::Project>) -> Option<Box<[u8]>> {
+    use super::signing::{count, join};
+    let people = people?;
+    let mut names: List<Box<[u8]>> = List::uncapped();
+    if parties.contains(&reader) {
+        names.push(b"you".as_slice().into()).expect("one name per signer");
+    }
+    let mut others = 0_u32;
+    for party in parties {
+        if *party == reader {
+            continue;
+        }
+        let mut name = None;
+        for member in &people.members {
+            if member.party == *party {
+                name = Some(if member.name.bytes().is_empty() { member.login.bytes() } else { member.name.bytes() });
+                break;
+            }
+        }
+        match name {
+            Some(name) => names.push(name.into()).expect("one name per signer"),
+            None => others = others.saturating_add(1),
+        }
+    }
+    if others > 0 {
+        names
+            .push(join(&[&count(others), if others == 1 { b" other" } else { b" others" }]))
+            .expect("one item for unlisted parties");
+    }
+    if names.is_empty() {
+        return None;
+    }
+    let mut words = Box::from(b"signed by ".as_slice());
+    for (index, name) in names.iter().enumerate() {
+        let separator: &[u8] = if index == 0 {
+            b""
+        } else if index.checked_add(1).expect("name index fits") == usize::try_from(names.len()).expect("names fit") {
+            b" and "
+        } else {
+            b", "
+        };
+        words = join(&[&words, separator, name]);
+    }
+    Some(words)
+}
+
+fn row_signed(reader: u64, row: &w::ChangesLanded, people: Option<&c::Project>) -> Option<Box<[u8]>> {
+    let mut parties = List::with_capacity(row.signed().len());
+    for signer in row.signed() {
+        parties.push(signer.party()).expect("one party per sign-off");
+    }
+    signed(reader, parties.as_slice(), people)
+}
+
 /// Gather the four lists only once each has answered (client/pages/README.md, Work).
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "Work joins its four lists and each landing's signers in one facts read")]
 pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
     use super::changes::State;
     let goals = root.pages().goals()?;
@@ -451,6 +521,8 @@ pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
         State::Ended => None,
     };
     let mut facts = Facts::default();
+    let people = root.pages.team.document(project);
+    let reader = root.pages().me(root.client())?.party.number;
     match drafts.state() {
         super::drafts::State::Loading => return None,
         super::drafts::State::Shown(panel) => {
@@ -479,6 +551,7 @@ pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
                     .changes
                     .push(Change {
                         task: row.task(),
+                        signed: None,
                         at: Where::Queued {
                             place: u32::try_from(index)
                                 .expect("wire queue fits")
@@ -498,6 +571,7 @@ pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
                     task: row.task(),
                     at: Where::Landed { at: Wall::from_nanos(row.at()), default_branch: row.default_branch() },
                     belongs: belongs(root, row.task()),
+                    signed: row_signed(reader, row, people),
                 })
                 .expect("one fact per change row");
         }
@@ -509,6 +583,7 @@ pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
                     commit: *row.commit(),
                     at: Wall::from_nanos(row.at()),
                     belongs: belongs(root, row.task()),
+                    signed: row_signed(reader, row, people),
                 })
                 .expect("one fact per default-branch landing");
         }
