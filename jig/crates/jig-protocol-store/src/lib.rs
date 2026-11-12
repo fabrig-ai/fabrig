@@ -413,22 +413,11 @@ fn memory_env(limits: skein_kv::Limits) -> Env<skein_kv::Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits }
 }
 
-#[rustfmt::skip]
-#[path = "generated/accounts_v2.rs"]
-pub mod accounts_v2;
-#[rustfmt::skip]
-#[path = "generated/notes_v1.rs"]
-pub mod notes_v1;
-#[rustfmt::skip]
-#[expect(clippy::similar_names, reason = "generated StoredActed retains its domain fields act and at")]
-#[path = "generated/people_v15.rs"]
-pub mod people_v15;
-#[rustfmt::skip]
-#[path = "generated/tasks_v10.rs"]
-pub mod tasks_v10;
-#[rustfmt::skip]
-#[path = "generated/core_v6.rs"]
-pub mod core_v6;
+pub use jig_protocol_store_core::core_v6;
+pub use jig_protocol_store_families::accounts_v2;
+pub use jig_protocol_store_families::notes_v1;
+pub use jig_protocol_store_people::people_v15;
+pub use jig_protocol_store_tasks::tasks_v10;
 pub mod keys;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
@@ -439,16 +428,10 @@ pub use boundary::{
 #[cfg(test)]
 mod tests;
 
-#[rustfmt::skip]
-#[path = "generated/settings_v3.rs"]
-pub mod settings_v3;
-#[rustfmt::skip]
-#[path = "generated/component_v3.rs"]
-pub mod component_v3;
+pub use jig_protocol_store_families::component_v3;
+pub use jig_protocol_store_settings::settings_v3;
 #[rustfmt::skip]
 #[path = "generated/layouts.rs"]
 mod layouts;
 
-#[rustfmt::skip]
-#[path = "generated/secrets_v1.rs"]
-pub mod secrets_v1;
+pub use jig_protocol_store_families::secrets_v1;
