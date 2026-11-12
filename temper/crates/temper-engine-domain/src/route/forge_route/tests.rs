@@ -2252,6 +2252,8 @@ fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
         }
     ));
     super::start_landing(&mut domain, &env, 7);
+    let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
+    drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), resource));
     let Some(Work::Forge(forge::Event::Landing { row })) = domain.work.pop() else { panic!("landing row") };
     let task = row.landing.task;
     assert_eq!(row.landing.members[0].change, 7);
@@ -2332,6 +2334,8 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
                 5,
                 crate::translate::ProjectLanding {
                     gate_retries: 2,
+                    combine_main: crate::Combine::Merge,
+                    combine_other: crate::Combine::Squash,
                     gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                     check_timeout: None,
                     close_job: None,

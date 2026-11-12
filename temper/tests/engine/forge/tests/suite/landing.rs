@@ -42,10 +42,10 @@ fn hex(bytes: &[u8]) -> Box<[u8]> {
     bytes.iter().flat_map(|byte| top::hex(*byte)).collect()
 }
 #[test]
-fn a_landing_of_one_is_rebased_proved_by_one_run_and_fast_forwarded() {
+fn a_landing_of_one_is_prepared_on_its_branch_proved_and_fast_forwarded() {
     let mut world = landings::first_landing();
-    let candidate = translate::commit(world.branch(b"temper/51"));
-    let row = world.change(CHANGE);
+    let candidate = world.landing(LANDING).landing.members[0].candidate.expect("candidate");
+    let row = world.change(CHANGE).clone();
     assert!(matches!(row.change.state, change::State::Landed { merge, .. } if merge == candidate));
     assert_eq!(translate::commit(world.branch(b"main")), candidate);
     assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Landed);
@@ -77,8 +77,13 @@ fn a_landing_of_one_is_rebased_proved_by_one_run_and_fast_forwarded() {
         })
         .collect();
     assert_eq!(writes.len(), 5);
-    assert!(matches!(writes[0], api::Write::Update { style: api::UpdateStyle::Rebase, .. }));
-    assert!(matches!(writes[1], api::Write::Dispatch { .. }));
+    let round = &world.landing(LANDING).landing.round;
+    let title = format!("Land #{}: {}", row.pull.expect("member pull"), String::from_utf8_lossy(&row.title));
+    assert!(
+        matches!(&writes[0], api::Write::OpenPull { title: actual, head, base, .. } if actual.as_ref() == title.as_bytes() && *head == round.branch && base.as_ref() == b"main")
+    );
+    assert!(matches!(&writes[1], api::Write::Dispatch { branch, .. } if *branch == round.branch));
+    assert_ne!(translate::commit(world.branch(b"temper/51")), candidate, "the member's branch is untouched");
     for (index, check, description, expected_link) in [
         (2, api::Check::Pending, format!("key {short}"), Box::<[u8]>::from([])),
         (3, api::Check::Passed, format!("key {short} passed"), link),
@@ -95,7 +100,7 @@ fn a_landing_of_one_is_rebased_proved_by_one_run_and_fast_forwarded() {
         );
     }
     assert!(
-        matches!(writes[4], api::Write::Merge { head, how: api::MergeHow::FastForwardOnly, .. } if head == candidate)
+        matches!(writes[4], api::Write::Merge { number, head, how: api::MergeHow::FastForwardOnly } if head == candidate && Some(number) == round.pull)
     );
 }
 #[test]
@@ -105,7 +110,7 @@ fn a_documentation_landing_lands_on_its_receipt_with_no_run() {
     let first_link = receipt(&world).1.run.url.clone();
     world.take_calls();
     landings::documentation_landing(&mut world, DOC_CHANGE, DOC_LANDING, b"temper/52");
-    let candidate = translate::commit(world.branch(b"temper/52"));
+    let candidate = world.landing(DOC_LANDING).landing.members[0].candidate.expect("candidate");
     assert!(matches!(world.change(DOC_CHANGE).change.state, change::State::Landed { merge, .. } if merge == candidate));
     assert_eq!(translate::commit(world.branch(b"main")), candidate);
     assert_eq!(world.landing(DOC_LANDING).landing.members[0].gates[0].proof, landing::Proof::Passed { key: first_key });
@@ -119,7 +124,7 @@ fn a_documentation_landing_lands_on_its_receipt_with_no_run() {
         })
         .collect();
     assert_eq!(writes.len(), 3);
-    assert!(matches!(writes[0], api::Write::Update { style: api::UpdateStyle::Rebase, .. }));
+    assert!(matches!(writes[0], api::Write::OpenPull { .. }));
     let short = String::from_utf8(hex(&first_key[..8]).into_vec()).expect("hex");
     assert_eq!(
         writes[1],
@@ -284,7 +289,7 @@ fn a_landing_is_read_through_its_watch_while_it_proves_and_after_it_lands() {
             assert_eq!((view.task, view.phase, view.turn), (LANDING, landing::Phase::Proving, None));
             let member = &view.members[0];
             assert_eq!(member.change, CHANGE);
-            assert_eq!(member.candidate, Some(translate::commit(world.branch(b"temper/51"))));
+            assert_eq!(member.candidate, Some(world.landing(LANDING).landing.members[0].candidate.expect("candidate")));
             assert!(member.base.is_some());
             assert!(matches!(member.gates[0].proof, top::GateProof::Dispatched { attempt: 1, .. }));
             assert!(member.gates[0].key.is_some());
@@ -392,10 +397,23 @@ fn a_moving_base_reruns_only_the_gate_that_reads_it() {
     assert_eq!(member.gates[0].proof, first[0].proof, "the non-base receipt holds");
     assert_ne!(member.gates[1].proof, first[1].proof, "the base key moves");
     let final_runs = runs(&world);
-    assert_eq!(
-        world.take_calls().iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(),
-        3
-    );
+    let calls = world.take_calls();
+    assert_eq!(world.landing(LANDING).landing.stale_proofs, 1);
+    assert_eq!(world.landing(LANDING).landing.preparation, 2);
+    let close =
+        calls.iter().position(|op| matches!(op, api::Op::Write(api::Write::Close { .. }))).expect("round closed");
+    let delete = calls
+        .iter()
+        .position(|op| matches!(op, api::Op::Write(api::Write::DeleteBranch { .. })))
+        .expect("branch deleted");
+    let open = calls
+        .iter()
+        .enumerate()
+        .filter_map(|(at, op)| matches!(op, api::Op::Write(api::Write::OpenPull { .. })).then_some(at))
+        .nth(1)
+        .expect("next round opened");
+    assert!(close < delete && delete < open, "the old round ends before the next prepare");
+    assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(), 3);
     assert!(final_runs.iter().any(|run| !initial.iter().any(|old| old.id == run.id)), "a new run was made");
     assert!(final_runs.iter().any(|run| {
         run.inputs.iter().any(|(name, value)| name.as_ref() == b"temper_base" && *value == hex(&next_base[..20]))

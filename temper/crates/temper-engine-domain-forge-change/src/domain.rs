@@ -46,7 +46,9 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if let Some(stepped) = after_landing(&next, facts, standing, now) {
         return stepped;
     }
-    if change.way == Way::Turn && let Some(Ask::Landed { prefix }) = facts.ask {
+    if change.way == Way::Turn
+        && let Some(Ask::Landed { prefix }) = facts.ask
+    {
         next.state = State::Landed { merge: prefix, since: now };
         next.owns_turn = false;
         next.released = None;
@@ -74,6 +76,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         return released_step(next, why, facts, standing);
     }
     if facts.contains_head == Status::Passed
+        && (change.way == Way::Queue || change.landing.is_none())
         && !standing.delegate_live
         && !facts.writer_taken
         && facts.drift.is_none()
@@ -1555,9 +1558,28 @@ fn pushed(change: &Change, head: [u8; 32]) -> State {
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the landing's resolution uses the change's standing delegate")]
-fn ready(change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
+fn ready(
+    mut change: Change,
+    head: [u8; 32],
+    ready_since: Wall,
+    facts: &Facts,
+    standing: &Heard,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
+    if standing.delegate_live {
+        return Stepped { change, decision: Decision::Wait { until: None } };
+    }
     if facts.branch != Some(head) {
+        if change.last_head == facts.branch
+            && let Some(head) = facts.branch
+        {
+            change.state = State::Gating { head, asked: Box::new([]) };
+            change.clean = Box::new([]);
+            change.gate_failures = Box::new([]);
+            change.since = now;
+            return Stepped { change, decision: Decision::None };
+        }
         return hold(change, Hold::BranchMoved);
     }
     match facts.ask {

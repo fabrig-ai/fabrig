@@ -16,9 +16,9 @@ mod tests;
 mod verdict;
 
 pub use boundary::{
-    CHECK_NAME_BYTES, Commit, Decision, Facts, Flight, Gate, GateFacts, GateProof, Hold, Key, Landing, Limits, Member,
-    MemberFacts, Phase, Posted, Posting, Project, Proof, Repository, Status, Stepped, WORKFLOW_BYTES,
-    Combine, Round, RoundEnd, Preparation,
+    CHECK_NAME_BYTES, Combine, Commit, Decision, Facts, Flight, Gate, GateFacts, GateProof, Hold, Key, Landing, Limits,
+    Member, MemberFacts, Phase, Posted, Posting, Preparation, Project, Proof, Repository, Round, RoundEnd, Status,
+    Stepped, WORKFLOW_BYTES,
 };
 pub use domain::{join, leave, step};
 pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, key};

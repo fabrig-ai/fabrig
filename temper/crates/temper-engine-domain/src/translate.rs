@@ -67,6 +67,8 @@ pub struct ProjectLanding {
     pub gate_timeout: skein_lib::Duration,
     pub check_timeout: Option<skein_lib::Duration>,
     pub by: Way,
+    pub combine_main: temper_engine_domain_forge_landing::Combine,
+    pub combine_other: temper_engine_domain_forge_landing::Combine,
     pub merge_job: Option<Box<[u8]>>,
     pub close_job: Option<Box<[u8]>>,
     pub repositories: Box<[RepositoryChecks]>,

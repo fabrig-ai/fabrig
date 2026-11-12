@@ -100,8 +100,6 @@ impl Domain {
                         preparation: 0,
                         members,
                         stale_proofs: 0,
-
-                        round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
                         holds_turn: false,
                     },
                 )

@@ -67,3 +67,6 @@ pub fn carried_at_start(number: u64) -> Request {
 }
 
 pub use temper_engine_domain_ways as ways;
+
+/// A train's way of combining its member (domain/landing.md, 13.1).
+pub use temper_engine_domain_forge_landing::Combine;

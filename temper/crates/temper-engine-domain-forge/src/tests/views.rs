@@ -6,13 +6,13 @@ use temper_engine_domain_forge_landing as policy;
 fn row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
         landing: policy::Landing {
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
             task,
             project: 5,
             phase,
             preparation: 1,
             stale_proofs: 2,
-
-            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
             branch: Box::from(b"main".as_slice()),
             members: Box::new([policy::Member {
                 change: fixtures::CHANGE,

@@ -1841,6 +1841,11 @@ pub(crate) fn run_workspace(
     if context.executor == (tasks::Executor::Agent { charter: STATUS_CHARTER }) {
         return Some(status_route::workspace(context.task));
     }
+    if context.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
+        && let tasks::Party::Task(parent) = context.requester
+    {
+        return landing_route::prepare_workspace(domain, env, parent);
+    }
     let root = domain.core.tasks.root(context.task)?;
     let modify = match context.executor {
         tasks::Executor::Agent { charter } => match domain.core.charter(charter) {

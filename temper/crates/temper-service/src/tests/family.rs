@@ -1738,8 +1738,6 @@ fn landing_view() -> forge::LandingView {
         phase: forge::LandingPhase::Proving,
         preparation: 2,
         stale_proofs: 3,
-
-        round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
         turn: Some(62),
         members: Box::new([forge::LandingMember {
             change: CHANGE_TASK,

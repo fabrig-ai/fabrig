@@ -24,6 +24,14 @@ pub trait Harness: 'static {
         false
     }
     fn configure(_document: &mut serde_json::Value) {}
+    #[must_use]
+    fn agent_profile() -> smith_agent_service::profile::Profile {
+        documents::agent_profile()
+    }
+    #[must_use]
+    fn agent_settings() -> temper_service::settings::Agent {
+        documents::agent()
+    }
     fn spawned(_role: Role, _inherited: &Inherited, _base: &[u8]) {}
     fn complete(_role: Role, _complete: &Complete) {}
     /// A routed git world's protocol bounds.
@@ -255,7 +263,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         &bytes,
         &jig_protocol_config::Directories::working(),
         &H::files(),
-        Some(&documents::agent()),
+        Some(&H::agent_settings()),
         &H::seeds(parameters.seed),
         None,
         Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into() }),
@@ -275,9 +283,10 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
 #[must_use]
 pub fn agent<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
     H::spawned(Role::Agent, inherited, b"worker/agent");
+    let profile = H::agent_profile();
     if list_arguments(&spawn.args) {
         return Process::List(Box::new(smith_agent_shell::list::Process::with_endpoints(
-            documents::agent_configuration().llm_endpoints,
+            documents::agent_configuration_for(&profile).llm_endpoints,
             smith_agent_shell::list::Faces {
                 stdin: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,
                 stdout: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
@@ -286,15 +295,16 @@ pub fn agent<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
             },
         )));
     }
+    let declarations = documents::agent_declarations_for(&profile);
     let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = skein_sim_world::PipeWriter::new(stderr, 4096);
     let agent = smith_agent_shell::Agent::new(
         smith_agent_shell::config::Configuration {
-            service: documents::agent_configuration(),
-            memory: documents::agent_profile().declared.memory,
+            service: documents::agent_configuration_for(&profile),
+            memory: profile.declared.memory,
             trace: None,
-            profile: documents::agent_profile(),
-            declarations: documents::agent_declarations(),
+            profile,
+            declarations,
             program: None,
             program_endpoints: std::collections::BTreeSet::new(),
         },
