@@ -63,7 +63,7 @@ fn creation_makes_the_org_repository_access_hook_and_bot_authored_file() {
     let bot = world.store().find(b"kit").expect("bot").id;
     let (domain, config) = world.domain_mut();
     let mut out = skein_lib::Queue::uncapped();
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *config };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.clone() };
     domain::step(
         domain,
         &env,
@@ -111,7 +111,7 @@ fn an_existing_org_and_person_edited_file_are_left_alone() {
     world.store_mut().account(b"someone-else", false, b"");
     run(&mut world);
     let (domain, config) = world.domain_mut();
-    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *config };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.clone() };
     let edited = domain::advance(domain, &env, FULL, b"main", PATH, b"the person's bytes\n", 1).expect("person edit");
     let result = run(&mut world);
     assert_eq!(result, Ended::Done);

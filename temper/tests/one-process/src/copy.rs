@@ -151,7 +151,7 @@ fn source(workflow: bool) -> temper_fake_git_hosted::Typed {
 
 pub(crate) fn catalogue(sources: &[Source], workflow: bool) -> temper_fake_git_hosted::Typed {
     use skein_fake_forge_domain::{self as domain, api};
-    let mut config = temper_playground::documents::hosted_git::CONFIG;
+    let mut config = temper_playground::documents::hosted_git::config();
     // A slow migration and the recovered engine's request can coexist.
     config.limits.calls = 2;
     let mut domain = domain::Domain::new(&config, fixtures::SEED);

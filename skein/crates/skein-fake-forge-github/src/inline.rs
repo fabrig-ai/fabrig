@@ -130,7 +130,7 @@ impl Inline {
     }
     fn exchange(&mut self, mut server: Server, request: &[u8], wall: Wall) -> Box<[u8]> {
         let env = Env { now: Time::from_nanos(wall.as_nanos()), wall, limits: self.limits };
-        let domain_env = env.with(self.config);
+        let domain_env = env.with(self.config.clone());
         let mut lent = Lent { domain: &mut self.domain, env: &domain_env, hooks: false };
         let mut intake = Intake::with_capacity(
             u32::try_from(request.len())

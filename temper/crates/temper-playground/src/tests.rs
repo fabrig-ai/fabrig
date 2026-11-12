@@ -76,10 +76,10 @@ fn one_seed_derives_every_seed() {
 fn the_fakes_limits_are_their_constructors() {
     let seeds = documents::seeds(7);
     let _llm = fakes::scripted_provider(Box::new([]), seeds.llm);
-    let domain = skein_fake_forge_domain::Domain::new(&documents::hosted_git::CONFIG, seeds.forge);
+    let domain = skein_fake_forge_domain::Domain::new(&documents::hosted_git::config(), seeds.forge);
     let forge = std::rc::Rc::new(std::cell::RefCell::new(skein_fake_peers::forge::Forge::new(
         domain,
-        documents::hosted_git::CONFIG,
+        documents::hosted_git::config(),
     )));
     let mut peer = skein_fake_peers::forge::Peer::new(
         documents::FORGE,
@@ -146,7 +146,7 @@ fn the_owned_values_equal_the_test_kits_values() {
     protocol.documents.openai.output_items = 256;
     protocol.documents.anthropic.output_items = 256;
     assert_eq!(fakes::llm_limits(), protocol);
-    assert_eq!(documents::hosted_git::CONFIG, temper_worker_checkout_world::hosted::CONFIG);
+    assert_eq!(documents::hosted_git::config(), temper_worker_checkout_world::hosted::config());
     let identity = documents::hosted_git::identity();
     let original = temper_worker_checkout_world::hosted::identity();
     assert_eq!(identity.token, original.token);

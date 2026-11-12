@@ -48,7 +48,7 @@ fn junit(bytes: &[u8]) -> Answer {
 }
 #[test]
 fn failed_ids_upload_a_junit_report() {
-    let mut h = configured_report(CALM, ReportFormat::Junit, &[b"b", b"a", b"a"], None);
+    let mut h = configured_report(calm(), ReportFormat::Junit, &[b"b", b"a", b"a"], None);
     let report = run_report(&mut h, None);
     assert_eq!(report, Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"><failure/></testcase><testcase name=\"b\"><failure/></testcase></testsuite>")));
     assert_eq!(run_jobs(&h, 1)[0].conclusion, Some(crate::api::Conclusion::Failure));
@@ -61,7 +61,7 @@ fn selected_junit_reports_contain_only_requested_test_identifiers() {
             ("selection_reports_passing_ids_beside_failed_ids", (&[b"b".as_slice()][..], Some(b"b\na\nb\n".as_slice()), Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"/><testcase name=\"b\"><failure/></testcase></testsuite>")))),
         ],
         |(fails, selection, expected)| {
-            let mut h = configured_report(CALM, ReportFormat::Junit, fails, None);
+            let mut h = configured_report(calm(), ReportFormat::Junit, fails, None);
             assert_eq!(run_report(&mut h, selection), expected);
         },
     );
@@ -69,7 +69,7 @@ fn selected_junit_reports_contain_only_requested_test_identifiers() {
 
 #[test]
 fn test_cues_read_ids_from_the_run_commit() {
-    let mut h = configured_report(CALM, ReportFormat::Lines, &[], Some(Cue::Tests { path: copy_of(b"ids") }));
+    let mut h = configured_report(calm(), ReportFormat::Lines, &[], Some(Cue::Tests { path: copy_of(b"ids") }));
     let commit = h.commit(FIRST, &[(b"ids", b"b\na\nb\n")]);
     h.push(ENGINE, MAIN, commit).unwrap();
     assert_eq!(
@@ -87,14 +87,14 @@ fn test_cues_read_ids_from_the_run_commit() {
 }
 #[test]
 fn a_faulted_run_uploads_no_report() {
-    for config in [Config { lost: 1000, ..CALM }, Config { setup_faults: 1000, ..CALM }] {
+    for config in [Config { lost: 1000, ..calm() }, Config { setup_faults: 1000, ..calm() }] {
         let mut h = configured_report(config, ReportFormat::Junit, &[b"a", b"b"], None);
         assert_eq!(run_report(&mut h, None), Err(Error::Missing(What::File)));
     }
 }
 #[test]
 fn a_passing_run_reports_no_failed_ids() {
-    let mut h = configured_report(CALM, ReportFormat::Junit, &[], None);
+    let mut h = configured_report(calm(), ReportFormat::Junit, &[], None);
     assert_eq!(
         run_report(&mut h, None),
         Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite></testsuite>"))
@@ -105,7 +105,7 @@ fn a_passing_run_reports_no_failed_ids() {
 #[test]
 fn faulted_jobs_suppress_reports_until_each_fault_is_rerun() {
     let mut h = configured_report_jobs(
-        Config { setup_faults: 1000, ..CALM },
+        Config { setup_faults: 1000, ..calm() },
         ReportFormat::Lines,
         &[b"a"],
         &[],
@@ -139,7 +139,7 @@ fn faulted_jobs_suppress_reports_until_each_fault_is_rerun() {
 }
 
 fn flaky_report(fails: &[&[u8]], flaky: &[&[u8]]) -> Harness {
-    configured_report_jobs(CALM, ReportFormat::Junit, fails, flaky, None, &[b"tests"])
+    configured_report_jobs(calm(), ReportFormat::Junit, fails, flaky, None, &[b"tests"])
 }
 #[test]
 fn a_flaky_test_fails_in_a_whole_run_and_its_report_names_it() {
@@ -176,7 +176,7 @@ fn a_selection_of_a_failing_and_a_flaky_test_fails_only_the_failing_one() {
 #[test]
 fn a_whole_run_merges_flaky_ids_with_its_commit_cue() {
     let mut h = configured_report_jobs(
-        CALM,
+        calm(),
         ReportFormat::Lines,
         &[b"unused"],
         &[b"c", b"a", b"b"],
@@ -218,7 +218,7 @@ fn bounded_flaky_workflow(flaky: &[u8]) -> Harness {
         }]),
         ..setup()
     };
-    Harness::with(CALM, configured)
+    Harness::with(calm(), configured)
 }
 #[test]
 fn a_whole_run_can_merge_two_id_sets_at_their_bound() {
@@ -272,7 +272,7 @@ fn run_jobs(h: &Harness, run: u64) -> Box<[Job]> {
 
 #[test]
 fn an_artifact_appears_once_the_last_job_completes() {
-    let mut h = configured_report(CALM, ReportFormat::Lines, &[b"a"], None);
+    let mut h = configured_report(calm(), ReportFormat::Lines, &[b"a"], None);
     h.ok(ENGINE, dispatch());
     let run = workflow_runs(&h)[0].id;
     assert_eq!(h.inspect(&Read::Artifacts { run }), Ok(Answer::Artifacts(Box::new([]))));
@@ -291,7 +291,7 @@ fn an_artifact_appears_once_the_last_job_completes() {
 
 #[test]
 fn junit_escapes_test_ids_and_normalizes_line_endings() {
-    let mut h = configured_report(CALM, ReportFormat::Junit, &[b"a<&\"'"], None);
+    let mut h = configured_report(calm(), ReportFormat::Junit, &[b"a<&\"'"], None);
     assert_eq!(run_report(&mut h, Some(b"\r\na<&\"'\r\n\n")), Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a&lt;&amp;&quot;&apos;\"><failure/></testcase></testsuite>")));
 }
 
@@ -303,7 +303,7 @@ fn an_oversized_report_is_refused_before_a_run_is_created() {
         report: Some(Report { artifact: copy_of(REPORT), format: ReportFormat::Junit, deflate: false }),
         ..workflow(&[b"tests"])
     }]);
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     // Even an empty JUnit document exceeds this fixture's 32 content bytes.
     assert_eq!(h.call(ENGINE, dispatch()), Err(Error::TooLarge));
     assert!(workflow_runs(&h).is_empty());
@@ -315,7 +315,7 @@ fn test_cues_override_a_context_without_changing_other_contexts() {
     configured.checks.contexts = names(&[b"tests", b"other"]);
     configured.checks.cues =
         Box::new([crate::api::ContextCue { context: copy_of(b"tests"), cue: Cue::Tests { path: copy_of(b"ids") } }]);
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     let mut parent = FIRST;
     for (ids, expected) in [(b"\r\na\r\n".as_slice(), Check::Failed), (b"\n\r\n".as_slice(), Check::Passed)] {
         let head = h.commit(parent, &[(b"ids", ids)]);
@@ -335,7 +335,7 @@ fn test_cues_override_a_context_without_changing_other_contexts() {
 
 #[test]
 fn commit_ranges_exclude_the_old_history_and_keep_both_merge_parents() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let left =
         crate::commit(&mut h.domain, &h.env.limits, FIRST, files(&[(b"left", b"one")]), b"left\n").unwrap().unwrap();
     let right =
