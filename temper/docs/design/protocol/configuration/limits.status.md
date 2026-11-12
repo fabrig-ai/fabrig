@@ -5,6 +5,8 @@
 
 - **Not yet:** "Two profiles, as jig's", a change's policy's `reruns`: no profile or override names `forge.change_policy.reruns` (`temper-service/src/limits.rs`; `limits/names.rs`) [in flight: change 601].
 
+- **Not yet:** "The engine's watch rooms follow what it admits": a stream's room is 22, and the web's and the terminal's native clients hold `watches` 22 and `handles` 24, not 26 and 28 [in flight: change 1266].
+
 - **Not yet:** "Limits checked against each other at start", the checkout's capacity, whole: the start checks git's stdout rule, the agent's conflicts and the channel's parts each in its own phase, returning at the first that refuses, and jig's `saved` ceiling, 65,536, refuses `checkout.conflicts` past about 120 at 255 path bytes, named `engine.limits.work_saved_some` with no checkout setting (`temper-service/src/startup.rs`, `checked_start_with`; `startup/checks.rs`, `channel`) [in flight: change 41].
 
 - **Not yet:** `forge.changes` bounds every change ever made, not the changes kept at once: the forge's change table never drops one (`../../domain/forge/change/README.md`, 7) [in flight: change 391].
