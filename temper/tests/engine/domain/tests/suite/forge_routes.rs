@@ -111,9 +111,9 @@ mod stall_hold;
 mod result;
 
 mod red_findings;
-mod triager_prover;
 #[path = "forge_routes/tiers.rs"]
 mod tiers;
+mod triager_prover;
 
 #[path = "forge_routes/brief_failure.rs"]
 mod brief_failure;
