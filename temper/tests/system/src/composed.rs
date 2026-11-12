@@ -1404,7 +1404,7 @@ impl World {
         let mut world = Self::configured_with(seed, goal.clone(), true, questioning_config);
         world.goal_branch = true;
         let moving = Script {
-            cue: b"Read only what the change needs".as_slice().into(),
+            cue: b"Run only what your change needs".as_slice().into(),
             turns: Box::new([
                 call(b"write", br#"{"path":"goal.txt","content":"goal moved\n"}"#),
                 call(b"finish", br#"{"title":"Advance the goal","body":"Give the waiting producer new context."}"#),
@@ -1540,7 +1540,7 @@ impl World {
 
 fn questioning_script() -> Script {
     Script {
-        cue: b"Read only what the change needs".as_slice().into(),
+        cue: b"Run only what your change needs".as_slice().into(),
         turns: Box::new([
             call(b"write", br#"{"path":"first.txt","content":"first delivery\n"}"#),
             call(b"deliver", br#"{"title":"First edit","body":"Keep this work."}"#),

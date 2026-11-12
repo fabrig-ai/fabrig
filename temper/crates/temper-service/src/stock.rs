@@ -363,7 +363,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
     models.first()?;
     let mut charters = Box::new([
         charter(1, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/chat.txt"), &models, FIRST_CHOICES),
-        charter(2, WORK_TURNS, WORK_TIME, include_bytes!("stock/coding.txt"), &models, FIRST_CHOICES),
+        charter(2, WORK_TURNS, WORK_TIME, &temper_charter_set::implementer(&charter_set()), &models, FIRST_CHOICES),
         reviewer(&models),
         coordinator(&models),
         standing_role(&models),
@@ -587,10 +587,28 @@ const COORDINATOR_WAKE: WakePolicy = WakePolicy {
     timers: true,
 };
 
+// temper/docs/design/domain/agent/charter.md, 1: the stock's files are code to every gate.
+#[expect(clippy::disallowed_macros, reason = "the stock's set is compiled into the binary")]
+pub(super) fn charter_set() -> temper_charter_set::Set<'static> {
+    temper_charter_set::Set {
+        common: Some(include_str!("../../../docs/charters/stock/common.md")),
+        goal: Some(include_str!("../../../docs/charters/stock/goal.md")),
+        designer: Some(include_str!("../../../docs/charters/stock/designer.md")),
+        coordinator: Some(include_str!("../../../docs/charters/stock/coordinator.md")),
+        implementer: Some(include_str!("../../../docs/charters/stock/implementer.md")),
+    }
+}
 fn coordinator(models: &[CatalogueModel]) -> Charter {
-    let (shared, parts) = sections(include_bytes!("stock/coordinator.md"));
-    let mut value = charter(5, WORK_TURNS, WORK_TIME, &shared, models, FIRST_CHOICES);
-    value.parts = parts;
+    let assembled = temper_charter_set::goal_agent(&charter_set(), |name| Reasons::named(name.as_bytes()))
+        .expect("the stock set's focused test holds its assembly");
+    let mut value = charter(5, WORK_TURNS, WORK_TIME, &assembled.instructions, models, FIRST_CHOICES);
+    let mut parts = List::with_capacity(u32::try_from(assembled.parts.len()).expect("stock part count"));
+    for part in assembled.parts {
+        let mut on = Reasons::EMPTY;
+        for reason in part.reasons { on = on.union(reason); }
+        parts.push(CharterPart { on, instructions: part.text }).expect("assembled parts counted");
+    }
+    value.parts = parts.into_boxed();
     value.policy.waiting = Duration::ZERO;
     value.policy.resume = false;
     value.policy.shell = false;

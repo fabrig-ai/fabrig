@@ -43,8 +43,8 @@ mv temper.next.json temper.json
 ```
 
 `root.journal.run_bytes` bounds a run's stored policy, a charter's whole
-policy among it, and the box's bound of 24,576 bytes refuses a charter of 31 KB, so
-the room sets 65,536 bytes. A charter's `turns`, its `time` and the run's
+policy among it. The box's bound and the reference room's override are both
+65,536 bytes, admitting the reference's charter of 31 KB. A charter's `turns`, its `time` and the run's
 spend must fit the bounds a worker advertises, or no host takes its tasks
 (`../../../../jig/crates/jig-domain-fleet/src/needs.rs`, `charter_shortfall`
 and `shortfall`).

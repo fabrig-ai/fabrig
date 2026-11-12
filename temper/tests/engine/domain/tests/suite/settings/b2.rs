@@ -290,7 +290,7 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
     let mut worker = child_run(driver, change);
     assert_eq!(
         worker.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../../crates/temper-service/src/stock/coding.txt"),
+        configuration().core.defaults.charters.iter().find(|charter| charter.number == 2).unwrap().policy.instructions.as_ref(),
         "the producer reads the stock coding instructions"
     );
     assert!(!worker.run.policy.shell, "the producer can run nothing");
