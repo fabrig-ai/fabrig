@@ -804,6 +804,15 @@ fn overlay_members_resolve_and_optional_literals_and_directories_decode() {
             decodes(Edit::Omit(field));
         }
     }
+    for (overlay, charter) in
+        [(b"overlay.turns".as_slice(), b"charter.turns".as_slice()), (b"overlay.model", b"charter.model")]
+    {
+        let field = resolve(overlay).expect("replacement resolves");
+        assert!(same(field, resolve(charter).expect("charter row")), "replacement shares the charter row");
+    }
+    for path in [b"overlay.number".as_slice(), b"overlay.wake", b"overlay.model[]"] {
+        assert!(resolve(path).is_none(), "not an overlay member: {path:?}");
+    }
     assert_eq!(resolve(b"overlay.model.name").expect("model row").shape, Shape::Model);
     assert_eq!(resolve(b"overlay.parts[].on").expect("parts row").shape, Shape::CharterPart);
     let directories = br#"{"items":[{"setting":{"kind":"charter","number":5},"overlay":{"charters":["."]}}]}"#;

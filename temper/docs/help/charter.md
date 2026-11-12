@@ -112,7 +112,7 @@ older transcript pages. To find a turn, read `task activity TASK` for its
 continuation for a cut part. `task text` reads the task's specification or
 instructions, which do not establish the document content supplied to a run.
 
-## Over a default
+### Over a default
 
 An overlay keeps optional field replacements and added text over a charter's
 binary default. Unlike a whole `set`, it takes later defaults: omitted fields
