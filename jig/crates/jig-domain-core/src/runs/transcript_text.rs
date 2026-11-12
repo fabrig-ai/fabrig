@@ -1,13 +1,12 @@
 //! Retained protocol-rendered transcript text (domain/engine/executors.md, 2, and domain/engine/briefs.md, 1).
-use crate::{Transcript, TurnRecord};
+pub use crate::below::runs::transcript_text::*;
+
+use crate::Transcript;
 use alloc::boxed::Box;
 use skein_lib::length::len_u64;
 
 /// The text a cut turn keeps in a fresh brief's tail (domain/engine/executors.md, 2).
 pub const CUT_TURN_TEXT: &[u8] = b"[a turn too large to load]\n";
-
-/// A loaded stored turn and its protocol-rendered UTF-8 text; never stored together.
-pub type TranscriptRow = (TurnRecord, Option<Box<[u8]>>);
 
 /// Rendered bytes and the original text bytes they still show (excluding a cut marker).
 #[derive(Hash, Debug)]

@@ -1,5 +1,7 @@
 //! Core-owned standing and policy decisions for a person's task amendment.
 
+pub use crate::below::admission::amendments::*;
+
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -195,15 +197,6 @@ impl Core {
     ) -> Result<bool, people::Refusal> {
         crate::acts::bounds::amendment_admit(self, party, amendment, depth, limits)
     }
-}
-
-/// One admission outcome translated by the application into its call answer.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TaskAmendDenied {
-    /// Invalid task, reference or caller.
-    Refused { task: u64, why: tasks::Refusal },
-    /// Authority did not allow widening directly.
-    Denied(authority::Answer),
 }
 
 fn wake_rule(value: people::WakeRule) -> tasks::WakeRule {
