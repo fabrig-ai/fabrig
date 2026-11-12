@@ -1,8 +1,7 @@
 # branch-path: status
 
-2026-11-11. Where the tree's code lags or departs from [branch-path.md](branch-path.md).
+2026-11-12. Where the tree's code lags or departs from [branch-path.md](branch-path.md).
 
-- **Not yet:** *The project's roles*: the drafter, charter 12,
-  which the stock holds and its template 6 starts, is no role, and a
-  role's `who` says when it runs alone, not what it does, its charter's
-  words or its instructions' first sentence [in flight: change 314].
+- **Not yet:** *The project's roles*, items 9 and 10: the charters the
+  project's live standing roles run under, and those its follows name as
+  their producer [in flight: change 1059].
