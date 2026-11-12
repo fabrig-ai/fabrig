@@ -25,6 +25,7 @@ fn landing_of_one() -> Landing {
         stale_proofs: 0,
         branch: Box::from(b"main".as_slice()),
         members: Box::new([Member {
+            left: None,
             change: 8,
             repository: Repository { forge: 1, repository: 2 },
             pull: 10,
@@ -44,6 +45,9 @@ fn facts() -> Facts {
         closed: Status::Unknown,
         deleted: Status::Unknown,
         members: Box::new([MemberFacts {
+            held: false,
+            judgement: Status::Passed,
+            refused: None,
             contained: Status::Failed,
             candidate: Some((HEAD, crate::Combine::Merge)),
             preparation: crate::Preparation::Idle,
@@ -57,6 +61,8 @@ fn facts() -> Facts {
             merge: Status::Unknown,
             merged: None,
             gates: Box::new([GateFacts {
+                expired: None,
+                run: 0,
                 blocking: true,
                 key: None,
                 receipt: Status::Unknown,
@@ -196,11 +202,11 @@ fn a_failed_receipt_repairs_its_member() {
     let mut f = facts();
     f.members[0].gates[0].receipt = Status::Failed;
     let one = decide(&dispatched(), &f);
-    assert_eq!(one.decision, Decision::Repair { member: 0, gate: 0 });
+    assert_eq!(one.decision, Decision::Leave { member: 0, why: crate::Leave::Failed { gate: 0, run: 0 } });
     assert_eq!(one.landing.members[0].gates[0].proof, Proof::Failed { key: KEY });
     let two = decide(&one.landing, &f);
     assert_eq!(two.decision, Decision::Post { member: 0, gate: 0, posting: Posting::Ran { passed: false } });
-    assert_eq!(decide(&two.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&two.landing, &f).decision, Decision::Close);
 }
 
 #[test]
@@ -208,18 +214,18 @@ fn a_failed_gate_posts_its_verdict_even_while_its_member_repairs() {
     let mut f = facts();
     f.members[0].gates[0].receipt = Status::Failed;
     let repair = decide(&dispatched(), &f);
-    assert_eq!(repair.decision, Decision::Repair { member: 0, gate: 0 });
+    assert_eq!(repair.decision, Decision::Leave { member: 0, why: crate::Leave::Failed { gate: 0, run: 0 } });
     f.members[0].ready = false;
     f.members[0].gates[0].posting = Status::Pending;
     let waiting = decide(&repair.landing, &f);
-    assert_eq!(waiting.landing.phase, Phase::Waiting);
+    assert_eq!(waiting.landing.phase, Phase::Proving);
     assert_eq!(waiting.decision, Decision::Wait { until: None });
     f.members[0].gates[0].posting = Status::Passed;
     let posted = decide(&waiting.landing, &f);
     assert_eq!(posted.decision, Decision::Post { member: 0, gate: 0, posting: Posting::Ran { passed: false } });
-    assert_eq!(posted.landing.phase, Phase::Waiting);
+    assert_eq!(posted.landing.phase, Phase::Proving);
     assert_eq!(posted.landing.members[0].candidate, Some(HEAD));
-    assert_eq!(decide(&posted.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&posted.landing, &f).decision, Decision::Close);
 }
 
 #[test]
@@ -267,10 +273,9 @@ fn a_member_back_to_repairing_takes_the_landing_back_to_waiting() {
         f.members[0].ready = true;
         f.members[0].head = NEW;
         let ready = decide(&next.landing, &f);
-        assert_eq!(ready.landing.phase, Phase::Preparing);
-        let prepared = decide(&ready.landing, &f);
-        assert_eq!(prepared.landing.round.ending, Some(crate::RoundEnd::Leave));
-        assert_eq!(prepared.landing.members[0].candidate, Some(HEAD));
+        assert_eq!(ready.decision, Decision::Leave { member: 0, why: crate::Leave::HeadMoved { head: NEW } });
+        assert_eq!(ready.landing.round.ending, Some(crate::RoundEnd::Leave));
+        assert_eq!(ready.landing.members[0].candidate, Some(HEAD));
     }
 }
 #[test]
@@ -358,10 +363,15 @@ fn a_cancelled_member_cancels_a_landing_of_one() {
     let mut f = facts();
     f.members[0].cancelled = true;
     let next = decide(&landing_of_one(), &f);
-    assert_eq!(next.decision, Decision::Cancel);
-    assert_eq!(next.landing.phase, Phase::Cancelled);
-    assert!(next.landing.members.is_empty(), "cancelled member left");
+    assert_eq!(next.decision, Decision::Leave { member: 0, why: crate::Leave::Cancelled });
+    assert_eq!(next.landing.members[0].change, 8, "the result retains the member's identity");
+    f.deleted = Status::Passed;
+    let ended = decide(&next.landing, &f);
+    assert_eq!(ended.decision, Decision::Finish);
+    assert_eq!(ended.landing.phase, Phase::Landed);
+    assert!(ended.landing.members[0].landed.is_none());
 }
+
 #[test]
 fn a_held_landing_waits_until_released() {
     let mut landing = dispatched();
@@ -398,27 +408,27 @@ fn a_passed_run_posts_ran_after_the_pending_post_completes() {
     assert_eq!(decide(&two.landing, &f).decision, Decision::Proved);
 }
 #[test]
-fn a_cancelled_member_leaves_live_members_and_their_proofs() {
-    let mut landing = keyed();
-    landing.members = Box::new([landing.members[0].clone(), landing.members[0].clone()]);
+fn a_cancelled_member_keeps_its_candidate_and_proofs_until_cleanup() {
+    let landing = keyed();
     let mut f = facts();
-    f.members = Box::new([f.members[0].clone(), f.members[0].clone()]);
     f.members[0].cancelled = true;
     let next = decide(&landing, &f);
-    assert_eq!(next.decision, Decision::None);
-    assert_eq!(next.landing.phase, Phase::Preparing);
-    assert_eq!(&*next.landing.members, &[landing.members[1].clone()]);
+    assert_eq!(next.decision, Decision::Leave { member: 0, why: crate::Leave::Cancelled });
+    assert_eq!(next.landing.members[0].candidate, landing.members[0].candidate);
+    assert_eq!(next.landing.members[0].gates, landing.members[0].gates);
+    assert_eq!(next.landing.members[0].left, Some(crate::Leave::Cancelled));
 }
+
 #[test]
-fn a_refused_merge_makes_its_candidate_stale() {
+fn a_refused_merge_holds_without_discarding_its_candidate() {
     let mut f = facts();
     f.members[0].merge = Status::Failed;
     let next = decide(&turn(), &f);
-    let next = close_round(&next.landing, &f);
-    assert_eq!(next.decision, Decision::Stale);
-    assert_eq!(next.landing.members[0].candidate, None);
-    assert_eq!(next.landing.stale_proofs, 1);
+    assert_eq!(next.decision, Decision::Hold(Hold::Turn));
+    assert_eq!(next.landing.members[0].candidate, Some(HEAD));
+    assert_eq!(next.landing.stale_proofs, 0);
 }
+
 #[test]
 fn an_unchanged_candidate_keeps_its_proofs_and_preparation() {
     let mut landing = keyed();

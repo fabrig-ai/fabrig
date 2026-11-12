@@ -153,6 +153,7 @@ fn a_refused_record_holds_with_the_member_landed_and_release_records_it_again() 
         task: LANDING,
         entry: 202,
         heard: top::LandingHeard {
+            held: Box::new([]),
             preparation: landing::Preparation::Idle,
             failure: Box::new([]),
             released: true,
@@ -204,6 +205,7 @@ fn an_exhausted_prepare_job_holds_its_landing_not_its_member() {
         task: LANDING,
         entry: 102,
         heard: top::LandingHeard {
+            held: Box::new([]),
             preparation: landing::Preparation::Failed,
             failure: b"push refused".as_slice().into(),
             released: false,
@@ -301,24 +303,26 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
         task: LANDING,
         entry: 102,
         heard: top::LandingHeard {
+            held: Box::new([]),
             preparation: landing::Preparation::Conflict,
-            failure: Box::new([]),
+            failure: b"file".as_slice().into(),
             released: false,
             cancelled: false,
             kept: Box::new([]),
         },
     });
     world.run_for(1);
-    let mut resolved = false;
+    assert_eq!(world.landing(LANDING).landing.members[0].left, Some(landing::Leave::Conflict));
+    assert_eq!(world.landing_leave_words(LANDING).as_deref(), Some(b"conflict with the branch: file".as_slice()));
+    let mut closed = false;
     for entry in 103..120 {
         let decision = landings::step_landing_raw(&mut world, LANDING, entry);
-        if let landing::Decision::Resolve { base: round_base, .. } = decision {
-            assert_eq!(round_base, base);
-            resolved = true;
+        if decision == landing::Decision::Finish {
+            closed = true;
             break;
         }
     }
-    assert!(resolved);
+    assert!(closed);
     assert!(world.landing(LANDING).landing.members[0].landed.is_none());
     let choice = changes::change_step_task(&mut world, CHANGE, 200, change::Status::Passed, Box::new([]), false, false);
     assert_eq!(choice, change::Decision::Delegate(change::Delegate::Resolve { base }));
@@ -337,4 +341,27 @@ fn a_conflict_closes_the_round_and_resolves_then_lands_in_a_later_landing() {
     world.event(top::Event::Landing { row });
     landings::drive_landing(&mut world, 62);
     assert!(world.landing(62).landing.members[0].landed.is_some());
+}
+
+#[test]
+fn cancelling_after_the_prefix_is_recorded_tells_the_change_landed_as_its_pull_stands() {
+    let mut world = start(true);
+    world.prepare_landing(LANDING, true);
+    until_merge(&mut world);
+    assert!(matches!(landings::step_landing_raw(&mut world, LANDING, 200), landing::Decision::Record { .. }));
+    let prefix = world.landing(LANDING).landing.members[0].landed.expect("recorded prefix");
+    let pull = world.landing(LANDING).landing.members[0].pull;
+    let before = world.inspect(&raw::Read::Pull { number: pull });
+    world.take_calls();
+    world.event(top::Event::SettleEffects { task: LANDING, root: LANDING, ending: top::ReleaseEnding::Cancelled });
+    assert!(matches!(world.change(CHANGE).change.state, change::State::Landed { merge, .. } if merge == prefix));
+    assert_eq!(world.change(CHANGE).change.landing, None);
+    assert_eq!(world.inspect(&raw::Read::Pull { number: pull }), before);
+    assert!(
+        world.take_seen().iter().any(|request| matches!(
+            request,
+            top::Request::LandingNews { task: LANDING, step: top::LandingNews::Landed }
+        ))
+    );
+    assert!(!world.take_calls().iter().any(|op| matches!(op, api::Op::Write(_))));
 }

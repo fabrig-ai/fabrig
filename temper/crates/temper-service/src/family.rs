@@ -735,7 +735,7 @@ fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
                         }
                         change::Repair::Semantic => w::Reason::Semantic,
                         // landing.md 3: the top's task
-                        change::Repair::Landing { .. } => return None,
+                        change::Repair::LandingAt { .. } | change::Repair::Landing { .. } => return None,
                     },
                 },
             )
@@ -1456,7 +1456,11 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                     ))
                 }
                 forge::LandingPhase::Held {
-                    why: forge::LandingHold::Prepare | forge::LandingHold::Record { .. },
+                    why:
+                        forge::LandingHold::Prepare
+                        | forge::LandingHold::Record { .. }
+                        | forge::LandingHold::Timeout { .. }
+                        | forge::LandingHold::Turn,
                     ..
                 }
                 | forge::LandingPhase::Waiting

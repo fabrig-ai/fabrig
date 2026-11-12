@@ -217,6 +217,7 @@ pub(crate) fn classify(d: &Domain, subscriber: &Subscriber, news: &News) -> Clas
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }
             | change::State::Checking { .. }
+            | change::State::Judging { .. }
             | change::State::Gating { .. }
             | change::State::CancellingGates { .. }
             | change::State::Queued { .. }

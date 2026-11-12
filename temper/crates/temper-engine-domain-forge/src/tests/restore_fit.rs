@@ -59,6 +59,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
                 key: [0; 32],
             },
             receipt: Receipt {
+                logs: Box::new([]),
                 failures: None,
                 passed: true,
                 run: ReceiptRun { id: n, number: n, url: Box::new([]) },
@@ -595,6 +596,7 @@ fn independent_timer_room_is_checked_before_insertion() {
 
 fn landing(members: u32, gates: u32) -> LandingRow {
     let member = policy::Member {
+        left: None,
         change: 1,
         repository: policy::Repository { forge: 1, repository: 2 },
         pull: 1,
@@ -728,6 +730,7 @@ fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
     }
     if let Stored::Landing(row) = &mut record {
         row.landing.members = Box::new([policy::Member {
+            left: None,
             change: u64::from(number),
             repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
             pull: 1,

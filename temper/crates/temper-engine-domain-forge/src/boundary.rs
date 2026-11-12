@@ -966,6 +966,15 @@ pub struct ChangeRow {
     pub merge_result: Option<Box<[u8]>>,
 }
 impl ChangeRow {
+    /// The pull a judgement delegate reads; every other state keeps the change's pull.
+    #[must_use]
+    pub fn review_target(&self) -> Option<(u64, &[u8], &[u8], skein_forge::api::Commit)> {
+        if let change::State::Judging { target, .. } = &self.change.state {
+            return Some((target.pull, &target.branch, &target.base, target.prefix));
+        }
+        Some((self.pull?, &self.branch, &self.base, self.change.last_head?))
+    }
+
     /// A landed or ended change gathers no more brief or change facts.
     #[must_use]
     pub fn terminal(&self) -> bool {
@@ -981,6 +990,7 @@ impl ChangeRow {
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }
             | change::State::Checking { .. }
+            | change::State::Judging { .. }
             | change::State::Gating { .. }
             | change::State::CancellingGates { .. }
             | change::State::Ready { .. }
@@ -1071,6 +1081,7 @@ pub enum Operation {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
+    pub held: Box<[u64]>,
     pub failure: Box<[u8]>,
     pub preparation: landing::Preparation,
     /// Live landings waiting prepared on a member of another live landing.
@@ -1081,6 +1092,8 @@ pub struct LandingHeard {
 /// Family 24, a result of a run dispatched by temper (domain/landing.md, 6.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Receipt {
+    /// Failed workflow jobs, captured before this receipt is published (domain/landing.md, 7.3).
+    pub logs: Box<[u8]>,
     pub failures: Option<temper_engine_domain_forge_tiers::Failures>,
     pub passed: bool,
     pub run: ReceiptRun,
@@ -1998,6 +2011,10 @@ pub fn is_root_read(owner: Token) -> bool {
 
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "bounded landing failure snapshots remain in the existing durable save request"
+)]
 pub enum Request {
     Decided {
         to: skein_lib::ReplyTo,
@@ -2052,6 +2069,10 @@ pub enum Request {
     /// Remove the box group (temper/docs/design/protocol/setup/box.md, 1).
     BoxRemove {
         forge: u16,
+    },
+    LandingNews {
+        task: u64,
+        step: LandingNews,
     },
     LandingDecision {
         task: u64,
@@ -2498,4 +2519,14 @@ pub struct LoggedChange {
     pub task: u64,
     pub pull: Option<u64>,
     pub title: Box<[u8]>,
+}
+
+/// The five landing transitions reported to its member's goal (domain/landing.md, 4.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum LandingNews {
+    Joined,
+    Proving,
+    Landed,
+    Left,
+    Held,
 }

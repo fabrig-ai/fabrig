@@ -297,6 +297,7 @@ fn ask(kind: u16, task: Option<u64>, public: &[PublicTask]) -> PublicAsk<'_> {
 }
 fn member(task: u64) -> policy::Member {
     policy::Member {
+        left: None,
         change: task,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
         pull: 1,
@@ -396,6 +397,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             ReceiptKey { project: 5, repository: REPO, check: Check::Gate(Box::from(MARKERS[3])), key: [7; 32] },
             Receipt {
+                logs: Box::new([]),
                 failures: None,
                 passed: false,
                 run: ReceiptRun { id: 7, number: 7, url: Box::from(RUN) },
@@ -768,6 +770,7 @@ fn maximal_proofs(d: &mut Domain) {
             .insert(
                 ReceiptKey { project: 5, repository: REPO, check: Check::Gate(name), key: [7; 32] },
                 Receipt {
+                    logs: Box::new([]),
                     failures: None,
                     passed: false,
                     run: ReceiptRun { id: 7, number: 7, url: Box::from(RUN) },
@@ -845,7 +848,7 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                         stale_proofs: u32::MAX,
                         branch: Box::from(b"main".as_slice()),
                     },
-                    asks: Box::new([None; 8]),
+                    asks: Box::new([const { None }; 8]),
                     entries: Box::new([]),
                 },
             )

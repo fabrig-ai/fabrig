@@ -197,6 +197,7 @@ fn ending(row: &forge::ChangeRow) -> Option<forge::Ending> {
         | super::forge_change::State::Recreating { .. }
         | super::forge_change::State::Reopening { .. }
         | super::forge_change::State::Checking { .. }
+        | super::forge_change::State::Judging { .. }
         | super::forge_change::State::Gating { .. }
         | super::forge_change::State::CancellingGates { .. }
         | super::forge_change::State::Ready { .. }
@@ -338,6 +339,7 @@ fn why(row: &forge::ChangeRow, ending: forge::Ending) -> c::Why {
                 | super::forge_change::State::Recreating { .. }
                 | super::forge_change::State::Reopening { .. }
                 | super::forge_change::State::Checking { .. }
+                | super::forge_change::State::Judging { .. }
                 | super::forge_change::State::Gating { .. }
                 | super::forge_change::State::CancellingGates { .. }
                 | super::forge_change::State::Ready { .. }
@@ -415,6 +417,7 @@ fn report(domain: &Domain, closer: &forge::CloserRow, words: &[u8], branch: Opti
                 | super::forge_change::State::Recreating { .. }
                 | super::forge_change::State::Reopening { .. }
                 | super::forge_change::State::Checking { .. }
+                | super::forge_change::State::Judging { .. }
                 | super::forge_change::State::Gating { .. }
                 | super::forge_change::State::CancellingGates { .. }
                 | super::forge_change::State::Ready { .. }

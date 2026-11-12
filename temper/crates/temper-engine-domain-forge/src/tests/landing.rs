@@ -348,6 +348,7 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    held: Box::new([]),
                     failure: Box::new([]),
                     preparation: policy::Preparation::Idle,
                     released: false,
@@ -450,6 +451,7 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                 released: false,
@@ -523,6 +525,7 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
         change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
     row.landing.members = Box::new([policy::Member {
+        left: None,
         change: fixtures::CHANGE,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
         pull: 1,
@@ -543,6 +546,7 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                 released: false,
@@ -665,6 +669,7 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                 released: false,
@@ -690,6 +695,7 @@ fn member_landing(d: &mut Domain) {
 fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
     let mut row = landing_row(61, policy::Phase::Proving);
     row.landing.members = Box::new([policy::Member {
+        left: None,
         change: fixtures::CHANGE,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
         pull: 1,
@@ -850,34 +856,17 @@ fn cancelling_a_landing_leaves_its_change_live_and_detached() {
     }
 }
 #[test]
-fn cancelling_the_last_member_cancels_its_landing_without_reading_the_missing_branch() {
+fn cancelling_a_member_retains_its_identity_for_the_rounds_cleanup() {
     let mut d = landing_fixture();
     member_landing(&mut d);
-    outputs(
+    let requests = outputs(
         &mut d,
         Event::SettleEffects { task: fixtures::CHANGE, root: fixtures::CHANGE, ending: ReleaseEnding::Cancelled },
     );
-    assert!(d.landing(61).expect("landing").landing.members.is_empty());
-    let requests = outputs(
-        &mut d,
-        Event::StepLanding {
-            task: 61,
-            entry: 92,
-            heard: LandingHeard {
-                failure: Box::new([]),
-                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
-                released: false,
-                cancelled: false,
-                kept: Box::new([]),
-            },
-        },
-    );
-    assert!(requests.contains(&Request::LandingDecision {
-        task: 61,
-        decision: policy::Decision::Cancel,
-        entry: None,
-        evidence: None
-    }));
+    let member = &d.landing(61).expect("landing").landing.members[0];
+    assert_eq!(member.change, fixtures::CHANGE);
+    assert_eq!(member.left, Some(policy::Leave::Cancelled));
+    assert!(requests.contains(&Request::WakeProcedure { task: 61 }));
 }
 
 const OTHER_CHANGE: u64 = fixtures::CHANGE + 1;
@@ -1121,6 +1110,7 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    held: Box::new([]),
                     failure: Box::new([]),
                     preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                     released: false,
@@ -1337,6 +1327,7 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    held: Box::new([]),
                     failure: Box::new([]),
                     preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                     released: false,

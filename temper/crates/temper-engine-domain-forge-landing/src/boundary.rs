@@ -72,6 +72,8 @@ pub enum Hold {
     Faults { member: u16, gate: u16 },
     Prepare,
     Record { member: u16 },
+    Timeout { member: u16, gate: u16, run: u64 },
+    Turn,
 }
 
 /// One gate's proof at a member's candidate (domain/landing.md, 7).
@@ -117,6 +119,18 @@ pub struct Member {
     pub asked: Option<u16>,
     /// Main's commit once landed: the candidate.
     pub landed: Option<Commit>,
+    pub left: Option<Leave>,
+}
+
+/// Why a member leaves, retaining its first-ready time (domain/landing.md, 4.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Leave {
+    Conflict,
+    HeadMoved { head: Commit },
+    Cancelled,
+    Held,
+    Refused { gate: u64 },
+    Failed { gate: u16, run: u64 },
 }
 
 /// The top-owned landing task record (domain/landing.md, 12).
@@ -146,6 +160,7 @@ pub struct Round {
     pub told: bool,
     pub ending: Option<RoundEnd>,
     pub failure: Box<[u8]>,
+    pub judging: bool,
 }
 impl Round {
     #[must_use]
@@ -159,6 +174,7 @@ impl Round {
             told: false,
             ending: None,
             failure: Box::new([]),
+            judging: false,
         }
     }
 }
@@ -201,10 +217,13 @@ pub struct GateFacts {
     pub flight: Flight,
     /// Status of this landing's most recently requested posting effect.
     pub posting: Status,
+    pub expired: Option<u64>,
+    pub run: u64,
 }
 
 /// Fresh facts for one member, in the landing's member order.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent member observations")]
 pub struct MemberFacts {
     pub ready: bool,
     pub cancelled: bool,
@@ -223,6 +242,9 @@ pub struct MemberFacts {
     pub candidate: Option<(Commit, Combine)>,
     pub preparation: Preparation,
     pub record: Status,
+    pub held: bool,
+    pub judgement: Status,
+    pub refused: Option<u64>,
 }
 
 /// The coherent snapshot supplied by the top.
@@ -268,6 +290,8 @@ pub enum Decision {
     Close,
     Delete,
     Resolve { member: u16, base: Commit },
+    Leave { member: u16, why: Leave },
+    Judge { member: u16 },
 }
 
 /// State to commit atomically with the decision.
