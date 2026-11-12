@@ -55,3 +55,7 @@ Inherited from main (commit 0e504506c7, merged by hand in 6d3aa97b7d), found by 
 - lint temper-engine-domain-forge clippy::disallowed_methods temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/boundary.rs
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
+
+Inherited from main (commit fab52fee98, merged in 837703982a), found by change 2121 of goal 2105 on 2026-11-12.
+
+- lint temper-worker-domain clippy::chunks_exact_to_as_chunks temper/crates/temper-worker-domain/src/jobs/prepare.rs
