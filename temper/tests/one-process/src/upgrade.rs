@@ -146,7 +146,10 @@ pub fn fresh_windows() {
     });
     assert!(patched.drained);
     let patch = jig_protocol_store::levels(&FIXTURE_SETS).application.expect("fixture application level");
-    assert_eq!(patched.patched, vec![(Owner::Application, patch, jig_protocol_store::Counts { records: 0, commits: 0 })]);
+    assert_eq!(
+        patched.patched,
+        vec![(Owner::Application, patch, jig_protocol_store::Counts { records: 0, commits: 0 })]
+    );
     let after = maps::Maps::read(&mut disk);
     assert_eq!(after.active, before.active + 1, "one copy switched");
     assert_levels(&after, &FIXTURE_SETS);

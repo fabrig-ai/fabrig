@@ -627,7 +627,10 @@ fn a_tasks_row_of_another_version_does_not_decode() {
             &limits,
             &fixtures::configured_model_names(&[b"first", b"second", b"third"])
         ),
-        Err(crate::tasks_v10::Problem { path: crate::tasks_v10::Path::RowVersion, reason: skein_codec::Reason::Version })
+        Err(crate::tasks_v10::Problem {
+            path: crate::tasks_v10::Path::RowVersion,
+            reason: skein_codec::Reason::Version
+        })
     );
 }
 fn task_funded_accounting_reads_back() {

@@ -1,5 +1,7 @@
 //! Full golden rows decode within their decoded bounds (skein's data/codec/README.md, 6).
-use jig_protocol_store::{accounts_v2, component_v3, core_v6, notes_v1, people_v14, secrets_v1, settings_v2, tasks_v10};
+use jig_protocol_store::{
+    accounts_v2, component_v3, core_v6, notes_v1, people_v14, secrets_v1, settings_v2, tasks_v10,
+};
 use skein_heap::Meter;
 use skein_lib::Reader;
 
@@ -192,7 +194,8 @@ fn added_dependencies_kept_lines_and_circle_payloads_fit_their_heap_bounds() {
         "task_definition",
         tasks_v10::TaskDefinition::decoded_bound(&limits).expect("definition bound"),
         |golden| {
-            tasks_v10::TaskDefinition::decode(&limits, &mut Reader::new(golden)).expect("full definition with additions")
+            tasks_v10::TaskDefinition::decode(&limits, &mut Reader::new(golden))
+                .expect("full definition with additions")
         },
     );
     check("tasks", "kept_line", tasks_v10::KeptLine::decoded_bound(&limits).expect("kept bound"), |golden| {

@@ -10,7 +10,11 @@ fn the_application_sizes_are_the_largest_key_and_row() {
     // The full tier row reaches its encoded bound, including all goals (tests/tiers.rs).
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
-        Some(jig_protocol_store::sizes::Application { version: crate::STORE_VERSION, key: 525, value: APPLICATION_ROW_BYTES })
+        Some(jig_protocol_store::sizes::Application {
+            version: crate::STORE_VERSION,
+            key: 525,
+            value: APPLICATION_ROW_BYTES
+        })
     );
 }
 #[test]

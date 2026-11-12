@@ -196,7 +196,9 @@ fn a_decoded_result_past_its_shared_byte_bound_is_refused() {
     assert_eq!(phase::read_result(encoded, &tasks_limits()), Err(bound_problem(crate::tasks_v10::Path::TaskResultTag)));
 }
 
-fn saved_proposal(source: &jig_domain_tasks::Proposal) -> Result<jig_domain_tasks::Proposal, crate::tasks_v10::Problem> {
+fn saved_proposal(
+    source: &jig_domain_tasks::Proposal,
+) -> Result<jig_domain_tasks::Proposal, crate::tasks_v10::Problem> {
     use crate::{codec::tasks::proposals, tasks_v10::Proposal};
     let encoded = proposals::proposal(source, &tasks_limits(), None)?;
     let encoded = saved_wire(encoded, Proposal::measure, Proposal::encode, Proposal::decode);

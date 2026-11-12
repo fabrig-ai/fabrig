@@ -240,7 +240,9 @@ const MOVED_JIG: PatchSets = PatchSets {
     sets: &[PatchSet {
         owner: Owner::Jig,
         name: "jig",
-        patches: &["patch 1\nowner jig 1\nfamily jig-store-tasks 9 to 10\nadd Data.open bool false\nfamily jig-store-settings 1 to 2\nadd Model.cache u32 0\n"],
+        patches: &[
+            "patch 1\nowner jig 1\nfamily jig-store-tasks 9 to 10\nadd Data.open bool false\nfamily jig-store-settings 1 to 2\nadd Model.cache u32 0\n",
+        ],
         fresh: None,
         families: &[
             KeptFamily {
@@ -302,7 +304,10 @@ fn jig_behind_opens_at_its_baseline_versions_and_patches_to_current() {
 #[test]
 fn jig_versions_must_match_the_store_level_behind_and_current_when_equal() {
     for (level, tasks, wanted) in [(0, 10, 9), (1, 9, 10)] {
-        refused(&mut at_jig_level(level, tasks), OpenRefusal::Format { family: Family::Tasks, found: u32::from(tasks), wanted });
+        refused(
+            &mut at_jig_level(level, tasks),
+            OpenRefusal::Format { family: Family::Tasks, found: u32::from(tasks), wanted },
+        );
     }
 }
 

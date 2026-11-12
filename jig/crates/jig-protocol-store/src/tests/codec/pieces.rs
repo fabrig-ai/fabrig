@@ -230,7 +230,10 @@ fn a_name_is_one_piece_by_the_hold_bytes() {
     assert_eq!(tasks::decode(&encoded, &limits, &[]), Ok(row));
     value.path[0] = Box::new([b'a'; 2]);
     writer.resource = value;
-    assert_eq!(tasks::encode(&task::Stored::Writer(writer), &limits, &[]), Err(task_problem(tasks_v10::Path::NamePath)));
+    assert_eq!(
+        tasks::encode(&task::Stored::Writer(writer), &limits, &[]),
+        Err(task_problem(tasks_v10::Path::NamePath))
+    );
 }
 
 #[test]

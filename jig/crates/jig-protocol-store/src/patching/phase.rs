@@ -31,6 +31,21 @@ pub(crate) enum Patching {
     Sealing { number: u64, before: super::plan::Levels, counts: List<Counted> },
     Checking(Box<Checking>),
 }
+pub(crate) fn work_pending(store: &Store) -> bool {
+    match directory::patching(store) {
+        Some(Patching::Walking(walking)) => walking.ready(),
+        Some(
+            Patching::Closing { .. }
+            | Patching::Dropping(_)
+            | Patching::Copying(_)
+            | Patching::Mapping { .. }
+            | Patching::Recovering { .. }
+            | Patching::Sealing { .. }
+            | Patching::Checking(_),
+        )
+        | None => false,
+    }
+}
 fn root(store: &Store) -> Root {
     store.directory.root.expect("patching holds the deployment lock")
 }

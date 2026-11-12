@@ -163,15 +163,8 @@ fn open_goldens(
         let at = value
             .decode(schema, *root, golden.bytes.clone().into_boxed_slice())
             .map_err(|error| format!("{}: {error:?}", golden.name))?;
-        let mut opened = Opened {
-            patcher,
-            plan,
-            schema,
-            samples: &samples,
-            value: &value,
-            bytes: Vec::new(),
-            cursor: 0,
-        };
+        let mut opened =
+            Opened { patcher, plan, schema, samples: &samples, value: &value, bytes: Vec::new(), cursor: 0 };
         opened.declaration(*root, at)?;
         opened.bytes.extend_from_slice(value.bytes().get(opened.cursor..).expect("remaining golden bytes"));
         golden.bytes = opened.bytes;
@@ -532,7 +525,11 @@ mod tests {
         assert_eq!(bytes, [0, 0, 0, 2, u8::MAX, 7], "new length and added value");
         let mut item = skein_codec::value::Value::with_room(16);
         let at = item
-            .decode(&schema, schema.find(b"Item").expect("item record"), bytes.get(4..).expect("one piece length").into())
+            .decode(
+                &schema,
+                schema.find(b"Item").expect("item record"),
+                bytes.get(4..).expect("one piece length").into(),
+            )
             .expect("piece decodes as the new item");
         assert_eq!(item.uint(item.field(at, skein_codec::schema::FieldIx::new(1)).unwrap()), Ok(7));
         assert_eq!(fs::read(directory(&krate).join("record_open_smallest.bin")).unwrap(), [0; 4]);

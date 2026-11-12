@@ -934,10 +934,7 @@ fn invalid_utf8_values_name_the_quoted_token() {
 
 #[test]
 fn copies_reports_the_walks_declaration_conversion() {
-    let mut patcher = kept(
-        "record A { f: u8 } record B { f: u8 }",
-        "record A { f: u8 } record B { f: u8 added: u8 }",
-    );
+    let mut patcher = kept("record A { f: u8 } record B { f: u8 }", "record A { f: u8 } record B { f: u8 added: u8 }");
     let plan = patcher.plan(format!("{HEADER}add B.added u8 7\n").as_bytes()).unwrap().unwrap();
     assert!(patcher.copies(plan, DeclIx::new(0)));
     assert!(!patcher.copies(plan, DeclIx::new(1)));

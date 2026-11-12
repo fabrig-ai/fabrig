@@ -107,12 +107,7 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     }
 }
 
-fn wanted(
-    store: &Store,
-    found: plan::Levels,
-    binary: plan::Levels,
-    deployment: [u8; 16],
-) -> codec::component::Format {
+fn wanted(store: &Store, found: plan::Levels, binary: plan::Levels, deployment: [u8; 16]) -> codec::component::Format {
     if found.jig < binary.jig {
         let pending = store.directory.patch.as_ref().expect("behind open planned");
         format::at_level(store.application.version, deployment, &pending.machines)

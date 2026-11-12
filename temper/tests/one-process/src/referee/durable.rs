@@ -1,4 +1,5 @@
 //! Durability observations from real file completions, independent of the service.
+mod generations;
 pub(crate) mod snapshots;
 #[cfg(test)]
 mod tests;
@@ -30,6 +31,10 @@ pub struct Store {
     files: BTreeMap<Vec<u8>, Vec<u8>>,
     validated: BTreeMap<Vec<u8>, usize>,
     lengths: BTreeMap<u64, u64>,
+    generations: BTreeMap<Vec<u8>, generations::Generation>,
+    active: Option<Vec<u8>>,
+    deferred: Option<Vec<u8>>,
+    pub(crate) levels: Option<codec::component::Levels>,
 }
 #[derive(Debug)]
 pub enum Observed {
@@ -37,7 +42,8 @@ pub enum Observed {
     Sync(Vec<u8>),
     Recovered(Vec<u8>),
     Snapshot(Vec<u8>),
-    Pending(Vec<u8>),
+    Pending { path: Vec<u8>, bytes: Vec<u8> },
+    Renamed { from: Vec<u8>, to: Vec<u8> },
 }
 #[derive(Default)]
 pub struct Capture {
@@ -88,6 +94,18 @@ impl Capture {
                     }
                 }
             }
+            (Op::Rename { from_dir, from, to_dir, to, .. }, Ok(Done::Nothing)) => {
+                if let (Some(from), Some(to)) = (self.named(*from_dir, from), self.named(*to_dir, to)) {
+                    for name in self.names.values_mut() {
+                        if let Some(suffix) = name.strip_prefix(from.as_slice())
+                            && (suffix.is_empty() || suffix.starts_with(b"/"))
+                        {
+                            *name = [to.as_slice(), suffix].concat();
+                        }
+                    }
+                    self.events.push(Observed::Renamed { from, to });
+                }
+            }
             (Op::Sync { fd }, Ok(Done::Nothing)) => {
                 if let Some(path) = self.path(*fd) {
                     self.events.push(Observed::Sync(path.to_vec()));
@@ -99,11 +117,16 @@ impl Capture {
             _ => {}
         }
     }
+    fn named(&self, root: Fd, name: &[u8]) -> Option<Vec<u8>> {
+        let parent = self.path(root)?;
+        Some(if parent.is_empty() { name.to_vec() } else { [parent, b"/", name].concat() })
+    }
     pub fn pending(&mut self, op: &Op) {
         if let Op::Write { fd, bytes, from: 0, .. } = op
             && self.path(*fd).is_some_and(is_log)
         {
-            self.events.push(Observed::Pending(bytes.to_vec()));
+            self.events
+                .push(Observed::Pending { path: self.path(*fd).expect("log path").to_vec(), bytes: bytes.to_vec() });
         }
     }
 }
@@ -118,6 +141,9 @@ impl Store {
     }
     pub(crate) fn recovering(&mut self) {
         self.rows.clear();
+        self.generations.clear();
+        self.active = None;
+        self.deferred = None;
         self.applied = 0;
         self.lengths.clear();
         self.files.retain(|path, _| !in_generation(path).is_some_and(|suffix| suffix.starts_with(b"store/")));
@@ -149,16 +175,29 @@ impl Store {
                     {
                         *validated = 0;
                     }
-                    let file = self.files.entry(path).or_default();
+                    let file = self.files.entry(path.clone()).or_default();
                     file.resize(file.len().max(at + bytes.len()), 0);
                     file[at..at + bytes.len()].copy_from_slice(&bytes);
+                    if path.as_slice() == b"active" {
+                        committed.extend(self.active_file(limits, names, connector));
+                    }
                 }
-                Observed::Pending(bytes) => {
-                    self.pending = frames(&bytes, self.applied)
-                        .0
-                        .into_iter()
-                        .map(|(number, ops)| self.commit(number, ops, limits, names, connector))
-                        .collect();
+                Observed::Pending { path, bytes } => {
+                    if self.deferred.is_none() && self.is_active(&path) {
+                        self.pending = frames(&bytes, self.applied)
+                            .0
+                            .into_iter()
+                            .map(|(number, ops)| self.commit(number, ops, limits, names, connector))
+                            .collect();
+                    }
+                }
+                Observed::Renamed { from, to } => {
+                    if let Some(bytes) = self.files.remove(&from) {
+                        self.files.insert(to.clone(), bytes);
+                    }
+                    if in_generation(&to) == Some(b"store/snapshot".as_slice()) {
+                        committed.extend(self.snapshot(&to, limits, names, connector));
+                    }
                 }
                 Observed::Recovered(path) if is_log(&path) => {
                     if let Some(bytes) = self.files.get(&path) {
@@ -167,24 +206,27 @@ impl Store {
                     committed.extend(self.durable(&path, limits, names, connector));
                 }
                 Observed::Snapshot(path) => {
-                    if let Some(bytes) = self.files.get(&path)
-                        && let Some((number, ops)) = snapshots::read(bytes)
-                        && self.applied < number
-                    {
-                        let commit = self.commit(number, ops, limits, names, connector);
-                        self.apply(&commit, limits);
-                        self.recovered.extend(1..=number);
-                        committed.push(commit);
-                    }
+                    committed.extend(self.snapshot(&path, limits, names, connector));
                 }
                 Observed::Sync(path) if is_log(&path) => {
                     committed.extend(self.durable(&path, limits, names, connector));
                 }
-                Observed::Sync(path) if in_generation(&path) == Some(b"store".as_slice()) && self.restoring => {
+                Observed::Sync(path) if in_generation(&path) == Some(b"store/snapshot".as_slice()) => {
+                    committed.extend(self.snapshot(&path, limits, names, connector));
+                }
+                Observed::Sync(path)
+                    if in_generation(&path) == Some(b"store".as_slice())
+                        && self.restoring
+                        && self.deferred.is_none()
+                        && self.is_active(&path) =>
+                {
                     // KV announces its new segment only after replaying every old log.
                     // Capture this boundary before any new startup commit can join it.
                     self.restored = Some(self.rows.clone());
                     self.restoring = false;
+                }
+                Observed::Sync(path) if path.is_empty() => {
+                    committed.extend(self.active_file(limits, names, connector));
                 }
                 Observed::Sync(_) | Observed::Recovered(_) => {}
             }
@@ -201,10 +243,11 @@ impl Store {
         let mut committed = Vec::new();
         let Some(bytes) = self.files.get(path) else { return committed };
         let start = self.validated.get(path).copied().unwrap_or(0);
-        let (frames, used) = frames(&bytes[start..], self.applied);
+        let after = self.generation(path).map_or(self.applied, |generation| generation.number);
+        let (frames, used) = frames(&bytes[start..], after);
         self.validated.insert(path.to_vec(), start + used);
         for (number, ops) in frames {
-            if number <= self.applied {
+            if !self.record(path, number, &ops, false) || number <= self.applied {
                 continue;
             }
             let commit = self.commit(number, ops, limits, names, connector);
