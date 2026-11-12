@@ -35,8 +35,8 @@ and unchanged accounting. No real-provider result is supplied;
   `README.md`, *Goals*: the empty Goals-page gap remains `work.status.md`, 1.
   the whole document: the Forget request remains `../forge/records.status.md` (Not yet).
   `README.md`, *Ready*: the unhandled Ready endings remain `welcome.status.md`, 1.
-   the plan's first-use card remains `accounts.status.md`, 2. the whole document:
-  the project's Delete act remains `settings.status.md`, 1. `README.md`, The welcome:
+   the plan's first-use card remains `accounts.status.md`, 2.
+  `README.md`, The welcome:
   the welcome role-scope gap remains `welcome.status.md`, 1.
   the unfinished-forge name remains `../forge/records.status.md` (Not yet). the restarted GitHub setup continuation remains `../forge/records.status.md` (Not yet).
    the App-not-installed reason remains `../forge/family.status.md`, 6.
@@ -820,7 +820,7 @@ you across projects after landing*); what the draft draws beyond them is
    the Forget request remains `../forge/records.status.md` (Not yet).
   `README.md`, *Ready*: the unhandled Ready endings remain `welcome.status.md`, 1.
    the plan's first-use card remains `accounts.status.md`, 2. `../README.md`, 3.6:
-  the project's Delete act remains `settings.status.md`, 1. `README.md`, The welcome:
+  `README.md`, The welcome:
   the welcome role-scope gap remains `welcome.status.md`, 1.
   the unfinished-forge name remains `../forge/records.status.md` (Not yet). the restarted GitHub setup continuation remains `../forge/records.status.md` (Not yet).
    the App-not-installed reason remains `../forge/family.status.md`, 6.
