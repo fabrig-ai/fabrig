@@ -512,7 +512,7 @@ mod tests {
             ("/forges/1/github/manifest/", true),
             ("/forges/1/github/setup/other", true),
         ] {
-            for prefix in ["", "http://127.0.0.1:41000"] {
+            for prefix in ["", "http://127.0.0.1:9", "http://127.0.0.1:41000"] {
                 for suffix in ["", "?state=abc", "#t", "?x=1#t"] {
                     let address = format!("{prefix}{path}{suffix}");
                     assert_eq!(super::is_page(address.as_bytes()), page, "{address}");

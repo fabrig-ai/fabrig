@@ -119,8 +119,10 @@ mod tests {
             !path.starts_with(b"/forges/")
         }
         for (address, expected) in [
-            (b"http://127.0.0.1:9/forges/1/github/manifest?state=s".as_slice(),
-             b"http://127.0.0.1:9/forges/1/github/manifest?state=s".as_slice()),
+            (
+                b"http://127.0.0.1:9/forges/1/github/manifest?state=s".as_slice(),
+                b"http://127.0.0.1:9/forges/1/github/manifest?state=s".as_slice(),
+            ),
             (b"http://127.0.0.1:9/chats#x", b"http://127.0.0.1:9/chats?one=1#x"),
             (b"/forges/1/github/manifest?state=s#x", b"/forges/1/github/manifest?state=s#x"),
             (b"/chats#x", b"/chats?one=1#x"),
