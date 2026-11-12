@@ -3,7 +3,6 @@
 2026-11-12. Where the tree's code lags or departs from [checks.md](checks.md).
 
 
-- **Not yet:** 5: the golden's profile is `docs/examples/reference/settings.json` itself (`temper-stage-one-tool`'s `golden.rs`, `profile`), not a copy of its own [in flight: change 1415].
 - **Departs:** 1: temper's measured focused request-world sum is
   81.892959 CPU s against 30, and the real-loop focused median
   is 31.769481 CPU s against its standing 15 s ceiling.
