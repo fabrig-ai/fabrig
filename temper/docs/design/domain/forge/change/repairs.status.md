@@ -11,6 +11,7 @@
 
 - **Not yet:** "A resolution", its "It waits for its producer": a conflict met while a task that pushes the change's branch still lives is resolved at once, its pull pinned at the last head the change knew, so a push by that task fails every attempt of the resolution's brief, `the change's head moved` (`temper-engine-domain-forge-change/src/domain.rs`, `conflict_due`; `temper-engine-domain/src/assemble.rs`, `finish_brief_plan`).
 
+
 - **Not yet:**
   - the whole document: the request-to-repair fuzzy coverage remains `gates.status.md`, 1.
   -  the real-process update-recovery trial remains `../README.status.md`, 6 and 10.

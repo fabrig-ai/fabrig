@@ -918,6 +918,7 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
                         | change::Decision::Delegate(_)
                         | change::Decision::CancelGates { .. }
                         | change::Decision::CancelRepair { .. }
+                        | change::Decision::CancelResolution { .. }
                         | change::Decision::EndHold
                         | change::Decision::RepairEnded { .. }
                         | change::Decision::Effect(_)

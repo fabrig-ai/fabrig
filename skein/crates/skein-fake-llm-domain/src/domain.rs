@@ -216,7 +216,7 @@ impl Played {
         let fallback = if otherwise.turns.is_empty() { &[][..] } else { core::slice::from_ref(&otherwise) };
         let mut held = limits::rules(rules);
         for group in [&*cued, &*asked, fallback] {
-            if !pieces::valid(group) {
+            if !pieces::valid(group) || !crate::take::valid(group) {
                 return Err(Error::InvalidRequest);
             }
             held = match limits::scripts(group) {

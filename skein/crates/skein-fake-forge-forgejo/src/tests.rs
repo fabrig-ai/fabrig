@@ -26,3 +26,5 @@ mod admin_scopes;
 mod creation;
 
 mod migrate;
+
+mod image;

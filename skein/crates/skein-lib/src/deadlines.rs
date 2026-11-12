@@ -81,6 +81,11 @@ impl<K: Ord + Copy> Deadlines<K> {
         Some(*at)
     }
 
+    /// Reads the armed timers in firing order (time, then key), changing nothing.
+    pub fn iter(&self) -> impl Iterator<Item = (K, Time)> + '_ {
+        Iter { entries: self.by_time.iter() }
+    }
+
     /// Removes the earliest timer due at `now` and returns its key.
     pub fn expire(&mut self, now: Time) -> Option<K> {
         let &(at, key) = self.by_time.first()?;
@@ -92,6 +97,20 @@ impl<K: Ord + Copy> Deadlines<K> {
         let armed = self.by_key.remove(&key);
         assert!(armed == Some(at), "both indexes hold every timer");
         Some(key)
+    }
+}
+
+/// Read-only armed timers, in firing order.
+struct Iter<'a, K> {
+    entries: alloc::collections::btree_set::Iter<'a, (Time, K)>,
+}
+
+impl<K: Copy> Iterator for Iter<'_, K> {
+    type Item = (K, Time);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let &(at, key) = self.entries.next()?;
+        Some((key, at))
     }
 }
 

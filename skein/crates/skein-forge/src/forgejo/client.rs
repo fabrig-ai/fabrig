@@ -11,6 +11,7 @@ use alloc::boxed::Box;
 use skein_json::tokenizer;
 pub(crate) mod actions;
 pub(crate) mod branches;
+mod change_files;
 mod create_file;
 pub mod delivery;
 pub(crate) mod files;
@@ -41,6 +42,7 @@ pub enum Refusal {
 pub fn encode(request: &Request, limits: &Limits) -> Result<Encoded, Refusal> {
     match request {
         Request::CreateFile { .. } => create_file::encode(request, limits),
+        Request::ChangeFiles { .. } => change_files::encode(request, limits),
         Request::AddCollaborator { .. }
         | Request::RepoHooks { .. }
         | Request::CreateRepoHook { .. }
@@ -143,7 +145,7 @@ pub fn decoder(request: &Request, limits: &Limits) -> Option<Decoder> {
     let kind = match request {
         Request::Artifacts { .. } => Kind::Action(ActionKind::Artifacts),
         Request::Commits { .. } => Kind::File(FileKind::Range),
-        Request::CreateFile { .. } => Kind::Setup(setup::SetupKind::CreatedFile),
+        Request::CreateFile { .. } | Request::ChangeFiles { .. } => Kind::Setup(setup::SetupKind::CreatedFile),
         Request::CreateRepository { .. } | Request::Migrate { .. } => Kind::Setup(setup::SetupKind::CreatedRepository),
         Request::Org { .. } | Request::CreateOrg { .. } => Kind::Setup(setup::SetupKind::Org),
         Request::CreateTeam { .. } | Request::EditTeam { .. } => Kind::Setup(setup::SetupKind::Team),

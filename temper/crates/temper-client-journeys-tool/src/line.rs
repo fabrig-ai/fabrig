@@ -15,6 +15,7 @@ pub enum Record {
     Web(Web),
     Tui(Tui),
     Ctl(Vec<Box<[u8]>>),
+    Forge(Forge),
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Web {
@@ -30,6 +31,12 @@ pub enum Tui {
     Stop,
     Look,
 }
+#[expect(clippy::type_complexity, reason = "drive's grammar represents the ordered PATH CONTENT pairs directly")]
+#[derive(Debug, PartialEq, Eq)]
+pub enum Forge {
+    Commit { forge: u32, repository: Box<[u8]>, message: Box<[u8]>, files: Vec<(Box<[u8]>, Box<[u8]>)> },
+    Checks { forge: u32, repository: Box<[u8]> },
+}
 impl Line {
     /// Parse one line without a terminating newline.
     pub fn parse(source: &[u8]) -> Result<Self, String> {
@@ -41,6 +48,7 @@ impl Line {
                 b"end" => Record::End,
                 b"web" => Record::Web(web(&mut fields)?),
                 b"tui" => Record::Tui(tui(&mut fields)?),
+                b"forge" => Record::Forge(forge(&mut fields)?),
                 b"ctl" => {
                     if fields.remaining() == 0 {
                         return Err("missing ctl argument".into());
@@ -55,7 +63,7 @@ impl Line {
                 }
                 other => {
                     return Err(format!(
-                        "unknown client {:?}; expected web, tui, ctl or end",
+                        "unknown client {:?}; expected web, tui, ctl, forge or end",
                         String::from_utf8_lossy(other)
                     ));
                 }
@@ -85,6 +93,45 @@ fn word(fields: &mut Fields, name: &str) -> Result<Box<[u8]>, String> {
 }
 fn bytes(fields: &mut Fields, name: &str) -> Result<Box<[u8]>, String> {
     fields.bytes().map_err(|why| format!("expected {name}: {why}"))
+}
+#[expect(clippy::type_complexity, reason = "the parsed pairs have the same shape as Forge::Commit")]
+fn forge(fields: &mut Fields) -> Result<Forge, String> {
+    let record = word(fields, "forge record: commit or checks")?;
+    if record.as_ref() != b"commit" && record.as_ref() != b"checks" {
+        return Err("unknown forge record; expected commit or checks".into());
+    }
+    let forge = fields.count().map_err(|why| format!("expected FORGE number: {why}"))?;
+    let repository = word(fields, "REPOSITORY OWNER/NAME")?;
+    let parts: Vec<_> = repository.split(|byte| *byte == b'/').collect();
+    if parts.len() != 2 || parts.iter().any(|part| part.is_empty() || *part == b"." || *part == b"..") {
+        return Err("expected REPOSITORY OWNER/NAME".into());
+    }
+    if record.as_ref() == b"checks" {
+        return Ok(Forge::Checks { forge, repository });
+    }
+    let message = bytes(fields, "MESSAGE")?;
+    let mut files: Vec<(Box<[u8]>, Box<[u8]>)> = vec![];
+    while fields.remaining() != 0 {
+        let path = bytes(fields, "PATH")?;
+        if path.is_empty()
+            || path.len() > 256
+            || path.split(|b| *b == b'/').any(|p| p.is_empty() || p == b"." || p == b"..")
+        {
+            return Err("expected relative PATH of 1 to 256 bytes without empty, . or .. segments".into());
+        }
+        if files.iter().any(|(previous, _)| *previous == path) {
+            return Err("expected distinct PATHs".into());
+        }
+        let content = bytes(fields, "CONTENT after PATH")?;
+        if content.len() > 65536 {
+            return Err("expected CONTENT at most 64 KiB".into());
+        }
+        files.push((path, content));
+    }
+    if !(1..=16).contains(&files.len()) {
+        return Err("expected 1 to 16 PATH CONTENT pairs".into());
+    }
+    Ok(Forge::Commit { forge, repository, message, files })
 }
 fn web(fields: &mut Fields) -> Result<Web, String> {
     let record = word(fields, "web record")?;

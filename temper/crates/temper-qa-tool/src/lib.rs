@@ -21,6 +21,7 @@ mod report;
 mod requests;
 pub mod runner;
 mod text;
+mod tune;
 pub mod watch;
 
 pub use case::{CaseInput, Step};
@@ -28,7 +29,9 @@ pub use cli::{AREA, HOME, SESSION, TABLE, main};
 pub use config::{Agent, Bounds, Configuration, Git, RequestConfiguration};
 pub use findings::{Check, Finding, FindingAnswer, FindingInput, FindingState, Note};
 pub use home::Home;
-pub use ledger::{Answer, Ask, Build, BuildState, Case, CaseAnswer, Exit, Landing, Ledger, Line, Pages, Session};
+pub use ledger::{
+    Answer, Ask, Build, BuildState, Case, CaseAnswer, Exit, Landing, Ledger, Line, Pages, PlaceWait, Session,
+};
 pub use passes::{
     Before, CaseBefore, CaseState, Outcome, OutcomeResult, Pass, PassStart, PassState, Request, SessionKind,
 };

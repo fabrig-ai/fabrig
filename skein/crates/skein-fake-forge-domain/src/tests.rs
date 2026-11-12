@@ -2246,6 +2246,7 @@ fn modify_and_delete_or_two_adds_conflict_unless_they_agree() {
 }
 
 mod hooks;
+mod image;
 
 #[test]
 fn a_directory_reads_as_its_immediate_entries() {

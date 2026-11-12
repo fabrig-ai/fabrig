@@ -17,6 +17,7 @@ use skein_fake_llm_domain::api;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 
 mod scripts;
+mod take;
 
 fn llm_document() -> Value {
     json!({"listen":{"socket":"127.0.0.1:0"},"key":"/tmp/key","tls":null,

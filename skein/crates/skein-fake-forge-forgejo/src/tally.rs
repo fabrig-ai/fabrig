@@ -179,7 +179,7 @@ pub fn route(request: &Request) -> Route {
         Request::CreateToken { .. } => Route::CreateToken,
         Request::DeleteToken { .. } => Route::DeleteToken,
         Request::Org { .. } => Route::Org,
-        Request::CreateFile { .. } => Route::CreateFile,
+        Request::ChangeFiles { .. } | Request::CreateFile { .. } => Route::CreateFile,
         Request::CreateRepository { .. } => Route::CreateRepository,
         Request::Migrate { .. } => Route::Migrate,
         Request::DeleteRepository { .. } => Route::DeleteRepository,

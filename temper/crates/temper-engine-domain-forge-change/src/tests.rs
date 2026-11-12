@@ -102,6 +102,80 @@ fn decide(change: &Change, facts: &Facts, heard: &Heard) -> crate::Stepped {
 }
 
 #[test]
+fn a_moved_head_ends_only_an_idle_resolution_and_decides_afresh() {
+    let mut c = change(State::Resolving { requested: true, base: BASE });
+    c.resolutions = 1;
+    c.owns_turn = true;
+    let mut f = facts();
+    f.delegate = Some(Delegate::Resolve { base: BASE });
+    f.branch = Some(NEW);
+    f.base_tip = MERGE;
+    let live = Heard { delegate_live: true, ..heard() };
+    for status in [Status::Unknown, Status::Pending] {
+        let cancelled = decide(&c, &f, &Heard { delegate: status, ..live });
+        assert_eq!(cancelled.change.state, State::WaitingProducer { base: BASE });
+        assert_eq!(cancelled.decision, Decision::CancelResolution { head: NEW });
+        assert_eq!(cancelled.change.since, at(1));
+        assert_eq!(cancelled.change.last_head, Some(HEAD));
+        assert_eq!(cancelled.change.resolutions, 1);
+        assert!(!cancelled.change.owns_turn);
+        assert_eq!(decide(&cancelled.change, &f, &live).decision, Decision::Wait { until: None });
+        for mergeable in [Status::Passed, Status::Failed] {
+            f.mergeable = mergeable;
+            let ended = Heard { delegate: Status::Failed, ..heard() };
+            let next = decide(&cancelled.change, &f, &ended);
+            assert_resolution_reread(&next, mergeable, 2);
+            f.drift = Some(Hold::BranchMoved);
+            let first = decide(&c, &f, &live);
+            assert_eq!(first.decision, Decision::CancelResolution { head: NEW });
+            let held = decide(&first.change, &f, &ended);
+            assert_eq!(held.decision, Decision::Hold(Hold::BranchMoved));
+            assert_eq!(
+                held.change.state,
+                State::Held { was: Box::new(State::WaitingProducer { base: BASE }), why: Hold::BranchMoved }
+            );
+            let released = decide(&held.change, &f, &Heard { released: true, ..ended });
+            assert_eq!(released.change.state, State::WaitingProducer { base: BASE });
+            f.drift = None;
+            let next = decide(&released.change, &f, &ended);
+            assert_resolution_reread(&next, mergeable, 1);
+        }
+    }
+    f.mergeable = Status::Failed;
+    let waiting = Decision::Wait { until: Some(at(31)) };
+    for (delegate, running, writer, head, status, expected) in [
+        (f.delegate, true, false, Some(NEW), Status::Pending, waiting),
+        (f.delegate, false, true, Some(NEW), Status::Pending, waiting),
+        (f.delegate, false, false, Some(HEAD), Status::Pending, waiting),
+        (f.delegate, false, false, None, Status::Pending, waiting),
+        (f.delegate, false, false, Some(NEW), Status::Passed, Decision::None),
+        (f.delegate, false, false, Some(NEW), Status::Failed, Decision::Hold(Hold::Failed)),
+        (Some(Delegate::Merge { base: BASE, from: Some(HEAD) }), false, false, Some(NEW), Status::Pending, waiting),
+    ] {
+        f.delegate = delegate;
+        f.writer_taken = writer;
+        f.branch = head;
+        let next = decide(&c, &f, &Heard { delegate: status, delegate_running: running, ..live });
+        assert_eq!(next.decision, expected, "{delegate:?}, {running}, {writer}, {head:?}, {status:?}");
+        if status == Status::Passed {
+            assert_eq!(next.change.state, State::Checking { head: NEW });
+        }
+    }
+}
+
+fn assert_resolution_reread(next: &crate::Stepped, mergeable: Status, resolutions: u32) {
+    assert_eq!(next.change.last_head, Some(NEW));
+    if mergeable == Status::Passed {
+        assert_eq!(next.change.state, State::Checking { head: NEW });
+        assert_eq!(next.decision, Decision::None);
+    } else {
+        assert_eq!(next.change.state, State::Resolving { requested: true, base: MERGE });
+        assert_eq!(next.decision, Decision::Delegate(Delegate::Resolve { base: MERGE }));
+        assert_eq!(next.change.resolutions, resolutions);
+    }
+}
+
+#[test]
 fn an_agent_with_an_open_question_never_stalls() {
     let mut f = facts();
     f.branch = None;
