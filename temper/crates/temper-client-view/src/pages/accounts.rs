@@ -882,6 +882,10 @@ pub(crate) fn home_accounts(root: &Domain) -> (bool, crate::words::Word) {
 }
 
 fn first_usable(root: &Domain, w: &Words, with_display: bool) -> Option<Box<[u8]>> {
+    let (row, source) = usable_account(root)?;
+    Some(account_words(root, w, row, source, with_display))
+}
+pub(crate) fn usable_account(root: &Domain) -> Option<(&c::AccountLine, &c::AccountSource)> {
     let document = accounts::document(root.client())?;
     for row in &document.accounts {
         if rows::playground(root, row.provider) {
@@ -895,7 +899,7 @@ fn first_usable(root: &Domain, w: &Words, with_display: bool) -> Option<Box<[u8]
             }
         }
         let Some(source) = usable else { continue };
-        return Some(account_words(root, w, row, source, with_display));
+        return Some((row, source));
     }
     None
 }

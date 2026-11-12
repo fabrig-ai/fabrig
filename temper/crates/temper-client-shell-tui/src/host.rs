@@ -1,6 +1,6 @@
 //! Reports in and duties out (temper/docs/design/client/tui/README.md, 3).
 use crate::limits::{self, Limits};
-use jig_client::{Link, Message, With};
+use jig_client::{Link, Message, With, contract::LoginExit};
 use skein_lib::{Duration, Env, List, Queue, Secret, Set, Time, Token, Wall};
 use skein_ui::Patch;
 use skein_ui_screen::{Cell, Focus, Frame, Rgb, Size, Theme};
@@ -72,6 +72,7 @@ pub enum Report {
     /// A line of the box's, read.
     Front(temper_client_tui::BoxLine),
     Stage(tui::BoxStage),
+    Lent { number: u32, exit: LoginExit },
 }
 
 /// The box's first stop closes its life pipe; the second sends SIGTERM.
@@ -79,6 +80,14 @@ pub enum Report {
 pub enum Stop {
     First,
     Second,
+}
+
+/// A login taking the terminal (client/tui/box.md, Lending its terminal).
+#[derive(Debug, PartialEq, Eq)]
+pub struct Lend {
+    pub number: u32,
+    pub name: Box<[u8]>,
+    pub line: Box<[u8]>,
 }
 
 #[derive(Default)]
@@ -91,6 +100,8 @@ pub struct Duties {
     pub open: Option<Box<[u8]>>,
     pub close: bool,
     pub stop: Option<Stop>,
+    pub lend: Option<Lend>,
+    pub unlend: bool,
 }
 
 pub struct Settings {
@@ -137,6 +148,7 @@ pub struct Host {
     closed: bool,
     stopping: bool,
     handed: bool,
+    terminal_number: u64,
 }
 
 impl Host {
@@ -182,6 +194,7 @@ impl Host {
             closed: false,
             stopping: false,
             handed: false,
+            terminal_number: skein_lib::Rng::new(seed).next_u64(),
         }
     }
 
@@ -201,6 +214,7 @@ impl Host {
         let project = self.root.pages().project();
         let mut duties = Duties::default();
         match report {
+            Report::Lent { number, exit } => self.lent(number, exit),
             Report::Local { link } => self.found(link),
             Report::Front(line) => self.tell(Told::BoxLine { line }),
             Report::Stage(stage) => self.stage(stage, &mut duties),
@@ -313,6 +327,7 @@ impl Host {
             self.note = Some(Note::Until(expires));
             duties.note = self.note;
         }
+        self.lending(&mut duties);
         self.approval(&mut duties);
         let scheme = match self.root.pages().look().theme {
             terminal::Theme::Dark => tui::Scheme::Dark,
@@ -376,10 +391,50 @@ impl Host {
         });
         self.step(Event::Launchpad);
         if start.front {
+            self.step(Event::Lends { terminal: self.terminal_number });
             self.need_local(true, duties);
         } else if self.credential.is_none() {
             self.begin_local(duties);
         }
+    }
+
+    fn lending(&mut self, duties: &mut Duties) {
+        if !self.state().front() || self.closed {
+            return;
+        }
+        let Some(login) = self.root.terminal_login() else { return };
+        if let Some(lending) = self.state().lending() {
+            if login.number == lending.number && login.cancelled && !lending.unlend {
+                duties.unlend = true;
+                self.tell(Told::Unlend);
+            }
+        } else if !login.cancelled && !self.state().login_taken(login.number) {
+            let number = login.number;
+            let name = login.name.clone();
+            duties.lend = Some(Lend {
+                number,
+                name: name.clone(),
+                line: self.view.words().say(tui::words::Word::LendLine, &[]),
+            });
+            self.tell(Told::Lending { number, name });
+        }
+    }
+
+    fn lent(&mut self, number: u32, exit: LoginExit) {
+        let Some(lending) = self.state().lending() else { return };
+        if lending.number != number {
+            return;
+        }
+        let notice = if lending.unlend {
+            tui::Notice::LoginCancelled
+        } else if exit == (LoginExit::Exited { code: 0 }) {
+            tui::Notice::LoginSignedIn
+        } else {
+            tui::Notice::LoginNotFinished
+        };
+        self.step(Event::Act { action: root::Action::LoginEnded { number, exit } });
+        self.tell(Told::Lent);
+        self.notice(notice);
     }
 
     fn begin_local(&mut self, duties: &mut Duties) {

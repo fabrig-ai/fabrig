@@ -2,7 +2,7 @@
 use crate::{BoxEnd, BoxLine, BoxStage, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::{ObjectKey, TurnName};
-use skein_lib::{List, Queue, Secret, bytes::copy_of};
+use skein_lib::{List, Queue, Secret, Set, bytes::copy_of};
 
 #[derive(Debug)]
 #[expect(
@@ -28,6 +28,8 @@ pub struct Tui {
     reply_aside: Option<TurnName>,
     start_chat: Option<u64>,
     notice: Option<Notice>,
+    lending: Option<Lending>,
+    logins_taken: Set<u32>,
     focus: u64,
     box_written: u64,
     left_off: Option<u64>,
@@ -47,6 +49,13 @@ pub struct Tui {
     theme_choice: ThemeChoice,
     terminal_scheme: Option<Scheme>,
     theme_list: bool,
+}
+/// The login lent until its end (client/tui/box.md, Lending its terminal).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Lending {
+    pub number: u32,
+    pub name: Box<[u8]>,
+    pub unlend: bool,
 }
 /// The box's state, given up winning (temper/docs/design/client/tui/box.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -87,11 +96,17 @@ pub enum Refusal {
 pub enum Notice {
     Unknown { words: Box<[u8]> },
     SigningIn,
+    LoginSignedIn,
+    LoginCancelled,
+    LoginNotFinished,
     Proposed,
     Theme { choice: ThemeChoice, terminal: Option<Scheme> },
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
+    Lending { number: u32, name: Box<[u8]> },
+    Unlend,
+    Lent,
     Walk {
         by_key: bool,
     },
@@ -195,6 +210,8 @@ impl Tui {
             reply_aside: None,
             start_chat: None,
             notice: None,
+            lending: None,
+            logins_taken: Set::with_capacity(u32::MAX),
             focus: 1,
             box_written: 0,
             front: false,
@@ -280,6 +297,14 @@ impl Tui {
     #[must_use]
     pub const fn start_chat(&self) -> Option<u64> {
         self.start_chat
+    }
+    #[must_use]
+    pub fn lending(&self) -> Option<&Lending> {
+        self.lending.as_ref()
+    }
+    #[must_use]
+    pub fn login_taken(&self, number: u32) -> bool {
+        self.logins_taken.contains(&number)
     }
     #[must_use]
     pub fn notice(&self) -> Option<&Notice> {
@@ -512,6 +537,20 @@ impl Tui {
     #[expect(clippy::too_many_lines, reason = "one dispatch updates the TUI's independent surface facts")]
     pub fn step(&mut self, told: Told) {
         let changed = match told {
+            Told::Lending { number, name } => {
+                self.logins_taken.insert(number).expect("at most every login number");
+                self.lending = Some(Lending { number, name, unlend: false });
+                true
+            }
+            Told::Unlend => match &mut self.lending {
+                Some(lending) => {
+                    let changed = !lending.unlend;
+                    lending.unlend = true;
+                    changed
+                }
+                None => false,
+            },
+            Told::Lent => self.lending.take().is_some(),
             Told::Walk { by_key } => {
                 let changed = match &self.walk {
                     Some(walk) => walk.by_key != by_key || walk.taken,
