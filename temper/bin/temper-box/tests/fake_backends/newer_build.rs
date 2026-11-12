@@ -84,11 +84,7 @@ impl Installed {
     }
 
     fn probe(&self, old: Vec<Identity>) -> Probe {
-        Probe {
-            program: self.bin().join("temper-box"),
-            adapter: self.bin().join("fake-claude"),
-            old,
-        }
+        Probe { program: self.bin().join("temper-box"), adapter: self.bin().join("fake-claude"), old }
     }
 
     /// Keep unlinked files open so the filesystem cannot reuse their old inodes.
@@ -201,10 +197,21 @@ impl Forgejo {
 
     fn connect(&self) -> Call {
         Call::new(&[
-            "forge", "connect", "forgejo-admin", self.admin.to_str().expect("admin path"),
-            "--first", "work/hello", "--api", self.origin.strip_prefix("http://").expect("HTTP origin"),
-            "--git", &self.origin, "--git-program", self.git.to_str().expect("fake git path"),
-            "--key", "newer-forge", "--json",
+            "forge",
+            "connect",
+            "forgejo-admin",
+            self.admin.to_str().expect("admin path"),
+            "--first",
+            "work/hello",
+            "--api",
+            self.origin.strip_prefix("http://").expect("HTTP origin"),
+            "--git",
+            &self.origin,
+            "--git-program",
+            self.git.to_str().expect("fake git path"),
+            "--key",
+            "newer-forge",
+            "--json",
         ])
     }
 
@@ -237,18 +244,30 @@ impl Forgejo {
     fn make_failed_pull(&self) {
         let main = self.get("/branches/main");
         // The fake's contents route takes an existing branch, not new_branch.
-        self.request("POST", "/branches", Some(json!({
-            "new_branch_name": "failed-check", "old_ref_name": main["commit"]["id"],
-        })));
+        self.request(
+            "POST",
+            "/branches",
+            Some(json!({
+                "new_branch_name": "failed-check", "old_ref_name": main["commit"]["id"],
+            })),
+        );
         // ZmFpbAo= is the contents API's base64 for "fail\n".
-        let committed = self.request("POST", "/contents/.fake-forge/ci", Some(json!({
-            "branch": "failed-check", "content": "ZmFpbAo=", "message": "Declare a failing check",
-            "author": {"name": "Person", "email": "person@example.invalid"},
-            "committer": {"name": "Person", "email": "person@example.invalid"},
-        })));
-        let pull = self.request("POST", "/pulls", Some(json!({
-            "head": "failed-check", "base": "main", "title": "A failed check kept across restart", "body": "",
-        })));
+        let committed = self.request(
+            "POST",
+            "/contents/.fake-forge/ci",
+            Some(json!({
+                "branch": "failed-check", "content": "ZmFpbAo=", "message": "Declare a failing check",
+                "author": {"name": "Person", "email": "person@example.invalid"},
+                "committer": {"name": "Person", "email": "person@example.invalid"},
+            })),
+        );
+        let pull = self.request(
+            "POST",
+            "/pulls",
+            Some(json!({
+                "head": "failed-check", "base": "main", "title": "A failed check kept across restart", "body": "",
+            })),
+        );
         assert_eq!(pull["head"]["ref"], "failed-check");
         assert_eq!(pull["base"]["ref"], "main");
         assert_eq!(pull["head"]["sha"], committed["commit"]["sha"], "the pull holds the declared failing CI");
