@@ -500,25 +500,45 @@ fn build(
     let phase = subject::ended(document);
     Ok((Request::Act { ask, phase, asked: asked(call, document) }, to))
 }
-/// Past what the read contract asks, the refusal names the bound (client/ctl/areas.md).
+/// The read contract explains an engine refusal; it never prevents submission (client/ctl/areas.md).
 fn asked(call: &Call, document: &c::ReadValue) -> Option<render::outcome::Asked> {
+    use render::outcome::Asked;
     if call.tool != rows::ANSWER_AT {
         return None;
     }
     let c::ReadValue::PersonTask(task) = document else { return None };
     let (bound, choice, index) = match call.form {
-        1 => {
-            let c::TaskContractDocument::Verdict { choices, .. } = &task.contract else { return None };
-            let code = number(call, 2)?;
-            let mut bound = None;
-            for choice in choices {
-                if u64::from(choice.code) == code {
-                    bound = Some((choice.words, Some(choice.code), 3));
-                    break;
+        1 => match &task.contract {
+            c::TaskContractDocument::Report { words } => {
+                return Some(Asked::Words { bound: *words, revision: number(call, 1)? });
+            }
+            c::TaskContractDocument::Approval { .. } => {
+                return Some(Asked::Approval { revision: number(call, 1)? });
+            }
+            c::TaskContractDocument::Verdict { choices, cut } => {
+                let code = number(call, 2)?;
+                let mut bound = None;
+                for choice in choices {
+                    if u64::from(choice.code) == code {
+                        bound = Some((choice.words, Some(choice.code), 3));
+                        break;
+                    }
+                }
+                if let Some(bound) = bound {
+                    bound
+                } else {
+                    if *cut || choices.is_empty() {
+                        return None;
+                    }
+                    let mut codes = List::with_capacity(choices.len());
+                    for choice in choices {
+                        codes.push(choice.code).expect("read choices fit");
+                    }
+                    return Some(Asked::Choices { choice: u32::try_from(code).ok()?, codes });
                 }
             }
-            bound?
-        }
+            c::TaskContractDocument::Change { .. } | c::TaskContractDocument::Job { .. } => return None,
+        },
         2 => {
             let c::TaskContractDocument::Report { words } = &task.contract else { return None };
             (*words, None, 2)
@@ -526,7 +546,7 @@ fn asked(call: &Call, document: &c::ReadValue) -> Option<render::outcome::Asked>
         _ => return None,
     };
     let Some(Value::Text(text)) = value(call, index) else { return None };
-    if text.len() > skein_lib::length::usize_of(bound) { Some(render::outcome::Asked { bound, choice }) } else { None }
+    if text.len() > skein_lib::length::usize_of(bound) { Some(Asked::Bound { bound, choice }) } else { None }
 }
 fn answer(call: &Call, limits: &Limits) -> Result<c::AnswerOn, Failed> {
     let task = number(call, 0).expect("task");
