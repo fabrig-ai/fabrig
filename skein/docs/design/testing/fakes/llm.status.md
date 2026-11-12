@@ -20,4 +20,3 @@ lists apart from scripted calls.
   `Server::keep_body`), because a test must compare a kept body with what
   the provider read (`../../llm/README.status.md`); it comes out with that hook. Unasked,
   nothing is kept, since the worlds count memory.
-- **Not yet:** 2.6: no line takes a value from the conversation; `Line` has no `Take` [in flight: change 1362].
