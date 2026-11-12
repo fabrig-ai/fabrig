@@ -43,7 +43,7 @@ fn fixture_title(
     deliver_asked(&mut root, decided, None);
     root
 }
-fn fixture_watched(
+pub(super) fn fixture_watched(
     words: &str,
     cut: bool,
     count: u32,
@@ -232,7 +232,11 @@ fn fixture_classes_role(
     assert!(root.pages().inbox().unwrap().delivered(root.client()));
     (root, watch, decided.unwrap())
 }
-fn deliver_asked(root: &mut d::Domain, watch: skein_lib::Token, reach: Option<temper_protocol_reaches::Reach>) {
+pub(super) fn deliver_asked(
+    root: &mut d::Domain,
+    watch: skein_lib::Token,
+    reach: Option<temper_protocol_reaches::Reach>,
+) {
     deliver_asked_for(root, watch, f::PROJECT, reach);
 }
 fn deliver_asked_for(
@@ -1970,9 +1974,10 @@ pub(super) fn approval_row() -> d::forge::approvals::Row {
         role: 1,
         required: 1,
         counted: 0,
-        behind: 0,
+        sets: Box::new([]),
         whole: true,
         yours: d::forge::approvals::Yours::Counts,
+        size: None,
     }
 }
 pub(super) fn approvals(root: &mut d::Domain, rows: &[d::forge::approvals::Row], more: u32) {
@@ -1983,6 +1988,80 @@ pub(super) fn approvals(root: &mut d::Domain, rows: &[d::forge::approvals::Row],
         }),
     );
 }
+pub(super) fn size_cases() -> [(Option<d::forge::approvals::Size>, &'static str, &'static str); 6] {
+    use d::forge::approvals::Size;
+    [
+        (Some(Size { files: 4, additions: 142, deletions: 18, cut: false }), "+142 -18 in 4 files", " in 4 files"),
+        (Some(Size { files: 1, additions: 3, deletions: 0, cut: false }), "+3 -0 in 1 file", " in 1 file"),
+        (
+            Some(Size { files: u32::MAX, additions: 10, deletions: 2, cut: true }),
+            "+10 -2 in 4294967295+ files",
+            " in 4294967295+ files",
+        ),
+        (
+            Some(Size { files: 0, additions: u32::MAX, deletions: u32::MAX, cut: true }),
+            "+4294967295+ -4294967295+ in 0 files",
+            " in 0 files",
+        ),
+        (
+            Some(Size { files: u32::MAX, additions: u32::MAX, deletions: u32::MAX, cut: false }),
+            "+4294967295 -4294967295 in 4294967295 files",
+            " in 4294967295 files",
+        ),
+        (None, "", ""),
+    ]
+}
+pub(super) fn check_size(tree: &skein_ui::Tree, words: &str, files: &str) {
+    let nodes = tree.nodes();
+    let rows: Vec<_> = nodes.iter().enumerate().filter(|(_, n)| n.styles.as_slice().contains(&look::CHIPS)).collect();
+    assert_eq!(rows.len(), usize::from(!words.is_empty()));
+    assert_eq!(look::NAMES.style(look::CHIPS), Some(b"temper-chips".as_slice()));
+    assert_eq!(look::NAMES.style(look::SIZE_FILES), Some(b"temper-size-files".as_slice()));
+    if let Some((start, row)) = rows.first() {
+        let row = &nodes[*start..start.checked_add(usize::try_from(row.size).unwrap()).unwrap()];
+        let chip = &row[1];
+        assert_eq!(row.len(), usize::try_from(chip.size).unwrap().checked_add(1).unwrap(), "one chip only");
+        assert_eq!(chip.styles.as_slice(), [look::CHIP]);
+        assert!(row.iter().all(|n| n.binding.is_none() && n.link.is_none() && n.external.is_none()));
+        let actual: Vec<_> = row.iter().flat_map(|n| n.text.iter()).flat_map(|run| run.text.iter().copied()).collect();
+        assert_eq!(actual, words.as_bytes());
+        let files_node =
+            row.iter().find(|n| n.styles.as_slice().contains(&look::SIZE_FILES)).expect("files' own element");
+        assert_eq!(files_node.name.as_deref(), Some(files.as_bytes()));
+    } else {
+        assert!(!nodes.iter().any(|n| n.styles.as_slice().contains(&look::SIZE_FILES)));
+    }
+}
+#[test]
+fn approval_size_is_one_plain_chip_after_context_before_acts_or_nothing() {
+    for (size, words, files) in size_cases() {
+        let row = d::forge::approvals::Row { size, ..approval_row() };
+        let mut root = kinds(&[]);
+        approvals(&mut root, core::slice::from_ref(&row), 0);
+        let mut view = f::browser_page_view(&root);
+        check_size(view.tree(), words, files);
+        let nodes = view.tree().nodes();
+        let context = nodes.iter().rposition(|n| n.styles.as_slice().contains(&look::ASK_CONTEXT)).unwrap();
+        let after = context + usize::try_from(nodes[context].size).unwrap();
+        let choices = nodes.iter().position(|n| n.styles.as_slice().contains(&look::ASK_CHOICES)).unwrap();
+        if size.is_some() {
+            assert!(nodes[after].styles.as_slice().contains(&look::CHIPS));
+            assert_eq!(after + usize::try_from(nodes[after].size).unwrap(), choices);
+        } else {
+            assert_eq!(after, choices, "no placeholder without a size");
+        }
+        assert_eq!(
+            nodes[context].name.as_deref(),
+            Some(b"This project's landing rule 1 asks for one approval by a maintainer.".as_slice())
+        );
+        assert!(f::find(view.tree(), Role::Link, "Review on Forgejo ↗".as_bytes()).is_some());
+        assert_eq!(
+            press(&mut view, b"Open"),
+            d::Action::Pages(pages::Act::Go { address: Address::Task { task: row.task } })
+        );
+    }
+}
+
 #[test]
 #[expect(
     clippy::too_many_lines,
@@ -1991,8 +2070,20 @@ pub(super) fn approvals(root: &mut d::Domain, rows: &[d::forge::approvals::Row],
 fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
     use d::forge::{approvals::Yours, forges::Kind};
     let rule = "This project's landing rule 1 asks for one approval by a maintainer.";
-    for (kind, scope, rule_number, role, required, counted, behind, whole, yours, address, expected) in [
-        (Kind::Forgejo, 1, 1, 1, 1, 0, 0, true, Yours::Counts, "https://forge.example/files", [rule].as_slice()),
+    for (kind, scope, rule_number, role, required, counted, sets, whole, yours, address, expected) in [
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            [(1, "vsr's protocol core")].as_slice(),
+            true,
+            Yours::Counts,
+            "https://forge.example/files",
+            [rule, "Signs off changes to vsr's protocol core."].as_slice(),
+        ),
         (
             Kind::GitHub,
             0,
@@ -2000,14 +2091,11 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             0,
             2,
             1,
-            3,
+            [].as_slice(),
             true,
             Yours::Counts,
             "https://github.com/work/hello/pull/24/files",
-            &[
-                "The deployment's landing rule 2 asks for 2 approvals by owners; 1 so far.",
-                "3 more changes wait behind this one.",
-            ],
+            &["The deployment's landing rule 2 asks for 2 approvals by owners; 1 so far."],
         ),
         (
             Kind::Forgejo,
@@ -2016,13 +2104,13 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             1,
             1,
             0,
-            1,
+            [(1, "A"), (3, "B")].as_slice(),
             false,
             Yours::Counts,
             "https://forge.example/files",
             &[
                 rule,
-                "1 more change waits behind this one.",
+                "Signs off changes to A and B.",
                 "There are too many reviews to read them all, so one may already count.",
             ],
         ),
@@ -2033,11 +2121,15 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             1,
             1,
             0,
-            0,
+            [(1, "A")].as_slice(),
             true,
             Yours::NoAccount,
             "https://forge.example/files",
-            &[rule, "temper knows no Forgejo account of yours, so your review wouldn't count."],
+            &[
+                rule,
+                "Signs off changes to A.",
+                "temper knows no Forgejo account of yours, so your review wouldn't count.",
+            ],
         ),
         (
             Kind::GitHub,
@@ -2046,7 +2138,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             1,
             1,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::NoAccount,
             "https://github.com/files",
@@ -2059,7 +2151,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             1,
             1,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::TooFew,
             "https://forge.example/files",
@@ -2075,7 +2167,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             1,
             1,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::OtherRole,
             "https://forge.example/files",
@@ -2088,7 +2180,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             2,
             1,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::Counts,
             "",
@@ -2101,7 +2193,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             3,
             2,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::Counts,
             "javascript:alert(1)",
@@ -2114,7 +2206,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             8,
             1,
             0,
-            0,
+            [].as_slice(),
             true,
             Yours::OtherRole,
             "https://forge.example/files",
@@ -2130,11 +2222,74 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             8,
             2,
             1,
-            0,
+            [].as_slice(),
             true,
             Yours::Counts,
             "https://forge.example/files",
             &["This project's landing rule 1 asks for 2 approvals by people with role 8; 1 so far."],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            [(1, "A"), (2, "B"), (3, "C")].as_slice(),
+            true,
+            Yours::Counts,
+            "https://forge.example/files",
+            &[rule, "Signs off changes to A, B and C."],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            [(4, "")].as_slice(),
+            true,
+            Yours::Counts,
+            "https://forge.example/files",
+            &[rule, "Signs off changes to path set 4."],
+        ),
+        (
+            Kind::GitHub,
+            1,
+            1,
+            1,
+            1,
+            0,
+            [(1, "A")].as_slice(),
+            true,
+            Yours::Counts,
+            "https://github.com/files",
+            &[rule, "Signs off changes to A."],
+        ),
+        (
+            Kind::Forgejo,
+            1,
+            1,
+            1,
+            1,
+            0,
+            [
+                (1, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"),
+                (2, "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"),
+                (3, "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC"),
+                (4, "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD"),
+                (5, "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"),
+                (6, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"),
+            ]
+            .as_slice(),
+            true,
+            Yours::Counts,
+            "https://forge.example/files",
+            &[
+                rule,
+                "Signs off changes to AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA, BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB, CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC, DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD, EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE and FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF.",
+            ],
         ),
     ] {
         let row = d::forge::approvals::Row {
@@ -2144,7 +2299,13 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             role,
             required,
             counted,
-            behind,
+            sets: sets
+                .iter()
+                .map(|(number, name)| d::forge::approvals::ApprovalSet {
+                    number: *number,
+                    name: name.as_bytes().into(),
+                })
+                .collect(),
             whole,
             yours,
             address: address.as_bytes().into(),
@@ -2153,9 +2314,11 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
         let mut root = kinds(&[]);
         approvals(&mut root, core::slice::from_ref(&row), 0);
         let mut view = f::browser_page_view(&root);
-        let (question, review) = match kind {
-            Kind::Forgejo => ("Approve A change on Forgejo", "Review on Forgejo ↗"),
-            Kind::GitHub => ("Approve A change on GitHub", "Review on GitHub ↗"),
+        let (question, review) = match (kind, sets.is_empty()) {
+            (Kind::Forgejo, true) => ("Approve A change on Forgejo", "Review on Forgejo ↗"),
+            (Kind::Forgejo, false) => ("Approve A change on Forgejo", "Sign off on Forgejo ↗"),
+            (Kind::GitHub, true) => ("Approve A change on GitHub", "Review on GitHub ↗"),
+            (Kind::GitHub, false) => ("Approve A change on GitHub", "Sign off on GitHub ↗"),
         };
         let heading = f::find(view.tree(), Role::Heading { level: 1 }, question.as_bytes()).unwrap();
         assert!(view.tree().find(heading).unwrap().styles.as_slice().contains(&look::FLOW_Q));
@@ -2164,6 +2327,7 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             .filter(|node| node.role == Role::Paragraph && node.styles.as_slice().contains(&look::ASK_CONTEXT))
             .map(|node| node.name.as_deref().unwrap())
             .collect();
+        assert!(context.iter().all(|line| !String::from_utf8_lossy(line).contains("wait behind")));
         assert_eq!(context, expected.iter().map(|line| line.as_bytes()).collect::<Vec<_>>());
         let primary = f::find(view.tree(), Role::Link, review.as_bytes());
         if yours == Yours::Counts && skein_ui::markdown::safe_url(address.as_bytes()) {
@@ -2172,6 +2336,17 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
             assert_eq!(node.external.as_deref(), Some(address.as_bytes()));
         } else {
             assert!(primary.is_none(), "{yours:?}: no review that cannot count");
+        }
+        let prompts = crate::shared::need_prompts(&root, &f::browser_words());
+        assert_eq!(prompts.len(), 1);
+        match &prompts[0].act {
+            crate::shared::NeedAct::Review { words, address: target } => {
+                assert!(primary.is_some());
+                assert_eq!(words.as_ref(), review.as_bytes());
+                assert_eq!(target.as_ref(), address.as_bytes());
+            }
+            crate::shared::NeedAct::Web => assert!(primary.is_none()),
+            crate::shared::NeedAct::Answer(_) => panic!("an approval is answered on the forge"),
         }
         assert_eq!(
             press(&mut view, b"Open"),

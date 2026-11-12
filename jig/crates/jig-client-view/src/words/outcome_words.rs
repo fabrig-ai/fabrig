@@ -31,6 +31,7 @@ pub enum OutcomePhrase {
     /// The project adopted saying.
     Adopted,
     /// The task stopped saying.
+    Left,
     Stopped,
     /// The task cancelled saying.
     Cancelled,
@@ -130,7 +131,7 @@ pub enum OutcomePhrase {
     HostFailed,
 }
 /// Every outcome phrase in stable owner order.
-pub const ALL: [OutcomePhrase; 69] = [
+pub const ALL: [OutcomePhrase; 70] = [
     OutcomePhrase::Created,
     OutcomePhrase::FirstTask,
     OutcomePhrase::LastTask,
@@ -142,6 +143,7 @@ pub const ALL: [OutcomePhrase; 69] = [
     OutcomePhrase::NoteEdited,
     OutcomePhrase::ServiceMade,
     OutcomePhrase::Adopted,
+    OutcomePhrase::Left,
     OutcomePhrase::Stopped,
     OutcomePhrase::Cancelled,
     OutcomePhrase::Released,
@@ -217,6 +219,7 @@ impl OutcomePhrase {
             Self::NoteEdited => 6402,
             Self::ServiceMade => 6403,
             Self::Adopted => 6404,
+            Self::Left => 6476,
             Self::Stopped => 6407,
             Self::Cancelled => 6408,
             Self::Released => 6409,
@@ -316,6 +319,7 @@ impl OutcomePhrase {
             | Self::NoteEdited
             | Self::ServiceMade
             | Self::Adopted
+            | Self::Left
             | Self::Stopped
             | Self::Cancelled
             | Self::Released
@@ -355,7 +359,7 @@ impl OutcomePhrase {
 /// Phrase contracts independent of the selected language's word order.
 #[must_use]
 pub fn shapes() -> Box<[PhraseShape]> {
-    let mut values = List::with_capacity(69);
+    let mut values = List::with_capacity(u32::try_from(ALL.len()).expect("outcome phrase count fits"));
     for phrase in ALL {
         let holes: Box<[HoleShape]> = match phrase.hole() {
             Some(kind) => Box::new([HoleShape { kind, bytes: 0 }]),
@@ -368,7 +372,7 @@ pub fn shapes() -> Box<[PhraseShape]> {
 /// Explicit English data for composition, never a rendering fallback.
 #[must_use]
 pub fn english() -> Language {
-    let mut values = List::with_capacity(69);
+    let mut values = List::with_capacity(u32::try_from(ALL.len()).expect("outcome phrase count fits"));
     for phrase in ALL {
         let text: &[u8] = match phrase {
             OutcomePhrase::Created => b"Tasks created",
@@ -382,6 +386,7 @@ pub fn english() -> Language {
             OutcomePhrase::NoteEdited => b"Note edited",
             OutcomePhrase::ServiceMade => b"Service made",
             OutcomePhrase::Adopted => b"Project adopted",
+            OutcomePhrase::Left => b"Talk ended",
             OutcomePhrase::Stopped => b"Task stopped",
             OutcomePhrase::Cancelled => b"Task cancelled",
             OutcomePhrase::Released => b"Task released",

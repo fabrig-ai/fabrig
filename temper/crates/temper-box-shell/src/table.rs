@@ -7,8 +7,9 @@ use temper_shell::{environment, table::HELP};
 pub const TABLE: Table = Table {
     binary: "temper-box",
     line: "temper on this machine, as one box.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    // The identity is main's (temper/docs/design/cli/README.md, 3).
+    version: "",
+    commit: "",
     commands: &COMMANDS,
     settings: &[],
     variables: &[
@@ -16,7 +17,7 @@ pub const TABLE: Table = Table {
         &temper_service_shell::CUT_AT_LISTEN,
         &temper_engine_shell::forge_sign_in::NO_REGISTRATION,
         &super::fake_backends::FAKE_BOX_PORTS,
-        &temper_version::INTERNAL_COMMIT,
+        &temper_shell::environment::INTERNAL_COMMIT,
         &temper_client_bundle::INTERNAL_BUNDLE,
         &environment::INTERNAL_DUMP_LLM,
         &temper_worker_shell::INTERNAL_WORKSPACE_REUSE,
@@ -30,15 +31,26 @@ const FORGE: Argument =
 const BUNDLE_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     tool: "temper",
     about: "The fake backends' web client bundle.",
-    table: &[skein_shell::Setting {
-        name: "bundle",
-        value: "BUNDLE",
-        set: Set::Internal,
-        twin: None,
-        about: "The web client's bundle directory; a relative path is taken from the working directory.",
-        fallback: skein_shell::Fallback::Text(""),
-        notes: "Requires --fake-backends; absent, use the configured bundle.",
-    }],
+    table: &[
+        skein_shell::Setting {
+            name: "bundle",
+            value: "BUNDLE",
+            set: Set::Internal,
+            twin: None,
+            about: "The web client's bundle directory; a relative path is taken from the working directory.",
+            fallback: skein_shell::Fallback::Text(""),
+            notes: "Requires --fake-backends; absent, use the configured bundle.",
+        },
+        skein_shell::Setting {
+            name: "scripts",
+            value: "FILE",
+            set: Set::Internal,
+            twin: None,
+            about: "A JSON script file; repeat to join in order, relative to the working directory.",
+            fallback: skein_shell::Fallback::Text(""),
+            notes: "Requires --fake-backends; replaces generated model scripts for this start.",
+        },
+    ],
 };
 const INTERNAL: Command = Command {
     reach: Reach::Words(&[]),
@@ -70,6 +82,12 @@ pub(crate) const BOX: Command = Command {
             set: Set::Internal,
             line: "Run against temper's fake LLM provider, forge and OAuth issuer.",
             notes: "An isolated deployment under DATA/box/fake-backends, sharing the cache.",
+        },
+        Switch {
+            name: "strict",
+            set: Set::Internal,
+            line: "Fail a model turn no script answers.",
+            notes: "Requires --fake-backends.",
         },
         Switch {
             name: "front",
@@ -196,13 +214,18 @@ Refused, changing nothing, when the configuration directory already holds temper
         reach: Reach::Words(&["fake", "llm"]),
         set: Set::Internal,
         forms: &[
-            "[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]",
-            "--document FILE [--ready PREFIX] [--seed N] [--observations FILE]",
+            "[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]",
+            "--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]",
         ],
         line: "Serve a fake LLM provider: the demo's, from the configuration, or one from a JSON document.",
         arguments: &[DIRECTORIES],
         settings: &[&fake::LLM_SETTINGS, &directories::SETTINGS],
-        switches: &[],
+        switches: &[Switch {
+            name: "strict",
+            set: Set::Internal,
+            line: "Fail a turn no script answers.",
+            notes: "",
+        }],
         variables: &[&environment::LISTEN_FDS],
         notes: "",
     },

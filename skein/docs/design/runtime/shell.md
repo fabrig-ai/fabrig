@@ -969,3 +969,58 @@ binary prints it on stderr and exits 2 (`../../foundation/cli.md`, 5).
 A bare form that takes no positional argument answers a word it
 doesn't take with the same line, so a mistyped command reads the same
 whether the binary has a bare form or not.
+
+### 14.5 The table's own words
+
+What every binary answers from its table before any command of its own
+runs: its page, its version line, a command's page and the refusal of a
+command it doesn't have (`../../foundation/cli.md`, 5 and 7). One code
+answers them for every binary, so their words and exit codes are the
+same everywhere. Like the rest of the table it is portable: it takes the
+captured arguments and returns text, and the binary writes it.
+
+- **`Table::front(&self, arguments: &[Box<[u8]>]) -> Front<'_>`** reads
+  the arguments after the binary's name, as `arguments` returns them
+  (6.5), and answers the first of these that holds:
+  1. the first argument is `-h` or `--help`: `Print` of the page
+     (14.2), whatever follows;
+  2. the first argument is `--version`: `Print` of the version line,
+     whatever follows;
+  3. the only argument is `help` and no command is reached by the words
+     `help`: `Print` of the page;
+  4. the words of some command reached by one or more words are a
+     prefix of the arguments: the command with the longest such words.
+     When the argument right after its words is `-h` or `--help`,
+     `Print` of its page, whatever follows; otherwise `Run` of it with
+     the arguments after its words;
+  5. the table has a bare command, reached by no words: `Run` of it with
+     every argument, or with none when there is none. For a bare
+     command, `-h` and `--help` are the page's (1), so its own page is
+     printed only within a refusal (below);
+  6. otherwise `Refuse`, of `BINARY: no command WORD; BINARY --help says
+     more` and a newline, `WORD` the first argument as UTF-8 with each
+     invalid sequence replaced, or of `BINARY: no command; BINARY --help
+     says more` and a newline when there is no argument.
+- **`Front<'a>`:**
+  - `Print(String)`: the binary writes it to stdout and exits 0;
+  - `Run { command: &'a Command, rest: &'a [Box<[u8]>] }`: the
+    binary runs the command, one of its table's, reading `rest` as that
+    command's own arguments, with `resolve` (6.5) for its settings;
+  - `Refuse(String)`: the binary writes it to stderr and exits 2.
+- **`Table::refusal(&self, command: &Command, what: &str) -> String`:**
+  the words a binary refuses one of its commands' arguments with, before
+  it exits 2: `BINARY WORDS: WHAT` (`BINARY: WHAT` for the bare
+  command) and a newline, then the `usage:` part of the command's page,
+  as 14.2 renders it. For example, a bare command whose form is `OUT`,
+  given none:
+
+  ```
+  demo: OUT is not given
+  usage:
+    demo OUT
+  ```
+
+- **What it leaves to the binary:** a delegated grammar's rows
+  (`Reach::RunAs`), which the binary matches by the name it runs as
+  before it reads its table, and every word of a command's own arguments,
+  a `--` among them.

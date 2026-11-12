@@ -11,6 +11,72 @@ use temper_engine_domain_forge_change as change;
 const REPLY: ReplyTo = ReplyTo::new(Token::new(19));
 const REQUEST_KEY: [u8; 16] = [5; 16];
 const WATCHER: Token = Token::new(7);
+#[test]
+fn follow_acts_preserve_the_keyed_envelope_commits_reasons_and_answer() {
+    use forge::follows::FollowAct as A;
+    let after = [0xab; 32];
+    let next = [0xcd; 32];
+    let mut afters = List::with_capacity(2);
+    afters.push(after).unwrap();
+    afters.push(next).unwrap();
+    for (act, expected) in [
+        (w::FollowAct::Start(w::FollowAt::new(&w::CEILINGS, w::FollowAtParts { after }).unwrap()), A::Start { after }),
+        (
+            w::FollowAct::Hold(
+                w::FollowReasonAct::new(
+                    &w::CEILINGS,
+                    w::FollowReasonActParts { after, reason: b"waits".as_slice().into() },
+                )
+                .unwrap(),
+            ),
+            A::Hold { after, reason: b"waits".as_slice().into() },
+        ),
+        (
+            w::FollowAct::Skip(
+                w::FollowReasonAct::new(
+                    &w::CEILINGS,
+                    w::FollowReasonActParts { after, reason: b"build only".as_slice().into() },
+                )
+                .unwrap(),
+            ),
+            A::Skip { after, reason: b"build only".as_slice().into() },
+        ),
+        (
+            w::FollowAct::Merge(w::FollowMergeAct::new(&w::CEILINGS, w::FollowMergeActParts { afters }).unwrap()),
+            A::Merge { afters: Box::new([after, next]) },
+        ),
+    ] {
+        let request =
+            w::FollowActRequest::new(&w::CEILINGS, w::FollowActRequestParts { project: 2, follow: 1, act }).unwrap();
+        let record =
+            w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::FollowAct(request) }).unwrap();
+        let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+            &fixtures::forge_table(&[]),
+            None,
+            &family::Deployment { welcome: false, owned: false, program_login: None },
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Application {
+            reply_to, sign_in, key, digest, request, carried, ..
+        }) = event
+        else {
+            panic!("follow act")
+        };
+        assert_eq!((reply_to, sign_in, key, digest, carried), (REPLY, 3, REQUEST_KEY, [7; 32], None));
+        assert_eq!(request, root::Application::Follow { project: 2, follow: 1, act: expected });
+    }
+    for refusal in [None, Some(b"ab: this entry was skipped".as_slice().into())] {
+        let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+        let bytes = family::answer(Some(root::ApplicationAnswer::Follow(refusal.clone())), &w::CEILINGS, &jig).unwrap();
+        let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+        let w::Outcome::Follow(answer) = answer.into_parts().outcome else { panic!("follow outcome") };
+        assert_eq!(answer.into_parts().refusal, refusal);
+    }
+}
 fn configured(git: &[u8]) -> Box<[crate::settings::Forge]> {
     let mut forges = fixtures::forges();
     forges.get_mut(0).unwrap().git = git.into();
@@ -1458,7 +1524,8 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
                         panic!("{name}: application")
                     };
                     let actual = match request {
-                        root::Application::Try { .. }
+                        root::Application::Follow { .. }
+                        | root::Application::Try { .. }
                         | root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
                         | root::Application::SetAway { .. }
@@ -2394,24 +2461,12 @@ fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
 
 #[test]
 fn a_panels_questions_map_field_for_field() {
-    for (route, expected_route) in [
-        (change::Route::None, w::Route::None),
-        (change::Route::Foreman, w::Route::Foreman),
-        (change::Route::Up, w::Route::Up),
-    ] {
+    for (route, expected_route) in [(change::Route::None, w::Route::None), (change::Route::Up, w::Route::Up)] {
         let mut value = panel();
         let mut open = List::with_capacity(5);
         let mut expected = List::with_capacity(5);
         for (index, (stands, wire)) in [
             (forge::PanelStands::Taken, w::Stands::Taken),
-            (
-                forge::PanelStands::Foreman(None),
-                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: None }).unwrap()),
-            ),
-            (
-                forge::PanelStands::Foreman(Some(15)),
-                w::Stands::Foreman(w::Foreman::new(&w::CEILINGS, w::ForemanParts { task: Some(15) }).unwrap()),
-            ),
             (forge::PanelStands::Asked, w::Stands::Asked),
             (forge::PanelStands::Held, w::Stands::Held),
         ]
@@ -2882,6 +2937,7 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
 fn changes_document_encodes_and_decodes() {
     let value = forge::ChangesView {
         landed_default: Box::new([forge::ChangesLanded {
+            signed: Box::new([]),
             task: 49,
             title: Box::from(b"Default landing".as_slice()),
             at: skein_lib::Wall::from_nanos(900),
@@ -2913,6 +2969,7 @@ fn changes_document_encodes_and_decodes() {
             ]),
         }]),
         landed: Box::new([forge::ChangesLanded {
+            signed: Box::new([]),
             commit: [0xab; 32],
             default_branch: true,
             task: 50,
@@ -3118,6 +3175,7 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
             .unwrap();
     }
     ways::WaysDocument {
+        rules: ways::PathRules::empty(),
         project: 7,
         ways: entries.into_boxed(),
         current: Some(1),
@@ -3557,6 +3615,9 @@ fn the_worst_small_changes_document_fits_its_decision() {
     for task in 0..limits.forge.changes_landed {
         landed
             .push(forge::ChangesLanded {
+                signed: Box::new(
+                    [forge::SignOff { person: 1, head: [2; 32], at: skein_lib::Wall::EPOCH }; forge::SIGN_OFFS],
+                ),
                 commit: [0xab; 32],
                 default_branch: true,
                 task: u64::from(task),
@@ -3644,7 +3705,18 @@ fn the_worst_small_ways_document_fits_its_decision() {
             })
             .unwrap();
     }
+    let row = ways::PathRule {
+        paths: repeated(b'p', w::CEILINGS.path_rule_paths),
+        review: repeated(b'r', w::CEILINGS.path_rule_review),
+        sign_off: repeated(b's', w::CEILINGS.path_rule_sign_off),
+        lands: repeated(b'l', w::CEILINGS.path_rule_lands),
+    };
+    let mut rows = List::with_capacity(w::CEILINGS.path_rules_rows);
+    for _ in 0..w::CEILINGS.path_rules_rows {
+        rows.push(row.clone()).unwrap();
+    }
     let document = ways::WaysDocument {
+        rules: ways::PathRules { rows: rows.into_boxed(), note: repeated(b'n', w::CEILINGS.path_rules_note) },
         project,
         ways: entries.into_boxed(),
         current: None,
@@ -3656,7 +3728,10 @@ fn the_worst_small_ways_document_fits_its_decision() {
         may_change: true,
     };
     let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
-    assert!(wire::decode_ways_panel(&bytes, &w::CEILINGS).is_some());
+    let panel = wire::decode_ways_panel(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!(panel.rules().rows().len(), w::CEILINGS.path_rules_rows);
+    assert_eq!(panel.rules().note().len(), usize::try_from(w::CEILINGS.path_rules_note).unwrap());
+    assert_eq!(wire::decode_ways_panel(&bytes, &w::CEILINGS), Some(panel));
     let mut journal = root::Journal::uncapped(1, 0);
     let mut decision = root::Decision::decide(&mut journal, &limits.root.journal);
     decision
@@ -4171,6 +4246,7 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the same document pins row fields, optional sizes and delivery bounds")]
 fn approvals_encode_each_row_with_its_kind_and_files_address() {
     let forgejo = fixtures::forges().first().unwrap().clone();
     let mut github = forgejo.clone();
@@ -4217,9 +4293,14 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
             role: 1,
             required: 2,
             counted: 1,
-            behind: 3,
+            sets: Box::new([root::ApprovalSet { number: 1, name: b"vsr's protocol core".as_slice().into() }]),
             whole: false,
             yours,
+            size: match forge {
+                1 => Some(root::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false }),
+                2 => Some(root::ApprovalSize { files: u32::MAX, additions: 142, deletions: 18, cut: true }),
+                _ => None,
+            },
         })
         .unwrap();
     }
@@ -4242,9 +4323,22 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         assert_eq!(actual.title(), row.title.as_ref());
         assert_eq!(actual.since(), row.since.as_nanos());
         assert_eq!((actual.scope(), actual.rule(), actual.role()), (row.scope, row.rule, row.role));
-        assert_eq!((actual.required(), actual.counted(), actual.behind()), (row.required, row.counted, row.behind));
+        assert_eq!((actual.required(), actual.counted()), (row.required, row.counted));
+        assert_eq!(actual.sets().len(), 1);
+        assert_eq!(actual.sets().as_slice()[0].number(), row.sets[0].number);
+        assert_eq!(actual.sets().as_slice()[0].name(), row.sets[0].name.as_ref());
         assert_eq!(actual.whole(), row.whole);
         assert_eq!(actual.yours(), yours);
+        let size = match actual.size() {
+            Some(size) => Some(root::ApprovalSize {
+                files: size.files(),
+                additions: size.additions(),
+                deletions: size.deletions(),
+                cut: size.cut(),
+            }),
+            None => None,
+        };
+        assert_eq!(size, row.size);
     }
     for limits in [w::Limits { approvals_rows: 3, ..w::CEILINGS }, w::Limits { approval_row_title: 0, ..w::CEILINGS }] {
         assert!(family::approvals(document.clone(), &forges, &limits).is_none());
@@ -4263,4 +4357,224 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         let decoded = wire::decode_approvals(&bytes, &w::CEILINGS).unwrap();
         assert_eq!(decoded.rows().as_slice()[0].address().len(), expected);
     }
+}
+
+#[test]
+fn landed_sign_offs_reach_the_clients_typed_changes_rows() {
+    let signed = forge::SignOff { person: 42, head: [3; 32], at: skein_lib::Wall::from_nanos(123_456_789) };
+    let row = forge::ChangesLanded {
+        signed: Box::new([signed]),
+        task: 51,
+        title: b"Signed change".as_slice().into(),
+        at: skein_lib::Wall::from_nanos(234_567_890),
+        commit: [4; 32],
+        default_branch: true,
+    };
+    let document = forge::Document::Changes(forge::ChangesView {
+        project: 7,
+        landing: b"main".as_slice().into(),
+        queues: Box::new([]),
+        more: 0,
+        landed: Box::new([row.clone()]),
+        landed_more: 0,
+        landed_default: Box::new([row]),
+        landed_default_more: 0,
+    });
+    let bytes = family::document(document, &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
+    let record = jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes };
+    let got = temper_client_domain::forge::changes::panel(
+        &record,
+        temper_client_domain::forge::Limits { field_bytes: 256, checks: 8 },
+    )
+    .unwrap();
+    for rows in [got.landed(), got.landed_default()] {
+        let row = rows.get(0).unwrap();
+        assert_eq!(row.signed().len(), 1);
+        let sign = row.signed().get(0).unwrap();
+        assert_eq!((sign.party(), *sign.head(), sign.at()), (signed.person, signed.head, signed.at.as_nanos()));
+    }
+}
+
+#[test]
+fn ways_rows_and_note_cross_the_wire_only_within_their_bounds() {
+    let (path, _) = ways_path();
+    let mut document = ways_document(&path);
+    document.rules = ways::PathRules {
+        rows: Box::new([ways::PathRule {
+            paths: b"protocol/**".as_slice().into(),
+            review: b"an agent".as_slice().into(),
+            sign_off: b"you".as_slice().into(),
+            lands: b"once you sign off".as_slice().into(),
+        }]),
+        note: b"A sign-off is for one head.".as_slice().into(),
+    };
+    let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
+    let panel = wire::decode_ways_panel(&bytes, &w::CEILINGS).unwrap();
+    let rows = panel.rules().rows();
+    assert_eq!(rows.len(), 1);
+    let row = rows.as_slice().first().unwrap();
+    assert_eq!(
+        (row.paths(), row.review(), row.sign_off(), row.lands()),
+        (b"protocol/**".as_slice(), b"an agent".as_slice(), b"you".as_slice(), b"once you sign off".as_slice())
+    );
+    assert_eq!(panel.rules().note(), document.rules.note.as_ref());
+    for limits in [
+        w::Limits { path_rules_rows: 0, ..w::CEILINGS },
+        w::Limits { path_rule_paths: 10, ..w::CEILINGS },
+        w::Limits { path_rule_review: 7, ..w::CEILINGS },
+        w::Limits { path_rule_sign_off: 2, ..w::CEILINGS },
+        w::Limits { path_rule_lands: 16, ..w::CEILINGS },
+        w::Limits { path_rules_note: 25, ..w::CEILINGS },
+    ] {
+        assert!(family::ways_panel(document.clone(), &limits).is_none(), "{limits:?}");
+    }
+}
+
+#[test]
+fn set_draft_maps_every_change_and_repository() {
+    for (change, expected) in [
+        (
+            w::DraftChange::Ready(w::ReadyDraft::new(&w::CEILINGS, w::ReadyDraftParts { chat: Some(7) }).unwrap()),
+            forge::DraftChange::Ready { chat: Some(7) },
+        ),
+        (w::DraftChange::NotReady, forge::DraftChange::NotReady),
+        (
+            w::DraftChange::Started(w::StartedDraft::new(&w::CEILINGS, w::StartedDraftParts { goal: 40 }).unwrap()),
+            forge::DraftChange::Started { goal: 40 },
+        ),
+    ] {
+        for named in [false, true] {
+            let repository = if named {
+                Some(
+                    w::DraftRepository::new(
+                        &w::CEILINGS,
+                        w::DraftRepositoryParts { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() },
+                    )
+                    .unwrap(),
+                )
+            } else {
+                None
+            };
+            let request = w::SetDraft::new(
+                &w::CEILINGS,
+                w::SetDraftParts {
+                    project: 9,
+                    repository,
+                    path: b"draft.md".as_slice().into(),
+                    change: change.clone(),
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                away_request(w::Request::SetDraft(request)),
+                root::Application::Forge(forge::Ask::SetDraft(forge::SetDraft {
+                    project: 9,
+                    repository: if named {
+                        Some(forge::DraftRepository {
+                            owner: b"org".as_slice().into(),
+                            name: b"repo".as_slice().into(),
+                        })
+                    } else {
+                        None
+                    },
+                    path: b"draft.md".as_slice().into(),
+                    change: expected
+                }))
+            );
+        }
+    }
+}
+#[test]
+fn drafts_watch_names_its_project_subject() {
+    let subject = w::DraftsSubject::new(&w::CEILINGS, w::DraftsSubjectParts { project: 9 }).unwrap();
+    let record = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Drafts(subject) }).unwrap();
+    let root::Event::Party(root::PartyInput::Watch { watcher, subject, .. }) =
+        away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&record)))
+    else {
+        panic!("drafts watch")
+    };
+    assert_eq!(watcher, WATCHER);
+    assert_eq!(
+        subject,
+        jig_domain_core::documents::Watched::Application {
+            scope: people::ApplicationScope::Project(9),
+            connector: wire::FORGE,
+            subject: Token::new(forge::drafts_subject(9))
+        }
+    );
+}
+fn draft_view() -> forge::DraftView {
+    forge::DraftView {
+        owner: b"org".as_slice().into(),
+        name: b"repo".as_slice().into(),
+        row: forge::LandedDraft {
+            repository: skein_forge::api::Repository { forge: 2, repository: 3 },
+            path: b"draft.md".as_slice().into(),
+            project: 9,
+            branch: b"main".as_slice().into(),
+            commit: [3; 32],
+            title: b"Catch-up barrier".as_slice().into(),
+            writer: 7,
+            at: skein_lib::Wall::from_nanos(100),
+            chat: Some(7),
+            goal: Some(40),
+            ready: false,
+        },
+    }
+}
+#[test]
+fn draft_answers_and_documents_preserve_the_whole_row_and_each_refusal() {
+    let view = draft_view();
+    let w::Outcome::Drafted(row) =
+        away_answer(Some(root::ApplicationAnswer::SetDraft(forge::SetDraftAnswer::Kept(view.clone()))))
+    else {
+        panic!("drafted")
+    };
+    assert_eq!(
+        row.into_parts(),
+        w::LandedDraftParts {
+            forge: 2,
+            owner: b"org".as_slice().into(),
+            name: b"repo".as_slice().into(),
+            path: b"draft.md".as_slice().into(),
+            branch: b"main".as_slice().into(),
+            commit: forge::commit_text(&[3; 32]),
+            title: b"Catch-up barrier".as_slice().into(),
+            writer: 7,
+            at: 100,
+            chat: Some(7),
+            goal: Some(40),
+            ready: false
+        }
+    );
+    let bytes = family::document(
+        forge::Document::Drafts(forge::DraftsView { project: 9, rows: Box::new([view.clone()]) }),
+        &fixtures::forge_table(&[]),
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let panel = wire::decode_drafts_panel(&bytes, &w::CEILINGS).unwrap();
+    assert_eq!(panel.project(), 9);
+    assert_eq!(panel.drafts().len(), 1);
+    assert_eq!(
+        away_answer(Some(root::ApplicationAnswer::SetDraft(forge::SetDraftAnswer::Kept(view)))),
+        w::Outcome::Drafted(panel.drafts().get(0).unwrap().clone())
+    );
+    for (why, expected) in [
+        (forge::DraftRefusal::NoRepository, w::DraftRefusal::NoRepository),
+        (forge::DraftRefusal::Path, w::DraftRefusal::Path),
+        (forge::DraftRefusal::Missing, w::DraftRefusal::Missing),
+        (forge::DraftRefusal::NotAFile, w::DraftRefusal::NotAFile),
+        (forge::DraftRefusal::Unreachable, w::DraftRefusal::Unreachable),
+        (forge::DraftRefusal::Unknown, w::DraftRefusal::Unknown),
+        (forge::DraftRefusal::Full, w::DraftRefusal::Full),
+    ] {
+        assert_eq!(
+            away_answer(Some(root::ApplicationAnswer::SetDraft(forge::SetDraftAnswer::Refused(why)))),
+            w::Outcome::DraftRefused(
+                w::DraftRefused::new(&w::CEILINGS, w::DraftRefusedParts { reason: expected }).unwrap()
+            )
+        );
+    }
+    assert_eq!(away_answer(None), w::Outcome::Unknown);
 }

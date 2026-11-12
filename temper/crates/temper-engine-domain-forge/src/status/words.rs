@@ -10,7 +10,7 @@ fn append(words: &mut List<u8>, part: &[u8]) {
     }
 }
 
-pub(super) fn specification(d: &Domain, row: &ProjectFacts, now: Wall) -> Box<[u8]> {
+pub(super) fn specification(d: &Domain, row: &ProjectFacts, now: Wall) -> (Box<[u8]>, Box<[u64]>) {
     let since = match &row.brief {
         Some(brief) => brief.at,
         None => Wall::EPOCH,
@@ -41,13 +41,33 @@ pub(super) fn specification(d: &Domain, row: &ProjectFacts, now: Wall) -> Box<[u
                 continue;
             }
             for change in &landing.changes {
-                titles.insert((Reverse(landing.at), *repository, change.task), &change.title).expect("retained titles");
+                titles.insert((Reverse(landing.at), *repository, change.task), change).expect("retained titles");
             }
         }
     }
-    for (_, title) in titles.iter().take(20) {
+    let mut signers = List::uncapped();
+    for (_, change) in titles.iter().take(20) {
         append(&mut words, b"- ");
-        append(&mut words, title);
+        append(&mut words, &change.title);
+        if !change.signed.is_empty() {
+            append(&mut words, b" (signed by ");
+            for (at, signed) in change.signed.iter().enumerate() {
+                if at != 0 {
+                    let separator = if at == change.signed.len().saturating_sub(1) {
+                        b" and ".as_slice()
+                    } else {
+                        b", ".as_slice()
+                    };
+                    append(&mut words, separator);
+                }
+                append(&mut words, b"person ");
+                append(&mut words, Decimal::of(signed.person).as_bytes());
+                if !signers.as_slice().contains(&signed.person) {
+                    signers.push(signed.person).expect("named status signer");
+                }
+            }
+            append(&mut words, b")");
+        }
         append(&mut words, b"\n");
     }
     for ((repository, tier), held) in &d.tiers {
@@ -71,5 +91,5 @@ pub(super) fn specification(d: &Domain, row: &ProjectFacts, now: Wall) -> Box<[u
         }
         append(&mut words, b"\n");
     }
-    words.into_boxed()
+    (words.into_boxed(), signers.into_boxed())
 }

@@ -14,11 +14,26 @@ const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 4000;
 const WORDS: &[u8] = b"Build the draft\n\nDraft: PATH";
 
+fn goal_world_in(template: u32, branch: bool) -> (World, engine::Assignment, Box<[u8]>) {
+    goal_world_with_attempts(template, branch, engine::LANDING_ATTEMPTS)
+}
+
+fn goal_world_with_attempts(template: u32, branch: bool, attempts: u8) -> (World, engine::Assignment, Box<[u8]>) {
+    let (world, goal, branch, _) = goal_world_with_authority(template, branch, attempts, None, None);
+    (world, goal, branch)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one fixture joins the stock template, job capability and person creating offer"
 )]
-fn goal_world_in(template: u32, branch: bool) -> (World, engine::Assignment, Box<[u8]>) {
+fn goal_world_with_authority(
+    template: u32,
+    branch: bool,
+    attempts: u8,
+    spend: Option<u64>,
+    room: Option<u32>,
+) -> (World, engine::Assignment, Box<[u8]>, people::Authority) {
     let defaults = stock_defaults();
     let model = stock::box_model();
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
@@ -27,7 +42,9 @@ fn goal_world_in(template: u32, branch: bool) -> (World, engine::Assignment, Box
     let mut world = World::configured_stock_limits(&defaults, &model, &limits)
         .with_close_job(Some(b".temper/close"), true)
         .with_goal_closer()
+        .with_landing_attempts(attempts)
         .with_landing_deployment(Box::new([engine::LandingRule {
+            sets: Box::new([]),
             connector: 1,
             kind: 4,
             enforce: true,
@@ -120,6 +137,13 @@ fn goal_world_in(template: u32, branch: bool) -> (World, engine::Assignment, Box
         panic!("goal offered: {judged:?}")
     };
     let mut member = member(tasks.as_slice().first().expect("one goal"));
+    let full = member.authority.clone();
+    if let Some(spend) = spend {
+        member.budget = people::Budget::AsAllowed { cap: Some(spend) };
+    }
+    if let Some(tasks) = room {
+        member.authority.delegation.tasks = tasks;
+    }
     if !branch {
         member.symbols = Box::new([]);
     }
@@ -130,7 +154,7 @@ fn goal_world_in(template: u32, branch: bool) -> (World, engine::Assignment, Box
     } else {
         b"main".as_slice().into()
     };
-    (world, goal, branch)
+    (world, goal, branch, full)
 }
 
 fn goal_world(template: u32) -> (World, engine::Assignment, Box<[u8]>) {
@@ -429,7 +453,8 @@ fn settle(world: &mut World, goal: u64) {
 
 #[test]
 fn a_failing_close_command_wakes_the_goal_once() {
-    let (mut world, goal, branch) = goal_world(4);
+    // This story judges every ended close change, rather than automatic attempts.
+    let (mut world, goal, branch) = goal_world_with_attempts(4, true, 1);
     park_goal(&mut world, &goal);
     let closer = closer_of(&mut world, goal.task);
     let mut close = None;
@@ -497,7 +522,11 @@ fn a_failing_close_command_wakes_the_goal_once() {
 }
 
 fn held_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64, u64) {
-    let (mut world, goal, branch) = goal_world(4);
+    held_landing_with_attempts(engine::LANDING_ATTEMPTS)
+}
+
+fn held_landing_with_attempts(attempts: u8) -> (World, engine::Assignment, Box<[u8]>, u64, u64, u64) {
+    let (mut world, goal, branch) = goal_world_with_attempts(4, true, attempts);
     park_goal(&mut world, &goal);
     let closer = closer_of(&mut world, goal.task);
     let job = close_job(&mut world);
@@ -536,6 +565,242 @@ fn held_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64, u64) {
     let run = awakened(&mut world, goal.task);
     (world, run, branch, closer, close, landing)
 }
+fn cancel_step(world: &mut World, run: &engine::Assignment, task: u64, call: u64) {
+    let answer = world.scripted_call(
+        run,
+        call,
+        engine::Tool::Cancel { target: task, reason: b"Try the step again".as_slice().into() },
+    );
+    assert!(matches!(answer, engine::CallAnswer::Controlled), "{answer:?}");
+    wait_ended(world, task);
+}
+
+fn assert_funds_wait(
+    world: &mut World,
+    run: &engine::Assignment,
+    closer: u64,
+    kind: temper_engine_domain_forge_closer::Step,
+) {
+    for _ in 0..STEPS {
+        world.tick();
+        if live_task(world, closer).phase == tasks::Phase::Active(tasks::Active::Idle)
+            && closer_row(world, closer).expect("stepped closer").closer.hold.is_none()
+            && closer_row(world, closer).expect("stepped closer").closer.retry == Some(kind)
+        {
+            break;
+        }
+    }
+    assert!(matches!(
+        live_task(world, run.task).phase,
+        tasks::Phase::Active(tasks::Active::Claimed { .. } | tasks::Active::Running { .. })
+    ));
+    assert_eq!(
+        live_task(world, closer).phase,
+        tasks::Phase::Active(tasks::Active::Idle),
+        "funds lent to the live goal run must wait, not hold"
+    );
+    assert_eq!(
+        closer_row(world, closer).expect("waiting closer").closer.retry,
+        Some(kind),
+        "closer {:?}; numbers {:?}; errors {:?}",
+        closer_row(world, closer),
+        live_task(world, closer).numbers,
+        world.call_errors
+    );
+    assert_eq!(closer_row(world, closer).expect("waiting closer").closer.hold, None);
+}
+
+#[test]
+fn a_released_closer_waits_for_its_funds_lent_to_the_goals_run() {
+    use temper_engine_domain_forge_closer::Step;
+    let (mut world, goal, branch) = goal_world_with_attempts(4, true, 1);
+    park_goal(&mut world, &goal);
+    let closer = closer_of(&mut world, goal.task);
+    let job = close_job(&mut world);
+    let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+    finish_close(&mut world, close, &branch, &job);
+    wait_ended(&mut world, close);
+    let landing = wait_landing(&mut world, closer);
+    super::cancel_task(&mut world, landing);
+    wait_held(&mut world, closer, goal.task);
+    let run = awakened(&mut world, goal.task);
+    release(&mut world, &run, closer, 94);
+    assert_funds_wait(&mut world, &run, closer, Step::Land);
+    assert_eq!(closer_row(&world, closer).expect("waiting closer").landing_changes.len(), 1);
+    park_goal(&mut world, &run);
+    let left = live_task(&world, closer).numbers;
+    // Only the next landing may reserve funds after this park.
+    let available = left.budget - left.spent - left.spent_below;
+    for _ in 0..STEPS {
+        if closer_row(&world, closer).expect("closer").landing_changes.len() == 2 {
+            break;
+        }
+        world.tick();
+    }
+    let next = closer_row(&world, closer).expect("closer").closer.landing.expect("next landing");
+    assert_ne!(next, landing);
+    assert_eq!(live_task(&world, next).authority.budget.spend, available / 2);
+    world.close();
+}
+
+#[test]
+fn a_cancelled_stalled_landing_retries_without_holding_or_waking_its_goal() {
+    let (mut world, goal, branch) = goal_world(4);
+    park_goal(&mut world, &goal);
+    let closer = closer_of(&mut world, goal.task);
+    let job = close_job(&mut world);
+    let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+    finish_close(&mut world, close, &branch, &job);
+    wait_ended(&mut world, close);
+    let landing = wait_landing(&mut world, closer);
+    let head = world.fake.branch(b"org/repo", &branch).expect("goal branch");
+    status(&mut world, head, raw::Check::Pending);
+    for _ in 0..STEPS {
+        if matches!(row(&world, landing).change.state, change::State::Checking { .. }) {
+            break;
+        }
+        world.tick();
+    }
+    assert!(matches!(row(&world, landing).change.state, change::State::Checking { .. }));
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.change_policy.stall);
+    wait_held(&mut world, landing, goal.task);
+    assert!(matches!(row(&world, landing).change.state, change::State::Held { why: change::Hold::Stalled, .. }));
+    let run = awakened(&mut world, goal.task);
+    cancel_step(&mut world, &run, landing, 93);
+    assert_eq!(row(&world, landing).change.ended_held, Some(change::Hold::Stalled));
+    for _ in 0..100 {
+        world.tick();
+    }
+    assert!(!matches!(live_task(&world, closer).phase, tasks::Phase::Held { .. }));
+    park_goal(&mut world, &run);
+    for _ in 0..STEPS {
+        if closer_row(&world, closer).expect("closer").landing_changes.len() == 2 {
+            break;
+        }
+        world.tick();
+    }
+    assert_eq!(closer_row(&world, closer).expect("closer").landing_changes.len(), 2);
+    assert_eq!(goal_runs(&world, goal.task), 2, "the retry causes no further goal wake");
+    assert_eq!(live_task(&world, closer).revisions.hold, 0);
+    world.close();
+}
+
+#[test]
+fn a_cancelled_landing_held_for_repairs_holds_below_the_attempt_bound() {
+    let (mut world, run, _, closer, _, landing) = held_landing();
+    cancel_step(&mut world, &run, landing, 93);
+    wait_held(&mut world, closer, run.task);
+    super::goal_closer::assert_hold_words(
+        &world,
+        closer,
+        &format!("the landing T{landing} ended cancelled, held for its branch: repairs"),
+    );
+    release(&mut world, &run, closer, 94);
+    park_goal(&mut world, &run);
+    for _ in 0..STEPS {
+        if closer_row(&world, closer).expect("closer").landing_changes.len() == 2 {
+            break;
+        }
+        world.tick();
+    }
+    assert_eq!(closer_row(&world, closer).expect("closer").landing_changes.len(), 2);
+    world.close();
+}
+
+#[test]
+fn a_short_closer_names_its_lack_and_release_uses_the_goals_new_authority() {
+    let minimum = stock_defaults().rules.minimum_run_spend;
+    for spend_short in [true, false] {
+        let left = minimum + 1;
+        let (mut world, goal, branch, full) =
+            goal_world_with_authority(4, true, 3, spend_short.then_some(left), (!spend_short).then_some(2));
+        park_goal(&mut world, &goal);
+        let closer = closer_of(&mut world, goal.task);
+        wait_held(&mut world, closer, goal.task);
+        let expected = if spend_short {
+            format!(
+                "the goal closer cannot delegate its next change within its authority: spend: {left} left, its change's half must pass {minimum}"
+            )
+        } else {
+            "the goal closer cannot delegate its next change within its authority: tasks: 1 left, its change needs 2"
+                .into()
+        };
+        let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, closer).phase else {
+            panic!("short hold")
+        };
+        let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("short words") };
+        assert!(words.starts_with(expected.as_bytes()), "{}", core::str::from_utf8(words).expect("hold UTF-8"));
+        assert_eq!(
+            closer_row(&world, closer).expect("short closer").closer.retry,
+            Some(temper_engine_domain_forge_closer::Step::Close)
+        );
+        let revision = live_task(&world, goal.task).revisions.spec;
+        world.send(engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(97)),
+            sign_in: world.signed_in.expect("owner"),
+            key: [97; 16],
+            ask: people::Ask::Amend {
+                project: 1,
+                task: goal.task,
+                revision,
+                release: None,
+                amendment: people::Amendment {
+                    tracked: None,
+                    addressed: None,
+                    instructions: None,
+                    spec: None,
+                    wake: None,
+                    dependencies: None,
+                    authority: Some(full),
+                    llm: None,
+                    reason: b"Fund the next closing step".as_slice().into(),
+                },
+            },
+        }));
+        world.until(Until::Ready);
+        let run = awakened(&mut world, goal.task);
+        // The goal widens its delegate's terms as well as replenishing its funds.
+        let mut authority = live_task(&world, closer).authority.clone();
+        let funds = live_task(&world, goal.task).numbers;
+        authority.budget.spend = funds.budget - funds.spent - funds.spent_below - funds.reserved;
+        authority.delegation.tasks = live_task(&world, goal.task).authority.delegation.tasks;
+        let revision = live_task(&world, closer).revisions.spec;
+        let amendment =
+            temper_engine_domain_world::fixtures::task_amendment(None, Some(authority), b"Fund the closer's change");
+        let answer = world.scripted_call(
+            &run,
+            93,
+            engine::Tool::Amend { target: closer, revision, amendment, keep_parameters: false },
+        );
+        assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "{answer:?}");
+        release(&mut world, &run, closer, 94);
+        park_goal(&mut world, &run);
+        for _ in 0..STEPS {
+            if !world.jobs.is_empty() {
+                break;
+            }
+            world.tick();
+        }
+        assert!(
+            !world.jobs.is_empty(),
+            "spend short {spend_short}; closer {:?}; row {:?}",
+            live_task(&world, closer).phase,
+            closer_row(&world, closer)
+        );
+        let job = close_job(&mut world);
+        let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+        assert_eq!(live_task(&world, close).requester, tasks::Party::Task(closer));
+        finish_close(&mut world, close, &branch, &job);
+        wait_ended(&mut world, close);
+        wait_landing(&mut world, closer);
+        let head = world.fake.branch(b"org/repo", &branch).expect("goal branch");
+        status(&mut world, head, raw::Check::Passed);
+        wait_ended(&mut world, goal.task);
+        world.close();
+    }
+}
+
 fn work_after_escalation(world: &mut World, run: &engine::Assignment, branch: &[u8], closer: u64, landing: u64) -> u64 {
     let (work, producer) = make_change(world, run, 93);
     assert_eq!(live_task(world, closer).waiting_on.as_ref(), &[work]);

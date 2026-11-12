@@ -192,6 +192,9 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
         p::Outcome::Adopted { project } => {
             w::DocumentOutcome::Adopted(w::OutcomeAdopted::new(limits, w::OutcomeAdoptedParts { project: *project })?)
         }
+        p::Outcome::Left { task } => {
+            w::DocumentOutcome::Left(w::OutcomeStopped::new(limits, w::OutcomeStoppedParts { task: *task })?)
+        }
         p::Outcome::Stopped { task } => {
             w::DocumentOutcome::Stopped(w::OutcomeStopped::new(limits, w::OutcomeStoppedParts { task: *task })?)
         }

@@ -56,9 +56,8 @@ branch. Its parameters:
   the runner failed at one head (`reruns`, 2, step 3), and the stall of
   each wait;
 - **its questions:** how it takes its agents' questions (`questions.md`, 1): `none`,
-  the default, asking no one; `foreman`, each settled first by a foreman
-  of its own; `up`, each passed straight to its requester; and how many
-  it takes, a bound beside the others.
+  the default, asking no one; `up`, each passed straight to its
+  requester; and how many it takes, a bound beside the others.
 
 A run asks for one with `change`, giving the words, and the root fills
 in the rest from the project (`../../agent/tools.md`, 1). A run whose authority
@@ -84,8 +83,7 @@ start.
 
 Before building a change batch, the root reserves one task for each
 member and shares the remaining descendant capacity equally, bounded
-by each member's change policy: its task allowance, plus its question
-allowance for `foreman`. Room beyond a member's cap is redistributed;
+by each member's change policy: its task allowance. Room beyond a member's cap is redistributed;
 remainder slots go in call order. Each member needs at least one
 descendant for its producer. One change keeps its policy allowance
 within the requester's remaining authority. These allowances are
@@ -106,7 +104,7 @@ A change made with questions `none` asks no one. What to change is
 agreed before it is asked for, by a goal that asks first where its
 person wants to agree a plan (`../../agent/agents.md`, 2), and the procedure
 delegates its agents without the Message family. One made with
-`foreman` or `up` relays its own agents' questions instead (`questions.md`, 1); what
+`up` relays its own agents' questions instead (`questions.md`, 1); what
 follows describes `none`; an enabled route's fallback feedback follows 8.11.
 A change with `none` takes no questions, answers or words, and says
 so rather than drop one: at its next step, a question in its inbox is
@@ -157,10 +155,10 @@ the branch:
   the branch while the change lives (`../branches.md`, 3). That doesn't stop the change,
   which steps at the head it reads (3).
 
-The question route is number parameter 14: 1 for `foreman`, 2 for `up`;
-absent means `none`. The root writes it only for `foreman` or `up`. Any
-other value refuses the change's start as a malformed parameter
-(2026-11-04).
+The question route is number parameter 14: 2 for `up`; absent means
+`none`. The root writes it only for `up`. Any other value, 1, the retired
+foreman's (`questions.md`, 1), among them, refuses the change's start as a
+malformed parameter (2026-11-04).
 
 The close request a goal's close step carries is bytes parameter 17, the
 request's exact text form (`../../../protocol/tooling.md`, 4.2), within the close
@@ -178,6 +176,15 @@ commit as 40 or 64 lowercase hexadecimal digits. The start keeps it with the
 change; a value outside that text form refuses the start as a malformed
 parameter. Without it the change names no red landing to repair
 (2026-11-04).
+
+The source landings a follow change follows are bytes parameter 18,
+`N:COMMIT[,COMMIT]...`, made by a follow's task alone and checked by the
+root as it decides the delegate (`../follows.md`, section 4). The start
+keeps them with the change (`follows`); a value outside that form refuses
+the start as a malformed parameter. A change with parameter 18 takes
+question route `up` with no parameter 14, never starts early, under its
+follow's `owner` start produces only once its owner's word starts it, and
+carries its follow's check (`../follows.md`, sections 4 and 6).
 
 ## 2. Its way to landing
 
@@ -240,13 +247,13 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    branch starts at the next step. Every producing delegate's writable
    repository carries the change's landing branch beside its write
    destination, whatever its start, and the worker pins its tip for the
-   project's checks (`../../worker.md`, 4.1 and section 5). A producing delegate
+   project's checks (`../../worker/README.md`, 4.1 and `../../worker/checkouts.md`). A producing delegate
    retried while it still owns an existing change branch starts at that
    branch. Only a writable producer whose start is that destination gets
    the comparison for existing work;
    saved starts, repairs, resolution, gates and ordinary runs do not. The
    worker fetches the landing tip per hold and verifies an existing
-   unlanded head through a guarded push (../../worker.md, section 5). This does
+   unlanded head through a guarded push (../../worker/checkouts.md). This does
    not substitute a historical receipt for current ownership or drift checks.
    A catch-up's producer is the merge job (`repairs.md`): its landing branch's
    tip with the catch-up's commit merged in, pushed as the change's
@@ -407,7 +414,7 @@ the change reads the head afresh once the slot is freed. Otherwise:
   89abcdef0123`). Under its
   project's turn, the rewrite its own prepare made is the change's: the
   forge's rebase (`../../landing.md`, 5.2) or a prepare job's delivery
-  (`../../worker.md`, 4.4). A release
+  (`../../worker/jobs.md`). A release
   takes the new head as the change's and checks it, gates asked again,
   its pull request opened first where none is open (2, step 2).
 - **Its branch deleted:** held. A release creates the branch again at
@@ -637,3 +644,15 @@ changes live at once, never every change made.
   (`../../../protocol/configuration/limits.md`). A
   closer reading a compact account of its goal's changes, kept beside
   its own row, would lift the pin.
+
+- **A forge's run on a head replaced** (`README.md`, 2, step 3): the update first ends the
+  change's wait for that head's CI, not the run, since temper has no effect that
+  stops one, and a pull request must exist before the forge can update it, so a
+  run that starts at its opening starts first. Default: so; what it spends goes by
+  the repository's own CI settings.
+
+- **An early update against the bound** (`README.md`, 2, step 3): it counts against
+  `forge.change_policy.updates` (3 in `small`, 80 in `standard`), so under a base
+  that keeps moving `Hold::Updates` comes one update sooner. Not counting it would
+  leave the bound untrue of update attempts. Default: it counts; the figure is the
+  user's.

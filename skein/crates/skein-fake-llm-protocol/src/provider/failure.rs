@@ -1,4 +1,4 @@
-//! Route-specific failure rows and script admission (testing/fakes/llm.md, 2.3).
+//! Route-specific failures and script admission (testing/fakes/llm.md, 2.3 and 2.5).
 use super::{Config, Error, Limits, Server, Service, State};
 use alloc::boxed::Box;
 use skein_fake_llm_domain::api;
@@ -126,7 +126,9 @@ pub(super) fn provider_error(route: Provider, failure: &api::Failure) -> openai:
     } else {
         &failure.report.code
     };
-    let message = if route == Provider::Anthropic && failure.error == api::Error::ContextTooLong {
+    let message = if !failure.message.is_empty() {
+        failure.message.as_ref()
+    } else if route == Provider::Anthropic && failure.error == api::Error::ContextTooLong {
         b"prompt is too long".as_slice()
     } else {
         kind
@@ -162,6 +164,16 @@ fn body(route: Provider, failure: &api::Failure, env: &Env<Limits>) -> Box<[u8]>
         Provider::OpenAi => &env.limits.documents.openai,
         Provider::Anthropic => &env.limits.documents.anthropic,
     };
+    if !failure.message.is_empty() {
+        let bounded = limits.writer_limits();
+        let kind = row(route, failure.error).expect("admitted failure class").code;
+        let mut measure = skein_json::writer::Encoder::measure(&bounded);
+        write_message(&mut measure, kind, &error);
+        let Ok(len) = measure.measured() else { return bytes::copy_of(b"{}") };
+        let mut write = skein_json::writer::Encoder::write(len, &bounded);
+        write_message(&mut write, kind, &error);
+        return write.finish();
+    }
     match openai::encode_error(&error, limits) {
         Ok(body) => body,
         Err(
@@ -171,6 +183,23 @@ fn body(route: Provider, failure: &api::Failure, env: &Env<Limits>) -> Box<[u8]>
             | anthropic::DecodeError::TooLarge { .. },
         ) => bytes::copy_of(b"{}"),
     }
+}
+
+/// A provider message keeps the route's type separate from its report code.
+fn write_message(out: &mut skein_json::writer::Encoder, kind: &[u8], error: &openai::ProviderError) {
+    out.object_start();
+    out.key(b"type");
+    out.string(b"error");
+    out.key(b"error");
+    out.object_start();
+    out.key(b"type");
+    out.string(kind);
+    out.key(b"code");
+    out.string(&error.kind);
+    out.key(b"message");
+    out.string(&error.message);
+    out.object_end();
+    out.object_end();
 }
 
 #[cfg(test)]

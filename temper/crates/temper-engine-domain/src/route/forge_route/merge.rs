@@ -1,5 +1,5 @@
 //! The merge job and the resolution it leaves (temper/docs/design/domain/forge/change/repairs.md;
-//! temper/docs/design/domain/worker.md, 4.4).
+//! temper/docs/design/domain/worker/jobs.md).
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};
 use temper_protocol_worker_wire::v1;

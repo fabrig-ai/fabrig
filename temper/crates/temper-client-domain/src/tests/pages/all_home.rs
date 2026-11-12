@@ -1,3 +1,5 @@
+mod launchpad;
+
 use crate::pages::{
     all_home::{self, Brief, BriefLine, Facts, Intro, Landed, Project, Spell},
     home::{Needs, Status},
@@ -12,6 +14,8 @@ const THIRD: u32 = 3;
 const FOURTH: u32 = 4;
 // The contract keeps four briefs, so five exercises the first excluded row.
 const FIFTH: u32 = 5;
+
+mod follows;
 
 fn name(project: u32) -> Box<[u8]> {
     bytes::concat(&[b"Project ", Decimal::of(u64::from(project)).as_bytes()])
@@ -36,6 +40,7 @@ fn unknown() -> Project {
 fn facts(projects: Box<[Project]>) -> Facts {
     Facts {
         projects,
+        follows: Box::default(),
         needs: Needs::Count { count: 2, cut: true },
         decided: Box::default(),
         showing: 3,
@@ -190,12 +195,28 @@ fn across_parts_use_counts_and_fresh_briefs() {
         (
             "unknown needs",
             Facts { needs: Needs::Unknown, ..facts(Box::new([])) },
-            parts::HomeFacts { across: true, projects: 0, brief: false, open: 0, showing: 3, to_begin: false },
+            parts::HomeFacts {
+                across: true,
+                projects: 0,
+                brief: false,
+                open: 0,
+                showing: 3,
+                to_begin: false,
+                follows: 0,
+            },
         ),
         (
             "shown with brief",
             facts(Box::new([with_brief(FIRST, 2, 1, None, 50), unknown()])),
-            parts::HomeFacts { across: true, projects: 2, brief: true, open: 2, showing: 3, to_begin: false },
+            parts::HomeFacts {
+                across: true,
+                projects: 2,
+                brief: true,
+                open: 2,
+                showing: 3,
+                to_begin: false,
+                follows: 0,
+            },
         ),
     ] {
         assert_eq!(facts.parts_facts(), expected, "{case}");
@@ -277,6 +298,9 @@ impl Across {
             row.name = c::DocumentText::complete(c::Text::new(name(project), 64).unwrap());
             me.projects.push(row).unwrap();
         }
+        self.frame_me(me)
+    }
+    fn frame_me(&mut self, me: c::Me) -> Queue<Request> {
         self.up(Up::Watched { watch: self.me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) })
     }
     pub(super) fn watch(&self, subject: Watchable) -> Token {

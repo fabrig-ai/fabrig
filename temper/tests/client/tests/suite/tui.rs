@@ -225,7 +225,7 @@ fn a_need_the_engine_asks_is_walked_from_the_launchpad_and_answered() {
         rows.iter().position(|row| row == "Needs you").unwrap_or_else(|| panic!("Needs you heading: {}", tui.text()));
     let need = rows
         .iter()
-        .position(|row| row.contains("? Hello") && row.contains(QUESTION))
+        .position(|row| row.contains("? Project 2") && row.contains(QUESTION))
         .unwrap_or_else(|| panic!("the question's row: {}", tui.text()));
     assert!(needs < need, "the question stands under Needs you: {}", tui.text());
     assert!(tui.text().contains("1 needs you · n to walk"), "{}", tui.text());
@@ -233,8 +233,14 @@ fn a_need_the_engine_asks_is_walked_from_the_launchpad_and_answered() {
     tui.walk_needs(&mut world);
     let rows = tui.rows();
     let prompt = rows.iter().position(|row| row == QUESTION).expect("the walk's question head");
-    assert_eq!(rows.get(prompt + 1).map(String::as_str), Some("❯ 1. Comma"), "{}", tui.text());
-    assert_eq!(rows.get(prompt + 2).map(String::as_str), Some("2. Semicolon"), "{}", tui.text());
+    assert_eq!(
+        rows.get(prompt + 1).map(String::as_str),
+        Some("Reached you because it was asked of you directly."),
+        "{}",
+        tui.text()
+    );
+    assert_eq!(rows.get(prompt + 2).map(String::as_str), Some("❯ 1. Comma"), "{}", tui.text());
+    assert_eq!(rows.get(prompt + 3).map(String::as_str), Some("2. Semicolon"), "{}", tui.text());
     tui.press(&mut world, vec![Key::Enter]);
     // Needs you holds a choice for Undo before sending it to the engine.
     tui.run(&mut world, client::pages::needs::HOLD.saturating_add(fixtures::WITHIN));
@@ -264,7 +270,7 @@ fn a_need_the_engine_asks_is_walked_from_the_launchpad_and_answered() {
         .collect();
     assert_eq!(answers, [b"Comma".as_slice()], "the engine records the recommended choice's words: {}", tui.text());
     let rows = tui.rows();
-    assert!(!rows.iter().any(|row| row == "Needs you" || row.contains("? Hello")), "{}", tui.text());
+    assert!(!rows.iter().any(|row| row == "Needs you" || row.contains("? Project 2")), "{}", tui.text());
     assert!(rows.iter().any(|row| row == "Nothing else needs you."), "{}", tui.text());
 }
 

@@ -14,6 +14,8 @@ fn captured(environment: Box<[EnvironmentEntry]>) -> Capture {
         environment,
         working: Ok("/working".into()),
         executable: Ok("/own/bin/temper".into()),
+        version: "0.0.0".into(),
+        commit: "0123456789ab".into(),
     }
 }
 
@@ -113,7 +115,7 @@ fn find_uses_the_captured_executable_identity_site_and_trust() {
         }
         skein_shell::Trust::Der(_) => panic!("the captured SSL_CERT_FILE is a PEM bundle"),
     }
-    assert_eq!((find.version, find.commit), (temper_version::VERSION, temper_version::COMMIT));
+    assert_eq!((find.version, find.commit), ("0.0.0", "0123456789ab"));
 }
 
 #[test]

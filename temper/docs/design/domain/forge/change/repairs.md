@@ -113,7 +113,7 @@
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../../../protocol/configuration/engine.md`): a job of
-  kind 3 (`../../worker.md`, 4.4), delegated by the change, which holds the
+  kind 3 (`../../worker/jobs.md`), delegated by the change, which holds the
   branch it writes. Its workspace is a resolution's, the base merged
   into the branch's head;
   the project's merge command settles the conflicts it knows
@@ -126,10 +126,10 @@
   resolution's words' room and marked. A job that fails for good holds
   the change as a resolution that fails does. Each of its failures, a
   try that will be spent again included, is a line on the worker that met
-  it and on the engine, naming the job, its kind and why (`../../worker.md`,
-  4.4); the job's own hold, out of tries, names its failures' class,
+  it and on the engine, naming the job, its kind and why (`../../worker/jobs.md`
+  ); the job's own hold, out of tries, names its failures' class,
   and its way out points at the engine's log, where each is named. Without a `merge_job`,
-  without the kind declared (`../../worker.md`, 4.4) or in its authority, or
+  without the kind declared (`../../worker/jobs.md`) or in its authority, or
   with the job's spec past the kind's bound, a conflict goes to a
   resolution at once. A merge job counts as one of the change's
   resolutions, and the resolution after it as none, so the bound counts
@@ -138,7 +138,7 @@
   merge in progress: the base merged into the branch, the conflicting
   files marked. The agent edits them and runs the checks, with no git
   writes of its own; the worker commits the tree as the merge, with both
-  parents, and pushes it (`../../worker.md`, section 5).
+  parents, and pushes it (`../../worker/checkouts.md`).
   **It waits for its producer.** A resolution, and a merge job before it,
   starts only once every task the change gave its branch to push, its
   producer and each repair, has ended: its terminal heard, a successful
@@ -157,6 +157,12 @@
   head: the resolution's pull section is pinned at that head, and a merge
   job merges the base into it. Clean, it goes on with no resolution, a
   head that moved meanwhile checked again as any push of its own is.
+  **A resolution's reads never fail it for good on a forge catching up:**
+  a head that moves under them, as a landing's does when the forge
+  updates its branch, pauses its brief as a moved head does, with no try
+  spent, and the change reads afresh; a comparison past a bound is
+  omitted (both below); so a resolution fails for good only on what a
+  fresh read would meet again.
   Its instructions keep
   both sides' intended content by the same preservation rule as repairs;
   the shared coding charter applies it to repairs and resolutions too.
@@ -245,7 +251,7 @@
   | `Unavailable` | transient | `the forge could not be reached` |
   | `Timeout` | transient | `the forge did not answer in time` |
   | `RateLimited` | transient | `the forge is limiting calls` |
-  | a pull whose head is another writer's than the pinned one (above), or a change that has moved past it | capacity | `the change's head moved` |
+  | a pull whose head is another writer's than the pinned one (above), or a change that has moved past it; a pull's files read the forge answers `Stale`, its head having moved between the pull's read and the files' | capacity | `the change's head moved` |
   | `InvalidAnswer` | permanent | `the forge's answer did not match its read` |
   | an answer of another shape | permanent | `the forge answered another read` |
   | `Forbidden`, `NotInstalled` | permanent | `the forge forbids this read`, `the forge App is not installed` |
@@ -297,6 +303,9 @@
   and for a head another writer moved,
   `temper-box serve: brief read refused task=T section=pull stage=pull reason=the change's head moved pinned=PINNED head=HEAD`,
   each head in full hexadecimal, as the `read refused` line's `head=` is.
+  A files read answered `Stale` read no head, so its line names the error
+  alone:
+  `temper-box serve: brief read refused task=T section=pull stage=files reason=the change's head moved error=Stale`.
   A read the forge answered and temper refused names no error: never
   `error=None`.
   A brief that fails adds one more, naming how it counts and its reason:
@@ -374,6 +383,17 @@
   goal above it where that goal may decide, otherwise its person or the
   role the project's policy names. A decision to hold reaches the task
   whatever step the procedure is at.
+- **Every hold reaches its task.** A change whose step fails for good
+  (its producer's, a resolution's, a repair's, a job's or a write's)
+  ends failed or holds, and its hold is its task's hold, never its
+  row's alone, so the escalation wakes its requester with the hold's
+  words (2026-11-12). The hold does not ride on its step's fence: a
+  step carrying it that turns stale, or is refused whole (its words to
+  the requester refused, say), still holds the task, with the same
+  cause and words. A change found held at any later step or once
+  restored, its task live and neither held nor ending, holds its task
+  again with its hold's cause and words, unless a party released the
+  task: that release's step lifts the change as ever (A release, below).
 - **A result that arrives on a held change is kept.** A delegate ending
   while its change is held on a stall at that delegate's wait ends the
   hold, with no party's release, as a green head does (above): the change
@@ -439,3 +459,83 @@ differs from a conflict after production, whose merge job spends one and
 whose following resolution spends none. A resolution asked again after
 release is a resolution directly, with no repeated merge job before it
 (2026-11-04).
+
+A close job held for its failures stays its change's delegate while it
+lives (2026-11-12). Its change holds at producing on that failure, as on
+a producer failed for good, carrying its words; the job's escalation
+reaches the goal above as any held task's, so either task may be
+released:
+
+- **The job released** runs again as its change's close job, in the
+  change's checkout as on its first attempt: the change's repository,
+  its own branch writable, made at the goal's branch's tip
+  (`../../../protocol/tooling.md`, 4.2; `../../worker/jobs.md`). Its end is
+  the change's producer's result, and it ends the change's hold on that
+  failure with no release of the change, as a delegate ending ends a
+  stall at its wait (a result that arrives on a held change, above): a
+  head pushed opens the pull request, nothing staged ends the change with
+  no change, and a failure for good holds the change again with the new
+  words.
+- **The change released** decides afresh as at producing, with a fresh
+  close job; the held one is cancelled once the fresh one is made and
+  before it starts, its reason `superseded by its change's fresh close
+  job, task M`, M the fresh job's task, so that no close job its change
+  no longer names runs.
+
+A close job reserves none of its change's spend: it runs no model and
+makes no children, so a held one leaves its change's budget whole for a
+fresh one (2026-11-12). A merge job's reservation is unchanged.
+
+## 1. Open questions
+
+- **A gate's live run past the stall** (`repairs.md`): a review's task stays a wait
+  the stall bounds, though a review working 30 minutes is as normal as a
+  producer. Its verdict is kept if it arrives on the hold, and a release goes
+  on from it. Default: as it stands, its wait being named by `repairs.md`; the request
+  `parallel-faults` of 2026-11-06 met no such hold.
+
+- **A green head no wake reaches** (`repairs.md`, `../keeping-up.md`, 2): a held change reads on a wake,
+  and a poll wakes it only when what it read of the pull request moved. Under
+  a rule's required contexts, a check they do not name can keep the pull
+  request's CI as it was while theirs pass, so the hold waits for a hint or a
+  person's release, which makes no fresh repair. Default: so; it costs time,
+  not a repair.
+
+- **A retry before the read** (`repairs.md`): a run ending into a retry wakes no change,
+  so a backoff shorter than `poll_ms` can start another run at a green head,
+  left to finish as any run is. Whether jig tells a procedure of its delegate's
+  retry, so that none starts. Default: as it stands.
+
+- **A hold at gating at a green head** (`repairs.md`): past the bound or short of
+  authority there, a hold can be a gate's or CI's, and its state does not say
+  which. Saying so changes what a hold stores. Default: it waits for a person's
+  release, which decides afresh.
+
+- **A repair held for its brief** (`repairs.md`): the repair's task is held, naming
+  its reason, while the change stays `Repairing` and its panel shows no hold:
+  a person reads why on the task, and releases it there. Default: so; whether
+  the panel says it too stays open.
+
+- **A forge out of reach or not connected** (`repairs.md`): `Unavailable` counts as
+  transient, so a long outage holds each repair preparing through it, naming
+  why; `NotConnected` pauses with no bound and no hold, its notice naming why.
+  Default: so; the allowance is the user's.
+
+- **A failing check's repair brief:** a check gate that says no is
+  repaired as a review that says no is, and its repair's brief carries
+  the pull request's reviews section (`repairs.md`). A check's verdict is not a
+  review on the forge: whether the brief should carry the check's own
+  output instead is open.
+
+- **What failed on a queue's group** (`repairs.md`, `../queues.md`, 1): an ejection's repair
+  brief carries the forge's reason alone, the pull request's `dequeued`,
+  since skein's `Pull` names no commit of the group. The alternative
+  reads the group's CI and gives the repair its failing output.
+  Default: the reason alone.
+
+- **A clean update's other words** (`repairs.md` and `../README.md`, section 6): the result still says
+  `the base broke it`, and the client panel calls its repair a semantic
+  conflict, although the path proves only that CI failed after an update.
+  Aligning those words needs the client's owner too. Default: the task's
+  instructions and brief name the failed check; the result and panel keep
+  their words until that follow-up.

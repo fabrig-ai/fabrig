@@ -261,3 +261,14 @@ made by the forge connector from what it keeps of the change
 - **As long as the change's record:** a change that has landed or ended
   keeps its last panel, delivered when its page opens, and nothing marks
   it again.
+
+## 3. Open questions
+
+- **A Forgejo's own links at its `web`** (`../../protocol/setup/box.md`, 4; `../../protocol/openid-provider.md`, 7): a
+  Forgejo connected with a `web` apart from its `git`, as a host's own
+  units' is, takes its browser origin from it for sign-in alone. Its pull
+  links, the public page's repository address and a brief's `Address:`
+  are made from `git` (`served.md`, 2), so on that walk they
+  name its loopback address. Taking `web` when it has one changes those
+  three and that section, whose "its `web` is always null" goes with
+  them; the request of 2026-11-05 left `docs/design/client/` alone.

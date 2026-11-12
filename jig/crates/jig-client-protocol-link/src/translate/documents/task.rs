@@ -126,6 +126,7 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
     })
 }
 
+#[expect(clippy::too_many_lines, reason = "one bounded task document translation preserves its optional facts")]
 pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w::Problem> {
     let opt0 = match value.goal() {
         Some(item) => Some(*item),
@@ -174,6 +175,18 @@ pub(crate) fn task_fields(value: &w::Task, limits: &Limits) -> Result<c::Task, w
         None => None,
     };
     Ok(c::Task {
+        talk: match value.talk() {
+            Some(talk) => Some(c::Talk {
+                party: talk.party(),
+                opened: Wall::from_nanos(talk.opened()),
+                last: Wall::from_nanos(talk.last()),
+            }),
+            None => None,
+        },
+        session: match value.session() {
+            Some(session) => Some(c::Session { first: session.first(), last: Wall::from_nanos(session.last()) }),
+            None => None,
+        },
         settings: match value.settings() {
             Some(settings) => Some(c::TaskSettings {
                 task: settings.task(),

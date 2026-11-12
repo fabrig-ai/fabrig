@@ -146,10 +146,8 @@ impl Plan {
                     return Err(api::Error::InvalidAnswer);
                 }
             }
-            Body::Malformed(
-                crate::forgejo::decode::Malformed::Bound { .. } | crate::forgejo::decode::Malformed::TooLong { .. },
-            ) => return Err(api::Error::TooLarge(Excess::unnamed())),
-            Body::Document(_) | Body::Empty | Body::Raw { .. } | Body::Malformed(_) => {
+            Body::Malformed(error) => return Err(super::failure::malformed(error)),
+            Body::Document(_) | Body::Empty | Body::Raw { .. } => {
                 return Err(api::Error::InvalidAnswer);
             }
         }

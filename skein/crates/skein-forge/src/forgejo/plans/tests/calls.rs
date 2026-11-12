@@ -24,6 +24,7 @@ fn pull() -> api::Pull {
     api::Pull {
         queued: None,
         dequeued: None,
+        size: None,
         number: 1,
         state: api::State::Open,
         head: Box::from(&b"work"[..]),
@@ -630,6 +631,78 @@ fn body_revisions_match_literal_big_endian_digest_goldens() {
     );
 }
 
+fn past_document_length(op: Op, body: &[u8]) -> (Run, u32) {
+    let length = u32::try_from(body.len()).unwrap().checked_sub(1).unwrap();
+    let mut limits = fixtures::limits();
+    limits.json.length = length;
+    let mut run = Run::with_limits(limits, BOUNDS, op);
+    run.begin();
+    (run, length)
+}
+
+#[test]
+fn item_past_document_length_is_too_large() {
+    let (mut run, length) =
+        past_document_length(Op::Read(Read::Item { number: 1, after: 0, since: Time::ZERO }), ISSUE);
+    assert_eq!(
+        run.answer(200, ISSUE),
+        Step::Done(Err(Error::TooLarge(api::Excess::at_least(
+            api::Bound::Forge,
+            u64::from(length),
+            skein_lib::len_u64(ISSUE.len())
+        ))))
+    );
+}
+
+#[test]
+fn open_pull_preflight_past_document_length_is_too_large() {
+    let (mut run, length) = past_document_length(Op::Write(open_pull()), BRANCH);
+    assert_eq!(
+        run.answer(200, BRANCH),
+        Step::Done(Err(Error::TooLarge(api::Excess::at_least(
+            api::Bound::Forge,
+            u64::from(length),
+            skein_lib::len_u64(BRANCH.len()),
+        ))))
+    );
+}
+
+#[test]
+fn write_past_document_length_stays_timeout() {
+    let (mut run, _) = past_document_length(Op::Write(create_issue()), ISSUE);
+    assert_eq!(run.answer(201, ISSUE), Step::Done(Err(Error::Timeout)));
+}
+
+#[test]
+fn read_string_past_cap_is_unnamed_too_large() {
+    let mut limits = fixtures::limits();
+    limits.string_bytes = 0;
+    let mut run = Run::with_limits(limits, BOUNDS, Op::Read(Read::Item { number: 1, after: 0, since: Time::ZERO }));
+    run.begin();
+    assert_eq!(run.answer(200, ISSUE), Step::Done(Err(Error::TooLarge(api::Excess::unnamed()))));
+}
+
+#[test]
+fn malformed_json_stays_invalid_answer() {
+    let mut run = Run::known(Op::Read(Read::Item { number: 1, after: 0, since: Time::ZERO }));
+    run.begin();
+    assert_eq!(run.answer(200, b"{"), Step::Done(Err(Error::InvalidAnswer)));
+}
+
+#[test]
+fn comparison_past_document_length_is_too_large() {
+    let (mut run, length) = past_document_length(Op::Read(Read::Compare { before: BASE, after: HEAD }), LARGE_COMPARE);
+    assert_eq!(
+        run.answer(200, LARGE_COMPARE),
+        Step::Done(Err(Error::TooLarge(api::Excess {
+            bound: api::Bound::Forge,
+            limit: u64::from(length),
+            size: skein_lib::len_u64(LARGE_COMPARE.len()),
+            exact: false,
+        })))
+    );
+}
+
 const LARGE_COMPARE: &[u8] = br#"{"total_commits":22,"commits":[{"sha":"not read"}],"files":[{"filename":"a","status":null},{"filename":"b"},{"filename":"c"},{"filename":"d"},{"filename":"e"},{"filename":"f"},{"filename":"g"},{"filename":"h"},{"filename":"i"},{"filename":"j"},{"filename":"k"},{"filename":"l"}]}"#;
 const REVERSE_COMPARE: &[u8] = br#"{"total_commits":3,"commits":null,"files":[]}"#;
 // Reconstructed from walk-103's measured shape: two commits, three paths, six rows.
@@ -946,4 +1019,70 @@ fn mismatched_pull_ids_are_rejected_before_keeping_reviewers() {
 }
 fn write_hear(plan: &mut writes::Plan, tables: &mut Tables, heard: Heard) -> Result<Option<Step>, Error> {
     plan.heard(heard, BOUNDS, fixtures::WORD, tables)
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "step tests edit recorded JSON as text"
+)]
+fn forgejo_pull_sizes_are_optional_lenient_and_follow_pull_for() {
+    let json = core::str::from_utf8(PULL).unwrap();
+    let baseline = pull();
+    for field in ["changed_files", "additions", "deletions"] {
+        for bad in [
+            None,
+            Some("null"),
+            Some("-1"),
+            Some("1.5"),
+            Some("18446744073709551616"),
+            Some("true"),
+            Some("{}"),
+            Some("\"bad\""),
+        ] {
+            let mut counts = String::new();
+            for key in ["changed_files", "additions", "deletions"] {
+                let value = if key == field { bad } else { Some("3") };
+                if let Some(value) = value {
+                    counts.push('"');
+                    counts.push_str(key);
+                    counts.push_str("\":");
+                    counts.push_str(value);
+                    counts.push(',');
+                }
+            }
+            let body = format!("{{{counts}{}", json.strip_prefix('{').unwrap());
+            let mut run =
+                Run::with_limits(fixtures::profile_limits(), BOUNDS, Op::Read(Read::Pull { number: 1, ci: false }));
+            run.begin();
+            assert_eq!(
+                run.answer(200, body.as_bytes()),
+                Step::Done(Ok(Answer::Pull(baseline.clone()))),
+                "{field}: {bad:?}"
+            );
+        }
+    }
+    let body = format!(
+        "{{\"changed_files\":18446744073709551615,\"additions\":3,\"deletions\":0,{}",
+        json.strip_prefix('{').unwrap()
+    );
+    let mut run = Run::with_limits(
+        fixtures::profile_limits(),
+        BOUNDS,
+        Op::Read(Read::PullFor { head: Box::from(*b"work"), base: Box::from(*b"main") }),
+    );
+    run.begin();
+    let mut expected = baseline;
+    expected.size = Some(api::Size { files: u64::MAX, additions: 3, deletions: 0 });
+    assert_eq!(run.answer(200, body.as_bytes()), Step::Done(Ok(Answer::Pull(expected))));
+    let recorded = include_str!("../../../../../../tests/http/transcripts/forgejo-pull-request.http");
+    let body = &recorded[recorded.find('{').unwrap()..];
+    let mut limits = fixtures::profile_limits();
+    limits.json.length = u32::try_from(body.len()).unwrap();
+    let mut run = Run::with_limits(limits, BOUNDS, Op::Read(Read::Pull { number: 58, ci: false }));
+    run.begin();
+    let Step::Done(Ok(Answer::Pull(pull))) = run.answer(200, body.as_bytes()) else { panic!("recorded pull") };
+    assert_eq!(pull.size, Some(api::Size { files: 19, additions: 2841, deletions: 12 }));
 }

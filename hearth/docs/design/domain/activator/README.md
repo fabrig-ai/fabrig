@@ -770,10 +770,7 @@ an exit status (mount, parted, the mkfs tools and the rest of 7.2).
   alone shows an unchanged layer.
 - **Formats across releases:** how many versions back an activator reads
   its state; depends on how long a previous slot may stay blessed.
-- **The steward's diagnostics:** whether its traces reach the journal
-  through its own standard error, or through the activator; depends on
-  skein's spawn. The builder's standard error is the steward's
-  (hearth/docs/design/domain/steward.md, 3.1 and section 10).
+- **The steward's diagnostics:** hearth/docs/design/domain/steward.md, section 10's question.
 - **One generation for the whole secret store:** any import, even of an
   unrelated secret, prepares every target's slot again. One generation
   per target, or per secret a slot names, would spare the others;

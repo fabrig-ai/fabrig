@@ -9,3 +9,5 @@ mod sizes;
 mod tiers;
 
 mod settings;
+
+mod follows;

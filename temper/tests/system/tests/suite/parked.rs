@@ -1,5 +1,5 @@
 //! Saved producer work survives answers across landing merges
-//! (temper/docs/design/domain/worker.md, section 5).
+//! (temper/docs/design/domain/worker/checkouts.md).
 use skein_fake_llm_domain::api::{Script, Turn};
 use temper_system_world::composed::{World, call};
 
@@ -17,7 +17,7 @@ fn script(continuation: Vec<Turn>) -> Script {
         call(b"wait", b"{}"),
     ];
     turns.extend(continuation);
-    Script { cue: b"Read only what the change needs".as_slice().into(), turns: turns.into_boxed_slice() }
+    Script { cue: b"Run only what your change needs".as_slice().into(), turns: turns.into_boxed_slice() }
 }
 
 #[test]

@@ -24,9 +24,9 @@ fn capture() -> Capture {
 }
 
 #[must_use]
-pub fn main() -> ExitCode {
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let captured = capture();
-    match run(&captured) {
+    match run(&captured, version, commit) {
         Ok(code) => code,
         Err((code, why)) => {
             eprint!("{why}");
@@ -35,8 +35,8 @@ pub fn main() -> ExitCode {
     }
 }
 
-fn run(captured: &Capture) -> Result<ExitCode, (u8, String)> {
-    let command = crate::configure(AGENT.reach(&captured.run_as, &captured.arguments))?;
+fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Result<ExitCode, (u8, String)> {
+    let command = crate::configure(AGENT.reach(&captured.run_as, &captured.arguments), version, commit)?;
     match command {
         Command::Print(text) => {
             print!("{text}");

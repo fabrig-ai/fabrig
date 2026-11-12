@@ -4,6 +4,7 @@
       "project": 1,
       "merge_job": ".temper/merge",
       "close_job": ".temper/close",
+      "landing_attempts": 3,
       "gates": [
         {
           "forge": 1,

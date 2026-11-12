@@ -1,29 +1,7 @@
 # Status
 
-2026-11-08. Where smith's code lags or departs from its design, from
-the status files below. Containment waits on skein's contained trees
-(skein's `runtime/io/processes.md`, 2 to 4): the agent and its commands run as
-plain children in process groups, so the view, the writable scope
-and `containment: trees` are not built (`domain/README.md`,
-`domain/host.md`, `domain/tools.md`, `protocol/README.md`,
-`protocol/agent.md`, `protocol/events.md`, `protocol/host.md`,
-`testing.md`). Beside it: live content in one process and a grant
-refreshed while a chat starts (`domain/host.md`), messages mid-work
-and threshold notes (`domain/run.md`), what a program offers read
-from its `system/init` and a live run on Claude Code 2.1.312
-(`protocol/programs.md`), whether the live refresh story passes on a
-main holding it (`testing.md`), the `--account` flag (`shell/README.md`,
-`testing.md`), and the benchmarks' calibrations and arms, `shell-cwd`
-at version 3, unseen on its bundle and a version past its baselines,
-with four departures (`benchmarks/README.md`). Three domain worlds call
-protocol crates (`testing.md`). Two step
-crates drive skein's JSON tokenizer over a whole buffer by hand
-(`domain/tools.md`, `protocol/events.md`). The system text keeps
-"checkout" for the workspace (`domain/run.md`), and two effective limits keep `adapter`
-in their names (`protocol/limits.md`). A host may have the shell keep
-each model request and what a program was given in a private directory
-(`protocol/agent.md`, `protocol/programs.md`). The local host sets one token tag
-by hand (`protocol/host.md`). `domain/session.md`,
+2026-11-11. Where smith's code lags or departs from its design, from
+the status files below. Containment remains `domain/README.status.md`, 2, `domain/host.status.md`, 4, `domain/tools.status.md`, 2 and 5, `protocol/README.status.md`, 4 and 9, `protocol/agent.status.md`, 1, 3, 6 and 8, `protocol/events.status.md`, 3.2, `protocol/host.status.md`, 1 and 3, and `testing.status.md`, 6. Beside it: inline live content and starting grants remain `domain/host.status.md`, 2, 9.1 and 7; mid-work messages remain `domain/run.status.md`, 6, and threshold notes `domain/budget.status.md`, 2; program capabilities and live checks remain `protocol/programs.status.md`, 5.1, 5.5 and 8; refresh proof remains `testing.status.md`, 2.3; the account option remains `shell/commands.status.md` (Not yet, the whole document). Benchmark gaps remain `benchmarks/catalogue.status.md`, 1, 3, 4 and 5, `benchmarks/README.status.md`, 6 and 7, and `benchmarks/codex-parity.status.md`, 4 and 6; benchmark departures remain `benchmarks/README.status.md`, 5.3, 6, 7 and 10, and `benchmarks/catalogue.status.md`, 5. Domain-world protocol dependencies remain `testing.status.md`, 2. Whole-buffer tokenizer departures remain `domain/tools.status.md`, 5, and `protocol/events.status.md`, 6. Checkout wording remains `domain/run.status.md`, 3.3, and adapter limit names `protocol/limits.status.md`, 9. Request-dump departures remain `protocol/agent.status.md`, 6, and `protocol/programs.status.md`, 5.1. The local host's token tag remains `protocol/host.status.md` (Departs). `domain/session.md`,
 `protocol/channel.md`,
 `protocol/charter.md`, `protocol/llm.md` and
 `protocol/transcript.md` have no gap. The agent's standalone `--list`

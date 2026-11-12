@@ -14,7 +14,7 @@
 ## 2. A goal's page
 
 A goal is a tracked agent's task (`README.md`). Its page is the greenfield mock's
-`goal.html` (`../greenfield/README.md`), drawn by the view's `pages/goal.rs`,
+`goal.html` (`../web/greenfield/README.md`), drawn by the view's `pages/goal.rs`,
 where `pages/task.rs`'s `main` hands over for `Shape::Tracked`. An agent's
 task's page (`task.md`, 2) and a change's or a person's (`task.md`, 3) are other pages, and
 they are where a goal's task rows lead: the mock has no task page.
@@ -302,10 +302,28 @@ can open it. `draft` is the draft's path in the repository
   "Start one from a draft" at the section head (`work.md`, 1, *Goals*), with no draft, shown
   while the project has a tracked template: `Act::OpenStart { draft: None, chat:
   None }`, a button in the link's look, as it moves nowhere, for the project in the
-  address; a draft without a chat, or a chat without a draft, opens nothing. A goal
+  address; on Work, a landed draft's card (*From a landed draft*, below); a draft
+  without a chat but a landed draft's, or a chat without a draft, opens nothing. A goal
   started this way asks its person as a chat's does (`../../domain/agent/agents.md`, 2); its
   words have no `Chat:` line. The rail's "Goal" stays what `../view.md`, 3 has it, a new chat for
   a new draft.
+- **From a landed draft** (`work.md`, 1, *Work*;
+  `../../domain/forge/drafts.md`): Work's card opens the sheet for the
+  project in view with `draft` the row's path and no chat, the sheet holding
+  the row's repository, its owner and name, and its path. Its form is the one
+  with a draft given, "Start a goal from FILE", Name FILE without `.md`; its
+  words are the path's form, "Build PATH." and `Draft: PATH`, with no `Chat:`
+  line whatever chat the row names, since the goal builds the file as it
+  landed. The card's "Start a goal: WAY" opens it with WAY chosen and presses
+  "Start goal" at once, which sends only where "Start goal" is enabled; the
+  sheet then shows its request out, and stays open only to show what the sheet
+  shows of a refusal or an empty pool. On `Judged::Create` the client sends
+  `SetDraft { project, repository: { owner, name }, path, change: started {
+  goal } }` (`../forge/records.md`), keyed and at once, before or while the
+  goal's page opens; a refusal or a loss of it is drawn nowhere, the goal
+  having started, as a `Dismiss` of `GoalFrom` refused is drawn nowhere
+  (`../forge/records.md`, *`Dismiss`*), and the draft stays listed. On `Judged::Propose` nothing is sent, and the draft stays listed
+  (`../../domain/forge/drafts.md`, 4).
 - **The chat's thread:** a person's Create leaves no turn, so its "Started goal"
   line is drawn from the fact `GoalFrom` (`README.md`).
 - **The look:** `../web/look.md`, *A goal's look*.

@@ -1,5 +1,5 @@
 //! The domain layer of the temper worker (programming-model.md, section 4;
-//! `domain/worker.md`, section 3): the worker loop's entry point.
+//! `domain/worker/README.md`, section 3): the worker loop's entry point.
 //!
 //! Sans-io: [`step`], [`fire`] and [`resume`] turn events into requests and
 //! change nothing but the [`Domain`] they are given. Time and randomness are

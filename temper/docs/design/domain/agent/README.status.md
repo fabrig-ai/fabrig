@@ -9,6 +9,11 @@
   landing's among them, fails `the change's head moved`; only a head the
   answer reports is recorded (`answered`, `record_delegate_head`)
   [in flight: change 67].
+- **Not yet:** 4: a question's label reads `2 asks (question 4)`, without
+  the answer form (`temper-engine-domain/src/link.rs`, `inbox_sender`)
+  [in flight: change 839].
+- **Not yet:** 4: a question read once and still open is shown in no later
+  run's brief [in flight: change 838].
 
 `tools.md`'s `decided`, `agents.md`, 1, and `ask-temper.md`, 1 have no known implementation gap
 but the one below in what reaches a person, the whole story's milestone
@@ -22,34 +27,9 @@ too; a run's `settings`, `see settings project-classes` and
 `tests/decided.rs` and `tests/settings.rs`; the engine world's
 `each_callers_person_and_reach_are_kept`).
 
-- **Not yet:** `ask-temper.md`, 4, *Seen by the person alone*: a run that starts
-  fresh carries its transcript's tail in its brief, and the tail renders
-  `remember`'s calls and their answers whole, `call remember:` and its
-  input, then the result's summary, which holds the list
-  (`temper-service`'s `store/ranges.rs`, `texts`, by
-  `jig_protocol_transcript::brief_text`, which takes no private names).
-  That tail is a text of the new turn outside "Kept about this person",
-  so the turn's projection keeps it, and the project's other roles read
-  it. Charter 11's runs resume, and start fresh past the resume limit,
-  after a transient failure or when the window is closed. Found by
-  reading; no story reads a fresh start's turn as another role.
-
-- **Not yet:** `ask-temper.md`, 4, *Its answer* and *Its refusals*: an `add`'s answer
-  is the list as the call read it with its line after it
-  (`route/remember/flight.rs`), so a line another chat or the page wrote
-  meanwhile is missing from it and the line's number may be wrong; jig
-  answers a new entry neither moved nor missing, so the refusal "while a
-  line was kept" never comes, and a list another chat filled meanwhile is
-  refused in `note`'s words, `remember: Note refused: full`. A call
-  replayed from its record after a restart answers in `note`'s words with
-  no list (`Deleted note N` for a drop), since the flight takes `remember`'s
-  rendering only at its write (`route/host_route.rs`, where `document`'s
-  flight takes its own at decode). Found by reading.
-
-- **Not yet:** `ask-temper.md`, 4, *Its declaration*: the settings form's `tools`
-  line, and from it the generated reference page `settings-fields`, say
-  an asking charter is declared `see`, `document` and `propose_settings`
-  alone (`temper-settings-form`'s `fields/jig.rs`).
+- **Not yet:** `ask-temper.md`, 4, *Seen by the person alone*: the private-tail gap remains `ask-temper.status.md`, 4.
+- **Not yet:** `ask-temper.md`, 4, *Its answer* and *Its refusals*: the remember-answer and refusal gaps remain `ask-temper.status.md`, 4.
+- **Not yet:** `ask-temper.md`, 4, *Its declaration*: the tool-declaration gap remains `ask-temper.status.md`, 4.
 
 `tools.md`, section 1 has no known gap in a change's role choice carrying no
 `later`: the change-choice parser constructs each choice with none,
@@ -144,82 +124,28 @@ record has run a real model on the sentence.
 
 ## Gaps and departures
 
-- **Not yet:** `ask-temper.md`, 1, *How an answer reads*: a charter is said by number
-  alone, `an agent, charter N`: jig's charters keep no name and the
-  settings inventory names templates alone (`route/see/person/names.rs`,
-  `charters`), so "charter 4, the reviewer's" is never written. A
-  policy's role is `role N`, unnamed (`see/person/words.rs`, `role`). A
-  later read answered busy or unknown says `not read` either way. A
-  title, name, words' line or headline is cut to its first line, at most
-  160 bytes, ending `…` (`words.rs`, `short`), a bound the section does
-  not give.
-- **Not yet:** `ask-temper.md`, 1, `project`: its repositories print as
-  `HOST/OWNER/NAME`, where the inventory names them `OWNER/NAME`, the
-  form `file` and `settings gates` take.
-- **Not yet:** `ask-temper.md`, 1, `task N` and `task N tree`: a placed hold's reason
-  (jig's `PlacedLine`) is not said: a hold with no words of its own says
-  `a hold was placed`; a requester task outside the task's lineage has no
-  title; the model is said only where the task keeps its own choice, and
-  never in the tree; the delegates counted are the live ones; what was
-  asked, and an ended task's kept words, are their first line alone.
-- **Not yet:** `ask-temper.md`, 1, `task N turn A.T`: a brief's part is its heading
-  and its first line, and a call's input is cut at 512 bytes
-  (`see/person/runs.rs`), where the row has the turn whole.
-- **Not yet:** `ask-temper.md`, 1, `change N` and `changes`: a gate is `gate N` and
-  its verdict, with no name; approvals are counted by `role N`, naming no
-  reviewer; a question names no asker; by turn, the place is `landing by
-  turn` alone; a queue's row is the change's number and title, with no
-  step or wait; a landing by turn names its changes by number alone
-  (`see/person/changes.rs`). The forge's panel holds no task title or
-  gate and role names to give them.
-- **Not yet:** `ask-temper.md`, 1, *Its tests*: the engine world has no ended goal and
-  no queued change, so `goals ended` and `changes` read empty there and
-  their rows are held by smith's hand-made documents alone; the other
-  project's work is checked absent from every answer by its words alone,
-  not its tasks' numbers or the project's name.
+- **Not yet:** `ask-temper.md`, 1, *How an answer reads*: the answer-wording gaps remain `ask-temper.status.md`, 1.
+- **Not yet:** `ask-temper.md`, 1, `project`: the repository-identity wording remains `ask-temper.status.md`, 1.
+- **Not yet:** `ask-temper.md`, 1, `task N` and `task N tree`: the task-read facts remain `ask-temper.status.md`, 1.
+- **Not yet:** `ask-temper.md`, 1, `task N turn A.T`: the turn-read cuts remain `ask-temper.status.md`, 1.
+- **Not yet:** `ask-temper.md`, 1, `change N` and `changes`: the change-read facts remain `ask-temper.status.md`, 1.
+- **Not yet:** `ask-temper.md`, 1, *Its tests*: the person-read test gaps remain `ask-temper.status.md`, 1.
 
-- **Departs:** `ask-temper.md`, 1, *Unknown*: an unknown address answers with
-  `ask.txt`'s line of addresses and, in its settings bracket,
-  `charter-words N | project-words`, which `ask.txt`'s *Finding out* doesn't
-  name (`temper-engine-smith`'s `see/addresses.rs`, `ADDRESSES`): Ask
-  temper's instructions were held to 8,192 bytes then, with no room for
-  them, so the run learns the two kinds from its tools' declarations and
-  `see settings`; decided by the `ui-p3e-words` cut. The bound is 10,240
-  bytes now (`ask-temper.md`), and `ask.txt`'s 8,790 leave room for them.
+- **Departs:** `ask-temper.md`, 1, *Unknown*: the unknown-address wording remains `ask-temper.status.md`, 1.
 
-- **Not yet:** `ask-temper.md`, *Its instructions*: `ask.txt` is not
-  `../../draft/ask-temper.md`, section 8, whole. Its parts but Remembering
-  and Showing's first step say the draft's text shorter, as the stock's
-  former 8,192 bytes had them, *Your voice* among them; and it adds what
-  later plans asked of it: `project-classes` on the `see` line and in its
-  settings paragraph, the design-first proposal guidance
-  (`../../protocol/configuration/reference.status.md`), and a paragraph on
-  proposing a person's own approving role. `agents.md` is 8,750 bytes, within
-  10,240 now; no record names the shortening a departure.
+- **Not yet:** `ask-temper.md`, *Its instructions*: the shortened-instructions gap remains `ask-temper.status.md` (Not yet, Its instructions).
 
-- **Design departs:** `agents.md`, 1, from `../../draft/model-catalogue.md`, 3, decided
-  by the `model-catalogue-1` cut: settings reads return whole charters,
-  including models outside the offer, because a proposal needs their whole
-  value. The inventory is filtered, but validation checks the configured
-  catalogue alone, and Ask temper's instructions, `../../draft/ask-temper.md`,
-  section 8, which win there (the user, 2026-11-07), say nothing of models
-  outside the offer.
+- **Design departs:** `agents.md`, 1, the whole-charter catalogue departure remains `agents.status.md`, 1.
 
-The remaining gaps concern verdict follow-up tasks,
-what a delivery keeps of a run's history, change-refusal model wording, shell authority for runs that cannot deliver,
-the fake's goal script, who is offered `decided`, what Ask temper
-can read to size temper's own way, and what no real model has
-shown: a document built in parts and a receipt's words.
+The remaining gaps concern verdict follow-up tasks (`charter.status.md`, 3), what a delivery keeps of a run's history, change-refusal model wording (`tools.status.md`, 1), shell authority for runs that cannot deliver (`tools.status.md`, Departs, the whole document), the fake's goal script (`agents.status.md`, 3), who is offered `decided` (`tools.status.md`, Design departs, ui-away), what Ask temper can read to size temper's own way (`ask-temper.status.md`, 1), and real-model proof of a document built in parts (`agents.status.md`, 3) and a receipt's words (`charter.status.md`, 3).
 `tools.md` has no gap in combined charter and workspace ownership fitting.
 `tools.md` has no known implementation gap in a goal's delivery grant.
 Stock and reference instructions remain separate work (`README.md`, section 8 and
 `../../draft/goal-as-designer.status.md`).
 - **Not yet:** `agents.md`, *A coordinator hears its changes while it
-  designs*: a coordinator's first run hears none of its changes' results
-  while it lives (jig's `domain/tasks/messages.status.md`, 6), and the stock
-  coordinator's words say its first run never reacts to its changes
-  (`../../../../crates/temper-service/src/stock/coordinator.md`) [in flight: change 100].
-  smith's offer between two completions is built.
+  designs*: the coordinator-result gap remains `agents.status.md` (Not yet,
+  A coordinator hears its changes while it designs); smith's offer between
+  two completions is built [in flight: change 100].
 `tools.md` has no known implementation gap in task and forge reads
 fitting to the live attempt's worker reply bound, else the local agent's.
 Task reads use `documents.text_bytes` where neither names a bound; forge
@@ -270,16 +196,10 @@ line naming it; and, with none stored, "template-goal N: none kept; its
 coordinator plans and makes no close-out." (the engine world's
 `the_asking_chat_reads_each_kind` and `an_asking_chat_reads_each_address`).
 
-- **Not yet:** `tools.md`, *A refused branch read*: `read_branches`'s
-  `TooLarge` keeps its one line and names no bound
-  (`temper-engine-smith/src/answers.rs`).
-- **Design departs:** `charter.md`, 3, from the request for `landing-fixes-3` of
-  2026-11-06, item 1, decided by its plan's cut: a report past its bound
-  is shortened, with file or test references and the cuts named under Left,
-  where the request asks for nothing lost. The stock's instructions alone
-  decide what a model cuts and lists; no tool checks that list.
+- **Not yet:** `tools.md`, *A refused branch read*: the branch-read refusal gap remains `tools.status.md` (Not yet, A refused branch read).
+- **Design departs:** `charter.md`, 3, the report-cut departure remains `charter.status.md`, 3.
 - **Design departs:** 6, from the request `parallel-faults` of 2026-11-06, item 4, decided by its plan's cut: a run's local commits still don't reach its next run, and a fold on a saved start is still lost, where the request reports both as faults, because a delivery commits the tree on the worker's own record of the head (`../../protocol/git.md`, 4.7), and its receipt names what it pushed. That a run's words name no commit off the branch is asked by the coding charter alone, since those names come from its own transcript or summary, not the host's resume words: nothing refuses such a word, and no walk on record has run a real model on the sentence.
-- **Design departs:** `tools.md`, from the same request, decided by its plan's cut: `read_permission`'s login reaches every run with the forge reads, the stock's charters 1, 2, 4 and 6, where the request holds a person's identity to what an agent's authority may read, because it is the forge's own answer about a user of a repository that run may already read (section 8 keeps it open). It is carried through skein's answer and temper's stored record, where the request sizes the work in temper, because adoption seeds a person with an empty login and skein's answer dropped the one its dialects read.
+- **Design departs:** `tools.md`, the permission-login departure remains `tools.status.md` (Design departs, parallel-faults).
 
 `tools.md` and `agents.md`, section 1 have no gap in project-policy reads or in inventory wording that
 separates requester, known forge identity and configured owned-forge account.
@@ -289,20 +209,7 @@ second deployment owner clears the link on restart. Without a link it keeps
 the owner-role refusal before and after admin adoption and the fresh
 maintainer-role acceptance. These worlds use Forgejo; a scripted run does
 not prove a real model's approval-role judgement or GitHub's composed flow.
-- **Design departs:** `agents.md`, 3, from the request `note-parts` of 2026-11-05, decided by its plan's cut: a later write's words close with the note's lines, where the request keeps the answer as it stood, because an append's `first` is the body's lines + 1 and a later write printed no total, so a slip would insert in the wrong place with no refusal. The answer's values and how they are computed stay.
-- **Design departs:** `agents.md`, 3, from the request `ui-chat-draft` of 2026-11-05, decided by the answer that day to its task `note-scope`: a goal keeps its own note scope, where the request has a goal keep no notes, because a goal's report is a note.
-- **Design departs:** `tools.md`, from the request `ui-away` of 2026-11-05, decided by its
-  plan's cut: `decided` is declared to every run, where the request has it charter
-  1's, because the host part declares its fixed tools whatever a charter says
-  (`temper-engine-smith/src/calls.rs`, `tools_for`). So a coding agent's run spends
-  its room on it too; a call from a task whose question reaches no person
-  answers ask, or is refused for want of the control family (`../forge/attention.status.md`, 5).
-- **Not yet:** 5: no supplied real-model landing proves the
-  corrected receipt's words, a refused compare's recovery, or the producer
-  and foreman following the report instructions, including listing cuts
-  under Left rather than asking. The request for `landing-fixes-3` of
-  2026-11-06 records real receipts with padded heads, a compare retried with
-  an invented id and a report that did not fit the earlier bound. Its plan
-  leaves the corrected words' proof to temper/qa's next real landing
-  (`walk = false`); the supplied inventory gives no outcome. Tests alone
-  do not show whether a run still takes a detached checkout for a failure.
+- **Design departs:** `agents.md`, 3, the note-write answer departure remains `agents.status.md`, 3.
+- **Design departs:** `agents.md`, 3, the goal-note scope departure remains `agents.status.md`, 3.
+- **Design departs:** `tools.md`, the decided-declaration departure remains `tools.status.md` (Design departs, ui-away).
+- **Not yet:** 5: the real-model receipt and report proof remains `charter.status.md`, 3.

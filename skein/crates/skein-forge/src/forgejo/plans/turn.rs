@@ -111,10 +111,8 @@ impl Plan {
             }
             Heard::Done(body) => match body {
                 Body::Document(document) => self.done(document, bounds),
-                Body::Malformed(
-                    crate::forgejo::decode::Malformed::Bound { .. } | crate::forgejo::decode::Malformed::TooLong { .. },
-                ) => Err(api::Error::TooLarge(api::Excess::unnamed())),
-                Body::Empty | Body::Raw { .. } | Body::Malformed(_) => Err(api::Error::InvalidAnswer),
+                Body::Malformed(error) => Err(super::failure::malformed(error)),
+                Body::Empty | Body::Raw { .. } => Err(api::Error::InvalidAnswer),
             },
         }
     }

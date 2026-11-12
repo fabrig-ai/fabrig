@@ -460,3 +460,36 @@ fn a_rebase_request_does_not_grant_the_caller_another_users_branch() {
         ]))
     );
 }
+
+#[test]
+fn pull_size_counts_changed_paths_and_multiset_lines_at_the_merge_base() {
+    let mut h = Harness::new(CALM);
+    let work = h.commit(FIRST, &[(b"new", b"one\ntwo\nthree\n"), (b"README", b"changed")]);
+    h.push(ENGINE, b"work", work).unwrap();
+    let number = opened(&mut h, b"work");
+    let expected = crate::api::Size { files: 2, additions: 4, deletions: 1 };
+    assert_eq!(h.pull(number).size, expected);
+    // Base-only additions are not changes made by this pull.
+    crate::advance(&mut h.domain, &h.env, REPOSITORY, MAIN, b"base-only", b"base", MAINTAINER).unwrap();
+    assert_eq!(h.pull(number).size, expected);
+    let moved = h.commit(work, &[(b"new", b"two\none\none\n"), (b"README", b"hello")]);
+    h.push(ENGINE, b"work", moved).unwrap();
+    assert_eq!(h.pull(number).size, crate::api::Size { files: 1, additions: 3, deletions: 0 });
+    let deleted = crate::commit(&mut h.domain, &CALM, moved, files(&[(b"README", b"hello")]), b"").unwrap().unwrap();
+    h.push(ENGINE, b"work", deleted).unwrap();
+    assert_eq!(h.pull(number).size, crate::api::Size { files: 1, additions: 0, deletions: 1 });
+}
+
+#[test]
+fn pull_size_matches_duplicate_lines_once_and_ignores_line_order() {
+    let mut configured = setup();
+    configured.tree = files(&[(b"lines", b"a\na\nb\n")]);
+    let mut h = Harness::with(CALM, configured);
+    let work = h.commit(FIRST, &[(b"lines", b"b\na\na\n")]);
+    h.push(ENGINE, b"work", work).unwrap();
+    let number = opened(&mut h, b"work");
+    assert_eq!(h.pull(number).size, crate::api::Size { files: 1, additions: 0, deletions: 0 });
+    let work = h.commit(work, &[(b"lines", b"a\nb\nb\n")]);
+    h.push(ENGINE, b"work", work).unwrap();
+    assert_eq!(h.pull(number).size, crate::api::Size { files: 1, additions: 1, deletions: 1 });
+}

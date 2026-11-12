@@ -120,7 +120,7 @@ fn a_last_line_cut_short_decodes_its_whole_groups() {
 
 #[test]
 fn the_committed_recordings_read_and_write_unchanged() {
-    let journeys = skein_scratch::paths::tree().join("docs/design/client/journeys");
+    let journeys = skein_scratch::paths::tree().join("docs/design/client/web/journeys");
     let mut count = 0;
     for entry in std::fs::read_dir(journeys).expect("journeys") {
         let path = entry.expect("journey").path().join("recording");

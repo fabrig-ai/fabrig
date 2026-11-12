@@ -17,6 +17,7 @@ pub fn rule(flags: u8, bypass: Bypass) -> api::Protection {
 
 pub fn rows(rule: api::Protection) -> [forge::Stored; 3] {
     let repository = forge::Repository {
+        contexts: Box::new([]),
         workflows: Box::default(),
         project: 5,
         home: true,

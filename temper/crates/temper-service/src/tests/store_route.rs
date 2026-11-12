@@ -240,13 +240,18 @@ fn a_corrupt_store_answer_fails_its_original_load_once() {
 #[test]
 fn a_row_that_does_not_decode_fails_its_original_load_once() {
     let rows = [
-        store::Row::Application { key: Box::new([0]), value: Box::new([255]) },
+        store::Row::Application {
+            key: temper_protocol_store::keys::encode(&forge::Key::Flight { task: 3, entry: 8 }, u32::MAX).unwrap(),
+            value: Box::new([255]),
+        },
         store::Row::Application {
             key: temper_protocol_store::keys::encode(&forge::Key::Landed([8; 32]), u32::MAX).unwrap(),
             value: temper_protocol_store::records::encode(&forge::Stored::Landed { commit: [9; 32], task: 3 }),
         },
     ];
-    for row in rows {
+    for (row, family) in rows.into_iter().zip([(21, "Flight"), (9, "Landed")]) {
+        let store::Row::Application { key, .. } = &row else { panic!("application row") };
+        let expected = crate::UnreadableRow { key: key.clone() };
         let mut routes = fixtures::routes();
         route::down(&mut routes, engine::StoreRequest::Commit { number: 7, writes: Box::new([]) }).unwrap();
         let Some(store::Request::Restore { owner, .. }) =
@@ -261,7 +266,10 @@ fn a_row_that_does_not_decode_fails_its_original_load_once() {
             store::Event::Page { owner, items: items(Box::new([forge_row(7), row])), next: None },
             &mut out,
         );
+        assert_eq!(routes.row_failure(), Some(&expected));
+        assert_eq!(routes.row_failure().unwrap().family(), Some(family));
         failed_load(&mut routes, owner, &mut out);
+        assert_eq!(routes.row_failure(), Some(&expected), "late answers cannot replace the refused row");
     }
 }
 

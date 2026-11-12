@@ -26,7 +26,9 @@ pub fn supported(doc: &Project, ask: &Ask) -> bool {
         Ask::MakeService { project, .. } => (*project, ActKind::MakeService, true),
         // Only the separately supplied configured target establishes this baseline.
         Ask::SetPool { project, .. } => (*project, ActKind::SetPool, !doc.configured_pools_cut),
-        Ask::Message { .. }
+        Ask::Talk { .. }
+        | Ask::Leave { .. }
+        | Ask::Message { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
@@ -149,6 +151,7 @@ fn policy_complete(doc: &Project, edit: &PolicyEdit) -> bool {
 }
 /// The unchanged source fields shown before a supported replacement.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one project baseline classifies every client ask")]
 pub fn baseline(doc: &Project, ask: &Ask) -> Option<Ask> {
     if !supported(doc, ask) {
         return None;
@@ -219,6 +222,8 @@ pub fn baseline(doc: &Project, ask: &Ask) -> Option<Ask> {
             None
         }
         Ask::MakeService { .. }
+        | Ask::Talk { .. }
+        | Ask::Leave { .. }
         | Ask::Message { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
@@ -274,6 +279,8 @@ pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
             Ask::MakeService { .. }
             | Ask::ChangePolicy { .. }
             | Ask::SetRoles { .. }
+            | Ask::Talk { .. }
+            | Ask::Leave { .. }
             | Ask::Message { .. }
             | Ask::Propose { .. }
             | Ask::Withdraw { .. }
@@ -335,6 +342,8 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>) {
         Ask::MakeService { .. }
         | Ask::ChangePolicy { .. }
         | Ask::SetRoles { .. }
+        | Ask::Talk { .. }
+        | Ask::Leave { .. }
         | Ask::Message { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }

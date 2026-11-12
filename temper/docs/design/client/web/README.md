@@ -3,7 +3,7 @@
 Provisional, 2026-10-05, revised 2026-11-07. temper's browser client: a
 second shell of temper's client (`../README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`../README.md`;
-`../forge/README.md`). The greenfield mock (`../greenfield/README.md`) is the look's
+`../forge/README.md`). The greenfield mock (`greenfield/README.md`) is the look's
 target, with later look requests, and takes precedence over `mockups/`
 (the user, 2026-11-05). Journeys record and print what temper draws
 (`journeys.md`). How a view runs in a browser is
@@ -90,15 +90,16 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
 
 ### 2.1 The shell
 
-- **`temper-client-shell-web`** is a `cdylib` for
-  `wasm32-unknown-unknown`, and a library on every target for its host
+- **`temper-client-shell-web`** is a library, for
+  `wasm32-unknown-unknown` and on every target for its host
   and its journeys (`journeys.md`, section 2), ordinary Rust as a shell is (skein's
   `ui/README.md`, section 2), copied from jig's reference browser shell,
   `jig-client-test-shell-web` (jig's `protocol/browser/README.md`, 3.1), with
   temper's client root, view and records in place of jig's test
   application's, and none of jig's look (`jig-client-shell-web`'s
   `look`, `jig.css`). Its modules:
-  - `lib`: the start (skein's restart part; jig's sign-in part taking
+  - `lib`: the start (the page's internal settings, below; skein's
+    restart part; jig's sign-in part taking
     the link from the address before anything is sent; the small store;
     the page with temper's look; the DOM) and the turn of skein's
     `ui/web/README.md`, 4.2; and, as jig's reference shell has it, the test
@@ -122,8 +123,9 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
     the shell's turn and the journeys' replay call alike
     (`journeys.md`, section 2);
   - `journey`: a recording's records and file, its recorder and its
-    replay (`journeys.md`, sections 3 and 4); the recorder's keys and
-    save are in `lib`, under the `record` feature alone;
+    replay (`journeys.md`, sections 3 and 4), on every target; the
+    recorder's keys and save are in `lib`, installed only when the page's
+    `internal-record` is on;
   - `records`: the small store's records, `jig-client`'s and a sign-in's
     address (`../README.md`, section 4); from the
     adoption form, a pending adoption is among them, a kept
@@ -131,13 +133,35 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
     (`../forge/records.md`);
   - `limits`: the client's limits in a browser, derived as the
     terminal's are (`../README.md`, section 2), and their sum.
-- **The feature `playground`** builds the shell for the playground in
-  the browser (`../../playground.md`, 6): skein's worker platform where the
-  shipped shell holds the browser's (skein's `ui/web/README.md`, 15), a type the
-  feature chooses, the rest of the loop unchanged; the starter, which
-  starts the world's worker and takes the printed link from what the
-  world prints; the frame; and the failure page with the session's log.
-  The shipped bundle holds none of it.
+- **A page is an entry crate on the shell:** the library holds no wasm
+  start, since a module has one and a page's crate links the library.
+  `temper-client-web-page`, a `cdylib`, is the shipped page: its start
+  calls the shell's, and the bundle is built from it (2.6).
+  `temper-playground-page` is the playground's (`../../playground.md`,
+  3 and 6): skein's worker platform where the shipped page holds the
+  browser's (skein's `ui/web/README.md`, 15), driving the shell's loop
+  through its public seam (the shell, its platform's type and its
+  report), the starter, the frame and the failure page with the
+  session's log. The shipped bundle holds none of the playground's.
+- **The page's internal settings** (`../../draft/cli.md`, section 6) are
+  query parameters of the address the page loads at, read once at its
+  start, before anything else reads the address, and taken out of it
+  then, with the history's replace the sign-in part uses, so that no
+  route, recording or link sees them. Each is on when its value is `1`,
+  and off when absent or anything else:
+  - `internal-record`: the browser's recorder runs (`journeys.md`, 3.1);
+  - `internal-small-window`: the client's limits name a conversation's
+    window of 32,768 bytes, with `long_text` and `turn_text` 32,768
+    (`testing.md`, 3, The tier's window), where they name none and
+    131,072;
+  - `internal-loopback-navigation`: skein's platform follows a
+    navigation to plaintext loopback (skein's `ui/web/README.md`, section 8).
+
+  They're honoured only on a loopback origin, the page's host
+  `127.0.0.1` or `[::1]`, as the browser tier and the journeys tool
+  serve it, and ignored elsewhere. A reload is a load without them. The
+  shell's limits are given at its host's start, which the replay gives
+  the ordinary ones.
 - **It decides nothing.** What a page shows and does is the domain's
   and the view's, step code under the subset; the shell orders the
   platform's work (jig's `protocol/browser/README.md`, 3.1).
@@ -512,7 +536,8 @@ without it.
   `scripts/bundle.sh`'s steps with the cargo running it (`CARGO`), from
   the workspace's root, into the nested build's directory (below):
   1. `build --locked --target wasm32-unknown-unknown -p
-     temper-client-shell-web`, with the module's profile (below);
+     temper-client-web-page`, the shipped page's entry (2.1), with the
+     module's profile (below);
   2. `build --locked --release -p skein-ui-bundle`: the bundler,
      always optimized, as skein's `ui/web/bundle.md`, 1 asks of a tool;
   3. the bundler, with `scripts/bundle.sh`'s inputs (the name, the
@@ -602,19 +627,20 @@ without it.
   change. `temper-service` adopts a bundle, wherever the binary got it.
   A directory configured is read as before, and the binary's is unused.
 - **The fake-backend bundle is provisioned separately.** Build it with
-  scripts/bundle.sh --loopback DIR, then start temper-box --fake-backends
+  scripts/bundle.sh DIR, then start temper-box --fake-backends
   --bundle DIR even with an empty configuration (../../protocol/configuration/directories.md,
   1). An explicit --bundle overrides source application.clients.bundle;
   otherwise that configured directory is used.
-  The ordinary embedded bundle remains loopback-free and is not used for
-  that box. Missing provision is a startup refusal explaining the bundle
+  The embedded bundle is not used for that box. Missing provision is a startup refusal explaining the bundle
   command and --bundle. Startup never builds or downloads the bundle.
   The second-embed prototype added 8,974,112 bytes in the measured dev build,
   exceeding its 5 MB limit; the provisioned path keeps that cost outside
   ordinary builds. TEMPER_INTERNAL_BUNDLE=none runs no nested browser build.
 - **`scripts/bundle.sh` stays,** for a bundle built apart: the browser
-  tier's, which turns on `loopback-navigation` (`testing.md`, 3), and a
-  developer's. The ordinary binary bundle never enables it. `scripts/install.sh PREFIX`
+  tier's and the journeys tool's, whose pages load with their internal
+  settings (2.1; `testing.md`, 3), and a developer's. It builds the
+  shipped page as the binary's build does, with no switch of its own
+  but `--release` and `--playground`. `scripts/install.sh PREFIX`
   installs the binary alone, built with `--release --locked`, and
   prints its path.
 - **Tested in both builds.** Every suite passes with and without the
@@ -714,12 +740,7 @@ without it.
   `look.status.md`: Plex's phone size, adjacent-note spacing and
   options unchanged on hover.
 
-- **A filter row while its project's ways arrive** (`README.md`, 2.3, `testing.md`, 6): Drafts
-  appears before Closed once the ways offer drafts, moving Closed under
-  a person's pointer. Default: keep the conditional Drafts button; a
-  separate look decision settles whether the row should reserve its
-  place. The history story reads the filter by name and pressed state,
-  and makes no claim that the row stays still.
+- A filter row while its project's ways arrive: `testing.md`, section 7.
 
 - **Settings, Models comparison** (`look.md`; `../pages/README.md`): temper/ui owns
   page 07 of `model-picker` beside the shipped page, its named states and
@@ -756,10 +777,7 @@ without it.
   shared view and domain tables, focused client stories from a chat and
   Goals, and gallery prints; no new browser test for `ui-goal-asks-2`.
 
-- **A failed link with a live cookie** (2.4): falling back to the cookie
-  instead of keeping the link's reason is jig's client question
-  (`jig/docs/design/client/domain/client/README.md`, section 15). Default: the
-  reason remains until another sign-in; reload to use the cookie.
+- A failed link with a live cookie: `../README.md`, section 5.8.
 
 - **The fresh project's draft flow** (`../pages/README.md`, `../view.md`, 3, `../pages/settings.md`, 2):
   the real-box check of an Ask temper chat's draft offer and the draft-to-goal
@@ -824,12 +842,7 @@ without it.
   nothing shown. Default: a group that sections arrive beside takes a
   role of its own, as Accounts' Sign out does, page by page; skein's
   diff stays.
-- **A phone's width in a test** (`look.md`): skein's browser kit opens pages at
-  1280 by 800 and offers `Viewport` to change their CSS pixel dimensions,
-  with desktop input behaviour. The public board and task story (`public.md`, 4)
-  checks 1440 px and 420 px. Other phone rules remain held by their sheet
-  checks and throwaway walks alone: the accounts tabs, owner menu, rail,
-  chat and document panes have no retained viewport story.
+- A phone's width in a test: `testing.md`, section 7.
 - **The rail's foot on a phone** (`look.md`; `../view.md`, 3): the top bar holds the
   switcher alone, as the mock's does, so a project's page on a phone shows no
   link's state, no "Behind" and, but on the `Accounts` tab, no "Sign out did
@@ -846,65 +859,18 @@ without it.
   view has no fact of a tab refused, so the note's plain title and primary link have
   no state of their own. Default: the view's test holds them, until that draft gives
   the fact.
-- **A chat's way to the Closed filter** (`testing.md`, 6): a chat closed on the box took 8.5 s
-  to show there, and no measure splits that between the chat template's 5 s of
-  grace (`temper-service`'s `stock.rs`) and the box's 5 s `agent_stop_ms`. A person
-  waits it, and no test of the tier does. Default: as it stands, until the wait is
-  split and a request asks it shorter.
-- **The box's pace in the tier** (`testing.md`, 6): the stories on `temper box` keep story A's
-  paces, a reply's 1200 ms and CI's 4000 ms. None waits for a landing, and unpaced
-  fakes would land in the background for CPU nobody reads. Default: paced.
-- **A wait's CPU in the tier** (`testing.md`, 3): a `See` asks Chromium's accessibility tree
-  again at `skein-browser`'s `poll`, 50 ms. Default: that poll stays. Repeated-miss
-  backoff needs a measured saving without delaying presses or the notice of a
-  change; the repaired long story's query count alone gives no reason to add it.
-- **The remaining browser cost** (`testing.md`, 3, 6): another repair may prepare the
-  other stories' histories outside the page, and combine stories sharing a setup
-  before dropping a browser-only proof. Default: keep the CPU budget, timeouts,
-  membership and cap; the four reading stories retain their layout, focus and
-  scroll proofs. A whole-tier run after landing decides its remaining cost.
-- **Merged stories after landing** (`testing.md`, 2, 3, 6): check the call line's
-  open node across a reply, the composer's model picker, both sign-in tabs
-  with the welcome first, and reading's four page loads with anchoring off
-  only for the position story. Default: compile during the plan; run in
-  Chromium after landing, preserving every assertion, the forty-second
-  run deadline and the whole tier's 127.5 CPU-second budget, 85 raised by
-  half by the user's word of 11-08, for now, to be revisited. A whole-tier
-  run supplies the cost proof; separate story measurements do not.
-- **Reading's test past its run's forty seconds** (`testing.md`, 3; `testing.md`, 6, story 14). Default: it
-  becomes two tests, the long chat's apart, and test 15, which shares its setup
-  with 4 and 5, becomes a step of theirs, so that the tier stays at twelve.
-- **A long chat at the person's whole bound** (`testing.md`, 3; `../pages/chat/conversation.md`, 2): the
-  small-window stories prove eviction and recovery through the same mechanism,
-  but leave the 1,048,576-byte window's manual reading check separate. Default:
-  keep the person's bound and check opening, position, both ends, Latest and
-  sending there by hand.
-- **A public page's plain text in one query** (`public.md`, 4): the page-text walk,
-  apart from geometry measurement, reads a node at a time, about 0.8 CPU s
-  over its seven pages. Default: read a node at a time, accepting `public.md`, 4's
-  queued and unqueued landings forms, until that passes 1 CPU s, when the
-  browser kit would read a page's text at once.
-- **Every wrapped text fragment** (`public.md`, 4): checking all of a title's wrapped
-  fragments needs a browser testing interface decision (skein's
-  `testing/browser.md`, 11). Default: keep `Seen` and its first content quad;
-  missing rectangles remain failures, with the text and measurement stage.
-- **A public page changing during measurement** (`public.md`, 2, 4): one terminal
-  boxed query avoids repeating every rectangle request for each text node,
-  but is no atomic snapshot of the page. Default: keep the field, gutter,
-  wrapping, navigation and overlap assertions and read a missing box's text
-  and stage from its failure. A node gone between requests refuses the
-  query, which fails the page assertions; that alone does not explain an
-  answered query with a missing rectangle. A timer-driven read remains an
-  unproved explanation.
-- **Expected browser errors scoped to an act** (`public.md`, 4): the public walk's
-  sign-out permits an expired stream's 401 console message. Expectations
-  match text for the whole walk, so the same words from a later public
-  read are accepted too. Default: keep that expectation; distinguishing
-  the act or resource needs a harness interface decision.
-- **A compile cache across the tier's tests** (`testing.md`, 3): each test's fresh profile
-  compiles the bundle's wasm again, where a second load in one profile hits
-  Chromium's own cache. Default: none, since a shared profile would change what each
-  test starts from.
+- A chat's way to the Closed filter: `testing.md`, section 7.
+- The box's pace in the tier: `testing.md`, section 7.
+- A wait's CPU in the tier: `testing.md`, section 7.
+- The remaining browser cost: `testing.md`, section 7.
+- Merged stories after landing: `testing.md`, section 7.
+- Reading's test past its run's forty seconds: `testing.md`, section 7.
+- A long chat at the person's whole bound: `testing.md`, section 7.
+- A public page's plain text in one query: `testing.md`, section 7.
+- Every wrapped text fragment: `testing.md`, section 7.
+- A public page changing during measurement: `testing.md`, section 7.
+- Expected browser errors scoped to an act: `testing.md`, section 7.
+- A compile cache across the tier's tests: `testing.md`, section 7.
 - **A heading drawn after its page, in skein's reference** (2.3): the kit's rule
   stops at the main (skein's `ui/web/README.md`, 5), and any application whose page reads
   before it draws its heading meets what this shell repairs. Default: this shell's

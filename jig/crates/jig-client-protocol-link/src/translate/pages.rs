@@ -25,7 +25,7 @@ fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
 }
 
 /// A line's words, whole within `long_text` (client/domain/client/README.md, 11).
-fn long_text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
+pub(super) fn long_text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     match c::Text::new(bytes::copy_of(value), limits.client().long_text) {
         Ok(value) => Ok(value),
         Err(_) => Err(too_large()),

@@ -32,7 +32,7 @@ fn gating() -> change::State {
 }
 fn changes_setup(state: change::State, second_since: Wall) -> Domain {
     let mut d = domain();
-    d.repositories.insert(fixtures::opening_row().repository, adopted()).unwrap();
+    d.repositories.insert(fixtures::opening_row().repository, Box::new(adopted())).unwrap();
     for (task, priority, since) in [(OWNER, 9_i32, SINCE), (SECOND, 1_i32, second_since)] {
         let mut row = fixtures::opening_row();
         row.task = task;
@@ -54,6 +54,7 @@ fn pending(task: u64) -> PendingStep {
     PendingStep {
         task,
         entry: 100,
+        follow_tree: List::with_capacity(env().limits.key_entries),
         stage: StepStage::Reviews(1),
         heard: change::Heard {
             delegate_running: false,
@@ -85,6 +86,8 @@ fn pending(task: u64) -> PendingStep {
         contains_catch_up: change::Status::Unknown,
         reviews: Box::new([]),
         reviews_complete: true,
+        paths: Box::new([]),
+        paths_whole: false,
         woken: false,
     }
 }
@@ -104,7 +107,7 @@ fn a_turn_is_exclusive_through_update_checks_gates_and_merge() {
     ] {
         let mut d = changes_setup(state.clone(), second_since);
         assert!(!follower_facts(&d).first, "{state:?}, follower since {second_since:?}");
-        decide_step(&mut d, &env(), &pending(SECOND), &mut Queue::uncapped());
+        decide_step(&mut d, &env(), pending(SECOND), &mut Queue::uncapped());
         let follower = d.changes.get(&SECOND).unwrap();
         assert_eq!(follower.change.state, change::State::Queued { head: HEAD, ready_since: second_since });
         assert!(!follower.change.owns_turn);
@@ -202,8 +205,9 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
         }
         Leave::Veto | Leave::ReviewVeto => {
             let prior = d.changes.get(&OWNER).unwrap().change.clone();
-            decide_step(d, &env(), &p, &mut out);
-            veto_change(d, &env(), OWNER, p.entry, prior, matches!(how, Leave::Veto), &mut out);
+            let entry = p.entry;
+            decide_step(d, &env(), p, &mut out);
+            veto_change(d, &env(), OWNER, entry, prior, matches!(how, Leave::Veto), &mut out);
             if matches!(how, Leave::ReviewVeto) {
                 step(d, &env(), Event::ReviewRequested { task: OWNER, head: HEAD }, &mut out);
             }
@@ -251,7 +255,7 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
             d.changes.get_mut(&OWNER).unwrap().change.gates = Box::new([gate()]);
         }
     }
-    decide_step(d, &env(), &p, &mut out);
+    decide_step(d, &env(), p, &mut out);
     out
 }
 
@@ -328,7 +332,7 @@ fn changes_document_keeps_the_first_while_it_updates() {
     owner.change.ready_since = None;
     owner.change.since = Wall::from_nanos(99_000_000_000);
     assert!(!follower_facts(&d).first);
-    decide_step(&mut d, &env(), &pending(SECOND), &mut Queue::uncapped());
+    decide_step(&mut d, &env(), pending(SECOND), &mut Queue::uncapped());
     assert!(matches!(d.changes.get(&SECOND).unwrap().change.state, change::State::Queued { .. }));
     let got = d.changes_view(5, env().wall, &env().limits).unwrap();
     let queue = &got.queues[0];

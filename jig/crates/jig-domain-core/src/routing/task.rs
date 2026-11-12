@@ -434,6 +434,9 @@ fn tag_tasks(
         tasks::Request::PersonStallDue { task } => notices::person_stall_due(core, env, task, pending),
         tasks::Request::QuestionOwedDue { task } => notices::question_owed_due(core, env, task, pending),
         tasks::Request::NothingAwaitedDue { task } => notices::nothing_awaited_due(core, env, task, pending),
+        tasks::Request::QuestionParked { task, question } => {
+            notices::question_parked(core, env, task, question, pending);
+        }
         tasks::Request::CloserDue { task } => lifecycle::closer_due(core, env, task, pending),
         tasks::Request::QuestionEndedDue { task, questions } => {
             notices::question_ended_due(core, env, task, questions, pending);

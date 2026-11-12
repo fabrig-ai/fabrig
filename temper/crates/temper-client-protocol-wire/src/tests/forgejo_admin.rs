@@ -43,10 +43,9 @@ fn forgejo_admin_without_first_round_trips_its_golden() {
 fn forgejo_admin_with_first_round_trips_its_golden() {
     golden(Some(first(b"docker").unwrap()), "connect_forgejo_admin_with_first.bin");
 }
-#[expect(clippy::disallowed_macros, reason = "golden fixtures are relative to the test crate")]
 fn golden(first: Option<v1::FirstAsk>, name: &str) {
     let record = request(first);
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden").join(name);
+    let path = skein_scratch::paths::package().join("golden").join(name);
     let encoded = crate::requesting(&record);
     let write = temper_test_env::rewrite();
     if write {

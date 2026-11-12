@@ -18,11 +18,13 @@ pub const SITE: skein_shell::Variable = skein_shell::Variable {
     notes: "Only https://127.0.0.1:PORT, https://[::1]:PORT or https://localhost:PORT, with nothing after the port.",
 };
 
+pub const NAME: &str = "temper";
+
 pub const CLIENT: Table = Table {
     binary: "temper",
     line: "temper's TUI, on an engine or in front of a box.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    version: "",
+    commit: "",
     commands: &[TUI, box_binary::BOX, table::HELP, table::CTL, box_binary::FETCH],
     settings: &[],
     variables: &[
@@ -41,7 +43,7 @@ pub const CLIENT: Table = Table {
         &environment::COLORTERM,
         &environment::SSL_CERT_FILE,
         &SITE,
-        &temper_version::INTERNAL_COMMIT,
+        &environment::INTERNAL_COMMIT,
     ],
     more: "temper COMMAND --help prints one command; temper help pages lists the pages.",
 };
@@ -57,7 +59,7 @@ const TUI: Command = Command {
     }],
     settings: &[&directories::SETTINGS],
     switches: &[],
-    variables: &[],
+    variables: &[&environment::INTERNAL_RECORD],
     notes: "Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. `/exit` or Ctrl+C closes it without signing out; on the sign-in screen, use Ctrl+C. `q` types a character on every screen.",
 };
 
@@ -67,25 +69,34 @@ struct Capture {
     environment: Box<[EnvironmentEntry]>,
     working: Result<PathBuf, String>,
     executable: Result<PathBuf, String>,
+    version: String,
+    commit: String,
 }
 
 #[expect(
     clippy::disallowed_methods,
     reason = "the binary's capture: argv's first word, arguments, environment, working directory and executable path are read once"
 )]
-fn capture() -> Capture {
+fn capture(line: &str) -> Capture {
+    let (version, commit) = line
+        .strip_prefix("temper ")
+        .and_then(|line| line.strip_suffix(')'))
+        .and_then(|line| line.split_once(" ("))
+        .expect("the binary injects its version line");
     Capture {
         run_as: std::env::args_os().next().map(|word| word.as_bytes().into()).unwrap_or_default(),
         arguments: skein_shell::arguments(),
         environment: skein_shell::environment(),
         working: std::env::current_dir().map_err(|why| why.to_string()),
         executable: std::env::current_exe().map_err(|why| why.to_string()),
+        version: version.into(),
+        commit: commit.into(),
     }
 }
 
 #[must_use]
-pub fn main() -> ExitCode {
-    let captured = capture();
+pub fn main(line: &str) -> ExitCode {
+    let captured = capture(line);
     match run(&captured) {
         Ok(code) => ExitCode::from(code),
         Err((code, why)) => {
@@ -102,7 +113,7 @@ fn run(captured: &Capture) -> Result<u8, (u8, String)> {
             Ok(0)
         }
         Reached::Version => {
-            print!("{}", CLIENT.version_line());
+            println!("{NAME} {} ({})", captured.version, captured.commit);
             Ok(0)
         }
         Reached::CommandHelp(command) => {

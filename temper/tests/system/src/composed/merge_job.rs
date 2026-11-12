@@ -112,6 +112,7 @@ fn config(seed: u64) -> engine::Config {
         }
     }
     let mut landing = engine::ProjectLanding {
+        landing_attempts: engine::LANDING_ATTEMPTS,
         check_timeout: None,
         close_job: None,
         merge_job: Some(b".temper/merge".as_slice().into()),
@@ -126,6 +127,7 @@ fn config(seed: u64) -> engine::Config {
     }
     // The changed base takes the update route before the forge's merge.
     let rule = engine::LandingRule {
+        sets: Box::new([]),
         connector: 1,
         kind: 4,
         enforce: true,
@@ -415,7 +417,8 @@ impl World {
         own.checkout.name_bytes = checkout.name_bytes;
         own.checkout.conflicts = checkout.conflicts;
         own.checkout.path_bytes = checkout.path_bytes;
-        let limits = temper_service::worker_settings::payload_limits(&own).expect("worker payload limits");
+        let limits = temper_service::worker_settings::payload_limits(&temper_service::limits::worker(&own))
+            .expect("worker payload limits");
         let story = self.merge_job.as_mut().expect("merge story");
         story.job = Some(job.run.raw());
         if let Some(repository) = &story.cached_repository {
@@ -558,5 +561,5 @@ fn producer(files: &[Vec<u8>], content: &str) -> Script {
         })
         .collect();
     turns.push(call(b"finish", br#"{"title":"Edit files","body":"Keep the edit."}"#));
-    Script { cue: b"Read only what the change needs".as_slice().into(), turns: turns.into_boxed_slice() }
+    Script { cue: b"Run only what your change needs".as_slice().into(), turns: turns.into_boxed_slice() }
 }

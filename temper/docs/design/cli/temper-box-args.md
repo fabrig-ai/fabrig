@@ -192,10 +192,10 @@ Refused, changing nothing, when the configuration directory already holds temper
 ### `temper-box fake llm`
 
 - **Set:** internal
-- **Forms:** `[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+- **Forms:** `[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]`, `--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]`
 - Serve a fake LLM provider: the demo's, from the configuration, or one from a JSON document.
 - **Arguments:** `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
-- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`
+- **Flags:** `--document FILE`, `--ready PREFIX`, `--seed N`, `--observations FILE`, `--scripts SCRIPTS`, `--strict`
 
 ### `temper-box fake forge`
 
@@ -263,11 +263,23 @@ Refused, changing nothing, when the configuration directory already holds temper
 - The web client's bundle directory; a relative path is taken from the working directory.
 - **Notes:** Requires --fake-backends; absent, use the configured bundle.
 
+### `--scripts FILE`
+
+- **Set:** internal
+- A JSON script file; repeat to join in order, relative to the working directory.
+- **Notes:** Requires --fake-backends; replaces generated model scripts for this start.
+
 ### `--fake-backends`
 
 - **Set:** internal
 - Run against temper's fake LLM provider, forge and OAuth issuer.
 - **Notes:** An isolated deployment under DATA/box/fake-backends, sharing the cache.
+
+### `--strict`
+
+- **Set:** internal
+- Fail a model turn no script answers.
+- **Notes:** Requires --fake-backends.
 
 ### `--front`
 

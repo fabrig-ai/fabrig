@@ -559,6 +559,13 @@ pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> 
         domain::Refusal::Taken { by } => {
             wire::Refusal::Taken(wire::RefusalTaken::new(limits, wire::RefusalTakenParts { by: *by })?)
         }
+        domain::Refusal::LiveTasks { tasks, more } => wire::Refusal::LiveTasks(wire::RefusalLiveTasks::new(
+            limits,
+            wire::RefusalLiveTasksParts {
+                tasks: names(tasks, limits.refusal_live_tasks_tasks, wire::Path::RefusalLiveTasksTasks)?,
+                more: *more,
+            },
+        )?),
         domain::Refusal::Circle { tasks, cut } => wire::Refusal::Circle(wire::RefusalCircle::new(
             limits,
             wire::RefusalCircleParts {
@@ -686,6 +693,10 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
         wire::Refusal::Taken(value) => {
             let wire::RefusalTakenParts { by } = value.into_parts();
             domain::Refusal::Taken { by }
+        }
+        wire::Refusal::LiveTasks(value) => {
+            let wire::RefusalLiveTasksParts { tasks, more } = value.into_parts();
+            domain::Refusal::LiveTasks { tasks: tasks.into_boxed(), more }
         }
         wire::Refusal::Circle(value) => {
             let wire::RefusalCircleParts { tasks, cut } = value.into_parts();

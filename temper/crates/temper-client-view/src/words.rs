@@ -78,10 +78,45 @@ pub enum Word {
     HowBudgetLine,
     HowAmount,
     HowUpTo,
+    HowFollows,
+    HowFollowsLine,
+    HowFollowTitle,
+    HowFollowMain,
+    HowFollowBranch,
+    HowFollowTouches,
+    HowFollowOwned,
+    HowFollowYou,
+    HowFollowYourWord,
+    HowFollowOwnerWord,
+    HowFollowUnknownWord,
+    HowFollowCode,
+    HowFollowCheck,
+    HowFollowStatus,
+    HowFollowStopped,
+    HowHearsLanding,
+    HowAgentPorts,
+    HowCodeChecks,
+    HowTiersTitle,
+    HowTiersWords,
+    HowTierChecks,
+    HowCodeRuns,
+    HowAgentRepairs,
+    HowWeek,
+    HowPeriod,
+    HowRenews,
+    HowStanding,
+
     HowPath,
     HowRoles,
     HowRolesLine,
     HowRoleInstructions,
+    HowRules,
+    HowAddRule,
+    HowPaths,
+    HowReview,
+    HowSignOff,
+    HowLands,
+    HowEmpty,
     HowReaches,
     HowReachesOn,
     HowReachesEach,
@@ -141,6 +176,9 @@ pub enum Word {
     StartOverTitle,
     CloseGoal,
     CloseTaskTitle,
+    DeleteProject,
+    DeleteProjectTitle,
+    DeleteProjectSays,
     CloseTask,
     AcceptTitle,
     RejectTitle,
@@ -198,7 +236,6 @@ pub enum Word {
     SettingsProposalOff,
     SettingsProposalShown,
     SettingsProposalHidden,
-    SettingsProposalForeman,
     SettingsProposalUp,
     SettingsProposalNone,
     SettingsProposalChange,
@@ -233,7 +270,6 @@ pub enum Word {
     SettingsWays,
     SettingsDefault,
     SettingsQuestions,
-    SettingsForeman,
     SettingsUp,
     SettingsAlone,
     SettingsWhole,
@@ -514,6 +550,12 @@ pub enum Word {
     WorkAChatWithYou,
     WorkByline,
     WorkOpenDraft,
+    WorkLandedIn,
+    WorkReadySince,
+    WorkStartWay,
+    WorkProjectWay,
+    WorkAnotherWay,
+    WorkStartGoal,
 
     GoalsWaySeparator,
     GoalsWayEnd,
@@ -790,6 +832,7 @@ pub enum Word {
     CreateProject,
     NoProjectYet,
     ProjectNotYours,
+    ProjectDeleted,
     NoProjectLine,
     ProjectName,
     NoProjectSetUp,
@@ -1058,6 +1101,7 @@ pub enum Word {
     TimeDays,
     TimeAgo,
     TimeAt,
+    TimeTodayClock,
     Away,
     AwayChipOff,
     AwayAcross,
@@ -1149,6 +1193,12 @@ pub enum Word {
     Model,
 
     WaitRefused,
+    NowWritten,
+    TalkOpened,
+    TalkEnded,
+    TalkLapsed,
+    SessionTalk,
+    SessionLeft,
     DependencyParked,
     WaitInvalid,
     WaitingAccountName,
@@ -1297,7 +1347,7 @@ pub enum Word {
     ChatPaused,
     ChatSendResumes,
     ChatWorking,
-    /// A model writing its answer, on the shared running line (client/tui/pages.md).
+    /// A model writing its answer, on the shared running line (client/tui/pages/README.md).
     RunningWork,
     ConnectForge,
     ChatTitle,
@@ -1539,8 +1589,6 @@ pub enum Word {
     WelcomeBoxServer,
     WelcomeModelSignInTime,
     WelcomeModelProgramTime,
-    WelcomeKeyTitle,
-    WelcomeKeyBody,
     WelcomeKeyField,
     WelcomeKeyFacts,
     WelcomePasteOpen,
@@ -1617,12 +1665,15 @@ pub enum Word {
     ApprovalProjectRule,
     ApprovalOne,
     ApprovalMany,
-    ApprovalBehindOne,
-    ApprovalBehindMany,
     ApprovalCut,
     ApprovalTooFew,
     ApprovalNoAccount,
     ApprovalOtherRole,
+    ApprovalSets,
+    ApprovalPathSet,
+    ApprovalJoin,
+    ApprovalAnd,
+    ApprovalSignOff,
     ApprovalReview,
     ApprovalOwner,
     ApprovalMaintainer,
@@ -1634,6 +1685,9 @@ pub enum Word {
     ApprovalObservers,
     ApprovalRole,
     ApprovalRoles,
+    ApprovalSizeLines,
+    ApprovalSizeFile,
+    ApprovalSizeFiles,
     ProposalOwnedApproval,
     ApproveTitle,
     ApproveTyping,
@@ -1682,6 +1736,12 @@ pub enum Word {
     AllHomePhoneByline,
     AllHomeDecided,
     AllHomeReaches,
+    AllHomeFollows,
+    AllHomeAcrossProjects,
+    AllHomeFollowChip,
+    AllHomeDependencyChip,
+    AllHomeDependencyLine,
+
     AllHomeProjects,
     AllHomeAllNeeds,
     HomeCardTell,
@@ -1780,7 +1840,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2333;
+const PHRASES: u32 = 2393;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1807,10 +1867,10 @@ const PHRASES: u32 = 2333;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4194;
+const SEGMENTS: u32 = 4345;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56628;
-const ALL: [Word; 1649] = [
+const ENGLISH_BYTES: u32 = 57596;
+const ALL: [Word; 1707] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -1876,10 +1936,44 @@ const ALL: [Word; 1649] = [
     Word::HowBudgetLine,
     Word::HowAmount,
     Word::HowUpTo,
+    Word::HowFollows,
+    Word::HowFollowsLine,
+    Word::HowFollowTitle,
+    Word::HowFollowMain,
+    Word::HowFollowBranch,
+    Word::HowFollowTouches,
+    Word::HowFollowOwned,
+    Word::HowFollowYou,
+    Word::HowFollowYourWord,
+    Word::HowFollowOwnerWord,
+    Word::HowFollowUnknownWord,
+    Word::HowFollowCode,
+    Word::HowFollowCheck,
+    Word::HowFollowStatus,
+    Word::HowFollowStopped,
+    Word::HowHearsLanding,
+    Word::HowAgentPorts,
+    Word::HowCodeChecks,
+    Word::HowTiersTitle,
+    Word::HowTiersWords,
+    Word::HowTierChecks,
+    Word::HowCodeRuns,
+    Word::HowAgentRepairs,
+    Word::HowWeek,
+    Word::HowPeriod,
+    Word::HowRenews,
+    Word::HowStanding,
     Word::HowPath,
     Word::HowRoles,
     Word::HowRolesLine,
     Word::HowRoleInstructions,
+    Word::HowRules,
+    Word::HowAddRule,
+    Word::HowPaths,
+    Word::HowReview,
+    Word::HowSignOff,
+    Word::HowLands,
+    Word::HowEmpty,
     Word::HowReaches,
     Word::HowReachesOn,
     Word::HowReachesEach,
@@ -1938,6 +2032,9 @@ const ALL: [Word; 1649] = [
     Word::StartOverTitle,
     Word::CloseGoal,
     Word::CloseTaskTitle,
+    Word::DeleteProject,
+    Word::DeleteProjectTitle,
+    Word::DeleteProjectSays,
     Word::CloseTask,
     Word::AcceptTitle,
     Word::RejectTitle,
@@ -1993,7 +2090,6 @@ const ALL: [Word; 1649] = [
     Word::SettingsProposalOff,
     Word::SettingsProposalShown,
     Word::SettingsProposalHidden,
-    Word::SettingsProposalForeman,
     Word::SettingsProposalUp,
     Word::SettingsProposalNone,
     Word::SettingsProposalChange,
@@ -2027,7 +2123,6 @@ const ALL: [Word; 1649] = [
     Word::SettingsWays,
     Word::SettingsDefault,
     Word::SettingsQuestions,
-    Word::SettingsForeman,
     Word::SettingsUp,
     Word::SettingsAlone,
     Word::SettingsWhole,
@@ -2305,6 +2400,12 @@ const ALL: [Word; 1649] = [
     Word::WorkAChatWithYou,
     Word::WorkByline,
     Word::WorkOpenDraft,
+    Word::WorkLandedIn,
+    Word::WorkReadySince,
+    Word::WorkStartWay,
+    Word::WorkProjectWay,
+    Word::WorkAnotherWay,
+    Word::WorkStartGoal,
     Word::GoalsWaySeparator,
     Word::GoalsWayEnd,
     Word::GoalsKicker,
@@ -2572,6 +2673,7 @@ const ALL: [Word; 1649] = [
     Word::CreateProject,
     Word::NoProjectYet,
     Word::ProjectNotYours,
+    Word::ProjectDeleted,
     Word::NoProjectLine,
     Word::ProjectName,
     Word::NoProjectSetUp,
@@ -2831,6 +2933,7 @@ const ALL: [Word; 1649] = [
     Word::TimeDays,
     Word::TimeAgo,
     Word::TimeAt,
+    Word::TimeTodayClock,
     Word::Away,
     Word::AwayChipOff,
     Word::AwayAcross,
@@ -2919,6 +3022,12 @@ const ALL: [Word; 1649] = [
     Word::ModelDefault,
     Word::Model,
     Word::WaitRefused,
+    Word::NowWritten,
+    Word::TalkOpened,
+    Word::TalkEnded,
+    Word::TalkLapsed,
+    Word::SessionTalk,
+    Word::SessionLeft,
     Word::DependencyParked,
     Word::WaitInvalid,
     Word::WaitingAccountName,
@@ -3294,8 +3403,6 @@ const ALL: [Word; 1649] = [
     Word::WelcomeBoxServer,
     Word::WelcomeModelSignInTime,
     Word::WelcomeModelProgramTime,
-    Word::WelcomeKeyTitle,
-    Word::WelcomeKeyBody,
     Word::WelcomeKeyField,
     Word::WelcomeKeyFacts,
     Word::WelcomePasteOpen,
@@ -3371,12 +3478,15 @@ const ALL: [Word; 1649] = [
     Word::ApprovalProjectRule,
     Word::ApprovalOne,
     Word::ApprovalMany,
-    Word::ApprovalBehindOne,
-    Word::ApprovalBehindMany,
     Word::ApprovalCut,
     Word::ApprovalTooFew,
     Word::ApprovalNoAccount,
     Word::ApprovalOtherRole,
+    Word::ApprovalSets,
+    Word::ApprovalPathSet,
+    Word::ApprovalJoin,
+    Word::ApprovalAnd,
+    Word::ApprovalSignOff,
     Word::ApprovalReview,
     Word::ApprovalOwner,
     Word::ApprovalMaintainer,
@@ -3388,6 +3498,9 @@ const ALL: [Word; 1649] = [
     Word::ApprovalObservers,
     Word::ApprovalRole,
     Word::ApprovalRoles,
+    Word::ApprovalSizeLines,
+    Word::ApprovalSizeFile,
+    Word::ApprovalSizeFiles,
     Word::ProposalOwnedApproval,
     Word::ApproveTitle,
     Word::ApproveTyping,
@@ -3436,6 +3549,11 @@ const ALL: [Word; 1649] = [
     Word::AllHomePhoneByline,
     Word::AllHomeDecided,
     Word::AllHomeReaches,
+    Word::AllHomeFollows,
+    Word::AllHomeAcrossProjects,
+    Word::AllHomeFollowChip,
+    Word::AllHomeDependencyChip,
+    Word::AllHomeDependencyLine,
     Word::AllHomeProjects,
     Word::AllHomeAllNeeds,
     Word::HomeCardTell,
@@ -3482,12 +3600,15 @@ impl Word {
             Self::ApprovalProjectRule => 4126,
             Self::ApprovalOne => 4127,
             Self::ApprovalMany => 4128,
-            Self::ApprovalBehindOne => 4129,
-            Self::ApprovalBehindMany => 4130,
             Self::ApprovalCut => 4131,
             Self::ApprovalTooFew => 4132,
             Self::ApprovalNoAccount => 4133,
             Self::ApprovalOtherRole => 4134,
+            Self::ApprovalSets => 5652,
+            Self::ApprovalPathSet => 5653,
+            Self::ApprovalJoin => 5654,
+            Self::ApprovalAnd => 5655,
+            Self::ApprovalSignOff => 5656,
             Self::ApprovalReview => 4135,
             Self::ApprovalOwner => 4136,
             Self::ApprovalMaintainer => 4137,
@@ -3499,6 +3620,9 @@ impl Word {
             Self::ApprovalObservers => 4143,
             Self::ApprovalRole => 4144,
             Self::ApprovalRoles => 4145,
+            Self::ApprovalSizeLines => 5674,
+            Self::ApprovalSizeFile => 5675,
+            Self::ApprovalSizeFiles => 5676,
             Self::ProposalOwnedApproval => 4146,
             Self::ApproveTitle => 4147,
             Self::ApproveTyping => 4148,
@@ -3543,6 +3667,9 @@ impl Word {
             Self::StartOverTitle => 3749,
             Self::CloseGoal => 3750,
             Self::CloseTaskTitle => 3751,
+            Self::DeleteProject => 5677,
+            Self::DeleteProjectTitle => 5678,
+            Self::DeleteProjectSays => 5679,
             Self::CloseTask => 3752,
             Self::AcceptTitle => 3755,
             Self::RejectTitle => 3756,
@@ -3588,9 +3715,44 @@ impl Word {
             Self::HowBudgetLine => 4911,
             Self::HowAmount => 4912,
             Self::HowUpTo => 4913,
+            Self::HowFollows => 5680,
+            Self::HowFollowsLine => 5681,
+            Self::HowFollowTitle => 5682,
+            Self::HowFollowMain => 5683,
+            Self::HowFollowBranch => 5684,
+            Self::HowFollowTouches => 5685,
+            Self::HowFollowOwned => 5686,
+            Self::HowFollowYou => 5687,
+            Self::HowFollowYourWord => 5688,
+            Self::HowFollowOwnerWord => 5689,
+            Self::HowFollowUnknownWord => 5690,
+            Self::HowFollowCode => 5691,
+            Self::HowFollowCheck => 5692,
+            Self::HowFollowStatus => 5693,
+            Self::HowFollowStopped => 5694,
+            Self::HowHearsLanding => 5695,
+            Self::HowAgentPorts => 5696,
+            Self::HowCodeChecks => 5697,
+            Self::HowTiersTitle => 5698,
+            Self::HowTiersWords => 5699,
+            Self::HowTierChecks => 5700,
+            Self::HowCodeRuns => 5701,
+            Self::HowAgentRepairs => 5702,
+            Self::HowWeek => 5703,
+            Self::HowPeriod => 5704,
+            Self::HowRenews => 5705,
+            Self::HowStanding => 5706,
+
             Self::HowRoles => 5120,
             Self::HowRolesLine => 5121,
             Self::HowRoleInstructions => 5122,
+            Self::HowRules => 5714,
+            Self::HowAddRule => 5708,
+            Self::HowPaths => 5709,
+            Self::HowReview => 5710,
+            Self::HowSignOff => 5711,
+            Self::HowLands => 5712,
+            Self::HowEmpty => 5713,
             Self::HowReaches => 5630,
             Self::HowReachesOn => 5631,
             Self::HowReachesEach => 5632,
@@ -3754,7 +3916,6 @@ impl Word {
             Self::SettingsProposalOff => 3423,
             Self::SettingsProposalShown => 3424,
             Self::SettingsProposalHidden => 3425,
-            Self::SettingsProposalForeman => 3426,
             Self::SettingsProposalUp => 3427,
             Self::SettingsProposalNone => 3428,
             Self::SettingsProposalChange => 3429,
@@ -3788,7 +3949,6 @@ impl Word {
             Self::SettingsWays => 3447,
             Self::SettingsDefault => 3448,
             Self::SettingsQuestions => 3458,
-            Self::SettingsForeman => 3459,
             Self::SettingsUp => 3460,
             Self::SettingsAlone => 3461,
             Self::SettingsWhole => 3391,
@@ -3992,6 +4152,12 @@ impl Word {
             Self::WorkAChatWithYou => 4676,
             Self::WorkByline => 4677,
             Self::WorkOpenDraft => 4678,
+            Self::WorkLandedIn => 4680,
+            Self::WorkReadySince => 4681,
+            Self::WorkStartWay => 4682,
+            Self::WorkProjectWay => 4683,
+            Self::WorkAnotherWay => 4684,
+            Self::WorkStartGoal => 4685,
             Self::GoalsWaySeparator => 3285,
             Self::GoalsWayEnd => 3286,
             Self::GoalsKicker => 3271,
@@ -4262,6 +4428,7 @@ impl Word {
             Self::CreateProject => 2189,
             Self::NoProjectYet => 1949,
             Self::ProjectNotYours => 2201,
+            Self::ProjectDeleted => 5707,
             Self::NoProjectLine => 2197,
             Self::ProjectName => 2198,
             Self::NoProjectSetUp => 2199,
@@ -4529,6 +4696,7 @@ impl Word {
             Self::TimeDays => 1205,
             Self::TimeAgo => 1206,
             Self::TimeAt => 1207,
+            Self::TimeTodayClock => 1264,
             Self::Away => 3675,
             Self::AwayChipOff => 3676,
             Self::AwayAcross => 4347,
@@ -4646,6 +4814,12 @@ impl Word {
             Self::ModelDefault => 3952,
             Self::Model => 3951,
             Self::WaitRefused => 1029,
+            Self::NowWritten => 5720,
+            Self::TalkOpened => 5721,
+            Self::TalkEnded => 5722,
+            Self::TalkLapsed => 5723,
+            Self::SessionTalk => 5724,
+            Self::SessionLeft => 5725,
             Self::DependencyParked => 1030,
             Self::WaitInvalid => 1028,
             Self::WaitingAccountName => 1027,
@@ -5020,8 +5194,6 @@ impl Word {
             Self::WelcomeBoxServer => 3028,
             Self::WelcomeModelSignInTime => 3029,
             Self::WelcomeModelProgramTime => 3030,
-            Self::WelcomeKeyTitle => 3361,
-            Self::WelcomeKeyBody => 3362,
             Self::WelcomeKeyField => 3363,
             Self::WelcomeKeyFacts => 3364,
             Self::WelcomePasteOpen => 3366,
@@ -5119,6 +5291,12 @@ impl Word {
             Self::AllHomePhoneByline => 4460,
             Self::AllHomeDecided => 4461,
             Self::AllHomeReaches => 4462,
+            Self::AllHomeFollows => 5715,
+            Self::AllHomeAcrossProjects => 5716,
+            Self::AllHomeFollowChip => 5717,
+            Self::AllHomeDependencyChip => 5718,
+            Self::AllHomeDependencyLine => 5719,
+
             Self::AllHomeProjects => 4463,
             Self::AllHomeAllNeeds => 4464,
             Self::HomeCardTell => 4465,
@@ -5179,10 +5357,59 @@ fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
 const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 // Twenty items, six implicit kinds and six implicit sets, each within 200 bytes with words (client/pages/settings.md, 2).
 const CLASSES_OBJECTS_BYTES: u32 = 6400;
+// Six 40-byte set names, four commas and the last conjunction (client/forge/README.md, 4.1).
+const APPROVAL_SET_NAMES_BYTES: u32 = 253;
+const FOLLOW_WORDS: [Word; 12] = [
+    Word::HowFollowMain,
+    Word::HowFollowBranch,
+    Word::HowFollowTouches,
+    Word::HowFollowOwned,
+    Word::HowFollowTitle,
+    Word::HowFollowOwnerWord,
+    Word::HowFollowCheck,
+    Word::HowFollowStopped,
+    Word::HowFollowStatus,
+    Word::HowTiersTitle,
+    Word::HowTiersWords,
+    Word::HowTierChecks,
+];
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if word == Word::AllHomeFollowChip {
+        return Ok(temper_client_protocol_wire::v1::CEILINGS.follow_view_source);
+    }
+    if FOLLOW_WORDS.contains(&word) {
+        let bounds = temper_client_protocol_wire::v1::CEILINGS;
+        let paths = bounds
+            .follow_source_paths_item
+            .checked_add(4)
+            .ok_or(Invalid::Overflow)?
+            .checked_mul(bounds.follow_source_paths)
+            .ok_or(Invalid::Overflow)?;
+        let tiers = bounds
+            .card_name
+            .checked_add(bounds.fact_value)
+            .ok_or(Invalid::Overflow)?
+            .checked_add(5)
+            .ok_or(Invalid::Overflow)?
+            .checked_mul(bounds.branch_path_stops)
+            .ok_or(Invalid::Overflow)?;
+        let branch =
+            bounds.follow_view_source.checked_add(bounds.follow_view_source_branch).ok_or(Invalid::Overflow)?;
+        return joined
+            .max(paths)
+            .max(tiers)
+            .max(branch)
+            .max(bounds.follow_check_workflow)
+            .max(bounds.follow_view_stopped_some)
+            .checked_add(32)
+            .ok_or(Invalid::Overflow);
+    }
     if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
         return Ok(CLASSES_OBJECTS_BYTES);
+    }
+    if [Word::ApprovalSets, Word::ApprovalJoin, Word::ApprovalAnd].contains(&word) {
+        return Ok(APPROVAL_SET_NAMES_BYTES);
     }
     if word == Word::ClassesSet {
         return Ok(if last { 490 } else { 40 });
@@ -5236,6 +5463,12 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     }
     if word == Word::AnsweredReply {
         return Ok(temper_client_protocol_wire::CUE_BYTES);
+    }
+    // A landed draft names its complete directory, or the root repository and slash.
+    if word == Word::WorkLandedIn {
+        let bounds = temper_client_protocol_wire::v1::CEILINGS;
+        let name = bounds.landed_draft_name.checked_add(1).ok_or(Invalid::Overflow)?;
+        return Ok(name.max(bounds.landed_draft_path));
     }
     // Changes names the wire's complete repository and branch (client/forge/records.md).
     if word == Word::ChangesQueueNamed {
@@ -5482,6 +5715,7 @@ impl Words {
             text_bytes: ENGLISH_BYTES,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
+                .max(hole_bytes(Word::HowFollowMain, HoleKind::Name, false, joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(SETTINGS_PROJECT_NAMES_BYTES)
                 .max(CLASSES_OBJECTS_BYTES)
@@ -5534,7 +5768,7 @@ impl Words {
     }
     #[must_use]
     pub fn capacity(&self) -> Option<u32> {
-        Some(self.ordinary_capacity()?.max(self.classes_capacity()?))
+        Some(self.ordinary_capacity()?.max(self.classes_capacity()?).max(self.follows_capacity()?))
     }
     /// Grouped classes occur only in Settings and a proposal's items (client/pages/settings.md, 2).
     pub(crate) fn classes_capacity(&self) -> Option<u32> {
@@ -5544,10 +5778,20 @@ impl Words {
         }
         Some(most)
     }
+    /// Landing boxes are priced only on How work runs (client/pages/settings.md, 2).
+    pub(crate) fn follows_capacity(&self) -> Option<u32> {
+        let mut most = 0;
+        for word in FOLLOW_WORDS {
+            most = most.max(self.book.capacity(word.id(self.connector))?);
+        }
+        Some(most)
+    }
     pub(crate) fn ordinary_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in ALL {
-            if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
+            if FOLLOW_WORDS.contains(&word)
+                || [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word)
+            {
                 continue;
             }
             most = most.max(self.book.capacity(word.id(self.connector))?);
@@ -5582,12 +5826,15 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApprovalProjectRule => (&[b"This project's landing rule ", b""], &[Number]),
         Word::ApprovalOne => (&[b"", b" asks for one approval by ", b"."], &[Name, Name]),
         Word::ApprovalMany => (&[b"", b" asks for ", b" approvals by ", b"; ", b" so far."], &[Name, Number, Name, Number]),
-        Word::ApprovalBehindOne => (&[b"1 more change waits behind this one."], &[]),
-        Word::ApprovalBehindMany => (&[b"", b" more changes wait behind this one."], &[Number]),
         Word::ApprovalCut => (&[b"There are too many reviews to read them all, so one may already count."], &[]),
         Word::ApprovalTooFew => (&[b"Fewer people can approve it than the rule asks for, so it waits until the rule or the project's people change."], &[]),
         Word::ApprovalNoAccount => (&[b"temper knows no ", b" account of yours, so your review wouldn't count."], &[Name]),
         Word::ApprovalOtherRole => (&[b"It waits for a review by ", b"; yours wouldn't count."], &[Name]),
+        Word::ApprovalSets => (&[b"Signs off changes to ", b"."], &[Name]),
+        Word::ApprovalPathSet => (&[b"path set ", b""], &[Number]),
+        Word::ApprovalJoin => (&[b"", b", ", b""], &[Name, Name]),
+        Word::ApprovalAnd => (&[b"", b" and ", b""], &[Name, Name]),
+        Word::ApprovalSignOff => (&[b"Sign off on ", b" \xe2\x86\x97"], &[Name]),
         Word::ApprovalReview => (&[b"Review on ", b" \xe2\x86\x97"], &[Name]),
         Word::ApprovalOwner => (&[b"an owner"], &[]),
         Word::ApprovalMaintainer => (&[b"a maintainer"], &[]),
@@ -5599,6 +5846,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApprovalObservers => (&[b"observers"], &[]),
         Word::ApprovalRole => (&[b"someone with role ", b""], &[Number]),
         Word::ApprovalRoles => (&[b"people with role ", b""], &[Number]),
+        Word::ApprovalSizeLines => (&[b"+", b" -", b""], &[Name, Name]),
+        Word::ApprovalSizeFile => (&[b" in 1 file"], &[]),
+        Word::ApprovalSizeFiles => (&[b" in ", b" files"], &[Name]),
         Word::ApproveTitle => (&[b"Sign in a terminal?"], &[]),
         Word::ApproveTyping => (&[b"Type the code your terminal shows."], &[]),
         Word::ApproveUnread => (&[b"That isn\xe2\x80\x99t a terminal\xe2\x80\x99s code. Type the eight letters your terminal shows."], &[]),
@@ -5642,6 +5892,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::StartOverTitle => (&[b"Start over?"], &[]),
         Word::CloseGoal => (&[b"Close goal"], &[]),
         Word::CloseTaskTitle => (&[b"Close this task?"], &[]),
+        Word::DeleteProject => (&[b"Delete project"], &[]),
+        Word::DeleteProjectTitle => (&[b"Delete ", b"?"], &[Name]),
+        Word::DeleteProjectSays => (&[b"", b" leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can\xe2\x80\x99t be undone."], &[Name]),
         Word::CloseTask => (&[b"Close task"], &[]),
         Word::AcceptTitle => (&[b"Accept this proposal?"], &[]),
         Word::RejectTitle => (&[b"Reject this proposal?"], &[]),
@@ -5693,10 +5946,45 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowBudgetLine => (&[b"each given its own when it starts"], &[]),
         Word::HowAmount => (&[b"", b""], &[Number]),
         Word::HowUpTo => (&[b"up to ", b""], &[Number]),
+        Word::HowFollows => (&[b"What follows a landing"], &[]),
+        Word::HowFollowsLine => (&[b"code triggers, agents judge"], &[]),
+        Word::HowFollowTitle => (&[b"", b" follows ", b""], &[Name, Name]),
+        Word::HowFollowMain => (&[b"Each landing on ", b"", b" makes a change in ", b"", b"."], &[Name, Name, Name, Name]),
+        Word::HowFollowBranch => (&[b"", b"'s ", b""], &[Name, Name]),
+        Word::HowFollowTouches => (&[b" that touches ", b""], &[Name]),
+        Word::HowFollowOwned => (&[b", owned by ", b""], &[Name]),
+        Word::HowFollowYou => (&[b"you"], &[]),
+        Word::HowFollowYourWord => (&[b"Each waits for your word."], &[]),
+        Word::HowFollowOwnerWord => (&[b"Each waits for ", b"'s word."], &[Name]),
+        Word::HowFollowUnknownWord => (&[b"Each waits for its owner's word."], &[]),
+        Word::HowFollowCode => (&[b"Each starts once the one before it has landed."], &[]),
+        Word::HowFollowCheck => (&[b"Its check: ", b"."], &[Name]),
+        Word::HowFollowStatus => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
+        Word::HowFollowStopped => (&[b"Stopped: ", b"."], &[Name]),
+        Word::HowHearsLanding => (&[b"code hears the landing"], &[]),
+        Word::HowAgentPorts => (&[b"an agent ports"], &[]),
+        Word::HowCodeChecks => (&[b"code checks"], &[]),
+        Word::HowTiersTitle => (&[b"Tiers on ", b""], &[Name]),
+        Word::HowTiersWords => (&[b"Code runs each after landings on ", b": ", b". A red reaches the goals whose changes landed in it, and their agents repair it."], &[Name, Name]),
+        Word::HowTierChecks => (&[b"", b" (", b")"], &[Name, Name]),
+        Word::HowCodeRuns => (&[b"code runs"], &[]),
+        Word::HowAgentRepairs => (&[b"an agent repairs"], &[]),
+        Word::HowWeek => (&[b"a week"], &[]),
+        Word::HowPeriod => (&[b"each period"], &[]),
+        Word::HowRenews => (&[b"", b" \xc2\xb7 renews ", b""], &[Name, Name]),
+        Word::HowStanding => (&[b"a standing role \xc2\xb7 ", b" left"], &[Number]),
+
         Word::HowRoles => (&[b"Roles"], &[]),
         Word::HowRolesLine => (&[b"every agent ", b" runs"], &[Name]),
         Word::HowRoleInstructions => (&[b"Read its instructions \xe2\x80\xba"], &[]),
         Word::HowPath => (&[b"The path of a change"], &[]),
+        Word::HowRules => (&[b"Rules by path"], &[]),
+        Word::HowAddRule => (&[b"+ A rule"], &[]),
+        Word::HowPaths => (&[b"Paths"], &[]),
+        Word::HowReview => (&[b"Review"], &[]),
+        Word::HowSignOff => (&[b"Sign-off"], &[]),
+        Word::HowLands => (&[b"Lands"], &[]),
+        Word::HowEmpty => (&[b"\xe2\x80\x93"], &[]),
         Word::HowReaches => (&[b"What reaches you"], &[]),
         Word::HowReachesOn => (&[b"on ", b""], &[Name]),
         Word::HowReachesEach => (&[b"on ", b"; each project has its own"], &[Name]),
@@ -5831,6 +6119,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WorkAChatWithYou => (&[b"a chat with you"], &[]),
         Word::WorkByline => (&[b"Written by the goal at ", b""], &[Name]),
         Word::WorkOpenDraft => (&[b"Open the draft"], &[]),
+        Word::WorkLandedIn => (&[b"landed in ", b""], &[Name]),
+        Word::WorkReadySince => (&[b"ready since ", b""], &[Name]),
+        Word::WorkStartWay => (&[b"Start a goal: ", b""], &[Name]),
+        Word::WorkProjectWay => (&[b"", b"\xe2\x80\x99s way"], &[Name]),
+        Word::WorkAnotherWay => (&[b"Another way"], &[]),
+        Word::WorkStartGoal => (&[b"Start a goal\xe2\x80\xa6"], &[]),
         Word::GoalsWaySeparator => (&[b", "], &[]),
         Word::GoalsWayEnd => (&[b"."], &[]),
         Word::GoalsAll => (&[b"All"], &[]),
@@ -5909,10 +6203,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
         Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
         Word::WelcomeModelSignInTime => (&[b"Sign in, in a new tab \xc2\xb7 about a minute"], &[]),
-        Word::WelcomeKeyTitle => (&[b"An OpenAI API key"], &[]),
-        Word::WelcomeKeyBody => (&[b"From OpenAI\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[]),
         Word::WelcomeKeyField => (&[b"Key, pasted once"], &[]),
-        Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once OpenAI refuses a run."], &[]),
+        Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once ", b" refuses a run."], &[Name]),
         Word::WelcomePasteOpen => (&[b"Open ", b"\xe2\x80\x99s sign-in \xe2\x80\xba"], &[Name]),
         Word::WelcomePasteField => (&[b"Address of the page that couldn\xe2\x80\x99t be reached"], &[]),
         Word::WelcomePasteFinish => (&[b"Finish connecting"], &[]),
@@ -6014,6 +6306,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AllHomePhoneByline => (&[b"The status agent, ", b""], &[Name]),
         Word::AllHomeDecided => (&[b"", b" \xe2\x80\xba"], &[Name]),
         Word::AllHomeReaches => (&[b"What reaches you"], &[]),
+        Word::AllHomeFollows => (&[b"What follows what"], &[]),
+        Word::AllHomeAcrossProjects => (&[b"across projects"], &[]),
+        Word::AllHomeFollowChip => (&[b"follows ", b""], &[Name]),
+        Word::AllHomeDependencyChip => (&[b"depends on ", b""], &[Name]),
+        Word::AllHomeDependencyLine => (&[b"Nothing follows its landings."], &[]),
         Word::AllHomeProjects => (&[b"Projects"], &[]),
         Word::AllHomeAllNeeds => (&[b"All needs"], &[]),
         Word::HomeCardTell => (&[b"Tell it something else"], &[]),
@@ -6179,6 +6476,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::CreateProject => (&[b"Create"], &[]),
         Word::NoProjectYet => (&[b"No project yet"], &[]),
         Word::ProjectNotYours => (&[b"Project ", b" is not one of yours."], &[Number]),
+        Word::ProjectDeleted => (&[b"Project ", b" was deleted."], &[Number]),
         Word::NoProjectLine => (&[b"Make your first one, or ask an owner to add you to theirs."], &[]),
         Word::ProjectName => (&[b"Project name"], &[]),
         Word::NoProjectSetUp => (&[b"Setting temper up makes your first project."], &[]),
@@ -6492,6 +6790,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ModelApiKey => (&[b"your API key"], &[]),
         Word::ModelEffort | Word::UpdateTime => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::WaitRefused => (&[b"Next run refused \xc2\xb7 ", b""], &[Name]),
+        Word::NowWritten => (&[b"Wrote its Now: "], &[]),
+        Word::TalkOpened => (&[b"Talk opened by party "], &[Number]),
+        Word::TalkEnded => (&[b"Talk ended"], &[]),
+        Word::TalkLapsed => (&[b"Talk lapsed"], &[]),
+        Word::SessionTalk => (&[b"Session ", b" ended by a talk"], &[Number]),
+        Word::SessionLeft => (&[b"Session ", b" ended as its person left"], &[Number]),
         Word::DependencyParked => (&[b"parked"], &[]),
         Word::WaitInvalid => (&[b"The requested account cannot serve this work"], &[]),
         Word::WaitingAccountName => (&[b"Waiting account: ", b""], &[Name]),
@@ -6663,6 +6967,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TimeDays => (&[b"", b" d"], &[Number]),
         Word::TimeAgo => (&[b"", b" ago"], &[Name]),
         Word::TimeAt => (&[b"at ", b""], &[Name]),
+        Word::TimeTodayClock => (&[b"today ", b""], &[Name]),
         Word::Away => (&[b"Away"], &[]),
         Word::AwayChipOff => (&[b"Away: off"], &[]),
         Word::AwayAcross => (&[b"Away on ", b" of ", b""], &[Number, Number]),
@@ -6832,7 +7137,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsProposalOff => (&[b"off"], &[]),
         Word::SettingsProposalShown => (&[b"shown"], &[]),
         Word::SettingsProposalHidden => (&[b"hidden"], &[]),
-        Word::SettingsProposalForeman => (&[b"Questions: answered by the goal"], &[]),
         Word::SettingsProposalUp => (&[b"Questions: asked of me too"], &[]),
         Word::SettingsProposalNone => (&[b"Questions: not asked"], &[]),
         Word::SettingsProposalChange => (&[b"Change something"], &[]),
@@ -6850,7 +7154,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsWays => (&[b"Ways of working"], &[]),
         Word::SettingsDefault => (&[b"The default"], &[]),
         Word::SettingsQuestions => (&[b"Questions a goal can answer from its plan"], &[]),
-        Word::SettingsForeman => (&[b"Answered by the goal, kept in its decisions"], &[]),
         Word::SettingsUp => (&[b"Asked of me too"], &[]),
         Word::SettingsAlone => (&[b"Not asked: each agent decides alone"], &[]),
         Word::SettingsWhole => (&[b"Plan, tasks, land whole"], &[]),
@@ -7324,6 +7627,7 @@ pub enum TimeForm {
     Looked,
     Span,
     Clock,
+    Dated,
     Weekday,
     Day,
 }
@@ -7365,7 +7669,12 @@ impl Times {
             TimeForm::Ago if minutes > 0 && minutes < 720 => {
                 words.say(Word::TimeAgo, &[Hole::Name(words.public_span(minutes))])
             }
-            TimeForm::Ago | TimeForm::Looked | TimeForm::Clock | TimeForm::Weekday | TimeForm::Day => text,
+            TimeForm::Ago
+            | TimeForm::Looked
+            | TimeForm::Clock
+            | TimeForm::Dated
+            | TimeForm::Weekday
+            | TimeForm::Day => text,
         }
     }
 }
@@ -7384,7 +7693,7 @@ impl Words {
             TimeForm::Ago if minutes < 720 => Some(MINUTE),
             TimeForm::Span | TimeForm::Looked if elapsed < DAY => Some(MINUTE),
             TimeForm::Span | TimeForm::Looked => Some(DAY),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => None,
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Dated | TimeForm::Day | TimeForm::Weekday => None,
         };
         let next = next_tick(at, now, elapsed, unit, self.zone_minutes);
         let said = match form {
@@ -7392,7 +7701,9 @@ impl Words {
             TimeForm::Span => self.time_span(minutes),
             TimeForm::Ago if minutes == 0 => self.say(Word::TimeJustNow, &[]),
             TimeForm::Ago if minutes < 720 => self.say(Word::TimeAgo, &[Hole::Name(self.time_span(minutes))]),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => self.calendar_time(form, at, now),
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Dated | TimeForm::Day | TimeForm::Weekday => {
+                self.calendar_time(form, at, now)
+            }
         };
         (said, next)
     }
@@ -7436,8 +7747,9 @@ impl Words {
             TimeForm::Ago if days == Some(1) => self.say(Word::TimeYesterdayWord, &[]),
             TimeForm::Ago if days >= Some(2) && days <= Some(7) => self.time_weekday(day, false),
             TimeForm::Ago => self.time_date(at, now),
+            TimeForm::Dated if day == today => self.say(Word::TimeTodayClock, &[Hole::Name(clock)]),
             TimeForm::Clock if day == today => clock,
-            TimeForm::Clock => {
+            TimeForm::Clock | TimeForm::Dated => {
                 let date = if days >= Some(1) && days <= Some(6) {
                     self.time_weekday(day, false)
                 } else {

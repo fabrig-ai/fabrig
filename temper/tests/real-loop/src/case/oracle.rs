@@ -1569,7 +1569,7 @@ pub fn step_4_6(observed: &Observed) -> Vec<Miss> {
         "the complete journal must order every run beginning after the previous ending, with no attempt left open",
     );
     let director = task_document(observed, Read::HangEnded);
-    // A shutdown interrupts without spending a try (domain/worker.md, 2);
+    // A shutdown interrupts without spending a try (domain/worker/README.md, 2);
     // tasks journals that recheck as refused, not as an agent failure.
     let retried = matches!(attempts.as_slice(), [Some(first), Some(next)] if first != next)
         && matches!(endings.as_slice(), [first, next]
@@ -2104,7 +2104,9 @@ mod rules_tests {
         )
     }
     fn met() -> Observed {
-        let fresh = vec![user(&format!("{SCOPE} asks (question {SCOPE_QUESTION_NUMBER}): {SCOPE_QUESTION}"))];
+        let fresh = vec![user(&format!(
+            "{SCOPE} asks (question {SCOPE_QUESTION_NUMBER}; answer with message target={SCOPE}, form=answer, question={SCOPE_QUESTION_NUMBER}): {SCOPE_QUESTION}"
+        ))];
         let mut later = fresh.clone();
         later.extend([assistant("Answer A."), user("Answer sent")]);
         Observed {

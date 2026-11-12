@@ -199,7 +199,7 @@ fn workstreams(checkout: &checkout::Domain) -> Box<[u64]> {
 /// four have emitted all they will in this entry point: what smith emitted
 /// first, then the checkout's and tooling's, then the hub's, so that each capability's
 /// requests are routed before the hub asks it anything more (W1;
-/// `domain/worker.md`, 3.1). It follows its own pushes, looking at the
+/// `domain/worker/README.md`, 3.1). It follows its own pushes, looking at the
 /// capability queues again after each hub request. Within one step,
 /// hand-offs drain to their end (skein's `programming-model.md`, 2): an entry
 /// point's chain is finite, from a capability to the hub, the hub to a

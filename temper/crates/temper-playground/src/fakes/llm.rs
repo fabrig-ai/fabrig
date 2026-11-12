@@ -25,6 +25,7 @@ pub fn llm_config() -> skein_fake_llm_domain::Config {
         tool_rounds: 0,
         cache_lifetime: skein_lib::Duration::from_secs(300),
         cache_entries: 16,
+        strict: false,
         unscoped_reads: 0,
     }
 }

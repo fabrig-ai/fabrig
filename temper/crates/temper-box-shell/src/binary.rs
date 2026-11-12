@@ -1,6 +1,6 @@
 //! The box's capture and dispatch (temper/docs/design/cli/README.md, 3 and 4).
 use crate::{Command, TABLE};
-use skein_shell::{Reach, Reached};
+use skein_shell::{Reach, Reached, Table};
 use std::{os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
 
 struct Capture {
@@ -24,9 +24,9 @@ fn capture() -> Capture {
 }
 
 #[must_use]
-pub fn main() -> ExitCode {
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let captured = capture();
-    match dispatch(&captured) {
+    match dispatch(&captured, version, commit) {
         Ok(code) => code,
         Err((code, why)) => {
             eprint!("{why}");
@@ -35,14 +35,14 @@ pub fn main() -> ExitCode {
     }
 }
 
-fn dispatch(captured: &Capture) -> Result<ExitCode, (u8, String)> {
+fn dispatch(captured: &Capture, version: &'static str, commit: &'static str) -> Result<ExitCode, (u8, String)> {
     let command = match TABLE.reach(&captured.run_as, &captured.arguments) {
         Reached::Help => {
             print!("{}", TABLE.help());
             return Ok(ExitCode::SUCCESS);
         }
         Reached::Version => {
-            print!("{}", TABLE.version_line());
+            print!("{}", Table { version, commit, ..TABLE }.version_line());
             return Ok(ExitCode::SUCCESS);
         }
         Reached::CommandHelp(command) => {
@@ -59,7 +59,7 @@ fn dispatch(captured: &Capture) -> Result<ExitCode, (u8, String)> {
                 let command =
                     crate::configure_command(command, arguments, &captured.arguments, &captured.environment, b"")
                         .map_err(|why| (2, why))?;
-                return crate::run(command, &captured.environment, b"", &captured.run_as)
+                return crate::run(command, &captured.environment, b"", &captured.run_as, version, commit)
                     .map(ExitCode::from)
                     .map_err(|why| (1, why));
             }
@@ -97,6 +97,8 @@ fn dispatch(captured: &Capture) -> Result<ExitCode, (u8, String)> {
         &captured.environment,
         captured.working.as_ref().map_err(|why| (1, format!("temper-box: {why}\n")))?.as_os_str().as_bytes(),
         &captured.run_as,
+        version,
+        commit,
     )
     .map(ExitCode::from)
     .map_err(|why| (1, why))

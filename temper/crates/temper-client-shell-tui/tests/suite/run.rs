@@ -383,11 +383,7 @@ enum WayOut {
 #[test]
 fn every_way_out_leaves_the_terminal_as_it_was_found() {
     let clock = skein_shell::Clock::new();
-    let recording = if cfg!(feature = "record") {
-        [Recording::None, Recording::Root].as_slice()
-    } else {
-        [Recording::None].as_slice()
-    };
+    let recording = [Recording::None, Recording::Root];
     for (way, front, record) in [
         (WayOut::End, false),
         (WayOut::ControlC, false),
@@ -435,7 +431,6 @@ fn every_way_out_leaves_the_terminal_as_it_was_found() {
             WayOut::Refused => unreachable!("early closing checked above"),
         }
         world.settle();
-        #[cfg(feature = "record")]
         if record == Recording::Root {
             replay(&world.recording_file().expect("closing records every way out").0);
         }
@@ -740,7 +735,6 @@ impl World {
     }
 }
 
-#[cfg(feature = "record")]
 fn replay(recording: &[u8]) -> Vec<temper_client_shell_tui::journey::Line> {
     use temper_client_shell_tui::journey;
     let lines = journey::lines(recording).expect("read recording");
@@ -759,7 +753,6 @@ fn replay(recording: &[u8]) -> Vec<temper_client_shell_tui::journey::Line> {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn recording_keys_save_whole_and_closing_saves_again() {
     use temper_client_shell_tui::journey::Line;
     for (mark, save) in [(b"\x1bM", b"\x1bS"), (b"\x1bm", b"\x1bs")] {
@@ -807,7 +800,6 @@ fn without_recording_root_keys_write_no_file() {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn a_failed_recording_save_is_silent_and_retried() {
     let mut world = World::recording(false, true, false, Outcome::Success, Recording::Root);
     world.settle();
@@ -826,7 +818,6 @@ fn a_failed_recording_save_is_silent_and_retried() {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn recording_facts_include_the_loaded_records_and_credential() {
     use skein_fake_machine::How;
     use temper_client_shell_tui::journey::Line;
@@ -870,7 +861,6 @@ fn recording_facts_include_the_loaded_records_and_credential() {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn background_selects_the_recorded_start_scheme() {
     use skein_ui_screen::Rgb;
     use skein_ui_screen_terminal::ASK_BACKGROUND;
@@ -992,7 +982,6 @@ fn terminal_text(bytes: &[u8]) -> String {
 }
 
 #[test]
-#[cfg(feature = "record")]
 fn local_file_is_read_and_reported_before_sign_in() {
     use temper_client_shell_tui::journey::{Line, Sent};
     for (name, bytes, mode, found) in [
@@ -1056,10 +1045,8 @@ fn sign_in_expiry_writes_a_private_note_only_with_a_root() {
         (false, Recording::None, NoteWrite::Done),
         (true, Recording::None, NoteWrite::Hold),
         (true, Recording::None, NoteWrite::Refuse),
-    ]
-    .into_iter()
-    .chain(cfg!(feature = "record").then_some((true, Recording::Root, NoteWrite::Hold)))
-    {
+        (true, Recording::Root, NoteWrite::Hold),
+    ] {
         let mut world =
             World::options(false, true, false, Outcome::Success, recording, Some(Scheme::Dark), None, notes, None);
         world.settle();
@@ -1346,8 +1333,42 @@ fn a_front_makes_no_connection_until_the_whole_link_arrives_after_start() {
     assert_eq!(world.files.open_handles(), 0);
 }
 
+// The front and bare start use the same captured-environment recording choice.
+fn front_from_environment(environment: &[temper_shell::directories::EnvironmentEntry]) -> World {
+    let record = if temper_client_shell_tui::start::recording(environment) { Recording::Root } else { Recording::None };
+    World::front_options(false, true, false, Outcome::Success, record, Some(Scheme::Dark), None, false, None, true)
+}
+
 #[test]
-#[cfg(feature = "record")]
+fn a_front_records_when_requested_in_the_captured_environment() {
+    let mut world = front_from_environment(&[(b"TEMPER_INTERNAL_RECORD".as_slice().into(), b"1".as_slice().into())]);
+    world.settle();
+    world.keys(b"\x1bS");
+    let lines = replay(&world.recording_file().expect("requested front recording").0);
+    assert!(lines.contains(&temper_client_shell_tui::journey::Line::Front));
+    world.draining = true;
+    world.keys(b"\x03");
+    replay(&world.recording_file().expect("front saves on closing").0);
+    world.sim.assert_no_open_fds(world.pid);
+    world.sim.assert_quiescent(world.pid);
+    assert_eq!(world.files.open_handles(), 0);
+}
+
+#[test]
+fn a_front_without_the_captured_record_variable_writes_no_recording() {
+    let mut world = front_from_environment(&[]);
+    world.settle();
+    world.keys(b"\x1bS");
+    assert!(world.recording_file().is_none(), "unrequested front writes no recording");
+    world.draining = true;
+    world.keys(b"\x03");
+    assert!(world.recording_file().is_none(), "closing still writes none");
+    world.sim.assert_no_open_fds(world.pid);
+    world.sim.assert_quiescent(world.pid);
+    assert_eq!(world.files.open_handles(), 0);
+}
+
+#[test]
 fn a_front_answers_its_first_read_with_the_handed_link_and_reports_the_boxs_lines() {
     use temper_client_shell_tui::journey::Line;
     use temper_client_tui::BoxLine;

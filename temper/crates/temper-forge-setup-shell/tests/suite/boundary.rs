@@ -18,8 +18,20 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         || path.ends_with("temper-worker-shell/src/binary.rs")
     {
         source.replace("std::process::ExitCode", "ExitCode").replace("process::ExitCode", "ExitCode")
-    } else if path.ends_with("temper-service-shell/src/lib.rs") {
-        // Serve's run reads the first link's secret from stdin (protocol/setup/box.md, 1).
+    } else if path.ends_with("temper-client-shell-tui/src/start.rs") {
+        // The front prints the box's final diagnostic after leaving the terminal (client/tui/box.md).
+        // A stderr guard is not a file lock; all process operations stay guarded.
+        source.replace("std::io::stderr().lock()", "FrontDiagnostic")
+    } else if path.ends_with("temper-client-shell/src/box_binary.rs") {
+        // Without a terminal, the client execs this build's box after the lookup
+        // (client/box-binary.md, 5). Stream guards are not file locks.
+        source
+            .replace("std::process::Command", "BoxExecCommand")
+            .replace("process::CommandExt", "BoxExec")
+            .replace("io::stdout().lock()", "FetchProgress")
+            .replace("io::stderr().lock()", "FetchDiagnostic")
+    } else if path.ends_with("temper-box-shell/src/serve.rs") {
+        // Boxed serve reads the first link's secret from stdin (protocol/setup/box.md, 1).
         // Its stdin guard is not a file lock; file locks and process operations stay guarded.
         source.replace("std::io::stdin().lock()", "BoxLinkInput")
     } else if path.ends_with("temper-worker-shell/src/program_login.rs") {
@@ -42,6 +54,14 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
             .replace("process::CommandExt", "LauncherExec")
             .replace("std::process::current_exe", "LauncherExecutable")
             .replace("std::process::id", "LauncherId")
+    } else if path.ends_with("temper-client-journeys-tool/src/run.rs") {
+        // The internal recording tool builds and starts its children and maps its exits
+        // (temper/docs/design/testing/tools.md, 3–4). Locks and other process operations stay guarded.
+        source
+            .replace("std::process::Command", "JourneyCommand")
+            .replace("std::process::ExitCode", "JourneyExitCode")
+            .replace("std::process::exit", "JourneyExit")
+            .replace("std::process::id", "JourneyId")
     } else if path.ends_with("temper-service-shell/src/restart_fault.rs") {
         // The process tier's exact-listener fault aborts its own serve only.
         // Process creation, exec and every lock still belong to their boundaries.
@@ -68,11 +88,34 @@ fn scan(directory: &Path) {
         }
     }
 }
+// The internal tools spawn builds, browsers and git outside setup's process boundary
+// (temper/docs/design/testing/tools.md, 5); every other crate stays scanned.
+const TOOL_CRATES: &[&str] = &[
+    "temper-client-gallery-tool",
+    "temper-client-journeys-tool",
+    "temper-git-transcripts-tool",
+    "temper-playground-serve-tool",
+    "temper-stage-one-tool",
+    "temper-twin-tool",
+    "temper-qa-tool",
+];
+fn tool_crate(path: &Path) -> bool {
+    path.file_name().is_some_and(|name| TOOL_CRATES.iter().any(|tool| name == *tool))
+}
+#[test]
+fn tools_are_skipped_by_name_not_suffix() {
+    assert!(tool_crate(Path::new("temper-client-gallery-tool")));
+    assert!(!tool_crate(Path::new("another-tool")));
+}
 #[test]
 fn process_and_file_locks_stay_in_their_declared_modules() {
     let crates = skein_scratch::paths::tree().join("crates");
     for entry in fs::read_dir(crates).expect("crates") {
-        let source = entry.expect("crate").path().join("src");
+        let path = entry.expect("crate").path();
+        if tool_crate(&path) {
+            continue;
+        }
+        let source = path.join("src");
         if source.is_dir() {
             scan(&source);
         }
@@ -120,7 +163,7 @@ fn binary_exit_codes_do_not_exempt_processes_or_file_locks() {
 }
 #[test]
 fn serve_stdin_guard_does_not_exempt_file_locks_or_processes() {
-    let path = Path::new("temper-service-shell/src/lib.rs");
+    let path = Path::new("temper-box-shell/src/serve.rs");
     for (source, expected) in [
         ("std::io::stdin().lock()", false),
         ("file.lock()", true),
@@ -139,6 +182,7 @@ fn the_scan_catches_each_form_and_passes_other_process_modules() {
         ("other.rs", "std::process::exit(1)", true),
         ("temper-box-shell/src/lib.rs", "std::io::stdin().lock()", true),
         ("temper-service-shell/src/host.rs", "std::io::stdin().lock()", true),
+        ("temper-service-shell/src/lib.rs", "std::io::stdin().lock()", true),
         ("other.rs", "CommandExt", true),
         ("other.rs", "try_lock", true),
         ("other.rs", "smith::process::Event", false),
@@ -170,6 +214,9 @@ fn the_scan_catches_each_form_and_passes_other_process_modules() {
         ("temper-service-shell/src/restart_fault.rs", "std::process::Command", true),
         ("temper-service-shell/src/restart_fault.rs", "try_lock", true),
         ("temper-service-shell/src/restart_fault.rs", "file.lock()", true),
+        ("temper-client-journeys-tool/src/run.rs", "std::process::Command; std::process::exit(2)", false),
+        ("temper-client-journeys-tool/src/run.rs", "std::process::Child", true),
+        ("temper-client-journeys-tool/src/run.rs", "std::process::Command; file.lock()", true),
         ("other.rs", "std::process::Command", true),
     ] {
         assert_eq!(forbidden_at(Path::new(path), source), expected, "{path}: {source}");

@@ -1,4 +1,4 @@
-//! The TUI's pages on temper's client root (temper/docs/design/client/tui/README.md, 1 to 3 and temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/theme.md and temper/docs/design/client/tui/README.md, 4 and temper/docs/design/client/tui/box.md).
+//! The TUI's pages on temper's client root (temper/docs/design/client/tui/README.md, 1 to 3 and temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/theme.md and temper/docs/design/client/tui/README.md, 4 and temper/docs/design/client/tui/box.md).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

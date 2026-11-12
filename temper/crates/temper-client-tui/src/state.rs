@@ -1,4 +1,4 @@
-//! The TUI's own state beside the client root (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
+//! The TUI's own state beside the client root (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
 use crate::{BoxEnd, BoxLine, BoxStage, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::{ObjectKey, TurnName};
@@ -57,7 +57,7 @@ pub enum BoxState<'a> {
     Stopped { end: BoxEnd },
     GaveUp { step: &'a [u8] },
 }
-/// The sign-in from the engine's link (temper/docs/design/client/tui/pages.md).
+/// The sign-in from the engine's link (temper/docs/design/client/tui/pages/README.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Local {
     Idle,
@@ -82,7 +82,7 @@ pub enum Refusal {
     NotALink,
     OtherAddress { address: Box<[u8]> },
 }
-/// A one-line notice on the quiet line (temper/docs/design/client/tui/pages.md).
+/// A one-line notice on the quiet line (temper/docs/design/client/tui/pages/README.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Notice {
     Unknown { words: Box<[u8]> },
@@ -276,7 +276,7 @@ impl Tui {
     pub const fn reply_aside(&self) -> Option<TurnName> {
         self.reply_aside
     }
-    /// The chat kept while its goal's start sheet stands (client/tui/pages.md).
+    /// The chat kept while its goal's start sheet stands (client/tui/pages/design-session.md).
     #[must_use]
     pub const fn start_chat(&self) -> Option<u64> {
         self.start_chat
@@ -709,7 +709,7 @@ impl Tui {
     }
 }
 
-/// The needs already shown during this walk (temper/docs/design/client/tui/pages.md).
+/// The needs already shown during this walk (temper/docs/design/client/tui/pages/README.md).
 #[derive(Debug)]
 pub struct Walk {
     shown: List<ObjectKey>,

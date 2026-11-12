@@ -1,8 +1,6 @@
 //! The TUI on one kernel and clock (temper/docs/design/client/tui/README.md, 4).
-#[cfg(any(test, feature = "record"))]
-use crate::journey;
 use crate::{
-    host, limits,
+    host, journey, limits,
     opener::{self, Opener},
 };
 use skein_io::{
@@ -12,9 +10,7 @@ use skein_io::{
 use skein_lib::{Duration, Env, Queue, Secret, Time, Token, Wall};
 use skein_shell::Host;
 use skein_ui_screen::Size;
-#[cfg(any(test, feature = "record"))]
-use skein_ui_screen_terminal::Key;
-use skein_ui_screen_terminal::{Background, Depth, Terminal};
+use skein_ui_screen_terminal::{Background, Depth, Key, Terminal};
 use temper_client_tui::{BoxLine, Note, Scheme};
 
 mod front;
@@ -94,7 +90,6 @@ pub struct Run {
     closing: bool,
     refused: bool,
     terminated: bool,
-    #[cfg(any(test, feature = "record"))]
     recording: Option<Recording>,
 }
 
@@ -144,12 +139,8 @@ impl Run {
             root
         });
         let box_child = settings.front.map(front::Child::new);
-        #[cfg(any(test, feature = "record"))]
         let recording = settings.record.map(|root| Recording::new(root, user, seed, settings.files == Some(root)));
-        #[cfg(any(test, feature = "record"))]
         let shared_notes = recording.as_ref().is_some_and(|recording| recording.notes);
-        #[cfg(not(any(test, feature = "record")))]
-        let shared_notes = false;
         let notes = settings.files.filter(|_| !shared_notes).map(|root| FileSave::new(root, user, seed, b"sign-in"));
         let operations = shell
             .operations()
@@ -157,7 +148,6 @@ impl Run {
             .and_then(|n| n.checked_add(io::operations(&limits).expect("signal operations")))
             .and_then(|n| n.checked_add(2 + if notes.is_some() { 2 } else { 0 } + if front { 2 } else { 0 }))
             .expect("combined operations");
-        #[cfg(any(test, feature = "record"))]
         let operations =
             operations.checked_add(if recording.is_some() { 2 } else { 0 }).expect("file and cancel operations");
         let capacity = operations.checked_mul(2).expect("completion and submission room");
@@ -198,7 +188,6 @@ impl Run {
             closing: false,
             refused: false,
             terminated: false,
-            #[cfg(any(test, feature = "record"))]
             recording,
         })
     }
@@ -257,7 +246,6 @@ impl Run {
             if let Op::Cancel { target } = &mut complete.kind {
                 *target = Token::new(target.raw() & !TAG);
             }
-            #[cfg(any(test, feature = "record"))]
             if io::file_layer::owns(complete.op) {
                 self.recording.as_mut().expect("recording file completion").save.complete(self.env.now, complete);
                 return;
@@ -349,10 +337,7 @@ impl Run {
         if let Some(root) = &mut self.spawn_root {
             root.closing = true;
         }
-        #[cfg(any(test, feature = "record"))]
         let saving = self.recording.is_some();
-        #[cfg(not(any(test, feature = "record")))]
-        let saving = false;
         if !saving && self.notes.is_none() && self.local.closed() {
             self.terminal.close();
         }
@@ -375,14 +360,11 @@ impl Run {
     }
 
     fn report(&mut self, report: host::Report) {
-        #[cfg(any(test, feature = "record"))]
         let duties = if let Some(recorder) = self.recording.as_mut().and_then(|recording| recording.recorder.as_mut()) {
             recorder.report(&mut self.host, report)
         } else {
             self.host.report(report)
         };
-        #[cfg(not(any(test, feature = "record")))]
-        let duties = self.host.report(report);
         for request in duties.asked {
             if self.front_ready {
                 self.shell.down(request);
@@ -398,7 +380,6 @@ impl Run {
         {
             notes.noted = Some(note.print(&self.address));
         }
-        #[cfg(any(test, feature = "record"))]
         if let Some(note) = duties.note
             && let Some(recording) = self.recording.as_mut().filter(|recording| recording.notes)
         {
@@ -473,7 +454,6 @@ impl Run {
             note: self.note,
             front: self.front,
         };
-        #[cfg(any(test, feature = "record"))]
         if let Some(recording) = &mut self.recording {
             let mut recorder = journey::Recorder::new(&journey::Facts {
                 seed: recording.seed,
@@ -498,7 +478,6 @@ impl Run {
 
     fn reports(&mut self) {
         self.host.clocks(self.env.now, self.env.wall);
-        #[cfg(any(test, feature = "record"))]
         if let Some(recorder) = self.recording.as_mut().and_then(|recording| recording.recorder.as_mut()) {
             recorder.turn(self.env.now, self.env.wall);
         }
@@ -557,7 +536,6 @@ impl Run {
             }
             while !self.closing {
                 let Some(key) = self.terminal.keys().pop() else { break };
-                #[cfg(any(test, feature = "record"))]
                 if self.record_key(&key) {
                     continue;
                 }
@@ -569,7 +547,6 @@ impl Run {
                 reported = true;
             }
         }
-        #[cfg(any(test, feature = "record"))]
         if let Some(recorder) = self.recording.as_mut().and_then(|recording| recording.recorder.as_mut()) {
             recorder.deadline(self.host.deadline());
         }
@@ -589,7 +566,6 @@ impl Run {
         }
     }
 
-    #[cfg(any(test, feature = "record"))]
     fn record_key(&mut self, key: &Key) -> bool {
         if let Some(recording) = &mut self.recording
             && let Some(recorder) = &mut recording.recorder
@@ -640,7 +616,6 @@ impl Run {
         if let Some(root) = &mut self.spawn_root {
             publish_files(&mut root.submissions, &mut self.submit, 5);
         }
-        #[cfg(any(test, feature = "record"))]
         if let Some(recording) = &mut self.recording {
             publish_files(&mut recording.save.submissions, &mut self.submit, 2);
         }
@@ -687,7 +662,6 @@ impl Host for Run {
             self.close();
         }
         self.reports();
-        #[cfg(any(test, feature = "record"))]
         if let Some(recording) = &mut self.recording {
             if self.closing && self.shell.is_empty() && !recording.closing {
                 recording.save.pending = recording.recorder.as_ref().map(|recorder| recorder.save(&mut self.host));
@@ -704,10 +678,7 @@ impl Host for Run {
             notes.closing = self.closing && self.shell.is_empty();
             notes.progress(now);
         }
-        #[cfg(any(test, feature = "record"))]
         let recorded = self.recording.as_ref().is_none_or(|recording| recording.save.closed());
-        #[cfg(not(any(test, feature = "record")))]
-        let recorded = true;
         if self.closing && recorded && self.notes.as_ref().is_none_or(FileSave::closed) && self.local.closed() {
             self.terminal.close();
         }
@@ -724,7 +695,6 @@ impl Host for Run {
         &mut self.submit
     }
     fn work_pending(&self, now: Time) -> bool {
-        #[cfg(any(test, feature = "record"))]
         if self.recording.as_ref().is_some_and(|recording| recording.save.pending() || recording.save.io.is_due(now)) {
             return true;
         }
@@ -747,10 +717,7 @@ impl Host for Run {
             || self.next_policy_deadline().is_some_and(|at| now >= at)
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
-        #[cfg(any(test, feature = "record"))]
         let recording = self.recording.as_ref().and_then(|recording| recording.save.io.next_deadline());
-        #[cfg(not(any(test, feature = "record")))]
-        let recording = None;
         [
             self.shell.next_deadline(),
             self.terminal.next_deadline(),
@@ -774,7 +741,6 @@ impl Host for Run {
         .min()
     }
     fn is_empty(&self) -> bool {
-        #[cfg(any(test, feature = "record"))]
         if self.recording.as_ref().is_some_and(|recording| !recording.save.closed()) {
             return false;
         }
@@ -800,7 +766,6 @@ impl Host for Run {
     }
 }
 
-#[cfg(any(test, feature = "record"))]
 struct Recording {
     notes: bool,
     save: FileSave,
@@ -809,7 +774,6 @@ struct Recording {
     closing: bool,
 }
 
-#[cfg(any(test, feature = "record"))]
 impl Recording {
     fn new(root: Fd, user: u32, seed: u64, notes: bool) -> Self {
         Self { notes, save: FileSave::new(root, user, seed, b"recording"), recorder: None, seed, closing: false }

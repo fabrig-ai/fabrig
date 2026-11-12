@@ -1,13 +1,14 @@
 # A standing role
 
 Provisional, 2026-11-11, from `../../draft/standing-roles.md`, sections
-2, 3, 5 and 9. A standing role is an agent that owns some of a
+2, 3, 5, 6, 7 and 9. A standing role is an agent that owns some of a
 project's work for the project's life, works in short sessions, writes
 its Now as each ends, and answers to a person: jig's task that stands
 (jig's `domain/tasks/standing.md`), run under a charter of its own. This
 document says what temper fills in: the stock's charter and template
 for one, its person and what follows when that person leaves the
-project, what it may do, and how a person starts and reads one. Its
+project, what it may do, how a person starts, reads and talks with
+one, and its reports. Its
 area, said in words and routed to by the project's triager, is later
 work of `../../draft/standing-roles.md`, sections 4, 8 and 10; until then a role's spec words
 say what it covers.
@@ -30,6 +31,13 @@ say what it covers.
   project's rules for its changes; it never accepts its own proposal.
 - **Started and read through `temper ctl`** (section 6): `role start`,
   `role list` and `role show`; Team draws it (`../../client/pages/team.md`).
+- **Talked with** (section 7): a person's words open a talk, jig's, whose
+  session stays warm while they are there; an instruction for every case
+  becomes a rule by a proposal of settings an owner accepts; `role talk`
+  in `temper ctl`.
+- **Its reports** (section 8): its Now at all times, each session's line
+  of what it did, a weekly report at its timer, and its Now read by
+  Home's brief.
 
 ## 2. Its charter and its template
 
@@ -99,7 +107,7 @@ say what it covers.
   its rules with the parts for why it runs, its Now whole and what woke
   it, and no transcript. An engine restart ends no session: temper's
   workers and their agent processes keep running and reconnect
-  (`../worker.md`).
+  (`../worker/README.md`).
 - **The stock's models declare their cache's life** (`cache_life_ms`;
   `../../protocol/configuration/stock.md`): five minutes, each provider's
   default, for every stock model but the scripted one, which declares
@@ -142,7 +150,91 @@ say what it covers.
 - **`role show`** prints one: its task's document, and its Now whole,
   with when it was written (`../../client/ctl/tools.md`, 2).
 
-## 7. The world
+## 7. Talking with it
+
+From `../../draft/standing-roles.md`, section 6. The talk is jig's (jig's
+`domain/tasks/standing.md`, 5.6); temper fills in who may talk, what the
+role does with what it hears, and the tools.
+
+- **Who may talk:** whoever may send the role words, its person and the
+  project's maintainers and owners (jig's `domain/people/acts.md`, 1), one
+  talk at a time. Whose instruction may become a rule is the accepter's
+  to say: a rule changes a charter, which the deployment's owners
+  decide (below).
+- **A talk is a session of its own.** The person's first words end the
+  role's open session and begin a fresh one, its brief holding its rules
+  with the part for words, its Now whole and what woke it; their later
+  words resume it however long they think, until they leave or 30
+  minutes pass with neither them nor the role saying anything, its
+  lapse. Leaving, or the lapse, ends the session, and the next wake
+  starts fresh from the Now the talk's last run wrote.
+- **It answers in its ordinary text,** as an Open run replies (`charter.md`,
+  5): that reply is what the person reads, then it writes its Now and
+  parks. Within its rules it acts as on any wake: it may start a goal or
+  a change the talk asks for, as its own work.
+- **What lasts goes where it belongs,** by charter 13's instructions
+  (`../../protocol/configuration/stock.md`):
+  - *an instruction for every case* ("from now on…") it asks to make a
+    rule ("Add it to my rules?"), and on yes proposes a change of its
+    charter's instructions with `propose_settings`, the rule added in
+    its words, its reason naming the talk; it says in its reply that an
+    owner of the deployment accepts it, and names the proposal;
+  - *an instruction for the work at hand* goes in its Now;
+  - *a decision* becomes a record: an answer, a goal or a change, a
+    setting proposed.
+- **A rule changes its charter,** a deployment's setting, so that every
+  task the charter runs takes it: a role started under the stock's
+  charter 13 shares it with every role started under 13, which the
+  proposal's review shows its accepter. A role whose rules are its own
+  runs under a charter of its own (`role start --charter`). Accepted with
+  running work moved, the role takes the new revision at its next run,
+  which ends its session by its rules (jig's `domain/tasks/standing.md`,
+  5.2), so a talk goes on in a fresh session from its Now; accepted with
+  running work staying, it takes it at its next move.
+- **Not a chat.** Its words join its activity, and what it starts is its
+  own: a role is the requester of its work, never the person talking.
+- **In `temper ctl`:** `role talk TASK TEXT` sends the words with jig's
+  `Talk`, waits until the role has replied, and prints its reply;
+  `role talk TASK --leave` leaves (`../../client/ctl/tools.md`, 3). A
+  rule it proposed is read with `proposal show` and decided with
+  `proposal decide` (`../../client/ctl/tools.md`, 3), as any proposal.
+  Team's "Talk to it" and the terminal's `/talk` draw the same talk
+  (`../../draft/surfaces.md`, 6 and 11.3).
+
+## 8. Its reports
+
+From `../../draft/standing-roles.md`, section 7.
+
+- **Its Now, at all times** (section 4), with when it was written and by
+  which run: the note's `changed` and author, and the task's session
+  record on its document (jig's `domain/tasks/standing.md`, 7), say
+  whether the session open now wrote it.
+- **Each session's line of what it did:** charter 13's runs open their
+  Now with one line saying what the session has done so far and where it
+  stands, so the session's last `NowWritten` line in its activity says
+  what it did (jig's `domain/tasks/standing.md`, section 6). With the
+  session's times and its runs' spend, which the activity holds, Team
+  draws its sessions this week a line each (`../../draft/surfaces.md`,
+  6).
+- **A weekly report** at its timer: its first session sets a timer for
+  Mondays at 06:00 UTC, repeating each week, and a role that finds none
+  in its Now sets it at its next session. At that timer it writes the
+  note described `report` in its own scope, whole, replacing last week's:
+  the week it covers; what landed in its work, from its goals' and
+  changes' results; what it decided, and for whom; what waits, and on
+  whom; and what it spent, from its brief's period line (jig's
+  `domain/tasks/standing.md`, section 6). A page at most, as its Now.
+  Team links it, and `role show --report` prints it
+  (`../../client/ctl/tools.md`, 2).
+- **Its timers need the subscribe family:** the stock's policy gives it
+  to a project's people (`../../protocol/configuration/stock.md`), so
+  that a role started by a stock project's member sets its timers and
+  subscribes, as section 2 has its first part do.
+- **What Home's brief reads:** the status agent's words carry each live
+  standing role's Now (`../forge/attention.md`, 3), which is all it reads
+  of a role's area; its instructions and Home's page are unchanged.
+
+## 9. The world
 
 - **Focused:** the stock's charter 13 passing jig's settings check with
   its parts and resuming, template 7's shape, and each stock model's
@@ -154,12 +246,35 @@ say what it covers.
   question in that owner's inbox, and a refused move tried again at the
   next period; `role start`, `role list` and `role show` parsed, sent
   and printed.
+- **Focused, its talk and reports:** charter 13's instructions holding
+  the talk's guidance, the Now's opening line and the weekly report, and
+  the stock's policy the subscribe family; in the client's joined world,
+  a person's `role talk` reaching a role started from template 7, its
+  scripted run replying and proposing a rule with `propose_settings`,
+  the reply printed; the person accepting it with `proposal decide`,
+  running work moved, and their next words met by a fresh run under the
+  new instructions with the Now in its brief; `role talk --leave` ending
+  the talk and its session; a stock member's role setting its weekly
+  timer and, at it, writing its `report`, which `role show --report`
+  prints; and in the engine's world, a status run's words holding each
+  live role's Now.
 - **Its story on a box** is `../../draft/standing-roles.md`, section 11's,
   once its areas and talking with it have landed.
 
-## 8. Open questions
+## 10. Open questions
 
 - **A standing role's default model and budget,** per stock way
   (`../../draft/standing-roles.md`, section 12).
 - **Who may start a standing role:** a project's owners alone, or any
   member whose role allows the batch, as today.
+- **Who may talk with a standing role** (`../../draft/standing-roles.md`,
+  section 12): whoever may send it words today (section 7), and whether
+  a member's instruction may become a rule, which today the charter's
+  owners decide by accepting it or not.
+- **A rule for one role on a shared charter** (section 7): a role under
+  the stock's charter 13 changes every role on it; a rule of its own
+  would need its own instructions, which jig's tasks keep apart from a
+  charter's parts (jig's `domain/tasks/messages.md`, 6).
+- **Past weekly reports** (section 8): one `report` note, rewritten each
+  week, keeps the newest alone (`../../draft/standing-roles.md`, section
+  12, the report's form).
