@@ -427,7 +427,10 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             Work::StartDone(phase) => {
                 if phase == core::start::Phase::LoadCore {
                     // Rebuild current charters over the restored settings before judging their room.
-                    if !domain.core.settings_restored(&environment_core(env)) {
+                    // A first start has only supplied defaults; start_done tells those settings once.
+                    if domain.core.counters.deployment().commits != 0
+                        && !domain.core.settings_restored(&environment_core(env))
+                    {
                         domain.stop_core();
                         return;
                     }

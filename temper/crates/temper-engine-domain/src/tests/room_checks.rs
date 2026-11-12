@@ -48,6 +48,7 @@ fn overlay(instructions: u32, part: Option<u32>) -> settings::Overlay {
     overlay.instructions = super::bytes(instructions);
     overlay.parts = match part { Some(bytes) => parts(bytes), None => Box::new([]) };
     overlay.shell = Some(false);
+    overlay.resume = Some(false);
     overlay
 }
 
@@ -120,10 +121,13 @@ fn a_partys_change_counts_every_part() {
     // Instructions alone leave 4,000 bytes; the part and its blank line leave 998.
     let host = crate::room::HostPart { bound: 5_001, ..HOST };
     let mut charter = short_charter();
+    charter.policy.resume = false;
     fn item(charter: crate::Charter) -> Box<[Item]> {
         Box::new([Item { setting: Setting::Charter(CHARTER), edit: Edit::Set(Value::Charter(Box::new(charter))) }])
     }
-    let (mut root, env) = owner_root();
+    let mut limits = resume_fixture::limits();
+    limits.journal.run_bytes = 8_192;
+    let (mut root, env) = owner_root_with_limits(&limits);
     root.host_part = Some(host);
     charter.parts = parts(3_000);
     assert_eq!(
@@ -139,10 +143,14 @@ fn a_partys_change_counts_every_part() {
 }
 
 #[test]
-fn party_settings_judge_overlays_over_the_default() {
+fn a_partys_change_judges_overlays_over_the_default() { party_overlays(false); }
+
+#[test]
+fn a_partys_proposal_judges_overlays_over_the_default() { party_overlays(true); }
+
+fn party_overlays(propose: bool) {
     let default_bytes = u32::try_from(resume_fixture::charter().policy.instructions.len()).unwrap();
     let added = SHORT_INSTRUCTIONS - default_bytes - 2;
-    for propose in [false, true] {
         for (overlay, short) in [
             (overlay(added, None), true),
             (overlay(0, Some(added)), true),
@@ -164,7 +172,6 @@ fn party_settings_judge_overlays_over_the_default() {
                 assert_eq!(reply, people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 }));
             }
         }
-    }
 }
 
 #[test]
@@ -179,6 +186,21 @@ fn a_stored_overlay_is_judged_over_the_new_default_after_restore() {
     let old = settings::overlaid(&old_default, &overlay);
     // Under the old default the overlay left more than the brief floor.
     assert!(HOST.room(&old) >= crate::room::BRIEF_ROOM);
+    let mut deployment = root.core.counters.deployment();
+    deployment.commits = 1;
+    root.core.counters = crate::Counters::new(deployment);
+    for setting in root.core.current.offered().into_boxed() {
+        let value = if setting == Setting::Charter(CHARTER) {
+            Value::Charter(Box::new(old_default.clone()))
+        } else {
+            root.core.current.default_value(setting).unwrap().clone()
+        };
+        crate::restart::restore_page_row(&mut root, &env, crate::Record::Core(core::Record::Core(
+            core::CoreRecord::Settings(settings::Record::Default {
+                setting, default: settings::Default { value, revision: 1 },
+            })
+        )));
+    }
     crate::restart::restore_page_row(&mut root, &env, crate::Record::Core(core::Record::Core(
         core::CoreRecord::Settings(settings::Record::Changed {
             setting: Setting::Charter(CHARTER),
@@ -445,6 +467,10 @@ fn a_runs_short_proposal_is_answered_and_its_next_call_is_decided() {
 }
 
 fn owner_root() -> (Domain, Env<Limits>) {
+    owner_root_with_limits(&resume_fixture::limits())
+}
+
+fn owner_root_with_limits(limits: &Limits) -> (Domain, Env<Limits>) {
     let mut config = resume_fixture::config(7);
     config.core.owners[0].project = people::DEPLOYMENT;
     let records = [
@@ -464,7 +490,7 @@ fn owner_root() -> (Domain, Env<Limits>) {
     ]
     .map(core::Record::People)
     .map(crate::Record::Core);
-    resume_fixture::root_with_records(config, &resume_fixture::limits(), &records)
+    resume_fixture::root_with_records(config, limits, &records)
 }
 
 // Release the root's decisions against a durable store; the party is the only outside reader.

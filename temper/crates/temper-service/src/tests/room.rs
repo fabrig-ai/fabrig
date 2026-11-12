@@ -98,10 +98,10 @@ fn default_parts_are_counted_before_start() {
 )]
 fn stock_charters_leave_at_least_2048_bytes() {
     let host = temper_engine_smith::room::host_part(&agent().run_limits);
-    let generated = super::generated();
+    let generated = super::stock::generated();
     for profile in [b"\"small\"".as_slice(), b"\"standard\""] {
         let document = fixtures::with(&generated, b"engine.limits.profile", profile);
-        let engine = super::engine(&document);
+        let engine = super::stock::engine(&document);
         let mut problems = startup::Problems::empty();
         startup::checks::room(&engine, host, &mut problems);
         assert!(problems.is_empty(), "{:?}", startup::lines(&problems));
