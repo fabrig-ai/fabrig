@@ -10,6 +10,12 @@ use skein_lib::{Queue, Secret, Token};
 /// `Commit` names its asker's token; each has one terminal event.
 #[derive(Debug)]
 pub enum Request {
+    /// Rehearse a stopped deployment over a caller-owned scratch root (opening.md 5).
+    Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16] },
+    /// Name the previous generation again, before the active one's first own commit.
+    Back { owner: Token, root: Root },
+    /// End a rehearsal in any state and empty its scratch root.
+    Close { owner: Token },
     /// Open both stores in the deployment's directory (protocol/store/opening.md); the
     /// component's own rows and the core's header are checked before
     /// `Opened`. In skein-kv's memory mode, the worlds' component needs none.
@@ -337,7 +343,7 @@ macro_rules! older {
             concat!(
                 $clause,
                 $why,
-                ", and this start has changed nothing in it. Before the first release a store is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
+                ", and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
             ),
             " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
         ]
@@ -414,7 +420,7 @@ impl OpenRefusal {
             ],
             Self::OlderBuild { why: Older::Unleveled } => &[
                 "",
-                " holds a store from before the first release, which records no patch levels, and this start has changed nothing in it. A store from before the first release is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
+                " holds a store from before the baseline, the first build whose stores later builds upgrade, and this start has changed nothing in it. A store from before the baseline is not translated, so every start refuses this one until it is moved. To start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of ",
                 " together, and start again: nothing is deleted, and the next start makes a new, empty store. The new store has no tasks, sign-ins, accounts or keys, and every client signs in again.",
             ],
             Self::Ahead { .. } => &[
@@ -498,9 +504,43 @@ pub enum Generations {
     Missing { generation: u64 },
 }
 
+/// The first record refused by a rehearsal's kept text (protocol/store/opening.md, 5).
+#[derive(Debug)]
+pub enum Undecoded {
+    Record { map: crate::KeptMap, key: Box<[u8]> },
+    Frame { transcript: Box<str>, offset: u64 },
+}
+
 /// What the component answers.
 #[derive(Debug)]
 pub enum Event {
+    Rehearsing {
+        owner: Token,
+        wires: Option<Box<[KeptWire]>>,
+        fresh: bool,
+    },
+    Decoded {
+        owner: Token,
+        records: u64,
+    },
+    Undecodable {
+        owner: Token,
+        family: Box<str>,
+        version: u32,
+        at: Undecoded,
+    },
+    Back {
+        owner: Token,
+        to: u64,
+    },
+    BackRefused {
+        owner: Token,
+        why: BackRefusal,
+    },
+    Closed {
+        owner: Token,
+        removed: bool,
+    },
     /// Both stores are open and checked; `last` is the last durable commit.
     /// `installation` is the installation's identifier (protocol/store/README.md 4.4): the
     /// kept one, or, in an empty store, the drawn one its first commit keeps.
@@ -635,6 +675,22 @@ pub enum Event {
         patch: u32,
         counts: crate::Counts,
     },
+}
+
+/// A wire the deployment's last start kept (protocol/store/opening.md 5).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct KeptWire {
+    pub name: Box<str>,
+    pub version: u32,
+}
+
+/// Why the active generation cannot go back (protocol/store/opening.md 5).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BackRefusal {
+    Busy,
+    NoPrevious,
+    Committed { manifest: u64, last: u64 },
+    Unreadable,
 }
 
 /// A directory adopted by the service (skein/docs/design/runtime/io/README.md, section 6).

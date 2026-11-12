@@ -142,11 +142,22 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   steps and logs (4); every other context, and a `File` or `Message`
   cue, keeps the generic step and text. Templates are bounded by their
   expansion at a full 64-bit number (20 digits per `{pull}`).
+- **`Cue::Declared { path }`** judges a head by what its own tree
+  declares at `path`, as a repository's workflow file says what its
+  checks do, so that whoever commits decides a head's verdict by what it
+  holds (temper's `draft/landed-qa.md`, 6): with no file at `path`, the
+  context passes; else the file's first line, its trailing newline
+  aside, is the rule: `pass` passes; `fail` fails; `pull-file TEMPLATE`
+  judges as `Cue::PullFile { path: TEMPLATE, no_pull: Skipped, step:
+  CONTEXT, log: Missing TEMPLATE }`, CONTEXT the context's name; any
+  other line, or a file past the content limit, fails, the job's log
+  ending `unreadable PATH`. The declaration is read from the commit
+  judged, at its verdict.
 - **The pull binding** is the one exception to CI once per commit: a
-  commit judged by a pull-file cue runs again when it becomes a pull
-  request's head after it was pushed, binding that number, as a forge's
-  `pull_request` event runs on a commit its `push` already did. The
-  commit keeps its latest run alone.
+  commit judged by a pull-file cue, or by a declared one, runs again
+  when it becomes a pull request's head after it was pushed, binding
+  that number, as a forge's `pull_request` event runs on a commit its
+  `push` already did. The commit keeps its latest run alone.
 - **`Skipped`,** a check's settled state beside passed and failed, counts
   as a pass in a combined status and as neither pending nor failed in a
   head's verdict; the protocol layer serves it as `skipped` and reads a
@@ -328,6 +339,49 @@ of its repositories into another, and reaches no network.
   stays, marked gone, so that what holds its id reads nothing; nothing
   walks a gone repository. A copy's call still running on it ends as
   the conformance records of Forgejo (section 7).
+
+### 2.7 Its state, kept
+
+An owner that runs the fake as a product across restarts keeps the
+forge's state in a file of its own (temper's box, whose copies hold it:
+temper's `draft/landed-qa.md`, 6, and `protocol/setup/box.md`, 5). The
+domain gives an image of its state and is built again from one.
+
+- **`Domain::image(&self) -> Result<Box<[u8]>, image::Refusal>`,**
+  refused with `Refusal::Busy` while a call awaits its reply, so that an
+  owner takes it once its peer has shut down (section 5). Its bytes are
+  the domain's own format, length-prefixed binary written and read by
+  the domain alone, with no JSON, since the crate stands on skein-lib
+  alone. Before v0.1.0 it changes in place, as every stored format
+  does: an image a newer build cannot read is refused by name.
+- **`Domain::from_image(config: &Config, bytes: &[u8]) -> Result<Domain,
+  image::Refusal>`:** the domain the image held, under `config`'s
+  limits and chances. An image that does not decode, that refers to
+  what it does not hold, or that holds past `config`'s limits, is
+  refused, naming what (`Refusal::Malformed`, `Refusal::Limits`), and
+  nothing is built.
+- **What it keeps:** everything that lasts: every repository, gone
+  slots among them, with its permissions, labels, issues and pull
+  requests on their numbering, comments, reviews, statuses, Actions'
+  workflows, runs and jobs, merges, protection, queue, wiki and hooks'
+  settings; the store's commits and the counters that number commits,
+  comments, reviews, runs and jobs, so that a restored domain's next
+  commit id is the one it would have made (section 3); the clock's last
+  reading; and its `Rng`'s state, so that its draws go on as they
+  would have.
+- **Its timed work** (an undecided CI run, a rerun, a dispatched
+  workflow, a queue's timer, a late landing, an unfinished copy) is
+  kept with the time it had left, and armed again on the restored
+  clock. **What is in flight is dropped:** a hook not yet released, as
+  a delivery that cannot be written is (section 5); the rate windows,
+  which start again empty; the observations not yet drained.
+- **Its clock goes on:** the restored domain's clock reads at least the
+  image's last reading at its first pass, so that no item's time goes
+  back across a restart.
+- **Restored, it answers as it would have:** every read after
+  `from_image` answers as the same read before `image` did, and a write
+  then is decided as it would have been, its faults drawn from the same
+  stream.
 
 ## 3. Its git, and the remote boundary
 
@@ -557,7 +611,10 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   A repository read by id answers the domain's settings when the host
   lends the domain. A site admin's read of a configured repository by its
   path is answered the same way, with no domain call, as Forgejo shows a
-  site admin every repository.
+  site admin every repository. A hook's patch sets its URL, events and
+  active and keeps the secret the hook was made with, ignoring the one it
+  sends, as Forgejo does (../../forge/setup/forgejo.md, section 2), so its
+  deliveries are still signed with that secret.
 - **A first repository is made in the domain** (../../forge/setup/forgejo.md, 1.9).
   The setup's `CreateRepository` in an org the setup store keeps makes
   a domain repository owned by that org, private, whose `main` is one
@@ -566,7 +623,12 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   branch, its author and committer the request's, and answers its
   commit; a path already there is `422`. Its git serves both commits,
   and its branch, raw and repository reads find them, as they find a
-  seeded repository's.
+  seeded repository's. **Its CI** is `Config.made_checks`, the forge's
+  CI for every repository it makes, this one and a copy's destination
+  (2.6) alike, as a Forgejo whose runner takes every repository runs a
+  new one's checks; `made_checks` with no contexts, its default, makes
+  them report none, as before. A made repository keeps the checks it was
+  made with across an image (2.7).
   Collaborator lists contain explicit grants only: site administration
   and organization ownership grant access without adding membership.
   Pagination counts the listed collaborators after excluding implicit access.
@@ -576,6 +638,17 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   came, refused ones among them. The setup store's `seed_repository_hook`
   and `delete_repository_hook` put a repository's hook in place, or take
   it away, with no exchange.
+- **Its state, kept** (2.7): `Service::image(&self) -> Box<[u8]>` and
+  `Service::restore(&mut self, bytes: &[u8]) -> Result<(), image::Refusal>`,
+  in this layer's own format, beside the domain's. The image holds the
+  setup store whole: its accounts, issued tokens, organizations, teams,
+  subscriptions, collaborators, repository hooks and privacy, and the
+  counters that number them, so that a token issued before a restart
+  still acts as its account after it; and the hooks' endpoint the owner
+  set. A restore replaces those on a service built from the same
+  configuration, and refuses, naming what, an image that does not
+  decode or holds past the store's bounds. What lasts one connection
+  (its decoded requests, refusals the setup world turned) is not kept.
 - **A copy is the domain's too** (2.6). `Config.sources` is the
   catalogue, each `Source { address, repository, private, fill }`: an
   address, the domain's repository it stands for, whether it is private,
@@ -661,6 +734,15 @@ peers host theirs. The real loop hosts the same one.
   account's number is the user number its tokens act as in the domain,
   so an owner that seeds both keeps the scenario's `users` apart from
   them.
+- **It may keep its forge across a restart** (2.7). `Forge::image(&self)
+  -> Result<Box<[u8]>, Refusal>`, taken once the peer has shut down: the
+  domain's image (2.7) and its protocol layer's (section 4; `github.md`,
+  1.7), one byte string, each part length-prefixed, refused while the
+  domain is busy. `Forge::from_image(config, service, bytes)` builds the
+  forge from one in place of seeding it: the owner gives the
+  configuration and the layer's service as for a new forge, and the
+  image's state replaces what the service would seed. A refusal of
+  either part names it, and nothing is built.
 - **Plaintext by default.** Its `base` is `http://`; its face is the shared one
   with `Transport::Plaintext` and a `queue` of at least 64. The peer supplies
   its bound origin to either dialect's service before it accepts requests.

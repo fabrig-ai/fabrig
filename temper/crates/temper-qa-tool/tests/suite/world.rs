@@ -400,7 +400,7 @@ impl World {
         for (path, bytes) in [
             ("bin/temper-box", b"box".as_slice()),
             ("bin/fake-claude", b"fake".as_slice()),
-            ("bin/temper-client", b"client".as_slice()),
+            ("bin/temper", b"client".as_slice()),
             ("bin/temper-client-journeys", b"journeys".as_slice()),
             ("bundle/index.html", b"index".as_slice()),
             ("bundle/assets/app.js", b"javascript".as_slice()),

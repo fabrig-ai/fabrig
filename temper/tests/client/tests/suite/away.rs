@@ -267,6 +267,12 @@ impl Story {
         assert_eq!(story.client(fixtures::PARTY), CLIENT);
         story
     }
+    fn pushing(on: bool, devices: Box<[forge::Device]>) -> Self {
+        let mut limits = fixtures::domain_limits();
+        limits.client.domain.handles = 18;
+        limits.client.domain.watches = 18;
+        Self::with_front(Joint::with_away_push_sequence(fixtures::SEED, limits, on, devices), limits)
+    }
     fn begin_goal(&mut self) -> temper_engine_domain::Assignment {
         use jig_domain_people as people;
         use temper_engine_domain as engine;
@@ -659,6 +665,92 @@ fn decisions_across_projects_overturn_only_the_named_projects_goal() {
     );
     let rows = all_home::decided(story.probes[CLIENT.0].root.person(), story.env.wall);
     assert_eq!(rows.iter().map(|row| (row.project, row.line.task)).collect::<Vec<_>>(), [(PROJECT, *first)]);
+}
+
+fn push_device(number: u32) -> forge::Device {
+    forge::Device {
+        party: fixtures::PARTY,
+        number,
+        endpoint: format!("http://push.test:4000/push/phone-{number}").into_bytes().into_boxed_slice(),
+        p256dh: [4; 65],
+        auth: [7; 16],
+        label: b"phone".as_slice().into(),
+        at: Wall::EPOCH,
+    }
+}
+
+#[test]
+fn a_goals_questions_push_counts_to_each_device_but_away_decisions_push_nothing() {
+    use temper_engine_domain_world::kinds;
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, Subject};
+    let devices = Box::new([push_device(1), push_device(2)]);
+    let mut story = Story::pushing(true, devices.clone());
+    story.visit_home();
+    story.press(Role::Button, b"Away");
+    let run = story.begin_goal();
+    assert!(story.call(&run, 1, b"decided", LOCAL_DECISION).starts_with("Decided:"));
+    let decision = story.decisions().pop().expect("implementation judgement");
+    assert_eq!((decision.reach.class, decision.reach.away), (Class::Ask, true));
+    assert!(story.front.engine.pushes.is_empty(), "Decided carries on without a need");
+    assert!(story.call(&run, 2, b"decided", br#"{"question":"Buy capacity?","options":["Buy","Wait"],"took":0,"why":"More capacity","kind":"money"}"#).starts_with("Ask:"));
+    assert!(story.front.engine.pushes.is_empty(), "Ask itself is not a question");
+    assert!(
+        story
+            .call(&run, 3, b"message", br#"{"target":1,"form":"question","words":"Buy capacity?"}"#)
+            .starts_with("Message ")
+    );
+    assert_eq!(story.front.engine.pushes.len(), 2);
+    for (push, device) in story.front.engine.pushes.iter().zip(devices.iter()) {
+        assert_eq!((push.party, push.device), (fixtures::PARTY, device.number));
+        assert_eq!((&push.endpoint, push.p256dh, push.auth), (&device.endpoint, device.p256dh, device.auth));
+        assert_eq!(push.topic.as_ref(), b"p1");
+        assert_eq!(push.payload.as_ref(), br#"{"title":"temper","body":"1 thing needs you in Project 1","project":1}"#);
+    }
+    let value = forge::settings::Value::Classes(Classes {
+        items: Box::new([Item {
+            subject: Subject::Kind(Kind::Dependency),
+            words: Box::new([]),
+            class: Class::AskAway,
+        }]),
+        sets: Box::new([]),
+    });
+    story.front.engine.send(kinds::change(
+        story.front.engine.store.header().sign_ins,
+        kinds::revision(&story.front.engine.store.rows),
+        84,
+        Box::new([kinds::item(8, PROJECT, 1, &value)]),
+    ));
+    story.front.engine.settle();
+    story.pump();
+    assert!(story.call(&run, 4, b"decided", br#"{"question":"Use a new library?","options":["Use it","Wait"],"took":0,"why":"Fits","kind":"dependency"}"#).starts_with("Ask:"));
+    assert_eq!(story.front.engine.pushes.len(), 2);
+    assert!(
+        story
+            .call(&run, 5, b"message", br#"{"target":1,"form":"question","words":"Use a new library?"}"#)
+            .starts_with("Message ")
+    );
+    let last = story.decisions().pop().expect("dependency judgement");
+    assert_eq!((last.reach.class, last.reach.away), (Class::AskAway, true));
+    assert_eq!(story.front.engine.pushes.len(), 4);
+    for (push, device) in story.front.engine.pushes[2..].iter().zip(devices.iter()) {
+        assert_eq!((push.party, push.device), (fixtures::PARTY, device.number));
+        assert_eq!(push.topic.as_ref(), b"p1");
+        assert_eq!(push.payload.as_ref(), br#"{"title":"temper","body":"2 things need you in Project 1","project":1}"#);
+    }
+}
+
+#[test]
+fn a_goals_question_with_no_device_or_push_off_pushes_nothing() {
+    for (on, devices) in [(true, Vec::new().into_boxed_slice()), (false, vec![push_device(1)].into_boxed_slice())] {
+        let mut story = Story::pushing(on, devices);
+        let run = story.begin_goal();
+        assert!(
+            story
+                .call(&run, 1, b"message", br#"{"target":1,"form":"question","words":"Which implementation?"}"#)
+                .starts_with("Message ")
+        );
+        assert!(story.front.engine.pushes.is_empty(), "push on: {on}");
+    }
 }
 
 #[test]

@@ -17,12 +17,16 @@ pub struct Options {
     pub scratch: PathBuf,
     pub scripts: Vec<PathBuf>,
     pub strict: bool,
+    pub ports: Option<String>,
+    pub files: Option<PathBuf>,
 }
 impl Options {
     pub fn parse(arguments: &[Box<[u8]>]) -> Result<Self, String> {
         let (mut bin, mut bundle, mut scratch) = (None, None, None);
         let mut scripts = vec![];
         let mut strict = false;
+        let mut ports = None;
+        let mut files = None;
         let mut args = arguments.iter();
         while let Some(argument) = args.next() {
             let target = match argument.as_ref() {
@@ -30,6 +34,21 @@ impl Options {
                     strict = true;
                     continue;
                 }
+                b"--ports" if ports.is_none() => {
+                    let value = args.next().ok_or("missing --ports LIST")?;
+                    let list = String::from_utf8_lossy(value);
+                    let parsed = list.split(',').map(str::parse::<u16>).collect::<Result<Vec<_>, _>>();
+                    if !parsed.as_ref().is_ok_and(|values| {
+                        values.len() == 9
+                            && !values.contains(&0)
+                            && values.iter().collect::<std::collections::BTreeSet<_>>().len() == 9
+                    }) {
+                        return Err(format!("--ports {list}: expected nine distinct nonzero ports"));
+                    }
+                    ports = Some(list.into_owned());
+                    continue;
+                }
+                b"--files" => &mut files,
                 b"--bin" => &mut bin,
                 b"--bundle" => &mut bundle,
                 b"--scratch" => &mut scratch,
@@ -50,6 +69,8 @@ impl Options {
             scratch: scratch.ok_or("missing --scratch DIR")?,
             scripts,
             strict,
+            ports,
+            files,
         })
     }
 }
@@ -109,13 +130,17 @@ impl Plan {
         if self.options.strict {
             args.push("--strict".into());
         }
-        self.program("temper-box", args, Input::Null)
+        let mut program = self.program("temper-box", args, Input::Null);
+        if let Some(ports) = &self.options.ports {
+            program.environment.push(("TEMPER_INTERNAL_FAKE_BOX_PORTS".into(), ports.into()));
+        }
+        program
     }
     #[must_use]
     pub fn ctl(&self, args: &[Box<[u8]>], input: Input) -> Program {
         let mut all = vec!["ctl".into(), self.options.scratch.join("session/ctl").into_os_string()];
         all.extend(args.iter().map(|arg| OsStr::from_bytes(arg).to_os_string()));
-        self.program("temper-client", all, input)
+        self.program("temper", all, input)
     }
     pub(super) fn tui(&self, origin: &[u8]) -> Result<Program, String> {
         let mut given = self
@@ -135,7 +160,7 @@ impl Plan {
                 );
             }
         }
-        let mut program = self.program("temper-client", vec![OsStr::from_bytes(origin).into()], Input::Null);
+        let mut program = self.program("temper", vec![OsStr::from_bytes(origin).into()], Input::Null);
         program.environment = environment;
         Ok(program)
     }
@@ -200,8 +225,14 @@ pub(super) fn check_destinations(program: &Program, scratch: &Path) -> Result<()
     Ok(())
 }
 pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) -> Result<Plan, String> {
+    if let Some(files) = &mut options.files {
+        *files = absolute(files)?;
+        if !files.is_dir() {
+            return Err(format!("{}: --files needs a directory", files.display()));
+        }
+    }
     options.bin = absolute(&options.bin)?;
-    for name in ["temper-box", "fake-claude", "temper-client"] {
+    for name in ["temper-box", "fake-claude", "temper"] {
         executable(&options.bin.join(name))?;
     }
     options.bundle = absolute(&options.bundle)?;

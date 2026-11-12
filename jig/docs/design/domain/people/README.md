@@ -533,10 +533,36 @@ A task whose executor is a party, or a role (../model.md, 3.2):
 - **In a client,** live: a signed-in party's inbox changes reach their
   open watches through the views, once their commits are durable.
 - **Beyond the client:** a page to the person on call, a mail, a chat
-  system's message, each as a connector of the application's whose
-  effects are messages to parties, keyed and made once like any other
-  (../connectors.md). The core says what waits for whom; the application's
-  policy says which entries notify, and through which connector.
+  system's message, a push to a phone. The core says what waits for
+  whom, as each need arrives (below); the application's policy says
+  which arrivals notify, and how: as a connector's effects, keyed and
+  made once like any other (../connectors.md), or as the application's
+  own messages, made at most once after the arrival's commit.
+- **A need's arrival,** told to the application root: when a decision
+  makes a need (section 5: a question, a proposal, an escalation or a
+  person task; never a result or a conversation's turn) reach a party it
+  did not reach before that decision, the core gives its root
+  `Held::NeedArrived { party, project, task, needs }`, released once the
+  decision is durable, as every held output is:
+  - *who it reaches:* a need addressed to a person, that person while
+    they hold a role in its project; one addressed to a role, each party
+    holding that role in its project then; one per party, so a need
+    reaching three holders tells three times;
+  - *the same need* is the same task, the same kind with its number or
+    revision (a question's message, a proposal's number, an escalation's
+    revision) and the same recipient: a task saved again with its need
+    unchanged tells nothing, while a second question, a new proposal or
+    a hold escalated again at a new revision is a new need;
+  - *`needs`* is the party's count of needs in that project once the
+    decision has applied, counted as `need_counts` counts them across
+    projects, over the task-derived needs alone: a party's own proposal
+    of settings holds no work, and neither counts nor tells;
+  - *nothing else tells:* the census rebuilt at a start, a role given to
+    a party over needs already waiting, and a need that ends;
+  - *nothing is kept:* the core stores no arrival, and an application
+    with no use for one drops it. A crash between the commit and the
+    release loses it, as it loses any held output: the inbox, read when
+    the person looks, says what waits.
 
 ## 9. Below the domain
 

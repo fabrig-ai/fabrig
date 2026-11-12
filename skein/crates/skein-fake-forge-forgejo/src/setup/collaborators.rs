@@ -4,9 +4,9 @@ use alloc::boxed::Box;
 use skein_forge::forgejo::request::{Grant, Repo};
 #[derive(Debug)]
 pub(super) struct Collaborator {
-    repository: u32,
-    login: Box<[u8]>,
-    permission: Grant,
+    pub(super) repository: u32,
+    pub(super) login: Box<[u8]>,
+    pub(super) permission: Grant,
 }
 /// Resolves only scenario repositories, keeping one source of repository identity.
 pub(super) fn repository(config: &Config, at: &Repo) -> Option<u32> {

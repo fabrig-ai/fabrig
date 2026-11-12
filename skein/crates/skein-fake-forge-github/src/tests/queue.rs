@@ -30,7 +30,7 @@ fn protected_checks(queue: bool, approvals: u32, contexts: Box<[Box<[u8]>]>, che
     let mut h = f::Harness::with_checks(
         f::limits(),
         queue_config(),
-        config,
+        config.clone(),
         Some(a::Protection {
             linear: false,
             code_owners: false,
@@ -317,7 +317,7 @@ fn running_queue(green: bool) -> (f::Harness, u64, u64, Secret) {
     let mut h = f::Harness::with_checks(
         f::limits(),
         queue_config(),
-        config,
+        config.clone(),
         Some(a::Protection {
             linear: false,
             code_owners: false,

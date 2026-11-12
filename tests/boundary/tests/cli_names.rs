@@ -1,6 +1,8 @@
 //! Declared environment names (skein/docs/foundation/cli.md, 5 and 9, check 5).
 //! Tracked UTF-8 files outside docs name only variables declared by their tree,
-//! in the set their names say. Every declaration is read or set outside docs.
+//! in the set their names say. Tokens ending `_PATCH_SET` are Rust patch-set
+//! constants, not variables. Generated `patches/mod.rs` modules are not read;
+//! authored patch functions and context are. Every declaration is read or set outside docs.
 //! The document parser reads skein/docs/design/runtime/shell.md, 14.3's headings and
 //! `**Set:**` items alone; the meeting test checks its rendered form.
 
@@ -177,7 +179,7 @@ impl Names {
     fn file(&mut self, text: &str, trees: &[(&str, &str)], declared: &BTreeSet<&str>) {
         for (_, prefix) in trees {
             for word in words_with(text, prefix) {
-                if named_tree(word, trees).is_some() {
+                if named_tree(word, trees).is_some() && !word.ends_with("_PATCH_SET") {
                     self.tokens.insert(word.to_owned());
                     self.used.insert(word.to_owned());
                 }
@@ -228,6 +230,11 @@ fn document_tree(path: &str) -> Option<&str> {
     }
 }
 
+/// Only the patch command's generated module, not authored patch sources.
+fn generated_patch_module(path: &str) -> bool {
+    Path::new(path).ends_with("patches/mod.rs")
+}
+
 struct Scan {
     names: Names,
     skipped: Vec<String>,
@@ -262,7 +269,7 @@ fn scan(root: &Path) -> Result<Scan, String> {
     let declared: BTreeSet<String> = scan.names.declarations.iter().map(|entry| entry.name.clone()).collect();
     let declared = declared.iter().map(String::as_str).collect();
     for path in paths {
-        if path == OWN || path.split('/').any(|part| part == "docs") {
+        if path == OWN || path.split('/').any(|part| part == "docs") || generated_patch_module(path) {
             continue;
         }
         let absolute = root.join(path);
@@ -293,6 +300,30 @@ fn every_name_is_declared() {
     if let Some(why) = judged("declared names", &findings, EXCEPTIONS) {
         panic!("{why}");
     }
+}
+
+#[test]
+fn only_generated_patch_modules_are_skipped() {
+    for (path, skipped) in [
+        ("jig/crates/jig-protocol-store/patches/mod.rs", true),
+        ("jig/crates/jig-protocol-store/patches/p0001.rs", false),
+        ("jig/crates/jig-protocol-store/patches/context.rs", false),
+        ("jig/crates/jig-protocol-store/src/mod.rs", false),
+        ("jig/crates/jig-protocol-store/other-patches/mod.rs", false),
+    ] {
+        assert_eq!(generated_patch_module(path), skipped, "{path}");
+    }
+}
+
+#[test]
+fn patch_set_constants_are_not_environment_names_but_patch_settings_are() {
+    let mut names = Names::default();
+    names.file(
+        "JIG_PATCH_SET SKEIN_PATCH_SET SMITH_PATCH_SET TEMPER_PATCH_SET HEARTH_PATCH_SET JIG_PATCH_SETTING",
+        TREES,
+        &BTreeSet::new(),
+    );
+    assert_eq!(names.findings(TREES), ["JIG_PATCH_SETTING"]);
 }
 
 #[test]

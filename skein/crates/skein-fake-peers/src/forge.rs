@@ -17,7 +17,9 @@ const BLOB_LISTENER: Token = Token::new(u64::MAX - 1);
 
 mod delivery;
 mod github_delivery;
+mod image;
 mod layer;
+pub use image::Refusal;
 mod observe;
 mod shared;
 
@@ -502,7 +504,7 @@ impl Peer {
         let mut forge = shared.borrow_mut();
         forge.now = now;
         self.take_endpoint(&mut forge);
-        let domain_env = Env { now, wall, limits: forge.config };
+        let domain_env = Env { now, wall, limits: forge.config.clone() };
         for index in 0..self.connections.len() {
             if self.face.requests.room() < 32 {
                 break;

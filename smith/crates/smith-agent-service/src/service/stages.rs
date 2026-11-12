@@ -113,6 +113,10 @@ pub(super) fn work_pending(service: &Stages, frame: Option<&Frame>, now: Time) -
         || !service.io_events.is_empty()
         || !service.file_events.is_empty()
         || channel_event_ready(service)
+        || match face::channel(frame) {
+            Some(channel) => channel.has_work() && super::channel_room(service, frame),
+            None => false,
+        }
         || (!service.pending_messages.is_empty() && pending_message_ready(service))
         || (llm_events_ready(service, frame) && !service.llm_events.is_empty())
         || !service.machine_events.is_empty()

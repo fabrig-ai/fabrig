@@ -5,6 +5,7 @@
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
 
+
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery-tool --lib`, serial, measured
   2.644 CPU s. The overrun lies in `each_state_holds_what_its_name_says`
@@ -29,7 +30,8 @@
   you's columns in `how` and `how-approve` and its two states,
   `how-reaches` and `night-how-reaches`, which `ui-p3b-reaches` printed in
   place of `settings-away` and `settings-away-you-approve`, with none on
-  record.
+  record, and Team's role's card's two, `team-role` and
+  `night-team-role`, which goal 713 added, with none on record.
 
 Section 2 holds what reaches a person, by plan `ui-reaches`: those five
 states and

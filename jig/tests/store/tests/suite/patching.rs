@@ -1,4 +1,4 @@
-use jig_protocol_store::{Check, Counts, Older, OpenRefusal, Owner, PatchSet, PatchSets, Write};
+use jig_protocol_store::{Check, Counts, OpenRefusal, Owner, PatchSet, PatchSets, Write};
 use jig_store_world::{
     patches::{self, BASE, Records, SETS},
     root,
@@ -51,7 +51,6 @@ fn level_and_set_refusals_leave_every_file_as_it_was() {
     let records = Records::story();
     for (made, version, opened, expected) in [
         (SETS, 2, BASE, OpenRefusal::Ahead { owner: Owner::Jig, found: Some(2), wanted: Some(0) }),
-        (PatchSets::NONE, 1, SETS, OpenRefusal::OlderBuild { why: Older::Unleveled }),
         (BASE, 1, BAD, OpenRefusal::Set { owner: Owner::Application, patch: 1 }),
     ] {
         let mut world = records.committed_at(904, made, version);

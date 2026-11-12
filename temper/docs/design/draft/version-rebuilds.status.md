@@ -5,7 +5,7 @@
 The design carries every item, none dropped. Item 1: each binary's
 package depends on `temper-version` and hands its identity to its
 crate's `main`, whose table names none, and the client's package splits
-as the agent's did, into `temper/bin/temper-client` and its crate
+as the agent's did, into `temper/bin/temper` and its crate
 `temper-client-shell`, which takes `line`'s line (`../release.md`, 3;
 `../cli/README.md`, 2 and 3; `../protocol/components.md`). Item 2 is a
 row of the existing dependency rule, the boundary test's direction

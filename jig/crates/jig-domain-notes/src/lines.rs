@@ -7,7 +7,7 @@ use skein_lib::Writer;
 /// The lines a range write replaces (jig/docs/design/domain/engine/briefs.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct LineRange {
-    /// The 1-based first line replaced; the body's lines + 1 to append.
+    /// The 1-based first line replaced; with `remove` 0, any line past the last appends.
     pub first: u32,
     /// Lines replaced from `first`; 0 to insert.
     pub remove: u32,
@@ -34,8 +34,12 @@ pub fn splice(old: &[u8], range: LineRange, text: &[u8], bound: u32) -> Result<B
             }
         }
     }
-    if range.first == 0 || after_lines > u64::from(lines) {
+    if range.first == 0 || (range.remove > 0 && after_lines > u64::from(lines)) {
         return Err(Refusal::PastEnd { lines });
+    }
+    if range.remove == 0 && before_lines > u64::from(lines) {
+        start = old.len();
+        end = old.len();
     }
     let (before, _) = old.split_at_checked(start).expect("range starts within body");
     let (_, after) = old.split_at_checked(end).expect("range ends within body");

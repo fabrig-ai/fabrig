@@ -94,6 +94,9 @@ fn encode(scripts: &[Script], rules: &[Box<[Rule]>]) -> Value {
                         .lines
                         .iter()
                         .map(|line| match line {
+                            Line::Take { name, before, after } => json!({
+                                "take": text(name), "before": text(before), "after": text(after)
+                            }),
                             Line::Text { text: words } => json!({"text": text(words)}),
                             Line::Call { name, arguments } => json!({
                                 "call": text(name),
@@ -215,6 +218,7 @@ pub fn run(
     let mut document = read(&forge.join("forge.json"));
     let kit = (fixture.setup)();
     let ci = match kit.checks.cue {
+        Some(skein_fake_forge_domain::api::Cue::Declared { path }) => json!({"declared":text(&path)}),
         Some(skein_fake_forge_domain::api::Cue::File { path, green }) => {
             json!({"path":text(&path),"green":text(&green)})
         }
@@ -1193,7 +1197,7 @@ fn decode(value: &Value) -> Vec<u8> {
     base64::decode(
         base64::Alphabet::Standard,
         value.as_str().expect("base64").as_bytes(),
-        temper_fake::forge::LIMITS.limits.content_bytes,
+        temper_fake::forge::limits().limits.content_bytes,
     )
     .expect("file bytes")
     .into_vec()

@@ -14,16 +14,16 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
 ## 1. In one page
 
 - **A directory per recipe,** `temper/docs/development/qa/setups/NAME/`:
-  `recipe`, `scripts.json` where it has its own, and `README.md`
-  (section 2).
+  `recipe`, `scripts.json` where it has its own, `files/` where its
+  `forge` lines commit files, and `README.md` (section 2).
 - **Its format:** `recipe 1`; `after NAME`, its parent, where it has
-  one; its steps, drive lines of the browser, the TUI and ctl; last,
+  one; its steps, drive lines of the browser, the TUI, ctl and the forge; last,
   its check, `web see` and `tui see` lines (section 3).
 - **A chain of parents,** followed by `after`: at most eight, no cycle
   (3.2).
 - **Its hash** is SHA-256 over the chain from its root, each recipe's
-  name, `recipe` and `scripts.json`, so it changes with any parent's
-  (section 4).
+  name, `recipe`, `scripts.json` and files, so it changes with any
+  parent's (section 4).
 - **Its walk** is one drive session: from a fresh box, every recipe of
   the chain in turn, or from an ancestor's restored copy, that
   ancestor's check and then the recipes after it. Each recipe's steps
@@ -45,6 +45,15 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
   `otherwise`, each optional. The scripts cover its own steps and,
   where its cases go on past its state, theirs
   (`../draft/landed-qa.md`, 6).
+- **`files/`,** where its `forge commit` lines commit any: each file
+  they commit, at its repository path under `files/`, so that the
+  recipe holds all it gives (`../draft/landed-qa.md`, 5): `files/PATH`
+  for a line's PATH (`drive.md`, 3.5). Each PATH a `forge commit` line
+  of the recipe names is a regular file there, at most 64 KiB, and each
+  file there is named by one of its lines; a file missing, past the
+  bound or named by none refuses the recipe, naming it. At most 64
+  files. Only the recipe's own lines read them: a child's `forge`
+  lines commit from the child's `files/`.
 - **`README.md`:** one paragraph, the state it reaches and the pages and
   screens it serves. The walk does not read it; `recipe list` prints its
   first sentence (5.2).
@@ -64,7 +73,7 @@ bare, bytes in double quotes.
 |---|---|---|
 | `recipe` | `1`, the format's version | the first line |
 | `after` | a recipe's name | the second line, or absent: its parent, whose state it starts from; absent, it starts from a fresh box |
-| a step | a drive line: `web`, `tui` or `ctl`, then its record (`drive.md`, 3.2 to 3.4) | after those, in order, none or more |
+| a step | a drive line: `web`, `tui`, `ctl` or `forge`, then its record (`drive.md`, 3.2 to 3.5) | after those, in order, none or more |
 | the check | `web see TEXT` or `tui see TEXT` | last: the run of `see` lines that ends the file, one at least |
 
 - **A person's acts alone:** no look, no `end` and no empty line; each
@@ -92,15 +101,17 @@ So a chain is the recipe and at most eight ancestors, root first.
 ## 4. The chain's hash
 
 SHA-256 over the chain from its root to the recipe, each recipe in turn
-as three byte strings, each preceded by its length as 8 bytes, most
-significant first: its name, its `recipe`'s bytes, and its
-`scripts.json`'s bytes, empty where it has none. Written as 64
-lowercase hexadecimal digits.
+as byte strings, each preceded by its length as 8 bytes, most
+significant first: its name, its `recipe`'s bytes, its
+`scripts.json`'s bytes, empty where it has none, then the number of
+its files (none where it has no `files/`) as 8 bytes, and for each file
+of `files/`, in the byte order of their paths, its path relative to
+`files/` and its bytes. Written as 64 lowercase hexadecimal digits.
 
-- **It changes with any parent's** recipe, scripts or name, so that a
-  copy named by it is never restored for a chain that differs
-  (`../draft/landed-qa.md`, 5). `README.md` is not hashed: a reworded
-  paragraph makes no copy again.
+- **It changes with any parent's** recipe, scripts, files or name, so
+  that a copy named by it is never restored for a chain that differs
+  (`../draft/landed-qa.md`, 5 and 11). `README.md` is not hashed: a
+  reworded paragraph makes no copy again.
 - **The copy's name** is the QA tool's: this hash and the commit whose
   build made it (`../draft/landed-qa.md`, 5).
 
@@ -109,7 +120,7 @@ lowercase hexadecimal digits.
 ### 5.1 `recipe walk`
 
 ```text
-temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--setups DIR]
+temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]
 ```
 
 - **The chain read first:** a refusal of section 3 comes before
@@ -124,8 +135,9 @@ temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--
   with it, it holds them, or the walk refuses.
 - **One drive session** (`drive.md`, 2) on `--bin`, `--bundle` and
   `--scratch`, its box given each `scripts.json` of the whole chain,
-  root first, as `--scripts`, and `--strict` as given: on a pass's box
-  it is (`../draft/landed-qa.md`, 6).
+  root first, as `--scripts`, and `--strict` and `--ports` as given: on
+  a pass's box `--strict` is (`../draft/landed-qa.md`, 6), and a place
+  with ports gives them (`../testing/qa/places.md`, 2).
 - **Its lines,** given to the session in this order, with the chain's
   recipes R1 to Rk, root first:
   - from a fresh box: for each Ri, its steps, then `web reload "/"` and
@@ -136,6 +148,9 @@ temper-client-journeys recipe walk NAME --bin DIR --bundle DIR --scratch DIR [--
   The session starts on the root page with no TUI (`drive.md`, 2.3), so
   each recipe's steps start there, and each check is read there, as a
   restored copy shows it.
+- **Each recipe's files:** a `forge commit` line reads its PATHs from
+  the `files/` of the recipe that holds the line (section 2), never
+  from another recipe's or a `--files` directory.
 - **Its output:** each answer of the session, every line of it prefixed
   `NAME:N `, the recipe and the line of its file that gave it, or
   `walk:` for the walk's own `web reload "/"` and `tui stop`.
@@ -189,12 +204,15 @@ Focused, with no browser and no box:
   order.
 - **Refused:** a cycle of two, a ninth parent, a missing parent, a
   recipe that ends on a step, a look, an `end`, a `tui stop`, a file
-  beyond the three, a name out of bounds.
+  beyond the four, a name out of bounds; a `forge commit` PATH missing
+  from `files/`, and a file of `files/` no line names.
 - **Its hash:** changed by a parent's `recipe`, by a parent's
-  `scripts.json` and by a name, and unchanged by a `README.md`.
+  `scripts.json`, by a parent's file's bytes or path, and by a name,
+  and unchanged by a `README.md`.
 - **The walk's plan:** the box given each `scripts.json` of the chain,
-  root first; a failed line stopping the walk with exit 5, naming the
-  recipe and its line.
+  root first; each recipe's `forge commit` given its own `files/`; a
+  failed line stopping the walk with exit 5, naming the recipe and its
+  line.
 
 ## 8. Open questions
 

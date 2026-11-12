@@ -72,7 +72,7 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
     let (_, _, _, peers) = fixture();
     assert_eq!(SEED, 7);
     for config in [b"/effective/config".as_slice(), b"/effective/config/"] {
-        let given = steps(config, &peers, None, false);
+        let given = steps(config, b"/effective/data/", &peers, None, false);
         assert_eq!(given.len(), 4);
         for (step, name, command, document, listen) in [
             (
@@ -106,10 +106,13 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
         ] {
             assert_eq!(step.name(), name);
             assert_eq!(step.kind(), temper_forge_setup::Kind::Long);
-            assert_eq!(
-                step.arguments(),
-                [b"fake".as_slice(), command, b"--document", document, b"--seed", b"7"].map(Box::<[u8]>::from)
-            );
+            let mut expected = vec![b"fake".as_slice(), command, b"--document", document, b"--seed", b"7"];
+            if name == b"fake github" {
+                expected.extend([b"--state".as_slice(), b"/effective/data/github-forge.state"]);
+            } else if name == b"fake forgejo" {
+                expected.extend([b"--state".as_slice(), b"/effective/data/forgejo-forge.state"]);
+            }
+            assert_eq!(step.arguments(), expected.into_iter().map(Box::<[u8]>::from).collect::<Vec<_>>());
             assert_eq!(step.listeners(), &[listen]);
             assert_eq!(step.ready(), None);
         }
@@ -743,5 +746,19 @@ fn the_fake_list_preserves_openais_stock() {
             "the fake omits stock model {:?}",
             row.model.name
         );
+    }
+}
+
+#[test]
+fn box_forge_documents_declare_head_owned_ci() {
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
+    for bytes in [&docs.forgejo, &docs.github] {
+        let doc = json(bytes);
+        assert_eq!(doc["owner"], "fake-person");
+        assert_eq!(doc["repositories"][0]["name"], "widget");
+        assert_eq!(doc["repositories"][0]["ci"], json!({"declared":".fake-forge/ci"}));
+        assert_eq!(doc["made_ci"], json!({"declared":".fake-forge/ci"}));
+        crate::forge::Document::decode(bytes).expect("generated forge document");
     }
 }

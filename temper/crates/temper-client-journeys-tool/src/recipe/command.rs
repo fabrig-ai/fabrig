@@ -36,7 +36,7 @@ impl Arguments {
                     }
                     from = Some(text(value(&mut args, "--from ANCESTOR")?)?);
                 }
-                b"--bin" | b"--bundle" | b"--scratch" if mode == Mode::Walk => {
+                b"--bin" | b"--bundle" | b"--scratch" | b"--ports" if mode == Mode::Walk => {
                     session.push(argument.clone());
                     session.push(value(&mut args, &String::from_utf8_lossy(argument))?.into());
                 }
@@ -79,7 +79,8 @@ pub(crate) fn run(mode: Mode, arguments: &[Box<[u8]>], environment: &[Environmen
     }
 }
 fn execute(mode: Mode, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> Result<drive::Exit, String> {
-    let args = Arguments::parse(mode, arguments)?;
+    let mut args = Arguments::parse(mode, arguments)?;
+    args.setups = fs::canonicalize(&args.setups).map_err(|why| format!("{}: {why}", args.setups.display()))?;
     if mode == Mode::List {
         let names = fs::read_dir(&args.setups)
             .map_err(|error| format!("{}: {error}", args.setups.display()))?
@@ -115,10 +116,14 @@ fn execute(mode: Mode, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]
     while let Some(action) = actions.pop_front() {
         match action {
             walk::Action::Print(line) => println!("{line}"),
-            walk::Action::Line(line) => match session.as_mut().expect("live session").line(&line) {
-                Ok(answer) => actions.extend(walk.step(walk::Event::Answer(answer))),
-                Err(_) => actions.push_back(walk::Action::End),
-            },
+            walk::Action::Line(line) => {
+                let session = session.as_mut().expect("live session");
+                session.files(line.files(&args.setups));
+                match session.line(&line.line) {
+                    Ok(answer) => actions.extend(walk.step(walk::Event::Answer(answer))),
+                    Err(_) => actions.push_back(walk::Action::End),
+                }
+            }
             walk::Action::End => {
                 let exit = session.take().expect("end once").end();
                 actions.extend(walk.step(walk::Event::Ended(exit)));

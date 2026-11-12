@@ -40,7 +40,7 @@ const BUNDLE: Variable = Variable {
 
 const RECORD: Variable = Variable {
     way: Way::Sets,
-    absent: "The tool always sets 1 for the TUI and its box when recording again.",
+    absent: "The tool always sets 1 for temper's TUI when recording again.",
     ..temper_shell::environment::INTERNAL_RECORD
 };
 
@@ -109,7 +109,7 @@ const SESSION: Settings = Settings {
         Setting {
             name: "bin",
             value: "DIR",
-            about: "Directory holding executable temper-box, fake-claude and temper-client.",
+            about: "Directory holding executable temper-box, fake-claude and temper.",
             fallback: Fallback::Text(""),
             set: Set::Internal,
             twin: None,
@@ -142,11 +142,29 @@ const SESSION: Settings = Settings {
             twin: None,
             notes: "Repeats.",
         },
+        Setting {
+            name: "ports",
+            value: "LIST",
+            about: "Nine distinct nonzero ports, joined by commas, for a new sandbox.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Given only to the box as TEMPER_INTERNAL_FAKE_BOX_PORTS; a retained sandbox keeps its own ports.",
+        },
+        Setting {
+            name: "files",
+            value: "DIR",
+            about: "Read-only directory of the files forge commit lines name.",
+            fallback: Fallback::Text(""),
+            set: Set::Internal,
+            twin: None,
+            notes: "Optional. Must be an existing directory.",
+        },
     ],
 };
 pub(crate) const DRIVE: Command = Command {
     reach: Reach::Words(&["drive"]),
-    forms: &["--bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict]"],
+    forms: &["--bin DIR --bundle DIR --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR]"],
     line: "Drive a signed-in fake box from a given build, one stdin line at a time.",
     settings: &[&SESSION],
     switches: &[Switch {
@@ -156,7 +174,7 @@ pub(crate) const DRIVE: Command = Command {
         notes: "",
     }],
     variables: &[&CHROMIUM, &PATH],
-    notes: "Answers ready, then each web, tui or ctl line with shown lines prefixed | and ok or failed. end or stdin's end stops the box. TUI lines parse and are kept but are not driven yet. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
+    notes: "Answers ready, then each web, tui, ctl or forge line with shown lines prefixed | and ok or failed. forge commit forgejo REPOSITORY MESSAGE PATH [PATH]... commits files from --files DIR; forge checks forgejo REPOSITORY waits on its checks. ctl fields {forgejo.api}, {forgejo.git}, {forgejo.admin} and {git} read the box’s values when run. end or stdin's end stops the box. Exit 0: ended; 3: store refused; 4: box failed; 1: session failure. See temper/docs/design/client/drive.md.",
     ..REPRINT
 };
 
@@ -180,6 +198,7 @@ const RECIPE_SESSION: Settings = Settings {
         SESSION.table[0],
         SESSION.table[1],
         SESSION.table[2],
+        SESSION.table[4],
         Setting {
             name: "from",
             value: "ANCESTOR",
@@ -210,7 +229,7 @@ pub(crate) const RECIPE_LIST: Command = Command {
 };
 pub(crate) const RECIPE_WALK: Command = Command {
     reach: Reach::Words(&["recipe", "walk"]),
-    forms: &["NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--setups DIR]"],
+    forms: &["NAME --bin DIR --bundle DIR --scratch DIR [--from ANCESTOR] [--strict] [--ports LIST] [--setups DIR]"],
     line: "Walk a recipe's chain through one drive session, stopping at its first failed line.",
     arguments: RECIPE_HASH.arguments,
     settings: &[&RECIPES, &RECIPE_SESSION],

@@ -55,6 +55,7 @@ mod domain;
 mod faults;
 mod git;
 mod hooks;
+pub mod image;
 mod issues;
 mod limits;
 mod next;

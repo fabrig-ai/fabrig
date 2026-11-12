@@ -159,10 +159,11 @@
   head that moved meanwhile checked again as any push of its own is.
   **A resolution's reads never fail it for good on a forge catching up:**
   a head that moves under them, as a landing's does when the forge
-  updates its branch, pauses its brief as a moved head does, with no try
-  spent, and the change reads afresh; a comparison past a bound is
-  omitted (both below); so a resolution fails for good only on what a
-  fresh read would meet again.
+  updates its branch or a change lands into it, ends the resolution
+  before it runs, and the change reads afresh and resolves again at that
+  head where the conflict still stands (a resolution's moved head,
+  below); a comparison past a bound is omitted (below); so a resolution
+  fails for good only on what a fresh read would meet again.
   Its instructions keep
   both sides' intended content by the same preservation rule as repairs;
   the shared coding charter applies it to repairs and resolutions too.
@@ -206,10 +207,35 @@
   its change), the section keeps its pull identity, its gathered content and
   the pages before it, and appends a files-omitted notice within its byte
   budget, naming that page, its bound and the tools that read its files:
-  `[files omitted from page P: past BOUND; read_pull_files from page P+1 lists the rest, and read_file reads a path at the head or the base]`. The section then goes on as after its last page, to its
+  `[files omitted from page P: past BOUND; the pull changes F files; read_pull_files from page P+1 lists the rest, and read_file reads a path at the head or the base]`,
+  F the forge's count of the pull's changed files from the section's pull
+  read (skein's `forge/README.md`, 3.6, `Pull`'s `size`), its clause
+  `the pull changes F files; ` left out where the forge gave no count. The section then goes on as after its last page, to its
   comparison where it has one; it reads no later page of files and raises no
   limit. This holds for every pull section, a review's included, so a
   review of a small change to a large document starts.
+- **A pull section is sized by its cutoff,** whatever its forge reads are
+  doing, so a large pull, a slow forge or a comparison far behind its base
+  cuts the section rather than failing its brief `pull: not gathered by its
+  deadline` (jig's `domain/engine/briefs.md`, 1.1). Its cutoff is three
+  quarters of the way from the section's gathering to the brief's deadline
+  (the setting `root.brief.gather_ms` after the gathering starts):
+  22.5 seconds in at the default 30, leaving the brief its last quarter to
+  size, cut and take its sections. Once its item and its pull are read, a
+  read of its files or its comparison still unanswered at the cutoff is
+  left, its late answer dropped as a dropped section's is, and the section
+  completes with what it gathered and a notice for what it left, within its
+  byte budget: for its files,
+  `[files omitted from page P: not read by the section's cutoff; the pull changes F files; read_pull_files from page P lists the rest, and read_file reads a path at the head or the base]`,
+  P the page it was reading and F's clause as above, after which it reads no
+  comparison; for its comparison, `[comparison omitted: not read by the
+  section's cutoff]`. Past its cutoff it starts no read of files or
+  comparison, so a pull read answered after it completes the section at
+  once with the files notice. Its item and pull reads, which name what the
+  section is for, wait on to the brief's deadline as before, and a section
+  gathered with no deadline has no cutoff. Each read left is a `brief read
+  refused` line (below). This holds for every pull section: a resolution's,
+  a repair's and a review's.
 - **A pull section is pinned at the change's head,** its last head as
   the change records it: each push or save of a delegate's, reported or
   read afresh after a lost attempt, records it (`../../agent/README.md`, 5).
@@ -226,20 +252,53 @@
     delegate's when the task ends.
   - *Another writer's:* the slot is free or another's. The move is the
     change's to judge (`README.md`, 2 and 3), not the brief's: the
-    section's read fails counting as capacity (the table below), so the
-    task pauses with no try spent, as for a writer slot taken (jig's
-    `domain/tasks/lifecycle.md`, 6), and the connector wakes the change.
-    Its next step reads its branch afresh: a head it takes becomes the
-    pin of the task's next try, and a drift holds the change for its
-    cause, on its panel. While it is held, each try of the task pauses
-    the same way, until a release takes the head (`README.md`, 3) or a
-    cancel ends the task. It is never a failure tried until the task is
-    held.
+    section's read fails, and the connector wakes the change. A review's
+    or a repair's read fails counting as capacity (the table below), so
+    the task pauses with no try spent, as for a writer slot taken (jig's
+    `domain/tasks/lifecycle.md`, 6). Its next step reads its branch
+    afresh: a head it takes becomes the pin of the task's next try, and a
+    drift holds the change for its cause, on its panel. While it is held,
+    each try of the task pauses the same way, until a release takes the
+    head (`README.md`, 3) or a cancel ends the task. It is never a
+    failure tried until the task is held.
+    A resolution's read fails counting as transient instead, never as
+    capacity: its change ends it at its next step (below), so a try
+    meeting the same pin and the same head again is no room freeing by
+    itself, and its tries bound it rather than a brief slot taken on
+    every one of them.
 
   A lost attempt's reread that finds the slot claimed since by a later
   attempt of the same task records the head it read as the delegate's,
   undrifted, as one that frees the slot does, so the next brief pins it;
   it frees nothing, the slot being the later attempt's.
+
+  **A resolution's moved head.** A resolution is asked for the conflict
+  its change met at its last head, against its base, so a branch that
+  has moved past that head leaves it a conflict nobody has read: the
+  move may already hold the base, as a goal's catch-up landing into its
+  branch does, or conflict otherwise. A change at
+  resolving whose resolution has no run in progress (made and not yet
+  started, between its tries, or held), its branch's writer slot free,
+  and whose branch it reads at a head other than its last head, ends
+  that resolution at that step, whoever moved the branch: it cancels it
+  with the reason `the change's head moved to HEAD`, HEAD the head it
+  read in full hexadecimal, as a green head's cancel names its head, and
+  decides afresh as once its producer ends (`A resolution`, above),
+  waiting for that task's terminal: it reads its branch, its base and
+  its pull, never the cancelled delegate's status, and keeps the head it
+  reads as its last head. With no conflict left, it goes on at that
+  head, checked again; with a conflict left, it asks for a fresh
+  resolution directly at that head and its base as now read, with no
+  merge job before it, its section pinned there and gathered once,
+  counted against its resolutions as any is, so a branch that keeps
+  moving is bounded by them. A move the change takes for a drift
+  (`README.md`, 3) ends the resolution the same way, and then holds the
+  change for the drift's cause, its release taking the head and deciding
+  afresh as above. This cancel is the change's own: no hold says `its
+  resolution, task N, was cancelled` for it (`A release`, below). A
+  resolution whose run is in progress holds the writer slot, so the
+  change decides nothing on its head until that run's push or end
+  (`README.md`, 3).
 - **A brief section's read that fails.** Every section says why it could not
   be read, and how that counts (jig's `domain/engine/briefs.md`, 1.1):
 
@@ -251,7 +310,8 @@
   | `Unavailable` | transient | `the forge could not be reached` |
   | `Timeout` | transient | `the forge did not answer in time` |
   | `RateLimited` | transient | `the forge is limiting calls` |
-  | a pull whose head is another writer's than the pinned one (above), or a change that has moved past it; a pull's files read the forge answers `Stale`, its head having moved between the pull's read and the files' | capacity | `the change's head moved` |
+  | a review's or a repair's pull whose head is another writer's than the pinned one (above), or a change that has moved past it; a pull's files read the forge answers `Stale`, its head having moved between the pull's read and the files' | capacity | `the change's head moved` |
+  | a resolution's pull whose head is another writer's than the pinned one (above) | transient | `the change's head moved` |
   | `InvalidAnswer` | permanent | `the forge's answer did not match its read` |
   | an answer of another shape | permanent | `the forge answered another read` |
   | `Forbidden`, `NotInstalled` | permanent | `the forge forbids this read`, `the forge App is not installed` |
@@ -306,6 +366,9 @@
   A files read answered `Stale` read no head, so its line names the error
   alone:
   `temper-box serve: brief read refused task=T section=pull stage=files reason=the change's head moved error=Stale`.
+  A read left at the section's cutoff names its stage, `files` or
+  `compare`, and no error or heads:
+  `temper-box serve: brief read refused task=T section=pull stage=compare reason=not read by the section's cutoff`.
   A read the forge answered and temper refused names no error: never
   `error=None`.
   A brief that fails adds one more, naming how it counts and its reason:
@@ -516,6 +579,15 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   a person reads why on the task, and releases it there. Default: so; whether
   the panel says it too stays open.
 
+- **A review's or a repair's brief under a drift hold** (`repairs.md`, *Another
+  writer's*): while its change is held for a moved head, each try of its brief
+  meets the same refusal and counts as capacity, taking a brief slot for its
+  reads every time, until a release takes the head or a cancel ends the task,
+  the loop a resolution no longer makes (a resolution's moved head, above).
+  Whether the change ends those too when it holds for a drift, as it ends a
+  resolution. Default: as it stands; the request of 2026-11-12 named a
+  resolution's brief alone.
+
 - **A forge out of reach or not connected** (`repairs.md`): `Unavailable` counts as
   transient, so a long outage holds each repair preparing through it, naming
   why; `NotConnected` pauses with no bound and no hold, its notice naming why.
@@ -539,3 +611,10 @@ fresh one (2026-11-12). A merge job's reservation is unchanged.
   Aligning those words needs the client's owner too. Default: the task's
   instructions and brief name the failed check; the result and panel keep
   their words until that follow-up.
+
+- **A cutoff for the other forge sections** (`repairs.md`, a pull section's
+  cutoff): a CI or reviews section still waits on its reads to the brief's
+  deadline. A repair's pair stands on either half, so one failing becomes
+  words; a lone reviews section past the deadline still fails its brief.
+  Default: the pull section alone has a cutoff, the one a deployment met
+  (2026-11-12).

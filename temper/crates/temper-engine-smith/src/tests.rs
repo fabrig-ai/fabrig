@@ -1509,7 +1509,30 @@ fn amend_and_release_calls_name_their_revision() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "the answer table allocates boxed task-read cases at runtime")]
 fn each_of_jigs_new_call_answers_renders_its_task_and_value() {
+    let live = jig_domain_core::reads::run_task::TaskRead {
+        task: 7,
+        state: jig_domain_core::reads::run_task::TaskState::Active(tasks::Active::Due),
+        spec_revision: 2,
+        dependencies: Box::new([]),
+        questions: Box::new([]),
+        words: jig_domain_core::reads::TaskText {
+            task: 7,
+            field: jig_domain_core::reads::TaskTextField::Specification,
+            from: 0,
+            total: 5,
+            next: None,
+            bytes: b"hello".as_slice().into(),
+        },
+        verdict_code: None,
+        result_pending: true,
+        hold: None,
+    };
     let answer_cases: &[(engine::CallAnswer, &[u8], bool)] = &[
+        (
+            engine::CallAnswer::TaskRead(Box::new(Ok(live))),
+            b"Task 7, spec revision 2\nState: active\nDependencies:\nResult: none yet; it comes when the task ends. Its specification follows; continue it with field left out.\nWords from 0:\nhello",
+            false,
+        ),
         (
             engine::CallAnswer::TaskRead(Box::new(Err(jig_domain_tasks::Refusal::Unknown))),
             b"Task read refused: unknown: no such task, no result yet, or no text at that offset. A task has a result only once it has ended, and its requester hears it then as a result message; while it runs, read its specification (leave out field) for its state, holds and questions.",
@@ -3662,6 +3685,7 @@ fn held_task_read() -> jig_domain_core::reads::run_task::TaskRead {
     jig_domain_core::reads::run_task::TaskRead {
         task: 23,
         verdict_code: None,
+        result_pending: false,
         questions: Box::new([]),
         state: jig_domain_core::reads::run_task::TaskState::Held,
         spec_revision: 8,

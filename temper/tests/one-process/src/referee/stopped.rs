@@ -112,7 +112,7 @@ pub(super) fn interrupted(stopped: &Stopped, store: &Store) -> u32 {
 
 pub(super) fn next<'a>(stopped: &Stopped, store: &'a Store) -> Option<(u64, &'a Option<smith_channel::Workspace>)> {
     store.agent_records.iter().find_map(|record| match record {
-        AgentRecord::Start { task, attempt, workspace } if *task == stopped.task && *attempt > stopped.attempt => {
+        AgentRecord::Start { task, attempt, workspace, .. } if *task == stopped.task && *attempt > stopped.attempt => {
             Some((*attempt, workspace))
         }
         _ => None,

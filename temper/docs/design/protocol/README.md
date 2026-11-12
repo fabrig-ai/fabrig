@@ -113,6 +113,9 @@ its tests, is `cluster.md`.
     binary, `temper help`, and agents' `read_docs`.
 16. **tooling.md:** the contract with a project's own `prepare` and
     `key` commands, run as jobs on a worker for a landing by turn.
+17. **baseline.md:** the store every later build upgrades from: its
+    kept texts, the patch sets temper hands jig's store, the golden
+    store, and the gate on stored changes.
 
 ## 3. Names
 
@@ -490,14 +493,16 @@ section 8 give them. temper's sit beside them:
 | keys' markers | the forge connector | the keys temper writes into forge bodies | the key's version, its first byte; the marker has none of its own (forge/README.md, section 3) |
 | configuration | none | — | unknown members refuse the start (configuration/README.md, section 2) |
 
-- **The baseline is the first release** (skein's `data/codec/README.md`, section 5).
-  Until it, each of temper's three versions keeps its current number.
-  A change a reader would notice changes the schema, its generated code
-  and its one set of golden bytes in place, including a repin of smith
-  that changes a delivery's record (channel.md, section 3). Versions move
-  at a release, not at a landing. A store from an older build is started
-  afresh when its families change: its unchanged version does not tell
-  the layouts apart. A reader still refuses another version.
+- **The store's baseline is `bc23255eb7`'s store** (`baseline.md`; the
+  user, 2026-11-11), not the first release: from it, a change of
+  temper's families lands with its patch, which moves `STORE_VERSION`
+  (`baseline.md`, 7). The payload's and the client's versions are no
+  store's, and keep the first release as theirs (skein's
+  `data/codec/README.md`, section 5): until it each keeps its current
+  number, and a change a reader would notice changes the schema, its
+  generated code and its one set of golden bytes in place, including a
+  repin of smith that changes a delivery's record (channel.md, section 3).
+  A reader still refuses another version.
 - **Both channel components are given `PAYLOAD_VERSION`** when they are
   made; neither knows what it covers.
 - **The store keeps the wires** the last start spoke (jig's
@@ -505,9 +510,9 @@ section 8 give them. temper's sit beside them:
   `PAYLOAD_VERSION` as `temper-payload` beside jig's and smith's, so the
   next binary's rehearsal can say whether the workers may stay
   (`../draft/upgrades.md`, section 9).
-- **What the first release freezes.** From it, every byte of temper's a
-  deployment keeps must stay readable by every later build
-  (`../draft/upgrades.md`, 4.1, 6.3, 10 and 11). Before it, in place, each
+- **What the baseline freezes.** From it (`baseline.md`), every byte of
+  temper's a deployment keeps must stay readable by every later build
+  (`../draft/upgrades.md`, 4.1, 6.3, 10 and 11). Made before it, in place, each
   in one change with its golden bytes:
   - **The forges' secrets from a schema:** temper's family
     `temper-secrets` (`temper-protocol-records`, `schema/secrets-v1.schema`),
@@ -533,13 +538,13 @@ section 8 give them. temper's sit beside them:
   - **An effect's key is an identity, never patched:** kept as written,
     in the store and in the forge's markers, compared byte for byte.
     Its first byte is its version (skein's `forge/client.md`, 7.1); from
-    the first release the connector reads every version it has written,
+    the baseline the connector reads every version it has written,
     and a purpose's tag keeps its meaning for good, a new meaning taking
     a new tag (forge/README.md, section 3). The marker's wrapper and the bot's
     marker are fixed forms.
   - **Small files** (`../draft/upgrades.md`, section 10): the forge's setup
-    `state`, versioned JSON, is read in every version from the first
-    release on and written in the current at its next write; the
+    `state`, versioned JSON, is read in every version from the baseline
+    on and written in the current at its next write; the
     preparation writes it before the engine starts, so it follows the
     forge's own upgrade, whose going back is its dump (setup/owned.md, 3).
     The worker's secret and digest (hex digits and a newline), the
@@ -558,57 +563,14 @@ section 8 give them. temper's sit beside them:
   Outside it: what an external program reads (Forgejo's and the
   runner's files, which their own upgrade carries), the fake backends'
   sandbox, logs, caches and worker roots.
-- **The baseline is v0.1.0's store:** its
-  disk format (skein-kv's frames and snapshot, the transcripts'
-  framing, the deployment's layout) every later build reads as it finds
-  it, and its records every later build patches by itself as it starts
-  (`../draft/upgrades.md`, section 3). So the tag's commit makes, in one
-  set across skein, smith, jig and temper:
-  - **every stored family's text kept:** each owner's crate run once
-    with `--baseline` (skein's `data/codec/command.md`, 1), its current texts its
-    first kept versions, its level 0, no patch: skein-oauth's
-    `skein-oauth`; smith-transcript's turn family; jig's store families
-    (the core, tasks, people, notes, accounts, settings, the component's
-    and `jig-store-secrets`) and `jig-accounts`; temper's `temper-store`
-    and `temper-secrets`. No version moves at it;
-  - **the real patch sets:** each owner's `PatchSet` from its crate's
-    generated module, its families with their maps, key ranges, roots,
-    the frames' families, smith's fresh word and temper's `Flight`
-    range, handed by `temper-service`'s store shell in place of
-    `PatchSets::NONE` (jig's `protocol/store/opening.md`, 3). A store v0.1.0
-    makes records every owner at level 0; one from a build before it,
-    level none, is refused as older, made again (jig's
-    `protocol/store/records.md`, 3);
-  - **the gate's check from then on:** each repository's gate runs the
-    patch command's check over each owner crate (skein's `data/codec/command.md`,
-    7), so a stored change with no patch, an edited kept text or a
-    landed patch changed fails it;
-  - **the baseline's golden store,** made by the tag's binary from a
-    story (a project, a person and an account, a goal's change landed,
-    a chat paused, a task mid-run, a forge's records and secrets): the
-    deployment's data directory whole, its store, secrets and
-    transcripts, with its configuration and small files, kept for good
-    beside the one-process world (`../testing/README.md`, 2.5), never
-    regenerated. Every later build starts on it and asserts what draft
-    13 asks: identities and counters, policies, kept outcomes, old turns
-    read in the current version (`../draft/upgrades.md`, section 13).
-- **Before the tag:** every stored record with its kept form, a
-  delivery's evidence among them (jig's `protocol/store/README.md`, section
-  11, still open); the golden store's story and its later builds'
-  assertion, as a test; the rehearsal below. The patch command's
-  modules and the sets built from them exist only once `--baseline` has
-  run (skein's `data/codec/command.md`, 1 and 3), and its check reports every
-  family unkept until then (12.7), so the sets, their handing and the
-  gates' check are the tag's set's, with the kept texts.
-- **The baseline rehearsed before the tag:** that set made on a branch
-  that never lands, from the day's schemas, its sets handed to the
-  one-process world over a store a story made: the plan accepts every
-  real set (at most 64 families, names at most 64 bytes, key ranges
-  disjoint and each family's own, holds acyclic, one frames' family per
-  slot, the manifest within its bound), a start at level 0 opens, a
-  start of the build before is refused as older, and nothing is
-  patched. What it finds is fixed on `main` before the tag, so the
-  tag's set only repeats it.
+- **The baseline's kept texts, sets, golden store and gate** are
+  `baseline.md`'s: every stored family's current text kept at level 0
+  with no patch (3); the four owners' sets handed by `temper-service`'s
+  store shell in place of `PatchSets::NONE` (4); a store the baseline's
+  build wrote read at level 0 (5); its golden store, which every later
+  build starts on (6); and the focused check that holds each later
+  stored change to its patch (7). Still open past it: a delivery's
+  evidence with its kept form (jig's `protocol/store/README.md`, section 11).
 
 ## 8. Secrets
 

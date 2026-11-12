@@ -82,7 +82,7 @@ fn config() -> domain::Config {
         rate_window: Duration::from_secs(3600),
         ci: 33,
         skew: domain::Skew::None,
-        ..domain::Config::TEST
+        ..domain::Config::test()
     }
 }
 pub(crate) struct World {
@@ -369,7 +369,7 @@ impl World {
     pub fn call(&mut self, repo: &str, user: u64, op: a::Op) -> Result<a::Answer> {
         let mut f = self.forge.borrow_mut();
         let token = f.next_reply();
-        let env = Env { now: self.sim.now(), wall: self.sim.wall(), limits: f.config };
+        let env = Env { now: self.sim.now(), wall: self.sim.wall(), limits: f.config.clone() };
         let mut output = Queue::uncapped();
         domain::step(
             &mut f.domain,
@@ -418,7 +418,7 @@ impl World {
     ) -> Result<String> {
         let parent = u64::from_str_radix(parent.get(16..32).ok_or("invalid fixture sha")?, 16)?;
         let mut f = self.forge.borrow_mut();
-        let config = f.config;
+        let config = f.config.clone();
         let commit =
             domain::commit_tree(&mut f.domain, &config, parent, None, files.into_boxed_slice(), message.as_bytes())
                 .map_err(|_| "fixture commit refused")?;

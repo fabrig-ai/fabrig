@@ -27,10 +27,11 @@ use alloc::boxed::Box;
 use core::mem;
 
 use skein_lib::bytes::copy_of;
-use skein_lib::{Id, List, Map, Slab, Token};
+use skein_lib::{Id, List, Map, Queue, Slab, Token};
 
 use crate::boundary::{Refusal, Repository};
 use crate::facts::Cached;
+use crate::hold::Hold;
 
 #[derive(Debug)]
 pub(crate) struct Workspace {
@@ -62,9 +63,25 @@ pub(crate) struct Cloned {
 #[derive(Debug)]
 pub(crate) struct Store {
     remote: Box<[u8]>,
-    made: bool,
+    token: Token,
+    making: Making,
+    waiters: Queue<Id<Hold>>,
     aside: Option<Token>,
 }
+/// One maker owns the claim until its Store ends, even when asked to abort.
+#[derive(Debug)]
+enum Making {
+    Unmade,
+    By { owner: Id<Hold> },
+    Made,
+}
+
+pub(crate) enum Claim {
+    Made,
+    Make,
+    Waiting,
+}
+
 #[derive(Debug)]
 pub(crate) struct Granted {
     pub workspace: Id<Workspace>,
@@ -74,7 +91,7 @@ pub(crate) struct Granted {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Borrowed {
     pub store: Id<Store>,
-    pub make: bool,
+    pub token: Token,
     pub aside: Option<Token>,
 }
 
@@ -158,7 +175,7 @@ impl Cache {
         for repository in repositories {
             let store = self.store(&repository.remote);
             let entry = self.stores.get(store).expect("assigned store");
-            stores.push(Borrowed { store, make: !entry.made, aside: entry.aside }).expect("spec room");
+            stores.push(Borrowed { store, token: entry.token, aside: entry.aside }).expect("spec room");
         }
         Ok(Granted { workspace, cached, stores: stores.into_boxed() })
     }
@@ -178,11 +195,16 @@ impl Cache {
                 }
             }
             let id = unborrowed.expect("a new remote displaces a store no workspace can borrow");
-            aside = Some(id.token());
+            aside = Some(self.stores.get(id).expect("evicted store").token);
             self.stores.retire(id);
             self.stores.reclaim();
         }
-        self.stores.insert(Store { remote: copy_of(remote), made: false, aside }).expect("new remote room")
+        let digest = skein_lib::sha256::digest(remote);
+        let first = digest.first_chunk::<8>().expect("SHA-256 has eight bytes");
+        let token = Token::new(u64::from_be_bytes(*first));
+        self.stores
+            .insert(Store { remote: copy_of(remote), token, making: Making::Unmade, waiters: Queue::uncapped(), aside })
+            .expect("new remote room")
     }
     fn borrowed(&self, store: Id<Store>, remote: &[u8]) -> bool {
         for (_, workspace) in &self.workspaces {
@@ -208,10 +230,55 @@ impl Cache {
         }
         false
     }
-    pub(crate) fn made(&mut self, store: Id<Store>) {
+    /// Claim only the store the prepare is about to make: no hold waits with
+    /// an unfinished claim on another store.
+    pub(crate) fn claim(&mut self, store: Id<Store>, hold: Id<Hold>) -> Claim {
         let entry = self.stores.get_mut(store).expect("a hold borrows its store");
-        entry.made = true;
-        entry.aside = None;
+        match entry.making {
+            Making::Made => Claim::Made,
+            Making::Unmade => {
+                entry.making = Making::By { owner: hold };
+                Claim::Make
+            }
+            Making::By { owner } => {
+                assert!(owner != hold, "a maker never waits on itself");
+                entry.waiters.push(hold);
+                Claim::Waiting
+            }
+        }
+    }
+
+    pub(crate) fn unwait(&mut self, store: Id<Store>, hold: Id<Hold>) {
+        let entry = self.stores.get_mut(store).expect("a waiter borrows its store");
+        let mut waiters = mem::replace(&mut entry.waiters, Queue::uncapped());
+        for _ in 0..waiters.len() {
+            let waiter = waiters.pop().expect("the store's waiting holds");
+            if waiter != hold {
+                entry.waiters.push(waiter);
+            }
+        }
+    }
+
+    /// Finish the claim and hand back the holds to resume, FIFO: every waiter
+    /// on success, just the longest-waiting successor otherwise.
+    pub(crate) fn finished(&mut self, store: Id<Store>, hold: Id<Hold>, succeeded: bool) -> Queue<Id<Hold>> {
+        let entry = self.stores.get_mut(store).expect("a maker borrows its store");
+        match entry.making {
+            Making::By { owner } => assert!(owner == hold, "only the maker ends the claim"),
+            Making::Unmade | Making::Made => unreachable!("a Store owns the claim"),
+        }
+        if succeeded {
+            entry.making = Making::Made;
+            entry.aside = None;
+            mem::replace(&mut entry.waiters, Queue::uncapped())
+        } else {
+            entry.making = Making::Unmade;
+            let mut successor = Queue::uncapped();
+            if let Some(waiter) = entry.waiters.pop() {
+                successor.push(waiter);
+            }
+            successor
+        }
     }
 
     /// Holds a workspace for the workstream `key`, whose spec names

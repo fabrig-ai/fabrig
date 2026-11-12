@@ -214,10 +214,21 @@ The table grows area by area, each with its stories (`testing.md`).
      offers `account forget N`. Account payers, usage
      addresses, runs and waiting tasks follow their supplied facts; absent
      party activity is unavailable. `signing:` and `last end:` print when
-     present. `readiness: provider P · party N|project N · usable|unavailable|unknown`
+     present. `readiness: provider P · party payer N|project payer N · usable|unavailable|unknown`
      prints each party observation once, with settled when supplied; an
      owner's `deployment:` holds its accounts and offers, with
      `deployment readiness:` only for observations different from the party's.
+     A row names whose payment it is for. A project payer's row is the
+     project paying for its own work, which a plan account covers only
+     as jig's `domain/accounts.md`, 4.2 allows; work paid from a party's
+     pool uses the party payer's row. So an unavailable project payer
+     beside a usable party payer is no fault: the first readiness list
+     that prints a project payer's row is followed, once in the text, by
+     `readiness payers: a project payer's row is for work the project pays for itself, while a party's pool work uses the party payer's row`,
+     and a text with no project payer's row has no such line. The
+     readiness values, the `uses:` lines (`party N|project N`) and JSON
+     are unchanged. `account list`'s reference says the same in its
+     notes: `Each readiness row names its payer: a project payer's row is for work the project pays for itself, while your party's pool work uses its party payer's row.`
      A supplied readiness cut is named `readiness cut: true (jig)` (with
      `deployment` for that list); `cut: true` prints only on loss, before
      the digest. Nested loss contributes to the document's `cut`. Each

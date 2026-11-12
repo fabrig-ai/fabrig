@@ -202,6 +202,15 @@ fn row(kind: RecordKind, number: u32) -> Stored {
                 away: false,
             },
         }),
+        RecordKind::Device => Stored::Device(Device {
+            party: n,
+            number: 1,
+            endpoint: b"https://push.test/sub".as_slice().into(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            label: b"phone".as_slice().into(),
+            at: Wall::EPOCH,
+        }),
         RecordKind::Client => panic!("no own table"),
     }
 }
@@ -736,7 +745,7 @@ fn a_zero_capacity_table_refuses_its_first_row() {
         let mut d = Domain::new(
             &limits,
             4,
-            skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+            Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
             &[],
             &[],
             false,
@@ -907,7 +916,7 @@ fn receipts_keep_tier_room_when_no_gates_are_configured() {
     let mut d = Domain::new(
         &limits,
         4,
-        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+        Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
         &[],
         &[],
         false,

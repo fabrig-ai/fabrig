@@ -334,6 +334,7 @@ pub(crate) fn roles_route(
             | people::Request::Reply { .. }
             | people::Request::RolesRefused { .. }
             | people::Request::ServiceMade { .. }
+            | people::Request::NeedArrived { .. }
             | people::Request::RestoreRefused { .. } => unreachable!("role application has one save and terminal"),
         }
     }
@@ -387,6 +388,7 @@ pub(crate) fn make_service_request(
                             | people::Request::Save { .. }
                             | people::Request::Erase { .. }
                             | people::Request::RolesRefused { .. }
+                            | people::Request::NeedArrived { .. }
                             | people::Request::RestoreRefused { .. }) => other,
                         };
                         pending.push(next);

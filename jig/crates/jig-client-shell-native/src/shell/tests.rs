@@ -4,6 +4,21 @@ use skein_lib::{Duration, stream::Up};
 use skein_world::stream::Wire;
 
 #[test]
+fn pointing_before_requests_changes_the_engine_and_http_host() {
+    let mut shell = Shell::new(Settings {
+        engine: io::Addr::Ip("127.0.0.1:8080".parse().expect("initial address")),
+        directory: b"client".as_slice().into(),
+        limits: crate::tests::limits(),
+        io: crate::tests::file_io_limits(),
+    });
+    let address = io::Addr::Ip("[::1]:9400".parse().expect("selected address"));
+    shell.point(address);
+    assert_eq!(shell.engine, address);
+    assert_eq!(shell.transport.engine, address);
+    assert_eq!(shell.transport.connections.host(), "[::1]:9400");
+}
+
+#[test]
 fn an_activity_read_waits_for_the_http_slot_its_old_watch_still_owns() {
     let mut shell = Shell::new(Settings {
         engine: io::Addr::Ip("127.0.0.1:8080".parse().expect("engine address")),

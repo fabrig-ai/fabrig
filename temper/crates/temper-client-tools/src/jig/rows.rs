@@ -412,7 +412,7 @@ pub const ACCOUNTS: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 5,
-    notes: b"The deployment's own accounts show beside your party's when your\nparty owns the deployment.\n",
+    notes: b"The deployment's own accounts show beside your party's when your\nparty owns the deployment.\nEach readiness row names its payer: a project payer's row is for work\nthe project pays for itself, while your party's pool work uses its\nparty payer's row.\n",
 };
 pub const MODELS: Tool = Tool {
     name: b"model list",

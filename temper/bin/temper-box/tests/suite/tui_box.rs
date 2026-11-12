@@ -1,0 +1,345 @@
+//! The client's TUI and its real box on a pseudo-terminal (client/tui/box.md, Its tests).
+use crate::{box_link, support};
+use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Signal, Size, Submit};
+use skein_lib::{Queue, Time, Token, Wall};
+use skein_shell::{Delegate, Host};
+use skein_world::{
+    Referee,
+    end_to_end::{Binary, Cleanup, Command, Expectation, Mode, Streams},
+    real,
+};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    ffi::OsString,
+    fs,
+    os::unix::{ffi::OsStrExt, fs::DirBuilderExt},
+    path::{Path, PathBuf},
+};
+
+const READ: Token = Token::new(1);
+const WRITE: Token = Token::new(2);
+const CLOSE: Token = Token::new(3);
+struct Terminal {
+    stream: Option<Fd>,
+    reading: bool,
+    writing: bool,
+    closing: bool,
+    bytes: Vec<u8>,
+    keys: VecDeque<Box<[u8]>>,
+    complete: Queue<Complete>,
+    submit: Queue<Submit>,
+}
+impl Terminal {
+    fn new(stream: Fd) -> Self {
+        Self {
+            stream: Some(stream),
+            reading: false,
+            writing: false,
+            closing: false,
+            bytes: Vec::new(),
+            keys: VecDeque::from([Box::from(b"\n".as_slice())]),
+            complete: Queue::with_capacity(8),
+            submit: Queue::with_capacity(8),
+        }
+    }
+    fn keys(&mut self, bytes: &[u8]) {
+        self.keys.push_back(bytes.into());
+    }
+    fn has(&self, bytes: &[u8]) -> bool {
+        skein_lib::bytes::find(&self.bytes, bytes).is_some()
+    }
+}
+impl Host for Terminal {
+    fn iterate(&mut self, _now: Time, _wall: Wall) {
+        while let Some(done) = self.complete.pop() {
+            if done.op == READ {
+                self.reading = false;
+                let Op::PipeRead { buf, .. } = done.kind else { panic!("terminal read") };
+                match done.result {
+                    Ok(Done::Count(count)) if count > 0 => {
+                        self.bytes.extend_from_slice(&buf[..usize::try_from(count).expect("read count")]);
+                        assert!(self.bytes.len() <= 262_144, "bounded terminal output");
+                    }
+                    Ok(Done::Count(_)) | Err(_) => {
+                        self.closing = true;
+                        self.keys.clear();
+                    }
+                    other => panic!("terminal read count: {other:?}"),
+                }
+            } else if done.op == WRITE {
+                let Op::PipeWrite { fd, bytes, from } = done.kind else { panic!("terminal write") };
+                let Done::Count(count) = done.result.expect("terminal keys") else { panic!("write count") };
+                let from = from.checked_add(count).expect("bounded keys");
+                if usize::try_from(from).expect("key offset") < bytes.len() {
+                    self.submit.push(Submit { op: WRITE, kind: Op::PipeWrite { fd, bytes, from } });
+                } else {
+                    self.writing = false;
+                }
+            } else {
+                assert_eq!(done.op, CLOSE);
+                done.result.expect("terminal master closed");
+                self.closing = false;
+            }
+        }
+        if let Some(fd) = self.stream {
+            if self.closing {
+                if !self.writing && !self.reading && !self.submit.iter().any(|submit| submit.op == CLOSE) {
+                    self.stream = None;
+                    self.submit.push(Submit { op: CLOSE, kind: Op::Close { fd } });
+                }
+            } else {
+                if !self.reading {
+                    self.reading = true;
+                    self.submit.push(Submit { op: READ, kind: Op::PipeRead { fd, buf: vec![0; 32768].into() } });
+                }
+                if !self.writing
+                    && let Some(bytes) = self.keys.pop_front()
+                {
+                    self.writing = true;
+                    self.submit.push(Submit { op: WRITE, kind: Op::PipeWrite { fd, bytes, from: 0 } });
+                }
+            }
+        }
+    }
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        &mut self.complete
+    }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        &mut self.submit
+    }
+    fn work_pending(&self, _now: Time) -> bool {
+        !self.complete.is_empty() || !self.submit.is_empty() || !self.keys.is_empty()
+    }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        None
+    }
+    fn is_empty(&self) -> bool {
+        self.stream.is_none() && !self.closing && self.complete.is_empty() && self.submit.is_empty()
+    }
+    fn operations(&self) -> u32 {
+        8
+    }
+}
+
+enum Root {
+    Client(Box<Binary>),
+    Terminal(Box<Terminal>),
+    Calls(Box<support::ctl::Calls>),
+}
+impl Delegate for Root {
+    fn host(&self) -> &dyn Host {
+        match self {
+            Self::Client(x) => x.as_ref(),
+            Self::Terminal(x) => x.as_ref(),
+            Self::Calls(x) => x.as_ref(),
+        }
+    }
+    fn host_mut(&mut self) -> &mut dyn Host {
+        match self {
+            Self::Client(x) => x.as_mut(),
+            Self::Terminal(x) => x.as_mut(),
+            Self::Calls(x) => x.as_mut(),
+        }
+    }
+}
+#[derive(Clone, Copy)]
+enum Case {
+    Idle,
+    Working,
+    Killed,
+}
+enum Phase {
+    Connecting,
+    SettingUp,
+    Project,
+    Chat,
+    Question,
+    Stopping,
+    Done,
+}
+struct Judge {
+    case: Case,
+    phase: Phase,
+    root: PathBuf,
+    client: PathBuf,
+    patience: support::patience::Patience,
+    settled: bool,
+}
+impl Referee<Root> for Judge {
+    fn act(&mut self, _now: Time, roots: &mut [Root]) {
+        let [Root::Client(client), Root::Terminal(terminal), Root::Calls(calls)] = roots else {
+            panic!("client, person and ctl")
+        };
+        match self.phase {
+            Phase::Connecting if terminal.has(b"Live") && !terminal.writing => {
+                assert!(box_link::link_path(&self.root).is_file(), "the handed link signed in and serve renewed it");
+                match self.case {
+                    Case::Idle => {
+                        terminal.keys(b"\x03");
+                        calls.release();
+                        self.phase = Phase::Stopping;
+                    }
+                    Case::Killed => {
+                        client.signal(Signal::Kill);
+                        calls.release();
+                        self.phase = Phase::Stopping;
+                    }
+                    Case::Working => {
+                        calls.push(support::ctl::Step::Run(
+                            support::ctl::Call::new(&["forge", "setup", "--playground", "--key", "tui-playground"])
+                                .by(&self.client),
+                        ));
+                        self.phase = Phase::SettingUp;
+                    }
+                }
+            }
+            Phase::SettingUp if calls.foreground_idle() => {
+                assert!(calls.ends().iter().all(|call| call.exit == Some(Exit::Code(0))), "playground set up");
+                self.phase = Phase::Project;
+            }
+            Phase::Project if terminal.has(b"playground") && !terminal.writing => {
+                terminal.bytes.clear();
+                terminal.keys(b"Add CSV export to widget\r");
+                self.phase = Phase::Chat;
+            }
+            Phase::Chat if terminal.has(b"Add CSV export to widget") && !terminal.writing => {
+                terminal.keys(b"\x03");
+                self.phase = Phase::Question;
+            }
+            Phase::Question if terminal.has(b"Stop the box?") && !terminal.writing => {
+                terminal.keys(b"\r");
+                calls.release();
+                self.phase = Phase::Stopping;
+            }
+            Phase::Stopping
+                if client.exit_status().is_some()
+                    && support::boxed::box_log(&self.root.join("data"))
+                        .lines()
+                        .next_back()
+                        .is_some_and(|line| line.ends_with("Stopped")) =>
+            {
+                self.phase = Phase::Done;
+            }
+            Phase::Connecting
+            | Phase::SettingUp
+            | Phase::Project
+            | Phase::Chat
+            | Phase::Question
+            | Phase::Stopping
+            | Phase::Done => {}
+        }
+    }
+    fn observe(&mut self, _now: Time, roots: &[Root]) {
+        self.settled = matches!(self.phase, Phase::Done) && roots.iter().all(Host::is_empty);
+        if !self.settled
+            && let Some(figures) = self.patience.failed()
+        {
+            panic!("TUI's box did not settle: {figures}");
+        }
+    }
+    fn next_deadline(&self) -> Option<Time> {
+        if self.settled { None } else { self.patience.until() }
+    }
+    fn passed(&self) -> bool {
+        self.settled
+    }
+}
+
+fn run(case: Case, name: &str) {
+    let scratch = support::Scratch::new(name);
+    let root = scratch.path();
+    let initialized = box_link::command(root, "init").arg("--box").output().expect("initialize box");
+    assert!(initialized.status.success());
+    support::own_listener_files(&root.join("config"));
+    let document: serde_json::Value =
+        serde_json::from_slice(&fs::read(root.join("config/temper.json")).expect("configuration")).expect("document");
+    let address = document
+        .pointer("/application/clients/listener/socket")
+        .and_then(serde_json::Value::as_str)
+        .expect("engine address");
+    let tui = root.join("state/temper/tui");
+    fs::DirBuilder::new().recursive(true).mode(0o700).create(&tui).expect("TUI parent for ctl");
+    let command = box_link::command(root, "");
+    let client = skein_scratch::paths::binary("temper-box").with_file_name("temper");
+    assert!(client.is_file(), "temper is built beside temper-box");
+    let mut environment: BTreeMap<OsString, OsString> = temper_test_env::environment()
+        .iter()
+        .map(|(key, value)| (std::ffi::OsStr::from_bytes(key).into(), std::ffi::OsStr::from_bytes(value).into()))
+        .collect();
+    for (key, value) in command.get_envs() {
+        if let Some(value) = value {
+            environment.insert(key.into(), value.into());
+        } else {
+            environment.remove(key);
+        }
+    }
+    environment.insert("XDG_STATE_HOME".into(), root.join("state").into());
+    environment.insert("TERM".into(), "xterm-256color".into());
+    let arguments = [
+        OsString::from("-c"),
+        OsString::from("read -r ready; exec \"$@\""),
+        OsString::from("tui-box"),
+        client.as_os_str().into(),
+        OsString::from("box"),
+    ]
+    .into_iter()
+    .chain(command.get_args().map(ToOwned::to_owned))
+    .collect();
+    let mut binary = Binary::start_with_tree(
+        Command {
+            program: Path::new("/bin/sh").into(),
+            arguments,
+            environment: environment.into_iter().collect(),
+            directory: root.into(),
+        },
+        Mode::Terminal,
+        8192,
+        Expectation::Supervise,
+        false,
+    )
+    .expect("temper box on a pseudo-terminal");
+    let streams = binary.take_streams().expect("person's terminal");
+    let Streams::Terminal { stream } = streams else { panic!("pseudo-terminal") };
+    skein_shell::resize_terminal(stream, Size { columns: 80, rows: 24 }).expect("80 by 24");
+    let mut calls =
+        support::ctl::Calls::linked(&format!("http://{address}/jig/v1/sign-in/link?secret={}", "A".repeat(43)), &tui);
+    calls.hold();
+    let mut world = real::World::new(Judge {
+        case,
+        phase: Phase::Connecting,
+        root: root.into(),
+        client,
+        patience: support::patience::Patience::watching("TUI in front of a box", support::WITHIN, &binary),
+        settled: false,
+    });
+    world.spawn_with_fds(binary.descriptors(), || Root::Client(Box::new(binary)));
+    world.spawn_with_fds(vec![stream], || Root::Terminal(Box::new(Terminal::new(stream))));
+    world.spawn_with_fds(calls.descriptors(), || Root::Calls(Box::new(calls)));
+    let ended = world.run(&skein_shell::Clock::new(), support::WITHIN);
+    let Root::Client(client) = &ended.procs[0] else { panic!("client observer") };
+    assert_eq!(
+        client.exit_status(),
+        Some(match case {
+            Case::Idle | Case::Working => Exit::Code(0),
+            Case::Killed => Exit::Signal(9),
+        })
+    );
+    assert!(client.stderr().is_empty(), "a stopped front prints nothing");
+    assert_eq!(client.tree_status().cleanup(), Cleanup::None, "no child needed the test's cleanup");
+    assert!(client.tree_status().live_pids.is_empty(), "no surviving box or step");
+    assert!(ended.procs.iter().all(Host::is_empty));
+    scratch.remove();
+}
+
+#[test]
+fn temper_box_signs_in_on_its_pty_and_quitting_stops_its_box_and_steps() {
+    run(Case::Idle, "tui-box-idle");
+    run(Case::Working, "tui-box-working");
+}
+#[test]
+fn killing_temper_closes_its_life_pipe_and_the_box_stops() {
+    run(Case::Killed, "tui-box-killed");
+}

@@ -2494,10 +2494,10 @@ fn change_delegate_running(domain: &Domain, task: u64) -> bool {
 }
 
 // Only the root knows which tracked goals still live (domain/forge/change/README.md, 7).
-fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>) -> bool {
+fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<forge::Request>) {
     let tasks = domain.forge.change_tasks();
     if tasks.len() != skein_lib::usize_of(env.limits.forge.changes) {
-        return true;
+        return;
     }
     let mut oldest = None;
     let mut oldest_last = None;
@@ -2523,10 +2523,8 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>) -> bool {
         });
     }
     if let Some(task) = oldest.or(oldest_last) {
-        domain.work.push(Work::Forge(forge::Event::DropChange { task }));
-        return true;
+        forge::step(&mut domain.forge, &env.with(env.limits.forge), forge::Event::DropChange { task }, out);
     }
-    false
 }
 
 #[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
@@ -2656,8 +2654,9 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         return false;
     };
     if domain.forge.change(task).is_none() {
-        let room = drop_settled_change(domain, env);
-        domain.work.push(Work::Forge(forge::Event::Change {
+        let mut out = Queue::uncapped();
+        drop_settled_change(domain, env, &mut out);
+        let registration = forge::Event::Change {
             row: forge::ChangeRow {
                 signed: Box::new([]),
                 task,
@@ -2732,8 +2731,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 merge_result: None,
                 follow_check: None,
             },
-        }));
-        if !room {
+        };
+        forge::step(&mut domain.forge, &env.with(env.limits.forge), registration, &mut out);
+        domain.work.push(Work::ForgeSettings(out));
+        if domain.forge.change(task).is_none() {
             return true;
         }
         let branch_name =
@@ -4576,6 +4577,37 @@ fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> Procedure
     ProcedureStep { cancels, ..ProcedureStep::new(StepEnd::Wait) }
 }
 
+fn cancel_change_resolution(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureStep {
+    let child = match domain.forge.change(task) {
+        Some(row) => match row.delegate {
+            Some((child, forge_change::Delegate::Resolve { .. })) if domain.core.tasks.task(child).is_some() => {
+                Some(child)
+            }
+            Some((
+                _,
+                forge_change::Delegate::Produce
+                | forge_change::Delegate::Close
+                | forge_change::Delegate::Repair(_)
+                | forge_change::Delegate::Resolve { .. }
+                | forge_change::Delegate::Gate { .. }
+                | forge_change::Delegate::Merge { .. },
+            ))
+            | None => None,
+        },
+        None => None,
+    };
+    let cancels: Box<[jig_domain_core::StepCancel]> = match child {
+        Some(child) => {
+            let mut reason = List::with_capacity(96);
+            append(&mut reason, b"the change's head moved to ");
+            append(&mut reason, &commit_text(&head));
+            Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }])
+        }
+        None => Box::new([]),
+    };
+    ProcedureStep { cancels, ..ProcedureStep::new(StepEnd::Wait) }
+}
+
 fn change_result_bound(domain: &Domain, task: u64) -> u32 {
     match domain.core.tasks.task(task) {
         Some(row) => match row.contract {
@@ -4874,6 +4906,7 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, mut choice
         forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),
         forge_change::Decision::CancelRepair { head } => cancel_change_repair(domain, task, head),
+        forge_change::Decision::CancelResolution { head } => cancel_change_resolution(domain, task, head),
         forge_change::Decision::RepairEnded { .. } => unreachable!("the forge top consumes a repair ended by green CI"),
         forge_change::Decision::Ready => {
             again = ready_change(domain, env, task);
@@ -5584,6 +5617,7 @@ pub(crate) fn outputs(
                 | forge_change::Decision::Delegate(_)
                 | forge_change::Decision::CancelGates { .. }
                 | forge_change::Decision::CancelRepair { .. }
+                | forge_change::Decision::CancelResolution { .. }
                 | forge_change::Decision::RepairEnded { .. }
                 | forge_change::Decision::Ready
                 | forge_change::Decision::QueueRepair

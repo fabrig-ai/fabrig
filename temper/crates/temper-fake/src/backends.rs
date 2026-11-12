@@ -35,7 +35,7 @@ pub const PROGRAM_MODEL: &str = "claude-opus-5-5";
 
 /// Long peers before ordinary box steps. The caller checks absolute, bounded config bytes and sockets.
 #[must_use]
-pub fn steps(config: &[u8], peers: &Peers, scripts: Option<&[u8]>, strict: bool) -> Box<[Step]> {
+pub fn steps(config: &[u8], data: &[u8], peers: &Peers, scripts: Option<&[u8]>, strict: bool) -> Box<[Step]> {
     let mut steps = List::with_capacity(4);
     let seed = Decimal::of(SEED);
     for (name, command, document, listen) in [
@@ -60,6 +60,11 @@ pub fn steps(config: &[u8], peers: &Peers, scripts: Option<&[u8]>, strict: bool)
             if strict {
                 arguments.push(bytes::copy_of(b"--strict")).expect("strict flag counted");
             }
+        }
+        if command == b"forge" {
+            arguments.push(bytes::copy_of(b"--state")).expect("state flag counted");
+            let name = if name == b"fake github" { b"github-forge.state".as_slice() } else { b"forgejo-forge.state" };
+            arguments.push(path(data, name)).expect("state path counted");
         }
         steps
             .push(Step::new(bytes::copy_of(name), arguments.into_boxed(), StepKind::Long).listening(Box::new([listen])))
@@ -451,7 +456,7 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
             &text(&git)?,
             b",\"admin_token\":",
             &text(&path(&paths.data, b"forgejo-admin.token"))?,
-            br##", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],
+            br##", "owner":"fake-person","made_ci":{"declared":".fake-forge/ci"},"repositories":[{"name":"widget","landing":"main","ci":{"declared":".fake-forge/ci"}}],
                 "sources":[
                     {"address":"https://code.example.invalid/acme/widget","repository":{
                         "owner":"acme","name":"widget","landing":"main","tree":[
@@ -612,7 +617,7 @@ fn forge_document(socket: &[u8], data: &[u8], d: &Document, clients: u32) -> Res
     // (temper/docs/design/protocol/forge/engine.md, 2).
     let setup = text(&read::joined(&[b"http://", &clients, b"/forges/1/github/setup"]))?;
     Ok(read::joined(&[b"{\"listen\":", &address(socket)?, b",\"admin_token\":", &text(&path(data, b"github-admin.token"))?,
-        br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],"github":{"app":{"id":1,"slug":"temper-fake","bot":2,"key":0,"setup_url":"#,&setup,br#"},"accounts":[{"login":"fake-person","id":3,"kind":"user","installation":{"id":1,"repositories":"all"}}]}}"#]))
+        br#", "owner":"fake-person","made_ci":{"declared":".fake-forge/ci"},"repositories":[{"name":"widget","landing":"main","ci":{"declared":".fake-forge/ci"}}],"github":{"app":{"id":1,"slug":"temper-fake","bot":2,"key":0,"setup_url":"#,&setup,br#"},"accounts":[{"login":"fake-person","id":3,"kind":"user","installation":{"id":1,"repositories":"all"}}]}}"#]))
 }
 // The document scope names a signed-in fake box's first chat, T2, after the trial's T1.
 // The demo's document revision names note 3; the farewell draft is note 2.

@@ -330,8 +330,8 @@ pub(crate) fn switcher(
                 builder,
                 Role::Link,
                 &label,
-                PageAct::Go { address: Address::Team { project } },
-                root.pages().address() == &(Address::Team { project }),
+                PageAct::Go { address: Address::Team { project, role: None } },
+                if let Address::Team { project: at, .. } = root.pages().address() { *at == project } else { false },
                 bindings,
             );
         }
@@ -390,6 +390,7 @@ fn all_projects(
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -681,6 +682,7 @@ fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mu
             for (word, act) in [
                 (Word::SettingsAccountsTab, PageAct::Go { address: Address::Accounts }),
                 (Word::RememberedTitle, PageAct::Go { address: Address::Remembered }),
+                (Word::ToldTitle, PageAct::Go { address: Address::Told }),
                 (Word::SignOut, PageAct::SignOut),
             ] {
                 b.open(Role::MenuItem);
@@ -843,6 +845,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -883,7 +886,7 @@ fn entries(
             b,
             Role::Link,
             &w.say(Word::TeamTitle, &[]),
-            PageAct::Go { address: Address::Team { project } },
+            PageAct::Go { address: Address::Team { project, role: None } },
             team,
             bindings,
         );
@@ -1030,7 +1033,8 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Limits
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. } => true,
-        Address::Remembered
+        Address::Told
+        | Address::Remembered
         | Address::Home { .. }
         | Address::Inbox { .. }
         | Address::Work { .. }

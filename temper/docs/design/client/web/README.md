@@ -217,14 +217,20 @@ replay says the same clocks (`../view.md`, 6).
   5. `/robots.txt`, the bundle's one root file (skein's `ui/web/README.md`,
      3.3, step 5; jig's `protocol/browser/README.md`, section 12), disallowing
      every path;
-  6. any other `GET`, the printed link's route among them: the page,
+  6. `/sw.js` and `/manifest.webmanifest`, temper's two root files,
+     fixed in its binary, `no-cache` (2.7): the service worker,
+     `Content-Type: text/javascript`, and the web app's manifest,
+     `application/manifest+json`;
+  7. any other `GET`, the printed link's route among them: the page,
      with its ETag and `no-cache`, and `304` on a matching
      `If-None-Match` (skein's `ui/web/bundle.md`, 4).
 - **The page's policy,** on every answer temper gives: jig's reference
   policy as it stands (jig's `protocol/browser/README.md`, 12.1): `default-src 'none';
   script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src
   'self'; font-src 'self'; connect-src 'self'; base-uri 'none';
-  form-action 'none'; frame-ancestors 'none'`, with `nosniff`,
+  form-action 'none'; frame-ancestors 'none'`, and temper's two
+  sources beside it, `worker-src 'self'; manifest-src 'self'`, for its
+  root files (2.7), with `nosniff`,
   `Cross-Origin-Opener-Policy: same-origin`,
   `Cross-Origin-Resource-Policy: same-origin` and `Referrer-Policy:
   no-referrer`. skein-http's own refusals, `400`, `413` and `431`, given
@@ -286,7 +292,7 @@ replay says the same clocks (`../view.md`, 6).
   | `Rule { project, kind, number }` | `/projects/<project>/settings/rules/<kind>/<number>` |
   | `Ask { project }` | `/projects/<project>/ask` |
   | `Goals { project, filter }` | `/projects/<project>/goals`, and its filter's query |
-  | `Team { project }` | `/projects/<project>/team` |
+  | `Team { project, role }` | `/projects/<project>/team`, and `?role=N` for `Some(N)` |
   | `Chats { filter }` | `/chats`, and its filter's query |
   | `NewChat { draft }` | `/chats/new`, and `?draft=1` with a draft |
   | `Accounts` | `/accounts` |
@@ -656,6 +662,50 @@ without it.
   itself is a person's build, which fails loudly when its steps do; a
   change to it checks it with `TEMPER_INTERNAL_BUNDLE=embed cargo nextest
   run -p temper-box`, which the gate does not run.
+
+### 2.7 Being pushed
+
+What the browser does for Telling you (`../pages/told.md`;
+`../../domain/forge/attention.md`, section 7). Push is the browser's,
+through its push service (Web Push); the page and the module stay as
+they are, and two small root files carry the rest.
+
+- **The service worker,** `/sw.js` (2.2, step 6): a fixed script of
+  temper's, hand-written, its scope the origin's root. It does two
+  things and nothing else, with no fetch handler and no cache, so the
+  page loads as it does without it:
+  - *a push* shows a notification: its payload's JSON (`../../domain/forge/attention.md`,
+    7.2), its `title` the notification's title and its `body` its body,
+    its tag `project-N` so that a newer count replaces an older one, its
+    data the project; a payload it can't read shows "temper" and
+    "Something needs you.", since a browser shows one for every push;
+  - *a press on a notification* closes it and opens Needs you filtered
+    by its project, `Inbox { project }`'s path (`../view.md`, 3): an open
+    window of the origin, focused and sent there, or a new one.
+- **The manifest,** `/manifest.webmanifest`: `name` and `short_name`
+  "temper", `start_url` `/`, `display` `standalone`, and the paper's
+  colour of the day look as `background_color` and `theme_color`
+  (`look.md`), so that a phone may add temper to its Home Screen, which
+  iOS asks before it pushes to a web app. The page links it, `<link
+  rel="manifest">`, in its head: from skein's bundler's page if it takes
+  one, otherwise added by the shell at its start.
+- **The shell's part,** in `temper-client-shell-web`, through web-sys's
+  service worker, push and notification bindings: it reports this
+  browser's state to the domain at start and after each act (whether a
+  service worker and a push manager exist, the permission, the current
+  subscription's endpoint); and on "Turn on" it asks the permission,
+  registers `/sw.js`, subscribes with `userVisibleOnly` and the
+  deployment's key, and gives the domain the subscription's endpoint and
+  keys, which the domain sends as `AddDevice`; on "Turn off", once
+  `RemoveDevice` is answered, it drops the subscription. A browser asks
+  permission only within a person's gesture: the shell asks it inside
+  the press's own event, before anything waits.
+- **Tested** below the browser where it can be: the page and its acts
+  in the domain's and the view's tests, this browser's states given as
+  the shell would report them; the two root files' routes and headers
+  in `temper-service`'s; the shell's push calls and the service worker
+  in a browser-tier story, written and compiled, and run after landing
+  (`testing.md`).
 
 ## 3. Open questions
 

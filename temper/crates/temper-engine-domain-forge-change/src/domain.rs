@@ -105,6 +105,22 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if facts.writer_taken && !start_conflicted {
         return waiting_on_agent(next, facts, standing, now, limits);
     }
+    if let State::Resolving { requested: true, base } = next.state
+        && let Some(Delegate::Resolve { .. }) = facts.delegate
+        && standing.delegate_live
+        && !standing.delegate_running
+        && !facts.writer_taken
+        && (standing.delegate == Status::Unknown || standing.delegate == Status::Pending)
+        && let Some(head) = facts.branch
+        && next.last_head != Some(head)
+    {
+        // End the stale pin before judging drift; WaitingProducer keeps the
+        // change's own cancel apart from a person's (repairs.md, A resolution's moved head).
+        next.state = State::WaitingProducer { base };
+        next.since = now;
+        next.owns_turn = false;
+        return Stepped { change: next, decision: Decision::CancelResolution { head } };
+    }
     if let Some(why) = facts.drift {
         return hold(next, why);
     }
@@ -450,6 +466,10 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         },
         Hold::BranchMoved => {
             change.clean = Box::new([]);
+            if let State::WaitingProducer { .. } = was {
+                change.state = released_state(was, why, facts.pull);
+                return Stepped { change, decision: Decision::None };
+            }
             change.state = match facts.branch {
                 Some(head) => {
                     change.last_head = Some(head);

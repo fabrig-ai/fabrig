@@ -55,7 +55,18 @@ impl Ledger {
             let value: Value = serde_json::from_slice(bytes).map_err(|why| refused(why.to_string()))?;
             let object = object(
                 &value,
-                &["head", "landings", "cases", "builds", "sessions", "lines", "passes", "findings", "notes"],
+                &[
+                    "head",
+                    "landings",
+                    "cases",
+                    "builds",
+                    "sessions",
+                    "lines",
+                    "passes",
+                    "findings",
+                    "notes",
+                    "place_waits",
+                ],
             )?;
             Ok(Self {
                 head: object.get("head").map(string).transpose()?,
@@ -67,6 +78,13 @@ impl Ledger {
                 passes: q::records(object, "passes")?.iter().map(q::pass).collect::<Result<_, _>>()?,
                 findings: q::records(object, "findings")?.iter().map(q::finding).collect::<Result<_, _>>()?,
                 notes: q::records(object, "notes")?.iter().map(q::note).collect::<Result<_, _>>()?,
+                place_waits: q::records(object, "place_waits")?
+                    .iter()
+                    .map(|value| {
+                        let object = self::object(value, &["from", "to"])?;
+                        Ok(crate::PlaceWait { from: integer(object, "from")?, to: optional_number(object, "to")? })
+                    })
+                    .collect::<Result<_, Refusal>>()?,
             })
         };
         decode().map_err(|why: Refusal| refused(format!("ledger.json: {why}")))
@@ -103,6 +121,7 @@ impl Ledger {
             "passes": self.passes.iter().map(q::pass_document).collect::<Vec<_>>(),
             "findings": self.findings.iter().map(q::finding_document).collect::<Vec<_>>(),
             "notes": self.notes.iter().map(q::note_document).collect::<Vec<_>>(),
+            "place_waits": self.place_waits.iter().map(|wait| json!({"from": wait.from, "to": wait.to})).collect::<Vec<_>>(),
             "lines": self.lines.iter().map(|line| json!({"number": line.number, "time": line.time,
                 "area": line.area, "words": line.words, "given": line.given})).collect::<Vec<_>>(),
         });

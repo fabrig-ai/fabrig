@@ -1,7 +1,7 @@
 # Places and copies
 
 Provisional, 2026-11-12, from `../../draft/landed-qa.md`, sections 2, 5
-and 7, milestone Q3 of `../../draft/landed-qa.execution.md`. Where a
+and 7, milestones Q3 and Q4 of `../../draft/landed-qa.execution.md`. Where a
 pass's boxes run, and what each case starts from: a place, a fixed
 directory with its own `bin/`; a setup's copy restored there, or made
 again from its recipe; and the drive session, held open between the
@@ -53,14 +53,27 @@ this document is how a pass uses them.
   (`ledger.md`, 2.7). A place is **free** when no `running` pass is
   recorded at it and its `drive.lock` can be taken at once, so a
   holder left by an ended session still keeps it (section 5).
-- **Fixed ports:** the box's own, chosen when its sandbox is first
-  prepared and retained in its configuration
-  (`../../protocol/setup/box.md`, 5), so a copy restored where it was
-  made binds the ports it was made with. A copy is restored only at the
-  place that made it, since its copies live in that place's directory.
-- **The cache stays:** `box/cache/` is kept across copies and builds, as
-  `../../client/drive.md`, 7 has it for a newer build's Forgejo; a copy
-  holds `config/` and `data/` alone.
+- **Fixed ports:** the place's own, `qa.json`'s `ports` for it
+  (`README.md`, 3.2): every walk and drive session at the place is
+  given them as `--ports` (`../../client/drive.md`, 2.1), a new sandbox
+  binds them, and the box retains them in its configuration
+  (`../../protocol/setup/box.md`, 5), so a copy made at the place binds
+  the place's ports, which no other place's box takes. A place with no
+  `ports` takes the kernel's when its sandbox is first prepared, as one
+  place alone may: two such places can hand a stopped copy's ports to
+  each other's new box, which then refuses the copy's restart, naming
+  the port. A place's `ports` changed leaves its copies on the old ones:
+  the deployment empties its `copies/` with the change. A copy is
+  restored only at the place that made it, since its copies live in
+  that place's directory.
+- **The cache stays:** `box/cache/` is kept across copies and builds; a
+  copy holds `config/` and `data/` alone, the fake forges' state among
+  them (`../../protocol/setup/box.md`, 5).
+- **No Forgejo and no runner:** every setup's forge is the box's fake
+  Forgejo (`setups.md`, 2), so no box at a place sets up its own
+  Forgejo, and the place's cache holds none of its binaries; a case
+  that would set one up is blocked, naming it (`passes.md`, 4;
+  `../../draft/landed-qa.md`, 6 and 12).
 
 ## 3. Installing a build
 
@@ -113,8 +126,10 @@ the place's `bin/`, never a kept build's directory
      `recipe walk Ri --from Ri-1` for each Ri after Rj, in order; where
      Rj is NAME itself, `recipe walk NAME --from NAME`, its check alone;
      from no copy, `recipe walk R1`, then the same from R1. Each is `bin/temper-client-journeys recipe walk ... --bin bin
-     --bundle bundle --scratch box --setups S --strict` at the place
-     (`../../client/recipe.md`, 5.1); its output appended to `walk.log`.
+     --bundle bundle --scratch box --setups S --strict` at the place,
+     with `--ports P` where the place has ports, P its nine joined by
+     commas (`../../client/recipe.md`, 5.1); its output appended to
+     `walk.log`.
   3. **Each walk's exit:**
      - **0:** walked; for each Ri walked past a copy, its copy saved:
        `tar --create` of `box/config` and `box/data` into a temporary
@@ -159,9 +174,12 @@ holder keeps the session between them.
   for its life, or exits 1; starts `bin/temper-client-journeys drive
   --bin bin --bundle bundle --scratch box`, with `--scripts F` for each
   `scripts.json` of the setup's chain, root first, from the pass's
-  setups, none for `fresh`, and `--strict` (`../../draft/landed-qa.md`,
-  6); and listens on `drive.sock`, a Unix stream socket, 0o600, any old
-  one removed first, since the lock is its.
+  setups, none for `fresh`, `--strict` (`../../draft/landed-qa.md`,
+  6), `--files` the pass's `files/` (`passes.md`, 2), which its `forge
+  commit` lines read (`../../client/drive.md`, 3.5), and `--ports P`
+  where the place has ports, as a walk is given
+  them (section 4); and listens on `drive.sock`, a Unix stream socket,
+  0o600, any old one removed first, since the lock is its.
   - **One request per connection:** one line, the start's, a drive line,
     or the end; the holder writes a drive line or `end` to the
     session's stdin, reads the session's stdout up to that line's last
@@ -206,8 +224,12 @@ reached has run (`../../draft/landed-qa.md`, 5):
   (`../../client/recipe.md`, 2) not among the build's setups: a recipe
   the pass itself added may be written again.
 - **Written** to `passes/P/setups/NAME/`: `recipe`, `recipe 1`, then
-  `after PARENT` unless `fresh`, then the lines; `README.md`; and
-  `scripts.json` where given. A recipe that does not read
+  `after PARENT` unless `fresh`, then the lines; `README.md`;
+  `scripts.json` where given; and `files/`, where its `forge commit`
+  lines name any, each PATH they name copied from the pass's `files/`
+  (`passes.md`, 2) to `files/PATH`, so that the recipe holds all it
+  gives (`../../client/recipe.md`, 2). A PATH the pass's `files/` lacks
+  refuses, naming it, exit 1. A recipe that does not read
   (`recipe hash`) is removed, its refusal printed, exit 1.
 - **Proven:** walked from its parent on the same build, as section 4
   restores NAME: its parent's copy restored, or made again, then `recipe
@@ -267,9 +289,5 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
 
 ## 9. Open questions
 
-- **More places** (`../../draft/landed-qa.md`, 12): two boxes preparing
-  at once may choose the same ports. Default: one place until passes
-  queue, then ports given each place in `qa.json`, through the box's
-  configuration.
 - **A copy's archive compressed:** a plain tar. Default: plain, until a
   copy's size tells against it.

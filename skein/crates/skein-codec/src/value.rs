@@ -113,6 +113,12 @@ struct Child {
     path: Path,
 }
 
+struct IndexRoot {
+    decl: DeclIx,
+    parent: Option<Node>,
+    end: u32,
+}
+
 impl Value {
     /// Sets the room for this many nodes; entries allocate as they fill.
     #[must_use]
@@ -139,6 +145,10 @@ impl Value {
 
     pub(crate) fn room(&self) -> u32 {
         self.entries.capacity()
+    }
+
+    pub(crate) fn indexed_nodes(&self) -> u32 {
+        self.entries.len()
     }
 
     // A builder cannot borrow the old index mutably. Its empty replacement
@@ -191,6 +201,7 @@ impl Value {
         self.entries.clear();
         self.bytes = Secret::new(bytes);
         let mut reader = Reader::new(self.bytes.expose());
+        let root = IndexRoot { decl: root, parent: None, end: reader.remaining() };
         let result = index(&mut self.entries, spare, self.growing, schema, root, &mut reader);
         let nodes = self.entries.len();
         if result.is_err() {
@@ -198,6 +209,22 @@ impl Value {
             self.bytes = Secret::new(Box::default());
         }
         (result, nodes)
+    }
+
+    // Opened pieces append subtrees without changing the opaque field's sibling
+    // links; their spans still name the original bytes (data/codec/patches.md, 4).
+    pub(crate) fn decode_piece(
+        &mut self,
+        schema: &Schema,
+        root: DeclIx,
+        parent: Node,
+        span: Span,
+        reserve: &mut Value,
+    ) -> Result<Node, Refusal> {
+        let bytes = self.bytes.expose().get(usize_of(span.start)..usize_of(span.end)).expect("piece within old bytes");
+        let mut reader = Reader::new(bytes);
+        let root = IndexRoot { decl: root, parent: Some(parent), end: span.end };
+        index(&mut self.entries, &mut reserve.entries, self.growing, schema, root, &mut reader)
     }
 
     /// The canonical encoding.
@@ -251,6 +278,10 @@ impl Value {
     /// The node holding this value, or none for the root.
     pub fn parent(&self, node: Node) -> Result<Option<Node>, Misread> {
         Ok(self.entry(node)?.parent)
+    }
+
+    pub(crate) fn path(&self, node: Node) -> Result<Path, Misread> {
+        Ok(self.entry(node)?.path)
     }
 
     pub(crate) fn source(&self, node: Node) -> Result<Source, Misread> {
@@ -559,13 +590,14 @@ fn index(
     spare: &mut List<Entry>,
     growing: Option<u32>,
     schema: &Schema,
-    root: DeclIx,
+    root: IndexRoot,
     reader: &mut Reader<'_>,
 ) -> Result<Node, Refusal> {
-    let total = reader.remaining();
-    let root_path = match schema.declaration(root).shape {
-        Shape::Record { .. } => Path { decl: root, part: Part::Tail },
-        Shape::Enum { .. } => Path { decl: root, part: Part::Tag },
+    let total = root.end;
+    let first = Node(entries.len());
+    let root_path = match schema.declaration(root.decl).shape {
+        Shape::Record { .. } => Path { decl: root.decl, part: Part::Tail },
+        Shape::Enum { .. } => Path { decl: root.decl, part: Part::Tag },
     };
     let mut current: Option<Node> = None;
     let ceiling = growing.unwrap_or(entries.capacity());
@@ -576,7 +608,11 @@ fn index(
         .expect("twice u32 plus one fits u64");
     for _ in 0..turns {
         let child = match current {
-            None => Some(Child { source: Source::Declaration(root), kind: declaration(schema, root), path: root_path }),
+            None => Some(Child {
+                source: Source::Declaration(root.decl),
+                kind: declaration(schema, root.decl),
+                path: root_path,
+            }),
             Some(node) => entries.get_mut(node.0).expect("open node belongs to the index").child(schema),
         };
         match child {
@@ -584,7 +620,7 @@ fn index(
                 if entries.len() == ceiling {
                     return Err(Refusal::Room);
                 }
-                let entry = match Entry::open(child, current, schema, reader, total) {
+                let entry = match Entry::open(child, current.or(root.parent), schema, reader, total) {
                     Ok(entry) => entry,
                     Err(problem) => return Err(Refusal::Problem(problem)),
                 };
@@ -608,11 +644,11 @@ fn index(
                 entry.span.end = position(total, reader);
                 entry.next = next;
                 current = entry.parent;
-                if current.is_none() {
+                if current == root.parent {
                     if !reader.is_empty() {
                         return Err(Refusal::Problem(Problem { path: root_path, reason: Reason::Trailing }));
                     }
-                    return Ok(Node(0));
+                    return Ok(first);
                 }
             }
         }

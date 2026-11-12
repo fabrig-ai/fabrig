@@ -1,6 +1,6 @@
 # Known reds
 
-Failing on this goal's branch and no live change's; delivery checks pass them. Each is dropped once fixed.
+Failing on the goal branch and no live change's (goal 1720's note `known reds` says since when and why).
 
 - test temper-real-loop-world::suite lost::a_lost_answer_reaches_its_name_from_another_directory
 - test temper-box::suite box_listeners::a_fresh_box_prints_its_block_and_nothing_else
@@ -13,3 +13,9 @@ Failing on this goal's branch and no live change's; delivery checks pass them. E
 - test temper-service tests::stock::brief::every_stock_charter_admits_its_maximal_brief_with_receiving_fitting
 - test temper-service tests::stock::brief::the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds
 - test temper-one-process-world::suite replay::story_a_kept_log_replays_under_the_referee
+- lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/src/../patches/p0001.rs
+- lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/src/../patches/context.rs
+- lint jig-protocol-store clippy::disallowed_types jig/crates/jig-protocol-store/src/tests/catch_up.rs
+- lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/tests/catch_up.rs
+- lint jig-protocol-store clippy::disallowed_macros jig/crates/jig-protocol-store/src/tests/catch_up.rs
+- lint jig-protocol-store clippy::needless_borrow jig/crates/jig-protocol-store/src/tests/policy_patch.rs

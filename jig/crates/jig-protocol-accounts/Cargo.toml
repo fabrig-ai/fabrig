@@ -20,6 +20,8 @@ jig-domain-accounts.workspace = true
 jig-domain-link.workspace = true
 
 [dev-dependencies]
+skein-codegen.workspace = true
+skein-scratch.workspace = true
 skein-http.workspace = true
 skein-tls.workspace = true
 

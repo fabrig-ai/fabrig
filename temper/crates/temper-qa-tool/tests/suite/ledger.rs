@@ -4,6 +4,30 @@ use serde_json::json;
 use temper_qa_tool::{Answer, BuildState, CaseInput, Exit, Ledger};
 
 #[test]
+fn place_waits_need_a_takeable_build_and_no_free_place_and_read_q3() {
+    let mut ledger = Ledger::default();
+    let mut q3 = ledger.document();
+    q3.as_object_mut().expect("document").remove("place_waits");
+    assert_eq!(Ledger::decode(&serde_json::to_vec(&q3).expect("JSON")).expect("Q3"), ledger);
+    let surfaces = vec!["web".into()];
+    ledger.update_place_wait(&surfaces, false, 1);
+    assert!(ledger.place_waits.is_empty(), "no build may be taken");
+    super::passes::queue(&mut ledger, "work", "web");
+    super::passes::build(&mut ledger, "build", &[1], 1);
+    ledger.update_place_wait(&surfaces, true, 2);
+    assert!(ledger.place_waits.is_empty(), "a place is free");
+    ledger.update_place_wait(&["tui".into()], false, 3);
+    assert!(ledger.place_waits.is_empty(), "no case of an admitted surface");
+    ledger.update_place_wait(&surfaces, false, 4);
+    assert_eq!(ledger.place_waits, [temper_qa_tool::PlaceWait { from: 4, to: None }]);
+    assert_eq!(Ledger::decode(&ledger.encode().expect("encode")).expect("roundtrip"), ledger);
+    ledger.start_pass("place", &surfaces, "high", 5).expect("take");
+    ledger.update_place_wait(&surfaces, false, 6);
+    assert_eq!(ledger.place_waits, [temper_qa_tool::PlaceWait { from: 4, to: Some(6) }]);
+    assert_eq!(Ledger::decode(&ledger.encode().expect("encode")).expect("closed roundtrip"), ledger);
+}
+
+#[test]
 fn triage_starts_only_the_next_landing_and_never_overlaps() {
     let mut ledger = Ledger::default();
     landing(&mut ledger, 1);

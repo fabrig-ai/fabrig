@@ -224,7 +224,8 @@ impl Protocol {
         top::Domain::new(
             limits,
             seed,
-            skein_forge_client::Config {
+            temper_engine_domain_forge::Config {
+                push: None,
                 namespace: Box::from(b"world".as_slice()),
                 writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author }]),
             },
@@ -491,7 +492,7 @@ impl Protocol {
     }
     // GitHub fake time is wall-based; Forgejo fake time is monotonic.
     fn scripted_env(&self, now: Time) -> Env<forge::Config> {
-        let mut config = self.joint.fake_env.limits;
+        let mut config = self.joint.fake_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         let offset = self.joint.fake_env.now.as_nanos().saturating_sub(self.env.now.as_nanos());
@@ -875,6 +876,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
+        top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         top::Stored::Away(row) => top::Key::Away { party: row.party, project: row.project },
         top::Stored::Decided(row) => top::Key::Decided { project: row.project, number: row.number },

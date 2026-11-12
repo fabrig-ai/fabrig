@@ -126,3 +126,10 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 - **Forms:** `PASS`
 - Print a pass's JSON report from the ledger.
 - **Arguments:** `PASS`: The pass number.
+
+### `temper-qa tune`
+
+- **Set:** internal
+- **Forms:** ``
+- Print figures and suggestions for tuning bounds and places, without recording anything.
+- **Notes:** Session times and tokens, waits for builds, and waits for places in the last 7 days. See testing/qa/ledger.md, 6.
