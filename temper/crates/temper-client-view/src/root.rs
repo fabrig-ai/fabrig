@@ -498,13 +498,16 @@ pub enum ShellEvent {
 
 /// Decode a shell act in the current tree; only a press can reload (client/view.md, 1).
 #[must_use]
-pub fn shell_event(view: &View, node: NodeId, act: Act) -> Option<ShellEvent> {
-    let bound = view.render.act(node, act)?;
-    if bound.binding.owner != crate::frame::owner() {
-        return None;
-    }
-    match bound.act {
-        Act::Press => view.pages.shell_event(bound.binding.token),
+pub fn shell_event(view: &View, node: NodeId, act: &Act) -> Option<ShellEvent> {
+    match act {
+        Act::Press => {
+            let bound = view.render.act(node, Act::Press)?;
+            if bound.binding.owner == crate::frame::owner() {
+                view.pages.shell_event(bound.binding.token)
+            } else {
+                None
+            }
+        }
         Act::Input { .. } | Act::Submit | Act::Toggle | Act::Near { .. } | Act::Drawing { .. } => None,
     }
 }

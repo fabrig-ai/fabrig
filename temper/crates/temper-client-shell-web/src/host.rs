@@ -248,7 +248,7 @@ impl Host {
         view::event(&self.view, node, act)
     }
     fn act(&mut self, node: NodeId, act: Act) {
-        if let Some(event) = view::shell_event(&self.view, node, act.clone()) {
+        if let Some(event) = view::shell_event(&self.view, node, &act) {
             match event {
                 view::ShellEvent::Reload => self.reload = true,
             }

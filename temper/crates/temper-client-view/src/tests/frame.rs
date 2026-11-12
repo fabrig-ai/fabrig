@@ -394,7 +394,7 @@ fn out_of_date_the_browser_main_keeps_its_words() {
 fn only_the_current_reload_press_gives_the_shell_event() {
     let mut view = fixtures::browser_page_view(&fixtures::out_of_date());
     let reload = fixtures::person_find(view.tree(), Role::Button, b"Reload").expect("reload act");
-    assert_eq!(crate::shell_event(&view, reload, Act::Press), Some(crate::ShellEvent::Reload));
+    assert_eq!(crate::shell_event(&view, reload, &Act::Press), Some(crate::ShellEvent::Reload));
     assert!(crate::act_event(&mut view, reload, Act::Press).is_none());
     for act in [
         Act::Input { value: Box::default() },
@@ -403,14 +403,14 @@ fn only_the_current_reload_press_gives_the_shell_event() {
         Act::Near { edge: skein_ui::LogEdge::Foot },
         Act::Drawing { data: Box::default() },
     ] {
-        assert_eq!(crate::shell_event(&view, reload, act), None);
+        assert_eq!(crate::shell_event(&view, reload, &act), None);
     }
     fixtures::build(&mut view, &fixtures::signed_out());
-    assert_eq!(crate::shell_event(&view, reload, Act::Press), None);
+    assert_eq!(crate::shell_event(&view, reload, &Act::Press), None);
     fixtures::build(&mut view, &fixtures::out_of_date());
     let current = fixtures::person_find(view.tree(), Role::Button, b"Reload").expect("new reload act");
-    assert_eq!(crate::shell_event(&view, reload, Act::Press), None);
-    assert_eq!(crate::shell_event(&view, current, Act::Press), Some(crate::ShellEvent::Reload));
+    assert_eq!(crate::shell_event(&view, reload, &Act::Press), None);
+    assert_eq!(crate::shell_event(&view, current, &Act::Press), Some(crate::ShellEvent::Reload));
 }
 #[test]
 fn the_browser_words_fit_the_views_limits() {

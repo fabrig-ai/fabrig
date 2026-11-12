@@ -80,7 +80,10 @@ fn the_out_of_date_form_uses_its_shells_words_and_disables_adoption() {
     );
     for (words, said) in [
         (f::browser_words(), b"This page is out of date for adopting repositories: reload it.".as_slice()),
-        (f::words(), b"This temper is out of date for adopting repositories: run the temper the engine runs.".as_slice()),
+        (
+            f::words(),
+            b"This temper is out of date for adopting repositories: run the temper the engine runs.".as_slice(),
+        ),
     ] {
         let mut view = f::view_of(words);
         f::build(&mut view, &root);
