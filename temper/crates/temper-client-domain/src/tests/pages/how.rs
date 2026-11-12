@@ -846,7 +846,11 @@ fn follows_boxes_follow_only_the_read_documents() {
     let panel = |row| {
         w::FollowsPanel::new(
             &w::CEILINGS,
-            w::FollowsPanelParts { project: f::PROJECT, follows: List::from_boxed(Box::new([row])) },
+            w::FollowsPanelParts {
+                project: f::PROJECT,
+                follows: List::from_boxed(Box::new([row])),
+                dependencies: List::with_capacity(0),
+            },
         )
         .unwrap()
     };

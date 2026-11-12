@@ -133,6 +133,7 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         }
         b"forge.judge_projects" => limits.forge.judge_projects = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.judge_criteria" => limits.forge.judge_criteria = u32::try_from(value).or(Err(Refused::Range))?,
+        b"forge.dependencies" => limits.forge.dependencies = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.follows" => limits.forge.follows = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.follow_paths" => limits.forge.follow_paths = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.follow_queue" => limits.forge.follow_queue = u32::try_from(value).or(Err(Refused::Range))?,
@@ -332,7 +333,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 181] = [
+pub static NAMES: [Name; 182] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -716,6 +717,12 @@ pub static NAMES: [Name; 181] = [
         unit: Unit::Count,
         line: "Bounds criteria in each deployment or project judge table.",
         value: |limits| u64::from(limits.forge.judge_criteria),
+    },
+    Name {
+        name: "forge.dependencies",
+        unit: Unit::Count,
+        line: "Dependencies per project.",
+        value: |limits| u64::from(limits.forge.dependencies),
     },
     Name {
         name: "forge.follows",

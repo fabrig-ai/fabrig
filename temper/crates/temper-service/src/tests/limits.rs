@@ -195,6 +195,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
     let expected = limits::Limits {
         forge: temper_engine_domain_forge::Limits {
             follows: 8,
+            dependencies: 16,
             follow_queue: 64,
             brief_bytes: 131_584,
             tasks: 128,
@@ -913,6 +914,7 @@ fn follow_limits_have_their_profile_values_and_dotted_overrides() {
     let standard = limits::profile(limits::Profile::Standard);
     for (name, tiny, normal, unit) in [
         ("forge.follows", 2, 8, limits::Unit::Count),
+        ("forge.dependencies", 4, 16, limits::Unit::Count),
         ("forge.follow_paths", 8, 8, limits::Unit::Count),
         ("forge.follow_queue", 16, 64, limits::Unit::Count),
         ("forge.follow_merge", 8, 8, limits::Unit::Count),

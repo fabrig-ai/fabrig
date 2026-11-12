@@ -8,7 +8,7 @@ use temper_engine_domain_forge_landing as policy;
 mod changes;
 mod follows;
 pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView};
-pub use follows::{FollowLagEntry, FollowView, FollowsView, follows_subject};
+pub use follows::{DependencyView, FollowLagEntry, FollowView, FollowsView, follows_subject};
 
 /// The changes waiting on a person's approval, the party's own scope (domain/forge/change/questions.md, 2).
 pub const APPROVALS_SUBJECT: u64 = (1 << 62) | (1 << 37);

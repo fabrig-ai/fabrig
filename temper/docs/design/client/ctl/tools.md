@@ -72,7 +72,7 @@ watch's subject, its digest (4). It needs no key.
 | `finding show FINDING` | one finding whole, its state as its word set | the forge's family |
 | `draft list --project PROJECT` | the project's landed drafts, newest first, each its repository and path, ready, not ready or its goal, its commit, branch and time, its chat and its title (`areas.md`, area 7) | the forge's family, the subject `drafts` |
 | `qa marks --project PROJECT` | the project's marks: landing, words, chosen, waiting or tested (`../../domain/findings.md`, section 8) | the forge's family |
-| `follow list --project PROJECT` | the project's follows, one line each: source and target with their branches, the lag and the parity, in `../../domain/forge/follows.md`, section 7's words | the forge's family |
+| `follow list --project PROJECT` | the project's follows, one line each: source and target with their branches, the lag and the parity, in `../../domain/forge/follows.md`, section 7's words; then its dependencies, one line each, "dependency 1: fabrig depends on vsr-rs" (`../../domain/forge/dependencies.md`, section 4) | the forge's family |
 | `follow show --project PROJECT FOLLOW` | one follow whole: its setting, its task, its lag's entries oldest first, each with its change and state, its skips with their reasons and its parity (`../../domain/forge/follows.md`, section 7) | the forge's family |
 | `qa passes --project PROJECT` | the project's QA passes: the cleared main, the marks covered, the tester, its outcome and findings | the forge's family |
 | `hold list --project PROJECT` | the project's placed holds: owner, mode, scope, reason, what lifts it, the tasks it holds and exempts, and whether the party may lift it | `holds{project}` |

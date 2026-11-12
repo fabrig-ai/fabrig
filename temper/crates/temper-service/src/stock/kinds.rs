@@ -155,6 +155,14 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             per_scope: limits.forge.follows,
             charters: 1,
         },
+        Kind {
+            number: 13,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::Dependency(settings::Dependency { project: 1 })),
+            per_scope: limits.forge.dependencies,
+            charters: 0,
+        },
     ])
 }
 

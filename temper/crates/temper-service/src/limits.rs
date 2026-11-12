@@ -195,6 +195,7 @@ const FORGE: forge::Limits = forge::Limits {
     judge_criteria: 8,
     landing_rules: 4,
     follows: 2,
+    dependencies: 4,
     follow_paths: 8,
     follow_queue: 16,
     follow_merge: 8,
@@ -252,6 +253,7 @@ const FORGE: forge::Limits = forge::Limits {
 // A project of fabrig's scale (temper/docs/design/protocol/configuration/stock.md).
 const STANDARD_FORGE: forge::Limits = forge::Limits {
     follows: 8,
+    dependencies: 16,
     follow_queue: 64,
     // One gathered section shares the root task section's read bound.
     brief_bytes: STANDARD_BRIEF.budgets.task,
