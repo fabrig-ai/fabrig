@@ -1552,11 +1552,11 @@ fn report_parts_need_a_nonempty_read_in_the_shown_card() {
     assert!(!team::parts(&facts).report && !team::parts(&facts).right, "old card reports are not drawn");
 }
 
-fn report_answer(f: &mut Reads, handle: Handle, notes: Vec<c::Note>) {
+fn report_answer(f: &mut Reads, handle: Handle, notes: Box<[c::Note]>) {
     page(f, Event::Told { told: Told::Page {
         handle,
         page: Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
-            rows: List::from_boxed(notes.into_boxed_slice()), cut: false, before: None, after: None,
+            rows: List::from_boxed(notes), cut: false, before: None, after: None,
         })))),
     }});
 }
@@ -1585,18 +1585,18 @@ fn standing_reads_the_cards_report_again_on_line_delivery() {
     let mut chosen = note(3, b"report", b"Week.\n- Landed a fix.");
     chosen.body.cut = true;
     let expected = team::Now { body: chosen.body.bytes().into(), changed: chosen.changed, cut: true };
-    report_answer(&mut f, first, vec![note(8, b"report", b"Later"), note(1, b"report-ish", b"Wrong"), chosen]);
+    report_answer(&mut f, first, Box::new([note(8, b"report", b"Later"), note(1, b"report-ish", b"Wrong"), chosen]));
     assert_eq!(report(&f), Some(expected), "lowest exact description, with time and cut");
     assert_eq!(f.reports.len(), 2, "a line delivered during the read is coalesced");
     let second = f.reports.get(1).unwrap().1;
-    report_answer(&mut f, second, vec![]);
+    report_answer(&mut f, second, Box::new([]));
     assert_eq!(report(&f), None, "no report yet is normal");
     for refused in [true, false] {
         line.last_activity = Wall::from_nanos(line.last_activity.as_nanos().saturating_add(1));
         let roles = c::Tasks { rows: List::from_boxed(Box::new([line.clone()])), more: false };
         delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(roles.clone())));
         let reading = f.reports.last().unwrap().1;
-        report_answer(&mut f, reading, vec![note(3, b"report", b"Written")]);
+        report_answer(&mut f, reading, Box::new([note(3, b"report", b"Written")]));
         delivered(&mut f, handle, watch, c::Delivery::Tasks(Box::new(roles)));
         let reading = f.reports.last().unwrap().1;
         let told = if refused {
@@ -1617,7 +1617,7 @@ fn standing_reads_the_cards_report_again_on_line_delivery() {
     page(&mut f, Event::Went { address: Address::Team { project: PROJECT, role: Some(41) } });
     assert_eq!(f.reports.last().unwrap().0, 41, "changing cards reads the new role's report");
     assert!(f.closed.as_slice().contains(&stale));
-    report_answer(&mut f, stale, vec![note(1, b"report", b"Stale")]);
+    report_answer(&mut f, stale, Box::new([note(1, b"report", b"Stale")]));
     assert_eq!(report(&f), None, "the old card cannot lend its report");
     let reading = f.reports.last().unwrap().1;
     page(&mut f, Event::Went { address: Address::Home { project: PROJECT } });

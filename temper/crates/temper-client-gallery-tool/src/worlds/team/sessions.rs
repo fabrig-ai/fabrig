@@ -20,10 +20,10 @@ pub(super) fn page() -> c::ActivityPage {
         (
             3,
             saturday + 500_000_000_000,
-            c::Activity::NowWritten {
+            c::Activity::Stood {
                 attempt: 2,
-                line: c::Text::new(b"Triaged three findings;\nrouted two to you.".as_slice().into(), 512)
-                    .expect("Now line fits"),
+                words: c::Text::new(b"Triaged three findings;\nrouted two to you.".as_slice().into(), 512)
+                    .expect("Stood fits"),
             },
         ),
         (2, saturday, c::Activity::RunBegan { attempt: 2, why: c::RunWhy::Ready, resumed: false }),

@@ -62,8 +62,8 @@ struct Report {
     body: Option<Now>,
     refresh: bool,
 }
-impl Default for Report {
-    fn default() -> Self {
+impl Report {
+    const fn new() -> Self {
         Self { handle: None, body: None, refresh: false }
     }
 }
@@ -90,7 +90,7 @@ impl Default for Standing {
             card: None,
             pending: List::with_capacity(2),
             rules: super::rules::Reader::default(),
-            report: Report::default(),
+            report: Report::new(),
         }
     }
 }
@@ -212,7 +212,7 @@ impl Standing {
         if let Some(handle) = self.report.handle.take() {
             unwatch(handle, out);
         }
-        self.report = Report::default();
+        self.report = Report::new();
         if let Some((_, handle)) = self.card.take() {
             unwatch(handle, out);
         }
