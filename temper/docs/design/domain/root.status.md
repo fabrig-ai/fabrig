@@ -138,6 +138,3 @@ LINKED`, as for every link jig's start cannot make
   `decision.rs`, `host_within`, relies on that bound for settings output
   held before its commit. The application settings' contribution is omitted;
   no reason is recorded.
-- **Not yet:** 9, *The watches' rooms follow the streams*:
-  `WATCHES_PER_STREAM` is 22, not 26
-  (`temper-engine-domain/src/limits.rs`) [in flight: change 1266].
