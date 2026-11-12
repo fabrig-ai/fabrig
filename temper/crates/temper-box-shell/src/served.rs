@@ -1,6 +1,8 @@
 //! The box's service and adapter (protocol/services.md, 7).
+use temper_engine_shell::lines as engine_lines;
 use temper_service as service;
-use temper_service_shell::{Served, host};
+use temper_service_shell::Served;
+use temper_worker_shell::lines as worker_lines;
 
 /// A document's service, driven without joining its vocabularies.
 #[expect(clippy::large_enum_variant, reason = "the shell owns one service, never a population of variants")]
@@ -86,16 +88,16 @@ pub const SERVED: Served<Service> = Served {
     },
     operations: Service::operations,
     ending: |service, binary, failed, directories, store| match service {
-        Service::Joined(service) => host::service_ending(service, binary, failed, directories, store),
-        Service::Worker(service) => host::worker_service_ending(service, binary, failed, directories, store),
+        Service::Joined(service) => engine_lines::service_ending(service, binary, failed, directories, store),
+        Service::Worker(service) => worker_lines::worker_service_ending(service, binary, failed, directories, store),
     },
     listening: |service, binary| match service {
-        Service::Joined(service) => host::listening_line(service, binary),
-        Service::Worker(service) => host::worker_listening_line(service, binary),
+        Service::Joined(service) => engine_lines::listening_line(service, binary),
+        Service::Worker(service) => worker_lines::worker_listening_line(service, binary),
     },
     note: |service, binary| match service {
-        Service::Joined(service) => host::next_note_line(service, binary),
-        Service::Worker(service) => host::worker_note_line(service, binary),
+        Service::Joined(service) => engine_lines::next_note_line(service, binary),
+        Service::Worker(service) => worker_lines::worker_note_line(service, binary),
     },
     link: |service| match service {
         Service::Joined(service) => service.links().pop(),
