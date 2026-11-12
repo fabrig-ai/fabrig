@@ -51,7 +51,8 @@ v11 in place, its ceilings the store's limits `adopted_workflows` and
 Section 4's `CompareAnswer` changed in place, by goal 64: the deployment's store, written before it, is made afresh at its next redeploy, which waits for the running goals to settle.
 
 - **Not yet:** 4: `ItemsAnswer`'s `cut`, in store v11 in place [in flight: change 44].
-- **Not yet:** 2: family 22 `Delivery` (no `Key` or `Stored` variant); family 30 `LandingLog`'s trailers and tier verdicts, until `../domain/after-landing.md`, sections 6, 8 and 9 need them; the families of findings, `Finding`, `Mark` and `QaPass`.
+- **Not yet:** 2: family 22 `Delivery` (no `Key` or `Stored` variant); family 30 `LandingLog`'s trailers and tier verdicts, until `../domain/after-landing.md`, sections 6, 8 and 9 need them; `Finding`'s fields its issue and matching add, and the families `Mark` and `QaPass`.
+- **Not yet:** 2 and 3: family 31 `Finding`, keyed `Finding { project, number }`, and `Topic` 4 `Findings`, appended [in flight: change 746].
 - **Design departs:** 2, from the request `ui-away` of 2026-11-05, decided by its plan's cut: `Away` keeps `off` where the request has `on`, and `Decided` keeps `party`, a field it doesn't name (`../domain/forge/attention.status.md`, 4 and 5).
 
 - **Not yet:** 4, the tier rows' ceilings of 257: nothing checks `forge.changes` against them before the store's sizing, so a value past 128 refuses the start as past the codec's bounds, naming no limit [in flight: change 393].

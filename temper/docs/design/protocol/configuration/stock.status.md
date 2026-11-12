@@ -3,6 +3,8 @@
 2026-11-11. Where the tree's code lags or departs from [stock.md](stock.md).
 
 - **Not yet:** charter 13 and template 7, a standing role's, its host families and wake policy, and the stock models' prompt cache's life, `cache_life_ms` 300,000 but the scripted model's (`../../domain/agent/standing.md`, sections 2 and 4) [in flight: change 108].
+- **Not yet:** charters 14, the triager's, 15, the prover's, and 16, the porter's: their instructions, words and delegation, and the triager's weekly budget, `TRIAGER_BUDGET` [in flight: change 748].
+- **Not yet:** the `finding` tool among the tools of the charters naming the delegate family (`../../domain/agent/tools.md`) [in flight: change 750].
 
 - **Not yet:** "The box's limits for that work", conflicted paths in one merge: both profiles hold `checkout.conflicts` 4 and `git_component.stdout_bytes` 1,024 (`temper-service/src/limits.rs`, `CHECKOUT`, `GIT`) [in flight: change 41].
 

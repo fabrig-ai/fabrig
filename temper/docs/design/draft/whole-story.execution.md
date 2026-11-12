@@ -89,7 +89,7 @@ or the nearest thing, and says so in that draft's status.
 | N5 | Who can still sign: the people a waiting sign-off can still come from, on its card | `what-reaches-you.md`, 7; its entry below | N2 | temper/ui | should | not started |
 | N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | not started |
 | R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | must | landed; its walk follows R2's and R3's (*R1 to R3*, below) |
-| R2 | Areas in words, the triager's routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | must | not started |
+| R2 | Areas in words, the triager's routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | must | landed; its walk follows R3's (*R1 to R3*, below) |
 | R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | must for talking, nice for reports | not started |
 | F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | must | in flight |
 | F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | must | not started |
@@ -299,7 +299,8 @@ P3a's and P3e's on 2026-11-11, as goal 310, their repairs, landed, and
 P1's that day, as goal 368, its repair, landed, and
 P2's, as goal 338, its repair's wording, landed, and
 N1's that day, as goal 367, its repair's web part, landed, and
-R1's, R2's, R3's, P4b's and N1's on 2026-11-11, as R1 landed. Plans
+R1's, R2's, R3's, P4b's and N1's on 2026-11-11, as R1 landed, and
+R2's, P4c's, P5a's, P5b's and T3's that day, as goal 684, R2, landed. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -314,9 +315,9 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P3f | done | |
 | P4a | landed and repaired; its render check and walk follow | `ui-p4a-team` drew Team's people, and its repair gives a box the role "Owner", People's head the role its people share, "owners of shop", and a line's count in words (`../client/pages/team.md`, 1); the triager as Who routes, under the areas, is P4c's; a line's sign-offs wait on N2, N5 and N6 (`surfaces.status.md`, 6); its render check and walk follow landing (`../client/README.md`, 5) |
 | P4b | starts | R1 has landed: a role's card draws its Now, read as the note described `now` in its scope (`../domain/agent/standing.md`, section 4) |
-| P4c | waits | R2 and R3, by its needs |
-| P5a | landed; Tell temper waits | `ui-p5a-phone` drew the phone's tabs from one pure rule, "Needs" with its count and the Ask tab's tabs under Ask temper's page and its chats, Needs you's phone bar, and every target of the frame, Home, Needs you, Work and a chat's bar and composer at 44 px; its render check and walk follow landing (`../client/README.md`, 5). Tell temper is designed and drawn nowhere: it waits for the engine to file a person's word as a finding and for a setting naming the project's triager, which no milestone above builds, and follows as a milestone of its own once they land (temper/ui's answer to the plan's question `tell-temper-findings`; `surfaces.status.md`, 9) |
-| P5b | waits | R2, by its needs, and Tell temper's filing (P5a) |
+| P4c | waits | R3, by its needs; R2 has landed: a project's areas and triager are kinds 12 and 13, a finding's holder the forge's `findings` subject's (`../domain/areas.md`) |
+| P5a | landed; Tell temper waits | `ui-p5a-phone` drew the phone's tabs from one pure rule, "Needs" with its count and the Ask tab's tabs under Ask temper's page and its chats, Needs you's phone bar, and every target of the frame, Home, Needs you, Work and a chat's bar and composer at 44 px; its render check and walk follow landing (`../client/README.md`, 5). Tell temper is designed and drawn nowhere: it files a person's word as a `feedback` finding through the forge's `FileFinding`, held by the project's triager, kind 13, both R2's, and follows as a milestone of its own (temper/ui's answer to the plan's question `tell-temper-findings`; `surfaces.status.md`, 9) |
+| P5b | waits | Tell temper's filing (P5a); R2 has landed |
 | P6 | done | |
 | P7 | starts | |
 | P8 | starts | |
@@ -327,13 +328,14 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | N4 | done | goal 147, PR #41 |
 | N5, N6 | wait | N2 |
 | R1 | landed; its walk follows | goal 63: jig's task that stands, its sessions and its Now (jig's `domain/tasks/standing.md`), and temper's standing role, its stock charter and template, its person and `role start`, `role list` and `role show` (`../domain/agent/standing.md`); its walk is R2's and R3's |
-| R2, R3 | start | R1 has landed |
+| R2 | landed; its walk follows R3's | goal 684: a project's areas in words and its triager, kinds 12 and 13; findings as temper's record, each held by the owner `../domain/areas.md`, section 4 derives, a task told by news and a person in Needs you; `finding` and `need` in ctl, `party make` and `sign-in --service`; the agents' `finding` tool; a red of no goal's filed; the stock's triager, prover and porter, Draft first bringing the triager |
+| R3 | starts | R1 has landed |
 | F1 | in flight | goal 102 |
 | F2 | waits | F1, by its needs |
 | G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
 | T1 | waits | temper/tui's `tui-box-front`, which changes how the TUI starts |
 | T2 | in flight | the plan `tui-design-session`: its design in `../client/tui/pages.md`, *A design session*, and skein's side region (`skein/docs/design/ui/screen.md`, 5.2) first |
-| T3 | waits | T1, R2 and R3, by its needs |
+| T3 | waits | T1 and R3, by its needs |
 | E | part by part | each part, its step's milestones |
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |
