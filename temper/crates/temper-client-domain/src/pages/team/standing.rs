@@ -491,7 +491,7 @@ impl Standing {
             match kind {
                 task::Sending::Stop => Some(Toasted::Paused),
                 task::Sending::Resume => Some(Toasted::Resumed),
-                task::Sending::Message | task::Sending::Cancel | task::Sending::Amend => None,
+                task::Sending::Leave | task::Sending::Message | task::Sending::Cancel | task::Sending::Amend => None,
             }
         } else {
             Some(Toasted::Refused { outcome: outcome.clone() })

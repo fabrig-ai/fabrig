@@ -290,6 +290,8 @@ pub enum Act {
     SendAmendment,
     /// Reread the task after a moved refusal (client/pages/task.md, 4).
     AmendAgain,
+    /// Leave the reader's open standing-role talk at once (client/pages/task.md, 4).
+    LeaveTalk,
     Pause,
     Resume,
     Stop,
@@ -1002,6 +1004,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 && let Some(task) = &mut pages.task
             {
                 task.amend(env, client, act, &mut pages.serial, out);
+            }
+        }
+        Event::Act { act: Act::LeaveTalk } => {
+            if pages.confirm.is_none()
+                && let Some(page) = &mut pages.task
+            {
+                page.send(env, client, task::Sending::Leave, &mut pages.serial, out);
             }
         }
         Event::Act { act: Act::Resume } if pages.chat.is_some() => {
@@ -2400,6 +2409,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::StartAsks { .. }
         | Act::StartCancel
         | Act::StartGoal
+        | Act::LeaveTalk
         | Act::Pause
         | Act::Resume
         | Act::Amend

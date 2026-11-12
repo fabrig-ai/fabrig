@@ -1452,6 +1452,15 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "role-talk",
+        heading: "T52 · Prover",
+        parts: &[
+            Part::Named { role: Role::TextArea, name: "Talk" },
+            Part::Named { role: Role::Button, name: "Leave" },
+            Part::Text { text: "Add it to my rules?" },
+        ],
+    },
+    Holds {
         name: "agent-work",
         heading: "T1 · please describe how temper works",
         parts: &[
@@ -6309,4 +6318,44 @@ fn finding_gallery_cards_keep_facts_forms_and_responsive_hooks() {
             find(view.tree(), Role::Paragraph, "not a live goal of the project", sample.name);
         }
     }
+}
+
+#[test]
+fn role_talk_shows_provers_open_talk_sent_words_reply_and_leave() {
+    use temper_client_view::look;
+    let sample = samples::samples().into_iter().find(|sample| sample.name == "role-talk").expect("role-talk");
+    assert_eq!(sample.address, temper_client_domain::Address::Task { task: 52 });
+    assert!(!samples::samples().iter().any(|sample| sample.name == "night-role-talk"));
+    let root = samples::domain(&sample);
+    let task = root.pages().task().expect("role's page").document(root.client()).expect("task");
+    assert_eq!(task.flags.ended_by, jig_client::contract::EndedBy::Standing);
+    assert_eq!(task.talk.as_ref().unwrap().party, root.pages().me(root.client()).unwrap().party.number);
+    let view = view(&sample);
+    let tree = view.tree();
+    find(tree, Role::Heading { level: 1 }, "T52 · Prover", sample.name);
+    find(tree, Role::TextArea, "Talk", sample.name);
+    find(tree, Role::Button, "Leave", sample.name);
+    find(tree, Role::Status, "Sent", sample.name);
+    let said: Vec<u8> =
+        tree.nodes().iter().flat_map(|node| node.text.iter().flat_map(|run| run.text.iter().copied())).collect();
+    let said = String::from_utf8(said).unwrap();
+    for words in [
+        "From now on, reproduce a flake twice before routing it.",
+        "Add it to my rules?",
+        "Talk with Prover · it answers here, and the talk stays open until you leave or 30 minutes pass with nothing said.",
+        "Or in a terminal: temper ctl DIR role talk 52 TEXT --key KEY",
+    ] {
+        assert!(said.contains(words), "missing {words}: {said}");
+    }
+    let log = tree.nodes().iter().position(|node| node.role == Role::Log).unwrap();
+    let reply = tree
+        .nodes()
+        .iter()
+        .position(|node| node.text.iter().any(|run| run.text.as_ref() == b"Add it to my rules?"))
+        .unwrap();
+    assert!(reply > log && reply < log + usize::try_from(tree.nodes()[log].size).unwrap());
+    assert!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&look::AGENT_PAGE)));
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(html.contains("Talk to Prover"));
+    assert!(html.contains("temper-agent-page"));
 }

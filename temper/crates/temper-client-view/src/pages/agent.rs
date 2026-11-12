@@ -67,6 +67,9 @@ pub(crate) fn main(
                 None => true,
             }
         {
+            if task::can_leave(task, me) {
+                super::task::act(b, task, c::ActKind::Leave, Word::LeaveTalk, Act::LeaveTalk, words, bindings);
+            }
             super::task::act(b, task, c::ActKind::Amend, Word::Amend, Act::Amend, words, bindings);
             if paused {
                 super::task::act(b, task, c::ActKind::Release, Word::Resume, Act::Resume, words, bindings);
@@ -231,7 +234,10 @@ fn composer(
     bindings: &mut Bindings,
     times: &mut Times,
 ) {
-    let Some(admission) = jig_client::facts::offer(task.acts.as_slice(), c::ActKind::Message) else {
+    let talking = task::talks(task);
+    let kind = if talking { c::ActKind::Talk } else { c::ActKind::Message };
+    let label = if talking { Word::Talk } else { Word::Message };
+    let Some(admission) = jig_client::facts::offer(task.acts.as_slice(), kind) else {
         crate::choice::composer(b, root, Some(task), words, bindings, times);
         return;
     };
@@ -245,13 +251,20 @@ fn composer(
         c::Admission::Allowed | c::Admission::Bounded { .. } => {
             b.open(Role::Paragraph);
             b.style(look::AGENT_STEER);
-            words.text(b, Word::SteerNote, &[]);
+            if talking {
+                words.text(b, Word::TalkNote, &[Hole::Name(copy_of(task.chip.title.bytes()))]);
+            } else {
+                words.text(b, Word::SteerNote, &[]);
+            }
             b.close();
             crate::choice::composer(b, root, Some(task), words, bindings, times);
             b.open(Role::Slot);
             b.style(look::ENTRY);
             b.open(Role::TextArea);
-            b.name(&words.say(Word::Message, &[]));
+            b.name(&words.say(label, &[]));
+            if talking {
+                b.placeholder(&words.say(Word::TalkPlaceholder, &[Hole::Name(copy_of(task.chip.title.bytes()))]));
+            }
             if page.composer_focus != 0 && root.pages().switcher().renaming().is_none() {
                 b.focus(page.composer_focus);
             }
@@ -277,13 +290,19 @@ fn composer(
             b.close();
             super::session::over(b, words, over);
             b.close();
+            if talking {
+                b.open(Role::Paragraph);
+                b.style(look::HINT);
+                words.text(b, Word::TalkTerminal, &[Hole::Number(task.chip.task)]);
+                b.close();
+            }
         }
         // Why Message isn't offered is a note, as the steer note is, not an outcome (5.11).
         c::Admission::Refused(refusal) => {
-            text(b, Role::Paragraph, &words.say(Word::Message, &[]));
+            text(b, Role::Paragraph, &words.say(label, &[]));
             b.open(Role::Paragraph);
             b.style(look::AGENT_STEER);
-            if let c::Refusal::NotWaiting = refusal {
+            if !talking && *refusal == c::Refusal::NotWaiting {
                 words.text(b, Word::MessageOnceRuns, &[]);
             } else {
                 words.refusal(b, refusal, 0);
@@ -292,7 +311,7 @@ fn composer(
             crate::choice::composer(b, root, Some(task), words, bindings, times);
         }
         c::Admission::Proposed { .. } => {
-            super::task::act(b, task, c::ActKind::Message, Word::Message, Act::Send, words, bindings);
+            super::task::act(b, task, kind, label, Act::Send, words, bindings);
             crate::choice::composer(b, root, Some(task), words, bindings, times);
         }
     }

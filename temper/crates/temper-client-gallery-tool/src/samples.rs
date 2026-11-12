@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 431;
+pub const N: usize = 432;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -299,6 +299,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chat-terminal-closed", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
         Sample { name: "chat-terminal", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-terminal-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
+        Sample { name: "role-talk", world: Bare, address: Address::Task { task: 52 }, then: Shown },
         Sample { name: "agent-work", world: Bare, address: Address::Task { task: 1 }, then: Shown },
         Sample { name: "chat-work-done", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-work-open", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
@@ -1915,7 +1916,7 @@ pub fn domain(sample: &Sample) -> Domain {
     {
         return crate::worlds::picker_world(sample.name);
     }
-    if sample.name.starts_with("chat-work-") || sample.name == "agent-work" {
+    if sample.name.starts_with("chat-work-") || sample.name == "agent-work" || sample.name == "role-talk" {
         return crate::worlds::chat_work_world(sample.name);
     }
     if sample.name == "chats-drafts" {

@@ -370,9 +370,86 @@ fn agent_work_task() -> c::Task {
     task.chip.details.details.run_since = Some(Wall::from_nanos(chat_work::AT));
     task
 }
+// client/web/gallery.md, 2: Prover's open talk shares the agent-work page's world.
+fn role_talk_task() -> c::Task {
+    let mut task = agent_work_task();
+    task.chip.task = 52;
+    task.chip.title = doc("Prover");
+    task.flags.ended_by = c::EndedBy::Standing;
+    task.talk =
+        Some(c::Talk { party: 3, opened: Wall::from_nanos(chat_work::AT), last: Wall::from_nanos(chat_work::AT) });
+    task.activity = 1;
+    task.acts = offers(&[c::ActKind::Talk, c::ActKind::Message, c::ActKind::Leave, c::ActKind::Stop]);
+    task
+}
+fn role_talk_activity() -> c::ActivityPage {
+    c::ActivityPage {
+        rows: List::from_boxed(Box::new([c::DecodedActivityLine {
+            source: Box::new(c::ActivityLine {
+                task: 52,
+                position: 1,
+                at: Wall::from_nanos(chat_work::AT),
+                line: c::Activity::TalkOpened { party: 3 },
+            }),
+            decoded: None,
+        }])),
+        before: None,
+        after: None,
+        cut: false,
+    }
+}
+fn role_talk_run() -> c::Delivery {
+    let c::Delivery::RunState(mut run) = chat_work::run("chat-work-writing") else { unreachable!("run state") };
+    run.task = 52;
+    let writing = run.writing.as_mut().expect("role writing its reply");
+    writing.turn.number = 1;
+    writing.text = text("Add it to my rules?");
+    writing.through = u32::try_from(writing.text.bytes().len()).expect("short reply");
+    c::Delivery::RunState(run)
+}
 pub(super) fn chat_work_world(name: &str) -> Domain {
-    let address = if name == "agent-work" { Address::Task { task: 1 } } else { Address::Chat { task: 1 } };
+    let address = match name {
+        "role-talk" => Address::Task { task: 52 },
+        "agent-work" => Address::Task { task: 1 },
+        _ => Address::Chat { task: 1 },
+    };
     let mut root = world_in_layout(World::Bare, address, Then::Shown, false, Some(name), None, false).0;
+    if name == "role-talk" {
+        // Acknowledged words and the run's reply being written share the page,
+        // before the next activity read replaces the local Sent words.
+        use temper_client_domain::{Action, pages::Act};
+        let mut out = Queue::uncapped();
+        step(
+            &mut root,
+            Event::Act {
+                action: Action::Pages(Act::MessageWords {
+                    words: b"From now on, reproduce a flake twice before routing it.".as_slice().into(),
+                }),
+            },
+            &mut out,
+        );
+        step(&mut root, Event::Act { action: Action::Pages(Act::Send) }, &mut out);
+        while let Some(request) = out.pop() {
+            if let Some(jig_client::Down::Send { attempt, .. }) = crate::driver::down(request) {
+                step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                                    c::DocumentOutcome::Said { task: 52, message: 1 },
+                                )))),
+                                why: None,
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+            }
+        }
+    }
     if name == "chat-work-reading" {
         step(
             &mut root,
@@ -613,6 +690,7 @@ fn world_in_layout(
     let to_begin = (how && !settings.is_some_and(|name| ways::is_draft(name) || name == "how-team"))
         || settings.is_some_and(|name| name == "ask-first-run" || name.starts_with("ask-ways-"));
     let picker = goals.filter(|name| picker::is_state(name));
+    let role_talk = goals == Some("role-talk");
     let agent_work = goals == Some("agent-work");
     let goals = if agent_work { Some("chat-work-running") } else { goals };
     let asking = asking_chat || matches!(address, Address::Ask { .. });
@@ -648,6 +726,9 @@ fn world_in_layout(
                     let document = match subject {
                         c::Subject::Me => {
                             let mut me = frame(w, connecting, asking);
+                            if role_talk {
+                                me.party.number = 3;
+                            }
                             if let Some(name) = settings.filter(|name| ways::is_how(name)) {
                                 ways::frame(&mut me, name);
                             }
@@ -738,6 +819,8 @@ fn world_in_layout(
                                 views::task()
                             } else if picker.is_some() {
                                 chat_work::task("chat-work-running")
+                            } else if role_talk {
+                                role_talk_task()
                             } else if agent_work {
                                 agent_work_task()
                             } else if let Some(name) = goals.filter(|name| name.starts_with("chat-work-")) {
@@ -784,13 +867,15 @@ fn world_in_layout(
                             }
                             Some(c::Delivery::Task(Box::new(task)))
                         }
-                        c::Subject::Tree { .. } if agent_work => Some(c::Delivery::Tree(Box::new(c::Tree {
-                            root: agent_work_task().chip,
-                            rows: List::with_capacity(0),
-                            folded: List::with_capacity(0),
-                            held_below: 0,
-                            next: None,
-                        }))),
+                        c::Subject::Tree { .. } if agent_work || role_talk => {
+                            Some(c::Delivery::Tree(Box::new(c::Tree {
+                                root: if role_talk { role_talk_task().chip } else { agent_work_task().chip },
+                                rows: List::with_capacity(0),
+                                folded: List::with_capacity(0),
+                                held_below: 0,
+                                next: None,
+                            })))
+                        }
                         c::Subject::Tree { task, window } => Some(
                             page_goal(goals)
                                 .filter(|g| g.facts.number == task)
@@ -836,6 +921,8 @@ fn world_in_layout(
                                     writing: None,
                                     call: None,
                                 })))
+                            } else if role_talk {
+                                Some(role_talk_run())
                             } else {
                                 goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
                             }
@@ -1856,6 +1943,11 @@ fn proposal() -> c::ReadValue {
 }
 #[expect(clippy::too_many_lines, reason = "one dispatch answers every gallery read with its world fixture")]
 fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Option<c::ReadValue> {
+    if goals == Some("role-talk")
+        && let c::Read::Activity { .. } = what
+    {
+        return Some(c::ReadValue::Activity(Box::new(role_talk_activity())));
+    }
     if let Some(name) = goals.filter(|name| name.starts_with("chat-work-"))
         && let c::Read::Activity { before, .. } = what
     {
@@ -4788,7 +4880,7 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
         | "work-goals" | "work-changes" | "work-empty" | "members" | "members-refused" | "limits"
         | "limits-not-owner" | "night-work" | "night-limits" | "team-role" | "night-team-role" => rail_work::NOW,
         name if name.starts_with("approve-") => Wall::from_nanos(120_000_000_000),
-        name if name.starts_with("chat-work-") || name == "agent-work" => {
+        name if name.starts_with("chat-work-") || name == "agent-work" || name == "role-talk" => {
             Wall::from_nanos(chat_work::AT + 60_000_000_000)
         }
         "home-morning"

@@ -338,6 +338,7 @@ remembered-three
 repositories
 repositories-making
 repositories-none
+role-talk
 settings
 settings-all-hidden
 settings-changes-off
