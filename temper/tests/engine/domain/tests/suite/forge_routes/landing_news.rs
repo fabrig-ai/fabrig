@@ -47,7 +47,7 @@ fn a_members_goal_hears_joined_proving_and_left_and_the_result_names_why() {
     let (mut world, goal, change) = produced_goal();
     for _ in 0..600 {
         world.prepare_tick();
-        if landing_rows(&world).iter().any(|row| row.landing.phase == temper_engine_domain_forge_landing::Phase::Proving) { break; }
+        if landing_rows(&world).iter().any(|row| row.landing.phase == forge_top::LandingPhase::Proving) { break; }
     }
     let landing = landing_rows(&world).first().expect("proving landing").landing.task;
     cancel_task(&mut world, change);
@@ -64,13 +64,13 @@ fn a_members_goal_hears_the_runner_bound_and_the_landing_holds_with_that_account
     world.fake_env.limits.setup_faults = 1000;
     for _ in 0..1600 {
         world.prepare_tick();
-        if landing_rows(&world).iter().any(|row| matches!(row.landing.phase, temper_engine_domain_forge_landing::Phase::Held { .. })) { break; }
+        if landing_rows(&world).iter().any(|row| matches!(row.landing.phase, forge_top::LandingPhase::Held { .. })) { break; }
     }
     let row = landing_rows(&world).into_iter().next().expect("held landing");
     let landing = row.landing.task;
     let why = "gate gate of org/repo failed on its runner past its retries";
-    assert!(matches!(row.landing.phase, temper_engine_domain_forge_landing::Phase::Held { why: temper_engine_domain_forge_landing::Hold::Faults { .. }, .. }));
+    assert!(matches!(row.landing.phase, forge_top::LandingPhase::Held { why: forge_top::LandingHold::Faults { .. }, .. }));
     assert_eq!(news(&world, goal, landing), [joined(landing, change), proving(row, change), format!("landing {landing}: held: {why}")]);
     let tasks::Phase::Held { source: Some(source), .. } = &task_row(&world, landing).expect("held task").phase else { panic!("held task") };
-    assert!(matches!(source, tasks::HoldSource::Account { words, .. } if words.as_ref() == why.as_bytes()));
+    assert!(matches!(source.as_ref(), tasks::HoldSource::Account { words, .. } if words.as_ref() == why.as_bytes()));
 }

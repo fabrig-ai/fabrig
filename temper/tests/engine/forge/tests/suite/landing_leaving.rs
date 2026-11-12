@@ -38,7 +38,9 @@ fn proving(world: &mut World) {
 fn left(world: &mut World, why: landing::Leave) {
     let pull = world.landing(LANDING).landing.round.pull;
     let branch = world.landing(LANDING).landing.round.branch.clone();
-    landings::drive_landing(world, LANDING);
+    for entry in 1000..1040 {
+        if landings::step_landing(world, LANDING, entry) == landing::Decision::Finish { break; }
+    }
     let row = &world.landing(LANDING).landing;
     assert_eq!(row.phase, landing::Phase::Landed);
     assert_eq!(row.members[0].left, Some(why));
