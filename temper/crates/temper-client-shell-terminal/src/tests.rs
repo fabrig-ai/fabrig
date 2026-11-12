@@ -58,8 +58,8 @@ fn a_table_record_saved_then_kept_comes_back_the_same() {
 #[test]
 fn the_native_limits_cover_wire_and_transport() {
     let limits = limits::native();
-    // The reference delegation needs eighteen executor places.
-    assert_eq!(limits.client.client.domain.authority, 18);
+    // The stock's 21 executors and one deployment charter fit whole.
+    assert_eq!(limits.client.client.domain.authority, 22);
     assert_eq!(limits.client.client.domain.rows, 16);
     assert_eq!(limits.client.client.domain.delegates, 80);
     let wire = client::forge::wire_limits(&limits.client.forge).expect("client wire bounds");
