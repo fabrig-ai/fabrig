@@ -36,11 +36,17 @@ fn first_tui_line_starts_confined_and_approves_before_acting() {
     assert_eq!(program.args, ["http://127.0.0.1:9"]);
     assert_eq!(program.directory, Path::new("/scratch"));
     let lookup = |key: &str| program.environment.iter().find(|(name, _)| name == key).map(|(_, v)| v.as_os_str());
-    for (key, value) in [("HOME", "/scratch/session/home"), ("XDG_STATE_HOME", "/scratch/session/state"),
-        ("XDG_RUNTIME_DIR", "/scratch/session/tui-runtime"), ("TERM", "xterm-256color"),
-        ("XDG_CONFIG_HOME", "/scratch/session/home/config"), ("XDG_CACHE_HOME", "/scratch/session/home/cache"),
+    for (key, value) in [
+        ("HOME", "/scratch/session/home"),
+        ("XDG_STATE_HOME", "/scratch/session/state"),
+        ("XDG_RUNTIME_DIR", "/scratch/session/tui-runtime"),
+        ("TERM", "xterm-256color"),
+        ("XDG_CONFIG_HOME", "/scratch/session/home/config"),
+        ("XDG_CACHE_HOME", "/scratch/session/home/cache"),
         ("XDG_DATA_HOME", "/scratch/session/home/data"),
-        ("PATH", "/scratch/session/bin:/bin"), ("DISPLAY", ":0")] {
+        ("PATH", "/scratch/session/bin:/bin"),
+        ("DISPLAY", ":0"),
+    ] {
         assert_eq!(lookup(key), Some(OsStr::new(value)), "{key}");
     }
     for (key, value) in &program.environment {
@@ -61,8 +67,10 @@ fn first_tui_line_starts_confined_and_approves_before_acting() {
         if *find == Find::exactly_named(Role::Button, b"Approve")));
     step(&mut m, Event::Found(None));
     assert!(matches!(m.step(Event::Deadline, Time::from_nanos(50_000_000)).as_slice(), [Action::Find(_)]));
-    assert!(matches!(step(&mut m, Event::Found(Some(NodeId(5)))).as_slice(),
-        [Action::Perform(Doing::Act { node: NodeId(5), act: Act::Press })]));
+    assert!(matches!(
+        step(&mut m, Event::Found(Some(NodeId(5)))).as_slice(),
+        [Action::Perform(Doing::Act { node: NodeId(5), act: Act::Press })]
+    ));
     assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Open(url)] if url.as_ref() == back));
     assert!(matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::SaveTui]));
     assert!(step(&mut m, Event::TuiSaved(saves().1)).is_empty(), "Ask temper not shown yet");
@@ -75,10 +83,14 @@ fn keys_use_walk_bytes_and_look_replays_rows() {
     assert!(matches!(line(&mut m, "tui look").as_slice(), [Action::SaveTui]));
     let mut records = journey::lines(&saves().1).expect("save records");
     for record in &mut records {
-        if let journey::Line::End(text) = record { *text = Some(b"not the native frame  ".as_slice().into()); }
+        if let journey::Line::End(text) = record {
+            *text = Some(b"not the native frame  ".as_slice().into());
+        }
     }
     let mut bytes = vec![];
-    for record in records { record.write(&mut bytes); }
+    for record in records {
+        record.write(&mut bytes);
+    }
     let actions = step(&mut m, Event::TuiSaved(bytes.into()));
     assert!(!actions.iter().any(|a| matches!(a, Action::Keep(_))), "looks are not kept");
     let a = answer(&actions);
@@ -109,8 +121,12 @@ fn see_polls_native_final_frame_until_thirty_seconds() {
     let deadline = records.iter_mut().rev().find(|r| matches!(r, journey::Line::Deadline(_))).expect("deadline");
     *deadline = journey::Line::Deadline(Some(Time::from_nanos(u64::MAX)));
     let mut bad = vec![];
-    for record in records { record.write(&mut bad); }
-    assert!(answer(&step(&mut m, Event::TuiSaved(bad.into()))).failed.as_ref().expect("stale").contains("stale TUI save"));
+    for record in records {
+        record.write(&mut bad);
+    }
+    assert!(
+        answer(&step(&mut m, Event::TuiSaved(bad.into()))).failed.as_ref().expect("stale").contains("stale TUI save")
+    );
 }
 #[test]
 fn missing_recording_fails_after_ten_seconds_and_continues() {
@@ -144,7 +160,13 @@ fn stop_is_idempotent_restarts_and_end_stops_tui_first() {
 fn exit_and_failed_approval_leave_session_usable() {
     let mut m = running();
     line(&mut m, "tui look");
-    assert!(answer(&step(&mut m, Event::TuiFailure("TUI exited".into()))).failed.as_ref().expect("exit").contains("TUI exited"));
+    assert!(
+        answer(&step(&mut m, Event::TuiFailure("TUI exited".into())))
+            .failed
+            .as_ref()
+            .expect("exit")
+            .contains("TUI exited")
+    );
     line(&mut m, "tui key enter");
     step(&mut m, Event::TuiReady);
     step(&mut m, Event::TuiSaved(saves().1));
@@ -153,6 +175,12 @@ fn exit_and_failed_approval_leave_session_usable() {
     let actions = step(&mut m, Event::FaceDone(Err("approval page failed".into())));
     assert!(actions.iter().any(|a| matches!(a, Action::Open(url) if url.as_ref() == back)));
     assert!(actions.iter().any(|a| matches!(a, Action::StopTui)));
-    assert!(answer(&step(&mut m, Event::FaceDone(Ok(())))).failed.as_ref().expect("approval failed").contains("approval page failed"));
+    assert!(
+        answer(&step(&mut m, Event::FaceDone(Ok(()))))
+            .failed
+            .as_ref()
+            .expect("approval failed")
+            .contains("approval page failed")
+    );
     assert!(m.ready());
 }

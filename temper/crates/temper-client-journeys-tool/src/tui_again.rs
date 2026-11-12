@@ -15,10 +15,7 @@ use skein_ui_screen_terminal::Key;
 use std::{
     ffi::{OsStr, OsString},
     fs::{self, File},
-    os::unix::{
-        ffi::OsStrExt,
-        fs::DirBuilderExt,
-    },
+    os::unix::{ffi::OsStrExt, fs::DirBuilderExt},
     path::Path,
 };
 use temper_client_shell_tui::journey::{self, WalkStep};
@@ -341,8 +338,15 @@ impl<'a> Walker<'a> {
             Phase::Address => {
                 let address = face.take_address().ok_or_else(|| self.fail("browser supplied no box address"))?;
                 let address = origin(&address).ok_or_else(|| self.fail("browser supplied no loopback box address"))?;
-                self.terminal =
-                    Some(Terminal::start(&self.paths.scratch, &self.paths.temper.with_file_name("temper-client"), &address, &self.environment).map_err(|why| self.fail(why))?);
+                self.terminal = Some(
+                    Terminal::start(
+                        &self.paths.scratch,
+                        &self.paths.temper.with_file_name("temper-client"),
+                        &address,
+                        &self.environment,
+                    )
+                    .map_err(|why| self.fail(why))?,
+                );
                 self.phase = Phase::Ready;
             }
             Phase::Ready => {
@@ -447,4 +451,3 @@ fn origin(url: &[u8]) -> Option<Vec<u8>> {
     origin.extend_from_slice(port);
     Some(origin)
 }
-

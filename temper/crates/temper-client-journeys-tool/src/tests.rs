@@ -647,7 +647,10 @@ impl TuiWorld {
         world.report(start);
         world
     }
-    pub(super) fn report(&mut self, report: temper_client_shell_tui::host::Report) -> temper_client_shell_tui::host::Duties {
+    pub(super) fn report(
+        &mut self,
+        report: temper_client_shell_tui::host::Report,
+    ) -> temper_client_shell_tui::host::Duties {
         let now = Time::from_nanos(self.now);
         let wall = Wall::from_nanos(self.now);
         self.now += 1;

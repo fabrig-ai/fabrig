@@ -118,8 +118,11 @@ impl Plan {
         self.program("temper-client", all, input)
     }
     pub(super) fn tui(&self, origin: &[u8]) -> Result<Program, String> {
-        let mut given = self.environment.iter().map(|(name, value)|
-            (name.as_bytes().into(), value.as_bytes().into())).collect::<Vec<_>>();
+        let mut given = self
+            .environment
+            .iter()
+            .map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into()))
+            .collect::<Vec<_>>();
         if let Some(display) = &self.tui_display {
             given.push((b"DISPLAY".as_slice().into(), display.as_bytes().into()));
         }
@@ -127,7 +130,9 @@ impl Plan {
             .map_err(|why| format!("cannot build TUI environment: {why}"))?;
         for (name, value) in &mut environment {
             if ["XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME"].iter().any(|key| name == key) {
-                value.clone_from(&self.environment.iter().find(|(key, _)| key == name).expect("session XDG directory").1);
+                value.clone_from(
+                    &self.environment.iter().find(|(key, _)| key == name).expect("session XDG directory").1,
+                );
             }
         }
         let mut program = self.program("temper-client", vec![OsStr::from_bytes(origin).into()], Input::Null);
@@ -217,7 +222,9 @@ pub(super) fn prepare(mut options: Options, environment: &[EnvironmentEntry]) ->
     executable(&chromium)?;
     let mut plan =
         Plan::new(options, chromium, OsStr::from_bytes(crate::table::PATH.value(environment).unwrap_or_default()));
-    plan.tui_display = environment.iter().find(|(name, _)| name.as_ref() == b"DISPLAY")
+    plan.tui_display = environment
+        .iter()
+        .find(|(name, _)| name.as_ref() == b"DISPLAY")
         .map(|(_, value)| OsStr::from_bytes(value).to_os_string());
     fresh_session(&plan.options.scratch)
         .map_err(|error| format!("cannot prepare {}/session: {error}", plan.options.scratch.display()))?;

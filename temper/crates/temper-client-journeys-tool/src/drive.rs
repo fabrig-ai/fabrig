@@ -202,8 +202,12 @@ impl Machine {
     pub fn step(&mut self, event: Event, now: Time) -> Vec<Action> {
         let mut out = vec![];
         match event {
-            Event::TuiReady | Event::TuiSaved(_) | Event::TuiWritten | Event::TuiStopped
-            | Event::TuiFailure(_) | Event::BrowserAddress(_) => self.tui_event(event, now, &mut out),
+            Event::TuiReady
+            | Event::TuiSaved(_)
+            | Event::TuiWritten
+            | Event::TuiStopped
+            | Event::TuiFailure(_)
+            | Event::BrowserAddress(_) => self.tui_event(event, now, &mut out),
             Event::Line(bytes) => self.line(&bytes, now, &mut out),
             Event::End => self.end(now, &mut out),
             Event::BoxLine { output, line } => self.box_line(output, &line, now, &mut out),
@@ -229,7 +233,13 @@ impl Machine {
                 self.until = None;
                 self.poll = None;
                 self.save_until = None;
-                out.extend([Action::StopTui, Action::CancelFace, Action::StopCtl, Action::KillBox, Action::Finished(Exit::own(why))]);
+                out.extend([
+                    Action::StopTui,
+                    Action::CancelFace,
+                    Action::StopCtl,
+                    Action::KillBox,
+                    Action::Finished(Exit::own(why)),
+                ]);
             }
             Event::Snapshot(_) | Event::Description(_) | Event::Logs { .. } => {}
         }
@@ -439,7 +449,9 @@ impl Machine {
         }
     }
     fn face_done(&mut self, result: Result<(), String>, now: Time, out: &mut Vec<Action>) {
-        if self.tui_face_done(&result, now, out) { return; }
+        if self.tui_face_done(&result, now, out) {
+            return;
+        }
         if let Err(why) = result {
             if self.phase == Phase::ClosingBrowser {
                 self.stop_box(now, out);
@@ -490,7 +502,9 @@ impl Machine {
             .map_or_else(|| format!("{:?}", self.phase), |line| String::from_utf8_lossy(line.print()).into_owned())
     }
     fn deadline(&mut self, now: Time, out: &mut Vec<Action>) {
-        if self.tui_deadline(now, out) { return; }
+        if self.tui_deadline(now, out) {
+            return;
+        }
         if self.until.is_some_and(|until| now >= until) {
             if self.current.is_some() && !matches!(self.phase, Phase::ClosingBrowser | Phase::Stopping) {
                 out.push(Action::CancelFace);
@@ -542,7 +556,10 @@ impl Machine {
         }
     }
     fn end(&mut self, now: Time, out: &mut Vec<Action>) {
-        if matches!(self.phase, Phase::Finished | Phase::Classifying | Phase::ClosingTui | Phase::ClosingBrowser | Phase::Stopping) {
+        if matches!(
+            self.phase,
+            Phase::Finished | Phase::Classifying | Phase::ClosingTui | Phase::ClosingBrowser | Phase::Stopping
+        ) {
             return;
         }
         self.current = None;

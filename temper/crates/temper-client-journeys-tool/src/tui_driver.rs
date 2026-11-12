@@ -1,6 +1,12 @@
 //! Shared terminal walk mechanics (client/tui/journeys.md, 8.1–8.2).
 use skein_ui_screen_terminal::Key;
-use std::{ffi::{OsStr, OsString}, fs::File, io::{self, Read}, os::unix::{ffi::OsStrExt, fs::MetadataExt}, path::Path};
+use std::{
+    ffi::{OsStr, OsString},
+    fs::File,
+    io::{self, Read},
+    os::unix::{ffi::OsStrExt, fs::MetadataExt},
+    path::Path,
+};
 pub(crate) mod terminal;
 pub(crate) fn environment(
     given: &[crate::EnvironmentEntry],

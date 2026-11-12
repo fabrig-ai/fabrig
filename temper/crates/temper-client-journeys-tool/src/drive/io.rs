@@ -197,7 +197,9 @@ impl Session {
         for report in self.pump.poll(&mut self.face, deadline) {
             self.report(report);
         }
-        for event in self.tui.tick() { self.event(event); }
+        for event in self.tui.tick() {
+            self.event(event);
+        }
         self.face_progress();
         let now = self.pump.now();
         if self.machine.next_deadline().is_some_and(|at| now >= at) {
@@ -253,8 +255,11 @@ impl Session {
         };
         match job {
             FaceJob::Address => {
-                if let Some(address) = self.face.take_address() { self.event(Event::BrowserAddress(address)); }
-                else { self.event(Event::FaceDone(Err("browser supplied no address".into()))); }
+                if let Some(address) = self.face.take_address() {
+                    self.event(Event::BrowserAddress(address));
+                } else {
+                    self.event(Event::FaceDone(Err("browser supplied no address".into())));
+                }
             }
             FaceJob::Opening => self.face_job = Some(FaceJob::Opening),
             FaceJob::Find(find) => match self.face.find(&find) {
@@ -332,14 +337,24 @@ impl Session {
             }
             match action {
                 Action::StartTui { program, rows, columns } => {
-                    if let Err(why) = self.tui.start(&program, rows, columns) { self.event(Event::TuiFailure(why)); }
+                    if let Err(why) = self.tui.start(&program, rows, columns) {
+                        self.event(Event::TuiFailure(why));
+                    }
                 }
                 Action::WriteTui(bytes) => self.tui.write(bytes),
                 Action::SaveTui => {
-                    if let Err(why) = self.tui.save() { self.event(Event::TuiFailure(why)); }
+                    if let Err(why) = self.tui.save() {
+                        self.event(Event::TuiFailure(why));
+                    }
                 }
-                Action::StopTui => { self.tui.stop(); self.event(Event::TuiStopped); }
-                Action::BrowserAddress => { self.face.address(); self.face_job = Some(FaceJob::Address); }
+                Action::StopTui => {
+                    self.tui.stop();
+                    self.event(Event::TuiStopped);
+                }
+                Action::BrowserAddress => {
+                    self.face.address();
+                    self.face_job = Some(FaceJob::Address);
+                }
                 Action::Start { process, program } => {
                     if process == Process::Ctl
                         && let Err(why) = super::options::check_destinations(&program, &self.scratch)
