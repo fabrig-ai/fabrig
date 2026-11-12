@@ -284,6 +284,7 @@ needs-proposal
 needs-reply-open
 needs-saw-open
 needs-second-answered
+needs-sign-off-part
 needs-stop-asking
 needs-stop-asking-set
 needs-tell
@@ -305,6 +306,7 @@ night-remembered-none
 night-remembered-refused
 night-remembered-three
 night-team
+night-team-role
 night-work
 no-project
 out-of-date
@@ -360,6 +362,7 @@ task-solo-T3
 task-solo-T9
 team
 team-alone
+team-role
 welcome-first-run-0
 welcome-forge-choose
 welcome-forge-connected

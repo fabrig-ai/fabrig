@@ -2,7 +2,7 @@
 
 2026-11-11. Where the tree's code lags or departs from [briefs.md](briefs.md).
 
-- **Not yet:** 1 and 2: a standing task's Now, its own scope, no contract and no transcript tail on a session's first run (`../tasks/standing.md`, sections 2 and 6) [in flight: change 107].
+- **Not yet:** 1 and 2: a standing task's Now, its own scope, no contract and no transcript tail on a session's first run (`../tasks/standing.md`, sections 2 and 6).
 - **Not yet:** 1.2: the waiting section's open questions, with their askers, numbers, words and answer form; nothing plans `Core::Waiting` yet [in flight: change 838].
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `README.status.md`, 4.2 and 5.3.
@@ -36,5 +36,5 @@
   one that lowers either bound under kept lines fails them too. No test
   reads a preferences gather that fails, for room, refusal or fit.
 
-- **Not yet:** 2.2: the wait table bounded by `brief.briefs`, not by live tasks, and a wait that finds it full aborts the engine (`jig-domain-core/src/routing/run/preparation.rs`, `start_brief`; `routing/effect/note.rs`, `defer_brief`) [in flight: change 232].
-- **Not yet:** 2.1: the `preferences` section is given where the run's task's authority holds the asking family, whatever its charter names, so a run whose charter names no asking family reads its person's preferences too (`jig-domain-core/src/routing/run/preferences.rs`, `party`) [in flight: change 512].
+- **Not yet:** 2.2: the wait table bounded by `brief.briefs`, not by live tasks, and a wait that finds it full aborts the engine (`jig-domain-core/src/routing/run/preparation.rs`, `start_brief`; `routing/effect/note.rs`, `defer_brief`).
+- **Not yet:** 2.1: the `preferences` section is given where the run's task's authority holds the asking family, whatever its charter names, so a run whose charter names no asking family reads its person's preferences too (`jig-domain-core/src/routing/run/preferences.rs`, `party`).

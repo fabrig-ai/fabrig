@@ -55,5 +55,4 @@
   changes, which leave out one at `Updating`, `Checking`, `Gating` or `Landing`,
   so a queued change stepped while the first is there takes `First` too; several
   ways of leaving the queue keep `owns_turn`; and only a change leaving `Queued`
-  or `First` wakes the next, not one giving up its turn elsewhere or landing
-  [in flight: change 594].
+  or `First` wakes the next, not one giving up its turn elsewhere or landing.

@@ -1,7 +1,7 @@
 //! Forge-owned brief sections, gathered from current provider facts
 //! (jig's domain/connectors.md, section 9). Pull sections stop at their cutoff
 //! (temper/docs/design/domain/forge/change/repairs.md, A resolution).
-use crate::brief_words::{self, bounds, busy, moved, room, unnamed};
+use crate::brief_words::{self, bounds, busy, moved, moved_transient, room, unnamed};
 use crate::{BriefCommit, BriefItem, BriefRead, BriefSource, Domain, Request};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token};
@@ -327,7 +327,11 @@ pub(crate) fn brief_answer(
                         out,
                     );
                     wake_change(domain, fetch.item);
-                    crate::held::ready(domain, fetch.owner, BriefRead::Failed(moved()), out);
+                    let unread = match fetch.mode {
+                        PullMode::Conflict(_) => moved_transient(),
+                        PullMode::Review | PullMode::Semantic(_) | PullMode::Other => moved(),
+                    };
+                    crate::held::ready(domain, fetch.owner, BriefRead::Failed(unread), out);
                     return true;
                 }
                 own_head(&mut fetch, pull.commit);

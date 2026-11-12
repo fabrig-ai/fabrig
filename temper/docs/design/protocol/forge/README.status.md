@@ -2,7 +2,7 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 9: the protocol world's Forgejo change whose Actions CI stays pending ten minutes, with and without deliveries, counted a minute at a time [in flight: change 49].
+- **Not yet:** 9: the protocol world's Forgejo change whose Actions CI stays pending ten minutes, with and without deliveries, counted a minute at a time.
 
 `engine.md`, section 1 has no known implementation gap in adoption's users among
 jig's parties: their subjects name the repository's forge and the user.

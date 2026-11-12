@@ -372,9 +372,9 @@ Serve a fake LLM provider: the demo's, from the configuration, or one from a JSO
 
 ### temper-box fake forge
 
-`temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`
 
-`temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE]`
+`temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]`
 
 Serve a fake forge: forge FORGE of the configuration, or one from a JSON document. Internal: it may change without notice.
 

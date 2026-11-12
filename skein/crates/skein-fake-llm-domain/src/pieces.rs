@@ -48,7 +48,7 @@ pub(crate) fn valid(scripts: &[Script]) -> bool {
                             }
                         }
                     }
-                    Line::Text { .. } | Line::Opaque { .. } | Line::Call { .. } => {}
+                    Line::Take { .. } | Line::Text { .. } | Line::Opaque { .. } | Line::Call { .. } => {}
                 }
             }
         }
@@ -76,7 +76,8 @@ fn at(scripts: &[Script], place: Place) -> &[Piece] {
     let turn = scripts.get(place.script).expect("retained script").turns.get(place.turn).expect("retained turn");
     match turn.lines.first() {
         Some(Line::Pieces { pieces }) => pieces,
-        Some(Line::Fail { .. } | Line::Text { .. } | Line::Opaque { .. } | Line::Call { .. }) | None => {
+        Some(Line::Take { .. } | Line::Fail { .. } | Line::Text { .. } | Line::Opaque { .. } | Line::Call { .. })
+        | None => {
             unreachable!("a stream starts with pieces")
         }
     }

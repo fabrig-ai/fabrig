@@ -1189,6 +1189,9 @@ fn approval(project: u32, rng: &mut Rng) -> w::ApprovalRow {
             sets: List::with_capacity(0),
             whole: true,
             yours: w::ApprovalYours::Counts,
+            signed: List::with_capacity(0),
+            can_sign: List::with_capacity(0),
+            can_sign_more: 0,
             size,
         },
     )

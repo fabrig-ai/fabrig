@@ -330,8 +330,8 @@ pub(crate) fn switcher(
                 builder,
                 Role::Link,
                 &label,
-                PageAct::Go { address: Address::Team { project } },
-                root.pages().address() == &(Address::Team { project }),
+                PageAct::Go { address: Address::Team { project, role: None } },
+                if let Address::Team { project: at, .. } = root.pages().address() { *at == project } else { false },
                 bindings,
             );
         }
@@ -883,7 +883,7 @@ fn entries(
             b,
             Role::Link,
             &w.say(Word::TeamTitle, &[]),
-            PageAct::Go { address: Address::Team { project } },
+            PageAct::Go { address: Address::Team { project, role: None } },
             team,
             bindings,
         );

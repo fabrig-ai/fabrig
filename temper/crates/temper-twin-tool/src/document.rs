@@ -1,5 +1,5 @@
 //! The fake document's strict validation remains temper-fake's.
-use crate::{Refusal, Replace, Take};
+use crate::{Refusal, Replace, Take, ValueTake, takes};
 use serde_json::value::RawValue;
 use smith_transcript::{Block, Role};
 use std::{collections::BTreeMap, fmt::Write};
@@ -119,7 +119,7 @@ pub(crate) fn script(
     Ok(script)
 }
 
-fn replace(input: &[u8], replaces: &[Replace], counts: &mut [u32]) -> Result<Vec<u8>, Refusal> {
+pub(crate) fn replace(input: &[u8], replaces: &[Replace], counts: &mut [u32]) -> Result<Vec<u8>, Refusal> {
     let mut bytes = input.to_vec();
     for (i, replace) in replaces.iter().enumerate() {
         let mut out = Vec::new();
@@ -150,9 +150,115 @@ pub(crate) fn finish(base: &mut Base, cued: &[String], asked: &[String]) -> Resu
         };
         base.insert(String::from(name), scripts);
     }
+    checked(base)
+}
+
+pub(crate) fn checked(base: &Base) -> Result<Box<[u8]>, Refusal> {
     let bytes = serde_json::to_vec(base).expect("raw JSON members");
     if temper_fake::llm::Document::decode(&bytes).is_err() {
         return Err(Refusal::Bounds { what: "fake document" });
     }
     Ok(bytes.into_boxed_slice())
+}
+
+pub(crate) fn transform(
+    base: &mut Base,
+    groups: &[&str],
+    replaces: &[Replace],
+    counts: &mut [u32],
+    values: &[ValueTake],
+    taken: &mut [u32],
+) -> Result<(), Refusal> {
+    for group in groups {
+        let Some(raw) = base.get_mut(*group) else { continue };
+        let mut scripts: Vec<Box<RawValue>> = serde_json::from_str(raw.get()).expect("checked scripts");
+        for raw in &mut scripts {
+            if *group == "otherwise" {
+                *raw = turn(raw, replaces, counts, values, taken)?;
+            } else {
+                let mut script: Base = serde_json::from_str(raw.get()).expect("checked script");
+                let turns = script.get_mut("turns").expect("script turns");
+                let mut list: Vec<Box<RawValue>> = serde_json::from_str(turns.get()).expect("checked turns");
+                for raw in &mut list {
+                    *raw = turn(raw, replaces, counts, values, taken)?;
+                }
+                *turns = json(&list);
+                *raw = json(&script);
+            }
+        }
+        *raw = json(&scripts);
+    }
+    for (take, count) in values.iter().zip(taken) {
+        if *count == 0 {
+            return Err(Refusal::UnusedTake { name: take.name.clone() });
+        }
+    }
+    Ok(())
+}
+fn json<T: serde::Serialize>(value: &T) -> Box<RawValue> {
+    serde_json::value::to_raw_value(value).expect("JSON value")
+}
+
+fn turn(
+    raw: &RawValue,
+    replaces: &[Replace],
+    counts: &mut [u32],
+    values: &[ValueTake],
+    taken: &mut [u32],
+) -> Result<Box<RawValue>, Refusal> {
+    if replaces.is_empty() && values.is_empty() {
+        return Ok(raw.to_owned());
+    }
+    let mut turn: Base = if raw.get().starts_with('"') {
+        let text: String = serde_json::from_str(raw.get()).expect("checked shorthand turn");
+        BTreeMap::from([
+            ("lines".into(), json(&[BTreeMap::from([("text", text.clone())])])),
+            ("tokens".into(), json(&text.len().div_ceil(4))),
+            ("finish".into(), json(&"stop")),
+        ])
+    } else {
+        serde_json::from_str(raw.get()).expect("checked turn")
+    };
+    let mut lines: Vec<Base> =
+        serde_json::from_str(turn.get("lines").expect("turn lines").get()).expect("checked lines");
+    let before = taken.to_vec();
+    for line in &mut lines {
+        if let Some(text) = line.get_mut("text") {
+            let original: String = serde_json::from_str(text.get()).expect("checked text");
+            let mut words = String::from_utf8(replace(original.as_bytes(), replaces, counts)?)
+                .map_err(|_| Refusal::Bounds { what: "UTF-8 text" })?;
+            for (take, count) in values.iter().zip(taken.iter_mut()) {
+                words = takes::text(&words, take, None, "", count)?;
+            }
+            *text = json(&words);
+        } else if let Some(call) = line.get("call") {
+            let name: String = serde_json::from_str(call.get()).expect("checked call name");
+            let arguments = line.get_mut("arguments").expect("call arguments");
+            let bytes = replace(arguments.get().as_bytes(), replaces, counts)?;
+            let mut raw = RawValue::from_string(
+                String::from_utf8(bytes).map_err(|_| Refusal::Bounds { what: "replacement arguments" })?,
+            )
+            .map_err(|_| Refusal::Bounds { what: "replacement arguments" })?;
+            if !raw.get().starts_with('{') {
+                return Err(Refusal::Bounds { what: "replacement arguments" });
+            }
+            for (take, count) in values.iter().zip(taken.iter_mut()) {
+                raw = takes::arguments(&raw, take, &name, "", count)?;
+            }
+            *arguments = raw;
+        }
+    }
+    let mut prefix = Vec::new();
+    for ((take, count), before) in values.iter().zip(taken.iter()).zip(&before) {
+        if count != before {
+            prefix.push(BTreeMap::from([
+                ("take".into(), json(&take.name)),
+                ("before".into(), json(&take.before)),
+                ("after".into(), json(&take.after)),
+            ]));
+        }
+    }
+    prefix.extend(lines);
+    turn.insert("lines".into(), json(&prefix));
+    Ok(json(&turn))
 }

@@ -89,6 +89,7 @@ impl Scheduler {
                         | change::Decision::Delegate(_)
                         | change::Decision::CancelGates { .. }
                         | change::Decision::CancelRepair { .. }
+                        | change::Decision::CancelResolution { .. }
                         | change::Decision::EndHold
                         | change::Decision::RepairEnded { .. }
                         | change::Decision::Effect(_)

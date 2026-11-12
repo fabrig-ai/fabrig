@@ -1003,5 +1003,5 @@ pub fn changes_page() -> skein_ui::Tree {
     page(&client::Address::Changes { project: 1 }, false)
 }
 pub fn team_page() -> skein_ui::Tree {
-    page(&client::Address::Team { project: 1 }, false)
+    page(&client::Address::Team { project: 1, role: None }, false)
 }

@@ -7,10 +7,9 @@ investigation of 2026-10-23 (Codex, read-only) and a session with the
 user that day, whose turns shaped it: the records before the formats on
 disk, and a patch landed with each change, as an application migrates
 its database. It crosses skein, smith, jig and temper on purpose; an
-owner splits it. Nothing here is adopted, and nothing changes today's
-development: the baseline is the first release (skein's `data/codec/README.md`,
-section 5), and until then the rules of section 4.1 hold. Commands'
-spellings are placeholders.
+owner splits it. The baseline is the store `main` wrote at
+`bc23255eb7`, no longer the first release (4.1). Commands' spellings
+are placeholders.
 
 ## 1. In one page
 
@@ -33,9 +32,9 @@ spellings are placeholders.
   value survives byte for byte needs none, until a landed patch names
   the family's version (4.3).
 - **Any store from the baseline on upgrades to any later `main`,** so a
-  deployment may follow `main`. The baseline is the first release;
-  until it, versions stay fixed and schemas change in place (4.1;
-  skein's `data/codec/README.md`, section 5).
+  deployment may follow `main`. The baseline is the store `main` wrote
+  at `bc23255eb7`; from it, every change of a stored layout moves its
+  version and brings its patch (4.1).
 - **A copy is patched, never the store in use** (section 6): a start
   copies the records' and the secrets' maps into a new generation,
   patches the copy, opens it as any start does, and switches to it by
@@ -144,17 +143,19 @@ transcripts, the forge or the programs' logins. Online backups stay open
 
 ### 4.1 Before the baseline
 
-The baseline is the first release (skein's `data/codec/README.md`, section 5).
-Until it, each encoding keeps its current version: changes a reader
-would notice change the schema, generated code and one set of golden
-bytes in place (`../protocol/README.md`, section 7). A reader still
-refuses another version and nothing is translated (jig's
-`protocol/README.md`, section 7). A version names no one layout yet, so a
-store from an older build is started afresh when its families change:
-no patch could tell those layouts apart (`../protocol/store.md`, section
-4). No promise reaches back before the baseline, and nothing in this
-draft asks anything of a change landed before it. Versions move at a
-release, not at a landing; `first-release.md` proposes v0.1.0.
+The baseline was to be the first release (skein's
+`data/codec/README.md`, section 5). It moved: it is the store `main`
+wrote at `bc23255eb7` (`staged-upgrades.md`, section 2), and from it the
+store and the wires upgrade, heading to v0.1.0, and dev.fabrig.ai
+exercises both (the user, 2026-11-11 and 11-12). A change of a stored
+layout moves its family's version at its landing and brings its patch
+(`staged-upgrades.md`, section 3); a change of a wire's layout moves
+its version and brings its bridge (`redeploys.md`, section 3). Where
+this draft says the first release for the baseline, read that store.
+Before it, each encoding kept its version and changed in place
+(`../protocol/README.md`, section 7), so a store from a build before
+the baseline is started afresh: no patch could tell those layouts apart
+(`../protocol/store.md`, section 4). No promise reaches back before it.
 
 ### 4.2 Levels
 
@@ -166,9 +167,10 @@ release, not at a landing; `first-release.md` proposes v0.1.0.
 - **The format row is the table of applied patches:** each owner's level
   beside each family's version (jig's `protocol/store/records.md`, 3), written
   by the patching's last commit.
-- **Versions move at a release,** so a released version names one
-  layout. Before the baseline, schema changes keep the current number
-  (`../protocol/README.md`, section 7; skein's `data/codec/README.md`, section 5).
+- **Versions move at the landing that changes a layout,** from the
+  baseline (4.1), so a version names one layout. Before it, schema
+  changes kept the current number (`../protocol/README.md`, section 7;
+  skein's `data/codec/README.md`, section 5).
 - **A landed patch never changes.** Until it lands, its author edits it
   with the schema; once on `main`, deployments may have run it. Two
   branches that each add jig's patch 41 meet at `land`, whose rebase and
@@ -188,7 +190,7 @@ in its owner's crate beside the schemas. By kind:
   declaration also takes a patch the command writes, and a version move.
   A rename or a dropped declaration stays none needed. This is the
   user's rule (skein's `data/codec/command.md`, 2 step 3), and it applies from
-  the first release on, since no version moves before then (4.1).
+  the baseline on (4.1).
 - **Derived:** a field added, with the value every old record takes; a
   field dropped; an integer widened; a type wrapped in `option`;
   variants reordered. The tool writes these from the two schemas, asking
@@ -445,34 +447,12 @@ outcomes; the deployment's and installation's ids.
 
 ## 9. The engine alone
 
-- A pending patch marked fresh makes the upgrade a full one. Stop the
-  workers and end every live attempt before the switch, even when their
-  wires match. Only a mark beyond the store's applied level counts.
-- **The workers may stay** when the new engine speaks their channel's
-  version (jig's `protocol/channel/README.md`, 4.1) and temper's payload version
-  (`../protocol/README.md`, section 7), and hands out smith's charters
-  and turns in the versions their agents read, and there is no such
-  pending fresh mark. Patching keeps live claims and attempts, since it
-  keeps every record.
-- **The tool says so.** The store keeps the wire versions of the engine
-  that last opened it, beside its format row; `temper upgrade --check`
-  compares them with the new binary's and says whether the workers may
-  stay. It reports the full-upgrade requirement when a pending fresh
-  mark requires the workers to stop. `temper versions` prints a binary's
-  levels and wires.
-- **The window must fit the workers' grace:** the settled stop, the
-  patching and the start, within the grace the workers' configuration
-  sets (jig's `protocol/channel/README.md`, 9.1). The rehearsal (3.1) measures
-  the patching.
-- **Meanwhile, the workers carry on:** they keep the turns and answers
-  not acknowledged and redial, and the new engine's restart adopts each
-  run as its worker says hello (jig's `domain/engine/restart.md`,
-  step 3). A run's call that would start an effect waits, answered busy.
-- **The workers follow later,** one at a time if the wire allows, each
-  stop ending its runs, which retry elsewhere.
-- **Built second,** after the full upgrade. At today's churn most
-  upgrades would change the workers' wire; the share falls as it
-  settles.
+Replaced by `redeploys.md` (the user, 2026-11-12): when the workers may
+stay, judged by each wire's fingerprints and floor rather than its
+number (`redeploys.md`, 5.1); the settled stop and the window within
+the workers' grace (5.2, 5.3); and the workers following in turn
+(section 7). A pending patch marked fresh is a breaking change of the
+turns' wire there (4.5), so an upgrade across it is still a full one.
 
 ## 10. Configuration and small files
 
@@ -591,8 +571,8 @@ upgrade, then the engine alone.
 
 ## 15. Open questions
 
-- **When the first release is.** Its date is open; it is the baseline
-  (skein's `data/codec/README.md`, section 5). Until then, section 4.1.
+- **When the first release is.** Its date is open; the baseline no
+  longer waits for it (4.1).
 - **A bug in a landed patch,** found after deployments ran it. Default:
   fixed in place for those yet to run it, its fix declared to the gate;
   a later patch repairs those that ran it, where the old evidence allows.
@@ -612,5 +592,5 @@ upgrade, then the engine alone.
 - **The formats on disk** (6.5). Default: unchanged; a tool of their
   owner's when one first changes, run before the records' patches, as
   `pg_upgrade` runs before an application migrates.
-- **Rolling upgrades,** an engine and workers of different wires, by
-  negotiated ranges. Out.
+- **Rolling upgrades,** an engine and workers of different wires:
+  `redeploys.md`, from 2026-11-12.

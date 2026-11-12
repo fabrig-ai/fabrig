@@ -58,6 +58,29 @@ fn timers_fire_in_order_once_due() {
 }
 
 #[test]
+fn reading_timers_keeps_only_armed_entries_in_firing_order() {
+    let mut timers = Deadlines::with_capacity(3);
+    timers.arm('b', at(20)).unwrap();
+    timers.arm('a', at(10)).unwrap();
+    timers.arm('c', at(5)).unwrap();
+    timers.cancel('c');
+    assert!(timers.iter().eq([('a', at(10)), ('b', at(20))]));
+    assert_eq!(timers.expire(at(10)), Some('a'), "reading changes nothing");
+    assert_eq!(timers.expire(at(20)), Some('b'));
+    timers.arm('b', at(30)).unwrap();
+    timers.arm('a', at(30)).unwrap();
+    assert!(timers.iter().eq([('a', at(30)), ('b', at(30))]), "ties use key order");
+}
+
+#[test]
+fn a_saved_rng_state_continues_the_stream() {
+    let mut rng = Rng::new(42);
+    let _draw = rng.next_u64();
+    let mut restored = Rng::new(rng.state());
+    assert_eq!(rng.next_u64(), restored.next_u64());
+}
+
+#[test]
 fn rearming_moves_a_timer_and_cancelling_is_idempotent() {
     let mut timers = Deadlines::with_capacity(1);
     timers.arm('a', at(10)).expect("room");

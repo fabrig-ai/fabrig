@@ -43,7 +43,8 @@ fn hold(place: &Path) -> File {
 
 #[test]
 fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
-    let world = World::new();
+    let mut world = World::new();
+    world.home.configuration.surfaces = vec!["web".into()];
     let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
     run.tick();
     land(&mut run, 2, 7);
@@ -132,6 +133,60 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     assert!(brief.contains("project: A ready project.\n"));
     assert!(brief.contains("`pass setup`, `pass recipe` and `pass open` may take minutes"));
     assert!(brief.contains("shell's own timeout does not cut them"));
+    let drive_lines = brief.lines().find(|line| line.starts_with("Drive lines:")).expect("drive lines");
+    assert!(drive_lines.contains("`forge commit FORGE REPOSITORY MESSAGE PATH CONTENT [PATH CONTENT]...`"));
+    assert!(drive_lines.contains("`forge checks FORGE REPOSITORY`"));
+}
+
+#[test]
+fn a_tui_pass_brief_explains_see_and_row_evidence() {
+    let world = World::new();
+    let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    world.installable_build(2);
+    run.tick();
+    world
+        .home
+        .transact(|ledger| {
+            let mut tui = super::case();
+            tui.surface = "tui".into();
+            tui.page = "chat".into();
+            ledger.add_case(1, &tui, 0)?;
+            Ok(())
+        })
+        .expect("tui case");
+    run.tick();
+    let brief = fs::read_to_string(&run.processes.commands[1].stdin).expect("brief");
+    assert!(brief.contains("Case 1: tui / chat"), "{brief}");
+    assert!(brief.contains("`web see` line for a `web` case and a `tui see` line for a `tui` case"));
+    assert!(brief.contains("`pass line \"tui look\"`'s answer saved to a file"));
+    assert!(brief.contains("TUI starts at its first line and the session signs it in"));
+}
+
+#[test]
+fn third_step_opens_a_wait_behind_a_holder_and_closes_after_cases_are_taken() {
+    let world = World::new();
+    let lock = hold(&world.home.directory.join("places/1"));
+    let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
+    run.tick();
+    assert!(world.ledger().place_waits.is_empty(), "no build or cases");
+    land(&mut run, 2, 7);
+    world.installable_build(2);
+    run.clock.time = 10;
+    run.tick();
+    assert!(world.ledger().place_waits.is_empty(), "triage has not reached the build");
+    run.clock.time = 20;
+    run.tick();
+    assert_eq!(world.ledger().place_waits, [temper_qa_tool::PlaceWait { from: 20, to: None }]);
+    run.clock.time = 30;
+    run.tick();
+    assert_eq!(world.ledger().place_waits.len(), 1, "an open wait is not duplicated");
+    drop(lock);
+    run.clock.time = 40;
+    run.tick();
+    assert_eq!(world.ledger().place_waits, [temper_qa_tool::PlaceWait { from: 20, to: Some(40) }]);
+    assert_eq!(world.ledger().cases[0].state, CaseState::Assigned);
 }
 
 #[test]

@@ -24,9 +24,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // Page and session handles, plus the launchpad's left-off and second project's status reads.
-                handles: 18,
-                watches: 18,
+                // Page, session, launchpad and standing-role handles and watches.
+                handles: 19,
+                watches: 19,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

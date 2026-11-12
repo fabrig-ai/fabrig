@@ -12,6 +12,10 @@ use temper_client_domain::{
     pages::{Act, needs},
 };
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Home's need variants carry approval size and signer context beside their acts"
+)]
 pub(crate) fn cards(
     b: &mut Builder,
     root: &Domain,
@@ -21,7 +25,7 @@ pub(crate) fn cards(
     bindings: &mut Bindings,
     times: &mut Times,
 ) {
-    for need in needs.iter().take(3) {
+    for (index, need) in needs.iter().take(3).enumerate() {
         if !needs::ready(root, *need) {
             continue;
         }
@@ -40,6 +44,13 @@ pub(crate) fn cards(
                 super::needs::why_line(b, root, w, bindings, needs::Need::Card(card), super::needs::WhyForm::Short);
             }
             needs::Need::Approval(row) => super::approval::size(b, row, w),
+        }
+        if index == 0
+            && let needs::Need::Approval(row) = need
+        {
+            for line in &super::approval::sentences(row, super::approval::viewer(root), w) {
+                ask::text(b, Role::Paragraph, line, look::ASK_CONTEXT);
+            }
         }
         b.open(Role::Slot);
         b.style(look::NEED_ACTS);

@@ -122,7 +122,7 @@ pub fn facts(root: &Domain, project: u32, wall: Wall) -> Facts {
         needs: needs.count,
         needs_cut: needs.cut,
         members: super::team::people(root, project),
-        standing_roles: None,
+        standing_roles: super::team::standing_roles(root, project),
         asking,
         away: if across(root) { super::away_all::across(root, wall).shown } else { root.away_shown(project, wall) },
         drafts: super::drafts_offered(root, project),
