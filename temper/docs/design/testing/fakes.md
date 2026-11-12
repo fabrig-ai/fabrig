@@ -126,6 +126,27 @@ skein's (skein's `testing/fakes/llm.md`):
     run in the walk's order on a fresh deployment, as the fuzzy stories'
     numbers do. A value missed shows as the twin's run failing, and is
     added.
+  - **What differs on another deployment,** for a twin that QA replays
+    on a box of its own (`qa/setups.md`, 4.2), is taken from the
+    conversation rather than replaced: `--takes FILE`, a JSON list of
+    `{"name", "value", "before", "after"}`, at most 8, each name
+    distinct, the names, `before` and `after` within skein's bounds
+    (skein's `testing/fakes/llm.md`, 2.6), and `value` the recorded
+    bytes as `--replace` leaves them. Applied after `--replace`, in each
+    script's turns: in a call's arguments, a JSON number whose token is
+    `value` becomes `"{{#NAME}}"`, and `value` inside a JSON string
+    `{{NAME}}`; in a text line, `{{NAME}}`. Each turn so changed gains a
+    take for each name it uses, `{"take", "before", "after"}`, first
+    among its lines, in `--takes`' order. A take that no turn uses is
+    refused, naming it, and so is a turn past the form's bounds with
+    its takes. The report counts each take's uses. Whether each finds
+    its value on replay, the twin's run proves, as for cues.
+  - **From a twin already made,** `--from FILE` in place of `--data`,
+    `--base` and `--cue`: FILE a document of the twin's output form,
+    whose scripts are taken as they are, `--replace` and then `--takes`
+    applied to them, and the document written to `--out` as a twin
+    from transcripts is. So a fixture whose run's data directory is gone
+    gains its takes by the tool, not by hand.
   - **Its tests:** step tests from recorded frames; and a round trip, a
     fuzzy story's run turned into its twin and the twin run to the same
     end.
