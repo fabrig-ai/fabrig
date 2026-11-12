@@ -3,6 +3,7 @@ use crate::{
     answers,
     service::{ContentType, Problem, Response},
 };
+pub(crate) mod image;
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use skein_forge::github::{self, delivery::Delivery, log, request, server};

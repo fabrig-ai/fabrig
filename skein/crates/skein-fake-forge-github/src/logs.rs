@@ -3,6 +3,7 @@ use crate::{
     answers, reads,
     service::{ContentType, Limits, Outcome, Pending, PendingKind, Problem, Response, Service},
 };
+pub(crate) mod image;
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as domain, api as a};
 use skein_forge::github::request::Method;
