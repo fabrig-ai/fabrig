@@ -2,6 +2,8 @@
 
 2026-11-11. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.6: the sheet for deleting a project, absent from `confirm.rs` [in flight: change 633].
+
 - **Departs:** 2, *The crate graph*: `temper-client-domain` also depends on
   `temper-protocol-records`, because the forge's side encodes and decodes a
   pasted bundle by it (`forge/forges.rs`), on `skein-ui` for its phrasebooks

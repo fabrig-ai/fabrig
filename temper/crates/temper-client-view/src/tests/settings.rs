@@ -31,6 +31,113 @@ fn find(tree: &Tree, role: Role, name: &[u8]) -> skein_ui::NodeId {
 fn root(address: Address) -> d::Domain {
     f::root_at(address, &f::domain_limits()).0
 }
+fn deletion_root(role: c::HeldRole) -> d::Domain {
+    let (mut root, watch, _) = f::root_at(settings(), &f::domain_limits());
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let project = me.projects.get_mut(0).unwrap();
+    project.role = role;
+    project.name = c::DocumentText::complete(c::Text::new(Box::from(*b"fabrig"), 32).unwrap());
+    f::deliver_me(&mut root, watch, me);
+    root
+}
+fn deletion_act(root: &mut d::Domain, act: pages::Act) -> Queue<d::Request> {
+    drive(root, d::Event::Act { action: d::Action::Pages(act) })
+}
+#[test]
+fn how_work_runs_ends_with_a_plain_delete_button_for_owners_only() {
+    for role in [c::HeldRole::Owner, c::HeldRole::Member, c::HeldRole::Policy { role: 1 }] {
+        let root = deletion_root(role);
+        for browser in [false, true] {
+            let mut view = how_view(&root, browser);
+            let delete = main(view.tree())
+                .iter()
+                .find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Delete project"));
+            assert_eq!(delete.is_some(), role == c::HeldRole::Owner);
+            if let Some(delete) = delete {
+                assert!(delete.styles.is_empty());
+                let id = delete.id;
+                let body = styled(view.tree(), look::SETTINGS_BODY);
+                assert_eq!(body.last().unwrap().id, id);
+                assert_eq!(
+                    crate::act(&mut view, id, Act::Press),
+                    Some(d::Action::Pages(pages::Act::DeleteProject { project: 1 }))
+                );
+            }
+        }
+    }
+}
+#[test]
+fn the_delete_sheet_names_the_project_and_keep_it_or_escape_closes_without_sending() {
+    let mut root = deletion_root(c::HeldRole::Owner);
+    for browser in [false, true] {
+        assert!(deletion_act(&mut root, pages::Act::DeleteProject { project: 1 }).is_empty());
+        let mut view = how_view(&root, browser);
+        let dialog = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::Dialog && n.name.as_deref() == Some(b"Delete fabrig?"))
+            .expect("named deletion sheet");
+        let nodes = subtree(view.tree(), dialog.id);
+        let said = String::from_utf8(f::text(view.tree()).to_vec()).unwrap();
+        assert!(said.contains("fabrig leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can’t be undone."));
+        let buttons: Vec<_> = nodes.iter().filter(|n| n.role == Role::Button).collect();
+        assert_eq!(
+            buttons.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+            [b"Keep it".as_slice(), b"Delete project"]
+        );
+        assert_eq!(buttons[0].shortcut, Some(skein_ui::Shortcut::ESCAPE));
+        let keep = buttons[0].id;
+        let does = buttons[1].id;
+        assert_eq!(crate::act(&mut view, does, Act::Press), Some(d::Action::Pages(pages::Act::Confirm)));
+        let Some(d::Action::Pages(cancel)) = crate::act(&mut view, keep, Act::Press) else { panic!("Keep it cancels") };
+        assert_eq!(cancel, pages::Act::Cancel);
+        assert!(deletion_act(&mut root, cancel).is_empty());
+        assert!(root.pages().deleting_project().is_none());
+    }
+}
+#[test]
+fn a_refused_delete_sheet_says_jigs_role_words_above_its_acts() {
+    let mut root = deletion_root(c::HeldRole::Owner);
+    deletion_act(&mut root, pages::Act::DeleteProject { project: 1 });
+    let mut out = deletion_act(&mut root, pages::Act::Confirm);
+    let mut sent = None;
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = request
+        {
+            sent = Some(attempt);
+        }
+    }
+    let attempt = sent.expect("deletion sent");
+    let refusal = c::Refusal::Role { held: Some(c::HeldRole::Member) };
+    drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused { refusal: refusal.clone(), at: None })),
+                    why: None,
+                },
+            },
+        },
+    );
+    for browser in [false, true] {
+        let view = how_view(&root, browser);
+        let expected = f::words().say_word(jig_client::words::Word::refusal(&refusal), &[]);
+        let dialog = view.tree().nodes().iter().find(|n| n.role == Role::Dialog).expect("refused sheet stays open");
+        let nodes = subtree(view.tree(), dialog.id);
+        let why = nodes
+            .iter()
+            .position(|n| n.text.iter().any(|run| run.text.as_ref() == expected.as_ref()))
+            .expect("jig's refusal words");
+        let acts = nodes.iter().position(|n| n.styles.as_slice().contains(&look::CONFIRM_ACTS)).unwrap();
+        assert!(why < acts);
+    }
+}
 fn repositories() -> Address {
     Address::Repositories { project: f::PROJECT }
 }

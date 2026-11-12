@@ -125,6 +125,13 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     b.open(Role::Slot);
     b.style(look::SETTINGS_COL);
     let deployment = deployment(tab);
+    if tab == Tab::HowWorkRuns
+        && root.pages().me(root.client()).is_some()
+        && crate::pages::project_name(root.pages().me(root.client()), project).is_none()
+    {
+        text(b, Role::Heading { level: 1 }, &super::how::head(root, w, project).0, look::SETTINGS_HEADLINE);
+        return;
+    }
     if tab == Tab::HowWorkRuns {
         b.style(look::HOW_WIDE);
     }
@@ -288,7 +295,16 @@ pub(super) fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut 
     if root.pages().me(root.client()).is_some()
         && crate::pages::project_name(root.pages().me(root.client()), project).is_none()
     {
-        crate::cards::text(b, Role::Paragraph, &w.say(Word::ProjectNotYours, &[Hole::Number(u64::from(project))]));
+        let word = if let Address::Settings { .. } = root.pages().address() {
+            match temper_client_domain::pages::team::missing(root, project) {
+                temper_client_domain::pages::team::Missing::Reading => return true,
+                temper_client_domain::pages::team::Missing::Deleted => Word::ProjectDeleted,
+                temper_client_domain::pages::team::Missing::NotOurs => Word::ProjectNotYours,
+            }
+        } else {
+            Word::ProjectNotYours
+        };
+        crate::cards::text(b, Role::Paragraph, &w.say(word, &[Hole::Number(u64::from(project))]));
         link(b, w, bindings, Word::Chats, Address::Chats { filter: ChatsFilter::All });
         return true;
     }
@@ -322,9 +338,16 @@ pub(crate) fn how_work_runs(
         if shown.goals {
             working(b, root, w, forge, project, shown);
         }
+        if temper_client_domain::pages::delete_project::offered(root.pages().me(root.client()), project) {
+            b.open(Role::Button);
+            b.name(&w.say(Word::DeleteProject, &[]));
+            b.bind(bindings.insert(Act::DeleteProject { project }));
+            b.close();
+        }
         b.close();
     }
     b.close();
+    crate::confirm::delete_project(b, root, w, bindings);
     b.close();
 }
 

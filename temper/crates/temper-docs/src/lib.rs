@@ -487,7 +487,7 @@ pub static PAGES: [Page; 66] = [
         name: "ctl-project",
         kind: Kind::Reference,
         title: "temper ctl project",
-        summary: "Projects: make or remove one, read periods and pools, set spend and visibility.",
+        summary: "Projects: make or delete one, read periods and pools, set spend and visibility.",
         text: include_str!("../../../docs/help/reference/ctl-project.md"),
     },
     Page {

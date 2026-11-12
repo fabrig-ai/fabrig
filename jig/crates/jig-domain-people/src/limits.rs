@@ -26,7 +26,7 @@ pub struct Limits {
     pub inbox_recipients: u32,
     /// Positive maximum live secret-free sign-ins and expiry alarms.
     pub sign_ins: u32,
-    /// Maximum retained project role sets.
+    /// Maximum retained project role sets, deletion rows, and number-only deletion marks, each independently.
     pub projects: u32,
     /// Maximum unique-person holdings per project role set.
     pub holdings: u32,

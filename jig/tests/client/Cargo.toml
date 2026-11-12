@@ -30,6 +30,7 @@ disallowed_macros = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+jig-core-kit.workspace = true
 jig-test-profile.workspace = true
 jig-client-test-protocol-wire.workspace = true
 jig-client.workspace = true
