@@ -1,0 +1,5 @@
+/* welcome-top */
+#app > .temper-top > .temper-top-end:not(:has(.temper-offline)) { display: none; }
+#app > .temper-welcome .temper-welcome-box-note { margin-top: 28px; }
+#app > .temper-welcome .temper-welcome-box-note strong { color: var(--gf-ink); font-weight: 600; }
+#app > .temper-welcome .temper-welcome-box-note > .temper-flow-quiet { font: inherit; color: inherit; text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
