@@ -160,6 +160,8 @@ pub enum Error {
     Conflict { path: PathBuf },
     /// Two names that spell one constant or function (12.3).
     Spelled { first: String, second: String },
+    /// `schema/wires` names no family of the crate (data/codec/command.md, 2).
+    Wire { family: String },
     /// Each golden that fails, named (12.3).
     Golden(Vec<String>),
     /// `patches/mod.rs` not as generated (12.3).
@@ -258,6 +260,7 @@ impl fmt::Display for Error {
                 path.display()
             ),
             Self::Spelled { first, second } => write!(f, "{first} and {second} spell one name"),
+            Self::Wire { family } => write!(f, "schema/wires: {family}: no family of the crate"),
             Self::Golden(failures) => {
                 f.write_str("goldens fail:")?;
                 for failure in failures {
