@@ -561,5 +561,5 @@ fn producer(files: &[Vec<u8>], content: &str) -> Script {
         })
         .collect();
     turns.push(call(b"finish", br#"{"title":"Edit files","body":"Keep the edit."}"#));
-    Script { cue: b"Read only what the change needs".as_slice().into(), turns: turns.into_boxed_slice() }
+    Script { cue: b"Run only what your change needs".as_slice().into(), turns: turns.into_boxed_slice() }
 }

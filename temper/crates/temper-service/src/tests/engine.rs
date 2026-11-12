@@ -1079,3 +1079,82 @@ fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
         }))
     );
 }
+
+fn retired_setting(key: temper_engine_domain_forge::settings::SettingKey) -> (Box<[u8]>, Box<[u8]>) {
+    use temper_engine_domain_forge::{Key, settings::SettingSlot};
+    use temper_protocol_store::v11 as w;
+    let slot = match key.slot {
+        SettingSlot::Default => w::SettingSlot::Default,
+        SettingSlot::Change => w::SettingSlot::Change,
+        SettingSlot::Replaced(number) => {
+            w::SettingSlot::Replaced(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
+        }
+        SettingSlot::Proposal(number) => {
+            w::SettingSlot::Proposal(w::Number::new(&w::CEILINGS, w::NumberParts { number }).unwrap())
+        }
+    };
+    // The removed route's tag is 1; the live up route keeps tag 2.
+    let mut tag = skein_lib::Writer::new(1);
+    w::Route::Retired.encode(&mut tag).unwrap();
+    assert_eq!(tag.finish().as_ref(), &[1]);
+    let value = if key.kind == 6 {
+        w::SettingValue::Questions(
+            w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route: w::Route::Retired }).unwrap(),
+        )
+    } else {
+        w::SettingValue::Charter(w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: 6 }).unwrap())
+    };
+    let value = w::SizedValue::new(&w::CEILINGS, w::SizedValueParts { value, size: 1 }).unwrap();
+    let row = w::SettingRow::new(
+        &w::CEILINGS,
+        w::SettingRowParts {
+            kind: key.kind,
+            scope: key.scope,
+            number: key.number,
+            slot,
+            edit: w::SettingEdit::Set(value),
+        },
+    )
+    .unwrap();
+    let row = w::Row::new(&w::CEILINGS, w::RowParts { value: w::Value::Setting(row) }).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
+    row.encode(&mut bytes).unwrap();
+    (temper_protocol_store::keys::encode(&Key::Setting(key), u32::MAX).unwrap(), bytes.finish())
+}
+
+#[test]
+fn a_retired_stored_setting_refuses_start_before_switch() {
+    use jig_protocol_store as store;
+    use temper_engine_domain_forge::settings::{SettingKey, SettingSlot};
+    for key in [
+        SettingKey { kind: 6, scope: 2, number: 1, slot: SettingSlot::Change },
+        SettingKey { kind: 3, scope: 0, number: 3, slot: SettingSlot::Change },
+        SettingKey { kind: 6, scope: 2, number: 1, slot: SettingSlot::Replaced(2) },
+        SettingKey { kind: 3, scope: 0, number: 3, slot: SettingSlot::Replaced(2) },
+    ] {
+        let mut previous = fixtures::ready().engine.unwrap();
+        let mut header = previous.domain.deployment();
+        header.commits += 1;
+        let (stored_key, value) = retired_setting(key);
+        previous.store.host.ask(store::Request::Commit {
+            number: header.commits,
+            writes: Box::new([
+                store::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
+                store::Write::Put { key: stored_key, value },
+            ]),
+        });
+        let Some(store::Event::Committed { .. }) = previous.store.host.above.pop() else { panic!("fixture committed") };
+        let mut service = fixtures::restarting_from(previous);
+        service.engine.as_mut().unwrap().store.pending_generation = true;
+        for _ in 0_u32..512 {
+            fixtures::turn(&mut service);
+            if service.end().is_some() {
+                break;
+            }
+        }
+        assert_eq!(service.end(), Some(&crate::End::Stopped(crate::Stop::Setting(key))));
+        let engine = service.engine.as_ref().unwrap();
+        assert!(!engine.domain.ready());
+        assert!(engine.store.pending_generation, "refused before switching generations");
+    }
+}

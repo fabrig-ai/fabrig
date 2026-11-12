@@ -1,6 +1,6 @@
 # reference-code-production: status
 
-2026-11-08. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
+2026-11-12. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
 
 - **Open:**
   - **1 to 5, 12 to 14:** revised by [`goal-as-designer.md`](goal-as-designer.md), which wins where they differ until its plans fold it into this draft.
@@ -11,14 +11,15 @@
     kept for the goal's next run, not waking it, so that a red a live
     repair already owns does not wake G at xhigh at each span (N11).
     Decided 2026-11-03.
-  - **5, 14: a foreman's LLM choice (N19).** `../domain/agent/tools.md`,
-    1: `change`'s `llm` names the producer's and the reviews' roles
-    alone, and a change's foremen run at their charter's default:
-    `../protocol/configuration/reference.md` sets the reference's charter 6
-    at gpt-6.1-sol, with no effort, where the draft has each change name
-    its foremen's choice, gpt-6.1-sol at medium. Decided
-    2026-11-03: the reference sets the foreman's
-    model on its charter (`../domain/agent/README.md`, section 8).
+  - **5, 14: the foreman retired.** `../domain/forge/change/questions.md`,
+    1 and `../protocol/configuration/reference.md`: the reference has no
+    foreman and no charter 6, and each change, a coding change's and a
+    designer's alike, takes questions `up`, where the draft has a foreman
+    settle each coding change's question first, at gpt-6.1-sol and
+    medium; so the stage-one check's golden has no foreman role
+    (`../testing/checks.md`, 5). `stock-charters.md`, 3 retires it, the
+    user's draft of 2026-11-12, since the implementer now checks its spec
+    itself before it asks; `notes.md`, N1 keeps the reasons it had.
 
 - **Design departs:** 5: `../protocol/configuration/reference.md` requires
   confirmed landing of every required design change into g before

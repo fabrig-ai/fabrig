@@ -362,6 +362,13 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 d.bindings.contains_key(address),
             )
         }
+        Stored::RefusedSetting(key) => room(
+            K::Setting,
+            Rows(K::Setting),
+            d.setting_rows.len().saturating_add(d.refused_settings.len()),
+            d.setting_rows.capacity(),
+            d.refused_settings.contains_key(key),
+        ),
         Stored::Setting(row) => {
             if let crate::settings::Edit::Set(crate::settings::SizedValue {
                 value: crate::settings::Value::Rule(rule),
@@ -380,7 +387,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             room(
                 K::Setting,
                 Rows(K::Setting),
-                d.setting_rows.len(),
+                d.setting_rows.len().saturating_add(d.refused_settings.len()),
                 d.setting_rows.capacity(),
                 d.setting_rows.contains_key(&row.key),
             )

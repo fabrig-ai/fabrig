@@ -238,13 +238,13 @@ fn decode_files(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Undec
     let mut reader = Reader::new(bytes);
     let mut files = List::with_capacity(bounds.forge().follow_files);
     for _ in 0..=bounds.forge().follow_files {
-        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable))? else {
+        let Some(item) = skein_codec::piece::split(&mut reader).or(Err(Undecodable::Malformed))? else {
             return Ok(files.into_boxed());
         };
-        let file = w::AnswerName::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable))?;
-        files.push(file.into_parts().name).or(Err(Undecodable))?;
+        let file = w::AnswerName::decode(bounds.limits(), &mut Reader::new(&item)).or(Err(Undecodable::Malformed))?;
+        files.push(file.into_parts().name).or(Err(Undecodable::Malformed))?;
     }
-    Err(Undecodable)
+    Err(Undecodable::Malformed)
 }
 
 fn encode_act(act: &d::follows::FollowAct) -> w::FollowAct {

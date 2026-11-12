@@ -2136,7 +2136,7 @@ fn forge_value(kind: u32) -> Box<[u8]> {
     } else if kind == 7 {
         br#"{"items":[{"setting":{"kind":"project-ways","project":7},"set":{"drafts":true,"goals":false,"changes":false,"way":0}}]}"#.as_slice()
     } else if kind == 6 {
-        br#"{"items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#.as_slice()
+        br#"{"items":[{"setting":{"kind":"project-questions","project":7},"set":"up"}]}"#.as_slice()
     } else if kind == 9 {
         br#"{"items":[{"setting":{"kind":"charter-words","number":1},"set":"reviews every change"}]}"#.as_slice()
     } else if kind == 10 {
@@ -2271,7 +2271,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             if json {
                 let expected = match kind {
                     3 => "\"value\":6",
-                    6 => "\"value\":\"foreman\"",
+                    6 => "\"value\":\"up\"",
                     7 => "\"drafts\":true",
                     8 => "\"class\":\"ask-away\"",
                     9 => "\"value\":\"reviews every change\"",
@@ -2348,7 +2348,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             assert!(text.contains(if json { "\"revision\":5" } else { ", revision 5" }), "{text}");
             let expected = match kind {
                 3 => "6",
-                6 => "\"foreman\"",
+                6 => "\"up\"",
                 7 => "\"drafts\":true",
                 8 => {
                     if json {

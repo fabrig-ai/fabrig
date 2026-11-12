@@ -30,7 +30,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.journal.deliveries`: count, 512. Sets the door output count used in the default admission watermark, without capping a decision.
 - `root.journal.transcript_bytes`: bytes, 65,536. Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.
 - `root.journal.result_bytes`: bytes, 14,592. Bounds owned result text or assignment section text admitted to a held delivery.
-- `root.journal.run_bytes`: bytes, 24,576. Bounds a run charter's owned bytes in a held assignment.
+- `root.journal.run_bytes`: bytes, 65,536. Bounds a run charter's owned bytes in a held assignment.
 - `root.loads.loads`: count, 2. Bounds issued store loads, including abandoned reads awaiting their terminal answer.
 - `root.loads.rows`: count, 2. Bounds rows requested and accepted in one incoming store page.
 - `root.loads.bytes`: bytes, 65,536. Bounds a kept page prefix, counting record slots and their owned bytes.

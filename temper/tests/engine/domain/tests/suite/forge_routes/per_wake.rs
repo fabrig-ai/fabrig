@@ -181,6 +181,9 @@ fn request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
     people::Ask::Create { project, batch }
 }
 
+#[path = "stock_per_wake.rs"]
+mod stock_per_wake;
+
 fn instructions(shared: &[u8], part: &[u8]) -> Vec<u8> {
     [shared, b"\n\n", part].concat()
 }
