@@ -135,7 +135,10 @@ Typed, so the engine can act on them without reading prose:
 - **refused** at the entrance: busy; or invalid, beyond the hub's
   limits, with smith's parts that do not decode (8), or as a start
   smith refuses, naming what (`charters.md`); a start the agent refuses for
-  want of room is refused busy, as at the entrance (`charters.md`);
+  want of room is refused busy, as at the entrance (`charters.md`); or
+  for a version, a charter, a turn or the application's items carrying
+  a version this host does not read, naming the wire, that version and
+  the range it reads (`../../protocol/channel/wires.md`, 6);
 - **preparation failed:** transient (the system could not be reached,
   the worker's side failed or ran out of time, another run of the
   workstream holds its workspace), or permanent until something changes

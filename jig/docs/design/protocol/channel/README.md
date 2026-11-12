@@ -8,7 +8,7 @@ It covers the opening and what authenticates a worker, the records each
 way, what crosses as bytes of another owner and where smith's are
 decoded, names and credential grants, liveness and flow control, the
 worker's link on each side, the two components that own it, and how it
-is tested. An application with no workers has no channel: its
+is tested; `wires.md` holds the wires its opening states. An application with no workers has no channel: its
 engine's hub is linked to the core directly (`../../domain/hosts/hub.md`, 1).
 What is still open is listed in `README.md`, section 13.
 
@@ -300,12 +300,9 @@ holds, and neither of its components reads them.
   workspace makes them (`../../domain/hosts/README.md`, section 6). Each is a field
   of bytes in jig's records, encoded and decoded by the application's own
   codecs in its protocol layers (section 3).
-- **Versioned by the application.** Its encodings carry no version of
-  their own on the channel. The application's payload version in the
-  opening (4.1) covers all of them; another version is refused before
-  any part crosses. Until the first release the version stays fixed
-  while these encodings change in place, so the engine and its workers
-  come from the same build (skein's `data/codec/README.md`, section 5).
+- **Versioned by the application.** Its encodings are its wires, which
+  the opening states and checks beside jig's (`wires.md`, 2 and 3);
+  another layout is refused before any part crosses.
 - **A delivery's evidence is the application's to keep:** the core
   keeps a settled delivery's outcome, never its evidence; the
   application keeps the evidence in its own records, by the call's key,
