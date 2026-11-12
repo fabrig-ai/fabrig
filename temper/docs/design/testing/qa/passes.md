@@ -67,7 +67,8 @@ The loop's third step (`README.md`, 4), for each free place
   commit, for the agent to read the landings' drafts and the design.
 - **Its command** as triage's (`triage.md`, 5), each `{effort}`
   replaced by `agent.pass`, its working directory the tree, its stdin
-  the brief, with `TEMPER_QA_HOME` and `TEMPER_QA_SESSION=N`; its bound
+  the brief, with `TEMPER_INTERNAL_QA_HOME` and
+  `TEMPER_INTERNAL_QA_SESSION=N`; its bound
   `bounds.pass`, then SIGTERM to its group and SIGKILL ten seconds
   later, its exit `bound`; its tokens as triage reads them.
 - **Its brief,** written by code, in this order:

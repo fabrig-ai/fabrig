@@ -85,11 +85,14 @@ copies (`places.md`), passes (`passes.md`) and findings with their goal
 
 - **Its variables,** internal, read through its table
   (`../tools.md`, 4.3):
-  - `TEMPER_QA_HOME`: its home (section 3), required by every command
-    but the front's;
-  - `TEMPER_QA_SESSION`: the agent session a command records for, set by
-    the loop for the agent it starts (`triage.md`, 5; `passes.md`, 4),
-    required by the session's commands, `triage` and `pass` alike.
+  - `TEMPER_INTERNAL_QA_HOME`: its home (section 3), required by every
+    command but the front's;
+  - `TEMPER_INTERNAL_QA_SESSION`: the agent session a command records
+    for, set by the loop for the agent it starts (`triage.md`, 5;
+    `passes.md`, 4), required by the session's commands, `triage` and
+    `pass` alike;
+  - `TEMPER_INTERNAL_QA_AREA`: set, never read, for `request.command`
+    (`findings.md`, 5).
 - **Its answers:** the front's and refused arguments as `../tools.md`,
   4.2 has them, exit 2; a command that ran, exit 0; a refusal of the
   ledger's (`ledger.md`, 5), a bad configuration or a failure, `temper-qa:
@@ -102,7 +105,7 @@ copies (`places.md`), passes (`passes.md`) and findings with their goal
 
 ### 3.1 The home
 
-`TEMPER_QA_HOME` names a directory the deployment makes and owns:
+`TEMPER_INTERNAL_QA_HOME` names a directory the deployment makes and owns:
 
 ```
 qa.json            its configuration (3.2), the deployment's
@@ -269,7 +272,7 @@ The deployment's, on the machine that holds the places:
 - a home with its `qa.json`, a repository of the project for `git`,
   an agent command line, with its token bound, for `agent`, and the
   request's commands for `request` (`findings.md`, 5 and 6);
-- `temper-qa run` as a service, with `TEMPER_QA_HOME`, and
+- `temper-qa run` as a service, with `TEMPER_INTERNAL_QA_HOME`, and
   `SKEIN_TEST_CHROMIUM` naming the Chromium the drive session takes
   (`../../client/drive.md`, 2.1);
 - its after-landing work building at each landed tip and calling `temper-qa
