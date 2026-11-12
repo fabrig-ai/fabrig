@@ -121,9 +121,13 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
         project.steps.iter().any(|line| line.line.print() == b"ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello"),
         "project-landing connects the fake Forgejo as its admin through the box's values"
     );
+    assert!(
+        project.steps.iter().any(|line| line.line.print() == br#"web see "work/hello is in Hello""#),
+        "Hello's home is waited on before the walk resets to the root"
+    );
     assert_eq!(
         project.check.iter().map(|line| line.line.print()).collect::<Vec<_>>(),
-        [br#"web see "work/hello is in Hello""#.as_slice()]
+        [br#"web see "Nothing needs you.""#.as_slice()]
     );
 }
 
@@ -149,7 +153,12 @@ fn committed_qa_recipes_never_set_up_the_owned_forge() {
                 );
             }
             if let Record::Web(Web::Act { name, act: skein_ui::Act::Press, .. }) = line.line.record() {
-                assert_ne!(name.as_ref(), b"Run on this machine", "{} presses the owned setup", recipe.walk_line(line).source);
+                assert_ne!(
+                    name.as_ref(),
+                    b"Run on this machine",
+                    "{} presses the owned setup",
+                    recipe.walk_line(line).source
+                );
             }
         }
     }
@@ -176,14 +185,21 @@ fn widget_commits_the_b0_tree_before_waiting_on_checks() {
         .expect("widget")["tree"]
         .as_array()
         .expect("widget tree");
-    let expected: CommitFiles = tree.iter().map(|entry| (
-        entry["path"].as_str().expect("tree path").as_bytes().into(),
-        entry["content"].as_str().expect("tree content").as_bytes().into(),
-    )).collect();
+    let expected: CommitFiles = tree
+        .iter()
+        .map(|entry| {
+            (
+                entry["path"].as_str().expect("tree path").as_bytes().into(),
+                entry["content"].as_str().expect("tree content").as_bytes().into(),
+            )
+        })
+        .collect();
     assert_eq!(recipe.files, expected, "widget files equal the complete B0 tree byte for byte");
-    let forge: Vec<_> = recipe.steps.iter().filter_map(|line| {
-        if let Record::Forge(record) = line.line.record() { Some(record) } else { None }
-    }).collect();
+    let forge: Vec<_> = recipe
+        .steps
+        .iter()
+        .filter_map(|line| if let Record::Forge(record) = line.line.record() { Some(record) } else { None })
+        .collect();
     assert!(
         matches!(forge.as_slice(), [Forge::Commit { repository, paths, .. }, Forge::Checks { repository: checked }]
             if repository.as_ref() == b"playground/widget"
