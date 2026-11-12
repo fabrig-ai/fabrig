@@ -200,7 +200,7 @@ impl Held {
             let overlay = if self.newest_key(current, key.charter) == Some(key) {
                 match current.overlay(Setting::Charter(key.charter)) { Some(overlay) => Some(Box::new(overlay.clone())), None => None }
             } else { None };
-            let value = CharterVersion { charter, overlay };
+            let value = CharterVersion { overlay, charter };
             out.push(Request::Write(Write::Save(crate::Record::Core(CoreRecord::Settings(Record::Charter {
                 charter: key.charter,
                 revision: key.revision,

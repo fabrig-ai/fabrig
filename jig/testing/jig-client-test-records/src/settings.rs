@@ -1,7 +1,7 @@
 //! Independent whole settings fixtures (client/domain/contract/requests.md and client/domain/contract/README.md, 3 and client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
 use jig_client_domain::contract::{
     Authority, AuthorityModels, ChangeSettings, Charter, CharterDocument, CharterPart, Delegation, DocumentText,
-    EndedBy, Grant, HeldRevision, KindImplication, LlmChoice, LlmLater, ModelEffort, Pattern, PatternEnd,
+    Overlay, EndedBy, Grant, HeldRevision, KindImplication, LlmChoice, LlmLater, ModelEffort, Pattern, PatternEnd,
     PolicyEditRole, PolicyGuard, PolicyJudge, PolicyPermission, PolicyRequirement, ProposalKey, Proposer, Retention,
     RevisionDecider, RevisionDocument, RevisionEdit, RevisionHead, RevisionItem, RevisionItemEdit, RevisionItemHead,
     RevisionParty, RevisionReplaced, RevisionRow, RevisionsPage, Rules, Running, Setting, SettingEdit, SettingFollows,
@@ -298,4 +298,33 @@ pub fn settings_page() -> RevisionsPage {
     let mut rows = List::with_capacity(1);
     rows.push(RevisionRow { head: settings_head(), items, more: 4 }).expect("row");
     RevisionsPage { rows, next: Some(4), forgotten: true }
+}
+
+/// Every named field, text and parts for overlay boundary round trips.
+#[must_use]
+pub fn overlay() -> Overlay {
+    let SettingValue::Charter(charter) = settings_values().into_boxed().into_iter().next().expect("charter fixture") else {
+        unreachable!("first fixture is a charter")
+    };
+    Overlay {
+        rest: Some(charter.rest),
+        model: Some(charter.model),
+        alternatives: Some(charter.alternatives),
+        inspect: Some(charter.inspect),
+        modify: Some(charter.modify),
+        shell: Some(charter.shell),
+        agents: Some(charter.agents),
+        tools: Some(charter.tools),
+        hosts: Some(charter.hosts),
+        waiting: Some(charter.waiting),
+        resume: Some(charter.resume),
+        turns: Some(charter.turns),
+        time: Some(charter.time),
+        reserve_turns: Some(charter.reserve_turns),
+        reserve_time: Some(charter.reserve_time),
+        call_timeout: Some(charter.call_timeout),
+        spend: Some(charter.spend),
+        documents: Some(charter.documents),
+        instructions: charter.instructions, parts: charter.parts,
+    }
 }

@@ -706,3 +706,38 @@ fn application_items_and_states_round_trip_without_treating_bytes_as_text() {
         assert_eq!(t::restore_setting_line(&wire, &limits), Ok(source));
     }
 }
+
+#[test]
+fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
+    let overlay = values::overlay();
+    let limits = Limits::new(jig_client_domain::Limits { rows: 2, ..*fixtures::limits().client() }, 4).unwrap();
+    let mut wire_limits = *limits.wire();
+    let wire = t::wire_overlay(&overlay, &wire_limits).unwrap();
+    assert_eq!(t::restore_overlay(&wire), Ok(overlay.clone()));
+    let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
+    wire.encode(&mut bytes).unwrap();
+    let bytes = bytes.finish();
+    let value = c::SettingValue::Overlay(Box::new(overlay.clone()));
+    let wire_value = t::wire_setting_value(&value, &wire_limits).unwrap();
+    assert_eq!(t::restore_setting_value(&wire_value, &limits), Ok(value));
+    for field in 0_u8..4 {
+        for past in [false, true] {
+            wire_limits = *limits.wire();
+            let bound = match field {
+                0 => (&mut wire_limits.overlay_parts, overlay.parts.len()),
+                1 => (&mut wire_limits.overlay_documents_some, overlay.documents.as_ref().unwrap().len()),
+                2 => (&mut wire_limits.overlay_alternatives_some, overlay.alternatives.as_ref().unwrap().len()),
+                _ => (&mut wire_limits.overlay_instructions, u32::try_from(overlay.instructions.bytes().len()).unwrap()),
+            };
+            *bound.0 = bound.1 - u32::from(past);
+            assert_eq!(t::wire_overlay(&overlay, &wire_limits).is_ok(), !past, "encode field {field}");
+            assert_eq!(w::Overlay::decode(&wire_limits, &mut Reader::new(&bytes)).is_ok(), !past, "decode field {field}");
+        }
+    }
+    let document = c::SettingDocument { overlay: Some(Box::new(overlay)),
+        setting: c::Setting::Charter(c::SettingNumber { number: 2 }), revision: 3, value: None, application: None, proposed: None,
+    };
+    let wire = e::wire_setting_document(&document, limits.wire()).unwrap();
+    assert_eq!(t::restore_setting_document(&wire, &limits), Ok(document));
+    assert_eq!(t::restore_setting_follows(&w::SettingFollows::Overlay), Ok(c::SettingFollows::Overlay));
+}

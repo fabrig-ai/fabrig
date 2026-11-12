@@ -68,7 +68,7 @@ fn models(domain: &Domain, charter: &jig_domain_core::Charter) -> Box<[u8]> {
                         }
                     }
                     Some(
-                        jig_domain_core::settings::Value::Charter(_)
+                        jig_domain_core::settings::Value::Overlay(_) | jig_domain_core::settings::Value::Charter(_)
                         | jig_domain_core::settings::Value::Template(_)
                         | jig_domain_core::settings::Value::Policy(_)
                         | jig_domain_core::settings::Value::Rules(_)

@@ -1,4 +1,5 @@
 //! Wire projections of settings facts (client/domain/testing.md, 4).
+use skein_lib::List;
 use super::super::{bytes, c, list, pieces, w};
 use super::{
     wire_authority, wire_document_text, wire_grant, wire_kind_implication, wire_policy_edit_role,
@@ -68,6 +69,7 @@ pub(in crate::codec) fn wire_setting_follows(
     _limits: &w::Limits,
 ) -> Result<w::SettingFollows, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::SettingFollows::Overlay => w::SettingFollows::Overlay,
         c::SettingFollows::Default => w::SettingFollows::Default,
         c::SettingFollows::Change => w::SettingFollows::Change,
     })
@@ -135,6 +137,7 @@ pub fn wire_setting_document(value: &c::SettingDocument, limits: &w::Limits) -> 
     w::SettingDocument::new(
         limits,
         w::SettingDocumentParts {
+            overlay: value.overlay.as_ref().map(|item| wire_overlay(item, limits)).transpose()?,
             setting: wire_setting(&value.setting, limits)?,
             revision: value.revision,
             value: value.value.as_ref().map(|v| wire_setting_value(v, limits)).transpose()?,
@@ -150,6 +153,7 @@ pub(in crate::codec) fn wire_setting_value(
 ) -> Result<w::SettingValue, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::SettingValue::Model(value) => w::SettingValue::Model(Box::new(wire_catalogue(value, limits)?)),
+        c::SettingValue::Overlay(value) => w::SettingValue::Overlay(Box::new(wire_overlay(value, limits)?)),
         c::SettingValue::Charter(value) => w::SettingValue::Charter(Box::new(wire_charter(value, limits)?)),
         c::SettingValue::Template(value) => w::SettingValue::Template(Box::new(wire_template(value, limits)?)),
         c::SettingValue::Policy(value) => w::SettingValue::Policy(Box::new(wire_setting_policy(value, limits)?)),
@@ -634,3 +638,59 @@ fn wire_catalogue(value: &c::CatalogueEntry, limits: &w::Limits) -> Result<w::Ca
         },
     )
 }
+
+pub(in crate::codec) fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Problem> {
+    let alternatives = match &value.alternatives { Some(items) => {
+    let mut alternatives = List::with_capacity(items.len());
+    for item in items {
+        alternatives.push(wire_setting_model(item, limits)?).expect("same capacity");
+    }
+ Some(alternatives)
+ }, None => None };
+    let documents = match &value.documents { Some(items) => {
+    let mut documents = List::with_capacity(items.len());
+    for item in items {
+        documents
+            .push(w::CharterDocument::new(
+                limits,
+                w::CharterDocumentParts {
+                    connector: item.connector,
+                    name: item.name.clone(),
+                    path: item.path.clone(),
+                    heading: item.heading.clone(),
+                },
+            )?)
+            .expect("same capacity");
+    }
+ Some(documents)
+ }, None => None };
+    let mut parts = List::with_capacity(value.parts.len());
+    for item in &value.parts {
+        parts
+            .push(w::CharterPart::new(
+                limits,
+                w::CharterPartParts { on: item.on, instructions: bytes::copy_of(item.instructions.bytes()) },
+            )?)
+            .expect("same capacity");
+    }
+    w::Overlay::new(limits, w::OverlayParts {
+        rest: value.rest,
+        inspect: value.inspect,
+        modify: value.modify,
+        shell: value.shell,
+        agents: value.agents,
+        waiting: value.waiting,
+        resume: value.resume,
+        turns: value.turns,
+        time: value.time,
+        reserve_turns: value.reserve_turns,
+        reserve_time: value.reserve_time,
+        call_timeout: value.call_timeout,
+        spend: value.spend,
+        model: match &value.model { Some(item) => Some(wire_setting_model(item, limits)?), None => None },
+        alternatives, documents, parts, tools: value.tools,
+        hosts: match &value.hosts { Some(item) => Some(wire_setting_hosts(item)?), None => None },
+        instructions: bytes::copy_of(value.instructions.bytes()),
+    })
+}
+

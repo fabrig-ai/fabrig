@@ -266,7 +266,7 @@ fn policy(ceiling: &[c::AuthorityExecutor], owner: &[c::AuthorityExecutor]) -> B
     for value in jig_client_test_records::settings::settings_values().into_boxed() {
         match value {
             c::SettingValue::Policy(policy) => found = Some(policy),
-            c::SettingValue::Charter(_)
+            c::SettingValue::Overlay(_) | c::SettingValue::Charter(_)
             | c::SettingValue::Template(_)
             | c::SettingValue::Rules(_)
             | c::SettingValue::Model(_)

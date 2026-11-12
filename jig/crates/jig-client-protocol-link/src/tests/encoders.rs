@@ -226,6 +226,7 @@ pub fn wire_setting_document(value: &c::SettingDocument, limits: &w::Limits) -> 
     w::SettingDocument::new(
         limits,
         w::SettingDocumentParts {
+            overlay: match &value.overlay { Some(item) => Some(wire_overlay(item, limits)?), None => None },
             setting: wire_setting(&value.setting, limits)?,
             revision: value.revision,
             value: match &value.value {
@@ -258,6 +259,7 @@ pub fn wire_setting_fault(value: &c::SettingFault) -> Result<w::SettingFault, w:
 pub fn wire_setting_follows(value: &c::SettingFollows) -> Result<w::SettingFollows, w::Problem> {
     Ok(match value {
         c::SettingFollows::Default => w::SettingFollows::Default,
+        c::SettingFollows::Overlay => w::SettingFollows::Overlay,
         c::SettingFollows::Change => w::SettingFollows::Change,
     })
 }

@@ -456,6 +456,8 @@ pub struct SettingSet {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
+    /// An unsupported overlay; the form neither decodes nor edits it.
+    Overlay,
     Model(Box<CatalogueEntry>),
     Application(Box<[u8]>),
     Charter(Box<Charter>),

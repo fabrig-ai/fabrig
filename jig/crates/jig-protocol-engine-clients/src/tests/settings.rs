@@ -400,6 +400,7 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
     limits.owned_record = w::CEILINGS.owned_record;
     for value in values() {
         let setting = match &value {
+            s::Value::Overlay(_) => s::Setting::Charter(1),
             s::Value::Charter(value) => s::Setting::Charter(value.number),
             s::Value::Template(value) => s::Setting::Template(value.number),
             s::Value::Policy(_) => s::Setting::Policy(1),
@@ -744,4 +745,29 @@ fn client_reason_names_follow_the_cores_bit_order() {
     for (client, core) in jig_client_domain::REASON_NAMES.into_iter().zip(jig_domain_tasks::REASON_NAMES) {
         assert_eq!(client.as_bytes(), core);
     }
+}
+
+#[test]
+fn overlays_cross_engine_changes_and_setting_reads_without_losing_presence() {
+    use jig_client_domain::contract as c;
+    use jig_client_protocol_link::translate::settings as client;
+    let source = jig_client_test_records::settings::overlay();
+    let mut items = List::with_capacity(1);
+    items.push(c::SettingItem {
+        setting: c::Setting::Charter(c::SettingNumber { number: 2 }),
+        edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Overlay(Box::new(source.clone())) }),
+    }).unwrap();
+    let request = c::ChangeSettings { against: 1, items, running: c::Running::Stays };
+    let wire = client::wire_change_settings(&request, &w::CEILINGS).unwrap();
+    let change = translate::change(wire, &f::models(), &w::CEILINGS).unwrap();
+    let s::Edit::Set(value) = &change.items[0].edit else { panic!("overlay set") };
+    let returned = translate::value(value, &f::models(), &w::CEILINGS).unwrap();
+    assert_eq!(client::restore_setting_value(&returned, &f::client_limits()).unwrap(), c::SettingValue::Overlay(Box::new(source.clone())));
+    let s::Value::Overlay(overlay) = value else { panic!("overlay preserved") };
+    let document = reads::SettingDocument { overlay: Some(overlay.clone()),
+        setting: s::Setting::Charter(2), revision: 2, value: Some(s::Value::Charter(Box::new(charter()))), application: None, proposed: None,
+    };
+    let wire = translate::setting_document(&document, &f::models(), &w::CEILINGS).unwrap();
+    let restored = client::restore_setting_document(&wire, &f::client_limits()).unwrap();
+    assert_eq!(restored.overlay.as_deref(), Some(&source));
 }
