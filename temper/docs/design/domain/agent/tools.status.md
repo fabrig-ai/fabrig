@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [tools.md](tools.md).
 
-- **Not yet:** 1, `questions`: the `change` tool's schema offers `"foreman"`, and a change takes it [in flight: change 1157].
 
 - **Not yet:** the whole document: `read_reviews`, `read_remarks` and
   `read_pull_files` take no `skip`, and a page the answer's bytes cut

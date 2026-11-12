@@ -2,7 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [checks.md](checks.md).
 
-- **Not yet:** 5: the reference golden holds the `foreman` role, the foreman's charter row and kind 3's number 3 [in flight: change 1157].
 
 - **Departs:** 1: temper's measured focused request-world sum is
   81.892959 CPU s against 30, and the real-loop focused median
