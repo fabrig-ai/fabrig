@@ -374,7 +374,8 @@ record AreaTask { number: u64 }
 record AreaParty { number: u64 }
 record AreaRole { number: u32 }
 record AreaCharter { number: u32 }
-enum FollowOwner { person: FollowPerson }
+record FollowOwnerTask { task: u64 }
+enum FollowOwner { person: FollowPerson task: FollowOwnerTask }
 enum FollowStart { owner, code }
 enum FollowFormat { junit, lines }
 record FollowCheck { workflow: bytes 256 artifact: bytes 256 format: FollowFormat }
