@@ -30,6 +30,7 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
             ("BENIGN_SETTING".into(), benign.clone()),
             ("CLAUDE_CONFIG_DIR".into(), "/wrong".into()),
             ("ANTHROPIC_API_KEY".into(), "private".into()),
+            ("ANTHROPIC_CONFIG_DIR".into(), "/home/person/.config/anthropic".into()),
             ("CLAUDE_CODE_OAUTH_TOKEN".into(), "private".into()),
             ("AWS_BEARER_TOKEN_BEDROCK".into(), "private".into()),
             ("CLAUDE_CODE_USE_VERTEX".into(), "private".into()),
@@ -43,12 +44,14 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
         .get_envs()
         .map(|(name, value)| (name, value.expect("set")))
         .collect::<std::collections::BTreeMap<_, _>>();
-    assert_eq!(environment.len(), 4);
+    assert_eq!(environment.len(), 5);
+    let anthropic = source.join("anthropic");
     for (name, value) in [
         ("HOME", OsStr::new("/home/person")),
         ("PATH", OsStr::new("/bin")),
         ("BENIGN_SETTING", benign.as_os_str()),
         ("CLAUDE_CONFIG_DIR", source.as_os_str()),
+        ("ANTHROPIC_CONFIG_DIR", anthropic.as_os_str()),
     ] {
         assert_eq!(environment[OsStr::new(name)], value);
     }

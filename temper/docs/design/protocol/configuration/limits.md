@@ -26,7 +26,8 @@
   across the agent and its carriers. `standard` is `small` with the
   forge's work at that scale: `forge.tasks`, `forge.holds` and
   `forge.changes` 128, the forge client's `resources` 128 (at least the
-  holds), `forge.landings` 32, a change's policy's `questions`, `tasks`,
+  holds; it bounds the branch heads too, `../../domain/forge/keeping-up.md`,
+  1), `forge.landings` 32, a change's policy's `questions`, `tasks`,
   `repairs`, `resolutions` and `updates` 80 (its `reruns`, the times a
   job the runner failed is run again at one head, is 1 in both,
   `forge.change_policy.reruns`: `../../domain/forge/change/README.md`, 2,

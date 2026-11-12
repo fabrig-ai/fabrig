@@ -36,6 +36,11 @@ pub(super) fn credential_free(invocation: &Observation) {
         assert!(!names.iter().any(|kept| kept == name), "program kept {name}");
     }
     assert_eq!(names.iter().filter(|name| *name == "CLAUDE_CONFIG_DIR").count(), 1, "one account directory setting");
+    assert_eq!(
+        names.iter().filter(|name| name.starts_with("ANTHROPIC_")).map(String::as_str).collect::<Vec<_>>(),
+        ["ANTHROPIC_CONFIG_DIR"],
+        "only the source's Anthropic profiles setting reaches the program"
+    );
 }
 
 fn configured_program() -> (Scratch, std::path::PathBuf) {

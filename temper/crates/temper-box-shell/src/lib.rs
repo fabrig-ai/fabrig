@@ -71,11 +71,13 @@ pub enum Command {
     Serve {
         directories: Directories,
         boxed: bool,
+        record: bool,
     },
     Box {
         directories: Directories,
         echo: temper_box_machine::host::Echo,
         front: bool,
+        record: bool,
     },
     BoxFakeBackends {
         directories: Directories,
@@ -84,6 +86,7 @@ pub enum Command {
         strict: bool,
         echo: temper_box_machine::host::Echo,
         front: bool,
+        record: bool,
     },
     ProgramLogin {
         directories: Directories,
@@ -178,6 +181,12 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
     }
     let (directories, rest) =
         directories::resolve(arguments, environment, working).map_err(|why| refused(&why.to_string()))?;
+    let record_count = rest.iter().filter(|word| word.as_ref() == b"--record").count();
+    if record_count > 1 {
+        return Err(refused("invalid arguments"));
+    }
+    let record = record_count == 1;
+    let rest: Box<[_]> = rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--record").collect();
     let front_count = rest.iter().filter(|word| word.as_ref() == b"--front").count();
     if front_count > 1 {
         return Err(refused("invalid arguments"));
@@ -189,7 +198,7 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
         return Err(refused("--front cannot be used with --echo steps"));
     }
     if rest.is_empty() {
-        return Ok(Command::Box { directories, echo, front });
+        return Ok(Command::Box { directories, echo, front, record });
     }
     let mut words = rest.iter();
     while let Some(word) = words.next() {
@@ -204,7 +213,7 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
     let rest: Vec<_> = rest.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect();
     let fake_backends::Options { bundle, scripts, strict } =
         fake_backends::configure(&rest, working).map_err(|why| refused(&why))?;
-    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front })
+    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record })
 }
 
 fn configure_row(
@@ -274,11 +283,20 @@ fn configure_row(
     }
     let (directories, rest) = directories::resolve(arguments, environment, working).map_err(|why| why.to_string())?;
     let rest = os(&rest);
+    let (rest, record) = if matches!(words, ["serve"] | ["internal", "serve"]) {
+        let record = rest.iter().filter(|word| *word == "--record").count();
+        if record > 1 {
+            return Err(invalid());
+        }
+        (rest.into_iter().filter(|word| word != "--record").collect::<Vec<_>>(), record == 1)
+    } else {
+        (rest, false)
+    };
     match words {
         ["init"] if rest.is_empty() => Ok(Command::Init { directories, boxed: false }),
         ["init"] if rest == ["--box"] => Ok(Command::Init { directories, boxed: true }),
-        ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false }),
-        ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true }),
+        ["serve"] if rest.is_empty() => Ok(Command::Serve { directories, boxed: false, record }),
+        ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true, record }),
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
         _ => Err(invalid()),
     }
@@ -317,17 +335,21 @@ pub fn run(
         Command::Init { directories, boxed } => {
             return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
-        Command::Serve { directories, boxed } => serve::run("temper", environment, working, &directories, boxed)?,
-        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front } => fake_backends::run(
+        Command::Serve { directories, boxed, record } => {
+            serve::run("temper", environment, working, &directories, boxed, record)?
+        }
+        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record } => fake_backends::run(
             &directories,
             &fake_backends::Options { bundle, scripts, strict },
             echo,
             front,
+            record,
             environment,
         )
         .map_err(|why| prefixed("temper-box", &why))?,
-        Command::Box { directories, echo, front } => {
-            box_command::run(&directories, echo, front, environment).map_err(|why| prefixed("temper-box", &why))?
+        Command::Box { directories, echo, front, record } => {
+            box_command::run(&directories, echo, front, record, environment)
+                .map_err(|why| prefixed("temper-box", &why))?
         }
         Command::Agent { configuration } => {
             return temper_agent_shell::run(
@@ -456,7 +478,7 @@ mod tests;
 mod box_tests {
     #[test]
     fn serve_box_flag_is_carried_to_the_command() {
-        for boxed in [false, true] {
+        for (boxed, record) in [(false, false), (false, true), (true, false), (true, true)] {
             let mut args = ["serve", "--config", "/c", "--data", "/d", "--cache", "/k"]
                 .iter()
                 .map(|word| Box::from(word.as_bytes()))
@@ -465,18 +487,22 @@ mod box_tests {
                 args.insert(0, Box::from(b"internal".as_slice()));
                 args.push(Box::from(b"--box".as_slice()));
             }
-            let super::Command::Serve { boxed: found, .. } =
+            if record {
+                args.push(Box::from(b"--record".as_slice()));
+            }
+            let super::Command::Serve { boxed: found, record: found_record, .. } =
                 super::configure_with(&args, &[], b"/").expect("serve arguments")
             else {
                 panic!("serve command");
             };
             assert_eq!(found, boxed);
+            assert_eq!(found_record, record);
         }
     }
 
     #[test]
     fn serve_refuses_unknown_or_repeated_flags() {
-        for flags in [&["--other"][..], &["--box", "--box"][..]] {
+        for flags in [&["--other"][..], &["--box", "--box"][..], &["--record", "--record"][..]] {
             let args = core::iter::once("serve")
                 .chain(flags.iter().copied())
                 .chain(["--config", "/c", "--data", "/d", "--cache", "/k"])

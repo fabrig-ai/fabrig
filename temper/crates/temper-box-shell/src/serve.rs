@@ -34,6 +34,7 @@ pub fn prepare_with_store(
         bytes,
         owned,
         false,
+        false,
         None,
         None,
         &service::stock::Given::Stock,
@@ -52,6 +53,7 @@ fn prepare_with_limits(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
     under_box: bool,
+    record: bool,
     link_secret: Option<Secret>,
     local_secret: Option<Secret>,
     given: &service::stock::Given,
@@ -76,6 +78,7 @@ fn prepare_with_limits(
         named.bundle.as_deref(),
         named.bundle_limits,
         user,
+        record,
     )?;
     let runtime = named.worker.as_ref().map(|worker| worker::root(&worker.root, user, owned)).transpose()?;
     let program_login = if named.worker.is_some() {
@@ -166,6 +169,7 @@ fn operations_in_mode(
         config,
         &mut owned,
         boxed,
+        false,
         None,
         None,
         &service::stock::Given::Stock,
@@ -198,9 +202,20 @@ pub fn prepare_in_with(
 ) -> Result<Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
-    let result =
-        prepare_with_limits(binary, environment, working, directories, &bytes, &mut owned, false, None, None, given)
-            .map(|(service, _, _)| service);
+    let result = prepare_with_limits(
+        binary,
+        environment,
+        working,
+        directories,
+        &bytes,
+        &mut owned,
+        false,
+        false,
+        None,
+        None,
+        given,
+    )
+    .map(|(service, _, _)| service);
     if result.is_err() {
         close(owned);
     }
@@ -217,9 +232,20 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result =
-        prepare_with_limits(binary, environment, working, directories, config, &mut owned, false, None, None, given)
-            .map(|(service, _, _)| service.operations());
+    let result = prepare_with_limits(
+        binary,
+        environment,
+        working,
+        directories,
+        config,
+        &mut owned,
+        false,
+        false,
+        None,
+        None,
+        given,
+    )
+    .map(|(service, _, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }
@@ -229,6 +255,7 @@ pub fn run(
     working: &[u8],
     directories: &Directories,
     boxed: bool,
+    record: bool,
 ) -> Result<Exit, String> {
     temper_service_shell::run(
         binary,
@@ -245,6 +272,7 @@ pub fn run(
                 bytes,
                 owned,
                 boxed,
+                record,
                 input.link,
                 input.local,
                 &service::stock::Given::Stock,

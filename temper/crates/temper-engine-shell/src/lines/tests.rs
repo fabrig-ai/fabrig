@@ -1075,3 +1075,19 @@ fn client_stream_failure_line_names_the_sign_in_and_bound() {
         "temper serve: client stream closed: sign_in=41 reason=QueueBound { queued_bytes: 65536 }\n"
     );
 }
+
+#[test]
+fn head_refusal_line_names_the_task_only_when_concerned() {
+    for (task, expected) in [
+        (Some(7), "temper-engine serve: branch head refused task=7: WORDS\n"),
+        (None, "temper-engine serve: branch head refused: WORDS\n"),
+    ] {
+        assert_eq!(
+            note_line(
+                "temper-engine",
+                temper_engine_service::Note::HeadRefused { task, words: b"WORDS".as_slice().into() }
+            ),
+            expected
+        );
+    }
+}

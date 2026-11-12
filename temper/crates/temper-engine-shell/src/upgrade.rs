@@ -52,6 +52,7 @@ fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service,
         named.bundle.as_deref(),
         named.bundle_limits,
         skein_shell::effective_user(),
+        false,
     )?;
     let crate::serve::Runtimes { roots, github } = crate::serve::runtimes(binary, &named.machine)?;
     let engine = crate::serve::settings(&bytes, directories, &service::stock::Given::Stock);

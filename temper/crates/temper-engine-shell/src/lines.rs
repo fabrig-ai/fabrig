@@ -299,6 +299,13 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 String::from_utf8_lossy(section)
             )
         }
+        temper_engine_service::Note::HeadRefused { task, words } => {
+            let task = match task {
+                Some(task) => format!(" task={task}"),
+                None => String::new(),
+            };
+            format!("{binary} serve: branch head refused{task}: {}\n", String::from_utf8_lossy(&words))
+        }
         temper_engine_service::Note::BriefFailed { task, counts, reason } => {
             format!(
                 "{binary} serve: brief failed task={task} counts={counts} reason={}\n",

@@ -1314,6 +1314,7 @@ impl World {
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
                 | top::Request::ResourceRefused { .. }
+                | top::Request::HeadRefused { .. }
                 | top::Request::LostReadFailed { .. }
                 | top::Request::MakeFailed { .. }
                 | top::Request::Outcome { .. }

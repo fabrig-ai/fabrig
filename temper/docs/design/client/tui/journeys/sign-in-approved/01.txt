@@ -1,11 +1,11 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
-│ Sign in this terminal to 127.0.0.1:46105                                     │
+│ Sign in this terminal to 127.0.0.1:45323                                     │
 │ A tab opened in your browser. Check it shows                                 │
-│ KQQP-HKVM, then press Approve.                                               │
-│ No tab? Open http://127.0.0.1:46105/terminal?code=KQQP-HKVM                  │
+│ FCCM-SWDW, then press Approve.                                               │
+│ No tab? Open http://127.0.0.1:45323/terminal?code=FCCM-SWDW                  │
 │ The code expires in 9 min.                                                   │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: http://127.0.0.1:46105/jig/v1/sign-in/link?secret=… (enter sends)    │
+│ ❯ Link: http://127.0.0.1:45323/jig/v1/sign-in/link?secret=… (enter sends)    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 
 

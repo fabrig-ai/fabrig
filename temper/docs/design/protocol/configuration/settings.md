@@ -41,7 +41,11 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
   is `[]` (../setup/init.md, 3), and a document's seeded project names its
   policy as `policy: 1` (jig's `protocol/configuration.md`, section 3),
   so the seed copies the stock's policy 1 and no document carries a
-  copy of it (5, step 1).
+  copy of it (5, step 1). Before opening the store, the copied seed is
+  checked against the stock rules and configured authority bounds, its
+  references, and `core.policy_bytes`. A refusal names the policy member
+  and the executor count or snapshot bytes beside the configured limit;
+  an unknown reference names its member.
 - **A project's own policy** is not a setting: it is in the store
   already, and its owners change it (jig's `domain/people/acts.md`, 2),
   part by part, or whole as an item of a change of settings (jig's

@@ -562,7 +562,6 @@ jig-test-patches-jig = { path = "jig/testing/jig-test-patches-jig" }
 jig-test-patches-smith = { path = "jig/testing/jig-test-patches-smith" }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value", "float_roundtrip"] }
-rusqlite = { version = "0.37", features = ["bundled"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }
 jig-client-shell-web = { path = "jig/crates/jig-client-shell-web" }
 jig-client-domain = { path = "jig/crates/jig-client-domain" }

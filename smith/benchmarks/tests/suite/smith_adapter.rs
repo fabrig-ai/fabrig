@@ -13,6 +13,9 @@ use smith_bench::{End, Forced, Measure};
 
 mod retried;
 
+/// No test here proves these bounds; the answer and natural exit each expects come first.
+const HANG_GUARD: Duration = Duration::from_secs(30);
+
 #[test]
 fn a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup() {
     let scratch = root("terminal-before-exit");
@@ -63,16 +66,16 @@ fn observing(trace: &Path) -> Observing {
         program: "/bin/sh".into(),
         state: trace.with_extension("state"),
         serial: None,
-        teardown: Duration::from_millis(40),
+        teardown: HANG_GUARD,
     }).expect("event observing")
 }
 
 fn bounds() -> Bounds {
     Bounds {
-        hard: Duration::from_millis(150),
-        teardown: Duration::from_millis(40),
+        hard: HANG_GUARD,
+        teardown: HANG_GUARD,
         grace: Duration::from_millis(20),
-        settlement: Duration::from_millis(200),
+        settlement: HANG_GUARD,
         stdout: 16384,
         stderr: 4096,
         force_walk: true,

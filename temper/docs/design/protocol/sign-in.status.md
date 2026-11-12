@@ -1,6 +1,7 @@
 # sign-in: status
 
-2026-11-10. Where temper's code lags or departs from [sign-in.md](sign-in.md).
+2026-11-12. Where temper's code lags or departs from [sign-in.md](sign-in.md).
+
 
 Section 4.3 has no known gap in the endings' header and column, linking
 the served bundle's `files/pages.css` by its digest, and reading plain

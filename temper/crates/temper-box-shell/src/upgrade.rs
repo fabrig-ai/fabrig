@@ -19,6 +19,7 @@ fn prepare(directories: &Directories) -> Result<(temper_engine_service::Service,
         named.bundle.as_deref(),
         named.bundle_limits,
         skein_shell::effective_user(),
+        false,
     )?;
     let engine::Runtimes { roots, github } = engine::runtimes("temper-box", &named.machine)?;
     let config = engine::settings(&bytes, directories, &service::stock::Given::Stock);

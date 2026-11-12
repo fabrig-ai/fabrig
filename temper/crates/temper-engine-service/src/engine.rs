@@ -331,6 +331,9 @@ impl Engine {
                 root::Fact::BriefReadRefused { task, section, stage, reason, heads, error } => {
                     self.notes.push(crate::Note::BriefReadRefused { task, section, stage, reason, heads, error });
                 }
+                root::Fact::HeadRefused { task, words } => {
+                    self.notes.push(crate::Note::HeadRefused { task, words });
+                }
                 root::Fact::BriefFailed { task, counts, reason } => {
                     self.notes.push(crate::Note::BriefFailed { task, counts, reason });
                 }
