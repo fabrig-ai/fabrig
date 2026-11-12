@@ -37,8 +37,8 @@ pub(super) fn request(value: w::Request) -> Option<root::Application> {
     }
 }
 
-pub(super) fn state(value: &Option<w::FindingState>) -> Option<forge::FindingState> {
-    match value { Some(value) => Some(state_from(*value)), None => None }
+pub(super) fn state(value: Option<&w::FindingState>) -> Option<forge::FindingState> {
+    match value { Some(value) => Some(state_from(value.clone())), None => None }
 }
 
 fn kind_from(value: w::FindingKind) -> forge::FindingKind {

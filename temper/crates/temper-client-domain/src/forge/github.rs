@@ -302,7 +302,11 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 | w::Outcome::Reset
                 | w::Outcome::Away
                 | w::Outcome::Tried
-                | w::Outcome::NotTheirs
+                | w::Outcome::Filed(_)
+        | w::Outcome::Handed
+        | w::Outcome::Triaged
+        | w::Outcome::FindingRefused(_)
+        | w::Outcome::NotTheirs
                 | w::Outcome::Overturned
                 | w::Outcome::OverturnRefused(_)
                 | w::Outcome::EndRefused(_) => None,

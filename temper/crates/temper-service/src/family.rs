@@ -508,7 +508,7 @@ pub fn to_root(
                     w::Watch::Findings(subject) => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Project(subject.project()),
                         connector: wire::FORGE,
-                        subject: Token::new(forge::findings_subject(subject.project(), findings::state(subject.state()), subject.mine())),
+                        subject: Token::new(forge::findings_subject(subject.project(), findings::state(subject.state().as_ref()), subject.mine())),
                     },
                     w::Watch::Decided(subject) => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Project(subject.project()),
