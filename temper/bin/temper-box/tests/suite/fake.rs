@@ -874,12 +874,13 @@ fn llm_run() {
                         fs::read(dir.join("root.der")).expect("valid fixture"),
                     ))
                     .expect("valid fixture");
-                let config =
-                    rustls_std::ClientConfig::builder_with_provider(Arc::new(rustls_std::crypto::ring::default_provider()))
-                        .with_safe_default_protocol_versions()
-                        .expect("valid fixture")
-                        .with_root_certificates(roots)
-                        .with_no_client_auth();
+                let config = rustls_std::ClientConfig::builder_with_provider(Arc::new(
+                    rustls_std::crypto::ring::default_provider(),
+                ))
+                .with_safe_default_protocol_versions()
+                .expect("valid fixture")
+                .with_root_certificates(roots)
+                .with_no_client_auth();
                 let connection = rustls_std::ClientConnection::new(
                     Arc::new(config),
                     rustls_std::pki_types::ServerName::try_from("skein.test").expect("valid fixture"),

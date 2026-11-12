@@ -49,6 +49,7 @@ members = [
     "skein/crates/skein-sim",
     "skein/crates/skein-sim-world",
     "skein/crates/skein-tls",
+    "skein/crates/skein-rustls-std",
     "skein/crates/skein-ui",
     "skein/crates/skein-ui-bundle",
     "skein/crates/skein-ui-text",
@@ -472,6 +473,7 @@ skein-fake-push = { path = "skein/crates/skein-fake-push" }
 skein-push = { path = "skein/crates/skein-push" }
 skein-fake-oauth = { path = "skein/crates/skein-fake-oauth" }
 skein-tls = { path = "skein/crates/skein-tls" }
+skein-rustls-std = { path = "skein/crates/skein-rustls-std" }
 skein-shell = { path = "skein/crates/skein-shell" }
 skein-fail-stop = { path = "skein/crates/skein-fail-stop" }
 skein-sim = { path = "skein/crates/skein-sim" }

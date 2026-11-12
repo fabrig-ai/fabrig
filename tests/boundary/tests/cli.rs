@@ -516,8 +516,16 @@ fn features_are_found_in_every_dependency_form_and_only_external_root_entries_ar
         (false, "[dependencies]\ndemo = { path = 'demo', optional = false }\n", vec!["demo"]),
         (false, "[dev-dependencies]\ndemo = { workspace = true, default-features = true }\n", vec!["demo"]),
         (false, "[build-dependencies]\n'demo' = { workspace = true, features = [] }\n", vec!["demo"]),
-        (false, "[target.'cfg(unix)'.dependencies]\ndemo = { workspace = true, features = ['one', 'two'] }\n", vec!["demo"]),
-        (false, "[target.'cfg(target_os = \"a.b\")'.dev-dependencies.demo]\nworkspace = true\nfeatures = []\n", vec!["demo"]),
+        (
+            false,
+            "[target.'cfg(unix)'.dependencies]\ndemo = { workspace = true, features = ['one', 'two'] }\n",
+            vec!["demo"],
+        ),
+        (
+            false,
+            "[target.'cfg(target_os = \"a.b\")'.dev-dependencies.demo]\nworkspace = true\nfeatures = []\n",
+            vec!["demo"],
+        ),
         (false, "[target.'cfg(unix)'.build-dependencies]\ndemo.workspace = true\ndemo.features = []\n", vec!["demo"]),
         (false, "[dependencies.demo]\nworkspace = true\noptional = true\nfeatures = []\n", vec!["demo"]),
         (false, "[\"dependencies\"]\ndemo = { workspace = true, features = [] }\n", vec!["demo"]),
@@ -565,14 +573,14 @@ fn members_must_name_a_path_or_inherit_in_every_dependency_form() {
         (true, "[workspace.dependencies]\ndemo = '1'\n", vec![]),
         (true, "[workspace.dependencies]\ndemo.version = '1'\n", vec![]),
         (true, "[workspace.dependencies.demo]\nversion = '1'\n", vec![]),
-        (
-            false,
-            "[dependencies]\ndemo = { version = '1', features = [] }\n",
-            vec!["demo", "demo is not inherited"],
-        ),
+        (false, "[dependencies]\ndemo = { version = '1', features = [] }\n", vec!["demo", "demo is not inherited"]),
     ] {
         let expected: Vec<_> = expected.into_iter().map(|finding| format!("member/Cargo.toml: {finding}")).collect();
-        assert_eq!(manifest_findings("member/Cargo.toml", source, root).expect("the fixture reads"), expected, "{source}");
+        assert_eq!(
+            manifest_findings("member/Cargo.toml", source, root).expect("the fixture reads"),
+            expected,
+            "{source}"
+        );
     }
 }
 

@@ -140,8 +140,11 @@ above, under compiler-cache keys that no other build asks for
   platform. The one pair is rustls's: `rustls`, without `std`, for
   `wasm32-unknown-unknown`, whose clock that `std` needs; and
   `rustls-std`, with it, for the native targets
-  (`skein/docs/design/net/tls.md`, 4). A crate built for both names each
-  in its platform's table.
+  (`skein/docs/design/net/tls.md`, 4). Cargo refuses one package under
+  two names in one crate, whatever their conditions, so a crate built
+  for both platforms names the wasm32 entry in its wasm32 table and, in
+  its native one, a bridge crate of ours that names the native entry
+  there and re-exports it: `skein-tls` names `skein-rustls-std`.
 - **Cargo's unification covers the crates below ours,** which no
   manifest of ours names. The repository's `.cargo/config.toml` sets
   `[unstable] feature-unification = true` and `[resolver]
