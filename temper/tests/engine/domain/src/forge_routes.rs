@@ -41,9 +41,8 @@ const STEPS: u32 = 200;
 // Writes for the stock forge world before deployment limits are applied.
 const STOCK_FORGE_WRITES: u32 = 9_754;
 
-// Stock charter 1's 8,571-byte assignment bound plus 25% headroom,
-// rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, 6).
-const STOCK_RUN_BYTES: u32 = 11_000;
+// Holds the stock goal agent's instructions, four parts and resolved model.
+const STOCK_RUN_BYTES: u32 = 32_768;
 
 /// The settings family's tools run on a world's charter (temper/docs/design/testing/checks.md, 4).
 pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) {
@@ -865,6 +864,9 @@ impl World {
                 // The larger resource route needs its full declared journal-write burst.
                 limits.journal.writes = STOCK_FORGE_WRITES;
                 limits.journal.run_bytes = limits.journal.run_bytes.max(STOCK_RUN_BYTES);
+                limits.loads.bytes = limits.loads.bytes.max(STOCK_RUN_BYTES);
+                limits.loads.reply_bytes = limits.loads.reply_bytes.max(STOCK_RUN_BYTES);
+                limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(STOCK_RUN_BYTES);
             }
             if let Some((_, _, Some(deployment))) = stock {
                 limits = *deployment;
