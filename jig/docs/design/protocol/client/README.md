@@ -391,7 +391,12 @@ recipient.
   not opened again: the link is out of date, naming it `unreadable`
   (`../../client/domain/client/watches.md`, 2). Offline, it would open
   the stream again after each backoff, meet the same record each time,
-  and tell no one.
+  and tell no one. A record refused for a bound (past the client's
+  limits) or for its order on the stream (a delivery, a run's text or
+  an end before the hello names the stream) says nothing of a layout:
+  an engine of the same build can send it, and a new stream may not
+  meet it again. Such a record drops the stream, which opens again after
+  its backoff, as before.
   The application says how to update; updated, the client sends what it
   kept in a version it speaks, under its keys (`README.md`, section 7).
 - **One jig pin:** an application's `jig-client` and its engine come from

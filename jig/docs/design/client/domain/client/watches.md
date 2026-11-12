@@ -117,9 +117,12 @@
   `unreadable` says the link is out of date because the engine sent a
   record of jig's that this build can't read
   (`../../../protocol/client/README.md`, section 6): a record on the
-  stream (the hello, a delivery, a run's text, a watch's end) that the
-  link refuses, its bytes or its translation, or an answer to a watch's
-  opening or closing whose bytes don't decode. The link drops the stream
+  stream (the hello, a delivery, a run's text, a watch's end) whose
+  bytes, or whose translation, the link refuses as malformed or of
+  another version, or an answer to a watch's opening or closing whose
+  bytes don't decode. A record refused for a bound or for its order on
+  the stream is not one: it drops the stream, which opens again after
+  its backoff, offline meanwhile. The link drops the stream
   as for any refused record, then the client is out of date and opens
   nothing again: no stream, no watch, `me`'s included, and no request
   sent, each kept. It holds for the client's life, since no later hello
