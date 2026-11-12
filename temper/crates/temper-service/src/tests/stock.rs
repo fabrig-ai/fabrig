@@ -563,6 +563,8 @@ fn the_standing_role_talks_keeps_a_session_line_and_sets_its_weekly_report() {
     let charter = defaults.charters.iter().find(|charter| charter.number == 13).expect("standing role charter");
     let shared = core::str::from_utf8(&charter.policy.instructions).unwrap();
     assert!(shared.contains("Add it to my rules?"));
+    assert!(shared.contains("1. Yes, add it"));
+    assert!(shared.contains("Tell it something else"));
     assert!(shared.contains("with `propose_settings`, your reason naming the talk"));
     assert!(shared.contains("an owner of the deployment accepts it, and name the proposal"));
     assert!(shared.contains("An instruction for the work at hand goes in your Now"));

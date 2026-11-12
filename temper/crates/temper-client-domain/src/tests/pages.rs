@@ -2,6 +2,7 @@ mod models;
 mod needs;
 mod only_you;
 mod team;
+mod tell;
 mod terminal;
 use crate::ChatsFilter;
 mod accounts;

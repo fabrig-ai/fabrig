@@ -71,6 +71,7 @@ pub mod stop_asking;
 pub mod switcher;
 pub mod task;
 pub mod team;
+pub mod tell;
 pub mod terminal;
 pub mod welcome;
 pub mod work;
@@ -134,6 +135,7 @@ pub struct Pages {
     pub(crate) push: Option<[u8; 65]>,
     roles: roles::Roles,
     team: team::Team,
+    tell: tell::Store,
     models: models::Models,
     switcher: switcher::Switcher,
     pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
@@ -229,6 +231,10 @@ pub enum Act {
     Choice(choice::Act),
     Needs(needs::Act),
     Finding(findings::Act),
+    Tell {
+        project: u32,
+        words: Box<[u8]>,
+    },
     StopAsking(stop_asking::Act),
     Away(away::Act),
     Models(models::Act),
@@ -438,6 +444,7 @@ impl Pages {
             push: None,
             roles: roles::Roles::default(),
             team: team::Team::default(),
+            tell: tell::Store::new(),
             models: models::Models::new(),
             switcher: switcher::Switcher::default(),
             connect_model: None,
@@ -477,6 +484,11 @@ impl Pages {
     pub fn choice(&self) -> &choice::Draft {
         &self.choice
     }
+    #[must_use]
+    pub fn tell(&self) -> Option<&tell::Tell> {
+        self.tell.last()
+    }
+
     #[must_use]
     pub fn told(&self) -> Option<&told::Told> {
         if self.told_open { Some(&self.told) } else { None }
@@ -861,6 +873,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.switcher.act(me, pages.project, act, &mut pages.serial, out);
         }
         Event::Act { act: Act::Finding(act) } => findings::act(pages, env, act, out),
+        Event::Act { act: Act::Tell { project, words } } => tell::act(pages, env, project, &words, out),
         Event::Act { act: Act::Needs(act) } => {
             needs::act(pages, env, client, &crate::forge::approvals::Approvals::default(), act, out);
         }
@@ -1278,7 +1291,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             Some(me) => me.party.number,
             None => 0,
         };
-        pages.team.configure(&pages.address, you, env, client, &mut pages.next, out);
+        pages.team.configure(&pages.address, pages.launchpad, you, env, client, &mut pages.next, out);
     } else {
         pages.team.leave(out);
     }
@@ -1411,6 +1424,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         } else {
             open.failed = Some(outcome.clone());
         }
+    }
+    if pages.tell.told(&told, client, env.limits.forge) {
+        return true;
     }
     if pages.needs.findings.told(&told, client, env.limits.forge) {
         return true;
@@ -2456,6 +2472,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::StopAsking(_)
         | Act::Needs(_)
         | Act::Finding(_)
+        | Act::Tell { .. }
         | Act::Choice(_)
         | Act::MakeDefault
         | Act::AdoptFirst

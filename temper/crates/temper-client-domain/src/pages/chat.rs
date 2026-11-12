@@ -1305,6 +1305,7 @@ impl Chat {
             | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Finding(_)
+            | Act::Tell { .. }
             | Act::Choice(_)
             | Act::Accounts(_)
             | Act::ConnectModel(_)
