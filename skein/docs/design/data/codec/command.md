@@ -159,9 +159,10 @@ text at version `c`:
     naming the command, and a golden test per patch.
 - **The golden test** of patch `n` (`patch::goldens(crate, n,
   written)`), for each family it moves: each golden of the old version,
-  made from the kept text by `README.md`, section 6's rule, its declaration's
-  counterpart its root (a declaration dropped has none, and is passed
-  over), run through the patch, each stop answered by the dispatch with
+  made from the kept text by `README.md`, section 6's rule (but see
+  below), its declaration's counterpart its root (a declaration dropped
+  has none, and is passed over), run through the patch, each stop
+  answered by the dispatch with
   a `Context::default()` and each held field carried; the result decodes
   as a generic value of the new kept text, and equals its file
   `patches/golden/NNNN/<family>/<golden>`, or, refused with a declared
@@ -172,6 +173,11 @@ text at version `c`:
   or `Mode::Check`, which never writes. The command writes them
   itself for a patch with no site once it plans; a patch with sites
   waits for its author's functions and the test.
+- **Opened pieces in an old golden:** the bytes pattern of section 6's
+  full value is no piece, so where the patch's walk opens pieces
+  (`patches.md`, 4), a full golden holds one piece there, its item's
+  full value, and the smallest none. Copied pieces keep the pattern,
+  so no landed patch's goldens move.
 
 ## 4. Renames
 
