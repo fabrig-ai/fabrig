@@ -1,5 +1,5 @@
 //! A finite search belongs to its original call, credential selection and deadline.
-use skein_forge::api::{Answer, Error, Op, Read};
+use skein_forge::api::{Answer, Bound, Error, Excess, Op, Read};
 use skein_forge_connection::{Request, seam::Tokens};
 use skein_forge_machine_world::hand::{self as f, FORGE, Harness, REPO};
 use skein_lib::{Duration, Secret, Time};
@@ -131,11 +131,14 @@ fn probe_only_advances_after_a_404() {
 }
 #[test]
 fn bounded_probe_ends_without_another_candidate() {
+    const BODY_BOUND: u32 = 8;
+    // The tokenizer's one-byte demand delivers the first byte past the bound.
+    const DELIVERED_BYTES: u64 = 9;
     let mut h = candidates();
-    h.env.limits.body_bytes_in = 8;
+    h.env.limits.body_bytes_in = BODY_BOUND;
     begin(&mut h, branch());
     h.answer(FORGE, &f::ok(f::GITHUB_REPOSITORY));
-    answered(&mut h, 1, Err(Error::InvalidAnswer));
+    answered(&mut h, 1, Err(Error::TooLarge(Excess::at_least(Bound::Forge, u64::from(BODY_BOUND), DELIVERED_BYTES))));
     assert_eq!(count(&h, b"GET /repositories/1 "), 1);
 }
 #[test]

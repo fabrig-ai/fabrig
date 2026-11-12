@@ -25,6 +25,22 @@ const WORD: &[u8] = b"example-app";
 const ROOM: u32 = 4096;
 
 #[test]
+fn github_document_length_is_a_forge_bound() {
+    let mut limits = limits();
+    limits.json.length = u32::try_from(fixtures::BRANCH.len()).unwrap().checked_sub(1).unwrap();
+    let (_, decoded) = decode(Kind::Branch, fixtures::BRANCH, limits.json.chunk, &limits);
+    let error = decoded.expect_err("the document passes the length bound");
+    assert_eq!(
+        crate::github::plans::failure::malformed(error),
+        api::Error::TooLarge(Excess::at_least(
+            api::Bound::Forge,
+            u64::from(limits.json.length),
+            skein_lib::len_u64(fixtures::BRANCH.len())
+        ))
+    );
+}
+
+#[test]
 fn github_commit_ranges_are_paged_without_files() {
     let head = fixtures::branch().commit;
     let message = api::CommitMessage { id: head, parents: Box::new([head]), message: Box::from(*b"work") };
@@ -1457,7 +1473,10 @@ fn branch_read_still_refuses_a_name_past_the_bound() {
     out.put(b"\"}}").unwrap();
     let (_, document) = decode(Kind::Branch, &bytes(out), 1, &limits());
     let mut call = started(api::Read::Branch { branch: Box::from(*b"main") }, bounds());
-    assert_eq!(call.heard(Heard::Done(Body::Malformed(document.unwrap_err()))), ended(Err(api::Error::InvalidAnswer)));
+    assert_eq!(
+        call.heard(Heard::Done(Body::Malformed(document.unwrap_err()))),
+        ended(Err(api::Error::TooLarge(Excess::unnamed())))
+    );
 }
 #[test]
 fn skipped_branches_count_toward_per_page_and_paging_continues() {
