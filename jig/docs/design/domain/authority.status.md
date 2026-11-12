@@ -2,7 +2,7 @@
 
 2026-11-09. Where jig's code lags or departs from [authority.md](authority.md).
 
-- **Not yet:** 7: a standing agent task's budget renewed by period (`tasks/standing.md`, section 4) [in flight: change 103].
+- **Not yet:** 7: a standing agent task's budget renewed by period (`tasks/standing.md`, section 4).
 
 Section 3 has no known gap in the asking family, bit 2,048, or
 `ToolKind::Ask` admission. A call without that family is beyond authority.

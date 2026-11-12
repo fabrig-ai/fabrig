@@ -2,7 +2,7 @@
 
 2026-11-11. Where the tree's code lags or departs from [messages.md](messages.md).
 
-- **Not yet:** 6: a charter whose runs resume holding parts, read by a standing task's sessions, and every message offered to another task under it (`standing.md`, 5.4) [in flight: change 106].
+- **Not yet:** 6: a charter whose runs resume holding parts, read by a standing task's sessions, and every message offered to another task under it (`standing.md`, 5.4).
 - **Not yet:** 2, *Open questions stay in front of it*, and 6, *An open question is a reason*: a question read once and left open is shown to no later run and gives no run its `question` reason [in flight: change 838].
 
 - **Not yet:**  the drain, placed-hold scope, release proposal and parked hold remain `lifecycle.status.md`, 10.

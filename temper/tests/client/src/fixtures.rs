@@ -100,9 +100,9 @@ pub fn across_people(limits: Limits) -> Joint {
     front.engine.settle();
     front
 }
-/// Ten delegates fill one stream's room beside the chat's session watches and
+/// Eleven delegates fill one stream's room beside the chat's session watches and
 /// Home, including each page's standing-role watch.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 10;
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = 11;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]

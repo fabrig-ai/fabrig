@@ -2,7 +2,7 @@
 
 2026-11-11. Where smith's code lags or departs from [limits.md](limits.md).
 
-- **Not yet:** 2.3, the `check_timeout` row, and 7, *Tools and checks*: the checks' deadline is `check_timeout` alone, with no charter's bound and no retry at twice the time [in flight: change 73].
+- **Not yet:** 2.3, the `check_timeout` row, and 7, *Tools and checks*: the checks' deadline is `check_timeout` alone, with no charter's bound and no retry at twice the time.
 
 Sections 3.6 and 3.8's `host_limits` and the agent's profile derivation
 are `smith-agent-profile`'s at main's `fdc26f71c6`, re-exported at the
