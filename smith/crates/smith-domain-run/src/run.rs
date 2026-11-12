@@ -899,10 +899,12 @@ fn wait(
         || (exhausted.is_some() && run.wind_down.is_none())
     {
         Returned::Refused { refusal: AskRefusal::Over }
-    } else if run.draining || run.wind_down.is_some() || (run.charter.waiting == Duration::ZERO && !run.inbox.has_queued()) {
+    } else if run.wind_down.is_some() || (run.charter.waiting == Duration::ZERO && !run.inbox.has_queued()) {
         out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
         out.push(Request::Return { spent: 0, call: made.call, result: Returned::Withheld });
         return wind_down(conversations, reply_to, main, Ending::Parked, out);
+    } else if run.draining {
+        Returned::Cancelled
     } else if run.inbox.has_queued() {
         Returned::Waited { text: prompt::waited() }
     } else {

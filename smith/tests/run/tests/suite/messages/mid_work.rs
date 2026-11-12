@@ -286,7 +286,7 @@ fn cancel_after_drain_cuts_the_completion() {
 
 #[test]
 fn drain_while_awaiting_waiting_or_listening_starts_no_completion() {
-    for phase in ["awaiting", "waiting", "listening"] {
+    for phase in ["awaiting", "waiting", "listening", "wait-call"] {
         let settings = settings();
         let mut charter = scripted_charter(&settings);
         let cue = charter.brief.sections[0].text.clone();
@@ -299,10 +299,22 @@ fn drain_while_awaiting_waiting_or_listening_starts_no_completion() {
         if phase == "awaiting" { charter.brief.sections = Box::default(); }
         let mut world = World::with_workspace_scripts_charter(settings, None, None,
             skein_fake_checkout::Checkout::new(), Box::new([Script { cue, turns: Box::new([turn]) }]), charter);
-        world.drain_at(Time::from_nanos(150_000_000));
+        world.drain_at(Time::from_nanos(if phase == "wait-call" { 50_000_000 } else { 150_000_000 }));
         world.run(10_000);
         assert_eq!(world.prompts().len(), usize::from(phase != "awaiting"));
         assert!(world.answered_at() < Time::from_nanos(200_000_000));
         assert!(matches!(world.answer(), run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }));
     }
+}
+
+
+#[test]
+fn drain_preserves_a_turn_that_parks_without_waiting() {
+    let mut settings = settings();
+    settings.waiting = Duration::ZERO;
+    let mut world = scripted(&settings, Box::new([call(b"wait", b"{}")]), Vec::new());
+    world.drain_at(Time::from_nanos(50_000_000));
+    world.run(10_000);
+    assert_eq!(world.prompts().len(), 1);
+    assert!(matches!(world.answer(), run::Answer::Parked { turns: 1, .. }));
 }
