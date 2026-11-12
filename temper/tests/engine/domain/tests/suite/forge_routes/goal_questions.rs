@@ -635,6 +635,81 @@ fn recovered_question(story: &mut Story) -> u64 {
     number
 }
 
+fn waiting_text(run: &engine::Assignment) -> Option<&[u8]> {
+    run.sections.iter().find_map(|section| match &section.body {
+        engine::BriefBody::Text(text) if section.kind == engine::BriefKind::Core(jig_domain_brief::Core::Waiting) => {
+            Some(text.as_ref())
+        }
+        _ => None,
+    })
+}
+
+fn assert_waiting_question(run: &engine::Assignment, asker: u64, number: u64, words: &[u8]) {
+    let heading = format!(
+        "Questions asked of you, still open, oldest first:\nTask {asker} asks (question {number}); answer with message target={asker}, form=answer, question={number}:\n"
+    );
+    assert_eq!(waiting_text(run), Some([heading.as_bytes(), words, b"\n"].concat().as_slice()));
+}
+
+#[test]
+fn a_stock_goal_keeps_a_passed_up_question_in_front_of_each_fresh_run() {
+    let (mut world, goal, _) = super::goal_branch::running_stock_goal();
+    let change = super::questions::make_change(&mut world, &goal, 93, engine::ChangeQuestions::Up);
+    let producer = super::questions::next_producer(&mut world, change);
+    park(&mut world, &goal);
+    world.until(Until::Ready);
+    assert_eq!(live_task(&world, goal.task).phase, tasks::Phase::Active(tasks::Active::Idle));
+    let question = world.producer_question(&producer, 100, QUESTION);
+    park(&mut world, &producer);
+    let first = next_goal_run(&mut world, &goal);
+    let up = first
+        .messages
+        .iter()
+        .find(|word| word.from == tasks::Party::Task(change) && word.kind == tasks::MessageKind::Question)
+        .expect("start carries the change's question")
+        .number;
+    assert_eq!(waiting_text(&first), None, "start question is not repeated");
+    let defaults = super::goal_branch::stock_defaults();
+    let charter = defaults.charters.iter().find(|charter| charter.number == 5).expect("stock coordinator");
+    let part = charter.parts.iter().find(|part| part.on.contains(tasks::Reasons::QUESTION)).expect("questions part");
+    assert!(
+        first.run.policy.instructions.windows(part.instructions.len()).any(|words| words == part.instructions.as_ref())
+    );
+    world.scripted_read_inbox(&first);
+    park(&mut world, &first);
+    for _ in 0..STEPS {
+        world.tick();
+        if live_task(&world, goal.task).last_answer == Some(first.attempt) {
+            break;
+        }
+    }
+    assert!(
+        matches!(
+            live_task(&world, goal.task).phase,
+            tasks::Phase::Active(tasks::Active::Due | tasks::Active::Preparing)
+        ),
+        "question is due, or already preparing, never idle"
+    );
+    let next = next_goal_run(&mut world, &first);
+    assert_waiting_question(&next, change, up, QUESTION);
+    assert!(live_task(&world, goal.task).reasons.contains(tasks::Reasons::QUESTION));
+    world.goal_answer(&next, 110, change, up, ANSWER);
+    resumed(&mut world, &producer, change, question, ANSWER);
+    world.close();
+}
+
+fn next_goal_run(world: &mut World, previous: &engine::Assignment) -> engine::Assignment {
+    for _ in 0..STEPS {
+        world.tick();
+        if let Some(run) =
+            world.assigned.iter().rev().find(|run| run.task == previous.task && run.attempt > previous.attempt)
+        {
+            return run.clone();
+        }
+    }
+    panic!("goal is assigned again: {:?}", live_task(world, previous.task));
+}
+
 #[test]
 fn a_fresh_goal_run_recovers_and_answers_an_escalated_question() {
     let mut story = start(None);
@@ -651,6 +726,7 @@ fn a_fresh_goal_run_recovers_and_answers_an_escalated_question() {
     fresh_goal(&mut story);
     unsuccessful_answers(&mut story, question);
     let number = recovered_question(&mut story);
+    assert_waiting_question(&story.goal, story.a, number, &[QUESTION, b"\n\nForeman:\n", REASONS].concat());
     assert_ne!(number, question, "escalation and producer credits differ");
     story.world.goal_answer(&story.goal, 121, story.a, number, ANSWER);
     let producer = resumed(&mut story.world, &story.producer, story.a, question, ANSWER);
