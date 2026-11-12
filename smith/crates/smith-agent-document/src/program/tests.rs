@@ -120,7 +120,9 @@ fn the_sign_in_runs_auth_login_in_the_source_s_environment() {
     let configuration = Path::new("/private/programs/source");
     let base = [
         ("HOME", "/private/home"),
+        ("XDG_CONFIG_HOME", "/private/home/.config"),
         ("ANTHROPIC_API_KEY", "key"),
+        ("ANTHROPIC_CONFIG_DIR", "/home/u/.config/anthropic"),
         ("ANTHROPIC_AUTH_TOKEN", "token"),
         ("CLAUDE_CODE_OAUTH_TOKEN", "token"),
         ("CLAUDE_CODE_USE_BEDROCK", "1"),
@@ -133,8 +135,10 @@ fn the_sign_in_runs_auth_login_in_the_source_s_environment() {
     assert_eq!(
         command.get_envs().collect::<Vec<_>>(),
         [
+            (OsStr::new("ANTHROPIC_CONFIG_DIR"), Some(configuration.join("anthropic").as_os_str())),
             (OsStr::new("CLAUDE_CONFIG_DIR"), Some(configuration.as_os_str())),
             (OsStr::new("HOME"), Some(OsStr::new("/private/home"))),
+            (OsStr::new("XDG_CONFIG_HOME"), Some(OsStr::new("/private/home/.config"))),
         ]
     );
 }
@@ -150,6 +154,7 @@ fn the_sign_in_s_environment_drops_a_named_profile() {
     assert_eq!(
         command.get_envs().collect::<Vec<_>>(),
         [
+            (OsStr::new("ANTHROPIC_CONFIG_DIR"), Some(OsStr::new("/programs/a/anthropic"))),
             (OsStr::new("CLAUDE_CONFIG_DIR"), Some(OsStr::new("/programs/a"))),
             (OsStr::new("HOME"), Some(OsStr::new("/h"))),
         ]
@@ -170,6 +175,7 @@ fn the_sign_in_s_environment_drops_federation_variables() {
         assert_eq!(
             command.get_envs().collect::<Vec<_>>(),
             [
+                (OsStr::new("ANTHROPIC_CONFIG_DIR"), Some(OsStr::new("/programs/a/anthropic"))),
                 (OsStr::new("CLAUDE_CONFIG_DIR"), Some(OsStr::new("/programs/a"))),
                 (OsStr::new("HOME"), Some(OsStr::new("/h"))),
             ]
@@ -188,6 +194,7 @@ fn the_sign_in_s_environment_drops_an_endpoint() {
     assert_eq!(
         command.get_envs().collect::<Vec<_>>(),
         [
+            (OsStr::new("ANTHROPIC_CONFIG_DIR"), Some(OsStr::new("/programs/a/anthropic"))),
             (OsStr::new("CLAUDE_CONFIG_DIR"), Some(OsStr::new("/programs/a"))),
             (OsStr::new("HOME"), Some(OsStr::new("/h"))),
         ]
@@ -199,5 +206,5 @@ fn the_terminal_environment_has_no_hosted_spawn_bound() {
     let mut base: Vec<_> = (0..100).map(|index| (format!("VARIABLE_{index}").into(), "x".repeat(100).into())).collect();
     base.push((OsString::from_vec(vec![b'N', 0xff]), OsString::from_vec(vec![0xfe])));
     let command = sign_in(Path::new("/claude"), Path::new("/programs/source"), base);
-    assert_eq!(command.get_envs().count(), 102);
+    assert_eq!(command.get_envs().count(), 103);
 }
