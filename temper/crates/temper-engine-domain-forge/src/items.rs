@@ -207,7 +207,14 @@ impl Domain {
                     None,
                     false,
                 ),
-                change::Delegate::Gate { .. } => (Start::Branch(row.branch.clone()), None, None, None, false),
+                change::Delegate::Gate { .. } => {
+                    let branch = if let change::State::Judging { target, .. } = &row.change.state {
+                        target.branch.clone()
+                    } else {
+                        row.branch.clone()
+                    };
+                    (Start::Branch(branch), None, None, None, false)
+                }
             },
             None => self.task_workspace_item(&seed, repository)?,
         };

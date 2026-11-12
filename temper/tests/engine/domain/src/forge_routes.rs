@@ -170,6 +170,7 @@ pub struct StoryLimits {
     pub person_executor: bool,
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
+    pub dispatch_passes: Option<u32>,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
     pub landing_members: Option<u32>,
@@ -364,6 +365,7 @@ impl World {
             merge_authority,
             resolutions,
             turn,
+            dispatch_passes: _,
             landing_members,
             slots,
             tasks,
@@ -948,7 +950,7 @@ impl World {
                         latency_min: Duration::from_secs(1),
                         latency_max: Duration::from_secs(1),
                         silent: 0,
-                        passes: 1000,
+                        passes: timing.dispatch_passes.unwrap_or(1000),
                         cue: None,
                     }])
                 } else {

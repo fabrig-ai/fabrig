@@ -1241,6 +1241,24 @@ impl Domain {
         None
     }
 
+    /// Lookup for a brief includes the round pull only while its member judges it.
+    #[must_use]
+    pub fn change_for_brief(&self, repository: u32, number: u64) -> Option<&ChangeRow> {
+        for (_, row) in &self.changes {
+            if row.repository.repository == repository {
+                if row.pull == Some(number) {
+                    return Some(row);
+                }
+                if let change::State::Judging { target, .. } = &row.change.state
+                    && target.pull == number
+                {
+                    return Some(row);
+                }
+            }
+        }
+        None
+    }
+
     /// Repair owner and task for one landing queue, retained through restart.
     #[must_use]
     pub fn queue_repair(&self, repository: skein_forge::api::Repository, base: &[u8]) -> Option<(u64, u64)> {
@@ -3143,6 +3161,7 @@ fn before_relay_hold(state: &change::State) -> change::State {
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::CancellingGates { .. }
         | change::State::Ready { .. }
@@ -3312,6 +3331,9 @@ fn delegate_admission_refused(
             change::Delegate::Resolve { base } | change::Delegate::Merge { base, .. },
             change::State::Resolving { requested, base: current },
         ) => *requested && base == *current,
+        (change::Delegate::Gate { number, head }, change::State::Judging { target, asked, .. }) => {
+            head == target.prefix && asked.contains(&number)
+        }
         (change::Delegate::Gate { number, head }, change::State::Gating { head: current, asked }) => {
             head == *current && asked.contains(&number)
         }
@@ -3343,6 +3365,20 @@ fn unasked(row: &mut ChangeRow, kind: change::Delegate) -> change::State {
             row.change.resolutions = row.change.resolutions.saturating_sub(1);
             change::State::Resolving { requested: false, base }
         }
+        (change::Delegate::Gate { number, .. }, change::State::Judging { head, ready_since, target, asked }) => {
+            let mut remaining = List::with_capacity(u32::try_from(asked.len()).expect("bounded gates"));
+            for prior in asked {
+                if *prior != number {
+                    remaining.push(*prior).expect("same room");
+                }
+            }
+            change::State::Judging {
+                head: *head,
+                ready_since: *ready_since,
+                target: target.clone(),
+                asked: remaining.into_boxed(),
+            }
+        }
         (change::Delegate::Gate { number, .. }, change::State::Gating { head, asked }) => {
             let mut remaining = List::with_capacity(u32::try_from(asked.len()).expect("bounded gate list"));
             for prior in asked {
@@ -3367,6 +3403,7 @@ fn delegate_wait(state: &change::State) -> bool {
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::CancellingGates { .. }
         | change::State::Ready { .. }
@@ -3537,6 +3574,7 @@ fn producer_result(row: &mut ChangeRow, no_change: bool, failed: bool, words: &[
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::CancellingGates { .. }
         | change::State::Ready { .. }
@@ -3835,6 +3873,7 @@ fn landed_commit(state: &change::State) -> Option<skein_forge::api::Commit> {
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::CancellingGates { .. }
         | change::State::Ready { .. }
@@ -4332,6 +4371,7 @@ fn result_contexts(state: &change::State) -> bool {
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::Ready { .. }
         | change::State::Preparing { .. }
@@ -4398,6 +4438,7 @@ pub(crate) fn queue_ready(d: &Domain, row: &ChangeRow, l: &Limits) -> (List<chan
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }
             | change::State::Checking { .. }
+            | change::State::Judging { .. }
             | change::State::Gating { .. }
             | change::State::Ready { .. }
             | change::State::Preparing { .. }
@@ -4448,6 +4489,7 @@ pub(crate) fn owns_turn(row: &ChangeRow) -> bool {
         change::State::First { .. }
         | change::State::Updating { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::Landing { .. } => true,
         change::State::Producing { .. }
@@ -4781,6 +4823,7 @@ fn in_queue(state: &change::State) -> bool {
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::Ready { .. }
         | change::State::Preparing { .. }
@@ -5283,6 +5326,7 @@ fn updating_base(state: &change::State) -> Option<skein_forge::api::Commit> {
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::CancellingGates { .. }
         | change::State::Ready { .. }
@@ -5380,6 +5424,7 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
             change::State::Updating { .. }
             | change::State::Preparing { .. }
             | change::State::Checking { .. }
+            | change::State::Judging { .. }
             | change::State::Gating { .. }
             | change::State::CancellingGates { .. } => row.effect = change::EffectResult::None,
             change::State::Producing { .. }
@@ -5453,6 +5498,7 @@ fn no_change_words(d: &Domain, task: u64) -> Option<&[u8]> {
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::CancellingGates { .. }
         | change::State::Ready { .. }
@@ -5519,7 +5565,7 @@ fn settle_effects(
     ending: ReleaseEnding,
     out: &mut Queue<Request>,
 ) {
-    crate::landing::closing(d, task, ending, out);
+    crate::landing::closing(d, env, task, ending, out);
     crate::tiers::closing(d, env, task, ending, out);
     let close_pull = closing_pull(d, task, ending);
     if let Some(row) = d.releases.get_mut(&task) {
@@ -5827,6 +5873,7 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::CancellingGates { .. }
         | change::State::Ready { .. }
@@ -5869,6 +5916,7 @@ fn ended_change_state(
         | change::State::Recreating { .. }
         | change::State::Reopening { .. }
         | change::State::Checking { .. }
+        | change::State::Judging { .. }
         | change::State::Gating { .. }
         | change::State::CancellingGates { .. }
         | change::State::Ready { .. }
@@ -6534,6 +6582,7 @@ fn veto_change(
             | change::State::Recreating { .. }
             | change::State::Reopening { .. }
             | change::State::Checking { .. }
+            | change::State::Judging { .. }
             | change::State::Gating { .. }
             | change::State::Ready { .. }
             | change::State::Preparing { .. }

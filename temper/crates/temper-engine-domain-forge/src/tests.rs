@@ -231,6 +231,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                     project: 5,
                     phase: policy::Phase::Turn { at: env().wall },
                     members: Box::new([policy::Member {
+                        left: None,
                         change: fixtures::CHANGE,
                         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
                         pull: 1,
@@ -256,6 +257,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
                 released: false,
@@ -531,6 +533,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionFailed { .. }
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
+        | Request::LandingNews { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Read { .. }
@@ -624,6 +627,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionFailed { .. }
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
+        | Request::LandingNews { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Read { .. }
@@ -710,6 +714,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionFailed { .. }
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
+        | Request::LandingNews { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Read { .. }

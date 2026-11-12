@@ -129,6 +129,9 @@ fn decode_effect_result(value: w::EffectResult) -> d::EffectResult {
 }
 fn encode_repair(value: d::Repair) -> w::Repair {
     match value {
+        d::Repair::LandingAt { gate, candidate } => w::Repair::LandingAt(
+            w::LandingRepairAt::new(&w::CEILINGS, w::LandingRepairAtParts { gate, candidate }).expect(FITS),
+        ),
         d::Repair::Ci => w::Repair::Ci,
         d::Repair::Review { head } => {
             w::Repair::Review(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: head }).expect(FITS))
@@ -144,6 +147,7 @@ fn encode_repair(value: d::Repair) -> w::Repair {
 }
 fn decode_repair(value: w::Repair) -> d::Repair {
     match value {
+        w::Repair::LandingAt(value) => d::Repair::LandingAt { gate: value.gate(), candidate: *value.candidate() },
         w::Repair::Ci => d::Repair::Ci,
         w::Repair::Review(value) => d::Repair::Review { head: *value.commit() },
         w::Repair::Gate(value) => d::Repair::Gate(value.number()),
@@ -216,6 +220,18 @@ fn encode_live(value: &d::State) -> w::ChangeLive {
         }
         d::State::CancellingGates { head } => w::ChangeLive::CancellingGates(
             w::ChangeHead::new(&w::CEILINGS, w::ChangeHeadParts { head: *head }).expect(FITS),
+        ),
+        d::State::Judging { head, ready_since, target, asked } => w::ChangeLive::Judging(
+            w::Judging::new(
+                &w::CEILINGS,
+                w::JudgingParts {
+                    head: *head,
+                    ready_since: ready_since.as_nanos(),
+                    target: encode_judgement(target),
+                    asked: encode_numbers(asked),
+                },
+            )
+            .expect(FITS),
         ),
         d::State::Gating { head, asked } => w::ChangeLive::Gating(
             w::Gating::new(&w::CEILINGS, w::GatingParts { head: *head, asked: encode_numbers(asked) }).expect(FITS),
@@ -301,6 +317,7 @@ fn encode_progress(value: &d::State) -> w::ChangeLive {
         | d::State::Reopening { .. }
         | d::State::Checking { .. }
         | d::State::CancellingGates { .. }
+        | d::State::Judging { .. }
         | d::State::Gating { .. } => unreachable!("preparation phases translated above"),
     }
 }
@@ -332,6 +349,15 @@ fn decode_live(value: w::ChangeLive) -> d::State {
         w::ChangeLive::CancellingGates(value) => {
             let w::ChangeHeadParts { head } = value.into_parts();
             d::State::CancellingGates { head }
+        }
+        w::ChangeLive::Judging(value) => {
+            let w::JudgingParts { head, ready_since, target, asked } = value.into_parts();
+            d::State::Judging {
+                head,
+                ready_since: Wall::from_nanos(ready_since),
+                target: decode_judgement(target),
+                asked: asked.into_boxed(),
+            }
         }
         w::ChangeLive::Gating(value) => {
             let w::GatingParts { head, asked } = value.into_parts();
@@ -406,6 +432,7 @@ fn decode_progress(value: w::ChangeLive) -> d::State {
         | w::ChangeLive::Reopening(_)
         | w::ChangeLive::Checking(_)
         | w::ChangeLive::CancellingGates(_)
+        | w::ChangeLive::Judging(_)
         | w::ChangeLive::Gating(_) => unreachable!("preparation phases translated above"),
     }
 }
@@ -1074,4 +1101,23 @@ fn decode_ending(ending: Option<w::ChangeEnding>) -> Option<top::Ending> {
         w::ChangeEnding::Cancelled => top::Ending::Cancelled,
         w::ChangeEnding::Failed(line) => top::Ending::Failed { line: line.into_parts().line },
     })
+}
+
+pub(super) fn encode_judgement(value: &d::Judgement) -> w::Judgement {
+    w::Judgement::new(
+        &w::CEILINGS,
+        w::JudgementParts {
+            landing: value.landing,
+            round: value.round,
+            pull: value.pull,
+            branch: value.branch.clone(),
+            base: value.base.clone(),
+            prefix: value.prefix,
+        },
+    )
+    .expect(FITS)
+}
+pub(super) fn decode_judgement(value: w::Judgement) -> d::Judgement {
+    let w::JudgementParts { landing, round, pull, branch, base, prefix } = value.into_parts();
+    d::Judgement { landing, round, pull, branch, base, prefix }
 }

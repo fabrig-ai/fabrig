@@ -3,7 +3,7 @@ use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge as forge;
 
 // TierRow dominates Row with eight goal branches, each holding sixteen 256-byte test ids.
-const APPLICATION_ROW_BYTES: u32 = 178_063;
+const APPLICATION_ROW_BYTES: u32 = 186_259;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
@@ -22,7 +22,7 @@ fn the_change_bound_follows_the_tier_landings_ceilings() {
     assert_eq!([ceilings.tier_row_pending, ceilings.tier_run_landings, ceilings.tier_finding_blamed], [759; 3]);
     assert_eq!(bound, 379);
     assert_eq!(bound, (least - 1) / 2);
-    assert_eq!(crate::v11::TierRow::encoded_bound(&ceilings), Some(4_291_165_782));
+    assert_eq!(crate::v11::TierRow::encoded_bound(&ceilings), Some(4_291_173_978));
     let mut forge = fixtures::LIMITS;
     forge.changes = bound;
     let limits = records::limits(&forge).unwrap();
