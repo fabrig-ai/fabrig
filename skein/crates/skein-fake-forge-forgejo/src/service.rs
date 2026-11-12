@@ -20,6 +20,8 @@ pub struct Service {
     pub(crate) tally: Tally,
     pub(crate) refused: Option<crate::Route>,
     pub(crate) setup: crate::setup::Store,
+    pub(crate) repository_bytes: usize,
+    pub(crate) branch_bytes: usize,
 }
 impl Service {
     pub fn new(mut config: Config, limits: &Limits, seed: u64) -> Result<Self, Error> {
@@ -85,7 +87,16 @@ impl Service {
         for repository in &config.repositories {
             setup.repository_high = setup.repository_high.max(repository.id);
         }
-        Ok(Self { config, calls: Slab::with_capacity(limits.calls), rng: Rng::new(seed), tally, setup, refused: None })
+        Ok(Self {
+            config,
+            calls: Slab::with_capacity(limits.calls),
+            rng: Rng::new(seed),
+            tally,
+            setup,
+            refused: None,
+            repository_bytes: usize_of(limits.documents.target_bytes),
+            branch_bytes: usize_of(limits.documents.string_bytes),
+        })
     }
     /// Refuses a selected decoded route with 403, or permits every route.
     pub fn refuse(&mut self, route: Option<crate::Route>) {

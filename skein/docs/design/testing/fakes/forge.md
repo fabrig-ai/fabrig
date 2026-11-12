@@ -644,8 +644,9 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   setup store whole: its accounts, issued tokens, organizations, teams,
   subscriptions, collaborators, repository hooks and privacy, and the
   counters that number them, so that a token issued before a restart
-  still acts as its account after it; and the hooks' endpoint the owner
-  set. A restore replaces those on a service built from the same
+  still acts as its account after it. It also keeps the runtime repository
+  table, including repositories created or copied after startup, and the
+  hooks' endpoint the owner set. A restore replaces those on a service built from the same
   configuration, and refuses, naming what, an image that does not
   decode or holds past the store's bounds. What lasts one connection
   (its decoded requests, refusals the setup world turned) is not kept.
