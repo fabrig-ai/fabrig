@@ -20,11 +20,17 @@ process-tier story runs after landing (`client/drive.md`;
 `client/recipe.md`; `protocol/setup/box.md`, 1 and 5; `protocol/store.md`,
 5; `draft/landed-qa.status.md`).
 
-Landed QA's milestone Q1: `temper-qa`
+Landed QA's milestones Q1 and Q3: `temper-qa`
 watches main's ref, triages each goal's landing into cases in main's
 order, and keeps the deployment's builds of landed tips until no pass
-can need them, all in one ledger; its passes follow in Q3
-(`testing/qa/README.md`; `draft/landed-qa.status.md`).
+can need them, all in one ledger; a pass, by goal 1210, takes the newest
+reached build with every web case it holds, restores each case's setup
+at a place from its copy or its recipe, drives the box a line at a time,
+records outcomes and findings as it goes, files its open findings as one
+request and one goal, and resumes on a build holding that goal's
+landing, two goals at most; its first passes follow landing, and the
+TUI's cases wait for Q4 (`testing/qa/README.md`; `testing/qa/passes.md`;
+`draft/landed-qa.status.md`).
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
@@ -193,8 +199,11 @@ Design documents:
 - [`testing/process-tier.md`](testing/process-tier.status.md)
 - [`testing/qa/README.md`](testing/qa/README.status.md)
 - [`testing/qa/builds.md`](testing/qa/builds.status.md)
+- [`testing/qa/findings.md`](testing/qa/findings.status.md)
 - [`testing/qa/landings.md`](testing/qa/landings.status.md)
 - [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
+- [`testing/qa/passes.md`](testing/qa/passes.status.md)
+- [`testing/qa/places.md`](testing/qa/places.status.md)
 - [`testing/qa/triage.md`](testing/qa/triage.status.md)
 - [`testing/real-loop.md`](testing/real-loop.status.md)
 - [`testing/reference-case.md`](testing/reference-case.status.md)

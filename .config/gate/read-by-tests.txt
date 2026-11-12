@@ -18,3 +18,4 @@ skein/docs/design/forge/github.md
 skein/docs/design/draft/diagrams/**
 temper/docs/design/client/web/journeys/**
 temper/docs/design/client/tui/journeys/**
+temper/docs/development/qa/setups/**

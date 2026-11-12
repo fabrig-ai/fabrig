@@ -1,6 +1,9 @@
 //! The tool's front and real command boundary (testing/tools.md, 6).
 mod builds;
 mod commands;
+mod hold;
+mod passes;
+mod place;
 use std::process::{Command, Stdio};
 use temper_qa_tool::TABLE;
 
@@ -19,8 +22,19 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
         vec!["build", "keep", "--help"],
         vec!["triage", "none", "--help"],
         vec!["triage", "case", "--help"],
+        vec!["pass", "setup", "--help"],
+        vec!["pass", "recipe", "--help"],
+        vec!["pass", "outcome", "--help"],
+        vec!["pass", "finding", "--help"],
+        vec!["pass", "check", "--help"],
+        vec!["pass", "note", "--help"],
         vec!["show", "--help"],
         vec!["lines", "--help"],
+        vec!["report", "--help"],
+        vec!["pass", "open", "--help"],
+        vec!["pass", "hold", "--help"],
+        vec!["pass", "line", "--help"],
+        vec!["pass", "close", "--help"],
         vec!["nope"],
     ] {
         let output = Command::new(skein_scratch::paths::binary("temper-qa"))
@@ -37,19 +51,31 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
                 assert_eq!(output.status.code(), Some(0));
                 assert_eq!(
                     paragraph(&stdout),
-                    "temper-qa: QA after landing: main's landings triaged into cases, and builds kept for them."
+                    "temper-qa: QA after landing: main's landings triaged into cases, and passes run on builds kept for them."
                 );
+                let commands = stdout.split_once("\n\n").expect("help body").1;
                 for internal in [
                     "run",
                     "build keep",
                     "triage none",
                     "triage case",
+                    "pass setup",
+                    "pass recipe",
+                    "pass outcome",
+                    "pass finding",
+                    "pass check",
+                    "pass note",
                     "show",
                     "lines",
+                    "report",
+                    "pass open",
+                    "pass hold",
+                    "pass line",
+                    "pass close",
                     "TEMPER_INTERNAL_QA_HOME",
                     "TEMPER_INTERNAL_QA_SESSION",
                 ] {
-                    assert!(!stdout.contains(internal), "internal entry: {internal}");
+                    assert!(!commands.contains(internal), "internal entry: {internal}");
                 }
                 assert_eq!(stdout, TABLE.help());
             }
