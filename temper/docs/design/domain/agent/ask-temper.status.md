@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [ask-temper.md](ask-temper.md).
 
+- **Not yet:** 1: `see ways` prints no rules by path [in flight: change
+  872].
 - **Not yet:** 1: an inbox row's words are read for questions alone;
   proposals, escalations and person tasks keep their kind and task. In
   `inbox` and `me` a question whose words read busy or unknown drops

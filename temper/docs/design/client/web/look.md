@@ -447,6 +447,15 @@
     `.who.p`'s ring (`--gf-signal`); `temper-how-reach-note`, the box's
     last line, `.small.muted`; its rows under the grid Settings'
     `.setting` rows;
+  - *Rules by path,* `whole-story.css`' `.shead a`, `.scroll` and `.tbl`
+    rules taken exactly, on tokens of its own: `temper-how-add`, "+ A
+    rule" at the head's right; `temper-how-rules`, the `.scroll` box
+    that scrolls the table across on a phone; `temper-how-table`, the
+    `.tbl` table, its header cells small and muted, its rows on
+    hairlines; `temper-how-paths`, a row's paths, `.mono`; a row's
+    sign-off What reaches you's chip, `temper-how-who-person`; an empty
+    cell's "–" `.muted`; `temper-how-rules-note`, the note under it,
+    `.small.muted`;
   - *What follows a landing,* `whole-story.css`' `.grid2`, `.box`, `.box
     h3`, `.chips` and `.who.c` rules taken exactly, on tokens of its own:
     `temper-how-follows`, the boxes' grid, `repeat(auto-fit, minmax(300px,

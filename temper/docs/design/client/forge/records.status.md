@@ -2,6 +2,9 @@
 
 2026-11-11. Where the tree's code lags or departs from [records.md](records.md).
 
+- **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
+  `rules`, a `PathRules` of `PathRule` rows, on the wire [in flight:
+  change 871].
 - **Not yet:** *`SetDraft`* and *A project's landed drafts, the subject
   `drafts`*: no such request, outcome, subject or panel on the wire
   [in flight: change 662].
