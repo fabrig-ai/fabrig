@@ -4,6 +4,10 @@ use skein_lib::List;
 use temper_engine_domain_forge_landing as policy;
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one document story checks its setting, retained follow facts and dependencies"
+)]
 fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
     use crate::settings::{Asked, Edit, SizedValue, Value};
     let mut d = domain();
@@ -25,12 +29,23 @@ fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
         &env(),
         1,
         None,
-        &[Asked {
-            kind: 12,
-            scope: 5,
-            number: 1,
-            edit: Edit::Set(SizedValue { value: Value::Follow(setting.clone()), size: 128 }),
-        }],
+        &[
+            Asked {
+                kind: 12,
+                scope: 5,
+                number: 1,
+                edit: Edit::Set(SizedValue { value: Value::Follow(setting.clone()), size: 128 }),
+            },
+            Asked {
+                kind: 13,
+                scope: 5,
+                number: 1,
+                edit: Edit::Set(SizedValue {
+                    value: Value::Dependency(crate::settings::Dependency { project: 7 }),
+                    size: 4,
+                }),
+            },
+        ],
         &mut out,
     );
     let mut saved = d.follow_row(5, 1).unwrap().clone();
@@ -64,6 +79,7 @@ fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
     outputs(&mut d, Event::Restore { record: Stored::Follow(saved.clone()) });
     let doc = document(&d, follows_subject(5));
     let Document::Follows(view) = &doc else { panic!("follows document") };
+    assert_eq!(view.dependencies.as_ref(), &[DependencyView { number: 1, project: 7 }]);
     let [follow] = view.follows.as_ref() else { panic!("one follow") };
     assert_eq!((view.project, follow.number, follow.lag, follow.task), (5, 1, 2, Some(71)));
     assert_eq!(follow.setting, setting);

@@ -317,6 +317,9 @@ record ProjectClasses { items: list 20 ClassItem sets: list 6 PathSet }
 
 versioned record DraftsPanel { project: u32 drafts: list 64 LandedDraft }
 # A project's follows (temper/docs/design/domain/forge/follows.md, 2).
+record Dependency { project: u32 }
+record DependencyView { number: u32 project: u32 }
+
 record FollowRepository { forge: u16 repository: u32 }
 record FollowSource { repository: FollowRepository branch: bytes 4096 paths: list 256 bytes 256 }
 record FollowTarget { repository: FollowRepository branch: bytes 4096 }
@@ -337,4 +340,4 @@ record FollowFailing { count: u32 }
 enum FollowVerdict { passed, failing: FollowFailing, many }
 record FollowParity { source: fixed 32 head: fixed 32 verdict: FollowVerdict run: bytes 2048 }
 record FollowView { number: u32 setting: Follow source: bytes 2048 source_branch: bytes 4096 target: bytes 2048 target_branch: bytes 4096 task: option u64 stopped: option bytes 8192 lag: u32 entries: list 256 FollowEntry skips: list 256 FollowSkip parity: option FollowParity }
-versioned record FollowsPanel { project: u32 follows: list 256 FollowView }
+versioned record FollowsPanel { project: u32 follows: list 256 FollowView dependencies: list 256 DependencyView }

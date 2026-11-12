@@ -131,6 +131,7 @@ fn path_sets(domain: &Domain, project: u32, items: &[ways::Item]) -> Box<[temper
                 | settings::Value::Ways(_)
                 | settings::Value::CharterWords(_)
                 | settings::Value::ProjectWords(_)
+                | settings::Value::Dependency(_)
                 | settings::Value::Follow(_) => {}
             },
         }
@@ -201,6 +202,7 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
                 | settings::Value::Questions(_)
                 | settings::Value::CharterWords(_)
                 | settings::Value::Classes(_)
+                | settings::Value::Dependency(_)
                 | settings::Value::Follow(_)
                 | settings::Value::ProjectWords(_),
             ..

@@ -101,7 +101,11 @@ impl Drawing {
         let panel = rng.chance(700).then(|| {
             w::FollowsPanel::new(
                 limits,
-                w::FollowsPanelParts { project: 1, follows: List::from_boxed(follows.into_boxed_slice()) },
+                w::FollowsPanelParts {
+                    project: 1,
+                    follows: List::from_boxed(follows.into_boxed_slice()),
+                    dependencies: List::with_capacity(0),
+                },
             )
             .expect("panel")
         });

@@ -905,7 +905,11 @@ pub(super) fn follows(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
     let row = follow_row(&[b"src", b"include"], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed));
     let panel = w::FollowsPanel::new(
         &w::CEILINGS,
-        w::FollowsPanelParts { project: PROJECT, follows: List::from_boxed(Box::new([row])) },
+        w::FollowsPanelParts {
+            project: PROJECT,
+            follows: List::from_boxed(Box::new([row])),
+            dependencies: List::with_capacity(0),
+        },
     )
     .expect("gallery follow");
     for up in [
