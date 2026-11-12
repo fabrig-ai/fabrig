@@ -900,7 +900,7 @@ fn linked_is_emitted_after_ready_at_each_opening() {
     assert!(stand.worker.notes().is_empty(), "never before Ready");
     LinkPeer::new().open(&mut stand.worker);
     let expected =
-        crate::Note::Linked { worker: b"worker-a".as_slice().into(), address: Box::new(([127, 0, 0, 1], 7100).into()) };
+        crate::worker_alone::Note::Linked { worker: b"worker-a".as_slice().into(), address: Box::new(([127, 0, 0, 1], 7100).into()) };
     assert_eq!(stand.worker.notes().pop(), Some(expected));
     assert!(stand.worker.notes().is_empty());
     let owner = Token::new(
@@ -917,7 +917,7 @@ fn linked_is_emitted_after_ready_at_each_opening() {
     LinkPeer::new().open(&mut stand.worker);
     assert_eq!(
         stand.worker.notes().pop(),
-        Some(crate::Note::Linked {
+        Some(crate::worker_alone::Note::Linked {
             worker: b"worker-a".as_slice().into(),
             address: Box::new(([127, 0, 0, 1], 7100).into())
         })
@@ -943,7 +943,7 @@ fn refusals_are_notes_and_leave_later_dials_intact() {
         stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(why) });
         assert_eq!(
             stand.worker.notes().pop(),
-            Some(crate::Note::Refused {
+            Some(crate::worker_alone::Note::Refused {
                 worker: b"worker-a".as_slice().into(),
                 address: Box::new(([127, 0, 0, 1], 7100).into()),
                 reason
@@ -956,7 +956,7 @@ fn refusals_are_notes_and_leave_later_dials_intact() {
     assert!(stand.worker.notes().is_empty());
 }
 
-pub(super) fn alone_service() -> crate::Service {
+pub(super) fn alone_service() -> crate::worker_alone::Service {
     let part =
         crate::startup::worker_part(&fixtures::worker_alone_document(), &jig_protocol_config::Directories::working())
             .unwrap();
@@ -967,13 +967,12 @@ pub(super) fn alone_service() -> crate::Service {
 #[test]
 fn a_worker_alone_has_no_engine_or_store_and_a_second_signal_aborts() {
     let mut service = alone_service();
-    assert!(service.engine.is_none());
-    assert_eq!(service.adopt_store(io::kernel::Fd::new(99), 1000), Err(io::kernel::Fd::new(99)));
+    fixtures::assert_worker_only(&service);
     service.shutdown();
-    assert!(service.worker.as_ref().unwrap().stopping());
+    assert!(service.worker.stopping());
     assert_eq!(service.end(), None);
     service.shutdown();
-    assert_eq!(service.end(), Some(&crate::End::Aborted));
+    assert_eq!(service.end(), Some(&crate::worker_alone::End::Aborted));
 }
 
 fn settle_worker_service(linked: bool) {
@@ -989,9 +988,9 @@ fn settle_worker_service(linked: bool) {
     } else {
         stand.worker.up(fixtures::NOW, io::Event::Failed { owner: link_owner, error: io::Error::Unreachable });
     }
-    service.worker = Some(stand.worker);
+    service.worker = stand.worker;
     service.shutdown();
-    stand.worker = service.worker.take().unwrap();
+    stand.worker = service.worker;
     let now = if linked { fixtures::NOW } else { fixtures::NOW.saturating_add(Duration::from_secs(60)) };
     for _ in 0_u16..1000 {
         stand.worker.iterate(now, Wall::EPOCH);
@@ -1044,9 +1043,9 @@ fn settle_worker_service(linked: bool) {
         }
     }
     assert!(stand.worker.is_empty(), "all worker children and its root closed");
-    service.worker = Some(stand.worker);
-    crate::iterate(&mut service, now, Wall::EPOCH);
-    assert_eq!(service.end(), Some(&crate::End::Drained));
+    service.worker = stand.worker;
+    crate::worker_alone::iterate(&mut service, now, Wall::EPOCH);
+    assert_eq!(service.end(), Some(&crate::worker_alone::End::Drained));
     assert!(service.is_empty());
 }
 #[test]
@@ -1061,13 +1060,13 @@ fn a_worker_stopped_unlinked_has_ended_past_its_grace() {
 #[test]
 fn signals_route_to_a_worker_alone_then_abort() {
     let mut service = alone_service();
-    service.told.push(io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
-    crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
-    assert!(service.worker.as_ref().unwrap().stopping());
+    service.process.told().push(io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
+    crate::worker_alone::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
+    assert!(service.worker.stopping());
     assert_eq!(service.end(), None, "its root is still closing");
-    service.told.push(io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
-    crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
-    assert_eq!(service.end(), Some(&crate::End::Aborted));
+    service.process.told().push(io::Event::Shutdown { signal: io::kernel::ServiceSignal::Terminate, from: None });
+    crate::worker_alone::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
+    assert_eq!(service.end(), Some(&crate::worker_alone::End::Aborted));
 }
 
 #[test]
@@ -1092,7 +1091,7 @@ fn repeated_refusals_are_noted_once_until_the_reason_changes_or_the_worker_links
     }
     assert_eq!(
         stand.worker.notes().pop(),
-        Some(crate::Note::Linked {
+        Some(crate::worker_alone::Note::Linked {
             worker: b"worker-a".as_slice().into(),
             address: Box::new(([127, 0, 0, 1], 7100).into()),
         })
@@ -1122,15 +1121,15 @@ fn a_linked_loss_is_noted_once_and_a_refused_dial_has_no_lost_line() {
     assert!(refused.worker.notes().is_empty(), "a dial that never linked has no lost line");
 }
 
-fn lost_note(why: link::Loss) -> crate::Note {
-    crate::Note::Lost { worker: b"worker-a".as_slice().into(), address: Box::new(([127, 0, 0, 1], 7100).into()), why }
+fn lost_note(why: link::Loss) -> crate::worker_alone::Note {
+    crate::worker_alone::Note::Lost { worker: b"worker-a".as_slice().into(), address: Box::new(([127, 0, 0, 1], 7100).into()), why }
 }
 
 #[test]
 fn a_workers_listener_failure_is_noted_before_the_service_finishes() {
     let mut service = fixtures::started();
     let owner = Token::new(crate::tokens::WORKER_LISTENERS);
-    service.told.push(io::Event::Failed { owner, error: io::Error::Unreachable });
+    service.process.told().push(io::Event::Failed { owner, error: io::Error::Unreachable });
     crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
     let address = Some(io::Addr::InProcess(io::Name::new(b"workers").unwrap()));
     assert_eq!(
@@ -1138,13 +1137,13 @@ fn a_workers_listener_failure_is_noted_before_the_service_finishes() {
         Some(crate::Note::WorkerListenerFailed { address, error: Some(io::Error::Unreachable) })
     );
     assert!(!service.is_empty(), "the listener's line does not wait for shutdown");
-    service.told.push(io::Event::Closed { owner });
+    service.process.told().push(io::Event::Closed { owner });
     crate::iterate(&mut service, fixtures::NOW, Wall::EPOCH);
     assert!(service.notes().is_empty(), "the closing event does not repeat the failure");
 }
 
-fn refusal_note(reason: crate::Refusal) -> crate::Note {
-    crate::Note::Refused {
+fn refusal_note(reason: crate::Refusal) -> crate::worker_alone::Note {
+    crate::worker_alone::Note::Refused {
         worker: b"worker-a".as_slice().into(),
         address: Box::new(([127, 0, 0, 1], 7100).into()),
         reason,

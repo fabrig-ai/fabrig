@@ -4,6 +4,7 @@
 extern crate alloc;
 
 pub mod limits;
+pub mod process;
 pub mod long_pass;
 pub mod settings;
 pub mod startup;

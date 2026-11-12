@@ -3,7 +3,7 @@ mod application;
 pub(super) mod checkout;
 pub(super) mod checks;
 use crate::worker_settings::Limits;
-use crate::{Service, Worker, WorkerRuntime, settings};
+use crate::{Worker, WorkerRuntime, settings, worker_alone::Service};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path, read};
 use skein_lib::List;
@@ -246,7 +246,7 @@ pub fn worker_alone(
     seed: u64,
 ) -> Result<Service, Problems> {
     check_worker_part(&mut part, files, agent)?;
-    match Service::worker_alone(&part.worker, &part.limits, agent, files, runtime, seed) {
+    match Service::new(&part.worker, &part.limits, agent, files, runtime, seed) {
         Ok(service) => Ok(service),
         Err(found) => Err(Problems::jig(found, &Path::root())),
     }

@@ -196,6 +196,38 @@ pub fn service_ending(
     ending_with_binary(binary, service.end(), failed, directories, store, service.unsettled())
 }
 
+/// A worker alone has no listening diagnostic; its first drain carries its worker notes.
+pub fn worker_listening_line(service: &mut temper_service::worker_alone::Service, binary: &str)
+    -> Option<(String, bool)> {
+    worker_note_line(service, binary).map(|line| (line, false))
+}
+pub fn worker_note_line(service: &mut temper_service::worker_alone::Service, binary: &str) -> Option<String> {
+    service.notes().pop().map(|note| worker_note_words(binary, note))
+}
+#[must_use]
+pub fn worker_service_ending(
+    service: &temper_service::worker_alone::Service,
+    binary: &str,
+    failed: bool,
+    directories: &Directories,
+    store: &[u8],
+) -> (String, u8) {
+    worker_ending_words(binary, service.end(), failed, directories, store)
+}
+fn worker_note_words(binary: &str, note: temper_service::worker_alone::Note) -> String {
+    note_line(binary, note.into())
+}
+fn worker_ending_words(
+    binary: &str,
+    end: Option<&temper_service::worker_alone::End>,
+    failed: bool,
+    directories: &Directories,
+    store: &[u8],
+) -> (String, u8) {
+    let end = end.cloned().map(Into::into);
+    ending_with_binary(binary, end.as_ref(), failed, directories, store, &[])
+}
+
 /// The terminal stderr and status shared by the shell and its real-loop host.
 #[must_use]
 pub fn ending_with_binary(
@@ -2125,3 +2157,7 @@ pub(super) mod adapter_tests {
         assert_eq!(host.exit(), Some(Exit::Code(1)));
     }
 }
+
+#[cfg(test)]
+#[path = "worker_lines_tests.rs"]
+mod worker_lines_tests;

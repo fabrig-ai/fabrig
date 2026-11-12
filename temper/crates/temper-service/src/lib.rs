@@ -6,6 +6,8 @@ extern crate alloc;
 use alloc::boxed::Box;
 #[path = "worker/job_ending.rs"]
 mod worker_job_ending;
+#[path = "worker_alone/vocabulary.rs"]
+mod worker_vocabulary;
 pub use temper_engine_domain::{JobDiagnostic, JobDiagnosticEnding, RunRefusalDiagnostic};
 pub use worker_job_ending::JobEnding as WorkerJobEnding;
 pub mod diagnostics;
@@ -40,6 +42,8 @@ pub mod values;
 #[cfg(feature = "worker")]
 mod worker;
 #[cfg(feature = "worker")]
+pub mod worker_alone;
+#[cfg(feature = "worker")]
 mod worker_git;
 #[cfg(feature = "worker")]
 pub mod worker_route;
@@ -50,7 +54,7 @@ pub use worker::{Worker, WorkerRuntime};
 #[cfg(not(feature = "worker"))]
 mod unbuilt;
 #[cfg(not(feature = "worker"))]
-pub use unbuilt::{Worker, WorkerRuntime};
+pub use unbuilt::{Worker, WorkerRuntime, worker_alone};
 pub mod workers;
 pub use accounts::AccountsRuntime;
 mod core_wait;

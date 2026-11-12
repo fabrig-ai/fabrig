@@ -124,7 +124,7 @@ fn worker_only_runtime_and_checks_use_the_same_composed_limits() {
         let service = worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7).unwrap();
         check(&input, &directories, &fixtures::files(), &agent, &fixtures::seeds(), None, List::with_capacity(0), None)
             .unwrap();
-        assert!(service.engine.is_none());
+        fixtures::assert_worker_only(&service);
         let mut part = worker_part(&input, &directories).unwrap();
         check_worker_part(&mut part, &fixtures::files(), &agent).unwrap();
         assert_eq!(part.worker.jig.limits.core.call_answer_bytes, expected);
@@ -132,7 +132,7 @@ fn worker_only_runtime_and_checks_use_the_same_composed_limits() {
         let wire = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected, expected));
         assert_eq!(
-            service.worker.as_ref().unwrap().env.limits,
+            service.worker.env.limits,
             crate::worker_settings::root_limits(&part.worker, &agent, &part.limits)
         );
     }
@@ -243,7 +243,7 @@ fn a_workers_call_answer_bound_must_hold_the_documentation_answer() {
         7,
     )
     .unwrap();
-    assert!(service.engine.is_none());
+    fixtures::assert_worker_only(&service);
 }
 
 #[test]

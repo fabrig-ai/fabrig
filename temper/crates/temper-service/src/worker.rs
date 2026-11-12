@@ -68,7 +68,7 @@ pub struct Worker {
     payload: temper_protocol_worker_wire::v1::Limits,
     pub(super) io: Queue<io::Request>,
     connection: Connection,
-    notes: Queue<crate::Note>,
+    notes: Queue<crate::worker_alone::Note>,
     socket: Option<Token>,
     prefix: u64,
     next: u64,
@@ -95,7 +95,7 @@ enum Connection {
 struct Remote {
     address: core::net::SocketAddr,
     worker: Box<[u8]>,
-    end: Option<crate::End>,
+    end: Option<crate::worker_alone::End>,
     hello_pending: bool,
     linked: bool,
     loss_pending: bool,
@@ -215,23 +215,23 @@ impl Worker {
     pub(crate) fn stopping(&self) -> bool {
         self.stopping
     }
-    pub(crate) fn end(&self) -> Option<&crate::End> {
+    pub(crate) fn end(&self) -> Option<&crate::worker_alone::End> {
         match &self.connection {
             Connection::Socket(remote) => remote.end.as_ref(),
             Connection::InProcess(_) => None,
         }
     }
-    pub(crate) fn set_end(&mut self, end: crate::End) {
+    pub(crate) fn set_end(&mut self, end: crate::worker_alone::End) {
         let Connection::Socket(remote) = &mut self.connection else { unreachable!("worker alone has a socket") };
         remote.end = Some(end);
     }
-    pub(crate) fn notes(&mut self) -> &mut Queue<crate::Note> {
+    pub(crate) fn notes(&mut self) -> &mut Queue<crate::worker_alone::Note> {
         &mut self.notes
     }
     pub(crate) fn drain_notes(&mut self, sink: &mut Queue<crate::Note>) {
         for _ in 0..sink.room() {
             let Some(note) = self.notes.pop() else { break };
-            sink.push(note);
+            sink.push(note.into());
         }
     }
     pub fn stop(&mut self) {
@@ -533,7 +533,7 @@ impl Worker {
                     Connection::Socket(remote) => {
                         if remote.loss_pending {
                             remote.loss_pending = false;
-                            self.notes.push(crate::Note::Lost {
+                            self.notes.push(crate::worker_alone::Note::Lost {
                                 worker: remote.worker.clone(),
                                 address: Box::new(remote.address),
                                 why,
@@ -569,7 +569,7 @@ impl Worker {
                     && remote.last_refusal != Some((remote.address, reason))
                 {
                     remote.last_refusal = Some((remote.address, reason));
-                    self.notes.push(crate::Note::Refused {
+                    self.notes.push(crate::worker_alone::Note::Refused {
                         worker: remote.worker.clone(),
                         address: Box::new(remote.address),
                         reason,
@@ -633,7 +633,7 @@ impl Worker {
             && let Some(ending) = ending
         {
             let why = why.expect("a failed or refused job keeps its operator evidence until taken");
-            self.notes.push(crate::Note::WorkerJob { run: run.raw(), attempt: attempt.raw(), kind, verb, ending, why });
+            self.notes.push(crate::worker_alone::Note::WorkerJob { run: run.raw(), attempt: attempt.raw(), kind, verb, ending, why });
         }
         let parts = worker_route::job_answer_parts(&answer, work, preparation);
         self.link_down(self.env.now, link::Event::Up { up: hub::LinkUp::JobAnswer { run, attempt, answer }, parts });
@@ -720,7 +720,7 @@ impl Worker {
                     remote.linked = true;
                     remote.loss_pending = false;
                     self.notes
-                        .push(crate::Note::Linked { worker: remote.worker.clone(), address: Box::new(remote.address) });
+                        .push(crate::worker_alone::Note::Linked { worker: remote.worker.clone(), address: Box::new(remote.address) });
                 }
             }
             root::Request::Link(up) => self.link_down(self.env.now, link::Event::Up { up, parts: Box::default() }),

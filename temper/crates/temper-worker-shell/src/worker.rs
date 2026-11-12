@@ -10,7 +10,7 @@ pub fn alone(
     bytes: &[u8],
     owned: &mut Vec<skein_io::kernel::Fd>,
     environment: &[EnvironmentEntry],
-) -> Result<service::Service, String> {
+) -> Result<service::worker_alone::Service, String> {
     let mut part = service::startup::worker_part(bytes, &jig_directories(directories))
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let agent = crate::agent::preflight_worker(&part.named)?;

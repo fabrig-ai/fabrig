@@ -482,15 +482,14 @@ fn load_document(
                 problems.push(indexed(index).member(b"engine"), What::WorkerAlone);
             }
         }
-        if let Some(at) = application_at {
-            #[cfg(feature = "worker")]
-            if let Err(found) = worker::application(document, at, directories) {
+        #[cfg(feature = "worker")]
+        if let Some(at) = application_at
+            && let Err(found) = worker::application(document, at, directories) {
                 let found = problems::from_worker(found);
                 for found in found.problems.into_boxed() {
                     problems.push_file(found.path, found.what, found.file);
                 }
                 problems.past = problems.past.saturating_add(found.past);
-            }
         }
         return if problems.is_empty() { Ok((shape, None)) } else { Err(problems) };
     }
@@ -1025,7 +1024,7 @@ pub fn worker_alone(
     agent: &settings::Agent,
     runtime: WorkerRuntime,
     seed: u64,
-) -> Result<Service, Problems> {
+) -> Result<crate::worker_alone::Service, Problems> {
     match worker::worker_alone(part, files, agent, runtime, seed) {
         Ok(service) => Ok(service),
         Err(found) => Err(problems::from_worker(found)),
