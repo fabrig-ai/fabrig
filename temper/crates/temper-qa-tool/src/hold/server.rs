@@ -244,11 +244,13 @@ impl Holder {
     }
     fn answer(&mut self, kind: Answer) -> Result<Reply, Refusal> {
         let mut text = String::new();
+        let mut start_expired = false;
         loop {
             if !self.watch()? {
                 self.begin_end();
             }
             if kind == Answer::Start && now(&self.clock).saturating_sub(self.started) >= START {
+                start_expired = true;
                 self.begin_end();
             }
             if self.stop_at.is_some_and(|deadline| now(&self.clock) >= deadline) {
@@ -276,7 +278,10 @@ impl Holder {
                     text.push('\n');
                     self.partial.clear();
                 }
-                let status = if kind != Answer::Start && (status == 3 || (status == 0 && kind == Answer::Line)) {
+                let status = if start_expired {
+                    text.push_str("box failed: drive session start took past 300 seconds\n");
+                    4
+                } else if kind != Answer::Start && (status == 3 || (status == 0 && kind == Answer::Line)) {
                     4
                 } else {
                     status
