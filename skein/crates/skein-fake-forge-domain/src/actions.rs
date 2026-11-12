@@ -77,7 +77,7 @@ pub(crate) fn start(
         user,
         state: RunState::Running,
         conclusion: None,
-        created: domain::clock(env),
+        created: domain::clock(env).max(domain.floor),
         inputs: Box::new([]),
     };
     let capacity = u32::try_from(repository.checks.contexts.len()).expect("bounded contexts");
