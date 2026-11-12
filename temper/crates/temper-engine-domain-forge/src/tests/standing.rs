@@ -634,6 +634,10 @@ fn approval_waits_name_only_the_rules_touched_sets() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "approval waits keep head timing, row order and refusal cleanup in one scenario"
+)]
 fn approval_waits_keep_the_heads_first_time_and_order() {
     let (mut d, _) = fixture();
     let mut required = rule();
