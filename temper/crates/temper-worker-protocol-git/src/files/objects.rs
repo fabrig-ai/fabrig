@@ -121,17 +121,19 @@ pub(crate) struct Store {
 #[derive(Debug)]
 enum StorePhase {
     Aside(Token),
+    Find,
+    Close(Fd),
     Create,
     Install,
     Discard,
 }
 impl Store {
-    pub fn new(store: Token, aside: Option<Token>, remote: Box<[u8]>, dirs: &mut Directories) -> Self {
-        let (temporary, phase) = match aside {
-            Some(aside) => (Box::from(&b""[..]), StorePhase::Aside(aside)),
-            None => (temporary(dirs), StorePhase::Create),
+    pub fn new(store: Token, aside: Option<Token>, remote: Box<[u8]>) -> Self {
+        let phase = match aside {
+            Some(aside) => StorePhase::Aside(aside),
+            None => StorePhase::Find,
         };
-        Self { token: store, temporary, remote, phase, done: Box::new(git::Done::Succeeded) }
+        Self { token: store, temporary: Box::new([]), remote, phase, done: Box::new(git::Done::Succeeded) }
     }
     pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Self {
         let phase = if *done == git::Done::Succeeded { StorePhase::Install } else { StorePhase::Discard };
@@ -141,19 +143,21 @@ impl Store {
         let stores = dirs.stores.expect("layout");
         Action::Run(match self.phase {
             StorePhase::Aside(aside) => dirs.rename(stores, name(aside)),
-            StorePhase::Create => mkdir(stores, &self.temporary),
+            StorePhase::Find => open(stores, name(self.token), OpenHow::DirectoryNoFollow),
+            StorePhase::Close(fd) => Op::Close { fd },
+            StorePhase::Create => mkdir(dirs.making.expect("layout"), &self.temporary),
             StorePhase::Install => Op::Rename {
-                from_dir: stores,
+                from_dir: dirs.making.expect("layout"),
                 from: self.temporary.clone(),
                 to_dir: stores,
                 to: name(self.token),
                 no_replace: true,
             },
             StorePhase::Discard => Op::Rename {
-                from_dir: stores,
+                from_dir: dirs.making.expect("layout"),
                 from: self.temporary.clone(),
                 to_dir: dirs.trash.expect("layout"),
-                to: Box::from(self.temporary.strip_prefix(b"new-").expect("temporary name")),
+                to: self.temporary.clone(),
                 no_replace: false,
             },
         })
@@ -167,9 +171,29 @@ impl Store {
                 if stop {
                     return broken();
                 }
-                self.temporary = temporary(dirs);
-                self.phase = StorePhase::Create;
+                self.phase = StorePhase::Find;
                 self.first(dirs)
+            }
+            StorePhase::Find => match fd(result) {
+                Ok(fd) => {
+                    self.phase = StorePhase::Close(fd);
+                    self.first(dirs)
+                }
+                Err(Error::NotFound) => {
+                    if stop {
+                        return broken();
+                    }
+                    self.temporary = temporary(dirs);
+                    self.phase = StorePhase::Create;
+                    self.first(dirs)
+                }
+                Err(_) => broken(),
+            },
+            StorePhase::Close(_) => {
+                if result.is_err() || stop {
+                    return broken();
+                }
+                Action::Operation(Next::End(git::Done::Succeeded))
             }
             StorePhase::Create => {
                 if result.is_err() {
@@ -258,7 +282,7 @@ impl Alternates {
 }
 
 fn temporary(dirs: &mut Directories) -> Box<[u8]> {
-    let result = invocation::joined(&[b"new-", Decimal::of(dirs.serial).as_bytes()]);
+    let result = Box::from(Decimal::of(dirs.serial).as_bytes());
     dirs.serial = dirs.serial.checked_add(1).expect("serial lifetime");
     result
 }
