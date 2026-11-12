@@ -41,6 +41,9 @@ mechanics are those of skein's `programming-model.md`.
     their accounts, and moving one.
 11. **providers.md:** the LLM providers' terms, OpenAI's and
     Anthropic's, as accounts.md and smith's programs apply them.
+12. **terminal-login.md:** a program's login in a terminal the person's
+    client lends on the engine's ask: the offer, the ask, its end, and
+    the contract.
 
 `../examples.md` is the example application, `ops`, which each document
 uses for its examples.
