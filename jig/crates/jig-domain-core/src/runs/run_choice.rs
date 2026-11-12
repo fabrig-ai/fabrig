@@ -59,7 +59,7 @@ impl Core {
         let candidates = self.accounts.candidates(
             super::coverage::payer(payer),
             provider,
-            policy.model.program.as_deref(),
+            self.settings.model_ways(&policy.model),
             preferred,
             excluded,
             coverage.as_slice(),
@@ -68,8 +68,6 @@ impl Core {
         let mut host_wait = false;
         let mut login_wait = None;
         let kinds = self.charter_of(task).hosts;
-        let main = crate::settings::fleet_needs::model(&policy.model);
-        let models = core::slice::from_ref(&main);
         let mut facts = List::with_capacity(self.host_fact_capacity());
         for account in &candidates {
             if row.llm.is_none() && row.kept_account.is_none() && !self.account_allows(*account, &policy.model) {
@@ -77,7 +75,7 @@ impl Core {
             }
             let mut tried = List::with_capacity(self.fleet.host_capacity());
             for _ in 0..=self.fleet.host_capacity() {
-                let Some(placement) = self.fleet.probe(kinds, task, version, models, tried.as_slice()) else {
+                let Some(placement) = self.fleet.probe(kinds, task, version, &[], tried.as_slice()) else {
                     host_wait = true;
                     break;
                 };
@@ -85,7 +83,7 @@ impl Core {
                 let selection = self.accounts.select(
                     super::coverage::payer(payer),
                     provider,
-                    policy.model.program.as_deref(),
+                    self.settings.model_ways(&policy.model),
                     Some(*account),
                     None,
                     coverage.as_slice(),
@@ -120,12 +118,7 @@ impl Core {
                     facts.as_slice(),
                     coverage.as_slice(),
                 );
-                let mut needs = List::with_capacity(jig_domain_tasks::MODELS.checked_add(1).expect("main need"));
-                needs.push(main.clone()).expect("main need");
-                for model in &retained {
-                    needs.push(crate::settings::fleet_needs::model(model)).expect("retained models");
-                }
-                if eligible && self.fleet.supports(placement, needs.as_slice()) {
+                if eligible {
                     let mut selected = policy.clone();
                     selected.alternatives = retained;
                     return Ok(RunChoice { placement, accounts: bindings, policy: selected });
@@ -160,46 +153,46 @@ impl Core {
     ) -> (Box<[authority::AccountBinding]>, Box<[crate::Model]>, bool) {
         let payer = self.tasks.payer(task).expect("live selected task");
         let provider = main.provider;
-        let mut eligible =
-            self.fleet.supports(placement, core::slice::from_ref(&crate::settings::fleet_needs::model(&policy.model)));
+        let mut eligible = self.source_supported(placement, &policy.model, main.source);
         let mut bindings = List::with_capacity(jig_domain_tasks::MODELS);
         bindings.push(main).expect("main binding");
         let mut retained = List::with_capacity(jig_domain_tasks::MODELS);
         for model in &policy.alternatives {
             let Some(other) = self.provider(model) else { continue };
-            if (other == provider && model.program != policy.model.program)
-                || (other != provider && model.program.is_some())
+            let mut binding = None;
+            for kept in &bindings {
+                if kept.provider == other {
+                    binding = Some(*kept);
+                }
+            }
+            if binding.is_none() {
+                let mut ways = self.settings.model_ways(model);
+                ways.program = false;
+                if let accounts::Selection::Chosen { account, source } = self.accounts.select(
+                    super::coverage::payer(payer),
+                    other,
+                    ways,
+                    None,
+                    None,
+                    coverage,
+                    facts,
+                    self.run_now,
+                ) {
+                    binding = Some(authority::AccountBinding { provider: other, account, source });
+                }
+            }
+            let Some(binding) = binding else { continue };
+            let kind = self.accounts.source(binding.source).expect("selected source").kind;
+            if self.settings.model_endpoint(model, kind).is_none()
+                || (kind == accounts::Kind::Program && model.program != policy.model.program)
             {
                 continue;
             }
-            let mut bound = false;
-            for binding in &bindings {
-                if binding.provider == other {
-                    bound = true;
-                }
-            }
-            let declared =
-                self.fleet.supports(placement, core::slice::from_ref(&crate::settings::fleet_needs::model(model)));
-            if bound {
-                eligible &= declared;
-            } else if let accounts::Selection::Chosen { account, source } = self.accounts.select(
-                super::coverage::payer(payer),
-                other,
-                model.program.as_deref(),
-                None,
-                None,
-                coverage,
-                facts,
-                self.run_now,
-            ) {
-                eligible &= declared;
-                let binding = authority::AccountBinding { provider: other, account, source };
+            eligible &= self.source_supported(placement, model, binding.source);
+            if other != provider && !bindings.as_slice().contains(&binding) {
                 bindings.push(binding).expect("one binding per retained provider");
-                bound = true;
             }
-            if bound {
-                retained.push(model.clone()).expect("configured model bound");
-            }
+            retained.push(model.clone()).expect("configured model bound");
         }
         (bindings.into_boxed(), retained.into_boxed(), eligible)
     }
@@ -237,14 +230,23 @@ impl Core {
         }
         let mut facts = List::with_capacity(self.host_fact_capacity());
         self.host_facts(placement, self.host_rule(placement), &mut facts);
-        let main = self.chosen_main(task);
+        let policy = self.chosen_policy(task);
+        let main = &policy.model;
         let main_provider = self.provider(main);
         for binding in &proof.accounts {
-            let program = if main_provider == Some(binding.provider) { main.program.as_deref() } else { None };
+            let mut ways = self.settings.model_ways(main);
+            if main_provider != Some(binding.provider) {
+                ways = accounts::Ways { program: false, direct: false };
+                for model in &policy.alternatives {
+                    if self.provider(model) == Some(binding.provider) {
+                        ways.direct |= self.settings.model_ways(model).direct;
+                    }
+                }
+            }
             let selected = self.accounts.select(
                 super::coverage::payer(payer),
                 binding.provider,
-                program,
+                ways,
                 Some(binding.account),
                 None,
                 coverage.as_slice(),
@@ -255,7 +257,6 @@ impl Core {
                 return false;
             }
         }
-        let policy = self.chosen_policy(task);
         let mut main_binding = None;
         for binding in &proof.accounts {
             if main_provider == Some(binding.provider) {
@@ -265,17 +266,9 @@ impl Core {
         let Some(main_binding) = main_binding else {
             return false;
         };
-        let (bindings, models, eligible) =
+        let (bindings, _, eligible) =
             self.compatible_models(task, placement, &policy, main_binding, facts.as_slice(), coverage.as_slice());
         if !eligible || bindings.as_ref() != proof.accounts.as_ref() {
-            return false;
-        }
-        let mut needs = List::with_capacity(jig_domain_tasks::MODELS.checked_add(1).expect("main need"));
-        needs.push(crate::settings::fleet_needs::model(main)).expect("main need");
-        for model in &models {
-            needs.push(crate::settings::fleet_needs::model(model)).expect("retained model");
-        }
-        if !self.fleet.supports(placement, needs.as_slice()) {
             return false;
         }
         self.credentials_ready(task, self.run_now)

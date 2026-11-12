@@ -146,7 +146,6 @@ impl Domain {
                 evidence: crate::needs::empty_evidence(),
                 program_endpoints: Box::new([]),
                 worker: None,
-                declarations: Box::new([]),
                 sources: crate::sources::Sources::new(Box::new([]), 0, false),
                 eligible: crate::needs::eligibility(&needs, &[]),
                 kind: HostKind::Engine,
@@ -332,7 +331,7 @@ impl Domain {
     pub fn supports(&self, placement: crate::PlacementConstraint, models: &[crate::ModelNeed]) -> bool {
         let Some(id) = self.tokens.get(&placement.channel) else { return false };
         let channel = self.channels.get(*id).expect("connected host");
-        channel.kind == placement.kind && crate::needs::allows_models(&self.needs, &channel.declarations, models)
+        channel.kind == placement.kind && crate::needs::allows_models(&channel.evidence.endpoints, models)
     }
     #[must_use]
     pub fn placement_available(&self, placement: crate::PlacementConstraint) -> bool {

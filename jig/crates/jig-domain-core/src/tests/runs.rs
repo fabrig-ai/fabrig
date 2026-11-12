@@ -16,5 +16,6 @@ pub(in crate::tests) mod reserve;
 pub(in crate::tests) mod result_reads;
 pub(in crate::tests) mod run_choice;
 pub(in crate::tests) mod run_positions;
+mod source_endpoint;
 pub(in crate::tests) mod transcript_bytes;
 pub(in crate::tests) mod windows;
