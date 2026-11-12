@@ -120,7 +120,8 @@ this order:
   replaced by `agent.triage`; its working directory the session's tree;
   its stdin `brief`; its stdout and stderr both to
   `sessions/N/output`; its environment the tool's captured one with
-  `TEMPER_QA_HOME` and `TEMPER_QA_SESSION=N` set; a process group of its
+  `TEMPER_INTERNAL_QA_HOME` and `TEMPER_INTERNAL_QA_SESSION=N` set; a
+  process group of its
   own.
 - **Its bound:** `bounds.triage` seconds from its start; then its group
   is sent SIGTERM, and SIGKILL ten seconds later, and its exit is

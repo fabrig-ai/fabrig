@@ -126,13 +126,14 @@ filed, oldest first:
   starting from its lines.`
 - **`request.command`** run with that directory as its working
   directory, its stdin closed, the captured environment with
-  `TEMPER_QA_HOME` and `TEMPER_QA_AREA` set, the latter `request.area`
+  `TEMPER_INTERNAL_QA_HOME` and `TEMPER_INTERNAL_QA_AREA` set, the
+  latter `request.area`, both internal entries of the tool's table
   (`README.md`, 3.2), 600 seconds to exit; its stdout and stderr to
   `output` there.
 - **The deployment's command,** its contract: it puts `tree/`'s files on
   main at their paths, with `message` as their commit's message, as the
   deployment puts any goal's request there; then, where `goal` exists,
-  starts one goal with those words under `TEMPER_QA_AREA` and prints
+  starts one goal with those words under `TEMPER_INTERNAL_QA_AREA` and prints
   `goal N` as its stdout's last nonempty line, N the goal's task number.
   Run again for the same request after a failure, it is the
   deployment's to make it safe to repeat.

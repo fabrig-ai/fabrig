@@ -418,8 +418,8 @@ Printed `temper-qa: WORDS`, exit 1 (`README.md`, 2), nothing recorded:
 
 | What | WORDS |
 |---|---|
-| no session, for triage | `TEMPER_QA_SESSION is not set: triage commands run in a triage session` |
-| no session, for a pass | `TEMPER_QA_SESSION is not set: pass commands run in a pass session` |
+| no session, for triage | `TEMPER_INTERNAL_QA_SESSION is not set: triage commands run in a triage session` |
+| no session, for a pass | `TEMPER_INTERNAL_QA_SESSION is not set: pass commands run in a pass session` |
 | a session not running | `session N is not running` |
 | a session of the other kind | `session N is a pass session` or `session N is a triage session` |
 | a pass not running | `pass P is STATE` |
