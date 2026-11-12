@@ -1409,7 +1409,9 @@ fn a_watch_that_cannot_be_made_waits_for_reentry() {
     let mut f = fixture();
     let out = event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
     for request in &out {
-        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } = request {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } =
+            request
+        {
             up(&mut f.root, Up::Watched { watch: *watch, event: c::WatchEvent::Opened });
         }
     }
@@ -1424,7 +1426,9 @@ fn a_watch_that_cannot_be_made_waits_for_reentry() {
         &mut out,
     );
     for request in &out {
-        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } = request {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } =
+            request
+        {
             up(&mut f.root, Up::Watched { watch: *watch, event: c::WatchEvent::Opened });
         }
     }
@@ -1440,7 +1444,9 @@ fn a_watch_that_cannot_be_made_waits_for_reentry() {
     let out = event(&mut f.root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
     assert!(opened(&out, &subject).is_none());
     for request in &out {
-        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } = request {
+        if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, .. } } } =
+            request
+        {
             up(&mut f.root, Up::Watched { watch: *watch, event: c::WatchEvent::Opened });
         }
     }

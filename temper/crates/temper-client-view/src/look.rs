@@ -1458,7 +1458,6 @@ pub const NAMES: Names<'static> = Names {
         b"temper-how-follow",
         b"temper-how-chips",
         b"temper-how-who-code",
-
     ],
     regions: &[b"temper-link"],
 };

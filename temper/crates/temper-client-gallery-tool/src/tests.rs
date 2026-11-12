@@ -847,17 +847,23 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "how-follows", heading: "Draft first, then agents build it on its own branch", parts: &[
+        name: "how-follows",
+        heading: "Draft first, then agents build it on its own branch",
+        parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "What follows a landing" },
             Part::Named { role: Role::Text, name: "code triggers, agents judge" },
             Part::Named { role: Role::Heading { level: 3 }, name: "cowsql/vsr-rs follows cowsql/vsr" },
-            Part::Text { text: "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat. Each waits for Pat's word. Its check: .forgejo/workflows/vsr-tests.yml." },
+            Part::Text {
+                text: "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat. Each waits for Pat's word. Its check: .forgejo/workflows/vsr-tests.yml.",
+            },
             Part::Text { text: "2 behind · check passes at abababababab" },
             Part::Named { role: Role::Text, name: "code hears the landing" },
             Part::Named { role: Role::Text, name: "an agent ports" },
             Part::Named { role: Role::Text, name: "code checks" },
             Part::Named { role: Role::Heading { level: 3 }, name: "Tiers on main" },
-            Part::Text { text: "Code runs each after landings on main: fuzz (fuzzing for 6 hours). A red reaches the goals whose changes landed in it, and their agents repair it." },
+            Part::Text {
+                text: "Code runs each after landings on main: fuzz (fuzzing for 6 hours). A red reaches the goals whose changes landed in it, and their agents repair it.",
+            },
             Part::Named { role: Role::Text, name: "code runs" },
             Part::Named { role: Role::Text, name: "an agent repairs" },
             Part::Named { role: Role::Text, name: "a week · renews Tuesday" },
@@ -869,17 +875,23 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "night-how-follows", heading: "Draft first, then agents build it on its own branch", parts: &[
+        name: "night-how-follows",
+        heading: "Draft first, then agents build it on its own branch",
+        parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "What follows a landing" },
             Part::Named { role: Role::Text, name: "code triggers, agents judge" },
             Part::Named { role: Role::Heading { level: 3 }, name: "cowsql/vsr-rs follows cowsql/vsr" },
-            Part::Text { text: "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat. Each waits for Pat's word. Its check: .forgejo/workflows/vsr-tests.yml." },
+            Part::Text {
+                text: "Each landing on cowsql/vsr's main that touches src or include makes a change in cowsql/vsr-rs's main, owned by Pat. Each waits for Pat's word. Its check: .forgejo/workflows/vsr-tests.yml.",
+            },
             Part::Text { text: "2 behind · check passes at abababababab" },
             Part::Named { role: Role::Text, name: "code hears the landing" },
             Part::Named { role: Role::Text, name: "an agent ports" },
             Part::Named { role: Role::Text, name: "code checks" },
             Part::Named { role: Role::Heading { level: 3 }, name: "Tiers on main" },
-            Part::Text { text: "Code runs each after landings on main: fuzz (fuzzing for 6 hours). A red reaches the goals whose changes landed in it, and their agents repair it." },
+            Part::Text {
+                text: "Code runs each after landings on main: fuzz (fuzzing for 6 hours). A red reaches the goals whose changes landed in it, and their agents repair it.",
+            },
             Part::Named { role: Role::Text, name: "code runs" },
             Part::Named { role: Role::Text, name: "an agent repairs" },
             Part::Named { role: Role::Text, name: "a week · renews Tuesday" },

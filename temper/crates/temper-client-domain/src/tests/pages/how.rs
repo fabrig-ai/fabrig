@@ -276,21 +276,59 @@ fn path() -> w::BranchPath {
 fn parts_and_facts_follow_the_project_rules() {
     let mut project = super::team::project(Box::default(), false);
     let began = skein_lib::Wall::from_nanos(10);
-    for (next, week) in [(Some(604_800_000_000_010), true), (Some(2_592_000_000_000_010), false), (None, false), (Some(9), false)] {
-        let next = match next { Some(next) => Some(skein_lib::Wall::from_nanos(next)), None => None };
-        project.current_period = Some(c::PoolLedger { source: c::Funder::Period { project: f::PROJECT, period: 1 }, parent: None,
-            numbers: c::Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 }, left: 100, closed: false, began: Some(began), next });
+    for (next, week) in
+        [(Some(604_800_000_000_010), true), (Some(2_592_000_000_000_010), false), (None, false), (Some(9), false)]
+    {
+        let next = match next {
+            Some(next) => Some(skein_lib::Wall::from_nanos(next)),
+            None => None,
+        };
+        project.current_period = Some(c::PoolLedger {
+            source: c::Funder::Period { project: f::PROJECT, period: 1 },
+            parent: None,
+            numbers: c::Numbers { budget: 100, spent: 0, spent_below: 0, reserved: 0 },
+            left: 100,
+            closed: false,
+            began: Some(began),
+            next,
+        });
         assert_eq!(how::period(&project), Some(how::Period { week, next }));
     }
-    project.current_period = None; assert_eq!(how::period(&project), None);
-    let mut task = super::chats::chat_line(); task.label = 3; task.chip.task = 9; task.budget.left = 28; task.budget.numbers.budget = 40;
-    let mut first = task.clone(); first.chip.task = 2;
-    let mut ended = task.clone(); ended.chip.task = 1; ended.ended_at = Some(began);
+    project.current_period = None;
+    assert_eq!(how::period(&project), None);
+    let mut task = super::chats::chat_line();
+    task.label = 3;
+    task.chip.task = 9;
+    task.budget.left = 28;
+    task.budget.numbers.budget = 40;
+    let mut first = task.clone();
+    first.chip.task = 2;
+    let mut ended = task.clone();
+    ended.chip.task = 1;
+    ended.ended_at = Some(began);
     let rows = how::standing(&[task.clone(), ended, first.clone()], f::PROJECT);
-    assert_eq!(rows.as_ref(), &[how::Standing { number: 2, title: first.chip.title.bytes().into(), left: 28, budget: 40 }, how::Standing { number: 9, title: task.chip.title.bytes().into(), left: 28, budget: 40 }]);
-    let facts = Facts { period: Some(how::Period { week: true, next: Some(began) }), standing: rows, roles: false, asking: false, read: Read::Reading,
-        goals: false, budget: Some(c::TemplateBudget::Amount(80)), classes: false, several: false };
-    let parts = how::parts(&facts); assert_eq!(parts.period, facts.period); assert_eq!(parts.standing, facts.standing); assert_eq!(parts.budget, None);
+    assert_eq!(
+        rows.as_ref(),
+        &[
+            how::Standing { number: 2, title: first.chip.title.bytes().into(), left: 28, budget: 40 },
+            how::Standing { number: 9, title: task.chip.title.bytes().into(), left: 28, budget: 40 }
+        ]
+    );
+    let facts = Facts {
+        period: Some(how::Period { week: true, next: Some(began) }),
+        standing: rows,
+        roles: false,
+        asking: false,
+        read: Read::Reading,
+        goals: false,
+        budget: Some(c::TemplateBudget::Amount(80)),
+        classes: false,
+        several: false,
+    };
+    let parts = how::parts(&facts);
+    assert_eq!(parts.period, facts.period);
+    assert_eq!(parts.standing, facts.standing);
+    assert_eq!(parts.budget, None);
 
     for (read, head, path) in [
         (Read::Reading, Head::Reading, Path::Reading),
@@ -302,8 +340,28 @@ fn parts_and_facts_follow_the_project_rules() {
         for (asking, roles) in [(false, false), (true, false), (false, true), (true, true)] {
             for (classes, several) in [(false, false), (true, false), (false, true), (true, true)] {
                 assert_eq!(
-                    how::parts(&Facts { period: None, standing: Box::default(), roles, asking, read, goals: false, budget: None, classes, several }),
-                    Parts { period: None, standing: Box::default(), roles, head, ask: asking, path, budget: None, reaches: classes, several },
+                    how::parts(&Facts {
+                        period: None,
+                        standing: Box::default(),
+                        roles,
+                        asking,
+                        read,
+                        goals: false,
+                        budget: None,
+                        classes,
+                        several
+                    }),
+                    Parts {
+                        period: None,
+                        standing: Box::default(),
+                        roles,
+                        head,
+                        ask: asking,
+                        path,
+                        budget: None,
+                        reaches: classes,
+                        several
+                    },
                     "{read:?}, asking={asking}, roles={roles}, classes={classes}, several={several}"
                 );
             }
@@ -320,7 +378,9 @@ fn parts_and_facts_follow_the_project_rules() {
     ] {
         for (goals, expected) in [(false, None), (true, shown)] {
             assert_eq!(
-                how::parts(&Facts { period: None, standing: Box::default(),
+                how::parts(&Facts {
+                    period: None,
+                    standing: Box::default(),
                     roles: false,
                     asking: false,
                     read: Read::Reading,
@@ -329,7 +389,9 @@ fn parts_and_facts_follow_the_project_rules() {
                     classes: false,
                     several: false
                 }),
-                Parts { period: None, standing: Box::default(),
+                Parts {
+                    period: None,
+                    standing: Box::default(),
                     roles: false,
                     head: Head::Reading,
                     ask: false,
@@ -348,7 +410,9 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             None,
             Read::Reading,
-            Facts { period: None, standing: Box::default(),
+            Facts {
+                period: None,
+                standing: Box::default(),
                 roles: false,
                 asking: false,
                 read: Read::Reading,
@@ -363,7 +427,9 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             Some((true, SELECTED)),
             Read::Shown { current: Some(0) },
-            Facts { period: None, standing: Box::default(),
+            Facts {
+                period: None,
+                standing: Box::default(),
                 roles: false,
                 asking: true,
                 read: Read::Shown { current: Some(0) },
@@ -378,7 +444,9 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             Some((false, SELECTED)),
             Read::Shown { current: None },
-            Facts { period: None, standing: Box::default(),
+            Facts {
+                period: None,
+                standing: Box::default(),
                 roles: false,
                 asking: false,
                 read: Read::Shown { current: None },
@@ -393,7 +461,9 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             Some((true, 0)),
             Read::Ended,
-            Facts { period: None, standing: Box::default(),
+            Facts {
+                period: None,
+                standing: Box::default(),
                 roles: false,
                 asking: true,
                 read: Read::Ended,
@@ -408,7 +478,9 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             Some((true, OTHER)),
             Read::Reading,
-            Facts { period: None, standing: Box::default(),
+            Facts {
+                period: None,
+                standing: Box::default(),
                 roles: false,
                 asking: true,
                 read: Read::Reading,
@@ -423,7 +495,9 @@ fn parts_and_facts_follow_the_project_rules() {
             false,
             Some((true, SELECTED)),
             Read::Reading,
-            Facts { period: None, standing: Box::default(),
+            Facts {
+                period: None,
+                standing: Box::default(),
                 roles: false,
                 asking: false,
                 read: Read::Reading,
@@ -451,7 +525,9 @@ fn parts_and_facts_follow_the_project_rules() {
             assert_eq!(how::facts(&root, f::PROJECT), expected);
             assert_eq!(
                 how::facts(&root, OTHER),
-                Facts { period: None, standing: Box::default(),
+                Facts {
+                    period: None,
+                    standing: Box::default(),
                     roles: false,
                     asking: false,
                     read: Read::Reading,
@@ -613,7 +689,9 @@ fn parts_and_facts_follow_the_project_rules() {
     let root = crate::unlinked(&f::limits(), f::SEED);
     assert_eq!(
         how::facts(&root, f::PROJECT),
-        Facts { period: None, standing: Box::default(),
+        Facts {
+            period: None,
+            standing: Box::default(),
             roles: false,
             asking: false,
             read: Read::Reading,
@@ -628,30 +706,89 @@ fn parts_and_facts_follow_the_project_rules() {
 #[expect(clippy::disallowed_methods, reason = "ordinary fixture maps owned wire fields")]
 fn follow_row(paths: &[&[u8]], start: w::FollowStart, lag: u32, verdict: Option<w::FollowVerdict>) -> w::FollowView {
     let repo = w::FollowRepository::new(&w::CEILINGS, w::FollowRepositoryParts { forge: 1, repository: 7 }).unwrap();
-    let setting = w::Follow::new(&w::CEILINGS, w::FollowParts {
-        source: w::FollowSource::new(&w::CEILINGS, w::FollowSourceParts {
-            repository: repo.clone(), branch: b"main".as_slice().into(), paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
-        }).unwrap(),
-        target: w::FollowTarget::new(&w::CEILINGS, w::FollowTargetParts { repository: repo, branch: b"main".as_slice().into() }).unwrap(),
-        owner: w::FollowOwner::Person(w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).unwrap()), start, producer: None,
-        verification: w::FollowCheck::new(&w::CEILINGS, w::FollowCheckParts {
-            workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(), artifact: b"results".as_slice().into(), format: w::FollowFormat::Junit,
-        }).unwrap(),
-    }).unwrap();
-    let parity = verdict.map(|verdict| w::FollowParity::new(&w::CEILINGS, w::FollowParityParts { source: [0xab; 32], head: [0xcd; 32], verdict, run: b"check".as_slice().into() }).unwrap());
-    w::FollowView::new(&w::CEILINGS, w::FollowViewParts {
-        number: 1, setting, source: b"cowsql/vsr".as_slice().into(), source_branch: b"main".as_slice().into(),
-        target: b"cowsql/vsr-rs".as_slice().into(), target_branch: b"main".as_slice().into(), task: None, stopped: None, lag,
-        entries: List::with_capacity(0), skips: List::with_capacity(0), parity,
-    }).unwrap()
+    let setting = w::Follow::new(
+        &w::CEILINGS,
+        w::FollowParts {
+            source: w::FollowSource::new(
+                &w::CEILINGS,
+                w::FollowSourceParts {
+                    repository: repo.clone(),
+                    branch: b"main".as_slice().into(),
+                    paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
+                },
+            )
+            .unwrap(),
+            target: w::FollowTarget::new(
+                &w::CEILINGS,
+                w::FollowTargetParts { repository: repo, branch: b"main".as_slice().into() },
+            )
+            .unwrap(),
+            owner: w::FollowOwner::Person(
+                w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).unwrap(),
+            ),
+            start,
+            producer: None,
+            verification: w::FollowCheck::new(
+                &w::CEILINGS,
+                w::FollowCheckParts {
+                    workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
+                    artifact: b"results".as_slice().into(),
+                    format: w::FollowFormat::Junit,
+                },
+            )
+            .unwrap(),
+        },
+    )
+    .unwrap();
+    let parity = verdict.map(|verdict| {
+        w::FollowParity::new(
+            &w::CEILINGS,
+            w::FollowParityParts { source: [0xab; 32], head: [0xcd; 32], verdict, run: b"check".as_slice().into() },
+        )
+        .unwrap()
+    });
+    w::FollowView::new(
+        &w::CEILINGS,
+        w::FollowViewParts {
+            number: 1,
+            setting,
+            source: b"cowsql/vsr".as_slice().into(),
+            source_branch: b"main".as_slice().into(),
+            target: b"cowsql/vsr-rs".as_slice().into(),
+            target_branch: b"main".as_slice().into(),
+            task: None,
+            stopped: None,
+            lag,
+            entries: List::with_capacity(0),
+            skips: List::with_capacity(0),
+            parity,
+        },
+    )
+    .unwrap()
 }
 fn tier_stop(name: &[u8], checks: Option<&[u8]>, step: w::PathStep) -> w::Stop {
     let mut facts = List::with_capacity(1);
-    if let Some(checks) = checks { facts.push(w::Fact::new(&w::CEILINGS, w::FactParts { label: b"Checks".as_slice().into(), value: checks.into() }).unwrap()).unwrap(); }
-    w::Stop::new(&w::CEILINGS, w::StopParts { step, actor: w::Actor::Code, words: b"verify".as_slice().into(), needed: false, over: Box::default(),
-        opens: w::Opens::Tier(w::OpensTier::new(&w::CEILINGS, w::OpensTierParts { name: name.into() }).unwrap()),
-        card: w::Card::new(&w::CEILINGS, w::CardParts { name: name.into(), who: Box::default(), facts }).unwrap(),
-    }).unwrap()
+    if let Some(checks) = checks {
+        facts
+            .push(
+                w::Fact::new(&w::CEILINGS, w::FactParts { label: b"Checks".as_slice().into(), value: checks.into() })
+                    .unwrap(),
+            )
+            .unwrap();
+    }
+    w::Stop::new(
+        &w::CEILINGS,
+        w::StopParts {
+            step,
+            actor: w::Actor::Code,
+            words: b"verify".as_slice().into(),
+            needed: false,
+            over: Box::default(),
+            opens: w::Opens::Tier(w::OpensTier::new(&w::CEILINGS, w::OpensTierParts { name: name.into() }).unwrap()),
+            card: w::Card::new(&w::CEILINGS, w::CardParts { name: name.into(), who: Box::default(), facts }).unwrap(),
+        },
+    )
+    .unwrap()
 }
 #[test]
 #[expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "ordinary table varies optional member lists")]
@@ -660,31 +797,160 @@ fn follows_boxes_follow_only_the_read_documents() {
     use how::{Follow, Landed, Owner, Tier, Tiers};
     let pat = super::team::member(4, c::PartyKind::Person, b"Pat", c::HeldRole::Member);
     let login = super::team::member(4, c::PartyKind::Person, b"", c::HeldRole::Member);
-    let main = w::BranchPath::new(&w::CEILINGS, w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops: List::from_boxed(Box::new([
-        tier_stop(b"fuzz", Some(b"fuzzing for 6 hours"), w::PathStep::Verify), tier_stop(b"msan", None, w::PathStep::Verify), tier_stop(b"goal-check", None, w::PathStep::Check),
-    ])) }).unwrap();
-    let tiers = Tiers { branch: b"main".as_slice().into(), tiers: Box::new([
-        Tier { name: b"fuzz".as_slice().into(), checks: Some(b"fuzzing for 6 hours".as_slice().into()) }, Tier { name: b"msan".as_slice().into(), checks: None },
-    ]) };
-    let base = Follow { source: b"cowsql/vsr".as_slice().into(), source_branch: b"main".as_slice().into(), target: b"cowsql/vsr-rs".as_slice().into(), target_branch: b"main".as_slice().into(),
-        paths: Box::new([b"src".as_slice().into(), b"include".as_slice().into()]), owner: Owner::Named(b"Pat".as_slice().into()), code_starts: false,
-        workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(), lag: 2, parity: b"check passes at abababababab".as_slice().into(), stopped: None };
+    let main = w::BranchPath::new(
+        &w::CEILINGS,
+        w::BranchPathParts {
+            repository: None,
+            branch: b"main".as_slice().into(),
+            stops: List::from_boxed(Box::new([
+                tier_stop(b"fuzz", Some(b"fuzzing for 6 hours"), w::PathStep::Verify),
+                tier_stop(b"msan", None, w::PathStep::Verify),
+                tier_stop(b"goal-check", None, w::PathStep::Check),
+            ])),
+        },
+    )
+    .unwrap();
+    let tiers = Tiers {
+        branch: b"main".as_slice().into(),
+        tiers: Box::new([
+            Tier { name: b"fuzz".as_slice().into(), checks: Some(b"fuzzing for 6 hours".as_slice().into()) },
+            Tier { name: b"msan".as_slice().into(), checks: None },
+        ]),
+    };
+    let base = Follow {
+        source: b"cowsql/vsr".as_slice().into(),
+        source_branch: b"main".as_slice().into(),
+        target: b"cowsql/vsr-rs".as_slice().into(),
+        target_branch: b"main".as_slice().into(),
+        paths: Box::new([b"src".as_slice().into(), b"include".as_slice().into()]),
+        owner: Owner::Named(b"Pat".as_slice().into()),
+        code_starts: false,
+        workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
+        lag: 2,
+        parity: b"check passes at abababababab".as_slice().into(),
+        stopped: None,
+    };
     let passed = follow_row(&[b"src", b"include"], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed));
     let code = follow_row(&[], w::FollowStart::Code, 0, None);
-    let failing = follow_row(&[b"src", b"include", b"tests"], w::FollowStart::Owner, 1, Some(w::FollowVerdict::Failing(w::FollowFailing::new(&w::CEILINGS, w::FollowFailingParts { count: 7 }).unwrap())));
-    let mut stopped = follow_row(&[], w::FollowStart::Owner, 0, Some(w::FollowVerdict::Many)).into_parts(); stopped.stopped = Some(b"Check is missing".as_slice().into());
+    let failing = follow_row(
+        &[b"src", b"include", b"tests"],
+        w::FollowStart::Owner,
+        1,
+        Some(w::FollowVerdict::Failing(
+            w::FollowFailing::new(&w::CEILINGS, w::FollowFailingParts { count: 7 }).unwrap(),
+        )),
+    );
+    let mut stopped = follow_row(&[], w::FollowStart::Owner, 0, Some(w::FollowVerdict::Many)).into_parts();
+    stopped.stopped = Some(b"Check is missing".as_slice().into());
     let stopped = w::FollowView::new(&w::CEILINGS, stopped).unwrap();
-    let panel = |row| w::FollowsPanel::new(&w::CEILINGS, w::FollowsPanelParts { project: f::PROJECT, follows: List::from_boxed(Box::new([row])) }).unwrap();
+    let panel = |row| {
+        w::FollowsPanel::new(
+            &w::CEILINGS,
+            w::FollowsPanelParts { project: f::PROJECT, follows: List::from_boxed(Box::new([row])) },
+        )
+        .unwrap()
+    };
     for (name, panel, path, members, reader, expected) in [
-        ("Pat and tiers", Some(panel(passed.clone())), Some(&main), Some(vec![pat.clone()]), 2, Landed { follows: Box::new([base.clone()]), tiers: Some(tiers.clone()) }),
-        ("reader owns", Some(panel(passed.clone())), None, None, 4, Landed { follows: Box::new([Follow { owner: Owner::You, ..base.clone() }]), tiers: None }),
-        ("login", Some(panel(passed.clone())), None, Some(vec![login]), 2, Landed { follows: Box::new([Follow { owner: Owner::Named(b"login".as_slice().into()), ..base.clone() }]), tiers: None }),
-        ("members unread", Some(panel(passed.clone())), None, None, 2, Landed { follows: Box::new([Follow { owner: Owner::Unknown, ..base.clone() }]), tiers: None }),
-        ("owner absent", Some(panel(passed)), None, Some(vec![]), 2, Landed { follows: Box::new([Follow { owner: Owner::Unknown, ..base.clone() }]), tiers: None }),
-        ("code, no paths, no parity", Some(panel(code)), None, Some(vec![pat.clone()]), 2, Landed { follows: Box::new([Follow { paths: Box::default(), code_starts: true, lag: 0, parity: b"no check yet".as_slice().into(), ..base.clone() }]), tiers: None }),
-        ("three paths, failing", Some(panel(failing)), None, Some(vec![pat.clone()]), 2, Landed { follows: Box::new([Follow { paths: Box::new([b"src".as_slice().into(), b"include".as_slice().into(), b"tests".as_slice().into()]), lag: 1, parity: b"7 failing at abababababab".as_slice().into(), ..base.clone() }]), tiers: None }),
-        ("stopped, many", Some(panel(stopped)), None, Some(vec![pat]), 2, Landed { follows: Box::new([Follow { paths: Box::default(), lag: 0, parity: b"many failing at abababababab".as_slice().into(), stopped: Some(b"Check is missing".as_slice().into()), ..base }]), tiers: None }),
+        (
+            "Pat and tiers",
+            Some(panel(passed.clone())),
+            Some(&main),
+            Some(vec![pat.clone()]),
+            2,
+            Landed { follows: Box::new([base.clone()]), tiers: Some(tiers.clone()) },
+        ),
+        (
+            "reader owns",
+            Some(panel(passed.clone())),
+            None,
+            None,
+            4,
+            Landed { follows: Box::new([Follow { owner: Owner::You, ..base.clone() }]), tiers: None },
+        ),
+        (
+            "login",
+            Some(panel(passed.clone())),
+            None,
+            Some(vec![login]),
+            2,
+            Landed {
+                follows: Box::new([Follow { owner: Owner::Named(b"login".as_slice().into()), ..base.clone() }]),
+                tiers: None,
+            },
+        ),
+        (
+            "members unread",
+            Some(panel(passed.clone())),
+            None,
+            None,
+            2,
+            Landed { follows: Box::new([Follow { owner: Owner::Unknown, ..base.clone() }]), tiers: None },
+        ),
+        (
+            "owner absent",
+            Some(panel(passed)),
+            None,
+            Some(vec![]),
+            2,
+            Landed { follows: Box::new([Follow { owner: Owner::Unknown, ..base.clone() }]), tiers: None },
+        ),
+        (
+            "code, no paths, no parity",
+            Some(panel(code)),
+            None,
+            Some(vec![pat.clone()]),
+            2,
+            Landed {
+                follows: Box::new([Follow {
+                    paths: Box::default(),
+                    code_starts: true,
+                    lag: 0,
+                    parity: b"no check yet".as_slice().into(),
+                    ..base.clone()
+                }]),
+                tiers: None,
+            },
+        ),
+        (
+            "three paths, failing",
+            Some(panel(failing)),
+            None,
+            Some(vec![pat.clone()]),
+            2,
+            Landed {
+                follows: Box::new([Follow {
+                    paths: Box::new([
+                        b"src".as_slice().into(),
+                        b"include".as_slice().into(),
+                        b"tests".as_slice().into(),
+                    ]),
+                    lag: 1,
+                    parity: b"7 failing at abababababab".as_slice().into(),
+                    ..base.clone()
+                }]),
+                tiers: None,
+            },
+        ),
+        (
+            "stopped, many",
+            Some(panel(stopped)),
+            None,
+            Some(vec![pat]),
+            2,
+            Landed {
+                follows: Box::new([Follow {
+                    paths: Box::default(),
+                    lag: 0,
+                    parity: b"many failing at abababababab".as_slice().into(),
+                    stopped: Some(b"Check is missing".as_slice().into()),
+                    ..base
+                }]),
+                tiers: None,
+            },
+        ),
         ("no follows read", None, Some(&main), None, 2, Landed { follows: Box::default(), tiers: Some(tiers) }),
         ("neither read", None, None, None, 2, Landed { follows: Box::default(), tiers: None }),
-    ] { assert_eq!(how::follows(panel.as_ref(), path, members.as_deref(), reader), expected, "{name}"); }
+    ] {
+        assert_eq!(how::follows(panel.as_ref(), path, members.as_deref(), reader), expected, "{name}");
+    }
 }

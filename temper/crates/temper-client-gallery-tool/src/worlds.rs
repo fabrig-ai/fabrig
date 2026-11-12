@@ -974,7 +974,8 @@ fn world_in_layout(
                             continue;
                         }
                         w::Watch::Follows(_) if settings == Some("how-follows") => {
-                            ways::follows(&mut root, watch, &mut out); continue;
+                            ways::follows(&mut root, watch, &mut out);
+                            continue;
                         }
                         w::Watch::Change(subject) => subject,
                         w::Watch::Away

@@ -1372,7 +1372,8 @@ fn special_mockup(name: &str) -> Option<String> {
         "home-step-pair" => return Some("../whole-story/pair/home.html".to_owned()),
         "home-step-team" => return Some("../whole-story/team/home.html".to_owned()),
         "how-approve" => return Some("../web/whole-story/pair/how.html".to_owned()),
-        "how" | "how-draft" | "how-yours" | "how-card" | "night-how" | "how-reaches" | "night-how-reaches" | "how-follows" | "night-how-follows" => {
+        "how" | "how-draft" | "how-yours" | "how-card" | "night-how" | "how-reaches" | "night-how-reaches"
+        | "how-follows" | "night-how-follows" => {
             return Some("../web/whole-story/how.html".to_owned());
         }
         "accounts-added" | "accounts-renewed" => return Some("accounts.html?world=reference&bare".to_owned()),

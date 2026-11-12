@@ -693,47 +693,215 @@ fn follows_boxes_word_their_facts_and_mark_who_acts() {
     for browser in [false, true] {
         let words = if browser { f::browser_words() } else { f::words() };
         for (owner, code, paths, owned, start, touches) in [
-            (Owner::Named(b"Pat".as_slice().into()), false, vec![b"src".as_slice(), b"include"], ", owned by Pat", "Each waits for Pat's word.", " that touches src or include"),
-            (Owner::You, false, vec![b"src".as_slice(), b"include", b"tests"], ", owned by you", "Each waits for your word.", " that touches src, include or tests"),
+            (
+                Owner::Named(b"Pat".as_slice().into()),
+                false,
+                vec![b"src".as_slice(), b"include"],
+                ", owned by Pat",
+                "Each waits for Pat's word.",
+                " that touches src or include",
+            ),
+            (
+                Owner::You,
+                false,
+                vec![b"src".as_slice(), b"include", b"tests"],
+                ", owned by you",
+                "Each waits for your word.",
+                " that touches src, include or tests",
+            ),
             (Owner::Unknown, false, vec![], "", "Each waits for its owner's word.", ""),
-            (Owner::Named(b"Pat".as_slice().into()), true, vec![b"src".as_slice()], ", owned by Pat", "Each starts once the one before it has landed.", " that touches src"),
+            (
+                Owner::Named(b"Pat".as_slice().into()),
+                true,
+                vec![b"src".as_slice()],
+                ", owned by Pat",
+                "Each starts once the one before it has landed.",
+                " that touches src",
+            ),
         ] {
-            let landed = Landed { follows: Box::new([Follow { source: b"cowsql/vsr".as_slice().into(), source_branch: b"main".as_slice().into(),
-                target: b"cowsql/vsr-rs".as_slice().into(), target_branch: b"main".as_slice().into(), paths: paths.into_iter().map(Box::from).collect(), owner, code_starts: code,
-                workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(), lag: 2, parity: b"check passes at abababababab".as_slice().into(), stopped: Some(b"Check missing".as_slice().into()),
-            }]), tiers: Some(Tiers { branch: b"main".as_slice().into(), tiers: Box::new([Tier { name: b"fuzz".as_slice().into(), checks: Some(b"fuzzing for 6 hours".as_slice().into()) }, Tier { name: b"msan".as_slice().into(), checks: None }]) }) };
-            let mut builder = skein_ui::Builder::new(&f::tree_limits()); crate::pages::how::draw_follows(&mut builder, &words, &landed);
-            let tree = builder.finish(); let nodes = tree.nodes();
-            named(nodes, Role::Heading { level: 2 }, b"What follows a landing"); named(nodes, Role::Text, b"code triggers, agents judge");
+            let landed = Landed {
+                follows: Box::new([Follow {
+                    source: b"cowsql/vsr".as_slice().into(),
+                    source_branch: b"main".as_slice().into(),
+                    target: b"cowsql/vsr-rs".as_slice().into(),
+                    target_branch: b"main".as_slice().into(),
+                    paths: paths.into_iter().map(Box::from).collect(),
+                    owner,
+                    code_starts: code,
+                    workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
+                    lag: 2,
+                    parity: b"check passes at abababababab".as_slice().into(),
+                    stopped: Some(b"Check missing".as_slice().into()),
+                }]),
+                tiers: Some(Tiers {
+                    branch: b"main".as_slice().into(),
+                    tiers: Box::new([
+                        Tier {
+                            name: b"fuzz".as_slice().into(),
+                            checks: Some(b"fuzzing for 6 hours".as_slice().into()),
+                        },
+                        Tier { name: b"msan".as_slice().into(), checks: None },
+                    ]),
+                }),
+            };
+            let mut builder = skein_ui::Builder::new(&f::tree_limits());
+            crate::pages::how::draw_follows(&mut builder, &words, &landed);
+            let tree = builder.finish();
+            let nodes = tree.nodes();
+            named(nodes, Role::Heading { level: 2 }, b"What follows a landing");
+            named(nodes, Role::Text, b"code triggers, agents judge");
             named(nodes, Role::Heading { level: 3 }, b"cowsql/vsr-rs follows cowsql/vsr");
             named(nodes, Role::Paragraph, format!("Each landing on cowsql/vsr's main{touches} makes a change in cowsql/vsr-rs's main{owned}. {start} Its check: .forgejo/workflows/vsr-tests.yml.").as_bytes());
-            named(nodes, Role::Paragraph, "2 behind · check passes at abababababab".as_bytes()); named(nodes, Role::Paragraph, b"Stopped: Check missing.");
-            named(nodes, Role::Heading { level: 3 }, b"Tiers on main"); named(nodes, Role::Paragraph, b"Code runs each after landings on main: fuzz (fuzzing for 6 hours); msan. A red reaches the goals whose changes landed in it, and their agents repair it.");
-            for name in [b"code hears the landing".as_slice(), b"code checks", b"code runs"] { assert!(named(nodes, Role::Text, name).styles.as_slice().contains(&look::HOW_WHO_CODE)); }
-            for name in [b"an agent ports".as_slice(), b"an agent repairs"] { assert!(named(nodes, Role::Text, name).styles.as_slice().contains(&look::HOW_WHO_AGENT)); }
+            named(nodes, Role::Paragraph, "2 behind · check passes at abababababab".as_bytes());
+            named(nodes, Role::Paragraph, b"Stopped: Check missing.");
+            named(nodes, Role::Heading { level: 3 }, b"Tiers on main");
+            named(nodes, Role::Paragraph, b"Code runs each after landings on main: fuzz (fuzzing for 6 hours); msan. A red reaches the goals whose changes landed in it, and their agents repair it.");
+            for name in [b"code hears the landing".as_slice(), b"code checks", b"code runs"] {
+                assert!(named(nodes, Role::Text, name).styles.as_slice().contains(&look::HOW_WHO_CODE));
+            }
+            for name in [b"an agent ports".as_slice(), b"an agent repairs"] {
+                assert!(named(nodes, Role::Text, name).styles.as_slice().contains(&look::HOW_WHO_AGENT));
+            }
             assert_eq!(look::NAMES.style(look::HOW_WHO_CODE), Some(b"temper-how-who-code".as_slice()));
         }
-        let mut b = skein_ui::Builder::new(&f::tree_limits()); crate::pages::how::draw_follows(&mut b, &words, &Landed { follows: Box::default(), tiers: None }); assert!(b.finish().nodes().is_empty());
+        let mut b = skein_ui::Builder::new(&f::tree_limits());
+        crate::pages::how::draw_follows(&mut b, &words, &Landed { follows: Box::default(), tiers: None });
+        assert!(b.finish().nodes().is_empty());
     }
+    let (mut root, ..) = f::root_at_with_values(
+        Address::Home { project: f::PROJECT },
+        &f::domain_limits(),
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+        Some(d::forge::ways::Ways::STOCK),
+        false,
+        false,
+    );
+    up(
+        &mut root,
+        Up::FamilyServed {
+            family: wire::FORGE,
+            versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
+        },
+    );
+    let out = event(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
+    let wanted = d::forge::stock_ways::watch(f::PROJECT, &f::domain_limits().forge).unwrap();
+    let watch = out
+        .iter()
+        .find_map(|r| {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject } },
+            } = r
+                && *subject == wanted
+            {
+                Some(*watch)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let mut path = path(false).into_parts();
+    let mut stop = path.stops.get(7).unwrap().clone().into_parts();
+    stop.opens =
+        w::Opens::Tier(w::OpensTier::new(&w::CEILINGS, w::OpensTierParts { name: b"slow".as_slice().into() }).unwrap());
+    *path.stops.get_mut(7).unwrap() = w::Stop::new(&w::CEILINGS, stop).unwrap();
+    let panel = w::WaysPanel::new(
+        &w::CEILINGS,
+        w::WaysPanelParts {
+            project: f::PROJECT,
+            words: None,
+            ways: List::with_capacity(0),
+            current: None,
+            own: w::BranchPath::new(&w::CEILINGS, path).unwrap(),
+            may_change: false,
+        },
+    )
+    .unwrap();
+    up(
+        &mut root,
+        Up::FamilyDelivered {
+            watch,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::ways_panel(&panel),
+            },
+        },
+    );
+    let view = view(&root, true);
+    let nodes = view.tree().nodes();
+    let headings: Vec<_> = nodes
+        .iter()
+        .filter(|node| node.role == Role::Heading { level: 2 })
+        .map(|node| node.name.as_deref().unwrap())
+        .collect();
+    assert!(
+        headings.iter().position(|name| *name == b"What reaches you").unwrap()
+            < headings.iter().position(|name| *name == b"What follows a landing").unwrap()
+    );
+    named(nodes, Role::Text, b"code triggers, agents judge");
 }
 #[test]
 fn budgets_draw_the_period_in_reader_time_and_roles_before_goals() {
     use d::pages::how::{self, Facts, Period, Read, Standing};
     // Tuesday 1970-01-06 10:00 at UTC+12, still Monday in UTC.
     let next = skein_lib::Wall::from_nanos(424_800_000_000_000);
-    for (period, expected) in [(Some(Period { week: true, next: Some(next) }), Some("a week · renews Tuesday")), (Some(Period { week: false, next: Some(next) }), Some("each period · renews Tuesday")), (Some(Period { week: false, next: None }), Some("each period")), (None, None)] {
+    for (period, expected) in [
+        (Some(Period { week: true, next: Some(next) }), Some("a week · renews Tuesday")),
+        (Some(Period { week: false, next: Some(next) }), Some("each period · renews Tuesday")),
+        (Some(Period { week: false, next: None }), Some("each period")),
+        (None, None),
+    ] {
         for goals in [false, true] {
-            let mut words = f::words(); words.zone_minutes = 720_i32;
-            let facts = Facts { period, standing: Box::new([Standing { number: 2, title: b"Owns tests".as_slice().into(), left: 28, budget: 40 }, Standing { number: 9, title: b"Owns docs".as_slice().into(), left: 5, budget: 12 }]), asking: false, read: Read::Reading, roles: false, budget: Some(c::TemplateBudget::Amount(80)), goals, classes: false, several: false };
-            let mut builder = skein_ui::Builder::new(&f::tree_limits()); crate::pages::how::draw_budgets(&mut builder, &words, &how::parts(&facts));
-            let tree = builder.finish(); let nodes = tree.nodes(); named(nodes, Role::Heading { level: 2 }, b"Budgets");
-            if let Some(expected) = expected { named(nodes, Role::Text, expected.as_bytes()); } else { assert_eq!(children(styled(&tree, look::SETTINGS_SECTION_HEAD)).len(), 1); }
-            let rows: Vec<_> = nodes.iter().filter(|n| n.styles.as_slice().contains(&look::HOW_ROW)).collect(); assert_eq!(rows.len(), if goals { 3 } else { 2 });
-            for (row, title, small, figure) in [(rows[0], b"Owns tests".as_slice(), "a standing role · 28 left", b"40".as_slice()), (rows[1], b"Owns docs".as_slice(), "a standing role · 5 left", b"12".as_slice())] {
-                let row = subtree(&tree, row); named(row, Role::Text, title); named(row, Role::Text, small.as_bytes()); named(row, Role::Text, figure);
+            let mut words = f::words();
+            words.zone_minutes = 720_i32;
+            let facts = Facts {
+                period,
+                standing: Box::new([
+                    Standing { number: 2, title: b"Owns tests".as_slice().into(), left: 28, budget: 40 },
+                    Standing { number: 9, title: b"Owns docs".as_slice().into(), left: 5, budget: 12 },
+                ]),
+                asking: false,
+                read: Read::Reading,
+                roles: false,
+                budget: Some(c::TemplateBudget::Amount(80)),
+                goals,
+                classes: false,
+                several: false,
+            };
+            let mut builder = skein_ui::Builder::new(&f::tree_limits());
+            crate::pages::how::draw_budgets(&mut builder, &words, &how::parts(&facts));
+            let tree = builder.finish();
+            let nodes = tree.nodes();
+            named(nodes, Role::Heading { level: 2 }, b"Budgets");
+            if let Some(expected) = expected {
+                named(nodes, Role::Text, expected.as_bytes());
+            } else {
+                assert_eq!(children(styled(&tree, look::SETTINGS_SECTION_HEAD)).len(), 1);
             }
-            if goals { let row = subtree(&tree, rows[2]); named(row, Role::Text, b"Goals"); named(row, Role::Text, b"80"); }
-            let empty = Facts { standing: Box::default(), goals: false, ..facts }; let mut builder = skein_ui::Builder::new(&f::tree_limits()); crate::pages::how::draw_budgets(&mut builder, &words, &how::parts(&empty)); assert!(builder.finish().nodes().is_empty());
+            let rows: Vec<_> = nodes.iter().filter(|n| n.styles.as_slice().contains(&look::HOW_ROW)).collect();
+            assert_eq!(rows.len(), if goals { 3 } else { 2 });
+            for (row, title, small, figure) in [
+                (rows[0], b"Owns tests".as_slice(), "a standing role · 28 left", b"40".as_slice()),
+                (rows[1], b"Owns docs".as_slice(), "a standing role · 5 left", b"12".as_slice()),
+            ] {
+                let row = subtree(&tree, row);
+                named(row, Role::Text, title);
+                named(row, Role::Text, small.as_bytes());
+                named(row, Role::Text, figure);
+            }
+            if goals {
+                let row = subtree(&tree, rows[2]);
+                named(row, Role::Text, b"Goals");
+                named(row, Role::Text, b"80");
+            }
+            let empty = Facts { standing: Box::default(), goals: false, ..facts };
+            let mut builder = skein_ui::Builder::new(&f::tree_limits());
+            crate::pages::how::draw_budgets(&mut builder, &words, &how::parts(&empty));
+            assert!(builder.finish().nodes().is_empty());
         }
     }
 }

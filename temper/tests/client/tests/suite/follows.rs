@@ -1,10 +1,9 @@
 //! Accepted follow and one queued source landing, read through ctl (domain/forge/follows.md, 7).
 use jig_client_kit::harness::{App, ClientId, Settings, Until, World};
-use skein_lib::{Duration, ReplyTo, Token};
-use temper_client_domain::Address;
-use skein_ui::Role;
-use temper_engine_domain as engine;
 use jig_domain_people as people;
+use skein_lib::{Duration, ReplyTo, Token};
+use skein_ui::Role;
+use temper_client_domain::Address;
 use temper_client_world::{
     app::Temper,
     fixtures,
@@ -13,6 +12,7 @@ use temper_client_world::{
         ways::{self},
     },
 };
+use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 type Clients = World<Temper, Joint>;
 fn call(world: &mut Clients, agent: ClientId, words: &[&[u8]]) -> String {
@@ -26,12 +26,20 @@ fn call(world: &mut Clients, agent: ClientId, words: &[&[u8]]) -> String {
 fn an_accepted_follow_queues_a_landing_and_ctl_reads_its_lag() {
     let mut front = ways::follows(fixtures::SEED, &fixtures::domain_limits());
     front.engine.send(engine::Event::Party(engine::PartyInput::Ask {
-        models: Box::new([]), reply_to: ReplyTo::new(Token::new(81)), sign_in: front.engine.session(),
-        key: [81; 16], ask: people::Ask::MakeProject { name: "Source".into(), policy: 1 },
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(81)),
+        sign_in: front.engine.session(),
+        key: [81; 16],
+        ask: people::Ask::MakeProject { name: "Source".into(), policy: 1 },
     }));
     front.engine.settle();
-    assert!(front.engine.delivered.iter().any(|delivery| matches!(delivery,
-        engine::Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::ProjectMade { project: 2, .. }), .. })));
+    assert!(front.engine.delivered.iter().any(|delivery| matches!(
+        delivery,
+        engine::Delivery::WebReply {
+            reply: people::Reply::Outcome(people::Outcome::ProjectMade { project: 2, .. }),
+            ..
+        }
+    )));
     let mut world = World::new(
         Settings { seed: fixtures::SEED, words: fixtures::decision_words(), iterations: 4096, ..Settings::default() },
         front,
@@ -63,7 +71,26 @@ fn an_accepted_follow_queues_a_landing_and_ctl_reads_its_lag() {
             ],
         );
     }
-    call(&mut world, agent, &[b"repository", b"adopt", b"--project", b"2", b"--owner", b"acme", b"--name", b"shop", b"--landing", b"main", b"--role", b"owned", b"--key", b"source-owned"]);
+    call(
+        &mut world,
+        agent,
+        &[
+            b"repository",
+            b"adopt",
+            b"--project",
+            b"2",
+            b"--owner",
+            b"acme",
+            b"--name",
+            b"shop",
+            b"--landing",
+            b"main",
+            b"--role",
+            b"owned",
+            b"--key",
+            b"source-owned",
+        ],
+    );
     let caller = world.front().caller;
     let target = world.client(caller, Address::Settings { project: 1 });
     world.run(Until::Time(world.now().saturating_add(fixtures::WITHIN)));
@@ -112,7 +139,14 @@ fn an_accepted_follow_queues_a_landing_and_ctl_reads_its_lag() {
     assert_follow_page(&world, target, "1 behind · no check yet");
     world.event(target, Temper::went(Address::Settings { project: 2 }));
     world.run(Until::Time(world.now().saturating_add(Duration::from_secs(2))));
-    assert!(!world.tree(target).nodes().iter().any(|node| node.styles.as_slice().contains(&temper_client_view::look::HOW_FOLLOWS)), "source owns no follow");
+    assert!(
+        !world
+            .tree(target)
+            .nodes()
+            .iter()
+            .any(|node| node.styles.as_slice().contains(&temper_client_view::look::HOW_FOLLOWS)),
+        "source owns no follow"
+    );
     let shown = call(&mut world, agent, &[b"follow", b"show", b"--project", b"1", b"1"]);
     let after = temper_client_domain::forge::follows::after12(&entry.after);
     assert!(
@@ -128,10 +162,25 @@ fn an_accepted_follow_queues_a_landing_and_ctl_reads_its_lag() {
 
 fn assert_follow_page(world: &Clients, client: ClientId, status: &str) {
     let nodes = world.tree(client).nodes();
-    let reaches = nodes.iter().position(|node| node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"What reaches you")).expect("reaches");
-    let follows = nodes.iter().position(|node| node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"What follows a landing")).expect("follows");
+    let reaches = nodes
+        .iter()
+        .position(|node| node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"What reaches you"))
+        .expect("reaches");
+    let follows = nodes
+        .iter()
+        .position(|node| {
+            node.role == Role::Heading { level: 2 } && node.name.as_deref() == Some(b"What follows a landing")
+        })
+        .expect("follows");
     assert!(follows > reaches);
-    for (role, words) in [(Role::Heading { level: 3 }, "acme/second follows acme/shop"), (Role::Text, "code triggers, agents judge"), (Role::Paragraph, status)] {
-        assert!(nodes.iter().any(|node| node.role == role && node.name.as_deref() == Some(words.as_bytes())), "missing {words}");
+    for (role, words) in [
+        (Role::Heading { level: 3 }, "acme/second follows acme/shop"),
+        (Role::Text, "code triggers, agents judge"),
+        (Role::Paragraph, status),
+    ] {
+        assert!(
+            nodes.iter().any(|node| node.role == role && node.name.as_deref() == Some(words.as_bytes())),
+            "missing {words}"
+        );
     }
 }

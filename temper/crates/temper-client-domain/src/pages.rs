@@ -750,7 +750,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             if let Some(inbox) = pages.inbox.take() {
                 pages.next = pages.next.max(inbox.leave(out));
             }
-            if let Some(page) = pages.how.take() { page.leave(out); }
+            if let Some(page) = pages.how.take() {
+                page.leave(out);
+            }
             if let Some(page) = pages.stock_ways.take() {
                 page.leave(out);
             }
@@ -1325,7 +1327,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
     if pages.has_goals.told(&told) {
         return true;
     }
-    if let Some(page) = &pages.how && page.told(&told) { return true; }
+    if let Some(page) = &pages.how
+        && page.told(&told)
+    {
+        return true;
+    }
     if let Some(page) = &mut pages.stock_ways
         && page.told(&told, client, env.limits.forge, &mut pages.serial, out)
     {
@@ -1390,7 +1396,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
 }
 
 fn started(pages: &mut Pages, out: &mut Queue<Request>) {
-    if let Some(page) = pages.how.take() { page.leave(out); }
+    if let Some(page) = pages.how.take() {
+        page.leave(out);
+    }
     pages.start = None;
     pages.accounts.leave(out);
     pages.builders.leave(out);
@@ -1738,7 +1746,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         } else if let Some(mut page) = pages.connect_model.take() {
             page.leave();
         }
-        if let Some(page) = pages.how.take() { page.leave(out); }
+        if let Some(page) = pages.how.take() {
+            page.leave(out);
+        }
         let keep_ways = match address_project(&address) {
             Some(project) => {
                 address_project(&pages.address) == Some(project)

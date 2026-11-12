@@ -2068,7 +2068,10 @@ fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
             request:
                 jig_client::UnlinkedRequest::Down {
                     down:
-                        jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) },
+                        jig_client::Down::Open {
+                            watch,
+                            subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }),
+                        },
                 },
         } = request
             && query.label != Some(3)

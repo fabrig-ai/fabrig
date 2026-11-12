@@ -43,8 +43,11 @@ pub fn parity(value: Option<&w::FollowParity>) -> Box<[u8]> {
 /// Shared binding lag words (domain/forge/follows.md, 7).
 #[must_use]
 pub fn lag(count: u32) -> Box<[u8]> {
-    if count == 0 { Box::from(b"caught up".as_slice()) }
-    else { concat(&[Decimal::of(u64::from(count)).as_bytes(), b" behind"]) }
+    if count == 0 {
+        Box::from(b"caught up".as_slice())
+    } else {
+        concat(&[Decimal::of(u64::from(count)).as_bytes(), b" behind"])
+    }
 }
 /// One binding line, without a trailing newline.
 #[must_use]

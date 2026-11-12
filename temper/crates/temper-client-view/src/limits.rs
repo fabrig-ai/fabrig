@@ -141,7 +141,8 @@ impl Limits {
         let document = skein_ui::markdown::max_nodes(receiving.long_text)?
             .checked_add(receiving.long_text.checked_div(3)?.checked_mul(2)?)?
             .checked_add(24)?;
-        let structural = cards.checked_add(follows_nodes)?
+        let structural = cards
+            .checked_add(follows_nodes)?
             .checked_add(turns)?
             .checked_add(delegated)?
             .checked_add(goal)?
@@ -212,7 +213,8 @@ impl Limits {
         // Landing boxes occur on Settings, not alongside a full conversation.
         // Price their page separately: the shared frame and path, reaches and
         // role cards fit 4096 structural nodes, plus the watch's budget rows.
-        let settings_text = follows_text.checked_add(classes_text)?
+        let settings_text = follows_text
+            .checked_add(classes_text)?
             .checked_add(receiving.rows.checked_mul(7)?.checked_add(4096)?.checked_mul(text)?)?;
         let text_bytes = text_bytes.max(settings_text);
         let nodes = choices
@@ -224,12 +226,17 @@ impl Limits {
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
-            text_per_node: text.max(follows_phrase.checked_mul(6)?).max(classes_phrase.checked_mul(2)?).max(turn.checked_mul(2)?).max(builder_name).max(
-                temper_client_protocol_wire::v1::CEILINGS
-                    .deployment_answer_program_login_some
-                    .checked_add(phrase)?
-                    .checked_add(1)?,
-            ),
+            text_per_node: text
+                .max(follows_phrase.checked_mul(6)?)
+                .max(classes_phrase.checked_mul(2)?)
+                .max(turn.checked_mul(2)?)
+                .max(builder_name)
+                .max(
+                    temper_client_protocol_wire::v1::CEILINGS
+                        .deployment_answer_program_login_some
+                        .checked_add(phrase)?
+                        .checked_add(1)?,
+                ),
             // Whole builder names are held once per document row.
             text_bytes: text_bytes.checked_add(receiving.rows.checked_mul(builder_name)?)?,
             // Room for a flow and a 32-stop path (client/pages/chat/conversation.md, 3).

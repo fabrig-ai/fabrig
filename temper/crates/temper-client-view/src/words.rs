@@ -5300,20 +5300,48 @@ const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 const CLASSES_OBJECTS_BYTES: u32 = 6400;
 // Six 40-byte set names, four commas and the last conjunction (client/forge/README.md, 4.1).
 const APPROVAL_SET_NAMES_BYTES: u32 = 253;
-const FOLLOW_WORDS: [Word; 12] = [Word::HowFollowMain, Word::HowFollowBranch, Word::HowFollowTouches, Word::HowFollowOwned,
-        Word::HowFollowTitle, Word::HowFollowOwnerWord, Word::HowFollowCheck, Word::HowFollowStopped,
-        Word::HowFollowStatus, Word::HowTiersTitle, Word::HowTiersWords, Word::HowTierChecks];
+const FOLLOW_WORDS: [Word; 12] = [
+    Word::HowFollowMain,
+    Word::HowFollowBranch,
+    Word::HowFollowTouches,
+    Word::HowFollowOwned,
+    Word::HowFollowTitle,
+    Word::HowFollowOwnerWord,
+    Word::HowFollowCheck,
+    Word::HowFollowStopped,
+    Word::HowFollowStatus,
+    Word::HowTiersTitle,
+    Word::HowTiersWords,
+    Word::HowTierChecks,
+];
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
     if FOLLOW_WORDS.contains(&word) {
         let bounds = temper_client_protocol_wire::v1::CEILINGS;
-        let paths = bounds.follow_source_paths_item.checked_add(4).ok_or(Invalid::Overflow)?
-            .checked_mul(bounds.follow_source_paths).ok_or(Invalid::Overflow)?;
-        let tiers = bounds.card_name.checked_add(bounds.fact_value).ok_or(Invalid::Overflow)?
-            .checked_add(5).ok_or(Invalid::Overflow)?.checked_mul(bounds.branch_path_stops).ok_or(Invalid::Overflow)?;
-        let branch = bounds.follow_view_source.checked_add(bounds.follow_view_source_branch).ok_or(Invalid::Overflow)?;
-        return joined.max(paths).max(tiers).max(branch).max(bounds.follow_check_workflow)
-            .max(bounds.follow_view_stopped_some).checked_add(32).ok_or(Invalid::Overflow);
+        let paths = bounds
+            .follow_source_paths_item
+            .checked_add(4)
+            .ok_or(Invalid::Overflow)?
+            .checked_mul(bounds.follow_source_paths)
+            .ok_or(Invalid::Overflow)?;
+        let tiers = bounds
+            .card_name
+            .checked_add(bounds.fact_value)
+            .ok_or(Invalid::Overflow)?
+            .checked_add(5)
+            .ok_or(Invalid::Overflow)?
+            .checked_mul(bounds.branch_path_stops)
+            .ok_or(Invalid::Overflow)?;
+        let branch =
+            bounds.follow_view_source.checked_add(bounds.follow_view_source_branch).ok_or(Invalid::Overflow)?;
+        return joined
+            .max(paths)
+            .max(tiers)
+            .max(branch)
+            .max(bounds.follow_check_workflow)
+            .max(bounds.follow_view_stopped_some)
+            .checked_add(32)
+            .ok_or(Invalid::Overflow);
     }
     if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
         return Ok(CLASSES_OBJECTS_BYTES);
@@ -5691,13 +5719,17 @@ impl Words {
     /// Landing boxes are priced only on How work runs (client/pages/settings.md, 2).
     pub(crate) fn follows_capacity(&self) -> Option<u32> {
         let mut most = 0;
-        for word in FOLLOW_WORDS { most = most.max(self.book.capacity(word.id(self.connector))?); }
+        for word in FOLLOW_WORDS {
+            most = most.max(self.book.capacity(word.id(self.connector))?);
+        }
         Some(most)
     }
     pub(crate) fn ordinary_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in ALL {
-            if FOLLOW_WORDS.contains(&word) || [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
+            if FOLLOW_WORDS.contains(&word)
+                || [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word)
+            {
                 continue;
             }
             most = most.max(self.book.capacity(word.id(self.connector))?);

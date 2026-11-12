@@ -52,7 +52,15 @@ fn current(rng: &mut Rng) -> Read {
 
 fn facts(rng: &mut Rng) -> Facts {
     Facts {
-        period: None, standing: (0..rng.below(4)).map(|number| how::Standing { number, title: format!("Role {number}").into_bytes().into_boxed_slice(), left: amount(rng), budget: amount(rng) }).collect(),
+        period: None,
+        standing: (0..rng.below(4))
+            .map(|number| how::Standing {
+                number,
+                title: format!("Role {number}").into_bytes().into_boxed_slice(),
+                left: amount(rng),
+                budget: amount(rng),
+            })
+            .collect(),
         roles: false,
         asking: rng.chance(500),
         read: match rng.below(4) {
@@ -125,7 +133,14 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
                         actor,
                         step,
                         words,
-                        opens: if rng.chance(500) { w::Opens::Tier(w::OpensTier::new(limits, w::OpensTierParts { name: b"tier".as_slice().into() }).expect("tier")) } else { w::Opens::Nothing },
+                        opens: if rng.chance(500) {
+                            w::Opens::Tier(
+                                w::OpensTier::new(limits, w::OpensTierParts { name: b"tier".as_slice().into() })
+                                    .expect("tier"),
+                            )
+                        } else {
+                            w::Opens::Nothing
+                        },
                         card,
                     },
                 )

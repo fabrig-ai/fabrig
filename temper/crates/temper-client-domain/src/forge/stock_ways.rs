@@ -204,7 +204,10 @@ impl StockWays {
     #[must_use]
     pub fn current_path(&self) -> Option<&w::BranchPath> {
         let panel = self.panel()?;
-        match panel.current() { Some(index) => Some(panel.ways().get(*index)?.path()), None => Some(panel.own()) }
+        match panel.current() {
+            Some(index) => Some(panel.ways().get(*index)?.path()),
+            None => Some(panel.own()),
+        }
     }
     fn panel(&self) -> Option<&w::WaysPanel> {
         match &self.state {

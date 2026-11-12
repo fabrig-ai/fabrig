@@ -712,42 +712,109 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
 }
 
 fn follow_row(paths: &[&[u8]], start: w::FollowStart, lag: u32, verdict: Option<w::FollowVerdict>) -> w::FollowView {
-    let repo = w::FollowRepository::new(&w::CEILINGS, w::FollowRepositoryParts { forge: 1, repository: 7 }).expect("gallery follow");
-    let setting = w::Follow::new(&w::CEILINGS, w::FollowParts {
-        source: w::FollowSource::new(&w::CEILINGS, w::FollowSourceParts {
-            repository: repo.clone(), branch: b"main".as_slice().into(), paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
-        }).expect("gallery follow"),
-        target: w::FollowTarget::new(&w::CEILINGS, w::FollowTargetParts { repository: repo, branch: b"main".as_slice().into() }).expect("gallery follow"),
-        owner: w::FollowOwner::Person(w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).expect("gallery follow")), start, producer: None,
-        verification: w::FollowCheck::new(&w::CEILINGS, w::FollowCheckParts {
-            workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(), artifact: b"results".as_slice().into(), format: w::FollowFormat::Junit,
-        }).expect("gallery follow"),
-    }).expect("gallery follow");
-    let parity = verdict.map(|verdict| w::FollowParity::new(&w::CEILINGS, w::FollowParityParts { source: [0xab; 32], head: [0xcd; 32], verdict, run: b"check".as_slice().into() }).expect("gallery follow"));
-    w::FollowView::new(&w::CEILINGS, w::FollowViewParts {
-        number: 1, setting, source: b"cowsql/vsr".as_slice().into(), source_branch: b"main".as_slice().into(),
-        target: b"cowsql/vsr-rs".as_slice().into(), target_branch: b"main".as_slice().into(), task: None, stopped: None, lag,
-        entries: List::with_capacity(0), skips: List::with_capacity(0), parity,
-    }).expect("gallery follow")
+    let repo = w::FollowRepository::new(&w::CEILINGS, w::FollowRepositoryParts { forge: 1, repository: 7 })
+        .expect("gallery follow");
+    let setting = w::Follow::new(
+        &w::CEILINGS,
+        w::FollowParts {
+            source: w::FollowSource::new(
+                &w::CEILINGS,
+                w::FollowSourceParts {
+                    repository: repo.clone(),
+                    branch: b"main".as_slice().into(),
+                    paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
+                },
+            )
+            .expect("gallery follow"),
+            target: w::FollowTarget::new(
+                &w::CEILINGS,
+                w::FollowTargetParts { repository: repo, branch: b"main".as_slice().into() },
+            )
+            .expect("gallery follow"),
+            owner: w::FollowOwner::Person(
+                w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).expect("gallery follow"),
+            ),
+            start,
+            producer: None,
+            verification: w::FollowCheck::new(
+                &w::CEILINGS,
+                w::FollowCheckParts {
+                    workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
+                    artifact: b"results".as_slice().into(),
+                    format: w::FollowFormat::Junit,
+                },
+            )
+            .expect("gallery follow"),
+        },
+    )
+    .expect("gallery follow");
+    let parity = verdict.map(|verdict| {
+        w::FollowParity::new(
+            &w::CEILINGS,
+            w::FollowParityParts { source: [0xab; 32], head: [0xcd; 32], verdict, run: b"check".as_slice().into() },
+        )
+        .expect("gallery follow")
+    });
+    w::FollowView::new(
+        &w::CEILINGS,
+        w::FollowViewParts {
+            number: 1,
+            setting,
+            source: b"cowsql/vsr".as_slice().into(),
+            source_branch: b"main".as_slice().into(),
+            target: b"cowsql/vsr-rs".as_slice().into(),
+            target_branch: b"main".as_slice().into(),
+            task: None,
+            stopped: None,
+            lag,
+            entries: List::with_capacity(0),
+            skips: List::with_capacity(0),
+            parity,
+        },
+    )
+    .expect("gallery follow")
 }
 pub(super) fn follows(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     let row = follow_row(&[b"src", b"include"], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed));
-    let panel = w::FollowsPanel::new(&w::CEILINGS, w::FollowsPanelParts { project: PROJECT, follows: List::from_boxed(Box::new([row])) }).expect("gallery follow");
-    for up in [jig_client::Up::Watched { watch, event: c::WatchEvent::Opened }, jig_client::Up::FamilyDelivered { watch, record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::follows_panel(&panel) } }] {
+    let panel = w::FollowsPanel::new(
+        &w::CEILINGS,
+        w::FollowsPanelParts { project: PROJECT, follows: List::from_boxed(Box::new([row])) },
+    )
+    .expect("gallery follow");
+    for up in [
+        jig_client::Up::Watched { watch, event: c::WatchEvent::Opened },
+        jig_client::Up::FamilyDelivered {
+            watch,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::follows_panel(&panel),
+            },
+        },
+    ] {
         step(root, Event::Client { event: jig_client::Event::Up { up } }, out);
     }
 }
 pub(super) fn how_project() -> c::Project {
     let mut project = super::team::project(4, true);
     project.members.get_mut(0).expect("Pat").name = doc("Pat");
-    project.current_period = Some(c::PoolLedger { source: c::Funder::Period { project: PROJECT, period: 1 }, parent: None,
-        numbers: c::Numbers { budget: 1000, spent: 0, spent_below: 0, reserved: 0 }, left: 1000, closed: false,
-        began: Some(skein_lib::Wall::from_nanos(468_000_000_000_000)), next: Some(skein_lib::Wall::from_nanos(1_072_800_000_000_000)) });
+    project.current_period = Some(c::PoolLedger {
+        source: c::Funder::Period { project: PROJECT, period: 1 },
+        parent: None,
+        numbers: c::Numbers { budget: 1000, spent: 0, spent_below: 0, reserved: 0 },
+        left: 1000,
+        closed: false,
+        began: Some(skein_lib::Wall::from_nanos(468_000_000_000_000)),
+        next: Some(skein_lib::Wall::from_nanos(1_072_800_000_000_000)),
+    });
     project
 }
 pub(super) fn standing() -> c::Tasks {
     let mut task = super::base_task(41, "Owns the tests");
-    task.project = PROJECT; task.label = 3; task.chip.phase = c::Phase::Running;
-    task.budget.numbers.budget = 40; task.budget.left = 28;
+    task.project = PROJECT;
+    task.label = 3;
+    task.chip.phase = c::Phase::Running;
+    task.budget.numbers.budget = 40;
+    task.budget.left = 28;
     c::Tasks { rows: List::from_boxed(Box::new([super::task_line(task)])), more: false }
 }

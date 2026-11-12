@@ -540,12 +540,14 @@ fn standing_ctl() -> Ctl {
     front.engine.send(hello);
     front.engine.settle();
     Ctl::new(front, root)
-
 }
 #[test]
 fn a_started_standing_role_has_its_budget_on_how_work_runs() {
     let mut ctl = standing_ctl();
-    let started = ctl.call(&[b"role", b"start", b"--project", b"1", b"--budget", b"50", b"Owns the tests", b"--key", b"tests-role"], None);
+    let started = ctl.call(
+        &[b"role", b"start", b"--project", b"1", b"--budget", b"50", b"Owns the tests", b"--key", b"tests-role"],
+        None,
+    );
     assert_eq!(started.status, 0, "{started:?}");
     account_acts::reopen(&mut ctl.front, &mut ctl.root, temper_client_domain::Address::Settings { project: 1 });
     let root = ctl.root.person();
@@ -554,9 +556,18 @@ fn a_started_standing_role_has_its_budget_on_how_work_runs() {
     let mut view = temper_client_view::View::new(&bounds, &fixtures::domain_limits(), words, fixtures::FORGE);
     temper_client_view::build(&mut view, root, skein_lib::Wall::EPOCH, &mut skein_lib::Queue::uncapped());
     let nodes = view.tree().nodes();
-    let row = nodes.iter().position(|node| node.styles.as_slice().contains(&temper_client_view::look::HOW_ROW)).expect("standing row");
+    let row = nodes
+        .iter()
+        .position(|node| node.styles.as_slice().contains(&temper_client_view::look::HOW_ROW))
+        .expect("standing row");
     let end = row + usize::try_from(nodes[row].size).expect("row size");
     let row = &nodes[row..end];
-    for name in [b"Owns the tests".as_slice(), b"50"] { assert!(row.iter().any(|node| node.name.as_deref() == Some(name)), "missing {}", String::from_utf8_lossy(name)); }
-    assert!(row.iter().any(|node| node.name.as_deref().is_some_and(|name| name.starts_with("a standing role · ".as_bytes()) && name.ends_with(b" left"))));
+    for name in [b"Owns the tests".as_slice(), b"50"] {
+        assert!(row.iter().any(|node| node.name.as_deref() == Some(name)), "missing {}", String::from_utf8_lossy(name));
+    }
+    assert!(row.iter().any(|node| {
+        node.name
+            .as_deref()
+            .is_some_and(|name| name.starts_with("a standing role · ".as_bytes()) && name.ends_with(b" left"))
+    }));
 }

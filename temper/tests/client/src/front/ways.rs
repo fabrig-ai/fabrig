@@ -37,7 +37,13 @@ pub fn follows(seed: u64, limits: &client::Limits) -> Joint {
     configured(seed, limits, Reader::Owner, None, true)
 }
 #[expect(clippy::too_many_lines, reason = "the fixture joins stock, policy, projects and reader identity")]
-fn configured(seed: u64, limits: &client::Limits, reader: Reader, repository: Option<Repository>, projects: bool) -> Joint {
+fn configured(
+    seed: u64,
+    limits: &client::Limits,
+    reader: Reader,
+    repository: Option<Repository>,
+    projects: bool,
+) -> Joint {
     let mut engine_limits = engine_limits();
     engine_limits.tasks.charters = 13; // Kind 9's stock lines run up to charter 13.
     engine_limits.tasks.spec_bytes = engine_limits.tasks.spec_bytes.max(512);
@@ -114,7 +120,9 @@ fn configured(seed: u64, limits: &client::Limits, reader: Reader, repository: Op
         people::InitialOwner { project: 0, identity: owner.clone() },
         people::InitialOwner { project: 1, identity: owner },
     ]);
-    if projects { super::first_run_projects(&mut config, &mut engine_limits); }
+    if projects {
+        super::first_run_projects(&mut config, &mut engine_limits);
+    }
     let bootstrap = oracle::config::copy(&config);
     let accounts = temper_engine_domain_world::fixtures::account_rows(&config.core.settings.llm_providers);
     let mut cold = Driver::cold(Store::with_limits(&engine_limits), bootstrap, &engine_limits);

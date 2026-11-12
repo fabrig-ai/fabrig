@@ -145,28 +145,33 @@ pub(crate) fn budgets(b: &mut Builder, root: &Domain, w: &Words, project: u32) {
     draw_budgets(b, w, &how::parts(&how::facts(root, project)));
 }
 pub(crate) fn draw_budgets(b: &mut Builder, w: &Words, parts: &how::Parts) {
-    if parts.budget.is_none() && parts.standing.is_empty() { return; }
+    if parts.budget.is_none() && parts.standing.is_empty() {
+        return;
+    }
     super::settings::section_head(b, &w.say(Word::HowBudgets, &[]));
-    if let Some(period) = parts.period { text(b, Role::Text, &period_words(w, period), look::HOW_WAY); }
+    if let Some(period) = parts.period {
+        text(b, Role::Text, &period_words(w, period), look::HOW_WAY);
+    }
     b.close();
     for row in &parts.standing {
-        b.open(Role::Slot); b.style(look::HOW_ROW);
+        b.open(Role::Slot);
+        b.style(look::HOW_ROW);
         crate::cards::text(b, Role::Text, &row.title);
         text(b, Role::Text, &w.say(Word::HowStanding, &[Hole::Number(row.left)]), look::SETTINGS_DETAIL);
         crate::cards::text(b, Role::Text, &w.say(Word::HowAmount, &[Hole::Number(row.budget)]));
         b.close();
     }
     if let Some(budget) = parts.budget {
-    b.open(Role::Slot);
-    b.style(look::HOW_ROW);
-    crate::cards::text(b, Role::Text, &w.say(Word::SettingsGoals, &[]));
-    text(b, Role::Text, &w.say(Word::HowBudgetLine, &[]), look::SETTINGS_DETAIL);
-    let (word, number) = match budget {
-        Budget::Amount(number) => (Word::HowAmount, number),
-        Budget::UpTo(number) => (Word::HowUpTo, number),
-    };
-    crate::cards::text(b, Role::Text, &w.say(word, &[Hole::Number(number)]));
-    b.close();
+        b.open(Role::Slot);
+        b.style(look::HOW_ROW);
+        crate::cards::text(b, Role::Text, &w.say(Word::SettingsGoals, &[]));
+        text(b, Role::Text, &w.say(Word::HowBudgetLine, &[]), look::SETTINGS_DETAIL);
+        let (word, number) = match budget {
+            Budget::Amount(number) => (Word::HowAmount, number),
+            Budget::UpTo(number) => (Word::HowUpTo, number),
+        };
+        crate::cards::text(b, Role::Text, &w.say(word, &[Hole::Number(number)]));
+        b.close();
     }
     b.close();
 }
@@ -305,13 +310,24 @@ fn ask_note(w: &Words, classes: &temper_protocol_reaches::Classes, lines: &[how:
 fn period_words(w: &Words, period: how::Period) -> Box<[u8]> {
     let word = w.say(if period.week { Word::HowWeek } else { Word::HowPeriod }, &[]);
     match period.next {
-        Some(next) => w.say(Word::HowRenews, &[Hole::Name(word), Hole::Name(w.time(crate::words::TimeForm::Weekday, next, next).0)]),
+        Some(next) => w.say(
+            Word::HowRenews,
+            &[Hole::Name(word), Hole::Name(w.time(crate::words::TimeForm::Weekday, next, next).0)],
+        ),
         None => word,
     }
 }
-enum Who { Code, Agent, Person }
+enum Who {
+    Code,
+    Agent,
+    Person,
+}
 fn chip(b: &mut Builder, words: &[u8], who: Who) {
-    let style = match who { Who::Code => look::HOW_WHO_CODE, Who::Agent => look::HOW_WHO_AGENT, Who::Person => look::HOW_WHO_PERSON };
+    let style = match who {
+        Who::Code => look::HOW_WHO_CODE,
+        Who::Agent => look::HOW_WHO_AGENT,
+        Who::Person => look::HOW_WHO_PERSON,
+    };
     text(b, Role::Text, words, style);
 }
 pub(crate) fn follows(b: &mut Builder, root: &Domain, w: &Words, project: u32) {
@@ -319,67 +335,112 @@ pub(crate) fn follows(b: &mut Builder, root: &Domain, w: &Words, project: u32) {
 }
 /// Shared boxes (client/pages/settings.md, 2, *What follows a landing*).
 pub(crate) fn draw_follows(b: &mut Builder, w: &Words, landed: &how::Landed) {
-    if landed.follows.is_empty() && landed.tiers.is_none() { return; }
+    if landed.follows.is_empty() && landed.tiers.is_none() {
+        return;
+    }
     super::settings::section_head(b, &w.say(Word::HowFollows, &[]));
-    text(b, Role::Text, &w.say(Word::HowFollowsLine, &[]), look::HOW_WAY); b.close();
-    b.open(Role::Slot); b.style(look::HOW_FOLLOWS);
+    text(b, Role::Text, &w.say(Word::HowFollowsLine, &[]), look::HOW_WAY);
+    b.close();
+    b.open(Role::Slot);
+    b.style(look::HOW_FOLLOWS);
     for follow in &landed.follows {
-        box_head(b, &w.say(Word::HowFollowTitle, &[Hole::Name(follow.target.clone()), Hole::Name(follow.source.clone())]));
+        box_head(
+            b,
+            &w.say(Word::HowFollowTitle, &[Hole::Name(follow.target.clone()), Hole::Name(follow.source.clone())]),
+        );
         text(b, Role::Paragraph, &follow_words(w, follow), look::SETTINGS_DETAIL);
         let lag = temper_client_domain::forge::follows::lag(follow.lag);
-        text(b, Role::Paragraph, &w.say(Word::HowFollowStatus, &[Hole::Name(lag), Hole::Name(follow.parity.clone())]), look::HOW_REACH_NOTE);
+        text(
+            b,
+            Role::Paragraph,
+            &w.say(Word::HowFollowStatus, &[Hole::Name(lag), Hole::Name(follow.parity.clone())]),
+            look::HOW_REACH_NOTE,
+        );
         if let Some(stopped) = &follow.stopped {
-            text(b, Role::Paragraph, &w.say(Word::HowFollowStopped, &[Hole::Name(stopped.clone())]), look::SETTINGS_DETAIL);
+            text(
+                b,
+                Role::Paragraph,
+                &w.say(Word::HowFollowStopped, &[Hole::Name(stopped.clone())]),
+                look::SETTINGS_DETAIL,
+            );
         }
-        b.open(Role::Slot); b.style(look::HOW_CHIPS);
+        b.open(Role::Slot);
+        b.style(look::HOW_CHIPS);
         chip(b, &w.say(Word::HowHearsLanding, &[]), Who::Code);
         chip(b, &w.say(Word::HowAgentPorts, &[]), Who::Agent);
         chip(b, &w.say(Word::HowCodeChecks, &[]), Who::Code);
-        b.close(); b.close();
+        b.close();
+        b.close();
     }
     if let Some(tiers) = &landed.tiers {
         box_head(b, &w.say(Word::HowTiersTitle, &[Hole::Name(tiers.branch.clone())]));
         let mut names = skein_lib::List::uncapped();
         for tier in &tiers.tiers {
             let name = match &tier.checks {
-                Some(checks) => w.say(Word::HowTierChecks, &[Hole::Name(tier.name.clone()), Hole::Name(checks.clone())]),
+                Some(checks) => {
+                    w.say(Word::HowTierChecks, &[Hole::Name(tier.name.clone()), Hole::Name(checks.clone())])
+                }
                 None => tier.name.clone(),
             };
             names.push(name).expect("tiers grow");
         }
         let joined = join(names.as_slice(), b"; ", b"; ");
-        text(b, Role::Paragraph, &w.say(Word::HowTiersWords, &[Hole::Name(tiers.branch.clone()), Hole::Name(joined)]), look::SETTINGS_DETAIL);
-        b.open(Role::Slot); b.style(look::HOW_CHIPS);
+        text(
+            b,
+            Role::Paragraph,
+            &w.say(Word::HowTiersWords, &[Hole::Name(tiers.branch.clone()), Hole::Name(joined)]),
+            look::SETTINGS_DETAIL,
+        );
+        b.open(Role::Slot);
+        b.style(look::HOW_CHIPS);
         chip(b, &w.say(Word::HowCodeRuns, &[]), Who::Code);
         chip(b, &w.say(Word::HowAgentRepairs, &[]), Who::Agent);
-        b.close(); b.close();
+        b.close();
+        b.close();
     }
-    b.close(); b.close();
+    b.close();
+    b.close();
 }
 fn box_head(b: &mut Builder, title: &[u8]) {
-    b.open(Role::Group); b.style(look::HOW_FOLLOW); b.name(title);
+    b.open(Role::Group);
+    b.style(look::HOW_FOLLOW);
+    b.name(title);
     crate::cards::text(b, Role::Heading { level: 3 }, title);
 }
 fn join(items: &[Box<[u8]>], middle: &[u8], last: &[u8]) -> Box<[u8]> {
     let mut joined = Box::default();
     for (index, item) in items.iter().enumerate() {
-        let separator = if index == 0 { b"".as_slice() } else if index.checked_add(1) == Some(items.len()) { last } else { middle };
+        let separator = if index == 0 {
+            b"".as_slice()
+        } else if index.checked_add(1) == Some(items.len()) {
+            last
+        } else {
+            middle
+        };
         joined = concat(&[&joined, separator, item]);
     }
     joined
 }
 fn follow_words(w: &Words, follow: &how::Follow) -> Box<[u8]> {
-    let touches = if follow.paths.is_empty() { Box::default() }
-        else { w.say(Word::HowFollowTouches, &[Hole::Name(join(&follow.paths, b", ", b" or "))]) };
+    let touches = if follow.paths.is_empty() {
+        Box::default()
+    } else {
+        w.say(Word::HowFollowTouches, &[Hole::Name(join(&follow.paths, b", ", b" or "))])
+    };
     let owned = match &follow.owner {
         how::Owner::You => w.say(Word::HowFollowOwned, &[Hole::Name(w.say(Word::HowFollowYou, &[]))]),
         how::Owner::Named(name) => w.say(Word::HowFollowOwned, &[Hole::Name(name.clone())]),
         how::Owner::Unknown => Box::default(),
     };
-    let source = w.say(Word::HowFollowBranch, &[Hole::Name(follow.source.clone()), Hole::Name(follow.source_branch.clone())]);
-    let target = w.say(Word::HowFollowBranch, &[Hole::Name(follow.target.clone()), Hole::Name(follow.target_branch.clone())]);
-    let main = w.say(Word::HowFollowMain, &[Hole::Name(source), Hole::Name(touches), Hole::Name(target), Hole::Name(owned)]);
-    let start = if follow.code_starts { w.say(Word::HowFollowCode, &[]) } else {
+    let source =
+        w.say(Word::HowFollowBranch, &[Hole::Name(follow.source.clone()), Hole::Name(follow.source_branch.clone())]);
+    let target =
+        w.say(Word::HowFollowBranch, &[Hole::Name(follow.target.clone()), Hole::Name(follow.target_branch.clone())]);
+    let main =
+        w.say(Word::HowFollowMain, &[Hole::Name(source), Hole::Name(touches), Hole::Name(target), Hole::Name(owned)]);
+    let start = if follow.code_starts {
+        w.say(Word::HowFollowCode, &[])
+    } else {
         match &follow.owner {
             how::Owner::You => w.say(Word::HowFollowYourWord, &[]),
             how::Owner::Named(name) => w.say(Word::HowFollowOwnerWord, &[Hole::Name(name.clone())]),
