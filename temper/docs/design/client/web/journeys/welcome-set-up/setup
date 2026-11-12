@@ -1,0 +1,3 @@
+setup 1
+reload "/welcome"
+mark 7 "work/hello made"
