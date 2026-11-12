@@ -49,7 +49,7 @@ fn embed(out: &std::path::Path) -> Result<String, String> {
             return Err(format!("temper-client-bundle: {step} failed: {status}"));
         }
     }
-    let dep = target.join("bundle/wasm32-unknown-unknown").join(profile.1).join("temper_client_shell_web.d");
+    let dep = steps::module_dep_info(&target, profile.1);
     let dep = fs::read_to_string(dep).map_err(|why| format!("temper-client-bundle: reading module dep-info: {why}"))?;
     let workspace = root.parent().ok_or("temper-client-bundle: temper's tree has no workspace above it")?;
     for path in steps::rerun_paths(workspace, &root, &steps::dep_info(&dep)?) {

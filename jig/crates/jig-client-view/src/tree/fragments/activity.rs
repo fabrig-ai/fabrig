@@ -285,13 +285,33 @@ fn line(b: &mut Builder, value: &Activity, words: &Words) {
             caption(b, words, P::Decided);
             number(b, words, P::Revision, *revision);
         }
+        Activity::NowWritten { attempt, line } => {
+            number(b, words, P::Attempt, *attempt);
+            caption(b, words, P::NowWritten);
+            crate::words::literal_segment::render(b, line.bytes());
+        }
         Activity::Stood { attempt, words: text } => {
             caption(b, words, P::Parked);
             number(b, words, P::Attempt, *attempt);
             caption(b, words, P::WholeWords);
             crate::words::literal_segment::render(b, text.bytes());
         }
-        Activity::SessionEnded { attempt, .. } => {
+        Activity::TalkOpened { party } => {
+            caption(b, words, P::TalkOpened);
+            number(b, words, P::PersonIdentity, *party);
+        }
+        Activity::TalkEnded { lapsed, .. } => caption(b, words, if *lapsed { P::TalkLapsed } else { P::TalkEnded }),
+        Activity::SessionEnded { attempt, end } => {
+            match end {
+                jig_client::contract::SessionEnd::Talk => caption(b, words, P::SessionTalk),
+                jig_client::contract::SessionEnd::Left => caption(b, words, P::SessionLeft),
+                jig_client::contract::SessionEnd::Quiet
+                | jig_client::contract::SessionEnd::Bound
+                | jig_client::contract::SessionEnd::Unoffered
+                | jig_client::contract::SessionEnd::Fresh
+                | jig_client::contract::SessionEnd::Closed
+                | jig_client::contract::SessionEnd::Rules => {}
+            }
             caption(b, words, P::RunEnded);
             number(b, words, P::Attempt, *attempt);
         }

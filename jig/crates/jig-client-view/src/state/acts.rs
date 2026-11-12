@@ -115,7 +115,9 @@ pub fn revision(object: &Object, act: ActKind) -> Option<Revision> {
             )
             | None => None,
         },
-        ActKind::Message
+        ActKind::Talk
+        | ActKind::Leave
+        | ActKind::Message
         | ActKind::Take
         | ActKind::HandBack
         | ActKind::Withdraw
@@ -211,6 +213,8 @@ pub fn ask(object: &Object, confirmation: &Confirmation, fields: &Fields) -> Opt
         ActKind::Answer => answer(object, confirmation, fields, project, task),
         ActKind::Take => Some(Ask::Take { project, task }),
         ActKind::HandBack => Some(Ask::HandBack { project, task }),
+        ActKind::Leave => Some(Ask::Leave { project, task }),
+        ActKind::Talk => Some(Ask::Talk { project, task, words: words(fields, Purpose::Composer { task })? }),
         ActKind::Message => {
             let words = words(fields, Purpose::Composer { task })?;
             if choices.release {
@@ -279,6 +283,8 @@ fn decide(object: &Object, confirmation: &Confirmation, fields: &Fields, project
                 ActKind::Reject => Decision::Rejected { reason: words(fields, Purpose::Reason)? },
                 ActKind::PassUp => Decision::PassedUp,
                 ActKind::Withdraw
+                | ActKind::Talk
+                | ActKind::Leave
                 | ActKind::Message
                 | ActKind::Answer
                 | ActKind::Take
@@ -376,7 +382,9 @@ pub fn note_ask(project: u32, note: &Note, act: ActKind, description: Text, body
         ActKind::DeleteNote => {
             Some(Ask::DeleteNote { project, note: note.number, scope: note.scope.clone(), revision: note.revision })
         }
-        ActKind::Message
+        ActKind::Talk
+        | ActKind::Leave
+        | ActKind::Message
         | ActKind::Answer
         | ActKind::Take
         | ActKind::HandBack

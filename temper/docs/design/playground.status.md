@@ -2,6 +2,7 @@
 
 2026-11-09. Where temper's code lags or departs from [playground.md](playground.md).
 
+
 Section 9's walk of story A in the one-process world, by the terminal
 client, from the welcome to the CSV change landed and the three replies
 seen, runs (`temper/tests/one-process/tests/suite/story_a.rs`): the
@@ -65,12 +66,6 @@ doubling startup refuses, and `documents.text_bytes`,
     no test fails a world in a browser: the tier downloads a whole
     walk's log from the frame, and that log replays natively.
 - **Departs:**
-  - 6, 9: the page's code builds on wasm32 with or without the feature
-    `playground`, which chooses the module's entry alone
-    (`temper-client-shell-web`'s `src/lib.rs` and
-    `src/playground/web.rs`), because the gate's list holds packages, not
-    features: so the gate lints the page's code, but not the shell with
-    its feature, which `scripts/bundle.sh --playground` alone builds.
   - 9: the kept log replays under the one-process world's forge referee
     alone (`temper/tests/one-process/src/replay.rs`, `Refereed`),
     because the referee's parts that watch the terminal client's person

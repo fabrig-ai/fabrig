@@ -43,7 +43,7 @@ fn fixture_title(
     deliver_asked(&mut root, decided, None);
     root
 }
-fn fixture_watched(
+pub(super) fn fixture_watched(
     words: &str,
     cut: bool,
     count: u32,
@@ -232,7 +232,11 @@ fn fixture_classes_role(
     assert!(root.pages().inbox().unwrap().delivered(root.client()));
     (root, watch, decided.unwrap())
 }
-fn deliver_asked(root: &mut d::Domain, watch: skein_lib::Token, reach: Option<temper_protocol_reaches::Reach>) {
+pub(super) fn deliver_asked(
+    root: &mut d::Domain,
+    watch: skein_lib::Token,
+    reach: Option<temper_protocol_reaches::Reach>,
+) {
     deliver_asked_for(root, watch, f::PROJECT, reach);
 }
 fn deliver_asked_for(

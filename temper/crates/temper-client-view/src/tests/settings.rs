@@ -31,6 +31,113 @@ fn find(tree: &Tree, role: Role, name: &[u8]) -> skein_ui::NodeId {
 fn root(address: Address) -> d::Domain {
     f::root_at(address, &f::domain_limits()).0
 }
+fn deletion_root(role: c::HeldRole) -> d::Domain {
+    let (mut root, watch, _) = f::root_at(settings(), &f::domain_limits());
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    let project = me.projects.get_mut(0).unwrap();
+    project.role = role;
+    project.name = c::DocumentText::complete(c::Text::new(Box::from(*b"fabrig"), 32).unwrap());
+    f::deliver_me(&mut root, watch, me);
+    root
+}
+fn deletion_act(root: &mut d::Domain, act: pages::Act) -> Queue<d::Request> {
+    drive(root, d::Event::Act { action: d::Action::Pages(act) })
+}
+#[test]
+fn how_work_runs_ends_with_a_plain_delete_button_for_owners_only() {
+    for role in [c::HeldRole::Owner, c::HeldRole::Member, c::HeldRole::Policy { role: 1 }] {
+        let root = deletion_root(role);
+        for browser in [false, true] {
+            let mut view = how_view(&root, browser);
+            let delete = main(view.tree())
+                .iter()
+                .find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Delete project"));
+            assert_eq!(delete.is_some(), role == c::HeldRole::Owner);
+            if let Some(delete) = delete {
+                assert!(delete.styles.is_empty());
+                let id = delete.id;
+                let body = styled(view.tree(), look::SETTINGS_BODY);
+                assert_eq!(body.last().unwrap().id, id);
+                assert_eq!(
+                    crate::act(&mut view, id, Act::Press),
+                    Some(d::Action::Pages(pages::Act::DeleteProject { project: 1 }))
+                );
+            }
+        }
+    }
+}
+#[test]
+fn the_delete_sheet_names_the_project_and_keep_it_or_escape_closes_without_sending() {
+    let mut root = deletion_root(c::HeldRole::Owner);
+    for browser in [false, true] {
+        assert!(deletion_act(&mut root, pages::Act::DeleteProject { project: 1 }).is_empty());
+        let mut view = how_view(&root, browser);
+        let dialog = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::Dialog && n.name.as_deref() == Some(b"Delete fabrig?"))
+            .expect("named deletion sheet");
+        let nodes = subtree(view.tree(), dialog.id);
+        let said = String::from_utf8(f::text(view.tree()).to_vec()).unwrap();
+        assert!(said.contains("fabrig leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can’t be undone."));
+        let buttons: Vec<_> = nodes.iter().filter(|n| n.role == Role::Button).collect();
+        assert_eq!(
+            buttons.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+            [b"Keep it".as_slice(), b"Delete project"]
+        );
+        assert_eq!(buttons[0].shortcut, Some(skein_ui::Shortcut::ESCAPE));
+        let keep = buttons[0].id;
+        let does = buttons[1].id;
+        assert_eq!(crate::act(&mut view, does, Act::Press), Some(d::Action::Pages(pages::Act::Confirm)));
+        let Some(d::Action::Pages(cancel)) = crate::act(&mut view, keep, Act::Press) else { panic!("Keep it cancels") };
+        assert_eq!(cancel, pages::Act::Cancel);
+        assert!(deletion_act(&mut root, cancel).is_empty());
+        assert!(root.pages().deleting_project().is_none());
+    }
+}
+#[test]
+fn a_refused_delete_sheet_says_jigs_role_words_above_its_acts() {
+    let mut root = deletion_root(c::HeldRole::Owner);
+    deletion_act(&mut root, pages::Act::DeleteProject { project: 1 });
+    let mut out = deletion_act(&mut root, pages::Act::Confirm);
+    let mut sent = None;
+    while let Some(request) = out.pop() {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = request
+        {
+            sent = Some(attempt);
+        }
+    }
+    let attempt = sent.expect("deletion sent");
+    let refusal = c::Refusal::Role { held: Some(c::HeldRole::Member) };
+    drive(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(c::Answer::Refused { refusal: refusal.clone(), at: None })),
+                    why: None,
+                },
+            },
+        },
+    );
+    for browser in [false, true] {
+        let view = how_view(&root, browser);
+        let expected = f::words().say_word(jig_client::words::Word::refusal(&refusal), &[]);
+        let dialog = view.tree().nodes().iter().find(|n| n.role == Role::Dialog).expect("refused sheet stays open");
+        let nodes = subtree(view.tree(), dialog.id);
+        let why = nodes
+            .iter()
+            .position(|n| n.text.iter().any(|run| run.text.as_ref() == expected.as_ref()))
+            .expect("jig's refusal words");
+        let acts = nodes.iter().position(|n| n.styles.as_slice().contains(&look::CONFIRM_ACTS)).unwrap();
+        assert!(why < acts);
+    }
+}
 fn repositories() -> Address {
     Address::Repositories { project: f::PROJECT }
 }
@@ -147,7 +254,7 @@ fn every_tab_draws_its_head_and_tabs_in_order() {
 }
 #[test]
 fn start_goes_to_ask_and_go_on_to_the_open_chat() {
-    let (mut root, me_watch, _) = f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits());
+    let (mut root, me_watch, _) = f::root_at(Address::Accounts, &f::domain_limits());
     let template = f::chat::messaging_root();
     let offered = f::asking_me(template.pages().me(template.client()).unwrap().clone());
     let mut absent = offered.clone();
@@ -155,6 +262,9 @@ fn start_goes_to_ask_and_go_on_to_the_open_chat() {
     project.templates =
         List::from_boxed(project.templates.iter().filter(|template| template.number != 5).cloned().collect());
     f::deliver_me(&mut root, me_watch, absent);
+    // Keep the Settings-owned chat watch while its offered templates change.
+    let mut out =
+        drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         assert!(!view.tree().nodes().iter().any(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Ask temper")));
     }
@@ -177,18 +287,19 @@ fn start_goes_to_ask_and_go_on_to_the_open_chat() {
         }
         assert!(!main(view.tree()).iter().any(|n| n.name.as_deref() == Some(b"Ask temper")));
     }
-    drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
-    let mut out =
-        drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
     let mut task_watch = None;
     while let Some(request) = out.pop() {
         if let d::Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down {
                     down:
-                        jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) },
+                        jig_client::Down::Open {
+                            watch,
+                            subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }),
+                        },
                 },
         } = request
+            && query.label != Some(3)
         {
             task_watch = Some(watch);
         }
@@ -634,7 +745,6 @@ fn the_way_is_chosen_and_sends_the_whole_record() {
 fn the_questions_select_sends_its_route() {
     for browser in [false, true] {
         for (label, route, value) in [
-            ("Answered by the goal, kept in its decisions", w::QuestionsRoute::Foreman, b"foreman".as_slice()),
             ("Asked of me too", w::QuestionsRoute::Up, b"up".as_slice()),
             ("Not asked: each agent decides alone", w::QuestionsRoute::None, b"none".as_slice()),
         ] {
@@ -652,7 +762,6 @@ fn the_questions_select_sends_its_route() {
                 asked: Asked::Questions(Route::None),
             }));
             let expected = match route {
-                w::QuestionsRoute::Foreman => Route::Foreman,
                 w::QuestionsRoute::Up => Route::Up,
                 w::QuestionsRoute::None => Route::None,
             };
@@ -727,7 +836,7 @@ fn the_value_asked_shows_while_out() {
                 .as_slice()
                 .contains(&State::Disabled)
         );
-        let id = find(view.tree(), Role::Option, b"Answered by the goal, kept in its decisions");
+        let id = find(view.tree(), Role::Option, b"Not asked: each agent decides alone");
         assert_eq!(crate::act(&mut view, id, Act::Press), None);
     }
 }
@@ -1889,5 +1998,20 @@ fn assert_role_page(root: &d::Domain, address: &Address, value: Option<&w::View>
             let id = back.id;
             assert_eq!(crate::href(&mut view, id), Some(d::address::print(&settings())));
         }
+    }
+}
+
+#[test]
+fn the_questions_select_has_only_two_routes() {
+    let root = how(Some(SHOWN));
+    for browser in [false, true] {
+        let view = how_view(&root, browser);
+        let row = setting_row(view.tree(), b"Questions a goal can answer from its plan");
+        let options: Vec<_> =
+            row.iter().filter(|node| node.role == Role::Option).map(|node| node.name.as_deref()).collect();
+        assert_eq!(
+            options,
+            [Some(b"Asked of me too".as_slice()), Some(b"Not asked: each agent decides alone".as_slice())]
+        );
     }
 }

@@ -42,7 +42,8 @@ impl Orgs {
         let answer = reply(event)?;
         match self.phase {
             Phase::Org | Phase::Create => {
-                if let Reply::Document(Document::Org(_)) = answer {
+                if let Reply::Document(document) = answer {
+                    let Document::Org(_) = *document else { return Err(Why::Unexpected) };
                     Ok(self.next(machine))
                 } else if answer == Reply::Status(404) && self.phase == Phase::Org {
                     self.phase = Phase::Create;

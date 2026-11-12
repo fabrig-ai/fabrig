@@ -55,6 +55,8 @@ pub fn proposal(value: &d::ProposalRef, limits: &w::Limits) -> Result<w::Proposa
 pub fn act(value: acts::Act) -> Result<w::ActKind, w::Problem> {
     Ok(match value {
         acts::Act::Reorder => w::ActKind::Reorder,
+        acts::Act::Talk => w::ActKind::Talk,
+        acts::Act::Leave => w::ActKind::Leave,
         acts::Act::Message => w::ActKind::Message,
         acts::Act::Answer => w::ActKind::Answer,
         acts::Act::Take => w::ActKind::Take,
@@ -291,6 +293,7 @@ pub fn delegates_pieces(rows: &List<w::LiveDelegate>, bound: u32, path: w::Path)
     }
     pieces(&encoded, bound, path)
 }
+#[expect(clippy::too_many_lines, reason = "one bounded task document translates each supplied field")]
 pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) -> Result<w::Task, w::Problem> {
     // The task document carries its dependency waits.
     if value.project != value.chip.details.project
@@ -334,6 +337,20 @@ pub fn document(value: &d::Task, models: &[crate::Model], limits: &w::Limits) ->
     w::Task::new(
         limits,
         w::TaskParts {
+            talk: match value.talk {
+                Some(talk) => Some(w::Talk::new(
+                    limits,
+                    w::TalkParts { party: talk.party, opened: talk.opened.as_nanos(), last: talk.last.as_nanos() },
+                )?),
+                None => None,
+            },
+            session: match value.session {
+                Some(session) => Some(w::Session::new(
+                    limits,
+                    w::SessionParts { first: session.first, last: session.last.as_nanos() },
+                )?),
+                None => None,
+            },
             settings: settings(value.settings, limits)?,
             dependency_facts: chips::dependencies(&value.dependency_facts, limits)?,
             llm: super::llm::choice(value.llm.as_ref(), models, limits)?,

@@ -1,4 +1,4 @@
-//! The TUI's screens from the client and the TUI's state (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/README.md, 4.1).
+//! The TUI's screens from the client and the TUI's state (temper/docs/design/client/tui/pages/README.md, temper/docs/design/client/tui/pages/launchpad.md and temper/docs/design/client/README.md, 4.1).
 use crate::{
     Browser, Event, Local, Own, Refusal, Signing, Tui, approval_address, look,
     words::{Word, Words},
@@ -546,7 +546,7 @@ pub fn goal_offered(root: &Domain) -> bool {
     false
 }
 
-/// The launchpad's selection keys (temper/docs/design/client/tui/pages/README.md).
+/// The launchpad's selection keys (temper/docs/design/client/tui/pages/launchpad.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Arrow {
     Up,
@@ -596,12 +596,12 @@ fn has_needs(root: &Domain) -> bool {
         None => false,
     }
 }
-/// The launchpad's walk key on the tree last built (client/tui/pages/README.md).
+/// The launchpad's walk key on the tree last built (client/tui/pages/launchpad.md).
 #[must_use]
 pub fn walk_key(view: &View) -> Option<Event> {
     if view.walkable { Some(Event::Own { command: Own::Needs }) } else { None }
 }
-/// A chat's number among the displayed left-off rows (client/tui/pages/README.md).
+/// A chat's number among the displayed left-off rows (client/tui/pages/launchpad.md).
 #[must_use]
 pub fn chat_number(view: &View, number: u32) -> Option<u64> {
     for (task, kind) in &view.left_off {

@@ -59,8 +59,8 @@ const RECORD: Command = Command {
 pub const TABLE: Table = Table {
     binary: "temper-git-transcripts",
     line: "git's transcripts, recorded from real git against a throwaway Forgejo.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    version: "",
+    commit: "",
     commands: &[RECORD],
     settings: &[],
     variables: &[&TEMPER_TEST_FORGEJO],
@@ -73,10 +73,10 @@ pub const TABLE: Table = Table {
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-git-transcripts' arguments and environment, once (skein/docs/foundation/cli.md, 6)"
 )]
-pub fn main() -> ExitCode {
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let arguments = skein_shell::arguments();
     let environment = skein_shell::environment();
-    match TABLE.front(&arguments) {
+    match (Table { version, commit, ..TABLE }).front(&arguments) {
         Front::Print(text) => {
             print!("{text}");
             ExitCode::SUCCESS

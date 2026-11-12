@@ -218,6 +218,11 @@ Every request has one answer, of one of these kinds:
     a circle of waits, with the live tasks or among its own: the circle's
     tasks, in order, each waiting for the next, cut at its limit
     (`../../../domain/tasks/holds.md`, 7);
+  - *live tasks:* an owner's `RemoveProject` of a project with live work:
+    the project's live roots, by number, lowest first, at most 32, and
+    how many more (`../../../domain/people/acts.md`, 2), in jig's words
+    "This project has live tasks; end them first:", each client listing
+    the numbers after them;
   - *dependency:* a dependency an amendment adds has failed or was
     cancelled, naming it and how it ended (`../../../domain/tasks/changes.md`
     );
@@ -350,6 +355,12 @@ party reads is therefore never lost by a crash.
   sees no parts, and nothing of a range reaches the wire.
 - **Pages** are within a row and a byte limit, and carry a cursor for the
   next, or say there is none (`../../../domain/engine/README.md`, 5.3).
+- **A deleted project's read is gone.** A read of a project the
+  people child marks deleted, while its deletion lasts and after it,
+  answers *gone* to any signed-in party, where a project absent or
+  hidden from them answers unknown; nothing else of it is read
+  (`../../../domain/people/acts.md`, 2, *Marked deleted*). Its other
+  reads, requests and watches are unknown, as a project never made.
 - **Refused** for what the party may not see, as unknown; when the
   engine's loads are full, as busy; when the sign-in has ended, as
   signed out (../client/README.md, section 9); in a version the engine does not

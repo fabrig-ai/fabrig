@@ -31,7 +31,7 @@ the foot and the commands (`../box.md`).
   else" (`chat.md`, section 2); the notice standing (`README.md`, section 1, *The notice*);
   the theme chosen, the terminal's scheme Auto reads, and whether the
   theme's list stands (`README.md`, section 2, *`/theme`*); the left-off chat selected on the
-  launchpad, by its task (`launchpad.md`, section 1, *Where you left off*); the reply whose choices
+  launchpad, by its task (`launchpad.md`, 4, *Where you left off*); the reply whose choices
   were set aside, and the chat a goal's start was asked from (`design-session.md`, section 1); and whether it is on a
   box (`../README.md`, 2, *On a box*). The root stays the one source of the
   link's state, of `me`, of the pages and their reads, of the box's
@@ -102,13 +102,13 @@ chat, the running line above them.
   - *The focus:* the box asks for it as each screen opens and keeps it.
     It is the only node a person acts on outside a list, so Tab, Up and
     Down leave the focus where it is (skein's `ui/screen.md`, 6.2), but
-    for the launchpad's left-off chats (`launchpad.md`, section 1, *Where you left off*), and
+    for the launchpad's left-off chats (`launchpad.md`, 4, *Where you left off*), and
     `q` types: the first screen's "q to quit" is gone. Ctrl+C closes the
     TUI from anywhere (`../README.md`, 4).
   - *Enter:* before the sign-in lands, the words kept and the notice
     "Still signing in" (*Typed before the sign-in lands*); on the
     launchpad's empty box with a left-off chat
-    selected, that chat opened (`launchpad.md`, section 1, *Where you left off*); else the box's
+    selected, that chat opened (`launchpad.md`, 4, *Where you left off*); else the box's
     words, by what they are, in this order: a
     command's beginning, as `README.md`, section 2 says; on a chat whose question
     stands, its answer in words (`chat.md`, section 2); with no
@@ -155,9 +155,11 @@ chat, the running line above them.
     message resumes it" on a chat the person paused (`tui-hint`); on a
     chat whose draft can show, the pane's parts (`design-session.md`, section 1,
     *The quiet line*); while
-    something needs the person in the project, "1 needs you", "3 need
-    you", or "3+ need you" where the read is cut (`tui-signal`), the
-    rail's count of the project (`Session::count`, `../../pages/needs-you.md`, 1);
+    something needs the person, "1 needs you", "3 need you", or "3+
+    need you" where the read is cut (`tui-signal`): on the launchpad
+    across the person's projects, as its Needs you and its walk are
+    (`Session::count_across`, `launchpad.md`, 5), on a chat the rail's
+    count of the project (`Session::count`, `../../pages/needs-you.md`, 1);
     and, on the launchpad with that count, "n to walk" (`tui-hint`);
     while a notice stands, the notice alone, in place of them all
     (*The notice*).
@@ -241,7 +243,7 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
 - **The TUI's own commands** (`../../../draft/surfaces.md`, 11.4), which the
   root's `Command` does not hold and which never reach the root as
   commands, as `/quit` and `/new` don't: offered on the launchpad with a
-  project, `/draft` while the project offers drafts (`launchpad.md`, section 1, *Start*), `/change`
+  project, `/draft` while the project offers drafts (`launchpad.md`, 7, *Start*), `/change`
   and `/ask` before the root's, and `/brief` while
   the header holds a brief, `/needs` while Needs you stands and `/open`
   after `/chats`; on a chat `/open` after `/chats`. So the launchpad's
@@ -269,7 +271,7 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     a chat started from the launchpad is, and run as the project's way
     says; `/ask WORDS` asks Ask temper, as the box's words do. A refusal
     is drawn under the box, as a send's, and the launchpad stays.
-  - *`/brief`* writes `/brief`'s note (`launchpad.md`, section 1).
+  - *`/brief`* writes `/brief`'s note (`launchpad.md`, 7).
   - *`/needs`* walks what needs the person, as `n` does.
   - *`/open`* opens the object in focus on the web, the opener given
     `http://HOST:PORT` and the page's path (`address::print`) as one
@@ -280,10 +282,11 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     (`/tasks/T`, `design-session.md`, section 1, *A linked goal*). Only the page's address: never a link, a code or a
     secret. Where no browser opened (no opener, or it failed), the TUI
     notes "Open ADDRESS in your browser." until the next send or screen.
-  - *`/chats N`,* sent on the launchpad, opens the Nth chat of `launchpad.md`, section 1, *Where you
-    left off*, as Enter on it does; a number with no chat there gives
-    the notice an unknown command gives. `/chats` alone opens the root's
-    list, whose order is the launchpad's numbering, newest first.
+  - *`/chats N`,* sent on the launchpad, opens the Nth chat of Where you
+    left off (`launchpad.md`, 4), whatever its project, as Enter on it
+    does; a number with no chat there gives the notice an unknown
+    command gives. `/chats` alone opens the root's list, the project's
+    chats, newest first.
 - **Their words:** each command's name and the browser terminal's words
   (`shared::description`), but the closing command's, and the TUI's own
   commands' (above).

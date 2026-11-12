@@ -11,7 +11,7 @@
    the Forget request remains `records.status.md` (Not yet).
   `../pages/README.md`, *Ready*: the unhandled Ready endings remain `../pages/welcome.status.md`, 1.
    the plan's first-use card remains `../pages/accounts.status.md`, 2.
-  the project's Delete act remains `../pages/settings.status.md`, 1. `../pages/README.md`, The welcome:
+  `../pages/README.md`, The welcome:
   the welcome role-scope gap remains `../pages/welcome.status.md`, 1.
   the unfinished-forge name remains `records.status.md` (Not yet). the restarted GitHub setup continuation remains `records.status.md` (Not yet).
   6: the "not installed" outcome, "temper's App is not installed on

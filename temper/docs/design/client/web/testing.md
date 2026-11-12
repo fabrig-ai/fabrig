@@ -101,8 +101,8 @@ the page, which stayed, drawing the end.
   (`skein_fake_peers::oauth::Peer`), hosted on loopback in the
   harness's loop, each grant a success for one synthetic subject, and
   the provider's redirect port the kernel's (the listener's port
-  varies). The fake has no TLS, so the tier's bundle is built with
-  skein-ui-web's `loopback-navigation` (3).
+  varies). The fake has no TLS, so the tier's pages load with
+  `internal-loopback-navigation` (3).
 - **The story:** a person on `ConnectModel` presses "Sign in to Test provider";
   one more tab opens (skein's `ui/web/testing.md`, 2, Its tabs),
   which can't reach its opener by the time it's at the listener, its
@@ -150,19 +150,22 @@ real key in that restored form.
   `scripts/browser.sh`, a slow tier outside temper's gate, with the nextest profile `browser-temper`,
   one test at a time, on the bundle it builds first, with the dev
   profile.
-- **The tier's bundle** turns on skein-ui-web's
-  `loopback-navigation` (`scripts/bundle.sh --loopback`), so that a
-  sign-in's tab (2) can go to the fake issuer on plaintext
-  loopback; the ordinary binary bundle never does (skein's `ui/web/README.md`,
-  section 8). The tier names that bundle in its configuration, so it
+- **The tier's bundle** is the shipped page's, built apart
+  (`scripts/bundle.sh`). Each address the tier loads carries the page's
+  internal settings (`README.md`, 2.1), `internal-loopback-navigation=1`
+  and `internal-small-window=1`, which the page honours on the tier's
+  loopback origin: so a sign-in's tab (2) can go to the fake issuer on
+  plaintext loopback (skein's `ui/web/README.md`, section 8), and a
+  reload, a load without them, is loaded again by the tier with them.
+  The tier names that bundle in its configuration, so it
   runs alike over a binary built with or without its own (`README.md`, 2.6). It holds
   the compressed forms and Chromium takes gzip on loopback, so every
   test loads the compressed module under temper's policy.
-- **The tier's window:** the tier's bundle also turns on
-  `temper-client-shell-web`'s `small-window`, which names a conversation's
+- **The tier's window:** the page's `internal-small-window` names a
+  conversation's
   window of 32,768 bytes, a thirty-second of a person's `document_bytes`,
   through the same window mechanism (`../pages/chat/conversation.md`, 2). A window holds no
-  less than `long_text`, so the feature sets the bundle's `long_text` and
+  less than `long_text`, so the setting sets the page's `long_text` and
   `turn_text` to the same 32,768: the largest page `read_docs` answers
   (`temper-docs`' `PAGE_BYTES`), so that a tier story's line holding one
   stays whole. The long reading

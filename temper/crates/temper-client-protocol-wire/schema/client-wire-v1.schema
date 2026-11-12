@@ -86,7 +86,24 @@ enum MakeFrom { empty, copy: MakeCopy }
 record MakeInto { project: u32 home: bool }
 record MakeRepository { forge: u16 org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto }
 record DismissMaking { forge: u16 org: bytes 1024 name: bytes 1024 into: option u32 }
-enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount }
+# Landed drafts (temper/docs/design/client/forge/records.md; domain/forge/drafts.md, 2-3).
+record DraftRepository { owner: bytes 1024 name: bytes 1024 }
+record ReadyDraft { chat: option u64 }
+record StartedDraft { goal: u64 }
+enum DraftChange { ready: ReadyDraft, not_ready, started: StartedDraft }
+record SetDraft { project: u32 repository: option DraftRepository path: bytes 1024 change: DraftChange }
+enum DraftRefusal { no_repository, path, missing, not_a_file, unreachable, unknown, full }
+record DraftRefused { reason: DraftRefusal }
+record LandedDraft { forge: u16 owner: bytes 1024 name: bytes 1024 path: bytes 1024 branch: bytes 1024 commit: bytes 64 title: bytes 200 writer: u64 at: u64 chat: option u64 goal: option u64 ready: bool }
+record DraftsSubject { project: u32 }
+
+record FollowAt { after: fixed 32 }
+record FollowReasonAct { after: fixed 32 reason: bytes 8192 }
+record FollowMergeAct { afters: list 32 fixed 32 }
+enum FollowAct { start: FollowAt, hold: FollowReasonAct, skip: FollowReasonAct, merge: FollowMergeAct }
+record FollowOutcome { refusal: option bytes 8192 }
+record FollowActRequest { project: u32 follow: u32 act: FollowAct }
+enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount, set_draft: SetDraft, follow_act: FollowActRequest }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -163,7 +180,10 @@ record CharterWords { line: text 120 }
 record ProjectWords { headline: text 120 lede: text 480 }
 record StockWay { name: text 64 headline: text 120 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
 record WaysSubject { project: u32 }
-versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath words: option ProjectWords may_change: bool }
+# Rules by path (client/forge/records.md, A project's ways).
+record PathRule { paths: text 256 review: text 64 sign_off: text 64 lands: text 64 }
+record PathRules { rows: list 9 PathRule note: text 160 }
+versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath words: option ProjectWords rules: PathRules may_change: bool }
 # A view, read when shown (client/forge/records.md and client/pages/chat/conversation.md, 3).
 record ViewRead { project: u32 address: text 512 }
 record WayView { name: text 64 line: text 256 path: BranchPath current: bool }
@@ -195,7 +215,8 @@ record LandingsSubject { project: u32 ended: bool }
 record ChangesSubject { project: u32 }
 record StatusSubject { project: u32 }
 record DecidedSubject { project: u32 }
-enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject }
+record FollowsSubject { project: u32 }
+enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject, drafts: DraftsSubject, follows: FollowsSubject }
 enum LandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
 record Receipted { run: u64 number: u64 address: bytes 2048 }
 record Dispatched { attempt: u16 run: option u64 }
@@ -234,9 +255,8 @@ enum Verdict { none, pending, approved, changes }
 record Gate { number: u64 kind: GateKind blocks: bool verdict: Verdict }
 record Used { used: u32 limit: u32 }
 enum Way { queue, turn }
-enum Route { none, foreman, up }
-record Foreman { task: option u64 }
-enum Stands { taken, foreman: Foreman, asked, held }
+enum Route { none, up }
+enum Stands { taken, asked, held }
 record Question { asker: u64 number: u64 line: bytes 256 stands: Stands }
 record Questions { route: Route taken: Used open: list 8 Question }
 # Landing-rule approvals (domain/forge/change/gates.md, 2; client/forge/README.md, 4).
@@ -272,7 +292,7 @@ record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
 enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full, not_failed }
 record MakeRefused { why: MakeRefusal }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, drafted: LandedDraft, draft_refused: DraftRefused, follow: FollowOutcome }
 versioned record Answer { outcome: Outcome }
 
 # Values of temper's settings kinds (temper/docs/design/domain/routing.md, 6;
@@ -286,10 +306,37 @@ record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
 record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval sets: list 6 u8 }
 record ForgeCharter { charter: u32 }
 record TemplateGoal { design: bool close_out: bool }
-enum QuestionsRoute { none, foreman, up }
+enum QuestionsRoute { none, up }
 record ProjectQuestions { route: QuestionsRoute }
 record ProjectWays { drafts: bool goals: bool changes: bool way: u32 }
 # What reaches a person (temper/docs/design/domain/forge/attention.md, 6).
 record ClassItem { subject: ClassSubject words: bytes 120 class: ReachClass }
 record PathSet { number: u8 name: bytes 40 patterns: list 6 bytes 80 }
 record ProjectClasses { items: list 20 ClassItem sets: list 6 PathSet }
+
+versioned record DraftsPanel { project: u32 drafts: list 64 LandedDraft }
+# A project's follows (temper/docs/design/domain/forge/follows.md, 2).
+record Dependency { project: u32 }
+record DependencyView { number: u32 project: u32 }
+
+record FollowRepository { forge: u16 repository: u32 }
+record FollowSource { repository: FollowRepository branch: bytes 4096 paths: list 256 bytes 256 }
+record FollowTarget { repository: FollowRepository branch: bytes 4096 }
+record FollowPerson { person: u64 }
+enum FollowOwner { person: FollowPerson }
+enum FollowStart { owner, code }
+enum FollowFormat { junit, lines }
+record FollowCheck { workflow: bytes 256 artifact: bytes 256 format: FollowFormat }
+record Follow { source: FollowSource target: FollowTarget owner: FollowOwner start: FollowStart producer: option bytes 8192 verification: FollowCheck }
+
+# A project's follows (domain/forge/follows.md, 7).
+record FollowWords { words: bytes 8192 }
+record FollowWait { change: u64 }
+enum FollowState { not_made, waits_word, held_by_owner: FollowWords, waits_for: FollowWait, producing, held: FollowWords, ended: FollowWords }
+record FollowEntry { after: fixed 32 change: option u64 state: FollowState }
+record FollowSkip { after: fixed 32 reason: bytes 8192 }
+record FollowFailing { count: u32 }
+enum FollowVerdict { passed, failing: FollowFailing, many }
+record FollowParity { source: fixed 32 head: fixed 32 verdict: FollowVerdict run: bytes 2048 }
+record FollowView { number: u32 setting: Follow source: bytes 2048 source_branch: bytes 4096 target: bytes 2048 target_branch: bytes 4096 task: option u64 stopped: option bytes 8192 lag: u32 entries: list 256 FollowEntry skips: list 256 FollowSkip parity: option FollowParity }
+versioned record FollowsPanel { project: u32 follows: list 256 FollowView dependencies: list 256 DependencyView }

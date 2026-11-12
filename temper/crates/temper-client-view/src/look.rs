@@ -101,17 +101,17 @@ pub const WORK_FILTERS: Style = Style { owner: owner(), token: 656 };
 /// Work, client/pages/README.md.
 pub const WORK_CHIP: Style = Style { owner: owner(), token: 657 };
 /// Work, client/pages/README.md.
-pub const WORK_CURRENT: Style = Style { owner: owner(), token: 688 };
+pub const WORK_CURRENT: Style = Style { owner: owner(), token: 658 };
 /// Work, client/pages/README.md.
-pub const WORK_SECTION: Style = Style { owner: owner(), token: 689 };
+pub const WORK_SECTION: Style = Style { owner: owner(), token: 659 };
 /// Work, client/pages/README.md.
-pub const WORK_SECTION_HEAD: Style = Style { owner: owner(), token: 690 };
+pub const WORK_SECTION_HEAD: Style = Style { owner: owner(), token: 660 };
 /// Work, client/pages/README.md.
-pub const WORK_CARD: Style = Style { owner: owner(), token: 691 };
+pub const WORK_CARD: Style = Style { owner: owner(), token: 661 };
 /// Work, client/pages/README.md.
-pub const WORK_FROM: Style = Style { owner: owner(), token: 692 };
+pub const WORK_FROM: Style = Style { owner: owner(), token: 662 };
 /// Work, client/pages/README.md.
-pub const WORK_AGENT: Style = Style { owner: owner(), token: 693 };
+pub const WORK_AGENT: Style = Style { owner: owner(), token: 663 };
 /// Work, client/pages/README.md.
 pub const WORK_CODE: Style = Style { owner: owner(), token: 664 };
 /// Work, client/pages/README.md.
@@ -128,6 +128,10 @@ pub const WORK_ROW: Style = Style { owner: owner(), token: 669 };
 pub const WORK_BYLINE: Style = Style { owner: owner(), token: 670 };
 /// Work, client/pages/README.md.
 pub const WORK_MONO: Style = Style { owner: owner(), token: 671 };
+pub const WORK_CHOICES: Style = Style { owner: owner(), token: 672 };
+pub const WORK_CHOICE: Style = Style { owner: owner(), token: 673 };
+pub const WORK_RECOMMENDED: Style = Style { owner: owner(), token: 674 };
+pub const WORK_WAY: Style = Style { owner: owner(), token: 675 };
 
 /// The Goals column (client/pages/README.md).
 pub const GOALS: Style = Style { owner: owner(), token: 270 };
@@ -1390,10 +1394,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-work-row",
         b"temper-work-byline",
         b"temper-work-mono",
-        b"temper-reserved-672",
-        b"temper-reserved-673",
-        b"temper-reserved-674",
-        b"temper-reserved-675",
+        b"temper-work-choices",
+        b"temper-work-choice",
+        b"temper-work-recommended",
+        b"temper-work-way",
         b"temper-how-wide",
         b"temper-how-way",
         b"temper-how-roles",
@@ -1450,6 +1454,17 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-shared",
         b"temper-chips",
         b"temper-size-files",
+        b"temper-how-follows",
+        b"temper-how-follow",
+        b"temper-how-chips",
+        b"temper-how-who-code",
+        b"temper-how-add",
+        b"temper-how-rules",
+        b"temper-how-table",
+        b"temper-how-paths",
+        b"temper-how-rules-note",
+        b"temper-how-empty",
+        b"temper-how-who-none",
         b"temper-team-rows",
         b"temper-team-row",
         b"temper-team-card",
@@ -1890,6 +1905,12 @@ pub const HOW_REACH: Style = Style { owner: owner(), token: 682 };
 pub const HOW_WHO_AGENT: Style = Style { owner: owner(), token: 683 };
 pub const HOW_WHO_PERSON: Style = Style { owner: owner(), token: 684 };
 pub const HOW_REACH_NOTE: Style = Style { owner: owner(), token: 685 };
+pub const HOW_ADD: Style = Style { owner: owner(), token: 736 };
+pub const HOW_RULES: Style = Style { owner: owner(), token: 737 };
+pub const HOW_TABLE: Style = Style { owner: owner(), token: 738 };
+pub const HOW_PATHS: Style = Style { owner: owner(), token: 739 };
+pub const HOW_RULES_NOTE: Style = Style { owner: owner(), token: 740 };
+pub const HOW_EMPTY: Style = Style { owner: owner(), token: 741 };
 /// Needs you's list, reply and project identity (client/pages/README.md).
 pub const NEED_ROW: Style = Style { owner: owner(), token: 691 };
 pub const NEED_TELL: Style = Style { owner: owner(), token: 692 };
@@ -1949,27 +1970,34 @@ pub const ONLY_Q: Style = Style { owner: owner(), token: 728 };
 pub const CHIPS: Style = Style { owner: owner(), token: 730 };
 pub const SIZE_FILES: Style = Style { owner: owner(), token: 731 };
 
-/// Standing roles and their card (client/pages/team.md, 1).
-pub const TEAM_ROWS: Style = Style { owner: owner(), token: 732 };
-pub const TEAM_ROW: Style = Style { owner: owner(), token: 733 };
-pub const TEAM_CARD: Style = Style { owner: owner(), token: 734 };
-pub const TEAM_HEAD: Style = Style { owner: owner(), token: 735 };
-pub const TEAM_ACTS: Style = Style { owner: owner(), token: 736 };
-pub const TEAM_COLUMNS: Style = Style { owner: owner(), token: 737 };
-pub const TEAM_LEFT: Style = Style { owner: owner(), token: 738 };
-pub const TEAM_RIGHT: Style = Style { owner: owner(), token: 739 };
-pub const TEAM_NOW: Style = Style { owner: owner(), token: 740 };
-pub const TEAM_KICKER: Style = Style { owner: owner(), token: 741 };
+pub const HOW_FOLLOWS: Style = Style { owner: owner(), token: 732 };
+pub const HOW_FOLLOW: Style = Style { owner: owner(), token: 733 };
+pub const HOW_CHIPS: Style = Style { owner: owner(), token: 734 };
+pub const HOW_WHO_CODE: Style = Style { owner: owner(), token: 735 };
+/// A relation chip with no actor mark (client/pages/home.md, 1).
+pub const HOW_WHO_NONE: Style = Style { owner: owner(), token: 742 };
 
-pub const TEAM_RULES: Style = Style { owner: owner(), token: 742 };
-pub const TEAM_WAKES: Style = Style { owner: owner(), token: 743 };
-pub const TEAM_WAKE_ROW: Style = Style { owner: owner(), token: 744 };
-pub const TEAM_WAKE_CLASS: Style = Style { owner: owner(), token: 745 };
-pub const TEAM_SESSIONS: Style = Style { owner: owner(), token: 746 };
-pub const TEAM_SESSION: Style = Style { owner: owner(), token: 747 };
-pub const TEAM_SESSION_TIME: Style = Style { owner: owner(), token: 748 };
-pub const TEAM_SESSION_COST: Style = Style { owner: owner(), token: 749 };
-pub const TEAM_SESSION_CLOSING: Style = Style { owner: owner(), token: 750 };
+/// Standing roles and their card (client/pages/team.md, 1).
+pub const TEAM_ROWS: Style = Style { owner: owner(), token: 743 };
+pub const TEAM_ROW: Style = Style { owner: owner(), token: 744 };
+pub const TEAM_CARD: Style = Style { owner: owner(), token: 745 };
+pub const TEAM_HEAD: Style = Style { owner: owner(), token: 746 };
+pub const TEAM_ACTS: Style = Style { owner: owner(), token: 747 };
+pub const TEAM_COLUMNS: Style = Style { owner: owner(), token: 748 };
+pub const TEAM_LEFT: Style = Style { owner: owner(), token: 749 };
+pub const TEAM_RIGHT: Style = Style { owner: owner(), token: 750 };
+pub const TEAM_NOW: Style = Style { owner: owner(), token: 751 };
+pub const TEAM_KICKER: Style = Style { owner: owner(), token: 752 };
+
+pub const TEAM_RULES: Style = Style { owner: owner(), token: 753 };
+pub const TEAM_WAKES: Style = Style { owner: owner(), token: 754 };
+pub const TEAM_WAKE_ROW: Style = Style { owner: owner(), token: 755 };
+pub const TEAM_WAKE_CLASS: Style = Style { owner: owner(), token: 756 };
+pub const TEAM_SESSIONS: Style = Style { owner: owner(), token: 757 };
+pub const TEAM_SESSION: Style = Style { owner: owner(), token: 758 };
+pub const TEAM_SESSION_TIME: Style = Style { owner: owner(), token: 759 };
+pub const TEAM_SESSION_COST: Style = Style { owner: owner(), token: 760 };
+pub const TEAM_SESSION_CLOSING: Style = Style { owner: owner(), token: 761 };
 
 #[cfg(test)]
 mod tests {

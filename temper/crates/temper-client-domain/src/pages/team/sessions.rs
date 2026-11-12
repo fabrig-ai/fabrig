@@ -36,7 +36,10 @@ fn retain(line: &c::ActivityLine) -> Line {
         c::Activity::RunEnded { attempt, spent, .. } => Kind::Ended { attempt: *attempt, spent: *spent },
         c::Activity::Stood { attempt, words } => Kind::Stood { attempt: *attempt, words: words.bytes().into() },
         c::Activity::SessionEnded { .. } => Kind::Boundary,
-        c::Activity::Words { .. }
+        c::Activity::TalkOpened { .. }
+        | c::Activity::TalkEnded { .. }
+        | c::Activity::NowWritten { .. }
+        | c::Activity::Words { .. }
         | c::Activity::Heard(_)
         | c::Activity::Notified { .. }
         | c::Activity::Turn { .. }

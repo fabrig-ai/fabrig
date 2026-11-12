@@ -24,7 +24,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     a failed write failing the step's exchanges and cancelling the
     navigation; the inbox's: no turn inside a turn;
   - the navigation's targets (`README.md`, section 8): each kind accepted or
-    refused, plaintext loopback with and without `loopback-navigation`;
+    refused, plaintext loopback with loopback navigation on and off;
   - the bundler: the directory named by its digest, the same inputs
     giving the same bundle, references under the prefix, an own page's
     marker, and each refusal of `bundle.md`, 2 and 3 naming its file;
@@ -116,6 +116,15 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   such as a sign-in's secret taken from the address. A story reads it
   once what the page shows says the page has put it there, never at a
   fixed time.
+- **It reads the accessible snapshot,** the kit's `Snapshot`, as text,
+  without evaluating script in the page.
+- **It reads a screenshot at a given width,** keeping the last successful
+  viewport's height and restoring its width and height before completing,
+  including after a refused image or a cancelled look.
+- **An incremental harness session** pumps the browser and caller-owned
+  process pipes on one ring, with the caller's profile and environment;
+  it allocates no scratch directory and imposes no whole-run horizon.
+  Its caller owns the step deadlines and explicit close and drain.
 - **A date or a time is typed as a person types it,** into its native
   field's parts, since that field takes no inserted text (../../testing/browser.md,
   section 6). The face knows the field by the role Chromium computes

@@ -78,7 +78,7 @@ pub fn reader_opens(address: &[u8]) -> Vec<Step> {
             find: skein_fake_person::Find::exactly_named(Role::Button, b"Try the playground"),
         }),
         Step::Person(PersonStep::See { find: crate::live(), within: WITHIN }),
-        Step::Person(PersonStep::Go { address: address.into() }),
+        Step::Person(PersonStep::Go { address: crate::page_address(address) }),
     ]
 }
 

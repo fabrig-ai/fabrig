@@ -186,7 +186,8 @@ fn unlisted_projects_explain_and_link_to_chats() {
         Address::Settings { project: UNKNOWN },
         Address::Repositories { project: UNKNOWN },
     ] {
-        let (root, _, _) = f::root_at(address, &f::domain_limits());
+        let (mut root, read) = missing_project(address, UNKNOWN);
+        answer_missing_project(&mut root, read, c::ReadNone::Unknown);
         for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
             let main = f::main_text(view.tree());
             assert!(skein_lib::bytes::find(&main, b"Project 99 is not one of yours.").is_some());
@@ -198,6 +199,103 @@ fn unlisted_projects_explain_and_link_to_chats() {
         }
         let view = f::page_view(&root);
         assert!(skein_lib::bytes::find(&printed(&view), b"Project 99 is not one of yours.").is_some());
+    }
+}
+
+fn missing_project(address: Address, project: u32) -> (d::Domain, Token) {
+    let limits = f::domain_limits();
+    let (mut root, _, _) = f::root_at(Address::AllHome, &limits);
+    let mut out = Queue::uncapped();
+    d::step(
+        &mut root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits },
+        d::Event::Went { place: d::Place::Address(address) },
+        &mut out,
+    );
+    let mut token = None;
+    for request in &out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down:
+                        jig_client::Down::Read {
+                            read,
+                            what: jig_client::Readable::Jig(c::Read::Project { project: number }),
+                        },
+                },
+        } = request
+            && *number == project
+        {
+            assert!(token.replace(*read).is_none(), "one project read");
+        }
+    }
+    (root, token.expect("project read"))
+}
+
+fn answer_missing_project(root: &mut d::Domain, read: Token, why: c::ReadNone) {
+    let mut out = Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::None(why)) },
+            },
+        },
+        &mut out,
+    );
+}
+
+#[test]
+fn missing_project_pages_wait_then_name_deleted_projects_in_both_shells() {
+    const PROJECT: u32 = 3;
+    for address in [Address::Home { project: PROJECT }, Address::Settings { project: PROJECT }] {
+        let (mut root, read) = missing_project(address, PROJECT);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let main = main_nodes(view.tree());
+            let mut headings = 0_u32;
+            for node in main {
+                if node.role == (Role::Heading { level: 1 }) {
+                    headings = headings.checked_add(1).expect("headings fit");
+                }
+                assert!(
+                    node.role != Role::Paragraph
+                        && node.role != Role::Link
+                        && node.role != Role::Button
+                        && node.role != Role::Navigation,
+                    "only the heading while reading, found {:?}",
+                    node.role
+                );
+            }
+            assert_eq!(headings, 1);
+        }
+        answer_missing_project(&mut root, read, c::ReadNone::Gone);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let text = f::main_text(view.tree());
+            assert!(skein_lib::bytes::find(&text, b"Project 3 was deleted.").is_some());
+            assert!(skein_lib::bytes::find(&text, b"not one of yours").is_none());
+            assert!(skein_lib::bytes::find(&printed(&view), b"Project 3 was deleted.").is_some());
+            let link = main_find(view.tree(), Role::Link, b"Chats");
+            assert_eq!(
+                crate::act(&mut view, link, Act::Press),
+                Some(d::Action::Pages(d::pages::Act::Go { address: Address::Chats { filter: ChatsFilter::All } }))
+            );
+        }
+    }
+}
+
+#[test]
+fn missing_project_none_answers_other_than_gone_keep_not_yours() {
+    for address in [Address::Home { project: 3 }, Address::Settings { project: 3 }] {
+        for why in [c::ReadNone::Unknown, c::ReadNone::Refused, c::ReadNone::TooLarge { bytes: 1 }] {
+            let (mut root, read) = missing_project(address.clone(), 3);
+            answer_missing_project(&mut root, read, why);
+            for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                let text = f::main_text(view.tree());
+                assert!(skein_lib::bytes::find(&text, b"Project 3 is not one of yours.").is_some());
+                let _link = main_find(view.tree(), Role::Link, b"Chats");
+            }
+        }
     }
 }
 
@@ -2055,11 +2153,11 @@ fn home_accounts_follow_the_lede_in_the_tree_and_terminal() {
 
 #[test]
 fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
-    let (mut root, me_watch, _) = f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits());
+    let (mut root, me_watch, _) = f::root_at(Address::Accounts, &f::domain_limits());
     let template = f::chat::messaging_root();
     let me = f::asking_me(template.pages().me(template.client()).expect("me").clone());
     f::deliver_me(&mut root, me_watch, me);
-    // Leave and return so the test observes the watch that Settings itself owns.
+    // Open Settings after its offered templates answer, observing the watch it owns.
     drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Accounts) });
     let out = drive(&mut root, d::Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) });
     let mut live = None;

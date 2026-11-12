@@ -452,6 +452,7 @@ impl Task {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::OpenStart { .. }
+            | Act::OpenLanded { .. }
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
@@ -485,6 +486,7 @@ impl Task {
             | Act::Resume
             | Act::Stop
             | Act::Close
+            | Act::DeleteProject { .. }
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::ClosedChats
@@ -592,6 +594,7 @@ impl Task {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::OpenStart { .. }
+            | Act::OpenLanded { .. }
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
@@ -628,6 +631,7 @@ impl Task {
             | Act::Resume
             | Act::Stop
             | Act::Close
+            | Act::DeleteProject { .. }
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Older

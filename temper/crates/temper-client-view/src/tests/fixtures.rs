@@ -31,7 +31,7 @@ pub fn limits() -> Limits {
                 ask_bytes: requests.bytes / u64::from(requests.requests),
                 // Page, session, trial and standing-role watches across two project openings.
                 handles: 16,
-                watches: 16,
+                watches: 18, // Includes How work runs’ follows and standing-role watches.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

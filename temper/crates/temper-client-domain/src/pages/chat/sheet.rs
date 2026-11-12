@@ -111,6 +111,15 @@ pub(crate) fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut
     {
         return;
     }
+    let mut event = event;
+    let mut landed_run = false;
+    let landed_opening = if let Event::Act { act: Act::OpenLanded { start, .. } } = &mut event {
+        landed_run = *start;
+        *start = false;
+        root.pages.start().is_none()
+    } else {
+        false
+    };
     let opening = if let Event::Act { act: Act::OpenStart { chat: Some(number), .. } } = &event {
         if let Some(chat) = root.pages.chat() {
             let Some(task) = chat.task(root.client()) else { return };
@@ -126,7 +135,7 @@ pub(crate) fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut
     };
     pages::step(&mut root.pages, env, &root.client, event, out);
     let me = root.pages.me(&root.client);
-    if opening
+    if (opening || landed_opening)
         && let Some(start) = &mut root.pages.start
         && let Some(me) = me
     {
@@ -136,6 +145,9 @@ pub(crate) fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut
         };
         start.way = pages::start_goal::preferred_way(me, start.project, configured);
         start.default = start.way;
+        if landed_opening && landed_run {
+            start.send(env, Some(me), &mut root.pages.serial, out);
+        }
     }
     pages::chats::refresh(root, out);
     if let Some(chat) = &mut root.pages.chat {

@@ -19,7 +19,6 @@ impl Ways {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Route {
     None,
-    Foreman,
     Up,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -566,7 +565,6 @@ fn value(page: &Readout, control: Control, limits: Limits) -> Option<Asked> {
             let value = w::ProjectQuestions::decode(&wire_limits(&limits)?, &mut reader).ok()?.into_parts();
             Asked::Questions(match value.route {
                 w::QuestionsRoute::None => Route::None,
-                w::QuestionsRoute::Foreman => Route::Foreman,
                 w::QuestionsRoute::Up => Route::Up,
             })
         }
@@ -627,7 +625,6 @@ fn bytes(asked: &Asked, limits: Limits) -> Option<Box<[u8]>> {
                 w::ProjectQuestionsParts {
                     route: match value {
                         Route::None => w::QuestionsRoute::None,
-                        Route::Foreman => w::QuestionsRoute::Foreman,
                         Route::Up => w::QuestionsRoute::Up,
                     },
                 },

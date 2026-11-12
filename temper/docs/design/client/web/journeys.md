@@ -70,8 +70,9 @@ journeys, 10 what is open.
   `tests/host.rs` uses the library instead of including the modules by
   path. The replay runs this host, never a copy.
 - **The `journey` module** (the file, the recorder, the replay) builds
-  natively, for the program and the tests, and in the browser only with
-  the `record` feature: the shipped bundle holds none of it.
+  on every target, the shipped bundle's among them; the redaction's and
+  the last scan's shared code, which the TUI's journeys use too, is
+  `temper-client-redaction`'s (3.6, 3.7).
 - **The seam** is `host::Host`'s, and the shell's turn and the replay
   call it alike:
   - `clocks(now, wall)`, at the turn's start, as today;
@@ -104,9 +105,10 @@ journeys, 10 what is open.
 
 ### 3.1 The recorder
 
-- **In a bundle of its own:** `scripts/bundle.sh --loopback --record
-  OUT` builds the shell with its `record` feature beside
-  `loopback-navigation`; the shipped bundle has neither. The recorder
+- **On by the page's setting:** the page loaded with
+  `internal-record=1` and `internal-loopback-navigation=1` on a loopback
+  origin runs the recorder (`README.md`, 2.1); without them, or elsewhere,
+  the same bundle records nothing and installs no key. The recorder
   adds nothing to the page: no node, no style, no request.
 - **What it hears:** in `Shell::turn`, beside the host, the start's
   facts once, then each turn's clocks, each report given to
@@ -541,7 +543,7 @@ python3 -m http.server 8766
   downloads (skein's `testing/browser.md`, section 9). No default test starts a
   browser or a box.
 - **The recording bundle stays built:** the gate's browser-target
-  check builds the shell with `loopback-navigation` and `record` too.
+  check builds the shell, recorder and all, as the bundle holds it.
 - **The recorder's keys and download** have no browser story: the first
   journey's recording proves them, and the browser tier proves only
   what a browser alone shows (`testing.md`). That a save
@@ -663,8 +665,8 @@ over skein's harness.
   is no state a still page shows: such a journey is refused before
   anything starts, and walked anew.
 - **A fresh fake box** (3.5): `temper box --fake-backends`, built from
-  the checkout with the recording bundle (`scripts/bundle.sh --loopback
-  --record`), running a copy of the built binary and its fake-claude,
+  the checkout with the bundle (`scripts/bundle.sh`), its printed link
+  opened with the page's recording settings (3.1), running a copy of the built binary and its fake-claude,
   every directory fresh in a scratch directory under `/tmp`;
   its printed sign-in link opened.
 - **Headless Chromium, as the browser tier drives it** (`testing.md`

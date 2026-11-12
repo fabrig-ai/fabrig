@@ -25,3 +25,5 @@ Latest, cards at their calls and the remaining TUI controls stay in
 `../../README.md`, section 5, owned by temper/tui.
 The read-once gap remains `../../../draft/chat-reading.status.md`, 3; parsed-block work is `../../README.md`, section 5's. Request differences remain explicit
 in `../../../draft/tui.status.md`; no rendered-equality result is supplied.
+
+- **Not yet:** 1, *The quiet line*: on the launchpad its count is the project's, `Session::count`, not the person's across projects [in flight: change 785].

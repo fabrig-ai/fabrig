@@ -57,6 +57,71 @@ fn two_projects() -> c::Me {
     me
 }
 
+fn project_reads(out: &mut Queue<Request>, wanted: u32) -> List<Handle> {
+    let mut reads = List::uncapped();
+    while let Some(request) = out.pop() {
+        if let Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(c::Read::Project { project }) }) =
+            request
+            && project == wanted
+        {
+            reads.push(handle).expect("uncapped reads");
+        }
+    }
+    reads
+}
+
+#[test]
+fn unlisted_home_and_settings_keep_one_project_read_until_the_address_leaves() {
+    for address in [Address::Home { project: UNKNOWN }, Address::Settings { project: UNKNOWN }] {
+        for before_me in [false, true] {
+            let mut f = fixture();
+            if !before_me {
+                deliver(&mut f, two_projects());
+            }
+            event(&mut f, Event::Went { address: address.clone() });
+            let reads = project_reads(&mut f.out, UNKNOWN);
+            assert_eq!(reads.len(), 1);
+            let handle = *reads.get(0).expect("one project read");
+            deliver(&mut f, two_projects());
+            assert!(project_reads(&mut f.out, UNKNOWN).is_empty(), "no second read while pending");
+            event(
+                &mut f,
+                Event::Told {
+                    told: Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Gone)) },
+                },
+            );
+            event(&mut f, Event::Went { address: address.clone() });
+            deliver(&mut f, two_projects());
+            assert!(project_reads(&mut f.out, UNKNOWN).is_empty(), "me must not refresh an unlisted project");
+            event(&mut f, Event::Went { address: Address::AllHome });
+            event(&mut f, Event::Went { address: address.clone() });
+            assert_eq!(project_reads(&mut f.out, UNKNOWN).len(), 1, "a new visit reads again");
+        }
+    }
+}
+
+#[test]
+fn listed_home_and_settings_share_the_teams_read_and_membership_refresh() {
+    for address in [Address::Home { project: OTHER }, Address::Settings { project: OTHER }] {
+        let mut f = fixture();
+        deliver(&mut f, two_projects());
+        event(&mut f, Event::Went { address: address.clone() });
+        let reads = project_reads(&mut f.out, OTHER);
+        assert_eq!(reads.len(), 1, "only Team's rail read");
+        let handle = *reads.get(0).expect("Team read");
+        event(
+            &mut f,
+            Event::Told {
+                told: Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)) },
+            },
+        );
+        event(&mut f, Event::Went { address });
+        assert!(project_reads(&mut f.out, OTHER).is_empty());
+        deliver(&mut f, two_projects());
+        assert_eq!(project_reads(&mut f.out, OTHER).len(), 1, "listed projects retain Team's refresh");
+    }
+}
+
 #[test]
 fn project_addresses_wait_until_me_lists_their_project() {
     for address in [

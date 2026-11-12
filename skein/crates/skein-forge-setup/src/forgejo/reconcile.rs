@@ -193,10 +193,11 @@ impl Reconcile {
 }
 pub(crate) fn account(event: Event) -> Result<skein_forge::forgejo::document::User, Why> {
     match reply(event)? {
-        Answer::Document(Document::User(user)) => Ok(user),
-        other @ (Answer::Document(_) | Answer::Rows(_) | Answer::Empty | Answer::Status(_) | Answer::Down) => {
-            Err(unexpected(other))
+        Answer::Document(document) => {
+            let Document::User(user) = *document else { return Err(Why::Unexpected) };
+            Ok(user)
         }
+        other @ (Answer::Rows(_) | Answer::Empty | Answer::Status(_) | Answer::Down) => Err(unexpected(other)),
     }
 }
 /// Consumes one event and emits at most one need; terminal machines ignore later events.

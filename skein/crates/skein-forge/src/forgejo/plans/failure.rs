@@ -1,8 +1,8 @@
 //! Call-specific HTTP refusals and table invalidation (forge/README.md, 3.4).
-use crate::api;
 use crate::forgejo::failure::Refusal;
 use crate::forgejo::plans::{Fields, tables::Tables};
 pub use crate::plan::transport;
+use crate::{api, decode::Malformed};
 use skein_lib::Duration;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Asked {
@@ -110,6 +110,26 @@ pub fn before_write(asked: Asked, error: api::Error) -> api::Error {
         api::Error::Unavailable
     } else {
         error
+    }
+}
+/// A malformed read's refusal (forge/forgejo.md, 1.3 and 1.4).
+#[must_use]
+pub fn malformed(malformed: Malformed) -> api::Error {
+    match malformed {
+        Malformed::DocumentTooLong { limit, size } => {
+            api::Error::TooLarge(api::Excess::at_least(api::Bound::Forge, u64::from(limit), size))
+        }
+        Malformed::Bound { field: b"log" } => api::Error::InvalidAnswer,
+        Malformed::Bound { .. }
+        | Malformed::TooLong { .. }
+        | Malformed::Json(skein_json::tokenizer::Error::TooLong) => api::Error::TooLarge(api::Excess::unnamed()),
+        Malformed::Json(_)
+        | Malformed::Shape { .. }
+        | Malformed::Missing { .. }
+        | Malformed::Range { .. }
+        | Malformed::Id { .. }
+        | Malformed::Time { .. }
+        | Malformed::Value { .. } => api::Error::InvalidAnswer,
     }
 }
 #[must_use]

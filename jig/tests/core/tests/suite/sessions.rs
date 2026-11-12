@@ -442,3 +442,100 @@ fn a_nonstanding_task_under_a_resuming_charter_reads_no_parts() {
     assert_eq!(live_row(&world, run.0).offered, tasks::Reasons::ALL);
     world.close();
 }
+
+pub(super) fn talk(world: &mut World, task: u64, key: u8) {
+    fixtures::ask(world, key, people::Ask::Talk { project: 1, task, words: b"let us talk".as_slice().into() });
+    assert!(
+        matches!(world.people_answers.last(), Some(people::Reply::Outcome(people::Outcome::Said { task: answered, .. })) if *answered == task)
+    );
+}
+#[test]
+fn talk_words_start_fresh_with_now_and_resume_past_quiet_until_leave() {
+    let (mut world, run, _) = opened();
+    story::park(&mut world, run, None);
+    talk(&mut world, run.0, 80);
+    assert_eq!(ends(&world, run.0), [(run.1, tasks::SessionEnd::Talk)]);
+    let first = assignment(&world, run.0, LATER, false);
+    let assigned = world.assigned.as_ref().unwrap();
+    assert!(assigned.brief.iter().any(|section| matches!(
+        section,
+        jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::Now, .. }
+    )));
+    assert!(!assigned.brief.iter().any(|section| matches!(
+        section,
+        jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::TranscriptTail, .. }
+    )));
+    consume_and_park(&mut world, first);
+    assert_eq!(live_row(&world, run.0).session.unwrap().first, first.1, "work is closed but the talk stays open");
+    gap(&mut world, 600);
+    talk(&mut world, run.0, 82);
+    let next = assignment(&world, run.0, LATER, true);
+    assert_eq!(ends(&world, run.0), [(run.1, tasks::SessionEnd::Talk)]);
+    fixtures::ask(&mut world, 83, people::Ask::Leave { project: 1, task: run.0 });
+    assert!(
+        matches!(world.people_answers.last(), Some(people::Reply::Outcome(people::Outcome::Left { task })) if *task == run.0)
+    );
+    assert!(live_row(&world, run.0).talk.is_none());
+    assert_eq!(ends(&world, run.0), [(run.1, tasks::SessionEnd::Talk), (first.1, tasks::SessionEnd::Left)]);
+    consume_and_park(&mut world, next);
+    say(&mut world, run.0, 84);
+    assignment(&world, run.0, LATER, false);
+    world.close();
+}
+
+#[test]
+fn a_talk_lapses_at_a_wake_and_a_settings_move_keeps_the_talk_not_the_session() {
+    let (mut world, run, _) = opened();
+    story::park(&mut world, run, None);
+    talk(&mut world, run.0, 80);
+    let first = assignment(&world, run.0, LATER, false);
+    consume_and_park(&mut world, first);
+    let talk_record = live_row(&world, run.0).talk;
+    let document = core::documents::task_from_row(
+        world.domain.core(),
+        &setup().limits.core,
+        1,
+        live_row(&world, run.0),
+        world.wall_time(),
+    )
+    .unwrap();
+    assert_eq!(document.talk, talk_record);
+    assert_eq!(document.session, live_row(&world, run.0).session);
+    for act in [core::acts::Act::Talk, core::acts::Act::Leave] {
+        assert!(
+            document
+                .acts
+                .iter()
+                .any(|offered| offered.act == act && offered.admission == core::acts::Admission::Allowed)
+        );
+    }
+
+    let mut charter = setup().configuration.unwrap().core.defaults.charters[1].clone();
+    charter.policy.instructions = b"T".as_slice().into();
+    world.send(root::Event::Core(core::Event::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(986)),
+        sign_in: world.sign_in.unwrap(),
+        key: [82; 16],
+        digest: [82; 32],
+        change: Box::new(core::settings::Change {
+            against: 1,
+            items: Box::new([core::settings::Item {
+                setting: core::settings::Setting::Charter(2),
+                edit: core::settings::Edit::Set(core::settings::Value::Charter(Box::new(charter))),
+            }]),
+            running: core::settings::Running::Stays,
+        }),
+    }));
+    fixtures::ask(&mut world, 83, people::Ask::MoveToNewest { revision: 1 });
+    assert_eq!(ends(&world, run.0).last(), Some(&(first.1, tasks::SessionEnd::Rules)));
+    assert_eq!(live_row(&world, run.0).talk, talk_record);
+    say(&mut world, run.0, 84);
+    let fresh = assignment(&world, run.0, b"T\n\nWR", false);
+    consume_and_park(&mut world, fresh);
+    gap(&mut world, 1_801);
+    say(&mut world, run.0, 85);
+    assignment(&world, run.0, b"T\n\nWR", false);
+    assert_eq!(ends(&world, run.0).last(), Some(&(fresh.1, tasks::SessionEnd::Left)));
+    assert!(live_row(&world, run.0).talk.is_none());
+    world.close();
+}

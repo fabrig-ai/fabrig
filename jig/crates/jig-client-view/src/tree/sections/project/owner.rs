@@ -56,6 +56,8 @@ pub fn edit(before: &Ask, field: Field, bytes: Box<[u8]>, text: u32) -> Option<A
             Field::Spend | Field::Requests | Field::Decides => return None,
         },
         Ask::SetRoles { .. }
+        | Ask::Talk { .. }
+        | Ask::Leave { .. }
         | Ask::Message { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
@@ -529,7 +531,9 @@ fn control(b: &mut Builder, ask: &Ask, words: &Words, bindings: &mut JigBindings
 fn policy_request(ask: &Ask) -> Option<&PolicyEdit> {
     match ask {
         Ask::ChangePolicy { edit, .. } => Some(edit),
-        Ask::Message { .. }
+        Ask::Talk { .. }
+        | Ask::Leave { .. }
+        | Ask::Message { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
@@ -622,7 +626,9 @@ fn permissions_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contrac
 fn holdings_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contract::Holding>> {
     match ask {
         Ask::SetRoles { holdings, .. } => Some(holdings),
-        Ask::Message { .. }
+        Ask::Talk { .. }
+        | Ask::Leave { .. }
+        | Ask::Message { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
@@ -660,7 +666,9 @@ fn holdings_request(ask: &Ask) -> Option<&skein_lib::List<jig_client::contract::
 fn pool_request(ask: &Ask) -> bool {
     match ask {
         Ask::SetPool { .. } => true,
-        Ask::Message { .. }
+        Ask::Talk { .. }
+        | Ask::Leave { .. }
+        | Ask::Message { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
@@ -698,7 +706,9 @@ fn pool_request(ask: &Ask) -> bool {
 fn service_request(ask: &Ask) -> Option<(&jig_client::contract::Text, jig_client::contract::HeldRole)> {
     match ask {
         Ask::MakeService { name, role, .. } => Some((name, *role)),
-        Ask::Message { .. }
+        Ask::Talk { .. }
+        | Ask::Leave { .. }
+        | Ask::Message { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }
@@ -1137,7 +1147,9 @@ fn render_request(b: &mut Builder, ask: &Ask, words: &Words, text_limit: u32, ro
             b.text(Run::Plain, name.bytes());
             words.held_role(b, Some(*role));
         }
-        Ask::Message { .. }
+        Ask::Talk { .. }
+        | Ask::Leave { .. }
+        | Ask::Message { .. }
         | Ask::Propose { .. }
         | Ask::Withdraw { .. }
         | Ask::Create { .. }

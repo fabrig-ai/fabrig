@@ -8,7 +8,8 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-temper-protocol-records = { workspace = true, features = ["forge"] }
+temper-protocol-records.workspace = true
+temper-protocol-records-forge.workspace = true
 temper-protocol-store.workspace = true
 temper-service = { workspace = true, features = ["worker"] }
 jig-protocol-config.workspace = true

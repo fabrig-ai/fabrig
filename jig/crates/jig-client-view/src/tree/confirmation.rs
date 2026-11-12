@@ -229,7 +229,8 @@ fn action(
             }
             common::field(b, client, Purpose::Reason, JigPhrase::ReasonField, words, bindings);
         }
-        ActKind::Message => {
+        ActKind::Leave => words.text(b, JigPhrase::ActLeave, &[]),
+        ActKind::Talk | ActKind::Message => {
             words.text(b, JigPhrase::WillWrite, &[]);
             match object.key {
                 ObjectKey::Task(task) => {
@@ -246,7 +247,7 @@ fn action(
                 | ObjectKey::Result(_)
                 | ObjectKey::Note { .. } => {}
             }
-            if held(object) {
+            if open.act == ActKind::Message && held(object) {
                 crate::tree::frame::control(
                     b,
                     words,

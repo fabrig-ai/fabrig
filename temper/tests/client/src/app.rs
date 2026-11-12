@@ -283,6 +283,7 @@ impl App for Temper {
             ),
             Some(
                 domain::Event::Copied { .. }
+                | domain::Event::Launchpad
                 | domain::Event::AskApproval
                 | domain::Event::Act { action: Action::Approve(_) | Action::Copy { .. } }
                 | domain::Event::Start { .. }
@@ -447,6 +448,7 @@ impl App for Temper {
             | domain::Event::ScreenLeft
             | domain::Event::LookKept { .. }
             | domain::Event::SignInKept { .. }
+            | domain::Event::Launchpad
             | domain::Event::AskApproval
             | domain::Event::TabRefused
             | domain::Event::Client { .. } => vec![],

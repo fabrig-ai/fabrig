@@ -1712,8 +1712,8 @@ fn assert_rail(view: &crate::View, project: &[u8]) {
 #[expect(clippy::too_many_lines, reason = "one project switch checks its frame and Work's reads in both shells")]
 fn goals_opens_in_its_projects_frame() {
     use temper_client_domain::{Address, Event, GoalsFilter, Place, Request};
-    // Work's changes and notes, the rail's people and the project's ways and classes open without a goal template.
-    const PROJECT_READS: u32 = 6;
+    // Work's drafts, changes and notes, the rail's people and standing roles and the project's ways and classes open without a goal template.
+    const PROJECT_READS: u32 = 7;
     for filter in [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended] {
         for words in [fixtures::words(), fixtures::browser_words()] {
             let address = Address::Goals { project: fixtures::SECOND_PROJECT, filter };
@@ -1766,8 +1766,15 @@ fn goals_opens_in_its_projects_frame() {
             assert_eq!(
                 out.len(),
                 PROJECT_READS,
-                "changes, people, standing roles, notes and the new project's ways and classes: {out:?}"
+                "drafts, changes, people, standing roles, notes and the new project's ways and classes: {out:?}"
             );
+            let Some(Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
+            }) = out.pop()
+            else {
+                panic!("drafts watch")
+            };
+            assert_eq!(Some(subject), temper_client_domain::forge::drafts::watch(fixtures::PROJECT, &env.limits.forge));
             let Some(Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { subject, .. } },
             }) = out.pop()

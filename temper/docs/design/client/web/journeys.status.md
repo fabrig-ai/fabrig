@@ -2,6 +2,8 @@
 
 2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+
+
 Section 9 has the `ask-temper-start` account (`b14f146fc5`), the
 two-step `project-landing` print and the three `night-*` gallery states.
 The five journeys' prints include the unpressed night switch, with no

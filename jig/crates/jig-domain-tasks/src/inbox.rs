@@ -694,3 +694,90 @@ fn is_person(party: Party) -> bool {
         Party::Task(_) | Party::Deployment { .. } => false,
     }
 }
+
+/// Talk words use the same admission plan as a message; no talk changes before it fits.
+pub(crate) fn talk(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    project: u32,
+    operation: crate::Message,
+    out: &mut Queue<Request>,
+) {
+    let number = operation.task;
+    let party = match operation.word.from {
+        Party::Person(party) => party,
+        Party::Task(_) | Party::Deployment { .. } => {
+            crate::capacity::refused(domain, env, to, crate::Problem::new(Some(number), Refusal::State), out);
+            return;
+        }
+    };
+    let plan = match check_message(domain, &crate::compound::Staged::new(0), env, project, operation, true) {
+        Ok(plan) => plan,
+        Err(problem) => {
+            crate::capacity::refused(domain, env, to, *problem, out);
+            return;
+        }
+    };
+    let task = task_mut(domain, number).expect("message admission names live task");
+    let refusal = if task.record.flags.ended_by != crate::EndedBy::Standing {
+        Some(Refusal::NotStanding)
+    } else if let Some(talk) = task.record.talk {
+        if talk.party != party && crate::talk_state(Some(talk), task.record.session, env.wall) == crate::TalkState::Open
+        {
+            Some(Refusal::TalkOpen { party: talk.party })
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    if let Some(why) = refusal {
+        crate::capacity::refused(domain, env, to, crate::Problem::new(Some(number), why), out);
+        return;
+    }
+    if crate::talk_state(task.record.talk, task.record.session, env.wall) == crate::TalkState::Lapsed {
+        crate::session::leave(&mut task.record, env.wall, true, out);
+    }
+    if let Some(talk) = &mut task.record.talk {
+        talk.last = env.wall;
+    } else {
+        crate::session::end(&mut task.record, env.wall, crate::SessionEnd::Talk, out);
+        task.record.talk = Some(crate::Talk { party, opened: env.wall, last: env.wall });
+        crate::activity::append(&mut task.record, env.wall, crate::Line::TalkOpened { party }, out);
+    }
+    let (task, word) = apply_message(domain, env, plan, out);
+    out.push(Request::Sent { reply_to: to, task, word });
+}
+
+pub(crate) fn leave(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    to: ReplyTo,
+    project: u32,
+    leaving: (u64, u64, bool),
+    out: &mut Queue<Request>,
+) {
+    let (number, party, maintainer) = leaving;
+    let why = if !domain.ready() {
+        Some(Refusal::NotReady)
+    } else if let Some(task) = record(domain, number) {
+        if task.project != project {
+            Some(Refusal::Unknown)
+        } else if let Some(talk) = task.talk {
+            if talk.party == party || maintainer { None } else { Some(Refusal::NoTalk) }
+        } else {
+            Some(Refusal::NoTalk)
+        }
+    } else {
+        Some(Refusal::Unknown)
+    };
+    if let Some(why) = why {
+        crate::capacity::refused(domain, env, to, crate::Problem::new(Some(number), why), out);
+        return;
+    }
+    let task = task_mut(domain, number).expect("leave names live task");
+    crate::session::leave(&mut task.record, env.wall, false, out);
+    publish(domain, env, number, out);
+    out.push(Request::Done { reply_to: to });
+}

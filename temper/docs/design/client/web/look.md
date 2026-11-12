@@ -447,6 +447,26 @@
     `.who.p`'s ring (`--gf-signal`); `temper-how-reach-note`, the box's
     last line, `.small.muted`; its rows under the grid Settings'
     `.setting` rows;
+  - *Rules by path,* `whole-story.css`' `.shead a`, `.scroll` and `.tbl`
+    rules taken exactly, on tokens of its own: `temper-how-add`, "+ A
+    rule" at the head's right; `temper-how-rules`, the `.scroll` box
+    that scrolls the table across on a phone; `temper-how-table`, the
+    `.tbl` table, its header cells small and muted, its rows on
+    hairlines; `temper-how-paths`, a row's paths, `.mono`; a row's
+    sign-off What reaches you's chip, `temper-how-who-person`; an empty
+    cell's "–" `.muted`; `temper-how-rules-note`, the note under it,
+    `.small.muted`;
+  - *What follows a landing,* `whole-story.css`' `.grid2`, `.box`, `.box
+    h3`, `.chips` and `.who.c` rules taken exactly, on tokens of its own:
+    `temper-how-follows`, the boxes' grid, `repeat(auto-fit, minmax(300px,
+    1fr))` with a gap of 16; `temper-how-follow`, a box, its title `.box
+    h3`'s 17 px at 600, its words and its lag's line `.small`, the lag's
+    `.small.muted`; `temper-how-chips`, its chips' row, wrapping with a gap
+    of 6; `temper-how-who-code`, code's chip, `.who.c`'s 7 px square with
+    corners of 1.5 on `--gf-muted`, beside What reaches you's
+    `temper-how-who-agent`;
+  - *Budgets' head,* the period's words at the section head's right, as
+    `temper-how-way` is;
   - *on a phone,* at 760 px and under, the column takes the frame's phone
     width and the path runs down the page, as on Ask temper's page.
 - **A flow** (`skein/docs/design/ui/scenes.md`, 5) has the look of

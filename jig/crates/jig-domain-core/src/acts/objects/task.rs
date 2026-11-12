@@ -18,6 +18,16 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
     let who = PartyTask { person: party, project: row.project, role: held, task: number };
     match act {
         Act::Reorder => allowed(core.reorder_allowed(row.project, held)),
+        Act::Talk | Act::Leave => {
+            if let Err(why) = write(core, limits, party, number) {
+                return Admission::Refused(why);
+            }
+            if row.flags.ended_by == tasks::EndedBy::Standing {
+                Admission::Allowed
+            } else {
+                Admission::Refused(people::Refusal::NotOffered)
+            }
+        }
         Act::Message => allowed(write(core, limits, party, number)),
         Act::Amend => {
             let admission = bounds::amend(core, limits, party, number, held);
@@ -214,7 +224,9 @@ pub(crate) fn person(
                 Err(people::Refusal::Limit { which: people::LimitKind::LiveDelegates })
             }
         }
-        Act::Message
+        Act::Talk
+        | Act::Leave
+        | Act::Message
         | Act::Withdraw
         | Act::Accept
         | Act::Reject

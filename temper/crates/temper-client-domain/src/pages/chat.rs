@@ -1259,6 +1259,7 @@ impl Chat {
             Act::Stop => self.send(env, client, Sending::Stop, None, serial, out),
             Act::Resume => self.send(env, client, Sending::Resume, None, serial, out),
             Act::OpenStart { .. }
+            | Act::OpenLanded { .. }
             | Act::StartDraft { .. }
             | Act::StartName { .. }
             | Act::StartWay { .. }
@@ -1311,6 +1312,7 @@ impl Chat {
             | Act::Confirm
             | Act::Cancel
             | Act::Close
+            | Act::DeleteProject { .. }
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Pause

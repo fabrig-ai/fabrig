@@ -13,6 +13,57 @@ pub const BOUNDS: Bounds = Bounds {
     refusal_bytes: 64,
 };
 
+// Encode deliberately unchecked rules in the final fields of a smallest panel.
+// The panel's suffix is PathRules (two counts, both zero), then may_change (one byte).
+pub fn ways_with_unchecked_rules(panel: &v1::WaysPanel, rows: u32, row: &v1::PathRuleParts, note: &[u8]) -> Box<[u8]> {
+    assert!(panel.rules().rows().is_empty());
+    assert!(panel.rules().note().is_empty());
+    let bytes = crate::ways_panel(panel);
+    let prefix = bytes.get(..bytes.len().checked_sub(9).expect("rules and permission suffix")).expect("prefix");
+    let fields = [&row.paths, &row.review, &row.sign_off, &row.lands];
+    let mut row_bytes = 0_usize;
+    for field in fields {
+        row_bytes = row_bytes.checked_add(4).unwrap().checked_add(field.len()).unwrap();
+    }
+    let size = usize::try_from(rows)
+        .unwrap()
+        .checked_mul(row_bytes)
+        .unwrap()
+        .checked_add(prefix.len())
+        .unwrap()
+        .checked_add(9)
+        .unwrap()
+        .checked_add(note.len())
+        .unwrap();
+    let mut writer = skein_lib::Writer::new(size);
+    writer.put(prefix).expect("panel prefix");
+    writer.put(&rows.to_be_bytes()).expect("row count");
+    for _ in 0..rows {
+        for field in fields {
+            writer.put(&u32::try_from(field.len()).unwrap().to_be_bytes()).expect("field length");
+            writer.put(field).expect("field bytes");
+        }
+    }
+    writer.put(&u32::try_from(note.len()).unwrap().to_be_bytes()).expect("note length");
+    writer.put(note).expect("note bytes");
+    writer.put(&[u8::from(panel.may_change())]).expect("permission");
+    writer.finish()
+}
+
+pub fn path_rules(
+    limits: &v1::Limits,
+    rows: u32,
+    row: v1::PathRuleParts,
+    note: Box<[u8]>,
+) -> Result<v1::PathRules, v1::Problem> {
+    let row = v1::PathRule::new(limits, row)?;
+    let mut items = List::with_capacity(rows);
+    for _ in 0..rows {
+        items.push(row.clone()).expect("room for rows");
+    }
+    v1::PathRules::new(limits, v1::PathRulesParts { rows: items, note })
+}
+
 pub fn limits() -> v1::Limits {
     crate::limits(&BOUNDS).expect("test bounds within ceilings")
 }
@@ -418,16 +469,7 @@ fn tier_lines() -> List<Box<[u8]>> {
 pub fn questions() -> v1::Questions {
     let limits = limits();
     let mut open = List::with_capacity(5);
-    for (index, stands) in [
-        v1::Stands::Taken,
-        v1::Stands::Foreman(v1::Foreman::new(&limits, v1::ForemanParts { task: None }).expect("pending foreman")),
-        v1::Stands::Foreman(v1::Foreman::new(&limits, v1::ForemanParts { task: Some(15) }).expect("foreman")),
-        v1::Stands::Asked,
-        v1::Stands::Held,
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    for (index, stands) in [v1::Stands::Taken, v1::Stands::Asked, v1::Stands::Held].into_iter().enumerate() {
         open.push(
             v1::Question::new(
                 &limits,
@@ -445,7 +487,7 @@ pub fn questions() -> v1::Questions {
     v1::Questions::new(
         &limits,
         v1::QuestionsParts {
-            route: v1::Route::Foreman,
+            route: v1::Route::Up,
             taken: v1::Used::new(&limits, v1::UsedParts { used: 2, limit: 4 }).expect("questions taken"),
             open,
         },

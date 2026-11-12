@@ -174,8 +174,14 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         core::Now::Account(request) => {
             assert!(super::now(domain, Request::Account(request)), "admitted account output fits the door");
         }
-        core::Now::NotesIndexed { .. } | core::Now::NotesRecalled { .. } | core::Now::NotesRefused { .. } => {
-            unreachable!("the current application has no immediate notes route")
+        core::Now::NotesIndexed { owner, lines, more } => {
+            forge_route::status_route::notes_indexed(domain, env, owner, lines, more);
+        }
+        core::Now::NotesRecalled { owner, entries, more: _ } => {
+            forge_route::status_route::notes_recalled(domain, env, owner, entries);
+        }
+        core::Now::NotesRefused { owner, why: _ } => {
+            forge_route::status_route::notes_refused(domain, env, owner);
         }
     }
 }

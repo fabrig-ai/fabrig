@@ -68,6 +68,7 @@ pub(super) fn encode_task(value: &jig_client::contract::Task, out: &mut Encoder,
     let digest = budget.digest.take();
     out.object_start();
     super::super::task_source::reads(value, out);
+    encode_standing(value, out);
     encode_task_from_label(value, out, budget);
     encode_task_from_person_revision(value, out, budget);
     encode_task_from_hold(value, out, budget);
@@ -85,6 +86,7 @@ pub(super) fn encode_ended_task(
     let digest = budget.digest.take();
     out.object_start();
     super::super::task_source::reads(value, out);
+    encode_standing(value, out);
     encode_task_from_label(value, out, budget);
     encode_task_from_person_revision(value, out, budget);
     encode_task_from_hold(value, out, budget);
@@ -301,4 +303,33 @@ pub(super) fn encode_task_context(
     }
     out.array_end();
     out.object_end();
+}
+
+fn encode_standing(value: &jig_client::contract::Task, out: &mut Encoder) {
+    out.key(b"talk");
+    match value.talk {
+        None => out.null(),
+        Some(talk) => {
+            out.object_start();
+            out.key(b"party");
+            out.unsigned(talk.party);
+            out.key(b"opened");
+            out.unsigned(talk.opened.as_nanos());
+            out.key(b"last");
+            out.unsigned(talk.last.as_nanos());
+            out.object_end();
+        }
+    }
+    out.key(b"session");
+    match value.session {
+        None => out.null(),
+        Some(session) => {
+            out.object_start();
+            out.key(b"first");
+            out.unsigned(session.first);
+            out.key(b"last");
+            out.unsigned(session.last.as_nanos());
+            out.object_end();
+        }
+    }
 }

@@ -22,8 +22,8 @@ const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;
 const EXECUTORS: u32 = 19; // Eighteen stock kinds plus the story's extra charter.
-// Charter 11's resolved stock run policy needs 16,574 bytes.
-const RUN_BYTES: u32 = 20_480;
+// Holds the stock goal agent's instructions, four parts and resolved model.
+const RUN_BYTES: u32 = 32_768;
 const TRANSCRIPT_BYTES: u32 = 32_768;
 const MESSAGE_BYTES: u32 = 512;
 // Account, three chats, a decision and up to three owner messages or edits.

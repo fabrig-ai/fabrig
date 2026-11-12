@@ -227,7 +227,9 @@ fn turn_gate_failures_still_repair_or_hold_and_keep_their_bounds() {
         f.gates = Box::new([GateReport { number: 9, head: HEAD, status: Status::Failed }]);
         let next = decide(&c, &f, &heard());
         let expected = match kind {
-            GateKind::Agent | GateKind::Check => Decision::Delegate(Delegate::Repair(Repair::Gate(9))),
+            GateKind::Agent | GateKind::Check | GateKind::Follow => {
+                Decision::Delegate(Delegate::Repair(Repair::Gate(9)))
+            }
             GateKind::Person => Decision::Hold(Hold::Rejected),
         };
         assert_eq!(next.decision, expected);

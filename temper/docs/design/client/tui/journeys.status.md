@@ -2,6 +2,8 @@
 
 2026-11-11. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+
+
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a
   pseudo-terminal with no `COLORFGBG` and no answer to OSC 11, writes

@@ -16,12 +16,12 @@ macro_rules! value {
 pub fn read_values(limits: &Limits) -> List<(&'static str, ReadValue)> {
     let mut values = List::with_capacity(26);
     value!(values, limits, Project, Project, 116);
-    value!(values, limits, Ended, Ended, 297, Box::new);
+    value!(values, limits, Ended, Ended, 299, Box::new);
     value!(values, limits, Me, Me, 83);
     value!(values, limits, Turn, ArchivedTurn, 42);
-    value!(values, limits, Task, Task, 270);
+    value!(values, limits, Task, Task, 272);
     value!(values, limits, Proposal, Proposal, 61);
-    value!(values, limits, Escalation, Escalation, 274);
+    value!(values, limits, Escalation, Escalation, 276);
     value!(values, limits, Question, Question, 31);
     value!(values, limits, PersonTask, PersonTask, 71);
     value!(values, limits, Result, ResultDocument, 15);
