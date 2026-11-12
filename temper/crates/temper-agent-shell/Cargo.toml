@@ -9,7 +9,6 @@ publish.workspace = true
 
 [dependencies]
 temper-shell.workspace = true
-temper-version.workspace = true
 smith-agent-shell.workspace = true
 temper-launcher.workspace = true
 skein-shell.workspace = true

@@ -384,6 +384,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
         .insert(
             PROJECT,
             engine::ProjectLanding {
+                landing_attempts: engine::LANDING_ATTEMPTS,
                 check_timeout: None,
                 by: engine::Way::Queue,
                 close_job: None,
@@ -759,6 +760,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                 .insert(
                     PROJECT,
                     engine::ProjectLanding {
+                        landing_attempts: engine::LANDING_ATTEMPTS,
                         check_timeout: None,
                         by: engine::Way::Queue,
                         close_job: None,

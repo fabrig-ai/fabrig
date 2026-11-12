@@ -32,7 +32,7 @@ A budget is what a task may spend, in units its models' prices make of their usa
   pool hold 80 × 24K for eighty at once, the project's period one
   chat more for temper's work. On `temper-box init`'s box C is 1,057 units, so a
   run draws 2,114 to 4,228. The stock chat runs 64 turns and an hour;
-  the coding agent, its reviewers and its foremen 800 turns and eight
+  the coding agent, its reviewers and the goal's agent 800 turns and eight
   hours, each with a reserve of 1 turn and 60 seconds; a run is held
   at its spend long before its turns are spent, and its person funds
   more. `settings show` reads the current ones.
@@ -94,7 +94,7 @@ A budget is what a task may spend, in units its models' prices make of their usa
 
 For a goal of up to a hundred changes, count the whole task tree. For
 example, assume 100 change procedures, 100 producers, 200 reviews and
-100 repairs, plus 12 coordinator/foreman tasks including the goal:
+100 repairs, plus 12 coordinator tasks including the goal:
 512 tasks in the tree, 511 delegated tasks. If each agent task needs
 one run at cap K and procedures spend no model units, allow 412K units
 (400 production/review/repair runs plus 12 coordinator runs), then add

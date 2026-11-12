@@ -686,11 +686,7 @@ fn step_made(
             // Jobs prepare at activation, after their parent row names them.
             super::forge_event(domain, env, decision, forge::Event::Delegated { task, child, kind });
         }
-        if let Some(mut relayed) = pending.relayed {
-            if pending.foreman {
-                let question = relayed.questions.open.first_mut().expect("the made foreman has a head question");
-                question.stands = super::forge_change::Stands::Foreman { task: child };
-            }
+        if let Some(relayed) = pending.relayed {
             let event = match pending.refusal {
                 Some(words) => forge::Event::RelayRefused { task, questions: relayed.questions, words },
                 None => forge::Event::Relayed { task, questions: relayed.questions },

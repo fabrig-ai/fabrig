@@ -1,6 +1,7 @@
 # settings: status
 
-2026-11-11. Where the tree's code lags or departs from [settings.md](settings.md).
+2026-11-12. Where the tree's code lags or departs from [settings.md](settings.md).
+
 
 - **Not yet:** 1: *Deleting a project*: How work runs has no "Delete project", so no sheet, no `RemoveProject` from `temper-client-domain` and no going to `AllHome` after [in flight: change 633].
 

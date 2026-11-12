@@ -383,6 +383,17 @@
   goal above it where that goal may decide, otherwise its person or the
   role the project's policy names. A decision to hold reaches the task
   whatever step the procedure is at.
+- **Every hold reaches its task.** A change whose step fails for good
+  (its producer's, a resolution's, a repair's, a job's or a write's)
+  ends failed or holds, and its hold is its task's hold, never its
+  row's alone, so the escalation wakes its requester with the hold's
+  words (2026-11-12). The hold does not ride on its step's fence: a
+  step carrying it that turns stale, or is refused whole (its words to
+  the requester refused, say), still holds the task, with the same
+  cause and words. A change found held at any later step or once
+  restored, its task live and neither held nor ending, holds its task
+  again with its hold's cause and words, unless a party released the
+  task: that release's step lifts the change as ever (A release, below).
 - **A result that arrives on a held change is kept.** A delegate ending
   while its change is held on a stall at that delegate's wait ends the
   hold, with no party's release, as a green head does (above): the change

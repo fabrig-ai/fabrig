@@ -28,10 +28,10 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
         .output()
         .expect("serve");
     assert_eq!(output.status.code(), Some(1));
-    // Two executor places in four policy authorities add 64 bytes.
+    // Each executor place in four policy authorities adds 32 bytes.
     assert_eq!(
         String::from_utf8_lossy(&output.stderr),
-        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6014 bytes; raise it in engine.limits.overrides\n",
+        "temper serve: engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5982 bytes; raise it in engine.limits.overrides\n",
         "stdout: {}",
         String::from_utf8_lossy(&output.stdout)
     );
@@ -501,6 +501,8 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
         &[],
         b"/",
         b"temper-box",
+        "0.0.0",
+        "0123456789ab",
     )
     .expect_err("box refused")
 }
@@ -590,7 +592,9 @@ fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
             },
             &[],
             b"/",
-            b"temper-box"
+            b"temper-box",
+            "0.0.0",
+            "0123456789ab",
         ),
         Err(format!(
             "temper-box: configuration {}: absent; temper init writes one\n",
@@ -1034,6 +1038,8 @@ fn every_command_checks_setup_before_reading_files() {
                 &[],
                 b"/",
                 b"temper-box",
+                "0.0.0",
+                "0123456789ab",
             )
             .expect_err("box refused"),
         ),

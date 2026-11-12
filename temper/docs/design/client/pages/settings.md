@@ -504,8 +504,8 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
     reads as the first. A goal's start preselects it.
   - *What reaches you's rows,* under its columns, each a `.setting`:
     - "Questions a goal can answer from its plan", a select, live, kind 6:
-      "Answered by the goal, kept in its decisions" (`foreman`), "Asked of
-      me too" (`up`), "Not asked: each agent decides alone" (`none`);
+      "Asked of me too" (`up`), "Not asked: each agent decides alone"
+      (`none`), with no foreman (`../../domain/forge/change/questions.md`, 1);
     - "Away until", a select, small "When it isn’t turned off by hand.",
       options "08:00, the end of quiet hours", "I turn it off", while the
       switch is shown (`README.md`, 2, *Away*): each writes through `SetAway`, `on` as

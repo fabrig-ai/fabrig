@@ -131,6 +131,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
         | people::Outcome::ServiceMade { .. }
         | people::Outcome::Proposed { .. }
         | people::Outcome::Withdrawn { .. }
+        | people::Outcome::Left { .. }
         | people::Outcome::Stopped { .. }
         | people::Outcome::Cancelled { .. }
         | people::Outcome::Released { .. }

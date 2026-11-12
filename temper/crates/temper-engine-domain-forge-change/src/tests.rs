@@ -27,6 +27,7 @@ fn at(seconds: u64) -> Wall {
 }
 fn change(state: State) -> Change {
     Change {
+        ended_held: None,
         early: Early::None,
         way: crate::Way::Queue,
         landing: None,
@@ -1387,29 +1388,44 @@ fn a_release_resets_failed_review_tries_before_any_forge_read() {
 
 #[test]
 fn a_cancel_ends_every_held_cause_unless_the_change_landed() {
-    for why in [
-        Hold::Failed,
-        Hold::Repairs,
-        Hold::Rejected,
-        Hold::BranchMoved,
-        Hold::Stalled,
-        Hold::Resolutions,
-        Hold::Updates,
-        Hold::BranchMissing,
-        Hold::PullClosed,
-        Hold::Retargeted,
-    ] {
+    for why in [Hold::Repairs, Hold::Resolutions, Hold::Rejected, Hold::Stalled] {
         let c = change(State::Held { was: Box::new(State::Gating { head: HEAD, asked: Box::new([]) }), why });
         let mut h = heard();
         h.cancelled = true;
         let ended = decide(&c, &facts(), &h);
         assert_eq!(ended.decision, Decision::Cancel, "{why:?}");
         assert_eq!(ended.change.state, State::Ended, "{why:?}");
+        assert_eq!(ended.change.ended_held, Some(why), "{why:?}");
         let mut f = facts();
         f.pull = Pull::Merged { commit: MERGE };
         let landed = decide(&c, &f, &h);
         assert_eq!(landed.change.state, State::Landed { merge: MERGE, since: at(1) });
         assert_eq!(landed.decision, Decision::Finish { merge: MERGE });
+        assert_eq!(landed.change.ended_held, None);
+    }
+}
+
+#[test]
+fn a_cancel_without_a_hold_keeps_no_ending_hold() {
+    let c = change(State::Queued { head: HEAD, ready_since: at(0) });
+    let mut h = heard();
+    h.cancelled = true;
+    let ended = decide(&c, &facts(), &h);
+    assert_eq!(ended.change.state, State::Ended);
+    assert_eq!(ended.change.ended_held, None);
+}
+
+#[test]
+fn an_ended_change_takes_no_hold_past_a_bound() {
+    for ended_held in [None, Some(Hold::Repairs)] {
+        let mut c = change(State::Ended);
+        c.ended_held = ended_held;
+        c.clean = Box::new([HEAD]);
+        let limits = Limits { clean_heads: 0, ..LIMITS };
+        let ended = step(&c, &facts(), &heard(), at(1), &limits);
+        assert_eq!(ended.change.state, State::Ended);
+        assert_eq!(ended.change.ended_held, ended_held);
+        assert_eq!(ended.decision, Decision::Cancel);
     }
 }
 

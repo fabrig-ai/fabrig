@@ -15,6 +15,7 @@ pub(crate) mod reads;
 mod recovery;
 mod role;
 pub(crate) mod specification;
+pub(crate) mod talk;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FileEnd {
     Keep,
@@ -201,6 +202,7 @@ fn run(runner: &mut Runner, client: &Client, env: &Env<crate::jig::Limits>, call
         | rows::HAND_BACK_AT
         | rows::GOAL_START_AT
         | rows::ROLE_START_AT
+        | rows::ROLE_TALK_AT
         | rows::CHAT_CREATE_AT..=rows::CANCEL_AT
         | rows::LIFT_AT
         | rows::TASK_DECIDE_AT

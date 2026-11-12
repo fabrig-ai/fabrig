@@ -752,7 +752,6 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
                             &words.say(
                                 match route {
                                     Route::None => Word::SettingsProposalNone,
-                                    Route::Foreman => Word::SettingsProposalForeman,
                                     Route::Up => Word::SettingsProposalUp,
                                 },
                                 &[],

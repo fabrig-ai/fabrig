@@ -225,6 +225,7 @@ fn repair() -> forge::ChangeRow {
         priority: 0,
         ci: None,
         change: change::Change {
+            ended_held: None,
             early: change::Early::None,
             way: change::Way::Queue,
             landing: None,
@@ -262,7 +263,7 @@ fn repair() -> forge::ChangeRow {
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
-        foreman_charter: 6,
+
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,

@@ -64,7 +64,7 @@ watch's subject, its digest (4). It needs no key.
 | `task list --project PROJECT [--parent TASK] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after CURSOR]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, that task's delegates alone | `tasks{query}` (jig's `client/domain/contract/README.md`, 4.1, its parent key) |
 | `task show TASK [--tree] [--activity COUNT] [--run]` | a task's document, with its acts, its text saying under `next run:` why a run that can't start waits and what to run; with its live tree, its COUNT latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
 | `role list --project PROJECT [--after CURSOR]` | the project's live standing roles, label 3 (`../../domain/agent/standing.md`, section 6), a line each: its number, its charter, its state, what its period's budget has left, and its Now's first line, or `no Now yet` | `tasks{query}` by label, and the notes read of each role's scope by the description `now` (jig's `client/domain/contract/README.md`, section 4) |
-| `role show TASK` | a standing role: its task's document, as `task show` prints it, then its Now whole, its note's name, revision and when it was written, or `no Now yet` | `task{n}`, and the notes read of its scope by the description `now` |
+| `role show TASK [--report]` | a standing role: its task's document, as `task show` prints it, then, while a talk is open, `talking with PARTY since TIME` (jig's `domain/tasks/standing.md`, 5.6), then its Now whole, its note's name, revision and when it was written, or `no Now yet`; with `--report`, its weekly report whole in the Now's place, the note described `report` read and printed as the Now is, or `no report yet` (`../../domain/agent/standing.md`, section 8) | `task{n}`, and the notes read of its scope by the description `now`, or `report` |
 | `landing show LANDING` | a landing: its members, each candidate with its base, each gate's key with its receipt or run, the proof's state, the turn, its stale proofs and faults (`../../domain/landing.md`, section 14) | the forge's family |
 | `landing list --project PROJECT [--ended] [--newer-than TIME] [--after CURSOR]` | the project's landings, newest first, with their phases, the turn's holder first, a page and its cursor; with `--newer-than`, every landing on its repositories' landing branches the engine saw after TIME (as `task amend --deadline` takes it, UTC to the minute), with its verdicts and its trailers, from the landing log (`../../domain/after-landing.md`, sections 8 and 10) | the forge's family |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time (`../../domain/landing.md`, 6.2) | the forge's family |
@@ -203,6 +203,8 @@ agent must name.
 |---|---|---|---|
 | `chat start --project PROJECT [--template TEMPLATE] TEXT` | starts a chat from TEMPLATE, the project's chat template when none is named: template 5 is Ask temper (`../../domain/agent/ask-temper.md`) and template 6 a design session (`../../domain/agent/agents.md`, 4); a template that is no chat's, or not offered, is refused naming the templates `me` offers | `shapes::chat`, a `Create` | yes |
 | `role start --project PROJECT --budget AMOUNT [--charter CHARTER] TEXT` | starts a standing role from template 7 (`../../domain/agent/standing.md`, section 2): TEXT its spec's words, what it covers and how; AMOUNT its budget each period; run by CHARTER, the stock's charter 13 when none is named; prints the task it made, or the proposal a batch beyond the person's role became | `shapes`' fill of template 7, a `Create` | yes |
+| `role talk TASK TEXT [--timeout DURATION]` | words to a standing role in a talk (`../../domain/agent/standing.md`, section 7): opens one, ending its open session, or carries on the party's own; then waits, as `task show TASK --until replied` does (section 4), and prints the role's reply, the text of its runs' turns after these words, as `chat show` prints a conversation's; a refusal exits 2 naming it, `not a standing role`, or `talking with PARTY` for another party's open talk; past the timeout, or the task held or ended first, it prints what has come and exits 3 as a wait not met | `Talk`, then `task{n}`'s watch and `activity{n}` through `thread` | yes |
+| `role talk TASK --leave` | leaves the party's talk with the role, ending its session; prints `left: task N`; with no talk of theirs open, refused, exit 2, `no talk to leave` | `Leave` | yes |
 | `task message TASK TEXT` | words to a task | `Message` | yes |
 | `chat close TASK [--move TASK]... [--reason TEXT]` | closes a chat: its live delegates cancelled, or moved to the party where named; the reason empty unless given, as jig's reference UI sends it | `shapes::close_chat`, a compound request | yes |
 | `repository adopt --project PROJECT [--forge FORGE] --owner OWNER --name REPOSITORY [--ids IDS] --landing BRANCH [--role owned\|fork\|context] [--prefix PREFIX] [--no-home] [--no-ci] [--check GATE]...` | adopts a repository | the forge family's request (`../forge/family.md`, 4) | yes |
@@ -261,7 +263,7 @@ agent must name.
   where it names one, so a rule by none reads as it always has
   (`../../protocol/configuration/engine.md`), for the forge's charter a charter's
   number, for a project's ways `{"drafts": BOOL, "goals": BOOL, "changes": BOOL,
-  "way": N}`, for a project's questions `"none"`, `"foreman"` or `"up"`,
+  "way": N}`, for a project's questions `"none"` or `"up"`,
   for a project's classes `{"items": [ITEM, ...], "sets": [SET, ...]}`,
   each ITEM `{"kind": KIND, "words": TEXT, "class": CLASS}` or `{"set": N,
   "words": TEXT, "class": CLASS}`, `words` optional and empty by default,
@@ -336,9 +338,9 @@ agent must name.
   member's path, its indices from 0 as a document's are: a name that is
   no reason, or one every run is offered, `settings file item 1:
   charter.parts[1].on[0]: "answer" goes to every run and chooses no
-  part`; a name twice; an empty `on`; more
-  parts than `tasks.charter_parts`; and parts on a charter whose runs
-  resume, `charter.parts: a charter that resumes takes no parts`. jig's
+  part`; a name twice; an empty `on`; and more
+  parts than `tasks.charter_parts`. A charter whose runs resume may hold
+  parts, as jig admits them (jig's `domain/tasks/standing.md`, 5.4). jig's
   refusal of a change names the charter and no part
   (`../../draft/per-wake.status.md`, 3), so a malformed part prints as
   `settings apply: out of shape; item 1; charter 5: shape`.

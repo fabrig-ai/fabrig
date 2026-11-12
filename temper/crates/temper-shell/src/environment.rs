@@ -1,6 +1,17 @@
 //! Shared variables read by temper (temper/docs/design/cli/README.md, 8).
 use skein_shell::{Set, Variable, Way};
 
+/// The compile-time commit variable (temper/docs/design/cli/README.md, 8).
+pub const INTERNAL_COMMIT: Variable = Variable {
+    name: "TEMPER_INTERNAL_COMMIT",
+    set: Set::Internal,
+    form: "COMMIT",
+    way: Way::Reads,
+    line: "The build's commit and tracked-file dirty mark.",
+    absent: "The build script supplies unknown when git identity is unavailable.",
+    notes: "Read at compile time from temper-version's build script alone; not a runtime override.",
+};
+
 pub const INTERNAL_DUMP_LLM: Variable = Variable {
     name: "TEMPER_INTERNAL_DUMP_LLM",
     set: Set::Internal,

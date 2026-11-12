@@ -410,7 +410,7 @@ pub static PAGES: [Page; 68] = [
         name: "ctl-role",
         kind: Kind::Reference,
         title: "temper ctl role",
-        summary: "Standing roles: start one, list them, read one and its Now.",
+        summary: "Standing roles: start, list, read their Now or report, and talk.",
         text: include_str!("../../../docs/help/reference/ctl-role.md"),
     },
     Page {

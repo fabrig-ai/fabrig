@@ -40,6 +40,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
         d::Stored::Looked(row) => w::Value::Looked(status::encode_looked(row)),
         d::Stored::Making(row) => w::Value::Making(making::encode(row)),
+        d::Stored::RefusedSetting(_) => unreachable!("a refused setting is never saved"),
         d::Stored::Setting(row) => w::Value::Setting(settings::encode(row)),
         d::Stored::Tier(row) => w::Value::Tier(Box::new(tiers::encode(row))),
         d::Stored::LandingLog(row) => w::Value::LandingLog(landing_log::encode(row)),
@@ -111,7 +112,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 
 /// Decode one supported row with the checked startup bounds.
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
-    let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
+    let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable::Malformed))?;
     Ok(match row.into_parts().value {
         w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
@@ -135,7 +136,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
-        w::Value::Change(value) => d::Stored::Change(Box::new(change::decode_change_row(*value))),
+        w::Value::Change(value) => d::Stored::Change(Box::new(change::decode_change_row(*value)?)),
         w::Value::Dismissed(value) => {
             let w::DismissedParts { party, what } = value.into_parts();
             let what = match what {
@@ -190,10 +191,21 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
 
 /// Restore a decoded record only when its durable key agrees with the row.
 pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
-    let row = decode(value, bounds)?;
-    let encoded = crate::keys::encode(&d::stored_key(&row), u32::MAX).ok_or(Undecodable)?;
+    let row = match decode(value, bounds) {
+        Ok(row) => row,
+        Err(Undecodable::Setting(setting)) => {
+            let encoded = crate::keys::encode(&d::Key::Setting(setting), u32::MAX).ok_or(Undecodable::Malformed)?;
+            return if encoded.as_ref() == key {
+                Err(Undecodable::Setting(setting))
+            } else {
+                Err(Undecodable::Malformed)
+            };
+        }
+        Err(Undecodable::Malformed) => return Err(Undecodable::Malformed),
+    };
+    let encoded = crate::keys::encode(&d::stored_key(&row), u32::MAX).ok_or(Undecodable::Malformed)?;
     if encoded.as_ref() != key {
-        return Err(Undecodable);
+        return Err(Undecodable::Malformed);
     }
     Ok(row)
 }
@@ -343,8 +355,9 @@ fn encode_subject(subject: temper_protocol_reaches::Subject) -> w::ClassSubject 
 }
 fn decode_subject(record: &w::ClassSubject) -> Result<temper_protocol_reaches::Subject, Undecodable> {
     use temper_client_protocol_wire::v1;
-    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable))?);
-    record.encode(&mut writer).or(Err(Undecodable))?;
-    let record = v1::ClassSubject::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable))?;
+    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable::Malformed))?);
+    record.encode(&mut writer).or(Err(Undecodable::Malformed))?;
+    let record =
+        v1::ClassSubject::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish())).or(Err(Undecodable::Malformed))?;
     Ok(temper_protocol_reaches::subject_from(&record))
 }

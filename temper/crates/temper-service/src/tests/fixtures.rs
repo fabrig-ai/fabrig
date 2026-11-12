@@ -10,7 +10,7 @@ pub const DIALECT: u32 = 3;
 // The stock catalogue holds ten charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"tasks.charters":10,"core.templates":6,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":18,"tasks.executor_kinds":18,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":10,"core.templates":6,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":18,"tasks.executor_kinds":18,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -82,8 +82,15 @@ pub fn engine() -> settings::Engine {
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         landings: skein_lib::Map::with_capacity(0),
-        limits: limits::profile(limits::Profile::Small),
+        limits: small_limits(),
     }
+}
+
+// The small worlds admit the stock's larger goal charter while keeping Small's store page.
+fn small_limits() -> limits::Limits {
+    let mut own = limits::profile(limits::Profile::Small);
+    own.root.journal.run_bytes = 32_768;
+    own
 }
 
 pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
@@ -211,6 +218,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
     use skein_lib::Wall;
     tasks::TaskRecord {
         session: None,
+        talk: None,
         activation_open: false,
         closer: None,
         offered: jig_domain_tasks::Reasons::ALL,

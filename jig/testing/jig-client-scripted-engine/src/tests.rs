@@ -245,6 +245,8 @@ fn counts() -> ImpactCounts {
 }
 fn task() -> Task {
     Task {
+        talk: None,
+        session: None,
         dependency_facts: skein_lib::List::with_capacity(0),
         kept_account: None,
         run_wait: None,

@@ -398,7 +398,7 @@ record OutcomeProjectRemoved { project: u32 }
 record OutcomeAccountMovedIn { account: u32 renewed: bool }
 record OutcomeAccountFinishing { source: u32 }
 record OutcomeLifted { hold: u64 released: u32 }
-enum DocumentOutcome { marked_seen: OutcomeMarkedSeen, note_edited: OutcomeNoteEdited, service_made: OutcomeServiceMade, adopted: OutcomeAdopted, stopped: OutcomeStopped, cancelled: OutcomeCancelled, released: OutcomeReleased, person_taken: OutcomePersonTaken, person_handed_back: OutcomePersonHandedBack, person_answered: OutcomePersonAnswered, moved: OutcomeMoved, proposal_decided: OutcomeProposalDecided, said: OutcomeSaid, question_answered: OutcomeQuestionAnswered, amended: OutcomeAmended, proposed: OutcomeProposed, withdrawn: OutcomeWithdrawn, roles_set: OutcomeRolesSet, policy_changed: OutcomePolicyChanged, pool_set: OutcomePoolSet, escalation_decided: OutcomeEscalationDecided, compound: OutcomeCompound, created: OutcomeCreated, account_sign_in_started: OutcomeAccountSignInStarted, account_signed_out: OutcomeAccountSignedOut, account_key_kept: OutcomeAccountKeyKept, account_changed, account_removed: OutcomeAccountRemoved, account_program_declared: OutcomeAccountProgramDeclared, renamed: OutcomeRenamed, project_made: OutcomeProjectMade, account_moved_in: OutcomeAccountMovedIn, account_finishing: OutcomeAccountFinishing, lifted: OutcomeLifted, project_removed: OutcomeProjectRemoved, visibility_set: OutcomeVisibilitySet }
+enum DocumentOutcome { marked_seen: OutcomeMarkedSeen, note_edited: OutcomeNoteEdited, service_made: OutcomeServiceMade, adopted: OutcomeAdopted, stopped: OutcomeStopped, cancelled: OutcomeCancelled, released: OutcomeReleased, person_taken: OutcomePersonTaken, person_handed_back: OutcomePersonHandedBack, person_answered: OutcomePersonAnswered, moved: OutcomeMoved, proposal_decided: OutcomeProposalDecided, said: OutcomeSaid, question_answered: OutcomeQuestionAnswered, amended: OutcomeAmended, proposed: OutcomeProposed, withdrawn: OutcomeWithdrawn, roles_set: OutcomeRolesSet, policy_changed: OutcomePolicyChanged, pool_set: OutcomePoolSet, escalation_decided: OutcomeEscalationDecided, compound: OutcomeCompound, created: OutcomeCreated, account_sign_in_started: OutcomeAccountSignInStarted, account_signed_out: OutcomeAccountSignedOut, account_key_kept: OutcomeAccountKeyKept, account_changed, account_removed: OutcomeAccountRemoved, account_program_declared: OutcomeAccountProgramDeclared, renamed: OutcomeRenamed, project_made: OutcomeProjectMade, account_moved_in: OutcomeAccountMovedIn, account_finishing: OutcomeAccountFinishing, lifted: OutcomeLifted, project_removed: OutcomeProjectRemoved, visibility_set: OutcomeVisibilitySet, left: OutcomeStopped }
 record MadeTasks { tasks: list 32 u64 }
 record MadeService { party: u64 credential: secret 40 }
 record MadePersonResult { task: u64 }
@@ -533,10 +533,13 @@ record ActivityDecidedProposal { number: u64 made: bool }
 record ActivityDecided { revision: u64 proposal: option ActivityDecidedProposal }
 record ActivityMilestone { position: u64 }
 record ActivityKept { attempt: u64 pending: list 32 u64 question: option u64 }
+record ActivityNowWritten { attempt: u64 line: text 512 }
 record ActivityStood { attempt: u64 words: text 512 }
-enum SessionEnd { quiet, bound, unoffered, fresh, closed, rules }
+enum SessionEnd { quiet, bound, unoffered, fresh, closed, rules, talk, left }
+record TalkOpened { party: u64 }
+record TalkEnded { party: u64 lapsed: bool }
 record ActivitySessionEnded { attempt: u64 end: SessionEnd }
-enum Activity { words: ActivityWords, heard: ActivityHeard, notified: ActivityNotified, run_began: ActivityRunBegan, run_ended: ActivityRunEnded, turn: ActivityTurn, decided: ActivityDecided, milestone: ActivityMilestone, kept: ActivityKept, stood: ActivityStood, session_ended: ActivitySessionEnded }
+enum Activity { words: ActivityWords, heard: ActivityHeard, notified: ActivityNotified, run_began: ActivityRunBegan, run_ended: ActivityRunEnded, turn: ActivityTurn, decided: ActivityDecided, milestone: ActivityMilestone, kept: ActivityKept, stood: ActivityStood, session_ended: ActivitySessionEnded, talk_opened: TalkOpened, talk_ended: TalkEnded, now_written: ActivityNowWritten }
 record ActivityLine { task: u64 position: u64 at: u64 line: Activity }
 record TurnName { attempt: u64 number: u32 }
 record TurnCarried { bytes: bytes 8388608 }
@@ -553,7 +556,7 @@ record TaskLinkRetained { chip: Chip at: option u64 }
 record TaskLinkStored { number: u64 status: option TaskStatus }
 enum TaskLink { live: TaskLinkLive, retained: TaskLinkRetained, stored: TaskLinkStored }
 record ResultDetails { contract: TaskContractDocument requester: Requester executor: Executor chosen_by: option u64 delegates: bytes 16777216 followups: option bytes 16777216 proposal: option ProposalKey cut: bool }
-enum ActKind { message, answer, take, hand_back, accept, reject, pass_up, release, leave_held, amend, stop, cancel, move_task, reorder, seen, edit_note, delete_note, adopt, change_policy, set_roles, make_service, set_pool, withdraw, rename, remove_project }
+enum ActKind { message, answer, take, hand_back, accept, reject, pass_up, release, leave_held, amend, stop, cancel, move_task, reorder, seen, edit_note, delete_note, adopt, change_policy, set_roles, make_service, set_pool, withdraw, rename, remove_project, talk, leave }
 record CreateProcedure { connector: u16 code: u32 }
 record KindImplication { connector: u16 kind: u16 implies: u16 }
 record AuthorityDocument { authority: Authority cut: bool }
@@ -717,7 +720,9 @@ enum TaskWaitRefused { hello: TaskWaitHello, bounds: TaskWaitBounds }
 record TaskRunWaitRefused { value: TaskWaitRefused }
 enum TaskRunWait { account: TaskWaitAccount, credential, host, refused: TaskRunWaitRefused }
 record TaskSettings { task: u32 run: option u32 newest: u32 }
-record Task { settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 made: u64 waits_on: WaitsOn chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: Requester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: WakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: Budget authority: AuthorityDocument hold: option ChipHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency }
+record Talk { party: u64 opened: u64 last: u64 }
+record Session { first: u64 last: u64 }
+record Task { talk: option Talk session: option Session  settings: option TaskSettings label: u32 flags: TaskFlags last_activity: u64 made: u64 waits_on: WaitsOn chip: Chip goal: option u64 priority: option u32 lineage_chips: bytes 16777216 inputs: bytes 16777216 project: u32 requester: Requester lineage: list 32 u64 spec: SpecificationDocument spec_revision: Revision person_revision: option Revision taken_by: option u64 instructions: option DocumentText wake: WakePolicy subscriptions: Subscriptions result_contract: TaskContractDocument dependencies: bytes 16777216 references: bytes 16777216 cut: bool resources: bytes 16777216 budget: Budget authority: AuthorityDocument hold: option ChipHold proposals: list 32 ProposalKey activity: u64 changed: u64 acts: bytes 16777216 result: option TaskResult delegates: bytes 16777216 context: option TaskContext llm: option LlmChoice kept_account: option u32 run_wait: option TaskRunWait dependency_facts: list 32 Dependency }
 record ReadPosition { task: u64 through: u64 }
 record Tasks { rows: bytes 16777216 more: bool }
 record EndedRows { rows: bytes 16777216 after: option Cursor cut: bool }

@@ -579,6 +579,13 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
         }
         c::Ask::Create { project, tasks } => super::operations::create(*project, tasks, limits)?,
         c::Ask::Compound { project, operations } => super::compound::encode(*project, operations, limits)?,
+        c::Ask::Talk { project, task, words } => w::Ask::Talk(w::Message::new(
+            limits,
+            w::MessageParts { project: *project, task: *task, words: bytes::copy_of(words.bytes()) },
+        )?),
+        c::Ask::Leave { project, task } => {
+            w::Ask::Leave(w::Stop::new(limits, w::StopParts { project: *project, task: *task })?)
+        }
         c::Ask::Message { project, task, words } => w::Ask::Message(w::Message::new(
             limits,
             w::MessageParts { project: *project, task: *task, words: bytes::copy_of(words.bytes()) },

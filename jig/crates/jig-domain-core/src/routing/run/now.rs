@@ -33,6 +33,25 @@ fn scope(core: &Core, task: u64) -> Option<notes::Scope> {
     Some(notes::Scope::Goal { project: context.project, goal: task })
 }
 
+/// Only saved entries reach here, after whole or range revisions have their complete body.
+pub(crate) fn written(core: &Core, work: &mut Queue<Work>, entry: &notes::Entry) {
+    let (task, attempt) = match entry.author {
+        notes::Author::Task { task, attempt } => (task, attempt),
+        notes::Author::Party { .. } => return,
+    };
+    let Some(row) = core.tasks.task(task) else { return };
+    if row.flags.ended_by != tasks::EndedBy::Standing
+        || entry.scope != (notes::Scope::Goal { project: row.project, goal: task })
+        || entry.description.as_ref() != b"now"
+    {
+        return;
+    }
+    let end = bytes::line_end(&entry.body).unwrap_or(entry.body.len());
+    let line = entry.body.get(..end).expect("line end within body");
+    let line = bytes::utf8_prefix(line, skein_lib::length::usize_of(tasks::NOW_LINE));
+    work.push(Work::Event(Event::Tasks(tasks::Event::NowWritten { task, attempt, line: Box::from(line) })));
+}
+
 fn current(core: &Core, task: u64) -> bool {
     match core.contexts.get(&task) {
         Some(context) => super::parts::preparation_current(core, context) && scope(core, task).is_some(),
@@ -90,7 +109,7 @@ pub(crate) fn indexed(core: &mut Core, work: &mut Queue<Work>, task: u64, lines:
                 page: 0,
             })));
         }
-        None => retain(core, work, task, render(None, 0)),
+        None => retain(core, work, task, render(None, 0, core.contexts.get(&task).expect("preparing task").numbers)),
     }
 }
 
@@ -111,7 +130,16 @@ pub(crate) fn recalled(
         && Some(entry.scope.clone()) == scope(core, task)
         && entry.description.as_ref() == b"now"
     {
-        retain(core, work, task, render(Some(entry), env.limits.brief_core_budgets.now));
+        retain(
+            core,
+            work,
+            task,
+            render(
+                Some(entry),
+                env.limits.brief_core_budgets.now,
+                core.contexts.get(&task).expect("preparing task").numbers,
+            ),
+        );
     } else {
         fail(work, task, brief::GatherFate::Permanent, b"the note could not be read");
     }
@@ -195,10 +223,18 @@ fn fail(work: &mut Queue<Work>, task: u64, fate: brief::GatherFate, words: &'sta
     });
 }
 
-fn render(entry: Option<&notes::Entry>, bound: u32) -> Box<[u8]> {
+fn render(entry: Option<&notes::Entry>, bound: u32, numbers: tasks::Numbers) -> Box<[u8]> {
+    let spent = numbers.spent.checked_add(numbers.spent_below).expect("bounded period spend");
+    let period = bytes::concat(&[
+        b"This period: spent ",
+        Decimal::of(spent).as_bytes(),
+        b" of ",
+        Decimal::of(numbers.budget).as_bytes(),
+        b".\n",
+    ]);
     let instruction = b"Write your Now in your own task's goal scope, described `now`, before you park.\n";
     let Some(entry) = entry else {
-        return bytes::concat(&[b"None written yet.\n", instruction]);
+        return bytes::concat(&[b"None written yet.\n", &period, instruction]);
     };
     let name = Decimal::of(entry.name);
     let revision = Decimal::of(u64::from(entry.revision));
@@ -224,10 +260,38 @@ fn render(entry: Option<&notes::Entry>, bound: u32) -> Box<[u8]> {
     } else {
         Box::default()
     };
-    bytes::concat(&[&title, instruction, b"\n", body, &marker])
+    bytes::concat(&[&title, &period, instruction, b"\n", body, &marker])
 }
 
 pub(crate) fn text(core: &Core, task: u64) -> Option<Box<[u8]>> {
     scope(core, task)?;
     core.now.texts.get(&task).cloned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn period_figures_follow_the_title_with_or_without_a_now() {
+        let numbers = tasks::Numbers { budget: 10_000, spent: 1200, spent_below: 34, reserved: 100 };
+        let entry = notes::Entry {
+            name: 20,
+            scope: notes::Scope::Goal { project: 1, goal: 1 },
+            description: b"now".as_slice().into(),
+            body: b"Watching".as_slice().into(),
+            references: List::with_capacity(0),
+            author: notes::Author::Task { task: 1, attempt: 3 },
+            revision: 2,
+            changed: skein_lib::Wall::EPOCH,
+        };
+        for (entry, title) in [
+            (Some(&entry), b"Note 20, revision 2, written at 0 ns since Unix epoch.\n".as_slice()),
+            (None, b"None written yet.\n".as_slice()),
+        ] {
+            let rendered = render(entry, 100, numbers);
+            let expected = bytes::concat(&[title, b"This period: spent 1234 of 10000.\n"]);
+            assert!(rendered.starts_with(&expected));
+        }
+    }
 }

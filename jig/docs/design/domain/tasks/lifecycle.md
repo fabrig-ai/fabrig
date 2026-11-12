@@ -616,6 +616,18 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
   no run between: a last result under `last_or_failure` (`messages.md`, 3) does not
   wake it, where a failure still does, and the result stays in its
   inbox, offered to its next run if one comes.
+- **Its funds follow its task's runs.** The closer's budget grows by
+  what its task has left whenever the task is idle or waiting and the
+  closer is not closing: after a delegate the task funds ends, after a
+  run of the task answers, and after an amendment of the task. A run of
+  the task, as it is claimed, takes back what the closer holds
+  unreserved, the closer's budget becoming what it and its ended
+  delegates spent and what it holds reserved, so that the task's
+  judgement is never starved by its closer. Each of those growths makes
+  the closer due (`Changed`, as a procedure's changed inputs do) where
+  it is idle, whether it gave anything or not, so that a step the
+  closer could not fund while a run held its funds is decided again
+  once that run has answered (temper's `domain/forge/branches.md`, 2).
 - **Its success ends the task:** the closer ending done, its result is
   the task's: checked against the task's contract as a run's finish is
   (7), and the task closes with it (1), no run claiming it. A

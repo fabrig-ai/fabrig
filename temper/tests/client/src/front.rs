@@ -1218,7 +1218,7 @@ impl Joint {
         settings: bool,
         approval: bool,
     ) -> Self {
-        // Chat, reviewer, foreman and change procedure; chat/change/producer depth;
+        // Chat, reviewer and change procedure; chat/change/producer depth;
         // the same owner in the project and deployment.
         const SETTINGS_EXECUTORS: u32 = 4;
         const SETTINGS_DEPTH: u32 = 3;
@@ -1326,8 +1326,8 @@ impl Joint {
             limits.journal.held = 1024;
             limits.journal.deliveries = 256;
             limits.journal.result_bytes = 4096;
-            // The deep task row includes its 32-byte optional session.
-            limits.journal.transcript_bytes = 8224;
+            // The deep task row includes its optional session and talk, 32 bytes each.
+            limits.journal.transcript_bytes = 8256;
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
             limits.brief.brief_bytes = 1024;
@@ -1341,17 +1341,8 @@ impl Joint {
                 config.core.owners =
                     Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);
                 limits.people.initial_owners = SETTINGS_OWNERS;
-                let mut foreman = config.core.defaults.charters[0].clone();
-                foreman.number = 6;
-                let mut charters = config.core.defaults.charters.into_vec();
-                charters.push(foreman);
-                config.core.defaults.charters = charters.into_boxed_slice();
-                rules.ceiling.delegation.kinds = Box::new([
-                    a::Executor::Charter(1),
-                    a::Executor::Charter(4),
-                    a::Executor::Charter(6),
-                    a::Executor::Procedure(2),
-                ]);
+                rules.ceiling.delegation.kinds =
+                    Box::new([a::Executor::Charter(1), a::Executor::Charter(4), a::Executor::Procedure(2)]);
                 policy.ceiling.delegation.kinds.clone_from(&rules.ceiling.delegation.kinds);
                 policy.roles[0].authority.delegation.kinds.clone_from(&rules.ceiling.delegation.kinds);
                 rules.ceiling.delegation.depth = SETTINGS_DEPTH;
@@ -1361,8 +1352,8 @@ impl Joint {
                 limits.authority.executors = SETTINGS_EXECUTORS;
                 limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
                 limits.documents.executors = SETTINGS_EXECUTORS;
-                // The task's closer and optional session each occupy 32 bytes in the deep row.
-                limits.journal.transcript_bytes = 8232;
+                // The task's closer, optional session and talk each occupy 32 bytes in the deep row.
+                limits.journal.transcript_bytes = 8264;
             }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();

@@ -399,6 +399,7 @@ fn keeps_requested(outcome: &Outcome) -> bool {
                 | c::DocumentOutcome::NoteEdited { .. }
                 | c::DocumentOutcome::ServiceMade { .. }
                 | c::DocumentOutcome::Adopted { .. }
+                | c::DocumentOutcome::Left { .. }
                 | c::DocumentOutcome::Stopped { .. }
                 | c::DocumentOutcome::Cancelled { .. }
                 | c::DocumentOutcome::Released { .. }
