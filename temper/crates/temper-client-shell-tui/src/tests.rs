@@ -1,5 +1,8 @@
 #[path = "tests/goal.rs"]
 mod goal;
+#[path = "tests/lending.rs"]
+mod lending;
+pub(crate) use lending::terminal_document;
 
 use crate::{
     host::{Duties, Host, Report, Settings, Start},
@@ -63,6 +66,8 @@ fn empty(duties: &Duties) {
     assert!(duties.open.is_none());
     assert!(!duties.close);
     assert!(duties.stop.is_none());
+    assert!(duties.lend.is_none());
+    assert!(!duties.unlend);
 }
 
 #[test]

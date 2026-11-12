@@ -1,5 +1,6 @@
 //! The strict byte codec (temper/docs/design/client/tui/journeys.md, 3.2 and 3.3;
 //! temper/docs/design/client/web/journeys.md, 3.2).
+use jig_client::contract::LoginExit;
 use skein_lib::{Time, Wall};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
@@ -35,6 +36,9 @@ pub enum Line {
     Found(Option<Box<[u8]>>),
     BoxLine(Box<[u8]>),
     BoxStage(Box<[u8]>),
+    Lent { number: u32, exit: LoginExit },
+    Lend { number: u32, name: Box<[u8]> },
+    Unlend,
     StopBox,
     StopBoxAgain,
     Send { exchange: u64, message: Sent, credential: Option<Box<[u8]>> },
@@ -127,10 +131,19 @@ pub struct Unreadable {
 
 impl Line {
     /// Append this record and its newline.
+    #[expect(clippy::too_many_lines, reason = "one exhaustive match writes every journey record's fields")]
     pub fn write(&self, out: &mut Vec<u8>) {
         out.extend_from_slice(self.kind().as_bytes());
         let mut w = Text { out };
         match self {
+            Self::Lent { number, exit } => {
+                w.number(u64::from(*number));
+                w.login_exit(*exit);
+            }
+            Self::Lend { number, name } => {
+                w.number(u64::from(*number));
+                w.bytes(name);
+            }
             Self::Journey { version } => w.number(u64::from(*version)),
             Self::Seed(seed) | Self::Unanswered(seed) => w.number(*seed),
             Self::Clocks { now, wall } | Self::Turn { now, wall } => {
@@ -162,6 +175,7 @@ impl Line {
                 w.bytes(bytes);
             }
             Self::Front
+            | Self::Unlend
             | Self::Local
             | Self::Box
             | Self::Read
@@ -227,6 +241,9 @@ impl Line {
     #[must_use]
     pub fn kind(&self) -> &'static str {
         match self {
+            Self::Lent { .. } => "lent",
+            Self::Lend { .. } => "lend",
+            Self::Unlend => "unlend",
             Self::Journey { .. } => "journey",
             Self::Seed(_) => "seed",
             Self::Clocks { .. } => "clocks",
@@ -325,6 +342,19 @@ impl Text<'_> {
             self.bytes(bytes);
         } else {
             self.word(b"none");
+        }
+    }
+    fn login_exit(&mut self, exit: LoginExit) {
+        match exit {
+            LoginExit::Exited { code } => {
+                self.word(b"exited");
+                self.number(u64::from(code));
+            }
+            LoginExit::Killed { signal } => {
+                self.word(b"killed");
+                self.number(u64::from(signal));
+            }
+            LoginExit::NotStarted => self.word(b"not-started"),
         }
     }
     fn note(&mut self, note: Note) {
@@ -450,6 +480,14 @@ impl Read<'_> {
         } else {
             Err("expected bytes or none")
         }
+    }
+    fn login_exit(&mut self) -> Result<LoginExit, &'static str> {
+        Ok(match self.word()? {
+            b"exited" => LoginExit::Exited { code: u8::try_from(self.number()?).map_err(|_| "number overflow")? },
+            b"killed" => LoginExit::Killed { signal: u8::try_from(self.number()?).map_err(|_| "number overflow")? },
+            b"not-started" => LoginExit::NotStarted,
+            _ => return Err("unknown login exit"),
+        })
     }
     fn note(&mut self) -> Result<Note, &'static str> {
         match self.word()? {
@@ -589,6 +627,9 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         }),
         b"local" => Line::Local,
         b"front" => Line::Front,
+        b"lent" => Line::Lent { number: r.count()?, exit: r.login_exit()? },
+        b"lend" => Line::Lend { number: r.count()?, name: r.bytes()? },
+        b"unlend" => Line::Unlend,
         b"box-line" => Line::BoxLine(r.bytes()?),
         b"box-stage" => Line::BoxStage(r.bytes()?),
         b"stop-box" => Line::StopBox,
