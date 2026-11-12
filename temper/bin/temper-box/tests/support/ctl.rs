@@ -97,6 +97,7 @@ impl Call {
     }
 }
 pub type NextCall = Box<dyn FnOnce(&[Ended]) -> Call>;
+pub type BoxCall = Box<dyn FnOnce(&[u8]) -> Call>;
 pub enum Step {
     Mark(&'static str),
     /// Wait for bytes in the box's captured stderr; requires a box referee.
@@ -108,6 +109,8 @@ pub enum Step {
     Visit,
     /// Form a dependent call from the completed calls' documents.
     Then(NextCall),
+    /// Form an installed-box story's call from its captured opening lines.
+    ThenBox(BoxCall),
     Start(Call),
     Join,
     Until(Call, &'static [u8]),
@@ -386,6 +389,7 @@ enum Action {
     Until(Call, ReadCondition),
     TaskExists(Call, u64),
     Stderr(&'static [u8]),
+    ThenBox(BoxCall),
     ProgramLogin(&'static str),
     Signal,
     NextLink,
@@ -567,6 +571,13 @@ impl Calls {
     }
     /// The box referee checks after each ring wake, including stderr reads.
     pub(super) fn observe_box_stderr(&mut self, stderr: &[u8], now: Time) {
+        if matches!(self.action, Some(Action::ThenBox(_))) {
+            let Some(Action::ThenBox(next)) = self.action.take() else { unreachable!() };
+            self.referee_work = RefereeWork::Waiting;
+            let call = next(stderr);
+            self.action = Some(Action::Run);
+            self.start(call, false);
+        }
         if matches!(self.action, Some(Action::Stderr(_) | Action::ProgramLogin(_))) {
             self.referee_work = RefereeWork::Waiting;
         }
@@ -791,7 +802,7 @@ impl Calls {
                 }
             }
             Action::Visit => panic!("a visit has no child"),
-            Action::Stderr(_) | Action::ProgramLogin(_) => panic!("a stderr gate has no child"),
+            Action::Stderr(_) | Action::ThenBox(_) | Action::ProgramLogin(_) => panic!("a stderr gate has no child"),
             Action::NextLink | Action::RestartEngine | Action::ReleaseLlm { .. } => {
                 unreachable!("referee action has no child")
             }
@@ -863,6 +874,7 @@ impl Calls {
                 self.action,
                 Some(
                     Action::Stderr(_)
+                        | Action::ThenBox(_)
                         | Action::ProgramLogin(_)
                         | Action::NextLink
                         | Action::RestartEngine
@@ -945,6 +957,7 @@ impl Calls {
             }
             Some(Step::RestartEngine) => self.await_box(Action::RestartEngine),
             Some(Step::Stderr(bytes)) => self.await_box(Action::Stderr(bytes)),
+            Some(Step::ThenBox(next)) => self.await_box(Action::ThenBox(next)),
             Some(Step::ProgramLogin(name)) => self.await_box(Action::ProgramLogin(name)),
             Some(Step::NextLink) => {
                 self.action = Some(Action::NextLink);
@@ -1326,6 +1339,27 @@ pub fn proposal_key(ended: &Ended, me: &Ended) -> String {
 #[cfg(test)]
 pub mod read_condition_tests {
     use super::*;
+
+    pub fn a_box_call_consumes_captured_stderr_once_without_busy_waiting() {
+        let step = Step::ThenBox(Box::new(|stderr| {
+            assert_eq!(stderr, b"box: fake forgejo http://127.0.0.1:3000\n");
+            Call::new(&["forge", "list"])
+        }));
+        let mut calls = Calls::new(Fd::new(0), vec![step], None, None).with_box_stderr();
+        calls.advance(Time::ZERO);
+        assert!(calls.child.is_none(), "the box referee supplies the stderr first");
+        assert!(matches!(calls.referee_work, RefereeWork::Ready), "wake the referee without new pipe bytes");
+        calls.observe_box_stderr(b"box: fake forgejo http://127.0.0.1:3000\n", Time::ZERO);
+        assert!(calls.child.is_some(), "the dependent call started");
+        assert!(matches!(calls.action, Some(Action::Run)));
+        assert!(matches!(calls.referee_work, RefereeWork::Waiting), "a consumed callback must not busy-wait");
+        let submissions = calls.submit.len();
+        calls.observe_box_stderr(b"later output", Time::ZERO);
+        assert_eq!(calls.submit.len(), submissions, "the callback runs only once");
+        calls.child = Some(completed(b"connected"));
+        calls.finish(Time::ZERO);
+        assert_eq!(calls.ends.len(), 1, "the new step keeps ordinary call accounting");
+    }
 
     pub fn a_single_host_timeout_reports_its_pending_call() {
         let mut judge = Judge {

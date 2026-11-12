@@ -87,7 +87,7 @@ impl Fake {
         let mut service = Service::new(config, &limits, seed).expect("valid fixture config");
         fixture::install_three(&mut service);
         let (domain, config) = fixture_domain(seed, has_logs);
-        Self { inline: Inline::new(service, domain, config, limits), statuses: Vec::new() }
+        Self { inline: Inline::new(service, domain, config.clone(), limits), statuses: Vec::new() }
     }
 
     pub(crate) fn into_service(self) -> Service {
@@ -314,7 +314,7 @@ fn merge_fixture(domain: &mut fake::Domain, config: &fake::Config, first: u64) {
 fn fixture_call(domain: &mut fake::Domain, config: &fake::Config, repository: &[u8], op: a::Op) {
     inline::call(
         domain,
-        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *config },
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.clone() },
         fake::Event::Call { reply_to: ReplyTo::new(Token::new(77)), user: 9, repository: Box::from(repository), op },
     )
     .expect("fixture call");
@@ -365,8 +365,8 @@ impl Files {
             .expect("commit room")
             .expect("parent exists");
         let mut fake = Self {
-            fake: Fake { inline: Inline::new(service, domain, config, limits), statuses: Vec::new() },
-            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config },
+            fake: Fake { inline: Inline::new(service, domain, config.clone(), limits), statuses: Vec::new() },
+            env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: config.clone() },
             first,
             head,
             base: first,

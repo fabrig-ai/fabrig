@@ -131,6 +131,8 @@ fn arguments(home: &Home, place: &std::path::Path, scripts: &[&str]) {
         expected.push(home.directory.join("passes/1/setups").join(name).join("scripts.json").display().to_string());
     }
     expected.push("--strict".into());
+    expected.push("--files".into());
+    expected.push(home.directory.join("passes/1/files").display().to_string());
     assert_eq!(
         fs::read_to_string(home.directory.join("arguments")).expect("arguments"),
         format!("{}\n", expected.join("\n"))
