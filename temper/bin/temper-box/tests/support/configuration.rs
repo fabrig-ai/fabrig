@@ -80,11 +80,12 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["people.projects"] = 3.into();
     value["engine"]["limits"]["overrides"]["authority.projects"] = 3.into();
     value["engine"]["limits"]["overrides"]["tasks.funders"] = 4.into();
+    // The journal's charter carrier matches this fixture's core.run_bytes.
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
         "machine":{"github":null},"demo":null,"sign_in":null,
-        "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
+        "limits":{"profile":"small","overrides":{"root.journal.run_bytes":32_768,"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.resources_per_task":2,"git_component.stdout_bytes":131_072}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
     turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
