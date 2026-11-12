@@ -164,8 +164,14 @@ fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_recei
             landings::step_landing(&mut world, LANDING, 100);
             assert!(matches!(landings::step_landing(&mut world, LANDING, 101), landing::Decision::Prepare { .. }));
         }
-        world.permission(raw::Permission::Read);
-        for entry in 300..320 { if matches!(landings::step_landing(&mut world, LANDING, entry), landing::Decision::Hold(_)) { break; } }
+        if at_merge { world.permission(raw::Permission::Read); } else {
+            world.take_seen();
+            world.event(top::Event::StepLanding { task: LANDING, entry: 300, heard: top::LandingHeard { held: Box::new([]), failure: Box::new([]), preparation: landing::Preparation::Idle, kept: Box::new([]), released: false, cancelled: false } });
+            world.run_for(1);
+            assert!(world.take_seen().iter().any(|request| matches!(request, top::Request::LandingDecision { decision: landing::Decision::Open, entry: Some(300), .. })));
+            world.event(top::Event::VetoLanding { task: LANDING, entry: 300 });
+        }
+        for entry in 301..330 { if matches!(landings::step_landing(&mut world, LANDING, entry), landing::Decision::Hold(_)) { break; } }
         assert!(matches!(world.landing(LANDING).landing.phase, landing::Phase::Held { why: landing::Hold::Turn, .. }), "{:?}", world.landing(LANDING));
         assert!(world.landing_hold_words(LANDING).expect("hold").starts_with(b"turn: "));
         world.permission(raw::Permission::Admin);
