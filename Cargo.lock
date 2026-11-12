@@ -5016,7 +5016,6 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-engine-clients",
  "jig-protocol-store",
- "rustls",
  "serde_json",
  "skein-fail-stop",
  "skein-fake-forge-domain",
