@@ -66,11 +66,18 @@ pub fn main() -> ExitCode {
 
 fn drive(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> ExitCode {
     let exit = match crate::drive::Options::parse(arguments) {
-        Ok(options) => match crate::drive::Session::start(options, environment) { Ok(session) => session.stdio(), Err(exit) => exit },
+        Ok(options) => match crate::drive::Session::start(options, environment) {
+            Ok(session) => session.stdio(),
+            Err(exit) => exit,
+        },
         Err(why) => crate::drive::Exit::own(why),
     };
-    for line in exit.shown { println!("{line}"); }
-    if let Some(error) = exit.error { eprintln!("{error}"); }
+    for line in exit.shown {
+        println!("{line}");
+    }
+    if let Some(error) = exit.error {
+        eprintln!("{error}");
+    }
     ExitCode::from(exit.status)
 }
 

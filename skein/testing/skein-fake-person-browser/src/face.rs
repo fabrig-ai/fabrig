@@ -518,7 +518,9 @@ impl<'a> BrowserFace<'a> {
     }
     /// Deliver operation events and downloads routed by the harness to this person.
     pub fn event(&mut self, event: &Event) {
-        if self.look_event(event) { return; }
+        if self.look_event(event) {
+            return;
+        }
         match event {
             Event::Warned { op } => {
                 if self.go == Some(*op) && self.acting == Some(*op) {
@@ -532,7 +534,10 @@ impl<'a> BrowserFace<'a> {
             Event::Done { op } => {
                 if self.acting == Some(*op) {
                     if let Some((change, width, height)) = self.viewport_change.take()
-                        && change == *op { self.viewport_size = (width, height); }
+                        && change == *op
+                    {
+                        self.viewport_size = (width, height);
+                    }
                     self.acting = None;
                     self.press = None;
                     self.input_next();

@@ -360,7 +360,9 @@ pub struct Read {
     fields: std::vec::IntoIter<Field>,
 }
 impl Read {
-    pub fn field(&mut self) -> Option<Field> { self.fields.next() }
+    pub fn field(&mut self) -> Option<Field> {
+        self.fields.next()
+    }
     #[must_use]
     pub fn remaining(&self) -> usize {
         self.fields.len()
