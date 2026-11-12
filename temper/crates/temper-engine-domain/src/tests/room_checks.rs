@@ -39,6 +39,36 @@ fn short_charter() -> crate::Charter {
     charter.policy.instructions = super::bytes(SHORT_INSTRUCTIONS);
     charter
 }
+fn parts(bytes: u32) -> Box<[core::CharterPart]> {
+    Box::new([core::CharterPart { on: jig_domain_tasks::Reasons::FIRST, instructions: super::bytes(bytes) }])
+}
+
+fn overlay(instructions: u32, part: Option<u32>) -> settings::Overlay {
+    let mut overlay = settings::Overlay::empty();
+    overlay.instructions = super::bytes(instructions);
+    overlay.parts = part.map_or_else(|| Box::new([]) as Box<[_]>, parts);
+    overlay.shell = Some(false);
+    overlay
+}
+
+fn overlay_items(overlay: settings::Overlay) -> Box<[Item]> {
+    Box::new([Item { setting: Setting::Charter(CHARTER), edit: Edit::Set(Value::Overlay(Box::new(overlay))) }])
+}
+
+fn with_items(input: PartyInput, items: Box<[Item]>) -> PartyInput {
+    match input {
+        PartyInput::ChangeSettings { reply_to, sign_in, key, digest, kinds, mut change } => {
+            change.items = items;
+            PartyInput::ChangeSettings { reply_to, sign_in, key, digest, kinds, change }
+        }
+        PartyInput::ProposeSettings { reply_to, sign_in, key, digest, kinds, mut change } => {
+            change.items = items;
+            PartyInput::ProposeSettings { reply_to, sign_in, key, digest, kinds, change }
+        }
+        _ => unreachable!("a settings entrance"),
+    }
+}
+
 fn items() -> Box<[Item]> {
     Box::new([
         Item { setting: Setting::Rules, edit: Edit::Reset },
@@ -82,6 +112,95 @@ fn refused(input: PartyInput) -> people::Refusal {
 }
 fn judged() -> people::Refusal {
     people::Refusal::Judged { at: 1, setting: Setting::Charter(CHARTER), why: WORDS.into() }
+}
+
+#[test]
+fn a_partys_change_counts_every_part() {
+    // Instructions alone leave 4,000 bytes; the part and its blank line leave 998.
+    let host = crate::room::HostPart { bound: 5_001, ..HOST };
+    let mut charter = short_charter();
+    let item = |charter| Box::new([Item {
+        setting: Setting::Charter(CHARTER), edit: Edit::Set(Value::Charter(Box::new(charter))),
+    }]) as Box<[_]>;
+    let (mut root, env) = owner_root();
+    root.host_part = Some(host);
+    charter.parts = parts(3_000);
+    assert_eq!(
+        settled(&mut root, &env, with_items(change(), item(charter.clone()))),
+        people::Reply::Refused(people::Refusal::Judged {
+            at: 0, setting: Setting::Charter(CHARTER),
+            why: b"charter 1 leaves its brief 998 bytes of its host part's 5,001; it needs at least 2,048".as_slice().into(),
+        })
+    );
+    charter.parts = Box::new([]);
+    assert_eq!(settled(&mut root, &env, with_items(change(), item(charter))),
+        people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 }));
+}
+
+#[test]
+fn party_settings_judge_overlays_over_the_default() {
+    let default_bytes = u32::try_from(resume_fixture::charter().policy.instructions.len()).unwrap();
+    let added = SHORT_INSTRUCTIONS - default_bytes - 2;
+    for propose in [false, true] {
+        for (overlay, short) in [
+            (overlay(added, None), true),
+            (overlay(0, Some(added)), true),
+            (overlay(added - 1, None), false),
+            (overlay(0, Some(added - 1)), false),
+            (overlay(0, None), false),
+        ] {
+            let (mut root, env) = owner_root();
+            root.host_part = Some(HOST);
+            let input = with_items(if propose { proposal() } else { change() }, overlay_items(overlay));
+            let reply = settled(&mut root, &env, input);
+            if short {
+                assert_eq!(reply, people::Reply::Refused(people::Refusal::Judged {
+                    at: 0, setting: Setting::Charter(CHARTER), why: WORDS.into(),
+                }));
+            } else if propose {
+                assert!(matches!(reply, people::Reply::Outcome(people::Outcome::Proposed { .. })), "{reply:?}");
+            } else {
+                assert_eq!(reply, people::Reply::Outcome(people::Outcome::SettingsChanged { revision: 2 }));
+            }
+        }
+    }
+}
+
+#[test]
+fn a_stored_overlay_is_judged_over_the_new_default_after_restore() {
+    let (mut root, env) = super::resume::at_phase(false, core::start::Phase::LoadCore);
+    root.host_part = Some(HOST);
+    let default = resume_fixture::charter();
+    let added = SHORT_INSTRUCTIONS - u32::try_from(default.policy.instructions.len()).unwrap() - 2;
+    let overlay = overlay(0, Some(added));
+    let mut old_default = default.clone();
+    old_default.policy.instructions = Box::new([]);
+    let old = settings::overlaid(&old_default, &overlay);
+    // Under the old default the overlay left more than the brief floor.
+    assert!(HOST.room(&old.policy) >= crate::room::BRIEF_ROOM);
+    crate::restart::restore_page_row(&mut root, &env, crate::Record::Core(core::Record::Core(
+        core::CoreRecord::Settings(settings::Record::Changed {
+            setting: Setting::Charter(CHARTER),
+            changed: settings::Changed { value: Some(Value::Overlay(Box::new(overlay))), revision: 1 },
+        })
+    )));
+    // A persisted head makes this a restored settings set, not the first start.
+    crate::restart::restore_page_row(&mut root, &env, crate::Record::Core(core::Record::Core(
+        core::CoreRecord::Settings(settings::Record::Revision {
+            history: false,
+            revision: settings::Revision {
+                head: settings::Head { number: 1, against: 0, at: Wall::EPOCH, by: settings::Decider::FirstStart, proposal: None, moved: false },
+                items: Box::new([]), applications: Box::new([]),
+            },
+        })
+    )));
+    root.work.push(crate::Work::StartDone(core::start::Phase::LoadCore));
+    let mut decision = crate::Decision::decide(&mut root.journal, &env.limits.journal);
+    crate::route::route_into(&mut root, &env, &mut decision);
+    assert_eq!(root.start_stop(), Some(crate::StartStop::Room(crate::room::Short {
+        charter: CHARTER, room: 2_047, bound: HOST.bound,
+    })));
+    assert!(!root.ready());
 }
 
 #[test]
@@ -214,6 +333,49 @@ fn run_root() -> (Domain, Env<Limits>, u64) {
         )
         .unwrap();
     (root, env, task)
+}
+
+#[test]
+fn a_runs_proposal_judges_overlays_over_the_default() {
+    let default_bytes = u32::try_from(resume_fixture::charter().policy.instructions.len()).unwrap();
+    let added = SHORT_INSTRUCTIONS - default_bytes - 2;
+    for (overlay, short) in [
+        (overlay(added, None), true),
+        (overlay(0, Some(added)), true),
+        (overlay(added - 1, None), false),
+        (overlay(0, Some(added - 1)), false),
+        (overlay(0, None), false),
+    ] {
+        use crate::route::host_route::{Flight, FlightRender};
+        let (mut root, env, task) = run_root();
+        let key = crate::CallKey { task, attempt: 1, completion: 1, position: 0 };
+        root.call_renders.insert(REPLY, Flight {
+            task, attempt: 1, key: Some(key), note_decoding: false, job: None, page: None,
+            render: FlightRender::Plain, name: b"proposal".as_slice().into(), tool: b"propose_settings".as_slice().into(),
+        }).unwrap();
+        let mut decision = crate::Decision::decide(&mut root.journal, &env.limits.journal);
+        crate::route::relay_payload(&mut root, &env, &mut decision, ReplyTo::new(REPLY), key, crate::Call {
+            completion: 1, position: 0,
+            tool: crate::Tool::ProposeSettings {
+                more: false, against: 1, items: overlay_items(overlay), reason: b"an overlay".as_slice().into(), kinds: Box::new([]),
+            },
+        });
+        if short {
+            let Some(crate::Work::Fleet(jig_domain_fleet::Event::Relayed { to, answer })) = root.work.pop() else {
+                panic!("the short overlay is refused at the run's entrance");
+            };
+            assert_eq!(to.into_token(), REPLY);
+            let Some(crate::Payload::SettledCall(call)) = root.hub_link.take_payload(answer) else {
+                panic!("a settled host answer");
+            };
+            assert_eq!(call.answer, core::SettledAnswer::Host { error: true, body: WORDS.into() });
+        } else {
+            assert!(matches!(root.work.pop(), Some(crate::Work::Core(core::Event::NamedAction {
+                action: core::NamedAction::ProposeSettings { .. }, ..
+            }))), "the fitting overlay reaches jig");
+        }
+        assert!(root.work.is_empty());
+    }
 }
 
 #[test]
