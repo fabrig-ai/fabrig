@@ -390,9 +390,7 @@ pub(super) fn names(remote: Option<u64>, limits: &limits::Limits, problems: &mut
         against(problems, b"checkout.name_bytes", b"forge.name_bytes");
     }
 }
-pub(super) fn remote(base: u64, name_bytes: u32) -> Option<u64> {
-    base.checked_add(u64::from(name_bytes).checked_mul(2)?)?.checked_add(6)
-}
+
 pub(super) fn port(address: &config::Address) -> Option<u16> {
     match address {
         config::Address::Addr(address) => Some(address.socket()?.port()),

@@ -79,7 +79,7 @@ const ROWS: &[Row] = &[
     Row {
         package: "temper-engine",
         rules: &[
-            ("temper", Rule::Not(&["temper-worker-"])),
+            ("temper", Rule::Not(&["temper-worker-", "temper-service"])),
             ("jig", Rule::Not(&["jig-protocol-worker-agents", "jig-protocol-worker-link"])),
             (
                 "smith",
@@ -131,7 +131,10 @@ const ROWS: &[Row] = &[
                     "temper-init",
                     "temper-client-bundle",
                     "temper-client-shell-web",
+                    "temper-forge-setup",
                     "temper-forge-setup-shell",
+                    "temper-protocol-records-forge",
+                    "temper-service",
                     "temper-agent-shell",
                 ]),
             ),

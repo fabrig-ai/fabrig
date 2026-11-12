@@ -431,7 +431,8 @@ pub(crate) fn tag(mut request: skein_io::Request) -> skein_io::Request {
     request
 }
 
-pub(crate) fn indexed(
+#[must_use]
+pub fn indexed(
     unusable: skein_forge_connection::Unusable,
     forges: &[settings::Forge],
 ) -> skein_forge_connection::Unusable {
@@ -476,7 +477,8 @@ pub fn prepare(
     Ok(prepared)
 }
 
-pub(crate) fn config(
+#[must_use]
+pub fn config(
     _settings: &settings::Engine,
     deployment: [u8; 16],
 ) -> (skein_forge_client::Config, Box<[forge::GitIdentity]>) {

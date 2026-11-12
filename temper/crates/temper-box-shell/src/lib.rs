@@ -37,14 +37,15 @@ mod init;
 pub use temper_shell::link_file;
 pub mod open;
 mod program_login;
-pub use temper_engine_shell::setup;
+pub mod setup;
 mod serve;
 mod served;
+pub mod lines;
 pub use served::Service;
 mod tui_front;
 use json::CONFIG_BYTES;
 #[cfg(test)]
-pub(crate) use temper_engine_shell::lines as host;
+pub(crate) use lines as host;
 use temper_shell::directories::{errno, unread};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -492,7 +493,7 @@ pub fn service_ending(
     store: &[u8],
     unsettled: &[temper_service::Unsettled],
 ) -> (String, u8) {
-    temper_engine_shell::lines::ending_with_binary("temper", end, output_failed, directories, store, unsettled)
+    lines::ending_with_binary("temper", end, output_failed, directories, store, unsettled)
 }
 
 #[cfg(test)]

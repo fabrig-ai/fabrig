@@ -19,5 +19,12 @@ pub enum End { Engine(temper_engine_service::End), Worker(worker_alone::End) }
 pub enum Stop { Engine(temper_engine_service::Stop), Worker(worker_alone::Stop) }
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note { Engine(temper_engine_service::Note), Worker(worker_alone::Note) }
-impl From<temper_engine_service::Note> for Note { fn from(note: temper_engine_service::Note) -> Self { Self::Engine(note) } }
 impl From<worker_alone::Note> for Note { fn from(note: worker_alone::Note) -> Self { Self::Worker(note) } }
+
+pub use temper_engine_service::{Note as EngineNote, End as EngineEnd, Stop as EngineStop};
+pub mod translate {
+    pub use temper_engine_service::translate::*;
+    pub use temper_worker_service::worker_route::translate::{Assigned, preparation, value, work, workspace};
+}
+impl From<worker_alone::End> for End { fn from(end: worker_alone::End) -> Self { Self::Worker(end) } }
+impl From<worker_alone::Stop> for Stop { fn from(stop: worker_alone::Stop) -> Self { Self::Worker(stop) } }

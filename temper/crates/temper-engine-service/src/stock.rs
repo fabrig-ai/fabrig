@@ -358,7 +358,8 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
     checked_with(models(llm), result_bytes)
 }
 
-pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<Defaults> {
+#[must_use]
+pub fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<Defaults> {
     models.first()?;
     let mut charters = Box::new([
         charter(1, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/chat.txt"), &models, FIRST_CHOICES),
@@ -586,7 +587,8 @@ const COORDINATOR_WAKE: WakePolicy = WakePolicy {
 
 // temper/docs/design/domain/agent/charter.md, 1: the stock's files are code to every gate.
 #[expect(clippy::disallowed_macros, reason = "the stock's set is compiled into the binary")]
-pub(super) fn charter_set() -> temper_charter_set::Set<'static> {
+#[must_use]
+pub fn charter_set() -> temper_charter_set::Set<'static> {
     temper_charter_set::Set {
         common: Some(include_str!("../../../docs/charters/stock/common.md")),
         goal: Some(include_str!("../../../docs/charters/stock/goal.md")),

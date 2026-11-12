@@ -34,6 +34,7 @@ pub struct Engine {
     pub(crate) end: Option<End>,
     pub(crate) listening: Queue<crate::Note>,
     pub(crate) notes: Queue<crate::Note>,
+    pub(crate) note_bound: u32,
     pub(crate) last_hello_refusal: Option<Box<[u8]>>,
     pub(crate) first_periods: List<(u32, u64)>,
     pub(crate) drain: Option<stop::Drain>,
@@ -164,6 +165,7 @@ impl Engine {
             requests: Queue::uncapped(),
             end: None,
             listening: Queue::with_capacity(3),
+            note_bound: notes.capacity(),
             notes,
             last_hello_refusal: None,
             first_periods,
@@ -356,7 +358,11 @@ impl Engine {
         )
     }
     #[must_use]
-    pub fn work_pending(&self, now: Time) -> bool {
+    pub fn work_pending(&self, now: Time) -> bool { self.pending_with_room(now, self.notes.room()) }
+    /// Read readiness using the notes still held by the joined drain.
+    #[must_use]
+    pub fn work_pending_with_notes(&self, now: Time, held: u32) -> bool { self.pending_with_room(now, self.note_bound.saturating_sub(held).saturating_sub(self.notes.len())) }
+    fn pending_with_room(&self, now: Time, notes_room: u32) -> bool {
         let effects = self.store.host.mark_durable() || self.end.is_some();
         let secrets_ready = self.end.is_none() && self.store.host.mark_durable();
         let components = (self.store.opened || self.end.is_some())
@@ -366,7 +372,7 @@ impl Engine {
             || self.store.work_pending(now)
             || effects && self.forge.work_pending(now)
             || (self.store.opened || self.end.is_some()) && self.workers.host.work_pending(now)
-            || !self.workers.notes.is_empty() && self.notes.room() > 0
+            || !self.workers.notes.is_empty() && notes_room > 0
             || effects
                 && match &self.accounts {
                     Some(accounts) => accounts.work_pending(now, true),
@@ -380,7 +386,7 @@ impl Engine {
             None => false,
         };
         components
-            || (self.facts_waiting && self.notes.room() > 0)
+            || (self.facts_waiting && notes_room > 0)
             || self.room()
                 && (self.begin
                     || self.release_pending()
@@ -962,6 +968,12 @@ fn forge_stopped(engine: &mut Engine, forge: u16, why: skein_forge_connection::S
     }
 }
 
+
+impl Engine {
+    pub fn clock(&mut self, now: Time, wall: Wall) { clock(self, now, wall); }
+    pub fn iterate(&mut self, now: Time, wall: Wall) { iterate(self, now, wall); }
+}
+
 #[cfg(test)]
 mod release_tests {
     use super::*;
@@ -984,9 +996,4 @@ mod release_tests {
         assert!(engine.domain.revision() > revision);
         assert!(engine.release_pending(), "direct root inputs wake the owner too");
     }
-}
-
-impl Engine {
-    pub fn clock(&mut self, now: Time, wall: Wall) { clock(self, now, wall); }
-    pub fn iterate(&mut self, now: Time, wall: Wall) { iterate(self, now, wall); }
 }

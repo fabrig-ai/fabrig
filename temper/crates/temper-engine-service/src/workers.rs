@@ -410,6 +410,7 @@ impl Workers {
     }
 }
 
+impl Workers { #[must_use] pub fn encoding(&self) -> &Encoding { &self.encoding } pub fn configured_forges(&mut self, forges: crate::forges::Forges) { self.forges = forges; } }
 #[cfg(test)]
 mod tests {
     use super::*;

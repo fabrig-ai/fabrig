@@ -250,12 +250,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         ),
         temper_engine_service::Note::RunRefused(diagnostic) => run_refusal_line(binary, diagnostic),
         temper_engine_service::Note::JobAnswered(diagnostic) => job_line(binary, diagnostic),
-        temper_engine_service::Note::WorkerJob { run, attempt, kind, verb, ending, why } => {
-            let verb = verb.escape_ascii();
-            let prefix = format!("{binary} worker: run {run} attempt {attempt} job {kind} {verb} ");
-            let (class, _) = worker_job_ending(&ending);
-            run_detail_line(format!("{prefix}{class}: "), &why)
-        }
+
         temper_engine_service::Note::HelloRefused { channel, text } => {
             format!("{binary} serve: hello refused channel={channel}: {}\n", String::from_utf8_lossy(&text))
         }
@@ -321,12 +316,8 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
             };
             format!("listening {name} {addr}\n")
         }
-        temper_engine_service::Note::Linked { worker, address } => {
-            format!("linked {} {address}\n", String::from_utf8_lossy(&worker))
-        }
-        temper_engine_service::Note::Lost { worker, address, why } => {
-            format!("lost {} {address} {}\n", String::from_utf8_lossy(&worker), worker_loss(why))
-        }
+
+
         temper_engine_service::Note::WorkerLost { worker, channel, why } => {
             format!(
                 "{binary} serve: worker lost worker={} channel={}: {}\n",
@@ -396,10 +387,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::WorkerListenerFailed { address, error } => {
             listener_failed_line(binary, temper_engine_service::Listening::Workers, address, error)
         }
-        temper_engine_service::Note::Refused { worker, address, reason } => {
-            let reason = refusal(reason);
-            format!("refused {} {address} {reason}\n", String::from_utf8_lossy(&worker))
-        }
+
         temper_engine_service::Note::ForgeLacking { number, names } => {
             format!("{binary} serve: forge {number}: App lacks {}\n", String::from_utf8_lossy(&names))
         }
@@ -488,22 +476,7 @@ fn job_ending(ending: &temper_engine_service::JobDiagnosticEnding) -> (String, &
     }
 }
 
-fn worker_job_ending(ending: &temper_engine_service::WorkerJobEnding) -> (String, &[u8]) {
-    use jig_domain_host::{JobInvalid, JobRefusal};
-    use temper_engine_service::WorkerJobEnding;
-    match ending {
-        WorkerJobEnding::Failed { failure, detail } => (format!("failed {failure:?}"), detail),
-        WorkerJobEnding::Refused(JobRefusal::Invalid(JobInvalid::Start { why })) => {
-            (String::from("refused Invalid(Start)"), why)
-        }
-        WorkerJobEnding::Refused(
-            reason @ (JobRefusal::Busy
-            | JobRefusal::Invalid(
-                JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
-            )),
-        ) => (format!("refused {reason:?}"), b""),
-    }
-}
+
 
 fn run_detail_line(mut line: String, detail: &[u8]) -> String {
     use std::fmt::Write as _;
@@ -643,24 +616,7 @@ fn engine_worker_loss(why: temper_engine_service::EngineWorkerLoss) -> String {
     }
 }
 
-fn worker_loss(why: temper_engine_service::WorkerLoss) -> String {
-    use temper_engine_service::{WorkerClosed as Closed, WorkerLoss as Loss};
-    match why {
-        Loss::Closed(Closed::Stream) => "stream".into(),
-        Loss::Closed(Closed::Truncated) => "truncated".into(),
-        Loss::Closed(Closed::Framing) => "framing".into(),
-        Loss::Closed(Closed::Owner) => "owner".into(),
-        Loss::Closed(Closed::RefusedHere(reason)) => format!("refused {}", loss_refusal(reason)),
-        Loss::Closed(Closed::RefusedPeer(reason)) => format!("refused-by-peer {}", loss_refusal(reason)),
-        Loss::Silence => "silence".into(),
-        Loss::Stall => "stall".into(),
-        Loss::Handshake => "handshake".into(),
-        Loss::Full => "full".into(),
-        Loss::Busy => "busy".into(),
-        Loss::Fault => "fault".into(),
-        Loss::Unreachable => "unreachable".into(),
-    }
-}
+
 
 fn refusal(reason: temper_engine_service::Refusal) -> String {
     use temper_engine_service::WorkerRefusalReason as Reason;

@@ -199,7 +199,7 @@ impl<H: Harness> Host for ServiceState<H> {
     }
     fn exit(&self) -> Option<Exit> {
         self.service.is_empty().then(|| match self.service.end() {
-            Some(temper_service::End::Drained) if !self.output_failed => Exit::Code(0),
+            Some(temper_service::End::Engine(temper_service::EngineEnd::Drained)) if !self.output_failed => Exit::Code(0),
             _ => Exit::Code(1),
         })
     }

@@ -101,11 +101,11 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     let line = crate::host::note_line(
         "temper-engine",
-        temper_service::Note::ForgeSignIn {
+        temper_service::Note::Engine(temper_service::EngineNote::ForgeSignIn {
             number: 1,
             client: b"forgejo".as_slice().into(),
             why: temper_service::clients::forge_sign_in::Unserved::NotKept,
-        },
+        }),
     );
     assert!(text.contains(line.trim_end_matches('\n')), "step 3 must give the printed diagnostic: {line}");
     assert!(text.contains("With `application.sign_in.forges` on a new store, `serve`'s stderr says"));

@@ -940,7 +940,8 @@ pub(super) fn raw_worker(document: &skein_json::Document, at: u32, path: &Path, 
 }
 
 /// Encoded active writes; `AppId`/`User` are 9 bytes, dominated by admitted `AppKey`.
-pub(crate) fn record_writes(limits: &limits::Limits) -> List<(Option<u64>, &'static [u8], Option<usize>)> {
+#[must_use]
+pub fn record_writes(limits: &limits::Limits) -> List<(Option<u64>, &'static [u8], Option<usize>)> {
     let capacity = limits.forge.forges.checked_add(5).expect("five scalar writes");
     let mut writes = List::with_capacity(capacity);
     let accepted = match u64::from(limits.forges.installations).checked_mul(8) {
@@ -1047,7 +1048,7 @@ pub fn records(jig: &config::Engine, limits: &limits::Limits, problems: &mut Pro
     }
 }
 
-pub(crate) fn secret_value_bound(jig: &config::Engine, own: &limits::Limits) -> Result<u32, crate::store::Refusal> {
+pub fn secret_value_bound(jig: &config::Engine, own: &limits::Limits) -> Result<u32, crate::store::Refusal> {
     let root = limits::engine(&jig.limits, own)
         .ok_or(crate::store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Ceiling))?;
     Ok(crate::store::layout(&root, &root.forge, &jig.limits.store)?.secrets.value)
@@ -1101,7 +1102,8 @@ fn task_store_refusal(engine: &config::Engine, refused: crate::store::Refusal) -
     store_refusal(refused)
 }
 
-pub(crate) fn store_refusal(refused: crate::store::Refusal) -> Problems {
+#[must_use]
+pub fn store_refusal(refused: crate::store::Refusal) -> Problems {
     let (path, what) = match refused {
         crate::store::Refusal::ReadRoom { read, needs } => {
             (own(b"root.loads.read_bytes"), What::Short { bytes: read, of: b"a read's room", needs })

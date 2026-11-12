@@ -76,15 +76,15 @@ impl Service {
         io_limits: io::Limits,
     ) -> Result<Self, Problems> {
         let forges = crate::forge::prepare(&settings, forges)?;
-        Self::prepared(settings, seeds, accounts, forges, io_limits)
+        Self::prepared(settings, seeds, accounts, forges, io_limits, None, None)
     }
     pub(crate) fn prepared(
         settings: settings::Engine, seeds: &settings::Seeds, accounts: Option<AccountsRuntime>,
-        forges: skein_forge_connection::Settings, io_limits: io::Limits,
+        forges: skein_forge_connection::Settings, io_limits: io::Limits, box_line_bytes: Option<u32>, program_login: Option<Box<[u8]>>,
     ) -> Result<Self, Problems> {
         let sockets = io_limits.sockets;
         let notes = settings.limits.sign_in.pending;
-        let engine = engine::Engine::prepared(settings, seeds, accounts, forges, None, None)?;
+        let engine = engine::Engine::prepared(settings, seeds, accounts, forges, box_line_bytes, program_login)?;
         let operations = startup_operations(&io_limits).ok_or(start_problem(b"limits", What::Bound))?;
         Ok(Self { engine: Some(engine), process: temper_service_core::process::Process::new(io_limits, operations, operations),
             held_listeners: List::with_capacity(sockets), listeners_closing: 0,
@@ -412,7 +412,8 @@ pub(crate) const fn deployment_owned(document_owned: bool, under_box: bool) -> b
     document_owned && under_box
 }
 
-pub(crate) fn playground_config(
+#[must_use]
+pub fn playground_config(
     demo: Option<&settings::Demo>,
     welcome: bool,
     deadline: skein_lib::Duration,
@@ -430,7 +431,8 @@ pub(crate) fn playground_config(
 pub(crate) const GITHUB_REMOTE: &[u8] = b"https://github.com";
 
 /// Machine places passed to the root (temper/docs/design/protocol/configuration/engine.md).
-pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
+#[must_use]
+pub fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
     use temper_engine_domain_forge::{Address, Machine, Place};
     let github = match &machine.github {
         Some(github) => {
@@ -480,7 +482,8 @@ pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> 
     }
 }
 #[expect(clippy::disallowed_macros, reason = "startup renders a checked IP address for the domain place")]
-pub(crate) fn socket_host(address: core::net::SocketAddr) -> Box<[u8]> {
+#[must_use]
+pub fn socket_host(address: core::net::SocketAddr) -> Box<[u8]> {
     alloc::format!("{}", address.ip()).into_bytes().into_boxed_slice()
 }
 fn local_place(address: core::net::SocketAddr, remote: &[u8]) -> temper_engine_domain_forge::Place {
@@ -519,4 +522,13 @@ mod box_tests {
         assert_eq!(super::machine_config(&machine).owned_person.as_ref(), b"owner");
     }
 
+}
+
+impl Service {
+    pub fn engine_component(&mut self) -> &mut engine::Engine { self.engine.as_mut().expect("engine service") }
+    pub fn configure_forge_runtime(&mut self, github: crate::ForgeRuntime, roots: skein_tls::Config) { self.engine_component().configure_forge_runtime(github, roots); }
+    #[must_use]
+    #[expect(clippy::type_complexity, reason = "startup resolution returns numbered host and port tuples")]
+    pub fn unresolved(&self) -> Box<[(u16, Box<[u8]>, u16)]> { self.engine.as_ref().expect("engine service").unresolved() }
+    pub fn resolved(&mut self, forge: u16, address: Option<core::net::SocketAddr>) { self.engine_component().resolved(forge, address); }
 }

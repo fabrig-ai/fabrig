@@ -47,6 +47,7 @@ pub use temper_engine_domain::JournalStop;
 pub mod engine;
 pub use engine::Engine;
 mod runtime;
+mod opened;
 mod route;
 mod setup;
 mod start_refusal;

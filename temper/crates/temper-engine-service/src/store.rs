@@ -61,7 +61,7 @@ pub fn limits(root: &root::Limits, forge: &forge::Limits, profile: &protocol::Li
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Refusal {
+pub enum Refusal {
     Map(protocol::sizes::SizeRefusal),
     ReadRoom { read: u64, needs: u64 },
     Transcript { bytes: u32, ceiling: u32 },
@@ -69,7 +69,7 @@ pub(crate) enum Refusal {
 }
 
 /// Keep the cause for startup before any comparison needs the store's bounds.
-pub(crate) fn admit(
+pub fn admit(
     root: &root::Limits,
     forge: &forge::Limits,
     profile: &protocol::Limits,
@@ -159,8 +159,8 @@ fn page_bytes(core: &jig_domain_core::Limits, transcript: u32, key: u32, value: 
 }
 
 impl Store {
-    #[cfg(test)]
-    pub(crate) fn opening_limits(&self) -> protocol::Limits {
+    #[must_use]
+    pub fn opening_limits(&self) -> protocol::Limits {
         *self.host.limits()
     }
 

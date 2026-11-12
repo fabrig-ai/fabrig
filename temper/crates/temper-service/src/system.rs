@@ -84,7 +84,7 @@ impl Service {
 
     /// The engine domain, for a world to inspect before requesting shutdown.
     #[must_use]
-    pub fn engine_domain(&self) -> Option<&temper_engine_domain::Domain> { self.engine.as_ref().map(temper_engine_service::Engine::domain) }
+    pub fn engine_domain(&self) -> Option<&temper_engine_domain::Domain> { match &self.engine { Some(engine) => Some(engine.domain()), None => None } }
 
     /// Keep matching workspace clones on the worker, when one is present.
     pub fn reuse_workspaces(&mut self) {
@@ -171,7 +171,7 @@ impl Service {
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
         (match &self.engine {
-            Some(engine) => engine.work_pending(now),
+            Some(engine) => engine.work_pending_with_notes(now, self.notes.len()),
             None => false,
         }) || self.worker_runs()
             && match &self.worker {
@@ -208,7 +208,7 @@ impl Service {
                     None => false,
                 },
             engine: match &self.engine {
-                Some(engine) => Some(engine.pending(now)),
+                Some(engine) => Some(engine.pending_with_notes(now, self.notes.len())),
                 None => None,
             },
             worker: match &self.worker {
@@ -294,12 +294,14 @@ impl Service {
     /// Bound listeners, taken by the binary before other diagnostics.
     pub fn listening(&mut self) -> &mut Queue<crate::Note> {
         if let Some(engine) = &mut self.engine { for _ in 0..self.listening.room() { let Some(note) = engine.listening().pop() else { break }; self.listening.push(crate::Note::Engine(note)); } }
+        if let Some(engine) = &mut self.engine { engine.held_listening(self.listening.len()); }
         &mut self.listening
     }
     /// Operator diagnostics, taken by the binary.
     pub fn notes(&mut self) -> &mut Queue<crate::Note> {
         if let Some(engine) = &mut self.engine { for _ in 0..self.notes.room() { let Some(note) = engine.notes().pop() else { break }; self.notes.push(crate::Note::Engine(note)); } }
         if let Some(worker) = &mut self.worker { drain_worker_notes(worker, &mut self.notes); }
+        if let Some(engine) = &mut self.engine { engine.held_notes(self.notes.len()); }
         &mut self.notes
     }
     /// Root, component and I/O deadlines on the injected clock.
@@ -373,6 +375,7 @@ pub use temper_service_core::{STAGES, Stage};
 
 /// Run one stage with the pass's times (protocol/README.md, 6.1).
 pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall) {
+    if let Some(engine) = &mut service.engine { engine.held_notes(service.notes.len()); engine.held_listening(service.listening.len()); }
     match stage {
         Stage::Io => {
             service.process.clock(now, wall);
@@ -414,11 +417,7 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
                     worker.iterate(now, wall);
                 }
                 if let Some(engine) = &mut service.engine
-                    && worker.refused().is_some()
-                {
-                    if !engine.stopping() { engine.shutdown(); }
-
-                }
+                    && worker.refused().is_some() && !engine.stopping() { engine.shutdown(); }
             }
         }
         Stage::Out => {
@@ -518,11 +517,7 @@ fn route_events(service: &mut Service) {
     }
 }
 
-fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
-    // Shared io successors, worker file operations and the three store drivers own the kernel credit.
-    temper_service_core::process::Process::operations_for(io, worker_operations)?
-        .checked_add(temper_engine_service::system::startup_operations(io)?.checked_sub(temper_service_core::process::Process::operations_for(io, 0)?)?)
-}
+fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> { temper_engine_service::system::startup_operations(io)?.checked_add(worker_operations) }
 
 fn box_notes_full(service: &Service) -> bool {
     let Some(engine) = &service.engine else { return false };
@@ -653,3 +648,6 @@ impl Service {
         };
     }
 }
+
+impl Service { pub fn engine_component(&mut self) -> &mut temper_engine_service::Engine { self.engine.as_mut().expect("composition engine") } }
+pub use temper_engine_service::system::{machine_config, playground_config, socket_host};

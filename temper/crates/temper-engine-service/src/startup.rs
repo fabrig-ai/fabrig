@@ -798,7 +798,7 @@ pub fn with_setup_given(
         checked_start_with(document, directories, files, None, seeds, forges, setup, given)?;
     engine.program_environment = program_environment;
 
-    match Service::prepared(engine, seeds, accounts, forges, io) {
+    match Service::prepared(engine, seeds, accounts, forges, io, None, None) {
         Ok(mut service) => {
             for warning in &warnings.problems {
                 let mut found = Problems::empty();
