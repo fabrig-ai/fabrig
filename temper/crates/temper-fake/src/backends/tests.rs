@@ -381,7 +381,7 @@ fn forgejo_alone_seeds_the_two_copy_sources() {
             assert!(!object.tree.contains_key(temper_forge_setup::STARTER_PATH));
         }
     }
-    assert!(crate::forge::Document::decode(&docs.github).expect("GitHub document").sources().is_empty());
+    assert_eq!(crate::forge::Document::decode(&docs.github).expect("GitHub document").sources(), []);
 }
 
 #[test]

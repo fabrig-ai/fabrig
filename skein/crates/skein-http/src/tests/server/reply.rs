@@ -217,7 +217,7 @@ fn room_for_a_chunk_is_its_size_line_and_its_endings_and_an_empty_piece_is_no_ch
     let (_, requests) = machine.down(Request::Reply(Down::Send(boxed(b"abcdefghi"))));
     assert_eq!(requests, [Down::Send(boxed(b"9\r\nabcdefghi\r\n"))]);
     let (events, requests) = machine.down(Request::Reply(Down::Finish));
-    assert_eq!(events, []);
+    assert_eq!((events).len(), 0);
     assert_eq!(requests, [Down::Demand { read: Read::Nothing, room: 5 }], "room for the last chunk");
     assert_eq!(machine.server.waiting(), Waiting::Room);
     let (events, requests) = machine.up(Up::Room);
@@ -284,7 +284,7 @@ fn a_withdrawal_of_the_reply_s_demand_withdraws_the_room_below_and_waits_for_the
     let (_, requests) = machine.down(Request::Reply(Down::Demand { read: Read::Nothing, room: 8 }));
     assert_eq!(requests, [Down::Demand { read: Read::Nothing, room: 8 + 1 + 4 }]);
     let (events, requests) = machine.down(Request::Reply(Down::Demand { read: Read::Nothing, room: 0 }));
-    assert_eq!(events, []);
+    assert_eq!((events).len(), 0);
     assert_eq!(requests, [Down::Demand { read: Read::Nothing, room: 0 }], "the room below withdrawn with it");
     assert_eq!(machine.server.waiting(), Waiting::Close, "for the close: the side above writes no more");
     let (events, requests) = machine.up(Up::Room);

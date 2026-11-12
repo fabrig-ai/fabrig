@@ -605,7 +605,7 @@ mod tests {
         assert_eq!(rows.len(), 2);
         for (row, task) in rows.iter().zip([5, 6]) {
             assert_eq!(row.scope, NoteScope::Task { project: 1, task });
-            assert_eq!(row.body.bytes(), []);
+            assert_eq!((row.body.bytes()).len(), 0);
             assert!(row.body.cut);
             assert!(!row.cut);
         }

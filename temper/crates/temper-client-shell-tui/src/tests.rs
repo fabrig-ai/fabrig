@@ -1573,7 +1573,7 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
         empty(&duties);
         host.frame();
         assert!(host.state().theme_list());
-        assert_eq!(host.words(), []);
+        assert_eq!((host.words()).len(), 0);
         assert_eq!(host.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Auto) }));
         empty(&host.report(Report::Key(Key::Escape)));
         assert!(!host.state().theme_list());
@@ -1595,7 +1595,7 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
     );
     assert!(text(&mut host).contains("Theme: light."));
     assert!(!host.state().theme_list());
-    assert_eq!(host.words(), []);
+    assert_eq!((host.words()).len(), 0);
     assert_eq!(host.theme, temper_client_tui::theme(Scheme::Light, None));
     let palette = temper_client_tui::theme::palette(Scheme::Light);
     let frame = host.frame();
@@ -1943,7 +1943,7 @@ fn keys_typed_during_the_file_sign_in_stay_in_the_box() {
         assert!(text(&mut host).contains(first));
         empty(&host.report(Report::Key(Key::Char('a'))));
         assert!(text(&mut host).contains("❯ a"), "first frame, front {front}");
-        assert_eq!(host.state().field(), []);
+        assert_eq!((host.state().field()).len(), 0);
         let signing = host.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
         let exchange = local_exchange(&signing);
         assert_eq!(signing.asked.len(), 1, "only the sign-in request");
@@ -2042,8 +2042,8 @@ fn a_notice_stands_six_seconds_and_a_newer_replaces_it() {
     empty(&give(&mut host, Event::Send));
     assert_eq!(host.state().notice(), Some(&first));
     assert_eq!(host.deadline(), skein_lib::earliest(root::next_deadline(&host.root), Some(end)));
-    assert_eq!(host.words(), []);
-    assert_eq!(host.root.pages().notes(), []);
+    assert_eq!((host.words()).len(), 0);
+    assert_eq!((host.root.pages().notes()).len(), 0);
     assert!(host.root.pages().listing().is_none());
     let frame = text(&mut host);
     let line = frame.lines().find(|line| line.contains("Unknown command /qiut")).expect("quiet notice");
@@ -2085,8 +2085,8 @@ fn a_notice_stands_six_seconds_and_a_newer_replaces_it() {
         typed(&mut host, words);
         give(&mut host, Event::Send);
         assert_eq!(host.state().notice(), Some(&Notice::Unknown { words: words.into() }));
-        assert_eq!(host.words(), []);
-        assert_eq!(host.root.pages().notes(), []);
+        assert_eq!((host.words()).len(), 0);
+        assert_eq!((host.root.pages().notes()).len(), 0);
         host.clocks(Time::ZERO.saturating_add(Duration::from_secs(seconds)), Wall::EPOCH);
         host.report(Report::Due);
         assert_eq!(host.state().notice(), None, "at and past the end");
@@ -2385,11 +2385,11 @@ fn the_launchpad_takes_its_own_words() {
             LaunchWant::Brief => assert!(host.state().brief_shown(), "{words:?}"),
             LaunchWant::Walk => {
                 assert!(host.state().walk().is_some_and(|walk| !walk.by_key()), "{words:?}");
-                assert_eq!(host.words(), []);
+                assert_eq!((host.words()).len(), 0);
             }
             LaunchWant::Opened => {
                 assert_eq!(duties.open.as_deref(), Some(b"http://127.0.0.1:8367/projects/3".as_slice()));
-                assert_eq!(host.words(), []);
+                assert_eq!((host.words()).len(), 0);
             }
             LaunchWant::New => {
                 assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
@@ -2405,7 +2405,7 @@ fn the_launchpad_takes_its_own_words() {
                     "reply words reach card"
                 );
                 assert!(host.state().walk().is_some_and(|walk| walk.shown(&object)), "answered need marked shown");
-                assert_eq!(host.words(), []);
+                assert_eq!((host.words()).len(), 0);
             }
         }
     }

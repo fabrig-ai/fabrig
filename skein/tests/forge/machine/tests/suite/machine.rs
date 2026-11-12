@@ -888,7 +888,7 @@ fn a_connection_takes_no_further_answer_until_its_heard_one_is_taken() {
     world.action(Request::Offer);
     world.action(Request::Offer);
     assert_eq!(world.requests().len(), 1, "the next exchange cannot demand its body past the held first reply");
-    assert_eq!(world.connected_forges(), []);
+    assert_eq!((world.connected_forges()).len(), 0);
     world.release_response();
     world.run_for(SECOND);
     assert_eq!(world.requests().len(), 2, "each buffered reply advances the start plan once");
@@ -934,7 +934,7 @@ fn a_stalled_secure_close_is_aborted_at_the_close_timeout() {
     assert_eq!(world.tls_closed(), [false], "the peer never got close_notify");
     assert_eq!(world.aborts(), 0);
     world.advance_to(skein_lib::Time::from_nanos(until.as_nanos() - 1));
-    assert_eq!(world.aborts(), world.closed_events()), (0, 0);
+    assert_eq!((world.aborts(), world.closed_events()), (0, 0));
     world.advance_to(until);
     assert_eq!(world.aborts(), 1);
     assert_eq!(world.closed_events(), 1);

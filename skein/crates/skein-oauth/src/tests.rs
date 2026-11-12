@@ -100,19 +100,24 @@ fn server_response_supports_both_rotating_and_stable_refresh_tokens() {
     let expected = TokenResponse { refresh_token: None, ..response };
     assert_eq!(decode_response(&stable, &limits()).expect("optional token_type and refresh_token"), expected);
     assert_eq!(
-        decode_response(&parse(br#"{"access_token":"a","token_type":"MAC","expires_in":30}"#), &limits()), Err(DecodeError::WrongType)
+        decode_response(&parse(br#"{"access_token":"a","token_type":"MAC","expires_in":30}"#), &limits()),
+        Err(DecodeError::WrongType)
     );
     assert_eq!(
-        decode_response(&parse(br#"{"access_token":"a","expires_in":0}"#), &limits()), Err(DecodeError::Malformed)
+        decode_response(&parse(br#"{"access_token":"a","expires_in":0}"#), &limits()),
+        Err(DecodeError::Malformed)
     );
     assert_eq!(
-        decode_response(&parse(br#"{"access_token":"a","expires_in":-1}"#), &limits()), Err(DecodeError::WrongType)
+        decode_response(&parse(br#"{"access_token":"a","expires_in":-1}"#), &limits()),
+        Err(DecodeError::WrongType)
     );
     assert_eq!(
-        decode_response(&parse(br#"{"access_token":"a","refresh_token":null,"expires_in":1}"#), &limits()), Err(DecodeError::WrongType)
+        decode_response(&parse(br#"{"access_token":"a","refresh_token":null,"expires_in":1}"#), &limits()),
+        Err(DecodeError::WrongType)
     );
     assert_eq!(
-        decode_response(&parse(br#"{"access_token":"a","expires_in":1,"expires_in":2}"#), &limits()), Err(DecodeError::Malformed)
+        decode_response(&parse(br#"{"access_token":"a","expires_in":1,"expires_in":2}"#), &limits()),
+        Err(DecodeError::Malformed)
     );
 }
 
@@ -121,12 +126,14 @@ fn bounded_decoders_refuse_wrong_grants_tokens_and_larger_preparsed_documents() 
     let mut bounded = limits();
     bounded.client_bytes = 1;
     assert_eq!(
-        decode_request(&parse(&encode_request(&request(), &limits()).expect("encode")), &bounded), Err(DecodeError::TooLarge)
+        decode_request(&parse(&encode_request(&request(), &limits()).expect("encode")), &bounded),
+        Err(DecodeError::TooLarge)
     );
     bounded = limits();
     bounded.token_bytes = 1;
     assert_eq!(
-        decode_response(&parse(&encode_response(&response(), &limits()).expect("encode")), &bounded), Err(DecodeError::TooLarge)
+        decode_response(&parse(&encode_response(&response(), &limits()).expect("encode")), &bounded),
+        Err(DecodeError::TooLarge)
     );
     let value = parse(&encode_request(&request(), &limits()).expect("encode"));
     bounded = limits();
@@ -142,7 +149,8 @@ fn bounded_decoders_refuse_wrong_grants_tokens_and_larger_preparsed_documents() 
     bounded.string_bytes = 4;
     assert_eq!(decode_request(&value, &bounded), Err(DecodeError::TooLarge));
     assert_eq!(
-        decode_request(&parse(br#"{"grant_type":"password","client_id":"c","refresh_token":"r"}"#), &limits()), Err(DecodeError::Malformed)
+        decode_request(&parse(br#"{"grant_type":"password","client_id":"c","refresh_token":"r"}"#), &limits()),
+        Err(DecodeError::Malformed)
     );
     assert_eq!(
         encode_response(&TokenResponse { access_token: secret(b"x\r\nheader"), ..response() }, &limits()),
@@ -186,7 +194,8 @@ fn jwt_claims_extract_selected_metadata_once_and_use_injected_wall_time() {
     assert_eq!(claims.expires_at, Some(wall(120)));
     assert_eq!(claims.valid, Some(Duration::from_secs(20)));
     assert_eq!(
-        read_claims(WITH_EXP, &selector(), wall(130), &limits()).expect("expired metadata").valid, Some(Duration::ZERO)
+        read_claims(WITH_EXP, &selector(), wall(130), &limits()).expect("expired metadata").valid,
+        Some(Duration::ZERO)
     );
     let optional = read_claims(NO_EXP, &selector(), wall(100), &limits()).expect("no expiry claim");
     assert_eq!(optional.expires_at, None);
@@ -366,7 +375,8 @@ fn jwt_rotation_keeps_claims_and_expiry_but_checked_overflow_never_reuses_a_name
     assert_eq!(candidate.metadata, Some(boxed(b"acct-7")));
     assert_eq!(candidate.expires_at, wall(120), "JWT expiry and exchange validity both cap grants");
     assert_eq!(
-        decode_record(&encode_record(&candidate, &limits()).expect("kept"), &limits()).expect("restored"), candidate
+        decode_record(&encode_record(&candidate, &limits()).expect("kept"), &limits()).expect("restored"),
+        candidate
     );
     let mut full = previous.refresh_state().expect("record has refresh state");
     full.generation = u64::MAX;
@@ -378,7 +388,8 @@ fn jwt_rotation_keeps_claims_and_expiry_but_checked_overflow_never_reuses_a_name
             None,
             Wall::from_nanos(u64::MAX),
             &limits()
-        ), Err(DecodeError::TooLarge)
+        ),
+        Err(DecodeError::TooLarge)
     );
     assert_eq!(
         rotate(
@@ -387,7 +398,8 @@ fn jwt_rotation_keeps_claims_and_expiry_but_checked_overflow_never_reuses_a_name
             None,
             wall(100),
             &limits()
-        ), Err(DecodeError::TooLarge)
+        ),
+        Err(DecodeError::TooLarge)
     );
 }
 

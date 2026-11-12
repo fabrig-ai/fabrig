@@ -89,7 +89,7 @@ fn data_lines_are_joined_by_lf_and_the_last_lf_dropped() {
 #[test]
 fn a_block_without_data_dispatches_nothing() {
     assert_eq!(messages(b"event: ping\n\n: comment\n\nid: 3\n\ndata: x\n\n"), [message(b"message", b"x", b"3")]);
-    assert_eq!(messages(b"\n\n\n"), []);
+    assert_eq!((messages(b"\n\n\n")).len(), 0);
 }
 
 #[test]
@@ -513,7 +513,7 @@ fn an_open_event_cut_before_its_blank_line_fails_data_and_never_dispatches() {
         drop(face.down(Request::Next));
         assert_eq!(face.up(Up::Bytes(boxed(b"data: x\n"))), (Vec::from([Native::Opened]), None));
         let (events, _) = face.down(face_request(Read::Fill(8)));
-        assert_eq!(events, []);
+        assert_eq!((events).len(), 0);
         let (events, below) = face.up(ending);
         assert!(below.is_none());
         match events.as_slice() {

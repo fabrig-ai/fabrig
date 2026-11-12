@@ -141,7 +141,7 @@ fn answer_waits_for_its_durable_commit() {
     send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask);
     assert_eq!(engine.next_due(), Some(at(10_000_000)));
     assert_eq!(engine.poll(at(9_999_999)).len(), 0);
-    assert_eq!(engine.commits(), []);
+    assert_eq!((engine.commits()).len(), 0);
     assert_eq!(engine.poll(at(10_000_000)).len(), 1);
     assert_eq!(engine.commits()[0].durable, Some(at(10_000_000)));
 }
@@ -1239,7 +1239,7 @@ fn oversized_request_is_refused_before_any_decision() {
         ),
         Err(Invalid::Payload)
     );
-    assert_eq!(engine.commits(), []);
+    assert_eq!((engine.commits()).len(), 0);
     assert!(engine.pending_commits().next().is_none());
 }
 #[test]

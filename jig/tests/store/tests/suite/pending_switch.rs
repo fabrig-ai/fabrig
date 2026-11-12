@@ -53,7 +53,7 @@ fn a_patched_copy_opens_pending_and_switches_when_asked() {
     world.crash(SEED);
     assert_eq!(world.open(), Some(RESTORED_LAST));
     assert!(!world.pending);
-    assert_eq!(world.patched(), []);
+    assert_eq!((world.patched()).len(), 0);
     assert_eq!(world.application(true).get(RESTORED_KEY), Some(&Box::from(RESTORED_VALUE)));
 }
 
@@ -67,7 +67,7 @@ fn a_start_that_ends_before_asking_leaves_the_old_generation_active() {
     assert_eq!(world.active(), b"1\n");
     assert_eq!(world.open(), Some(PATCHED_LAST));
     assert!(world.pending);
-    assert_ne!(world.patched(), []);
+    assert_ne!((world.patched()).len(), 0);
     assert!(!world.application(false).contains_key(RESTORED_KEY));
     assert!(!world.paths().iter().any(|path| path == b"generations/2/pending-copy"));
     patches::kept(&original, &patches::source(&mut world), &"abandoned restore");
@@ -219,7 +219,7 @@ fn the_wires_commit_puts_the_component_row() {
 
 #[test]
 fn no_wires_handed_writes_an_empty_row() {
-    assert_eq!(wires_row(World::new(SEED)), []);
+    assert_eq!((wires_row(World::new(SEED))).len(), 0);
 }
 
 #[test]

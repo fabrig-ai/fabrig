@@ -292,7 +292,7 @@ fn the_rows_arrive_for_the_session() {
     event(&mut root, Event::Went { place: crate::Place::Missing });
     assert_eq!(root.forge().trials().len(), SESSION_ROWS);
     up(&mut root, Up::SignedOut);
-    assert_eq!(root.forge().trials(), []);
+    assert_eq!((root.forge().trials()).len(), 0);
     let mut out = up(&mut root, Up::SignedIn);
     let frame = opening(&out, Watchable::Jig(c::Subject::Me)).unwrap();
     f::confirm(&mut root, frame, f::PARTY, &mut out);
@@ -401,7 +401,7 @@ fn an_ended_watch_stays_ended() {
         let (mut root, watch, frame) = opened();
         deliver(&mut root, watch, &[ended()]);
         up(&mut root, Up::WatchEnded { watch, end });
-        assert_eq!(root.forge().trials(), []);
+        assert_eq!((root.forge().trials()).len(), 0);
         let mut out = Queue::uncapped();
         f::confirm(&mut root, frame, f::PARTY, &mut out);
         assert_eq!(opening(&out, trials::watch(&f::limits().forge).unwrap()), None);

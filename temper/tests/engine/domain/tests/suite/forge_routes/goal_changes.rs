@@ -502,7 +502,7 @@ fn assert_design_reads(agent: &smith_agent_world::World, marker: &[u8]) {
     assert!(refused, "oversized read_file is refused");
     assert_eq!(readers.len(), 2, "goal and inspect-only survey reach the final marker from g");
     assert_eq!(agent.host_submissions().len(), 1, "surveys have workspace tools alone");
-    assert!(agent.pushes().is_empty());
+    assert_eq!(agent.pushes(), []);
 }
 
 #[test]

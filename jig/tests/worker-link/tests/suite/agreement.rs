@@ -28,7 +28,7 @@ mod agreement {
         world.worker_up(record, Box::new([]));
         world.run();
         assert_eq!(up(&world).0, expected);
-        assert_eq!(up(&world).1, []);
+        assert_eq!((up(&world).1).len(), 0);
         world.finish();
     }
     fn cross_down(record: host::LinkDown, expected: &host::LinkDown) {
@@ -36,7 +36,7 @@ mod agreement {
         world.engine_down(record, Box::new([]), Box::new([]));
         world.run();
         assert_eq!(down(&world).0, expected);
-        assert_eq!(down(&world).1, []);
+        assert_eq!((down(&world).1).len(), 0);
         world.finish();
     }
     #[test]

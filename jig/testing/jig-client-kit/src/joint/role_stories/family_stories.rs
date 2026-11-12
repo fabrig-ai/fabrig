@@ -205,5 +205,5 @@ fn a_proposed_effect_shows_its_real_connector_description_in_the_proposal_card()
         )),
         "a description does not make the proposed effect"
     );
-    assert_eq!(engine.systems[0].observed(), []);
+    assert_eq!((engine.systems[0].observed()).len(), 0);
 }

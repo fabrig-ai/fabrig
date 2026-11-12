@@ -225,7 +225,7 @@ fn add_asks_once_with_the_provider_and_the_name() {
         )))),
     );
     assert!(!root.pages().models().add_pending());
-    assert_eq!(root.pages().models().name(), []);
+    assert_eq!((root.pages().models().name()).len(), 0);
     assert_eq!(root.pages().models().added(), Some(18));
 }
 #[test]

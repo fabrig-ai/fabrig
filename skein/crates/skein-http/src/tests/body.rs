@@ -120,7 +120,7 @@ fn the_reads_below_take_the_shape_of_the_demand_above_bounded_by_the_framing() {
     machine.bytes(b"Content-Length: 10\r\n");
     machine.bytes(b"\r\n");
     let (events, requests) = machine.down(Request::Body(Down::Demand { read: LINE, room: 0 }));
-    assert_eq!(events, []);
+    assert_eq!((events).len(), 0);
     assert_eq!(
         requests,
         [Down::Demand { read: Read::Scan { until: Delimiter::LF, max: 10 }, room: 0 }],
@@ -153,7 +153,7 @@ fn a_fill_past_what_is_left_of_the_body_is_answered_by_its_end() {
         [Event::Body(Up::End), Event::Done(Reuse::Keep)],
         "a read larger than what is left (runtime/lib.md, 7)"
     );
-    assert_eq!(requests, []);
+    assert_eq!((requests).len(), 0);
     assert_eq!(machine.client.waiting(), Waiting::Call);
 }
 
@@ -174,7 +174,7 @@ fn a_fill_across_two_deliveries_is_met_from_the_intake() {
     assert_eq!(requests, [Down::Demand { read: Read::Fill(3), room: 0 }], "what the fill still needs");
     let (events, requests) = machine.bytes(b"ghi");
     assert_eq!(events, [Event::Body(Up::Bytes(super::boxed(b"defghi")))]);
-    assert_eq!(requests, []);
+    assert_eq!((requests).len(), 0);
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn a_withdrawn_demand_is_never_answered_and_what_is_read_for_it_is_dropped() {
     assert!(events.is_empty() && requests.is_empty(), "dropped, and nothing more read until the rest is discarded");
     assert_eq!(machine.client.waiting(), Waiting::Above);
     let (events, requests) = machine.down(Request::Discard);
-    assert_eq!(events, []);
+    assert_eq!((events).len(), 0);
     assert_eq!(requests, [Down::Demand { read: Read::Fill(2), room: 0 }]);
     let (events, _) = machine.bytes(b"ef");
     assert_eq!(events, [Event::Done(Reuse::Keep)]);
@@ -282,7 +282,7 @@ fn the_framing_of_a_chunked_body_is_read_only_for_a_demand() {
     assert_eq!(requests, [Down::Demand { read: Read::Fill(2), room: 0 }], "what the fill still needs");
     let (events, requests) = machine.bytes(b"cd");
     assert_eq!(events, [Event::Body(Up::Bytes(super::boxed(b"abcd")))]);
-    assert_eq!(requests, []);
+    assert_eq!((requests).len(), 0);
 }
 
 #[test]
@@ -328,7 +328,7 @@ fn a_framing_error_fails_the_body_stream_then_the_exchange() {
     machine.down(Request::Body(Down::Demand { read: Read::Fill(1), room: 0 }));
     let (events, requests) = machine.bytes(b"zz\r\n");
     assert_eq!(events, [Event::Body(Up::Failed(Fault::Invalid)), Event::Failed(Error::ChunkSize)]);
-    assert_eq!(requests, []);
+    assert_eq!((requests).len(), 0);
     assert_eq!(machine.client.waiting(), Waiting::Close);
     let (events, requests) = machine.up(Up::End);
     assert!(events.is_empty() && requests.is_empty(), "nothing after the exchange failed");
@@ -393,7 +393,7 @@ fn a_discarded_body_is_read_and_dropped_and_the_connection_used_again() {
         requests.extend(extra);
         for _ in 0..200_u32 {
             let Some(Down::Demand { read, room: 0 }) = requests.pop() else { break };
-            assert_eq!(requests, []);
+            assert_eq!((requests).len(), 0);
             let (more, next) = machine.up(Up::Bytes(intake.meet(read).expect("met")));
             events.extend(more);
             requests = next;

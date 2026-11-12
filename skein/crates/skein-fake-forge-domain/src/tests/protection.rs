@@ -43,7 +43,7 @@ fn queue_admission_requires_approvals_before_processing() {
     h.push(ENGINE, b"alice", head).unwrap();
     h.open(b"alice").unwrap();
     assert_eq!(h.call(ENGINE, write(Write::Enqueue { number: 1, head })), Err(Error::Protected));
-    assert_eq!(h.domain.queue_entries(REPOSITORY).unwrap(), []);
+    assert_eq!((h.domain.queue_entries(REPOSITORY).unwrap()).len(), 0);
     h.ok(MAINTAINER, review(1, Verdict::Approve));
     let moved = h.commit(head, &[(b"src", b"two")]);
     h.push(ENGINE, b"alice", moved).unwrap();

@@ -136,7 +136,7 @@ fn a_crash_keeps_the_flight_until_restart_settles_it() {
             break;
         }
     }
-    assert!(rows(&world).is_empty());
+    assert_eq!(rows(&world).len(), 0);
     assert!(entry(&world, number).is_none());
     assert_eq!(issue_count(&mut world), 1, "restart found the original creation");
 }

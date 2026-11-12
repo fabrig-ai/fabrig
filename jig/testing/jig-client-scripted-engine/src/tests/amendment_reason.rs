@@ -30,7 +30,7 @@ fn durable_amendment_key_replay_keeps_reason_and_changed_reason_is_a_conflict() 
     send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
     send(&mut engine, 1, REQUESTER_OTHER_SIGN_IN, 1, 2, ask.clone());
     assert_eq!(engine.poll(Time::from_nanos(9_999_999)).len(), 0);
-    assert_eq!(engine.commits(), []);
+    assert_eq!((engine.commits()).len(), 0);
     let up = engine.poll(Time::from_nanos(10_000_001));
     assert_eq!(up.len(), 2);
     assert_eq!(final_answer(&up[0]), final_answer(&up[1]));

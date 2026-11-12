@@ -455,7 +455,9 @@ fn fill_refusals(host: &mut Measured, owner: Token, inbox: u32) {
                 owner,
                 name: Token::new(u64::from(name)),
                 reason: jig_domain_host::MessageRefusal::Full
-            })).len(), 0
+            }))
+            .len(),
+            0
         );
     }
 }
@@ -574,5 +576,5 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
         }
     }
     assert_eq!((pieces, activity), (limits.told / 2, limits.told / 2));
-    assert_eq!(host.domain.pieces_fenced(), host.domain.pieces_lost(), host.domain.activity_lost()), (0, 0, 0);
+    assert_eq!((host.domain.pieces_fenced(), host.domain.pieces_lost(), host.domain.activity_lost()), (0, 0, 0));
 }

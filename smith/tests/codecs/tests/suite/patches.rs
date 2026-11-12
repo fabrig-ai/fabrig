@@ -93,7 +93,7 @@ fn the_real_set_names_its_owner_family_root_and_mark() {
 
 #[test]
 fn the_real_set_keeps_the_baseline_without_a_patch() {
-    assert_eq!(smith_transcript::patches::PATCHES, []);
+    assert_eq!((smith_transcript::patches::PATCHES).len(), 0);
     assert_eq!(smith_transcript::patches::kept::smith_transcript::TEXTS, &[TRANSCRIPT]);
 }
 
@@ -119,5 +119,5 @@ fn the_real_written_answers_every_site_no_site() {
 fn fixture_owner_data_passes_the_landed_check() {
     let owner = skein_scratch::paths::tree().join("tests/transcript-patches");
     let landed = skein_codegen::patch::Landed::read(&owner).expect("fixture owner's landed data");
-    assert_eq!(skein_codegen::patch::check(&owner, &landed).expect("check fixture owner"), []);
+    assert_eq!((skein_codegen::patch::check(&owner, &landed).expect("check fixture owner")).len(), 0);
 }

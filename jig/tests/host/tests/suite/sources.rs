@@ -227,7 +227,9 @@ fn a_lost_sign_out_is_settled_without_replaying_its_reply_on_redial() {
     snapshot(&world.checked(check, LoginState::NotSignedIn)[0], &[b"a"]);
     assert_eq!(
         world
-            .step(host::Event::SourceAnswered { owner: sign_out, answer: Answer::SignedOut(SignOutResult::SignedOut) }).len(), 0
+            .step(host::Event::SourceAnswered { owner: sign_out, answer: Answer::SignedOut(SignOutResult::SignedOut) })
+            .len(),
+        0
     );
 }
 #[test]
@@ -363,7 +365,8 @@ fn list_reads_share_the_source_queue_without_taking_slots() {
                     "full" => assert_eq!(world.step(listed(1)), [list_answer(1)]),
                     "check after read" => {
                         assert_eq!(
-                            world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).len(), 0
+                            world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).len(),
+                            0
                         );
                         let outputs = world.step(listed(1));
                         assert_eq!(outputs[0], list_answer(1));

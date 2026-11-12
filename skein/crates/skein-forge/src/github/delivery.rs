@@ -40,7 +40,9 @@ pub fn sign(secret: &[u8], body: &[u8]) -> [u8; 71] {
     for (slot, byte) in out.iter_mut().zip(b"sha256=") {
         *slot = *byte;
     }
-    for ([high, low], byte) in out.get_mut(7..).expect("signature prefix").as_chunks_mut::<2>().0.iter_mut().zip(mac.finish()) {
+    for ([high, low], byte) in
+        out.get_mut(7..).expect("signature prefix").as_chunks_mut::<2>().0.iter_mut().zip(mac.finish())
+    {
         *high = bytes::hex_digit(byte / 16);
         *low = bytes::hex_digit(byte % 16);
     }

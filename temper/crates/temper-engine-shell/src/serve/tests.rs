@@ -198,9 +198,8 @@ fn before_root_records_only_when_requested_and_refuses_a_headless_bundle() {
     }
     assert_ne!(tags[0], tags[1]);
     std::fs::write(&page, b"<html><body></body></html>").expect("headless page");
-    let why = match super::before_root(&mut named, skein_shell::effective_user(), true) {
-        Ok(_) => panic!("missing head must be refused"),
-        Err(why) => why,
+    let Err(why) = super::before_root(&mut named, skein_shell::effective_user(), true) else {
+        panic!("missing head must be refused");
     };
     assert_eq!(
         why,

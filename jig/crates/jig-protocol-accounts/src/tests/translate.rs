@@ -34,13 +34,15 @@ fn a_rate_limited_exchange_fails_later_with_the_drivers_delay() {
 #[test]
 fn want_becomes_a_held_grant() {
     assert_eq!(
-        translate::down(accounts::ToComponent::Want { account: ACCOUNT_DELEGATE }), driver::Request::Grant { account: ACCOUNT_DELEGATE }
+        translate::down(accounts::ToComponent::Want { account: ACCOUNT_DELEGATE }),
+        driver::Request::Grant { account: ACCOUNT_DELEGATE }
     );
 }
 #[test]
 fn release_and_close_pass_through() {
     assert_eq!(
-        translate::down(accounts::ToComponent::Release { account: ACCOUNT_CHAT }), driver::Request::Release { account: ACCOUNT_CHAT }
+        translate::down(accounts::ToComponent::Release { account: ACCOUNT_CHAT }),
+        driver::Request::Release { account: ACCOUNT_CHAT }
     );
     assert_eq!(translate::down(accounts::ToComponent::Close), driver::Request::Close);
     assert_eq!(translate::up(driver::Event::Closed, fixtures::NOW, b""), Up::Child(accounts::FromComponent::Closed));
@@ -48,7 +50,8 @@ fn release_and_close_pass_through() {
 #[test]
 fn a_rejected_generation_reaches_the_driver_unchanged() {
     assert_eq!(
-        translate::down(accounts::ToComponent::Rejected { account: ACCOUNT_CHAT, generation: 2 }), driver::Request::Rejected { account: ACCOUNT_CHAT, generation: 2 }
+        translate::down(accounts::ToComponent::Rejected { account: ACCOUNT_CHAT, generation: 2 }),
+        driver::Request::Rejected { account: ACCOUNT_CHAT, generation: 2 }
     );
 }
 #[test]

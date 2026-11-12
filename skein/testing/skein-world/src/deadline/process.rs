@@ -331,7 +331,8 @@ mod tests {
         assert_eq!(parse_stat(CHILD), Some((10, 101)));
         assert_eq!(parse_stat("10 (short) S 0"), None);
         assert_eq!(clock_ticks(&[]), None);
-        let auxv = [6_usize.to_ne_bytes(), 4096_usize.to_ne_bytes(), 17_usize.to_ne_bytes(), 100_usize.to_ne_bytes()].concat();
+        let auxv =
+            [6_usize.to_ne_bytes(), 4096_usize.to_ne_bytes(), 17_usize.to_ne_bytes(), 100_usize.to_ne_bytes()].concat();
         assert_eq!(clock_ticks(&auxv), Some(100));
         assert!(!Boot { ticks: 0, ..BOOT }.includes(101));
         assert!(!BOOT.includes(u64::MAX));

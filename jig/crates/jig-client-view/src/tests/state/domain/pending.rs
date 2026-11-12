@@ -180,10 +180,10 @@ fn an_act_past_the_client_s_limit_is_refused_in_place() {
     assert_eq!(fixture.client.pending(refused), None);
     assert_eq!(fixture.objects().get(id).unwrap().card, Card::NotSent { why: intents::NotSent::Limit });
     assert_eq!(fixture.objects().get(id).unwrap().answer, None);
-    assert_eq!(fixture.down.as_slice(), []);
+    assert_eq!((fixture.down.as_slice()).len(), 0);
     goldens.check(&tree(&fixture, None, Some(id)));
     fixture.drive(Time::from_nanos(MOST.as_nanos()), FireClient { wall: Wall::EPOCH });
-    assert_eq!(fixture.down.as_slice(), []);
+    assert_eq!((fixture.down.as_slice()).len(), 0);
 }
 
 #[test]

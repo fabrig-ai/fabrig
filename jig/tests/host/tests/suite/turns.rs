@@ -115,7 +115,7 @@ fn an_answer_made_without_contact_follows_retained_turns_after_hello() {
     world.commit_turn(1);
     world.acknowledge_answer();
     world.assert_settled();
-    assert_eq!(world.stats().saves, world.stats().releases), (0, 0);
+    assert_eq!((world.stats().saves, world.stats().releases), (0, 0));
 }
 
 #[test]

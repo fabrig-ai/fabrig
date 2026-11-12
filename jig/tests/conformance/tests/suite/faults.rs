@@ -65,7 +65,7 @@ fn the_engine_decides_ahead_while_effect_commits_are_held() {
     actions::effect(&mut world, 2);
     world.drain().expect("second held effect conforms");
     assert!(world.store.applied >= before + 2);
-    assert_eq!(world.systems[0].observed(), []);
+    assert_eq!((world.systems[0].observed()).len(), 0);
     world.release_commits();
     world.drain().expect("released decisions conform");
     world.release_commits();

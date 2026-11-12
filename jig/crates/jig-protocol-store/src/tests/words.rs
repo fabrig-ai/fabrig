@@ -30,7 +30,7 @@ fn says(refusal: OpenRefusal, start: &str, end: &str) {
 pub(super) fn has_deployment_slots(events: &[crate::Event], start: &str) {
     let [crate::Event::OpenRefused { why, .. }] = events else { panic!("one refusal: {events:?}") };
     let text = unwrapped(start, "\n\n-");
-    assert_ne!(why.words(), []);
+    assert_ne!((why.words()).len(), 0);
     let pieces = text.matches("`<deployment>`").count().checked_add(1).expect("design's pieces fit");
     assert_eq!(why.words().len(), pieces);
 }

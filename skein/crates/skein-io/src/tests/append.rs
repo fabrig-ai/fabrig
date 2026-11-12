@@ -299,12 +299,12 @@ fn no_timeout_write_error_spills_the_queue_without_continuing_short_writes_or_re
     assert_eq!(failed.events, [Event::Stream { owner: stream, up: Up::Failed(Fault::Reset) }]);
     let second = failed.take(Kind::PipeWrite);
     let Op::PipeWrite { bytes, from, .. } = &second.kind else { panic!("queued write") };
-    assert_eq!(bytes.as_ref(), *from), (&b"two"[..], 0);
+    assert_eq!((bytes.as_ref(), *from), (&b"two"[..], 0));
     let mut spilled = rig.complete(second, Ok(Done::Count(1)));
     assert_eq!(spilled.events.len(), 0);
     let third = spilled.take(Kind::PipeWrite);
     let Op::PipeWrite { bytes, from, .. } = &third.kind else { panic!("queued write") };
-    assert_eq!(bytes.as_ref(), *from), (&b"e"[..], 0);
+    assert_eq!((bytes.as_ref(), *from), (&b"e"[..], 0));
     let mut ignored = rig.complete(third, Err(Error::BrokenPipe));
     assert_eq!(ignored.events.len(), 0);
     let close = ignored.take(Kind::Close);

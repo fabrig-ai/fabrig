@@ -269,5 +269,5 @@ fn github_fake_enqueue_distinguishes_stale_heads_and_unknown_nodes() {
         let (_, Document::Graphql(error)) = h.decode(Kind::Enqueue, &response) else { panic!("missing node") };
         assert_eq!(error.kind.as_ref(), b"NOT_FOUND");
     }
-    assert_eq!(h.domain.queue_entries(b"acme/widgets").unwrap(), []);
+    assert_eq!((h.domain.queue_entries(b"acme/widgets").unwrap()).len(), 0);
 }

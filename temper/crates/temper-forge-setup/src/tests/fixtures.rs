@@ -156,7 +156,7 @@ pub fn line(which: crate::spec::Which) -> Box<str> {
     let bytes = w.finish();
     let mut chunks = bytes.utf8_chunks();
     let chunk = chunks.next().unwrap();
-    assert_eq!(chunk.invalid(), []);
+    assert_eq!((chunk.invalid()).len(), 0);
     assert!(chunks.next().is_none());
     chunk.valid().into()
 }
@@ -220,7 +220,7 @@ pub fn suffixed_line(which: crate::spec::Which, suffix: &str) -> Box<str> {
     let bytes = writer.finish();
     let mut chunks = bytes.utf8_chunks();
     let chunk = chunks.next().unwrap();
-    assert_eq!(chunk.invalid(), []);
+    assert_eq!((chunk.invalid()).len(), 0);
     assert!(chunks.next().is_none());
     chunk.valid().into()
 }

@@ -934,7 +934,7 @@ fn follows_boxes_word_their_facts_and_mark_who_acts() {
         }
         let mut b = skein_ui::Builder::new(&f::tree_limits());
         crate::pages::how::draw_follows(&mut b, &words, &Landed { follows: Box::default(), tiers: None });
-        assert_eq!(b.finish().nodes(), []);
+        assert_eq!((b.finish().nodes()).len(), 0);
     }
     let (mut root, ..) = f::root_at_with_values(
         Address::Home { project: f::PROJECT },
@@ -1075,7 +1075,7 @@ fn budgets_draw_the_period_in_reader_time_and_roles_before_goals() {
             let empty = Facts { standing: Box::default(), goals: false, ..facts };
             let mut builder = skein_ui::Builder::new(&f::tree_limits());
             crate::pages::how::draw_budgets(&mut builder, &words, &how::parts(&empty));
-            assert_eq!(builder.finish().nodes(), []);
+            assert_eq!((builder.finish().nodes()).len(), 0);
         }
     }
 }

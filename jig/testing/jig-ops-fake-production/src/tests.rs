@@ -160,7 +160,7 @@ fn a_keyed_silence_suppresses_alerts_and_can_be_found_after_its_answer_is_lost()
     assert!(production.find_silence(key(8)));
     assert_eq!(production.silence("checkout-errors", key(8), 100), ResultValue::Made);
     assert!(production.inject_incident(&name));
-    assert_eq!(production.alerts(), []);
+    assert_eq!((production.alerts()).len(), 0);
     assert_eq!(
         production
             .observed()

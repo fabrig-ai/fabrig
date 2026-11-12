@@ -202,8 +202,8 @@ fn pricing_rounds_the_combined_completion_and_rejects_overflow() {
     spec.prices = record::Prices { input: u64::MAX, cached: 0, cache_write: None, output: 0, unit: 1 };
     world.open(spec);
     world.complete(said(b"done"), llm::Stop::EndTurn, llm::Usage { input_tokens: Some(2), ..llm::Usage::ZERO });
-    assert_eq!(world.spend, []);
-    assert_eq!(world.own_spend, []);
+    assert_eq!((world.spend).len(), 0);
+    assert_eq!((world.own_spend).len(), 0);
     assert_eq!(world.turns.len(), 0);
     assert_eq!(world.end, Some(session::End::PriceOverflow));
     world.close();

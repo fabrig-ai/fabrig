@@ -400,7 +400,7 @@ fn without_records_serves_past_a_zero_cap() {
             skein_fake_peers_tests::assert_panic(result, "frozen record count fits");
         } else {
             assert!(result.unwrap().starts_with(b"HTTP/1.1 200"));
-            assert_eq!(world.peer.observations(), []);
+            assert_eq!((world.peer.observations()).len(), 0);
             world.settle();
         }
     }
@@ -624,7 +624,7 @@ fn tls_refuses_a_github_peer_and_limits_below_one_record() {
     for mut peer in [github, forgejo] {
         assert_eq!(peer.tls(), Err(Error::Limits));
         assert_eq!(peer.address(), None);
-        assert_eq!(peer.observations(), []);
+        assert_eq!((peer.observations()).len(), 0);
     }
 }
 

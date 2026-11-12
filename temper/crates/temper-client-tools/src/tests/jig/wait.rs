@@ -985,7 +985,7 @@ fn inbox_read(
     let mut root = f::signed_in(f::PARTY);
     let argv = f::extended(f::INBOX_CALL, if json { &["--json"] } else { &[] });
     let call = root.submit(argv.as_slice());
-    
+
     let delivery = if owner {
         let (mut needs_page, mut window) = f::owner_first_window(needs, false);
         let (mut updates_page, _) = f::owner_first_window(updates, false);

@@ -14,7 +14,7 @@ fn a_held_effect_commit_holds_the_system_and_the_call_answer() {
     world.store.fault(Fault::Hold { commits: 1 });
     world.call(1, 800);
     assert!(!world.store.held.is_empty());
-    assert_eq!(world.systems[0].observed(), []);
+    assert_eq!((world.systems[0].observed()).len(), 0);
     assert_eq!(world.answers.len(), answers);
     world.release_commits();
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
@@ -32,12 +32,12 @@ fn a_failed_commit_stops_the_root_before_its_effect_or_answer_leaves() {
     assert!(world.stopped);
     assert_eq!(world.store.applied, durable);
     assert_eq!(world.store.rows, rows);
-    assert_eq!(world.systems[0].observed(), []);
+    assert_eq!((world.systems[0].observed()).len(), 0);
     assert_eq!(world.answers.len(), answers);
     world.restart(122, false);
     assert!(world.domain.ready());
     assert!(!world.stopped);
-    assert_eq!(world.systems[0].observed(), []);
+    assert_eq!((world.systems[0].observed()).len(), 0);
 }
 
 #[test]

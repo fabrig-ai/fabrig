@@ -171,7 +171,8 @@ fn a_kept_deletion_restores_at_start() {
         people.domain.start_restore(people.env.wall);
         for project in 1..=LIMITS.projects {
             assert_eq!(
-                people.send(Event::Restore { record: Stored::Deletion { project, step: selected, grace } }).len(), 0
+                people.send(Event::Restore { record: Stored::Deletion { project, step: selected, grace } }).len(),
+                0
             );
         }
         assert!(people.domain.start_link());

@@ -230,13 +230,12 @@ fn cacheable(answer: &Answer) -> Option<(u64, u64)> {
             public = true;
         } else if directive == "must-revalidate" {
             revalidate = true;
-        } else if let Some(age) = directive.strip_prefix("max-age=") {
+        } else {
+            let age = directive.strip_prefix("max-age=")?;
             if max_age.is_some() {
                 return None;
             }
             max_age = age.parse::<u64>().ok();
-        } else {
-            return None;
         }
     }
     if !public || !revalidate {

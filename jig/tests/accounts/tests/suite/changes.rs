@@ -362,7 +362,7 @@ fn removing_an_account_erases_its_facts_in_the_same_decision() {
             assert!(out.contains(&Request::Erase { key: Key::Account { number: HELD_ACCOUNT } }));
             assert_eq!(out.contains(&Request::Erase { key: Key::Facts { account: HELD_ACCOUNT } }), facts);
             assert_eq!(out.len(), if facts { 5 } else { 4 });
-            assert_eq!(world.domain.account_facts(HELD_ACCOUNT), []);
+            assert_eq!((world.domain.account_facts(HELD_ACCOUNT)).len(), 0);
         }
     }
 }

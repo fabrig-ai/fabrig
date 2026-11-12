@@ -412,7 +412,7 @@ fn a_document_charter_is_refused_naming_temper_ctl_settings() {
         .output()
         .expect("serve refusal");
     assert_eq!(ended.status.code(), Some(1));
-    assert!(ended.stdout.is_empty());
+    assert_eq!((ended.stdout).len(), 0);
     assert_eq!(
         ended.stderr,
         b"temper serve: engine.charters: settings live in the store; read them with temper ctl DIR settings show\n"
@@ -438,7 +438,7 @@ fn an_inline_seed_policy_is_refused_naming_its_path() {
         .output()
         .expect("serve refusal");
     assert_eq!(ended.status.code(), Some(1));
-    assert!(ended.stdout.is_empty());
+    assert_eq!((ended.stdout).len(), 0);
     assert_eq!(
         ended.stderr,
         b"temper serve: engine.projects[0].policy: name a policy, policy: 1; change it with temper ctl settings apply\n"
@@ -1615,7 +1615,7 @@ fn init_prints_written_files_account_guidance_and_explicit_start_flags_on_stderr
             .output()
             .expect("init command");
         assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-        assert!(output.stdout.is_empty());
+        assert_eq!((output.stdout).len(), 0);
         let lines = String::from_utf8(output.stderr).expect("init lines");
         let mut expected = String::new();
         let names = if boxed {
@@ -1732,7 +1732,7 @@ fn serve_box_refuses_closed_or_non_pipe_descriptors_before_starting() {
             let output = command.output().expect("serve child");
             let fd = requests + offset;
             assert_eq!(output.status.code(), Some(1));
-            assert!(output.stdout.is_empty());
+            assert_eq!((output.stdout).len(), 0);
             assert_eq!(
                 String::from_utf8(output.stderr).expect("UTF-8 diagnostic"),
                 format!("temper serve: --box: fd {fd} is not an open pipe\n")
@@ -2330,7 +2330,7 @@ fn forge_child_refuses_a_wrong_parent_or_missing_program_without_reading_a_docum
             .output()
             .expect("child refusal");
         assert_eq!(ended.status.code(), Some(1));
-        assert!(ended.stdout.is_empty());
+        assert_eq!((ended.stdout).len(), 0);
         let why = String::from_utf8(ended.stderr).expect("diagnostic");
         assert!(why.starts_with("temper internal forge-child: "), "{why}");
         assert_eq!(why.lines().count(), 1, "{why}");
@@ -2441,7 +2441,7 @@ fn a_fetched_program_runs_through_its_launcher() {
     let elapsed_ns = clock.now().now.as_nanos().saturating_sub(began.as_nanos());
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.stdout, b"command stdout\n");
-    assert!(output.stderr.is_empty());
+    assert_eq!((output.stderr).len(), 0);
     assert_eq!(fs::read(directory.join("arguments")).unwrap(), b"one \xff\n'\0--two=$x\0");
     assert_eq!(fs::read(directory.join("updater")).unwrap(), b"1");
     let began = clock.now().now;
@@ -2483,7 +2483,7 @@ fn program_login_places_both_launcher_links_only_for_a_fetched_program() {
         }
         let output = command.output().unwrap();
         assert_eq!(output.status.code(), Some(1));
-        assert!(output.stdout.is_empty());
+        assert_eq!((output.stdout).len(), 0);
         if fetched {
             assert_eq!(fs::read_link(&launcher).unwrap(), skein_scratch::paths::binary("temper-box"));
             assert_eq!(fs::read_link(&cache).unwrap(), directory);

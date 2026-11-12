@@ -70,7 +70,7 @@ fn a_refused_github_key_stops_the_forge() {
     world.action(Request::Installations { forge: FORGE, accepted: Box::from([1]) });
     world.run_for(SECOND);
     assert_eq!(world.stopped(), Some((FORGE, Stopped::KeyRefused)));
-    assert_eq!(world.connected_forges(), []);
+    assert_eq!((world.connected_forges()).len(), 0);
     assert!(world.git_tokens().is_empty());
     assert_eq!(world.requests().len(), 1);
     assert!(world.script_done());

@@ -430,7 +430,7 @@ fn scenario_deployment_parts_dynamic_rules_and_scheduling() {
     engine.script(rule.clone()).expect("world scripts actual words");
     send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
     assert_eq!(engine.pending_commits().next().expect("staged ledger").durable, None);
-    assert_eq!(engine.commits(), []);
+    assert_eq!((engine.commits()).len(), 0);
     let first = engine.poll(at(10_000_000));
     let mut invalid = rule.clone();
     invalid.answer = Answer::Refused { refusal: Refusal::NotOffered, at: None };

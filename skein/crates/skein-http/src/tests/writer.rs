@@ -231,7 +231,7 @@ fn finish_ends_the_body_and_a_failure_before_it_leaves_nothing_to_end() {
     let mut machine = Machine::new(LIMITS);
     machine.framed(Request::Comment(boxed(b"")));
     let (events, requests) = machine.down(Request::Finish);
-    assert_eq!(events, []);
+    assert_eq!((events).len(), 0);
     assert_eq!(requests, [Down::Finish]);
     assert_eq!(machine.writer.waiting(), Waiting::Close);
     let mut machine = Machine::new(LIMITS);
@@ -254,7 +254,7 @@ fn the_stream_failing_fails_the_event_being_written_or_the_next() {
     assert!(events.is_empty(), "with nothing being written, the next event hears it");
     let (events, requests) = machine.down(Request::Event(outgoing(b"", b"x", None, None)));
     assert_eq!(events, [Event::Failed(fault)]);
-    assert_eq!(requests, []);
+    assert_eq!((requests).len(), 0);
     // A refusal still comes first: it concerns what the side above wrote.
     let mut machine = Machine::new(LIMITS);
     machine.up(Up::Failed(fault));

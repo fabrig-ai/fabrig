@@ -205,7 +205,7 @@ fn texts_are_priced_after_names_and_before_the_rest() {
             Block::Call(_) | Block::Result { .. } => panic!("text or dialect expected"),
         }
     }
-    assert_eq!(call_at(&turn, 0, 0).outcome.as_ref().unwrap().bytes(), []);
+    assert_eq!((call_at(&turn, 0, 0).outcome.as_ref().unwrap().bytes()).len(), 0);
     assert!(turn.cut);
     assert_text_budget(&turn, limits.turn.text);
 }
@@ -263,7 +263,7 @@ fn fewer_than_three_bytes_left_leave_a_text_empty_and_unmarked() {
         let Block::Text(text) = turn.messages.get(0).unwrap().blocks.get(0).unwrap() else {
             panic!("text expected");
         };
-        assert_eq!(text.bytes(), []);
+        assert_eq!((text.bytes()).len(), 0);
         assert!(turn.cut);
         assert_text_budget(&turn, bound);
     }
@@ -621,9 +621,9 @@ fn receiving_limits_cut_without_growing_or_losing_call_outcomes() {
     assert!(turn.cut);
     match &turn.messages.get(0).unwrap().blocks.get(0).unwrap() {
         Block::Call(call) => {
-            assert_eq!(call.tool.bytes(), []);
-            assert_eq!(call.input.bytes(), []);
-            assert_eq!(call.outcome.as_ref().unwrap().bytes(), []);
+            assert_eq!((call.tool.bytes()).len(), 0);
+            assert_eq!((call.input.bytes()).len(), 0);
+            assert_eq!((call.outcome.as_ref().unwrap().bytes()).len(), 0);
         }
         Block::Text(_) | Block::Result { .. } | Block::Opaque { .. } => panic!("call expected"),
     }

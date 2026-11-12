@@ -349,7 +349,9 @@ fn abandoned_read_and_closing_watch_tokens_cannot_recreate_a_page() {
         drive(
             &mut root,
             Event::Infrastructure(infrastructure::Event::Ended { watch, end: infrastructure::WatchEnd::Closed })
-        ).len(), 0
+        )
+        .len(),
+        0
     );
 }
 #[test]

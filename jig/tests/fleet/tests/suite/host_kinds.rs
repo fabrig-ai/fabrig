@@ -59,7 +59,9 @@ fn a_run_placed_on_the_engine_slots_is_settled_as_not_started_by_a_restart_befor
                 kinds: Kinds::Engine,
                 assignment: refs()
             }
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     assert_eq!(
         place(&mut domain, limits),
@@ -136,7 +138,9 @@ fn a_charter_for_workers_only_waits_while_only_engine_slots_are_free() {
                 kinds: Kinds::Workers,
                 assignment: refs()
             }
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     assert_eq!(place(&mut domain, limits).len(), 0);
     assert_eq!(domain.waiting(), 1);
@@ -156,7 +160,9 @@ fn a_charter_for_workers_only_waits_while_only_engine_slots_are_free() {
                     hosting: Box::new([]),
                 }
             }
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     assert_eq!(
         place(&mut domain, limits),
@@ -196,7 +202,9 @@ fn a_worker_holding_the_workstream_is_preferred_over_a_free_engine_slot() {
                     hosting: Box::new([]),
                 }
             }
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     assert_eq!(
         step(
@@ -213,7 +221,9 @@ fn a_worker_holding_the_workstream_is_preferred_over_a_free_engine_slot() {
                 kinds: Kinds::Both,
                 assignment: refs()
             }
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     assert_eq!(
         place(&mut domain, limits),
@@ -332,7 +342,9 @@ fn waiting_worker(limits: Limits) -> Domain {
                 kinds: Kinds::Workers,
                 assignment: refs(),
             }
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     domain
 }

@@ -81,7 +81,9 @@ fn a_final_answer_reaches_the_child_that_asked_unread_and_once() {
                     }
                 }
             }
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     assert_eq!(taken(&mut root).len(), 0);
 }

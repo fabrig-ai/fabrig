@@ -191,7 +191,9 @@ fn an_answer_for_another_code_or_a_page_left_changes_nothing() {
     let mut root = reading();
     let shown = crate::shown(&root);
     assert_eq!(
-        answer(&mut root, Approval::Read { code: ApprovalCode::parse(b"BCDFGHJK").unwrap(), state: Read::Approved }).len(), 0
+        answer(&mut root, Approval::Read { code: ApprovalCode::parse(b"BCDFGHJK").unwrap(), state: Read::Approved })
+            .len(),
+        0
     );
     assert_eq!(state(&root), State::Reading);
     assert_eq!(crate::shown(&root), shown);
@@ -226,7 +228,8 @@ fn signed_out_draws_sign_in_first() {
             act(&mut root, Act::Approve);
         }
         assert_eq!(
-            step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } }).len(), 0
+            step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } }).len(),
+            0
         );
         assert_eq!(state(&root), State::SignedOut, "pending decision: {deciding}");
         assert_eq!(root.approving, approve::Flight::Idle);
@@ -250,5 +253,5 @@ fn try_again_reads_and_type_a_code_returns_to_the_field() {
     assert_eq!(act(&mut root, Act::Type).len(), 0);
     assert_eq!(state(&root), State::Typing { unread: false });
     assert_eq!(root.approval().unwrap().code(), None);
-    assert_eq!(root.approval().unwrap().words(), []);
+    assert_eq!((root.approval().unwrap().words()).len(), 0);
 }

@@ -582,7 +582,7 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
     ] {
         let mut builder = Builder::new(&bounds());
         assert_eq!(paths::path(&mut builder, b"Path", &stops, None), Err(expected));
-        assert_eq!(builder.finish().nodes(), []);
+        assert_eq!((builder.finish().nodes()).len(), 0);
     }
     for data in [
         b"".as_slice(),
@@ -603,7 +603,7 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
         &[1, 1, 0, 3, 0, 1, b'x', 0],
     ] {
         assert!(!paths::draw(paths::KIND, data, 640, 0, &mut scene));
-        assert_eq!(scene.marks(), []);
+        assert_eq!((scene.marks()).len(), 0);
     }
     for mark in [Mark::Person, Mark::Agent, Mark::Code] {
         let stops = [Stop { mark, words: b"x", needed: false, over: b"" }; 2];
@@ -643,7 +643,7 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
         let mut short = Scene::new(&tight);
         assert!(!paths::draw(paths::KIND, data, 1568, 0, &mut short), "{field} is tight");
         assert!(short.refused());
-        assert_eq!(short.marks(), []);
+        assert_eq!((short.marks()).len(), 0);
     }
     for field in ["scene_marks", "scene_bytes"] {
         let mut tiny = bounds();
@@ -655,7 +655,7 @@ fn path_bounds_refuse_bad_data_and_draw_any_keeps_flows() {
         let mut scene = Scene::new(&tiny);
         assert!(!paths::draw(paths::KIND, data, 1568, 0, &mut scene));
         assert!(scene.refused());
-        assert_eq!(scene.marks(), []);
+        assert_eq!((scene.marks()).len(), 0);
     }
     let flow = skein_ui::flow::encode(
         skein_ui::flow::Direction::LeftToRight,

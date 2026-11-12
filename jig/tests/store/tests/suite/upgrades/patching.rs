@@ -222,7 +222,7 @@ fn stray_cleanup_restarts_listing_and_keeps_previous() {
     world.open_switched().expect("equal-level restart");
     patches::whole(&mut world);
     assert_eq!(patches::source(&mut world), previous);
-    assert_eq!(world.patched(), []);
+    assert_eq!((world.patched()).len(), 0);
 }
 
 #[test]

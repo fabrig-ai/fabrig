@@ -181,7 +181,9 @@ fn sub_agents_reserve_from_the_runs_budget_and_spend_never_passes_it() {
     };
     let child = *child;
     assert_eq!(
-        crash_take(&mut domain, &env, &mut out, run::Event::Started { conversation: child, peer: Token::new(101) }).len(), 0
+        crash_take(&mut domain, &env, &mut out, run::Event::Started { conversation: child, peer: Token::new(101) })
+            .len(),
+        0
     );
 
     let first = Token::new(801);
@@ -195,7 +197,9 @@ fn sub_agents_reserve_from_the_runs_budget_and_spend_never_passes_it() {
             &env,
             &mut out,
             run::Event::Priced { conversation: main, own_spent: 20, subtree_spent: 20 },
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     assert_eq!(run::reserve(&mut domain, child, second, run::Most::Bounded(50)), Ok(()));
     assert!(run::settle_reservation(&mut domain, child, second, 30));
@@ -205,7 +209,9 @@ fn sub_agents_reserve_from_the_runs_budget_and_spend_never_passes_it() {
             &env,
             &mut out,
             run::Event::Priced { conversation: child, own_spent: 30, subtree_spent: 30 },
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     let child_spend = run::Spend { turns: 1, units: 30, ..run::Spend::ZERO };
     let returned = crash_take(
@@ -279,7 +285,9 @@ fn answered_host_call_before_turn_crash_wakes_as_host_text_with_new_call_namespa
                 name: Token::new(5),
                 text: notice[6..].into()
             },
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     let waking = crash_take(
         &mut resumed,
@@ -983,7 +991,7 @@ fn empty_reports_and_declared_failures_are_terminal_results_without_delivery() {
                 }
             }
         }
-        assert_eq!(world.stats().checks, world.stats().deliveries), (0, 0);
+        assert_eq!((world.stats().checks, world.stats().deliveries), (0, 0));
         assert_eq!(world.stats().partner.accepted, 4);
         skein_world::domain::assert_replays(41, 42, |seed| {
             let world = settled(&Settings { seed, ..settings });
@@ -1000,7 +1008,7 @@ fn an_empty_failure_reason_is_accepted_in_the_run_world() {
     let world = settled(&Settings { host, partner, ..calm });
     assert_eq!(world.stats().partner.rejected, 0);
     assert_eq!(world.stats().partner.accepted, 4);
-    assert_eq!(world.stats().checks, world.stats().deliveries), (0, 0);
+    assert_eq!((world.stats().checks, world.stats().deliveries), (0, 0));
     assert!(answers(&world).iter().all(|answer| matches!(
         answer,
         Answer::Accepted { outcome: smith_domain_run::outcome::Declared::Failure(_), .. }

@@ -68,7 +68,7 @@ fn each_step_supplies_its_slot_line_and_held_word() {
             for (candidate, literals, kinds) in crate::forge::words::CHANGES {
                 if candidate == word {
                     assert_eq!(literals, &[b"Repairing: a person asked for changes on the forge.".as_slice()]);
-                    assert_eq!(kinds, []);
+                    assert_eq!((kinds).len(), 0);
                     found = true;
                 }
             }
@@ -129,7 +129,7 @@ fn queue_names_stay_nearest_first_and_unnamed_counts_saturate() {
         assert_eq!((queue.place, queue.ahead, queue.unnamed), (place, names, unnamed));
     }
     let first = change::queue(&w::Step::First).unwrap();
-    assert_eq!(first.place, first.ahead, first.unnamed), (1, &[][..], 0);
+    assert_eq!((first.place, first.ahead, first.unnamed), (1, &[][..], 0));
     assert!(change::queue(&w::Step::Producing).is_none());
 }
 #[test]

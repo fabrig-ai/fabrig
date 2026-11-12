@@ -273,7 +273,7 @@ fn the_response_goes_up_when_its_head_is_whole_and_not_before() {
     let (_, demand) = machine.called(get());
     assert_eq!(demand, Some(Down::Demand { read: Read::Scan { until: Delimiter::LF, max: 256 }, room: 0 }));
     let (events, requests) = machine.bytes(b"HTTP/1.1 200 OK\r\n");
-    assert_eq!(events, []);
+    assert_eq!((events).len(), 0);
     assert_eq!(requests, [Down::Demand { read: Read::Scan { until: Delimiter::LF, max: 239 }, room: 0 }]);
     let (events, requests) = machine.bytes(b"Content-Length: 2\r\n");
     assert!(events.is_empty() && requests.len() == 1);

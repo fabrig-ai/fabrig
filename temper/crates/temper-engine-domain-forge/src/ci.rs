@@ -97,8 +97,8 @@ mod tests {
 
     #[test]
     fn protection_names_required_contexts() {
-        assert_eq!(required(&Protection::Unknown), []);
-        assert_eq!(required(&Protection::Absent), []);
+        assert_eq!((required(&Protection::Unknown)).len(), 0);
+        assert_eq!((required(&Protection::Absent)).len(), 0);
         let rule = Protection::Rule(skein_forge::api::Protection {
             queue: false,
             signatures: false,

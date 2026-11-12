@@ -345,7 +345,7 @@ fn empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wa
                 }
                 referee.assert_passed(seed);
                 if !work {
-                    assert_eq!(world.prompts(), []);
+                    assert_eq!((world.prompts()).len(), 0);
                     assert!(
                         matches!(world.answer(), run::Answer::Parked { turns: 0, spent } if *spent == run::Spend::ZERO)
                     );

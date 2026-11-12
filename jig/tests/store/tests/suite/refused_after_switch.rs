@@ -55,7 +55,7 @@ fn a_record_a_child_refuses_before_switch_keeps_the_old_generation_active() {
     world.patch_sets(BASE);
     assert_eq!(world.open_switched(), Some(1));
     world.accept_recovery(1);
-    assert_eq!(world.patched(), []);
+    assert_eq!((world.patched()).len(), 0);
     assert_eq!(world.active(), b"1\n");
     patches::kept(&original, &patches::source(&mut world), &"operator's way back");
     records.check(&mut world, 1, &"operator's way back");

@@ -440,7 +440,7 @@ fn owner_started_chat_navigates_from_the_original_request_and_keeps_late_answers
             Answer::Done(Outcome::Document(DocumentOutcome::Created { first: u64::MAX, last: u64::MAX, given: None }));
         drive(&mut domain, Time::ZERO, AnsweredByEngine { request, answer: answer.clone() });
         assert!(domain.chats().starting.is_none());
-        assert_eq!(domain.fields().get(Purpose::NewChat).unwrap().text.bytes(), []);
+        assert_eq!((domain.fields().get(Purpose::NewChat).unwrap().text.bytes()).len(), 0);
         if away {
             assert_eq!(domain.notices.ids().len(), 1);
             for (notice, ()) in domain.notices.ids() {

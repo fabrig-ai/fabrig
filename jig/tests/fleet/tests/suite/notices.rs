@@ -120,7 +120,7 @@ fn a_notice_from_a_worker_not_hosting_the_attempt_reaches_nothing() {
         refused(OTHER),
     ];
     for notice in notices {
-        assert_eq!(step(&mut domain, notice), []);
+        assert_eq!((step(&mut domain, notice)).len(), 0);
     }
 }
 

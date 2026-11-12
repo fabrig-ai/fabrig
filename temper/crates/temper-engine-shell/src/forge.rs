@@ -350,7 +350,7 @@ fn prepare_fake(path: &std::path::Path) -> Result<(), String> {
     }
     let seed = skein_shell::crypto_seed().map_err(|errno| format!("random token: errno {errno}"))?;
     let mut token = [0; 40];
-    for (byte, digits) in seed.expose().iter().take(20).zip(token.chunks_exact_mut(2)) {
+    for (byte, digits) in seed.expose().iter().take(20).zip(token.as_chunks_mut::<2>().0) {
         digits[0] = b"0123456789abcdef"[usize::from(byte / 16)];
         digits[1] = b"0123456789abcdef"[usize::from(byte % 16)];
     }

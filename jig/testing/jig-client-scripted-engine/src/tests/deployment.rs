@@ -61,7 +61,7 @@ fn round_trip(value: Deployment) {
     let expected =
         Up::Watch { token: Token::new(2), event: WatchEvent::Delivered(Delivery::Deployment(Box::new(value))) };
     assert!(events.contains(&expected));
-    assert_eq!(engine.commits(), []);
+    assert_eq!((engine.commits()).len(), 0);
 }
 #[test]
 fn deployment_whole_twenty_one_fields_independent_capacities_loss_and_source_order_reach_read_and_watch() {

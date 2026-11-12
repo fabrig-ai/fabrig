@@ -217,7 +217,7 @@ fn native_peer_and_client_stay_under_their_peak_ceiling_until_every_owner_drops(
             }
         }
         assert!(quiet, "actual bounded native drainage");
-        assert_eq!(seen.reusable, seen.close, seen.closed), (1, 0, 0);
+        assert_eq!((seen.reusable, seen.close, seen.closed), (1, 0, 0));
         assert_eq!(world.service.count(), 1);
         assert_eq!(world.service.calls(), 0, "actual route was reclaimed while Service remains live");
         assert_native_payloads(&world, &seen, &caps, &bounds);
@@ -225,7 +225,7 @@ fn native_peer_and_client_stay_under_their_peak_ceiling_until_every_owner_drops(
         meter.start();
         world.request(client::Request::Close);
         seen.take(&mut world, 19);
-        assert_eq!(seen.reusable, seen.close, seen.closed), (1, 1, 0);
+        assert_eq!((seen.reusable, seen.close, seen.closed), (1, 1, 0));
         world.settle();
         seen.take(&mut world, 19);
         world.settle();

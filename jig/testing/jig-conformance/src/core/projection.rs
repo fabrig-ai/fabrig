@@ -14,7 +14,6 @@ pub struct Projection {
     joins: joins::Joins,
 }
 
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Row {
     naming: Vec<r::Naming>,

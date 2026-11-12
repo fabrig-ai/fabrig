@@ -105,6 +105,6 @@ fn a_second_providers_sign_in_reaches_accounts_after_the_welcomes() {
     let words = text(&root);
     assert!(words.contains("Added your Other fake plan"), "{words}");
     assert!(!words.contains("the same account again"), "{words}");
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
     accounts::answer_trial(&mut front, &mut root);
 }

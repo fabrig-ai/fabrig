@@ -65,7 +65,7 @@ fn a_revocation_posts_its_form() {
         if let Some(secret) = expected_secret {
             field(&mut fields, b"client_secret", secret.expose());
         }
-        assert_eq!(fields, []);
+        assert_eq!((fields).len(), 0);
     }
 }
 

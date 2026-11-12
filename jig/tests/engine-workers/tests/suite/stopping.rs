@@ -55,7 +55,7 @@ fn an_abort_closes_every_connection_at_once() {
     world.run();
     assert!(world.gone(first));
     assert!(world.gone(second));
-    assert_eq!(world.observed(first), []);
+    assert_eq!((world.observed(first)).len(), 0);
     assert_eq!(closed(&world), 1);
     referee::judge(world.root()).expect("closed last");
 }

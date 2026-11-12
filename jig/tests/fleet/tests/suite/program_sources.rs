@@ -112,7 +112,9 @@ fn old_whole_snapshot_crossing_a_replacement_updates_nothing() {
                         email: Some(b"second@example.com".as_slice().into())
                     },
                 ])
-            }).len(), 0
+            })
+            .len(),
+        0
     );
     assert!(
         world
@@ -215,8 +217,8 @@ fn a_lost_sign_out_cannot_complete_a_new_channel_call() {
     assert!(!world.available());
     world.step(Event::SignOut { to: ReplyTo::new(Token::new(2)), channel: replacement, name: source(b"a") });
     assert_eq!(
-        world
-            .step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut }).len(), 0
+        world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut }).len(),
+        0
     );
     let ended =
         world.step(Event::SignedOut { channel: replacement, name: source(b"a"), result: SignOutResult::SignedOut });

@@ -30,7 +30,7 @@ impl Inputs {
         }
         let mut inputs = Self::default();
         let mut rest = Vec::new();
-        for pair in flags.chunks_exact(2) {
+        for pair in flags.as_chunks::<2>().0 {
             match pair[0].as_str() {
                 "--baseline-run" => {
                     if inputs.baseline_run.replace(PathBuf::from(&pair[1])).is_some() {

@@ -74,8 +74,8 @@ fn records_are_linked_after_loading_in_any_order() {
     let out = world.step(Event::Want);
     assert!(world.domain.restore_finished());
     assert_eq!(world.domain.account_facts(ACCOUNT), &[fact]);
-    assert_eq!(world.domain.account_facts(orphan), []);
-    assert_eq!(world.domain.account_facts(22), []);
+    assert_eq!((world.domain.account_facts(orphan)).len(), 0);
+    assert_eq!((world.domain.account_facts(22)).len(), 0);
 
     assert_eq!(restore_limit(&world.domain), None);
     assert_eq!(world.domain.account(ACCOUNT).expect("linked").sources().get(&PROGRAM_PLACE), Some(&PROGRAM_SOURCE));

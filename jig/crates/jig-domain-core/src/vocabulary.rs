@@ -1422,7 +1422,6 @@ impl Timer {
     }
 }
 
-
 /// Core-owned continuations drained within one decision (jig/docs/design/domain/engine/README.md, 4.3).
 #[derive(Debug)]
 #[expect(

@@ -128,7 +128,7 @@ impl Judge {
                     MoveStory::NotOurs(_)
                         if b.account_answers().contains(&Answer::Refused { refusal: Refusal::NotOurs }) =>
                     {
-                        assert_eq!(b.lent(), []);
+                        assert_eq!((b.lent()).len(), 0);
                         assert!(
                             owners[1].carried_value(owners[1].carried_move().expect("carried file")).is_some(),
                             "NotOurs never adopts the carried row"

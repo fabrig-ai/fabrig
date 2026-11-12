@@ -1121,7 +1121,7 @@ fn a_context_adoption_still_refuses_effects_after_a_cold_restart() {
     assert!(matches!(world.answers.last(), Some((_, _, core::CallPart::EffectDenied {
         answer: authority::Answer::Refuse, findings,
     })) if findings.contains(&authority::Finding::ResourceAccess)));
-    assert_eq!(world.systems[0].observed(), []);
+    assert_eq!((world.systems[0].observed()).len(), 0);
 }
 
 pub(crate) fn amendment(words: &[u8]) -> people::Amendment {

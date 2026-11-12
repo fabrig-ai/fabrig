@@ -96,7 +96,7 @@ fn a_party_without_a_role_in_the_scope_is_refused_before_the_connector() {
     let mut driver = driver();
     watch(&mut driver, 2, CHANGE);
     driver.settle();
-    assert!(panels(&driver).is_empty());
+    assert_eq!(panels(&driver).len(), 0);
     assert!(driver.immediate.iter().any(|request| matches!(request, root::Request::Party(root::PartyRequest::WatchRefused { watcher, why: jig_domain_core::WatchRefusal::NotAllowed }) if *watcher == WATCHER)));
 }
 #[test]
@@ -148,7 +148,7 @@ fn a_task_that_is_no_change_ends_the_watch_as_gone() {
     let mut driver = driver();
     watch(&mut driver, 1, 999);
     driver.settle();
-    assert!(panels(&driver).is_empty());
+    assert_eq!(panels(&driver).len(), 0);
     assert!(driver.delivered.iter().any(|delivery| matches!(delivery, root::Delivery::WatchEnded { watcher, why: jig_domain_views::End::Gone } if *watcher == WATCHER)));
 }
 
@@ -342,7 +342,7 @@ fn a_status_subject_for_another_project_is_gone() {
     let mut driver = driver();
     watch(&mut driver, 1, forge::status_subject(2));
     driver.settle();
-    assert!(statuses(&driver).is_empty());
+    assert_eq!(statuses(&driver).len(), 0);
     assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
         root::Delivery::WatchEnded { watcher, why: jig_domain_views::End::Gone } if *watcher == WATCHER)));
 }
@@ -351,7 +351,7 @@ fn a_status_watch_without_a_project_role_is_refused() {
     let mut driver = driver();
     watch(&mut driver, 2, forge::status_subject(2));
     driver.settle();
-    assert!(statuses(&driver).is_empty());
+    assert_eq!(statuses(&driver).len(), 0);
     assert!(driver.immediate.iter().any(|request| matches!(request,
         root::Request::Party(root::PartyRequest::WatchRefused {
             watcher, why: jig_domain_core::WatchRefusal::NotAllowed,
@@ -539,7 +539,7 @@ fn a_partys_away_is_its_own() {
         for _ in 0..UNCOMMITTED_STEPS {
             driver.advance(false);
         }
-        assert!(panel_answers(&driver).is_empty());
+        assert_eq!(panel_answers(&driver).len(), 0);
         assert!(!driver.store.pending.is_empty());
         driver.settle();
         assert_eq!(panel_answers(&driver), [Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away))]);
@@ -644,7 +644,7 @@ fn a_party_without_a_role_is_refused_at_admission() {
         );
     }
     panel_watch(&mut driver, sign_in, WATCHER, ApplicationScope::Project(2), forge::decided_subject(2));
-    assert!(party_documents(&driver, WATCHER).is_empty());
+    assert_eq!(party_documents(&driver, WATCHER).len(), 0);
     assert!(driver.immediate.iter().any(|request| matches!(request,
         root::Request::Party(root::PartyRequest::WatchRefused {
             watcher, why: jig_domain_core::WatchRefusal::NotAllowed,

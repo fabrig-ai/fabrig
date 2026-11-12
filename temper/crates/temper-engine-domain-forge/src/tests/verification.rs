@@ -1110,14 +1110,14 @@ fn retained_tier_runs_survive_later_verdicts_restart_and_shared_change_release()
     restored.restore_begin(Wall::EPOCH);
     restore(&mut restored, &env(), Stored::Verification(row));
     assert_eq!(restored.change_verdicts(CHANGE), expected);
-    assert_eq!(restored.change_verdicts(SECOND), []);
+    assert_eq!((restored.change_verdicts(SECOND)).len(), 0);
     add_change(&mut restored, SECOND, b"main");
     merged(&mut restored, SECOND, FIRST);
     verification::released(&mut restored, CHANGE, &mut Queue::uncapped());
-    assert_eq!(restored.change_verdicts(CHANGE), []);
+    assert_eq!((restored.change_verdicts(CHANGE)).len(), 0);
     assert_eq!(restored.change_verdicts(SECOND), expected);
     verification::released(&mut restored, SECOND, &mut Queue::uncapped());
-    assert_eq!(restored.change_verdicts(SECOND), []);
+    assert_eq!((restored.change_verdicts(SECOND)).len(), 0);
 }
 
 #[path = "landing_log.rs"]

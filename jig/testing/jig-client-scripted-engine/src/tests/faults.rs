@@ -26,7 +26,7 @@ fn scenario_restart_cuts_offline_and_retained_keys() {
     engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(3), Subject::Task { task: 8 }).expect("watch");
     engine.read(Time::ZERO, REQUESTER_SIGN_IN, Token::new(4), Read::Task { task: 8 }).expect("read");
     engine.fault(at(1), Fault::Restart { offline: Duration::from_millis(10) });
-    assert_eq!(engine.commits(), []);
+    assert_eq!((engine.commits()).len(), 0);
     assert!(engine.runs.is_empty());
     assert!(engine.keys.is_empty());
     assert!(

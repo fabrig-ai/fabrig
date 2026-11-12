@@ -14,7 +14,6 @@ enum Report {
     Told,
 }
 
-
 /// An agent capability's accepted names, ending read, refused or unread once.
 #[derive(Debug)]
 pub struct Inbox {

@@ -1152,7 +1152,7 @@ fn root_call_answers_become_bounded_smith_text_or_error() {
     assert!(!done.error());
     let denied = answer(&temper_engine_domain::CallAnswer::Unavailable);
     assert!(denied.error());
-    assert_ne!(denied.text(), []);
+    assert_ne!((denied.text()).len(), 0);
 
     for (value, phrase) in [
         (api::Answer::Runs { runs: Box::new([]), more: false }, "answer of kind Runs"),

@@ -177,7 +177,7 @@ fn a_job_past_its_bounds_or_missing_its_parts_is_dropped() {
         world.run();
     }
     assert_eq!(world.dropped_down(), 2);
-    assert_eq!(world.observed(connection), []);
+    assert_eq!((world.observed(connection)).len(), 0);
 }
 
 /// An oversized answer never reaches the fleet (jig/docs/design/protocol/channel/records.md, 4).

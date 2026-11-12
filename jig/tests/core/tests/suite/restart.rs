@@ -180,7 +180,7 @@ fn an_unfound_uncertain_entry_keeps_its_saved_retry_deadline_across_restarts() {
     assert!(world.systems[0].observed().is_empty(), "not found does not retry before the saved deadline");
     assert!(world.store.rows.values().any(|record| matches!(record, root::Record::Connector { record: connector::Record::Outbox(row), .. } if row.attempt==Some(attempt))));
     world.restart(118, false);
-    assert_eq!(world.systems[0].observed(), []);
+    assert_eq!((world.systems[0].observed()).len(), 0);
     assert!(world.store.rows.values().any(|record| matches!(record, root::Record::Connector { record: connector::Record::Outbox(row), .. } if row.attempt==Some(attempt))));
 }
 

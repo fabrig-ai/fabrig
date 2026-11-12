@@ -86,7 +86,7 @@ fn a_plain_users_token_cannot_list() {
 fn an_installation_given_to_a_forgejo_sends_no_request() {
     let mut world = HostWorld::managed_paged(7, 4);
     assert_eq!(world.reachable(Some(7), 1), failure(Stage::Installation, b"7", Why::Unexpected));
-    assert_eq!(world.requests(), []);
+    assert_eq!((world.requests()).len(), 0);
     assert_eq!(world.tally().total, 0);
 }
 #[test]
@@ -95,7 +95,7 @@ fn neither_token_kept_stops_missing() {
     world.forget(Item::AdminToken);
     world.forget(Item::ApiToken);
     assert_eq!(world.reachable(None, 1), failure(Stage::Token, b"api", Why::Missing));
-    assert_eq!(world.requests(), []);
+    assert_eq!((world.requests()).len(), 0);
 }
 #[test]
 fn no_secret_is_in_a_reachable_failure_debug_or_trace() {

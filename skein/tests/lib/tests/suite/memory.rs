@@ -707,7 +707,6 @@ fn request_table_memory<O: Item + Copy + std::fmt::Debug + PartialEq, T: Item + 
     let mut table = RequestTable::new(&limits, 0xB5_7A);
     metered.end(());
     for n in 0..capacity {
-        
         metered.start();
         let key = if restored {
             let mut restored_key = [0xAA; 16];

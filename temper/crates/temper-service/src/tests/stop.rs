@@ -187,7 +187,7 @@ fn a_store_without_forge_records_refuses_at_startup() {
 #[test]
 fn unfinished_forge_writes_stay_with_the_drain() {
     let mut service = fixtures::ready();
-    assert!(service.unsettled().is_empty());
+    assert_eq!(service.unsettled(), []);
     service.shutdown();
     let writes =
         [temper_engine_domain::Unsettled { entry: 7, task: 3 }, temper_engine_domain::Unsettled { entry: 9, task: 5 }];

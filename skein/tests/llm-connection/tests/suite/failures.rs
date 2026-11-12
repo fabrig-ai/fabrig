@@ -777,7 +777,7 @@ fn cancellation_before_send_keeps_every_measure_unobserved() {
             }
         }
         assert!(matches!(world.terminals.as_slice(), [Event::Cancelled { .. }]));
-        assert_eq!(world.wire.received(), []);
+        assert_eq!((world.wire.received()).len(), 0);
         assert_eq!(terminal_measures(&world), skein_llm_connection::Measures::none());
     }
 }

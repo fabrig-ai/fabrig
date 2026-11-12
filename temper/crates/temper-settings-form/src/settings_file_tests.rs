@@ -888,7 +888,7 @@ fn follows_use_the_binding_json_form_and_default_optional_members() {
         assert_eq!(record.source().paths().is_empty(), optional);
         assert_eq!(record.source().branch().is_empty(), optional);
         assert_eq!(record.producer().is_none(), optional);
-        assert_eq!(record.target().branch(), []);
+        assert_eq!((record.target().branch()).len(), 0);
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,

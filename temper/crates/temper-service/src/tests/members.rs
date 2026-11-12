@@ -176,10 +176,10 @@ fn the_rows_have_unique_names_and_bounded_lines() {
     let mut shapes = BTreeSet::new();
     for shape in &SHAPES {
         assert!(shapes.insert(shape.name), "duplicate shape: {}", shape.name);
-        assert!(!shape.paths.is_empty());
+        assert_ne!(shape.paths.len(), 0);
         assert!(!shape.line.is_empty() && shape.line.len() <= 160);
         let names: Vec<_> = super::names(shape.name).collect();
-        assert!(!names.is_empty());
+        assert_ne!(names.len(), 0);
         assert_eq!(names.len(), names.iter().collect::<BTreeSet<_>>().len());
     }
     for row in &temper_forge_setup::machine::MEMBERS {
@@ -190,7 +190,7 @@ fn the_rows_have_unique_names_and_bounded_lines() {
     }
     for row in &MEMBERS {
         assert!(shapes.contains(row.shape));
-        assert!(!row.kind.is_empty());
+        assert_ne!(row.kind, "");
         if row.gone.is_none() {
             assert!(!row.line.is_empty() && row.line.len() <= 160 && row.line.ends_with('.'), "{row:?}");
         }

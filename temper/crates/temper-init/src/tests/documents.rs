@@ -205,7 +205,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         expected["workers"][0]["graces"]["grace_ms"] = json!(60_000_u64);
         expected["engine"]["acts"] =
             json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account", "adopt"] }]);
-        assert_ne!(actual["engine"]["owners"].as_array().unwrap().as_slice(), []);
+        assert_ne!(actual["engine"]["owners"].as_array().unwrap().len(), 0);
         // The startup turn_bounds writer holds these to each document's own
         // agent; init adds a demo endpoint, so smith derives a different T.
         let template = parse(include_bytes!("../../template/temper.json"));

@@ -119,7 +119,7 @@ fn a_request_s_file_holds_the_bytes_the_provider_read() {
                 & 0o777,
             0o700
         );
-        assert!(dump_errors(&world).is_empty());
+        assert_eq!(dump_errors(&world).len(), 0);
     }
 }
 
@@ -204,7 +204,7 @@ fn a_directory_open_to_others_is_refused() {
     let mut world = world(directory.clone(), BOUND, false, false);
     assert!(world.settle());
     accepted(&world);
-    assert!(files(&directory).is_empty());
+    assert_eq!(files(&directory).len(), 0);
     assert_eq!(dump_errors(&world).len(), 2);
 }
 

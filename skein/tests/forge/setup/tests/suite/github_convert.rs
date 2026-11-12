@@ -259,7 +259,7 @@ fn identity(world: &HostWorld, slug: &[u8]) {
     assert!(world.file(Item::Accepted).is_none());
     assert!(world.file(Item::WebhookSecret).is_none());
     assert_eq!(world.connects(), &[Duration::ZERO; 3], "conversion, App proof, bot lookup");
-    assert_eq!(world.reads(), []);
+    assert_eq!((world.reads()).len(), 0);
 }
 
 #[test]
@@ -371,8 +371,8 @@ fn an_expired_or_restarted_conversion_state_sends_nothing() {
     for (mut world, callback, at) in [(expired, expiry_callback, life), (restarted, callback, Duration::ZERO)] {
         convert(&mut world, 2, &callback);
         assert_eq!(world.heard().last(), Some(&stop(2, Stage::State, Why::Unknown, at)));
-        assert_eq!(world.connects(), []);
-        assert_eq!(world.needs(), []);
+        assert_eq!((world.connects()).len(), 0);
+        assert_eq!((world.needs()).len(), 0);
         closed(&mut world);
     }
 }
@@ -387,7 +387,7 @@ fn a_conversion_refused_by_github_still_consumes_its_state() {
     convert(&mut world, 3, &callback);
     assert_eq!(world.heard().last(), Some(&stop(3, Stage::State, Why::Unknown, Duration::ZERO)));
     assert_eq!(world.connects(), &[Duration::ZERO]);
-    assert_eq!(world.needs(), []);
+    assert_eq!((world.needs()).len(), 0);
     closed(&mut world);
 }
 
@@ -402,7 +402,7 @@ fn a_conversion_deadline_cannot_restore_its_state() {
     convert(&mut world, 3, &callback);
     assert_eq!(world.heard().last(), Some(&stop(3, Stage::State, Why::Unknown, deadline)));
     assert_eq!(world.connects(), &[Duration::ZERO]);
-    assert_eq!(world.needs(), []);
+    assert_eq!((world.needs()).len(), 0);
     closed(&mut world);
 }
 
@@ -415,7 +415,7 @@ fn a_lost_conversion_reply_reports_the_code_as_spent() {
     let backoff = fixtures::github_given().limits.backoff;
     assert_eq!(world.heard().last(), Some(&stop(2, Stage::App, Why::Refused(404), backoff)));
     assert_eq!(world.connects(), &[Duration::ZERO, backoff]);
-    assert_eq!(world.needs(), []);
+    assert_eq!((world.needs()).len(), 0);
     convert(&mut world, 3, &callback);
     assert_eq!(world.heard().last(), Some(&stop(3, Stage::State, Why::Unknown, backoff)));
     assert_eq!(world.connects().len(), 2);

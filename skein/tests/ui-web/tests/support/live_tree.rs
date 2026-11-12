@@ -97,7 +97,7 @@ impl TreeStory {
     fn run(mut self) {
         let mut harness = harness::Harness::new(super::setup());
         assert_eq!(harness.run(&mut [&mut self]), Outcome::Done);
-        assert_ne!(harness.kept(), []);
+        assert_ne!((harness.kept()).len(), 0);
         for kept in harness.kept() {
             assert_eq!(kept.value, kept.name, "live DOM selector's attribute");
         }

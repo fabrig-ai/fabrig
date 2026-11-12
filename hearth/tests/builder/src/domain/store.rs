@@ -309,8 +309,7 @@ fn shape(directory: Directory, name: &[u8], kind: Kind) -> Shape {
         return Shape::Stray;
     };
     let mut bytes = [0; 32];
-    for (byte, pair) in bytes.iter_mut().zip(hex.chunks_exact(2)) {
-        let [high, low] = pair else { unreachable!("two digits") };
+    for (byte, [high, low]) in bytes.iter_mut().zip(hex.as_chunks::<2>().0) {
         let (Some(high), Some(low)) = (char::from(*high).to_digit(16), char::from(*low).to_digit(16)) else {
             return Shape::Stray;
         };

@@ -80,7 +80,7 @@ impl Machine {
     pub(super) fn private_file(&self, path: &str) {
         let file = self.files.get(path).expect("ctl wrote file");
         assert_eq!(file.mode, 0o600);
-        assert!(!file.bytes.is_empty());
+        assert_ne!(file.bytes.len(), 0);
     }
     pub(super) fn call(&mut self, directory: &str, words: &[&[u8]]) -> String {
         self.call_input(directory, words, b"")
@@ -133,7 +133,7 @@ impl Machine {
             if let Some(exit) = host.exit() {
                 assert_eq!(exit, Exit::Code(0), "ctl failed: {}", String::from_utf8_lossy(&self.stderr));
                 assert!(self.stderr.is_empty(), "ctl stderr: {}", String::from_utf8_lossy(&self.stderr));
-                assert!(self.held.is_empty());
+                assert_eq!(self.held.len(), 0);
                 return String::from_utf8(std::mem::take(&mut self.stdout)).expect("ctl UTF-8");
             }
             self.now = self.now.saturating_add(Duration::from_nanos(1));

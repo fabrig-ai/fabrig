@@ -317,7 +317,9 @@ fn a_component_grant_in_the_application_form_is_ignored() {
                 generation: 4,
                 valid: Duration::from_secs(100),
                 form: Form::Application,
-            })).len(), 0
+            }))
+            .len(),
+        0
     );
     assert!(!world.domain.usable(1_000 + ANALYST));
     assert_eq!(world.domain.grant(1_000 + ANALYST, world.now), None);

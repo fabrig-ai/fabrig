@@ -91,7 +91,7 @@ fn jobs_settle_in_the_workers_world_without_messages_relays_or_grants() {
         world.run(400_000);
         let stats = world.stats();
         assert!(stats.admitted > 0 && stats.assigned > 0, "{stats:?}");
-        assert_eq!(stats.calls, stats.replies, stats.delivered, world.grants_sent()), (0, 0, 0, 0);
+        assert_eq!((stats.calls, stats.replies, stats.delivered, world.grants_sent()), (0, 0, 0, 0));
         assert_eq!(
             stats.starts,
             stats.endings.get("ended").copied().unwrap_or(0) + stats.endings.get("failed").copied().unwrap_or(0)
@@ -120,7 +120,9 @@ fn worker(h: &mut Harness, channel: Token, jobs: Box<[JobBound]>) {
             channel,
             worker: u32::try_from(channel.raw() - 101).expect("fixture worker position"),
             hello
-        }).len(), 0
+        })
+        .len(),
+        0
     );
 }
 
@@ -215,7 +217,9 @@ fn a_worker_never_gets_a_message_or_relay_for_a_job() {
     assert_eq!(
         h.step(Event::Grant {
             grant: Grant { form: Form::Application, account: 1, generation: 2, valid: Duration::from_secs(10) }
-        }).len(), 0
+        })
+        .len(),
+        0
     );
 }
 
@@ -281,7 +285,7 @@ fn jobs_are_adopted_after_a_restart_in_the_workers_world() {
         world.run(400_000);
         let stats = world.stats();
         assert_eq!(stats.restarts, 1);
-        assert_eq!(stats.calls, stats.replies, stats.delivered, world.grants_sent()), (0, 0, 0, 0);
+        assert_eq!((stats.calls, stats.replies, stats.delivered, world.grants_sent()), (0, 0, 0, 0));
         adopted += stats.adoptions;
         found += stats.endings.get("found").copied().unwrap_or(0);
     }

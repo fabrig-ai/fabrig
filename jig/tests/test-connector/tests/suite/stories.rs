@@ -342,7 +342,7 @@ fn a_persons_retry_preserves_the_previous_attempt_deadline_across_restart() {
     world.wall = deadline.as_nanos() - 1;
     world.cold_restart();
     world.settle_restart(&mut VecDeque::new());
-    assert_eq!(world.system.observed(), []);
+    assert_eq!((world.system.observed()).len(), 0);
     world.wall = deadline.as_nanos();
     let due = world.fire();
     assert!(matches!(due.as_slice(), [Request::Save { .. }, Request::System(SystemRequest::Apply { attempt: 4, .. })]));

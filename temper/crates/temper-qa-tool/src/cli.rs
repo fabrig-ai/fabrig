@@ -489,7 +489,9 @@ fn record(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8]>])
         let notes = std::str::from_utf8(notes).expect("checked notes");
         if command == &OUTCOME {
             let findings = tail
-                .as_chunks::<2>().0.iter()
+                .as_chunks::<2>()
+                .0
+                .iter()
                 .map(|pair| {
                     std::str::from_utf8(pair.get(1).expect("finding value"))
                         .expect("checked finding")

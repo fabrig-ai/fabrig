@@ -491,7 +491,7 @@ fn the_least_recently_used_idle_workspace_is_evicted_when_the_cache_is_full() {
     let (_, op) = h.prepare(4, one(b"a-work"));
     assert_eq!(op.kind(), Kind::Fetch, "a's workspace is still cached");
     assert_ne!(workspace_of(&op), workspace, "and it is not the one evicted");
-    assert_eq!(h.domain.workspaces(), h.domain.idle()), (2, 0);
+    assert_eq!((h.domain.workspaces(), h.domain.idle()), (2, 0));
 }
 
 /// A full cache reassigns its sole workspace without changing its token.
@@ -780,7 +780,7 @@ fn a_push_commits_the_tree_on_its_start_and_pushes_it_to_the_push_branch() {
     };
     assert_eq!(snapshot, Some(crate::git::Snapshot { remote: remote(b"a"), account: None }));
     assert_eq!((&*at.repository, parent), (&b"a"[..], commit(1)), "the writable one, on its start");
-    assert_eq!(&*title, &*body, identity), (&b"Fix it"[..], &b"Because."[..], 0);
+    assert_eq!((&*title, &*body, identity), (&b"Fix it"[..], &b"Because."[..], 0));
     let push = h.next(hold, Done::Committed { commit: commit(11) });
     let expected = Op::Push {
         at,

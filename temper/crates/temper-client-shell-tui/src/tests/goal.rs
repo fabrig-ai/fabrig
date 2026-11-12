@@ -278,7 +278,7 @@ pub(super) fn events() {
         assert!(!start.always);
         assert_eq!(start.way, Some(4));
         assert_eq!(host.state().start_chat(), Some(9));
-        assert_eq!(host.words(), []);
+        assert_eq!((host.words()).len(), 0);
         assert_eq!(host.root.pages().address(), &Address::Chat { task: 9 });
         let duties = give(&mut host, Event::Way { template: 2 });
         let start = host.root.pages().start().unwrap();

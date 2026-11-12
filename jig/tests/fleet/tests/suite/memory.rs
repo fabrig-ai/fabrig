@@ -254,7 +254,7 @@ fn a_full_fleet_refuses_new_work_and_drains() {
         }
         out = self::placed(&fleet.settle());
     }
-    assert_eq!(fleet.domain.attempts(), fleet.domain.calls()), (0, 0);
+    assert_eq!((fleet.domain.attempts(), fleet.domain.calls()), (0, 0));
 }
 
 #[test]
@@ -346,7 +346,7 @@ fn every_entry_point_preserves_its_lifecycle() {
     fleet.step(Event::Acknowledge { run: r3, attempt: a3 });
     fleet.at(30);
     fleet.settle();
-    assert_eq!(fleet.domain.attempts(), fleet.domain.calls()), (0, 0);
+    assert_eq!((fleet.domain.attempts(), fleet.domain.calls()), (0, 0));
     fleet.hello(Token::new(0), Vec::new());
     for number in 10..=10 + LIMITS.history {
         fleet.hello(channel(number), Vec::new());

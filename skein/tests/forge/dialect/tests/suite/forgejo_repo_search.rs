@@ -38,7 +38,7 @@ fn forgejo_repo_search_request_without_page_and_limit_keeps_sort_and_order() {
     assert_eq!(encoded.method, method);
     assert_eq!(&*encoded.target, target);
     assert_eq!(encoded.body, None);
-    assert_eq!(body, []);
+    assert_eq!((body).len(), 0);
     let mut limits = forgejo::limits();
     limits.target_bytes = 38;
     client::encode(&request, &limits).unwrap();

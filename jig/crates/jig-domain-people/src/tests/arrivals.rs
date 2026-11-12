@@ -88,7 +88,9 @@ fn proposals_and_escalation_revisions_tell_but_updates_do_not() {
                 Entry { kind: EntryKind::Reply { message: 20 }, ..proposal },
                 Entry { kind: EntryKind::ChatReply { message: 21 }, ..proposal },
             ]
-        ).len(), 0
+        )
+        .len(),
+        0
     );
     test.d.remember_result(
         &LIMITS,

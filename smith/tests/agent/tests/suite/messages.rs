@@ -307,7 +307,7 @@ fn answers_too_many_or_too_long_are_refused_before_a_completion() {
             world.answer(),
             run::Answer::Failed { failure: run::RunFailure::Transcript(run::TranscriptRefusal::TooLarge), .. }
         ));
-        assert_eq!(world.prompts(), []);
+        assert_eq!((world.prompts()).len(), 0);
     }
 }
 

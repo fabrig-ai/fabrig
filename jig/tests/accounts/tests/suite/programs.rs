@@ -39,7 +39,7 @@ fn a_declaration_saves_its_reservation_atomically() {
     assert_eq!(declare(&mut world, HOLDER, PROVIDER, None, b"personal"), (Ok(1), declaration_requests(0, 1, 2)));
     let account = world.domain.account(0).expect("kept account");
     assert!(account.plan());
-    assert_eq!(account.subject(), []);
+    assert_eq!((account.subject()).len(), 0);
 }
 fn declaration_requests(account: u32, source: u32, next: u32) -> Vec<Request> {
     vec![
@@ -534,8 +534,8 @@ fn removal_failures(
         world.step(Event::ProgramTargets { source, hosts: Box::new([jig_accounts_world::worker(0)]) });
     }
     assert_eq!(
-        world
-            .step(Event::ProgramSignedOut { source: 1, host: jig_accounts_world::worker(0), result: first }).len(), 0
+        world.step(Event::ProgramSignedOut { source: 1, host: jig_accounts_world::worker(0), result: first }).len(),
+        0
     );
     world.step(Event::ProgramSignedOut { source: 2, host: jig_accounts_world::worker(0), result: last })
 }
@@ -720,15 +720,17 @@ fn program_reports_follow_the_live_source() {
         change: jig_domain_accounts::Change::Remove { account: ACCOUNT },
     });
     assert!(removed.contains(&Request::Erase { key: Key::Facts { account: ACCOUNT } }));
-    assert_eq!(world.domain.account_facts(ACCOUNT), []);
+    assert_eq!((world.domain.account_facts(ACCOUNT)).len(), 0);
     assert_eq!(
         world
             .step(Event::ProgramSaid {
                 name: b"personal".as_slice().into(),
                 email: b"late@example.com".as_slice().into()
-            }).len(), 0
+            })
+            .len(),
+        0
     );
-    assert_eq!(world.domain.account_facts(ACCOUNT), []);
+    assert_eq!((world.domain.account_facts(ACCOUNT)).len(), 0);
 }
 
 fn declaration_change(world: &mut World, key: u64, name: &[u8]) -> Vec<Request> {

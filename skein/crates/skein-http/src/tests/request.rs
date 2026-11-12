@@ -112,11 +112,11 @@ fn every_method_is_spelt_as_the_standard_spells_it() {
 fn the_room_asked_for_is_the_head_and_nothing_is_read_before_it_is_sent() {
     let mut machine = Machine::new(LIMITS);
     let (events, requests) = machine.down(Request::Call(get()));
-    assert_eq!(events, []);
+    assert_eq!((events).len(), 0);
     assert_eq!(requests, [Down::Demand { read: Read::Nothing, room: 37 }]);
     assert_eq!(machine.client.waiting(), Waiting::Room);
     let (events, requests) = machine.up(Up::Room);
-    assert_eq!(events, []);
+    assert_eq!((events).len(), 0);
     let [Down::Send(head), next] = requests.as_slice() else { panic!("the head, then a demand: {requests:?}") };
     assert_eq!(head.len(), 37);
     assert_eq!(*next, Down::Demand { read: Read::Scan { until: Delimiter::LF, max: 256 }, room: 0 });
@@ -191,7 +191,7 @@ fn a_call_on_a_connection_that_ended_or_failed_while_idle_fails_at_once() {
     assert_eq!(machine.client.waiting(), Waiting::Close);
     let (events, requests) = machine.down(Request::Call(get()));
     assert_eq!(events, [Event::Failed(Error::Closed(None))]);
-    assert_eq!(requests, []);
+    assert_eq!((requests).len(), 0);
     assert_eq!(machine.client.waiting(), Waiting::Close);
 
     let mut machine = Machine::new(LIMITS);
@@ -199,5 +199,5 @@ fn a_call_on_a_connection_that_ended_or_failed_while_idle_fails_at_once() {
     assert_eq!(machine.up(Up::End), nothing, "nothing follows a failure");
     let (events, requests) = machine.down(Request::Call(get()));
     assert_eq!(events, [Event::Failed(Error::Closed(Some(Fault::Reset)))], "nothing was sent: retried anywhere");
-    assert_eq!(requests, []);
+    assert_eq!((requests).len(), 0);
 }

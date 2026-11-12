@@ -130,7 +130,8 @@ fn queued_grant_releases_after_cancellation_before_the_next_right() {
         "emitted upper grant wins"
     );
     assert_eq!(
-        pair.down(native::Request::Output(OutputDown::Send { right: next, bytes: b"ping".as_slice().into() })).len(), 0
+        pair.down(native::Request::Output(OutputDown::Send { right: next, bytes: b"ping".as_slice().into() })).len(),
+        0
     );
     assert_eq!(pair.peer.rustls().received, b"ping");
 }
@@ -267,7 +268,8 @@ fn tls12_refusal_precedes_plaintext_under_the_grant_held() {
     assert!(pair.settle().is_empty(), "refusal neither answers the read nor consumes backed upper grant");
     assert_eq!(pair.last_send(), before, "owed warning stays held behind the upper grant");
     assert_eq!(
-        pair.down(native::Request::Output(OutputDown::Send { right: upper, bytes: Box::from([b'x'; 16]) })).len(), 0
+        pair.down(native::Request::Output(OutputDown::Send { right: upper, bytes: Box::from([b'x'; 16]) })).len(),
+        0
     );
     assert_eq!(
         usize::try_from(pair.last_send().expect("complete owed+data Send").1).expect("record size"),

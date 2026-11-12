@@ -140,7 +140,7 @@ impl PendingCheck {
             detail: Box::default(),
         });
         self.domain.reclaim();
-        assert_eq!(self.domain.runs(), self.domain.conversations(), self.domain.calls()), (0, 0, 0);
+        assert_eq!((self.domain.runs(), self.domain.conversations(), self.domain.calls()), (0, 0, 0));
     }
 }
 

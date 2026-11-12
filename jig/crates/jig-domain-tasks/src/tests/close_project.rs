@@ -69,13 +69,13 @@ fn allotments_post_before_the_period_is_closed() {
                 } else if row.funder == period {
                     assert!(posted);
                     assert_eq!(row.numbers.spent, 3);
-                    assert_eq!(row.numbers.spent_below, row.numbers.reserved), (18, 0);
+                    assert_eq!((row.numbers.spent_below, row.numbers.reserved), (18, 0));
                     closed_period = true;
                 }
             } else if let Stored::Ledger(row) = record {
                 assert_eq!(row.funder, period);
                 assert!(closed_pool);
-                assert_eq!(row.numbers.spent_below, row.numbers.reserved), (18, 0);
+                assert_eq!((row.numbers.spent_below, row.numbers.reserved), (18, 0));
                 posted = true;
             }
         }

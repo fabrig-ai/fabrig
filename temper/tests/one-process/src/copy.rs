@@ -291,7 +291,7 @@ impl Judge {
             panic!("one connected forge")
         };
         assert_eq!(forge["number"], 1);
-        assert!(forge["makings"].as_array().expect("making rows").is_empty());
+        assert_eq!(forge["makings"].as_array().expect("making rows").len(), 0);
         let provider = peer
             .observations()
             .iter()

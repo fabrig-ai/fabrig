@@ -88,7 +88,9 @@ fn writer_pool_and_ledger_occupancy_preserve_incoming_keys() {
                     writer: Writer::Effect { entry: number },
                     lost: false,
                 })
-            }).len(), 0
+            })
+            .len(),
+            0
         );
     }
     refused(
@@ -108,7 +110,9 @@ fn writer_pool_and_ledger_occupancy_preserve_incoming_keys() {
         assert_eq!(
             cold.send(Event::Restore {
                 record: Stored::Pool(crate::PoolSlots { number, pool: name(number), slots: 0 })
-            }).len(), 0
+            })
+            .len(),
+            0
         );
     }
     refused(
@@ -364,7 +368,9 @@ fn live_stub_proposal_and_revision_capacity_include_the_incoming_row() {
         assert_eq!(
             cold.send(Event::Restore {
                 record: Stored::Stub(Stub { task: number, phase: Status::Done, result: Token::new(number) })
-            }).len(), 0
+            })
+            .len(),
+            0
         );
     }
     refused(

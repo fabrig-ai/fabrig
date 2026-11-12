@@ -114,7 +114,7 @@ fn a_frame_past_its_commit_is_cut_at_open() {
     world.crash(18);
     let restored = world.reopen();
     assert_eq!(restored.last, 1);
-    assert_eq!(restored.turns(LIVE), []);
+    assert_eq!((restored.turns(LIVE)).len(), 0);
     assert_eq!(world.commit(root::turn_commit(2, LIVE, 1, b"replacement frame")), Some(2));
     world.crash(19);
     let restored = world.reopen();
@@ -142,7 +142,7 @@ fn a_dropped_transcript_stays_dropped_after_a_crash() {
     world.crash(18);
     let restored = world.reopen();
     Referee::check(&world.model, &restored).expect("dropped transcript prefix");
-    assert_eq!(restored.turns(LIVE), []);
+    assert_eq!((restored.turns(LIVE)).len(), 0);
     assert_eq!(world.transcript(TranscriptRead::Page { task: LIVE, backwards: false, after: None }).len(), 0);
 }
 
