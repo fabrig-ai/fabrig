@@ -38,9 +38,8 @@
     as Ask temper's ways draw it, What reaches you from the project's
     classes, Roles by when each runs and what it does, and a goal's
     budget; its heading names the way without its chief departure,
-    which waits for rules by path. Rules by path,
-    What follows a landing and a role's budget wait for their milestones (`whole-story.execution.md`,
-    section 3, P3c and P3d). `../client/pages/settings.md`, section 3, also
+    which waits for rules by path. Rules by path waits for its milestone
+    (`whole-story.execution.md`, section 3, P3c). `../client/pages/settings.md`, section 3, also
     defers "History · N changes" and the next step's suggestions, and
     keeps the project's repositories as How work runs' second tab, not
     at its foot.
@@ -97,8 +96,8 @@
     `needs-stop-asking-set`'s; 7.2 holds How work runs under each stock
     way and its own, a stop's card and night (`how` to `night-how`), and
     What reaches you on `how.html`'s classes (`how-reaches`,
-    `night-how-reaches`), with no rule by path
-    or follow, and the rail, Work at Pair and with drafts first, and
+    `night-how-reaches`), and What follows a landing and Budgets
+    (`how-follows`, `night-how-follows`), with no rule by path, and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
     and Team's people, alone and at night (`team`, `team-alone`,
     `night-team`), with no areas or role's card. No state holds Tell
@@ -215,6 +214,32 @@
     the recommended choice and listed.", where `how.html` counts, "the
     last two are decided … The protocol core still asks.", since a table
     of up to 32 subjects can't be counted well in words.
+  - 7 and 13: `../client/pages/settings.md`, 2, *What follows a landing*,
+    draws the project's own follows, its kind 12, where `how.html` draws
+    vsr-rs's follow on vsr's page: a follow is its target's setting, and
+    its source's project is told nothing (`follows.md`, section 6). A
+    follow's words are made from its setting, "makes a change in
+    TARGET's BRANCH, owned by OWNER" and "Its check: WORKFLOW.", where
+    `how.html` has "a port change" and "vsr's C tests, built against
+    vsr-rs", which no setting holds, and they add its lag and parity
+    (`follows.md`, section 5); its chips are this section's, "an agent
+    ports" where `how.html` has "Porter ports", since a standing role as a
+    follow's owner is later (`../domain/forge/follows.md`, section 13).
+    Its tiers' box names the path's tiers after landing with what each
+    checks, "code runs" and "an agent repairs", where `how.html` gives
+    their schedule and "the owner triages": no read gives a tier's span,
+    and a red after landing reaches the goals whose changes landed in it
+    (`../domain/after-landing.md`, section 7) until areas route it to
+    their owners (`standing-roles.md`, section 4). Decided by goal 1016's
+    design, 2026-11-12: the page draws what the engine holds.
+  - 7 and 13: `../client/pages/settings.md`, 2, *Budgets*, names a
+    standing role by its title, its spec's first line, with "a standing
+    role · N left", where `how.html` has "Prover" and its area's words,
+    which wait for areas (`standing-roles.md`, section 4); and its head
+    says "a week · renews DAY", from the project's open period, where
+    `how.html` has "units a week · renews Tuesday": the deployment's unit
+    has no word yet (jig's `domain/authority.md`, section 12).
+    Decided by goal 1016's design, 2026-11-12.
   - 11.1 and 11.4, the user's requests of 2026-11-09 (plan
     `tui-box-polish`): the quiet line holds, at its right end, a
     one-line notice for 6 seconds over the rest of its right half; and

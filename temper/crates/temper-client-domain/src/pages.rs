@@ -107,6 +107,7 @@ pub struct Pages {
     drafts: Option<drafts::Drafts>,
     draft_starts: skein_lib::Set<jig_client::Key>,
     stock_ways: Option<crate::forge::stock_ways::StockWays>,
+    how: Option<how::Open>,
     chats: Option<chats::Chats>,
     rail_handles: RailHandles,
     goals: Option<goals::Goals>,
@@ -396,6 +397,7 @@ impl Pages {
             drafts: None,
             draft_starts: skein_lib::Set::with_capacity(u32::MAX),
             stock_ways: None,
+            how: None,
             chats: None,
             rail_handles: RailHandles::None,
             goals: None,
@@ -760,6 +762,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             pages.switcher.close();
             if let Some(inbox) = pages.inbox.take() {
                 pages.next = pages.next.max(inbox.leave(out));
+            }
+            if let Some(page) = pages.how.take() {
+                page.leave(out);
             }
             if let Some(page) = pages.stock_ways.take() {
                 page.leave(out);
@@ -1300,7 +1305,10 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     redirect_chat(pages, client, out);
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
-#[expect(clippy::too_many_lines, reason = "routes each page's reply, including the launchpad's cross-project reads")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "routes replies beside their page watches, including the launchpad's cross-project reads"
+)]
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if let Told::Answered { key, outcome } = &told
         && let Some(open) = &mut pages.confirm
@@ -1341,6 +1349,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         return true;
     }
     if pages.has_goals.told(&told) {
+        return true;
+    }
+    if let Some(page) = &pages.how
+        && page.told(&told)
+    {
         return true;
     }
     if let Some(page) = &mut pages.stock_ways
@@ -1407,6 +1420,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
 }
 
 fn started(pages: &mut Pages, out: &mut Queue<Request>) {
+    if let Some(page) = pages.how.take() {
+        page.leave(out);
+    }
     pages.start = None;
     pages.accounts.leave(out);
     pages.builders.leave(out);
@@ -1754,6 +1770,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         } else if let Some(mut page) = pages.connect_model.take() {
             page.leave();
         }
+        if let Some(page) = pages.how.take() {
+            page.leave(out);
+        }
         let keep_ways = match address_project(&address) {
             Some(project) => {
                 address_project(&pages.address) == Some(project)
@@ -1819,6 +1838,9 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         {
             pages.stock_ways =
                 Some(crate::forge::stock_ways::StockWays::new(project, &mut pages.next, env.limits.forge, out));
+        }
+        if let Address::Settings { project } = address {
+            pages.how = Some(how::Open::new(project, &mut pages.next, &env.limits, out));
         }
         if let Address::Home { project } = address {
             pages.home = Some(home::Home::new(project, pages.next, env.limits.forge, out));
