@@ -4,9 +4,11 @@
 
 
 
-- **Not yet:** charter 13 and template 7, a standing role's, its host families and wake policy, and the stock models' prompt cache's life, `cache_life_ms` 300,000 but the scripted model's (`../../domain/agent/standing.md`, sections 2 and 4) [in flight: change 108].
+- **Not yet:** "Claude's cache prices are Anthropic's": the stock prices Claude's cached input as input and no cache write, so C is still 10,896 ("Budgets in runs of the costliest model") [in flight: change 913].
 
-- **Not yet:** "The box's limits for that work", conflicted paths in one merge: both profiles hold `checkout.conflicts` 4 and `git_component.stdout_bytes` 1,024 (`temper-service/src/limits.rs`, `CHECKOUT`, `GIT`) [in flight: change 41].
+- **Not yet:** charter 13 and template 7, a standing role's, its host families and wake policy, and the stock models' prompt cache's life, `cache_life_ms` 300,000 but the scripted model's (`../../domain/agent/standing.md`, sections 2 and 4).
+
+- **Not yet:** "The box's limits for that work", conflicted paths in one merge: both profiles hold `checkout.conflicts` 4 and `git_component.stdout_bytes` 1,024 (`temper-service/src/limits.rs`, `CHECKOUT`, `GIT`).
 
 - **Not yet:** the whole document: the largest-turn remeasurement and runtime results remain `settings.status.md`, 7.
 

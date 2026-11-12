@@ -72,3 +72,8 @@ pub use temper_engine_domain_ways as ways;
 /// The standing follow procedure and its owner-word refusals.
 pub use route::forge_route::FOLLOW_CODE;
 pub use temper_engine_domain_forge::FollowRefusal;
+
+#[cfg(test)]
+mod fuzzy {
+    mod approval_people;
+}

@@ -160,6 +160,12 @@ pub(crate) fn approval_rows(limits: &crate::Limits) -> u32 {
                 .expect("approval set size fits u32")
                 .saturating_add(40)
                 .saturating_mul(6),
+        )
+        .saturating_add(
+            u32::try_from(size_of::<crate::ApprovalPerson>())
+                .expect("approval person size fits u32")
+                .saturating_add(64)
+                .saturating_mul(16),
         );
     limits
         .journal

@@ -4,12 +4,14 @@
 
 - **Team** (`../../draft/surfaces.md`, section 6; the whole story's
   `web/whole-story/team.html`, and `team/team.html` beside it for a
-  project of three people): `Team { project }`, at
-  `/projects/<project>/team`, a page of the project's frame. It draws a
-  project's people and what waits on each, from what the engine holds
-  (`../../draft/whole-story.execution.md`, section 2): a project's areas and
-  their owners, a role's card and "Hand an area to a role" are not
-  designed here, and nothing stands in their place.
+  project of three people): `Team { project, role }`, at
+  `/projects/<project>/team`, and `/projects/<project>/team?role=N` while
+  `role` is `Some(N)`, a page of the project's frame. It draws a project's
+  people and what waits on each, its standing roles and one role's card,
+  from what the engine holds (`../../draft/whole-story.execution.md`,
+  section 2): a project's areas and their owners, "Hand an area to a
+  role", and a card's "owns AREA", "Talk to it", "Give the area back" and
+  weekly report are not designed here, and nothing stands in their place.
   - *Its intro:* the kicker "PROJECT · Team"; the headline "Who owns what
     on PROJECT"; the lede, how many people the project has: "Just you.",
     "Two of you.", "Three of you.", "Four of you.", then "N of you." in
@@ -17,6 +19,111 @@
     where the person reading isn't one of them, as a deployment's owner
     may not be, "One person.", "Two people.", "Three people.", "Four
     people.", "N people." and "N or more people.".
+  - *Standing roles,* a section headed "Standing roles", after the intro
+    and before People, while the project has a live standing role
+    (`../../domain/agent/standing.md`): a row for each, in the order of
+    their numbers, at most 16, the roles' watch's window, and under them,
+    small and muted, "Only the first 16 are shown." while the watch says
+    there are more. A row holds the role's name, its task's title (the
+    first line of its spec's words), in an agent's chip, a link to `Team
+    { project, role: Some(N) }`, current while its card is the one shown;
+    its Now's first line, while one is read; and at its right what it has
+    spent of its period's budget, "21 of 40", its budget's `spent` and
+    `budget` as they come, unscaled, as a chat's bar gives them. This
+    section stands where `../../draft/surfaces.md`, section 6's areas
+    will, and a role is reached from it until they are drawn (section 2).
+  - *A role's card* (`../../draft/surfaces.md`, section 6; `team.html`'s
+    card), under Standing roles, for one role: the one `role` names while
+    it is listed, else the first listed. Its parts, in this order, each
+    drawn while it holds something:
+    - *its head:* its name, a link to its task's page, `Task { task }`
+      (`task.md`); under it, small and muted, "A standing role · since 2
+      November · started by you": its task's `made` as a day, and its
+      requester, "you" for the person reading, else as People names the
+      member, else as the agent task page names a requester; while it is
+      held, a line with the agent task page's words for its hold
+      (`task.md`, 2). At the head's right, "Pause" while it isn't held,
+      and "Resume" while it is paused alone, sent as a goal's page sends
+      them (`task.md`, 4): Pause jig's `Stop` of the role at once, its
+      toast "Paused: running tasks stop, nothing new starts."; Resume
+      `Release` naming the hold's revision, its toast "Resumed.". A role
+      held for any other cause has no Resume: Needs you has its need.
+    - *its Now:* the kicker "Its Now · written at 06:58", the note's
+      `changed` as the view says a time, then its body as written: a
+      line opening "- " a list item, the other lines paragraphs, nothing
+      composed; a cut body ends "…". A role that has written none has no
+      Now part.
+    - *its rules:* the kicker "Its rules · change by proposal", "change by
+      proposal" a link to its charter's page, `Role { project, charter }`
+      (`settings.md`, 1, *A role's or a rule's page*); then its charter's
+      "Asked to", as the `charter N` view gives it.
+    - *what wakes it:* the kicker "Wakes on", then a row for each of its
+      subscriptions, *What wakes it* below, its words at the left and its
+      class at the right in code's chip; under them, small and muted,
+      "Not all are shown." while the task's document is cut.
+    - *its sessions this week:* the kicker "Sessions this week", then a
+      row for each session begun in the seven days before now, newest
+      first, at most eight (*Its sessions*, below); then, small and muted,
+      "Each session starts fresh from its rules, its Now and what woke it,
+      and ends by writing its Now." That line is drawn with the rows, never
+      alone.
+
+    On a wide page the card has two columns, its Now and its rules on the
+    left, what wakes it and its sessions on the right, as `team.html`'s
+    card; on a phone one, in that order.
+  - *What wakes it,* from the role's task document's `subscriptions` and
+    `wake` (jig's `client/domain/contract/README.md`, section 4; jig's
+    `domain/tasks/messages.md`, 3 and 4), a row each, in the document's
+    order:
+    - *a timer with a period:* "A timer", and in its class's place its
+      period: a week, the weekday and clock of its `at` where the view
+      keeps time, "Mondays 06:00"; a day, "daily 06:00"; any other,
+      "every" and the period, "every 4 hours"; while the policy's
+      `timers` is unset, its words are "A timer, with its next wake";
+    - *a timer without one:* as a timer with a period, with "once, at"
+      and its `at` as the view says a clock time, "once, at 06:00" today,
+      else with its date, in its period's place;
+    - *another task's state:* "Task N held", "Task N's result", or "Task N
+      held, or its result", by its `held` and `result`, N a link to the
+      task's page; jig delivers either as a notice (jig's
+      `domain/tasks/messages.md`, 1), so its class is the policy's
+      `notices` rule;
+    - *a connector's topics:* one row for all the forge's, connector
+      `temper_client_protocol_wire::FORGE`, at the place of the first,
+      "News from the forge", or "News from the forge, on N topics"; one
+      for each other connector's, at the place of its first, "News from
+      connector N"; its class the policy's `news` rule. What a topic is, a
+      landing on a branch, a check or a pull, temper's forge keeps and no
+      client read gives (section 2).
+
+    A class says the policy's rule: immediate, "at once"; paced, "every"
+    and its span, "every 30 minutes"; batched, "N at a time, or after" and
+    its age, "5 at a time, or after 2 hours"; never, "with its next wake".
+    A span, a period or an age is said in the largest of minutes, hours,
+    days and weeks that it is a whole number of: "every 90 minutes",
+    "every 4 hours", and "every hour" or "every day" for one; one that is
+    no whole number of minutes in seconds, "every 45 seconds".
+  - *Its sessions,* from the role's activity (jig's
+    `domain/tasks/standing.md`, sections 5 and 7): a session holds the
+    runs from the first `RunBegan` after a `SessionEnded`, or after none,
+    up to the next `SessionEnded`, which jig commits at the claim that
+    begins the next session where the session ended on a wake (`Quiet`,
+    `Bound`, `Unoffered`, `Fresh`), so it can come hours after its last
+    run, and at once where it was closed or its rules changed (`Closed`,
+    `Rules`); the session is named by its first run's attempt. A row: its
+    first run's start, as a short weekday and a clock, whatever the day,
+    and its length, from that start to its last run's `RunEnded`, as the
+    view words a span, "Sun 01:52 · 49 min"; while one of its runs is
+    live, its `RunBegan` read and no `RunEnded` of its attempt after it,
+    "Sun 01:52 · running"; what it did, its runs' last `Stood` words on
+    one line, their line breaks as spaces, while any; and at its right its
+    cost, the sum of its ended runs' `RunEnded` `spent`, as it comes. The
+    read runs from the newest line back, so every line after one read is
+    read. A session is drawn once what comes before its first run is read:
+    the `SessionEnded` before it, or the start of the role's activity, a
+    page with no `before`; the session the read stops inside is not. The read
+    stops at a `RunBegan` or a `SessionEnded` older than the seven days,
+    once eight sessions are known, or after 16 pages.
   - *People,* a section headed "People": a box for each of the project's
     members of kind person (jig's `domain/people/README.md`, section 4), the
     person reading first, then the others in the document's order, each
@@ -58,6 +165,19 @@
       hold, isn't counted: no read gives another party's inbox (jig's
       `domain/people/README.md`, section 5). At most eight others are read, the
       first in People's order; a box past them has no line.
+  - *What each signed* (`../../domain/forge/change/gates.md`, 2,
+    *Sign-offs kept at landing*), as `web/whole-story/team/team.html`
+    draws it: after a person's line, or alone where they have none,
+    "Signed four last week.", the changes landed in the seven days
+    before now, now included, whose sign-offs name the person, each
+    change once: the subject `changes`' `landed_default` rows
+    (`../forge/records.md`, *A project's changes*) whose `at` is in that
+    window and whose `signed` holds the person's party. The count is a
+    word from one to nine, then digits, "Signed 12 last week."; where
+    `landed_default_more` is above zero and the oldest row listed is in
+    the window, rows the document cut may hold more, so the count is a
+    floor, in digits, "Signed 4+ last week.". At zero, nothing is said.
+    Every person listed has it, those past the eight others read too.
   - *The project's triager* (`../../domain/findings.md`, section 6), the
     owner of findings with no area, is a line at People's foot,
     "Findings with no area go to NAME.", once the project's settings
@@ -69,25 +189,56 @@
     People while a person is listed; People's head's shared role while
     *People's head* says, as `Parts::shared`, an `Option<HeldRole>` that
     is never `Policy`; a person's line while what waits on
-    them is read; the triager's line while a triager is read. No part is
-    drawn empty, and each person is drawn once.
+    them is read; what a person signed while the changes' watch has
+    answered and their count is above zero; the triager's line while a triager is read; Standing
+    roles while a role is listed, and "Only the first 16 are shown." by
+    the watch's `more`; a row's Now while it is read; the card while a
+    role is listed, for the role *A role's card* names; its head with it,
+    and Pause or Resume by its hold; each other part of the card while
+    what it draws is read and holds something, and "Not all are shown."
+    by the document's cut. No part is drawn empty, and each person and
+    each role is drawn once.
   - *Its reads:* `me`, for the party and the project's name; jig's
     `Read::Project { project }` on opening, and again on each `me`
     delivery while none is pending, since a change of members moves `me`
     (jig's `client/domain/contract/README.md`, 5.1); the standing inbox watch
     and the person's approvals, as Needs you's; one `tasks{query}` watch
-    for each other person read, while the page is open. Before the
+    for each other person read, and the subject `changes`, as Work
+    watches it (`work.md`, 1, *Its reads*), while the page is open. Before the
     document answers, the intro, and "People" with no line under it; a
     refused or failed read says, under "People", "This project's people
     can't be read now."
+    - *The roles' watch,* on every project page, for the rail and Team:
+      one `tasks{query}` watch of the project's live tasks labelled 3
+      (`../../domain/agent/standing.md`, section 2), by number, its
+      window 16. Refused or failed, it counts no role and Standing roles
+      isn't drawn.
+    - *Each listed role's Now,* on Team: jig's `Read::Notes { scope:
+      NoteScope::Task { project, task }, description: Some("now"), after:
+      None }`, the lowest-numbered note whose description is `now`
+      (jig's `domain/tasks/standing.md`, section 6), read when its row
+      first comes and again when its line's last activity moves, since
+      notes have no watch, as a goal's page reads its report (`goal.md`,
+      1). None yet is a normal state, never an error.
+    - *For the card:* a `Subject::Task { task }` watch of the role, for
+      its head, its hold and what wakes it; the forge's `View` of
+      `charter N` for its charter, as `Role`'s page reads it, again when
+      the session's `settings` watch names a newer revision; and its
+      activity, jig's `Read::Activity` pages, newest first, on opening the
+      card and again when its line's last activity moves, reading back
+      from the newest line until it reaches a line already read, by its
+      `position`, and keeping what it read before. A refused or failed
+      read leaves its part undrawn.
   - *In the rail* (`../view.md`, 3): "Team", after "Work", while the project has two
-    people or more or a standing role, current on `Team`. Its count of
-    people is the project's document's, read on every project page for
+    people or more or a standing role, current on `Team` whatever its
+    `role`. Its count of people is the project's document's, and its
+    count of roles the roles' watch's, both read on every project page for
     the rail. On a phone, whose tab bar has no Team, the switcher's menu
     holds "Team for PROJECT" before "How work runs for PROJECT", while
     the rail shows Team (`../../draft/surfaces.md`, section 10).
-  - *No act:* inviting a person, handing an area to a role and a role's
-    acts are not Team's yet. The terminal prints its parts, as any page.
+  - *Its acts:* a role's card's Pause and Resume (above). Inviting a
+    person, handing an area to a role and a role's other acts are not
+    Team's yet. The terminal prints its parts, as any page.
 
 ## 2. Open questions
 
@@ -96,19 +247,48 @@
   and the rail's Team in each page's `nav.rail`, through `../web/gallery.md`, 2's
   `team`, `team-alone` and `night-team`, at 1440, 1000 and 390 px, by day
   and by night, with the switcher's menu open on a phone; and walks Team on
-  a box with two people, each reading what waits on the other. Owner:
-  temper/ui. Default: each difference a finding filed back as a repair.
+  a box with two people, each reading what waits on the other. The same
+  for a role's card against `web/whole-story/team.html`'s, through
+  `team-role` and `night-team-role`, and on a box a role started with
+  `temper ctl role start`, its Now read on Team after its first session,
+  then paused and resumed there. Owner: temper/ui. Default: each
+  difference a finding filed back as a repair.
 - **Team's later parts** (1; `../../draft/surfaces.md`, sections 6
-  and 12; `../../draft/whole-story.execution.md`, P4b and P4c): a role's card
-  (R1); a project's areas and their owners, a person's areas on their box,
-  "Hand an area to a role", "Talk to it" and the lede on how the project's
-  triager hands what comes in to an area's owner (R2, R3); the triager as
+  and 12; `../../draft/whole-story.execution.md`, P4c): a project's areas and their owners, a person's areas on their box,
+  "Hand an area to a role", a card's "owns AREA", "Talk to it", "Give the
+  area back" and weekly report, and the lede on how the project's
+  triager hands what comes in to an area's owner (R2, R3), Standing
+  roles folding into the areas' table, a role reached from its area's
+  row; the triager as
   the draft's Who routes, a chip under the areas that reads what comes in
   against their words, changed by proposal, in place of *Team*'s line at
   People's foot, once the areas are drawn (R2); what a person can still
-  sign, signed and asked for, on their line, as
-  `web/whole-story/team/team.html` draws it (N2, N5, N6); and what waits
+  sign and asked for, on their line, as
+  `web/whole-story/team/team.html` draws it, once a read of what another
+  person can still sign gives it, the `approvals` rows naming who can
+  still sign only the changes their watcher sees
+  (`../../domain/forge/change/questions.md`, 2, *Who can still sign*); and what waits
   on another person on another's task or on a role they hold, once a read
   gives another party's inbox. Each joins *Its parts* with the read that
   gives it. Default: none is drawn until it is built, and a person's line
   is what *Team* counts.
+- **A role's card, where a read lacks** (1, *A role's card*): its rules as
+  the words kept with its charter (`../../protocol/configuration/settings.md`,
+  2, kind 9), once the `charter N` view carries them, where it has the
+  "Asked to" fact, its instructions' first sentence; a forge topic in
+  words, "A landing on vsr's main touching tests/", once a read gives
+  temper's subscriptions of a task; what a timer is for, "Its weekly
+  report", which a timer doesn't say; what a session did, once a record
+  keeps a line for it, where a run's finished words are the only one; and
+  "written at 06:58, when its last session ended", once the client reads
+  a session's record (jig's `domain/tasks/standing.md`, 7). Default: each
+  as section 1 has it, the gap recorded in
+  `../../draft/surfaces.status.md`, 6.
+- **A week's sign-offs past the rows** (1, *What each signed*): the
+  count reads the changes' `landed_default` rows, at most
+  `forge.changes_landed` (8 in `small`) across the project's
+  repositories, from landing logs of `landings_kept` landings each
+  (`../../domain/after-landing.md`, section 10), so a busy week's count
+  is a floor, as Work's Landed this week is (`work.md`, 2). Default: so,
+  nothing stored added; or the changes' document counts each person's
+  sign-offs over every landing its logs keep, a wire field.

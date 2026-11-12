@@ -4700,7 +4700,7 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
         }
         "rail-new-change" | "rail-all-projects" | "rail-across" | "work" | "work-pair" | "work-drafts"
         | "work-goals" | "work-changes" | "work-empty" | "members" | "members-refused" | "limits"
-        | "limits-not-owner" | "night-work" | "night-limits" => rail_work::NOW,
+        | "limits-not-owner" | "night-work" | "night-limits" | "team-role" | "night-team-role" => rail_work::NOW,
         name if name.starts_with("approve-") => Wall::from_nanos(120_000_000_000),
         name if name.starts_with("chat-work-") || name == "agent-work" => {
             Wall::from_nanos(chat_work::AT + 60_000_000_000)
@@ -4922,6 +4922,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesLanded::new(
                         &v::CEILINGS,
                         v::ChangesLandedParts {
+                            signed: skein_lib::List::with_capacity(8),
                             commit: [0xab; 32],
                             default_branch: true,
                             task,
@@ -4939,6 +4940,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesLanded::new(
                     &v::CEILINGS,
                     v::ChangesLandedParts {
+                        signed: skein_lib::List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
                         task: 107,

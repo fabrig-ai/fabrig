@@ -60,18 +60,22 @@ fn delegate(ctl: &mut Ctl, goal: u64, completion: u32) -> u64 {
     delegate_choices(ctl, goal, completion, &[BLUE])
 }
 fn delegate_choices(ctl: &mut Ctl, goal: u64, completion: u32, codes: &[u32]) -> u64 {
+    let contract = tasks::Contract::Verdict {
+        choices: codes
+            .iter()
+            .map(|code| tasks::Verdict { code: *code, words: RESULT_WORDS, followups: 0, fields: Box::new([]) })
+            .collect(),
+    };
+    delegate_contract(ctl, goal, completion, contract)
+}
+fn delegate_contract(ctl: &mut Ctl, goal: u64, completion: u32, contract: tasks::Contract) -> u64 {
     let driver = &mut ctl.front.engine;
     let attempt = driver.task(goal).expect("running goal").attempt;
     let mut child = temper_engine_domain_world::fixtures::report_delegate(b"Choose a colour: blue", Box::new([]));
     child.executor = tasks::Executor::Person(tasks::PersonAddress::Role(0));
     child.authority.tools = tasks::Tools(0);
     child.authority.budget.spend = 0;
-    child.contract = tasks::Contract::Verdict {
-        choices: codes
-            .iter()
-            .map(|code| tasks::Verdict { code: *code, words: RESULT_WORDS, followups: 0, fields: Box::new([]) })
-            .collect(),
-    };
+    child.contract = contract;
     driver.call(
         WORKER,
         goal,
@@ -265,6 +269,7 @@ fn role_configuration() -> engine::Config {
     config
 }
 
+pub(super) const ROLE_NOW: &str = "Tests are green.\nWaiting for a change, then check its tests.";
 fn start_standing_role() -> (Ctl, u64) {
     let mut ctl = standing_ctl();
     let started = ctl.call(
@@ -276,9 +281,10 @@ fn start_standing_role() -> (Ctl, u64) {
     (ctl, task)
 }
 
-#[test]
-fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
-    const NOW: &str = "Tests are green.\nWaiting for a change, then check its tests.";
+fn parked_role_ctl() -> (Ctl, u64) {
+    parked_role_with_timer(false)
+}
+fn parked_role_with_timer(timer: bool) -> (Ctl, u64) {
     let (mut ctl, task) = start_standing_role();
     let row = ctl.front.engine.task(task).expect("standing task");
     assert_eq!(row.label, 3);
@@ -292,18 +298,38 @@ fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
     let (answer, failed) =
         temper_engine_domain_world::host_tool::host_tool(&mut ctl.front.engine, &run, 1, b"note", input.as_bytes());
     assert!(!failed, "{}", String::from_utf8_lossy(&answer));
+    if timer {
+        let input = br#"{"kind":"timer","at":1900000000000000000,"period":14400000000000}"#;
+        let (answer, failed) =
+            temper_engine_domain_world::host_tool::host_tool(&mut ctl.front.engine, &run, 2, b"subscribe", input);
+        assert!(!failed, "{}", String::from_utf8_lossy(&answer));
+    }
     ctl.front.engine.answer(WORKER, task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
     ctl.front.engine.settle();
     assert!(ctl.front.engine.task(task).is_some(), "parking does not finish the role");
+    (ctl, task)
+}
+pub(super) fn subscribed_role() -> (Joint, u64) {
+    let (ctl, task) = parked_role_with_timer(true);
+    (ctl.front, task)
+}
+pub(super) fn parked_role() -> (Joint, u64) {
+    let (ctl, task) = parked_role_ctl();
+    (ctl.front, task)
+}
+#[test]
+fn a_person_starts_a_standing_role_that_writes_now_and_reads_it_next_run() {
+    let (mut ctl, task) = parked_role_ctl();
+    let attempt = ctl.front.engine.task(task).expect("parked role").attempt;
     ctl.text(&[b"task", b"message", task.to_string().as_bytes(), b"A change landed", b"--key", b"wake-role"]);
     let next = ctl.front.assignments.last().expect("standing role woken").clone();
     assert_eq!(next.task, task);
-    assert!(next.attempt > run.attempt);
+    assert!(next.attempt > attempt);
     assert!(next.sections.iter().any(|section| {
-        matches!(&section.body, engine::BriefBody::Text(text) if skein_lib::bytes::find(text, NOW.as_bytes()).is_some())
+        matches!(&section.body, engine::BriefBody::Text(text) if skein_lib::bytes::find(text, ROLE_NOW.as_bytes()).is_some())
     }), "next brief: {:?}", next.sections);
     let shown = ctl.text(&[b"role", b"show", task.to_string().as_bytes()]);
-    assert!(shown.contains(NOW));
+    assert!(shown.contains(ROLE_NOW));
 }
 
 // domain/agent/standing.md, 7: the person, tools and scripted role share the real engine.
@@ -735,6 +761,31 @@ fn a_reason_past_its_choice_names_the_bound() {
     assert!(
         matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Verdict { code: BLUE, words, .. })) if words.as_ref() == reason)
     );
+}
+
+#[test]
+fn a_choice_for_a_report_names_words_and_leaves_the_task_live() {
+    const REPORT_WORDS: u32 = 4096;
+    let (mut ctl, goal) = start_goal(b"Ask me a colour");
+    let child = delegate_contract(&mut ctl, goal, 28, tasks::Contract::Report { words: REPORT_WORDS });
+    let number = child.to_string();
+    ctl.text(&[b"task", b"take", number.as_bytes(), b"--key", b"take-colour"]);
+    let revision = ctl.front.engine.task(child).expect("person task").revisions.person.to_string();
+    let refused =
+        ctl.call(&[b"task", b"answer", number.as_bytes(), b"--rev", revision.as_bytes(), b"1", b"blue"], None);
+    assert_eq!(refused.status, 2);
+    assert_eq!(refused.stderr.as_ref(), format!("task answer: Limit reached: task {child} takes words, at most {REPORT_WORDS} bytes, not a choice\nanswer instead: task answer {child} --rev {revision} TEXT\n").as_bytes());
+    assert!(ctl.front.engine.task(child).expect("refused task stays live").person_answer.is_none());
+    ctl.text(&[b"task", b"answer", number.as_bytes(), b"--rev", revision.as_bytes(), b"blue"]);
+    let stored =
+        ctl.front.engine.store.rows.get(&engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(child))));
+    let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = stored else {
+        panic!("completed person task: {stored:?}");
+    };
+    assert!(
+        matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) if words.as_ref() == b"blue")
+    );
+    assert!(ctl.front.engine.task(child).is_none());
 }
 
 fn result_projections(ctl: &mut Ctl, goal: u64, child: u64) {

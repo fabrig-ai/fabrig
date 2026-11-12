@@ -101,12 +101,14 @@ fn usable(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     }
     b.close();
 }
-fn key(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
+fn key(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way, text_per_node: u32) {
     let Some(page) = root.pages().connect_model() else { return };
     let busy = page.request.busy(root.client());
-    text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeKeyTitle);
+    let Some(me) = domain_accounts::current_me(root.client()) else { return };
+    let (brand, _) = model::names(me, way);
+    crate::cards::text(b, Role::Heading { level: 1 }, &model::key_heading(brand, w));
     panel(b);
-    text(b, root, w, Role::Paragraph, Word::WelcomeKeyBody);
+    crate::cards::text(b, Role::Paragraph, &crate::accounts::words::key_description(brand, w));
     b.open(Role::Form);
     b.style(look::WELCOME_FIELD);
     model::key_field(b, root, bindings, busy, &w.say(Word::WelcomeKeyField, &[]));
@@ -123,7 +125,7 @@ fn key(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_
     b.close();
     b.open(Role::Paragraph);
     b.style(look::FLOW_FACTS);
-    w.text(b, Word::WelcomeKeyFacts, &[]);
+    w.text(b, Word::WelcomeKeyFacts, &[Hole::Name(crate::choice::shown(brand, w))]);
     b.close();
     accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
     b.close();
@@ -215,7 +217,7 @@ pub(super) fn step(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
             note(b, root, w);
         }
-        ModelStep::Key { .. } => key(b, root, w, bindings, text_per_node),
+        ModelStep::Key { way } => key(b, root, w, bindings, way, text_per_node),
         ModelStep::SignIn { way } => sign_in(b, root, w, bindings, way, text_per_node),
         ModelStep::Program { way } => program(b, root, w, bindings, way, text_per_node),
     }

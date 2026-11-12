@@ -518,7 +518,9 @@ blamed landing's full commit (2026-11-04).
   and its title, at most 256 bytes, since a change's close takes its row
   and temper's `Changes` page still names it (`../client/forge/README.md`,
   section 3; a visitor's public queue merges read its commits and tasks
-  alone, 11.2 there), its trailers within `trailers` and
+  alone, 11.2 there), the sign-offs counted at its merge, at most
+  `SIGN_OFFS`, each its person, head and time (`forge/change/gates.md`,
+  2, *Sign-offs kept at landing*), its trailers within `trailers` and
   `trailer_bytes`, and each tier's verdict (verifying, cleared, or red
   with its count); a ring, written at each move of a watched landing
   branch (section 8), at each merge of temper's, when a change sees its

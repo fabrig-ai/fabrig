@@ -835,6 +835,7 @@ dependencies = [
  "smith-agent-process-world",
  "smith-agent-service",
  "smith-agent-shell",
+ "smith-charter",
  "smith-domain",
  "smith-fake-claude",
  "smith-host-domain",
@@ -857,6 +858,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-protocol-worker-wire",
  "serde_json",
+ "skein-fake-llm-domain",
  "skein-lib",
  "skein-llm",
  "skein-sim",
@@ -5574,6 +5576,7 @@ dependencies = [
 name = "temper-engine-domain"
 version = "0.0.0"
 dependencies = [
+ "jig-client",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -5590,8 +5593,11 @@ dependencies = [
  "skein-forge",
  "skein-forge-client",
  "skein-lib",
+ "skein-ui",
  "skein-world",
+ "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-client-view",
  "temper-engine-domain-calendar",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
@@ -6134,6 +6140,7 @@ dependencies = [
  "smith-charter",
  "smith-domain",
  "smith-fake-claude",
+ "smith-protocol-channel",
  "smith-protocol-llm",
  "temper-client-domain",
  "temper-client-protocol-wire",

@@ -1874,11 +1874,24 @@ fn changes_landed(
 ) -> Option<List<w::ChangesLanded>> {
     let mut landed = List::with_capacity(capacity);
     for row in rows {
+        let mut signed = List::with_capacity(u32::try_from(forge::SIGN_OFFS).ok()?);
+        for sign in row.signed {
+            signed
+                .push(
+                    w::ChangesSigned::new(
+                        limits,
+                        w::ChangesSignedParts { party: sign.person, head: sign.head, at: sign.at.as_nanos() },
+                    )
+                    .ok()?,
+                )
+                .ok()?;
+        }
         landed
             .push(
                 w::ChangesLanded::new(
                     limits,
                     w::ChangesLandedParts {
+                        signed,
                         task: row.task,
                         title: row.title,
                         at: row.at.as_nanos(),
@@ -2278,6 +2291,9 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
                     counted: row.counted,
                     sets,
                     whole: row.whole,
+                    signed: approval_people(row.signed, limits)?,
+                    can_sign: approval_people(row.can_sign, limits)?,
+                    can_sign_more: row.can_sign_more,
                     yours: match row.yours {
                         root::YourReview::Counts => w::ApprovalYours::Counts,
                         root::YourReview::NoAccount => w::ApprovalYours::NoAccount,
@@ -2307,4 +2323,17 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
     }
     let document = w::Approvals::new(limits, w::ApprovalsParts { rows, more: document.more }).ok()?;
     Some(wire::approvals(&document))
+}
+
+fn approval_people(people: Box<[root::ApprovalPerson]>, limits: &w::Limits) -> Option<List<w::ApprovalPerson>> {
+    let mut values = List::with_capacity(8);
+    for person in people {
+        values
+            .push(
+                w::ApprovalPerson::new(limits, w::ApprovalPersonParts { person: person.person, name: person.name })
+                    .ok()?,
+            )
+            .ok()?;
+    }
+    Some(values)
 }
