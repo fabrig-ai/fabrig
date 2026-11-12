@@ -5,7 +5,6 @@
 Sections 3.1, 3.2, 3.3's interim, 3.4 and 8 are designed (`../protocol/wires.md`; jig's `protocol/channel/wires.md`; skein's `data/codec/command.md`, 2, the wire rule).
 
 - **Design lags:**
-  - 3.1: smith's `protocol/README.md`, section 8 still changes the charter and the channel in place before v0.1.0; its revision, to wires moving with their layouts, waits on a format red of the goal's branch, since smith's design is read by its tests.
   - 3.2, 4.1: the engine states nothing back to the worker: with each build's floor its current, an accepted channel means every wire at both sides' one version (`../protocol/wires.md`, section 11; jig's `protocol/channel/wires.md`, section 8).
   - 3.3, 4.1, 4.5: skein's `data/codec/command.md` writes forward patches alone, with no floor kept in the repository and no breaking declaration; each build's floor is its current version (`../protocol/wires.md`, 3.2).
   - 4.2: `../protocol/channel.md`, section 6 encodes a git identity's value once, for every worker; a run's charter names no tools' version, and the engine answers only its current host tools' contract (`../protocol/wires.md`, section 6).
