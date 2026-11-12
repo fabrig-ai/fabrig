@@ -512,8 +512,10 @@
   document, since holders read the core (`../../domain/areas.md`,
   section 4). Its document, `Findings`: `project`; `rows`, at most 128,
   newest first, each `FindingRow { number, kind, severity, area, state,
-  title, holder, at, why }`, `holder` a `Holder`, `at` when it was
-  filed, `why` the last hand-off's, option; `areas`, at most 16, each
+  title, holder, at, why, hander }`, `holder` a `Holder`, `at` when it was
+  filed, `why` the last hand-off's, option, and `hander` who made that
+  hand-off, a task or a party as `filer` is, option, present with `why`
+  (`../../domain/findings.md`, 2; `../pages/needs-you.md`, 1); `areas`, at most 16, each
   `AreaRow { name, words, owner, holder }`, `owner` an `AreaOwner` (`../../protocol/configuration/settings.md`, 2) and
   `holder` an option of `Holder`, none where its owner does not stand;
   `triager`, its owner, option, and its holder; and `cut`, whether rows
