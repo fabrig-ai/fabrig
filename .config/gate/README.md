@@ -56,6 +56,10 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
     part of item 4's focused suite. Rule: `tools/crates/design.md`, 3.1, and
     `tests/boundary/tests/sizes.rs`'s module doc: library and shared-family lines,
     with their shrinking exceptions.
+13. **The features check:** `tools/tiers/one-process default -p fabrig-boundary`,
+    part of item 4's focused suite. Rule: `tools/crates/design.md`, 3.3, and
+    `tests/boundary/tests/features.rs`'s module doc: external entries carry every
+    context's feature union, and platform entries stay on their platforms.
 
 ## The gate's lists
 
