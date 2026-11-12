@@ -46,14 +46,20 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if let Some(stepped) = after_landing(&next, facts, standing, now) {
         return stepped;
     }
+    if change.way == Way::Turn && let Some(Ask::Landed { prefix }) = facts.ask {
+        next.state = State::Landed { merge: prefix, since: now };
+        next.owns_turn = false;
+        next.released = None;
+        return verifying(next, prefix, now, facts, standing.cancelled, now);
+    }
     match facts.pull {
-        Pull::Merged { commit } => {
+        Pull::Merged { commit } if change.way == Way::Queue || change.landing.is_none() => {
             next.state = State::Landed { merge: commit, since: now };
             next.owns_turn = false;
             next.released = None;
             return verifying(next, commit, now, facts, standing.cancelled, now);
         }
-        Pull::Missing | Pull::Open { .. } | Pull::Closed => {}
+        Pull::Missing | Pull::Open { .. } | Pull::Closed | Pull::Merged { .. } => {}
     }
     if standing.cancelled {
         next.state = State::Ended;
@@ -282,7 +288,7 @@ fn advance_phase(
         }
         State::Checking { head } => checking(next, *head, facts, standing, now, limits),
         State::Gating { head, asked } => gating(next, *head, asked, facts, now, limits),
-        State::Ready { head, ready_since } => ready(next, *head, *ready_since, facts, now, limits),
+        State::Ready { head, ready_since } => ready(next, *head, *ready_since, facts, standing, now, limits),
         State::Preparing { from, main, ready_since } => {
             preparing(next, *from, *main, *ready_since, facts, standing, now, limits)
         }
@@ -1549,7 +1555,8 @@ fn pushed(change: &Change, head: [u8; 32]) -> State {
     }
 }
 
-fn ready(change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+#[expect(clippy::too_many_arguments, reason = "the landing's resolution uses the change's standing delegate")]
+fn ready(change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     if facts.branch != Some(head) {
         return hold(change, Hold::BranchMoved);
     }
@@ -1562,6 +1569,8 @@ fn ready(change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, now: 
             prepare_due(change, head, main, ready_since, now, limits)
         }
         Some(Ask::Repair { gate, candidate: _ }) => repair_due(change, Repair::Landing { gate }, facts, now, limits),
+        Some(Ask::Resolve { base }) => conflict_due(change, base, Some(head), facts, standing, now, limits),
+        Some(Ask::Landed { .. }) => unreachable!("landed ask returned before the phase"),
     }
 }
 

@@ -382,6 +382,8 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                     members: Box::new([member(CHANGE), member(SECOND)]),
                     preparation: 2,
                     stale_proofs: 3,
+
+                    round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
                     branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None, None]),
@@ -524,6 +526,8 @@ fn expected_landing() -> w::PublicLanding {
             preparation: 2,
             members,
             stale_proofs: 3,
+
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
             holds_turn: true,
         },
     )
@@ -913,6 +917,8 @@ fn expected_merge(tasks: &[u16]) -> w::PublicLanding {
             preparation: 0,
             members,
             stale_proofs: 0,
+
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
             holds_turn: false,
         },
     )

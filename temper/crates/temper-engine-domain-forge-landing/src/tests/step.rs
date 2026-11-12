@@ -21,6 +21,8 @@ fn landing_of_one() -> Landing {
         phase: Phase::Waiting,
         preparation: 0,
         stale_proofs: 0,
+
+        round: crate::Round::new(Box::from(b"temper/1/l61".as_slice())),
         branch: Box::from(b"main".as_slice()),
         members: Box::new([Member {
             change: 8,

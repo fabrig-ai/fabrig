@@ -241,6 +241,8 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                     }]),
                     preparation: 0,
                     stale_proofs: 0,
+
+                    round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
                     branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None]),
@@ -253,7 +255,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         Event::StepLanding {
             task: 61,
             entry: 91,
-            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            heard: LandingHeard { preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
         },
     );
     assert_eq!(d.steps.len(), 1, "the change's first read is pending");

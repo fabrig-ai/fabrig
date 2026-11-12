@@ -56,6 +56,8 @@ pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
             }]),
             preparation: 0,
             stale_proofs: 0,
+
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
             branch: change.base.clone(),
         },
         asks: Box::new([None]),
@@ -67,7 +69,7 @@ pub fn step_landing(world: &mut World, task: u64, entry: u64) -> landing::Decisi
     world.event(top::Event::StepLanding {
         task,
         entry,
-        heard: top::LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+        heard: top::LandingHeard { preparation: temper_engine_domain_forge_landing::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) },
     });
     world.run_for(1);
     let mut decision = None;

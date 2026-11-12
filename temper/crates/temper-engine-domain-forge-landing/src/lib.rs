@@ -18,6 +18,7 @@ mod verdict;
 pub use boundary::{
     CHECK_NAME_BYTES, Commit, Decision, Facts, Flight, Gate, GateFacts, GateProof, Hold, Key, Landing, Limits, Member,
     MemberFacts, Phase, Posted, Posting, Project, Proof, Repository, Status, Stepped, WORKFLOW_BYTES,
+    Combine, Round, RoundEnd, Preparation,
 };
 pub use domain::{join, leave, step};
 pub use key::{Entry, EntryKind, KeyBound, KeyLimits, Keyed, Tree, definition, key};

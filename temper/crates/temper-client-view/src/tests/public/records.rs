@@ -177,6 +177,8 @@ pub(super) fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
             preparation: 0,
             members: List::from_boxed(Box::new([member])),
             stale_proofs: 0,
+
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
             holds_turn: false,
         },
     )
@@ -216,6 +218,8 @@ pub(super) fn landing_commits(
             preparation: 0,
             members: List::from_boxed(Box::new([member])),
             stale_proofs: 2,
+
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
             holds_turn: true,
         },
     )
