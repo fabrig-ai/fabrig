@@ -1,1 +1,2 @@
 - lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
+- lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
