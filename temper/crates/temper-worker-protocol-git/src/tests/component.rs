@@ -277,7 +277,7 @@ fn an_abort_during_commit_tree_spawn_settles_without_a_done() {
     assert_eq!(component.below.out.io.len(), 4, "abort child and all three pipes");
     component.closed(child, &pipes);
     assert_eq!(component.done(), None);
-    for _ in 0_u8..3 {
+    for _ in 0_u8..4 {
         component.file_operation();
         component.complete_ok();
     }

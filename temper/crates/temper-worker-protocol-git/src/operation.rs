@@ -20,6 +20,7 @@ pub(crate) struct Operation {
     pub(crate) op: Option<git::Op>,
     pub(crate) identity: Option<Identity>,
     pub(crate) command: Command,
+    pub(crate) after_version: Option<Box<Command>>,
     pub(crate) stop: Option<git::Fault>,
     pub(crate) aborted: bool,
     pub(crate) ran: bool,
@@ -69,6 +70,7 @@ impl Operation {
             op,
             identity,
             command,
+            after_version: None,
             stop: None,
             aborted: false,
             ran: false,
@@ -612,7 +614,7 @@ impl Child {
 
 fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
     if let Command::Store { .. } = command {
-        return Box::from(&b"stores"[..]);
+        return Box::from(&b"making"[..]);
     }
     match op {
         git::Op::Clone { at, store, .. } => {
