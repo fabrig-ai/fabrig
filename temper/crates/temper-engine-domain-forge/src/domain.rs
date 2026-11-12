@@ -29,6 +29,7 @@ mod landed;
 pub(crate) mod make;
 #[path = "outage.rs"]
 mod outage;
+mod rebase;
 #[path = "restore.rs"]
 mod restore;
 mod room;
@@ -243,6 +244,8 @@ pub struct Domain {
     pub(crate) landed: Map<skein_forge::api::Commit, u64>,
     landings: Map<Token, PendingLanding>,
     lost: Map<Token, PendingLost>,
+    rebase_hints: Map<u64, rebase::Push>,
+    rebases: Map<u64, rebase::Observation>,
     pending_ci: Map<Token, PendingCi>,
     ci_news: Map<(u64, skein_forge::api::Commit), ci_news::Watch>,
     restart_fresh: Option<bool>,
@@ -862,6 +865,8 @@ impl Domain {
             landed: Map::with_capacity(l.landings.max(l.changes)),
             landings: Map::with_capacity(l.landings.max(l.client.resources)),
             lost: Map::with_capacity(l.holds),
+            rebase_hints: Map::with_capacity(l.changes),
+            rebases: Map::with_capacity(l.changes),
             pending_ci: Map::uncapped(),
             ci_news: Map::uncapped(),
             restart_fresh: None,
@@ -1925,6 +1930,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Subscribe { subscription } => subscribe(d, env, subscription, out),
         Event::Unsubscribe { task, topic } => unsubscribe(d, env, task, topic, out),
         Event::Hint { hint } => {
+            rebase::hint(d, &hint);
             crate::landing::hinted(d, &hint, out);
             crate::follow_check::hinted(d, &hint, out);
             crate::tiers::hinted(d, &hint, out);
@@ -2206,7 +2212,10 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 changed(d, env, resource, result, out);
             }
             skein_forge_client::Request::Drift { resource, expected, observed } => {
-                drift(d, env, resource, crate::DriftChange::Branch { expected, observed }, out);
+                let change = crate::DriftChange::Branch { expected, observed };
+                if !rebase::observe(d, env, &resource, &change, out) {
+                    drift(d, env, resource, change, out);
+                }
             }
             skein_forge_client::Request::Call { call, repository, op } => {
                 outage::called(d, env, call, repository, &op);
@@ -2243,6 +2252,8 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     topics::answer(d, env, owner, result, out);
                 } else if d.makings.contains_key(&owner) {
                     goal_branch::answered(d, env, owner, result, out);
+                } else if rebase::reading(d, owner) {
+                    rebase::answered(d, env, owner, result, out);
                 } else if d.steps.contains_key(&owner) {
                     step_read(d, env, owner, result, out);
                 } else if d.pending_ci.contains_key(&owner) {
@@ -4151,7 +4162,7 @@ fn step_read(
                         read.branch.present = true;
                     }
                     settled_update_drift(d, env, pending.task, commit, out);
-                    if !made_update {
+                    if !made_update && rebase::pending(d, pending.task).is_none() {
                         branch_changed(
                             d,
                             env,
@@ -5527,6 +5538,7 @@ pub(crate) fn change_outcome(
         },
         None => false,
     };
+    rebase::outcome(d, env, task, entry, outcome, out);
     let account = settled_account(d, entry, outcome);
     let Some(row) = d.changes.get_mut(&task) else { unreachable!("found change row") };
     let pull_closed = match outcome {
@@ -7980,6 +7992,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::landing::refresh(d, env, out);
     goal_branch::restart(d, env, out);
     crate::tiers::restart(d, env, out);
+    rebase::read_afresh(d, env, out);
     child(d, env, skein_forge_client::Event::ReadAfresh, out);
 }
 
