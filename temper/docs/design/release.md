@@ -86,7 +86,8 @@ file the site serves beside it (5.1). The site that links them is
   binaries, and nothing they link.
 - **Each binary hands its identity in:** its package's `main.rs` passes
   `temper-version`'s `VERSION` and `COMMIT` to its crate's `main`, which
-  prints them with its table (`cli/README.md`, 2 and 3); the client's
+  prints them with its table (`cli/README.md`, 2 and 3; a tool's,
+  `testing/tools.md`, 3 and 4); the client's
   passes `line`'s line, which its crate prints as it is. No library
   names a build identity of its own, and no package outside
   `temper/bin/` depends on `temper-version` in any of its tables: a row
