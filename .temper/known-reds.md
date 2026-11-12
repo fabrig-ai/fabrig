@@ -1,6 +1,6 @@
 # Known reds
 
-Failing on the goal branch and no live change's (goal 1720's note `known reds` says since when and why).
+Failing on the merged goal branch and owned by no live change of it (tools/pre-pr/design.md, 9).
 
 - lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/src/../patches/p0001.rs
 - lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/src/../patches/context.rs

@@ -345,6 +345,7 @@ Drafts:
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
+- [`draft/redeploys.md`](draft/redeploys.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)

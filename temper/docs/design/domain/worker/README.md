@@ -310,7 +310,8 @@ A hosted run's lifecycle is the hub's, in nine steps (jig's
 `domain/hosts/hub.md`, 2). What the worker puts in them:
 
 - **Step 2, prepare:** the checkout prepares the workspace from the items
-  (`checkouts.md`).
+  (`checkouts.md`), a few preparations at a time, runs' and jobs' alike:
+  one queued for its turn holds its run's slot and nothing in flight.
 - **Step 3, start:** smith's agent process (section 5), with the charter
   and the transcript decoded by hand-out, and the workspace as the
   checkout prepared it.
