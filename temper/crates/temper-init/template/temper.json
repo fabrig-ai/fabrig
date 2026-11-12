@@ -56,6 +56,7 @@
           "name": "anthropic",
           "number": 2,
           "endpoint": "anthropic",
+          "direct": "anthropic-api",
           "keep": ["claude-*"],
           "drop": ["*-20??????"],
           "signed_in_plan": false,
@@ -63,7 +64,8 @@
           "sources": {
             "programs": [
               "claude_code"
-            ]
+            ],
+            "keys": true
           }
         },
         {
@@ -96,6 +98,21 @@
           "dialect": 2,
           "provider": "anthropic",
           "program": "claude_code",
+          "address": {
+            "host": "api.anthropic.com",
+            "port": 443
+          },
+          "transport": "tls",
+          "headers": [],
+          "connect_ms": 10000,
+          "handshake_ms": 10000,
+          "server_name": "api.anthropic.com"
+        },
+        {
+          "name": "anthropic-api",
+          "number": 4,
+          "dialect": 2,
+          "provider": "anthropic",
           "address": {
             "host": "api.anthropic.com",
             "port": 443
@@ -372,7 +389,7 @@
                               "depth": 2
                             },
                             "budget": {
-                              "spend": 217920
+                              "spend": 270340
                             },
                             "notes": 0
                           }
