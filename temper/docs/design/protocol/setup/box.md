@@ -87,8 +87,9 @@ temper-box
   executable, run again for its steps and its agents' host, or a path
   its configuration names, never a copy in its data, so the engine, its
   agents, its adapters and the served bundle all run the new build, and
-  nothing the old. Its owned Forgejo, repositories and tasks come back
-  as they were; a store the build cannot read refuses serve's start by
+  nothing the old. Its forges, an owned Forgejo or the fake forges with
+  their state (5), its repositories, pull requests, checks and tasks come
+  back as they were; a store the build cannot read refuses serve's start by
   name (`../store.md`, 5), a step's failure as 2 has it. The process
   tier proves it (`../../testing/process-tier.md`).
 - **A forge's group, removed.** At a forge's removal
@@ -754,6 +755,11 @@ memory for one launch: a restarted one uses the same seed, scripts and
 output files, and so answers as before. A state a newer build cannot
 read refuses that step's start, naming the file, as a store refused by
 name does. Effective configuration and temper's data remain retained.
+Their CI is a head's own: each seeded repository's `ci` and each
+document's `made_ci` are `{"declared": ".fake-forge/ci"}`
+(`../../testing/fakes.md`, 2), so a head holding no `.fake-forge/ci`
+passes `check`, as every head did, and a person's commit decides a
+head's verdict by what it holds, on every repository a walk makes there.
 
 **Sources to copy** (`../../draft/repository-copies.md`, 6): the `fake forgejo`
 peer's document names two, and `box: copy source ADDRESS` prints each
