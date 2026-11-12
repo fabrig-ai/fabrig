@@ -106,6 +106,7 @@ mod question_target;
 mod repair_cancel;
 mod repair_cause;
 mod repair_green;
+mod resolution_head;
 mod stall_hold;
 
 #[path = "forge_routes/result.rs"]
