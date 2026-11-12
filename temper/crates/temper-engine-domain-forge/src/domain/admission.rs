@@ -116,17 +116,18 @@ pub(super) fn subscription_problem(
 ) -> Option<SubscriptionProblem> {
     use crate::Topic;
     let (repository, resource) = match &subscription.topic {
+        Topic::Findings { .. } => (None, None),
         Topic::Landings { repository, branch } => {
             let resource = Resource { repository: *repository, what: skein_forge_client::What::Branch(branch.clone()) };
             let name = super::from_client(&resource, limits);
-            (*repository, name)
+            (Some(*repository), name)
         }
         Topic::Ci { repository, .. } => (
-            *repository,
+            Some(*repository),
             Some(Name { forge: repository.forge, repository: repository.repository, what: What::Repository }),
         ),
         Topic::Pull { repository, number } | Topic::Participation { repository, number } => (
-            *repository,
+            Some(*repository),
             Some(Name { forge: repository.forge, repository: repository.repository, what: What::Pull(*number) }),
         ),
     };
@@ -193,6 +194,7 @@ pub(super) fn subscription_problem(
             resource,
         ));
     }
+    let Some(repository) = repository else { return None };
     if !d.repositories.contains_key(&repository) {
         return Some(SubscriptionProblem {
             words: b"repository is not adopted; select an adopted owner/name",
@@ -212,7 +214,7 @@ pub(super) fn subscription_problem(
                 Some(SubscriptionProblem { words, failure: Some(failure) })
             }
         },
-        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => None,
+        Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => None,
     }
 }
 

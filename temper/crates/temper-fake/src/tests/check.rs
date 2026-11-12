@@ -80,6 +80,7 @@ pub const LIMITS: d::Limits = d::Limits {
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
     roles: 4,

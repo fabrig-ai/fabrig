@@ -46,6 +46,8 @@ pub use status::{
     StatusView, status_paragraphs, status_subject,
 };
 mod away;
+pub mod findings;
+pub use findings::{Holder, Filer, FindingKind, Severity, FindingState, Finding, FileFinding, HandFinding, TriageFinding, Triage, FindingRefusal, FileFindingAnswer, HandFindingAnswer, TriageFindingAnswer, FindingWrite, FindingRow, AreaRow, Findings, FindingAnswer, owner, findings_subject};
 pub use away::{
     AWAY_SUBJECT, AskedView, Away, AwaysView, DECIDED_DAY_NS, DECIDED_KEPT_NS, DECIDED_OPTION_BYTES, DECIDED_OPTIONS,
     DECIDED_QUESTION_BYTES, DECIDED_WHY_BYTES, DECISIONS_SHOWN, Decided, DecidedCall, DecisionView, DecisionsView,
@@ -294,6 +296,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
         Stored::Away(row) => Key::Away { party: row.party, project: row.project },
         Stored::Decided(row) => Key::Decided { project: row.project, number: row.number },
+        Stored::Finding(row) => Key::Finding { project: row.project, number: row.number },
         Stored::Looked(row) => Key::Looked { party: row.party, project: row.project },
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
@@ -361,7 +364,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
     fn topic(value: &Topic) -> u64 {
         match value {
             Topic::Landings { branch, .. } => bytes(branch),
-            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => 0,
+            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => 0,
         }
     }
     match record {
@@ -487,6 +490,11 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Tier(row) => tiers::row_bytes(row),
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
+        Stored::Finding(row) => {
+            let mut bytes = skein_lib::len_u64(row.title.len()).checked_add(skein_lib::len_u64(row.body.len()))?;
+            for field in [&row.area, &row.why, &row.reason] { if let Some(field) = field { bytes = bytes.checked_add(skein_lib::len_u64(field.len()))?; } }
+            Some(bytes)
+        }
         Stored::Decided(row) => {
             let mut bytes = skein_lib::len_u64(row.question.len()).checked_add(skein_lib::len_u64(row.why.len()))?;
             for option in &row.options {
