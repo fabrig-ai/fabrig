@@ -335,6 +335,51 @@ fn telling_from_the_launchpad_files_feedback_in_hello() {
 
 const FAST_ANSWER: &str = "Hello from the local fake model.";
 
+// client/tui/pages/talk.md, 1: template 7's role talks through the shipped host.
+#[test]
+fn a_person_talks_with_a_standing_role_in_the_tui_and_leaves() {
+    const WORDS: &str = "Why is the port waiting?";
+    const REPLY: &[u8] = b"The handoff fix touches the same three functions.";
+    let (mut front, task) = super::person_task_tools::parked_role();
+    front.answer_runs = false;
+    let mut world: World<Temper, Joint> =
+        World::new(Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() }, front);
+    world.randomness(0, 0, 0);
+    let mut tui = Tui::role_launchpad(&mut world, TUI);
+    assert!(tui.text().contains("/talk"), "{}", tui.text());
+    tui.type_words(&mut world, "/talk");
+    tui.press(&mut world, vec![Key::Enter]);
+    assert!(tui.text().contains("Talk with a role on Hello"), "{}", tui.text());
+    assert!(tui.text().contains("Owns the tests"), "{}", tui.text());
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    assert!(tui.text().contains("talking with Owns the tests"), "{}", tui.text());
+    tui.type_words(&mut world, WORDS);
+    tui.press(&mut world, vec![Key::Enter]);
+    tui.run(&mut world, fixtures::WITHIN);
+    let role = world.front().engine.task(task).expect("standing role");
+    assert!(role.talk.is_some(), "the first words open the talk");
+    super::person_task_tools::scripted_talk_reply(world.front(), task, REPLY);
+    tui.run(&mut world, fixtures::WITHIN);
+    let shown = tui.text();
+    assert!(shown.contains(WORDS), "{shown}");
+    assert!(shown.contains(core::str::from_utf8(REPLY).unwrap()), "{shown}");
+    tui.press(&mut world, vec![Key::Escape]);
+    tui.run(&mut world, fixtures::WITHIN);
+    let ended = world.front().engine.store.rows.values().any(|record| {
+        matches!(record,
+            temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Activity(line)))
+            if line.task == task && matches!(line.line, jig_domain_tasks::Line::TalkEnded { lapsed: false, .. })
+        )
+    });
+    assert!(ended, "Esc ends the engine's talk");
+    assert!(world.front().engine.task(task).unwrap().talk.is_none());
+    let shown = tui.text();
+    assert!(shown.contains("Left Owns the tests after 1 min"), "{shown}");
+    assert!(shown.contains("It writes its Now."), "{shown}");
+    assert!(!shown.contains("talking with Owns the tests"), "back to the launchpad: {shown}");
+}
+
 fn assert_said_before_answer(tui: &mut Tui, question: &str, answer: &str) {
     let text = tui.text();
     let said = text.lines().position(|line| line.trim() == format!("❯ {question}"));

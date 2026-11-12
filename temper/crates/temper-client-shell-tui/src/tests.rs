@@ -1,3 +1,6 @@
+#[path = "tests/talk.rs"]
+mod talk;
+
 #[path = "tests/tell.rs"]
 mod tell;
 
@@ -2248,7 +2251,8 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 host.out.push(root::Request::Show { address: address.clone(), replace: true });
                 let before = host.state().focus();
                 host.report(Report::Due);
-                host.root.pages().address() == &if row == "show chat" { address } else { Address::Home { project: 5 } }
+                host.root.pages().address()
+                    == &if row == "show chat" || row == "show talk" { address } else { Address::Home { project: 5 } }
                     && host.state().focus() > before
             }
             "new" => {
@@ -2862,6 +2866,7 @@ fn read_exchange(duties: &Duties, wanted: &str) -> skein_lib::Token {
                             | (w::Read::Question(_), "question")
                             | (w::Read::Activity(_), "activity")
                             | (w::Read::Notes(_), "notes")
+                            | (w::Read::Proposal(_), "proposal")
                     ) {
                         return Some(*exchange);
                     }

@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) struct Fixture<'a> {
+pub(in crate::tests) struct Fixture<'a> {
     pub roles: Option<&'a [&'a [u8]]>,
     pub areas: bool,
     pub you: bool,
@@ -8,7 +8,7 @@ pub(super) struct Fixture<'a> {
 fn text(bytes: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(bytes.into(), f::limits().client.domain.text).unwrap())
 }
-pub(super) fn roles(names: &[&[u8]]) -> c::Tasks {
+pub(in crate::tests) fn roles(names: &[&[u8]]) -> c::Tasks {
     let mut rows = List::uncapped();
     for (index, name) in names.iter().enumerate() {
         let mut row = line(40_u64.checked_add(u64::try_from(index).unwrap()).unwrap(), name, 0, false);
@@ -17,7 +17,7 @@ pub(super) fn roles(names: &[&[u8]]) -> c::Tasks {
     }
     c::Tasks { rows, more: false }
 }
-pub(super) fn project() -> c::Project {
+pub(in crate::tests) fn project() -> c::Project {
     c::Project {
         acts: List::uncapped(),
         number: PROJECT,
@@ -61,7 +61,7 @@ pub(super) fn project() -> c::Project {
         cut: false,
     }
 }
-pub(super) fn now(scope: c::NoteScope) -> c::NotePage {
+pub(in crate::tests) fn now(scope: c::NoteScope) -> c::NotePage {
     c::NotePage {
         rows: List::from_boxed(Box::new([c::Note {
             number: 1,
@@ -80,7 +80,7 @@ pub(super) fn now(scope: c::NoteScope) -> c::NotePage {
         cut: false,
     }
 }
-pub(super) fn findings(fixture: &Fixture<'_>) -> w::Findings {
+pub(in crate::tests) fn findings(fixture: &Fixture<'_>) -> w::Findings {
     let task = |number| w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap());
     let mut areas = List::with_capacity(2);
     for (name, holder, enabled) in [
@@ -125,7 +125,7 @@ pub(super) fn findings(fixture: &Fixture<'_>) -> w::Findings {
     )
     .unwrap()
 }
-pub(super) fn root(fixture: Fixture<'_>) -> Domain {
+pub(in crate::tests) fn root(fixture: Fixture<'_>) -> Domain {
     home_team(
         Some(false),
         &[],
@@ -229,7 +229,7 @@ fn a_team_row_is_cut_at_a_word() {
     assert_eq!(f::text(view.tree(), row.unwrap()).as_ref(), "Prover    tests    A long sentence…".as_bytes());
 }
 
-pub(super) fn entries() -> List<c::InboxEntry> {
+pub(in crate::tests) fn entries() -> List<c::InboxEntry> {
     let mut entries = super::entries();
     for entry in entries.iter_mut() {
         entry.object = c::InboxObject::Question { message: 1 };

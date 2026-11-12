@@ -18,3 +18,5 @@ mod state;
 mod theme;
 mod welcome;
 mod work;
+
+mod talk;

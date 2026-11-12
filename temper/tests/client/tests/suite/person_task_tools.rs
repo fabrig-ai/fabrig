@@ -477,8 +477,19 @@ fn role_now(ctl: &mut Ctl, run: &engine::Assignment, words: &str) {
     assert!(!failed, "{}", String::from_utf8_lossy(&answer));
 }
 fn role_turn(ctl: &mut Ctl, run: &engine::Assignment, words: &[u8]) {
+    role_turn_in(&mut ctl.front, run, words);
+}
+pub(super) fn scripted_talk_reply(front: &mut Joint, task: u64, words: &[u8]) {
+    let run = front.assignments.last().expect("talk assigned to the scripted model").clone();
+    assert_eq!(run.task, task);
+    role_turn_in(front, &run, words);
+    let spent = front.engine.task(task).expect("standing role").run_spent;
+    front.engine.answer(WORKER, task, run.attempt, spent, tasks::End::Parked, engine::Parts::none());
+    front.engine.settle();
+}
+fn role_turn_in(front: &mut Joint, run: &engine::Assignment, words: &[u8]) {
     use temper_engine_domain_world::protocol;
-    let task = ctl.front.engine.task(run.task).expect("role run");
+    let task = front.engine.task(run.task).expect("role run");
     let number = task.turn + 1;
     let spent = task.run_spent.max(3);
     // A live run also reads words delivered after its assignment, such as after the rules move.
@@ -491,8 +502,8 @@ fn role_turn(ctl: &mut Ctl, run: &engine::Assignment, words: &[u8]) {
         &temper_worker_domain_world::protocol::endpoints(),
     )
     .expect("role reply encodes");
-    ctl.front.engine.send(protocol::turn(WORKER, run.task, run.attempt, number, spent, read, &body));
-    ctl.front.engine.settle();
+    front.engine.send(protocol::turn(WORKER, run.task, run.attempt, number, spent, read, &body));
+    front.engine.settle();
 }
 fn role_park(ctl: &mut Ctl, run: &engine::Assignment) {
     let spent = ctl.front.engine.task(run.task).expect("standing role").run_spent;

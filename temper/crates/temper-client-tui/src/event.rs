@@ -9,6 +9,8 @@ pub enum Event {
     Send,
     Command { command: Command },
     Act { act: temper_client_domain::pages::Act },
+    Accept { object: jig_client::contract::ObjectKey, revision: Option<jig_client::contract::Revision> },
+    Leave,
     Aside { object: jig_client::contract::ObjectKey },
     Answer { words: Box<[u8]> },
     ReplyAside { turn: jig_client::contract::TurnName },
@@ -38,6 +40,7 @@ pub const EXIT: &[u8] = b"/exit";
 pub enum Own {
     Draft,
     Change,
+    Talk,
     Ask,
     Brief,
     Needs,
@@ -46,13 +49,14 @@ pub enum Own {
     Theme,
 }
 impl Own {
-    pub const ALL: [Own; 8] =
-        [Own::Draft, Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Tell, Own::Theme];
+    pub const ALL: [Own; 9] =
+        [Own::Draft, Own::Change, Own::Talk, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Tell, Own::Theme];
     #[must_use]
     pub const fn name(self) -> &'static [u8] {
         match self {
             Self::Draft => b"/draft",
             Self::Change => b"/change",
+            Self::Talk => b"/talk",
             Self::Ask => b"/ask",
             Self::Brief => b"/brief",
             Self::Needs => b"/needs",

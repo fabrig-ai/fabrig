@@ -344,6 +344,7 @@ fn draw(part: foot::Foot) -> crate::View {
     let (root, _) = f::live(Some(f::me(&[b"Hello", b"Demo"])));
     let body = if part.rule.is_some() {
         view::Body::Chat(view::chat::Chat {
+            head: None,
             pane: None,
             to_end: 0,
             entries: Box::default(),

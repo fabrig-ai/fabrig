@@ -85,6 +85,10 @@ fn welcome_commands_wait_until_the_sign_in_lands() {
     clippy::too_many_lines,
     reason = "one table checks welcome dispatch, link, step facts, words, tokens and bounds"
 )]
+#[expect(
+    clippy::large_stack_arrays,
+    reason = "the fixed state table holds Tui values with the talk prompts beside sign-in facts"
+)]
 fn the_welcome_says_each_state() {
     let empty = welcome_root(&[], false, Some(false), None);
     let linked = welcome_root(&[], true, Some(false), None);

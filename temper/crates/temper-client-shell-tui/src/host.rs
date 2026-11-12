@@ -510,6 +510,7 @@ impl Host {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "one exhaustive dispatch binds each TUI event to its host acts")]
     fn event(&mut self, event: tui::Event, duties: &mut Duties) {
         match event {
             tui::Event::Own { command } => self.own(command, duties),
@@ -524,6 +525,12 @@ impl Host {
             }
             tui::Event::EndWalk => self.tell(Told::EndWalk),
             tui::Event::Typed { value } => {
+                self.tell(Told::TalkList { open: false });
+                if !value.is_empty()
+                    && let Some(tui::Event::Aside { object }) = tui::escape(&self.view)
+                {
+                    self.event(tui::Event::Aside { object }, duties);
+                }
                 self.tell(Told::ThemeList { open: false });
                 self.typed(value);
             }
@@ -597,7 +604,20 @@ impl Host {
             }
             tui::Event::Send => self.send(duties),
             tui::Event::Act { act } => self.act(act),
-            tui::Event::Aside { object } => self.tell(Told::Aside { object: Some(object) }),
+            tui::Event::Aside { object } => {
+                if matches!(object, jig_client::contract::ObjectKey::Proposal(_))
+                    && self.root.pages().chat().is_some_and(|chat| chat.talk().is_some())
+                {
+                    self.tell(Told::ProposalAside { object });
+                } else {
+                    self.tell(Told::Aside { object: Some(object) });
+                }
+            }
+            tui::Event::Accept { object, revision } => {
+                self.act(Act::Decide { object, revision, act: jig_client::contract::ActKind::Accept });
+                self.act(Act::Confirm);
+            }
+            tui::Event::Leave => self.leave(),
             tui::Event::Answer { words } => {
                 self.act(Act::MessageWords { words });
                 self.act(Act::Send);
@@ -631,6 +651,12 @@ impl Host {
                 self.act(Act::Terminal(terminal::Act::Dismiss));
                 self.tell(Told::Cleared);
                 self.tell(Told::Walk { by_key: false });
+            }
+            tui::Own::Talk => {
+                self.act(Act::Terminal(terminal::Act::Dismiss));
+                self.tell(Told::Cleared);
+                self.tell(Told::TalkList { open: true });
+                self.focus.active = None;
             }
             tui::Own::Theme => {
                 self.act(Act::Terminal(terminal::Act::Dismiss));
@@ -713,6 +739,10 @@ impl Host {
     }
 
     fn send(&mut self, duties: &mut Duties) {
+        if self.words() == tui::EXIT && self.root.pages().chat().is_some_and(|chat| chat.talk().is_some()) {
+            self.leave();
+            return;
+        }
         if self.state().front() && (self.words() == b"/quit" || self.words() == tui::EXIT) {
             self.tell(Told::Cleared);
             self.quit(duties);
@@ -760,7 +790,7 @@ impl Host {
                     .find(|command| tui::command_name(**command).starts_with(words))
                     .copied()
             };
-            if let Some(command @ (tui::Own::Draft | tui::Own::Change | tui::Own::Ask)) = own {
+            if let Some(command @ (tui::Own::Draft | tui::Own::Change | tui::Own::Talk | tui::Own::Ask)) = own {
                 self.event(tui::Event::Own { command }, duties);
             } else if let Some(command) = root {
                 self.event(tui::Event::Command { command }, duties);
@@ -811,7 +841,29 @@ impl Host {
 
     fn launchpad_words(&mut self) -> bool {
         let words = self.words();
-        if let Some(words) = words.strip_prefix(b"/draft ").filter(|words| !words.is_empty())
+        if let Some(words) = words.strip_prefix(b"/talk ").filter(|words| !words.is_empty()) {
+            let words: Box<[u8]> = words.into();
+            let project = self.root.pages().project().expect("launchpad project");
+            let team = root::pages::team::shown_at(&self.root, project, self.env.wall);
+            if let Some(role) = team
+                .facts()
+                .into_iter()
+                .flat_map(|facts| facts.roles.iter())
+                .find(|role| role.name.get(..words.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(&words)))
+            {
+                self.act(Act::Go { address: Address::Talk { project, task: role.task } });
+                self.tell(Told::Cleared);
+            } else {
+                let project = self
+                    .root
+                    .pages()
+                    .me(self.root.client())
+                    .and_then(|me| me.projects.iter().find(|row| row.project == project))
+                    .map(|row| row.name.bytes().into())
+                    .unwrap_or_default();
+                self.notice(tui::Notice::NoRole { project, words });
+            }
+        } else if let Some(words) = words.strip_prefix(b"/draft ").filter(|words| !words.is_empty())
             && self.root.pages().project().is_some_and(|project| root::pages::drafts_offered(&self.root, project))
         {
             let words = words.into();
@@ -864,6 +916,24 @@ impl Host {
         self.tell(Told::Cleared);
     }
 
+    fn leave(&mut self) {
+        let Some(talk) = self.root.pages().chat().and_then(|chat| chat.talk()) else { return };
+        let project = talk.project;
+        if let Some(open) = talk.open() {
+            let name = talk.name().unwrap_or(b"").into();
+            let minutes = self
+                .env
+                .wall
+                .as_nanos()
+                .saturating_sub(open.opened.as_nanos())
+                .checked_div(60_000_000_000)
+                .expect("minute is nonzero")
+                .max(1);
+            let cost = talk.cost();
+            self.notice(tui::Notice::Left { name, minutes, cost });
+        }
+        self.went(Address::Home { project });
+    }
     fn went(&mut self, address: Address) {
         self.step(Event::Went { place: Place::Address(address) });
         self.tell(Told::Went);
@@ -900,7 +970,7 @@ impl Host {
             return;
         }
         let project = match &address {
-            Address::AllHome | Address::Home { .. } | Address::Chat { .. } => {
+            Address::AllHome | Address::Home { .. } | Address::Chat { .. } | Address::Talk { .. } => {
                 self.went(address);
                 return;
             }
@@ -916,7 +986,6 @@ impl Host {
             | Address::Models { project }
             | Address::Builders { project }
             | Address::Team { project, .. }
-            | Address::Talk { project, .. }
             | Address::Role { project, .. }
             | Address::Rule { project, .. }
             | Address::Ask { project }

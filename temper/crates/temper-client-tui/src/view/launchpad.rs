@@ -24,6 +24,7 @@ use temper_client_view::{
 pub(crate) struct Launchpad {
     pub project: Option<Box<[u8]>>,
     pub drafts: bool,
+    pub talk: bool,
     pub address: Box<[u8]>,
     pub playground: bool,
     pub lines: List<Line>,
@@ -314,6 +315,10 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
             Some(project) => temper_client_domain::pages::drafts_offered(root, project),
             None => false,
         },
+        talk: match number {
+            Some(project) => super::talk::available(root, project),
+            None => false,
+        },
         address: crate::place(tui.address(), tui.front()),
         playground: front::playground(root, number),
         lines: List::with_capacity(4),
@@ -375,7 +380,7 @@ fn padded(bytes: &[u8], width: usize) -> Box<[u8]> {
     concat(&[bytes, spaces.as_slice()])
 }
 #[expect(clippy::disallowed_methods, reason = "cutting validated UTF-8 view words at character and word boundaries")]
-fn cut(bytes: &[u8], room: usize, words: &Words) -> (Box<[u8]>, usize) {
+pub(super) fn cut(bytes: &[u8], room: usize, words: &Words) -> (Box<[u8]>, usize) {
     let line = core::str::from_utf8(bytes).expect("view words are UTF-8");
     if line.chars().count() <= room {
         return (copy_of(bytes), bytes.len());
@@ -568,9 +573,10 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
         for (command, description) in [
             (Own::Draft, words.say(Word::DraftStart, &[])),
             (Own::Change, words.say(Word::ChangeStart, &[Hole::Name(copy_of(project))])),
+            (Own::Talk, words.say(Word::TalkStart, &[])),
             (Own::Ask, words.say(Word::AskTemper, &[])),
         ] {
-            if command == Own::Draft && !part.drafts {
+            if (command == Own::Draft && !part.drafts) || (command == Own::Talk && !part.talk) {
                 continue;
             }
             b.open(Role::Description);
