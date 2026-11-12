@@ -206,3 +206,39 @@ fn a_store_whose_reads_are_below_its_page_is_refused() {
         assert_eq!(check_read_page(&limits), Some(()));
     }
 }
+
+#[test]
+fn a_yielded_patch_walk_keeps_the_host_runnable_without_a_timer() {
+    const BASE: crate::PatchSet = crate::PatchSet { owner: crate::Owner::Application, name: "fixture", families: &[crate::KeptFamily { name: "fixture-label", texts: &[jig_test_patches::patches::kept::fixture_label::TEXTS[0]], map: crate::KeptMap::Store, keys: &[], frames: None, flights: &[] }], patches: &[], fresh: Some("fresh") };
+    const BEFORE: crate::PatchSets = crate::PatchSets { sets: &[BASE] };
+    const AFTER: crate::PatchSets = crate::PatchSets { sets: &[crate::PatchSet { patches: &["patch 1\nowner fixture 1\nmark fresh\n"], ..BASE }] };
+    let mut world = World::new();
+    world.store.patch_sets(BEFORE);
+    world.open();
+    world.host.down(&mut world.store, &fixtures::env(), fixtures::commit(1, Box::new([fixtures::header(1)])), &mut world.above);
+    world.settle();
+    world.above = Queue::uncapped();
+    world.close();
+    let handle = world.machine.reopen_root(0);
+    world.fd = world.sim.root(world.pid, Handle::new(handle.raw()));
+    world.host = Drivers::new(&fixtures::store_limits(), 2);
+    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world.store.patch_sets(AFTER);
+    world.adopt();
+    let mut yielded = false;
+    for _ in 0..1000 {
+        world.step();
+        if crate::patching::phase::ready(&world.store) && !world.host.work_pending(fixtures::env().now) {
+            let hosted = Hosted { component: world.store, drivers: world.host, above: Queue::uncapped(), secrets: Queue::uncapped(), sources: Queue::uncapped(), env: fixtures::env(), not_ready: NotReady::Above, closing: false };
+            assert!(hosted.work_pending(fixtures::env().now), "a yielded patch pass must wake the host without IO or a timer");
+            world.store = hosted.component;
+            world.host = hosted.drivers;
+            yielded = true;
+            break;
+        }
+    }
+    assert!(yielded, "the marked patch exercises a yielded pass: {:?}", world.above);
+    world.settle();
+    assert!(world.above.iter().any(|event| matches!(event, Event::Opened {pending:true,..})), "copy opens before the switch");
+    world.close();
+}
