@@ -2,6 +2,7 @@
 
 2026-11-12. Where the tree's code lags or departs from [records.md](records.md).
 
+- **Not yet:** *`CLIENT_VERSION`*: no layouts' list holds it or `PUBLIC_VERSION` to their layouts [in flight: change 1977].
 
 - **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
   `rules`, a `PathRules` of `PathRule` rows, on the wire [in flight:
