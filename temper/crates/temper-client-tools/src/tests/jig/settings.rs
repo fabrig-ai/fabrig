@@ -158,6 +158,7 @@ fn a_settings_file_charter_names_documents() {
     let wire = jig_client_protocol_wire::SettingDocument::new(
         &bounds.settings,
         jig_client_protocol_wire::SettingDocumentParts {
+            overlay: None,
             setting: jig_client_protocol_wire::Setting::Charter(
                 jig_client_protocol_wire::SettingNumber::new(
                     &bounds.settings,
@@ -698,6 +699,7 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
         let wire = jig_client_protocol_wire::SettingDocument::new(
             &bounds.settings,
             jig_client_protocol_wire::SettingDocumentParts {
+                overlay: None,
                 setting: jig_client_protocol_link::translate::settings::wire_setting(&setting, &bounds.settings)
                     .expect("wire selector"),
                 revision: 5,
@@ -3096,6 +3098,7 @@ fn settings_show_template_resources_apply_again_unchanged() {
     let wire = jig_client_protocol_wire::SettingDocument::new(
         &bounds.settings,
         jig_client_protocol_wire::SettingDocumentParts {
+            overlay: None,
             setting: jig_client_protocol_wire::Setting::Template(
                 jig_client_protocol_wire::SettingNumber::new(
                     &bounds.settings,
@@ -3204,6 +3207,7 @@ fn goal_template_wire_round_trip(file: &[u8], change: &c::ChangeSettings, templa
     let wire = w::SettingDocument::new(
         &bounds.settings,
         w::SettingDocumentParts {
+            overlay: None,
             setting: w::Setting::Template(
                 w::SettingNumber::new(&bounds.settings, w::SettingNumberParts { number: 4 }).expect("template number"),
             ),

@@ -809,6 +809,12 @@ fn overlay_codec_bounds_instructions_parts_documents_and_alternatives() {
     domain.tasks.charter_documents = 1;
     domain.settings.alternatives = 1;
     let limits = codec::limits(&domain).unwrap();
+    let mut generous = domain;
+    generous.run_bytes = 8192;
+    generous.tasks.charter_parts = 3;
+    generous.tasks.charter_documents = 2;
+    generous.settings.alternatives = 2;
+    let generous = codec::limits(&generous).unwrap();
     for past in [false, true] {
         for field in 0_u8..5 {
             let mut overlay = overlay();
@@ -828,7 +834,9 @@ fn overlay_codec_bounds_instructions_parts_documents_and_alternatives() {
             let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Changed {
                 setting: s::Setting::Charter(1), changed: s::Changed { revision: 2, value: Some(s::Value::Overlay(Box::new(overlay))) },
             }));
-            assert_eq!(codec::encode(&row, &limits, &[]).is_some(), !past, "field {field}");
+            assert_eq!(codec::encode(&row, &limits, &[]).is_some(), !past, "encode field {field}");
+            let bytes = codec::encode(&row, &generous, &[]).unwrap();
+            assert_eq!(codec::decode(&row.key(), &bytes, &limits, &[]).is_some(), !past, "decode field {field}");
         }
     }
 }

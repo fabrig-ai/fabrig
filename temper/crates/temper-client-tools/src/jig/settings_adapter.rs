@@ -674,7 +674,6 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
 }
 pub fn form_setting_document(v: &c::SettingDocument) -> n::SettingDocument {
     n::SettingDocument {
-        overlay: None,
         setting: form_setting(v.setting),
         revision: v.revision,
         value: match &v.value {
