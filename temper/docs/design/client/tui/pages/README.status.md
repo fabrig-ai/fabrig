@@ -26,5 +26,3 @@ Latest, cards at their calls and the remaining TUI controls stay in
 The read-once gap remains `../../../draft/chat-reading.status.md`, 3; parsed-block work is `../../README.md`, section 5's. Request differences remain explicit
 in `../../../draft/tui.status.md`; no rendered-equality result is supplied.
 
-- **Not yet:** the talk, its box, quiet line and notice, `/talk` and its list, *Offered* on a talk, and `/exit` leaving a talk [in flight: change 2039].
-- **Not yet:** 2, *`/tell`*, and its notice [in flight: change 2038].
