@@ -64,8 +64,7 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
         }
         host::ToAgent::Acknowledge { agent, turn } => smith::parent::Event::Acknowledge { agent, turn },
         // No root sends a drain yet; a later change maps it to smith's drain.
-        host::ToAgent::Drain { agent } => smith::parent::Event::Stop { agent },
-        host::ToAgent::Cancel { agent } => smith::parent::Event::Stop { agent },
+        host::ToAgent::Drain { agent } | host::ToAgent::Cancel { agent } => smith::parent::Event::Stop { agent },
         // The hub hands its agent only the LLM accounts' grants, and keeps
         // the application credentials, the git identities, to itself (jig's
         // domain/hosts/hub.md, 2): the table needs no reading.

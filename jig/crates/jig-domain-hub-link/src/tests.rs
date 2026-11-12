@@ -458,12 +458,16 @@ fn job_failures_keep_their_contract_classes() {
         (F::Undelivered(D::Refused), C::Permanent),
         (F::Undelivered(D::Failed), C::Transient),
         (F::Cancelled(R::Contact), C::Lost),
-        (F::Cancelled(R::Shutdown), C::Lost),
     ] {
         let ending =
             host::JobEnding::Failed { failure, detail: Box::new([]), work: host::Work { left: None, saved: None } };
         assert_eq!(payload::job_end(&ending), tasks::End::Failed(expected));
     }
+    let shutdown = host::JobEnding::Failed {
+        failure: F::Cancelled(R::Shutdown), detail: b"interrupted".as_slice().into(),
+        work: host::Work { left: None, saved: None },
+    };
+    assert_eq!(payload::job_end(&shutdown), tasks::End::Recheck);
 }
 
 /// jig/docs/design/domain/engine/executors.md, 5: a terminal frees retained job bytes, including a lost claim's.

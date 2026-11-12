@@ -419,3 +419,67 @@ fn a_job_delivers_when_run_calls_are_disabled() {
         ]
     );
 }
+
+#[test]
+fn a_job_runs_on_through_a_drain_but_shutdown_before_delivery_cancels_it() {
+    for cancel in [false, true] {
+        let mut h = harness();
+        let owner = assign(&mut h);
+        assert_eq!(h.step(Event::Drain).as_ref(), [Request::Up(LinkUp::Draining)]);
+        crate::resume_runs(&mut h.domain, &h.env, &mut h.out);
+        assert!(h.out.is_empty(), "drain leaves job preparation alone");
+        h.step(Event::Prepared { owner, workspace: SPACE });
+        h.step(Event::Job(FromJob::Started { owner }));
+        assert!(h.step(Event::Drain).is_empty());
+        if cancel {
+            assert!(h.step(Event::CancelAll { reason: Reason::Shutdown }).is_empty());
+            crate::resume_runs(&mut h.domain, &h.env, &mut h.out);
+            assert_eq!(h.out.pop(), Some(Request::Job(ToJob::Stop { owner })));
+            assert!(h.out.is_empty());
+            assert!(h.step(finished(owner, Some(Box::new([])))).is_empty(), "no delivery after cancel");
+            assert_eq!(h.step(gone(owner)).as_ref(), [Request::Release { workspace: SPACE }, answer(failed(JobFailure::Cancelled(Reason::Shutdown)))]);
+        } else {
+            let call = delivering(&mut h, owner);
+            assert!(h.step(gone(owner)).is_empty());
+            assert_eq!(h.step(delivery(call, DeliveryOutcome::Delivered)).as_ref(), [
+                Request::Release { workspace: SPACE },
+                answer(JobEnding::Finished { result: b"r".as_slice().into(), work: Work { left: Some(SPACE), saved: None } }),
+            ]);
+        }
+    }
+}
+
+#[test]
+fn shutdown_during_a_job_delivery_keeps_the_deliverys_result_not_cancellation() {
+    for (outcome, gone_first) in [
+        (DeliveryOutcome::Delivered, true), (DeliveryOutcome::Nothing, false),
+        (DeliveryOutcome::Stale, true), (DeliveryOutcome::Refused, false), (DeliveryOutcome::Failed, true),
+    ] {
+        let mut h = harness();
+        let owner = active(&mut h);
+        let call = delivering(&mut h, owner);
+        h.step(Event::Drain);
+        assert!(h.step(Event::CancelAll { reason: Reason::Shutdown }).is_empty());
+        crate::resume_runs(&mut h.domain, &h.env, &mut h.out);
+        assert_eq!(h.out.pop(), Some(Request::Job(ToJob::Stop { owner })));
+        assert!(h.out.is_empty());
+        h.step(Event::CancelAll { reason: Reason::Shutdown });
+        crate::resume_runs(&mut h.domain, &h.env, &mut h.out);
+        assert!(h.out.is_empty(), "no second stop while delivery settles");
+        let requests = if gone_first {
+            assert!(h.step(gone(owner)).is_empty());
+            h.step(delivery(call, outcome))
+        } else {
+            assert!(h.step(delivery(call, outcome)).is_empty());
+            h.step(gone(owner))
+        };
+        let work = Work { left: (outcome == DeliveryOutcome::Delivered).then_some(SPACE), saved: None };
+        let ending = match outcome {
+            DeliveryOutcome::Delivered | DeliveryOutcome::Nothing => JobEnding::Finished { result: b"r".as_slice().into(), work },
+            DeliveryOutcome::Stale | DeliveryOutcome::Refused | DeliveryOutcome::Failed => JobEnding::Failed {
+                failure: JobFailure::Undelivered(outcome), detail: Box::new([]), work,
+            },
+        };
+        assert_eq!(requests.as_ref(), [Request::Release { workspace: SPACE }, answer(ending)]);
+    }
+}
