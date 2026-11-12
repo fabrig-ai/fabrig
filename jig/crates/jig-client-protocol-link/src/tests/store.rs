@@ -109,7 +109,9 @@ fn a_cancelled_opening_already_in_the_step_queue_is_never_sent_after_writing() {
     harness.link.step(Time::ZERO, Event::Lost { exchange }, &mut harness.out);
     harness.save(fixtures::saved_table(fixtures::message()));
     harness.written();
-    assert_eq!(harness.exchanges(), 0);
+    assert_eq!(harness.exchanges(), 1, "the uncertain opening drops its stream");
+    assert_eq!(harness.gone_name(), fixtures::STREAM);
+    harness.assert_no_watch_exchange();
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
 }
 

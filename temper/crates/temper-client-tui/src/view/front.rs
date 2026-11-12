@@ -52,6 +52,7 @@ pub(crate) fn quit(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
     };
     Some(Options {
         style: look::OPTION,
+        why: None,
         name: head.clone(),
         head: Some(head),
         items: Box::new([

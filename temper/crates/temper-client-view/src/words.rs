@@ -1092,6 +1092,7 @@ pub enum Word {
     TimeDays,
     TimeAgo,
     TimeAt,
+    TimeTodayClock,
     Away,
     AwayChipOff,
     AwayAcross,
@@ -1820,7 +1821,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2372;
+const PHRASES: u32 = 2373;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1847,10 +1848,10 @@ const PHRASES: u32 = 2372;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4305;
+const SEGMENTS: u32 = 4308;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 57233;
-const ALL: [Word; 1688] = [
+const ENGLISH_BYTES: u32 = 57239;
+const ALL: [Word; 1689] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2904,6 +2905,7 @@ const ALL: [Word; 1688] = [
     Word::TimeDays,
     Word::TimeAgo,
     Word::TimeAt,
+    Word::TimeTodayClock,
     Word::Away,
     Word::AwayChipOff,
     Word::AwayAcross,
@@ -4648,6 +4650,7 @@ impl Word {
             Self::TimeDays => 1205,
             Self::TimeAgo => 1206,
             Self::TimeAt => 1207,
+            Self::TimeTodayClock => 1264,
             Self::Away => 3675,
             Self::AwayChipOff => 3676,
             Self::AwayAcross => 4347,
@@ -6885,6 +6888,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TimeDays => (&[b"", b" d"], &[Number]),
         Word::TimeAgo => (&[b"", b" ago"], &[Name]),
         Word::TimeAt => (&[b"at ", b""], &[Name]),
+        Word::TimeTodayClock => (&[b"today ", b""], &[Name]),
         Word::Away => (&[b"Away"], &[]),
         Word::AwayChipOff => (&[b"Away: off"], &[]),
         Word::AwayAcross => (&[b"Away on ", b" of ", b""], &[Number, Number]),
@@ -7546,6 +7550,7 @@ pub enum TimeForm {
     Looked,
     Span,
     Clock,
+    Dated,
     Weekday,
     Day,
 }
@@ -7587,7 +7592,12 @@ impl Times {
             TimeForm::Ago if minutes > 0 && minutes < 720 => {
                 words.say(Word::TimeAgo, &[Hole::Name(words.public_span(minutes))])
             }
-            TimeForm::Ago | TimeForm::Looked | TimeForm::Clock | TimeForm::Weekday | TimeForm::Day => text,
+            TimeForm::Ago
+            | TimeForm::Looked
+            | TimeForm::Clock
+            | TimeForm::Dated
+            | TimeForm::Weekday
+            | TimeForm::Day => text,
         }
     }
 }
@@ -7606,7 +7616,7 @@ impl Words {
             TimeForm::Ago if minutes < 720 => Some(MINUTE),
             TimeForm::Span | TimeForm::Looked if elapsed < DAY => Some(MINUTE),
             TimeForm::Span | TimeForm::Looked => Some(DAY),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => None,
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Dated | TimeForm::Day | TimeForm::Weekday => None,
         };
         let next = next_tick(at, now, elapsed, unit, self.zone_minutes);
         let said = match form {
@@ -7614,7 +7624,9 @@ impl Words {
             TimeForm::Span => self.time_span(minutes),
             TimeForm::Ago if minutes == 0 => self.say(Word::TimeJustNow, &[]),
             TimeForm::Ago if minutes < 720 => self.say(Word::TimeAgo, &[Hole::Name(self.time_span(minutes))]),
-            TimeForm::Ago | TimeForm::Clock | TimeForm::Day | TimeForm::Weekday => self.calendar_time(form, at, now),
+            TimeForm::Ago | TimeForm::Clock | TimeForm::Dated | TimeForm::Day | TimeForm::Weekday => {
+                self.calendar_time(form, at, now)
+            }
         };
         (said, next)
     }
@@ -7658,8 +7670,9 @@ impl Words {
             TimeForm::Ago if days == Some(1) => self.say(Word::TimeYesterdayWord, &[]),
             TimeForm::Ago if days >= Some(2) && days <= Some(7) => self.time_weekday(day, false),
             TimeForm::Ago => self.time_date(at, now),
+            TimeForm::Dated if day == today => self.say(Word::TimeTodayClock, &[Hole::Name(clock)]),
             TimeForm::Clock if day == today => clock,
-            TimeForm::Clock => {
+            TimeForm::Clock | TimeForm::Dated => {
                 let date = if days >= Some(1) && days <= Some(6) {
                     self.time_weekday(day, false)
                 } else {
