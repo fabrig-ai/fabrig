@@ -1445,11 +1445,9 @@ impl World {
         let mut codec = self.env.limits;
         codec.tasks = self.env.limits.tasks;
         codec.authority = self.env.limits.authority;
-        self.store = crate::fixtures::restored_over(
-            Store::with_limits(&codec),
-            crate::oracle::config::copy(&self.restart_config),
-            &self.env.limits,
-        );
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&codec), bootstrap, &self.env.limits);
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid closer configuration");
