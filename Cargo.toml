@@ -72,6 +72,7 @@ members = [
     "skein/testing/skein-tls-kit",
     "skein/testing/skein-llm-kit",
     "skein/testing/skein-forge-kit",
+    "skein/testing/skein-forge-connection-fixtures",
     "skein/testing/skein-fake-person",
     "skein/testing/skein-fake-person-browser",
     "skein/testing/skein-heap",
@@ -464,6 +465,7 @@ skein-http-kit = { path = "skein/testing/skein-http-kit" }
 skein-tls-kit = { path = "skein/testing/skein-tls-kit" }
 skein-llm-kit = { path = "skein/testing/skein-llm-kit" }
 skein-forge-kit = { path = "skein/testing/skein-forge-kit" }
+skein-forge-connection-fixtures = { path = "skein/testing/skein-forge-connection-fixtures" }
 skein-fake-checkout = { path = "skein/crates/skein-fake-checkout" }
 skein-sim-world = { path = "skein/crates/skein-sim-world" }
 skein-playground = { path = "skein/crates/skein-playground" }

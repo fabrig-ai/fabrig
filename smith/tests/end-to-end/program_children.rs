@@ -19,7 +19,7 @@ fn argument<'a>(arguments: &'a [String], flag: &str) -> Option<&'a str> {
 
 fn signed_in(story: &Story) -> Scratch {
     let scratch = Scratch::new();
-    let executable = skein_scratch::paths::binary("fake-claude");
+    let executable = support::fake_claude();
     let settings = format!(
         "model='anthropic/claude-opus-5-5'\nsub_agents=true\n[programs]\nclaude_code='{}'\n\
          [accounts.work]\nprovider='anthropic'\nsource='program'\n[endpoints.anthropic]\naccount='work'\nprogram='claude_code'\n",

@@ -3256,6 +3256,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-forge-connection-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-fake-forge-github",
+ "skein-forge",
+ "skein-forge-connection",
+ "skein-io",
+ "skein-lib",
+ "skein-tls",
+]
+
+[[package]]
 name = "skein-forge-dialect-tests"
 version = "0.0.0"
 dependencies = [
@@ -3293,6 +3305,7 @@ dependencies = [
  "skein-fake-forge-github",
  "skein-forge",
  "skein-forge-connection",
+ "skein-forge-connection-fixtures",
  "skein-forge-kit",
  "skein-heap",
  "skein-io",
