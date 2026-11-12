@@ -2116,6 +2116,16 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "needs-sign-off-part",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Text { text: "This project's landing rule 1 asks for 2 approvals by members." },
+            Part::Text { text: "Signs off changes to payments." },
+            Part::Text { text: "1 of 2 signed: Sam; you or Kit can give the second." },
+            Part::Named { role: Role::Link, name: "Sign off on Forgejo ↗" },
+        ],
+    },
+    Holds {
         name: "needs-approval-path",
         heading: "One thing needs you.",
         parts: &[
@@ -2130,7 +2140,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "One thing needs you.",
         parts: &[
             Part::Named { role: Role::Heading { level: 1 }, name: "Approve A change on GitHub" },
-            Part::Text { text: "The deployment's landing rule 2 asks for 2 approvals by maintainers; 1 so far." },
+            Part::Text { text: "The deployment's landing rule 2 asks for 2 approvals by maintainers." },
             Part::Text { text: "temper knows no GitHub account of yours, so your review wouldn't count." },
             Part::Named { role: Role::Button, name: "Open" },
             Part::Absent { role: Role::Button, name: "Later" },
@@ -2419,7 +2429,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "A task ran out of turns on the coupon rules." },
             Part::Text { text: "Split it in two." },
             Part::Absent { role: Role::Link, name: "Sign off on Forgejo ↗" },
-            // These approvals name no set; who can still sign has no client read.
+            // These approvals name no path set.
         ],
     },
     Holds {

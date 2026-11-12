@@ -4,7 +4,7 @@
 
 - **Not yet:** 2: `skein/tests/forge/conformance/src/migrate.rs`,
   `ordinary`, judges a missing source's refusal under its earlier name, by
-  leaving nothing, and asks no private source [in flight: change 524].
+  leaving nothing, and asks no private source.
 - **Not yet:** 2: `setup-migrate-of-a-missing-source-says-why-and-leaves-an-empty-repository`
   and `setup-migrate-of-a-private-source-says-why-and-leaves-an-empty-repository`
   are in no `facts.txt` line: the file is a run's output, and no `--migrate`

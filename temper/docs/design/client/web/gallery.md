@@ -330,6 +330,7 @@ from the engine's own answers, is where the look is tuned.
 | `needs-why` | a question whose asked row says why: "Reached you because it is an implementation choice, which asks you unless you’re away." then "Keep asking" and "Stop asking: let agents decide implementation choices" on the line |
 | `needs-stop-asking` | `needs-why` with its rule open for an owner: "Let agents decide implementation choices, then tell you." with "Apply"; "Keep asking" on the line, none under the offers |
 | `needs-stop-asking-set` | a question that changes a path set, its rule "Stop asking: let agents decide some changes to protocol core" open for a member: the words offer's sentence over its field, the split, each with "Propose" |
+| `needs-sign-off-part` | a sign-off's card open for a member, its rule by path asking two members, one signed: "This project's landing rule 1 asks for 2 approvals by members.", "Signs off changes to payments.", "1 of 2 signed: Sam; you or Kit can give the second." and "Sign off on Forgejo ↗" first (`../forge/README.md`, 4.1, *Its context*; `whole-story/team/needs.html`) |
 | `needs-only-you` | the unfiltered *Needs you* (`../pages/README.md`, **Only you**): a question, then "Only you · 2", a signed-out ChatGPT sign-in and an expiring Claude Code login, each with "Sign in again" |
 | `needs-only-you-done` | no card open: "Nothing needs you.", "Home", then "Only you · 1", a signed-out ChatGPT sign-in |
 | `night-needs-only-you` | `needs-only-you` with the night look on |

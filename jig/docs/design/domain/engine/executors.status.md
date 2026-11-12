@@ -2,8 +2,8 @@
 
 2026-11-12. Where the tree's code lags or departs from [executors.md](executors.md).
 
-- **Not yet:** 4: a standing task's finish parked (`../tasks/standing.md`, section 2) [in flight: change 103].
-- **Not yet:** 4: a standing task's runs resuming only within a session (`../tasks/standing.md`, section 5) [in flight: change 106].
+- **Not yet:** 4: a standing task's finish parked (`../tasks/standing.md`, section 2).
+- **Not yet:** 4: a standing task's runs resuming only within a session (`../tasks/standing.md`, section 5).
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `README.status.md`, 4.2 and 5.3.
   1: the brief's missing sections remain `briefs.status.md`, 1. 2: what a
