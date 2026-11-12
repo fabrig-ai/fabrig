@@ -6,6 +6,13 @@ Generated from temper-qa's table (`skein/docs/design/runtime/shell.md`, 14.3): a
 
 ## Internal
 
+### `temper-qa run`
+
+- **Set:** internal
+- **Forms:** ``
+- Watch main and triage its landings, one service per QA home.
+- **Notes:** Holds run.lock for its life; reads qa.json once at start.
+
 ### `temper-qa build keep`
 
 - **Set:** internal

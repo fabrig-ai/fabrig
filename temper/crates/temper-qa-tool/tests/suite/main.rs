@@ -4,6 +4,8 @@ mod fuzzy;
 mod home;
 mod ledger;
 mod reference;
+mod run;
+mod world;
 
 use temper_qa_tool::{CaseInput, Ledger, Pages};
 
