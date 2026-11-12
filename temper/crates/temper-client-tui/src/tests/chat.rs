@@ -1,4 +1,4 @@
-//! Chat entries and hand-written frames (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/theme.md).
+//! Chat entries and hand-written frames (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/theme.md).
 use super::{fixtures as f, goldens, printed as p};
 use crate::{
     Scheme, Told, Tui, look,
@@ -131,6 +131,9 @@ struct Input {
     session: bool,
     asking: bool,
     draft: bool,
+    body: Option<&'static [u8]>,
+    draft_title: Option<&'static [u8]>,
+    goal: Option<bool>,
 }
 impl Input {
     fn empty() -> Self {
@@ -146,6 +149,9 @@ impl Input {
             session: false,
             asking: false,
             draft: false,
+            body: None,
+            draft_title: None,
+            goal: None,
         }
     }
 }
@@ -285,8 +291,8 @@ fn root(input: &Input) -> Domain {
                         number: 1,
                         revision: c::Revision { value: 1 },
                         scope,
-                        description: c::DocumentText::complete(text(b"Migration")),
-                        body: c::DocumentText::complete(text(b"# Migration\nMove the cluster.")),
+                        description: c::DocumentText::complete(text(input.draft_title.unwrap_or(b"Migration"))),
+                        body: c::DocumentText::complete(text(input.body.unwrap_or(b"# Migration\nMove the cluster."))),
                         writer: c::NoteAuthor::Task { task: TASK, attempt: ATTEMPT },
                         tasks: List::with_capacity(0),
                         changed: None,
@@ -402,31 +408,86 @@ fn root(input: &Input) -> Domain {
             }),
             d::Request::Unlinked {
                 request:
+                    UnlinkedRequest::Down {
+                        down: Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
+                    },
+            } if input.goal.is_some() => {
+                let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
+                    w::Watch::Forges => wire::forges(
+                        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: f::goal_forges(true), linked: false })
+                            .unwrap(),
+                    ),
+                    w::Watch::Dismissed => {
+                        let mut dismissed = List::with_capacity(wire::DISMISSED);
+                        if input.goal == Some(true) {
+                            dismissed
+                                .push(w::PersonFact::GoalFrom(
+                                    w::GoalFrom::new(
+                                        &w::CEILINGS,
+                                        w::GoalFromParts { project: 1, chat: TASK, goal: 25, at: 1 },
+                                    )
+                                    .unwrap(),
+                                ))
+                                .unwrap();
+                        }
+                        wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap())
+                    }
+                    _ => continue,
+                };
+                Some(jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes },
+                })
+            }
+            d::Request::Unlinked {
+                request:
+                    UnlinkedRequest::Down {
+                        down: Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Chips { .. }) },
+                    },
+            } if input.goal == Some(true) => Some(jig_client::Up::Watched {
+                watch,
+                event: c::WatchEvent::Delivered(c::Delivery::Chips(List::from_boxed(Box::new([f::goal_chip(
+                    task.chip.clone(),
+                )])))),
+            }),
+            d::Request::Unlinked {
+                request:
                     UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Family { record, .. } } },
             } => {
-                let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-                if let w::Read::View(view) = reading.read() {
-                    assert_eq!(view.address(), p::ADDRESS);
-                    let result = match &input.shown {
-                        None | Some(Shown::Asking) => None,
-                        Some(Shown::Failed) => {
-                            Some(jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)))
-                        }
-                        Some(Shown::Drawn(view)) => {
-                            let answer =
-                                w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: *view.clone() }).unwrap();
-                            Some(jig_client::Readout::Family {
-                                family: wire::FORGE,
-                                record: Some(wire::view_answer(&answer)),
-                            })
-                        }
-                    };
-                    match result {
-                        Some(result) => Some(jig_client::Up::ReadDone { read, result }),
-                        None => None,
-                    }
+                if input.goal.is_some() && f::ways_read(&record.bytes) {
+                    Some(jig_client::Up::ReadDone {
+                        read,
+                        result: jig_client::Readout::Family {
+                            family: wire::FORGE,
+                            record: Some(f::draft_setting(true)),
+                        },
+                    })
                 } else {
-                    None
+                    let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
+                    if let w::Read::View(view) = reading.read() {
+                        assert_eq!(view.address(), p::ADDRESS);
+                        let result = match &input.shown {
+                            None | Some(Shown::Asking) => None,
+                            Some(Shown::Failed) => {
+                                Some(jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)))
+                            }
+                            Some(Shown::Drawn(view)) => {
+                                let answer =
+                                    w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: *view.clone() })
+                                        .unwrap();
+                                Some(jig_client::Readout::Family {
+                                    family: wire::FORGE,
+                                    record: Some(wire::view_answer(&answer)),
+                                })
+                            }
+                        };
+                        match result {
+                            Some(result) => Some(jig_client::Up::ReadDone { read, result }),
+                            None => None,
+                        }
+                    } else {
+                        None
+                    }
                 }
             }
             _ => None,
@@ -474,7 +535,7 @@ pub(super) fn reply_root(case: &str) -> Domain {
         working: case == "working" || case == "provisional after",
         question: case == "held question" || case == "walk",
         session: case != "plain chat" && case != "writing draft" && case != "document",
-        draft: case == "document",
+        draft: case == "document" || case == "choices",
         asking: case == "writing draft",
         ..Input::empty()
     })
@@ -510,7 +571,7 @@ fn draw_request(part: Chat, list: Option<foot::Options>, columns: u16, request: 
     view
 }
 fn data(entries: Box<[Entry]>) -> Chat {
-    Chat { to_end: 1, entries, notes: foot::Notes { lines: Box::default(), gave_up: None, log: None } }
+    Chat { to_end: 1, entries, pane: None, notes: foot::Notes { lines: Box::default(), gave_up: None, log: None } }
 }
 struct Row {
     name: &'static str,
@@ -753,6 +814,9 @@ fn the_chat_draws_each_entry() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.as_slice().join("\n"));
+    pane_marks();
+    pane_states();
+    pane_writes();
 }
 
 #[expect(
@@ -904,6 +968,7 @@ fn the_chats_are_their_goldens() {
             .unwrap();
     }
     goldens::check(checks.as_slice());
+    pane_goldens();
     choice_goldens();
 }
 
@@ -959,4 +1024,375 @@ fn agent_markdown_bullets_keep_their_own_mark_at_every_depth() {
             .collect();
         assert_eq!(lines, expected, "growing: {growing}");
     }
+}
+
+// A later edit moves the lines written earlier in the turn before sections are found.
+#[expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "table rows name their line changes")]
+fn pane_marks() {
+    use d::pages::chat::document::NoteChange::{First, Later};
+    let body = b"# A\n\none\n\n## B\n\ntwo\n";
+    for (name, writes, want) in [
+        ("none", vec![], vec![]),
+        ("first", vec![First { lines: 7 }], vec![0, 1]),
+        ("last line", vec![Later { added: 1, removed: 1, first: 7 }], vec![1]),
+        ("removal", vec![Later { added: 0, removed: 1, first: 7 }], vec![1]),
+        ("spans sections", vec![Later { added: 3, removed: 0, first: 4 }], vec![0, 1]),
+        (
+            "moves down",
+            vec![Later { added: 1, removed: 1, first: 4 }, Later { added: 3, removed: 0, first: 1 }],
+            vec![0, 1],
+        ),
+        (
+            "moves up",
+            vec![Later { added: 1, removed: 1, first: 10 }, Later { added: 0, removed: 3, first: 2 }],
+            vec![0, 1],
+        ),
+        ("each once", vec![Later { added: 1, removed: 1, first: 7 }; 2], vec![1]),
+        ("past end", vec![Later { added: u32::MAX, removed: 0, first: u32::MAX }], vec![1]),
+    ] {
+        assert_eq!(crate::marked(body, &writes).as_ref(), want, "{name}");
+    }
+}
+
+#[expect(
+    clippy::disallowed_methods,
+    clippy::too_many_lines,
+    reason = "one table inspects pane states, keys and Markdown roles"
+)]
+fn pane_states() {
+    use d::pages::chat::document::Mode;
+    const BODY: &[u8] = b"# A\n\none\n\n## B\n\ntwo\n\n```mermaid\nflowchart LR\nA --> B\n```\n";
+    for (name, draft, writing, mode, columns, shown, next) in [
+        ("folded", true, false, Mode::Chat, 80, Some(Mode::Chat), Some(Mode::Split)),
+        ("half", true, false, Mode::Split, 80, Some(Mode::Split), Some(Mode::Draft)),
+        ("all", true, false, Mode::Draft, 80, Some(Mode::Draft), Some(Mode::Chat)),
+        ("narrow half", true, false, Mode::Split, 79, Some(Mode::Draft), Some(Mode::Chat)),
+        ("narrow folded", true, false, Mode::Chat, 79, Some(Mode::Chat), Some(Mode::Draft)),
+        ("no draft folded", false, false, Mode::Chat, 80, None, None),
+        ("no draft half", false, false, Mode::Split, 80, None, None),
+        ("no draft all", false, false, Mode::Draft, 80, None, None),
+        ("writing half", false, true, Mode::Split, 80, Some(Mode::Split), Some(Mode::Draft)),
+        ("writing all", false, true, Mode::Draft, 80, Some(Mode::Draft), Some(Mode::Chat)),
+    ] {
+        let mut root = root(&Input {
+            draft,
+            asking: writing,
+            body: Some(BODY),
+            rows: if draft {
+                Box::new([turn(&[note_call(b"note", "Note 1 revision 2 written · +1 −1 · line 7".as_bytes(), false)])])
+            } else {
+                Box::default()
+            },
+            ..Input::empty()
+        });
+        if writing {
+            chat_event(&mut root, Event::Act { action: d::Action::Pages(d::pages::Act::AddDraft) });
+        }
+        chat_event(&mut root, Event::Act { action: d::Action::Pages(d::pages::Act::Mode { mode }) });
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Size { columns });
+        let mut view = view();
+        crate::build(&mut view, &tui, &root, f::NOW, &mut Queue::uncapped());
+        assert_eq!(view.pane_mode(), shown, "{name}");
+        let event = next.map(|mode| crate::Event::Act { act: d::pages::Act::Mode { mode } });
+        assert_eq!(crate::pane_key(&view), event, "{name}");
+        let tree = view.tree();
+        assert_eq!(tree.nodes().iter().any(|n| n.region == Some(look::PANE)), shown == Some(Mode::Split), "{name}");
+        assert_eq!(tree.nodes().iter().any(|n| n.role == Role::Log), shown != Some(Mode::Draft), "{name}");
+        assert!(tree.nodes().iter().any(|n| n.region == Some(look::BOX)), "{name}");
+        let open = shown == Some(Mode::Split) || shown == Some(Mode::Draft);
+        assert_eq!(tree.nodes().iter().any(|n| n.role == Role::Code), draft && open, "{name}");
+        assert!(!tree.nodes().iter().any(|n| n.role == Role::Drawing), "{name}: no pane drawing");
+        if draft && open {
+            assert!(
+                tree.nodes()
+                    .iter()
+                    .any(|n| n.styles.as_slice() == [look::NAME] && f::text(tree, n).as_ref() == b"migration.md"),
+                "{name}"
+            );
+            assert!(
+                tree.nodes()
+                    .iter()
+                    .any(|n| n.styles.as_slice() == [look::SIGNAL] && f::text(tree, n).as_ref() == b"  new"),
+                "{name}: mark"
+            );
+            assert_eq!(
+                tree.nodes().iter().any(|n| n.role == Role::Heading { level: 3 } && f::text(tree, n).as_ref() == b"A"),
+                shown == Some(Mode::Draft),
+                "{name}: half starts at new"
+            );
+        }
+        if writing && open {
+            assert!(tree.nodes().iter().any(|n| f::text(tree, n).as_ref() == b"untitled.md"), "{name}");
+            assert!(
+                tree.nodes()
+                    .iter()
+                    .any(|n| f::text(tree, n).as_ref() == b"The draft appears here as you write it together."),
+                "{name}"
+            );
+        }
+        // Changing the root alone cannot change a key decoded against the last tree.
+        chat_event(&mut root, Event::Act { action: d::Action::Pages(d::pages::Act::Mode { mode: Mode::Chat }) });
+        assert_eq!(crate::pane_key(&view), event, "{name}: last tree");
+        crate::build(&mut view, &tui, &f::signed_out(), f::NOW, &mut Queue::uncapped());
+        assert_eq!(crate::pane_key(&view), None, "{name}: tree replaced");
+    }
+    // The same closed fence remains a drawing in the conversation alone.
+    for mode in [Mode::Chat, Mode::Split, Mode::Draft] {
+        for body in [
+            b"```mermaid\nflowchart LR\nA --> B\n```\n".as_slice(),
+            b"``` mermaid\nflowchart LR\nA --> B\n```\n".as_slice(),
+        ] {
+            let mut root = root(&Input { draft: true, body: Some(body), ..Input::empty() });
+            chat_event(&mut root, Event::Act { action: d::Action::Pages(d::pages::Act::Mode { mode }) });
+            let mut tui = Tui::new(f::ADDRESS);
+            tui.step(Told::Size { columns: 80 });
+            let mut part = chat::read(&root, &tui, &f::words(), f::NOW);
+            part.entries = Box::new([Entry::Agent { words: body.into(), growing: false }]);
+            let view = draw(part, None, 80);
+            let tree = view.tree();
+            assert_eq!(
+                tree.nodes().iter().filter(|n| n.role == Role::Drawing).count(),
+                usize::from(mode != Mode::Draft),
+                "{mode:?}"
+            );
+            assert_eq!(
+                tree.nodes().iter().filter(|n| n.role == Role::Code).count(),
+                usize::from(mode != Mode::Chat),
+                "{mode:?}"
+            );
+        }
+    }
+}
+
+fn note_call(tool: &[u8], outcome: &[u8], failed: bool) -> c::Block {
+    let mut block = call(1, tool, b"{}", failed);
+    if let c::Block::Call(call) = &mut block {
+        call.outcome = Some(text(outcome));
+    }
+    block
+}
+#[expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "write rows format tool outcomes")]
+fn pane_writes() {
+    use d::pages::chat::document::NoteChange::{First, Later};
+    for (name, tool, failed, note, person, want) in [
+        ("note", b"note".as_slice(), false, 1_u64, false, vec![First { lines: 7 }]),
+        ("document", b"document".as_slice(), false, 1_u64, false, vec![First { lines: 7 }]),
+        ("failed", b"note".as_slice(), true, 1, false, vec![]),
+        ("other note", b"note".as_slice(), false, 2, false, vec![]),
+        ("before person", b"note".as_slice(), false, 1, true, vec![]),
+        ("not a writer", b"read".as_slice(), false, 1, false, vec![]),
+    ] {
+        let outcome = format!("Note {note} revision 1 written · 7 lines");
+        let mut rows = vec![turn(&[note_call(tool, outcome.as_bytes(), failed)])];
+        if person {
+            let mut said = words(c::Requester::Person(73), b"Next turn");
+            said.source.position = 2;
+            rows.push(said);
+        }
+        let root = root(&Input { draft: true, rows: rows.into_boxed_slice(), ..Input::empty() });
+        assert_eq!(view::pane::writes(root.pages().chat().unwrap()).as_ref(), want, "{name}");
+    }
+    let mut before = turn(&[note_call(b"note", "Note 1 revision 1 written · 7 lines".as_bytes(), false)]);
+    before.source.position = 1;
+    let mut said = words(c::Requester::Person(73), b"Update B");
+    said.source.position = 2;
+    let mut after = turn(&[
+        note_call(b"note", "Note 1 revision 2 written · +1 −1 · line 7".as_bytes(), false),
+        note_call(b"document", "Note 1 revision 3 written · +2 −1 · line 1\nSaved".as_bytes(), false),
+    ]);
+    after.source.position = 3;
+    after.decoded.as_mut().unwrap().name.number = 2;
+    after.source.line = c::Activity::Turn { reply: 2, attempt: ATTEMPT, turn: 2, read: None };
+    let root = root(&Input { draft: true, rows: Box::new([before, said, after]), ..Input::empty() });
+    assert_eq!(
+        view::pane::writes(root.pages().chat().unwrap()).as_ref(),
+        [Later { added: 1, removed: 1, first: 7 }, Later { added: 2, removed: 1, first: 1 }]
+    );
+}
+
+const PANE_BODY: &[u8] = b"# Raft to vsr\n\nReplace raft with vsr in cowsql.\n\n## 4. Snapshots and state transfer\n\n4.1 cowsql keeps its WAL page format; vsr's checkpoint is the host's.\n\n4.2 A witness keeps the log and never a checkpoint.\n\n## 5. What changes for users\n\n5.1 Nothing in the SQL API.\n";
+const PANE_REQUEST: &[u8] = b"Snapshots: can vsr's state transfer carry cowsql's WAL pages?";
+const PANE_ANSWER: &[u8] = b"Mostly. vsr's checkpoint is the host's to make, so cowsql keeps its page format. I've written it as 4.1 and 4.2, beside.";
+const PANE_QUESTION: &[u8] = b"One point is yours. While a cluster moves, run raft and vsr side by side, or move it at once?\n\n1. Move it at once: no mixed state\n2. Side by side, raft the fallback\n3. Tell me something else";
+
+fn pane_golden(mode: d::pages::chat::document::Mode, columns: u16, linked: bool) -> crate::View {
+    let mut task = task();
+    task.chip.title = c::DocumentText::complete(text(b"Raft to vsr"));
+    let mut root = root(&Input {
+        task: Some(Box::new(task)),
+        session: true,
+        draft: true,
+        body: Some(PANE_BODY),
+        draft_title: Some(b"Raft to vsr"),
+        goal: Some(linked),
+        rows: Box::new([turn(&[note_call(
+            b"document",
+            "Note 1 revision 2 written · +1 −1 · line 7".as_bytes(),
+            false,
+        )])]),
+        ..Input::empty()
+    });
+    chat_event(&mut root, Event::Act { action: d::Action::Pages(d::pages::Act::Mode { mode }) });
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Size { columns });
+    let mut part = chat::read(&root, &tui, &f::words(), f::NOW);
+    part.entries = Box::new([
+        Entry::Said(PANE_REQUEST.into()),
+        Entry::Agent { words: PANE_ANSWER.into(), growing: false },
+        Entry::Run(shared::RunLine {
+            name: b"Read 6 files in vsr, 4 in cowsql".as_slice().into(),
+            description: Some(b"41 s".as_slice().into()),
+            failed: 0,
+            running: false,
+        }),
+        Entry::Agent { words: PANE_QUESTION.into(), growing: false },
+    ]);
+    let mut foot = foot::read(&root, &tui, &f::words(), f::NOW);
+    foot.project = Some(b"cowsql".as_slice().into());
+    foot.closed = Some("Opus 5.5 · xhigh".as_bytes().into());
+    let rule = foot.rule.as_mut().unwrap();
+    rule.project = b"cowsql".as_slice().into();
+    rule.place = b"box".as_slice().into();
+    let composer = foot.composer.as_mut().unwrap();
+    composer.value = b"1".as_slice().into();
+    composer.focus = 1;
+    let mut view = view();
+    view::signed(&mut view, &view::Signed { body: view::Body::Chat(part), foot }, &mut Queue::uncapped());
+    view
+}
+
+#[expect(
+    clippy::disallowed_macros,
+    clippy::too_many_lines,
+    reason = "the rows embed both sizes, themes, pane states and a linked goal"
+)]
+fn pane_goldens() {
+    use d::pages::chat::document::Mode;
+    use skein_ui_screen::{Focus, Size};
+    let rows = [
+        (
+            "chat-pane-folded-80x24-dark",
+            Mode::Chat,
+            Size { columns: 80, rows: 24 },
+            Scheme::Dark,
+            false,
+            include_bytes!("golden/chat-pane-folded-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "chat-pane-folded-80x24-light",
+            Mode::Chat,
+            Size { columns: 80, rows: 24 },
+            Scheme::Light,
+            false,
+            include_bytes!("golden/chat-pane-folded-80x24-light.txt").as_slice(),
+        ),
+        (
+            "chat-pane-folded-110x32-dark",
+            Mode::Chat,
+            Size { columns: 110, rows: 32 },
+            Scheme::Dark,
+            false,
+            include_bytes!("golden/chat-pane-folded-110x32-dark.txt").as_slice(),
+        ),
+        (
+            "chat-pane-folded-110x32-light",
+            Mode::Chat,
+            Size { columns: 110, rows: 32 },
+            Scheme::Light,
+            false,
+            include_bytes!("golden/chat-pane-folded-110x32-light.txt").as_slice(),
+        ),
+        (
+            "chat-pane-half-80x24-dark",
+            Mode::Split,
+            Size { columns: 80, rows: 24 },
+            Scheme::Dark,
+            false,
+            include_bytes!("golden/chat-pane-half-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "chat-pane-half-80x24-light",
+            Mode::Split,
+            Size { columns: 80, rows: 24 },
+            Scheme::Light,
+            false,
+            include_bytes!("golden/chat-pane-half-80x24-light.txt").as_slice(),
+        ),
+        (
+            "chat-pane-half-110x32-dark",
+            Mode::Split,
+            Size { columns: 110, rows: 32 },
+            Scheme::Dark,
+            false,
+            include_bytes!("golden/chat-pane-half-110x32-dark.txt").as_slice(),
+        ),
+        (
+            "chat-pane-half-110x32-light",
+            Mode::Split,
+            Size { columns: 110, rows: 32 },
+            Scheme::Light,
+            false,
+            include_bytes!("golden/chat-pane-half-110x32-light.txt").as_slice(),
+        ),
+        (
+            "chat-pane-all-80x24-dark",
+            Mode::Draft,
+            Size { columns: 80, rows: 24 },
+            Scheme::Dark,
+            false,
+            include_bytes!("golden/chat-pane-all-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "chat-pane-all-80x24-light",
+            Mode::Draft,
+            Size { columns: 80, rows: 24 },
+            Scheme::Light,
+            false,
+            include_bytes!("golden/chat-pane-all-80x24-light.txt").as_slice(),
+        ),
+        (
+            "chat-pane-all-110x32-dark",
+            Mode::Draft,
+            Size { columns: 110, rows: 32 },
+            Scheme::Dark,
+            false,
+            include_bytes!("golden/chat-pane-all-110x32-dark.txt").as_slice(),
+        ),
+        (
+            "chat-pane-all-110x32-light",
+            Mode::Draft,
+            Size { columns: 110, rows: 32 },
+            Scheme::Light,
+            false,
+            include_bytes!("golden/chat-pane-all-110x32-light.txt").as_slice(),
+        ),
+        (
+            "chat-pane-goal-110x32-dark",
+            Mode::Split,
+            Size { columns: 110, rows: 32 },
+            Scheme::Dark,
+            true,
+            include_bytes!("golden/chat-pane-goal-110x32-dark.txt").as_slice(),
+        ),
+    ];
+    let mut views = List::uncapped();
+    for (_, mode, size, _, linked, _) in &rows {
+        views.push(pane_golden(*mode, size.columns, *linked)).unwrap();
+    }
+    let mut checks = List::uncapped();
+    for ((name, _, size, scheme, _, want), view) in rows.iter().zip(&views) {
+        checks
+            .push(goldens::Golden {
+                name,
+                tree: view.tree(),
+                scheme: *scheme,
+                size: *size,
+                background: Some(crate::theme::palette(*scheme)[0].1),
+                focus: Focus::default(),
+                want,
+            })
+            .unwrap();
+    }
+    goldens::check(checks.as_slice());
 }

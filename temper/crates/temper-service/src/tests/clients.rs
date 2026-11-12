@@ -828,6 +828,7 @@ fn ordered_printed_link(number: u32) -> Box<[u8]> {
 fn settings_landing_value() -> temper_engine_domain_forge::settings::Value {
     use temper_engine_domain_forge::{GateLast, GatePattern, settings};
     settings::Value::Rule(settings::LandingRule {
+        sets: Box::new([]),
         pattern: GatePattern {
             segments: Box::new([Box::from(b"forge".as_slice())]),
             last: GateLast::Open(Box::new([])),

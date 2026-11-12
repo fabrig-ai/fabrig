@@ -1,0 +1,46 @@
+[package]
+name = "temper-client-gallery-tool"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+temper-protocol-reaches.workspace = true
+temper-fixtures.workspace = true
+skein-shell.workspace = true
+temper-version.workspace = true
+temper-client-view.workspace = true
+temper-client-domain.workspace = true
+temper-client-protocol-wire.workspace = true
+temper-client-shell-terminal.workspace = true
+jig-client.workspace = true
+skein-lib.workspace = true
+skein-ui.workspace = true
+skein-ui-web.workspace = true
+skein-ui-bundle.workspace = true
+
+[dev-dependencies]
+temper-test-env.workspace = true
+skein-fake-person.workspace = true
+skein-scratch.workspace = true
+
+[lints.rust] # harness: tools/lints/design.md, 2.2
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "allow"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+disallowed_methods = "deny"

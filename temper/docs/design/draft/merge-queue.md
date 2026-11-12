@@ -1,12 +1,12 @@
 # merge-queue: landing by turn as a merge queue
 
-`turn` (`../domain/landing.md`) already proves a candidate, main's tip with a change on top, and fast-forwards main to exactly that commit. This draft makes it a merge queue: one landing per train at a time, a batch of the changes ready when it forms, stacked by merges, one proof at the top, a red narrowed by prefixes, and the proved green prefix landed. It is written for a project of one repository at twenty goals in flight, each landing proved by the project's full suites, and changes as little of `turn` as it can.
+`turn` (`../domain/landing.md`) already proves a candidate, main's tip with a change on top, and fast-forwards main to exactly that commit. This draft makes it a merge queue: one landing per train at a time, a batch of the changes ready when it forms, stacked by merges, one proof at the top, a red narrowed by prefixes, and the proved green prefix landed. It changes as little of `turn` as it can.
 
 ## 1. In one page
 
 - **A train** is a repository and the branch its changes land into (section 3). Each has at most one landing at a time, from its prepare to its last turn. Other ready changes wait in a queue's order: the goal's priority, then the time each became ready, with aging (`../domain/forge/queues.md`). The branch moves only by that landing, so a proof never goes stale on another landing's turn.
 - **A batch is the next landing** (section 4): the changes waiting on a free train, in that order, up to the project's `batch`, joined changes kept whole. A change ready later waits for the next one. A member leaves before its turn when it conflicts, its head moves, it is cancelled, refused or blamed; it keeps its place in the queue.
-- **Stacked by merges** (section 5): a job on a worker merges each member onto the one before it, the first onto the branch's tip, each merge a commit on a branch the landing makes and holds. Member k's commit is the prefix: the tip and members 1 to k. No member's branch is rewritten.
+- **Stacked by merges or squashes** (section 5): a job on a worker combines each member onto the one before it, the first onto the branch's tip, by the train's `combine`: a merge (stock for a repository's main), or a squash, one commit with the merge's tree (stock for any other branch, such as a goal's). Each is a commit on a branch the landing makes and holds. Member k's commit is the prefix: the tip and members 1 to k. No member's branch is rewritten.
 - **One proof, at the top** (section 6): the project's gates dispatched at the last prefix, receipts by key as `turn` keeps them.
 - **A red is narrowed by prefixes** (section 7), with the same gates, to a green prefix and the red one above it: the member that prefix added is repaired and leaves, the green prefix lands, and the members above it go on in the landing's next round.
 - **Each round's turn** (section 8) fast-forwards the branch to its proved prefix by the landing's own pull request; every member in that prefix has landed.
@@ -17,11 +17,10 @@
 - **Built in `turn`:** a landing task per ready change; prepare by the forge's rebase onto main's tip (`../domain/landing.md`, 5.2); keys and receipts (6); gates dispatched at the candidate, runner faults retried (7.1, 7.4); the turn, a fast-forward of main (8); restart recovery (15); views.
 - **Designed in `turn`, not built:** several members in one repository, prepared by a job (4.1, 5.3); a project's prepare and key commands.
 - **What keeps `turn` from being a queue:**
-  - **Proofs run side by side** (7.2) and the first proved lands first (9): at twenty ready changes, each proves at once, one lands, and the rest go stale and prove again, twenty, then nineteen, and so on.
+  - **Proofs run side by side** (7.2) and the first proved lands first (9): with n ready changes, each proves at once, one lands, and the rest go stale and prove again: n, then n-1, and so on.
   - **Independent changes never share a landing:** members join only by `with` or a dependency, and two live landings never merge (4.1).
   - **A red with several members in a repository** cannot say which member caused it (7.3).
   - **The forge's rebase replays a goal's branch** commit by commit: a branch that took its changes and main by merges meets again, at each landing, the conflicts its merges settled.
-- **What the project needs** (2026-11-11, at ten to seventeen goals): a goal ready to land every eight to eleven minutes at twenty goals; a full proof of four to five minutes, one at a time on a shared host; one red in about seventeen landings, by a previous batching queue's record on this repository; a quarter of goals meeting a conflict with main.
 
 ## 3. Trains
 
@@ -68,8 +67,10 @@
 
 ### 5.1 The merge train
 
-- **Every landing prepares by a job** (`../domain/landing.md`, 5.3; `../domain/worker.md`, 4.4), a stack of one included, temper's own when the project names no prepare command: from the round's base, for each member in order, a merge of the member's head, no fast-forward, the branch's line as the first parent, the member's title and change in the message.
-- **Each merge is a prefix,** pushed by the worker to a branch of its own that the landing makes and holds, named per landing, round and member under the landing's branch name (`../domain/forge/branches.md`), each push expecting the branch new. The last is the round's candidate. The job writes under the landing's hold, as a pin-only member's does (`../domain/landing.md`, 4.1).
+- **Every landing prepares by a job** (`../domain/landing.md`, 5.3; `../domain/worker/jobs.md`), a stack of one included, temper's own when the project names no prepare command: from the round's base, for each member in order, its head combined onto the prefix below by the train's `combine` (10):
+  - **merge:** a merge of the member's head, no fast-forward, the branch's line as the first parent, the member's title and change in the message;
+  - **squash:** one commit whose tree is that merge's, its only parent the prefix below, its message the member's title, then its change, pull request and head as trailers.
+- **Each such commit is a prefix,** pushed by the worker to a branch of its own that the landing makes and holds, named per landing, round and member under the landing's branch name (`../domain/forge/branches.md`), each push expecting the branch new. The last is the round's candidate. The job writes under the landing's hold, as a pin-only member's does (`../domain/landing.md`, 4.1).
 - **Its report** gives, per member, the prefix commit it pushed, or the conflict that made it skip the member (5.2); and each prefix's keys where the project's key command runs in it, otherwise the top reads the prefixes' trees and computes them (`../domain/landing.md`, 6.1).
 - **Prepares again** only from the first prefix that changed, a new round's branches beside the old. The prefixes below it keep their commits, keys and receipts.
 - **Lost or partial:** a job let go is found again by the branches it named and their expected trees, and what it didn't push is pushed afresh; a job's own failure is the project's, not a member's, as `../domain/landing.md`, 5.3 says.
@@ -83,9 +84,11 @@
   - **With an earlier member only:** nothing to resolve yet. It waits, first in line; once that member has landed, its conflict is with the branch, and the next landing's job finds it so.
 - **The project's `merge_job`** (`../domain/landing.md`, 13.1), where named, settles the conflicts its rules know inside the job before a member leaves; a member whose conflict it settled has no clean carry-over (6).
 
-### 5.3 Why merges, not rebases
+### 5.3 Why merges or squashes, not rebases
 
 A goal's branch takes its changes and main's tip by merges, and its resolutions live in those merges. A rebase replays its commits one by one onto the new base, meeting those conflicts again, and rewrites a branch its goal may be delivering to. A merge of the branch's head meets only the conflicts its tree has with the base, and rewrites nothing; main's first-parent line gains one landing merge per member, and the goal's branch, child and catch-up merges included, stays reachable below it. Keys are trees (`../domain/landing.md`, 6.1), so the merge's commits cost no receipt. `../domain/landing.md`, 5.2's forge rebase is no longer used by a project that lands this way.
+
+**Merge or squash** follows whether a member goes on after it lands. A goal's branch does (its close-out, repairs, follow-ups), so it merges onto main and stays an ancestor of it. A change into a goal's branch ends when it lands, so it squashes: the goal's branch reads one commit per change, and no member's own commits, work in progress among them, reach it. A squash meets the same conflicts as the merge it stands for, and its tree, so its keys, are the same. A member that brings commits its branch's own upstream already has (a catch-up of main made as a change into a goal's branch) is merged whatever `combine` says, so that those commits stay the upstream's.
 
 ## 6. Proof
 
@@ -126,7 +129,7 @@ The red, the prefix it was found at and the green one below it, the members that
 
 - **First, freshness:** the branch's tip and each member's head in the prefix are read afresh; one that moved makes the round stale (7.3), and the turn goes.
 - **Then the branch fast-forwards to the proved prefix,** by the merge of the round's own pull request from that prefix's branch into it, fast-forward only (`../domain/landing.md`, 8, on Forgejo), judged by the landing rules at that commit (6).
-- **Each member in the prefix lands:** the branch contains its head. Its change's landed commit is its prefix, the merge that brought it, and the change is kept for its goal as any landed change is (`../domain/forge/change/README.md`, 7). Its pull request reads merged, by the forge's detection of a manual merge, which adoption checks (`../domain/landing.md`, 13.2).
+- **Each member in the prefix lands:** the branch contains its head, merged, or its squash commit. Its change's landed commit is its prefix, the commit that brought it, and the change is kept for its goal as any landed change is (`../domain/forge/change/README.md`, 7). Its pull request reads merged: a merged member's by the forge's detection of a manual merge; a squashed member's recorded merged at its squash commit by the landing, as the forge lets a manual merge be recorded. Adoption checks both (`../domain/landing.md`, 13.2). A squashed member's branch is done once it lands: later work on its goal starts from the goal's branch.
 - **Recorded before the next round:** the landed members and the round's result; a merge found done at a restart, with its record missing, is recorded, never merged again.
 - **No empty turn:** a round whose green prefix is its base lands nothing and goes straight to the next round.
 - **After the last round,** the landing's branches are released and the train frees (section 3).
@@ -141,6 +144,7 @@ The red, the prefix it was found at and the green one below it, the members that
 ## 10. Settings, store and bounds
 
 - **`batch`:** a member of kind 4, a project's landing (`../domain/landing.md`, 13.1): the most changes a landing into a repository's main forms with; stock 1.
+- **`combine`:** a member of kind 4: how a train combines a member onto its stack (5.1), `merge` or `squash`, one value for trains into a repository's main and one for trains into any other branch; stock `merge` and `squash`.
 - **The store:** a `Landing` keeps its rounds (base, members and heads, prefix commits, branches), each member's outcome and why it left, the search's bounds, and the train's fallback (7.2) while it lasts. In place, before the first release (`../protocol/store.md`, section 2).
 - **Bounds** (`../protocol/configuration/limits.md`): `landing_members` bounds a landing's changes, at least `batch`; a unit past it is refused (4.1). `landings` counts live landings, one per train. Ended changes stay while `../domain/forge/change/README.md`, 7 keeps them, and a landing's row goes only once each member's outcome is on its change: bounds cover live and retained work, never all of history.
 - **Steps' bounds:** the prepare job's timeout, a run's, a probe's; past one, a hold (section 9).
@@ -153,7 +157,7 @@ The project's own choices, in its configuration and its repository, not temper's
 - **A train into a branch other than main** may have no gate, each delivery's own check standing for it.
 - **No pull request CI into a branch its gates prove:** the gate is the landing's (`../domain/landing.md`, 7.1).
 - **The forge,** as adoption checks (`../domain/landing.md`, 13.2): fast-forward merges allowed, detection of a manual merge on, and the branch's rules met by the landing's pull request.
-- **`by` `turn` and `batch`** (section 10).
+- **`by` `turn`, `batch` and `combine`** (section 10).
 - **Tiers after landing** that run only what a train's gate already ran add nothing for its branch (`../domain/after-landing.md`, 2).
 
 ## 12. Acceptance
@@ -163,6 +167,7 @@ Focused and fuzzy suites alone, in the forge world and the engine's domain stori
 - trains: one landing per train, the rest waiting in order, aging included; formation when a train is idle and at a restart; a goal's branch one at a time; a closure across repositories refused;
 - forming: the cap, the first unit past it, units whole, sealed against a later change or dependency;
 - the merge train's job: prefixes on new branches, the report, a lost job found again, preparing again from the first changed prefix, branches cleaned up;
+- combining: a merge train and a squash train over the same members give the same trees and keys; a squash commit's single parent, message and trailers; a member bringing its branch's upstream merged under `squash`; a squashed member's pull request recorded merged at its commit;
 - leaving: a conflict with the branch (a resolution), with a peer (waits, first in line), a moved head, a refusal, a cancel; the unit leaving whole; the rest proving again;
 - judgement gates: a `clean` verdict carried, an `exact` one asked at the prefix;
 - a red: a round of one repaired; the search's boundary, the green prefix landed, the units above it in the next round, no empty turn, at most `ceil(log2(n))` probes; a late outcome ignored by the next round; the fallback before the search;
@@ -178,7 +183,7 @@ Focused and fuzzy suites alone, in the forge world and the engine's domain stori
 
 Each is written and compiled in its milestone, the first in M2 and the second in M3, and runs in the process tier after it lands.
 
-After landing, on a staging deployment before the project's own: goals land through it at the project's volume.
+After landing, on a staging deployment: goals land through it at a realistic volume.
 
 ## 13. Later
 

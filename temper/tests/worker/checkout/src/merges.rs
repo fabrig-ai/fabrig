@@ -766,7 +766,7 @@ fn expected_merge_message(head: u64) -> String {
 }
 
 /// A goal starts on main (g), brings its run head in, and writes only topic (r)
-/// (temper/docs/design/domain/worker.md, 5).
+/// (temper/docs/design/domain/worker/checkouts.md).
 #[expect(clippy::too_many_lines, reason = "one scenario holds the goal start, its pin and delivery together")]
 pub fn goal_later_run(case: Case) {
     let mut world = World::new(73, case, 64);

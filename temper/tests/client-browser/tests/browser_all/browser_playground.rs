@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
-use temper_client_browser_world::{WITHIN, chromium};
+use temper_client_browser_world::{WITHIN, chromium, playground_serve};
 use temper_playground::{programs, story};
 
 struct Walk {
@@ -129,7 +129,7 @@ fn story_a_walks_on_the_built_playground() {
     let downloads = scratch.path().join("downloads");
     fs::create_dir(&downloads).expect("downloads directory");
     let setup = Setup {
-        server: env!("CARGO_BIN_EXE_playground-serve").into(),
+        server: playground_serve(),
         args: vec![out.clone().into_os_string()],
         restart: vec![],
         printed: Printed { sent: Sent::Page, prefix: b"http://127.0.0.1:", on: Output::Stdout, names: Names::Url },

@@ -21,18 +21,18 @@
 //!   a [`Request::Decode`] is answered by one [`Event::Decoded`] and a
 //!   [`Request::Encode`] by one [`Event::Encoded`], each in the order it went
 //!   out; a [`Request::Fact`] by one [`Event::Activity`], best effort, as
-//!   facts are (`domain/worker.md`, section 7).
+//!   facts are (`domain/worker/README.md`, section 6).
 //! - io's agent processes and their channels, as smith's host domain defines
 //!   them (`smith_host_domain::process`), carried whole: each of its requests
 //!   is ended by the terminal its documentation names. A piece of a run's
 //!   live content on a channel comes on its own, as [`Event::Live`], best
-//!   effort (`domain/worker.md`, section 7).
+//!   effort (`domain/worker/README.md`, section 6).
 //! - io's git and file operations, as the checkout defines them
 //!   (`temper_worker_domain_checkout::git`): a [`Request::Io`] is ended by one
 //!   [`Event::Done`], with `Cancelled` if a [`Request::CancelIo`] won its
 //!   race.
 //! - The job capability's file and process operations
-//!   (temper/docs/design/domain/worker.md, 4.4): [`Request::Job`] carries
+//!   (temper/docs/design/domain/worker/jobs.md): [`Request::Job`] carries
 //!   only operations, and [`Event::Job`] carries their terminals. Paths are
 //!   relative to the worker root, as the checkout's `workspaces/<token>`
 //!   paths are; the protocol layer resolves them beneath that root.
@@ -41,7 +41,7 @@
 //! says [`Request::Stop`] once, when it has no agent, hand-out or workspace
 //! left, and either no run and the engine has every turn and answer, or, the
 //! engine out of reach past the grace, no run left to answer, so that it
-//! gives up the turns and answers it keeps, counted (`domain/worker.md`,
+//! gives up the turns and answers it keeps, counted (`domain/worker/README.md`,
 //! section 2). The facts still out to be decoded do not hold it: they are
 //! counted dropped.
 //!
@@ -73,7 +73,7 @@ pub enum Event {
     /// checkout is keyed by; the root names the items to the hub itself.
     Assign { assignment: host::Assignment, items: Result<wire::Workspace, wire::Undecodable> },
     /// A job with the service's decoded workspace items and command spec
-    /// (temper/docs/design/domain/worker.md, 4.4).
+    /// (temper/docs/design/domain/worker/jobs.md).
     AssignJob {
         job: host::JobAssignment,
         items: Result<wire::Workspace, wire::Undecodable>,

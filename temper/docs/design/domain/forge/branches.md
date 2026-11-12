@@ -67,7 +67,7 @@ it too. This uses the retained change and branch records, with no new
 ancestry read (2026-11-04).
 
 A task's saved work is named by the set its task's record keeps of the
-repositories a next attempt would resume from (`../worker.md`, section 5). As
+repositories a next attempt would resume from (`../worker/checkouts.md`). As
 its task's release begins, each branch of that set becomes a hold of the
 closing task, with no writer, and goes as any hold does: deleted, a branch
 already gone counting as deleted (skein's `forge/client.md`, section 7);
@@ -193,7 +193,7 @@ section 6).
   1. **Close,** where the goal holds a goal branch and its project names
      a `close_job` (`../../protocol/configuration/engine.md`): a change
      into the goal's branch whose producer is the close job, kind 4
-     (`../worker.md`, 4.4), as a catch-up's is the merge job: its bytes
+     (`../worker/jobs.md`), as a catch-up's is the merge job: its bytes
      parameter 17 the close request (`../../protocol/tooling.md`, 4.2),
      naming the goal and each change of the goal's tree whose landing
      branch is the goal's branch, with how each ended, the closer's own
@@ -329,7 +329,7 @@ undrifted, is a **design writer** of it: its workspace starts at g's tip
 (or its saved work, or, where its run branch holds a head g lacks, g's
 tip with that head merged in) and names g as both its push branch and
 its landing branch, which the worker takes as a design delivery
-(`../worker.md`, section 5): Markdown only, g's moved tip merged first, a
+(`../worker/checkouts.md`): Markdown only, g's moved tip merged first, a
 fast-forward never forced. Its repository's other writes are as before.
 
 - **Its first run among them.** A goal's run prepared while its goal
@@ -382,3 +382,12 @@ fast-forward never forced. Its repository's other writes are as before.
   producer delivers its change's branch, and its design reaches g by
   that change's pull request, as any change's does. A push to g from
   anywhere but a design writer holds as drift (`change/README.md`, 3).
+
+## 4. Open questions
+
+- **Saved branches outside the task's saved set** (`README.md`, 11): a terminal the
+  engine never heard, a repository no longer in the set, or full holds at
+  close can leave a branch on the forge. Finding these needs a branch
+  inventory beyond the set a next attempt resumes from. Default: manual
+  deletion or deployment retention; a failed descendant's known saved
+  work stays with its root until that root closes.

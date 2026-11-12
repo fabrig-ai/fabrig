@@ -2035,6 +2035,11 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
             address.put(b"/files").expect("measured files suffix");
             address.finish()
         };
+        let mut sets = List::with_capacity(6);
+        for set in row.sets {
+            sets.push(w::ApprovalSet::new(limits, w::ApprovalSetParts { number: set.number, name: set.name }).ok()?)
+                .ok()?;
+        }
         rows.push(
             w::ApprovalRow::new(
                 limits,
@@ -2055,13 +2060,28 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
                     role: row.role,
                     required: row.required,
                     counted: row.counted,
-                    behind: row.behind,
+                    sets,
                     whole: row.whole,
                     yours: match row.yours {
                         root::YourReview::Counts => w::ApprovalYours::Counts,
                         root::YourReview::NoAccount => w::ApprovalYours::NoAccount,
                         root::YourReview::TooFew => w::ApprovalYours::TooFew,
                         root::YourReview::OtherRole => w::ApprovalYours::OtherRole,
+                    },
+                    size: match row.size {
+                        Some(size) => Some(
+                            w::ApprovalSize::new(
+                                limits,
+                                w::ApprovalSizeParts {
+                                    files: size.files,
+                                    additions: size.additions,
+                                    deletions: size.deletions,
+                                    cut: size.cut,
+                                },
+                            )
+                            .ok()?,
+                        ),
+                        None => None,
                     },
                 },
             )

@@ -120,6 +120,7 @@ enum Role {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Read {
+    Count,
     Text,
     Login,
     Name,
@@ -356,6 +357,9 @@ fn document_fields(node: Node) -> &'static [Field] {
         Node::PullObject => {
             const {
                 &[
+                    optional(b"changed_files", Read::Count),
+                    optional(b"additions", Read::Count),
+                    optional(b"deletions", Read::Count),
                     field(b"number", Read::Number),
                     field(b"state", Read::Text),
                     optional(b"merged", Read::Boolean),
@@ -924,7 +928,9 @@ impl Walk {
                             Read::Body => Request::Text(self.limits.body_bytes.min(self.limits.string_bytes)),
                             Read::LongBody => Request::Text(self.limits.body_bytes),
                             Read::Presence => Request::Text(0),
-                            Read::Payload | Read::Number | Read::Boolean | Read::Container(_) => Request::Next,
+                            Read::Payload | Read::Count | Read::Number | Read::Boolean | Read::Container(_) => {
+                                Request::Next
+                            }
                         }));
                     }
                 }
@@ -967,6 +973,15 @@ impl Walk {
                 };
             }
             Read::Container(child) => return self.start(child, &event),
+            Read::Count => {
+                if let Event::Token(Token::Number(text)) = &event
+                    && bytes::decimal(text).is_some()
+                {
+                    self.want = Want::Key;
+                    return Ok(scalar(node, field.key, Token::Number(text.clone())));
+                }
+                return self.unknown(&event, 0);
+            }
             Read::Presence => {
                 self.unknown(&event, 0)?;
                 return Ok(scalar(node, field.key, Token::True));
@@ -1038,6 +1053,7 @@ impl Walk {
                     | Read::LongBody
                     | Read::LongText
                     | Read::Reason
+                    | Read::Count
                     | Read::Number
                     | Read::Boolean
                     | Read::Payload
@@ -1067,6 +1083,7 @@ impl Walk {
                 | Read::LongBody
                 | Read::LongText
                 | Read::Reason
+                | Read::Count
                 | Read::Number
                 | Read::Boolean
                 | Read::Payload

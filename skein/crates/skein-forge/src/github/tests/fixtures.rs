@@ -167,6 +167,9 @@ pub fn pull(number: u64) -> super::super::document::Pull {
         head_commit: super::super::id::commit(SHA).unwrap(),
         base_commit: super::super::id::commit(OTHER_SHA).unwrap(),
         reviewers: Box::from([9, 10]),
+        changed_files: None,
+        additions: None,
+        deletions: None,
     }
 }
 pub fn context(check: crate::api::Check) -> super::super::document::Context {

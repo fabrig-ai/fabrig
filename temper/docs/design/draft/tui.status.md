@@ -1,18 +1,18 @@
 # tui: status
 
-2026-11-09. Where the design lags or departs from [tui.md](tui.md).
+2026-11-11. Where the design lags or departs from [tui.md](tui.md).
 
 - **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags; the side pane and drafting are
-  `../client/tui/pages.md`, *A design session*, as `surfaces.md`, 11.2
+  `../client/tui/pages/design-session.md`, 1, as `surfaces.md`, 11.2
   revises them. 3 and 7: of the direction, a need from elsewhere on a chat, the line above its box, the
   web's hand-off, a page's terminal command to copy, and the project
   chosen from a checkout; approval between hosts and managing sign-ins;
   all await the user's refinement, and `../client/README.md`, section 5
   defers them. The needs walked from the launchpad, by `n` or `/needs`,
-  and `/open`, the hand-off to the web, are `../client/tui/pages.md`,
+  and `/open`, the hand-off to the web, are `../client/tui/pages/README.md`,
   as `surfaces.md`, 11.1 and 11.4 take them into v0.1.0. `tui.md`, section 3's launchpad, a chat read as the browser's chat
   terminal reads it, and the terminal's commands are
-  `../client/tui/README.md`, 3 and `../client/tui/pages.md` and `../client/tui/theme.md` and `../client/tui/README.md`, 4, with what they leave out in its
+  `../client/tui/README.md`, 3 and `../client/tui/pages/README.md` and `../client/tui/theme.md` and `../client/tui/README.md`, 4, with what they leave out in its
   section 11. Opened call rows, earlier-page loading
   and "Latest ↓", and cards at their calls remain `../client/README.md`,
   section 5's work for temper/tui; the
@@ -36,7 +36,7 @@
     whose sign-in expired, signs in by it with no key pressed, and bare
     `temper`'s address is that file's before the one its directory keeps.
     The risk of a live owner link at rest is recorded as accepted, with
-    its way back (`../client/tui/README.md`, 1 and 2 and `../client/tui/pages.md`): the user's
+    its way back (`../client/tui/README.md`, 1 and 2 and `../client/tui/pages/README.md`): the user's
     decision of 2026-11-07. The file's link is never the printed link:
     the engine keeps two one-time links live, the printed link and the
     file's, each spent once and expiring as the printed link does, and
@@ -54,7 +54,7 @@
     `protocol/client/sign-in.md` and `protocol/client/README.md`, section 12, *Remembering why a
     printed link failed*).
   - 4.1: the local sign-in's expiry/revocation distinction uses a note,
-    because the engine answers both as signed out (`../client/tui/pages.md` and `../client/README.md`, 5
+    because the engine answers both as signed out (`../client/tui/pages/README.md` and `../client/README.md`, 5
     ). The design chosen by `tui-link-colours` notes
     the answer's expiry once the link is live with a party. A sign-in
     ended more than a minute before that expiry notes `SignedOut`, which
@@ -66,15 +66,15 @@
     later work; the original draft's browser and pasted-link paths need
     no such distinction.
   - 4.4 and 5: the TUI draws on the terminal's own colours. Its base is the terminal's default text and background, the palette kept for the accent, dim, faint and good colours, and the focus shown by the accent and its mark with no background of its own; dark or light comes from `COLORFGBG`, else the terminal's answer to an OSC 11 query at start, else dark (`../client/tui/theme.md`; skein's `ui/screen.md`, sections 3 and 8). Frames and goldens keep the terminal's default as a colour of its own, which a journey's page draws in the theme's stand-ins (`../client/tui/journeys.md`, 6.4): the user's decision of 2026-11-07, designed by the cut of `tui-link-colours`.
-  - 4.1: on the sign-in screen `q` is a character of the pasted link's field, which has the focus there, so Ctrl+C closes it (`../client/tui/pages.md`): decided by the cut of `tui-connected`, 2026-11-07. Once signed in, `q` types in the box, and Ctrl+C or `/quit` closes (below).
-  - 4.1 and 4.3: once signed in, the TUI opens on the launchpad, not on the first screen's two lines, "Connected to HOST:PORT as PARTY" and "Projects: ...", and its "q to quit" goes: the box has the focus, `q` types in it, and Ctrl+C or `/quit` closes. From the launchpad's box a question asks Ask temper and opens its chat (`../client/tui/README.md`, 3 and `../client/tui/pages.md` and `../client/tui/theme.md` and `../client/tui/README.md`, 4): the user's request of 2026-11-08, the look request `tui-launchpad` (its frames 01 to 04 and their message).
-  - 3: as that request draws them, the commands are the browser's chat terminal's, `/chats` where this section has `/resume`; the quiet line says the model and effort and the link's state, not the account; and the confirmation's list puts the recommended choice first and "Tell it something else" last with no "Later", as this section asks, where the browser's terminal keeps the choices' order (`../client/tui/pages.md`): the user's request of 2026-11-08.
+  - 4.1: on the sign-in screen `q` is a character of the pasted link's field, which has the focus there, so Ctrl+C closes it (`../client/tui/pages/README.md`): decided by the cut of `tui-connected`, 2026-11-07. Once signed in, `q` types in the box, and Ctrl+C or `/quit` closes (below).
+  - 4.1 and 4.3: once signed in, the TUI opens on the launchpad, not on the first screen's two lines, "Connected to HOST:PORT as PARTY" and "Projects: ...", and its "q to quit" goes: the box has the focus, `q` types in it, and Ctrl+C or `/quit` closes. From the launchpad's box a question asks Ask temper and opens its chat (`../client/tui/README.md`, 3 and `../client/tui/pages/README.md` and `../client/tui/theme.md` and `../client/tui/README.md`, 4): the user's request of 2026-11-08, the look request `tui-launchpad` (its frames 01 to 04 and their message).
+  - 3: as that request draws them, the commands are the browser's chat terminal's, `/chats` where this section has `/resume`; the quiet line says the model and effort and the link's state, not the account; and the confirmation's list puts the recommended choice first and "Tell it something else" last with no "Later", as this section asks, where the browser's terminal keeps the choices' order (`../client/tui/pages/README.md`): the user's request of 2026-11-08.
   - 3, and the look request `tui-launchpad` of 2026-11-08: with no project the
     box takes commands alone, rather than still asking temper, because
-    template 5 needs a project (`../client/tui/pages.md`). No engine
+    template 5 needs a project (`../client/tui/pages/README.md`). No engine
     fact or projectless chat was added. The newest live chat has no
     ", draft" suffix because Home reads no document; a design session's
-    row says ", a design session" (`../client/tui/pages.md`). The shared Home state says "waiting on you", and the
+    row says ", a design session" (`../client/tui/pages/README.md`). The shared Home state says "waiting on you", and the
     shared running line says "✦ Working", rather than the frames'
     "waiting on your words" and "✦ working", so both clients use their
     shared words. Active commands carry the focus mark and accent over
@@ -96,9 +96,7 @@
     landing account's explained differences: the quiet line names a
     failing step as the box names it ("forgejo-3 restarting"), where the
     request's frame 05 has "forge restarting", and `/log` shows the box's
-    own lines as it wrote them, where the frame's are hand-made; its
-    journey is not recorded, since `again` cannot yet start the box in
-    its pseudo-terminal (`../client/tui/journeys.status.md`, 8.3); and
+    own lines as it wrote them, where the frame's are hand-made; its journey recording remains `../client/tui/journeys.status.md`, 8.3; and
     the render check and a real terminal's walk, Linux and macOS, follow
     landing (`../client/README.md`, section 5).
   - 3, 4.4 and 5: the user's requests of 2026-11-08, from a walk on
@@ -114,7 +112,7 @@
     never "✦"; and a chat's title, cut to 20 characters at a word, with
     its number and the engine's place ("box", "box:PORT" or `HOST:PORT`,
     the box told by the engine's link file), is in the rule above the box
-    rather than a top line (`../client/tui/README.md`, 2 to 3 and `../client/tui/pages.md` and `../client/tui/theme.md`). The
+    rather than a top line (`../client/tui/README.md`, 2 to 3 and `../client/tui/pages/README.md` and `../client/tui/theme.md`). The
     landing account's explained differences: the file does not tell a box
     from `temper serve` run alone, which reads as a box too, where the
     request names "box" for a temper box; the box starting the TUI in
@@ -136,10 +134,10 @@
     run; the command that closes the TUI is `/quit`, `/exit` taking it
     still, unlisted, where 4.1 closes by `q` or Ctrl+C; and a one-line
     notice stands 6 seconds at the right end of the quiet line
-    (`../client/tui/README.md`, 3 and `../client/tui/pages.md` and `../client/tui/theme.md` and `../client/tui/README.md`, 4 and `../client/tui/box.md`). Where the request's
+    (`../client/tui/README.md`, 3 and `../client/tui/pages/README.md` and `../client/tui/theme.md` and `../client/tui/README.md`, 4 and `../client/tui/box.md`). Where the request's
     "in a narrow window the notice goes before the quiet line's own
     words" reads two ways, the design draws the notice first, at the
     row's start, and cuts the line's own words after it
-    (`../client/tui/pages.md`, *The notice*).
+    (`../client/tui/pages/README.md`, 1, *The notice*).
 - **Open:**
   - 3: a need from elsewhere on a chat, the web's hand-off and a checkout's project, refined on recorded frames as the launchpad and a chat were.

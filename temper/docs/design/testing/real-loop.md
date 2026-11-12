@@ -49,7 +49,7 @@ in the lower world that owns it, never here.
   and landed (`suite::fuzzy::repair`, below); and GitHub's, one per feature of a
   GitHub forge (below).
 - **The first run's green light,** one story (`suite::fuzzy::green_light`), on
-  the first run's cast (`../client/mockups/README.md`, "The first
+  the first run's cast (`../client/web/mockups/README.md`, "The first
   run"): the person asks their chat T1 "Add CSV export to widget"; T1
   delegates the work T2, an agent holding the change's authority; T2
   asks T1 whether to go ahead before it delegates anything, and jig
@@ -162,7 +162,7 @@ in the lower world that owns it, never here.
   (`../draft/v0.1.0.md`, section 3): the passing walk replayed on the
   first run's cast.
   - **Its scripts are the walk's,** a fake LLM document made from the
-    passing run's transcripts by `tools/twin` (`fakes.md`, 1), never invented by
+    passing run's transcripts by `bin/temper-twin` (`fakes.md`, 1), never invented by
     hand: each agent of the walk says what the real model said, turn by
     turn. A structured adaptation preserves every other turn, is validated
     by the twin, and has its provenance recorded in the fixtures' README. Its forge is the fake's, seeded as the walk's box seeded

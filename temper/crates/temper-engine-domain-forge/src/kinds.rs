@@ -56,6 +56,12 @@ impl Domain {
         items: &[settings::Asked],
         out: &mut Queue<Request>,
     ) {
+        let mut before_classes = Map::with_capacity(env.limits.judge_projects);
+        for item in items {
+            if item.kind == 8 && !before_classes.contains_key(&item.scope) {
+                before_classes.insert(item.scope, self.project_classes(item.scope).sets).expect("bounded projects");
+            }
+        }
         let before = core::mem::replace(
             &mut self.held_rules,
             settings::HeldRules {
@@ -77,7 +83,19 @@ impl Domain {
                 continue;
             }
             let Some(repository) = self.repositories.get(&row.repository) else { continue };
-            if held_for_project(&before, repository.project) != self.landing_rules(repository.project) {
+            let rules = self.landing_rules(repository.project);
+            let classes_changed = match before_classes.get(&repository.project) {
+                Some(sets) => *sets != self.project_classes(repository.project).sets,
+                None => false,
+            };
+            let mut by_path = false;
+            if classes_changed {
+                for held in &rules {
+                    by_path |=
+                        !held.rule.sets.is_empty() && crate::covers_branch(&held.rule.pattern, repository, &row.base);
+                }
+            }
+            if held_for_project(&before, repository.project) != rules || by_path {
                 wake.push(*task).expect("one wake per live change");
             }
         }

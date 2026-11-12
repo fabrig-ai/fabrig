@@ -1,4 +1,4 @@
-//! Words shared by the browser and TUI (temper/docs/design/client/tui/pages.md, Its words).
+//! Words shared by the browser and TUI (temper/docs/design/client/tui/pages/README.md, Its words).
 /// A run of calls (temper/docs/design/client/pages/README.md, its calls).
 pub use crate::pages::chat_line::Run;
 /// The terminal's vocabulary (temper/docs/design/client/pages/README.md, A chat's terminal).
@@ -33,13 +33,13 @@ pub fn home_headline(w: &Words, name: &[u8], facts: &Facts, now: Wall) -> (Box<[
 pub fn chat_state(line: &c::TaskLine, me: &c::Me, w: &Words) -> Box<[u8]> {
     crate::pages::chats::status_name(line, me, w)
 }
-/// A need's kind (temper/docs/design/client/tui/pages.md, Needs you).
+/// A need's kind (temper/docs/design/client/tui/pages/launchpad.md, 1, Needs you).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum NeedKind {
     Question,
     Other,
 }
-/// A need's line (temper/docs/design/client/tui/pages.md, Needs you).
+/// A need's line (temper/docs/design/client/tui/pages/launchpad.md, 1, Needs you).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct NeedLine {
     pub kind: NeedKind,

@@ -22,9 +22,11 @@ all. Then temper's:
    effects, topics and landings as news, the change procedure and its
    requirements, landing queues, updates, branches, issues, and the ways
    temper takes part in what others own.
-3. **worker.md:** the worker: its root on jig's hub and smith's host
+3. **worker/README.md:** the worker: its root on jig's hub and smith's host
    domain, the items an assignment gives a run's workspace, and the
    checkout.
+   - `worker/checkouts.md`: workspaces, preparing, delivering and saving, and open questions.
+   - `worker/jobs.md`: job kinds, commands and failure diagnostics.
 4. **agent/README.md:** what temper fills in of smith's agent: the charter, the
    host tools, result contracts, conventions and the agents temper runs.
 5. **../testing/README.md:** how temper is tested, on skein's testing strategy
@@ -54,9 +56,9 @@ temper-engine-domain                       the root (root.md)
 └── temper-engine-domain-trials            a model's trials (trial.md)
 
 temper's worker
-temper-worker-domain                       the worker's root (worker.md)
+temper-worker-domain                       the worker's root (worker/README.md)
 ├── jig-domain-host                        jig's hub (jig's domain/hosts.md)
-├── temper-worker-domain-checkout          the checkout (worker.md, section 5)
+├── temper-worker-domain-checkout          the checkout (worker/checkouts.md)
 └── smith-host-domain                      smith's agent processes (agent.md)
 ```
 
@@ -90,7 +92,7 @@ temper-worker-domain                       the worker's root (worker.md)
   `jig's domain/connectors.md, 12`.
 - **Facts about Forgejo and git** are stated as what temper relies on;
   the conformance's `facts.txt` (skein's `testing/fakes/forge.md`, section 7) and
-  `tools/git-transcripts/facts.txt` hold the evidence, named by fact.
+  `crates/temper-git-transcripts-tool/facts.txt` hold the evidence, named by fact.
 - **Each document** says in one page what it is, then its structure, its
   parts, what it owes and is owed below the domain, its world, and what
   is open. It states the contract; where the code lags or departs is
@@ -119,11 +121,11 @@ smith's are smith's.
 | goal's issue | one issue per goal, a projection temper writes on the forge and never reads back (forge/issues.md) |
 | hint | a webhook delivery's word that something changed: the forge reads sooner, and believes only what it reads (forge/keeping-up.md, 2) |
 | checks | a repository's own checks, at `.temper/pre-pr`, which a run runs before it delivers (agent/charter.md, 4); for a repository without CI, those it is adopted with, each a gate (forge/change/gates.md, 1) |
-| checkout | a run's workspace on a worker: the repositories' git trees side by side, cached by workstream (worker.md, section 5) |
-| merge in progress | a checkout that starts with the base merged into the change's branch, its conflicts left for a resolution (worker.md, section 5) |
+| checkout | a run's workspace on a worker: the repositories' git trees side by side, cached by workstream (worker/checkouts.md) |
+| merge in progress | a checkout that starts with the base merged into the change's branch, its conflicts left for a resolution (worker/checkouts.md) |
 | push | temper's delivery: the tree the run checked, committed and pushed as a fast-forward, never forced (agent/README.md, section 5) |
 | git identity | a forge's token and commit author for git, one per forge, one of temper's application credentials (`../protocol/credentials.md`, section 4) |
-| failed preparation | a repository the worker could not prepare, for good: the forge lacks it, its branch or its commit, or refused the identity (worker.md, 4.3; root.md, 6.4) |
+| failed preparation | a repository the worker could not prepare, for good: the forge lacks it, its branch or its commit, or refused the identity (worker/README.md, 4.3; root.md, 6.4) |
 | the forge's charters | temper's kind 3: the charters the agent tasks of a change are made under, its producer's by default, its reviews' and its foremen's (`../protocol/configuration/settings.md`, 2; root.md, section 5) |
 | standalone | one engine and one worker in one process on one person's machine (`../protocol/README.md`, section 6) |
 
@@ -170,7 +172,7 @@ What temper decides within jig's design, with where each is answered:
 - **A run's workspace:** its change's repository, or the project's home
   and what its spec names and its saved work, with the project's context
   repositories read only; cached by the change's task for a change's
-  runs (root.md, 6.1; worker.md, 4.1).
+  runs (root.md, 6.1; worker/README.md, 4.1).
 - **Git identities are application credentials,** one per forge, made
   from the forge's records in jig's secrets' store and granted with an
   assignment; the forge's API token or App key, and a Forgejo forge's
@@ -178,7 +180,7 @@ What temper decides within jig's design, with where each is answered:
   `../protocol/credentials.md`, sections 4 and 5).
 - **The checkout is the worker's alone:** cached by workstream, a merge
   in progress as a place to start, a push that commits exactly the tree
-  the run checked, and no credentials on disk (worker.md, section 5).
+  the run checked, and no credentials on disk (worker/checkouts.md).
 - **smith is the agent,** unchanged: temper writes its charters and
   serves its host tools, and its binary runs smith's agent as its
   `agent` command (agent/README.md, sections 1 and 3).
@@ -195,8 +197,7 @@ Each document lists its own; the ones that reach across:
 
 - what temper's root keeps between steps, and the forge's work it does
   that jig's connectors do themselves (root.md, section 12);
-- an assignment naming the head its push must find (worker.md, section
-  12);
+- an assignment naming the head its push must find (`worker/checkouts.md`, section 1);
 - a person's approval posted on the forge as the person (`../README.md`,
   section 8; forge/README.md, section 11);
 

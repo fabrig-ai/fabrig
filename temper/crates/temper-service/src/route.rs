@@ -521,7 +521,7 @@ fn render_host(
     }
 }
 
-/// A job uses the same repository translation as an agent (temper/docs/design/domain/worker.md, 4.4).
+/// A job uses the same repository translation as an agent (temper/docs/design/domain/worker/jobs.md).
 pub(crate) fn job_assignment(
     engine: &Engine,
     channel: skein_lib::Token,
