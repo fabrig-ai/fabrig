@@ -2,6 +2,10 @@
 
 2026-11-12. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+- **Not yet:** 9: `welcome-top/` and `forgejo-link/` are still in the tree, and `welcome-set-up` and `welcome-playground` print the old welcome bar [in flight: change 1991].
+- **Not yet:** 9: `ask-opening/` is still in the tree [in flight: change 1992].
+- **Not yet:** 9: `switcher-links/` is still in the tree, and the prints that draw the rail lack the switcher's phone-only token [in flight: change 1993].
+- **Not yet:** 9: `chat-path/` and `no-terminal-button/` are still in the tree, and `chat-draft` and `welcome-playground` print the old path and ">_" [in flight: change 1994].
 
 
 
