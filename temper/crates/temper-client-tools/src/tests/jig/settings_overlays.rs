@@ -133,3 +133,25 @@ fn stacked_overlays_join_and_conflicts_name_both_files_and_items() {
     let (mut root,call)=submit(vec![input("a.json",&a,vec![]),input("bad.json",br#"{"items":[{"oops":true}]}"#,vec![])]);
     assert!(root.sends.is_empty()); let answer=root.answer(call).expect("bad file"); assert!(String::from_utf8_lossy(&answer.stderr).contains("settings file bad.json item 1: oops: unknown member"));
 }
+#[test]
+fn shown_overlay_marks_and_literal_json_apply_back_and_inventory_origin() {
+    let (root,call)=submit(vec![input("set.json",&file(5,r#"{"charters":["."],"shell":true,"turns":800}"#),vec![fixture("deployment",".")])]);
+    let v=overlay(change(&root,call).items.get(0).expect("overlay")).clone();
+    let (setting,c::SettingValue::Charter(mut charter))=values().remove(0) else {panic!("charter")};
+    charter.resume=false; charter.shell=true; charter.turns=800;
+    charter.instructions=words("Default\n\ncommon\n\ngoal");
+    charter.parts=list([c::CharterPart{on:1,instructions:words("default part")}].into_iter().chain(v.parts.iter().cloned()));
+    let document=c::ReadValue::Setting(Box::new(c::SettingDocument{setting,revision:5,value:Some(c::SettingValue::Charter(charter)),overlay:Some(Box::new(v.clone())),application:None,proposed:None}));
+    let text=read(&["settings","show","charter","3"],document.clone());
+    assert!(String::from_utf8_lossy(&text.stdout).contains("parts[1]: on first; 8 bytes; overlay\n"));
+    golden("settings_charter_overlay",&text.stdout);
+    let json=read(&["settings","show","charter","3","--json"],document);
+    let json=core::str::from_utf8(&json.stdout).expect("JSON");
+    assert!(json.contains("\"value\":"));assert!(!json.contains("charters"));
+    let literal=json.rsplit_once(",\"overlay\":").expect("overlay export").1.strip_suffix('}').expect("document end");
+    let (root,call)=submit(vec![input("copied.json",&file(3,literal),vec![])]);
+    assert_eq!(overlay(change(&root,call).items.get(0).expect("copied")),&v);
+    let inventory=c::ReadValue::Settings(Box::new(c::SettingsDocument{newest:5,settings:list([c::SettingLine{setting,name:None,follows:c::SettingFollows::Overlay,last:Some(5),application:None}]),held:list([]),pending:list([])}));
+    let text=read(&["settings","show"],inventory.clone());assert!(String::from_utf8_lossy(&text.stdout).contains("charter 3: overlay\n"));
+    let json=read(&["settings","show","--json"],inventory);assert!(String::from_utf8_lossy(&json.stdout).contains("\"follows\":\"overlay\""));
+}

@@ -369,8 +369,20 @@ mod settings_input_tests {
     const ITEMS: &[u8] = br#"{"items":[{"setting":{"kind":"rules"},"edit":"reset"}]}"#;
     fn loaded(frame: &Frame) -> &[u8] {
         let Some(Parsed::Call { call, .. }) = &frame.host.call else { panic!("prepared call") };
-        let Some(Some(Values::One(Value::Text(bytes)))) = call.values.first() else { panic!("loaded items") };
-        bytes
+        let value = match call.values.first().expect("items").as_ref().expect("input") {
+            Values::One(value) => value, Values::Many(values) => values.first().expect("one file"),
+        };
+        let Value::SettingsFile(input) = value else { panic!("loaded settings file") };
+        &input.bytes
+    }
+    #[test]
+    fn stdin_relative_overlay_directories_are_refused_before_directory() {
+        let mut frame=Frame::read(&["settings","apply","-","--against","5","--key","overlay"]);
+        frame.input=br#"{"items":[{"setting":{"kind":"charter","number":5},"overlay":{"charters":["relative"]}}]}"#;
+        frame.drain();
+        let text=String::from_utf8_lossy(&frame.stderr()).into_owned();
+        assert!(text.contains("settings file item 1: overlay.charters[0]: \"relative\": is relative, and standard input has no directory; name it absolutely"),"{text}");
+        assert!(!frame.opened(b"directory")); assert_eq!(frame.requests(),0);
     }
     #[test]
     fn settings_acts_read_their_file_before_directory() {

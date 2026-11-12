@@ -5485,6 +5485,7 @@ dependencies = [
  "temper-engine-smith",
  "temper-protocol-reaches",
  "temper-service",
+ "temper-settings-form",
  "temper-worker-domain-world",
 ]
 

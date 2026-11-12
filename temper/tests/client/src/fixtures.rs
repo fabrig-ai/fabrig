@@ -1454,6 +1454,13 @@ pub fn give_with_file(
     words: &[&[u8]],
     bytes: &[u8],
 ) -> u32 {
+    give_with_loaded_file(world, agent, words, &temper_client_tools::jig::call::Value::Text(bytes.into()))
+}
+/// Supply an input-step settings file, including its already-read directories.
+pub fn give_with_loaded_file(
+    world: &mut World<Temper, Joint>, agent: jig_client_kit::harness::ClientId,
+    words: &[&[u8]], input: &temper_client_tools::jig::call::Value,
+) -> u32 {
     use jig_client_kit::harness::Until;
     use temper_client_tools::jig::call::{Value, Values};
     let start = world.now();
@@ -1469,9 +1476,12 @@ pub fn give_with_file(
     let crate::app::Event::Call { mut call, json, .. } = call(words) else { unreachable!() };
     let mut files = 0;
     for slot in &mut call.values {
-        if matches!(slot, Some(Values::One(Value::File(_)))) {
-            *slot = Some(Values::One(Value::Text(bytes.into())));
-            files += 1;
+        match slot {
+            Some(Values::One(value @ Value::File(_))) => { *value = input.clone(); files += 1; }
+            Some(Values::Many(values)) => for value in values {
+                if let Value::File(_) = value { *value = input.clone(); files += 1; }
+            },
+            _ => {}
         }
     }
     assert_eq!(files, 1, "one FILE slot");

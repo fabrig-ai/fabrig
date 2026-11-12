@@ -782,3 +782,18 @@ fn template_resource_fields_use_the_wire_bound_and_describe_the_goal_branch() {
         assert!(found, "field catalogue describes the resource contract");
     }
 }
+
+#[test]
+fn overlay_members_resolve_and_optional_literals_and_directories_decode() {
+    for field in members(Shape::Overlay) {
+        let mut path = skein_lib::Writer::new(8 + field.name.len());
+        path.put(b"overlay.").expect("prefix"); path.put(field.name).expect("member");
+        assert!(same(resolve(&path.finish()).expect("overlay member resolves"), field));
+        if field.name != b"charters" { decodes(Edit::Omit(field)); }
+    }
+    assert_eq!(resolve(b"overlay.model.name").expect("model row").shape, Shape::Model);
+    assert_eq!(resolve(b"overlay.parts[].on").expect("parts row").shape, Shape::CharterPart);
+    let directories = br#"{"items":[{"setting":{"kind":"charter","number":5},"overlay":{"charters":["."]}}]}"#;
+    let items=crate::file::decode(directories,&Limits::standard()).expect("directory form");
+    assert_eq!(crate::overlay::directories(&items).len(),1);
+}
