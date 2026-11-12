@@ -51,13 +51,13 @@ struct State {
     tokens: Vec<(skein_lib::Secret, u64)>,
     users: Vec<(u64, Box<[u8]>)>,
     kept_answer: Vec<u8>,
+    stopped_wall: Option<Wall>,
     points: cuts::Points,
     epoch: u32,
     epoch_floor: Option<u64>,
     transport: Option<temper_fake_git_hosted::Typed>,
     end_after_kill: bool,
     killed: bool,
-    dead_status: String,
     kill_told: bool,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
@@ -91,6 +91,7 @@ impl Observe for Observer {
         let pending = self.inner.before_iterate(service, now, wall);
         STATE.with(|state| {
             let mut state = state.borrow_mut();
+            if !state.upgrade { state.stopped_wall=Some(wall); }
             if state.upgrade && !state.checked {
                 let wires = STORE.with(|s| s.borrow().as_ref().expect("store").borrow().wires);
                 if state.epoch_floor.is_none() {
@@ -200,6 +201,7 @@ struct Judge {
     ledger: Rc<RefCell<Vec<skein_fake_forge_domain::Observation>>>,
     finished: bool,
     epoch: u32,
+    ticks: u32,
 }
 impl Judge {
     fn stop_peers(&mut self, procs: &mut [Proc]) {
@@ -221,6 +223,7 @@ impl Judge {
 }
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, _: Time, procs: &mut [Proc]) {
+        self.ticks += 1;
         let epoch = STATE.with(|s| s.borrow().epoch);
         if epoch != self.epoch { self.epoch=epoch; self.client_started=false; self.stopped=false; self.finished=false; self.released=false; }
         let (first, others) = procs.split_at_mut(1);
@@ -243,9 +246,10 @@ impl skein_world::Referee<Proc> for Judge {
             self.stopped=true;
             self.stop_peers(others);
             self.finished=first[0].is_empty() && others.iter().all(Host::is_empty);
-            STATE.with(|s| s.borrow_mut().dead_status=format!("closer empty {} others {:?}",first[0].is_empty(),others.iter().map(|p| (std::mem::discriminant(p),p.is_empty(),p.next_policy_deadline())).collect::<Vec<_>>()));
+
             return;
         };
+        assert!(self.ticks < 100_000,"upgrade bounded turns: {:?}",service.service.wait_state());
         if !self.upgrade { for proc in others.iter() { if let Proc::Other(HarnessProcess::Calls(caller)) = proc && let Some(answer) = caller.answers.first() { STATE.with(|s| s.borrow_mut().kept_answer.clone_from(&answer.output)); } } }
         if !self.upgrade && let Some(link) = service.service.links().pop() {
             for proc in others.iter_mut() {
@@ -316,6 +320,7 @@ impl skein_world::Referee<Proc> for Judge {
     fn observe(&mut self, _: Time, procs: &[Proc]) {
         // Keep the fake's write ledger outside the service and peer lifetimes.
         // Forge's branch referee consumes the same observations after this copy.
+        if self.stopped { self.finished = procs.iter().all(Host::is_empty); }
         self.forge.observe(procs);
         self.ledger.borrow_mut().extend(self.forge.take_ledger());
         let issue = self.ledger.borrow().iter().any(|o| matches!(o, skein_fake_forge_domain::Observation::Opened {title, ..} if title.as_ref() == b"Upgrade once"));
@@ -333,7 +338,7 @@ impl skein_world::Referee<Proc> for Judge {
     }
     fn next_deadline(&self) -> Option<Time> { Some(Time::from_nanos(60_000_000_000)) }
     fn overdue(&self, now: Time) -> Option<String> {
-        (!self.finished && now >= Time::from_nanos(60_000_000_000)).then(|| format!("upgrade stalled: {} checked {}, issue {}, tasks {:?}", STATE.with(|s|s.borrow().dead_status.clone()), STATE.with(|s| s.borrow().checked), STATE.with(|s| s.borrow().issue), self.store.borrow().rows.values().filter_map(|row| if let temper_engine_domain::Record::Core(Record::Tasks(jig_domain_tasks::Stored::Live(task))) = row { Some((task.number, task.attempt, task.turn, &task.phase)) } else { None }).collect::<Vec<_>>()))
+        (!self.finished && now >= Time::from_nanos(60_000_000_000)).then(|| format!("upgrade stalled: checked {}, issue {}, tasks {:?}", STATE.with(|s| s.borrow().checked), STATE.with(|s| s.borrow().issue), self.store.borrow().rows.values().filter_map(|row| if let temper_engine_domain::Record::Core(Record::Tasks(jig_domain_tasks::Stored::Live(task))) = row { Some((task.number, task.attempt, task.turn, &task.phase)) } else { None }).collect::<Vec<_>>()))
     }
     fn passed(&self) -> bool { self.finished }
 }
@@ -421,8 +426,10 @@ fn phase(disk: skein_fake_machine::Machine, configuration: &[u8], transport: &te
     });
     let document = serde_json::from_slice(configuration).expect("configuration");
     let params = programs::Parameters { deployment: configuration.into(), seed: fixtures::SEED, links: Links::Keep, forge: transport.clone(), route: temper_playground::story::route(&document), disk: machine.0.clone() };
+    let mut config=skein_sim::Config::calm();
+    if upgrade { config.wall=STATE.with(|s|s.borrow().stopped_wall.expect("wall at stop")); }
     let mut outcome = programs::with(params, || {
-        let mut world = skein_world::World::new_controlled(fixtures::SEED, skein_sim::Config::calm(), skein_world::Memory::Unchecked, |controls| Judge { controls, store: store.clone(), forge: referee::forge::Forge::new(transport.clone(), Story::PlaygroundA).keeping_ledger(), transport: transport.clone(), upgrade, stopped:false, released:false, client_started:false, ledger:ledger.clone(), finished:false, epoch:0 }).with_machine(machine);
+        let mut world = skein_world::World::new_controlled(fixtures::SEED, config, skein_world::Memory::Unchecked, |controls| Judge { controls, store: store.clone(), forge: referee::forge::Forge::new(transport.clone(), Story::PlaygroundA).keeping_ledger(), transport: transport.clone(), upgrade, stopped:false, released:false, client_started:false, ledger:ledger.clone(), finished:false, epoch:0, ticks:0 }).with_machine(machine);
         for (program, roots) in programs::programs::<Upgrade>() { world.host_roots(program, roots); }
         world.host_roots(ctl::program(|spawn, inherited| Proc::Other(HarnessProcess::Ctl(Box::new(ctl::host(spawn,inherited))))), ctl::roots);
         world.spawn_restartable(programs::service_roots(), |inherited| {
