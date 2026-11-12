@@ -3,7 +3,7 @@ use crate::{CaseInput, Home, Refusal, refused};
 use skein_shell::{Argument, Command, Front, Reach, Set, Table, Variable, Way};
 use std::{ffi::OsStr, io::Read, os::unix::ffi::OsStrExt, path::Path, process::ExitCode};
 
-type Environment = [(Box<[u8]>, Box<[u8]>)];
+pub(crate) type Environment = [(Box<[u8]>, Box<[u8]>)];
 
 pub const HOME: Variable = Variable {
     name: "TEMPER_QA_HOME",
@@ -22,6 +22,20 @@ pub const SESSION: Variable = Variable {
     absent: "Triage commands are refused.",
     notes: "Set by the loop for the agent it starts.",
     way: Way::Reads,
+};
+const KEEP: Command = Command {
+    reach: Reach::Words(&["build", "keep"]),
+    set: Set::Internal,
+    forms: &["COMMIT DIR"],
+    line: "Every executable must print that commit as its version, the files are moved into the builds directory under the commit, a manifest names the commit and each file's checksum, and the ledger records the build.",
+    arguments: &[
+        Argument { shown: "COMMIT", line: "The landed tip, 40 or 64 lowercase hexadecimal digits." },
+        Argument { shown: "DIR", line: "The staged build, on the builds directory's filesystem." },
+    ],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME],
+    notes: "",
 };
 const NONE: Command = Command {
     reach: Reach::Words(&["triage", "none"]),
@@ -83,7 +97,7 @@ pub const TABLE: Table = Table {
     line: "QA after landing: main's landings triaged into cases, and builds kept for them.",
     version: temper_version::VERSION,
     commit: temper_version::COMMIT,
-    commands: &[RUN, NONE, CASE, SHOW, LINES],
+    commands: &[RUN, KEEP, NONE, CASE, SHOW, LINES],
     settings: &[],
     variables: &[&HOME, &SESSION],
     more: "temper-qa COMMAND --help prints a command; read temper/docs/design/testing/qa/README.md.",
@@ -127,20 +141,28 @@ pub fn main() -> ExitCode {
         }
     }
 }
-fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<Option<&'a [u8]>, String> {
+fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8]>], String> {
+    if command == &KEEP {
+        return match rest {
+            [commit, directory] if !commit.starts_with(b"--") && !directory.starts_with(b"--") => Ok(rest),
+            [] => Err("COMMIT and DIR are not given".into()),
+            [_] => Err("DIR is not given".into()),
+            _ => Err("expected COMMIT and DIR".into()),
+        };
+    }
     if command == &NONE || command == &CASE {
         match rest {
-            [value] if !value.starts_with(b"--") => Ok(Some(value)),
+            [value] if !value.starts_with(b"--") => Ok(rest),
             [] => Err(format!("{} is not given", if command == &NONE { "WHY" } else { "FILE" })),
             _ => Err("expected one argument".into()),
         }
     } else if rest.is_empty() {
-        Ok(None)
+        Ok(rest)
     } else {
         Err("no arguments are taken".into())
     }
 }
-fn run(command: &Command, argument: Option<&[u8]>, environment: &Environment) -> Result<String, Refusal> {
+fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) -> Result<String, Refusal> {
     let session = if command == &NONE || command == &CASE {
         let value = SESSION
             .value(environment)
@@ -180,8 +202,14 @@ fn run(command: &Command, argument: Option<&[u8]>, environment: &Environment) ->
     if command == &LINES {
         return home.read(|ledger| Ok(ledger.lines_text()));
     }
+    if command == &KEEP {
+        let [commit, directory] = arguments else { unreachable!("checked keep arguments") };
+        let commit = std::str::from_utf8(commit)
+            .map_err(|_| refused(format!("{} is no commit id", String::from_utf8_lossy(commit))))?;
+        return crate::build::keep(&home, commit, Path::new(OsStr::from_bytes(directory)), environment);
+    }
     let session = session.expect("triage command");
-    let argument = argument.expect("triage argument");
+    let argument = arguments.first().expect("triage argument").as_ref();
     home.transact(|ledger| {
         ledger.command_session(session)?;
         if command == &NONE {
