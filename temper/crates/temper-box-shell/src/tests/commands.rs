@@ -11,12 +11,14 @@ fn command_words(command: &Command) -> Vec<&str> {
     match command {
         Command::Version => vec!["--version"],
         Command::Versions => vec!["versions"],
+        Command::Upgrade { request, .. } => match request {
+            temper_engine_shell::upgrade::Request::Check(_) => vec!["upgrade", "--check"],
+            temper_engine_shell::upgrade::Request::Back => vec!["upgrade", "--back"],
+        },
         Command::Usage(row) => match row.reach {
             Reach::Words(words) => words.to_vec(),
             Reach::RunAs(name) => vec![name],
         },
-        Command::Upgrade { request: temper_engine_shell::upgrade::Request::Check(_), .. } => vec!["upgrade", "--check"],
-        Command::Upgrade { request: temper_engine_shell::upgrade::Request::Back, .. } => vec!["upgrade", "--back"],
         Command::Init { .. } => vec!["init"],
         Command::Serve { boxed: false, .. } => vec!["serve"],
         Command::Serve { boxed: true, .. } => vec!["internal", "serve"],
@@ -137,7 +139,7 @@ fn temper_help_lists_only_public_commands() {
         .filter(|line| !line.starts_with(' '))
         .filter_map(|line| line.split_whitespace().next())
         .collect();
-    assert_eq!(names, ["init", "serve", "program-login", "help", "versions"]);
+    assert_eq!(names, ["init", "serve", "program-login", "help", "versions", "upgrade", "upgrade"]);
     assert!(text.contains("temper-box [--config DIR]"));
 }
 

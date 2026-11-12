@@ -314,7 +314,7 @@ pub fn run(command: Command, environment: &[EnvironmentEntry], working: &[u8], r
             return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
         Command::Serve { directories, boxed } => serve::run(
-            "temper-box",
+            "temper",
             environment,
             working,
             &directories,

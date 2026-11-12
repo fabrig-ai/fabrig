@@ -89,6 +89,11 @@ impl Hosted {
     pub fn adopt_mode(&mut self, fd: Fd, user: u32, installation: [u8; 16], mode: Adoption) -> Result<(), Fd> {
         self.drivers.adopt_mode(fd, user, Token::new(1), installation, mode)
     }
+    /// Whether adoption has issued its operation, rather than failed to clone a root.
+    #[must_use]
+    pub fn started(&self) -> bool {
+        self.drivers.started
+    }
     pub fn ask(&mut self, request: crate::Request) {
         match request {
             crate::Request::Secrets { owner, request } => {
@@ -294,6 +299,7 @@ pub struct Drivers {
     drivers: [Driver; 3],
     submitted: Queue<Submission>,
     adopted: bool,
+    started: bool,
     root: Option<Fd>,
     scratch: Option<crate::Root>,
     adoption: Adoption,
@@ -317,6 +323,7 @@ impl Drivers {
             drivers,
             submitted: Queue::with_capacity(KERNEL_HANDOFF_ENTRIES),
             adopted: false,
+            started: false,
             root: None,
             scratch: None,
             adoption: Adoption::Open,
@@ -546,6 +553,7 @@ impl Drivers {
                         && self.drivers.get(2).expect("driver index").handles.len() >= self.root_count()
                         && let Some(fd) = self.root.take()
                     {
+                        self.started = true;
                         crate::down(
                             component,
                             env,

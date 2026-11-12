@@ -379,7 +379,7 @@ impl Service {
     pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
         let engine = self.engine.as_mut().expect("rehearsal has an engine");
         engine.domain.rehearse();
-        engine.upgrade = Some(crate::upgrade::State::new(true));
+        crate::upgrade::prepare(engine, true);
         engine.store.host.adopt_mode(
             directory,
             user,
@@ -390,7 +390,7 @@ impl Service {
     /// Ask jig to make the previous generation active, with the deployment stopped.
     pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
         let engine = self.engine.as_mut().expect("going back has an engine");
-        engine.upgrade = Some(crate::upgrade::State::new(false));
+        crate::upgrade::prepare(engine, false);
         engine.store.host.adopt_mode(
             directory,
             user,

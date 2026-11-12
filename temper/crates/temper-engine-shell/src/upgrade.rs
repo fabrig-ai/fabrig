@@ -3,7 +3,7 @@ use crate::{path, prefixed, serve::WorkerHalf, setup};
 use skein_shell::{Clock, Config, Kernel};
 use std::os::unix::ffi::OsStrExt;
 use temper_service::{self as service, settings::Seeds};
-use temper_service_shell::{close, jig_directories, read_files_with_asked};
+use temper_service_shell::{close, jig_directories};
 use temper_shell::directories::{self, Directories, EnvironmentEntry};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -31,22 +31,37 @@ pub fn configure(
 }
 
 /// No worker root, listener or external system is started.
-pub fn prepare(
+fn prepare(
+    binary: &str,
     directories: &Directories,
     worker: Option<&dyn WorkerHalf>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
     let bytes = directories.read()?;
-    let named = setup::check(&bytes, &jig_directories(directories))?.named;
+    let mut named = setup::check(&bytes, &jig_directories(directories))?.named;
     if named.worker.is_some() && worker.is_none() {
         return Err("temper.json names a worker, and temper-engine runs none".into());
     }
     let agent =
         if named.worker.is_some() { Some(worker.expect("checked worker half").preflight(&named)?) } else { None };
-    let files = read_files_with_asked(named.files, named.asked_files, skein_shell::effective_user())?;
+    let required = core::mem::take(&mut named.files);
+    let asked = core::mem::take(&mut named.asked_files);
+    let crate::serve::Inputs { files, google, bundle } =
+        crate::serve::read_inputs(&named, required, asked, skein_shell::effective_user())?;
+    let roots = crate::serve::trust(None)?;
+    let github = crate::serve::github_runtime(binary, named.machine.github.as_ref(), &roots, crate::address)?;
+    let document = jig_protocol_config::document(
+        &bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 },
+    )
+    .expect("named checked document");
+    let engine =
+        service::startup::engine(&document, crate::member(&document, 0, b"engine"), &jig_directories(directories))
+            .expect("named checked engine");
+    let accounts = crate::serve::accounts(&engine)?;
     let drawn = skein_shell::crypto_seed().map_err(|errno| format!("cryptographic seed: errno {errno}"))?;
     let mut installation = [0; 16];
     installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
-    let service = service::startup::restoring_with(
+    let mut service = service::startup::restoring_with(
         &bytes,
         &jig_directories(directories),
         &files,
@@ -59,9 +74,15 @@ pub fn prepare(
             link_secret: None,
             local_secret: None,
         },
+        Some(accounts),
         &service::stock::Given::Stock,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    service.configure_forge_runtime(github, roots);
+    service.configure_google_endpoints(google);
+    if let Some(bundle) = bundle {
+        service.adopt_bundle(bundle);
+    }
     Ok((service, named.deployment))
 }
 
@@ -79,7 +100,7 @@ fn run_inner(
     request: &Request,
     worker: Option<&dyn WorkerHalf>,
 ) -> Result<u8, String> {
-    let (mut service, deployment) = prepare(directories, worker)?;
+    let (mut service, deployment) = prepare(binary, directories, worker)?;
     let source = match request {
         Request::Check(directory) => directory,
         Request::Back => &deployment,
@@ -120,7 +141,7 @@ fn run_inner(
             return Err(why.to_string());
         }
     };
-    let mut host = temper_service_shell::Host::with_binary(binary, service, directories.clone(), &[]);
+    let mut host = temper_service_shell::Host::for_upgrade(binary, service, directories.clone(), source.clone());
     let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
     if let Some(scratch) = scratch {
         let _removed = std::fs::remove_dir(scratch);

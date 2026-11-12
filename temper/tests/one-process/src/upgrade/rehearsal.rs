@@ -75,6 +75,7 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
         &fixtures::files(),
         Some(&temper_playground::documents::agent()),
         &fixtures::seeds(),
+        None,
         &given,
     )
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));

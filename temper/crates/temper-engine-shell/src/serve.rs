@@ -100,13 +100,13 @@ fn server_name(bytes: &[u8]) -> Result<skein_tls::Name, String> {
     skein_tls::Name::new(std::str::from_utf8(bytes).map_err(|why| why.to_string())?)
         .ok_or_else(|| "invalid server name".into())
 }
-fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String> {
+pub(crate) fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String> {
     use std::net::ToSocketAddrs;
     accounts_runtime::resolve(engine, |host, port| (host, port).to_socket_addrs().ok()?.next())
 }
 
 /// Resolve the machine's GitHub host once at start (temper/docs/design/protocol/configuration/engine.md).
-fn github_runtime(
+pub(crate) fn github_runtime(
     binary: &str,
     machine: Option<&temper_forge_setup::machine::GitHubMachine>,
     roots: &skein_tls::Config,
@@ -167,7 +167,6 @@ pub fn prepare_with_store(
 }
 #[expect(
     clippy::too_many_arguments,
-    clippy::too_many_lines,
     reason = "startup supplies the binary and worker half beside the resolved process facts"
 )]
 fn prepare_with_limits(
@@ -224,21 +223,7 @@ fn prepare_with_limits(
     let mut asked = core::mem::take(&mut named.asked_files);
     // Agent preflight precedes these checks; none may create the worker root.
     let mut before_root = || {
-        let files = read_files_with_asked(core::mem::take(&mut names), core::mem::take(&mut asked), user)?;
-        let google = google_runtime::resolve(named.sign_in.as_ref())?;
-        let mut bundle = match named.bundle.as_deref() {
-            Some(configured) => Some(bundle::read(configured, named.bundle_limits)?),
-            None => bundle::own(named.bundle_limits)?,
-        };
-        if let Some(bundle) = &mut bundle {
-            bundle.fill_sign_in(named.sign_in.is_some()).ok_or_else(|| {
-                format!(
-                    "application.clients.bundle: {}: the page has no </head> for its sign-in metadata",
-                    named.bundle.as_deref().map_or("embedded".into(), |name| String::from_utf8_lossy(name))
-                )
-            })?;
-        }
-        inputs = Some((files, google, bundle));
+        inputs = Some(read_inputs(&named, core::mem::take(&mut names), core::mem::take(&mut asked), user)?);
         Ok(())
     };
     let start = if named.worker.is_some() {
@@ -247,7 +232,7 @@ fn prepare_with_limits(
         before_root()?;
         None
     };
-    let (files, google, bundle) = inputs.expect("engine inputs checked before the worker root");
+    let Inputs { files, google, bundle } = inputs.expect("engine inputs checked before the worker root");
     let (agent, runtime, program_login) = match start {
         Some(WorkerStart { agent, runtime, program_login }) => (Some(agent), Some(runtime), program_login),
         None => (None, None, None),
@@ -293,6 +278,36 @@ fn prepare_with_limits(
     }
     Ok((service, named.deployment, limits.line_bytes))
 }
+pub(crate) struct Inputs {
+    pub(crate) files: service::settings::Files,
+    pub(crate) google: service::clients::fetch::Runtime,
+    pub(crate) bundle: Option<service::clients::bundle::Bundle>,
+}
+
+/// All file and bundle checks before the worker root, shared by serve and rehearsal.
+pub(crate) fn read_inputs(
+    named: &service::startup::Named,
+    required: Box<[config::File]>,
+    asked: Box<[config::File]>,
+    user: u32,
+) -> Result<Inputs, String> {
+    let files = read_files_with_asked(required, asked, user)?;
+    let google = google_runtime::resolve(named.sign_in.as_ref())?;
+    let mut bundle = match named.bundle.as_deref() {
+        Some(configured) => Some(bundle::read(configured, named.bundle_limits)?),
+        None => bundle::own(named.bundle_limits)?,
+    };
+    if let Some(bundle) = &mut bundle {
+        bundle.fill_sign_in(named.sign_in.is_some()).ok_or_else(|| {
+            format!(
+                "application.clients.bundle: {}: the page has no </head> for its sign-in metadata",
+                named.bundle.as_deref().map_or("embedded".into(), |name| String::from_utf8_lossy(name))
+            )
+        })?;
+    }
+    Ok(Inputs { files, google, bundle })
+}
+
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),
 /// derived without retaining its descriptors.
 pub fn operations_in(

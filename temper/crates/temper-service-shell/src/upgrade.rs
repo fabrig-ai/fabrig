@@ -1,10 +1,11 @@
 //! One report renderer for shells and worlds (protocol/binaries.md, upgrade).
 use jig_protocol_store::{BackRefusal, Event, KeptMap, KeptWire, Owner, Undecoded};
+#[cfg(test)]
+#[path = "upgrade/tests.rs"]
+mod decode_tests;
 use std::fmt::Write;
 use temper_service::upgrade::Report;
 use temper_shell::directories::Directories;
-#[cfg(test)]
-mod tests;
 
 #[must_use]
 pub const fn owner(of: Owner) -> &'static str {
@@ -163,5 +164,79 @@ fn workers(text: &mut String, binary: &str, kept: Option<&[KeptWire]>, fresh: bo
     }
     for old in kept.iter().filter(|old| !wires.iter().any(|wire| wire.name == old.name.as_ref())) {
         writeln!(text, "{binary} upgrade: wire {} is not spoken by this binary", old.name).expect("string write");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skein_lib::{Duration, Queue, Token};
+    fn report(event: Event) -> Report {
+        let mut events = Queue::uncapped();
+        events.push(event);
+        Report { events, elapsed: Duration::from_secs(1), end: None, restored: false, done: true }
+    }
+    #[test]
+    fn report_words_cover_workers_back_and_patched_starts() {
+        let dirs = Directories {
+            config: b"/config".as_slice().into(),
+            data: b"/data".as_slice().into(),
+            cache: b"/cache".as_slice().into(),
+            origins: [skein_shell::Origin::Flag; 3],
+        };
+        let wires = || {
+            temper_service::store::WIRES
+                .iter()
+                .map(|wire| KeptWire { name: wire.name.into(), version: wire.version })
+                .collect::<Vec<_>>()
+                .into_boxed_slice()
+        };
+        for (kept, fresh, words) in [
+            (Some(wires()), false, "workers may stay: yes"),
+            (Some(wires()), true, "workers may stay: no"),
+            (None, false, "workers may stay: unknown"),
+            (
+                Some(Box::new([KeptWire { name: "jig-channel".into(), version: 0 }]) as Box<[_]>),
+                false,
+                "wire jig-channel differs: kept 0, binary",
+            ),
+        ] {
+            let mut report = report(Event::Rehearsing { owner: Token::new(1), wires: kept, fresh });
+            report.events.push(Event::Decoded { owner: Token::new(1), records: 17 });
+            report.restored = true;
+            let (text, code) = lines("temper-engine", &report, &dirs, b"/backup");
+            assert_eq!(code, 0, "{text}");
+            assert!(text.contains("decoded 17 records\n"), "{text}");
+            assert!(text.contains(words), "{text}");
+        }
+        for (why, remedy) in [
+            (
+                BackRefusal::Committed { manifest: 1, last: 2 },
+                "past its first commit; going back is restoring a backup",
+            ),
+            (BackRefusal::NoPrevious, "no previous generation; restore a backup"),
+            (BackRefusal::Busy, "stop it before going back"),
+            (BackRefusal::Unreadable, "check its directory and permissions, or restore a backup"),
+        ] {
+            let (text, code) =
+                lines("temper-box", &report(Event::BackRefused { owner: Token::new(1), why }), &dirs, b"/backup");
+            assert_eq!(code, 1);
+            assert!(text.contains(remedy), "{text}");
+        }
+        for (binary, shown) in
+            [("temper-box", "temper-box"), ("temper-engine", "temper-engine"), ("temper", "temper-box")]
+        {
+            assert_eq!(
+                crate::host::note_line(
+                    binary,
+                    temper_service::Note::Patched {
+                        of: Owner::Application,
+                        patch: 7,
+                        counts: jig_protocol_store::Counts { records: 9, commits: 3 },
+                    }
+                ),
+                format!("{shown} serve: patched temper 7: 9 records in 3 commits\n")
+            );
+        }
     }
 }
