@@ -444,7 +444,9 @@ fn forge_references(row: usize, record: &[u8]) {
                 let commits = fields.u32().expect("landed commits");
                 assert!(commits <= 1);
                 landed += commits;
-                if commits == 1 { fields.bytes(32).expect("public merge commit"); }
+                if commits == 1 {
+                    fields.bytes(32).expect("public merge commit");
+                }
             }
             assert_eq!(landed, 1, "only the later landing brought the member");
             assert_eq!(fields.u32(), Some(0), "ended changes occupy no queue");

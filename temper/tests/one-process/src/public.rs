@@ -34,7 +34,9 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         for project in value["world_settings"]["policies"].as_array_mut().expect("policies") {
             let job = serde_json::json!({"kind":"job","number":1});
             let kinds = project["policy"]["ceiling"]["delegation"]["kinds"].as_array_mut().expect("kinds");
-            if !kinds.contains(&job) { kinds.push(job); }
+            if !kinds.contains(&job) {
+                kinds.push(job);
+            }
             for pointer in ["/policy/ceiling/grants", "/policy/roles/0/authority/grants"] {
                 let grants = project.pointer_mut(pointer).expect("world grants");
                 let prototype = grants[0].clone();
@@ -106,7 +108,6 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     }
     temper_playground::documents::turn_bounds::apply(value, service::agent_settings().limits.bodies.turn_body);
     previous::configure(value);
-
 }
 
 /// Replay a visitor's negative walk with failures naming its seed.

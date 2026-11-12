@@ -1158,7 +1158,15 @@ fn advance(
             if member.candidate.is_some() {
                 p.stage = Stage::Round { stage: RoundRead::Pull, candidate: member.candidate };
                 let repo = p.repository;
-                ask(d, env, owner, p, repo, api::Read::PullFor { head: row.landing.round.branch.clone(), base: row.landing.branch.clone() }, out);
+                ask(
+                    d,
+                    env,
+                    owner,
+                    p,
+                    repo,
+                    api::Read::PullFor { head: row.landing.round.branch.clone(), base: row.landing.branch.clone() },
+                    out,
+                );
                 return;
             }
             let upstream = upstream_branch(d, &row);
@@ -1456,8 +1464,11 @@ fn round_read(
             if let Some(tip) = candidate {
                 match crate::domain::ancestry_status(answer) {
                     change::Status::Passed => fact.candidate = Some((tip, policy::Combine::Merge)),
-                    change::Status::Failed => {},
-                    change::Status::Unknown | change::Status::Pending => { wait(d, p.task, env, p.repository, out); return; }
+                    change::Status::Failed => {}
+                    change::Status::Unknown | change::Status::Pending => {
+                        wait(d, p.task, env, p.repository, out);
+                        return;
+                    }
                 }
                 api::Read::Commits { before: base, after: tip, page: 1 }
             } else {

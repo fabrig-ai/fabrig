@@ -179,6 +179,10 @@ fn a_conflict_waits_for_the_producers_last_push_and_terminal() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one story follows the producer terminal, prepare conflict and later landing"
+)]
 fn a_turn_preparation_waits_for_its_producers_final_head() {
     let configured = World::configured_limits(
         true,
@@ -196,18 +200,57 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
     let producer = resume(&mut world, &producer);
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", BRANCH, b"file", b"producer H2", 2)
         .expect("producer pushes H2");
-    let terminal = world.protocol.answer(CHANNEL, producer.task, producer.attempt, 5,
-        tasks::End::Finished { result: tasks::TaskResult::Change { title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()), connector: 0, kind: 2,
-            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository), words: b"producer finished".as_slice().into() }, cancel_delegates: false },
-        engine::Parts { saved: None, pushed: Box::new([forge_top::Pushed { tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository), commit: translate::commit(head) }]), preparation: None });
+    let terminal = world.protocol.answer(
+        CHANNEL,
+        producer.task,
+        producer.attempt,
+        5,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Change {
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
+                connector: 0,
+                kind: 2,
+                resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                words: b"producer finished".as_slice().into(),
+            },
+            cancel_delegates: false,
+        },
+        engine::Parts {
+            saved: None,
+            pushed: Box::new([forge_top::Pushed {
+                tag: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+                commit: translate::commit(head),
+            }]),
+            preparation: None,
+        },
+    );
     world.send(terminal);
-    for _ in 0..STEPS { world.tick(); if !world.jobs.is_empty() { break; } }
-    assert_eq!(world.jobs.len(), 1, "change={:?}; task={:?}; producer={:?}", change_row(&world, task), live_task(&world, task).phase, world.root.tasks().task(producer.task));
+    for _ in 0..STEPS {
+        world.tick();
+        if !world.jobs.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(
+        world.jobs.len(),
+        1,
+        "change={:?}; task={:?}; producer={:?}",
+        change_row(&world, task),
+        live_task(&world, task).phase,
+        world.root.tasks().task(producer.task)
+    );
     let job = world.jobs.remove(0);
     assert_eq!(job.kind, jig_domain_link::JobKind(1));
-    let spec = temper_protocol_worker_wire::v1::JobSpec::decode(&temper_protocol_worker_wire::v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("prepare spec");
+    let spec = temper_protocol_worker_wire::v1::JobSpec::decode(
+        &temper_protocol_worker_wire::v1::CEILINGS,
+        &mut skein_lib::Reader::new(&job.spec),
+    )
+    .expect("prepare spec");
     let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
-    assert_eq!(request["members"][0]["head"], String::from_utf8(forge_top::commit_text(&translate::commit(head)).into_vec()).expect("head text"));
+    assert_eq!(
+        request["members"][0]["head"],
+        String::from_utf8(forge_top::commit_text(&translate::commit(head)).into_vec()).expect("head text")
+    );
     let conflict = format!("{{\"conflict\":{{\"member\":{task},\"with\":\"branch\",\"files\":[\"file\"]}}}}");
     finish_job(&mut world, &job, conflict.as_bytes());
     let resolution = super::super::reviews::next_assignment(&mut world, 3);

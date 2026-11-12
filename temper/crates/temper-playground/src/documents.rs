@@ -262,11 +262,14 @@ pub fn agent_profile() -> smith_agent_service::profile::Profile {
 }
 /// The hosted agent's derived service limits.
 #[must_use]
-pub fn agent_limits() -> smith_agent_service::Limits { agent_limits_for(&agent_profile()) }
+pub fn agent_limits() -> smith_agent_service::Limits {
+    agent_limits_for(&agent_profile())
+}
 /// Derive the hosted agent at a harness's declared payload capacity.
 #[must_use]
 pub fn agent_limits_for(profile: &smith_agent_service::profile::Profile) -> smith_agent_service::Limits {
-    let mut limits = smith_agent_service::profile::derive(profile, &agent_declarations_for(profile)).expect("chat agent limits");
+    let mut limits =
+        smith_agent_service::profile::derive(profile, &agent_declarations_for(profile)).expect("chat agent limits");
     limits.llm.accounts = 2;
     limits
 }
@@ -279,14 +282,19 @@ pub fn agent_declarations() -> smith_agent_service::profile::Configuration {
 }
 /// The endpoint response holds the declared tool payload's escaped input.
 #[must_use]
-pub fn agent_declarations_for(profile: &smith_agent_service::profile::Profile) -> smith_agent_service::profile::Configuration {
+pub fn agent_declarations_for(
+    profile: &smith_agent_service::profile::Profile,
+) -> smith_agent_service::profile::Configuration {
     let mut declarations = agent_declarations();
-    declarations.endpoints[0].limits.output = declarations.endpoints[0].limits.output.max(profile.declared.tool_payload);
+    declarations.endpoints[0].limits.output =
+        declarations.endpoints[0].limits.output.max(profile.declared.tool_payload);
     declarations
 }
 /// The hosted agent's complete configuration.
 #[must_use]
-pub fn agent_configuration() -> smith_agent_service::Config { agent_configuration_for(&agent_profile()) }
+pub fn agent_configuration() -> smith_agent_service::Config {
+    agent_configuration_for(&agent_profile())
+}
 /// The same endpoints and model at the harness's declared capacities.
 #[must_use]
 pub fn agent_configuration_for(profile: &smith_agent_service::profile::Profile) -> smith_agent_service::Config {
@@ -325,7 +333,9 @@ pub fn forges() -> List<temper_service::ForgeRuntime> {
 }
 /// The service's hosted agent settings.
 #[must_use]
-pub fn agent() -> temper_service::settings::Agent { agent_for(&agent_profile()) }
+pub fn agent() -> temper_service::settings::Agent {
+    agent_for(&agent_profile())
+}
 /// Service metadata derived from the profile used by the hosted agent.
 #[must_use]
 pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_service::settings::Agent {

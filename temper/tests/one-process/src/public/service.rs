@@ -55,8 +55,12 @@ impl Harness for Deployment {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
-    fn agent_profile() -> smith_agent_service::profile::Profile { agent_profile() }
-    fn agent_settings() -> temper_service::settings::Agent { agent_settings() }
+    fn agent_profile() -> smith_agent_service::profile::Profile {
+        agent_profile()
+    }
+    fn agent_settings() -> temper_service::settings::Agent {
+        agent_settings()
+    }
     fn given(document: &serde_json::Value) -> temper_service::stock::Given {
         stories::given(document)
     }

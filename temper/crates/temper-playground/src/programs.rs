@@ -24,8 +24,14 @@ pub trait Harness: 'static {
         false
     }
     fn configure(_document: &mut serde_json::Value) {}
-    fn agent_profile() -> smith_agent_service::profile::Profile { documents::agent_profile() }
-    fn agent_settings() -> temper_service::settings::Agent { documents::agent() }
+    #[must_use]
+    fn agent_profile() -> smith_agent_service::profile::Profile {
+        documents::agent_profile()
+    }
+    #[must_use]
+    fn agent_settings() -> temper_service::settings::Agent {
+        documents::agent()
+    }
     fn spawned(_role: Role, _inherited: &Inherited, _base: &[u8]) {}
     fn complete(_role: Role, _complete: &Complete) {}
     /// A routed git world's protocol bounds.

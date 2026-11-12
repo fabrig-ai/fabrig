@@ -326,15 +326,36 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
     use skein_forge::api::{Answer, Op, Read};
     const CANDIDATE: [u8; 32] = [9; 32];
     for complete in [true, false] {
-        let mut d = landing_fixture(); fixtures::connect(&mut d);
+        let mut d = landing_fixture();
+        fixtures::connect(&mut d);
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-        outputs(&mut d, Event::ReadAfresh); outputs(&mut d, Event::SettleOutbox);
-        d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state = temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+            temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
         member_landing(&mut d);
-        let row = d.landing.rows.get_mut(&61).expect("round"); row.landing.phase = policy::Phase::Preparing;
-        row.landing.round.pull = None; row.landing.round.combined = None;
-        let member = &mut row.landing.members[0]; member.candidate = None; member.head = None; member.base = None;
-        outputs(&mut d, Event::StepLanding { task: 61, entry: 91, heard: LandingHeard { failure: Box::new([]), preparation: policy::Preparation::Idle, released: false, cancelled: false, kept: Box::new([]) } });
+        let row = d.landing.rows.get_mut(&61).expect("round");
+        row.landing.phase = policy::Phase::Preparing;
+        row.landing.round.pull = None;
+        row.landing.round.combined = None;
+        let member = &mut row.landing.members[0];
+        member.candidate = None;
+        member.head = None;
+        member.base = None;
+        outputs(
+            &mut d,
+            Event::StepLanding {
+                task: 61,
+                entry: 91,
+                heard: LandingHeard {
+                    failure: Box::new([]),
+                    preparation: policy::Preparation::Idle,
+                    released: false,
+                    cancelled: false,
+                    kept: Box::new([]),
+                },
+            },
+        );
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
         fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
@@ -343,17 +364,40 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/1/l61".as_slice().into() }));
         fixtures::answer(&mut d, call, Ok(Answer::Commit(CANDIDATE)));
-        let (call, op) = fixtures::next_call(&mut d); assert_eq!(op, Op::Read(Read::Commits { before: CANDIDATE, after: fixtures::BASE, page: 1 }));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: CANDIDATE, after: fixtures::BASE, page: 1 }));
         fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-        let (call, op) = fixtures::next_call(&mut d); assert_eq!(op, Op::Read(Read::Commits { before: CANDIDATE, after: fixtures::HEAD, page: 1 }));
-        let mut requests = fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: !complete }));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: CANDIDATE, after: fixtures::HEAD, page: 1 }));
+        let mut requests =
+            fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: !complete }));
         if complete {
             fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-            fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([skein_forge::api::CommitMessage { id: fixtures::HEAD, parents: Box::new([]), message: Box::new([]) }]), more: false }));
+            fixtures::answer_next(
+                &mut d,
+                Ok(Answer::Commits {
+                    commits: Box::new([skein_forge::api::CommitMessage {
+                        id: fixtures::HEAD,
+                        parents: Box::new([]),
+                        message: Box::new([]),
+                    }]),
+                    more: false,
+                }),
+            );
             requests = fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
         }
-        let decision = requests.iter().find_map(|r| match r { Request::LandingDecision { decision, .. } => Some(*decision), _ => None }).expect("decision");
-        assert!(if complete { decision == policy::Decision::Open } else { matches!(decision, policy::Decision::Wait { .. }) });
+        let mut decision = None;
+        for request in requests {
+            if let Request::LandingDecision { decision: found, .. } = request {
+                decision = Some(found);
+            }
+        }
+        let decision = decision.expect("decision");
+        assert!(if complete {
+            decision == policy::Decision::Open
+        } else {
+            matches!(decision, policy::Decision::Wait { .. })
+        });
     }
 }
 
@@ -1318,7 +1362,9 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
                     decision = Some(choice);
                 }
             }
-            if decision.is_some() { break; }
+            if decision.is_some() {
+                break;
+            }
         }
         let expected = if retries == 0 {
             policy::Decision::Hold(policy::Hold::Faults { member: 0, gate: 0 })

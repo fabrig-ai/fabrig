@@ -1152,10 +1152,15 @@ impl World {
             message.as_bytes(),
         )
         .expect("prepare commit");
-        let provider = skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
+        let provider =
+            skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
         let adopted = self.top.repository(provider).expect("train repository");
         let repository = [&adopted.owner[..], b"/", &adopted.name[..]].concat();
-        let answer = self.external_repository(&repository, raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate }), 1);
+        let answer = self.external_repository(
+            &repository,
+            raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate }),
+            1,
+        );
         assert!(matches!(answer, raw::Answer::PushNew { existing: None }));
         candidate
     }

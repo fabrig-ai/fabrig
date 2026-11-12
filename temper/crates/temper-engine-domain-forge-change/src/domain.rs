@@ -1571,9 +1571,13 @@ fn ready(
         return Stepped { change, decision: Decision::Wait { until: None } };
     }
     if facts.branch != Some(head) {
-        if change.last_head == facts.branch && let Some(head) = facts.branch {
+        if change.last_head == facts.branch
+            && let Some(head) = facts.branch
+        {
             change.state = State::Gating { head, asked: Box::new([]) };
-            change.clean = Box::new([]); change.gate_failures = Box::new([]); change.since = now;
+            change.clean = Box::new([]);
+            change.gate_failures = Box::new([]);
+            change.since = now;
             return Stepped { change, decision: Decision::None };
         }
         return hold(change, Hold::BranchMoved);

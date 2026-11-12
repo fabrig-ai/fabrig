@@ -274,7 +274,9 @@ pub(crate) fn prepare_merge_branch(transport: &temper_fake_git_hosted::Typed) {
                     }
                     assert_eq!(
                         result,
-                        Ok(skein_fake_forge_domain::api::Answer::Branch(skein_fake_forge_domain::api::Created::Created)),
+                        Ok(skein_fake_forge_domain::api::Answer::Branch(
+                            skein_fake_forge_domain::api::Created::Created
+                        )),
                         "the existing private merge branch"
                     );
                     created = true;
