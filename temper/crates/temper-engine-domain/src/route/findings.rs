@@ -69,6 +69,22 @@ pub fn holder(domain: &Domain, project: u32, area: Option<&[u8]>) -> Holder {
     }
     forge::owner(area, &areas, triager, standing.as_slice())
 }
+/// Resolve the follow owner's first standing area where liveness is known
+/// (temper/docs/design/domain/forge/follows.md, 6).
+#[must_use]
+pub(super) fn follow_area(domain: &Domain, project: u32, follow: u32) -> Option<Box<[u8]>> {
+    let follow = domain.forge.follow(project, follow)?;
+    let owner = match follow.owner {
+        forge::settings::FollowOwner::Task(task) => Holder::Task(task),
+        forge::settings::FollowOwner::Person(party) => Holder::Party(party),
+    };
+    for area in domain.forge.project_areas(project).areas {
+        if stands(domain, project, area.owner) == Some(owner) {
+            return Some(area.name);
+        }
+    }
+    None
+}
 #[must_use]
 pub fn mine(domain: &Domain, project: u32, party: u64, holder: Holder) -> bool {
     match holder {

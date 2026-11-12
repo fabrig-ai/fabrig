@@ -5068,7 +5068,10 @@ pub(crate) fn outputs(
                     }
                 }
             }
-            forge::Request::FileRedFinding { task, finding } => {
+            forge::Request::FileRedFinding { task, follow, mut finding } => {
+                if let Some(follow) = follow {
+                    finding.area = super::findings::follow_area(domain, finding.project, follow);
+                }
                 // A full findings table never holds the tier's judgement.
                 let _answer = super::findings::file_finding(domain, env, decision, forge::Filer::Task(task), finding);
             }
