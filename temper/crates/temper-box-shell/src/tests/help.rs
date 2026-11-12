@@ -26,7 +26,7 @@ fn tui_help_explains_closing_and_ending_the_sign_in() {
     }
     let search = help::answer(&configured(&["help", "--search", "sign out"])).expect("sign-out search");
     assert!(search.lines().any(|line| line.starts_with("tui:")), "sign out must discover the TUI page: {search}");
-    let commands = temper_shell::rows::TUI.notes;
+    let commands = temper_client_shell::CLIENT.commands.first().expect("bare form").notes;
     assert!(commands.contains("`/exit` or Ctrl+C closes it without signing out"));
     assert!(commands.contains("`q` types a character on every screen"));
 }
@@ -224,6 +224,132 @@ fn configure_example_preserves_stock_landing_gate() {
     let stock = temper_service::stock::forge(&limits);
     let rule = stock.iter().find(|item| (item.kind, item.scope, item.number) == (2, 0, 1)).expect("stock rule");
     assert_eq!(documented.value, rule.value.value, "example must preserve every stock landing requirement");
+}
+
+fn tester_stock() -> jig_domain_core::settings::Defaults {
+    let owned: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("owned configuration");
+    let bytes = serde_json::to_vec(&owned["engine"]).expect("engine JSON");
+    let document = jig_protocol_config::document(
+        &bytes,
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16384, depth: 32 },
+    )
+    .expect("engine document");
+    let engine = jig_protocol_config::engine(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        jig_protocol_config::Defaults::Passed,
+    )
+    .expect("engine configuration");
+    temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes)
+}
+
+#[test]
+fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
+    use jig_domain_tasks as tasks;
+    use temper_engine_domain as engine;
+
+    let stock = tester_stock();
+    let coding = stock.charters.iter().find(|charter| charter.number == 2).expect("stock coding charter");
+    assert_eq!(coding.policy.tools.0, 514, "the recipe keeps coding charter 2's tools");
+    assert_eq!(coding.policy.tools.0 & jig_domain_core::ToolFamilies::JIG.delegate.0, 0);
+    let assignment = engine::Assignment {
+        check_timeout: None,
+        task: 1,
+        attempt: 1,
+        conversation: 1,
+        live: jig_domain_host::LiveAsk::NONE,
+        charter: 3,
+        run: Box::new(engine::RunCharter {
+            revision: 1,
+            ended_by: tasks::EndedBy::Result,
+            sources: core::iter::once(None).chain(coding.policy.alternatives.iter().map(|_| None)).collect(),
+            accounts: Box::new([]),
+            placement: jig_domain_fleet::PlacementConstraint {
+                channel: skein_lib::Token::new(1),
+                kind: jig_domain_fleet::HostKind::Worker,
+            },
+            policy: coding.policy.clone(),
+            contract: tasks::Contract::Report { words: 16000 },
+            authority: tasks::Authority {
+                // Even a creator offering every family cannot add these declarations.
+                tools: tasks::Tools(u64::MAX),
+                models: tasks::Models::NONE,
+                grants: Box::new([]),
+                delegation: tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 },
+                budget: tasks::Budget { spend: 1000, deadline: None },
+                notes: tasks::Scopes(0),
+                note_resources: Box::new([]),
+            },
+            budget: 1000,
+        }),
+        sections: Box::new([]),
+        messages: Box::new([]),
+        saved: Box::new([]),
+        workstream: 1,
+        workspace: engine::ForgeWorkspace { repositories: Box::new([]) },
+        transcript: Box::new([]),
+        answered: Box::new([]),
+        settled: Box::new([]),
+        grants: Box::new([]),
+    };
+    // charter calls tools_for; the report/workspace gate is already pinned by
+    // temper-engine-smith's a_report_run_cannot_modify_without_delivery.
+    let charter = temper_engine_smith::charter(&assignment);
+    for name in [b"change".as_slice(), b"goal", b"delegate"] {
+        assert!(!charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), "not declared: {name:?}");
+    }
+    for name in [b"effect_forge".as_slice(), b"propose"] {
+        assert!(charter.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name), "still declared: {name:?}");
+    }
+}
+
+#[test]
+fn tester_recipe_template_reports_without_a_goal_branch() {
+    use settings_form::view::{
+        Setting, SettingEdit, SettingNumber, SettingValue, TaskContractDocument, TemplateExecutor,
+    };
+
+    let page = temper_docs::find(b"tester-that-cannot-land").expect("tester recipe");
+    let example = page.text.split("```json\n").nth(1).expect("tester template");
+    let example = example.split("```").next().expect("JSON fence");
+    let items = settings_form::file::decode(example.as_bytes(), &temper_client_tools::limits::form())
+        .expect("documented settings file");
+    assert_eq!(items.len(), 1);
+    let item = items.as_slice().first().expect("template item");
+    assert_eq!(item.setting, Setting::Template(SettingNumber { number: 3 }));
+    let SettingEdit::Set(set) = &item.edit else { panic!("example sets the template") };
+    let SettingValue::Template(template) = &set.value else { panic!("template value") };
+    assert_eq!(template.number, 3);
+    assert_eq!(template.executor, TemplateExecutor::Charter(3), "the recipe's copied charter");
+    assert_eq!(template.contract, TaskContractDocument::Report { words: 16000 });
+    assert!(template.resources.is_empty(), "no goal branch");
+    assert_eq!(template.flags.ended_by, settings_form::view::EndedBy::Result);
+    assert_eq!(template.tracked, Some(1));
+    let stock = tester_stock();
+    assert!(stock.charters.iter().all(|charter| charter.number != 3), "free charter number");
+    assert!(stock.templates.iter().all(|template| template.number != 3), "free template number");
+}
+
+#[test]
+fn review_recipe_changes_only_approvals() {
+    let page = temper_docs::find(b"review-before-landing").expect("review recipe");
+    let command = page
+        .text
+        .lines()
+        .find(|line| line.starts_with("temper ctl DIR settings show ") && line.contains(" | jq "))
+        .expect("read and edit the whole rule");
+    let expression = command
+        .strip_prefix("temper ctl DIR settings show landing-rule 1 --project PROJECT --json | jq '")
+        .and_then(|line| line.strip_suffix("' > FILE"))
+        .expect("read project rule 1 as JSON");
+    let approvals = expression
+        .strip_prefix("{items: [{setting: .setting, set: (.value | .approvals = ")
+        .and_then(|value| value.strip_suffix(")}]}"))
+        .expect("preserve the selector and whole value, assigning only approvals");
+    let approvals: serde_json::Value = serde_json::from_str(approvals).expect("one approval");
+    assert_eq!(approvals, serde_json::json!([{"role": 1, "people": 1, "freshness": "exact"}]));
 }
 
 #[test]

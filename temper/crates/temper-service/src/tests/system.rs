@@ -68,7 +68,7 @@ fn io_events_and_completions_reach_the_layer_whose_tokens_they_carry() {
     let mut stand = fixtures::one_process();
     fixtures::until_hosting(&mut stand);
     assert!(stand.service.worker.as_ref().unwrap().git_ready(), "git completions reached the worker");
-    assert_eq!(stand.kernel.files, 8, "layout also sets stores aside and opens it");
+    assert_eq!(stand.kernel.files, 9, "layout opens making while keeping stores");
     stand.service.process.told().push(skein_io::Event::Closed { owner: Token::new(crate::tokens::SERVER) });
     crate::iterate(&mut stand.service, Time::ZERO, Wall::EPOCH);
     assert_eq!(

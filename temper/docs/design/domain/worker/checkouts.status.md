@@ -1,9 +1,7 @@
 # checkouts: status
 
-2026-11-11. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
+2026-11-12. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
 
-- **Not yet:** the whole document, *One object store per repository*, and `README.md`, 8, *Files*: each repository a workspace is made with is a clone of every branch's history into its own `.git`, and every fetch runs there (`temper-worker-domain-checkout/src/cache.rs`, `Cache::hold`; `hold.rs`, `prepared`), so each prepare that makes its workspace (a workstream's first on the worker, an evicted one, every saved start, a damaged one, every one after a worker's start) transfers the whole repository. A deployment of 2026-11-11, about 13 goals on three workers, drew about 50 `git-upload-pack` calls each 10 minutes, about 37 MB each, and about 2.1 GB in the 10 minutes after an engine's restart: by reading, these clones, since a fetch into a cached clone already negotiates with its references, and a worker's 3 or 4 workspaces serve a workstream for each change, goal and chat [in flight: change 467].
-- **Not yet:** the whole document, *Prepare*, *The landing pin* and *The replaced head's pin*: a prepare fetches a branch again for its pin and baseline (`hold.rs`, `fetched_start`, `PinReplaced`): a goal's run fetches g as its start and as its pin, a repair on its own branch fetches it three times, and a push branch not yet made pins its start's commit by a fetch [in flight: change 468].
 
 `checkouts.md`'s design delivery has no known gap in running the repository's
 `.temper/pre-pr` and refusing a failed check. Its landing pin stays frozen
@@ -82,12 +80,9 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
     prepare as transient and spoils it, and the next prepare makes it again, as
     `temper/tests/worker/checkout/tests/suite/reuse.rs` shows with a stale
     `index.lock`. Damage no operation breaks on stays in use;
-  - `stores` stays across a restart as `workspaces` does, and a store's first
-    `Store` keeps one there (`../../protocol/git.md`, 4.11). A kept repository's
-    alternates name the store it was cloned with, by token, and the cache gives
-    remotes tokens in the order prepares name them, so where a restart gives its
-    remote another token, its first fetch breaks and the next prepare makes it
-    again. A deployment of one repository always gives it the same token;
+  - a kept repository's alternates name the store it was cloned with, by
+    token, which is its remote's (`checkouts.md`), so after a restart they
+    name the store `stores` kept;
   - a workspace's path stays `<root>/workspaces/<token>/<repository>`, its
     token its place in the order workspaces are made, since none is retired: the
     first `0`, the second `4294967296`. A restart does not bring back which

@@ -666,8 +666,41 @@ pub fn admission(
     agent: &Declaration,
     problems: &mut Problems,
 ) -> Problems {
+    let mut needs = jig_domain_core::settings::fleet_needs::configured(core, &engine.limits.core);
+    let warnings = admission_needs(&needs, engine, agent, problems);
+    if !warnings.is_empty() || !problems.is_empty() {
+        return warnings;
+    }
+    // Credential sources must fit the same charter models on the provider's direct way.
+    for charter in &mut needs.charters {
+        for need in &mut charter.models {
+            for model in &engine.llm.models {
+                if model.model.name != need.name {
+                    continue;
+                }
+                for provider in &engine.llm.providers {
+                    if provider.number == model.model.provider
+                        && let Some(direct) = &provider.direct
+                    {
+                        for endpoint in &engine.llm.endpoints {
+                            if endpoint.name == *direct {
+                                need.endpoint = endpoint.number;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    admission_needs(&needs, engine, agent, problems)
+}
+fn admission_needs(
+    needs: &fleet::Needs,
+    engine: &config::Engine,
+    agent: &Declaration,
+    problems: &mut Problems,
+) -> Problems {
     use fleet::AgentShortfall;
-    let needs = jig_domain_core::settings::fleet_needs::configured(core, &engine.limits.core);
     let bounds = &agent.bounds;
     let mut warnings = Problems::empty();
     // A charter warning must not mask a deployment's receiving shortfall.
@@ -710,7 +743,7 @@ pub fn admission(
             }
         }
     }
-    let Some(why) = fleet::shortfall(&needs, bounds, fleet::HostKind::Worker) else { return warnings };
+    let Some(why) = fleet::shortfall(needs, bounds, fleet::HostKind::Worker) else { return warnings };
     let engine_path = Path::root().member(b"engine");
     let path = match why {
         AgentShortfall::Model { charter, model } => {
@@ -732,7 +765,7 @@ pub fn admission(
         AgentShortfall::Spend => engine_path.member(b"rules").member(b"maximum_run_spend"),
         AgentShortfall::Message | AgentShortfall::Inbox | AgentShortfall::Unacknowledged => return warnings,
     };
-    let figures = fleet::figures(&needs, bounds, fleet::HostKind::Worker, why).expect("selected numerical shortfall");
+    let figures = fleet::figures(needs, bounds, fleet::HostKind::Worker, why).expect("selected numerical shortfall");
     warnings.push(
         path,
         What::Half(crate::startup::EngineWhat::Admission { why, offered: figures.offered, required: figures.required }),
@@ -918,9 +951,9 @@ pub fn secret_value_bound(jig: &config::Engine, own: &limits::Limits) -> Result<
     Ok(crate::store::layout(&root, &root.forge, &jig.limits.store)?.secrets.value)
 }
 
-fn task_record_binds(codec: &jig_protocol_store::tasks_v9::Limits) -> bool {
-    match jig_protocol_store::tasks_v9::Value::encoded_bound(codec) {
-        Some(bytes) => jig_protocol_store::tasks_v9::TaskRecord::encoded_bound(codec) == bytes.checked_sub(1),
+fn task_record_binds(codec: &jig_protocol_store::tasks_v10::Limits) -> bool {
+    match jig_protocol_store::tasks_v10::Value::encoded_bound(codec) {
+        Some(bytes) => jig_protocol_store::tasks_v10::TaskRecord::encoded_bound(codec) == bytes.checked_sub(1),
         None => false,
     }
 }
@@ -949,7 +982,7 @@ fn map_value(refused: crate::store::Refusal) -> Option<(u32, u32)> {
 fn task_store_refusal(engine: &config::Engine, refused: crate::store::Refusal) -> Problems {
     if let Some((needs, has)) = map_value(refused)
         && let Some(codec) = jig_protocol_store::codec::tasks::limits(&engine.limits.core.tasks)
-        && jig_protocol_store::tasks_v9::Row::encoded_bound(&codec) == Some(u64::from(needs))
+        && jig_protocol_store::tasks_v10::Row::encoded_bound(&codec) == Some(u64::from(needs))
         && task_record_binds(&codec)
     {
         let mut problems = Problems::empty();

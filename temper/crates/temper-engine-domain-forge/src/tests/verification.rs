@@ -128,7 +128,8 @@ fn domain() -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -203,6 +204,7 @@ fn adopted() -> Repository {
 fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        signed: Box::new([]),
         task: CHANGE,
         repository: REPO,
         branch: Box::from(b"temper/51".as_slice()),

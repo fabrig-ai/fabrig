@@ -280,7 +280,15 @@ otherwise.
    is declared in a table or in the test set's document, in the set its
    name says. Every declared variable is read or set somewhere.
    Made-up names in tests' data take no tree's prefix, so the check
-   needs no exclusion for them.
+   needs no exclusion for them. Each crate's `patches/mod.rs` is not
+   read: the patch command generates it from kept texts, whose part
+   names (a stored field `skein_oauth` as `SKEIN_OAUTH`) never change
+   once landed and name no variable
+   (`skein/docs/design/data/codec/command.md`, 3); a patch author's
+   `pNNNN.rs` and `context.rs` are read. A token ending `_PATCH_SET`
+   names a component's patch set, a Rust constant
+   (`temper/docs/design/protocol/baseline.md`, 4), never a variable,
+   and is not a finding; a declared variable never takes that ending.
 6. **Documents:** each binary's generated documents match its table, in
    the tests of the crate that holds it.
 7. **Help,** in each binary's step tests:

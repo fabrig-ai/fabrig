@@ -83,6 +83,7 @@ pub(super) fn route_core(
                 | core::Held::PeopleReply { .. }
                 | core::Held::CarriedUnused { .. }
                 | core::Held::CallAnswer { .. }
+                | core::Held::NeedArrived { .. }
                 | core::Held::Result { .. }
                 | core::Held::Acknowledge { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }
@@ -1090,6 +1091,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::Created { .. }
         | people::Outcome::Proposed { .. }
         | people::Outcome::Withdrawn { .. }
+        | people::Outcome::Left { .. }
         | people::Outcome::Stopped { .. }
         | people::Outcome::Cancelled { .. }
         | people::Outcome::PersonTaken { .. }

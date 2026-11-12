@@ -416,6 +416,81 @@ pub(super) fn asking_world(w: World, address: Address, then: Then) -> (Domain, O
 pub(super) fn goals_world(w: World, address: Address, name: &str) -> Domain {
     world_in_layout(w, address, Then::Shown, false, Some(name), None, false).0
 }
+/// The browser reports its own facts; the watch supplies two real device rows (client/pages/told.md).
+pub(super) fn told_world(name: &str) -> Domain {
+    use temper_client_domain::pages::told::{Act, Browser, Duty, Permission, Refusal, Report};
+    let mut root = world_in_layout(Reference, Address::Told, Then::Shown, false, Some(name), None, false).0;
+    let mut out = Queue::uncapped();
+    step(
+        &mut root,
+        Event::Push(Report::State(Browser {
+            capable: name != "told-cannot",
+            permission: Permission::Granted,
+            endpoint: (name == "told-on").then(|| b"https://fcm.googleapis.com/subscription/gallery".as_slice().into()),
+            user_agent: b"Mozilla/5.0 (iPhone) Version/17 Safari/605.1".as_slice().into(),
+        })),
+        &mut out,
+    );
+    if name == "told-refused" {
+        step(
+            &mut root,
+            Event::Act {
+                action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Told(Act::TurnOn)),
+            },
+            &mut out,
+        );
+        while let Some(request) = out.pop() {
+            if let Request::Push(Duty::Subscribe { token, .. }) = request {
+                step(&mut root, Event::Push(Report::Refused { token, why: Refusal::TooMany }), &mut out);
+            }
+        }
+    }
+    root
+}
+fn told_devices(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut rows = List::with_capacity(w::CEILINGS.devices_rows);
+    for (number, label, endpoint) in [
+        (1, b"Safari on iPhone".as_slice(), b"https://fcm.googleapis.com/subscription/gallery".as_slice()),
+        (
+            2,
+            b"Firefox on Linux".as_slice(),
+            b"https://updates.push.services.mozilla.com/subscription/gallery".as_slice(),
+        ),
+    ] {
+        rows.push(
+            w::DeviceRow::new(
+                &w::CEILINGS,
+                w::DeviceRowParts {
+                    number,
+                    label: label.into(),
+                    at: now(Reference).as_nanos(),
+                    endpoint: endpoint.into(),
+                },
+            )
+            .expect("device row"),
+        )
+        .expect("two devices");
+    }
+    let document = w::Devices::new(&w::CEILINGS, w::DevicesParts { rows }).expect("devices");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::devices(&document),
+                    },
+                },
+            },
+        },
+        out,
+    );
+}
+
 /// Remembered states use the person's party documents and public acts (client/pages/remembered.md).
 pub(super) fn remembered_world(name: &str) -> Domain {
     use temper_client_domain::pages::{Act, remembered::Act as R};
@@ -802,7 +877,13 @@ fn world_in_layout(
                 jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                     use temper_client_protocol_wire::{self as wire, v1};
                     match wire::decode_reading(&record.bytes, &v1::CEILINGS).expect("gallery forge read").read() {
-                        v1::Read::Deployment => deployment_read(&mut root, read, goals != Some("no-project"), &mut out),
+                        v1::Read::Deployment => deployment_read(
+                            &mut root,
+                            read,
+                            goals != Some("no-project"),
+                            goals.is_some_and(|name| name.starts_with("told-") && name != "told-not-set-up"),
+                            &mut out,
+                        ),
                         v1::Read::Playground => {
                             // A resetting sample leaves the next read pending.
                             if w != (FirstRun { step: 10 }) || !playground_read {
@@ -899,6 +980,10 @@ fn world_in_layout(
                     )
                     .expect("gallery forge watch");
                     let subject = match watching.watch() {
+                        w::Watch::Devices => {
+                            told_devices(&mut root, watch, &mut out);
+                            continue;
+                        }
                         w::Watch::Forges => {
                             forge_watch = Some(watch);
                             if settings == Some("repositories-making") {
@@ -1497,11 +1582,11 @@ fn gallery_pull(
     use temper_client_protocol_wire::v1 as w;
     w::Pull::new(limits, w::PullParts { number, address: Box::from(address) }).expect("pull")
 }
-fn deployment_read(root: &mut Domain, read: Token, welcome: bool, out: &mut Queue<Request>) {
+fn deployment_read(root: &mut Domain, read: Token, welcome: bool, push: bool, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1};
     let answer = v1::DeploymentAnswer::new(
         &v1::CEILINGS,
-        v1::DeploymentAnswerParts { welcome, owned: true, program_login: None },
+        v1::DeploymentAnswerParts { push: push.then_some([4; 65]), welcome, owned: true, program_login: None },
     )
     .expect("deployment answer");
     step(
@@ -3991,7 +4076,9 @@ fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
                 live_runs: 0,
                 proposals: 0,
             })),
-            c::ActKind::Message
+            c::ActKind::Talk
+            | c::ActKind::Leave
+            | c::ActKind::Message
             | c::ActKind::Answer
             | c::ActKind::Take
             | c::ActKind::HandBack
@@ -4089,6 +4176,8 @@ fn base_task(number: u64, title: &str) -> c::Task {
         deadline: None,
     };
     c::Task {
+        talk: None,
+        session: None,
         settings: Some(c::TaskSettings { task: 1, run: None, newest: 1 }),
         chip: c::Chip {
             task: number,
@@ -4696,7 +4785,7 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
         }
         "rail-new-change" | "rail-all-projects" | "rail-across" | "work" | "work-pair" | "work-drafts"
         | "work-goals" | "work-changes" | "work-empty" | "members" | "members-refused" | "limits"
-        | "limits-not-owner" | "night-work" | "night-limits" => rail_work::NOW,
+        | "limits-not-owner" | "night-work" | "night-limits" | "team-role" | "night-team-role" => rail_work::NOW,
         name if name.starts_with("approve-") => Wall::from_nanos(120_000_000_000),
         name if name.starts_with("chat-work-") || name == "agent-work" => {
             Wall::from_nanos(chat_work::AT + 60_000_000_000)
@@ -4918,6 +5007,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesLanded::new(
                         &v::CEILINGS,
                         v::ChangesLandedParts {
+                            signed: skein_lib::List::with_capacity(8),
                             commit: [0xab; 32],
                             default_branch: true,
                             task,
@@ -4935,6 +5025,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesLanded::new(
                     &v::CEILINGS,
                     v::ChangesLandedParts {
+                        signed: skein_lib::List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
                         task: 107,

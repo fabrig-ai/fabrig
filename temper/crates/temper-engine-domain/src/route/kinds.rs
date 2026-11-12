@@ -307,14 +307,19 @@ pub(super) fn covers_repository(
 
 /// The project's members with `role` who count as people on `forge` (domain/forge/change/gates.md, 3).
 pub(super) fn eligible_people(domain: &Domain, project: u32, forge: u16, role: u32) -> u32 {
-    let mut count = 0_u32;
-    let Some(members) = domain.core.people.project_members(project) else { return count };
+    eligible_members(domain, project, forge, role).len()
+}
+
+/// Eligible members in the people domain's order (domain/forge/change/questions.md, 2).
+pub(super) fn eligible_members(domain: &Domain, project: u32, forge: u16, role: u32) -> List<u64> {
+    let mut people = List::uncapped();
+    let Some(members) = domain.core.people.project_members(project) else { return people };
     for member in members {
         if member.role.number() == role && super::forge_route::forge_human(domain, project, forge, member.person) {
-            count = count.saturating_add(1);
+            people.push(member.person).expect("project members bound eligible people");
         }
     }
-    count
+    people
 }
 
 fn approval_words(project: u32, host: &[u8], approval: &settings::RuleApproval, count: u32) -> Box<[u8]> {

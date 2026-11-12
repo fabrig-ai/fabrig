@@ -36,7 +36,7 @@ stale-proof count draws nothing; a positive count remains (`../web/public.md`,
 - **Not yet:** 4.1: a row names no path set, so the card says no
   "Signs off changes to NAME." and leads no "Sign off on Forgejo ↗";
   it still says how many changes wait behind it, and the row carries
-  `behind` [in flight: change 207].
+  `behind`.
 - **Departs:** `deployment.md`, A managed Forgejo: a stop empties the admin’s
   token whatever connect it ends: with no admin connect sent, any
   stopped managed Forgejo's row empties it, and while the sent

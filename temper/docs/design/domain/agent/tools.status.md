@@ -5,8 +5,7 @@
 
 - **Not yet:** the whole document: `read_reviews`, `read_remarks` and
   `read_pull_files` take no `skip`, and a page the answer's bytes cut
-  says no way on (`temper-engine-smith/src/calls.rs`, `src/answers.rs`)
-  [in flight: change 161].
+  says no way on (`temper-engine-smith/src/calls.rs`, `src/answers.rs`).
 - **Not yet:** the whole document: the stock charters (`chat.txt`, `../../../charters/stock/goal.md`)
   say sign-ins, machines and a plan's go-ahead always wait but name no
   kind for them, where this section has them `money` or `irreversible`;
@@ -93,8 +92,7 @@ use of `remember` and the walk follow landing (`README.md`, section 8).
 
 - **Not yet:** the whole document: a goal's run delivers to its run branch r, and
   `change` still takes `"branch": "run"` to land r into g; the schema
-  offers `["mine","run"]` (`temper-engine-smith/src/calls.rs`, `PLAN_CHANGE`)
-  [in flight: change 98].
+  offers `["mine","run"]` (`temper-engine-smith/src/calls.rs`, `PLAN_CHANGE`).
 - **Not yet:** 2: no supplied owned-forge live result establishes the
   `live-change-call` request's plain change through the shipped chat's own
   `change` on `gpt-6-luna`. The model's response to the declaration and

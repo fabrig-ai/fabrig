@@ -84,6 +84,7 @@ pub(crate) fn document(
                 | core::Held::PeopleReply { .. }
                 | core::Held::CarriedUnused { .. }
                 | core::Held::CallAnswer { .. }
+                | core::Held::NeedArrived { .. }
                 | core::Held::Result { .. }
                 | core::Held::Acknowledge { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }

@@ -59,6 +59,7 @@ pub fn engine() -> settings::Engine {
         jig,
         webhooks: None,
         sign_in: None,
+        push: None,
         clients: crate::startup::application::Clients {
             listener: jig_protocol_config::Address::Addr(http::address()),
             bundle: None,
@@ -202,6 +203,7 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
     use skein_lib::Wall;
     tasks::TaskRecord {
         session: None,
+        talk: None,
         activation_open: false,
         closer: None,
         offered: jig_domain_tasks::Reasons::ALL,

@@ -35,7 +35,7 @@ pub const PROGRAM_MODEL: &str = "claude-opus-5-5";
 
 /// Long peers before ordinary box steps. The caller checks absolute, bounded config bytes and sockets.
 #[must_use]
-pub fn steps(config: &[u8], peers: &Peers, scripts: Option<&[u8]>, strict: bool) -> Box<[Step]> {
+pub fn steps(config: &[u8], data: &[u8], peers: &Peers, scripts: Option<&[u8]>, strict: bool) -> Box<[Step]> {
     let mut steps = List::with_capacity(4);
     let seed = Decimal::of(SEED);
     for (name, command, document, listen) in [
@@ -61,6 +61,11 @@ pub fn steps(config: &[u8], peers: &Peers, scripts: Option<&[u8]>, strict: bool)
                 arguments.push(bytes::copy_of(b"--strict")).expect("strict flag counted");
             }
         }
+        if command == b"forge" {
+            arguments.push(bytes::copy_of(b"--state")).expect("state flag counted");
+            let name = if name == b"fake github" { b"github-forge.state".as_slice() } else { b"forgejo-forge.state" };
+            arguments.push(path(data, name)).expect("state path counted");
+        }
         steps
             .push(Step::new(bytes::copy_of(name), arguments.into_boxed(), StepKind::Long).listening(Box::new([listen])))
             .expect("four welcome peers counted");
@@ -79,10 +84,10 @@ pub struct Documents {
 }
 const OUTPUT: Limits = Limits { depth: 32, length: crate::DOCUMENT_BYTES };
 // Init-shaped temper: forge roots (1), sign-in (6), OpenAI endpoint (2),
-// Anthropic endpoint and provider endpoint (2), bundle (1), worker (2),
+// Anthropic endpoint and provider endpoint (2), its direct way removed (3), bundle (1), worker (2),
 // capacity overrides (3). Sign-in and OpenAI may remove four TLS members each.
-// The agent's OpenAI endpoint (6), Anthropic endpoint (1) and adapter (1) fit too.
-const EDITS: u32 = 1 + 6 + 2 + 2 + 1 + 2 + 3 + 2 * 4;
+// The agent's OpenAI endpoint (6), Anthropic endpoints (2) and adapter (1) fit too.
+const EDITS: u32 = 1 + 6 + 2 + 2 + 3 + 1 + 2 + 3 + 2 * 4;
 // The Model step must see OpenAI, demo and Anthropic in one provider offer.
 const PROVIDER_LINES: u32 = 3;
 #[derive(Debug)]
@@ -185,6 +190,16 @@ fn member(d: &Document, at: u32, name: &[u8], p: &Path) -> Result<u32, Refusal> 
     read::required(&mut o, d, name, p)
 }
 fn selected(d: &Document, at: u32, key: &[u8], wanted: &[u8], number: bool, p: &Path) -> Result<u32, Refusal> {
+    optional_selected(d, at, key, wanted, number, p)?.ok_or(read::why(p, b"target missing"))
+}
+fn optional_selected(
+    d: &Document,
+    at: u32,
+    key: &[u8],
+    wanted: &[u8],
+    number: bool,
+    p: &Path,
+) -> Result<Option<u32>, Refusal> {
     let items = read::list(d, at, 1, p)?;
     let mut found = None;
     for (i, at) in items.iter().enumerate() {
@@ -203,7 +218,7 @@ fn selected(d: &Document, at: u32, key: &[u8], wanted: &[u8], number: bool, p: &
             found = Some(*at);
         }
     }
-    found.ok_or(read::why(p, b"target missing"))
+    Ok(found)
 }
 fn socket(addr: SocketAddr, at: &Path) -> Result<Box<[u8]>, Refusal> {
     if !addr.ip().is_loopback() || addr.port() == 0 || addr.port() == 1455 {
@@ -329,15 +344,31 @@ fn program_route(d: &Document, llm: u32, socket: &[u8], edits: &mut Edits, p: &P
     let endpoint_path = p.member(b"endpoints");
     let endpoint = selected(d, endpoints, b"name", b"anthropic", false, &endpoint_path)?;
     edits.set(d, endpoint, &program_endpoint(socket, false)?, &endpoint_path)?;
+    remove_direct_endpoint(d, endpoints, edits, &endpoint_path)?;
     let providers = member(d, llm, b"providers", p)?;
     let provider_path = p.member(b"providers");
     let provider = selected(d, providers, b"name", b"anthropic", false, &provider_path)?;
     let endpoint = member(d, provider, b"endpoint", &provider_path)?;
     edits.text(d, endpoint, b"fake-claude", &provider_path.member(b"endpoint"))?;
+    remove_member(d, provider, b"direct", edits, &provider_path)?;
+    let sources = member(d, provider, b"sources", &provider_path)?;
+    remove_member(d, sources, b"keys", edits, &provider_path.member(b"sources"))
+}
+fn remove_member(d: &Document, at: u32, name: &[u8], edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
+    if let Some(at) = read::object(d, at, p)?.member(d, name) {
+        edits.remove(d, at, &p.member(name))?;
+    }
+    Ok(())
+}
+fn remove_direct_endpoint(d: &Document, endpoints: u32, edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
+    if let Some(at) = optional_selected(d, endpoints, b"name", b"anthropic-api", false, p)? {
+        edits.remove(d, at, p)?;
+    }
     Ok(())
 }
 
 /// Wire welcome peers and a program model in ordinary documents. The shell validates and rebases imported resources first.
+#[expect(clippy::too_many_lines, reason = "the bounded rewrite writes its six coordinated documents together")]
 pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents, Refusal> {
     for (name, bytes) in [(b"temper".as_slice(), temper), (b"agent", agent)] {
         if bytes.len() > usize::try_from(crate::DOCUMENT_BYTES).expect("document bound fits") {
@@ -398,6 +429,7 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     endpoint(&a, endpoints, &llm, true, &mut agent_edits, &root.member(b"endpoints"))?;
     let target = selected(&a, endpoints, b"name", b"anthropic", false, &root.member(b"endpoints"))?;
     agent_edits.set(&a, target, &program_endpoint(&llm, true)?, &root.member(b"endpoints"))?;
+    remove_direct_endpoint(&a, endpoints, &mut agent_edits, &root.member(b"endpoints"))?;
     let programs = member(&a, 0, b"programs", &root)?;
     let adapter = read::joined(&[
         b"{\"path\":",
@@ -424,7 +456,7 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
             &text(&git)?,
             b",\"admin_token\":",
             &text(&path(&paths.data, b"forgejo-admin.token"))?,
-            br##", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],
+            br##", "owner":"fake-person","made_ci":{"declared":".fake-forge/ci"},"repositories":[{"name":"widget","landing":"main","ci":{"declared":".fake-forge/ci"}}],
                 "sources":[
                     {"address":"https://code.example.invalid/acme/widget","repository":{
                         "owner":"acme","name":"widget","landing":"main","tree":[
@@ -585,7 +617,7 @@ fn forge_document(socket: &[u8], data: &[u8], d: &Document, clients: u32) -> Res
     // (temper/docs/design/protocol/forge/engine.md, 2).
     let setup = text(&read::joined(&[b"http://", &clients, b"/forges/1/github/setup"]))?;
     Ok(read::joined(&[b"{\"listen\":", &address(socket)?, b",\"admin_token\":", &text(&path(data, b"github-admin.token"))?,
-        br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],"github":{"app":{"id":1,"slug":"temper-fake","bot":2,"key":0,"setup_url":"#,&setup,br#"},"accounts":[{"login":"fake-person","id":3,"kind":"user","installation":{"id":1,"repositories":"all"}}]}}"#]))
+        br#", "owner":"fake-person","made_ci":{"declared":".fake-forge/ci"},"repositories":[{"name":"widget","landing":"main","ci":{"declared":".fake-forge/ci"}}],"github":{"app":{"id":1,"slug":"temper-fake","bot":2,"key":0,"setup_url":"#,&setup,br#"},"accounts":[{"login":"fake-person","id":3,"kind":"user","installation":{"id":1,"repositories":"all"}}]}}"#]))
 }
 // The document scope names a signed-in fake box's first chat, T2, after the trial's T1.
 // The demo's document revision names note 3; the farewell draft is note 2.

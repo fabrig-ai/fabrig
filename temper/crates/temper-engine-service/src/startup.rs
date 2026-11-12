@@ -131,6 +131,7 @@ pub struct Named {
     /// `application.clients.public`.
     pub public: Option<application::Origin>,
     pub sign_in: Option<SignIn>,
+    pub push: Option<application::push::Push>,
     /// `application.clients.bundle`, for the binary's read.
     pub bundle: Option<Box<[u8]>>,
     /// The bundle's limits, overrides applied.
@@ -555,6 +556,7 @@ pub fn named_with(
         link: parsed.engine.clients.link,
         public: parsed.application.clients.public,
         sign_in: parsed.application.sign_in,
+        push: parsed.application.push,
         bundle: parsed.application.clients.bundle,
         bundle_limits: parsed.application.limits.clients,
         webhooks: parsed.application.webhooks,
@@ -705,6 +707,7 @@ pub(crate) fn checked_start_with(
         jig: parsed.engine,
         clients: parsed.application.clients,
         sign_in: resolved.sign_in,
+        push: resolved.push,
         webhooks: resolved.webhooks,
         files: settings::Files { entries: files.entries.clone() },
         demo: parsed.application.demo,
@@ -747,6 +750,35 @@ fn checked_start(
 ) -> Result<CheckedStart, Problems> {
     checked_start_with(document, directories, files, agent, seeds, forges, setup, &crate::stock::Given::Stock)
 }
+/// Check serve's configuration, building only the engine for an upgrade tool (protocol/binaries.md).
+pub fn restoring_with(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    accounts: Option<AccountsRuntime>,
+    given: &crate::stock::Given,
+) -> Result<Service, Problems> {
+    let CheckedStart { engine, io, forges, .. } =
+        checked_start_with(document, directories, files, agent, seeds, List::with_capacity(0), None, given)?;
+    restoring_prepared(engine, seeds, accounts, forges, io)
+}
+
+/// Restore an engine whose document and runtime facts were checked by the composing service.
+pub fn restoring_prepared(
+    engine: settings::Engine,
+    seeds: &settings::Seeds,
+    accounts: Option<AccountsRuntime>,
+    forges: skein_forge_connection::Settings,
+    io: skein_io::Limits,
+) -> Result<Service, Problems> {
+    match Service::prepared(engine, seeds, accounts, forges, io, None, None) {
+        Ok(service) => Ok(service),
+        Err(found) => Err(Problems::jig(found, &Path::root())),
+    }
+}
+
 /// Start an engine alone with the checked runtime facts.
 #[expect(clippy::too_many_arguments, reason = "the engine start takes its runtime facts beside the document")]
 pub fn with_setup_given(

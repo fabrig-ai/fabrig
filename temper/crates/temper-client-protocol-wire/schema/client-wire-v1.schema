@@ -48,8 +48,9 @@ enum Kind { forgejo, github }
 # A change waiting on a person's review (client/forge/records.md; domain/forge/change/questions.md, 2).
 enum ApprovalYours { counts, no_account, too_few, other_role }
 record ApprovalSet { number: u8 name: bytes 40 }
+record ApprovalPerson { person: u64 name: bytes 64 }
 record ApprovalSize { files: u32 additions: u32 deletions: u32 cut: bool }
-record ApprovalRow { task: u64 project: u32 goal: option u64 forge: u16 kind: Kind owner: bytes 1024 name: bytes 1024 pull: u64 address: bytes 2048 title: bytes 256 since: u64 scope: u32 rule: u32 role: u32 required: u32 counted: u32 sets: list 6 ApprovalSet whole: bool yours: ApprovalYours size: option ApprovalSize }
+record ApprovalRow { task: u64 project: u32 goal: option u64 forge: u16 kind: Kind owner: bytes 1024 name: bytes 1024 pull: u64 address: bytes 2048 title: bytes 256 since: u64 scope: u32 rule: u32 role: u32 required: u32 counted: u32 sets: list 6 ApprovalSet whole: bool yours: ApprovalYours signed: list 8 ApprovalPerson can_sign: list 8 ApprovalPerson can_sign_more: u32 size: option ApprovalSize }
 versioned record Approvals { rows: list 32 ApprovalRow more: u32 }
 
 record Looked { project: u32 }
@@ -103,7 +104,15 @@ record FollowMergeAct { afters: list 32 fixed 32 }
 enum FollowAct { start: FollowAt, hold: FollowReasonAct, skip: FollowReasonAct, merge: FollowMergeAct }
 record FollowOutcome { refusal: option bytes 8192 }
 record FollowActRequest { project: u32 follow: u32 act: FollowAct }
-enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount, set_draft: SetDraft, follow_act: FollowActRequest }
+# A person's devices (client/forge/records.md; domain/forge/attention.md, 7.1).
+record AddDevice { endpoint: bytes 1024 p256dh: fixed 65 auth: fixed 16 label: bytes 60 }
+record RemoveDevice { number: u32 }
+record DeviceAdded { number: u32 }
+enum DeviceRefusal { person, off, service, malformed, too_many, unknown }
+record DeviceRefused { reason: DeviceRefusal }
+record DeviceRow { number: u32 label: bytes 60 at: u64 endpoint: bytes 1024 }
+versioned record Devices { rows: list 8 DeviceRow }
+enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount, set_draft: SetDraft, follow_act: FollowActRequest, add_device: AddDevice, remove_device: RemoveDevice }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -203,7 +212,7 @@ enum PlaygroundState { starting, running, resetting }
 versioned record PlaygroundAnswer { forge: u16 project: option u32 provider: u32 owner: bytes 1024 name: bytes 1024 state: PlaygroundState cues: list 8 text 256 }
 
 # The deployment's read (temper/docs/design/client/forge/records.md).
-versioned record DeploymentAnswer { welcome: bool owned: bool program_login: option bytes 8192 }
+versioned record DeploymentAnswer { welcome: bool owned: bool program_login: option bytes 8192 push: option fixed 65 }
 versioned record ProgramEnvironmentAnswer { environment: bytes 49216 }
 
 # A change's watched panel (client/forge/records.md; client/forge/served.md, 2).
@@ -216,7 +225,7 @@ record ChangesSubject { project: u32 }
 record StatusSubject { project: u32 }
 record DecidedSubject { project: u32 }
 record FollowsSubject { project: u32 }
-enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject, drafts: DraftsSubject, follows: FollowsSubject }
+enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject, drafts: DraftsSubject, follows: FollowsSubject, devices }
 enum LandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
 record Receipted { run: u64 number: u64 address: bytes 2048 }
 record Dispatched { attempt: u16 run: option u64 }
@@ -231,7 +240,8 @@ versioned record LandingsPanel { project: u32 turn: option u64 landings: list 64
 # A project's changes (temper/docs/design/client/forge/records.md).
 record ChangesQueued { task: u64 title: bytes 256 ready_since: u64 checks_since: option u64 }
 record ChangesQueue { repository: bytes 2048 branch: bytes 1024 red: bool changes: list 32 ChangesQueued }
-record ChangesLanded { task: u64 title: bytes 256 at: u64 commit: fixed 32 default_branch: bool }
+record ChangesSigned { party: u64 head: fixed 32 at: u64 }
+record ChangesLanded { signed: list 8 ChangesSigned task: u64 title: bytes 256 at: u64 commit: fixed 32 default_branch: bool }
 versioned record ChangesPanel { project: u32 landing: bytes 1024 queues: list 32 ChangesQueue more: u32 landed: list 32 ChangesLanded landed_more: u32 landed_default: list 32 ChangesLanded landed_default_more: u32 }
 # A party's project status (temper/docs/design/client/forge/records.md).
 record StatusBrief { sentence: bytes 200 lede: bytes 600 at: u64 landed: u64 }
@@ -292,7 +302,7 @@ record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
 enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full, not_failed }
 record MakeRefused { why: MakeRefusal }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, drafted: LandedDraft, draft_refused: DraftRefused, follow: FollowOutcome }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, drafted: LandedDraft, draft_refused: DraftRefused, follow: FollowOutcome, device_added: DeviceAdded, device_removed, device_refused: DeviceRefused }
 versioned record Answer { outcome: Outcome }
 
 # Values of temper's settings kinds (temper/docs/design/domain/routing.md, 6;

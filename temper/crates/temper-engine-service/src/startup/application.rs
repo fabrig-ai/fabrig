@@ -3,6 +3,7 @@
 mod demo;
 mod landing;
 mod public;
+pub mod push;
 mod read;
 pub mod sign_in;
 use super::{Problems, What};
@@ -18,6 +19,7 @@ use skein_lib::{List, bytes};
 pub struct Members {
     pub clients: Clients,
     pub sign_in: Option<sign_in::SignIn>,
+    pub push: Option<push::Push>,
     pub webhooks: Option<Webhooks>,
     pub machine: temper_forge_setup::machine::Machine,
     pub demo: Option<settings::Demo>,
@@ -308,6 +310,8 @@ pub fn parse(
     };
     let sign_in_at = read::nullable(&mut object, document, b"sign_in", &path, problems);
     let sign_in = sign_in::parse(document, sign_in_at, jig, bounds.sign_in, directories, problems);
+    let push_at = object.member(document, b"push");
+    let push = push::parse(document, push_at, directories, problems);
     let landing_at = object.member(document, b"landing");
     let welcome = match object.member(document, b"welcome") {
         Some(at) => match config::read::boolean(document, at) {
@@ -371,6 +375,7 @@ pub fn parse(
     Some(Members {
         clients: clients?,
         sign_in,
+        push,
         webhooks,
         machine: machine?,
         demo,
@@ -385,21 +390,35 @@ pub fn parse(
 /// The startup files named by the application (temper/docs/design/protocol/configuration/engine.md).
 #[must_use]
 pub fn files(members: &Members) -> Box<[config::File]> {
-    named_files(members.sign_in.as_ref(), &members.limits)
+    named_files(members.sign_in.as_ref(), members.push.as_ref(), &members.limits)
 }
 #[must_use]
-pub fn named_files(sign_in: Option<&sign_in::SignIn>, limits: &limits::Limits) -> Box<[config::File]> {
+pub fn named_files(
+    sign_in: Option<&sign_in::SignIn>,
+    push: Option<&push::Push>,
+    limits: &limits::Limits,
+) -> Box<[config::File]> {
     let mut files = List::with_capacity(
-        limits.forge.forges.checked_mul(4).expect("bounded forge files").checked_add(2).expect("sign-in files"),
+        limits
+            .forge
+            .forges
+            .checked_mul(4)
+            .expect("bounded forge files")
+            .checked_add(3)
+            .expect("sign-in and push files"),
     );
     if let Some(sign_in) = sign_in {
         sign_in::files(sign_in, limits.sign_in, &mut files);
+    }
+    if let Some(push) = push {
+        files.push(push::file(push)).expect("push key file");
     }
     files.into_boxed()
 }
 #[derive(Debug)]
 pub struct Resolved {
     pub sign_in: Option<settings::SignIn>,
+    pub push: Option<settings::Push>,
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
 }
 pub(super) fn contents(
@@ -438,10 +457,18 @@ fn joined(
 }
 
 pub fn resolve(members: &Members, files: &settings::Files, problems: &mut Problems) -> Option<Resolved> {
-    resolve_parts(members.sign_in.as_ref(), members.webhooks.as_ref(), &members.limits, files, problems)
+    resolve_parts(
+        members.sign_in.as_ref(),
+        members.push.as_ref(),
+        members.webhooks.as_ref(),
+        &members.limits,
+        files,
+        problems,
+    )
 }
 pub fn resolve_parts(
     sign_in: Option<&sign_in::SignIn>,
+    push: Option<&push::Push>,
     webhooks: Option<&Webhooks>,
     limits: &limits::Limits,
     files: &settings::Files,
@@ -451,6 +478,10 @@ pub fn resolve_parts(
         Some(sign_in) => sign_in::resolve(sign_in, limits.sign_in, files, problems),
         None => None,
     };
+    let push = match push {
+        Some(push) => push::resolve(push, files, problems),
+        None => None,
+    };
     let webhooks = match webhooks {
         Some(value) => match value.listener {
             config::Address::Addr(listener) => Some(skein_forge_connection::hooks::Webhooks { listener }),
@@ -458,7 +489,7 @@ pub fn resolve_parts(
         },
         None => None,
     };
-    if problems.is_empty() { Some(Resolved { sign_in, webhooks }) } else { None }
+    if problems.is_empty() { Some(Resolved { sign_in, push, webhooks }) } else { None }
 }
 
 fn transport(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Transport> {

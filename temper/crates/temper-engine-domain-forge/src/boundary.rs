@@ -300,6 +300,7 @@ pub enum Answered {
     Looked(crate::LookedAnswer),
     SetAway(crate::SetAwayAnswer),
     Overturn(crate::OverturnAnswer),
+    Device(crate::DeviceAnswer),
     SetDraft(crate::SetDraftAnswer),
 }
 /// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
@@ -966,6 +967,7 @@ pub struct FollowCheck {
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
     pub ending: Option<Ending>,
@@ -1304,6 +1306,7 @@ pub enum Stored {
     Looked(crate::Looked),
     Away(crate::Away),
     Decided(crate::Decided),
+    Device(crate::Device),
     LandedDraft(crate::LandedDraft),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
@@ -1353,6 +1356,7 @@ pub enum Key {
     Away { party: u64, project: u32 },
     Decided { project: u32, number: u32 },
     Closer(u64),
+    Device { party: u64, number: u32 },
     LandedDraft { repository: skein_forge::api::Repository, path: Box<[u8]> },
     Follow { project: u32, follow: u32 },
 }
@@ -1445,6 +1449,18 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// Keep the merge judgement in the decision admitting its effect.
+    Signed {
+        task: u64,
+        signed: Box<[SignOff]>,
+    },
+    /// The service's terminal for a push (attention.md, 7.2).
+    Pushed {
+        party: u64,
+        device: u32,
+        endpoint: Box<[u8]>,
+        answer: crate::PushAnswer,
+    },
     SetDraft {
         request: Token,
         token: Token,
@@ -2067,6 +2083,19 @@ pub enum Event {
         forge: u16,
         answer: PersonAnswer,
     },
+    AddDevice {
+        request: Token,
+        token: Token,
+        party: u64,
+        person: bool,
+        call: crate::AddDevice,
+    },
+    RemoveDevice {
+        request: Token,
+        token: Token,
+        party: u64,
+        number: u32,
+    },
 }
 /// The owner of the root's fresh read `serial`: bit 61 alone of the top five
 /// bits, the serial below 2^59; `None` past that (temper/docs/design/domain/forge/keeping-up.md, 3).
@@ -2108,6 +2137,7 @@ pub enum Request {
     StatusRun {
         project: u32,
         words: Box<[u8]>,
+        signers: Box<[u64]>,
     },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
     FollowRun {
@@ -2598,7 +2628,19 @@ pub struct LoggedLanding {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LoggedChange {
+    pub signed: Box<[SignOff]>,
     pub task: u64,
     pub pull: Option<u64>,
     pub title: Box<[u8]>,
 }
+
+/// Approval evidence retained at admission (temper/docs/design/domain/forge/change/gates.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct SignOff {
+    pub person: u64,
+    pub head: skein_forge::api::Commit,
+    pub at: skein_lib::Wall,
+}
+
+/// Maximum distinct people retained with one change.
+pub const SIGN_OFFS: usize = 8;

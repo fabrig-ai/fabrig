@@ -1,0 +1,1 @@
+Hello, with work/hello on the box's fake Forgejo elsewhere, has an Ask temper chat asked and answered from the TUI, with the local fake model's answer received. This state serves the TUI's chat screen and the web client's view of a chat the TUI started; its check is the fresh launchpad's newest chat row.

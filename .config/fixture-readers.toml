@@ -738,6 +738,27 @@ pair = "default"
 package = "temper-one-process-world"
 filter = "kind(lib)"
 
+# Baseline's whole deployment, kept once; the focused reader starts this build on it.
+[[fixture]]
+paths = [
+    "temper/tests/one-process/golden/baseline/state/**",
+    "temper/tests/one-process/golden/baseline/worker/**",
+    "temper/tests/one-process/golden/baseline/client/**",
+    "temper/tests/one-process/golden/baseline/setup/**",
+    "temper/tests/one-process/golden/baseline/configuration.json",
+    "temper/tests/one-process/golden/baseline/modes.txt",
+    "temper/tests/one-process/golden/baseline/patched.txt",
+]
+[[fixture.reader]]
+pair = "default"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=golden::baseline_golden_store_survives_upgrade)"
+
+[[fixture]]
+paths = ["temper/tests/one-process/golden/baseline/README.md"]
+disposition = "provenance"
+reason = "Baseline commit, making story and once-only export provenance."
+
 # Recording provenance for the B0 and B1 replay fixtures.
 [[fixture]]
 paths = ["temper/tests/real-loop/tests/fixtures/README.md"]

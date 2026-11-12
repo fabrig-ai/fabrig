@@ -1,6 +1,6 @@
 //! Complete durable tasks and all remaining row kinds (protocol/store/records.md, 1).
 use super::{bound_problem, fixtures, saved_tasks, tasks_limits};
-use crate::{codec::tasks, tasks_v9 as wire};
+use crate::{codec::tasks, tasks_v10 as wire};
 use jig_domain_tasks as domain;
 use skein_lib::{Duration, Token, Wall};
 
@@ -638,4 +638,16 @@ fn standing_sessions_and_activity_round_trip_at_the_words_bound() {
     let bytes = tasks::encode(&row, &limits, &[]).unwrap();
     let narrower = wire::Limits { stood_line_words: domain::STOOD_WORDS - 1, ..limits };
     assert_eq!(tasks::decode(&bytes, &narrower, &[]), Err(bound_problem(wire::Path::StoodLineWords)));
+}
+
+#[test]
+fn now_written_round_trips_and_enforces_the_line_bound() {
+    let row = activity(domain::Line::NowWritten { attempt: 7, line: Box::from([b'n'; 512]) });
+    assert_eq!(saved_tasks(&row), Ok(row.clone()));
+    let limits = tasks_limits();
+    let bytes = tasks::encode(&row, &limits, &[]).unwrap();
+    let narrower = wire::Limits { now_written_line_line: domain::NOW_LINE - 1, ..limits };
+    assert_eq!(tasks::decode(&bytes, &narrower, &[]), Err(bound_problem(wire::Path::NowWrittenLineLine)));
+    let row = activity(domain::Line::NowWritten { attempt: 7, line: Box::from([b'n'; 513]) });
+    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::Path::NowWrittenLineLine)));
 }

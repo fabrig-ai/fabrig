@@ -436,7 +436,12 @@ impl skein_world::Referee<Proc> for Referee {
             | Proc::Shell(_)
             | Proc::Forge(_)
             | Proc::Visitor(_)
-            | Proc::Other(HarnessProcess::Ctl(_) | HarnessProcess::Calls(_) | HarnessProcess::ProgramSource(_)) => true,
+            | Proc::Other(
+                HarnessProcess::Ctl(_)
+                | HarnessProcess::Calls(_)
+                | HarnessProcess::ProgramSource(_)
+                | HarnessProcess::Push(_),
+            ) => true,
         });
         if self.adopted > 0 {
             self.forge.borrow_mut().adopted();
@@ -737,6 +742,7 @@ pub(crate) fn shutdown_peer(proc: &mut Proc) {
     match proc {
         Proc::Peer(peer) => peer.shutdown(),
         Proc::Forge(forge) => forge.shutdown(),
+        Proc::Other(HarnessProcess::Push(push)) => push.shutdown(),
         Proc::Service(_)
         | Proc::Agent(_)
         | Proc::List(_)

@@ -108,12 +108,55 @@ fn stderr_lines_decide_last_to_first_the_first_match_wins() {
         (b"fatal: the remote end hung up unexpectedly\n", Kind::Push, Fault::Unreachable),
         (b"error: RPC failed; x\n", Kind::Push, Fault::Unreachable),
         (b"remote: fatal: early EOF\n", Kind::Push, Fault::Broken),
-        (b"fatal: early EOF\n", Kind::Merge, Fault::Broken),
+        (b"fatal: early EOF\n", Kind::Merge, Fault::Unreachable),
         (b"fatal: early EOF\n", Kind::Commit, Fault::Broken),
-        (b"fatal: early EOF\n", Kind::CheckOut, Fault::Broken),
+        (b"fatal: early EOF\n", Kind::CheckOut, Fault::Unreachable),
         (b"fatal: early EOF\n", Kind::Make, Fault::Broken),
     ];
     for (tail, kind, expected) in rows {
         assert_eq!(output::classify(tail, *kind), *expected, "{tail:?}, {kind:?}");
+    }
+}
+
+#[test]
+fn lazy_fetch_failures_are_remote_and_local_failures_stay_broken() {
+    use crate::{
+        invocation::Command,
+        sequence::{self, Next},
+    };
+    use temper_worker_domain_checkout::git;
+    for (kind, command, op) in [
+        (
+            Kind::CheckOut,
+            Command::CheckOut { commit: fixtures::COMMIT },
+            git::Op::CheckOut { at: fixtures::at(), commit: fixtures::COMMIT, clean: true, identity: 1, account: None },
+        ),
+        (
+            Kind::Merge,
+            Command::Merge { theirs: fixtures::COMMIT },
+            git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None },
+        ),
+    ] {
+        for (tail, expected) in [
+            (b"fatal: unable to access 'x': The requested URL returned error: 401\n".as_slice(), Fault::Refused),
+            (b"fatal: unable to access 'x': Could not resolve host: x\n", Fault::Unreachable),
+            (b"fatal: repository 'x' not found\n", Fault::Missing { missing: Missing::Repository }),
+            (b"fatal: Unable to create 'x/index.lock': File exists.\n", Fault::Broken),
+        ] {
+            assert_eq!(output::classify(tail, kind), expected, "{kind:?}");
+            let Next::End(git::Done::FailedWithOutput { fault, .. }) =
+                sequence::after(&op, &command, 128, b"", tail, 0, &fixtures::checkout())
+            else {
+                panic!("failed command")
+            };
+            assert_eq!(fault, expected, "{kind:?}");
+            let local = if kind == Kind::CheckOut { Command::Clean } else { Command::Unmerged };
+            let Next::End(git::Done::FailedWithOutput { fault, .. }) =
+                sequence::after(&op, &local, 128, b"", tail, 0, &fixtures::checkout())
+            else {
+                panic!("failed local command")
+            };
+            assert_eq!(fault, Fault::Broken, "secondary command is local");
+        }
     }
 }

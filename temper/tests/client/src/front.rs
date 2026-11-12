@@ -1326,8 +1326,8 @@ impl Joint {
             limits.journal.held = 1024;
             limits.journal.deliveries = 256;
             limits.journal.result_bytes = 4096;
-            // The deep task row includes its 32-byte optional session.
-            limits.journal.transcript_bytes = 8224;
+            // The deep task row includes its optional session and talk, 32 bytes each.
+            limits.journal.transcript_bytes = 8256;
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
             limits.brief.brief_bytes = 1024;
@@ -1352,8 +1352,8 @@ impl Joint {
                 limits.authority.executors = SETTINGS_EXECUTORS;
                 limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
                 limits.documents.executors = SETTINGS_EXECUTORS;
-                // The task's closer and optional session each occupy 32 bytes in the deep row.
-                limits.journal.transcript_bytes = 8232;
+                // The task's closer, optional session and talk each occupy 32 bytes in the deep row.
+                limits.journal.transcript_bytes = 8264;
             }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();
@@ -1906,7 +1906,7 @@ impl Joint {
                 let (welcome, owned) = self.deployment;
                 let answer = w::DeploymentAnswer::new(
                     &w::CEILINGS,
-                    w::DeploymentAnswerParts { welcome, owned, program_login: None },
+                    w::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
                 )
                 .expect("deployment answer");
                 self.callbacks.push((

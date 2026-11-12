@@ -1,6 +1,7 @@
 # forge-setup: status
 
-2026-11-11. Where skein's code lags or departs from [README.md](README.md).
+2026-11-12. Where skein's code lags or departs from [README.md](README.md).
+
 
 - **Not yet:**  the starter-workflow observation remains `forgejo.status.md`, 2. 8, and `skein/docs/design/forge/README.md`, 4.3: the migration observations remain `forgejo.status.md`, 2.
   4.1, 4.3: the crate gives the checks and an `Add` one

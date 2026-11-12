@@ -3,7 +3,7 @@
     clippy::trivially_copy_pass_by_ref,
     reason = "typed encoders uniformly borrow the domain values they translate"
 )]
-use crate::settings_v1 as wire;
+use crate::settings_v2 as wire;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core::{self as core, settings};

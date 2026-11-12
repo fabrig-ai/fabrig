@@ -159,7 +159,7 @@ fn request(
         },
         &engine.workers.forges,
         None,
-        &crate::family::Deployment { welcome: false, owned: false, program_login: None },
+        &crate::family::Deployment { welcome: false, owned: false, program_login: None, push: None },
         None,
         &w::CEILINGS,
     )
@@ -401,8 +401,8 @@ fn paste_replay_and_refused_replacement_keep_the_connection_and_write_counts() {
     }
 }
 
-fn accepted_token() -> crate::Service {
-    let mut service = app_service();
+fn accepted_token() -> Box<crate::Service> {
+    let mut service = Box::new(app_service());
     let link = install(&mut service, 1);
     accept_link(&mut service, &link);
     let engine = service.engine.as_mut().unwrap();

@@ -18,6 +18,7 @@ use std::{
     os::unix::fs::OpenOptionsExt,
     path::PathBuf,
 };
+pub(super) mod forge;
 mod process;
 mod tui;
 use process::Child;
@@ -43,6 +44,7 @@ pub struct Session {
     browser_started: bool,
     browser_closing: bool,
     children: Vec<Child>,
+    forge: Vec<forge::Connection>,
     tui: tui::Tui,
     serial: u64,
     actions: VecDeque<Action>,
@@ -79,6 +81,7 @@ impl Session {
             browser_started: false,
             browser_closing: false,
             children: vec![],
+            forge: vec![],
             tui: tui::Tui::new(scratch.join("session")),
             serial: 1024,
             actions: actions.into(),
@@ -101,6 +104,10 @@ impl Session {
         } else {
             Ok(session)
         }
+    }
+    /// A walk selects the current recipe's files before its next line.
+    pub(crate) fn files(&mut self, directory: Option<PathBuf>) {
+        self.machine.plan.options.files = directory;
     }
     pub fn line(&mut self, source: &[u8]) -> Result<Answer, Exit> {
         self.event(Event::Line(source.into()));
@@ -207,11 +214,24 @@ impl Session {
         }
         self.apply();
         self.children.retain(|child| !child.settled);
+        self.forge.retain(|connection| !connection.settled);
     }
     fn report(&mut self, report: Report) {
         match report {
             Report::Io(io::Event::Stream { owner, up }) if self.input == Some(owner) => self.input_event(up),
             Report::Io(event) => {
+                if let Some(index) =
+                    event.owner().and_then(|owner| self.forge.iter().position(|connection| connection.owns(owner)))
+                {
+                    let (event, requests) = self.forge[index].event(event, self.pump.now());
+                    for request in requests {
+                        self.pump.request(request);
+                    }
+                    if let Some(event) = event {
+                        self.event(event);
+                    }
+                    return;
+                }
                 if let Some(index) =
                     event.owner().and_then(|owner| self.children.iter().position(|child| child.owns(owner)))
                 {
@@ -336,6 +356,34 @@ impl Session {
                 break;
             }
             match action {
+                Action::ReadBoxLog { path } => self.event(Event::BoxLog(forge::read_log(&path))),
+                Action::ReadForgeFiles { directory, paths } => {
+                    self.event(Event::ForgeFiles(forge::read_files(&directory, &paths)));
+                }
+                Action::ForgeRequest { api, token_file, method, path, body, until } => {
+                    if self.pump.now() >= until {
+                        self.event(Event::Deadline);
+                        continue;
+                    }
+                    match forge::prepare(&api, &token_file, method, &path, body) {
+                        Ok(prepared) => {
+                            self.serial = self.serial.checked_add(1).expect("forge identities fit");
+                            let (connection, requests) = forge::Connection::start(Token::new(self.serial), prepared);
+                            self.forge.push(connection);
+                            for request in requests {
+                                self.pump.request(request);
+                            }
+                        }
+                        Err(why) => self.event(Event::ForgeFailure(why)),
+                    }
+                }
+                Action::CancelForge => {
+                    for connection in &mut self.forge {
+                        for request in connection.cancel() {
+                            self.pump.request(request);
+                        }
+                    }
+                }
                 Action::StartTui { program, rows, columns } => {
                     if let Err(why) = self.tui.start(&program, rows, columns) {
                         self.event(Event::TuiFailure(why));
@@ -427,27 +475,22 @@ impl Session {
                     }
                 }
                 Action::Classify => match self.logs() {
-                    Ok((serve, box_tail)) => self.event(Event::Logs { serve, box_tail }),
+                    Ok((serve, forges, box_tail)) => self.event(Event::Logs { serve, forges, box_tail }),
                     Err(why) => self.event(Event::OwnFailure(why)),
                 },
                 Action::Finished(exit) => self.exit = Some(exit),
             }
         }
     }
-    fn logs(&self) -> Result<(LogLines, LogLines), String> {
-        let read = |path: PathBuf| -> Result<LogLines, String> {
-            match fs::read(&path) {
-                Ok(bytes) => Ok(bytes
-                    .split_inclusive(|b| *b == b'\n')
-                    .map(|line| line.strip_suffix(b"\n").unwrap_or(line).into())
-                    .collect()),
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
-                Err(error) => Err(format!("{}: {error}", path.display())),
-            }
-        };
-        Ok((read(self.scratch.join("data/box/logs/serve.log"))?, read(self.scratch.join("session/box.log"))?))
+    fn logs(&self) -> Result<(LogLines, LogLines, LogLines), String> {
+        logs(&self.scratch)
     }
     fn drain(&mut self) {
+        for connection in &mut self.forge {
+            for request in connection.cancel() {
+                self.pump.request(request);
+            }
+        }
         self.tui.stop();
         if let Some(entity) = self.input.take() {
             self.pump.request(io::Request::Close { entity });
@@ -459,13 +502,38 @@ impl Session {
         self.pump.close_root();
         while !self.pump.is_empty() {
             for report in self.pump.poll(&mut self.face, None) {
-                if let Report::Io(event) = report
-                    && let Some(index) =
+                if let Report::Io(event) = report {
+                    if let Some(index) = event.owner().and_then(|owner| self.forge.iter().position(|c| c.owns(owner))) {
+                        let (_, requests) = self.forge[index].event(event, self.pump.now());
+                        for request in requests {
+                            self.pump.request(request);
+                        }
+                    } else if let Some(index) =
                         event.owner().and_then(|owner| self.children.iter().position(|c| c.owns(owner)))
-                {
-                    let _events = self.children[index].event(event, &mut self.pump);
+                    {
+                        let _events = self.children[index].event(event, &mut self.pump);
+                    }
                 }
             }
         }
     }
+}
+
+pub(super) fn logs(scratch: &std::path::Path) -> Result<(LogLines, LogLines, LogLines), String> {
+    let read = |path: PathBuf| -> Result<LogLines, String> {
+        match fs::read(&path) {
+            Ok(bytes) => Ok(bytes
+                .split_inclusive(|b| *b == b'\n')
+                .map(|line| line.strip_suffix(b"\n").unwrap_or(line).into())
+                .collect()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
+            Err(error) => Err(format!("{}: {error}", path.display())),
+        }
+    };
+    let serve = read(scratch.join("data/box/logs/serve.log"))?;
+    let mut forges = Vec::new();
+    for name in ["fake-github.log", "fake-forgejo.log"] {
+        forges.extend(read(scratch.join("data/box/logs").join(name))?);
+    }
+    Ok((serve, forges, read(scratch.join("session/box.log"))?))
 }

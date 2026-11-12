@@ -21,6 +21,7 @@ pub mod limits;
 pub mod settings;
 pub mod system;
 pub use system::{Service, iterate, iterate_stage};
+pub use temper_engine_service::upgrade;
 mod worker_joined;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum End {

@@ -126,7 +126,7 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
                             matches!(work, Work::Whole) || name == "rail-all-projects" || name == "rail-across";
                         project_ways(root, read, drafts, work, out);
                     }
-                    w::Read::Deployment => super::deployment_read(root, read, true, out),
+                    w::Read::Deployment => super::deployment_read(root, read, true, false, out),
                     _ => {}
                 }
             }
@@ -462,6 +462,10 @@ fn changes(work: Work) -> w::ChangesPanel {
             w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
+                    signed: crate::samples::signoffs(
+                        if matches!(work, Work::Whole) { &[73] } else { &[] },
+                        at(-2482).as_nanos(),
+                    ),
                     commit: [0xab; 32],
                     default_branch: true,
                     task: *task,

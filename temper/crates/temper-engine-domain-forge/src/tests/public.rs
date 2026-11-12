@@ -135,7 +135,8 @@ fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         limits,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -212,6 +213,7 @@ fn configured() -> [Configured; 2] {
 fn change_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        signed: Box::new([]),
         task: CHANGE,
         repository: REPO,
         branch: Box::from(b"temper/51".as_slice()),
@@ -869,7 +871,12 @@ fn logged(commit: [u8; 32], at: u64, tasks: &[u64]) -> LoggedLanding {
     let mut changes = List::with_capacity(u32::try_from(tasks.len()).expect("fixture changes"));
     for task in tasks {
         changes
-            .push(LoggedChange { task: *task, pull: Some(LOGGED_PULL), title: Box::from(MARKERS[1]) })
+            .push(LoggedChange {
+                signed: Box::new([]),
+                task: *task,
+                pull: Some(LOGGED_PULL),
+                title: Box::from(MARKERS[1]),
+            })
             .expect("logged change");
     }
     LoggedLanding { commit, branch: Box::from(MARKERS[0]), at: Wall::from_nanos(at), changes: changes.into_boxed() }
@@ -988,7 +995,7 @@ fn a_public_merge_keeps_a_dropped_member_from_its_log() {
     let log = d.landing_logs.get(&REPO).unwrap();
     assert_eq!(
         log.landings[0].changes[1],
-        LoggedChange { task: SECOND, pull: Some(LOGGED_PULL), title: Box::from(MARKERS[1]) }
+        LoggedChange { signed: Box::new([]), task: SECOND, pull: Some(LOGGED_PULL), title: Box::from(MARKERS[1]) }
     );
     // Handed tasks still bound the public projection, even without a change row.
     assert!(landings(&d, &public[..1]).landings().is_empty());

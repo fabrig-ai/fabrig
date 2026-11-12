@@ -266,7 +266,7 @@ binaries; and decides by
   crates' sources (`crates/*/src`, test files aside) and fails the gate
   when either appears outside that module, but for what it declares by
   file, each for that use alone: `std::process::ExitCode` in the
-  binaries' `main`s, `temper-box`'s, `temper-client`'s and `temper-agent`'s; `temper-box
+  binaries' `main`s, `temper-box`'s, `temper`'s and `temper-agent`'s; `temper-box
   program-login`'s exec of smith's command (../credentials.md, section 3);
   Claude Code's fetch's lock, in `temper-fetch-shell`, and its
   launcher's exec and process id, in `temper-launcher` (6); and the

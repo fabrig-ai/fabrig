@@ -1,4 +1,5 @@
 mod accounts;
+mod change_files;
 mod collaborators;
 mod delivery;
 pub(crate) mod fixtures;

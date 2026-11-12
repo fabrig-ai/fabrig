@@ -1,6 +1,6 @@
 //! The engine boundary, wrapping its typed peers (jig's domain/root.md, 2).
 //! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
-pub use crate::route::approvals::{ApprovalRow, ApprovalSet, ApprovalSize, Approvals, YourReview};
+pub use crate::route::approvals::{ApprovalPerson, ApprovalRow, ApprovalSet, ApprovalSize, Approvals, YourReview};
 use crate::route::{HostRequest, escalation, forge_route, proposals};
 use crate::{CallKey, Delivery, Key, Range, Record, RunPolicy, Write};
 use alloc::boxed::Box;
@@ -612,6 +612,8 @@ pub enum Application {
     Looked { project: u32 },
     SetAway { project: u32, on: bool, until: Option<Wall> },
     Overturn { project: u32, number: u32 },
+    AddDevice(forge::AddDevice),
+    RemoveDevice { number: u32 },
 }
 /// The family's terminal answer (client/forge/records.md).
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
@@ -633,6 +635,7 @@ pub enum ApplicationAnswer {
     SetAway(forge::SetAwayAnswer),
     SetDraft(forge::SetDraftAnswer),
     Overturn(forge::OverturnAnswer),
+    Device(forge::DeviceAnswer),
 }
 /// The trial's terminal answer (temper/docs/design/domain/trial.md, 6).
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
@@ -1175,7 +1178,8 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Assigned { .. }
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }) => Request::Worker(WorkerRequest::Deliver(delivery)),
-        delivery @ (Delivery::PlaygroundNote { .. }
+        delivery @ (Delivery::Push(_)
+        | Delivery::PlaygroundNote { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
         | Delivery::Trials { .. }

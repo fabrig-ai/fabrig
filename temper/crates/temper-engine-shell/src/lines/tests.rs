@@ -1045,3 +1045,21 @@ fn retired_settings_name_the_ctl_setting_at_start() {
         );
     }
 }
+
+#[test]
+fn cutoff_comparison_refusal_names_no_error_or_heads() {
+    assert_eq!(
+        note_line(
+            "temper",
+            temper_engine_service::Note::BriefReadRefused {
+                task: 7,
+                section: b"pull",
+                stage: "compare",
+                reason: "not read by the section's cutoff",
+                heads: None,
+                error: None,
+            },
+        ),
+        "temper serve: brief read refused task=7 section=pull stage=compare reason=not read by the section's cutoff\n"
+    );
+}

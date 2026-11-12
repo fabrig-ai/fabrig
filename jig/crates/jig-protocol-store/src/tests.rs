@@ -30,6 +30,7 @@ mod words;
 mod frame_memory;
 mod frame_patches;
 mod settings_layout;
+mod settings_patch;
 
 #[test]
 fn valid_refuses_each_unrepresentable_limit() {
@@ -118,3 +119,7 @@ fn over_refuses_insufficient_transcript_readers() {
         .expect("fixture has transcript readers");
     let _store = crate::Store::over(&limits, fixtures::APPLICATION, &[], fixtures::stores());
 }
+
+mod catch_up;
+
+mod policy_patch;

@@ -12,6 +12,8 @@ use skein_ui::phrases::{Hole, Phrasebook};
 #[must_use]
 pub fn name(act: ActKind) -> &'static [u8] {
     match act {
+        ActKind::Talk => b"talk",
+        ActKind::Leave => b"leave",
         ActKind::Message => b"task message",
         ActKind::Answer => b"task answer",
         ActKind::Take => b"take",
@@ -106,7 +108,9 @@ fn has_tool(_task: &Task, act: ActKind) -> bool {
         | ActKind::Cancel
         | ActKind::Adopt
         | ActKind::Amend => true,
-        ActKind::Take
+        ActKind::Talk
+        | ActKind::Leave
+        | ActKind::Take
         | ActKind::HandBack
         | ActKind::Move
         | ActKind::Reorder
@@ -133,7 +137,9 @@ fn call(task: &Task, act: ActKind, out: &mut Text) {
                 ActKind::Answer => out.put(b" QUESTION TEXT"),
                 ActKind::Cancel => out.put(b" REASON"),
                 ActKind::Release => hold(task, out),
-                ActKind::Take
+                ActKind::Talk
+                | ActKind::Leave
+                | ActKind::Take
                 | ActKind::HandBack
                 | ActKind::Accept
                 | ActKind::Reject
@@ -183,7 +189,9 @@ fn call(task: &Task, act: ActKind, out: &mut Text) {
             out.put(b" CHANGE... REASON");
         }
         // Non-tool offers have already been printed without their admission.
-        ActKind::Take
+        ActKind::Talk
+        | ActKind::Leave
+        | ActKind::Take
         | ActKind::HandBack
         | ActKind::Move
         | ActKind::Reorder

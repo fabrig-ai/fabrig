@@ -42,8 +42,10 @@ fn hold(place: &Path) -> File {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one pass start pins its installed build, environment and fakes-only brief")]
 fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
-    let world = World::new();
+    let mut world = World::new();
+    world.home.configuration.surfaces = vec!["web".into()];
     let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
     run.tick();
     land(&mut run, 2, 7);
@@ -83,16 +85,12 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     assert_eq!(ledger.cases[0].state, CaseState::Queued, "tui stays queued");
     assert_eq!(ledger.cases[1].state, CaseState::Assigned);
     assert_eq!(ledger.sessions[1].effort, "high");
-    for path in [
-        "bin/temper-box",
-        "bin/temper-client",
-        "bin/temper-client-journeys",
-        "bundle/index.html",
-        "bundle/assets/app.js",
-    ] {
+    for path in
+        ["bin/temper-box", "bin/temper", "bin/temper-client-journeys", "bundle/index.html", "bundle/assets/app.js"]
+    {
         assert_eq!(fs::read(place.join(path)).expect("installed"), fs::read(build.join(path)).expect("build"));
     }
-    assert_eq!(fs::metadata(place.join("bin/temper-client")).expect("mode").permissions().mode() & 0o777, 0o751);
+    assert_eq!(fs::metadata(place.join("bin/temper")).expect("mode").permissions().mode() & 0o777, 0o751);
     assert!(!place.join("bin/stale").exists());
     assert!(!place.join("bundle/stale").exists());
     assert!(!place.join("setup").exists());
@@ -132,6 +130,100 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     assert!(brief.contains("project: A ready project.\n"));
     assert!(brief.contains("`pass setup`, `pass recipe` and `pass open` may take minutes"));
     assert!(brief.contains("shell's own timeout does not cut them"));
+    let drive_lines = brief.lines().find(|line| line.starts_with("Drive lines:")).expect("drive lines");
+    assert!(drive_lines.contains("`forge commit forgejo REPOSITORY MESSAGE PATH...`"));
+    assert!(drive_lines.contains("`forge checks forgejo REPOSITORY`"));
+    assert!(drive_lines.contains("at its repository path before the line"));
+    assert!(brief.contains(&world.home.directory.join("passes/1/files").display().to_string()));
+    for words in [
+        "The fakes alone",
+        "the person's forge is the box's fake Forgejo",
+        "the box's own Forgejo or reach any real backend is blocked, naming it",
+        "{forgejo.api}",
+        "{forgejo.git}",
+        "{forgejo.admin}",
+        "{git}",
+        "--first work/hello",
+        "--git-program {git}",
+    ] {
+        assert!(brief.contains(words), "{words}\n{brief}");
+    }
+    assert!(!brief.contains("owned Forgejo"));
+    assert!(!drive_lines.contains("CONTENT"));
+}
+
+#[test]
+fn a_pass_starts_with_empty_files_and_keeps_them_on_resume() {
+    let world = World::new();
+    let mut run = ready(&world, Agent::Fail);
+    let files = world.home.directory.join("passes/1/files");
+    assert!(files.is_dir(), "a pass starts with files/");
+    assert_eq!(fs::read_dir(&files).expect("files directory").count(), 0);
+    fs::create_dir(files.join("dir")).expect("repository directory");
+    fs::write(files.join("dir/b.txt"), b"kept across resumes").expect("commit file");
+    run.tick();
+    world
+        .home
+        .transact(|ledger| {
+            ledger.file_request(1, 1, Some(99), 1)?;
+            ledger.end_goal(99, 2)
+        })
+        .expect("ended goal");
+    run.processes.next.push_back(Agent::Never);
+    run.tick();
+    assert_eq!(world.ledger().passes[0].sessions.len(), 2, "resumed the pass");
+    assert_eq!(fs::read(files.join("dir/b.txt")).expect("kept file"), b"kept across resumes");
+}
+
+#[test]
+fn a_tui_pass_brief_explains_see_and_row_evidence() {
+    let world = World::new();
+    let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
+    run.tick();
+    land(&mut run, 2, 7);
+    world.installable_build(2);
+    run.tick();
+    world
+        .home
+        .transact(|ledger| {
+            let mut tui = super::case();
+            tui.surface = "tui".into();
+            tui.page = "chat".into();
+            ledger.add_case(1, &tui, 0)?;
+            Ok(())
+        })
+        .expect("tui case");
+    run.tick();
+    let brief = fs::read_to_string(&run.processes.commands[1].stdin).expect("brief");
+    assert!(brief.contains("Case 1: tui / chat"), "{brief}");
+    assert!(brief.contains("`web see` line for a `web` case and a `tui see` line for a `tui` case"));
+    assert!(brief.contains("`pass line \"tui look\"`'s answer saved to a file"));
+    assert!(brief.contains("TUI starts at its first line and the session signs it in"));
+}
+
+#[test]
+fn third_step_opens_a_wait_behind_a_holder_and_closes_after_cases_are_taken() {
+    let world = World::new();
+    let lock = hold(&world.home.directory.join("places/1"));
+    let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
+    run.tick();
+    assert!(world.ledger().place_waits.is_empty(), "no build or cases");
+    land(&mut run, 2, 7);
+    world.installable_build(2);
+    run.clock.time = 10;
+    run.tick();
+    assert!(world.ledger().place_waits.is_empty(), "triage has not reached the build");
+    run.clock.time = 20;
+    run.tick();
+    assert_eq!(world.ledger().place_waits, [temper_qa_tool::PlaceWait { from: 20, to: None }]);
+    run.clock.time = 30;
+    run.tick();
+    assert_eq!(world.ledger().place_waits.len(), 1, "an open wait is not duplicated");
+    drop(lock);
+    run.clock.time = 40;
+    run.tick();
+    assert_eq!(world.ledger().place_waits, [temper_qa_tool::PlaceWait { from: 20, to: Some(40) }]);
+    assert_eq!(world.ledger().cases[0].state, CaseState::Assigned);
 }
 
 #[test]

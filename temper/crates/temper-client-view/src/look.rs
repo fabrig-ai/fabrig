@@ -1465,6 +1465,25 @@ pub const NAMES: Names<'static> = Names {
         b"temper-how-rules-note",
         b"temper-how-empty",
         b"temper-how-who-none",
+        b"temper-team-rows",
+        b"temper-team-row",
+        b"temper-team-card",
+        b"temper-team-head",
+        b"temper-team-acts",
+        b"temper-team-columns",
+        b"temper-team-left",
+        b"temper-team-right",
+        b"temper-team-now",
+        b"temper-team-kicker",
+        b"temper-team-rules",
+        b"temper-team-wakes",
+        b"temper-team-wake-row",
+        b"temper-team-wake-class",
+        b"temper-team-sessions",
+        b"temper-team-session",
+        b"temper-team-session-time",
+        b"temper-team-session-cost",
+        b"temper-team-session-closing",
     ],
     regions: &[b"temper-link"],
 };
@@ -1957,6 +1976,28 @@ pub const HOW_CHIPS: Style = Style { owner: owner(), token: 734 };
 pub const HOW_WHO_CODE: Style = Style { owner: owner(), token: 735 };
 /// A relation chip with no actor mark (client/pages/home.md, 1).
 pub const HOW_WHO_NONE: Style = Style { owner: owner(), token: 742 };
+
+/// Standing roles and their card (client/pages/team.md, 1).
+pub const TEAM_ROWS: Style = Style { owner: owner(), token: 743 };
+pub const TEAM_ROW: Style = Style { owner: owner(), token: 744 };
+pub const TEAM_CARD: Style = Style { owner: owner(), token: 745 };
+pub const TEAM_HEAD: Style = Style { owner: owner(), token: 746 };
+pub const TEAM_ACTS: Style = Style { owner: owner(), token: 747 };
+pub const TEAM_COLUMNS: Style = Style { owner: owner(), token: 748 };
+pub const TEAM_LEFT: Style = Style { owner: owner(), token: 749 };
+pub const TEAM_RIGHT: Style = Style { owner: owner(), token: 750 };
+pub const TEAM_NOW: Style = Style { owner: owner(), token: 751 };
+pub const TEAM_KICKER: Style = Style { owner: owner(), token: 752 };
+
+pub const TEAM_RULES: Style = Style { owner: owner(), token: 753 };
+pub const TEAM_WAKES: Style = Style { owner: owner(), token: 754 };
+pub const TEAM_WAKE_ROW: Style = Style { owner: owner(), token: 755 };
+pub const TEAM_WAKE_CLASS: Style = Style { owner: owner(), token: 756 };
+pub const TEAM_SESSIONS: Style = Style { owner: owner(), token: 757 };
+pub const TEAM_SESSION: Style = Style { owner: owner(), token: 758 };
+pub const TEAM_SESSION_TIME: Style = Style { owner: owner(), token: 759 };
+pub const TEAM_SESSION_COST: Style = Style { owner: owner(), token: 760 };
+pub const TEAM_SESSION_CLOSING: Style = Style { owner: owner(), token: 761 };
 
 #[cfg(test)]
 mod tests {

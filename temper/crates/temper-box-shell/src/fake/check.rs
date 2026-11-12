@@ -398,7 +398,7 @@ impl Observations {
 const GIT_FULL: &str = "GitHub git-call record is full";
 const INSTALLATIONS_FULL: &str = "GitHub installation record is full";
 fn decode(bytes: &[u8]) -> Result<Option<Recorded>, String> {
-    match decode_with_limits(bytes, &temper_fake::forge::LIMITS.limits) {
+    match decode_with_limits(bytes, &temper_fake::forge::limits().limits) {
         Ok(record) => Ok(Some(record)),
         Err(refused) => match temper_fake::forge::observations::decode(bytes) {
             Ok(Some(

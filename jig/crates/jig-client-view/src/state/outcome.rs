@@ -27,6 +27,7 @@ pub(crate) fn route(outcome: &Outcome) -> Route {
             | DocumentOutcome::NoteEdited { .. }
             | DocumentOutcome::ServiceMade { .. }
             | DocumentOutcome::Adopted { .. }
+            | DocumentOutcome::Left { .. }
             | DocumentOutcome::Stopped { .. }
             | DocumentOutcome::Cancelled { .. }
             | DocumentOutcome::Lifted { .. }

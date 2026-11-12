@@ -1,23 +1,23 @@
 # fake-forge: status
 
-2026-11-11. Where skein's code lags or departs from [forge.md](forge.md).
+2026-11-12. Where skein's code lags or departs from [forge.md](forge.md).
 
 Unlisted sections have no known gap. `github.md`, section 1.1's App JWT check uses
 the key's public half and verifies without signing; its exact-token/key
 cache and the claims checked on every request are present.
 
 - **Not yet:** 4: the runs' listing has no `workflow_id`
-  (`skein-fake-forge-forgejo/src/routes.rs`) [in flight: change 158].
+  (`skein-fake-forge-forgejo/src/routes.rs`).
 - **Not yet:** 4: conditional reads: a raw read answers no `ETag`, and no
   route answers `304` (`skein-fake-forge-forgejo/src/server.rs`,
-  `src/response.rs`) [in flight: change 155].
+  `src/response.rs`).
 - **Not yet:** 4: an issue's comments ignore `since`, on the Forgejo
   layer (`skein-forge/src/forgejo/server/items.rs`) and the GitHub layer.
 - **Not yet:** 4: a refused source, missing or private, leaves no
   repository (`skein-fake-forge-forgejo/src/setup/migrate.rs`,
   `migration`), where Forgejo leaves an empty one, and `DeleteRepository`
   asks `write:repository` (`server.rs`, `missing_scope`), where Forgejo
-  asks `write:organization`, so no story shows either [in flight: change 523].
+  asks `write:organization`, so no story shows either.
  
 - **Not yet:** 4: a caller who is no site admin and holds no grant reads any repository by its path as `403` (`skein-fake-forge-domain/src/domain.rs`, `authorized_read`), where Forgejo shows a public one to any token and answers a private one `404` (`unreadable-repository-by-path-is-404`), as the fake's read by id does, so on the fake no adoption finds a public repository temper's forge user may only read.  the GitHub push-refusal gap remains `github.status.md`, 1.2.
 

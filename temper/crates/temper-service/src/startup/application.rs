@@ -2,7 +2,9 @@
 use super::Problems;
 use crate::{limits, settings};
 use alloc::boxed::Box;
-pub use engine::{Clients, Forge, Identity, Origin, Resolved, Scheme, Transport, USER_BYTES, User, Webhooks, sign_in};
+pub use engine::{
+    Clients, Forge, Identity, Origin, Resolved, Scheme, Transport, USER_BYTES, User, Webhooks, push, sign_in,
+};
 use jig_protocol_config::{self as config, Path, read};
 use skein_json::Document;
 use skein_lib::List;
@@ -12,6 +14,7 @@ pub use temper_worker_service::startup::worker::application::Worker;
 pub struct Members {
     pub clients: Clients,
     pub sign_in: Option<sign_in::SignIn>,
+    pub push: Option<push::Push>,
     pub webhooks: Option<Webhooks>,
     pub machine: temper_forge_setup::machine::Machine,
     pub demo: Option<settings::Demo>,
@@ -50,6 +53,7 @@ pub fn parse(
     Some(Members {
         clients: engine.clients,
         sign_in: engine.sign_in,
+        push: engine.push,
         webhooks: engine.webhooks,
         machine: engine.machine,
         demo: engine.demo,
@@ -63,8 +67,15 @@ pub fn parse(
 }
 #[must_use]
 pub fn files(members: &Members) -> Box<[config::File]> {
-    engine::named_files(members.sign_in.as_ref(), &members.limits)
+    engine::named_files(members.sign_in.as_ref(), members.push.as_ref(), &members.limits)
 }
 pub fn resolve(members: &Members, files: &settings::Files, problems: &mut Problems) -> Option<Resolved> {
-    engine::resolve_parts(members.sign_in.as_ref(), members.webhooks.as_ref(), &members.limits, files, problems)
+    engine::resolve_parts(
+        members.sign_in.as_ref(),
+        members.push.as_ref(),
+        members.webhooks.as_ref(),
+        &members.limits,
+        files,
+        problems,
+    )
 }

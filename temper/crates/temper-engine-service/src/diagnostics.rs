@@ -79,6 +79,7 @@ pub struct WaitEngine {
     pub restart: Option<jig_domain_core::start::Phase>,
     pub mark_durable: bool,
     pub store_closed: bool,
+    pub store: jig_protocol_store::host::Wait,
     pub clients: WaitOwner,
     pub workers: WaitOwner,
     pub setup: WaitOwner,

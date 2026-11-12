@@ -164,6 +164,126 @@ fn log_follows_end() {
 fn front() -> Tui {
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Front);
+    tui.step(Told::Stage { stage: crate::BoxStage::Running });
     tui.step(Told::Size { columns: FULL.columns });
     tui
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the stop and end golden table embeds its frames")]
+fn the_stopping_and_ended_box_views_are_their_goldens() {
+    use crate::{BoxEnd, BoxStage};
+    let rows = [
+        (
+            "front-stopping-80x24-dark",
+            BoxStage::Stopping,
+            true,
+            b"stopping".as_slice(),
+            look::SIGNAL,
+            include_bytes!("golden/front-stopping-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "front-ended-80x24-dark",
+            BoxStage::Ended { end: BoxEnd::Exited { code: 1 } },
+            false,
+            b"box stopped".as_slice(),
+            look::DOWN,
+            include_bytes!("golden/front-ended-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "front-stopped-asked-80x24-dark",
+            BoxStage::Ended { end: BoxEnd::Exited { code: 0 } },
+            true,
+            b"box stopped".as_slice(),
+            look::DOWN,
+            include_bytes!("golden/front-stopped-asked-80x24-dark.txt").as_slice(),
+        ),
+    ];
+    let root = launchpad::home(None, &[working(9, b"csv-export", 1)]);
+    let mut views = List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for (_, stage, asked, quiet, style, _) in &rows {
+        let mut tui = front();
+        if *asked {
+            tui.step(Told::Stage { stage: BoxStage::Stopping });
+        }
+        tui.step(Told::Stage { stage: stage.clone() });
+        for line in [b"10:52:01 Stopping".as_slice(), b"10:52:02 serve exited 0"] {
+            tui.step(Told::BoxLine { line: BoxLine::Log { line: line.into() } });
+        }
+        assert_eq!(view::front::box_state(&tui, &f::words()), Some(((*quiet).into(), *style)));
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        if *asked {
+            assert!(
+                f::find(view.tree(), Role::Paragraph, "Stopping the box…".as_bytes())
+                    .styles
+                    .as_slice()
+                    .contains(&look::HEAD)
+            );
+            assert!(
+                f::find(view.tree(), Role::Paragraph, b"Ctrl+C again ends its steps at once.")
+                    .styles
+                    .as_slice()
+                    .contains(&look::HINT)
+            );
+            assert!(
+                f::find(view.tree(), Role::Paragraph, b"10:52:02 serve exited 0")
+                    .styles
+                    .as_slice()
+                    .contains(&look::NOTE)
+            );
+        } else {
+            assert!(
+                f::find(view.tree(), Role::Paragraph, b"The box stopped: exited 1. /log shows why; Ctrl+C closes.")
+                    .styles
+                    .as_slice()
+                    .contains(&look::REFUSED)
+            );
+        }
+        super::limits::fits(view.tree(), &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
+        views.push(view).unwrap();
+    }
+    let mut checks = List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for ((name, _, _, _, _, want), view) in rows.iter().zip(&views) {
+        checks
+            .push(goldens::Golden {
+                name,
+                tree: view.tree(),
+                scheme: Scheme::Dark,
+                background: Some(crate::theme::palette(Scheme::Dark)[0].1),
+                size: FULL,
+                focus: skein_ui_screen::Focus::default(),
+                want,
+            })
+            .unwrap();
+    }
+    goldens::check(checks.as_slice());
+    let mut tui = front();
+    tui.step(Told::Stage { stage: BoxStage::Ended { end: BoxEnd::Killed { signal: 15 } } });
+    assert_eq!(
+        view::front::gave_up_note(&tui, &f::words()).as_deref(),
+        Some(b"The box stopped: killed by signal 15. /log shows why; Ctrl+C closes.".as_slice())
+    );
+    stopping_log_bounds();
+}
+
+fn stopping_log_bounds() {
+    use crate::{BoxEnd, BoxStage};
+    let root = launchpad::home(None, &[working(9, b"csv-export", 1)]);
+    let mut tui = front();
+    tui.step(Told::Stage { stage: BoxStage::Stopping });
+    tui.step(Told::Log);
+    for _ in 0..BOX_LINES {
+        tui.step(Told::BoxLine { line: BoxLine::Log { line: Box::new([b'x'; LOG_BYTES]) } });
+    }
+    for stage in [BoxStage::Stopping, BoxStage::Ended { end: BoxEnd::Killed { signal: 15 } }] {
+        tui.step(Told::Stage { stage });
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        assert_eq!(f::count(view.tree(), Role::Log), 2, "/log keeps its own view while stopping");
+        let notes = view::foot::read_notes(&root, &tui, &f::words());
+        assert_eq!(notes.log.as_ref().unwrap().lines.len(), usize::try_from(BOX_LINES).unwrap());
+        assert_eq!(notes.stopping.as_ref().unwrap().log.lines.len(), usize::try_from(BOX_LINES).unwrap());
+        super::limits::fits(view.tree(), &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
+    }
 }

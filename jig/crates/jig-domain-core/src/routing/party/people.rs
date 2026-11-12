@@ -157,6 +157,9 @@ pub(crate) fn tag_people_part(
                 super::deployment_acts::route(core, env, &mut routed.work, &mut routed.out, request, *act);
                 continue;
             }
+            people::Request::NeedArrived { party, project, task, needs } => {
+                Request::Held(Box::new(Held::NeedArrived { party, project, task, needs }))
+            }
             people::Request::Acted { to, outcome } => {
                 if outcome == people::Outcome::Again(people::Again::Busy) {
                     core.touch_deployment();
@@ -217,6 +220,7 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::Created { .. }
                     | people::Outcome::Proposed { .. }
                     | people::Outcome::Withdrawn { .. }
+                    | people::Outcome::Left { .. }
                     | people::Outcome::Stopped { .. }
                     | people::Outcome::Cancelled { .. }
                     | people::Outcome::Lifted { .. }
@@ -610,6 +614,10 @@ pub(crate) fn tag_people_part(
                             }
                         },
                     },
+                    people::Ask::Talk { task, words, .. } => {
+                        super::controls::talk_request(core, env, &mut routed, party, task, words);
+                    }
+                    people::Ask::Leave { task, .. } => super::controls::leave_request(core, &mut routed, party, task),
                     people::Ask::Say { task, words, .. } => {
                         say_request(core, env, &mut routed, party, task, words);
                     }

@@ -6,7 +6,9 @@ use jig_client_kit::{
 };
 use skein_ui::{Key, NodeId, Role, Tree};
 fn card_role(node: &skein_ui::Node) -> bool {
-    node.role == Role::Item || (node.role == Role::Slot && node.key.is_some_and(|key| key.kind == 1 || key.kind == 29))
+    (node.role == Role::Slot && node.styles.as_slice().contains(&temper_client_view::look::TEAM_CARD))
+        || node.role == Role::Item
+        || (node.role == Role::Slot && node.key.is_some_and(|key| key.kind == 1 || key.kind == 29))
 }
 fn identity(key: Key) -> Option<CardKey> {
     if key.owner != temper_client_view::frame::owner() {

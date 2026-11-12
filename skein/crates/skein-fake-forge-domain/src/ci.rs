@@ -3,7 +3,7 @@
 //! is pending at once, then passes or fails after a drawn latency, or never
 //! reports, by the repository's chances; or, where a cue is configured, as the
 //! commit's file content or message says (skein/docs/design/testing/fakes/forge.md,
-//! 2.3). Pull-file cues start a new run when a push head becomes a pull
+//! 2.3). Pull-file and declared cues start a new run when a push head becomes a pull
 //! head, binding its number; other CI runs once per commit and repository. A
 //! context that reported may be run again once, by the repository's chance:
 //! pending again at once, then a verdict drawn again, so a head's CI can
@@ -16,7 +16,7 @@
 use alloc::boxed::Box;
 
 use skein_lib::bytes::{copy_of, find};
-use skein_lib::{Env, Id, List, Map};
+use skein_lib::{Env, Id, List, Map, usize_of};
 
 use crate::api::{Answer, Check, Checks, Cue, Ended, Error, Permission, What};
 use crate::domain::{self, Alarm, Config, Domain};
@@ -44,7 +44,7 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, 
         let mut templated = false;
         for context in &repository.checks.contexts {
             match cue(&repository.checks, context) {
-                Some(Cue::PullFile { .. }) => templated = true,
+                Some(Cue::PullFile { .. } | Cue::Declared { .. }) => templated = true,
                 Some(Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) | None => {}
             }
         }
@@ -72,7 +72,7 @@ pub(crate) fn start(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, 
         let mut pending = Status {
             state: Check::Pending,
             author: env.limits.ci,
-            at: domain::clock(env),
+            at: domain::clock(env).max(domain.floor),
             rerun: false,
             description: copy_of(b"CI pending"),
             link: Box::new([]),
@@ -108,14 +108,8 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
     let pull = repository.runs.get(&commit).expect("a CI run").pull;
     let checks = &repository.checks;
     let state = match cue(checks, &name) {
-        Some(Cue::PullFile { path, no_pull, .. }) => match pull {
-            Some(number) => {
-                let path = template(path, Some(number));
-                let tree = &domain.commits.get(&commit).expect("a commit of the store").tree;
-                if tree.contains_key(&*path) { Check::Passed } else { Check::Failed }
-            }
-            None => *no_pull,
-        },
+        Some(Cue::Declared { path }) => declared(domain, commit, &name, path, pull, &env.limits.limits).0,
+        Some(Cue::PullFile { path, no_pull, .. }) => pull_file(domain, commit, path, pull, *no_pull),
         Some(Cue::Tests { path }) => {
             let object = domain.object(commit).expect("CI commit");
             match object.tree.get(&**path) {
@@ -159,7 +153,7 @@ pub(crate) fn report(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>,
     let mut status = Status {
         state,
         author: env.limits.ci,
-        at: domain::clock(env),
+        at: domain::clock(env).max(domain.floor),
         rerun,
         description: description(state),
         link: Box::new([]),
@@ -190,7 +184,7 @@ pub(crate) fn rerun(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, 
     let mut pending = Status {
         state: Check::Pending,
         author: env.limits.ci,
-        at: domain::clock(env),
+        at: domain::clock(env).max(domain.floor),
         rerun: true,
         description: copy_of(b"CI pending"),
         link: Box::new([]),
@@ -241,7 +235,15 @@ pub(crate) fn status(
         id,
         commit,
         &context,
-        Status { state, author: user, at: domain::clock(env), rerun: true, description, link, job: None },
+        Status {
+            state,
+            author: user,
+            at: domain::clock(env).max(domain.floor),
+            rerun: true,
+            description,
+            link,
+            job: None,
+        },
     ) {
         return Err(Error::Full);
     }
@@ -317,7 +319,7 @@ pub(crate) fn reported(
     if env.limits.status_updates {
         let heads = repository.heads(commit);
         for &number in &heads {
-            repository.touch(number, domain::clock(env));
+            repository.touch(number, domain::clock(env).max(domain.floor));
         }
     }
     let job = crate::actions::reference(repository, commit, &context);
@@ -383,4 +385,72 @@ pub(crate) fn template(bytes: &[u8], pull: Option<u64>) -> Box<[u8]> {
         out.push(byte).expect("expanded template capacity");
     }
     out.into_boxed()
+}
+
+/// Resolves a head's declaration to its Actions failure cue.
+pub(crate) fn effective(
+    domain: &Domain,
+    commit: u64,
+    context: &[u8],
+    cue: Option<&Cue>,
+    pull: Option<u64>,
+    limits: &crate::Limits,
+) -> Option<Cue> {
+    match cue {
+        Some(Cue::Declared { path }) => declared(domain, commit, context, path, pull, limits).1,
+        Some(Cue::PullFile { .. } | Cue::File { .. } | Cue::Message { .. } | Cue::Tests { .. }) => cue.cloned(),
+        None => None,
+    }
+}
+
+pub(crate) fn declared(
+    domain: &Domain,
+    commit: u64,
+    context: &[u8],
+    path: &[u8],
+    pull: Option<u64>,
+    limits: &crate::Limits,
+) -> (Check, Option<Cue>) {
+    let tree = &domain.object(commit).expect("CI commit").tree;
+    let Some(file) = tree.get(path) else { return (Check::Passed, None) };
+    if file.len() <= usize_of(limits.content_bytes) {
+        let end = match find(file, b"\n") {
+            Some(end) => end,
+            None => file.len(),
+        };
+        let line = file.get(..end).expect("first line");
+        if line == b"pass" {
+            return (Check::Passed, None);
+        }
+        if line == b"fail" {
+            return (Check::Failed, None);
+        }
+        if let Some(template) = line.strip_prefix(b"pull-file ")
+            && !template.is_empty()
+            && template_bound(template) <= limits.name_bytes
+        {
+            let state = pull_file(domain, commit, template, pull, Check::Skipped);
+            return (
+                state,
+                Some(Cue::PullFile {
+                    path: copy_of(template),
+                    no_pull: Check::Skipped,
+                    step: copy_of(context),
+                    log: skein_lib::bytes::concat(&[b"Missing ", template]),
+                }),
+            );
+        }
+    }
+    (Check::Failed, Some(Cue::Declared { path: copy_of(path) }))
+}
+
+fn pull_file(domain: &Domain, commit: u64, path: &[u8], pull: Option<u64>, no_pull: Check) -> Check {
+    match pull {
+        Some(number) => {
+            let path = template(path, Some(number));
+            let tree = &domain.object(commit).expect("CI commit").tree;
+            if tree.contains_key(&*path) { Check::Passed } else { Check::Failed }
+        }
+        None => no_pull,
+    }
 }

@@ -286,7 +286,8 @@ navigation named by the open project, in this order:
   `div.temper-rail-person`, drawn as the foot's other rows. It opens a panel
   above the row, as wide as it, in the look of the switcher's menu. Its items:
   "Accounts", to `Accounts`; "What temper remembers about you", to
-  `Remembered`, Ask temper's memory of the person (`pages/remembered.md`); and "Sign out", the
+  `Remembered`, Ask temper's memory of the person (`pages/remembered.md`); "Telling you", to
+  `Told`, where pushes go (`pages/told.md`); and "Sign out", the
   `Accounts` tab's act. A press
   on an item, Escape and a press outside close it, the focus back on the row
   unless that press took it elsewhere. Open, the row keeps the hover's grey. A
@@ -329,7 +330,7 @@ and what is current is the view's. Its rules:
 |---|---|---|
 | "All projects", the switcher's first row | the person is in two projects or more | `me`'s projects |
 | "Needs you"'s count | it is more than zero | `pages().needs().count(..)`, as above; on a page across projects, the count across them (`pages/needs-you.md`, 1, *What the client keeps*) |
-| "Team" | the project has a second member or a standing role | the project's people, from its document (`pages/team.md`, 1), and standing roles, none gathered |
+| "Team" | the project has a second member or a standing role | the project's people, from its document, and its live standing roles, from the roles' watch (`pages/team.md`, 1, *Its reads*) |
 | "Ask temper", in the rail, the tab bar and the new box's menu | `me` lists template 5 for the project | `me`'s templates |
 | the Away switch and chip | `pages/README.md`, 2's *Away* shows it; on All projects, it shows for any of the person's projects (`pages/README.md`, 2, *Away*, *On All projects*) | `Domain::away_shown`; on All projects, `pages::away_all::across` |
 | the new box's menu, "+ New draft or change" | the project offers drafts | `drafts_offered`; else "+ New change" alone |

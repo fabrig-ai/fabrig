@@ -604,6 +604,58 @@ fn a_closers_failed_close_change_holds_it_and_its_release_retries() {
 }
 
 #[test]
+fn a_goal_reads_the_resolution_under_its_closers_conflicting_landing() {
+    use crate::host_calls::scripted_task_read;
+    let (mut world, goal, branch) = goal_world_with_updates(false, true, None, false, true, STEPS, None, true, None, 1);
+    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+    let base = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"First", b"conflicting", 1)
+        .expect("main conflicts with goal");
+    let closer = make_closer(&mut world, &goal, 94);
+    let landing = wait_landing(&mut world, closer);
+    let text = scripted_task_read(&mut world, &goal, 95, landing, false);
+    assert!(text.contains(&format!("Task {landing}")), "{text}");
+    assert!(!text.contains("refused"), "{text}");
+    let resolver = producer_for(&mut world, landing);
+    assert_eq!(live_task(&world, resolver.task).requester, tasks::Party::Task(landing));
+    assert!(matches!(resolver.workspace.repositories[0].start,
+        engine::ForgeStart::Merge { base: expected, .. } if expected == translate::commit(base)));
+    let specification = String::from_utf8(live_task(&world, resolver.task).spec.words.to_vec()).expect("specification");
+    let text = scripted_task_read(&mut world, &goal, 96, resolver.task, false);
+    assert!(text.contains(&specification), "{text}");
+    assert!(text.contains("active"), "{text}");
+    let old = branch_tip(&mut world, &branch);
+    let merge = fake::merge_commit(
+        &mut world.fake,
+        &world.fake_env.limits,
+        old,
+        base,
+        Box::new([raw::File { path: b"First".as_slice().into(), content: b"resolved".as_slice().into() }]),
+        b"Resolve closer landing",
+    )
+    .expect("resolution commit");
+    assert_eq!(
+        world.external(1, raw::Op::Git(raw::Git::Push { branch, commit: merge, expected: Some(old) })),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+    finish_run(
+        &mut world,
+        &resolver,
+        tasks::TaskResult::Change {
+            title: tasks::ChangeTitle::new(b"Resolved closer landing".as_slice().into()),
+            connector: 0,
+            kind: 2,
+            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+            words: b"Done: resolved the closer landing conflict.".as_slice().into(),
+        },
+    );
+    wait_ended(&mut world, resolver.task);
+    assert!(world.root.tasks().task(resolver.task).is_none(), "resolver retained outside the core");
+    let text = scripted_task_read(&mut world, &goal, 97, resolver.task, true);
+    assert!(text.contains("Done: resolved the closer landing conflict."), "{text}");
+    world.close();
+}
+
+#[test]
 fn a_closers_landing_held_escalates_to_the_goal() {
     let (mut world, goal, branch) = goal_world_in(false, true, None, true);
     add_change(&mut world, &goal, &branch, 93, b"First", b"done");

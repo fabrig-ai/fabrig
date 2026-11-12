@@ -75,6 +75,18 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
             print!("{}", versions());
             Ok(0)
         }
+        Reach::Words(["upgrade", mode @ ("--check" | "--back")]) => {
+            let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine upgrade: {why}\n")))?;
+            let (directories, request) = crate::upgrade::configure(
+                *mode == "--check",
+                arguments,
+                &captured.environment,
+                working.as_os_str().as_bytes(),
+            )
+            .map_err(|why| refused(&why))?;
+            refuse_document(command, &directories).map_err(|why| (1, why))?;
+            crate::upgrade::run(ENGINE.binary, &directories, &request).map_err(|why| (1, why))
+        }
         Reach::Words(["serve"]) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine serve: {why}\n")))?;
             let (directories, rest) =
@@ -147,7 +159,7 @@ fn refuse_document(command: &Command, directories: &Directories) -> Result<(), S
 pub fn versions() -> String {
     use std::fmt::Write;
     let mut text = String::new();
-    let levels = jig_protocol_store::levels(&jig_protocol_store::PatchSets::NONE);
+    let levels = jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS);
     for (owner, level) in
         [("skein", levels.skein), ("smith", levels.smith), ("jig", levels.jig), ("temper", levels.application)]
     {

@@ -70,6 +70,11 @@ fn decode(
         w::Ask::Withdraw(value) => p::Ask::Withdraw { project: value.project(), proposal: value.proposal() },
         w::Ask::Create(value) => super::operations::create(value, models, limits, names)?,
         w::Ask::Compound(value) => super::operations::compound(value, models, limits, names)?,
+        w::Ask::Talk(value) => {
+            let v = value.into_parts();
+            p::Ask::Talk { project: v.project, task: v.task, words: v.words }
+        }
+        w::Ask::Leave(value) => p::Ask::Leave { project: value.project(), task: value.task() },
         w::Ask::Message(value) => {
             let v = value.into_parts();
             p::Ask::Say { project: v.project, task: v.task, words: v.words }

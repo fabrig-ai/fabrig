@@ -132,7 +132,6 @@ pub struct Launch {
 pub struct Hosted {
     pub name: Box<[u8]>,
     pub stdio: [Option<Fd>; 3],
-    pub front_fds: [Option<Fd>; 2],
     pub parent_pipes: Box<[Fd]>,
     pub pid: Pid,
     pub descriptors: Box<[Fd]>,
@@ -173,6 +172,7 @@ pub struct Harness {
     pub held_log_write: Option<Call>,
     pub wall: Wall,
     pub terminal_writes: List<(Fd, Box<[u8]>)>,
+    pub front_pipes: Option<[Fd; 3]>,
     pub stdout_bytes: List<u8>,
     pub stderr_bytes: List<u8>,
     pub hold_terminal_ack: bool,
@@ -184,7 +184,7 @@ pub struct Opening {
     pub link_form: crate::terminal::LinkForm,
     pub log_lines: Box<[Box<[u8]>]>,
     pub first_link: Option<crate::host::FirstLink>,
-    pub front: Option<crate::host::Front>,
+    pub front: Option<skein_lib::Secret>,
     pub after_block: Box<[u8]>,
 }
 impl Harness {
@@ -278,11 +278,23 @@ impl Harness {
                 open_step_listeners(&mut sim, pid, step, &mut listeners);
             }
         }
+        let front_pipes = if opening.front.is_some() {
+            Some([sim.open_inherited_read(pid), sim.open_inherited_write(pid), sim.open_inherited_write(pid)])
+        } else {
+            None
+        };
+        let front = match opening.front {
+            Some(link) => {
+                let [input, link_output, lines] = front_pipes.expect("front descriptors");
+                Some(crate::host::Front { input, link_output, lines, link })
+            }
+            None => None,
+        };
         let settings = Settings {
             word: b"temper".as_slice().into(),
             link_form: opening.link_form,
             log_lines: opening.log_lines,
-            front: opening.front,
+            front,
             first_link: opening.first_link,
             after_block: opening.after_block,
             echo,
@@ -328,6 +340,7 @@ impl Harness {
             held_log_write: None,
             wall: Wall::EPOCH,
             terminal_writes: List::with_capacity(4096),
+            front_pipes,
             stdout_bytes: List::with_capacity(65_536),
             stderr_bytes: List::with_capacity(65_536),
             hold_terminal_ack: false,
@@ -421,13 +434,7 @@ impl Harness {
                 let mut input = None;
                 let mut output = None;
                 let mut stdio = [None; 3];
-                let mut front_fds = [None; 2];
                 for (number, fd) in inherited {
-                    if let Some(index) = number.checked_sub(3)
-                        && let Some(slot) = front_fds.get_mut(usize::try_from(index).unwrap())
-                    {
-                        *slot = Some(fd);
-                    }
                     if let Some(slot) = stdio.get_mut(usize::try_from(number).unwrap()) {
                         *slot = Some(fd);
                     }
@@ -459,7 +466,6 @@ impl Harness {
                     .push(Hosted {
                         name: spawn.args.last().unwrap().clone(),
                         stdio,
-                        front_fds,
                         parent_pipes: parent_pipes.into_boxed(),
                         pid,
                         descriptors: descriptors.into_boxed(),
@@ -724,11 +730,6 @@ impl Harness {
     pub fn read_stdin(&mut self, index: u32, most: u32) -> Box<[u8]> {
         let child = self.hosted.get(index).unwrap();
         self.read_pipe(child.pid, child.stdio[0].unwrap(), most)
-    }
-    pub fn read_fd(&mut self, index: u32, number: usize, most: u32) -> Box<[u8]> {
-        let child = self.hosted.get(index).unwrap();
-        let fd = child.front_fds.get(number.checked_sub(3).unwrap()).unwrap().unwrap();
-        self.read_pipe(child.pid, fd, most)
     }
     fn read_pipe(&mut self, pid: Pid, fd: Fd, most: u32) -> Box<[u8]> {
         let mut submissions = Queue::with_capacity(1);

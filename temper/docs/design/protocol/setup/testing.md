@@ -150,18 +150,20 @@ relies on.
   and no duplicate final give up. A failed requested group leaves serve
   usable. Held output acknowledgements preserve facts' source wall values
   and the complete sign-in block.
-- **The box's TUI in front** (`box.md`, 6): in temper-box, the box's lines' bytes,
-  their bound and their cut at a UTF-8 boundary, and the lines a fact and a
-  terminal's line give; on the simulated host, the front spawned before any
-  step with its descriptors, its arguments and environment, the local
-  link's URL alone on its fd 3, both secrets on serve's first stdin,
-  nothing on the terminal while it runs, the block's words and the
+- **The box in front of `temper box`** (`box.md`, 6): in temper-box, the
+  box's lines' bytes, their bound and their cut at a UTF-8 boundary, and
+  the lines a fact and a terminal's line give; on the simulated host,
+  with `--front`, the local link's URL alone on fd 3, written and closed
+  in the first block's place before any step, both secrets on serve's
+  first stdin, nothing on the terminal, the block's words and the
   terminal's lines in `box.log` and no link there, its lines on fd 4 and
-  their bound, its log and tail, its end as the stop, the stop and the give
-  up with it, and the terminal's lines after it; in temper, the front's
-  condition and `--no-tui`; and one focused story in the `suite` binary, a
-  fresh box on a pseudo-terminal whose front signs in and whose Ctrl+C
-  stops the box, which exits 0 with no link in any log.
+  their bound, fd 0's end as the stop and a signal after it as the
+  second, and the give up's exit; in the binary, `--front`'s forms and
+  refusals (`--echo steps`, fd 3 or fd 4 missing, no first link drawn)
+  and `temper-box` in a terminal running no TUI; and one focused story in
+  the `suite` binary, a fresh `temper-box --front` on pipes, its link
+  read from fd 3 signing in by `temper-box open`, and its fd 0 closed
+  stopping it, exit 0, with no link in any log.
 - **The setup host's handover at runtime** (`reconcile.md`, 1), in temper-service's
   step tests: at `started`, `TakeOver` when the handover is present, its
   record kept before removal, then `Reconcile` and the connect, the row

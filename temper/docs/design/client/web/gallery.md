@@ -312,6 +312,16 @@ from the engine's own answers, is where the look is tuned.
 | `night-remembered-full` | `remembered-full` with the night look on |
 | `night-remembered-changing` | `remembered-changing` with the night look on |
 | `night-remembered-refused` | `remembered-refused` with the night look on |
+| `told-not-set-up` | "Telling you" on a deployment that doesn't push: its quiet band (`../pages/told.md`) |
+| `told-off` | "Telling you" with this browser off, "Turn on", and two devices under "Your devices", each with "Remove" |
+| `told-on` | `told-off` with this browser on: "On since …", "Turn off", and its row marked "This browser" |
+| `told-cannot` | "Telling you" on an iPhone's browser that can't be pushed to: its words and the Home Screen's line, no act |
+| `told-refused` | `told-off` after "Turn on" refused as `too_many`: its line under the row |
+| `night-told-not-set-up` | `told-not-set-up` with the night look on |
+| `night-told-off` | `told-off` with the night look on |
+| `night-told-on` | `told-on` with the night look on |
+| `night-told-cannot` | `told-cannot` with the night look on |
+| `night-told-refused` | `told-refused` with the night look on |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`../pages/README.md`): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |
@@ -330,6 +340,7 @@ from the engine's own answers, is where the look is tuned.
 | `needs-why` | a question whose asked row says why: "Reached you because it is an implementation choice, which asks you unless you’re away." then "Keep asking" and "Stop asking: let agents decide implementation choices" on the line |
 | `needs-stop-asking` | `needs-why` with its rule open for an owner: "Let agents decide implementation choices, then tell you." with "Apply"; "Keep asking" on the line, none under the offers |
 | `needs-stop-asking-set` | a question that changes a path set, its rule "Stop asking: let agents decide some changes to protocol core" open for a member: the words offer's sentence over its field, the split, each with "Propose" |
+| `needs-sign-off-part` | a sign-off's card open for a member, its rule by path asking two members, one signed: "This project's landing rule 1 asks for 2 approvals by members.", "Signs off changes to payments.", "1 of 2 signed: Sam; you or Kit can give the second." and "Sign off on Forgejo ↗" first (`../forge/README.md`, 4.1, *Its context*; `whole-story/team/needs.html`) |
 | `needs-only-you` | the unfiltered *Needs you* (`../pages/README.md`, **Only you**): a question, then "Only you · 2", a signed-out ChatGPT sign-in and an expiring Claude Code login, each with "Sign in again" |
 | `needs-only-you-done` | no card open: "Nothing needs you.", "Home", then "Only you · 1", a signed-out ChatGPT sign-in |
 | `night-needs-only-you` | `needs-only-you` with the night look on |
@@ -458,6 +469,8 @@ from the engine's own answers, is where the look is tuned.
 | `team` | hand-made deliveries after the whole story's `team/team.html`: two people, both owners of the project, the person reading with two questions and a review waiting, "Three things wait on you.", and Sam with a question waiting on one of Sam's chats, "One question waits on Sam."; "Two of you."; "owners of shop" at People's head's right, and each box "Owner"; a service member left out |
 | `team-alone` | one person, the project's owner, nothing waiting: "Just you.", People's head its title alone, and one box, "Owner" and "Nothing waits on you." |
 | `night-team` | `team` with the night look on |
+| `team-role` | hand-made deliveries after the whole story's `team.html`: one person, the project's owner, nothing waiting, "Just you."; a standing role, Prover, its task 52, which they started on 2 November; "Standing roles" with Prover's row, current, its Now's first line and "21 of 40"; Prover's card: "A standing role · since 2 November · started by you" and "Pause"; "Its Now · written at 02:41" and its four lines, each a list item; "Its rules · change by proposal" and its charter's "Asked to"; "Wakes on": "News from the forge, on 2 topics", "every 30 minutes", a timer, "Mondays 06:00", and "Task 61's result", "at once"; "Sessions this week": one with a run live, "Sun 01:52 · running", and two ended, "Sat 16:20 · 22 min" with its `Stood` words and "Fri 23:05 · 31 min" with none, each with its cost, and the line under them; then People, one box |
+| `night-team-role` | `team-role` with the night look on |
 | `chat-closing-below` | a chat at rest with one task below it: a singular count and the hairline |
 | `chat-closing-proposal` | a chat at rest with one proposal: a singular count and the hairline |
 | `task-releasing-uncertain` | a release with an uncertain effect and its two choices |

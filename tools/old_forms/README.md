@@ -11,8 +11,11 @@ python3 -I -B scripts/old_forms.py --write
 ```
 
 The counter reads tracked Rust files below the current tree, omitting
-`generated` path components and the tree's `EXEMPT_DIRECTORIES`. Code forms
-retain string contents, with ordinary literal escapes replaced by separators.
+`generated` path components, the tree's `EXEMPT_DIRECTORIES`, and each crate's
+`patches/mod.rs`, which the patch command generates from kept texts that never
+change once landed, so a form in them could never be removed. The author's
+`patches/pNNNN.rs` and `patches/context.rs` still count. Code forms retain string
+contents, with ordinary literal escapes replaced by separators.
 `SYNTAX_FORMS` instead mask literals, so a string describing an attribute,
 loop or struct literal does not count as code. Nested block comments, line
 comments, doc comments, raw strings, escaped strings, characters and lifetimes

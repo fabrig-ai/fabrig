@@ -330,7 +330,7 @@ impl World {
     }
 
     fn external(&mut self, user: u64, op: raw::Op) -> raw::Answer {
-        let mut config = self.fake_env.limits;
+        let mut config = self.fake_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         let env = self.env.with(config);

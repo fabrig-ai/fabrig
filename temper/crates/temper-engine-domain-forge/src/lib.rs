@@ -51,6 +51,19 @@ pub use drafts::{
     draft_path, drafts_subject,
 };
 mod away;
+mod devices;
+pub use devices::{
+    AddDevice, DEVICES, DEVICES_SUBJECT, Device, DeviceAnswer, DeviceRefusal, DeviceView, DevicesView, Push, PushAnswer,
+};
+/// Connector configuration (temper/docs/design/protocol/configuration/engine.md, Config).
+#[derive(Clone, Debug)]
+pub struct Config {
+    pub namespace: Box<[u8]>,
+    pub writers: Box<[skein_forge_client::Writer]>,
+    /// Allowed push service origins, none when push is off.
+    pub push: Option<Box<[Box<[u8]>]>>,
+}
+
 pub use away::{
     AWAY_SUBJECT, AskedView, Away, AwaysView, DECIDED_DAY_NS, DECIDED_KEPT_NS, DECIDED_OPTION_BYTES, DECIDED_OPTIONS,
     DECIDED_QUESTION_BYTES, DECIDED_WHY_BYTES, DECISIONS_SHOWN, Decided, DecidedCall, DecisionView, DecisionsView,
@@ -105,6 +118,8 @@ pub use reconcile::{MissingLink, Need, RecordKind};
 pub mod resources;
 pub mod settings;
 pub use settings::ForgeCharters;
+#[cfg(test)]
+mod fuzzy;
 #[cfg(test)]
 #[path = "tests/public.rs"]
 mod public_tests;
@@ -306,6 +321,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Verification(row) => Key::Verification { repository: row.repository, commit: row.commit },
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::Device(row) => Key::Device { party: row.party, number: row.number },
         Stored::LandedDraft(row) => Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         Stored::Away(row) => Key::Away { party: row.party, project: row.project },
         Stored::Decided(row) => Key::Decided { project: row.project, number: row.number },
@@ -632,6 +648,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(held)
         }
+        Stored::Device(row) => bytes(&row.endpoint).checked_add(bytes(&row.label)),
         Stored::Binding { address, subject } => bytes(address).checked_add(bytes(subject)),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
@@ -688,8 +705,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(total)
         }
-        Stored::Change(row) => skein_lib::len_u64(row.repair_tasks.len())
-            .checked_mul(8)?
+        Stored::Change(row) => skein_lib::len_u64(row.signed.len())
+            .checked_mul(u64::try_from(size_of::<SignOff>()).ok()?)?
+            .checked_add(skein_lib::len_u64(row.repair_tasks.len()).checked_mul(8)?)?
             .checked_add(u64::try_from(size_of::<ChangeRow>()).ok()?)?
             .checked_add(skein_lib::len_u64(row.resolution_tasks.len()).checked_mul(8)?)?
             .checked_add(match &row.ending {

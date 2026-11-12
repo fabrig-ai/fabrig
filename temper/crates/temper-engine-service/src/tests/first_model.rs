@@ -76,7 +76,7 @@ fn stock_box(account: OneAccount) -> StockBox {
         landings: application.landings,
         kinds_stock: crate::stock::forge(&limits),
         ways_stock: Box::default(),
-        forge: skein_forge_client::Config { namespace: Box::new([31; 16]), writers: Box::new([]) },
+        forge: temper_engine_domain_forge::Config { push: None, namespace: Box::new([31; 16]), writers: Box::new([]) },
         identities: Box::new([]),
         machine: None,
         forges: Box::new([]),
@@ -591,6 +591,7 @@ fn claude_alone_runs_the_goals_coding_task() {
 #[test]
 fn chatgpt_alone_runs_the_stock_chat() {
     let mut world = stock_box(OneAccount::ChatGpt);
+    world.worker();
     world.assert_offer(&[
         (OPENAI, b"high"),
         (ASTRA, b"high"),
@@ -601,7 +602,6 @@ fn chatgpt_alone_runs_the_stock_chat() {
     let task = world.create(1, None);
     let document = world.document(task);
     assert_eq!(world.main(&document), OPENAI, "Task before claim");
-    world.worker();
     world.assert_claim(task, OPENAI);
 }
 

@@ -8,9 +8,12 @@ use temper_service_core::long_pass::{LONG_PASS, LongPass, Part, Watch};
 use temper_shell::directories::Directories;
 use temper_shell::directories::EnvironmentEntry;
 
+pub type UpgradeReport<S> = fn(&S, &str, &Directories, &[u8]) -> Option<(String, u8)>;
+
 pub struct Host<S> {
     pub service: S,
     served: Served<S>,
+    upgrade: Option<UpgradeReport<S>>,
     binary: String,
     directories: Directories,
     pub(super) store: Box<[u8]>,
@@ -40,6 +43,7 @@ impl<S> Host<S> {
         Self {
             service,
             served,
+            upgrade: None,
             binary: binary.into(),
             directories,
             store,
@@ -64,6 +68,24 @@ impl<S> Host<S> {
         {
             eprintln!("{} serve: link file {why}", self.binary);
         }
+    }
+}
+
+impl<S> Host<S> {
+    /// Upgrade refusals name the checked directory, not the configured data directory.
+    #[must_use]
+    pub fn for_upgrade(
+        binary: &str,
+        service: S,
+        served: Served<S>,
+        directories: Directories,
+        store: Box<[u8]>,
+        report: UpgradeReport<S>,
+    ) -> Self {
+        let mut host = Self::with_binary(binary, service, served, directories, &[]);
+        host.store = store;
+        host.upgrade = Some(report);
+        host
     }
 }
 
@@ -107,6 +129,12 @@ impl<S> skein_shell::Host for Host<S> {
         if !(self.served.is_empty)(&self.service) {
             return None;
         }
+        if let Some((lines, code)) =
+            self.upgrade.and_then(|report| report(&self.service, &self.binary, &self.directories, &self.store))
+        {
+            print!("{lines}");
+            return Some(Exit::Code(code));
+        }
         if let Some(long) = self.watch.held() {
             eprint!("{}", long_pass_line(&self.binary, long));
         }
@@ -129,7 +157,13 @@ impl<S> Host<S> {
             }
         }
         while let Some(lines) = (self.served.note)(&mut self.service, &self.binary) {
-            diagnostics.write_all(lines.as_bytes()).expect("printing to stderr failed");
+            if self
+                .upgrade
+                .and_then(|report| report(&self.service, &self.binary, &self.directories, &self.store))
+                .is_none()
+            {
+                diagnostics.write_all(lines.as_bytes()).expect("printing to stderr failed");
+            }
         }
         while let Some(link) = (self.served.link)(&mut self.service) {
             if self

@@ -170,7 +170,7 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
         (
             "checkout",
             scenario(
-                git::Op::CheckOut { at: at(), commit: ONE, clean: true },
+                git::Op::CheckOut { at: at(), commit: ONE, clean: true, identity: 1, account: None },
                 &["checkout-1", "checkout-2"],
                 Expected::done(git::Done::Succeeded),
             ),
@@ -178,19 +178,23 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
         (
             "saved checkout",
             scenario(
-                git::Op::CheckOut { at: at(), commit: ONE, clean: false },
+                git::Op::CheckOut { at: at(), commit: ONE, clean: false, identity: 1, account: None },
                 &["checkout-1"],
                 Expected::done(git::Done::Succeeded),
             ),
         ),
         (
             "merge",
-            scenario(git::Op::Merge { at: at(), theirs: TWO }, &["merge-clean"], Expected::done(git::Done::Merged)),
+            scenario(
+                git::Op::Merge { at: at(), theirs: TWO, identity: 1, account: None },
+                &["merge-clean"],
+                Expected::done(git::Done::Merged),
+            ),
         ),
         (
             "merge conflict",
             scenario(
-                git::Op::Merge { at: at(), theirs: TWO },
+                git::Op::Merge { at: at(), theirs: TWO, identity: 1, account: None },
                 &["merge-conflict", "merge-conflict-2"],
                 Expected::done(git::Done::Conflicted { files: Box::new([Box::from(&b"conflict.txt"[..])]) }),
             ),

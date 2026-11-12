@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 413;
+pub const N: usize = 426;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -140,9 +140,16 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
-        Sample { name: "team", world: Bare, address: Address::Team { project: 1 }, then: Shown },
-        Sample { name: "team-alone", world: Bare, address: Address::Team { project: 1 }, then: Shown },
-        Sample { name: "night-team", world: Bare, address: Address::Team { project: 1 }, then: Shown },
+        Sample { name: "team-role", world: Bare, address: Address::Team { project: 1, role: Some(52) }, then: Shown },
+        Sample {
+            name: "night-team-role",
+            world: Bare,
+            address: Address::Team { project: 1, role: Some(52) },
+            then: Shown,
+        },
+        Sample { name: "team", world: Bare, address: Address::Team { project: 1, role: None }, then: Shown },
+        Sample { name: "team-alone", world: Bare, address: Address::Team { project: 1, role: None }, then: Shown },
+        Sample { name: "night-team", world: Bare, address: Address::Team { project: 1, role: None }, then: Shown },
         Sample {
             name: "rail-new-change",
             world: Reference,
@@ -187,6 +194,16 @@ pub fn samples() -> [Sample; N] {
             address: Address::Work { project: 1, filter: temper_client_domain::WorkFilter::All },
             then: Shown,
         },
+        Sample { name: "told-not-set-up", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "told-off", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "told-on", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "told-cannot", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "told-refused", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "night-told-not-set-up", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "night-told-off", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "night-told-on", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "night-told-cannot", world: Reference, address: Address::Told, then: Shown },
+        Sample { name: "night-told-refused", world: Reference, address: Address::Told, then: Shown },
         Sample { name: "remembered-none", world: Reference, address: Address::Remembered, then: Shown },
         Sample { name: "remembered-three", world: Reference, address: Address::Remembered, then: Shown },
         Sample { name: "remembered-full", world: Reference, address: Address::Remembered, then: Shown },
@@ -916,6 +933,12 @@ pub fn samples() -> [Sample; N] {
             address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
             then: Shown,
         },
+        Sample {
+            name: "needs-sign-off-part",
+            world: Solo,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
         Sample { name: "needs-approval", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
             name: "needs-approval-path",
@@ -1365,6 +1388,7 @@ fn special_mockup(name: &str) -> Option<String> {
     }
     match name {
         "team" | "night-team" => return Some("../whole-story/team/team.html".to_owned()),
+        "team-role" | "night-team-role" => return Some("../whole-story/team.html".to_owned()),
         "all-home"
         | "all-home-nothing-new"
         | "all-home-away"
@@ -1530,7 +1554,9 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
         Address::AllHome | Address::Inbox { .. } => ("inbox", None),
-        Address::Remembered | Address::Members | Address::Limits | Address::Accounts => ("accounts", None),
+        Address::Told | Address::Remembered | Address::Members | Address::Limits | Address::Accounts => {
+            ("accounts", None)
+        }
         Address::ConnectModel { .. } => ("connect-model", None),
         Address::Welcome { .. } => ("welcome", None),
         Address::Task { task, .. } => ("task", Some(task)),
@@ -1564,6 +1590,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -1713,6 +1740,21 @@ fn start_domain(sample: &Sample) -> Domain {
     }
     root
 }
+/// Kept sign-offs in the Team and Work samples, as the whole story draws them.
+pub(super) fn signoffs(parties: &[u64], at: u64) -> skein_lib::List<temper_client_protocol_wire::v1::ChangesSigned> {
+    use temper_client_protocol_wire::v1 as w;
+    let mut signed = skein_lib::List::with_capacity(8);
+    for party in parties {
+        signed
+            .push(
+                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: *party, head: [0xab; 32], at })
+                    .expect("sample signer"),
+            )
+            .expect("at most eight sample signers");
+    }
+    signed
+}
+
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
@@ -1722,6 +1764,7 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     let base = match sample.name {
         "night-team" => Some("team"),
+        "night-team-role" => Some("team-role"),
         "night-needs" => Some("needs-list"),
         "night-needs-only-you" => Some("needs-only-you"),
         "night-home" => Some("home-begin-ask-left"),
@@ -1734,6 +1777,11 @@ pub fn domain(sample: &Sample) -> Domain {
         "night-chat-split" => Some("chat-draft-split"),
         "night-work" => Some("work"),
         "night-limits" => Some("limits"),
+        "night-told-not-set-up" => Some("told-not-set-up"),
+        "night-told-off" => Some("told-off"),
+        "night-told-on" => Some("told-on"),
+        "night-told-cannot" => Some("told-cannot"),
+        "night-told-refused" => Some("told-refused"),
         "night-remembered-none" => Some("remembered-none"),
         "night-remembered-three" => Some("remembered-three"),
         "night-remembered-full" => Some("remembered-full"),
@@ -1769,6 +1817,9 @@ pub fn domain(sample: &Sample) -> Domain {
             | "limits-not-owner"
     ) {
         return crate::worlds::rail_work_world(sample.name, sample.address.clone());
+    }
+    if sample.name.starts_with("told-") {
+        return crate::worlds::told_world(sample.name);
     }
     if sample.name.starts_with("remembered-") {
         return crate::worlds::remembered_world(sample.name);
@@ -1898,7 +1949,7 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name.starts_with("changes") {
         return crate::worlds::changes_world(sample.name);
     }
-    if sample.name == "team" || sample.name == "team-alone" {
+    if sample.name == "team" || sample.name == "team-alone" || sample.name == "team-role" {
         return crate::worlds::team_world(sample.name);
     }
     if sample.name.starts_with("ask-") {
@@ -2874,7 +2925,8 @@ fn home_domain(name: &str) -> Domain {
                         away_watch = Some(watch);
                         crate::worlds::away_record(away_name == "rail-away-off")
                     }
-                    w::Watch::Away
+                    w::Watch::Devices
+                    | w::Watch::Away
                     | w::Watch::Change(_)
                     | w::Watch::Landing(_)
                     | w::Watch::Landings(_)
@@ -3083,7 +3135,7 @@ fn home_domain(name: &str) -> Domain {
                     w::Read::Deployment => Some(wire::deployment_answer(
                         &w::DeploymentAnswer::new(
                             &w::CEILINGS,
-                            w::DeploymentAnswerParts { welcome: true, owned: true, program_login: None },
+                            w::DeploymentAnswerParts { push: None, welcome: true, owned: true, program_login: None },
                         )
                         .expect("deployment"),
                     )),

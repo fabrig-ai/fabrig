@@ -312,6 +312,87 @@ fn a_producer_failure_uses_the_hold_account_bound_even_with_a_smaller_message_bo
     assert!(notice.words.ends_with(b"..."));
 }
 
+#[test]
+fn a_refused_failure_notice_still_holds_and_escalates_the_change() {
+    let (mut world, requester) = super::questions::plan_world(None);
+    let change = super::questions::make_change(&mut world, &requester, 93, engine::ChangeQuestions::Up);
+    let producer = super::questions::next_producer(&mut world, change);
+    world.drain_cut();
+    super::questions::fill_requester_inbox(&mut world, &requester);
+    world.until(Until::Ready);
+    super::reviews::finish_review(&mut world, &producer, tasks::TaskResult::Failure { reason: REASON.into() });
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(live_task(&world, change).escalation, tasks::Escalation::Waiting { .. })
+            && world.store.pending.is_empty()
+        {
+            break;
+        }
+    }
+    assert_eq!(account(&world, change), REASON);
+    assert!(matches!(change_row(&world, change).change.state, State::Held { why: Hold::Failed, .. }));
+    assert!(
+        std::iter::from_fn(|| world.root.pop_fact())
+            .any(|fact| matches!(fact, engine::Fact::StepRefused { task, .. } if task == change)),
+        "the failure notice's step was refused whole"
+    );
+    assert!(!live_task(&world, requester.task).inbox.iter().any(|word| word.from == tasks::Party::Task(change)
+        && word.kind == tasks::MessageKind::Words
+        && word.words.as_ref() == REASON));
+    let tasks::Escalation::Waiting { holder, entry, .. } = live_task(&world, change).escalation else {
+        panic!("the refused notice cannot lose the escalation")
+    };
+    assert_eq!(holder, tasks::EscalationHolder::Task(requester.task));
+    // The holder's run must read its full offered prefix before more can be delivered.
+    world.scripted_read_inbox(&requester);
+    for _ in 0..STEPS {
+        world.tick();
+        if world
+            .delivered_messages
+            .get(&(requester.task, requester.attempt))
+            .is_some_and(|words| words.contains(&entry))
+        {
+            break;
+        }
+    }
+    assert!(
+        world.delivered_messages.get(&(requester.task, requester.attempt)).is_some_and(|words| words.contains(&entry)),
+        "the escalation reaches the requester without its Words copy"
+    );
+    world.close();
+}
+
+#[test]
+fn a_restored_held_row_holds_its_idle_task_again() {
+    let (mut world, _, change) = failed_production(REASON);
+    world.drain_cut();
+    let mut task = Box::new(live_task(&world, change).clone());
+    task.phase = tasks::Phase::Active(tasks::Active::Idle);
+    task.escalation = tasks::Escalation::Unheld { revision: task.revisions.hold };
+    let mut header = world.store.header();
+    header.commits += 1;
+    world.store.pending.push_back((
+        header.commits,
+        Box::new([
+            engine::Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))),
+            engine::Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
+                header,
+            )))),
+        ]),
+    ));
+    world.store.apply();
+    world.restart(true, true);
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }) && world.store.pending.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(account(&world, change), REASON);
+    assert!(matches!(change_row(&world, change).change.state, State::Held { why: Hold::Failed, .. }));
+    world.close();
+}
+
 fn refresh(world: &mut World, task: u64) {
     let branch = change_row(world, task).branch.clone();
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {

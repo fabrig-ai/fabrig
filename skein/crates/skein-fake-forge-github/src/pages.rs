@@ -7,6 +7,7 @@ use crate::{
     manifest::{self, Manifest},
     service::{Limits as ServiceLimits, Response, Service},
 };
+pub(crate) mod image;
 use alloc::boxed::Box;
 use skein_forge::github::{document, request::Method, server};
 use skein_lib::{Decimal, Duration, List, Map, Rng, Secret, Wall, Writer, bytes};

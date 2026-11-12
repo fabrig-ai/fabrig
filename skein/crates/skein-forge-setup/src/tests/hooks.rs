@@ -62,19 +62,12 @@ fn listing(page: u32) -> Need {
 fn delete(id: u64) -> Need {
     fixtures::send(Request::DeleteRepoHook { at: at(), id })
 }
-fn save(need: Need, id: Option<u64>) -> HookSpec {
-    match (need, id) {
-        (Need::Send { request: Call::Forgejo(Request::CreateRepoHook { at: path, hook }), .. }, None) => {
-            assert_eq!(path, at());
-            hook
-        }
-        (Need::Send { request: Call::Forgejo(Request::EditRepoHook { at: path, id: found, hook }), .. }, Some(id)) => {
-            assert_eq!(path, at());
-            assert_eq!(found, id);
-            hook
-        }
-        (other, id) => panic!("save {id:?}: {other:?}"),
-    }
+fn save(need: Need) -> HookSpec {
+    let Need::Send { request: Call::Forgejo(Request::CreateRepoHook { at: path, hook }), .. } = need else {
+        panic!("create hook: {need:?}");
+    };
+    assert_eq!(path, at());
+    hook
 }
 pub(super) fn saved() -> Event {
     let Row::Hook(hook) = fixtures::hook(3, &url()) else { unreachable!("hook fixture") };
@@ -103,7 +96,7 @@ fn a_kept_secret_is_not_drawn() {
     let mut run = phase(0);
     assert_eq!(run.step(Event::Read(Some(secret(b"kept-secret")))), fixtures::send(Request::ApiSettings));
     run.step(fixtures::settings_event(2));
-    assert_eq!(save(run.step(fixtures::rows(Box::new([]))), None).secret, secret(b"kept-secret"));
+    assert_eq!(save(run.step(fixtures::rows(Box::new([])))).secret, secret(b"kept-secret"));
 }
 #[test]
 fn a_missing_secret_is_drawn_then_written_as_64_lowercase_hex() {
@@ -153,64 +146,81 @@ fn hooks_are_listed_page_by_page_until_a_short_page() {
             listing(page)
         );
     }
-    save(run.step(fixtures::rows(Box::new([fixtures::hook(7, b"other")]))), None);
+    save(run.step(fixtures::rows(Box::new([fixtures::hook(7, b"other")]))));
 }
 #[test]
 fn a_hook_of_another_url_is_left_alone() {
-    save(phase(4).step(fixtures::rows(Box::new([fixtures::hook(8, b"other")]))), None);
+    save(phase(4).step(fixtures::rows(Box::new([fixtures::hook(8, b"other")]))));
 }
 #[test]
-fn the_lowest_id_of_the_listeners_url_is_kept_and_each_other_deleted() {
-    let mut run = phase(4);
-    assert_eq!(run.step(fixtures::rows(Box::new([fixtures::hook(5, &url()), fixtures::hook(3, &url())]))), delete(5));
-    assert_eq!(run.step(Event::Reply(Reply::Empty)), listing(1));
-    assert_eq!(run.step(fixtures::rows(Box::new([fixtures::hook(3, &url()), fixtures::hook(9, &url())]))), delete(9));
-    run.step(Event::Reply(Reply::Empty));
-    save(run.step(fixtures::rows(Box::new([fixtures::hook(3, &url())]))), Some(3));
+fn each_hook_with_the_listeners_url_is_deleted_before_one_is_created() {
+    let mut run = phase(3);
+    let listing = fixtures::send(Request::RepoHooks {
+        at: at(),
+        page: skein_forge::forgejo::request::Page { page: Some(1), limit: Some(4) },
+    });
+    assert_eq!(run.step(fixtures::settings_event(4)), listing);
+    assert_eq!(
+        run.step(fixtures::rows(Box::new([
+            fixtures::hook(3, &url()),
+            fixtures::hook(5, b"other"),
+            fixtures::hook(9, &url()),
+        ]))),
+        delete(3)
+    );
+    assert_eq!(run.step(Event::Reply(Reply::Empty)), listing);
+    assert_eq!(run.step(fixtures::rows(Box::new([fixtures::hook(5, b"other"), fixtures::hook(9, &url())]))), delete(9));
+    assert_eq!(run.step(Event::Reply(Reply::Empty)), listing);
+    save(run.step(fixtures::rows(Box::new([fixtures::hook(5, b"other")]))));
+    assert_eq!(run.step(saved()), Need::Done(fixtures::done()));
 }
 #[test]
-fn successful_duplicate_deletions_resume_the_same_page() {
+fn successful_hook_deletions_resume_the_same_page() {
     skein_rows::check(
         [
-            ("a_deleted_duplicate_lists_the_same_page_again", Reply::Empty),
-            ("a_404_on_a_duplicates_delete_is_as_good", Reply::Status(404)),
+            ("a_deleted_hook_lists_the_same_page_again", Reply::Empty),
+            ("a_404_on_a_hooks_delete_is_as_good", Reply::Status(404)),
         ],
         |reply| assert_eq!(phase(5).step(Event::Reply(reply)), listing(1)),
     );
 }
 #[test]
-fn the_kept_id_is_remembered_across_pages() {
+fn a_hook_with_the_listeners_url_on_page_two_is_deleted_and_that_page_reread() {
     let mut run = phase(4);
     assert_eq!(
-        run.step(fixtures::rows(Box::new([fixtures::hook(3, &url()), fixtures::hook(8, b"other")]))),
+        run.step(fixtures::rows(Box::new([fixtures::hook(3, b"other"), fixtures::hook(8, b"other")]))),
         listing(2)
     );
     assert_eq!(run.step(fixtures::rows(Box::new([fixtures::hook(9, &url())]))), delete(9));
     assert_eq!(run.step(Event::Reply(Reply::Empty)), listing(2));
-    save(run.step(fixtures::rows(Box::new([]))), Some(3));
+    save(run.step(fixtures::rows(Box::new([]))));
 }
 #[test]
-fn the_kept_hook_met_again_on_a_reread_page_is_not_deleted() {
+fn a_full_reread_page_without_the_listeners_url_moves_to_the_next_page() {
     let mut run = phase(5);
     assert_eq!(run.step(Event::Reply(Reply::Empty)), listing(1));
     assert_eq!(
-        run.step(fixtures::rows(Box::new([fixtures::hook(3, &url()), fixtures::hook(8, b"other")]))),
+        run.step(fixtures::rows(Box::new([fixtures::hook(3, b"other"), fixtures::hook(8, b"other")]))),
         listing(2)
     );
-    save(run.step(fixtures::rows(Box::new([]))), Some(3));
+    save(run.step(fixtures::rows(Box::new([]))));
 }
 #[test]
 fn no_hook_of_the_listeners_url_makes_one() {
     let mut run = phase(4);
-    save(run.step(fixtures::rows(Box::new([]))), None);
+    save(run.step(fixtures::rows(Box::new([]))));
     assert_eq!(run.step(saved()), Need::Done(fixtures::done()));
 }
 #[test]
-fn a_kept_hook_is_patched_with_the_url_secret_events_json_and_active() {
-    let mut run = phase(4);
-    let hook = save(run.step(fixtures::rows(Box::new([fixtures::hook(7, &url())]))), Some(7));
+fn a_replacement_hook_is_created_with_the_url_secret_events_json_and_active() {
+    let mut run = phase(0);
+    run.step(Event::Read(Some(secret(b"kept-secret"))));
+    run.step(fixtures::settings_event(2));
+    assert_eq!(run.step(fixtures::rows(Box::new([fixtures::hook(7, &url())]))), delete(7));
+    assert_eq!(run.step(Event::Reply(Reply::Empty)), listing(1));
+    let hook = save(run.step(fixtures::rows(Box::new([]))));
     assert_eq!(hook.url, url());
-    assert_eq!(hook.secret.expose(), fixtures::DRAWN_HEX);
+    assert_eq!(hook.secret.expose(), b"kept-secret");
     assert!(hook.active);
     assert_eq!(hook.events.len(), SUBSCRIBED.len());
     for (event, expected) in hook.events.iter().zip(SUBSCRIBED) {
@@ -291,6 +301,6 @@ fn a_learned_cap_above_inner_pages_hooks_at_inner() {
         run.step(fixtures::rows(rows.into_boxed())),
         fixtures::send(Request::RepoHooks { at: at(), page: Page { page: Some(2), limit: Some(cap) } })
     );
-    save(run.step(fixtures::rows(Box::new([fixtures::hook(99, b"elsewhere")]))), None);
+    save(run.step(fixtures::rows(Box::new([fixtures::hook(99, b"elsewhere")]))));
     assert_eq!(run.step(saved()), Need::Done(fixtures::done()));
 }

@@ -186,6 +186,27 @@
   outcome: *looked*, `looked`, no fields, once the row has committed;
   *forge refused*, `too large`, the family's bound reached; or *unknown*,
   no longer held, which the subject `status` answers.
+- **`AddDevice`:** of the party's own scope, from a person
+  (`../../domain/forge/attention.md`, 7.1): `endpoint`, 1 to 1,024
+  bytes; `p256dh`, 65 bytes; `auth`, 16 bytes; `label`, 1 to 60 bytes of
+  UTF-8. The browser takes them from its push subscription, the keys
+  as `PushSubscription.getKey` gives them; `temper ctl push add` from a
+  subscription's JSON (`../ctl/tools.md`, 3). Its outcome: *added*,
+  `device_added`, the device's number (u32), once the row has
+  committed; *device refused*, `device_refused`, `DeviceRefusal`:
+  `person` (the party is a service), `off` (this deployment doesn't
+  push), `service` (the endpoint isn't a URL of one of the deployment's
+  push services), `malformed` (a key or the label) or `too_many`; or
+  *unknown*, no longer held, which the subject `devices` answers.
+- **`RemoveDevice`:** of the party's own scope
+  (`../../domain/forge/attention.md`, 7.1): `number`, u32. Its outcome:
+  *removed*, `device_removed`, no fields, once the row's erasure has
+  committed; *device refused*, `unknown`, the party holds no such
+  device; or *unknown*, no longer held.
+
+  Both requests' variants follow `FollowAct`'s, the last, in the
+  order above, and their outcomes follow the last outcome's, so the
+  records already on the wire keep their bytes.
 - **`SetDraft`:** of the project it names, from any party with a role
   there, as `SetAway` (`../../domain/forge/drafts.md`, 2): `project`, u32;
   `repository`, an option of `DraftRepository`: `owner` and `name`, at
@@ -286,7 +307,10 @@
   no row of the `forges` watch can say so (`deployment.md`), and a wait
   for a host reads it as the fact of a box (`../pages/accounts.md`, 2); and
   `program_login` (optional bytes, at most 8,192), *the printed command*
-  below. On the wire it is `Reading`'s `deployment`, beside `playground`.
+  below; and `push` (optional bytes, 65), the public half of the
+  deployment's VAPID key, which a browser subscribes with, none while
+  push is off (`../../domain/forge/attention.md`, 7.3), the record's last
+  field. On the wire it is `Reading`'s `deployment`, beside `playground`.
 - **The printed command:** what the pages print works when pasted. Where
   the deployment's one worker is on the engine's machine
   (`../../protocol/configuration/README.md`, section 1, the standalone shape),
@@ -480,6 +504,14 @@
   side watches it once,* for the session, as it does `dismissed`, a watch
   refused or ended kept as such, with no rows: then the switch draws off and
   its act is not offered.
+- **A person's devices, the subject `devices`:** of the party's own
+  scope, with no fields, its window unused; on the wire `Watching`'s
+  `devices`, after its last variant, one subject for the deployment and
+  each watcher's own rows, as `away`. Its document, `Devices`
+  (`../../domain/forge/attention.md`, 7.1): `rows`, at most 8, each
+  `DeviceRow { number, label, at, endpoint }`, in number order. *The
+  client watches it* while Telling you is open (`../pages/told.md`), and
+  `temper ctl push list` reads it (`../ctl/tools.md`, 2).
 - **What was decided for a person, the subject `decided`:** of the project's
   scope, on the wire `Watching`'s `decided`, `DecidedSubject { project }`, its
   window unused. Its document, `Decisions` (`../../domain/forge/attention.md`, 5):
@@ -539,8 +571,13 @@
     across the project's repositories, a row for each change of each
     landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing
     log's (`../../domain/after-landing.md`, section 10); `commit`, the
-    landing's, 32 bytes; and `default_branch`, whether the branch the
-    landing moved is its repository's default branch;
+    landing's, 32 bytes; `default_branch`, whether the branch the
+    landing moved is its repository's default branch; and `signed`, at
+    most 8, the landing log's sign-offs of the change, in its order, each
+    a `ChangesSigned`: `party`; `head`, the commit their review named, 32
+    bytes; and `at`, when they reviewed, nanoseconds since the epoch
+    (`../../domain/forge/change/gates.md`, 2, *Sign-offs kept at
+    landing*);
   - `landed_more`, what `landed` cut;
   - `landed_default`, the rows of `landed`'s kind whose `default_branch` is
     set, at most `forge.changes_landed`, newest first, so that landings
@@ -601,10 +638,18 @@
   - the approval it waits on: `scope`, 0 for the deployment's rules or the
     project's number; `rule`; `role`; `required`; `counted`, the people
     counted so far;
-  - `behind`, the changes waiting behind it in its landing branch's order;
-    `whole`, whether its reviews were read whole;
+  - `sets`, at most 6, each an `ApprovalSet`: `number`, u8, and `name`, at
+    most 40 bytes, the sets of the approval's rule the change touches;
+  - `whole`, whether its reviews were read whole;
   - `yours`, `ApprovalYours`: `counts`, `no_account`, `too_few` or
     `other_role`, whether the watcher's review would count and, if not, why;
+  - who can still sign (`../../domain/forge/change/questions.md`, 2, *Who
+    can still sign*): `signed`, at most 8, the people counted at the head;
+    `can_sign`, at most 8, the people who can still give the next
+    sign-off, the watcher first where among them; and `can_sign_more`,
+    u32, how many more can past those. Each is an `ApprovalPerson`:
+    `person`, u64, the deployment's person number, and `name`, at most 64
+    bytes, empty where none is known;
   - `size`, option, last, `ApprovalSize`: the pull request's size at the
     head its reviews were read at, as the forge counts it
     (`../../domain/forge/change/questions.md`, 2): `files`, `additions`

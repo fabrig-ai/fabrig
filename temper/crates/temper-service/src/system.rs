@@ -209,6 +209,38 @@ impl Service {
     pub fn setup_page(&self, forge: u16, state: &[u8], now: Time) -> Option<&[u8]> {
         self.engine.as_ref().expect("composition engine").setup_page(forge, state, now)
     }
+    /// Test seam: replace this service's patch sets before `adopt_store`
+    /// (protocol/baseline.md, 4). Production keeps the binary's sets.
+    pub fn patch_sets(&mut self, sets: jig_protocol_store::PatchSets) {
+        self.engine.as_mut().expect("engine patch sets").patch_sets(sets);
+    }
+    /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
+    pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
+        self.engine.as_mut().expect("rehearsal has an engine").rehearse_store(directory, scratch, user)
+    }
+    /// Ask jig to make the previous generation active, with the deployment stopped.
+    pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
+        self.engine.as_mut().expect("going back has an engine").back_store(directory, user)
+    }
+    /// Retained through teardown for shells and worlds alike.
+    #[must_use]
+    pub fn upgrade_report(&self) -> Option<&crate::upgrade::Report> {
+        self.engine.as_ref()?.upgrade_report()
+    }
+    /// Push hosts awaiting this send's resolution (domain/forge/attention.md, 7.3).
+    #[must_use]
+    #[expect(clippy::type_complexity, reason = "resolution pairs an exchange token with its host and port")]
+    pub fn unresolved_pushes(&self) -> Box<[(Token, Box<[u8]>, u16)]> {
+        match &self.engine {
+            Some(engine) => engine.unresolved_pushes(),
+            None => Box::new([]),
+        }
+    }
+    pub fn resolved_push(&mut self, token: Token, address: Option<core::net::SocketAddr>) {
+        if let Some(engine) = &mut self.engine {
+            engine.resolved_push(token, address);
+        }
+    }
     /// Adopt the binary's deployment directory.
     pub fn adopt_store(&mut self, root: Fd, effective_user: u32) -> Result<(), Fd> {
         self.engine.as_mut().expect("composition engine").adopt_store(root, effective_user)

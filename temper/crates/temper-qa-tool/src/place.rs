@@ -1,4 +1,5 @@
 //! Setups restored and recipes proven by the place's own build (qa/places.md, 2, 4, 6–8).
+mod files;
 use crate::faces::{ArchiveFace, DriveFace, RecipeWalk, WalkOutput};
 use crate::{Home, Ledger, Pass, Refusal, document as d, refused};
 use serde_json::Value;
@@ -14,6 +15,7 @@ use std::{
 #[derive(Clone, Debug)]
 pub struct PlacePaths {
     pub directory: PathBuf,
+    pub ports: Option<String>,
     pub bin: PathBuf,
     pub bundle: PathBuf,
     pub scratch: PathBuf,
@@ -27,6 +29,7 @@ impl PlacePaths {
     pub fn new(directory: &Path) -> Self {
         Self {
             directory: directory.into(),
+            ports: None,
             bin: directory.join("bin"),
             bundle: directory.join("bundle"),
             scratch: directory.join("box"),
@@ -119,7 +122,9 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             std::path::absolute(&directory).map_err(|why| refused(format!("{}: {why}", directory.display())))?;
         let setups = std::path::absolute(home.directory.join("passes").join(pass.number.to_string()).join("setups"))
             .map_err(|why| refused(format!("pass {} setups: {why}", pass.number)))?;
-        let place = Self { paths: PlacePaths::new(&directory), setups, pass, drive, archive, ledger };
+        let mut paths = PlacePaths::new(&directory);
+        paths.ports = home.configuration.ports.get(&pass.place).cloned();
+        let place = Self { paths, setups, pass, drive, archive, ledger };
         place.available()?;
         Ok(place)
     }
@@ -437,6 +442,8 @@ impl<D: DriveFace, A: ArchiveFace> PassPlace<D, A> {
             let bytes = serde_json::to_vec_pretty(scripts).map_err(|why| refused(format!("recipe {name}: {why}")))?;
             io(&directory, fs::write(directory.join("scripts.json"), bytes))?;
         }
+        let source = self.setups.parent().expect("pass setups directory").join("files");
+        files::copy(&input.lines, &source, &directory.join("files"))?;
         let hash = self.drive.hash(&self.paths, &self.setups, name)?;
         let from = if input.after == "fresh" {
             remove(&self.paths.setup)?;

@@ -58,6 +58,17 @@ impl Joint {
     /// Away's Home sequence uses the stock ways setting and a goal's report.
     #[must_use]
     pub fn with_away_sequence(seed: u64, limits: client::Limits) -> Self {
+        Self::with_away_push_sequence(seed, limits, false, Box::new([]))
+    }
+
+    /// The same goal sequence with a fake push service and restored subscriptions.
+    #[must_use]
+    pub fn with_away_push_sequence(
+        seed: u64,
+        limits: client::Limits,
+        push: bool,
+        devices: Box<[temper_engine_domain_forge::Device]>,
+    ) -> Self {
         use temper_engine_domain_world::{direct::Driver, kinds};
         let mut bounds = engine_limits();
         bounds.people.requests = 16;
@@ -76,6 +87,9 @@ impl Joint {
         bounds.people.inbox_recipients = 2 * bounds.tasks.inbox_messages + bounds.authority.roles + 4;
         let [bootstrap, config, restart] = std::array::from_fn(|_| {
             let mut config = walking::config(seed);
+            if push {
+                config.forge.push = Some(Box::new([b"http://push.test:4000".as_slice().into()]));
+            }
             config.core.connectors = Box::new([fixtures::FORGE]);
             let kinds = kinds::configuration(&bounds);
             config.core.kinds = temper_engine_service::stock::kinds(&bounds, fixtures::FORGE);
@@ -98,6 +112,9 @@ impl Joint {
         let mut records =
             temper_engine_domain_world::fixtures::account_rows(&config.core.settings.llm_providers).into_vec();
         records.extend(forges.rows.into_values().filter(|row| matches!(row, engine::Record::Forge { .. })));
+        for device in devices {
+            records.push(engine::Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::Device(device)) });
+        }
         let mut driver = Driver::cold(Store::with_limits(&bounds), bootstrap, &bounds);
         driver.settle();
         let mut store = driver.take_store();

@@ -900,7 +900,19 @@ fn a_host_tool_answered_as_the_channel_is_lost_is_asked_again_under_its_name() {
         smith_host_domain::Reply::Host { error: false, body: Box::from(*b"settled during loss") },
     );
     first.settle();
-    assert!(!first.observations().iter().any(|event| matches!(event, Observation::AgentHostReturned { .. })));
+    let returned: Vec<_> = first
+        .observations()
+        .iter()
+        .filter_map(|event| match event {
+            Observation::AgentHostReturned { relay, reply } => Some((*relay, reply.clone())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        returned,
+        vec![(first_relay, smith_domain::run::HostReply::Unanswered(smith_domain::run::Unanswered::Lost))],
+        "channel loss settles the relay, not the durable host operation"
+    );
 
     let second_relay = smith_domain::run::RelayName { owner: skein_lib::Token::new(41), attempt: 1 };
     let mut second = World::new(CEILINGS, CEILINGS, StreamMode::Two);

@@ -36,6 +36,7 @@ pub struct Drive {
     session: u64,
     place: PlacePaths,
     setups: PathBuf,
+    files: PathBuf,
 }
 impl Drive {
     pub fn for_session(home: &Home, session: u64) -> Result<Self, Refusal> {
@@ -43,12 +44,14 @@ impl Drive {
             let number = ledger.pass_command_session(session)?.pass.expect("pass session");
             let pass = ledger.passes.iter().find(|pass| pass.number == number).expect("session's pass");
             let place = home.configuration.place_directory(&home.directory, &pass.place)?;
+            let mut paths = PlacePaths::new(&std::path::absolute(place).map_err(io_refusal)?);
+            paths.ports = home.configuration.ports.get(&pass.place).cloned();
             Ok(Self {
                 home: home.clone(),
                 session,
-                place: PlacePaths::new(&std::path::absolute(place).map_err(io_refusal)?),
-                setups: std::path::absolute(home.directory.join("passes").join(number.to_string()).join("setups"))
-                    .map_err(io_refusal)?,
+                place: paths,
+                setups: std::path::absolute(crate::pass_files::setups(home, number)).map_err(io_refusal)?,
+                files: std::path::absolute(crate::pass_files::files(home, number)).map_err(io_refusal)?,
             })
         })
     }

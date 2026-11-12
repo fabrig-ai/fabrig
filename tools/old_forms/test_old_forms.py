@@ -225,6 +225,23 @@ let s = "missing.md";
                     self.assertIn('comment:actual: count 2, baseline 1', result.stderr)
                     self.assertEqual(baseline.read_bytes(), before)
 
+    def test_generated_patch_module_is_omitted_but_authored_patch_files_count(self):
+        for name, expected in (
+            ('crates/owner/patches/mod.rs', 0),
+            ('crates/owner/patches/context.rs', 1),
+            ('crates/owner/patches/p0001.rs', 2),
+            ('crates/owner/patches/helper/mod.rs', 3),
+        ):
+            with self.subTest(name=name):
+                path = self.root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('const TEXT: &str = "worst_case_bytes"; // actual\n')
+                subprocess.run(['git', 'add', name], cwd=self.root, check=True, capture_output=True)
+                with contextlib.chdir(self.root):
+                    totals = ENGINE['counts'](CONFIG['temper'])
+                self.assertEqual(totals['worst_case'], expected)
+                self.assertEqual(totals['comment:actual'], expected)
+
     def test_baseline_append_validation_and_raise_comments(self):
         subprocess.run(['git', 'init', '-q', str(self.root)], check=True, capture_output=True)
         config = dict(CONFIG['smith'], BASELINE=self.root / 'old-forms.txt')

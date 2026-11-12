@@ -176,6 +176,7 @@ pub(crate) fn workspace_prepared(
                 session_end = tasks::session_end(
                     session,
                     tasks::SessionWake {
+                        talk: tasks::talk_state(row.talk, row.session, env.wall),
                         at: env.wall,
                         span: tasks::quiet_span(model.cache_life_ms),
                         bytes: transcript.bytes,
@@ -217,26 +218,30 @@ pub(crate) fn workspace_prepared(
     }
     let turns = if resume { core.resumed_turns(transcript) } else { Box::new([]) };
     let answered = answered_calls(core, task, attempt, env.limits.call_records);
+    let mut policy = allowance.choice.policy;
     let mut sources = List::with_capacity(tasks::MODELS.checked_add(1).expect("main source"));
     let mut models = List::with_capacity(tasks::MODELS.checked_add(1).expect("main model"));
-    models.push(&allowance.choice.policy.model).expect("main model");
-    for model in &allowance.choice.policy.alternatives {
+    models.push(&mut policy.model).expect("main model");
+    for model in &mut policy.alternatives {
         models.push(model).expect("retained alternatives");
     }
-    for model in &models {
+    for model in models.into_boxed() {
         let provider = core.provider(model).expect("selected model provider");
         let mut grant = None;
         for binding in &allowance.choice.accounts {
-            if binding.provider == provider
-                && core.accounts.source(binding.source).expect("selected source").kind
-                    != jig_domain_accounts::Kind::None
-            {
-                grant = Some(binding.source);
+            if binding.provider == provider {
+                let kind = core.accounts.source(binding.source).expect("selected source").kind;
+                model.endpoint = core.settings.model_endpoint(model, kind).expect("checked model way");
+                if kind != jig_domain_accounts::Kind::Program {
+                    model.program = None;
+                }
+                if kind != jig_domain_accounts::Kind::None {
+                    grant = Some(binding.source);
+                }
             }
         }
         sources.push(grant).expect("one grant per retained model");
     }
-    let mut policy = allowance.choice.policy;
     policy.instructions = instructions;
     policy.resume = resume;
     let run = RunCharter {

@@ -288,6 +288,18 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   `cgroup.kill` the keeper waits within a 2 s deadline. A group retaining
   a leader is left for process exit. Removal errors while unwinding are
   reported without raising another failure.
+- **No fixture outlives its test.** A fixture that would run until
+  signalled ends with the test that started it however the test ends,
+  a runner's kill that runs no cleanup among them: on Linux its leader
+  dies with the thread that started it (a parent-death signal,
+  `exec_dying_with_parent`, ../runtime/shell.md, 3), each descendant
+  it starts that leaves its group or session ends its own loop once
+  that owner process is gone, and a test that unwinds has the kit end
+  the rest and report what it could not (../examples.md, 6). skein's
+  process fixture (`tests/conformance/real`, built for the worlds as
+  `world_process_fixture`) ties its `never`, `fork-live` and
+  `supervise-*` modes so; a descendant that only sleeps its bounded
+  minute ends by itself.
 - **The highest tiers check paths** through the real loop and shipped
   binaries. The world harness tests ring routing, cleanup, observation
   and settlement without a kernel in its unit tests and simulated

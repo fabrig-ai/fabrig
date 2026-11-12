@@ -203,7 +203,8 @@ fn switching_projects_keeps_home_settings_ask_or_chats() {
         while let Some(request) = f.out.pop() {
             match request {
                 Request::Show { address } => requested = Some(address),
-                Request::Screen { .. }
+                Request::Push(_)
+                | Request::Screen { .. }
                 | Request::KeepLook { .. }
                 | Request::Client(_)
                 | Request::Replace { .. }
@@ -270,7 +271,7 @@ fn choosing_a_project_keeps_the_builders_tab_or_team() {
     me.projects.get_mut(1).expect("chosen project").project = CHOSEN;
     for (address, expected) in [
         (Address::Builders { project: OPEN }, Address::Builders { project: CHOSEN }),
-        (Address::Team { project: OPEN }, Address::Team { project: CHOSEN }),
+        (Address::Team { project: OPEN, role: None }, Address::Team { project: CHOSEN, role: None }),
     ] {
         let mut f = fixture();
         deliver(&mut f, me.clone());
@@ -552,6 +553,7 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Work { .. }
+            | Address::Told
             | Address::Remembered
             | Address::Members
             | Address::Limits

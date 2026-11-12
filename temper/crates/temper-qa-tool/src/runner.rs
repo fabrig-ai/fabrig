@@ -306,7 +306,20 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             result?;
             cleanup?;
         }
-        Ok(())
+        home.transact(|ledger| {
+            let mut free = false;
+            for place in &home.configuration.places {
+                if !ledger.passes.iter().any(|pass| pass.state == PassState::Running && &pass.place == place) {
+                    let directory = home.configuration.place_directory(&home.directory, place)?;
+                    if pass_files::free_lock(&directory)?.is_some() {
+                        free = true;
+                        break;
+                    }
+                }
+            }
+            ledger.update_place_wait(&home.configuration.surfaces, free, self.clock.now().wall);
+            Ok(())
+        })
     }
 
     fn end_record(
@@ -353,6 +366,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         let Some(lock) = pass_files::free_lock(&directory)? else { return Ok(()) };
         pass_files::install(&self.home.builds.join(&start.build), &start.build, &directory)?;
         pass_files::write_setups(&mut self.git, &start.build, &pass_files::setups(&self.home, start.pass))?;
+        pass_files::prepare_files(&self.home, start.pass)?;
         *ledger = recorded;
         let command = self.agent_command(start.session, &configuration.agent.pass);
         let mut prepare = || -> Result<(), Refusal> {

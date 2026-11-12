@@ -856,7 +856,7 @@ pub fn private(path: &Path) -> bool {
         .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o777 == 0o600)
 }
 
-/// One complete stdout line; the read finishes before the pipe changes hosts.
+/// One complete stdout line, without its newline; the read finishes before the pipe changes hosts.
 #[must_use]
 pub fn read_line(output: Fd, within: Duration) -> Vec<u8> {
     let mut deadline = patience::Patience::arm("serve's printed link", within);

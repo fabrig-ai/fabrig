@@ -131,6 +131,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
         | people::Outcome::ServiceMade { .. }
         | people::Outcome::Proposed { .. }
         | people::Outcome::Withdrawn { .. }
+        | people::Outcome::Left { .. }
         | people::Outcome::Stopped { .. }
         | people::Outcome::Cancelled { .. }
         | people::Outcome::Released { .. }
@@ -237,6 +238,7 @@ pub(super) fn held(domain: &mut Domain, held: core::Held) -> Option<core::Held> 
         | core::Held::Relay { .. }
         | core::Held::PeopleReply { .. }
         | core::Held::CallAnswer { .. }
+        | core::Held::NeedArrived { .. }
         | core::Held::Result { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::TaskTerminalAcknowledged { .. }

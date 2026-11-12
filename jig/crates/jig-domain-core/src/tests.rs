@@ -457,7 +457,13 @@ pub(crate) fn config(seed: u64) -> Config {
         }]),
         connectors: Box::new([1, 2]),
         settings: Settings {
-            endpoints: Box::new([EndpointFacts { providers: Box::new([1]), number: 1, dialect: 3, program: None }]),
+            endpoints: Box::new([EndpointFacts {
+                direct: Box::new([]),
+                providers: Box::new([1]),
+                number: 1,
+                dialect: 3,
+                program: None,
+            }]),
             deployment_provider: 3,
             models: Box::new([scripted_model()]),
             resume_bytes: 256,
@@ -3351,6 +3357,7 @@ fn deployment_capacity_carries_keyed_refusal_identity_time_and_bounded_omissions
                 | people::Request::ServiceMade { .. }
                 | people::Request::RolesApplied { .. }
                 | people::Request::RolesRefused { .. }
+                | people::Request::NeedArrived { .. }
                 | people::Request::RestoreRefused { .. } => {}
             }
         }

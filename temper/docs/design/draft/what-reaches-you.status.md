@@ -1,6 +1,6 @@
 # what-reaches-you: status
 
-2026-11-11. Where the design lags or departs from [what-reaches-you.md](what-reaches-you.md).
+2026-11-12. Where the design lags or departs from [what-reaches-you.md](what-reaches-you.md).
 
 Sections 2 to 6 are carried by the design, milestone N1 of
 `whole-story.execution.md`, but for lag 4 and the departures below:
@@ -17,10 +17,14 @@ milestone N3a, but for lag 8. `what-reaches-you.md`, section 7 is carried by
 `../domain/forge/change/gates.md`, 2, `../domain/forge/queues.md`,
 `../domain/forge/change/questions.md`, 2, `../domain/landing.md`, 8,
 `../client/forge/README.md`, 4.1 and `../client/ctl/tools.md`, 3,
-milestone N2, and by `../domain/forge/change/branch-path.md`'s *A rule
-by path*, step 5 and *Rules by path* and `../client/pages/settings.md`,
-2's *Rules by path*, milestone P3c, but for lag 7. Where the code lags
-them is their status files'.
+milestone N2, and who can still sign a waiting sign-off by
+`../domain/forge/change/questions.md`, 2, *Who can still sign*, and
+`../client/forge/README.md`, 4.1, *Its context*, milestone N5, and by
+`../domain/forge/change/branch-path.md`'s *A rule by path*, step 5 and *Rules by path* and `../client/pages/settings.md`,
+2's *Rules by path*, milestone P3c, and the sign-offs a merge counted, kept with its landing
+for Work, Team and the brief, by `../domain/forge/change/gates.md`, 2,
+*Sign-offs kept at landing*, milestone N6. Where the code lags them is their status
+files'.
 
 - **Design lags:**
   - 4: `../domain/forge/attention.md`, 6 judges the
@@ -28,9 +32,6 @@ them is their status files'.
     head, which the forge reads for rules by path alone
     (`../domain/forge/change/gates.md`, 2, *What a change touches*):
     N1's repair's.
-  - 7: no design says who can still sign a waiting sign-off, or keeps
-    the sign-offs counted at landing: N5 and N6 of
-    `whole-story.execution.md`.
   - 8: `../client/pages/README.md`'s **Only you** lists a person's own
     sign-in signed out and a login their account reads as expiring, as
     the mockups' audit words it (`surfaces.md`, section 4); its line
@@ -42,13 +43,24 @@ them is their status files'.
     must be replaced, and a person task asking an act stays among the
     cards. The terminal's inbox lists no Only you (`../client/tui/pages/README.md`
     ), a later part of `what-reaches-you.md`, section 11's too, temper/tui's.
-  - 9: `../client/pages/settings.md`, 2's *Telling you* is disabled; no design
-    holds a service worker, a push or a digest (`../client/web/README.md`),
-    nor mail settings (`../protocol/configuration/README.md`); no design serves
-    the web client over HTTPS at a deployment's name for a phone, keeps a
-    VAPID key pair among the deployment's secrets
-    (`../protocol/credentials.md`), or has `temper ctl me push add`.
+  - 9: carried by `../domain/forge/attention.md`, section 7,
+    `../client/pages/told.md`, `../client/web/README.md`, 2.7,
+    `../protocol/configuration/engine.md`'s `push` and
+    `../client/ctl/tools.md`'s `push` tools, milestone N3b of
+    `whole-story.execution.md`, but for these. Mail where push can't
+    reach and the digest are designed (`../domain/forge/attention.md`,
+    7.4) and not built: N3b's nice part, left when push took the six
+    changes the milestone was given. A sign-off's wait
+    (`../domain/forge/change/questions.md`, 2) pushes nothing, being no
+    jig need; its push is not built. No design runs a fake push
+    service as a box's process for the walk (`../testing/fakes.md`,
+    section 6, has it in the worlds alone).
   - 10: `../../development/acceptance.md` holds no story of it.
+- **Design departs:** 9, decided by N3b's designer, goal 492, on
+  2026-11-11: a device is registered by `temper ctl push add FILE`, not
+  `temper ctl me push add`, because `me` is a read and the tools' parser
+  takes one group and one verb (`../client/ctl/tools.md`, 1); its
+  `push list` and `push remove` sit beside it.
 - **Design departs:** 6, decided by the client's designer for
   `ui-reaches` on 2026-11-08 (the request leaves such calls to
   temper/ui): Needs you's unfiltered page reads the rows of at most four

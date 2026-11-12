@@ -3,10 +3,15 @@ use crate::line::{Line, Record, Web};
 use skein_fake_person::{Doing, Find};
 use skein_lib::{Duration, Time};
 use skein_ui::{Act, NodeId, Role};
-use std::path::PathBuf;
+use std::{
+    os::unix::ffi::OsStrExt,
+    path::{Path, PathBuf},
+};
+mod forge;
 mod io;
 mod options;
 mod tui;
+mod values;
 pub use io::Session;
 pub use options::{Input, Options, Plan, Program};
 const STEP: Duration = Duration::from_secs(60);
@@ -62,8 +67,31 @@ pub enum Output {
 }
 #[derive(Debug)]
 pub enum Action {
-    Start { process: Process, program: Program },
-    StartTui { program: Program, rows: u16, columns: u16 },
+    ReadBoxLog {
+        path: PathBuf,
+    },
+    ForgeRequest {
+        api: Box<[u8]>,
+        token_file: PathBuf,
+        method: skein_http::Method,
+        path: Box<[u8]>,
+        body: Box<[u8]>,
+        until: Time,
+    },
+    ReadForgeFiles {
+        directory: PathBuf,
+        paths: Vec<Box<[u8]>>,
+    },
+    CancelForge,
+    Start {
+        process: Process,
+        program: Program,
+    },
+    StartTui {
+        program: Program,
+        rows: u16,
+        columns: u16,
+    },
     WriteTui(Vec<u8>),
     SaveTui,
     StopTui,
@@ -72,11 +100,19 @@ pub enum Action {
     Find(Find),
     Perform(Doing<Box<[u8]>>),
     Snapshot,
-    Screenshot { width: u32, path: PathBuf },
-    Describe { role: Option<Role> },
+    Screenshot {
+        width: u32,
+        path: PathBuf,
+    },
+    Describe {
+        role: Option<Role>,
+    },
     CancelFace,
     StopCtl,
-    Log { output: Output, line: Box<[u8]> },
+    Log {
+        output: Output,
+        line: Box<[u8]>,
+    },
     Keep(Box<[u8]>),
     Answer(Answer),
     Ready,
@@ -88,6 +124,10 @@ pub enum Action {
 }
 #[derive(Debug)]
 pub enum Event {
+    BoxLog(Result<Box<[u8]>, String>),
+    ForgeFiles(Result<Vec<Box<[u8]>>, String>),
+    ForgeResponse { status: u16, body: Box<[u8]> },
+    ForgeFailure(String),
     TuiReady,
     TuiSaved(Box<[u8]>),
     TuiWritten,
@@ -102,7 +142,7 @@ pub enum Event {
     FaceDone(Result<(), String>),
     Snapshot(Box<[u8]>),
     Description(Box<[u8]>),
-    Logs { serve: Vec<Box<[u8]>>, box_tail: Vec<Box<[u8]>> },
+    Logs { serve: Vec<Box<[u8]>>, forges: Vec<Box<[u8]>>, box_tail: Vec<Box<[u8]>> },
     Deadline,
     OwnFailure(String),
 }
@@ -125,6 +165,8 @@ enum Phase {
     Snapshot,
     Diagnosing,
     Ctl,
+    CtlValues,
+    Forge,
     TuiStarting,
     TuiBrowse,
     TuiAddress,
@@ -157,6 +199,7 @@ pub struct Machine {
     box_failed: Option<String>,
     diagnostic: String,
     shown: Vec<String>,
+    forge: Option<forge::Pending>,
     tui_running: bool,
     save_until: Option<Time>,
     frame: Box<[u8]>,
@@ -182,6 +225,7 @@ impl Machine {
                 box_failed: None,
                 diagnostic: String::new(),
                 shown: vec![],
+                forge: None,
                 tui_running: false,
                 save_until: None,
                 frame: Box::new([]),
@@ -202,6 +246,10 @@ impl Machine {
     pub fn step(&mut self, event: Event, now: Time) -> Vec<Action> {
         let mut out = vec![];
         match event {
+            Event::BoxLog(result) if self.phase == Phase::CtlValues => self.ctl_values(result, now, &mut out),
+            Event::BoxLog(_) | Event::ForgeFiles(_) | Event::ForgeResponse { .. } | Event::ForgeFailure(_) => {
+                self.forge_event(event, now, &mut out);
+            }
             Event::TuiReady
             | Event::TuiSaved(_)
             | Event::TuiWritten
@@ -224,8 +272,8 @@ impl Machine {
                 let text = String::from_utf8_lossy(text.get(..4096).unwrap_or(&text));
                 self.answer(Some(format!("{}; shown instead: {text}", self.diagnostic)), &mut out);
             }
-            Event::Logs { serve, box_tail } if self.phase == Phase::Classifying => {
-                self.classify(&serve, &box_tail, &mut out);
+            Event::Logs { serve, forges, box_tail } if self.phase == Phase::Classifying => {
+                self.classify(&serve, &forges, &box_tail, &mut out);
             }
             Event::Deadline => self.deadline(now, &mut out),
             Event::OwnFailure(why) => {
@@ -233,6 +281,9 @@ impl Machine {
                 self.until = None;
                 self.poll = None;
                 self.save_until = None;
+                if self.forge.take().is_some() {
+                    out.push(Action::CancelForge);
+                }
                 out.extend([
                     Action::StopTui,
                     Action::CancelFace,
@@ -277,16 +328,16 @@ impl Machine {
         match record {
             Record::Empty => self.answer(None, out),
             Record::End => unreachable!("end dispatched"),
+            Record::Forge(_) => self.forge_start(now, out),
             Record::Tui(_) => self.tui(now, out),
             Record::Ctl(args) => {
-                if let Err(why) = self.plan.check_ctl_writes(args) {
-                    self.answer(Some(why), out);
-                    return;
+                if args.iter().any(|arg| crate::line::BoxValue::parse(arg).is_some()) {
+                    self.wait(Phase::CtlValues, now, STEP);
+                    out.push(Action::ReadBoxLog { path: self.plan.options.scratch.join("session/box.log") });
+                } else {
+                    let args = args.clone();
+                    self.ctl_start(&args, now, out);
                 }
-                let program = self.plan.ctl(args, Input::Null);
-                let bound = ctl_bound(args);
-                self.wait(Phase::Ctl, now, bound);
-                out.push(Action::Start { process: Process::Ctl, program });
             }
             Record::Web(Web::Act { role, name, order, .. }) => {
                 let find = Find::exactly_named(*role, name).nth(*order);
@@ -315,6 +366,30 @@ impl Machine {
             }
         }
     }
+    fn ctl_values(&mut self, result: Result<Box<[u8]>, String>, now: Time, out: &mut Vec<Action>) {
+        let Some(Record::Ctl(args)) = self.current.as_ref().map(Line::record) else { return };
+        let resolved = result.and_then(|log| {
+            args.iter()
+                .map(|arg| match crate::line::BoxValue::parse(arg) {
+                    Some(value) => values::read(&log, value),
+                    None => Ok(arg.clone()),
+                })
+                .collect::<Result<Vec<_>, _>>()
+        });
+        match resolved {
+            Ok(args) => self.ctl_start(&args, now, out),
+            Err(why) => self.answer(Some(why), out),
+        }
+    }
+    fn ctl_start(&mut self, args: &[Box<[u8]>], now: Time, out: &mut Vec<Action>) {
+        if let Err(why) = self.plan.check_ctl_writes(args) {
+            self.answer(Some(why), out);
+            return;
+        }
+        let program = self.plan.ctl(args, Input::Null);
+        self.wait(Phase::Ctl, now, ctl_bound(args));
+        out.push(Action::Start { process: Process::Ctl, program });
+    }
     fn answer(&mut self, why: Option<String>, out: &mut Vec<Action>) {
         let failed = why.map(|why| format!("line {}: {}", self.number, why.replace(['\n', '\r'], " ")));
         if let Some(line) = self.current.take().filter(Line::kept) {
@@ -325,6 +400,7 @@ impl Machine {
         self.until = None;
         self.poll = None;
         self.save_until = None;
+        self.forge = None;
     }
     fn box_line(&mut self, output: Output, line: &[u8], now: Time, out: &mut Vec<Action>) {
         out.push(Action::Log { output, line: line.into() });
@@ -386,6 +462,9 @@ impl Machine {
                     self.box_failed.get_or_insert_with(|| format!("box exited {code}"));
                 } else if !matches!(self.phase, Phase::Finished | Phase::Classifying | Phase::ClosingBrowser) {
                     if self.current.is_some() {
+                        if self.forge.take().is_some() {
+                            out.push(Action::CancelForge);
+                        }
                         out.extend([Action::CancelFace, Action::StopCtl]);
                         self.answer(Some("the box exited".into()), out);
                         self.box_failed = Some(format!("box exited {code}"));
@@ -502,6 +581,9 @@ impl Machine {
             .map_or_else(|| format!("{:?}", self.phase), |line| String::from_utf8_lossy(line.print()).into_owned())
     }
     fn deadline(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.forge_deadline(now, out) {
+            return;
+        }
         if self.tui_deadline(now, out) {
             return;
         }
@@ -563,6 +645,9 @@ impl Machine {
             return;
         }
         self.current = None;
+        if self.forge.take().is_some() {
+            out.push(Action::CancelForge);
+        }
         self.save_until = None;
         if self.tui_running {
             self.wait(Phase::ClosingTui, now, LOOK);
@@ -591,7 +676,7 @@ impl Machine {
         self.poll = None;
         out.push(Action::Classify);
     }
-    fn classify(&mut self, serve: &[Box<[u8]>], box_tail: &[Box<[u8]>], out: &mut Vec<Action>) {
+    fn classify(&mut self, serve: &[Box<[u8]>], forges: &[Box<[u8]>], box_tail: &[Box<[u8]>], out: &mut Vec<Action>) {
         let scratch = self.plan.options.scratch.as_os_str().as_encoded_bytes();
         let refusal = serve.iter().find_map(|line| {
             let line = strip_log_time(line);
@@ -600,6 +685,12 @@ impl Machine {
             } else {
                 None
             }
+        });
+        let refusal = refusal.or_else(|| {
+            forges.iter().find_map(|line| {
+                let line = strip_log_time(line);
+                forge_state_refused(line, scratch).then(|| String::from_utf8_lossy(line).into_owned())
+            })
         });
         let (status, shown) = if let Some(line) = refusal {
             (3, vec![format!("refused: {line}")])
@@ -644,6 +735,14 @@ fn origin(link: &[u8]) -> Option<Box<[u8]>> {
 fn strip_log_time(line: &[u8]) -> &[u8] {
     if line.get(10) == Some(&b'T') && line.get(19..21) == Some(b"Z ") { line.get(21..).unwrap_or(line) } else { line }
 }
+fn forge_state_refused(line: &[u8], scratch: &[u8]) -> bool {
+    let Some(rest) = line.strip_prefix(b"temper-box fake forge: state ") else { return false };
+    let Some(at) = rest.windows(b" refused: ".len()).position(|part| part == b" refused: ") else { return false };
+    let path = Path::new(std::ffi::OsStr::from_bytes(&rest[..at]));
+    path.starts_with(Path::new(std::ffi::OsStr::from_bytes(scratch)))
+        && path != Path::new(std::ffi::OsStr::from_bytes(scratch))
+        && !path.components().any(|part| part == std::path::Component::ParentDir)
+}
 fn names_scratch(line: &[u8], scratch: &[u8]) -> bool {
     !scratch.is_empty()
         && line.windows(scratch.len()).enumerate().any(|(at, part)| {
@@ -675,4 +774,4 @@ fn duration(bytes: &[u8]) -> Option<u64> {
     n.parse::<u64>().ok()?.checked_mul(scale).filter(|n| *n <= 3600)
 }
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

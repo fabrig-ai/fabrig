@@ -15,6 +15,7 @@ pub enum Record {
     Web(Web),
     Tui(Tui),
     Ctl(Vec<Box<[u8]>>),
+    Forge(Forge),
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Web {
@@ -30,6 +31,30 @@ pub enum Tui {
     Stop,
     Look,
 }
+#[derive(Debug, PartialEq, Eq)]
+pub enum Forge {
+    Commit { repository: Box<[u8]>, message: Box<[u8]>, paths: Vec<Box<[u8]>> },
+    Checks { repository: Box<[u8]> },
+}
+/// Names substituted only in ctl arguments (client/drive.md, 3.4).
+#[derive(Clone, Copy)]
+pub(crate) enum BoxValue {
+    Api,
+    Git,
+    Admin,
+    GitProgram,
+}
+impl BoxValue {
+    pub(crate) fn parse(bytes: &[u8]) -> Option<Self> {
+        match bytes {
+            b"{forgejo.api}" => Some(Self::Api),
+            b"{forgejo.git}" => Some(Self::Git),
+            b"{forgejo.admin}" => Some(Self::Admin),
+            b"{git}" => Some(Self::GitProgram),
+            _ => None,
+        }
+    }
+}
 impl Line {
     /// Parse one line without a terminating newline.
     pub fn parse(source: &[u8]) -> Result<Self, String> {
@@ -41,21 +66,24 @@ impl Line {
                 b"end" => Record::End,
                 b"web" => Record::Web(web(&mut fields)?),
                 b"tui" => Record::Tui(tui(&mut fields)?),
+                b"forge" => Record::Forge(forge(&mut fields)?),
                 b"ctl" => {
                     if fields.remaining() == 0 {
                         return Err("missing ctl argument".into());
                     }
                     let mut args = vec![];
                     while let Some(field) = fields.field() {
-                        args.push(match field {
-                            Field::Word(bytes) | Field::Bytes(bytes) => bytes,
-                        });
+                        let (Field::Word(bytes) | Field::Bytes(bytes)) = field;
+                        if bytes.starts_with(b"{") && bytes.ends_with(b"}") && BoxValue::parse(&bytes).is_none() {
+                            return Err(format!("unknown box value {}", String::from_utf8_lossy(&bytes)));
+                        }
+                        args.push(bytes);
                     }
                     Record::Ctl(args)
                 }
                 other => {
                     return Err(format!(
-                        "unknown client {:?}; expected web, tui, ctl or end",
+                        "unknown client {:?}; expected web, tui, ctl, forge or end",
                         String::from_utf8_lossy(other)
                     ));
                 }
@@ -85,6 +113,42 @@ fn word(fields: &mut Fields, name: &str) -> Result<Box<[u8]>, String> {
 }
 fn bytes(fields: &mut Fields, name: &str) -> Result<Box<[u8]>, String> {
     fields.bytes().map_err(|why| format!("expected {name}: {why}"))
+}
+fn forge(fields: &mut Fields) -> Result<Forge, String> {
+    let record = word(fields, "forge record: commit or checks")?;
+    if record.as_ref() != b"commit" && record.as_ref() != b"checks" {
+        return Err("unknown forge record; expected commit or checks".into());
+    }
+    if word(fields, "FORGE forgejo")?.as_ref() != b"forgejo" {
+        return Err("expected FORGE forgejo".into());
+    }
+    let repository = word(fields, "REPOSITORY OWNER/NAME")?;
+    let parts: Vec<_> = repository.split(|byte| *byte == b'/').collect();
+    if parts.len() != 2 || parts.iter().any(|part| part.is_empty() || *part == b"." || *part == b"..") {
+        return Err("expected REPOSITORY OWNER/NAME".into());
+    }
+    if record.as_ref() == b"checks" {
+        return Ok(Forge::Checks { repository });
+    }
+    let message = bytes(fields, "MESSAGE")?;
+    let mut paths = vec![];
+    while fields.remaining() != 0 {
+        let path = bytes(fields, "PATH")?;
+        if path.is_empty()
+            || path.len() > 256
+            || path.split(|b| *b == b'/').any(|p| p.is_empty() || p == b"." || p == b"..")
+        {
+            return Err("expected relative PATH of 1 to 256 bytes without empty, . or .. segments".into());
+        }
+        if paths.contains(&path) {
+            return Err("expected distinct PATHs".into());
+        }
+        paths.push(path);
+    }
+    if !(1..=16).contains(&paths.len()) {
+        return Err("expected 1 to 16 PATHs".into());
+    }
+    Ok(Forge::Commit { repository, message, paths })
 }
 fn web(fields: &mut Fields) -> Result<Web, String> {
     let record = word(fields, "web record")?;

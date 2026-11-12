@@ -3,6 +3,7 @@ use crate::directories::jig_directories;
 pub(crate) mod check;
 mod control;
 pub mod git;
+mod state;
 use skein_fake_peers::{forge as forge_peer, llm as llm_peer, oauth as oauth_peer};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Submit};
 use skein_lib::{List, Queue, Time, Token, Wall};
@@ -114,6 +115,15 @@ pub const FORGE_SETTINGS: Settings = Settings {
             twin: None,
             notes: "",
         },
+        Setting {
+            name: "state",
+            value: "STATE",
+            about: "Keep the forge's state across orderly stops.",
+            fallback: Fallback::Text(""),
+            set: skein_shell::Set::Internal,
+            twin: None,
+            notes: "A present file must be this user's private single-link regular file. A refused image leaves it unchanged.",
+        },
     ],
 };
 pub const OAUTH_SETTINGS: Settings = Settings {
@@ -177,6 +187,7 @@ pub struct Arguments {
     pub ready: Option<Box<[u8]>>,
     pub seed: u64,
     pub observations: Option<PathBuf>,
+    pub state: Option<PathBuf>,
     pub scripts: Option<PathBuf>,
     pub strict: bool,
 }
@@ -269,7 +280,14 @@ pub(crate) fn configure(
     } else {
         None
     };
-    Ok(super::Command::Fake { arguments: Arguments { kind, source, ready, seed, observations, scripts, strict } })
+    let state = if kind == Kind::Forge && resolved.value(4).origin != Origin::Default {
+        Some(super::path(&resolved.value(4).bytes).to_path_buf())
+    } else {
+        None
+    };
+    Ok(super::Command::Fake {
+        arguments: Arguments { kind, source, ready, seed, observations, state, scripts, strict },
+    })
 }
 
 fn forge_number(number: &[u8]) -> Result<u16, &'static str> {
@@ -308,10 +326,23 @@ pub fn run(arguments: &Arguments) -> Result<u8, String> {
         Ok(opened) => opened,
         Err(why) => {
             created.rollback();
+            let command = if arguments.kind == Kind::Forge && why.starts_with("state ") {
+                "temper-box fake forge"
+            } else {
+                command
+            };
             return Err(super::prefixed(command, &why));
         }
     };
     let exit = skein_shell::drive(&mut kernel, &skein_shell::Clock::new(), &mut host);
+    if exit == Exit::Code(0)
+        && host.stopped
+        && !host.failed
+        && let Some(path) = &arguments.state
+    {
+        let Peer::Forge(peer) = &host.peer else { unreachable!("only a forge keeps state") };
+        state::store(path, peer).map_err(|why| super::prefixed(command, &why))?;
+    }
     Ok(match exit {
         Exit::Code(code) => code,
         Exit::Signal(_) => 1,
@@ -529,13 +560,16 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
         }
         Kind::Forge => {
             let (document, token) = forge_document(&arguments.source, arguments.seed, created)?;
-            let (peer, shared) =
+            let (mut peer, shared) =
                 forge::peer(&document, &token, arguments.seed).map_err(|why| format!("peer: {why:?}"))?;
+            if let Some(path) = &arguments.state {
+                state::restore(path, &mut peer)?;
+            }
             let mut buffer =
                 List::with_capacity(if arguments.observations.is_some() { limits::OBSERVATION_BYTES } else { 0 });
             let (observations, writer) = match &arguments.observations {
                 Some(path) => {
-                    let mut writer = skein_fake_forge_forgejo::observations::Writer::new(&forge::LIMITS.limits);
+                    let mut writer = skein_fake_forge_forgejo::observations::Writer::new(&forge::limits().limits);
                     writer
                         .stop(&mut shared.borrow_mut().domain, &mut buffer)
                         .map_err(|why| format!("first checkpoint: {why:?}"))?;

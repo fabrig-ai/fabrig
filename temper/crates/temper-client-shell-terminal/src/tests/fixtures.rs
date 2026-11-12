@@ -332,6 +332,7 @@ fn populate_page(
                             w::ChangesLanded::new(
                                 &w::CEILINGS,
                                 w::ChangesLandedParts {
+                                    signed: skein_lib::List::with_capacity(8),
                                     commit: [0xab; 32],
                                     default_branch: true,
                                     task: 10,
@@ -467,6 +468,7 @@ fn populate_page(
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. }
             | Request::Dropped { .. } => {}
         }
@@ -1002,5 +1004,5 @@ pub fn changes_page() -> skein_ui::Tree {
     page(&client::Address::Changes { project: 1 }, false)
 }
 pub fn team_page() -> skein_ui::Tree {
-    page(&client::Address::Team { project: 1 }, false)
+    page(&client::Address::Team { project: 1, role: None }, false)
 }

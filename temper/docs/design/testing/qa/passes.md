@@ -1,7 +1,7 @@
 # Passes
 
 Provisional, 2026-11-12, from `../../draft/landed-qa.md`, sections 2, 7
-and 9, milestone Q3 of `../../draft/landed-qa.execution.md`. A pass
+and 9, milestones Q3 and Q4 of `../../draft/landed-qa.execution.md`. A pass
 judges a kept build of main: it takes the queued cases that build holds,
 runs one agent session over them all at a place, records each outcome
 and finding as it goes, and, with failed cases, waits on its findings'
@@ -37,6 +37,12 @@ goal and resumes on a build holding that goal's landing.
   (`landings.md`, 6) at its start and again at each resume, from that
   resume's build. The agent walks these (`places.md`, 4), edits them
   (`places.md`, 7) and adds to them (`places.md`, 6).
+- **`files/`:** the files the session's `forge commit` lines commit
+  (`../../client/drive.md`, 3.5), written there by the agent at their
+  repository paths before the line that commits them; the drive
+  session's files directory (`places.md`, 5), and what a new recipe's
+  `files/` is copied from (`places.md`, 6). Made, empty, at the pass's
+  start; kept across its resumes.
 - **`report.json`:** its report (section 8), written again at each
   session's end.
 - **`requests/R/`:** each request as filed (`findings.md`, 5).
@@ -76,13 +82,22 @@ The loop's third step (`README.md`, 4), for each free place
     from its setup's restored copy, restored between cases, cases on one
     setup sharing a restore where none changes what the next sees, the
     outcome's notes saying which; the green path only; a page's words
-    compared where the case gives them (its `see`, as a `web see` line),
-    the rest judged against the draft's promises; looks are a person's;
+    compared where the case gives them (its `see`, as a `web see` line
+    for a `web` case and a `tui see` line for a `tui` case), the rest
+    judged against the draft's promises; a `tui` case's steps are `tui`
+    lines, the TUI started at the first and signed in by the session
+    (`../../client/drive.md`, 3.3), and its finding's evidence the
+    screen's rows, `pass line "tui look"`'s answer saved to a file;
+    looks are a person's;
     each outcome recorded as reached and each finding as found; a
     finding never stops the pass; blocked, for the pass's own reasons,
     is not failed, for temper's; what is off the path a note, unless it
     is a security hole or lost data; a fault beside a case on the
-    landing's surface a finding (`../../draft/landed-qa.md`, 13).
+    landing's surface a finding (`../../draft/landed-qa.md`, 13); the
+    fakes alone: the person's forge is the box's fake Forgejo, and a
+    case that would set up the box's own Forgejo or reach any real
+    backend is blocked, naming it (`../../draft/landed-qa.md`, 6 and
+    12).
   - **The pass:** its number; its place; its build's commit; for a
     resume, the goal it waited on and whether it landed.
   - **The landings its cases came from:** each its number, goal, merge
@@ -100,7 +115,10 @@ The loop's third step (`README.md`, 4), for each free place
     is brought there from the nearest, and once it has run its lines
     become a recipe (`places.md`, 6).
   - **The commands:** the place's (`places.md`, 4 to 6), the drive
-    lines in brief (`../../client/drive.md`, 3), and the recording
+    lines in brief (`../../client/drive.md`, 3), among them ctl's box
+    values and the `forge` lines on the fake Forgejo, each file a
+    `forge commit` names written under `passes/P/files/` first
+    (`../../client/drive.md`, 3.4 and 3.5; section 2), and the recording
     commands (section 5; `findings.md`, 2), each with its form; that
     `pass setup`, `pass recipe` and `pass open` may take minutes, each
     walk or start printing a line as it goes, so the agent runs them

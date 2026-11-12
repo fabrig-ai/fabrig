@@ -49,7 +49,8 @@
 //! ```text
 //! state       event                     next        requests
 //! (none)      prepare, refused          (none)      prepared: refused
-//!             prepare, admitted         Preparing   held, io: look, make or fetch
+//!             prepare, admitted         Preparing   held, io: store, look, make or fetch
+//!             ... another makes store   Waiting     held
 //! Preparing   done, more to do          Preparing   io: the next operation
 //!             done, merge checked out   Preparing   io: compare base/head, or merge
 //!             done, base contained      Preparing   io: fetch landing or push branch
@@ -61,6 +62,11 @@
 //!             done, aborting            Unprepared  prepared: aborted
 //!             done, releasing           Closed      prepared: aborted, released
 //!             abort, release            Preparing   cancel, the first time asked
+//! Waiting     store made                Preparing   io: next store, look or make
+//!             store failed, oldest      Preparing   io: store
+//!             store failed, later       Waiting     (nothing)
+//!             abort                     Unprepared  prepared: aborted
+//!             release                   Closed      prepared: aborted, released
 //! Pushing     done, more to do          Pushing     io: the next operation
 //!             done, a push that may     Pushing     io: fetch its branch
 //!               have landed
@@ -68,6 +74,7 @@
 //!             done, aborting            Ready       pushed or saved (the rest aborted)
 //!             done, releasing           Closed      pushed or saved, released
 //!             abort, release            Pushing     (it waits for the operation)
+//! Waiting,    push, save                (same)      pushed or saved: refused, busy
 //! Preparing,  push, save                (same)      pushed or saved: refused, busy
 //! Pushing
 //! Ready       push, save                Pushing     io: commit
@@ -111,7 +118,7 @@ use skein_lib::{Env, Id, List, Queue, Slab, Token, Writer};
 use crate::boundary::{
     Conflicts, Failure, Landing, Message, Outcome, Prepared, Refusal, Repository, Request, Spec, Start,
 };
-use crate::cache::{Cache, Workspace, count};
+use crate::cache::{Cache, Claim, Workspace, count};
 use crate::domain::Domain;
 use crate::facts::{Cached, Ending, Fact, Facts, Preparation, Tally, Target};
 use crate::git::{Commit, Done, Fault, Into, Missing, Op, Place, Want};
@@ -172,6 +179,8 @@ pub(crate) struct Tips {
 enum State {
     /// Preparing the workspace: `step` is in flight.
     Preparing { step: PrepareStep, asked: Asked },
+    /// Waiting for another hold's store, with no operation in flight.
+    Waiting { repository: u32, look: bool },
     /// Prepared, with nothing under way.
     Ready,
     /// Its prepare failed or was aborted: it may only be released.
@@ -354,6 +363,7 @@ enum Asked {
 /// What a prepare does once an operation has ended.
 enum Next {
     Step(PrepareStep),
+    Stores { from: u32, look: bool },
     Ready,
     Failed(Failure),
 }
@@ -383,15 +393,15 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
     let hold = Hold { holding, state: State::Closed };
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
-    let first = match cached {
-        Cached::Looking => stores_step(&domain.holds.get(id).expect("inserted hold").holding, 0, true),
-        Cached::Reused | Cached::Kept => PrepareStep::Fetch { repository: 0 },
-        Cached::Rebuilt | Cached::Evicted | Cached::New => {
-            stores_step(&domain.holds.get(id).expect("inserted hold").holding, 0, false)
+    let hold = domain.holds.get_mut(id).expect("inserted above");
+    hold.state = match cached {
+        Cached::Reused | Cached::Kept => {
+            prepare_step(&hold.holding, id, PrepareStep::Fetch { repository: 0 }, env, out)
+        }
+        Cached::Looking | Cached::Rebuilt | Cached::Evicted | Cached::New => {
+            stores_step(&hold.holding, &mut domain.cache, id, 0, cached == Cached::Looking, env, out)
         }
     };
-    let hold = domain.holds.get_mut(id).expect("inserted above");
-    hold.state = prepare_step(&hold.holding, id, first, env, out);
     conclude(domain, id, out, mark);
 }
 
@@ -418,7 +428,7 @@ fn start(domain: &mut Domain, env: &Env<Limits>, hold: Token, to: To, message: M
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = match state {
         State::Ready => begin(&hold.holding, id, to, message, env, out),
-        busy @ (State::Preparing { .. } | State::Pushing { .. } | State::Unprepared) => {
+        busy @ (State::Preparing { .. } | State::Waiting { .. } | State::Pushing { .. } | State::Unprepared) => {
             answer(hold.holding.client, &to, Outcome::Refused { refusal: Refusal::Busy }, out);
             busy
         }
@@ -448,6 +458,15 @@ fn ask(domain: &mut Domain, hold: Token, now: Asked, out: &mut Queue<Request>) {
     hold.state = match state {
         State::Preparing { step, asked } => State::Preparing { step, asked: cancelling(id, asked, now, out) },
         State::Pushing { push, step, asked } => State::Pushing { push, step, asked: outranking(asked, now) },
+        State::Waiting { repository, look: _ } => {
+            domain.cache.unwait(borrowed(&hold.holding, repository).store, id);
+            out.push(Request::Prepared { client: hold.holding.client, prepared: Prepared::Aborted });
+            match now {
+                Asked::Release => released(hold.holding.client, out),
+                Asked::Abort => State::Unprepared,
+                Asked::Nothing => unreachable!("a client asks to abort or to release"),
+            }
+        }
         idle @ (State::Ready | State::Unprepared) => match now {
             Asked::Release => released(hold.holding.client, out),
             Asked::Abort => idle,
@@ -471,18 +490,63 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
     }
     let state = mem::replace(&mut hold.state, State::Closed);
     let holding = &mut hold.holding;
+    let mut waiters = Queue::uncapped();
+    let mut store_succeeded = false;
     hold.state = match state {
         State::Preparing { step, asked } => {
-            let detail = preparation_detail(step, &done);
+            let detail = preparation_detail(holding, step, &done);
+            store_succeeded = done == Done::Succeeded;
             let next = prepared(holding, &mut domain.cache, step, done, &env.limits);
-            prepare_next(holding, id, next, detail, asked, env, out)
+            match step {
+                PrepareStep::Store { repository, .. } => {
+                    waiters = domain.cache.finished(borrowed(holding, repository).store, id, store_succeeded);
+                }
+                PrepareStep::Look { .. }
+                | PrepareStep::Make
+                | PrepareStep::Clone { .. }
+                | PrepareStep::Fetch { .. }
+                | PrepareStep::Default { .. }
+                | PrepareStep::Create { .. }
+                | PrepareStep::Refetch { .. }
+                | PrepareStep::CheckOut { .. }
+                | PrepareStep::FetchPush { .. }
+                | PrepareStep::PinReplaced { .. }
+                | PrepareStep::PointLanding { .. }
+                | PrepareStep::FetchLanding { .. }
+                | PrepareStep::FetchBase { .. }
+                | PrepareStep::PointBase { .. }
+                | PrepareStep::CheckOutMerge { .. }
+                | PrepareStep::CompareBase { .. }
+                | PrepareStep::CompareHead { .. }
+                | PrepareStep::Merge { .. }
+                | PrepareStep::CommitHead { .. }
+                | PrepareStep::CheckOutHead { .. }
+                | PrepareStep::CommitMerge { .. }
+                | PrepareStep::CheckOutMerged { .. } => {}
+            }
+            prepare_next(holding, &mut domain.cache, id, next, detail, asked, env, out)
         }
         State::Pushing { push, step, asked } => pushed(holding, id, push, step, asked, done, env, out),
-        State::Ready | State::Unprepared | State::Closed => {
+        State::Waiting { .. } | State::Ready | State::Unprepared | State::Closed => {
             unreachable!("an operation ends only while its hold prepares, pushes or saves")
         }
     };
     conclude(domain, id, out, mark);
+    for _ in 0..waiters.len() {
+        let waiter = waiters.pop().expect("the waiters to resume");
+        let mark = out.len();
+        let hold = domain.holds.get_mut(waiter).expect("a queued waiter lives until it is resumed or removed");
+        hold.state = match hold.state {
+            State::Waiting { repository, look } => {
+                let from = if store_succeeded { after(repository) } else { repository };
+                stores_step(&hold.holding, &mut domain.cache, waiter, from, look, env, out)
+            }
+            State::Preparing { .. } | State::Ready | State::Unprepared | State::Pushing { .. } | State::Closed => {
+                unreachable!("only waiting holds are queued");
+            }
+        };
+        conclude(domain, waiter, out, mark);
+    }
 }
 
 /// The hold a client's handle names, or `None` if it has been released: the
@@ -491,7 +555,9 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
 fn addressed(holds: &Slab<Hold>, hold: Token) -> Option<Id<Hold>> {
     let id = Id::from_token(hold);
     match &holds.get(id)?.state {
-        State::Preparing { .. } | State::Ready | State::Unprepared | State::Pushing { .. } => Some(id),
+        State::Preparing { .. } | State::Waiting { .. } | State::Ready | State::Unprepared | State::Pushing { .. } => {
+            Some(id)
+        }
         State::Closed => None,
     }
 }
@@ -628,7 +694,7 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
             cache.release(hold.holding.workspace);
             holds.retire(id);
         }
-        State::Preparing { .. } | State::Ready | State::Unprepared | State::Pushing { .. } => {}
+        State::Preparing { .. } | State::Waiting { .. } | State::Ready | State::Unprepared | State::Pushing { .. } => {}
     }
 }
 
@@ -660,10 +726,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
     let last = count(holding.repositories.len()).checked_sub(1).expect("a spec names a repository");
     match step {
         PrepareStep::Store { repository, look } => match done {
-            Done::Succeeded => {
-                cache.made(borrowed(holding, repository).store);
-                Next::Step(stores_step(holding, after(repository), look))
-            }
+            Done::Succeeded => Next::Stores { from: after(repository), look },
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Paths { .. }
             | Done::Looked { .. }
@@ -1348,17 +1411,53 @@ fn next_head(holding: &mut Holding, repository: u32, head: u32, last: u32) -> Ne
 
 /// Full object spelling for the merge message (protocol/channel.md, 4).
 fn merge_title(head: Commit) -> Box<[u8]> {
-    let raw = head.raw();
-    let size = if raw.get(20..).expect("fixed id") == [0; 12] { 20_usize } else { 32 };
-    let length = size.checked_mul(2).expect("fixed id").checked_add(6).expect("fixed prefix");
+    let length = hex_length(head).checked_add(6).expect("fixed prefix");
     let mut title = Writer::new(length);
     title.put(b"Merge ").expect("measured prefix");
-    for byte in raw.get(..size).expect("fixed id") {
+    put_hex(&mut title, head);
+    title.finish()
+}
+
+fn hex_length(head: Commit) -> usize {
+    if head.raw().get(20..).expect("fixed id") == [0; 12] { 40 } else { 64 }
+}
+
+fn put_hex(text: &mut Writer, head: Commit) {
+    let size = hex_length(head).checked_div(2).expect("two digits per byte");
+    for byte in head.raw().get(..size).expect("fixed id") {
         for digit in [byte >> 4_u32, byte & 15] {
-            title.put(&[*b"0123456789abcdef".get(usize::from(digit)).expect("hex nibble")]).expect("measured hex");
+            text.put(&[*b"0123456789abcdef".get(usize::from(digit)).expect("hex nibble")]).expect("measured hex");
         }
     }
-    title.finish()
+}
+
+fn conflicted_head_detail(holding: &Holding, repository: u32, head: Commit) -> Box<[u8]> {
+    let branch = match &nth(holding, repository).start {
+        Start::Merged { branch, .. } => branch,
+        Start::Base { .. }
+        | Start::Branch { .. }
+        | Start::Commit { .. }
+        | Start::Saved { .. }
+        | Start::Merge { .. } => {
+            unreachable!("only a merged start refuses a head's conflict")
+        }
+    };
+    let prefix = b"merge: Conflicted: head ";
+    let reason = b" does not merge into ";
+    let length = prefix
+        .len()
+        .checked_add(hex_length(head))
+        .expect("fixed head")
+        .checked_add(reason.len())
+        .expect("fixed reason")
+        .checked_add(branch.len())
+        .expect("admitted branch");
+    let mut text = Writer::new(length);
+    text.put(prefix).expect("measured prefix");
+    put_hex(&mut text, head);
+    text.put(reason).expect("measured reason");
+    text.put(branch).expect("measured branch");
+    text.finish()
 }
 
 fn after_merged(repository: u32, last: u32) -> Next {
@@ -1366,11 +1465,11 @@ fn after_merged(repository: u32, last: u32) -> Next {
 }
 
 /// The named step and git's fault, outside the checkout's facts (domain/worker/jobs.md).
-fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
-    let (fault, output) = match done {
-        Done::Failed { fault } => (fault.name(), b"".as_slice()),
-        Done::FailedWithOutput { fault, diagnostic } => (fault.name(), diagnostic.output()),
-        Done::Conflicted { .. } => (b"Conflicted".as_slice(), b"".as_slice()),
+fn preparation_detail(holding: &Holding, step: PrepareStep, done: &Done) -> Box<[u8]> {
+    let (fault, output, conflicted) = match done {
+        Done::Failed { fault } => (fault.name(), b"".as_slice(), false),
+        Done::FailedWithOutput { fault, diagnostic } => (fault.name(), diagnostic.output(), false),
+        Done::Conflicted { .. } => (b"Conflicted".as_slice(), b"".as_slice(), true),
         Done::Succeeded
         | Done::Fetched { .. }
         | Done::Committed { .. }
@@ -1402,6 +1501,9 @@ fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
         PrepareStep::CheckOutMerge { .. } => b"check out merge",
         PrepareStep::CompareBase { .. } => b"compare base",
         PrepareStep::CompareHead { .. } => b"compare head",
+        PrepareStep::Merge { repository, theirs, head: Some(_) } if conflicted => {
+            return conflicted_head_detail(holding, repository, theirs);
+        }
         PrepareStep::Merge { .. } => b"merge",
         PrepareStep::CommitHead { .. } => b"commit head",
         PrepareStep::CheckOutHead { .. } => b"check out head",
@@ -1428,8 +1530,13 @@ fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
 
 /// Preparing, done: the next operation, or the prepare's end, which an abort
 /// or a release turns into aborted.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the next store is claimed only after the caller's abort or release is checked"
+)]
 fn prepare_next(
     holding: &mut Holding,
+    cache: &mut Cache,
     id: Id<Hold>,
     next: Next,
     detail: Box<[u8]>,
@@ -1441,6 +1548,7 @@ fn prepare_next(
     match asked {
         Asked::Nothing => match next {
             Next::Step(step) => prepare_step(holding, id, step, env, out),
+            Next::Stores { from, look } => stores_step(holding, cache, id, from, look, env, out),
             Next::Ready => {
                 holding.fetched = List::uncapped();
                 let conflicts = mem::replace(&mut holding.conflicts, List::with_capacity(0));
@@ -1484,7 +1592,7 @@ fn prepare_step(
             let store = borrowed(holding, repository);
             let spec = nth(holding, repository);
             Op::Store {
-                store: store.store.token(),
+                store: store.token,
                 aside: store.aside,
                 remote: spec.remote.clone(),
                 identity: spec.identity,
@@ -1495,18 +1603,18 @@ fn prepare_step(
         PrepareStep::Make => {
             let mut stores = List::with_capacity(count(holding.stores.len()));
             for borrowed in &holding.stores {
-                stores.push(borrowed.store.token()).expect("spec room");
+                stores.push(borrowed.token).expect("spec room");
             }
             Op::Make { workspace, stores: stores.into_boxed() }
         }
         PrepareStep::Clone { repository } => {
-            let store = borrowed(holding, repository).store.token();
+            let store = borrowed(holding, repository).token;
             let repository = nth(holding, repository);
             let remote = copy_of(&repository.remote);
             Op::Clone { at: place(workspace, repository), remote, store }
         }
         PrepareStep::Fetch { repository } | PrepareStep::Refetch { repository } => {
-            let store = borrowed(holding, repository).store.token();
+            let store = borrowed(holding, repository).token;
             let repository = nth(holding, repository);
             let want = start_want(&repository.start);
             let remote = copy_of(&repository.remote);
@@ -1515,7 +1623,7 @@ fn prepare_step(
             Op::Fetch { store, into: Into::Fetched, at: place(workspace, repository), remote, want, identity, account }
         }
         PrepareStep::Default { repository } => {
-            let store = borrowed(holding, repository).store.token();
+            let store = borrowed(holding, repository).token;
             let repository = nth(holding, repository);
             let remote = copy_of(&repository.remote);
             let identity = repository.identity;
@@ -1550,7 +1658,7 @@ fn prepare_step(
         PrepareStep::FetchLanding { repository, .. } => {
             let spec = nth(holding, repository);
             Op::Fetch {
-                store: borrowed(holding, repository).store.token(),
+                store: borrowed(holding, repository).token,
                 into: Into::Landing,
                 at: place(workspace, spec),
                 remote: copy_of(&spec.remote),
@@ -1570,7 +1678,7 @@ fn prepare_step(
         PrepareStep::FetchPush { repository, .. } => {
             let spec = nth(holding, repository);
             Op::Fetch {
-                store: borrowed(holding, repository).store.token(),
+                store: borrowed(holding, repository).token,
                 into: Into::Fetched,
                 at: place(workspace, spec),
                 remote: copy_of(&spec.remote),
@@ -1583,12 +1691,14 @@ fn prepare_step(
             at: place(workspace, nth(holding, repository)),
             commit,
             clean: !nth(holding, repository).start.is_saved(),
+            identity: nth(holding, repository).identity,
+            account: nth(holding, repository).account,
         },
         PrepareStep::PointBase { repository, base, .. } => {
             Op::Point { at: place(workspace, nth(holding, repository)), into: Into::Fetched, commit: base }
         }
         PrepareStep::FetchBase { repository, base, .. } => {
-            let store = borrowed(holding, repository).store.token();
+            let store = borrowed(holding, repository).token;
             let repository = nth(holding, repository);
             Op::Fetch {
                 store,
@@ -1600,9 +1710,13 @@ fn prepare_step(
                 account: repository.account,
             }
         }
-        PrepareStep::CheckOutMerge { repository, ours, .. } => {
-            Op::CheckOut { at: place(workspace, nth(holding, repository)), commit: ours, clean: true }
-        }
+        PrepareStep::CheckOutMerge { repository, ours, .. } => Op::CheckOut {
+            at: place(workspace, nth(holding, repository)),
+            commit: ours,
+            clean: true,
+            identity: nth(holding, repository).identity,
+            account: nth(holding, repository).account,
+        },
         PrepareStep::CompareBase { repository, ours, base } => {
             Op::IsAncestor { at: place(workspace, nth(holding, repository)), ancestor: base, commit: ours }
         }
@@ -1611,9 +1725,12 @@ fn prepare_step(
             ancestor: merged_head(holding, repository, head),
             commit: tips(holding, repository).head,
         },
-        PrepareStep::Merge { repository, theirs, .. } => {
-            Op::Merge { at: place(workspace, nth(holding, repository)), theirs }
-        }
+        PrepareStep::Merge { repository, theirs, .. } => Op::Merge {
+            at: place(workspace, nth(holding, repository)),
+            theirs,
+            identity: nth(holding, repository).identity,
+            account: nth(holding, repository).account,
+        },
         PrepareStep::CommitHead { repository, head } => {
             commit_merge(holding, workspace, repository, merged_head(holding, repository, head))
         }
@@ -1622,6 +1739,8 @@ fn prepare_step(
             at: place(workspace, nth(holding, repository)),
             commit: tips(holding, repository).head,
             clean: true,
+            identity: nth(holding, repository).identity,
+            account: nth(holding, repository).account,
         },
     };
     io(id, op, env, out);
@@ -1986,7 +2105,7 @@ fn verify(
     io(
         id,
         Op::Fetch {
-            store: borrowed(holding, repository).store.token(),
+            store: borrowed(holding, repository).token,
             into: Into::Fetched,
             at,
             remote,
@@ -2316,11 +2435,22 @@ fn after(repository: u32) -> u32 {
 fn borrowed(holding: &Holding, repository: u32) -> &crate::cache::Borrowed {
     holding.stores.get(usize::try_from(repository).expect("bounded index")).expect("spec store")
 }
-fn stores_step(holding: &Holding, from: u32, look: bool) -> PrepareStep {
+fn stores_step(
+    holding: &Holding,
+    cache: &mut Cache,
+    id: Id<Hold>,
+    from: u32,
+    look: bool,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
+) -> State {
     for repository in from..count(holding.stores.len()) {
-        if borrowed(holding, repository).make {
-            return PrepareStep::Store { repository, look };
+        match cache.claim(borrowed(holding, repository).store, id) {
+            Claim::Made => {}
+            Claim::Make => return prepare_step(holding, id, PrepareStep::Store { repository, look }, env, out),
+            Claim::Waiting => return State::Waiting { repository, look },
         }
     }
-    if look { PrepareStep::Look { repository: 0 } } else { PrepareStep::Make }
+    let step = if look { PrepareStep::Look { repository: 0 } } else { PrepareStep::Make };
+    prepare_step(holding, id, step, env, out)
 }

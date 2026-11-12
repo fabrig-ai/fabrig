@@ -24,7 +24,7 @@ use directories::Directories;
 pub mod box_command;
 pub mod claude_code;
 pub mod table;
-pub use table::{TABLE, TREE};
+pub use table::TABLE;
 pub mod ctl;
 pub mod fake;
 mod fake_backends;
@@ -42,7 +42,7 @@ mod serve;
 mod served;
 pub mod setup;
 pub use served::Service;
-mod tui_front;
+mod upgrade;
 use json::CONFIG_BYTES;
 #[cfg(test)]
 pub(crate) use lines as host;
@@ -53,6 +53,10 @@ pub enum Command {
     Overview,
     Version,
     Versions,
+    Upgrade {
+        directories: Directories,
+        request: temper_engine_shell::upgrade::Request,
+    },
     Usage(&'static skein_shell::Command),
     Claude {
         program: OsString,
@@ -71,7 +75,7 @@ pub enum Command {
     Box {
         directories: Directories,
         echo: temper_box_machine::host::Echo,
-        no_tui: bool,
+        front: bool,
     },
     BoxFakeBackends {
         directories: Directories,
@@ -79,7 +83,7 @@ pub enum Command {
         scripts: Vec<PathBuf>,
         strict: bool,
         echo: temper_box_machine::host::Echo,
-        no_tui: bool,
+        front: bool,
     },
     ProgramLogin {
         directories: Directories,
@@ -90,9 +94,6 @@ pub enum Command {
     },
     AgentList {
         configuration: PathBuf,
-    },
-    TuiFront {
-        address: Box<[u8]>,
     },
     Open {
         arguments: Vec<OsString>,
@@ -177,15 +178,18 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
     }
     let (directories, rest) =
         directories::resolve(arguments, environment, working).map_err(|why| refused(&why.to_string()))?;
-    let no_tui_count = rest.iter().filter(|word| word.as_ref() == b"--no-tui").count();
-    if no_tui_count > 1 {
+    let front_count = rest.iter().filter(|word| word.as_ref() == b"--front").count();
+    if front_count > 1 {
         return Err(refused("invalid arguments"));
     }
-    let rest: Box<[_]> = rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--no-tui").collect();
+    let rest: Box<[_]> = rest.into_vec().into_iter().filter(|word| word.as_ref() != b"--front").collect();
     let (echo, rest) = box_command::echo(&rest, environment).map_err(|why| refused(&why))?;
-    let no_tui = no_tui_count == 1;
+    let front = front_count == 1;
+    if front && echo == temper_box_machine::host::Echo::Steps {
+        return Err(refused("--front cannot be used with --echo steps"));
+    }
     if rest.is_empty() {
-        return Ok(Command::Box { directories, echo, no_tui });
+        return Ok(Command::Box { directories, echo, front });
     }
     let mut words = rest.iter();
     while let Some(word) = words.next() {
@@ -193,12 +197,14 @@ fn configure_box(arguments: &[Box<[u8]>], environment: &[EnvironmentEntry], work
             words.next();
         } else if !word.starts_with(b"-") {
             return Err(TABLE.unknown(arguments));
+        } else if word.as_ref() != b"--fake-backends" && word.as_ref() != b"--strict" {
+            return Err(refused(&format!("unknown flag {}", String::from_utf8_lossy(word))));
         }
     }
     let rest: Vec<_> = rest.iter().map(|arg| std::ffi::OsStr::from_bytes(arg).to_owned()).collect();
     let fake_backends::Options { bundle, scripts, strict } =
         fake_backends::configure(&rest, working).map_err(|why| refused(&why))?;
-    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, no_tui })
+    Ok(Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front })
 }
 
 fn configure_row(
@@ -220,6 +226,10 @@ fn configure_row(
     };
     match words {
         ["versions"] => return if arguments.is_empty() { Ok(Command::Versions) } else { Err(invalid()) },
+        ["upgrade", mode @ ("--check" | "--back")] => {
+            return temper_engine_shell::upgrade::configure(*mode == "--check", arguments, environment, working)
+                .map(|(directories, request)| Command::Upgrade { directories, request });
+        }
         ["--mcp-relay"] => return Ok(Command::Relay),
         ["--program-child"] => return Ok(Command::ProgramChild),
         ["fake", ..] => return fake::configure(row, arguments, environment, working),
@@ -235,12 +245,6 @@ fn configure_row(
         ["internal", "agent-list"] | ["--list", "internal", "agent-list"] => {
             return match arguments {
                 [configuration] => Ok(Command::AgentList { configuration: path(configuration).into() }),
-                _ => Err(invalid()),
-            };
-        }
-        ["internal", "tui"] => {
-            return match arguments {
-                [flag, address] if flag.as_ref() == b"--box" => Ok(Command::TuiFront { address: address.clone() }),
                 _ => Err(invalid()),
             };
         }
@@ -289,6 +293,9 @@ pub fn run(
     commit: &'static str,
 ) -> Result<u8, String> {
     let exit = match command {
+        Command::Upgrade { directories, request } => {
+            return upgrade::run(&directories, &request);
+        }
         Command::Overview => {
             print!("{}", TABLE.help());
             return Ok(0);
@@ -311,16 +318,16 @@ pub fn run(
             return init::run(&directories, boxed, environment).map_err(|why| prefixed("temper init", &why));
         }
         Command::Serve { directories, boxed } => serve::run("temper", environment, working, &directories, boxed)?,
-        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, no_tui } => fake_backends::run(
+        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front } => fake_backends::run(
             &directories,
             &fake_backends::Options { bundle, scripts, strict },
             echo,
-            no_tui,
+            front,
             environment,
         )
         .map_err(|why| prefixed("temper-box", &why))?,
-        Command::Box { directories, echo, no_tui } => {
-            box_command::run(&directories, echo, no_tui, environment).map_err(|why| prefixed("temper-box", &why))?
+        Command::Box { directories, echo, front } => {
+            box_command::run(&directories, echo, front, environment).map_err(|why| prefixed("temper-box", &why))?
         }
         Command::Agent { configuration } => {
             return temper_agent_shell::run(
@@ -359,7 +366,6 @@ pub fn run(
             return Ok(0);
         }
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
-        Command::TuiFront { address } => return Ok(tui_front::run(&address, &Clock::new(), environment, working)),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
     Ok(match exit {

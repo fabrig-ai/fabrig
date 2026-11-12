@@ -54,11 +54,16 @@ impl engine::Engine {
             program_login,
             welcome: settings.welcome,
             owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
+            push: match &settings.push {
+                Some(push) => Some(*push.key.public()),
+                None => None,
+            },
         };
         if let Some(sign_in) = &settings.sign_in {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
         clients.configure_forge_sign_in(&settings);
+        clients.pushes.configure(settings.push.take());
         let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
         let mut forge = forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
             .expect("checked forge limits");
@@ -133,6 +138,39 @@ impl engine::Engine {
     pub fn setup_page(&self, forge: u16, state: &[u8], now: Time) -> Option<&[u8]> {
         self.setup.page(forge, state, now)
     }
+    /// Test seam: replace this service's patch sets before `adopt_store`
+    /// (protocol/baseline.md, 4). Production keeps the binary's sets.
+    pub fn patch_sets(&mut self, sets: jig_protocol_store::PatchSets) {
+        self.store.patch_sets(sets);
+    }
+    /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
+    pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
+        let engine = self;
+        engine.domain.rehearse();
+        crate::upgrade::prepare(engine, true);
+        engine.store.host.adopt_mode(
+            directory,
+            user,
+            engine.store.installation,
+            jig_protocol_store::host::Adoption::Rehearse { scratch },
+        )
+    }
+    /// Ask jig to make the previous generation active, with the deployment stopped.
+    pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
+        let engine = self;
+        crate::upgrade::prepare(engine, false);
+        engine.store.host.adopt_mode(
+            directory,
+            user,
+            engine.store.installation,
+            jig_protocol_store::host::Adoption::Back,
+        )
+    }
+    /// Retained through teardown for shells and worlds alike.
+    #[must_use]
+    pub fn upgrade_report(&self) -> Option<&crate::upgrade::Report> {
+        Some(&self.upgrade.as_ref()?.report)
+    }
     pub fn adopt_store(&mut self, root: Fd, effective_user: u32) -> Result<(), Fd> {
         self.store.adopt(root, effective_user)
     }
@@ -157,10 +195,20 @@ impl engine::Engine {
             let engine = &mut *self;
             assert!(engine.forge.serving.is_none(), "machine inputs precede serving");
             engine.forge.github = Some(github);
+            engine.clients.pushes.roots = Some(roots.clone());
             engine.forge.roots = Some(roots);
         }
     }
 
+    /// Push hosts awaiting this send's resolution (domain/forge/attention.md, 7.3).
+    #[must_use]
+    #[expect(clippy::type_complexity, reason = "resolution pairs an exchange token with its host and port")]
+    pub fn unresolved_pushes(&self) -> Box<[(Token, Box<[u8]>, u16)]> {
+        self.clients.pushes.unresolved()
+    }
+    pub fn resolved_push(&mut self, token: Token, address: Option<core::net::SocketAddr>) {
+        self.clients.pushes.resolved(token, address, self.env.now, &mut self.clients.io);
+    }
     /// Kept names awaiting the shell's startup resolution (temper/docs/design/protocol/forge/engine.md, 2).
     #[must_use]
     #[expect(clippy::type_complexity, reason = "the startup resolution contract returns numbered host and port tuples")]
@@ -328,6 +376,7 @@ impl engine::Engine {
             restart: engine.domain.start_phase(),
             mark_durable: engine.store.host.mark_durable(),
             store_closed: engine.store.closed(),
+            store: engine.store.host.wait_state(),
             clients: WaitOwner { closed: engine.clients.closed, io: engine.clients.io.len() },
             workers: WaitOwner { closed: engine.workers.host.closed(), io: engine.workers.host.io.len() },
             setup: WaitOwner { closed: engine.setup.closed, io: engine.setup.io.len() },

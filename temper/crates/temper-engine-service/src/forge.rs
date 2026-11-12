@@ -479,10 +479,20 @@ pub fn prepare(
 
 #[must_use]
 pub fn config(
-    _settings: &settings::Engine,
+    settings: &settings::Engine,
     deployment: [u8; 16],
-) -> (skein_forge_client::Config, Box<[forge::GitIdentity]>) {
-    (skein_forge_client::Config { namespace: Box::new(deployment), writers: Box::new([]) }, Box::new([]))
+) -> (temper_engine_domain_forge::Config, Box<[forge::GitIdentity]>) {
+    (
+        temper_engine_domain_forge::Config {
+            push: match &settings.push {
+                Some(push) => Some(push.services.clone()),
+                None => None,
+            },
+            namespace: Box::new(deployment),
+            writers: Box::new([]),
+        },
+        Box::new([]),
+    )
 }
 
 /// What a forge connect starts from.

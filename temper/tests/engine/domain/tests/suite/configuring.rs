@@ -415,12 +415,14 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
     }
     config.core.settings.endpoints = Box::new([
         jig_domain_core::EndpointFacts {
+            direct: Box::new([]),
             providers: Box::new([]),
             number: 1,
             dialect: models[0].dialect,
             program: None,
         },
         jig_domain_core::EndpointFacts {
+            direct: Box::new([]),
             providers: Box::new([]),
             number: 2,
             dialect: models[0].dialect,

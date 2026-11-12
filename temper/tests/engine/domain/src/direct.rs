@@ -22,6 +22,10 @@ pub struct Driver {
     pub events: VecDeque<engine::Event>,
     pub store: Store,
     pub delivered: Vec<Delivery>,
+    /// Fake push service at the root boundary (testing/fakes.md, 6).
+    pub pushes: Vec<engine::Push>,
+    /// Answers in delivery order, Made when the story supplies none.
+    pub push_answers: VecDeque<engine::PushAnswer>,
     /// The protocol layer this world plays: decodes, renders, outcomes, accounts.
     pub protocol: Protocol,
     pub serial: u64,
@@ -119,6 +123,8 @@ impl Driver {
             events: VecDeque::from([engine::Event::Restart { pending: store.pending_generation }]),
             store,
             delivered: Vec::new(),
+            pushes: Vec::new(),
+            push_answers: VecDeque::new(),
             protocol,
             serial: 100,
             stopped: false,
@@ -246,6 +252,15 @@ impl Driver {
                         };
                         self.events.push_back(engine::Event::Store(terminal));
                     }
+                }
+                engine::Request::Party(engine::PartyRequest::Deliver(Delivery::Push(push))) => {
+                    self.events.push_back(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Pushed {
+                        party: push.party,
+                        device: push.device,
+                        endpoint: push.endpoint.clone(),
+                        answer: self.push_answers.pop_front().unwrap_or(engine::PushAnswer::Made),
+                    })));
+                    self.pushes.push(push);
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => {

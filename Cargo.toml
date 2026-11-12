@@ -27,6 +27,8 @@ members = [
     "skein/crates/skein-fake-machine",
     "skein/crates/skein-fake-oauth",
     "skein/crates/skein-fake-peers",
+    "skein/crates/skein-fake-push",
+    "skein/crates/skein-push",
     "skein/crates/skein-forge",
     "skein/crates/skein-forge-client",
     "skein/crates/skein-forge-connection",
@@ -298,7 +300,7 @@ members = [
     "temper/testing/temper-test-env",
     "temper/crates/temper-box-shell",
     "temper/bin/temper-box",
-    "temper/bin/temper-client",
+    "temper/bin/temper",
     "temper/crates/temper-client-shell",
     "temper/bin/temper-agent",
     "temper/crates/temper-agent-shell",
@@ -428,7 +430,7 @@ skein-ui-example-server = { path = "skein/examples/ui/server" }
 skein-ui-web = { path = "skein/crates/skein-ui-web" }
 wasm-bindgen = { version = "=0.2.126" }
 js-sys = { version = "=0.3.103" }
-web-sys = { version = "=0.3.103", features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "KeyboardEvent", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "AddEventListenerOptions", "DedicatedWorkerGlobalScope", "WorkerGlobalScope", "MessageEvent", "Performance", "CssStyleDeclaration", "NodeList", "Text", "HtmlCollection", "HtmlInputElement", "HtmlOptionElement", "HtmlOptionsCollection", "HtmlTextAreaElement", "HtmlDialogElement", "MouseEvent", "WheelEvent", "InputEvent", "ResizeObserver", "ResizeObserverEntry", "DomRect", "DomRectReadOnly", "Request", "RequestInit", "RequestCredentials", "RequestCache", "RequestMode", "Response", "AbortController", "AbortSignal", "Headers", "Navigator", "Crypto", "ReadableStream", "ReadableStreamDefaultReader", "Storage", "PopStateEvent", "BeforeUnloadEvent", "ScrollRestoration", "ScrollIntoViewOptions", "ScrollLogicalPosition", "Worker", "WorkerOptions", "WorkerType", "ErrorEvent", "HtmlScriptElement", "HtmlLinkElement", "StyleSheetList", "StyleSheet", "CssStyleSheet"] }
+web-sys = { version = "=0.3.103", features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "KeyboardEvent", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "AddEventListenerOptions", "DedicatedWorkerGlobalScope", "WorkerGlobalScope", "MessageEvent", "Performance", "CssStyleDeclaration", "NodeList", "Text", "HtmlCollection", "HtmlInputElement", "HtmlOptionElement", "HtmlOptionsCollection", "HtmlTextAreaElement", "HtmlDialogElement", "MouseEvent", "WheelEvent", "InputEvent", "ResizeObserver", "ResizeObserverEntry", "DomRect", "DomRectReadOnly", "Request", "RequestInit", "RequestCredentials", "RequestCache", "RequestMode", "Response", "AbortController", "AbortSignal", "Headers", "Navigator", "Crypto", "ReadableStream", "ReadableStreamDefaultReader", "Storage", "PopStateEvent", "BeforeUnloadEvent", "ScrollRestoration", "ScrollIntoViewOptions", "ScrollLogicalPosition", "Worker", "WorkerOptions", "WorkerType", "ErrorEvent", "HtmlScriptElement", "HtmlLinkElement", "StyleSheetList", "StyleSheet", "CssStyleSheet", "HtmlHeadElement", "ServiceWorkerContainer", "ServiceWorkerRegistration", "PushManager", "PushSubscription", "PushSubscriptionOptionsInit", "PushEncryptionKeyName", "Notification", "NotificationPermission"] }
 skein-fake-person = { path = "skein/testing/skein-fake-person" }
 skein-ui-example-view = { path = "skein/examples/ui/view" }
 skein-ui-text = { path = "skein/crates/skein-ui-text" }
@@ -460,6 +462,8 @@ skein-fake-forge-http = { path = "skein/crates/skein-fake-forge-http" }
 skein-fake-llm-domain = { path = "skein/crates/skein-fake-llm-domain" }
 skein-fake-llm-protocol = { path = "skein/crates/skein-fake-llm-protocol" }
 skein-fake-peers = { path = "skein/crates/skein-fake-peers" }
+skein-fake-push = { path = "skein/crates/skein-fake-push" }
+skein-push = { path = "skein/crates/skein-push" }
 skein-fake-oauth = { path = "skein/crates/skein-fake-oauth" }
 skein-tls = { path = "skein/crates/skein-tls" }
 skein-shell = { path = "skein/crates/skein-shell" }

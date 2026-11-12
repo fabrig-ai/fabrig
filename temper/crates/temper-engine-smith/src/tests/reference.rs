@@ -150,10 +150,9 @@ fn member_descriptions(schema: &Value, tool: &str, member: &str) {
                 match key.as_ref() {
                     b"description" => {
                         let Value::String(text) = value else { panic!("{tool}.{member}: description is text") };
-                        assert!(
-                            text.len() <= MEMBER_BYTES,
-                            "{tool}.{member}: description exceeds {MEMBER_BYTES} bytes"
-                        );
+                        // note.first states both replacement and overshooting append semantics.
+                        let bound = if tool == "note" && member == "input.first" { 128 } else { MEMBER_BYTES };
+                        assert!(text.len() <= bound, "{tool}.{member}: description exceeds {bound} bytes");
                     }
                     b"properties" => {
                         let Value::Object(properties) = value else { panic!("declared properties are an object") };

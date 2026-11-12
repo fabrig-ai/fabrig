@@ -119,6 +119,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
         return Err(Refusal::Broken("commit author"));
     }
     let credential = if remote(&command).is_some()
+        || matches!(command, Command::CheckOut { .. } | Command::Merge { .. })
         || (matches!(command, Command::IsAncestor { .. }) && env.contains_key(b"GIT_CONFIG_COUNT".as_slice()))
     {
         Some(read_credential(&mut env, spawn)?)
@@ -263,9 +264,17 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
                 _ => return None,
             },
         },
-        [b"clone", b"--bare", b"--single-branch", b"--no-tags", b"--quiet", b"--", remote, directory] => {
-            Command::Store { remote: (*remote).into(), directory: (*directory).into() }
-        }
+        [
+            b"clone",
+            b"--bare",
+            b"--filter=blob:none",
+            b"--single-branch",
+            b"--no-tags",
+            b"--quiet",
+            b"--",
+            remote,
+            directory,
+        ] => Command::Store { remote: (*remote).into(), directory: (*directory).into() },
         [b"remote", b"add", b"origin", b"--", remote] => Command::Remote { remote: (*remote).into() },
         [b"update-ref", reference, commit] => Command::UpdateRef {
             into: match *reference {
@@ -279,6 +288,7 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             b"fetch",
             b"--porcelain",
             b"--verbose",
+            b"--filter=blob:none",
             b"--no-tags",
             b"--no-write-fetch-head",
             b"--no-recurse-submodules",
@@ -306,9 +316,13 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             };
             Command::Fetch { remote: (*url).into(), source, into, workspace }
         }
-        [b"checkout", b"--force", b"--detach", commit] => Command::CheckOut { commit: invocation::object(commit)? },
+        [b"-c", b"remote.origin.promisor=true", b"checkout", b"--force", b"--detach", commit] => {
+            Command::CheckOut { commit: invocation::object(commit)? }
+        }
         [b"clean", b"-ffdxq"] => Command::Clean,
-        [b"merge", b"--no-commit", b"--no-ff", b"--", theirs] => Command::Merge { theirs: invocation::object(theirs)? },
+        [b"-c", b"remote.origin.promisor=true", b"merge", b"--no-commit", b"--no-ff", b"--", theirs] => {
+            Command::Merge { theirs: invocation::object(theirs)? }
+        }
         [b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"] => Command::Unmerged,
         [b"add", b"--all", b"--", b".", b":(exclude,glob)**/.*.log"] => Command::Add,
         [b"diff-tree", b"--no-commit-id", b"--name-only", b"--no-renames", b"-r", b"-z", before, after, b"--"] => {

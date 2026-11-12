@@ -15,6 +15,7 @@ const RELEASE_CYCLES: u32 = 22;
 #[expect(missing_debug_implementations, reason = "the engine owns account token records")]
 pub struct Engine {
     pub(crate) domain: root::Domain,
+    pub(crate) upgrade: Option<crate::upgrade::State>,
     pub(crate) env: Env<root::Limits>,
     pub(crate) store: crate::store::Store,
     pub(crate) accounts: Option<crate::accounts::Accounts>,
@@ -125,7 +126,7 @@ impl Engine {
     pub(crate) fn new(
         config: root::Config,
         limits: &root::Limits,
-        store: crate::store::Store,
+        mut store: crate::store::Store,
         children: Children,
         values: crate::values::Values,
         first_periods: List<(u32, u64)>,
@@ -134,6 +135,7 @@ impl Engine {
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
         let credentials = values.identities.numbers();
+        store.routes.patch_context.executors.clone_from(&config.core.defaults.rules.ceiling.delegation.kinds);
         let mut domain = match root::Domain::new(config, limits) {
             Ok(domain) => domain,
             Err(problem) => {
@@ -145,6 +147,7 @@ impl Engine {
         };
         domain.connection_limits(own.forge.forges, own.forge_component.installations);
         let mut engine = Self {
+            upgrade: None,
             credentials,
             domain,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
@@ -460,6 +463,10 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     clock(engine, now, wall);
     engine.store.iterate();
     answer(engine);
+    if crate::upgrade::advance(engine) {
+        engine.abort_if_ended();
+        return;
+    }
     if !engine.store.opened && engine.end.is_none() {
         return;
     }
@@ -535,6 +542,10 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         engine.observe_party(false);
     }
     release(engine);
+    if crate::upgrade::advance(engine) {
+        engine.abort_if_ended();
+        return;
+    }
     engine.forge.down(skein_forge_connection::Request::Offer);
     clients_pass(engine);
 }
@@ -697,6 +708,7 @@ fn dispatch(engine: &mut Engine) -> bool {
     true
 }
 
+#[expect(clippy::too_many_lines, reason = "each store terminal routes to its owner, including upgrade progress")]
 pub(crate) fn answer(engine: &mut Engine) {
     if engine.end.is_some() {
         for _ in 0..engine.store.host.above.len() {
@@ -719,7 +731,35 @@ pub(crate) fn answer(engine: &mut Engine) {
                 engine.store.installation = installation;
             }
             jig_protocol_store::Event::OpenRefused { why, .. } => open_refused(engine, why),
-            jig_protocol_store::Event::Patched { of, patch, counts, .. } => {
+            jig_protocol_store::Event::Corrupt { .. } if !engine.store.opened => {
+                // Opening has no load route; corruption is the open's terminal.
+                if let Some(state) = &mut engine.upgrade {
+                    state.report.open_failure = engine.store.host.component.start_open_failure().cloned();
+                }
+                stop::open(engine, &jig_protocol_store::OpenRefusal::Failed);
+            }
+            event @ (jig_protocol_store::Event::Decoded { .. }
+            | jig_protocol_store::Event::Undecodable { .. }
+            | jig_protocol_store::Event::Rehearsing { .. }
+            | jig_protocol_store::Event::Back { .. }
+            | jig_protocol_store::Event::BackRefused { .. }
+            | jig_protocol_store::Event::Closed { .. }) => {
+                let state = engine.upgrade.as_mut().expect("upgrade store event");
+                if let jig_protocol_store::Event::Undecodable { .. } = &event {
+                    state.undecodable = true;
+                }
+                if let jig_protocol_store::Event::Closed { .. } = &event {
+                    state.closed = true;
+                }
+                if let jig_protocol_store::Event::Back { .. } | jig_protocol_store::Event::BackRefused { .. } = &event {
+                    state.back = true;
+                }
+                state.report.events.push(event);
+            }
+            jig_protocol_store::Event::Patched { owner, of, patch, counts } => {
+                if let Some(state) = &mut engine.upgrade {
+                    state.report.events.push(jig_protocol_store::Event::Patched { owner, of, patch, counts });
+                }
                 engine.notes.try_push(crate::Note::Patched { of, patch, counts }).expect("patch progress note room");
             }
             event @ jig_protocol_store::Event::Site { .. } => {

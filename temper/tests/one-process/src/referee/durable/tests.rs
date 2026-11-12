@@ -3,6 +3,88 @@ use crate::fixtures::{self, durable as fixture};
 use fixture::{POWER_LOSS_SEED, READ, SYNC, USER, WRITE};
 use skein_fake_machine::{How, Item, Machine};
 
+fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
+    let mut format = jig_protocol_store::format::current(temper_protocol_store::STORE_VERSION, [7; 16]);
+    format.levels = jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS);
+    if old {
+        format.tasks = 9;
+        format.settings = 1;
+        format.levels.jig = Some(0);
+        format.levels.application = Some(0);
+    }
+    let root::Record::Core(row) = fixture::row() else { unreachable!() };
+    let value = if malformed {
+        Box::default()
+    } else {
+        codec::encode(&row, &fixtures::codec(), fixtures::store_names()).expect("current row")
+    };
+    fixture::bytes_with_ops(
+        true,
+        Box::new([
+            skein_kv::Op::Put {
+                key: keys::encode_own(&keys::Own::Format, 64).expect("format key"),
+                value: format.encode().expect("format bytes"),
+            },
+            skein_kv::Op::Put { key: keys::encode(&row.key(), 64).expect("row key"), value },
+        ]),
+    )
+    .snapshot
+}
+
+#[test]
+fn old_generation_rows_are_opaque_until_switch_and_current_rows_must_decode() {
+    fn start() -> Store {
+        let mut store = Store::new();
+        store.recovering();
+        let path = b"generations/1/store/snapshot".to_vec();
+        let mut events = vec![
+            Observed::Bytes { path: path.clone(), at: 0, bytes: generation_snapshot(true, true) },
+            Observed::Snapshot(path),
+        ];
+        assert!(store.observe(&mut events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds()).is_empty());
+        assert!(store.rows.is_empty(), "no typed claim about the old generation");
+        assert!(!store.generations[b"generations/1".as_slice()].rows.is_empty(), "raw rows retained");
+        store
+    }
+    fn switch(store: &mut Store, malformed: bool) {
+        let path = b"generations/2/store/snapshot".to_vec();
+        let log = b"generations/2/store/log-00000000000000000002".to_vec();
+        let row = core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Extent { oldest: 1, keys: 7 }));
+        let mut frames = fixture::bytes_with_ops(
+            false,
+            Box::new([skein_kv::Op::Put {
+                key: keys::encode(&row.key(), 64).expect("newer row key"),
+                value: codec::encode(&row, &fixtures::codec(), fixtures::store_names()).expect("newer row"),
+            }]),
+        )
+        .frames;
+        let bytes = frames.pop().expect("second commit frame");
+        let mut events = vec![
+            Observed::Bytes { path: log.clone(), at: 0, bytes },
+            Observed::Recovered(log),
+            Observed::Bytes { path: path.clone(), at: 0, bytes: generation_snapshot(false, malformed) },
+            Observed::Snapshot(path),
+            Observed::Bytes { path: b"active.tmp".to_vec(), at: 0, bytes: b"2\n".to_vec() },
+            Observed::Renamed { from: b"active.tmp".to_vec(), to: b"active".to_vec() },
+            Observed::Sync(Vec::new()),
+        ];
+        store.observe(&mut events, &fixtures::codec(), fixtures::store_names(), &fixture::bounds());
+    }
+    let mut store = start();
+    switch(&mut store, false);
+    let header = root::Record::Core(core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Extent {
+        oldest: 1,
+        keys: 7,
+    })));
+    let expected = BTreeMap::from([(fixture::row().key(), fixture::row()), (header.key(), header)]);
+    assert_eq!(store.rows, expected);
+    assert_eq!(store.restored, Some(expected));
+    assert!(store.deferred.is_none());
+    let mut malformed = start();
+    let failed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| switch(&mut malformed, true)));
+    assert!(failed.is_err(), "a malformed current-generation row is still fatal");
+}
+
 #[test]
 fn a_torn_log_write_recovers_the_durable_prefix() {
     let bytes = fixture::bytes(false);

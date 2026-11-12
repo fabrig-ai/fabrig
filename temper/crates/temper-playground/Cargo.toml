@@ -30,6 +30,7 @@ jig-domain-link.workspace = true
 jig-domain-people.workspace = true
 jig-domain-tasks.workspace = true
 jig-protocol-config.workspace = true
+jig-protocol-store.workspace = true
 jig-protocol-worker-wire.workspace = true
 skein-channel.workspace = true
 skein-fake-forge-domain.workspace = true

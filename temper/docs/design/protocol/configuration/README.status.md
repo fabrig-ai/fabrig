@@ -85,7 +85,7 @@ Charters 5 and 2 are assembled from the stock's set of charter files,
 `temper/docs/charters/stock/`, charter 5 with four ordered parts; it
 runs fresh with zero waiting.
 Template 4 names its own goal branch and uses the deployment's result
-bound. The rules and policy 1 hold asking, tools 3,975, and fifteen
+bound. The rules and policy 1 hold asking, tools 4,007, and fifteen
 executor kinds, including charters 5 and 12, role 0 and merge job 3; the
 reference's widening (`reference.md`) takes charter 12 out, so that its delegation
 fills the box's sixteen places. The stock
@@ -270,7 +270,7 @@ or in the terminal refusal naming the item and rejected way.
 
 - **Not yet:** `limits.md`'s `forge.client.fallback_ms`, by plan
   `forge-polls-quiet`: temper's profiles hold no `fallback`, so the name
-  is refused [in flight: change 49].
+  is refused.
 - **Not yet:** 7, the turn's check, and `settings.md`, 7: a worker whose turn's frame
   passes its `io.output` is refused `workers[0].limits: past its bound`,
   as its link's limits are not valid (`temper-service/src/worker_settings.rs`,

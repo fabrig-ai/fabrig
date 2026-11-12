@@ -722,6 +722,7 @@ fn registered() -> (config::Engine, AccountsRuntime) {
         list: None,
         number: 3,
         endpoint: None,
+        direct: None,
         name: b"issuer".as_slice().into(),
         signed_in_plan: false,
         manage_usage: None,
@@ -764,6 +765,24 @@ fn host(config: &config::Engine, runtime: AccountsRuntime) -> Accounts {
     )
     .expect("public registration fits")
 }
+
+#[test]
+fn upgrade_preparation_aborts_unopened_accounts_for_check_and_back() {
+    for rehearsal in [true, false] {
+        let (config, runtime) = registered();
+        let mut settings = fixtures::engine();
+        settings.jig.llm.providers = config.llm.providers;
+        fixtures::fill_files(&mut settings);
+        let mut service =
+            crate::Service::engine(settings, &fixtures::seeds(), Some(runtime), fixtures::forge_runtime())
+                .expect("configured accounts engine");
+        let engine = service.engine.as_mut().expect("engine");
+        crate::upgrade::prepare(engine, rehearsal);
+        let accounts = service.wait_state().engine.expect("engine state").accounts.expect("configured accounts");
+        assert!(accounts.empty && !accounts.work_pending && !accounts.opened, "unstarted accounts close: {accounts:?}");
+    }
+}
+
 #[test]
 fn dynamic_sources_use_provider_templates_and_restore_their_kept_records() {
     let (config, runtime) = registered();

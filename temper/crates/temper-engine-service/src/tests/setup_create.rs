@@ -201,7 +201,7 @@ impl Forge {
                 match event {
                     fake::Event::Domain(event) => {
                         let mut replies = Queue::uncapped();
-                        let env = Env { now: self.env.now, wall: Wall::EPOCH, limits: self.config };
+                        let env = Env { now: self.env.now, wall: Wall::EPOCH, limits: self.config.clone() };
                         git::step(&mut self.git, &env, event, &mut replies);
                         git::fire(&mut self.git, &env, &mut replies);
                         while let Some(reply) = replies.pop() {

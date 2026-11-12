@@ -151,6 +151,17 @@ const SHOW: Command = Command {
     variables: &[&HOME],
     notes: "",
 };
+const TUNE: Command = Command {
+    reach: Reach::Words(&["tune"]),
+    set: Set::Internal,
+    forms: &[""],
+    line: "Print figures and suggestions for tuning bounds and places, without recording anything.",
+    arguments: &[],
+    settings: &[],
+    switches: &[],
+    variables: &[&HOME],
+    notes: "Session times and tokens, waits for builds, and waits for places in the last 7 days. See testing/qa/ledger.md, 6.",
+};
 const LINES: Command = Command {
     reach: Reach::Words(&["lines"]),
     set: Set::Internal,
@@ -258,7 +269,7 @@ pub const TABLE: Table = Table {
     commit: "",
     commands: &[
         RUN, KEEP, NONE, CASE, SETUP, RECIPE, OPEN, LINE, CLOSE, HOLD, OUTCOME, FINDING, CHECK, NOTE, SHOW, LINES,
-        REPORT,
+        REPORT, TUNE,
     ],
     settings: &[],
     variables: &[&HOME, &SESSION, &AREA],
@@ -558,6 +569,11 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
     }
     if command == &SHOW {
         return home.read(|ledger| Ok(ledger.show()));
+    }
+    if command == &TUNE {
+        use crate::faces::ClockFace;
+        let now = crate::faces::RealClock::default().now().wall;
+        return home.read(|ledger| Ok(ledger.tune(&home.configuration, now)));
     }
     if command == &LINES {
         return home.read(|ledger| Ok(ledger.lines_text()));

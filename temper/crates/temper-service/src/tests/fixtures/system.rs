@@ -124,7 +124,10 @@ impl Kernel {
         }
         Done::Count(u32::try_from(count).unwrap())
     }
-    #[expect(clippy::too_many_lines, reason = "the service fixture routes layout for workspaces, stores and home")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the service fixture routes layout for workspaces, stores, making and home"
+    )]
     pub fn answer(&mut self, service: &mut Service) {
         for _ in 0..service.submissions().len() {
             let mut submit = service.submissions().pop().unwrap();
@@ -144,7 +147,10 @@ impl Kernel {
                 }
                 Op::Open { path, .. } => {
                     assert!(
-                        path.as_ref() == b"trash" || path.as_ref() == b"workspaces" || path.as_ref() == b"stores",
+                        path.as_ref() == b"trash"
+                            || path.as_ref() == b"workspaces"
+                            || path.as_ref() == b"stores"
+                            || path.as_ref() == b"making",
                         "layout opens {path:?}"
                     );
                     self.files = self.files.checked_add(1).unwrap();
@@ -152,7 +158,7 @@ impl Kernel {
                 }
                 Op::Rename { from, .. } => {
                     assert!(
-                        from.as_ref() == b"workspaces" || from.as_ref() == b"home" || from.as_ref() == b"stores",
+                        from.as_ref() == b"workspaces" || from.as_ref() == b"home" || from.as_ref() == b"making",
                         "layout moves {from:?}"
                     );
                     self.files = self.files.checked_add(1).unwrap();

@@ -86,6 +86,14 @@ fn ended_result() -> Box<c::Result> {
         acts: List::with_capacity(0),
     })
 }
+const TALK_CALLS: &[&[&str]] =
+    &[&["role", "talk", "41", "Carry on", "--key", "talk"], &["role", "talk", "41", "--leave", "--key", "leave"]];
+#[test]
+fn standing_talk_acts_replay_after_their_subject_retires() {
+    for argv in TALK_CALLS {
+        replay(argv);
+    }
+}
 const PERSON_CALLS: &[&[&str]] = &[
     &["task", "take", "41", "--key", "take"],
     &["task", "hand-back", "41", "--key", "hand-back"],
@@ -116,7 +124,7 @@ fn replay(argv: &[&str]) {
             serve(&mut root, first, f::act_document(&parsed));
             let ask = f::encoded(&root.sends.get(&first).expect("first act sent").2);
             let key = root.sent_name(first);
-            root.done(first, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
+            replay_answer(&mut root, first, &parsed);
             let expected = root.answer(first).expect("first outcome");
             if fresh {
                 root = f::chat_root(f::CHAT_BUDGET, f::OTHER_SEED);
@@ -125,13 +133,21 @@ fn replay(argv: &[&str]) {
             serve(&mut root, second, retired(&parsed));
             assert_eq!(f::encoded(&root.sends.get(&second).expect("replay sent").2), ask, "{argv:?}");
             assert_eq!(root.sent_name(second), key);
-            root.done(second, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
+            replay_answer(&mut root, second, &parsed);
             let actual = root.answer(second).expect("replayed outcome");
             assert_eq!(
                 (actual.status, actual.stdout, actual.stderr),
                 (expected.status, expected.stdout, expected.stderr)
             );
         }
+    }
+}
+fn replay_answer(root: &mut f::Harness, number: u32, call: &call::Call) {
+    if call.tool == rows::ROLE_TALK_AT {
+        let refusal = if call.form == 0 { c::Refusal::NotOffered } else { c::Refusal::NotWaiting };
+        root.answered(number, c::Answer::Refused { refusal, at: None });
+    } else {
+        root.done(number, c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 }));
     }
 }
 #[test]
@@ -279,6 +295,8 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["forge", "remove", "3", "--key", "remove"],
     &["forge", "setup", "--key", "new-setup"],
     &["forge", "connect", "github", "--key", "new-github"],
+    &["push", "add", "subscription.json", "--key", "push-add"],
+    &["push", "remove", "1", "--key", "push-remove"],
 ];
 fn direct_me(argv: &[&str]) -> c::Me {
     match argv.first() {
@@ -303,7 +321,9 @@ fn direct(argv: &[&str]) {
         let mut request = None;
         let mut key = None;
         for _ in 0_u32..2 {
-            let value = if crate::table::TOOLS[usize::from(parsed.tool)].name == b"forge replace" {
+            let value = if crate::table::TOOLS[usize::from(parsed.tool)].name == b"push add" {
+                Some(skein_lib::Secret::new(f::PUSH_SUBSCRIPTION.into()))
+            } else if crate::table::TOOLS[usize::from(parsed.tool)].name == b"forge replace" {
                 Some(skein_lib::Secret::new(
                     b"-----BEGIN RSA PRIVATE KEY-----\nfake-key-for-step-tests\n-----END RSA PRIVATE KEY-----"
                         .as_slice()
@@ -354,7 +374,7 @@ fn every_other_act_replays_its_first_outcome_in_text_and_json() {
 #[test]
 fn replay_cases_cover_every_keyed_verb_in_the_tools_table() {
     let mut covered = Vec::new();
-    for argv in DIRECT_CALLS.iter().chain(f::ACT_CALLS.iter()).chain(PERSON_CALLS.iter()) {
+    for argv in DIRECT_CALLS.iter().chain(f::ACT_CALLS.iter()).chain(PERSON_CALLS.iter()).chain(TALK_CALLS.iter()) {
         covered.push(f::call(argv).tool);
     }
     covered.push(rows::AMEND_AT);

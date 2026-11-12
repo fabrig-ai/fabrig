@@ -274,6 +274,86 @@ const HOW_RULES_NOTE: Part = Part::Named {
 };
 static HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "told-not-set-up",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Not set up" },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Your devices" },
+        ],
+    },
+    Holds {
+        name: "told-off",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Off" },
+            Part::Named { role: Role::Button, name: "Turn on" },
+            Part::Text { text: "Firefox on Linux" },
+        ],
+    },
+    Holds {
+        name: "told-on",
+        heading: "Telling you",
+        parts: &[Part::Named { role: Role::Button, name: "Turn off" }, Part::Text { text: "Safari on iPhone" }],
+    },
+    Holds {
+        name: "told-cannot",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "This browser can't be pushed to." },
+            Part::Text { text: "Add temper to the Home Screen, then open it from there and turn this on." },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
+        name: "told-refused",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "You have 8 devices: remove one below first." },
+            Part::Named { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
+        name: "night-told-not-set-up",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Not set up" },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Your devices" },
+        ],
+    },
+    Holds {
+        name: "night-told-off",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Off" },
+            Part::Named { role: Role::Button, name: "Turn on" },
+            Part::Text { text: "Firefox on Linux" },
+        ],
+    },
+    Holds {
+        name: "night-told-on",
+        heading: "Telling you",
+        parts: &[Part::Named { role: Role::Button, name: "Turn off" }, Part::Text { text: "Safari on iPhone" }],
+    },
+    Holds {
+        name: "night-told-cannot",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "This browser can't be pushed to." },
+            Part::Text { text: "Add temper to the Home Screen, then open it from there and turn this on." },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
+        name: "night-told-refused",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "You have 8 devices: remove one below first." },
+            Part::Named { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
         name: "remembered-none",
         heading: "What temper remembers about you",
         parts: &[
@@ -426,6 +506,80 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Text, name: "You" },
             Part::Named { role: Role::Paragraph, name: "Nothing waits on you." },
             Part::Absent { role: Role::Text, name: "Sam" },
+        ],
+    },
+    Holds {
+        name: "team-role",
+        heading: "Who owns what on shop",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Team" },
+            Part::Named { role: Role::Paragraph, name: "Just you." },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Standing roles" },
+            Part::Named { role: Role::Link, name: "Prover" },
+            Part::Named { role: Role::Text, name: "21 of 40" },
+            Part::Named { role: Role::Paragraph, name: "A standing role · since 2 November · started by you" },
+            Part::Named { role: Role::Button, name: "Pause" },
+            Part::Named { role: Role::Paragraph, name: "Its Now · written at 02:41" },
+            Part::Named { role: Role::Paragraph, name: "Sessions this week" },
+            Part::Named { role: Role::Paragraph, name: "Sun 01:52 · running" },
+            Part::Named { role: Role::Paragraph, name: "Sat 16:20 · 22 min" },
+            Part::Named { role: Role::Paragraph, name: "Triaged three findings; routed two to you." },
+            Part::Named { role: Role::Paragraph, name: "Fri 23:05 · 31 min" },
+            Part::Named { role: Role::Paragraph, name: "0" },
+            Part::Named { role: Role::Paragraph, name: "17" },
+            Part::Named { role: Role::Paragraph, name: "4" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each session starts fresh from its rules, its Now and what woke it, and ends by writing its Now.",
+            },
+            Part::Named { role: Role::Item, name: "Next: the fuzz tier's next run, then my weekly report on Monday." },
+            Part::Named { role: Role::Paragraph, name: "Its rules · change by proposal" },
+            Part::Named { role: Role::Link, name: "change by proposal" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Reproduce before routing: a finding gets a seed or a test first.",
+            },
+            Part::Named { role: Role::Paragraph, name: "Wakes on" },
+            Part::Named { role: Role::Text, name: "News from the forge, on 2 topics" },
+            Part::Named { role: Role::Text, name: "every 30 minutes" },
+            Part::Named { role: Role::Text, name: "A timer" },
+            Part::Named { role: Role::Text, name: "Mondays 06:00" },
+            Part::Named { role: Role::Text, name: "Task 61's result" },
+            Part::Named { role: Role::Text, name: "at once" },
+        ],
+    },
+    Holds {
+        name: "night-team-role",
+        heading: "Who owns what on shop",
+        parts: &[
+            Part::Named { role: Role::Text, name: "21 of 40" },
+            Part::Named { role: Role::Button, name: "Pause" },
+            Part::Named { role: Role::Paragraph, name: "Its Now · written at 02:41" },
+            Part::Named { role: Role::Paragraph, name: "Sessions this week" },
+            Part::Named { role: Role::Paragraph, name: "Sun 01:52 · running" },
+            Part::Named { role: Role::Paragraph, name: "Sat 16:20 · 22 min" },
+            Part::Named { role: Role::Paragraph, name: "Triaged three findings; routed two to you." },
+            Part::Named { role: Role::Paragraph, name: "Fri 23:05 · 31 min" },
+            Part::Named { role: Role::Paragraph, name: "0" },
+            Part::Named { role: Role::Paragraph, name: "17" },
+            Part::Named { role: Role::Paragraph, name: "4" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Each session starts fresh from its rules, its Now and what woke it, and ends by writing its Now.",
+            },
+            Part::Named { role: Role::Paragraph, name: "Its rules · change by proposal" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Reproduce before routing: a finding gets a seed or a test first.",
+            },
+            Part::Named { role: Role::Paragraph, name: "Wakes on" },
+            Part::Named { role: Role::Text, name: "News from the forge, on 2 topics" },
+            Part::Named { role: Role::Text, name: "every 30 minutes" },
+            Part::Named { role: Role::Text, name: "A timer" },
+            Part::Named { role: Role::Text, name: "Mondays 06:00" },
+            Part::Named { role: Role::Text, name: "Task 61's result" },
+            Part::Named { role: Role::Text, name: "at once" },
+            Part::Pressed { name: "Night mode" },
         ],
     },
     Holds { name: "night-team", heading: "Who owns what on shop", parts: &[Part::Pressed { name: "Night mode" }] },
@@ -2116,6 +2270,16 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "needs-sign-off-part",
+        heading: "One thing needs you.",
+        parts: &[
+            Part::Text { text: "This project's landing rule 1 asks for 2 approvals by members." },
+            Part::Text { text: "Signs off changes to payments." },
+            Part::Text { text: "1 of 2 signed: Sam; you or Kit can give the second." },
+            Part::Named { role: Role::Link, name: "Sign off on Forgejo ↗" },
+        ],
+    },
+    Holds {
         name: "needs-approval-path",
         heading: "One thing needs you.",
         parts: &[
@@ -2130,7 +2294,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "One thing needs you.",
         parts: &[
             Part::Named { role: Role::Heading { level: 1 }, name: "Approve A change on GitHub" },
-            Part::Text { text: "The deployment's landing rule 2 asks for 2 approvals by maintainers; 1 so far." },
+            Part::Text { text: "The deployment's landing rule 2 asks for 2 approvals by maintainers." },
             Part::Text { text: "temper knows no GitHub account of yours, so your review wouldn't count." },
             Part::Named { role: Role::Button, name: "Open" },
             Part::Absent { role: Role::Button, name: "Later" },
@@ -2419,7 +2583,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "A task ran out of turns on the coupon rules." },
             Part::Text { text: "Split it in two." },
             Part::Absent { role: Role::Link, name: "Sign off on Forgejo ↗" },
-            // These approvals name no set; who can still sign has no client read.
+            // These approvals name no path set.
         ],
     },
     Holds {
@@ -5816,8 +5980,9 @@ fn the_person_menu_sample_opens_above_its_row() {
     assert!(!menu.contains("hidden"), "{menu}");
     assert!(person.contains("role=\"menuitem\">Accounts</div>"));
     assert!(person.contains("role=\"menuitem\">What temper remembers about you</div>"));
+    assert!(person.contains("role=\"menuitem\">Telling you</div>"));
     assert!(person.contains("role=\"menuitem\">Sign out</div>"));
-    assert_eq!(person.matches("role=\"menuitem\"").count(), 3);
+    assert_eq!(person.matches("role=\"menuitem\"").count(), 4);
     let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
     let panel = css
         .lines()

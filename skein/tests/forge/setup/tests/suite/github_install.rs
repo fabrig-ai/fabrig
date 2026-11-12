@@ -147,11 +147,13 @@ fn a_failed_accept_still_uses_its_state() {
     no_id.forget(Item::AppId);
     let mut full = world(&[]);
     full.put(Item::Accepted, accepted_item(&[1, 3, 4, 5, 6, 7, 8, 9]));
-    for (mut world, step, subject, why, connections) in [
+    for (mut world, step, subject, why, connections) in vec![
         (missing, Stage::Installation, b"2".as_slice(), Why::Missing, 1),
         (no_id, Stage::App, b"id".as_slice(), Why::Missing, 0),
         (full, Stage::Installation, b"2".as_slice(), Why::Unexpected, 1),
-    ] {
+    ]
+    .into_boxed_slice()
+    {
         let before = world.file(Item::Accepted).cloned();
         let state = install(&mut world, 1);
         accept(&mut world, 2, &state, INSTALLATION);
