@@ -2,7 +2,6 @@
 
 2026-11-12. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 5: the agent capability takes no drain [in flight: change 1732].
 
 `hub.md`, section 4 has no known gap in turn fences taking only offered messages:
 messages withheld by parts or a pace stay in the task's inbox when a

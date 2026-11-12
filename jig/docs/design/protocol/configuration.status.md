@@ -2,7 +2,6 @@
 
 2026-11-12. Where jig's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 4: no `graces.drain_ms`, and the stop bound holds no drain [in flight: change 1757].
 - **Not yet:** 3: a provider's `direct` endpoint, its checks, and a list read on it [in flight: change 927].
 - **Not yet:** 4: the `programs` row's credential source on a provider's `direct` endpoint (`../domain/accounts.md`, 3.4) [in flight: change 928].
 

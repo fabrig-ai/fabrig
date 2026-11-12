@@ -2,9 +2,6 @@
 
 2026-11-12. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 5: agents spawned from the pinned copies [in flight: change 1749].
-- **Not yet:** 5: the ending's drain, git's saves while stopping and the abort at the stop bound: git refuses every operation once the worker stops [in flight: change 1767].
-- **Not yet:** 5: the worker's unit under a service manager in `temper help server` [in flight: change 1757].
 
 `binaries.md`, section 3's feature-free `temper-agent` is present, with its shared
 help, run, list, relay, program-child and argv0 Claude launcher
