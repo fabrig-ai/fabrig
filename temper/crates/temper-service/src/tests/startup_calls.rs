@@ -66,10 +66,10 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
         )
         .unwrap();
         let engine = service.engine.as_ref().unwrap();
-        assert_eq!(engine.env.limits.call_answer_bytes, expected_engine);
-        assert_eq!(engine.env.limits.host_reply_bytes, Some(agent.limits.bodies.host_reply_text));
+        assert_eq!(engine.limits().call_answer_bytes, expected_engine);
+        assert_eq!(engine.limits().host_reply_bytes, Some(agent.limits.bodies.host_reply_text));
         let opening = store_limits(&input, &directories, Some(&agent.declaration())).unwrap();
-        assert_eq!(opening.store, engine.store.opening_limits());
+        assert_eq!(opening.store, engine.opening_limits());
         assert_eq!(opening.store.core.call_answer_bytes, expected_engine);
         check(
             &input,
@@ -166,7 +166,7 @@ fn core_answer_floor(engine: bool) {
         fixtures::forge_runtime(),
     )
     .unwrap();
-    assert_eq!(service.engine.as_ref().unwrap().env.limits.call_answer_bytes, 2048);
+    assert_eq!(service.engine.as_ref().unwrap().limits().call_answer_bytes, 2048);
 }
 
 #[test]

@@ -4,9 +4,7 @@ use skein_lib::List;
 use temper_forge_setup::machine;
 pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 
-#[cfg(test)]
-#[path = "../tests/members.rs"]
-mod tests;
+
 
 /// Every application shape, including the machine decoder’s own rows.
 pub(super) static SHAPES: [Shape; 32] = [

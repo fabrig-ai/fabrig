@@ -1,67 +1,8 @@
-use crate::{Service, Worker, WorkerRuntime};
+use crate::Service;
 use alloc::collections::BTreeMap;
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op};
-use skein_lib::{List, Queue, Time, Wall};
-
-// The scripted box story uses 128-byte lines and captures fewer bytes than one line.
-pub const BOX_BYTES: u32 = 128;
-
-pub struct SystemStand {
-    pub service: Service,
-    pub kernel: Kernel,
-}
-impl SystemStand {
-    pub fn turn(&mut self) {
-        crate::iterate(&mut self.service, Time::ZERO, Wall::EPOCH);
-        self.kernel.answer(&mut self.service);
-    }
-}
-pub fn one_process() -> SystemStand {
-    one_process_under_box(false)
-}
-pub fn one_process_under_box(under_box: bool) -> SystemStand {
-    let mut settings = super::worker_settings();
-    settings.jig.limits.core.tasks.run_inbox = 2;
-    let agent = super::worker_agent();
-    let limits = super::worker_limits();
-    let worker = Worker::new(
-        &settings,
-        &agent,
-        &limits,
-        &super::worker_files(),
-        WorkerRuntime { root: Fd::new(9), path: b"/worker".as_slice().into() },
-        7,
-    )
-    .unwrap();
-    SystemStand {
-        service: super::start_with_worker(&[(1, 100)], None, Some(worker), under_box, under_box),
-        kernel: Kernel::new(),
-    }
-}
-pub fn until_hosting(stand: &mut SystemStand) {
-    for _ in 0_u16..256 {
-        // Occupy this turn's root input so the arriving hello stays visible.
-        stand.service.engine.as_mut().expect("engine").events.push(temper_engine_domain::Event::Resume);
-        stand.turn();
-        if hello(&stand.service).is_some() {
-            return;
-        }
-    }
-    panic!("the worker's hello reaches the engine");
-}
-pub fn hello(service: &Service) -> Option<(skein_lib::Token, &jig_domain_link::Hello)> {
-    for event in &service.engine.as_ref().expect("engine").events {
-        if let temper_engine_domain::Event::Worker(temper_engine_domain::WorkerInput::Link {
-            channel,
-            link: temper_engine_domain::Link::Hello { hello, .. },
-        }) = event
-        {
-            return Some((*channel, hello));
-        }
-    }
-    None
-}
-
+use skein_lib::{List, Queue};
+const BOX_BYTES: u32 = 128;
 pub struct Kernel {
     pub next: i32,
     pub pipes: BTreeMap<Fd, (Box<[u8]>, usize)>,

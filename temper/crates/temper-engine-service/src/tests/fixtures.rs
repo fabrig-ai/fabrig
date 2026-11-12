@@ -45,16 +45,7 @@ pub const ENGINE: &[u8] = br#"{
 }"#;
 
 // Jig's inline input is retained only to exercise policy decoding and typed guards.
-pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1, "permission": 1, "role": 0}],
-"policy": {"templates": [], "escalation_role": 0, "period_spend": 100, "projections": [], "requirements": [],
-"ceiling": {"tools": 1, "grants": [],
-"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 4},
-"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []},
-"roles": [{"number": 0, "period_spend": 100, "requests": 511, "decides": 31,
-"authority": {"tools": 1, "grants": [],
-"delegation": {"kinds": [{"kind": "charter", "number": 1}], "tasks": 8, "depth": 4},
-"budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []}}]
-}}]"#;
+
 
 pub fn engine() -> settings::Engine {
     static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
@@ -148,12 +139,6 @@ pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
     };
     jig_protocol_config::pass(&mut jig, defaults).unwrap();
     jig
-}
-/// Startup guards keep the small policy bound; they never make the core.
-pub fn guard_engine() -> settings::Engine {
-    let mut settings = engine();
-    settings.jig.limits.core.policy_bytes = 8192;
-    settings
 }
 
 /// The API token held by fixture records (temper/docs/design/protocol/credentials.md, 5).
@@ -522,7 +507,7 @@ pub fn fill_files(settings: &mut settings::Engine) {
     }
 }
 pub fn started_with_two_forges() -> crate::Service {
-    start_with_worker(&[(1, 100)], None, None, true, false)
+    start_with_store_options(&[(1, 100)], None, true, false)
 }
 pub fn started() -> crate::Service {
     started_with_projects(&[(1, 100)])
@@ -535,29 +520,27 @@ pub fn started_with_approval(approval: bool) -> crate::Service {
         br#"{"heartbeat_ms":10000,"link":true,"approval":false}"#.as_slice()
     };
     settings.jig.clients = parse_engine(&with(ENGINE, b"clients", clients)).clients;
-    start_configured_worker(settings, &[(1, 100)], None, None, false, false)
+    start_configured(settings, &[(1, 100)], None, false, false)
 }
 pub fn started_with_projects(projects: &[(u32, u64)]) -> crate::Service {
     start_with_store(projects, None)
 }
 pub fn start_with_store(projects: &[(u32, u64)], stored: Option<crate::store::Store>) -> crate::Service {
-    start_with_worker(projects, stored, None, false, false)
+    start_with_store_options(projects, stored, false, false)
 }
-fn start_with_worker(
+fn start_with_store_options(
     projects: &[(u32, u64)],
     stored: Option<crate::store::Store>,
-    worker: Option<crate::Worker>,
     two_forges: bool,
     under_box: bool,
 ) -> crate::Service {
-    start_configured_worker(engine(), projects, stored, worker, two_forges, under_box)
+    start_configured(engine(), projects, stored, two_forges, under_box)
 }
 #[expect(clippy::too_many_lines, reason = "the fixture joins the configured worker, store and kept forge records")]
-fn start_configured_worker(
+fn start_configured(
     mut settings: settings::Engine,
     projects: &[(u32, u64)],
     stored: Option<crate::store::Store>,
-    worker: Option<crate::Worker>,
     two_forges: bool,
     under_box: bool,
 ) -> crate::Service {
@@ -636,20 +619,13 @@ fn start_configured_worker(
     }
     settings.jig.projects = configured.into_boxed();
     fill_files(&mut settings);
-    if worker.is_some() {
-        settings.jig.limits.hub = worker_settings().jig.limits.hub;
-        settings.limits.checkout = worker_limits().checkout;
-        settings.files.entries.get_mut(0).unwrap().1 =
-            Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into());
-    }
     let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     let seed = ForgeSeed::new(&root, &settings.jig);
     let store = match stored {
         Some(store) => store,
         None => memory_store_for(&root, &settings.jig.limits.store, &seed.models),
     };
-    let worker_io = if worker.is_some() { Some(worker_settings().jig.limits.io) } else { None };
-    let io = crate::startup::checks::process_io(&settings.jig.limits.io, worker_io.as_ref()).unwrap();
+    let io = crate::startup::checks::engine_io(&settings.jig.limits.io);
     let endpoints = crate::forge::settings(
         &sources,
         runtime,
@@ -662,9 +638,8 @@ fn start_configured_worker(
         &seeds(),
         None,
         endpoints,
-        worker,
         io,
-        if under_box { Some(system::BOX_BYTES) } else { None },
+        if under_box { Some(128) } else { None },
         None,
     )
     .unwrap();
@@ -700,9 +675,9 @@ mod clients;
 pub mod http;
 mod server;
 pub use server::{answered, header, listening, request, server, server_call, server_head, server_response};
-pub use temper_worker_service_fixtures::agent;
-pub(super) mod system;
-pub use system::{Kernel, hello, one_process, until_hosting};
+
+
+
 pub fn turn(service: &mut crate::Service) {
     crate::iterate(service, skein_lib::Time::from_nanos(1), skein_lib::Wall::from_nanos(1));
     clients::kernel(service);
@@ -769,20 +744,6 @@ pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_d
 pub fn assignment_with(repository: temper_engine_domain::ForgeRepository) -> temper_engine_domain::Assignment {
     let settings = engine();
     assignment_with_settings(repository, &settings)
-}
-/// A resolution carrying both sides of a large file in its pull section.
-pub fn resolution_with_pull(bytes: usize) -> temper_engine_domain::Assignment {
-    let mut repository = repository(7, b"acme", b"shop");
-    repository.start =
-        temper_engine_domain::ForgeStart::Merge { branch: b"temper/task-7".as_slice().into(), base: [7; 32] };
-    let mut assignment = assignment_with(repository);
-    let mut body = skein_lib::bytes::zeroed(bytes);
-    body.fill(b'x');
-    assignment.sections = Box::new([temper_engine_domain::BriefSection {
-        kind: temper_engine_domain::BriefKind::Forge(temper_engine_domain::ForgeBriefKind::Pull),
-        body: temper_engine_domain::BriefBody::Text(body),
-    }]);
-    assignment
 }
 
 pub fn assignment_with_settings(
@@ -1110,14 +1071,11 @@ pub fn claimed_chat() -> (crate::Service, temper_engine_domain::Assignment) {
     (service, run)
 }
 
-mod worker;
-mod worker_git;
-pub(crate) mod worker_peers;
-pub use worker::{
-    AGENT_JSON, NOW, TEMPER, assignment as worker_assignment, chat_assignment, one_repository, spawn, worker,
-    worker_agent, worker_files, worker_limits, worker_settings,
-};
-pub use worker_git::{WorkerStand, started_worker};
+
+
+
+pub use temper_worker_service_fixtures::{agent, AGENT_JSON, worker_agent};
+
 pub fn clients() -> crate::clients::Clients {
     let engine = engine();
     crate::clients::Clients::new(
@@ -1134,8 +1092,8 @@ pub fn clients() -> crate::clients::Clients {
 }
 mod startup;
 pub use startup::{
-    APPLICATION, Json, demo_application, demo_service, document, engine_alone_document, files, parsed, start,
-    startup_agent, value, webhook_document, with, without, worker_alone_document, worker_runtime,
+    APPLICATION, Json, demo_service, document,
+    value, with,
 };
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
@@ -1433,17 +1391,16 @@ pub(crate) fn configured_service_with_store(
     store: Option<crate::store::Store>,
 ) -> Result<crate::Service, jig_protocol_config::Problems> {
     let endpoints = configured_endpoints(&config, runtime)?;
-    configured_prepared_with_store(config, seeds, accounts, endpoints, None, None, store)
+    configured_prepared_with_store(config, seeds, accounts, endpoints, None, store)
 }
 pub fn configured_prepared(
     config: ConfiguredEngine,
     seeds: &settings::Seeds,
     accounts: Option<crate::AccountsRuntime>,
     endpoints: skein_forge_connection::Settings,
-    worker: Option<crate::Worker>,
     box_bytes: Option<u32>,
 ) -> Result<crate::Service, jig_protocol_config::Problems> {
-    configured_prepared_with_store(config, seeds, accounts, endpoints, worker, box_bytes, None)
+    configured_prepared_with_store(config, seeds, accounts, endpoints, box_bytes, None)
 }
 #[expect(
     clippy::too_many_lines,
@@ -1454,7 +1411,6 @@ fn configured_prepared_with_store(
     seeds: &settings::Seeds,
     accounts: Option<crate::AccountsRuntime>,
     endpoints: skein_forge_connection::Settings,
-    worker: Option<crate::Worker>,
     box_bytes: Option<u32>,
     store: Option<crate::store::Store>,
 ) -> Result<crate::Service, jig_protocol_config::Problems> {
@@ -1487,7 +1443,7 @@ fn configured_prepared_with_store(
     let root = limits::engine(&config.engine.jig.limits, &config.engine.limits).unwrap();
     let seed = ForgeSeed::new(&root, &config.engine.jig);
     let empty = crate::forge::prepare(&config.engine, skein_lib::List::with_capacity(0))?;
-    let mut service = crate::Service::prepared(config.engine, seeds, accounts, empty, worker, io, box_bytes, None)?;
+    let mut service = crate::Service::prepared(config.engine, seeds, accounts, empty, io, box_bytes, None)?;
     service.engine.as_mut().unwrap().store = match store {
         Some(store) => store,
         None => records_store(),
@@ -1799,58 +1755,5 @@ pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shel
     smith_agent_shell::config::parse(bytes.as_bytes())
 }
 
-/// The startup agent derived from the shell configuration, including its hello.
-#[expect(clippy::disallowed_methods, reason = "ordinary fixture code traverses the parsed model declarations")]
-pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> settings::Agent {
-    use std::os::unix::ffi::OsStrExt;
-    let limits = config.service.limits;
-    let host_limits = smith_local_service::profile::host_limits(&config.profile, &limits).unwrap();
-    let mut protocol = smith_host_protocol::Limits {
-        bodies: limits.channel.bodies,
-        charter: limits.channel.charter,
-        transcript: limits.channel.transcript,
-        endpoints: limits.channel.endpoints,
-        channel: limits.channel.channel,
-        start_bytes: limits.channel.start_bytes,
-        calls: host_limits.calls,
-    };
-    protocol.channel.output_bytes = smith_host_protocol::output_bytes(&protocol).unwrap();
-    settings::Agent {
-        run_limits: limits.domain.run,
-        tool_payload: config.profile.declared.tool_payload,
-        programs: config
-            .program
-            .into_iter()
-            .map(|program| settings::Program {
-                adapter: settings::Adapter::ClaudeCode,
-                path: program.path.as_os_str().as_bytes().into(),
-                directory: program.directory.as_os_str().as_bytes().into(),
-            })
-            .collect(),
-        endpoints: config.service.channel_endpoints,
-        limits: protocol,
-        host_limits,
-        bounds: Bounds {
-            endpoints: config
-                .declarations
-                .endpoints
-                .iter()
-                .map(|endpoint| EndpointBound {
-                    endpoint: endpoint.number,
-                    window: endpoint.limits.window,
-                    output: endpoint.limits.output,
-                })
-                .collect(),
-            program_endpoints: config.program_endpoints.into_iter().collect(),
-            turns: config.profile.policy.max_turns,
-            spend: config.profile.policy.max_spend,
-            time: config.profile.policy.max_time,
-            waiting: config.profile.policy.max_waiting,
-            checks: config.profile.policy.check_timeout,
-            message_bytes: limits.domain.run.message_bytes.checked_sub(2).unwrap(),
-            inbox: config.profile.policy.inbox,
-            unacknowledged: config.profile.policy.unacknowledged,
-            reply_bytes: None,
-        },
-    }
-}
+mod kernel;
+pub use kernel::Kernel;

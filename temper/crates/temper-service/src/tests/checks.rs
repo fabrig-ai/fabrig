@@ -169,7 +169,7 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
             assert_eq!(&*lines(&result.err().expect("endpoint is deployment configuration")), expected, "row {row}");
         } else {
             let mut service = result.expect("a charter model shortfall warns");
-            assert_eq!(service.notes().pop(), Some(crate::Note::StartupWarning { line: expected.into() }));
+            assert_eq!(service.notes().pop(), Some(crate::Note::Engine(crate::EngineNote::StartupWarning { line: expected.into() })));
             assert_eq!(service.notes().pop(), None, "one selected warning");
         }
     }

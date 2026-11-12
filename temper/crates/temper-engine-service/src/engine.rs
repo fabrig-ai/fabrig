@@ -996,4 +996,20 @@ mod release_tests {
         assert!(engine.domain.revision() > revision);
         assert!(engine.release_pending(), "direct root inputs wake the owner too");
     }
+    #[test]
+    fn returned_joined_note_credit_wakes_waiting_facts() {
+        let mut service = crate::tests::fixtures::ready();
+        let engine = service.engine.as_mut().expect("engine");
+        let now = Time::from_nanos(1);
+        assert!(!engine.work_pending(now), "settled fixture");
+        let held = engine.note_bound;
+        engine.held_notes(held);
+        engine.facts_waiting = true;
+        assert!(!engine.work_pending_with_notes(now, held), "the joined sink is full");
+        assert!(engine.work_pending_with_notes(now, 0), "returned credit wakes waiting facts before the next turn");
+        assert!(engine.pending_with_notes(now, 0).work_pending, "the snapshot uses the same credit");
+        engine.held_notes(0);
+        assert!(engine.work_pending(now));
+    }
+
 }

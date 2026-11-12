@@ -355,3 +355,6 @@ fn an_empty_github_identity_is_decoded_and_kept() {
     assert_eq!(worker.undecodable_values, 0);
     assert_eq!(worker.identities.newest(1, fixtures::NOW), Some(&expected));
 }
+
+#[test]
+fn one_forge_identity_table_refuses_a_second_forge() { let mut worker = IdentityTable::new(1); worker.granted(77, 1, None, fixtures::NOW).unwrap(); assert!(worker.granted(78, 1, None, fixtures::NOW).is_err()); }

@@ -2354,7 +2354,7 @@ fn fixture_setup(
     snapshot.without_records = config.without_records.clone();
     fixtures::fill_files(&mut snapshot);
     let endpoints = core::mem::replace(endpoints, crate::forge::prepare(&snapshot.engine, List::with_capacity(0))?);
-    let service = fixtures::configured_prepared(snapshot, &fixtures::seeds(), None, endpoints, None, None)?;
+    let service = fixtures::configured_prepared(snapshot, &fixtures::seeds(), None, endpoints, None)?;
     Ok(service.engine.unwrap().setup)
 }
 fn fixture_fixed(

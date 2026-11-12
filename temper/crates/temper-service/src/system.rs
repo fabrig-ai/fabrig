@@ -651,3 +651,29 @@ impl Service {
 
 impl Service { pub fn engine_component(&mut self) -> &mut temper_engine_service::Engine { self.engine.as_mut().expect("composition engine") } }
 pub use temper_engine_service::system::{machine_config, playground_config, socket_host};
+
+#[cfg(test)]
+mod box_tests {
+    use super::BoxRefusal;
+    use crate::tests::fixtures;
+    use skein_io::kernel::Fd;
+    #[test]
+    fn box_adoption_names_each_refusal_and_keeps_both_descriptors() {
+        for expected in
+            [BoxRefusal::Sockets { limit: 1 }, BoxRefusal::Adopted, BoxRefusal::NoEngine, BoxRefusal::ZeroLine]
+        {
+            let mut service = fixtures::started();
+            let mut line_bytes = 256;
+            match expected {
+                BoxRefusal::Sockets { limit } => service.process.env_mut().limits.sockets = limit,
+                BoxRefusal::Adopted => service.adopt_box(Fd::new(3), Fd::new(4), line_bytes).unwrap(),
+                BoxRefusal::NoEngine => service.engine = None,
+                BoxRefusal::ZeroLine => line_bytes = 0,
+            }
+            let before = (service.process.io().sockets(), service.process.submission_count());
+            assert_eq!(service.adopt_box(Fd::new(5), Fd::new(6), line_bytes), Err(expected));
+            assert_eq!((service.process.io().sockets(), service.process.submission_count()), before);
+            // In particular, no close or adoption was submitted for either fd.
+        }
+    }
+}

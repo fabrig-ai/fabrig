@@ -262,7 +262,7 @@ fn configured(forge: &Forge) -> crate::Service {
     keep_access(&mut store, forge);
     let endpoints = fixtures::configured_endpoints(&config, fixtures::forge_runtime()).unwrap();
     let mut service =
-        fixtures::configured_prepared(config, &fixtures::seeds(), None, endpoints, None, Some(256)).unwrap();
+        fixtures::configured_prepared(config, &fixtures::seeds(), None, endpoints, Some(256)).unwrap();
     fixtures::replace_store(&mut service, store);
     service.engine.as_mut().unwrap().box_link = crate::route::box_link::Link::new(256, true);
     service.engine.as_mut().unwrap().setup.lifecycle.local_mut(1).unwrap().pending = false;
@@ -542,7 +542,7 @@ fn fresh_owned() -> crate::Service {
     let io = config.jig.limits.io;
     let endpoints = crate::forge::prepare(&config, List::with_capacity(0)).unwrap();
     let mut service =
-        crate::Service::prepared(config, &fixtures::seeds(), None, endpoints, None, io, Some(256), None).unwrap();
+        crate::Service::prepared(config, &fixtures::seeds(), None, endpoints, io, Some(256), None).unwrap();
     service.engine.as_mut().unwrap().store = fixtures::memory_store();
     restore_local(&mut service);
     assert!(service.engine.as_ref().unwrap().domain.forges().rows.is_empty());

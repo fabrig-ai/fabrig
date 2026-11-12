@@ -345,7 +345,7 @@ fn the_wire_admits_a_moved_file_and_temper_values_stay_at_their_bound() {
     let value = settings.limits.records.value_bytes;
     assert!(moved > u64::from(value));
     let service = fixtures::started();
-    let wire = service.engine.as_ref().unwrap().clients.env.limits.wire.keyed_value_some;
+    let wire = service.engine.as_ref().unwrap().client_wire().keyed_value_some;
     assert_eq!(u64::from(wire), moved);
 
     // The effective ceiling remains capped by jig even for a larger moved file.

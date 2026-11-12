@@ -6,17 +6,13 @@ pub use crate::limits::{engine_reference, reference};
 pub use reference::{configuration_reference, engine_configuration_reference};
 
 
-#[cfg(test)]
-#[path = "tests/startup_calls.rs"]
-mod calls_tests;
+
 
 mod checkout;
 
 pub mod checks;
 mod problems;
-#[cfg(test)]
-#[path = "tests/welcome_policy.rs"]
-mod welcome_policy;
+
 use crate::{AccountsRuntime, Service, settings};
 use alloc::boxed::Box;
 pub use application::sign_in::{Endpoints, SignIn, url as sign_in_url};
@@ -287,10 +283,7 @@ fn parse_with(
     load_with(input, directories, true, given)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))
 }
 
-#[cfg(test)]
-fn parse(input: &[u8], directories: &config::Directories) -> Result<Parsed, Problems> {
-    parse_with(input, directories, &crate::stock::Given::Stock)
-}
+
 
 // Readers need the typed document alone. Startup also checks cross-part and
 // raw-path constraints here, preserving the order of its accumulated problems.

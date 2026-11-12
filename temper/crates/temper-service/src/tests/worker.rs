@@ -87,7 +87,7 @@ fn a_workers_listener_failure_is_noted_before_the_service_finishes() {
     let address = Some(io::Addr::InProcess(io::Name::new(b"workers").unwrap()));
     assert_eq!(
         service.notes().pop(),
-        Some(crate::Note::WorkerListenerFailed { address, error: Some(io::Error::Unreachable) })
+        Some(crate::Note::Engine(crate::EngineNote::WorkerListenerFailed { address, error: Some(io::Error::Unreachable) }))
     );
     assert!(!service.is_empty(), "the listener's line does not wait for shutdown");
     service.process.told().push(io::Event::Closed { owner });

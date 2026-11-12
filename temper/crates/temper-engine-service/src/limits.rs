@@ -586,10 +586,6 @@ pub fn jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     jobs.into_boxed()
 }
 
-/// The worker's declared kinds, also read by composition worlds (protocol/services.md, 6).
-
-/// Project the engine's resolved aggregate for the local worker (protocol/services.md, 6).
-
 #[cfg(test)]
 mod making_tests {
     #[test]

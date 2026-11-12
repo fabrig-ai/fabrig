@@ -684,19 +684,19 @@ fn startup_makes_the_one_process_from_the_example() {
         Ok(service) => service,
         Err(problems) => panic!("startup: {}", core::str::from_utf8(&lines(&problems)).unwrap()),
     };
-    service.engine.as_mut().expect("engine").store = fixtures::memory_store();
+    service.engine_component().replace_store(fixtures::memory_store());
     let mut stand = fixtures::system::SystemStand { service, kernel: fixtures::Kernel::new() };
     fixtures::until_hosting(&mut stand);
     let (channel, hello) = fixtures::hello(&stand.service).expect("worker linked through bytes");
     assert_eq!(channel, skein_lib::Token::new(1));
     assert_eq!(hello.slots, 1);
     for _ in 0_u16..256 {
-        if stand.service.engine.as_mut().expect("engine").domain.ready() {
+        if stand.service.engine.as_mut().expect("engine").domain().ready() {
             break;
         }
         stand.turn();
     }
-    assert!(stand.service.engine.as_ref().expect("engine").domain.ready(), "engine restored its store");
+    assert!(stand.service.engine.as_ref().expect("engine").domain().ready(), "engine restored its store");
     assert_eq!(stand.service.end(), None);
 }
 #[test]
@@ -915,9 +915,9 @@ fn a_standalone_check_reserve_shortfall_prepares_with_one_warning() {
         fixtures::forge_runtime(),
     )
     .expect("a charter shortfall is a warning");
-    assert_eq!(service.notes().pop(), Some(crate::Note::StartupWarning {
+    assert_eq!(service.notes().pop(), Some(crate::Note::Engine(crate::EngineNote::StartupWarning {
         line: b"engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout".as_slice().into(),
-    }));
+    })));
     assert_eq!(service.notes().pop(), None, "the warning is enqueued once");
 }
 
@@ -963,8 +963,8 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
     )
     .unwrap();
     assert_eq!(
-        service.engine.as_ref().unwrap().store.opening_limits().core,
-        temper_engine_domain::core_limits(&service.engine.as_ref().unwrap().env.limits),
+        service.engine.as_ref().unwrap().opening_limits().core,
+        temper_engine_domain::core_limits(&service.engine.as_ref().unwrap().limits()),
     );
     let mut refused: serde_json::Value = serde_json::from_slice(&document).unwrap();
     refused["application"]["limits"]["overrides"]["root.loads.rows"] = 0_u32.into();
@@ -974,8 +974,8 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
             "serve",
             document.as_ref(),
             Ok((
-                service.engine.as_ref().expect("engine").store.opening_limits(),
-                service.engine.as_ref().expect("engine").env.limits.forge,
+                service.engine.as_ref().expect("engine").opening_limits(),
+                service.engine.as_ref().expect("engine").limits().forge,
             )),
         ),
         ("limits", refused.as_slice(), Err(b"engine.limits: past its bound\n".as_slice())),
@@ -1777,31 +1777,4 @@ fn a_task_store_value_refusal_names_batch_bytes_and_inbox_messages() {
         What::Half(crate::startup::EngineWhat::StoreTask { needs: 1001, has: 1000, batch_bytes: 512 }),
     );
     assert_eq!(lines(&problems).as_ref(), b"engine.limits.overrides.tasks.batch_bytes: the store's map value, 1001 bytes, past its bound of 1000 bytes; binding record tasks-v9.TaskRecord with tasks.batch_bytes 512; fixed profile ceiling engine.limits.store.value; reduce tasks.batch_bytes, tasks.inbox_messages or the task record's spec/message/result/authority capacities; this ceiling has no scalar override\n");
-}
-
-#[test]
-fn an_unbuilt_worker_refuses_only_shapes_that_need_it() {
-    use crate::startup::{Shape, unbuilt};
-    let mut failures = List::with_capacity(6);
-    for (shape, worker, refused) in [
-        (Shape::Standalone, false, true),
-        (Shape::WorkerAlone, false, true),
-        (Shape::EngineAlone, false, false),
-        (Shape::Standalone, true, false),
-        (Shape::WorkerAlone, true, false),
-        (Shape::EngineAlone, true, false),
-    ] {
-        let found = unbuilt(shape, worker);
-        if found.is_some() != refused {
-            failures.push((shape, worker)).unwrap();
-        }
-        if let Some(found) = found {
-            assert_eq!(found.path, Path::root().member(b"workers"));
-            assert!(found.file.is_none());
-            let mut problems = Problems::empty();
-            problems.problems.push(found).unwrap();
-            assert_eq!(lines(&problems).as_ref(), b"workers: this build serves an engine alone\n");
-        }
-    }
-    assert!(failures.is_empty(), "wrong build acceptance: {failures:?}");
 }

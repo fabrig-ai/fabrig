@@ -28,3 +28,6 @@ pub mod translate {
 }
 impl From<worker_alone::End> for End { fn from(end: worker_alone::End) -> Self { Self::Worker(end) } }
 impl From<worker_alone::Stop> for Stop { fn from(stop: worker_alone::Stop) -> Self { Self::Worker(stop) } }
+
+#[cfg(test)]
+mod tests;

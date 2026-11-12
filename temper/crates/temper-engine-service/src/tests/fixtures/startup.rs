@@ -4,7 +4,6 @@
     reason = "ordinary fixture code builds and edits configuration bytes"
 )]
 use crate::settings;
-use jig_domain_link::EndpointBound;
 use skein_lib::{List, Secret};
 
 pub const APPLICATION: &[u8] = br#"{
@@ -23,14 +22,7 @@ pub const DEMO_SETUP: &str = r#""setup":[{"forge":1,"directory":"demo/forge",
 "bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{
 "listen":{"socket":"$forge"},"git":"demo/bin/git","owner":"demo",
 "repositories":[{"name":"widget","landing":"main"},{"name":"other","landing":"main"}]}}}]"#;
-pub fn demo_application() -> Box<[u8]> {
-    core::str::from_utf8(APPLICATION)
-        .unwrap()
-        .replace("\"setup\":[]", DEMO_SETUP)
-        .replace("\"demo\":null", DEMO)
-        .into_bytes()
-        .into_boxed_slice()
-}
+
 pub fn demo_document() -> Box<[u8]> {
     core::str::from_utf8(&document())
         .unwrap()
@@ -44,19 +36,7 @@ pub fn demo_document() -> Box<[u8]> {
         .into_bytes()
         .into_boxed_slice()
 }
-pub fn demo_service() -> crate::Service {
-    start(
-        &demo_document(),
-        &jig_protocol_config::Directories::working(),
-        &files(),
-        &startup_agent(),
-        &super::seeds(),
-        None,
-        worker_runtime(),
-        super::forge_runtime(),
-    )
-    .unwrap()
-}
+pub fn demo_service() -> crate::Service { let document = demo_document(); let document = with(&document, b"workers", b"[]"); let document = with(&document, b"application.workers", b"[]"); let document = with(&document, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#); crate::startup::with_setup_given(&document, &jig_protocol_config::Directories::working(), &files(), &super::seeds(), None, super::forge_runtime(), None, &crate::stock::Given::Own { jig: crate::stock::with_models(Box::new([super::small_model()]),32), forge: Box::default(), ways: crate::stock::ways() }, Box::new([])).unwrap() }
 pub fn document() -> Box<[u8]> {
     let mut document = Vec::from(b"{\"engine\":".as_slice());
     let engine = core::str::from_utf8(super::ENGINE)
@@ -78,17 +58,10 @@ pub fn document() -> Box<[u8]> {
     // Retain the checkout bounds alongside the turn-derived application bounds.
     with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":32768,"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
 }
-pub fn parsed() -> skein_json::Document {
-    jig_protocol_config::document(
-        &document(),
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
-    )
-    .unwrap()
-}
 pub fn files() -> settings::Files {
     let mut entries = List::with_capacity(8);
     for (path, value) in [
-        (b"worker-secret".as_slice(), super::worker::WORKER_SECRET),
+        (b"worker-secret".as_slice(), temper_worker_service_fixtures::WORKER_SECRET),
         (
             b"secrets/worker-a.digest".as_slice(),
             b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice(),
@@ -98,33 +71,6 @@ pub fn files() -> settings::Files {
         entries.push((path.into(), Secret::new(value.into()))).unwrap();
     }
     settings::Files { entries }
-}
-pub fn without(entries: List<(Box<[u8]>, Secret)>, name: &[u8]) -> List<(Box<[u8]>, Secret)> {
-    let mut kept = List::with_capacity(entries.len());
-    for entry in entries.into_boxed() {
-        if entry.0.as_ref() != name {
-            kept.push(entry).unwrap();
-        }
-    }
-    kept
-}
-pub fn worker_runtime() -> crate::WorkerRuntime {
-    crate::WorkerRuntime { root: skein_io::kernel::Fd::new(9), path: b"/worker".as_slice().into() }
-}
-pub fn startup_agent() -> settings::Agent {
-    let mut agent = super::agent();
-    let hub = jig_protocol_config::profile(jig_protocol_config::Profile::Small).hub;
-    agent.host_limits.directories = 4;
-    agent.host_limits.conflicts = 1024;
-    agent.host_limits.name_bytes = 600;
-    agent.host_limits.accounts = hub.accounts;
-    agent.host_limits.messages = hub.held.max(hub.inbox);
-    agent.host_limits.call_bytes = 256;
-    agent.host_limits.message_bytes = hub.event_bytes.checked_add(temper_worker_domain::SEPARATOR).unwrap();
-    agent.bounds.message_bytes = 512;
-    agent.bounds.spend = 43_584;
-    agent.bounds.endpoints = Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 8192 }]);
-    agent
 }
 
 // Whole-map edits in unrelated startup stories inherit this fixture's turn
@@ -296,56 +242,5 @@ fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) ->
     start.unwrap()..end.unwrap_or(input.len())
 }
 
-/// One webhook listener on the shipped profile.
-pub fn webhook_document() -> Box<[u8]> {
-    core::str::from_utf8(&document())
-        .unwrap()
-        .replace("\"webhooks\":null", "\"webhooks\":{\"listener\":{\"socket\":\"127.0.0.1:7200\"}}")
-        .into_bytes()
-        .into_boxed_slice()
-}
 
-/// The same deployment with its worker hosted by another process.
-pub fn engine_alone_document() -> Box<[u8]> {
-    let input = with(&document(), b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:0"}]"#);
-    let input = with(&input, b"workers", b"[]");
-    with(&input, b"application.workers", b"[]")
-}
 
-/// A worker's document has no engine or engine application members.
-pub fn worker_alone_document() -> Box<[u8]> {
-    let input = with(&document(), b"workers[0].engine", br#"{"socket":"127.0.0.1:7100"}"#);
-    let input = with(
-        &input,
-        b"application",
-        br#"{"workers":[{"root":"worker-root","git":"/usr/bin/git"}],"limits":{"profile":"small","overrides":{}}}"#,
-    );
-    let text = core::str::from_utf8(&input).unwrap();
-    let (_, workers) = text.split_once(", \"workers\":").unwrap();
-    [b"{\"workers\":".as_slice(), workers.as_bytes()].concat().into_boxed_slice()
-}
-
-#[expect(clippy::too_many_arguments, reason = "the fixture supplies its own defaults at the startup boundary")]
-pub fn start(
-    document: &[u8],
-    directories: &jig_protocol_config::Directories,
-    files: &settings::Files,
-    agent: &settings::Agent,
-    seeds: &settings::Seeds,
-    accounts: Option<crate::AccountsRuntime>,
-    runtime: crate::WorkerRuntime,
-    forges: List<crate::ForgeRuntime>,
-) -> Result<crate::Service, crate::startup::Problems> {
-    let defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
-    crate::startup::startup_with(
-        document,
-        directories,
-        files,
-        agent,
-        seeds,
-        accounts,
-        runtime,
-        forges,
-        &crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() },
-    )
-}
