@@ -376,5 +376,3 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
 }
 
 mod tui;
-
-mod tui;

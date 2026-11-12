@@ -312,7 +312,6 @@ impl Session {
         }
     }
     #[expect(clippy::too_many_lines, reason = "one dispatch translates the session machine's actions without policy")]
-    #[expect(clippy::too_many_lines, reason = "one dispatch translates the session machine's actions without policy")]
     fn apply(&mut self) {
         while let Some(action) = self.actions.pop_front() {
             if matches!(self.face_job, Some(FaceJob::Cancel))
