@@ -39,6 +39,7 @@ pub fn file_root(parsed: &Parsed) -> Option<Box<[u8]>> {
         Parsed::Call { call, .. } => {
             let name = TOOLS[usize::from(call.tool)].name;
             if class(call) == Class::Help
+                || name == b"finding file"
                 || name == b"task amend"
                 || name == b"settings apply"
                 || name == b"settings propose"
@@ -112,7 +113,7 @@ pub fn text_files(parsed: &Parsed) -> Vec<(u8, Box<[u8]>)> {
     let mut files = Vec::new();
     let Parsed::Call { call, .. } = parsed else { return files };
     let name = TOOLS[usize::from(call.tool)].name;
-    if name != b"task amend" && name != b"settings apply" && name != b"settings propose" {
+    if name != b"task amend" && name != b"settings apply" && name != b"settings propose" && name != b"finding file" {
         return files;
     }
     for (index, slot) in call.values.iter().enumerate() {

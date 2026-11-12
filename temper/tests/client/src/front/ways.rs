@@ -31,7 +31,7 @@ pub fn fixture(seed: u64, limits: &client::Limits, reader: Reader) -> Joint {
 #[expect(clippy::too_many_lines, reason = "one fixture joins the stock, policy and reader identity")]
 pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repository: Option<Repository>) -> Joint {
     let mut engine_limits = engine_limits();
-    engine_limits.tasks.charters = 13; // Kind 9's stock lines run up to charter 13.
+    engine_limits.tasks.charters = 16; // Kind 9's stock lines run up to charter 16.
     engine_limits.tasks.spec_bytes = engine_limits.tasks.spec_bytes.max(512);
     engine_limits.tasks.parameters = 4;
     engine_limits.people.amendment_bytes = 8192;

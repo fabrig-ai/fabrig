@@ -626,7 +626,7 @@ fn roles_fixture(
 ) -> (Domain, Env<crate::Limits>) {
     let mut config = resume_fixture::config(7);
     let mut limits = resume_fixture::limits();
-    limits.tasks.charters = 12;
+    limits.tasks.charters = 16;
     limits.templates = 6;
     let mut charters = List::uncapped();
     for number in 1..=12 {

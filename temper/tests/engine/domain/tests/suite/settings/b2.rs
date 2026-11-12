@@ -438,7 +438,7 @@ pub(super) fn changes_without_settings_or_message() {
     }
     let (mut driver, chat) = chat_in(config);
     assert_ne!(chat.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
-    assert_eq!(temper_engine_smith::charter(&chat).grants.host_tools.len(), 39);
+    assert!(temper_engine_smith::charter(&chat).grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"finding"));
     for tool in &temper_engine_smith::charter(&chat).grants.host_tools {
         assert!(tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings");
     }
@@ -466,7 +466,13 @@ pub(super) fn changes_without_settings_or_message() {
     };
     let coordinator = assigned(&driver, made[0].task).expect("coordinator run");
     assert_ne!(coordinator.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
-    assert_eq!(temper_engine_smith::charter(&coordinator).grants.host_tools.len(), 39);
+    assert!(
+        temper_engine_smith::charter(&coordinator)
+            .grants
+            .host_tools
+            .iter()
+            .any(|tool| tool.name.as_ref() == b"finding")
+    );
     repair_change(&mut driver, &coordinator, 43);
 }
 

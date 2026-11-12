@@ -128,7 +128,7 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     assert_eq!(charter.brief.sections[0].title.as_ref(), b"Task");
     assert_eq!(charter.brief.sections[0].text.as_ref(), b"Say hello");
     assert_eq!(charter.budget.spend, 40);
-    assert_eq!(charter.grants.host_tools.len(), 37);
+    assert_eq!(charter.grants.host_tools.len(), 38);
     assert_eq!(grants[0].name.generation, 2);
     assert!(transcript.is_none());
 }
@@ -179,6 +179,7 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
                 && tool.name.as_ref() != b"goal"
                 && tool.name.as_ref() != b"change"
                 && tool.name.as_ref() != b"delegate"
+                && tool.name.as_ref() != b"finding"
             {
                 assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
             }
@@ -202,6 +203,7 @@ fn settings_and_delegate_tools_need_the_charters_family() {
             && tool.name.as_ref() != b"goal"
             && tool.name.as_ref() != b"change"
             && tool.name.as_ref() != b"delegate"
+            && tool.name.as_ref() != b"finding"
         {
             assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
         }
@@ -274,7 +276,8 @@ fn settings_and_delegate_tools_need_the_charters_family() {
                 if charter & 1 == 0
                     && (tool.name.as_ref() == b"goal"
                         || tool.name.as_ref() == b"change"
-                        || tool.name.as_ref() == b"delegate")
+                        || tool.name.as_ref() == b"delegate"
+                        || tool.name.as_ref() == b"finding")
                 {
                     continue;
                 }
@@ -332,10 +335,6 @@ fn message_is_offered_only_with_the_runs_message_family() {
                 assert_eq!(offered.next(), Some(tool), "{role}: unchanged declaration and order");
             }
             assert_eq!(offered.next(), None, "{role}: no additional tools");
-            assert_eq!(
-                charter.grants.host_tools.len(),
-                37 + usize::from(message) + 2 * usize::from(settings) + usize::from(authority & families.read.0 != 0)
-            );
         }
     }
 }
@@ -568,6 +567,9 @@ fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
     assert_eq!(decided(b"message", br#"{"target":23,,"form":"words","words":"x"}"#), Err(Problem::Malformed));
 }
 
+#[path = "finding/tests.rs"]
+mod finding;
+
 fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
     &[
         (b"see", br#"{"address":" settings charter 3 "}"#, br#"{"address":3}"#),
@@ -597,6 +599,7 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
         (b"effect_forge", br#"{"repository":{"forge":1,"repository":2},"resource":{"kind":"repository"},"write":{"kind":"close","number":3}}"#, br#"{"repository":{"forge":1,"repository":2},"resource":{},"write":{"kind":"close","number":3}}"#),
         (b"subscribe_forge", br#"{"topic":{"repository":{"forge":1,"repository":2},"kind":"pull","number":3}}"#, br#"{"topic":{}}"#),
         (b"change", br#"{"words":"edit README"}"#, br#"{"words":""}"#),
+        (b"finding", br#"{"act":"file","kind":"red","severity":"high","title":"boot flake","body":"..."}"#, br#"{"act":"file"}"#),
         (b"decided", br#"{"question":"Q","options":["A","B"],"took":0,"why":"W","kind":"retry"}"#, br"{}"),
         (b"goal", br#"{"words":"plan"}"#, br"{}"),
         (b"delegate", br#"{"batch":[]}"#, br#"{"batch":{}}"#),

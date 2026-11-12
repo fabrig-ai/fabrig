@@ -33,7 +33,10 @@ pub(super) fn configuration() -> engine::Config {
     config
 }
 pub(crate) fn driver() -> (Driver, engine::Assignment) {
-    configured_driver(&limits(), configuration(), 0, 1)
+    driver_with_limits(&limits())
+}
+pub(crate) fn driver_with_limits(limits: &engine::Limits) -> (Driver, engine::Assignment) {
+    configured_driver(limits, configuration(), 0, 1)
 }
 fn configured_driver(
     limits: &engine::Limits,

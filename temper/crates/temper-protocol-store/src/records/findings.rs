@@ -3,6 +3,98 @@ use super::{FITS, w};
 use crate::Undecodable;
 use skein_lib::Wall;
 use temper_engine_domain_forge as d;
+fn encode_holder(value: d::Holder) -> w::FindingHolder {
+    match value {
+        d::Holder::Task(number) => {
+            w::FindingHolder::Task(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS))
+        }
+        d::Holder::Party(number) => {
+            w::FindingHolder::Party(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS))
+        }
+        d::Holder::Role(number) => {
+            w::FindingHolder::Role(w::FindingCount::new(&w::CEILINGS, w::FindingCountParts { number }).expect(FITS))
+        }
+    }
+}
+fn decode_holder(value: w::FindingHolder) -> d::Holder {
+    match value {
+        w::FindingHolder::Task(value) => d::Holder::Task(value.number()),
+        w::FindingHolder::Party(value) => d::Holder::Party(value.number()),
+        w::FindingHolder::Role(value) => d::Holder::Role(value.number()),
+    }
+}
+fn encode_refusal(value: &d::FindingRefusal) -> w::FindingRefusal {
+    match value {
+        d::FindingRefusal::NoArea(names) => {
+            let mut listed = skein_lib::List::with_capacity(16);
+            for name in names {
+                listed.push(name.clone()).expect(FITS);
+            }
+            w::FindingRefusal::NoArea(
+                w::FindingAreas::new(&w::CEILINGS, w::FindingAreasParts { names: listed }).expect(FITS),
+            )
+        }
+        d::FindingRefusal::Full(number) => w::FindingRefusal::Full(
+            w::FindingCount::new(&w::CEILINGS, w::FindingCountParts { number: *number }).expect(FITS),
+        ),
+        d::FindingRefusal::NotYours(holder) => w::FindingRefusal::NotYours(
+            w::FindingHeld::new(&w::CEILINGS, w::FindingHeldParts { holder: encode_holder(*holder) }).expect(FITS),
+        ),
+        d::FindingRefusal::NoFinding => w::FindingRefusal::NoFinding,
+        d::FindingRefusal::NoGoal => w::FindingRefusal::NoGoal,
+        d::FindingRefusal::Ended => w::FindingRefusal::Ended,
+        d::FindingRefusal::Words(words) => w::FindingRefusal::Words(
+            w::FindingWords::new(&w::CEILINGS, w::FindingWordsParts { words: words.clone() }).expect(FITS),
+        ),
+    }
+}
+fn decode_refusal(value: w::FindingRefusal) -> d::FindingRefusal {
+    match value {
+        w::FindingRefusal::NoArea(value) => d::FindingRefusal::NoArea(value.into_parts().names.into_boxed()),
+        w::FindingRefusal::Full(value) => d::FindingRefusal::Full(value.number()),
+        w::FindingRefusal::NotYours(value) => d::FindingRefusal::NotYours(decode_holder(value.into_parts().holder)),
+        w::FindingRefusal::NoFinding => d::FindingRefusal::NoFinding,
+        w::FindingRefusal::NoGoal => d::FindingRefusal::NoGoal,
+        w::FindingRefusal::Ended => d::FindingRefusal::Ended,
+        w::FindingRefusal::Words(value) => d::FindingRefusal::Words(value.into_parts().words),
+    }
+}
+pub(super) fn encode_reply(reply: &d::FindingReply) -> w::FindingReply {
+    let result = match &reply.result {
+        Ok(d::FindingDone::Filed(holder)) => w::FindingResult::Filed(
+            w::FindingHeld::new(&w::CEILINGS, w::FindingHeldParts { holder: encode_holder(*holder) }).expect(FITS),
+        ),
+        Ok(d::FindingDone::Handed(holder)) => w::FindingResult::Handed(
+            w::FindingHeld::new(&w::CEILINGS, w::FindingHeldParts { holder: encode_holder(*holder) }).expect(FITS),
+        ),
+        Ok(d::FindingDone::Routed(number)) => {
+            w::FindingResult::Routed(w::Number::new(&w::CEILINGS, w::NumberParts { number: *number }).expect(FITS))
+        }
+        Ok(d::FindingDone::Backlog) => w::FindingResult::Backlog,
+        Ok(d::FindingDone::Dropped) => w::FindingResult::Dropped,
+        Err(why) => w::FindingResult::Refused(
+            w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { why: encode_refusal(why) }).expect(FITS),
+        ),
+    };
+    w::FindingReply::new(
+        &w::CEILINGS,
+        w::FindingReplyParts { project: reply.project, number: reply.number, area: reply.area.clone(), result },
+    )
+    .expect(FITS)
+}
+pub(super) fn decode_reply(reply: w::FindingReply) -> d::FindingReply {
+    let w::FindingReplyParts { project, number, area, result } = reply.into_parts();
+    let result = match result {
+        w::FindingResult::Filed(value) => Ok(d::FindingDone::Filed(decode_holder(value.into_parts().holder))),
+        w::FindingResult::Handed(value) => Ok(d::FindingDone::Handed(decode_holder(value.into_parts().holder))),
+        w::FindingResult::Routed(value) => Ok(d::FindingDone::Routed(value.number())),
+        w::FindingResult::Backlog => Ok(d::FindingDone::Backlog),
+        w::FindingResult::Dropped => Ok(d::FindingDone::Dropped),
+        w::FindingResult::Refused(value) => Err(decode_refusal(value.into_parts().why)),
+    };
+    d::FindingReply { project, number, area, result }
+}
+
 fn encode_findingkind(value: d::FindingKind) -> w::FindingKind {
     match value {
         d::FindingKind::Qa => w::FindingKind::Qa,

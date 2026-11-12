@@ -53,9 +53,9 @@ pub use away::{
     OverturnAnswer, SetAwayAnswer, decided_subject,
 };
 pub use findings::{
-    AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingKind, FindingRefusal, FindingRow,
-    FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity, Triage, TriageFinding,
-    TriageFindingAnswer, findings_subject, owner,
+    AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind, FindingRefusal,
+    FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity,
+    Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
 };
 mod dismissed;
 pub use dismissed::{DISMISSED_SUBJECT, DismissAnswer, PersonFact};
@@ -521,6 +521,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
+            CallPayload::Finding(reply) => {
+                u64::try_from(size_of_val(reply.as_ref())).ok()?.checked_add(findings::reply_bytes(reply)?)
+            }
             CallPayload::Decided { took, .. } => Some(match took {
                 Some(words) => skein_lib::len_u64(words.len()),
                 None => 0,

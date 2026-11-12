@@ -138,7 +138,17 @@ record ReachSet { number: u8 }
 enum ReachReason { kind, set: ReachSet, always }
 record Reach { kind: ReachKind class: ReachClass reason: ReachReason under: u8 sets: u8 matched: u8 away: bool }
 record CallDecided { took: option bytes 120 reach: option Reach }
-enum CallPayload { effect: CallEffect, refused: ErrorValue, read: CallRead, decided: CallDecided }
+# Named answers retain the holder seen at the decision, not the finding's owner.
+record FindingCount { number: u32 }
+enum FindingHolder { task: Number, party: Number, role: FindingCount }
+record FindingHeld { holder: FindingHolder }
+record FindingAreas { names: list 16 bytes 32 }
+record FindingWords { words: bytes 1024 }
+enum FindingRefusal { no_area: FindingAreas, full: FindingCount, not_yours: FindingHeld, no_finding, no_goal, ended, words: FindingWords }
+record FindingRefused { why: FindingRefusal }
+enum FindingResult { filed: FindingHeld, handed: FindingHeld, routed: Number, backlog, dropped, refused: FindingRefused }
+record FindingReply { project: u32 number: u32 area: option bytes 32 result: FindingResult }
+enum CallPayload { effect: CallEffect, refused: ErrorValue, read: CallRead, decided: CallDecided, finding: boxed FindingReply }
 record NamedCall { task: u64 attempt: u64 completion: u32 position: u32 }
 record Call { key: NamedCall answer: CallPayload }
 

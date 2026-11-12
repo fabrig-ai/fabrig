@@ -48,7 +48,7 @@ pub fn client() -> client::Limits {
             watches: 27, // Four findings subjects and one live-goals menu.
             turn_bytes: 1_048_576,
             backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(2) },
-            authority: 18, // Eighteen executor places size grants, delegation kinds and notes' scopes.
+            authority: 22, // The stock's 21 executors and one deployment charter fit whole.
             heartbeat: Duration::from_secs(30),
             reads: 32, // Sixteen inbox cards, seven decisions and nine other Home/session reads.
             parts: 16,
