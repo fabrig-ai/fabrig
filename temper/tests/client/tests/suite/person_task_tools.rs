@@ -271,7 +271,11 @@ fn start_standing_role() -> (Ctl, u64) {
     let mut bounds = engine_limits();
     bounds.tasks.charters = 13;
     bounds.people.initial_owners = 2;
+    // Start, three talks, the rule's acceptance and leaving each retain an answer.
+    bounds.people.requests = 6;
     bounds.journal.run_bytes = 16_384;
+    // Keep room for the talk's unread words and its proposal's decision reservation.
+    bounds.tasks.inbox_bytes = bounds.tasks.message_bytes * bounds.tasks.inbox_messages;
     let front = Joint::with_engine(
         fixtures::SEED,
         &fixtures::domain_limits(),
@@ -396,10 +400,21 @@ fn a_person_talks_with_a_role_accepts_its_rule_and_leaves() {
     assert_eq!(left, format!("left: task {task}\n"));
     let shown = ctl.text(&[b"role", b"show", task.to_string().as_bytes()]);
     assert!(!shown.contains("talking with"), "{shown}");
-    let Answer::Page(page) = role_read(&mut ctl, Read::Activity { task, before: None }) else { panic!("activity") };
-    assert!(page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::SessionEnded { end: tasks::SessionEnd::Rules, .. }))));
-    assert!(page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::TalkEnded { lapsed: false, .. }))));
-    assert!(page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::SessionEnded { end: tasks::SessionEnd::Left, .. }))));
+    let mut before = None;
+    let mut rules = false;
+    let mut ended = false;
+    let mut left = false;
+    loop {
+        let Answer::Page(page) = role_read(&mut ctl, Read::Activity { task, before }) else { panic!("activity") };
+        rules |= page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::SessionEnded { end: tasks::SessionEnd::Rules, .. })));
+        ended |= page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::TalkEnded { lapsed: false, .. })));
+        left |= page.rows.iter().any(|row| matches!(row, PageRow::Activity { line, .. } if matches!(line.line, tasks::Line::SessionEnded { end: tasks::SessionEnd::Left, .. })));
+        before = page.next;
+        if before.is_none() { break; }
+    }
+    assert!(rules, "the accepted rule ends its session");
+    assert!(ended, "leaving ends the talk");
+    assert!(left, "leaving ends its session");
 }
 fn pending_talk(ctl: &mut Ctl, task: u64, words: &[u8], key: &[u8]) -> u32 {
     let Parsed::Call { call, json } = temper_client_tools::table::parse(&[b"role", b"talk", task.to_string().as_bytes(), words, b"--key", key]).expect("talk call") else { panic!("call") };
@@ -414,7 +429,18 @@ fn role_reply(ctl: &Ctl, number: u32) -> String {
     String::from_utf8(printed.stdout.to_vec()).expect("reply UTF-8")
 }
 fn role_now(ctl: &mut Ctl, run: &engine::Assignment, words: &str) {
-    let input = format!(r#"{{"scope":{{"kind":"goal","project":1,"goal":{}}},"description":"now","body":"{words}"}}"#, run.task);
+    use jig_domain_core::reads::{Answer, PageRow, Read};
+    let Answer::Page(page) = role_read(ctl, Read::ScopedNotes {
+        scope: jig_domain_notes::Scope::Goal { project: 1, goal: run.task },
+        description: Some(b"now".as_slice().into()),
+        from: None,
+    }) else { panic!("Now notes") };
+    let revise = match page.rows.get(0) {
+        Some(PageRow::Note(note)) => format!(r#", "name":{},"recalled":{}"#, note.number, note.revision),
+        None => String::new(),
+        Some(row) => panic!("Now note: {row:?}"),
+    };
+    let input = format!(r#"{{"scope":{{"kind":"goal","project":1,"goal":{}}},"description":"now","body":"{words}"{revise}}}"#, run.task);
     let (answer, failed) = temper_engine_domain_world::host_tool::host_tool(&mut ctl.front.engine, run, 20, b"note", input.as_bytes());
     assert!(!failed, "{}", String::from_utf8_lossy(&answer));
 }
@@ -423,10 +449,11 @@ fn role_turn(ctl: &mut Ctl, run: &engine::Assignment, words: &[u8]) {
     let task = ctl.front.engine.task(run.task).expect("role run");
     let number = task.turn + 1;
     let spent = task.run_spent.max(3);
+    // A live run also reads words delivered after its assignment, such as after the rules move.
+    let read = Some(task.last_message);
     let mut turn = temper_worker_domain_world::protocol::session_turn(number, spent, words.len(), number == 1);
     turn.messages[0].content = Box::new([smith_domain_session::llm::Block::Text { text: words.into(), replay: None }]);
     let body = smith_protocol_channel::encode_turn(&turn, &smith_transcript::CEILINGS, &temper_worker_domain_world::protocol::endpoints()).expect("role reply encodes");
-    let read = run.messages.last().map(|word| word.number);
     ctl.front.engine.send(protocol::turn(WORKER, run.task, run.attempt, number, spent, read, &body));
     ctl.front.engine.settle();
 }

@@ -986,7 +986,7 @@ pub const ROLE_SHOW: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"The Now is the lowest-numbered note described now in the role's\nown task scope. A supplied cut body is marked, never silently lost.\n",
+    notes: b"The Now or report is the lowest-numbered note described now or\nreport in the role's own task scope. A supplied cut body is marked.\n",
 };
 
 pub const ROLE_TALK: Tool = Tool {
