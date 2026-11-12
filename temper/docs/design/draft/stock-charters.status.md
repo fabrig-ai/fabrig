@@ -6,8 +6,8 @@ Already designed: a charter's parts and the runs that read them (jig's `domain/t
 
 - **Design departs:**
   - 6: the reference sets no template 4's work (kind 11), where the draft keeps its template 4: its value, design and no close-out, belonged to its own charter 5's edition, which delivered the shared design as a designer's change for the path to draw; with the stock's words the stock's value, no design, holds (`../protocol/configuration/reference.md`; the second milestone's designer, 2026-11-12).
+  - 8: no test applies fabrig's whole set, where section 8 has one: a focused test applies a fixture set shaped as fabrig's, its five files and a `settings.json` with section 5's fields (`../client/ctl/overlays.md`), and `temper/docs/charters/fabrig/` stays documentation no test reads, as section 5 says (the user, 2026-11-12).
   - 9.2: `temper/docs/charters/stock/goal.md`'s last sentence of "Asking your requester" names `decide_escalation` as the tool that passes an escalation up, where the draft names `decide`, which decides proposals alone (change 1154, 2026-11-12).
   - 9.4: `temper/docs/charters/stock/coordinator.md`'s "An escalation" passes it up with `decide_escalation`, where the draft names `decide` (change 1154, 2026-11-12).
 - **Open:**
-  - 5 and 8: section 8 has a test apply fabrig's whole set, where section 5 says no test reads it; asked of the user 2026-11-12. The design stands at section 5: a test applies a fixture set shaped as fabrig's (`../client/ctl/overlays.md`), and no test reads `temper/docs/charters/fabrig/`.
   - 12. Both questions stand at their defaults in the design: an overlay's parts are parts of their own, after the default's (jig's `domain/engine/overlays.md`, 1), and charter 2 names no shell (`../protocol/configuration/stock.md`).
