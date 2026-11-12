@@ -661,3 +661,21 @@ fn follows_judge_numbers_paths_producers_and_checks_at_their_bounds() {
         }
     }
 }
+
+#[test]
+fn dependencies_judge_the_scope_number_and_value_and_allow_no_value() {
+    let value = Value::Dependency(crate::settings::Dependency { project: 2 });
+    let item = Item { kind: 13, scope: PROJECT, number: 1, value: Some(value.clone()) };
+    assert_eq!(Kind::of(13), Some(Kind::Dependency));
+    assert_eq!(Kind::Dependency.number(), 13);
+    assert_eq!(judge(&item, &BOUNDS), Ok(()));
+    assert_eq!(judge(&Item { scope: 0, ..item.clone() }, &BOUNDS), Err(Refusal::Scope));
+    for number in [0, BOUNDS.dependencies + 1] {
+        assert_eq!(judge(&Item { number, ..item.clone() }, &BOUNDS), Err(Refusal::Number));
+    }
+    assert_eq!(judge(&Item { number: BOUNDS.dependencies, ..item.clone() }, &BOUNDS), Ok(()));
+    for value in [Value::Dependency(crate::settings::Dependency { project: 0 }), Value::Charter(1)] {
+        assert_eq!(judge(&Item { value: Some(value), ..item.clone() }, &BOUNDS), Err(Refusal::Value));
+    }
+    assert_eq!(judge(&Item { value: None, ..item }, &BOUNDS), Ok(()));
+}

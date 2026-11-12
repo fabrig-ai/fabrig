@@ -155,7 +155,11 @@ fn panel(rows: &[w::FollowView]) -> w::FollowsPanel {
     w::FollowsPanel::new(&w::CEILINGS, w::FollowsPanelParts { project: 2, follows, dependencies: List::with_capacity(0) }).unwrap()
 }
 fn read(panel: &w::FollowsPanel, show: bool, json: bool) -> jig::Printed {
+    read_as(panel, show, json, f::me(f::PARTY))
+}
+fn read_as(panel: &w::FollowsPanel, show: bool, json: bool, me:c::Me) -> jig::Printed {
     let mut root = f::signed_in(f::PARTY);
+    root.deliver(c::Delivery::Me(Box::new(me)));
     let words: &[&str] = match (show, json) {
         (false, false) => &["follow", "list", "--project", "2"],
         (true, false) => &["follow", "show", "--project", "2", "1"],
@@ -300,5 +304,34 @@ fn follow_reads_handle_empty_missing_refused_and_named_projects() {
     for argv in [&["follow", "list", "--project", "2"][..], &["follow", "show", "1", "--project", "work"][..]] {
         let call = f::call(argv);
         assert_eq!(f::from_json(&jig::json::write_call(crate::table::TOOLS, &call).unwrap()), call);
+    }
+}
+
+#[test]
+fn follow_list_prints_dependencies_after_follows_naming_only_the_readers_projects() {
+    for has_follow in [false,true] {
+        for member in [false,true] {
+            let mut me=f::me(f::PARTY);
+            let mut project=me.projects.get(0).unwrap().clone();
+            project.project=2;
+            project.name=f::document_text(b"fabrig");
+            me.projects=List::with_capacity(2);
+            me.projects.push(project.clone()).unwrap();
+            if member { project.project=7;project.name=f::document_text(b"vsr-rs");me.projects.push(project).unwrap(); }
+            let rows=[row()];
+            let mut parts=panel(if has_follow {&rows} else {&[]}).into_parts();
+            parts.dependencies=List::with_capacity(1);
+            parts.dependencies.push(w::DependencyView::new(&w::CEILINGS,w::DependencyViewParts {number:1,project:7}).unwrap()).unwrap();
+            let panel=w::FollowsPanel::new(&w::CEILINGS,parts).unwrap();
+            let answer=read_as(&panel,false,false,me.clone());
+            assert_eq!(answer.status,0);
+            let prefix = if has_follow { "follow 1: org/vsr main → org/vsr-rs main · 2 behind · no check yet\n" } else { "no follows\n" };
+            let expected=if member {"dependency 1: fabrig depends on vsr-rs\n"} else {"dependency 1: fabrig depends on project 7\n"};
+            assert_eq!(answer.stdout, skein_lib::bytes::concat(&[prefix.as_bytes(),expected.as_bytes()]));
+            let json=read_as(&panel,false,true,me);
+            assert_eq!(json.status,0);
+            assert!(skein_lib::bytes::find(&json.stdout,br#""dependencies":[{"number":1,"project":7}]"#).is_some());
+            assert!(skein_lib::bytes::find(&json.stdout,b"vsr-rs").is_none() || has_follow,"JSON carries no project names");
+        }
     }
 }

@@ -898,3 +898,43 @@ fn code_follow_waits_for_landing_even_after_a_pushed_head() {
     hint_target(&mut world);
     world.close();
 }
+
+#[test]
+fn a_landing_in_a_dependency_makes_no_task_or_change_in_the_dependent() {
+    let mut world = unaccepted_follow(1000, Gate::default(), false, true);
+    world.forge_reads=Some(Vec::new());
+    let against = revision(&world);
+    world.send(engine::Event::Party(engine::PartyInput::ChangeSettings {
+        reply_to: ReplyTo::new(Token::new(110)), sign_in: world.signed_in.unwrap(), key:[110;16], digest:[110;32],
+        change:Box::new(cs::Change {
+            against,
+            items: Box::new([cs::Item { setting:cs::Setting::Application { kind:13, scope:2, number:1 }, edit:cs::Edit::Set(cs::Value::Application(Box::new([]))) }]),
+            running:cs::Running::Stays,
+        }),
+        kinds:Box::new([engine::KindValue { kind:13, scope:2, number:1, value:s::SizedValue { value:s::Value::Dependency(s::Dependency { project:1 }), size:4 } }]),
+    }));
+    settle(&mut world);
+    assert_eq!(revision(&world), against+1);
+    let tasks_before: Vec<_> = world.store.rows.values().filter_map(|record| match record {
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row))) => Some(row.number),
+        _ => None,
+    }).collect();
+    assert!(!world.store.rows.values().any(|record| matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Follow(_) | forge_top::Stored::Change(_)))), "dependency makes no follow or change row");
+    let parent = world.fake.branch(b"org/vsr", b"main").unwrap();
+    let commit = fake::commit_tree(&mut world.fake, &world.fake_env.limits, parent, None,
+        Box::new([raw::File {path:b"src/a.c".as_slice().into(),content:b"Fix handoff".as_slice().into()}]), b"Fix handoff").unwrap();
+    world.external_at(b"org/vsr",1,raw::Op::Git(raw::Git::Push {branch:b"main".as_slice().into(),commit,expected:Some(parent)}));
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint { hint:skein_forge::api::Hint {
+        repository:SOURCE, change:skein_forge::api::Change::Branch(b"main".as_slice().into()), key:None,
+    } })));
+    for _ in 0..TICKS { world.tick(); }
+    let tasks_after: Vec<_> = world.store.rows.values().filter_map(|record| match record {
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row))) => Some(row.number),
+        _ => None,
+    }).collect();
+    assert_eq!(tasks_after,tasks_before,"no task comes from a dependency's landing");
+    assert!(!world.store.rows.values().any(|record| matches!(record, Record::Forge {row} if matches!(row.as_ref(),forge_top::Stored::Change(_)))));
+    assert_eq!(revision(&world),against+1);
+    assert!(!world.forge_reads.as_ref().unwrap().iter().any(|(_,read)| matches!(read, skein_forge::api::Read::Branch {..})), "dependencies add no branch polling");
+    world.close();
+}
