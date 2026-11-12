@@ -192,8 +192,8 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
                 items: Box::new([]),
             },
         },
-        s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { charter: Some(Box::new(charter())) } },
-        s::Record::Charter { charter: 1, revision: 3, value: s::CharterVersion { charter: None } },
+        s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { overlay: None, charter: Some(Box::new(charter())) } },
+        s::Record::Charter { charter: 1, revision: 3, value: s::CharterVersion { overlay: None, charter: None } },
     ] {
         rows.push(row).expect("settings fixture count");
     }
@@ -454,7 +454,7 @@ fn a_charters_tools_survive_the_store() {
         let row = s::Record::Charter {
             charter: 1,
             revision: 2,
-            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+            value: s::CharterVersion { overlay: None, charter: Some(Box::new(charter)) },
         };
         let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
         assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
@@ -473,7 +473,7 @@ fn a_charters_paced_wake_policy_round_trips() {
         ..tasks::WakePolicy::DEFAULT
     };
     let row =
-        s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { charter: Some(Box::new(charter)) } };
+        s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { overlay: None, charter: Some(Box::new(charter)) } };
     let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
     assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
 }
@@ -551,7 +551,7 @@ fn document_records(charter: core::Charter) -> [s::Record; 6] {
         s::Record::Charter {
             charter: charter.number,
             revision: 2,
-            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+            value: s::CharterVersion { overlay: None, charter: Some(Box::new(charter)) },
         },
         s::Record::Revision { history: false, revision: revision.clone() },
         s::Record::Revision { history: true, revision },
@@ -585,6 +585,7 @@ fn assert_documents_refused(charter: core::Charter) {
         charter: charter.number,
         revision: 2,
         value: s::CharterVersion {
+            overlay: None,
             charter: Some(Box::new(core::Charter { documents: Box::new([]), parts: Box::new([]), ..charter.clone() })),
         },
     };
@@ -723,7 +724,7 @@ fn charter_parts_refuse_empty_and_unknown_reason_bits() {
         let row = s::Record::Charter {
             charter: charter.number,
             revision: 2,
-            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+            value: s::CharterVersion { overlay: None, charter: Some(Box::new(charter)) },
         };
         let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
         assert_eq!(

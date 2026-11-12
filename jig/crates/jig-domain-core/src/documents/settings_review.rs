@@ -84,7 +84,12 @@ pub(super) fn review(
                 edit,
                 now,
                 origin,
-                would_be: would_be.cloned(),
+                would_be: match would_be {
+                    Some(value @ s::Value::Overlay(_)) => match core.current.made_charter(item.setting, value) {
+                        Some(charter) => Some(s::Value::Charter(Box::new(charter))), None => None,
+                    },
+                    Some(value) => Some(value.clone()), None => None,
+                },
                 application: None,
             })
             .expect("bounded review");

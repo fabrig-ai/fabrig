@@ -27,7 +27,7 @@ fn charter(current: &mut Current) -> &mut Charter {
     match &mut current.defaults.get_mut(&Setting::Charter(1)).unwrap().value {
         Value::Charter(value) => value,
         Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!(),
-        Value::Model(_) | Value::Application(_) => unreachable!("an application's setting: apps-core"),
+        Value::Overlay(_) | Value::Model(_) | Value::Application(_) => unreachable!("an application's setting: apps-core"),
     }
 }
 #[test]
@@ -286,7 +286,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
             }
             Value::Policy(value) => Some((Setting::Policy(2), Value::Policy(value))),
             Value::Rules(_) => None,
-            Value::Model(_) | Value::Application(_) => unreachable!("an application's setting: apps-core"),
+            Value::Overlay(_) | Value::Model(_) | Value::Application(_) => unreachable!("an application's setting: apps-core"),
         };
         if let Some((setting, value)) = added {
             for erase in [Edit::Removed, Edit::Reset] {
@@ -658,7 +658,7 @@ fn two_held_rows_and_a_charter_row_restore_before_tasks() {
             Record::Charter {
                 charter: 1,
                 revision: 1,
-                value: CharterVersion { charter: Some(Box::new(charter.clone())) },
+                value: CharterVersion { overlay: None, charter: Some(Box::new(charter.clone())) },
             },
             &limits
         ));
@@ -685,7 +685,7 @@ fn a_charter_row_past_the_limit_refuses_without_retaining_it() {
         Record::Charter {
             charter: 1,
             revision: 1,
-            value: CharterVersion { charter: Some(Box::new(core.charter(1).unwrap().clone())) },
+            value: CharterVersion { overlay: None, charter: Some(Box::new(core.charter(1).unwrap().clone())) },
         },
         &limits
     ));
@@ -702,7 +702,7 @@ fn a_held_revision_left_without_holders_is_released_by_the_start() {
     let mut old = core.charter(1).unwrap().clone();
     old.policy.instructions = b"An orphan version".as_slice().into();
     assert!(core.restore_setting(
-        Record::Charter { charter: 1, revision: 1, value: CharterVersion { charter: Some(Box::new(old)) } },
+        Record::Charter { charter: 1, revision: 1, value: CharterVersion { overlay: None, charter: Some(Box::new(old)) } },
         &limits
     ));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -1032,4 +1032,55 @@ fn valid_name_takes_the_shapes_a_provider_names_a_model_by() {
     assert!(!catalogue::valid_name(name.as_slice()));
     assert!(crate::Model::hole().is_hole());
     assert!(!config(1).settings.models[0].is_hole());
+}
+
+#[test]
+fn overlay_replaces_fields_and_appends_text_and_parts() {
+    let current = Current::new(config(1).defaults, &limits(), &[]);
+    let mut default = current.charter(1).unwrap().clone();
+    default.policy.instructions = Box::from(b"A".as_slice());
+    let part = |text: &[u8]| charters::CharterPart { on: tasks::Reasons::FIRST, instructions: Box::from(text) };
+    default.parts = Box::new([part(b"p1"), part(b"p2")]);
+    let mut overlay = Overlay { shell: Some(!default.policy.shell), instructions: Box::from(b"B".as_slice()),
+        parts: Box::new([part(b"q1")]), ..Overlay::empty() };
+    let mut expected = default.clone();
+    expected.policy.shell = !default.policy.shell;
+    expected.policy.instructions = Box::from(b"A\n\nB".as_slice());
+    expected.parts = Box::new([part(b"p1"), part(b"p2"), part(b"q1")]);
+    assert_eq!(overlaid(&default, &overlay), expected);
+    overlay.instructions = Box::new([]);
+    assert_eq!(overlaid(&default, &overlay).policy.instructions.as_ref(), b"A");
+    default.policy.instructions = Box::new([]);
+    overlay.instructions = Box::from(b"B".as_slice());
+    assert_eq!(overlaid(&default, &overlay).policy.instructions.as_ref(), b"B");
+}
+
+#[test]
+fn overlay_requires_a_default_and_keeps_its_stored_identity() {
+    let configured = config(1);
+    let mut limits = limits();
+    limits.tasks.charters = 2;
+    let mut current = Current::new(configured.defaults, &limits, &[]);
+    let value = Value::Overlay(Box::new(Overlay::empty()));
+    let mut item = Item { setting: Setting::Charter(2), edit: Edit::Set(value.clone()) };
+    let failure = check_change(&current, &[item.clone()], &configured.settings, &configured.connectors, &limits).unwrap_err();
+    assert_eq!((failure.setting, failure.fault), (item.setting, Fault::Reference));
+    item.setting = Setting::Charter(1);
+    check_change(&current, &[item.clone()], &configured.settings, &configured.connectors, &limits).unwrap();
+    assert!(changes_current(&current, &[item.clone()]), "even an empty overlay follows its default");
+    drop(apply(&mut current, &[item.clone()], 2));
+    charters::rebuild(&mut current, &limits);
+    assert_eq!(current.value(item.setting), Some(&value));
+    assert!(!changes_current(&current, &[item]));
+    assert_eq!(current.replaced(Setting::Charter(1)), Replaced::Value(value));
+    let default = current.default_value(Setting::Charter(1)).unwrap().clone();
+    for edit in [Edit::Reset, Edit::Set(default.clone()), Edit::Removed] {
+        drop(apply(&mut current, &[Item { setting: Setting::Charter(1), edit: edit.clone() }], 3));
+        charters::rebuild(&mut current, &limits);
+        assert!(current.overlay(Setting::Charter(1)).is_none());
+        match edit {
+            Edit::Reset | Edit::Set(_) => assert_eq!(current.value(Setting::Charter(1)), Some(&default)),
+            Edit::Removed => assert!(current.charter(1).is_none()),
+        }
+    }
 }

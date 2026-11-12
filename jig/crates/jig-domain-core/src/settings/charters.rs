@@ -5,7 +5,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue};
 
-use super::{CatalogueModel, Current, Edit, Item, Setting, Value};
+use super::{CatalogueModel, Current, Edit, Item, Setting};
 use crate::{Core, Limits, RunPolicy, Settings};
 
 /// A charter's document (domain/engine/settings.md, 9).
@@ -141,7 +141,7 @@ pub(crate) fn rebuild(current: &mut Current, limits: &Limits) {
     let models = super::catalogue::entries(current);
     current.resolved = skein_lib::Map::with_capacity(limits.tasks.charters);
     for number in current.offered_charters() {
-        if let Some(charter) = resolved(current.charter(number).expect("offered charter"), &models, limits) {
+        if let Some(charter) = resolved(&current.made_charter(Setting::Charter(number), current.value(Setting::Charter(number)).expect("offered value")).expect("offered charter"), &models, limits) {
             current.resolved.insert(number, charter).expect("checked charter count");
         }
     }
@@ -164,11 +164,12 @@ pub(crate) fn version_items(current: &Current, items: &[Item], limits: &Limits) 
         if super::check::edit(items, setting).is_some() {
             continue;
         }
-        let charter = current.charter(number).expect("offered charter");
-        let after = resolved(charter, &models, limits);
+        let value = current.value(setting).expect("offered value");
+        let charter = current.made_charter(setting, value).expect("offered charter");
+        let after = resolved(&charter, &models, limits);
         if after.as_ref() != Some(current.resolved_charter(number).expect("offered resolution")) {
             result
-                .push(Item { setting, edit: Edit::Set(Value::Charter(Box::new(charter.clone()))) })
+                .push(Item { setting, edit: Edit::Set(value.clone()) })
                 .expect("implicit charter items");
         }
     }

@@ -238,6 +238,7 @@ fn errors_and_pages_use_the_address_form() {
         (Setting::Application { kind: 11, scope: 0, number: 4 }, "settings template N · ways · help settings-fields"),
     ] {
         let answer = jig_domain_core::SettingsAnswer::Setting(jig_domain_core::reads::SettingDocument {
+            overlay: None,
             setting,
             revision: 1,
             value: None,

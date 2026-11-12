@@ -219,7 +219,21 @@ fn check_set(
     }
 
     for &setting in &names {
-        let fault = match overlay_value(current, defaults, items, setting).expect("offered setting") {
+        let stored = overlay_value(current, defaults, items, setting).expect("offered setting");
+        let made = match stored {
+            Value::Overlay(_) => {
+                let charter = current.made_charter(setting, stored)
+                    .ok_or(Failure { setting, fault: Fault::Reference, detail: None })?;
+                if charter.policy.resume && !charter.parts.is_empty() {
+                    return Err(Failure { setting, fault: Fault::Shape, detail: None });
+                }
+                let value = Value::Charter(Box::new(charter));
+                shape(setting, &value, limits)?;
+                Some(value)
+            }
+            Value::Charter(_) | Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Model(_) | Value::Application(_) => None,
+        };
+        let fault = match made.as_ref().unwrap_or(stored) {
             Value::Charter(charter) => {
                 registered_documents(setting, charter, connectors)?;
                 match named_fault(charter, &models, limits) {
@@ -256,6 +270,7 @@ fn check_set(
                 None => policy_fault(current, defaults, items, policy, &models, connectors, limits),
             },
             Value::Model(value) => super::catalogue::shape(value, value.number, settings).err(),
+            Value::Overlay(_) => unreachable!("overlay made into a charter"),
             Value::Rules(_) | Value::Application(_) => None,
         };
         if let Some(fault) = fault {
@@ -266,6 +281,10 @@ fn check_set(
 }
 pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
     let valid = match value {
+        Value::Overlay(_) => match setting {
+            Setting::Charter(number) => number != 0,
+            Setting::Template(_) | Setting::Policy(_) | Setting::Model(_) | Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => false,
+        },
         Value::Charter(value) => {
             setting == Setting::Charter(value.number) && value.number != 0 && tasks::wake_valid(&value.wake)
         }
@@ -303,8 +322,9 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
 /// Stored values retain their byte and count bounds without judging their writer.
 pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
     let valid = match value {
+        Value::Overlay(value) => return overlay_fit(setting, value, limits),
         Value::Charter(value) => {
-            if let Some(detail) = documents_fit(value, limits) {
+            if let Some(detail) = documents_fit(&value.documents, limits) {
                 return Err(document_failure(setting, detail));
             }
             if let Some(failure) = parts_fault(setting, value, limits) {
@@ -342,6 +362,27 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
         Value::Application(_) => super::application::is_application(setting),
     };
     if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape, detail: None }) }
+}
+
+fn overlay_fit(setting: Setting, overlay: &super::Overlay, limits: &Limits) -> Result<(), Failure> {
+    let failure = Failure { setting, fault: Fault::Shape, detail: None };
+    if overlay.parts.len() > skein_lib::usize_of(limits.tasks.charter_parts) {
+        return Err(Failure { fault: Fault::Count, ..failure });
+    }
+    for part in &overlay.parts {
+        if part.on.is_empty() || !part.on.is_known() { return Err(failure); }
+    }
+    if let Some(documents) = &overlay.documents
+        && let Some(detail) = documents_fit(documents, limits) {
+        return Err(document_failure(setting, detail));
+    }
+    if let Some(alternatives) = &overlay.alternatives
+        && alternatives.len() > skein_lib::usize_of(limits.settings.alternatives) {
+        return Err(Failure { fault: Fault::Count, ..failure });
+    }
+    let bytes = crate::limits::overlay_policy_bytes(overlay).ok_or(failure)?;
+    if bytes > u64::from(limits.run_bytes) { return Err(failure); }
+    Ok(())
 }
 
 fn delegation_fits(rules: &authority::Rules, limits: &authority::Limits) -> bool {
@@ -403,13 +444,13 @@ fn document_bound(
         bound,
     })
 }
-fn documents_fit(charter: &crate::Charter, limits: &Limits) -> Option<people::SettingDetail> {
+fn documents_fit(documents: &[crate::Document], limits: &Limits) -> Option<people::SettingDetail> {
     use people::SettingMember as M;
-    let count = document_bound(M::Documents, 0, 0, charter.documents.len(), 0, limits.tasks.charter_documents);
+    let count = document_bound(M::Documents, 0, 0, documents.len(), 0, limits.tasks.charter_documents);
     if count.is_some() {
         return count;
     }
-    for (at, document) in charter.documents.iter().enumerate() {
+    for (at, document) in documents.iter().enumerate() {
         let at = u32::try_from(at).expect("bounded documents");
         let name = document_name_fit(document, at, &limits.authority);
         if name.is_some() {
@@ -659,13 +700,13 @@ fn template_fault(
     match executor {
         people::TemplateExecutor::Charter(number) => {
             let charter = match overlay_value(current, defaults, items, Setting::Charter(number)) {
-                Some(value) => value.as_charter(),
+                Some(value) => current.made_charter(Setting::Charter(number), value),
                 None => None,
             };
             let Some(charter) = charter else { return Some(Fault::Reference) };
             if let Some(choice) = &template.llm {
                 let catalogue = super::catalogue::overlay(current, defaults, items);
-                let policy = match super::charters::resolved(charter, &catalogue, limits) {
+                let policy = match super::charters::resolved(&charter, &catalogue, limits) {
                     Some(resolved) => resolved.policy,
                     None => charter.policy.clone(),
                 };
@@ -882,11 +923,11 @@ pub(crate) fn changed_charters(
     for &setting in &offered(current, false, items) {
         let value = overlay_value(current, false, items, setting);
         if let Some(value) = value
-            && let Some(charter) = value.as_charter()
+            && let Some(charter) = current.made_charter(setting, value)
         {
             result
                 .push(super::charters::one_models_rows(
-                    &super::charters::resolved(charter, &catalogue, limits).expect("checked resolution"),
+                    &super::charters::resolved(&charter, &catalogue, limits).expect("checked resolution"),
                     current.newest(),
                     &models,
                 ))

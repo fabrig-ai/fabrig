@@ -167,7 +167,7 @@ pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
                 }
             }
             super::Edit::Set(
-                super::Value::Charter(_)
+                super::Value::Overlay(_) | super::Value::Charter(_)
                 | super::Value::Template(_)
                 | super::Value::Policy(_)
                 | super::Value::Model(_)
@@ -238,7 +238,7 @@ fn translate(item: &super::Item) -> Option<Item> {
         super::Edit::Removed => Edit::Remove,
         super::Edit::Reset => Edit::Reset,
         super::Edit::Set(
-            super::Value::Charter(_)
+            super::Value::Overlay(_) | super::Value::Charter(_)
             | super::Value::Template(_)
             | super::Value::Policy(_)
             | super::Value::Model(_)
@@ -283,7 +283,7 @@ pub(crate) fn project_templates(core: &Core, owner: Token, project: u32) -> Box<
         Some(super::Edit::Set(super::Value::Policy(policy))) => policy.templates.as_ref(),
         Some(
             super::Edit::Set(
-                super::Value::Charter(_)
+                super::Value::Overlay(_) | super::Value::Charter(_)
                 | super::Value::Template(_)
                 | super::Value::Model(_)
                 | super::Value::Rules(_)

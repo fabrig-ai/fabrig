@@ -828,6 +828,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     {
         application = value;
         answer = Box::new(jig_domain_core::SettingsAnswer::Setting(jig_domain_core::reads::SettingDocument {
+            overlay: None,
             setting,
             revision: newest,
             value: None,

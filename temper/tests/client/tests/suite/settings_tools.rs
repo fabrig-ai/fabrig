@@ -69,6 +69,7 @@ fn client_value(value: &settings::Value) -> c::SettingValue {
 fn value_json(setting: c::Setting, value: c::SettingValue) -> String {
     let text = temper_client_tools::jig::render::settings_text(
         &c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision: 1,
             value: Some(value),

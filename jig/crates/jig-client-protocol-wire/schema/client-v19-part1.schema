@@ -41,10 +41,11 @@ enum SettingHosts { workers, engine, both }
 record CharterDocument { connector: u16 name: list 32 bytes 65536 path: bytes 256 heading: option bytes 80 }
 record CharterPart { on: u32 instructions: text 1114240 }
 record Charter { rest: bool number: u32 instructions: text 1114240 waiting: duration resume: bool turns: u32 time: duration reserve_turns: u32 reserve_time: duration model: SettingModel alternatives: list 63 SettingModel inspect: bool modify: bool shell: bool agents: bool call_timeout: duration tools: u64 hosts: SettingHosts spend: u64 wake: WakePolicy documents: list 8 CharterDocument parts: list 8 CharterPart }
+record Overlay { rest: option bool model: option SettingModel alternatives: option list 63 SettingModel inspect: option bool modify: option bool shell: option bool agents: option bool tools: option u64 hosts: option SettingHosts waiting: option duration resume: option bool turns: option u32 time: option duration reserve_turns: option u32 reserve_time: option duration call_timeout: option duration spend: option u64 documents: option list 8 CharterDocument instructions: text 1114240 parts: list 8 CharterPart }
 record SettingPolicy { escalation_role: option u32 ceiling: Authority projections: list 32 Grant period_spend: u64 roles: list 32 PolicyEditRole requirements: list 32 PolicyRequirement permissions: list 32 PolicyPermission templates: list 16 TemplateOverride }
 record Rules { ceiling: Authority period_spend: u64 minimum_run_spend: u64 maximum_run_spend: u64 implies: list 32 KindImplication requirements: list 32 PolicyRequirement }
 record ApplicationValue { bytes: bytes 1114240 }
-enum SettingValue { charter: boxed Charter, template: boxed Template, policy: boxed SettingPolicy, rules: boxed Rules, application: ApplicationValue, model: boxed CatalogueEntry }
+enum SettingValue { charter: boxed Charter, template: boxed Template, policy: boxed SettingPolicy, rules: boxed Rules, application: ApplicationValue, model: boxed CatalogueEntry, overlay: boxed Overlay }
 record SettingSet { value: SettingValue }
 enum SettingEdit { set: SettingSet, removed, reset }
 record SettingItem { setting: Setting edit: SettingEdit }
@@ -64,7 +65,7 @@ record MalformedSettings { setting: Setting fault: SettingFault detail: option S
 record ReadSetting { setting: Setting revision: u32 proposal: option ProposalKey }
 record ReadRevision { number: u32 }
 record ReadRevisions { before: option u32 }
-enum SettingFollows { default, change }
+enum SettingFollows { default, change, overlay }
 record ApplicationRevision { revision: u32 }
 enum ApplicationFollows { default, changed: ApplicationRevision, removed: ApplicationRevision }
 record ApplicationState { follows: ApplicationFollows size: u32 charters: list 255 u32 }
@@ -78,7 +79,7 @@ record SettingsProposal { proposer: Proposer number: u32 }
 record SettingsDocument { newest: u32 settings: list 256 SettingLine held: list 32 HeldRevision pending: list 32 SettingsProposal }
 record ApplicationSize { size: u32 }
 enum SizedEdit { set: ApplicationSize, remove, reset }
-record SettingDocument { setting: Setting revision: u32 value: option SettingValue application: option ApplicationState proposed: option SizedEdit }
+record SettingDocument { setting: Setting revision: u32 value: option SettingValue application: option ApplicationState proposed: option SizedEdit overlay: option Overlay }
 record Size { bytes: u64 }
 record ApplicationEdit { edit: SizedEdit }
 enum RevisionEdit { set: SettingSet, too_large: Size, removed, reset, application: ApplicationEdit }
