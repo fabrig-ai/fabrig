@@ -3,6 +3,17 @@
 2026-11-12. Where the tree's code lags or departs from [tools.md](tools.md).
 
 
+- **Not yet:** the whole document, `decided`'s HOW: its Ask names
+  `message` and `delegate` to every caller, holding them or not, and its
+  no-person reason says `ask your requester` to a caller that can ask no
+  one (`temper-engine-smith/src/answers.rs`, `rendered`) [in flight: change 1669].
+- **Not yet:** the whole document, *What a run reads names what it
+  holds*: `decided`'s description and `under` and `read_task`'s
+  description name `message` and `settings` to runs that may lack them
+  (`temper-engine-smith/src/calls.rs`, `SPECS`) [in flight: change 1669].
+- **Not yet:** the whole document, *A proposed `amend` takes `amend`'s
+  amendment*: one naming no authority is refused `authority shape`
+  (`temper-engine-domain/src/translate.rs`, `proposal_shape`) [in flight: change 1671].
 - **Not yet:** the whole document: `read_reviews`, `read_remarks` and
   `read_pull_files` take no `skip`, and a page the answer's bytes cut
   says no way on (`temper-engine-smith/src/calls.rs`, `src/answers.rs`).
