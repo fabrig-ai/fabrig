@@ -184,6 +184,11 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge/engine.md, 3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// A client stream closed on its queue or translation bound (client/engine.md).
+    ClientStreamFailed {
+        sign_in: u64,
+        why: StreamFailure,
+    },
     /// A configured charter may differ from the store's settings (protocol/configuration/README.md, 3).
     StartupWarning {
         line: Box<[u8]>,
@@ -437,3 +442,6 @@ impl Service {
         }
     }
 }
+
+/// A stream edge or translation refusal (jig/docs/design/protocol/client/README.md, 5).
+pub use jig_protocol_engine_clients::StreamFailure;

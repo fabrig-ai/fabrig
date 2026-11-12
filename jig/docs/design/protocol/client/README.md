@@ -272,6 +272,13 @@ recipient.
   so the core can finish its watch and drain. A name the component has
   never issued is ignored. The core answers an unwatch
   whose watcher it does not know with an unwatched ending.
+- **A stream's own refusal is observable.** When its queued records pass
+  its byte ceiling, or a delivery, run text or ending fails translation,
+  the component emits one `StreamFailed` diagnostic as it starts closing.
+  It carries the sign-in number and either the queue ceiling or the
+  translation's schema path and reason, never document bytes. The host
+  writes this to its operator journal; later deliveries on that closing
+  stream add no diagnostic.
 - **A closing follows its opening's answer.** Exchanges cross
   independently, and a closing that overtook its opening would find no
   watch, be answered closed, and leave the watch admitted after it, which

@@ -513,7 +513,10 @@ impl Bytes {
             | clients::Request::Claimed { .. } => {
                 panic!("Ops fixture mints no sign-ins")
             }
-            clients::Request::LocalLink { .. } | clients::Request::LinkSignedIn | clients::Request::Closed => {}
+            clients::Request::StreamFailed { .. }
+            | clients::Request::LocalLink { .. }
+            | clients::Request::LinkSignedIn
+            | clients::Request::Closed => {}
         }
     }
     fn application(&mut self, joint: &mut Joint, request: clients::ToApplication) {

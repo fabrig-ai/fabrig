@@ -452,6 +452,7 @@ impl Peer {
                     }
                     Request::Link { secret } => self.links.push(fixtures::printed(&secret)),
                     Request::LocalLink { secret } => self.local_links.push(fixtures::printed(&secret)),
+                    Request::StreamFailed { .. } => {}
                     Request::LinkSignedIn => self.link_signed_in += 1,
                     Request::Minted { exchange, credential, expires } => {
                         self.mints.insert(exchange, Ok((credential, expires)));

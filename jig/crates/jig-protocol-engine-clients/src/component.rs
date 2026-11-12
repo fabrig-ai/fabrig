@@ -291,7 +291,7 @@ impl Component {
                     self.delivery(env, watcher, &document, out);
                 }
             }
-            Event::WatchEnded { watcher, why } => self.watch_ended(env, watcher, why),
+            Event::WatchEnded { watcher, why } => self.watch_ended(env, watcher, why, out),
             Event::RunText { watcher, turn, from, to, text, cut, call, writing } => {
                 self.run_text(
                     env,

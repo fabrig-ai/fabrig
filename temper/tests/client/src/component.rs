@@ -831,7 +831,7 @@ impl Composition {
                     self.linked_changed = true;
                 }
             }
-            Request::Closed => {}
+            Request::StreamFailed { .. } | Request::Closed => {}
             Request::Redeemed { .. } | Request::Claimed { .. } => panic!("world has no OAuth issuer"),
         }
     }
