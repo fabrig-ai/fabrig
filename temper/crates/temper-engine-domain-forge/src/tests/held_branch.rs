@@ -242,6 +242,71 @@ fn the_landing_changes_own_update_of_the_goal_branch_is_not_drift() {
     }
 }
 
+fn preparing_domain(goal_branch: bool) -> (Domain, Name) {
+    let resource = if goal_branch {
+        name()
+    } else {
+        Name {
+            forge: REPO.forge,
+            repository: REPO.repository,
+            what: What::Branch(Box::new([b"temper".as_slice().into(), b"51".as_slice().into()])),
+        }
+    };
+    let branch: Box<[u8]> = if goal_branch { GOAL_BRANCH.into() } else { b"temper/51".as_slice().into() };
+    let holder = if goal_branch { GOAL } else { fixtures::CHANGE };
+    let mut d = held_by_name(Some(holder), resource.clone());
+    outputs(&mut d, Event::Names { task: holder, resources: Box::new([resource.clone()]) });
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+    outputs(
+        &mut d,
+        Event::Client(skein_forge_client::Event::Pushed {
+            resource: skein_forge_client::Resource {
+                repository: REPO,
+                what: skein_forge_client::What::Branch(branch.clone()),
+            },
+            commit: fixtures::HEAD,
+        }),
+    );
+    let mut row = landing_row();
+    row.branch = branch;
+    row.change.way = change::Way::Turn;
+    row.change.state =
+        change::State::Preparing { from: fixtures::HEAD, main: LANDING_TIP, ready_since: env().wall };
+    row.pending = Some(UPDATE);
+    outputs(&mut d, Event::Change { row });
+    let mut entry = update_entry(true);
+    entry.effect.condition = skein_forge_client::Condition::Update { head: fixtures::HEAD, base: LANDING_TIP };
+    outputs(&mut d, Event::Enqueue { entry });
+    (d, resource)
+}
+
+#[test]
+fn prepares_rebase_answer_is_its_candidate_not_drift() {
+    for goal_branch in [true, false] {
+        let (mut d, resource) = preparing_domain(goal_branch);
+        let mut out = Queue::uncapped();
+        domain::change_outcome(
+            &mut d,
+            &env(),
+            UPDATE,
+            skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Updated(fixtures::BASE), found: false },
+            &mut out,
+        );
+        assert_eq!(d.branch_head(&resource), Some(fixtures::BASE));
+        if goal_branch {
+            moved(&mut d, Some(fixtures::BASE));
+        }
+        let requests = step_at_head(&mut d, fixtures::BASE);
+        assert_eq!(d.hold(&resource).unwrap().drift, None);
+        let row = d.change(fixtures::CHANGE).unwrap();
+        assert_eq!(row.drift, None);
+        assert_eq!(row.change.state, change::State::Ready { head: fixtures::BASE, ready_since: env().wall });
+        assert_eq!(row.change.last_head, Some(fixtures::BASE));
+        assert_eq!(row.change.clean.as_ref(), &[fixtures::HEAD]);
+        assert!(!requests.iter().any(|request| matches!(request, Request::Drift { .. })), "{requests:?}");
+    }
+}
+
 #[test]
 fn a_let_go_updates_forward_head_is_not_drift_before_its_containment_is_read() {
     use skein_forge::api::Error;
