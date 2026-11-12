@@ -117,6 +117,27 @@ pub fn policy_owned_bytes(policy: &crate::RunPolicy) -> Option<u64> {
     bytes.checked_add(largest)
 }
 
+/// Stored overlay policy and parts, bounded as a charter's (domain/engine/overlays.md, 7).
+#[must_use]
+pub fn overlay_policy_bytes(overlay: &crate::settings::Overlay) -> Option<u64> {
+    let mut bytes = sizeof(size_of::<crate::RunPolicy>())?
+        .checked_add(len_u64(overlay.instructions.len()))?
+        .checked_add(parts_owned_bytes(&overlay.parts)?)?;
+    let mut largest = 0;
+    if let Some(model) = &overlay.model {
+        largest = model_owned_bytes(model)?;
+        bytes = bytes.checked_add(sizeof(size_of::<crate::Model>())?)?.checked_add(largest)?;
+    }
+    if let Some(models) = &overlay.alternatives {
+        for model in models {
+            let owned = model_owned_bytes(model)?;
+            bytes = bytes.checked_add(sizeof(size_of::<crate::Model>())?)?.checked_add(owned)?;
+            largest = largest.max(owned);
+        }
+    }
+    bytes.checked_add(largest)
+}
+
 /// A model's name, its efforts' names and its chosen one's, at most its longest (domain/tasks/README.md, 3).
 fn model_owned_bytes(model: &crate::Model) -> Option<u64> {
     let mut longest = 0_u64;

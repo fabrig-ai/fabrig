@@ -266,7 +266,8 @@ fn policy(ceiling: &[c::AuthorityExecutor], owner: &[c::AuthorityExecutor]) -> B
     for value in jig_client_test_records::settings::settings_values().into_boxed() {
         match value {
             c::SettingValue::Policy(policy) => found = Some(policy),
-            c::SettingValue::Charter(_)
+            c::SettingValue::Overlay(_)
+            | c::SettingValue::Charter(_)
             | c::SettingValue::Template(_)
             | c::SettingValue::Rules(_)
             | c::SettingValue::Model(_)
@@ -290,6 +291,7 @@ fn policy_page(policy: Box<c::SettingPolicy>) -> Readout {
 }
 fn policy_document(project: u32, revision: u32, value: Option<c::SettingValue>) -> Readout {
     Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
         setting: c::Setting::ProjectPolicy { project },
         revision,
         value,

@@ -69,6 +69,7 @@ fn client_value(value: &settings::Value) -> c::SettingValue {
 fn value_json(setting: c::Setting, value: c::SettingValue) -> String {
     let text = temper_client_tools::jig::render::settings_text(
         &c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision: 1,
             value: Some(value),
@@ -283,6 +284,7 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
     use skein_lib::{Duration, Reader, Writer};
     use temper_client_protocol_wire::v1 as w;
     match value {
+        c::SettingValue::Overlay(_) => {}
         c::SettingValue::Model(value) => value.picker = !value.picker,
         c::SettingValue::Charter(value) => {
             value.instructions = c::Text::new(INSTRUCTIONS.into(), WHOLE_SETTING_BYTES).expect("instructions");

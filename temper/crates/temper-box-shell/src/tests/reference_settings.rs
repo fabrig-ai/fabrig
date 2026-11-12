@@ -748,6 +748,7 @@ fn the_stock_settings_document_decodes_in_every_client() {
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 17);
     let source = reads::SettingDocument {
+        overlay: None,
         setting: settings::Setting::Rules,
         revision: 1,
         value: Some(settings::Value::Rules(Box::new(stock.rules))),

@@ -446,6 +446,7 @@ fn encode_value_result(
             out.key(b"value");
             out.object_start();
             out.key(match value {
+                c::SettingValue::Overlay(_) => b"overlay",
                 c::SettingValue::Charter(_) => b"charter",
                 c::SettingValue::Model(_) => b"model",
                 c::SettingValue::Template(_) => b"template",

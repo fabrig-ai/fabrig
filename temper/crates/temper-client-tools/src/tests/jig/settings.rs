@@ -158,6 +158,7 @@ fn a_settings_file_charter_names_documents() {
     let wire = jig_client_protocol_wire::SettingDocument::new(
         &bounds.settings,
         jig_client_protocol_wire::SettingDocumentParts {
+            overlay: None,
             setting: jig_client_protocol_wire::Setting::Charter(
                 jig_client_protocol_wire::SettingNumber::new(
                     &bounds.settings,
@@ -227,6 +228,7 @@ fn settings_show_charter_renders_its_documents() {
             let answer = read(
                 &argv,
                 c::ReadValue::Setting(Box::new(c::SettingDocument {
+                    overlay: None,
                     setting,
                     revision: 5,
                     value: Some(value.clone()),
@@ -559,6 +561,7 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
         root.serve(
             call,
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
                 setting: request.setting,
                 revision: 6,
                 value: Some(value),
@@ -606,6 +609,7 @@ fn setting_json(setting: c::Setting, value: c::SettingValue) -> Vec<u8> {
     root.serve(
         number,
         c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision: 5,
             value: Some(value),
@@ -695,6 +699,7 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
         let wire = jig_client_protocol_wire::SettingDocument::new(
             &bounds.settings,
             jig_client_protocol_wire::SettingDocumentParts {
+                overlay: None,
                 setting: jig_client_protocol_link::translate::settings::wire_setting(&setting, &bounds.settings)
                     .expect("wire selector"),
                 revision: 5,
@@ -1047,6 +1052,7 @@ fn setting_text_and_revisions_include_whole_set_values_and_last_page_facts() {
         let answer = read(
             &argv,
             c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
                 setting,
                 revision: 5,
                 value: Some(value.clone()),
@@ -1848,6 +1854,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
             root.serve(
                 call,
                 c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                    overlay: None,
                     setting,
                     revision: 6,
                     value: Some(value.clone()),
@@ -1869,6 +1876,7 @@ fn proposal_review_reads_both_large_values_whole_and_keeps_refusals_in_place() {
                 root.serve(
                     call,
                     c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                        overlay: None,
                         setting,
                         revision: 6,
                         value: Some(value),
@@ -2899,6 +2907,7 @@ fn serve_policy_value(root: &mut fixtures::Harness, call: u32, setting: c::Setti
     root.serve(
         call,
         c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision: 5,
             value: Some(value.clone()),
@@ -3089,6 +3098,7 @@ fn settings_show_template_resources_apply_again_unchanged() {
     let wire = jig_client_protocol_wire::SettingDocument::new(
         &bounds.settings,
         jig_client_protocol_wire::SettingDocumentParts {
+            overlay: None,
             setting: jig_client_protocol_wire::Setting::Template(
                 jig_client_protocol_wire::SettingNumber::new(
                     &bounds.settings,
@@ -3116,6 +3126,7 @@ fn settings_show_template_resources_are_readable_when_present() {
         let printed = read(
             &["settings", "show", "template", "4"],
             c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
                 setting,
                 revision: 5,
                 value: Some(c::SettingValue::Template(template)),
@@ -3155,6 +3166,7 @@ fn reference_goal_template_resources_survive_apply_and_show() {
         root.serve(
             call,
             c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
                 setting,
                 revision: 5,
                 value: Some(c::SettingValue::Template(template.clone())),
@@ -3195,6 +3207,7 @@ fn goal_template_wire_round_trip(file: &[u8], change: &c::ChangeSettings, templa
     let wire = w::SettingDocument::new(
         &bounds.settings,
         w::SettingDocumentParts {
+            overlay: None,
             setting: w::Setting::Template(
                 w::SettingNumber::new(&bounds.settings, w::SettingNumberParts { number: 4 }).expect("template number"),
             ),
@@ -3722,6 +3735,7 @@ fn ctl_reads_lists_and_writes_a_model_as_a_settings_file() {
     root.serve(
         call,
         c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision: 5,
             value: Some(value.clone()),
