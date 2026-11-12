@@ -7,7 +7,7 @@ pub struct Value {
     pub token: Secret,
     pub scheme: Scheme,
 }
-/// How the credential is presented (protocol/llm.md, 5.3).
+/// How the credential is presented (jig's protocol/llm.md, 5.3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Scheme {
     Bearer,
