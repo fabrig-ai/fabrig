@@ -3,7 +3,7 @@
 //! longer than the records held, peers that are not TLS or give up, and the
 //! stream ending or failing before the handshake.
 
-use rustls::ContentType;
+use rustls_std::ContentType;
 use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Env, Time, Wall};
 use skein_tls::client::{self, Agreed, Certificate, Client, Error, Event, Limits, Request, Version, Waiting};
