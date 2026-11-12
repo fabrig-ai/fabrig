@@ -3899,3 +3899,6 @@ mod see_person;
 
 #[path = "tests/remember.rs"]
 mod remember;
+
+#[path = "tests/wire.rs"]
+mod wire;
