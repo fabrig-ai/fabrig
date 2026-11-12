@@ -516,6 +516,34 @@ pub enum Word {
     WakeMinutes,
     WakeSecond,
     WakeSeconds,
+    TeamAreas,
+    TeamNoAreas,
+    TeamArea,
+    TeamCovers,
+    TeamTheirNow,
+    TeamThisWeek,
+    TeamAnythingElse,
+    TeamFitsNone,
+    TeamInRole,
+    TeamOwnsSince,
+    TeamTalk,
+    TeamRoutingChange,
+    TeamTaskName,
+    TeamRoleOwners,
+    TeamRoleMaintainers,
+    TeamRoleMembers,
+    TeamRoleObservers,
+    TeamRolePeople,
+    TeamOwnerEnded,
+    TeamOwnerLeft,
+    TeamOwnerNotStarted,
+    TeamAreaLede,
+    TeamHands,
+    TeamHand,
+    TeamRoutesTask,
+    TeamRoutesPerson,
+    TeamRoutesYou,
+    TeamRoutesPeople,
     TeamStanding,
     TeamRolesCut,
     TeamSpend,
@@ -1969,7 +1997,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2518;
+const PHRASES: u32 = 2546;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1996,10 +2024,10 @@ const PHRASES: u32 = 2518;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4584;
+const SEGMENTS: u32 = 4638;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 59758;
-const ALL: [Word; 1832] = [
+const ENGLISH_BYTES: u32 = 60568;
+const ALL: [Word; 1860] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2495,6 +2523,34 @@ const ALL: [Word; 1832] = [
     Word::WakeMinutes,
     Word::WakeSecond,
     Word::WakeSeconds,
+    Word::TeamAreas,
+    Word::TeamNoAreas,
+    Word::TeamArea,
+    Word::TeamCovers,
+    Word::TeamTheirNow,
+    Word::TeamThisWeek,
+    Word::TeamAnythingElse,
+    Word::TeamFitsNone,
+    Word::TeamInRole,
+    Word::TeamOwnsSince,
+    Word::TeamTalk,
+    Word::TeamRoutingChange,
+    Word::TeamTaskName,
+    Word::TeamRoleOwners,
+    Word::TeamRoleMaintainers,
+    Word::TeamRoleMembers,
+    Word::TeamRoleObservers,
+    Word::TeamRolePeople,
+    Word::TeamOwnerEnded,
+    Word::TeamOwnerLeft,
+    Word::TeamOwnerNotStarted,
+    Word::TeamAreaLede,
+    Word::TeamHands,
+    Word::TeamHand,
+    Word::TeamRoutesTask,
+    Word::TeamRoutesPerson,
+    Word::TeamRoutesYou,
+    Word::TeamRoutesPeople,
     Word::TeamStanding,
     Word::TeamRolesCut,
     Word::TeamSpend,
@@ -4403,6 +4459,34 @@ impl Word {
             Self::WakeMinutes => 5159,
             Self::WakeSecond => 5160,
             Self::WakeSeconds => 5161,
+            Self::TeamAreas => 5210,
+            Self::TeamNoAreas => 5211,
+            Self::TeamArea => 5212,
+            Self::TeamCovers => 5213,
+            Self::TeamTheirNow => 5214,
+            Self::TeamThisWeek => 5215,
+            Self::TeamAnythingElse => 5216,
+            Self::TeamFitsNone => 5217,
+            Self::TeamInRole => 5218,
+            Self::TeamOwnsSince => 5219,
+            Self::TeamTalk => 5220,
+            Self::TeamRoutingChange => 5221,
+            Self::TeamTaskName => 5222,
+            Self::TeamRoleOwners => 5223,
+            Self::TeamRoleMaintainers => 5224,
+            Self::TeamRoleMembers => 5225,
+            Self::TeamRoleObservers => 5226,
+            Self::TeamRolePeople => 5227,
+            Self::TeamOwnerEnded => 5228,
+            Self::TeamOwnerLeft => 5229,
+            Self::TeamOwnerNotStarted => 5230,
+            Self::TeamAreaLede => 5231,
+            Self::TeamHands => 5232,
+            Self::TeamHand => 5233,
+            Self::TeamRoutesTask => 5234,
+            Self::TeamRoutesPerson => 5235,
+            Self::TeamRoutesYou => 5236,
+            Self::TeamRoutesPeople => 5237,
             Self::TeamStanding => 4978,
             Self::TeamRolesCut => 4979,
             Self::TeamSpend => 4980,
@@ -5758,6 +5842,18 @@ const FOLLOW_WORDS: [Word; 12] = [
 ];
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // Sixteen area names and Anything else, joined in a role's card head (team.md, 1).
+    if word == Word::TeamOwnsSince {
+        return Ok(temper_client_protocol_wire::v1::CEILINGS
+            .area_row_name
+            .saturating_add(2)
+            .saturating_mul(temper_client_protocol_wire::v1::CEILINGS.findings_areas)
+            .saturating_add(19)
+            .max(joined));
+    }
+    if [Word::TeamAreaLede, Word::TeamHands, Word::TeamHand, Word::TeamInRole].contains(&word) {
+        return Ok(joined.max(262));
+    }
     if word == Word::AllHomeFollowChip {
         return Ok(temper_client_protocol_wire::v1::CEILINGS.follow_view_source);
     }
@@ -7747,6 +7843,34 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WakeMinutes => (&[b"", b" minutes"], &[Number]),
         Word::WakeSecond => (&[b"second"], &[]),
         Word::WakeSeconds => (&[b"", b" seconds"], &[Number]),
+        Word::TeamAreas => (&[b"Areas"], &[]),
+        Word::TeamNoAreas => (&[b"No areas yet: the project's owners take every finding and red."], &[]),
+        Word::TeamArea => (&[b"Area"], &[]),
+        Word::TeamCovers => (&[b"What it covers"], &[]),
+        Word::TeamTheirNow => (&[b"Their Now"], &[]),
+        Word::TeamThisWeek => (&[b"This week"], &[]),
+        Word::TeamAnythingElse => (&[b"Anything else"], &[]),
+        Word::TeamFitsNone => (&[b"What fits none of these"], &[]),
+        Word::TeamInRole => (&[b"in ", b"'s"], &[Name]),
+        Word::TeamOwnsSince => (&[b"A standing role \xc2\xb7 owns ", b", since ", b" \xc2\xb7 started by ", b""], &[Name, Name, Name]),
+        Word::TeamTalk => (&[b"Talk to it"], &[]),
+        Word::TeamRoutingChange => (&[b"Change by proposal"], &[]),
+        Word::TeamTaskName => (&[b"Task ", b""], &[Number]),
+        Word::TeamRoleOwners => (&[b"The project's owners"], &[]),
+        Word::TeamRoleMaintainers => (&[b"The project's maintainers"], &[]),
+        Word::TeamRoleMembers => (&[b"The project's members"], &[]),
+        Word::TeamRoleObservers => (&[b"The project's observers"], &[]),
+        Word::TeamRolePeople => (&[b"Role ", b"'s people"], &[Number]),
+        Word::TeamOwnerEnded => (&[b"Task ", b", ended"], &[Number]),
+        Word::TeamOwnerLeft => (&[b"Party ", b", not of ", b""], &[Number, Name]),
+        Word::TeamOwnerNotStarted => (&[b"Charter ", b"'s role, not started"], &[Number]),
+        Word::TeamAreaLede => (&[b"Each area has one owner. ", b" each finding and red to its area's owner. An owner that can't decide asks you, as How work runs says."], &[Name]),
+        Word::TeamHands => (&[b"", b" hands"], &[Name]),
+        Word::TeamHand => (&[b"", b" hand"], &[Name]),
+        Word::TeamRoutesTask => (&[b" reads what comes in against these words and its rules, and hands each to its owner."], &[]),
+        Word::TeamRoutesPerson => (&[b" reads what comes in against these words, and hands each to its owner."], &[]),
+        Word::TeamRoutesYou => (&[b" read what comes in against these words, and hand each to its owner."], &[]),
+        Word::TeamRoutesPeople => (&[b" read what comes in against these words, and hand each to its owner."], &[]),
         Word::TeamStanding => (&[b"Standing roles"], &[]),
         Word::TeamRolesCut => (&[b"Only the first 16 are shown."], &[]),
         Word::TeamSpend => (&[b"", b" of ", b""], &[Number, Number]),

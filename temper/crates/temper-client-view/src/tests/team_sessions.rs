@@ -14,7 +14,7 @@ pub(super) fn facts() -> Facts {
     Facts {
         people: List::with_capacity(0),
         cut: false,
-        triager: None,
+        areas: None,
         roles: List::from_boxed(Box::new([team::Role {
             task: 52,
             name: b"Prover".as_slice().into(),
@@ -33,6 +33,7 @@ pub(super) fn facts() -> Facts {
             paused: false,
             pause: false,
             resume: false,
+            talk: false,
             now: None,
             rules: None,
             wakes: List::with_capacity(0),

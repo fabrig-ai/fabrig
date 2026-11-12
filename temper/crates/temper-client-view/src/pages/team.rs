@@ -1,5 +1,6 @@
 //! Team's page (temper/docs/design/client/pages/team.md, 1;
 //! temper/docs/design/client/web/look.md, Team's look).
+mod areas;
 mod sessions;
 pub(crate) mod wakes;
 use crate::{
@@ -48,11 +49,25 @@ pub(crate) fn draw(
     b.style(look::TEAM_INTRO);
     text(b, Role::Paragraph, &w.say(Word::TeamKicker, &[Hole::Name(project_name.into())]));
     text(b, Role::Heading { level: 1 }, &w.say(Word::TeamHeadline, &[Hole::Name(project_name.into())]));
-    if let team::Shown::Read(facts) = shown {
-        text(b, Role::Paragraph, &lede(w, facts));
+    if let Some(facts) = shown.facts() {
+        let people = match shown {
+            team::Shown::Read(_) => lede(w, facts),
+            team::Shown::Reading | team::Shown::Unreadable | team::Shown::PeopleUnread { .. } => Box::default(),
+        };
+        let lede = if team::parts(facts).lede_areas {
+            let separator = if people.is_empty() { b"".as_slice() } else { b" " };
+            skein_lib::bytes::concat(&[&people, separator, &areas::lede(w, facts)])
+        } else {
+            people
+        };
+        if !lede.is_empty() {
+            text(b, Role::Paragraph, &lede);
+        }
     }
     b.close();
     if let Some(facts) = shown.facts() {
+        let parts = team::parts(facts);
+        areas::draw(b, w, project, project_name, facts, &parts, bindings);
         standing(b, w, project, facts, bindings, times);
     }
     super::settings::section_head(b, &w.say(Word::TeamPeople, &[]));
@@ -85,7 +100,7 @@ pub(crate) fn draw(
                 b.open(Role::Slot);
                 b.style(look::TEAM_PEOPLE);
                 for person in &facts.people {
-                    person_box(b, w, person, parts.signed(person.party));
+                    person_box(b, w, person, &parts);
                 }
                 b.close();
             }
@@ -116,7 +131,7 @@ fn lede(w: &Words, facts: &team::Facts) -> Box<[u8]> {
     w.say(if you { Word::TeamOfYou } else { Word::TeamPeopleCount }, &[Hole::Name(count)])
 }
 
-fn person_box(b: &mut Builder, w: &Words, person: &team::Person, signed: Option<&[u8]>) {
+fn person_box(b: &mut Builder, w: &Words, person: &team::Person, parts: &team::Parts) {
     b.open(Role::Slot);
     b.style(look::TEAM_PERSON);
     let name = if person.you { w.say(Word::TeamYou, &[]) } else { person.name.clone() };
@@ -131,12 +146,19 @@ fn person_box(b: &mut Builder, w: &Words, person: &team::Person, signed: Option<
         HeldRole::Observer => w.say(Word::TeamObserver, &[]),
         HeldRole::Policy { role } => w.say(Word::TeamPolicy, &[Hole::Number(u64::from(role))]),
     };
+    let mut role = role;
+    for (party, names) in &parts.box_areas {
+        if *party == person.party {
+            role = skein_lib::bytes::concat(&[&role, " · ".as_bytes(), &areas::names(w, names, b", ")]);
+            break;
+        }
+    }
     paragraph(b, &role, look::TEAM_ROLE);
     if let Some(waits) = person.waits {
         let whom = if person.you { w.say(Word::TeamWhomYou, &[]) } else { person.name.clone() };
         paragraph(b, &line(w, &waits, whom), look::TEAM_LINE);
     }
-    if let Some(signed) = signed {
+    if let Some(signed) = parts.signed(person.party) {
         paragraph(b, signed, look::TEAM_LINE);
     }
     b.close();
@@ -188,40 +210,44 @@ fn paragraph(b: &mut Builder, value: &[u8], style: Style) {
 
 fn standing(b: &mut Builder, w: &Words, project: u32, facts: &team::Facts, bindings: &mut Bindings, times: &mut Times) {
     let parts = team::parts(facts);
-    if !parts.standing_roles {
-        return;
-    }
-    super::settings::section_head(b, &w.say(Word::TeamStanding, &[]));
-    b.close();
-    b.open(Role::List);
-    b.style(look::TEAM_ROWS);
-    for role in &facts.roles {
-        b.open(Role::Item);
-        b.style(look::TEAM_ROW);
-        crate::link(
-            b,
-            &role.name,
-            bindings.insert(Act::Go { address: Address::Team { project, role: Some(role.task) } }),
-        );
-        b.style(look::HOW_WHO_AGENT);
-        if parts.card == Some(role.task) {
-            b.state(skein_ui::State::Current);
-        }
-        b.text(Run::Plain, &role.name);
+    if parts.standing_roles {
+        super::settings::section_head(b, &w.say(Word::TeamStanding, &[]));
         b.close();
-        if let Some(now) = &role.now
-            && !now.is_empty()
-        {
-            paragraph(b, now, look::TEAM_LINE);
+        if !parts.standing.is_empty() {
+            b.open(Role::List);
+            b.style(look::TEAM_ROWS);
+            for role in &facts.roles {
+                if !parts.standing.as_slice().contains(&role.task) {
+                    continue;
+                }
+                b.open(Role::Item);
+                b.style(look::TEAM_ROW);
+                crate::link(
+                    b,
+                    &role.name,
+                    bindings.insert(Act::Go { address: Address::Team { project, role: Some(role.task) } }),
+                );
+                b.style(look::HOW_WHO_AGENT);
+                if parts.card == Some(role.task) {
+                    b.state(skein_ui::State::Current);
+                }
+                b.text(Run::Plain, &role.name);
+                b.close();
+                if let Some(now) = &role.now
+                    && !now.is_empty()
+                {
+                    paragraph(b, now, look::TEAM_LINE);
+                }
+                text(b, Role::Text, &w.say(Word::TeamSpend, &[Hole::Number(role.spent), Hole::Number(role.budget)]));
+                b.close();
+            }
+            b.close();
         }
-        text(b, Role::Text, &w.say(Word::TeamSpend, &[Hole::Number(role.spent), Hole::Number(role.budget)]));
+        if parts.roles_cut {
+            paragraph(b, &w.say(Word::TeamRolesCut, &[]), look::SETTINGS_EMPTY);
+        }
         b.close();
     }
-    b.close();
-    if parts.roles_cut {
-        paragraph(b, &w.say(Word::TeamRolesCut, &[]), look::SETTINGS_EMPTY);
-    }
-    b.close();
     if let Some(task) = parts.card {
         for role in &facts.roles {
             if role.task == task {
@@ -237,7 +263,11 @@ fn standing(b: &mut Builder, w: &Words, project: u32, facts: &team::Facts, bindi
 }
 
 /// The card frame; sibling parts join its left column and conditionally open its right column.
-#[expect(clippy::too_many_arguments, reason = "card drawing joins project links, facts and build accumulators")]
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "the card joins its ownership head, controls and independently read columns"
+)]
 fn card(
     b: &mut Builder,
     w: &Words,
@@ -278,25 +308,42 @@ fn card(
                     w.say(word, &[Hole::Number(number)])
                 }
             };
-            paragraph(
-                b,
-                &w.say(Word::TeamSince, &[Hole::Name(w.time_date(made, times.now)), Hole::Name(requester)]),
-                look::SETTINGS_EMPTY,
-            );
+            let since = if parts.owns.is_empty() {
+                w.say(Word::TeamSince, &[Hole::Name(w.time_date(made, times.now)), Hole::Name(requester)])
+            } else {
+                w.say(
+                    Word::TeamOwnsSince,
+                    &[
+                        Hole::Name(areas::names(w, &parts.owns, b", and ")),
+                        Hole::Name(w.time_date(made, times.now)),
+                        Hole::Name(requester),
+                    ],
+                )
+            };
+            paragraph(b, &since, look::SETTINGS_EMPTY);
         }
         if let Some(hold) = &facts.hold {
             crate::cards::hold(b, facts.task, &hold.reason, w);
         }
     }
     b.close();
-    if parts.pause || parts.resume {
+    if parts.talk || parts.pause || parts.resume {
         b.open(Role::Slot);
         b.style(look::TEAM_ACTS);
-        b.open(Role::Button);
-        b.style(look::GOAL_BTN);
-        b.name(&w.say(if parts.pause { Word::Pause } else { Word::Resume }, &[]));
-        b.bind(bindings.insert(if parts.pause { Act::Pause } else { Act::Resume }));
-        b.close();
+        if parts.talk {
+            let talk = w.say(Word::TeamTalk, &[]);
+            crate::link(b, &talk, bindings.insert(Act::Go { address: Address::Task { task: role.task } }));
+            b.style(look::TEAM_TALK);
+            b.text(Run::Plain, &talk);
+            b.close();
+        }
+        if parts.pause || parts.resume {
+            b.open(Role::Button);
+            b.style(look::GOAL_BTN);
+            b.name(&w.say(if parts.pause { Word::Pause } else { Word::Resume }, &[]));
+            b.bind(bindings.insert(if parts.pause { Act::Pause } else { Act::Resume }));
+            b.close();
+        }
         b.close();
     }
     b.close();

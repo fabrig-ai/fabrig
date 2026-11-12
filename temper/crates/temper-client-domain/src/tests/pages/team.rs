@@ -1,4 +1,5 @@
 //! Team's plain facts and parts (temper/docs/design/client/pages/README.md, Team).
+mod areas;
 mod sessions;
 use crate::pages::team::{self, Facts, Parts, Person, Waits};
 use jig_client::contract as c;
@@ -143,7 +144,7 @@ fn gather_lists_each_person_once_the_reader_first() {
             Facts {
                 people: List::from_boxed(expected),
                 cut,
-                triager: None,
+                areas: None,
                 roles: List::with_capacity(0),
                 roles_cut: false,
                 selected: None,
@@ -157,46 +158,6 @@ fn gather_lists_each_person_once_the_reader_first() {
 #[test]
 fn parts_show_what_the_facts_hold() {
     use c::HeldRole::{Maintainer, Member, Observer, Owner, Policy};
-    for (name, people, triager, expected) in [
-        (
-            "no people or triager",
-            Box::<[_]>::from([]),
-            None,
-            Parts { people: false, shared: None, triager: false, ..Parts::default() },
-        ),
-        (
-            "people without waits",
-            Box::<[_]>::from([person(YOU, true, b"Reader", Owner, None)]),
-            None,
-            Parts { people: true, shared: None, triager: false, ..Parts::default() },
-        ),
-        (
-            "triager alone",
-            Box::<[_]>::from([]),
-            Some(b"Sam".as_slice()),
-            Parts { people: false, shared: None, triager: true, ..Parts::default() },
-        ),
-        (
-            "both parts",
-            Box::<[_]>::from([person(SAM, false, b"Sam", Member, Some(SAMS))]),
-            Some(b"Reader".as_slice()),
-            Parts { people: true, shared: None, triager: true, ..Parts::default() },
-        ),
-    ] {
-        let facts = Facts {
-            people: List::from_boxed(people),
-            cut: true,
-            triager: match triager {
-                Some(name) => Some(name.into()),
-                None => None,
-            },
-            roles: List::with_capacity(0),
-            roles_cut: false,
-            selected: None,
-            card: None,
-        };
-        assert_eq!(team::parts(&facts), expected, "{name}");
-    }
     for (roles, cut, shared) in [
         (Box::<[_]>::from([]), false, None),
         (Box::<[_]>::from([Owner]), false, None),
@@ -216,7 +177,7 @@ fn parts_show_what_the_facts_hold() {
         let facts = Facts {
             people,
             cut,
-            triager: None,
+            areas: None,
             roles: List::with_capacity(0),
             roles_cut: false,
             selected: None,
@@ -224,7 +185,7 @@ fn parts_show_what_the_facts_hold() {
         };
         assert_eq!(
             team::parts(&facts),
-            Parts { people: !roles.is_empty(), shared, triager: false, ..Parts::default() },
+            Parts { people: !roles.is_empty(), shared, ..Parts::default() },
             "{roles:?} {cut}"
         );
     }
@@ -265,6 +226,7 @@ struct Reads {
     env: skein_lib::Env<crate::Limits>,
     charters: List<(Handle, Box<[u8]>)>,
     closed: List<Handle>,
+    findings: List<(Handle, Token, temper_client_protocol_wire::v1::FindingsSubject)>,
 }
 #[derive(Debug, PartialEq, Eq)]
 struct Effects {
@@ -353,6 +315,7 @@ fn reads_fixture() -> Reads {
         env: fixtures::env(&fixtures::limits()),
         charters: List::with_capacity(32),
         closed: List::with_capacity(128),
+        findings: List::with_capacity(16),
     }
 }
 fn client(f: &mut Reads, event: jig_client::Event) -> Queue<jig_client::UnlinkedRequest> {
@@ -391,6 +354,21 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                 f.read = Some(handle);
                 f.handles.insert(handle).unwrap();
                 effects.reads.push(project).unwrap();
+            }
+            Request::Client(jig_client::Event::Watch { handle, subject: subject @ Watchable::Family { .. } }) => {
+                let Watchable::Family { record, .. } = &subject else { unreachable!() };
+                let watching = temper_client_protocol_wire::decode_watching(
+                    &record.bytes,
+                    &temper_client_protocol_wire::v1::CEILINGS,
+                )
+                .unwrap();
+                if let temper_client_protocol_wire::v1::Watch::Findings(findings) = watching.watch() {
+                    assert!(!findings.mine());
+                    assert_eq!(*findings.state(), Some(temper_client_protocol_wire::v1::FindingState::New));
+                    let findings = findings.clone();
+                    let opened = client(f, jig_client::Event::Watch { handle, subject });
+                    f.findings.push((handle, opened_token(&opened), findings)).unwrap();
+                }
             }
             Request::Client(jig_client::Event::Watch {
                 handle,
@@ -534,7 +512,7 @@ fn read_shown(members: &[u64], waits: &[(u64, Waits)]) -> team::Shown {
     team::Shown::Read(Facts {
         people,
         cut: false,
-        triager: None,
+        areas: None,
         roles: List::with_capacity(0),
         roles_cut: false,
         selected: None,
@@ -1003,6 +981,7 @@ fn card(task: u64) -> team::Card {
         paused: false,
         pause: true,
         resume: true,
+        talk: false,
         now: None,
         report: None,
         sessions: List::with_capacity(0),
@@ -1017,11 +996,22 @@ fn standing_parts_select_a_listed_card_and_only_read_parts() {
     facts.roles_cut = true;
     facts.selected = Some(52);
     facts.card = Some(Box::new(card(52)));
-    assert_eq!(team::parts(&facts), Parts::default(), "unlisted card and cut never stand alone");
+    assert_eq!(
+        team::parts(&facts),
+        Parts { standing_roles: true, roles_cut: true, ..Parts::default() },
+        "a cut watch keeps its notice, never an unlisted card"
+    );
     facts.roles = List::from_boxed(Box::new([role(41), role(52)]));
     assert_eq!(
         team::parts(&facts),
-        Parts { standing_roles: true, roles_cut: true, card: Some(52), pause: true, ..Parts::default() }
+        Parts {
+            standing_roles: true,
+            standing: List::from_boxed(Box::new([41, 52])),
+            roles_cut: true,
+            card: Some(52),
+            pause: true,
+            ..Parts::default()
+        }
     );
     facts.selected = Some(99);
     assert_eq!(team::parts(&facts).card, Some(41), "unlisted selection falls back to the first");
@@ -1034,7 +1024,14 @@ fn standing_parts_select_a_listed_card_and_only_read_parts() {
     detail.now = Some(team::Now { body: b"- A finding.\nA paragraph.".as_slice().into(), changed: None, cut: true });
     assert_eq!(
         team::parts(&facts),
-        Parts { standing_roles: true, roles_cut: true, card: Some(41), now: true, ..Parts::default() },
+        Parts {
+            standing_roles: true,
+            standing: List::from_boxed(Box::new([41, 52])),
+            roles_cut: true,
+            card: Some(41),
+            now: true,
+            ..Parts::default()
+        },
         "held for another cause has neither act"
     );
     facts.card.as_mut().unwrap().paused = true;
