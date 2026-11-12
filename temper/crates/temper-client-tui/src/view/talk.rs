@@ -1,10 +1,19 @@
 //! A standing role's framed head (temper/docs/design/client/tui/pages/talk.md, 1).
 use super::{foot, launchpad, text};
-use crate::{Tui, look, words::{Word, Words}};
+use crate::{
+    Tui, look,
+    words::{Word, Words},
+};
 use alloc::boxed::Box;
-use skein_lib::{List, Wall, bytes::{concat, copy_of}};
+use skein_lib::{
+    List, Wall,
+    bytes::{concat, copy_of},
+};
 use skein_ui::{Builder, Role, phrases::Hole};
-use temper_client_domain::{Domain, pages::{chat::Talking, team}};
+use temper_client_domain::{
+    Domain,
+    pages::{chat::Talking, team},
+};
 use temper_client_view::words::{TimeForm, Word as Shared};
 
 #[derive(Debug)]
@@ -17,7 +26,10 @@ pub(crate) struct Head {
     pub columns: u16,
 }
 pub(crate) fn available(root: &Domain, project: u32) -> bool {
-    match team::shown_at(root, project, Wall::EPOCH).facts() { Some(facts) => !facts.roles.is_empty(), None => false }
+    match team::shown_at(root, project, Wall::EPOCH).facts() {
+        Some(facts) => !facts.roles.is_empty(),
+        None => false,
+    }
 }
 pub(crate) fn name(talk: &Talking, words: &Words) -> Box<[u8]> {
     match talk.name() {
@@ -33,7 +45,9 @@ pub(crate) fn areas(areas: Option<&team::Areas>, task: u64) -> Box<[u8]> {
     if let Some(areas) = areas {
         for area in &areas.rows {
             if area.holder == Some(team::Holder::Task(task)) {
-                if !names.is_empty() { names.push(b", ".as_slice()).expect("area names fit memory"); }
+                if !names.is_empty() {
+                    names.push(b", ".as_slice()).expect("area names fit memory");
+                }
                 names.push(area.name.as_ref()).expect("area names fit memory");
             }
         }
@@ -47,8 +61,12 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words) -> Option<Head> {
     let mut line = words.say(Word::StandingRole, &[]);
     let held = team::areas(root, talk.project);
     let areas = areas(held.as_ref(), talk.task);
-    if !areas.is_empty() { line = concat(&[&line, &words.say(Word::Owns, &[]), &areas]); }
-    if let Some(held) = held && held.triager == Some(team::Holder::Task(talk.task)) {
+    if !areas.is_empty() {
+        line = concat(&[&line, &words.say(Word::Owns, &[]), &areas]);
+    }
+    if let Some(held) = held
+        && held.triager == Some(team::Holder::Task(talk.task))
+    {
         line = concat(&[&line, &words.say(Word::TriagerOf, &[Hole::Name(project.clone())])]);
     }
     if let Some((spent, budget)) = talk.spend() {
@@ -75,7 +93,11 @@ pub(crate) fn session(talk: &Talking, words: &Words, wall: Wall) -> Option<Box<[
     let open = talk.open()?;
     let mut line = words.say(Word::SessionMinutes, &[Hole::Number(minutes(open.opened, wall))]);
     if let Some(cost) = talk.cost() {
-        line = concat(&[&line, &words.say(Word::Separator, &[]), &words.view().say(Shared::TeamCount, &[Hole::Number(cost)])]);
+        line = concat(&[
+            &line,
+            &words.say(Word::Separator, &[]),
+            &words.view().say(Shared::TeamCount, &[Hole::Number(cost)]),
+        ]);
     }
     Some(line)
 }

@@ -12,9 +12,9 @@ use temper_client_domain::{Address, Domain, asked, pages::chat::document::Mode};
 use temper_client_view::words::{TimeForm, Word as Shared};
 
 pub(crate) mod chat;
-pub(crate) mod talk;
 pub(crate) mod foot;
 pub(crate) mod pane;
+pub(crate) mod talk;
 pub use pane::HALVES;
 pub(crate) mod front;
 pub(crate) mod launchpad;
@@ -589,10 +589,12 @@ fn page_focus(root: &Domain, authority: &[u8]) -> Option<Box<[u8]>> {
     let page = if let Some(chat) = root.pages().chat() {
         if let Some(talk) = chat.talk() {
             Address::Team { project: talk.project, role: Some(talk.task) }
-        } else { match chat.goal_from(root) {
-            Some((goal, _)) => Address::Task { task: goal },
-            None => Address::Chat { task: chat.task },
-        } }
+        } else {
+            match chat.goal_from(root) {
+                Some((goal, _)) => Address::Task { task: goal },
+                None => Address::Chat { task: chat.task },
+            }
+        }
     } else {
         Address::Home { project: root.pages().project()? }
     };

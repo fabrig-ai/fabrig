@@ -615,7 +615,6 @@ impl Word {
             Self::LeftAfter => 180,
             Self::LeftNow => 181,
             Self::NoRole => 182,
-
         }
     }
     const fn id(self) -> PhraseId {
@@ -930,12 +929,19 @@ impl Words {
             crate::Notice::Left { name, minutes, cost } => {
                 let mut line = self.say(Word::LeftAfter, &[Hole::Name(name.clone()), Hole::Number(*minutes)]);
                 if let Some(cost) = cost {
-                    line = skein_lib::bytes::concat(&[&line, &self.say(Word::Separator, &[]), &self.view.say(temper_client_view::words::Word::TeamCount, &[Hole::Number(*cost)])]);
+                    line = skein_lib::bytes::concat(&[
+                        &line,
+                        &self.say(Word::Separator, &[]),
+                        &self.view.say(temper_client_view::words::Word::TeamCount, &[Hole::Number(*cost)]),
+                    ]);
                 }
                 skein_lib::bytes::concat(&[&line, &self.say(Word::LeftNow, &[])])
             }
             crate::Notice::NoRole { project, words } => {
-                let bounded = skein_lib::bytes::utf8_prefix(words, usize::try_from(self.notice_bytes).expect("notice hole fits memory"));
+                let bounded = skein_lib::bytes::utf8_prefix(
+                    words,
+                    usize::try_from(self.notice_bytes).expect("notice hole fits memory"),
+                );
                 self.say(Word::NoRole, &[Hole::Name(project.clone()), Hole::Name(copy_of(bounded))])
             }
             crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),

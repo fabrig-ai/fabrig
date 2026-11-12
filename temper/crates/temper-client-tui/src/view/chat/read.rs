@@ -257,7 +257,9 @@ fn talk_lines(chat: &Chat) -> List<Line<'_>> {
             }
             Line::Turn { .. } | Line::Undecoded { .. } | Line::Provisional { .. } => {}
         }
-        if after { kept.push(line).expect("talk lines are a subset"); }
+        if after {
+            kept.push(line).expect("talk lines are a subset");
+        }
     }
     kept
 }
@@ -360,7 +362,11 @@ pub(super) fn entries(root: &Domain, words: &Words) -> Box<[Entry]> {
             }
         }
     }
-    if let Some(talk) = chat.talk() && talk.open().is_none() { return entries.into_boxed(); }
+    if let Some(talk) = chat.talk()
+        && talk.open().is_none()
+    {
+        return entries.into_boxed();
+    }
     let working = shared::working(root, words.view());
     let current = if working { chat.current_call() } else { None };
     let running = working && (!run.is_empty() || current.is_some());

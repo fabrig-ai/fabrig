@@ -315,7 +315,10 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
             Some(project) => temper_client_domain::pages::drafts_offered(root, project),
             None => false,
         },
-        talk: match number { Some(project) => super::talk::available(root, project), None => false },
+        talk: match number {
+            Some(project) => super::talk::available(root, project),
+            None => false,
+        },
         address: crate::place(tui.address(), tui.front()),
         playground: front::playground(root, number),
         lines: List::with_capacity(4),

@@ -21,7 +21,9 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
     if let Some(start) = root.pages().start() {
         return Some(goal(root, start, words));
     }
-    if tui.talk_list() { return Some(talk(root, words)); }
+    if tui.talk_list() {
+        return Some(talk(root, words));
+    }
     if tui.theme_list() {
         return Some(theme(tui, words));
     }
@@ -87,7 +89,9 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
     if root.pages().chat().is_none() || !value.is_empty() {
         return None;
     }
-    if root.pages().chat()?.talk().is_some() { return None; }
+    if root.pages().chat()?.talk().is_some() {
+        return None;
+    }
     let question = shared::question(root, words.view())?;
     question_list(question, tui.aside(), words)
 }
@@ -183,37 +187,63 @@ fn talk(root: &Domain, words: &Words) -> Options {
         name = super::project_name(root, Some(project)).unwrap_or_default();
         let areas = temper_client_domain::pages::team::areas(root, project);
         let shown = temper_client_domain::pages::team::shown_at(root, project, skein_lib::Wall::EPOCH);
-        if let Some(facts) = shown.facts() { for role in &facts.roles {
-            let held = crate::view::talk::areas(areas.as_ref(), role.task);
-            items.push(OptionItem {
-                name: role.name.clone(),
-                words: if held.is_empty() { role.now.clone().unwrap_or_default() } else { held },
-                selected: items.is_empty(),
-                event: Event::Act { act: Act::Go { address: Address::Talk { project, task: role.task } } },
-            }).expect("roles fit memory");
+        if let Some(facts) = shown.facts() {
+            for role in &facts.roles {
+                let held = crate::view::talk::areas(areas.as_ref(), role.task);
+                items
+                    .push(OptionItem {
+                        name: role.name.clone(),
+                        words: if held.is_empty() { role.now.clone().unwrap_or_default() } else { held },
+                        selected: items.is_empty(),
+                        event: Event::Act { act: Act::Go { address: Address::Talk { project, task: role.task } } },
+                    })
+                    .expect("roles fit memory");
+            }
         }
     }
-    }
     let head = words.say(Word::TalkHead, &[Hole::Name(name)]);
-    Options { style: look::OPTION, why: None, name: head.clone(), head: Some(head), items: items.into_boxed(), escape: Event::Dismiss }
+    Options {
+        style: look::OPTION,
+        why: None,
+        name: head.clone(),
+        head: Some(head),
+        items: items.into_boxed(),
+        escape: Event::Dismiss,
+    }
 }
 pub(crate) fn proposal(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
     let chat = root.pages().chat()?;
     chat.talk()?;
     for card in &chat.cards {
-        if tui.proposal_aside(&card.object) || card.key.is_some() { continue; }
+        if tui.proposal_aside(&card.object) || card.key.is_some() {
+            continue;
+        }
         let Some(jig_client::contract::ReadValue::Proposal(proposal)) = &card.page else { continue };
         match jig_client::facts::offer(proposal.acts.as_slice(), jig_client::contract::ActKind::Accept) {
-            Some(jig_client::contract::Admission::Allowed | jig_client::contract::Admission::Bounded { .. }) => {},
-            Some(jig_client::contract::Admission::Refused(_) | jig_client::contract::Admission::Proposed { .. }) | None => continue,
+            Some(jig_client::contract::Admission::Allowed | jig_client::contract::Admission::Bounded { .. }) => {}
+            Some(jig_client::contract::Admission::Refused(_) | jig_client::contract::Admission::Proposed { .. })
+            | None => continue,
         }
         let Some(head) = shared::proposal_line(card, words.view()) else { continue };
         let object = card.object;
         return Some(Options {
-            style: look::OPTION, why: None, name: head.clone(), head: Some(head),
+            style: look::OPTION,
+            why: None,
+            name: head.clone(),
+            head: Some(head),
             items: Box::new([
-                OptionItem { name: numbered(&words.say(Word::AcceptIt, &[]), 1, words), words: Box::default(), selected: true, event: Event::Accept { object, revision: None } },
-                OptionItem { name: numbered(&words.say(Word::NotNow, &[]), 2, words), words: Box::default(), selected: false, event: Event::Aside { object } },
+                OptionItem {
+                    name: numbered(&words.say(Word::AcceptIt, &[]), 1, words),
+                    words: Box::default(),
+                    selected: true,
+                    event: Event::Accept { object, revision: None },
+                },
+                OptionItem {
+                    name: numbered(&words.say(Word::NotNow, &[]), 2, words),
+                    words: Box::default(),
+                    selected: false,
+                    event: Event::Aside { object },
+                },
             ]),
             escape: Event::Aside { object },
         });
@@ -298,7 +328,9 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
     let mut items = List::with_capacity(u32::try_from(capacity).expect("commands fit"));
     for command in &own {
         match command {
-            Own::Draft | Own::Change | Own::Talk | Own::Ask => items.push(own_item(*command, words)).expect("own commands counted"),
+            Own::Draft | Own::Change | Own::Talk | Own::Ask => {
+                items.push(own_item(*command, words)).expect("own commands counted")
+            }
             Own::Brief | Own::Needs | Own::Open | Own::Tell | Own::Theme => {}
         }
     }

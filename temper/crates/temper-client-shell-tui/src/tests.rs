@@ -2251,7 +2251,8 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 host.out.push(root::Request::Show { address: address.clone(), replace: true });
                 let before = host.state().focus();
                 host.report(Report::Due);
-                host.root.pages().address() == &if row == "show chat" || row == "show talk" { address } else { Address::Home { project: 5 } }
+                host.root.pages().address()
+                    == &if row == "show chat" || row == "show talk" { address } else { Address::Home { project: 5 } }
                     && host.state().focus() > before
             }
             "new" => {

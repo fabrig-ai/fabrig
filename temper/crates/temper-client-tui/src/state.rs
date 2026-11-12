@@ -93,7 +93,8 @@ pub enum Notice {
     SigningIn,
     Proposed,
     Left { name: Box<[u8]>, minutes: u64, cost: Option<u64> },
-    NoRole { project: Box<[u8]>, words: Box<[u8]> },    Filed { number: u32, project: Box<[u8]> },
+    NoRole { project: Box<[u8]>, words: Box<[u8]> },
+    Filed { number: u32, project: Box<[u8]> },
     Theme { choice: ThemeChoice, terminal: Option<Scheme> },
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -180,8 +181,12 @@ pub enum Told {
         choice: ThemeChoice,
         terminal: Option<Scheme>,
     },
-    TalkList { open: bool },
-    ProposalAside { object: ObjectKey },
+    TalkList {
+        open: bool,
+    },
+    ProposalAside {
+        object: ObjectKey,
+    },
     ThemeList {
         open: bool,
     },
@@ -420,11 +425,16 @@ impl Tui {
         self.theme_list
     }
     #[must_use]
-    pub const fn talk_list(&self) -> bool { self.talk_list }
+    pub const fn talk_list(&self) -> bool {
+        self.talk_list
+    }
     #[must_use]
-    pub fn proposal_aside(&self, object: &ObjectKey) -> bool { self.proposals_aside.as_slice().contains(object) }
+    pub fn proposal_aside(&self, object: &ObjectKey) -> bool {
+        self.proposals_aside.as_slice().contains(object)
+    }
     fn clear_launchpad(&mut self) -> bool {
-        let changed = self.walk.is_some() || self.brief_shown || self.not_opened.is_some() || self.theme_list || self.talk_list;
+        let changed =
+            self.walk.is_some() || self.brief_shown || self.not_opened.is_some() || self.theme_list || self.talk_list;
         self.walk = None;
         self.theme_list = false;
         self.talk_list = false;
@@ -548,7 +558,9 @@ impl Tui {
                 changed
             }
             Told::ProposalAside { object } => {
-                if self.proposal_aside(&object) { false } else {
+                if self.proposal_aside(&object) {
+                    false
+                } else {
                     self.proposals_aside.push(object).expect("set aside cards fit memory");
                     true
                 }

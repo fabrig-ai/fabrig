@@ -109,8 +109,14 @@ fn state(tui: &Tui, root: &Domain) -> (Shared, Style) {
 pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot {
     let (state, style) = state(tui, root);
     let chat = root.pages().chat();
-    let talking = match chat { Some(chat) => chat.talk(), None => None };
-    let talk_name = match talking { Some(talking) => Some(super::talk::name(talking, words)), None => None };
+    let talking = match chat {
+        Some(chat) => chat.talk(),
+        None => None,
+    };
+    let talk_name = match talking {
+        Some(talking) => Some(super::talk::name(talking, words)),
+        None => None,
+    };
     let task = match chat {
         Some(chat) => chat.task(root.client()),
         None => None,
@@ -139,7 +145,10 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
         None => false,
     };
     let placeholder = if let Some(talking) = talking {
-        words.say(if talking.open().is_some() { Word::TalkReply } else { Word::TalkTo }, &[Hole::Name(super::talk::name(talking, words))])
+        words.say(
+            if talking.open().is_some() { Word::TalkReply } else { Word::TalkTo },
+            &[Hole::Name(super::talk::name(talking, words))],
+        )
     } else if chat.is_some() {
         words.say(if ended { Word::Ended } else { Word::Reply }, &[])
     } else if project.is_some() {
@@ -153,8 +162,11 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
         Some(chat) => chat.draft.is_some() || chat.writing,
         None => false,
     };
-    let standing =
-        if signing_in || list.is_some() || !(session || pane || talking.is_some()) { None } else { lists::reply(root, tui, words) };
+    let standing = if signing_in || list.is_some() || !(session || pane || talking.is_some()) {
+        None
+    } else {
+        lists::reply(root, tui, words)
+    };
     let mut reply = List::uncapped();
     if let Some(standing) = standing {
         for item in &standing.items {
@@ -164,34 +176,44 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
             list = Some(standing);
         }
     }
-    if list.is_none() && value.is_empty() && !signing_in { list = lists::proposal(root, tui, words); }
-    let rule = if talking.is_some() { None } else { match (chat, task) {
-        (Some(chat), Some(task)) => {
-            let mut project = Box::default();
-            if let Some(me) = root.pages().me(root.client()) {
-                for item in &me.projects {
-                    if item.project == task.project {
-                        project = copy_of(item.name.bytes());
-                        break;
+    if list.is_none() && value.is_empty() && !signing_in {
+        list = lists::proposal(root, tui, words);
+    }
+    let rule = if talking.is_some() {
+        None
+    } else {
+        match (chat, task) {
+            (Some(chat), Some(task)) => {
+                let mut project = Box::default();
+                if let Some(me) = root.pages().me(root.client()) {
+                    for item in &me.projects {
+                        if item.project == task.project {
+                            project = copy_of(item.name.bytes());
+                            break;
+                        }
                     }
                 }
+                Some(Rule {
+                    project,
+                    title: conversation::cut(&shared::heading(task.chip.title.bytes()), words),
+                    task: chat.task,
+                    place: crate::place(tui.address(), tui.front() || tui.boxed()),
+                })
             }
-            Some(Rule {
-                project,
-                title: conversation::cut(&shared::heading(task.chip.title.bytes()), words),
-                task: chat.task,
-                place: crate::place(tui.address(), tui.front() || tui.boxed()),
-            })
+            (Some(_), None) | (None, Some(_) | None) => None,
         }
-        (Some(_), None) | (None, Some(_) | None) => None,
-    }
     };
     Foot {
         talk_name,
-        talk_session: match talking { Some(talking) => super::talk::session(talking, words, wall), None => None },
+        talk_session: match talking {
+            Some(talking) => super::talk::session(talking, words, wall),
+            None => None,
+        },
         tick: match talking {
             Some(talking) => match talking.open() {
-                Some(open) => Some(Wall::from_nanos(open.opened.as_nanos().saturating_add(super::talk::minutes(open.opened, wall).saturating_add(1).saturating_mul(60_000_000_000)))),
+                Some(open) => Some(Wall::from_nanos(open.opened.as_nanos().saturating_add(
+                    super::talk::minutes(open.opened, wall).saturating_add(1).saturating_mul(60_000_000_000),
+                ))),
                 None => None,
             },
             None => None,
@@ -224,7 +246,15 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Foot 
                 },
             })
         },
-        running: if chat.is_some() && match talking { Some(talking) => talking.open().is_some(), None => true } { shared::running(root, words.view()) } else { None },
+        running: if chat.is_some()
+            && match talking {
+                Some(talking) => talking.open().is_some(),
+                None => true,
+            } {
+            shared::running(root, words.view())
+        } else {
+            None
+        },
         notice: match tui.notice() {
             Some(notice) => Some(words.notice(notice)),
             None => None,
@@ -275,7 +305,9 @@ fn proposal_refusal(root: &Domain, words: &Words) -> Option<Box<[u8]>> {
     let chat = root.pages().chat()?;
     chat.talk()?;
     for card in &chat.cards {
-        if let Some(outcome) = &card.outcome && let Some(refusal) = shared::outcome_refusal(outcome, words.view()) {
+        if let Some(outcome) = &card.outcome
+            && let Some(refusal) = shared::outcome_refusal(outcome, words.view())
+        {
             return Some(refusal);
         }
     }
@@ -390,7 +422,9 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     let mut left_width = width(&part.state);
     if let Some(name) = &part.talk_name {
         left_width = left_width.saturating_add(width(name));
-        if !part.state.is_empty() { left_width = left_width.saturating_add(width(&separator)); }
+        if !part.state.is_empty() {
+            left_width = left_width.saturating_add(width(&separator));
+        }
     }
     if part.session {
         left_width = left_width.saturating_add(width(&drafter));
@@ -441,7 +475,9 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     }
     if let Some(name) = &part.talk_name {
         text(b, Role::Text, name, Some(look::HINT));
-        if !part.state.is_empty() { text(b, Role::Text, &separator, Some(look::FAINT)); }
+        if !part.state.is_empty() {
+            text(b, Role::Text, &separator, Some(look::FAINT));
+        }
     }
     if part.session {
         text(b, Role::Text, &drafter, Some(look::HINT));

@@ -1447,7 +1447,11 @@ fn the_launchpad_surface_follows_the_displayed_facts() {
         Some(E::Open { address: Box::from(*b"http://127.0.0.1:8367/tasks/9") })
     );
     for (name, page, expected) in [
-        ("brief and need", SurfacePage::Home { brief: true, needs: true }, &[Own::Draft, Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Tell, Own::Theme][..]),
+        (
+            "brief and need",
+            SurfacePage::Home { brief: true, needs: true },
+            &[Own::Draft, Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Tell, Own::Theme][..],
+        ),
         (
             "neither",
             SurfacePage::Home { brief: false, needs: false },

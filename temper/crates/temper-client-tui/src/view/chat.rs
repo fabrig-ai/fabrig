@@ -44,7 +44,13 @@ pub(crate) enum Piece {
     View(Printed),
 }
 pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Chat {
-    let mut part = Chat { head: super::talk::read(root, tui, words), to_end: 0, entries: Box::default(), notes: foot::read_notes(root, tui, words), pane: None };
+    let mut part = Chat {
+        head: super::talk::read(root, tui, words),
+        to_end: 0,
+        entries: Box::default(),
+        notes: foot::read_notes(root, tui, words),
+        pane: None,
+    };
     if let Some(chat) = root.pages().chat() {
         part.to_end = chat.to_end();
         part.pane = pane::read(chat, tui.columns());
@@ -177,7 +183,9 @@ fn entry(b: &mut Builder, entry: &Entry, words: &Words) {
 }
 pub(crate) fn draw(b: &mut Builder, part: &Chat, words: &Words, _binds: &mut Binds) {
     b.open(Role::Main);
-    if let Some(head) = &part.head { super::talk::draw(b, head, words); }
+    if let Some(head) = &part.head {
+        super::talk::draw(b, head, words);
+    }
     if let Some(pane) = &part.pane
         && pane.mode == temper_client_domain::pages::chat::document::Mode::Draft
     {
@@ -187,7 +195,9 @@ pub(crate) fn draw(b: &mut Builder, part: &Chat, words: &Words, _binds: &mut Bin
     }
     b.open(Role::Log);
     b.end_request(part.to_end);
-    if part.head.is_some() { text(b, Role::Paragraph, b"", None); }
+    if part.head.is_some() {
+        text(b, Role::Paragraph, b"", None);
+    }
     b.open(Role::List);
     b.style(look::SPACED);
     for item in &part.entries {

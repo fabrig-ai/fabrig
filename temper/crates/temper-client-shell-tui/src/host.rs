@@ -526,7 +526,9 @@ impl Host {
             tui::Event::EndWalk => self.tell(Told::EndWalk),
             tui::Event::Typed { value } => {
                 self.tell(Told::TalkList { open: false });
-                if !value.is_empty() && let Some(tui::Event::Aside { object }) = tui::escape(&self.view) {
+                if !value.is_empty()
+                    && let Some(tui::Event::Aside { object }) = tui::escape(&self.view)
+                {
                     self.event(tui::Event::Aside { object }, duties);
                 }
                 self.tell(Told::ThemeList { open: false });
@@ -603,7 +605,9 @@ impl Host {
             tui::Event::Send => self.send(duties),
             tui::Event::Act { act } => self.act(act),
             tui::Event::Aside { object } => {
-                if matches!(object, jig_client::contract::ObjectKey::Proposal(_)) && self.root.pages().chat().is_some_and(|chat| chat.talk().is_some()) {
+                if matches!(object, jig_client::contract::ObjectKey::Proposal(_))
+                    && self.root.pages().chat().is_some_and(|chat| chat.talk().is_some())
+                {
                     self.tell(Told::ProposalAside { object });
                 } else {
                     self.tell(Told::Aside { object: Some(object) });
@@ -841,11 +845,22 @@ impl Host {
             let words: Box<[u8]> = words.into();
             let project = self.root.pages().project().expect("launchpad project");
             let team = root::pages::team::shown_at(&self.root, project, self.env.wall);
-            if let Some(role) = team.facts().into_iter().flat_map(|facts| facts.roles.iter()).find(|role| role.name.get(..words.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(&words))) {
+            if let Some(role) = team
+                .facts()
+                .into_iter()
+                .flat_map(|facts| facts.roles.iter())
+                .find(|role| role.name.get(..words.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(&words)))
+            {
                 self.act(Act::Go { address: Address::Talk { project, task: role.task } });
                 self.tell(Told::Cleared);
             } else {
-                let project = self.root.pages().me(self.root.client()).and_then(|me| me.projects.iter().find(|row| row.project == project)).map(|row| row.name.bytes().into()).unwrap_or_default();
+                let project = self
+                    .root
+                    .pages()
+                    .me(self.root.client())
+                    .and_then(|me| me.projects.iter().find(|row| row.project == project))
+                    .map(|row| row.name.bytes().into())
+                    .unwrap_or_default();
                 self.notice(tui::Notice::NoRole { project, words });
             }
         } else if let Some(words) = words.strip_prefix(b"/draft ").filter(|words| !words.is_empty())
@@ -906,7 +921,14 @@ impl Host {
         let project = talk.project;
         if let Some(open) = talk.open() {
             let name = talk.name().unwrap_or(b"").into();
-            let minutes = self.env.wall.as_nanos().saturating_sub(open.opened.as_nanos()).checked_div(60_000_000_000).expect("minute is nonzero").max(1);
+            let minutes = self
+                .env
+                .wall
+                .as_nanos()
+                .saturating_sub(open.opened.as_nanos())
+                .checked_div(60_000_000_000)
+                .expect("minute is nonzero")
+                .max(1);
             let cost = talk.cost();
             self.notice(tui::Notice::Left { name, minutes, cost });
         }

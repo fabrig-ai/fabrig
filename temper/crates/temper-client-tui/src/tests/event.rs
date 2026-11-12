@@ -84,6 +84,7 @@ fn the_own_commands_have_their_names() {
     for (command, name) in crate::Own::ALL.into_iter().zip([
         b"/draft".as_slice(),
         b"/change",
+        b"/talk",
         b"/ask",
         b"/brief",
         b"/needs",

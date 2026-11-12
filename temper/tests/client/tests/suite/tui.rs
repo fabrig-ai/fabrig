@@ -342,9 +342,8 @@ fn a_person_talks_with_a_standing_role_in_the_tui_and_leaves() {
     const REPLY: &[u8] = b"The handoff fix touches the same three functions.";
     let (mut front, task) = super::person_task_tools::parked_role();
     front.answer_runs = false;
-    let mut world: World<Temper, Joint> = World::new(
-        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() }, front,
-    );
+    let mut world: World<Temper, Joint> =
+        World::new(Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() }, front);
     world.randomness(0, 0, 0);
     let mut tui = Tui::role_launchpad(&mut world, TUI);
     assert!(tui.text().contains("/talk"), "{}", tui.text());
@@ -367,10 +366,12 @@ fn a_person_talks_with_a_standing_role_in_the_tui_and_leaves() {
     assert!(shown.contains(core::str::from_utf8(REPLY).unwrap()), "{shown}");
     tui.press(&mut world, vec![Key::Escape]);
     tui.run(&mut world, fixtures::WITHIN);
-    let ended = world.front().engine.store.rows.values().any(|record| matches!(record,
-        temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Activity(line)))
-        if line.task == task && matches!(line.line, jig_domain_tasks::Line::TalkEnded { lapsed: false, .. })
-    ));
+    let ended = world.front().engine.store.rows.values().any(|record| {
+        matches!(record,
+            temper_engine_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Activity(line)))
+            if line.task == task && matches!(line.line, jig_domain_tasks::Line::TalkEnded { lapsed: false, .. })
+        )
+    });
     assert!(ended, "Esc ends the engine's talk");
     assert!(world.front().engine.task(task).unwrap().talk.is_none());
     let shown = tui.text();
