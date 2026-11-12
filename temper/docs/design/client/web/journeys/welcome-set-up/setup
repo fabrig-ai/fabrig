@@ -1,4 +1,4 @@
 setup 1
 see "Welcome to temper"
 reload "/welcome"
-mark 7 "work/hello made"
+mark 4 "work/hello made"

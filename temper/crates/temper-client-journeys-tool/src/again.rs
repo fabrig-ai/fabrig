@@ -345,6 +345,7 @@ impl Walker {
                         .as_ref()
                         .and_then(|prepared| prepared.setup.marks.iter().find(|wait| wait.mark == mark))
                 {
+                    note_mark_wait(&self.name, mark, &self.steps[self.at]);
                     self.since = None;
                     self.phase = Phase::MarkWait { mark, text: wait.text.clone() };
                     return Ok(Next::Wait { until: Some(now.saturating_add(POLL)) });
@@ -458,6 +459,11 @@ impl Play for Walker {
             }
         }
     }
+}
+#[expect(clippy::print_stderr, reason = "generation names a declared setup wait and whether its save is a key mark or the end")]
+fn note_mark_wait(name: &str, mark: u32, step: &Step) {
+    let saving = if matches!(step, Step::End) { "end" } else { "mark" };
+    eprintln!("{name}: setup mark {mark} wait at {saving}");
 }
 pub(crate) fn copy_act(act: &Act) -> Act {
     match act {
