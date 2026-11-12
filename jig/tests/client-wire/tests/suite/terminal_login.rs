@@ -17,6 +17,10 @@ fn goldens<T>(
     }
 }
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table pins the lent-terminal records, variants and optional fields against their goldens"
+)]
 fn lent_terminal_forms_keep_their_goldens() {
     goldens(
         &[
