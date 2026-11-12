@@ -23,6 +23,10 @@ pub(super) fn request(value: w::Request) -> Option<root::Application> {
                 number: value.number,
                 area: value.area,
                 why: value.why,
+            hander: match value.hander {
+                Some(value) => Some(filer(value, limits)?),
+                None => None,
+            },
             }))
         }
         w::Request::TriageFinding(value) => {
@@ -199,6 +203,10 @@ fn row(value: forge::FindingRow, limits: &w::Limits) -> Option<w::FindingRow> {
             holder: holder(value.holder, limits)?,
             at: value.at.as_nanos(),
             why: value.why,
+            hander: match value.hander {
+                Some(value) => Some(filer(value, limits)?),
+                None => None,
+            },
         },
     )
     .ok()
@@ -253,14 +261,7 @@ pub(super) fn read_answer(value: Option<forge::FindingAnswer>, limits: &w::Limit
     let result = match value {
         None => w::FindingResult::NoFinding,
         Some(value) => {
-            let filer = match value.filer {
-                forge::Filer::Task(number) => {
-                    w::Filer::Task(w::HolderTask::new(limits, w::HolderTaskParts { number }).ok()?)
-                }
-                forge::Filer::Party(number) => {
-                    w::Filer::Party(w::HolderParty::new(limits, w::HolderPartyParts { number }).ok()?)
-                }
-            };
+            let filer = filer(value.filer, limits)?;
             w::FindingResult::Finding(
                 w::FindingDetail::new(
                     limits,
@@ -278,4 +279,11 @@ pub(super) fn read_answer(value: Option<forge::FindingAnswer>, limits: &w::Limit
     };
     let record = w::FindingAnswer::new(limits, w::FindingAnswerParts { result }).ok()?;
     Some(wire::finding_answer(&record))
+}
+
+fn filer(value: forge::Filer, limits: &w::Limits) -> Option<w::Filer> {
+    Some(match value {
+        forge::Filer::Task(number) => w::Filer::Task(w::HolderTask::new(limits, w::HolderTaskParts { number }).ok()?),
+        forge::Filer::Party(number) => w::Filer::Party(w::HolderParty::new(limits, w::HolderPartyParts { number }).ok()?),
+    })
 }

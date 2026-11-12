@@ -135,6 +135,9 @@ impl Inbox {
     }
     fn refresh(&mut self, source: &Client, out: &mut Queue<Request>) {
         self.arrived = [None, None];
+        if self.filter.kind == Some(Kind::Finding) {
+            self.replace(out); self.answered = [true, false]; self.cut = [false; 2]; return;
+        }
         if self.filter.project.is_some() || self.filter.goal.is_some() {
             for (handle, group) in self.queries.into_iter().zip([InboxReadGroup::Needs, InboxReadGroup::Updates]) {
                 if self.filter.kind.is_some() && group == InboxReadGroup::Updates {
@@ -149,7 +152,7 @@ impl Inbox {
                             group,
                             project: self.filter.project,
                             kind: match self.filter.kind {
-                                Some(value) => Some(kind(value)),
+                                Some(value) => kind(value),
                                 None => None,
                             },
                             goal: self.filter.goal,
@@ -242,7 +245,7 @@ impl Inbox {
             return;
         }
         if let Some(filter) = self.filter.kind
-            && kind(filter) != group
+            && kind(filter) != Some(group)
         {
             return;
         }
@@ -395,12 +398,13 @@ impl Inbox {
     }
 }
 #[must_use]
-pub const fn kind(kind: Kind) -> InboxGroup {
+pub const fn kind(kind: Kind) -> Option<InboxGroup> {
     match kind {
-        Kind::Proposal => InboxGroup::Proposals,
-        Kind::Question => InboxGroup::Questions,
-        Kind::Held => InboxGroup::Escalations,
-        Kind::PersonTask => InboxGroup::PersonTasks,
+        Kind::Proposal => Some(InboxGroup::Proposals),
+        Kind::Question => Some(InboxGroup::Questions),
+        Kind::Held => Some(InboxGroup::Escalations),
+        Kind::PersonTask => Some(InboxGroup::PersonTasks),
+        Kind::Finding => None,
     }
 }
 fn handle(number: u64) -> Handle {

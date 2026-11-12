@@ -160,6 +160,7 @@ fn row() -> v1::FindingRow {
             holder: holder(),
             at: u64::MAX,
             why: Some(filled(200)),
+            hander: Some(v1::Filer::Party(v1::HolderParty::new(&v1::CEILINGS, v1::HolderPartyParts { number: u64::MAX }).unwrap())),
         },
     )
     .unwrap()

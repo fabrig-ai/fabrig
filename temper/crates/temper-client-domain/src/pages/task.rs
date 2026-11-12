@@ -465,6 +465,7 @@ impl Task {
             | Act::Models(_)
             | Act::StopAsking(_)
             | Act::Needs(_)
+            | Act::Finding(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)
@@ -605,6 +606,7 @@ impl Task {
             | Act::Models(_)
             | Act::StopAsking(_)
             | Act::Needs(_)
+            | Act::Finding(_)
             | Act::Choice(_)
             | Act::SignOut
             | Act::Accounts(_)

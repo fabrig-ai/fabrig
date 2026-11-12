@@ -103,6 +103,7 @@ pub enum Kind {
     Question,
     Held,
     PersonTask,
+    Finding,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Place {
@@ -424,6 +425,7 @@ fn print_filter(filter: Filter) -> Box<[u8]> {
         Some(Kind::Question) => b"question".as_slice(),
         Some(Kind::Held) => b"held".as_slice(),
         Some(Kind::PersonTask) => b"person-task".as_slice(),
+        Some(Kind::Finding) => b"finding".as_slice(),
         None => b"".as_slice(),
     };
     let fields = [
@@ -477,6 +479,7 @@ fn parse_filter(query: &[u8]) -> Filter {
                     b"question" => Some(Kind::Question),
                     b"held" => Some(Kind::Held),
                     b"person-task" => Some(Kind::PersonTask),
+                    b"finding" => Some(Kind::Finding),
                     _ => None,
                 };
             }
