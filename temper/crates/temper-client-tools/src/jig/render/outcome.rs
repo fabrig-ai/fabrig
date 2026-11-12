@@ -1228,6 +1228,7 @@ fn owner_lack(lacking: &c::Lacking) -> bool {
 fn creation_word(tasks: &skein_lib::List<c::NewTask>) -> &'static [u8] {
     match tasks.get(0) {
         Some(task) if task.flags.ended_by == c::EndedBy::Standing => b"role",
+        Some(c::NewTask { executor: c::Executor::Person(_), .. }) => b"need",
         Some(task) if !task.flags.conversation => b"goal",
         Some(_) | None => b"chat",
     }

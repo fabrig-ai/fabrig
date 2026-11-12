@@ -2,6 +2,7 @@
 pub(crate) mod choice;
 mod goal;
 mod role;
+mod need;
 mod subject;
 use super::{Called, Out, Runner, finish};
 use crate::jig::{
@@ -72,6 +73,7 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
     if called.call.tool == rows::CHAT_CREATE_AT
         || called.call.tool == rows::GOAL_START_AT
         || called.call.tool == rows::ROLE_START_AT
+        || called.call.tool == rows::NEED_ASK_AT
     {
         let Some(me) = me(runner, client) else { return };
         let ask = creation(&called.call, me, &env.limits);
@@ -208,6 +210,7 @@ fn creation(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
     match call.tool {
         rows::GOAL_START_AT => goal::start(call, me, limits),
         rows::ROLE_START_AT => role::start(call, me, limits),
+        rows::NEED_ASK_AT => need::ask(call, me, limits),
         _ => chat(call, me, limits),
     }
 }

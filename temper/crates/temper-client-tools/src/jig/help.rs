@@ -145,6 +145,7 @@ pub(crate) fn argument_type(kind: Kind, out: &mut Writer) -> Result<(), Overflow
         Kind::Digest => b"a digest, as a read prints it",
         Kind::Condition => b"a condition",
         Kind::Project { .. } => b"a project's name or number",
+        Kind::Finding => b"P/N: a project name or number, then a finding number",
         Kind::Turn => b"an attempt and a turn, A.T",
         Kind::Cursor => b"a cursor, as a read prints it",
         Kind::Group => b"one of questions, proposals, escalations, person-tasks, results or replies",
