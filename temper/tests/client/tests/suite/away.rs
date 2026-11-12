@@ -209,12 +209,9 @@ impl Story {
         ) else {
             panic!("tool answer")
         };
-        let rendered = temper_engine_smith::answer_for_tool(
-            &answer,
-            b"decided",
-            1024,
-            temper_engine_smith::ForgeReadBounds::STOCK,
-        );
+        let (name, _) = self.front.engine.protocol.answers.last().expect("rendered decision");
+        let how = *self.front.engine.protocol.asks.get(name).expect("root supplied HOW");
+        let rendered = temper_engine_smith::answer_for_decided(&answer, how);
         let text = String::from_utf8(rendered.text().to_vec()).expect("tool words");
         self.pump();
         text
@@ -1008,7 +1005,10 @@ fn a_goal_is_answered_by_the_switch() {
     story.toggle();
     assert_eq!(
         story.decide(goal, 2),
-        "Ask: implementation asks your person while they are here. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
+        format!(
+            "Ask: implementation asks your person while they are here. Ask person {} with delegate, a person task addressed to them.",
+            fixtures::PARTY
+        )
     );
     asked_after(&decisions, &story.decisions());
     assert_eq!(
@@ -1037,7 +1037,10 @@ fn past_until_the_client_draws_off_and_the_root_says_ask() {
     assert_eq!(story.stored(), before, "expiry does not write the Away row");
     assert_eq!(
         story.decide(goal, 2),
-        "Ask: implementation asks your person while they are here. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
+        format!(
+            "Ask: implementation asks your person while they are here. Ask person {} with delegate, a person task addressed to them.",
+            fixtures::PARTY
+        )
     );
     asked_after(&decisions, &story.decisions());
     assert_eq!(story.stored(), before, "the call does not write the expired Away row");
