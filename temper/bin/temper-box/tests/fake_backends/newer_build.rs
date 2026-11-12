@@ -69,8 +69,7 @@ impl Installed {
             fs::copy(source, target).expect("install build file");
         }
         for name in ["temper-box", "fake-claude"] {
-            fs::set_permissions(self.bin().join(name), fs::Permissions::from_mode(0o700))
-                .expect("private executable");
+            fs::set_permissions(self.bin().join(name), fs::Permissions::from_mode(0o700)).expect("private executable");
         }
     }
 
@@ -140,7 +139,11 @@ impl Probe {
             assert!(!path.as_os_str().as_encoded_bytes().ends_with(b" (deleted)"), "PID {pid}: deleted exe");
             let identity = Identity::of(&exe);
             assert!(!self.old.contains(&identity), "PID {pid}: old build inode");
-            assert!(identities.contains(&identity), "PID {pid}: executable outside the installed/configured files: {path:?}");
+            assert!(
+                identities.contains(&identity),
+                "PID {pid}: executable outside the installed/configured files: {}",
+                path.display()
+            );
             seen.push(identity);
         }
         assert!(seen.contains(&identities[0]), "the installed box is running");
@@ -221,29 +224,35 @@ fn kept(client: &Path) -> Kept {
     }
 }
 fn answered(call: &Ended) {
-    assert_eq!(call.exit, Some(Exit::Code(0)), "ctl: {}", String::from_utf8_lossy(&call.stderr));
+    assert_eq!(call.exit, Some(Exit::Code(0)), "ctl: {}", support::without_secrets(&call.stderr));
 }
 fn drained<T>(outcome: &boxed::CtlOutcome<T>, calls: usize) {
-    assert_eq!(outcome.exit, Some(Exit::Code(0)), "box: {}", String::from_utf8_lossy(&outcome.stderr));
+    assert_eq!(outcome.exit, Some(Exit::Code(0)), "box: {}", support::without_secrets(&outcome.stderr));
     assert_eq!(outcome.left, Some(Vec::new()), "no process outlives its box");
     assert_eq!(outcome.calls.len(), calls, "every ctl act completed");
     for call in &outcome.calls {
         answered(call);
     }
-    assert!(outcome.stdout.ends_with(b"\n"), "complete sign-in link");
-    assert_eq!(outcome.stdout.iter().filter(|&&byte| byte == b'\n').count(), 1, "one link at this start");
-    assert!(support::printed_link(&outcome.stdout).is_some(), "sign-in link printed");
+    support::assert_one_printed_link("newer build", &outcome.stdout, &outcome.stderr);
 }
 
 fn page(config: &Path) {
     let document: Value = serde_json::from_slice(&fs::read(config.join("temper.json")).expect("configuration"))
         .expect("configuration JSON");
     let address = document["application"]["clients"]["listener"]["socket"]
-        .as_str().expect("clients address").parse().expect("clients socket");
+        .as_str()
+        .expect("clients address")
+        .parse()
+        .expect("clients socket");
     let mut socket = support::socket::Socket::connect(
-        address, "the new page's connection", support::WITHIN,
-        ["the new page's reply", "the new page's request"], true, None,
-    ).expect("served page connection");
+        address,
+        "the new page's connection",
+        support::WITHIN,
+        ["the new page's reply", "the new page's request"],
+        true,
+        None,
+    )
+    .expect("served page connection");
     socket.write_all(b"GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n").expect("page request");
     let mut bytes = Vec::new();
     socket.take(65_536).read_to_end(&mut bytes).expect("page reply");
@@ -269,8 +278,18 @@ fn first_chat(programs: PathBuf) -> Vec<Step> {
         Step::ProgramLogin(SOURCE),
         Step::Run(Call::new(&["account", "verify", "1", "--source", "program", "--json"])),
         Step::Run(Call::new(&["account", "list", "--until", "usable", "--json"])),
-        Step::Run(Call::new(&["chat", "start", "--project", "hello", "--model", "claude-opus-5-5",
-            "--key", "before-stop", "Hello before the stop", "--json"])),
+        Step::Run(Call::new(&[
+            "chat",
+            "start",
+            "--project",
+            "hello",
+            "--model",
+            "claude-opus-5-5",
+            "--key",
+            "before-stop",
+            "Hello before the stop",
+            "--json",
+        ])),
         Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
     ]
 }
@@ -287,8 +306,18 @@ fn after_restart(probe: Probe, config: PathBuf, client: PathBuf, before: Kept) -
         Step::Then(Box::new(move |_| {
             assert_eq!(kept(&client), before, "forge, repository, adoption and task survived unchanged");
             page(&config);
-            Call::new(&["chat", "start", "--project", "hello", "--model", "claude-opus-5-5",
-                "--key", "after-restart", LIVE, "--json"])
+            Call::new(&[
+                "chat",
+                "start",
+                "--project",
+                "hello",
+                "--model",
+                "claude-opus-5-5",
+                "--key",
+                "after-restart",
+                LIVE,
+                "--json",
+            ])
         })),
         Step::Run(Call::new(&["task", "show", "2", "--until", "phase:running", "--json"])),
         Step::Then(Box::new(move |_| {
@@ -305,7 +334,11 @@ fn a_stopped_fake_box_starts_with_new_files_at_the_same_paths() {
     let root = installed.scratch.path();
     let programs = installed.paths[1].join("box/fake-backends/data/programs").join(SOURCE);
     let first = boxed::run_ctl_from(
-        &installed.bin().join("temper-box"), root, installed.flags(), root, first_chat(programs),
+        &installed.bin().join("temper-box"),
+        root,
+        installed.flags(),
+        root,
+        first_chat(programs),
         |_| (kept(root), Guard::observing_test()),
     );
     drained(&first, 8);
@@ -318,13 +351,15 @@ fn a_stopped_fake_box_starts_with_new_files_at_the_same_paths() {
     let client = root.join("restarted-client");
     super::private(&client);
     let steps = after_restart(installed.probe(old), installed.config(), client.clone(), before);
-    let restarted = boxed::run_ctl_from(
-        &installed.bin().join("temper-box"), root, installed.flags(), &client, steps,
-        |_| Guard::observing_test(),
-    );
+    let restarted =
+        boxed::run_ctl_from(&installed.bin().join("temper-box"), root, installed.flags(), &client, steps, |_| {
+            Guard::observing_test()
+        });
     drained(&restarted, 7);
-    assert!(restarted.checked.expect("both executable snapshots and new page checked").all_exited(),
-        "nothing left after the restarted box's termination");
+    assert!(
+        restarted.checked.expect("both executable snapshots and new page checked").all_exited(),
+        "nothing left after the restarted box's termination"
+    );
     drop(old_files);
     installed.scratch.remove();
 }
