@@ -47,7 +47,7 @@ fn prepare(
     let agent =
         if named.worker.is_some() { Some(worker.expect("checked worker half").preflight(&named)?) } else { None };
     let crate::serve::Inputs { files, google, bundle } =
-        crate::serve::before_root(&mut named, skein_shell::effective_user())?;
+        crate::serve::before_root(&mut named, skein_shell::effective_user(), false)?;
     let roots = crate::serve::trust(None)?;
     let github = crate::serve::github_runtime(binary, named.machine.github.as_ref(), &roots, crate::address)?;
     let document = jig_protocol_config::document(

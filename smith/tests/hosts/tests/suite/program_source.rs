@@ -108,6 +108,9 @@ mod tests {
         );
         assert_eq!(run.observations.len(), 1);
         assert_eq!(run.observations.first().expect("one observation").arguments, ["auth", "status"]);
-        assert_eq!(run.observations.first().expect("one observation").environment, ["HOME", "CLAUDE_CONFIG_DIR"]);
+        assert_eq!(
+            run.observations.first().expect("one observation").environment,
+            ["HOME", "CLAUDE_CONFIG_DIR", "ANTHROPIC_CONFIG_DIR"]
+        );
     }
 }

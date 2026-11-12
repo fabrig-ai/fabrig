@@ -119,6 +119,7 @@ pub(crate) fn run(
     options: &Options,
     echo: temper_box_machine::host::Echo,
     front: bool,
+    record: bool,
     environment: &[crate::EnvironmentEntry],
 ) -> Result<Exit, String> {
     let binary = std::env::current_exe().map_err(|why| why.to_string())?;
@@ -137,6 +138,7 @@ pub(crate) fn run(
         steps,
         echo,
         front,
+        record,
         opening,
         environment,
     );

@@ -41,6 +41,16 @@ fn both_launches_wrap_only_program_and_arguments() {
             let arguments: Box<[_]> = launch.args.iter().map(AsRef::as_ref).collect();
             assert_eq!(arguments, expected, "parent={parent:?}");
             assert_eq!(launch.env, direct.env, "environment unchanged");
+            assert_eq!(
+                launch
+                    .env
+                    .iter()
+                    .filter(|entry| entry.starts_with(b"ANTHROPIC_"))
+                    .map(AsRef::as_ref)
+                    .collect::<Box<[_]>>()
+                    .as_ref(),
+                &[b"ANTHROPIC_CONFIG_DIR=/programs/source/anthropic".as_slice()]
+            );
             assert_eq!(launch.dir, direct.dir, "directory unchanged");
             assert_eq!(launch.root, direct.root, "root unchanged");
             assert_eq!(launch.pipes, direct.pipes, "pipes unchanged");

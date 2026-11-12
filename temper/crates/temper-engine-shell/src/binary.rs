@@ -92,13 +92,17 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
             let (directories, rest) =
                 directories::resolve(arguments, &captured.environment, working.as_os_str().as_bytes())
                     .map_err(|why| refused(&why.to_string()))?;
-            if !rest.is_empty() {
-                return Err(refused("invalid arguments"));
-            }
+            let record = recording(&rest).ok_or_else(|| refused("invalid arguments"))?;
             refuse_document(command, &directories).map_err(|why| (1, why))?;
             Ok(
-                match serve::run(ENGINE.binary, &captured.environment, working.as_os_str().as_bytes(), &directories)
-                    .map_err(|why| (1, why))?
+                match serve::run(
+                    ENGINE.binary,
+                    &captured.environment,
+                    working.as_os_str().as_bytes(),
+                    &directories,
+                    record,
+                )
+                .map_err(|why| (1, why))?
                 {
                     Exit::Code(code) => code,
                     Exit::Signal(_) => 1,
@@ -185,4 +189,32 @@ pub fn versions() -> String {
         writeln!(text, "wire {} {}", wire.name, wire.version).expect("writing into a string");
     }
     text
+}
+
+fn recording(arguments: &[Box<[u8]>]) -> Option<bool> {
+    match arguments {
+        [] => Some(false),
+        [flag] if flag.as_ref() == b"--record" => Some(true),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn engine_serve_accepts_record_once_only() {
+        for (words, expected) in [
+            (&[][..], Some(false)),
+            (&["--record"][..], Some(true)),
+            (&["--record", "--record"][..], None),
+            (&["--other"][..], None),
+        ] {
+            let arguments: Vec<_> = words.iter().map(|word| Box::from(word.as_bytes())).collect();
+            assert_eq!(super::recording(&arguments), expected);
+        }
+        let switch =
+            crate::commands::SERVE.switches.iter().find(|switch| switch.name == "record").expect("public switch");
+        assert_eq!(switch.set, skein_shell::Set::Public);
+        assert_eq!(switch.line, "Have every page served record a journey in its browser, saved by Alt+Shift+S.");
+    }
 }

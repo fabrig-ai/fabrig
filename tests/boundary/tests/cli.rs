@@ -92,7 +92,6 @@ const FEATURE_EXCEPTIONS: &[Exception] = &[
     Exception { what: "smith/Cargo.toml: smith-events", until: "smith's round" },
     Exception { what: "smith/Cargo.toml: smith-fake-claude", until: "smith's round" },
     Exception { what: "smith/benchmarks/Cargo.toml: [features]", until: "smith's round" },
-    Exception { what: "smith/benchmarks/Cargo.toml: rusqlite", until: "smith's round" },
     Exception { what: "smith/benchmarks/Cargo.toml: serde", until: "smith's round" },
     Exception { what: "smith/benchmarks/Cargo.toml: serde_json", until: "smith's round" },
     Exception { what: "smith/benchmarks/Cargo.toml: smith-bench", until: "smith's round" },

@@ -17,7 +17,7 @@ pub use fields::fields_mut;
 pub use line::{Field, Line, Read as Fields, Unreadable, fields as read_fields, lines};
 pub use originals::{SECRET_EVENT, kept_head, originals, typed};
 pub use record::Recorder;
-pub use redact::{Redacted, Unredacted, redact};
+pub use redact::{Redacted, Unredacted, redact, saved};
 pub use replay::prove_drawn;
 pub use replay::{Mark, Refusal, Replay, Stale, prove};
 pub use scan::{Found, Place, Shape, What, original, shape};

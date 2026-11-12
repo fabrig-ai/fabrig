@@ -276,6 +276,10 @@ impl Bundle {
         };
         self.insert_meta(meta)
     }
+    /// Enable browser recording at start, after sign-in ways (client/web/README.md, 2.2).
+    pub fn fill_record(&mut self) -> Option<()> {
+        self.insert_meta(b"<meta name=\"temper-record\" content=\"on\">")
+    }
     fn insert_meta(&mut self, meta: &[u8]) -> Option<()> {
         let at = bytes::find(&self.page, b"</head>")?;
         self.replace_metas(at, at, meta)
