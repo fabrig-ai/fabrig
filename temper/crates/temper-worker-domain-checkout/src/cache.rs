@@ -250,13 +250,7 @@ impl Cache {
 
     pub(crate) fn unwait(&mut self, store: Id<Store>, hold: Id<Hold>) {
         let entry = self.stores.get_mut(store).expect("a waiter borrows its store");
-        let mut waiters = mem::replace(&mut entry.waiters, Queue::uncapped());
-        for _ in 0..waiters.len() {
-            let waiter = waiters.pop().expect("the store's waiting holds");
-            if waiter != hold {
-                entry.waiters.push(waiter);
-            }
-        }
+        unqueue(&mut entry.waiters, hold);
     }
 
     /// Finish the claim and hand back the holds to resume, FIFO: every waiter
@@ -359,6 +353,17 @@ impl Cache {
 }
 
 /// Whether any repository restores saved work into an empty directory.
+/// Remove a waiting hold without changing the other holds' order.
+/// Used for store waiters and prepares waiting for a permit.
+pub(crate) fn unqueue(queue: &mut Queue<Id<Hold>>, hold: Id<Hold>) {
+    for _ in 0..queue.len() {
+        let waiter = queue.pop().expect("the waiting holds");
+        if waiter != hold {
+            queue.push(waiter);
+        }
+    }
+}
+
 fn starts_saved(repositories: &[Repository]) -> bool {
     for repository in repositories {
         if repository.start.is_saved() {

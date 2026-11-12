@@ -1073,6 +1073,12 @@ pub static NAMES: [Name; 182] = [
         value: |limits| u64::from(limits.checkout.workspaces),
     },
     Name {
+        name: "checkout.preparations",
+        unit: Unit::Count,
+        line: "Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival.",
+        value: |limits| u64::from(limits.checkout.preparations),
+    },
+    Name {
         name: "checkout.repositories",
         unit: Unit::Count,
         line: "Bounds repositories named by one checkout specification.",

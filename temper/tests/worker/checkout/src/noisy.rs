@@ -19,9 +19,11 @@ pub fn noisy(seed: u64) -> Settings {
     let local_timeout = millis(50, 600);
     let mut rng = Rng::new(seed.wrapping_add(1));
     let mut pick = |low: u64, high: u64| u32::try_from(rng.between(low, high)).expect("small numbers");
+    let workspaces = pick(1, 3);
     Settings {
         checkout: Limits {
-            workspaces: pick(1, 3),
+            workspaces,
+            preparations: workspaces,
             repositories: pick(1, 3),
             remote_timeout,
             local_timeout,

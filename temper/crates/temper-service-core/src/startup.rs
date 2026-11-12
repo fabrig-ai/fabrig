@@ -182,6 +182,9 @@ pub fn configured_limits<E>(
             let Some(value_at) = object.member(document, name) else { continue };
             match read::integer(document, value_at, u64::MAX) {
                 Ok(value) => {
+                    if name == b"checkout.preparations" && value == 0 {
+                        problems.push(path.member(name), What::Against { other: b"0; requires at least 1" });
+                    }
                     if let Err(what) = limits::apply(&mut limits, name, value) {
                         problems.push(path.member(name), What::Override(what));
                     }

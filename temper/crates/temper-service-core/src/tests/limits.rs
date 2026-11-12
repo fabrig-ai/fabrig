@@ -22,6 +22,7 @@ fn profiles_keep_the_shared_checkout_git_and_peer_envelopes() {
     let expected = Shared {
         checkout: Checkout {
             workspaces: 3,
+            preparations: 1,
             repositories: 2,
             name_bytes: 256,
             message_bytes: 4096,
@@ -52,6 +53,7 @@ fn shared_overrides_apply_only_to_the_named_field() {
     let small = limits::profile(Profile::Small);
     for (name, expected) in [
         (b"checkout.workspaces".as_slice(), Shared { checkout: Checkout { workspaces: 7, ..small.checkout }, ..small }),
+        (b"checkout.preparations", Shared { checkout: Checkout { preparations: 7, ..small.checkout }, ..small }),
         (b"checkout.repositories", Shared { checkout: Checkout { repositories: 7, ..small.checkout }, ..small }),
         (b"checkout.name_bytes", Shared { checkout: Checkout { name_bytes: 7, ..small.checkout }, ..small }),
         (b"checkout.message_bytes", Shared { checkout: Checkout { message_bytes: 7, ..small.checkout }, ..small }),

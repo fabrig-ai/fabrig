@@ -14,6 +14,7 @@ use temper_worker_domain_checkout::{
 
 const LIMITS: Limits = Limits {
     workspaces: 2,
+    preparations: 2,
     repositories: 2,
     name_bytes: 32,
     message_bytes: 128,

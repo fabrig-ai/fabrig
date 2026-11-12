@@ -1,6 +1,7 @@
 //! Holds: a client's hold on a workspace, from its prepare to its release,
 //! and the operations it runs there, one at a time (domain/worker/README.md, 4.2
-//! steps 2, 7 and 8, and 5).
+//! steps 2, 7 and 8, and 5). Preparations take permits in arrival order
+//! (domain/worker/checkouts.md, Preparations a few at a time).
 //!
 //! A prepare that passes the entrance holds a workspace ([`crate::cache`]) and
 //! readies it, one operation at a time. An evicted workspace may keep its
@@ -51,6 +52,12 @@
 //! (none)      prepare, refused          (none)      prepared: refused
 //!             prepare, admitted         Preparing   held, io: store, look, make or fetch
 //!             ... another makes store   Waiting     held
+//!             ... every permit taken    Queued      held
+//! Queued      permit returned           Preparing   io: store, look, make or fetch
+//!             ... another makes store   Waiting     (nothing)
+//!             abort                     Unprepared  prepared: aborted
+//!             release                   Closed      prepared: aborted, released
+//!             push, save                Queued      pushed or saved: refused, busy
 //! Preparing   done, more to do          Preparing   io: the next operation
 //!             done, merge checked out   Preparing   io: compare base/head, or merge
 //!             done, base contained      Preparing   io: fetch landing or push branch
@@ -177,6 +184,8 @@ pub(crate) struct Tips {
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 enum State {
+    /// Holds a workspace and borrows stores, waiting for a preparation permit.
+    Queued { cached: Cached },
     /// Preparing the workspace: `step` is in flight.
     Preparing { step: PrepareStep, asked: Asked },
     /// Waiting for another hold's store, with no operation in flight.
@@ -393,7 +402,21 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
     let hold = Hold { holding, state: State::Closed };
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
-    let hold = domain.holds.get_mut(id).expect("inserted above");
+    if domain.active < env.limits.preparations {
+        admit(domain, env, id, cached, out);
+    } else {
+        domain.holds.get_mut(id).expect("inserted above").state = State::Queued { cached };
+        domain.queued.push(id);
+        domain.facts.push(Fact::Queued { client });
+    }
+    conclude(domain, id, false, out, mark);
+}
+
+/// The first step is shared by prepares arriving with a free permit and
+/// those admitted from the queue. Its io deadlines start at this step's now.
+fn admit(domain: &mut Domain, env: &Env<Limits>, id: Id<Hold>, cached: Cached, out: &mut Queue<Request>) {
+    domain.active = domain.active.checked_add(1).expect("one active prepare per held workspace");
+    let hold = domain.holds.get_mut(id).expect("an admitted hold lives");
     hold.state = match cached {
         Cached::Reused | Cached::Kept => {
             prepare_step(&hold.holding, id, PrepareStep::Fetch { repository: 0 }, env, out)
@@ -402,7 +425,24 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
             stores_step(&hold.holding, &mut domain.cache, id, 0, cached == Cached::Looking, env, out)
         }
     };
-    conclude(domain, id, out, mark);
+}
+
+/// Store successors are resumed before new admissions, preserving the oldest
+/// store waiter's claim when a maker fails. All admissions are in this step.
+fn admissions(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    while domain.active < env.limits.preparations {
+        let Some(id) = domain.queued.pop() else { break };
+        let cached = match domain.holds.get(id).expect("a queued hold lives").state {
+            State::Queued { cached } => cached,
+            State::Preparing { .. } | State::Waiting { .. } | State::Ready
+            | State::Unprepared | State::Pushing { .. } | State::Closed => {
+                unreachable!("only queued holds wait for permits")
+            }
+        };
+        let mark = out.len();
+        admit(domain, env, id, cached, out);
+        conclude(domain, id, false, out, mark);
+    }
 }
 
 pub(crate) fn push(domain: &mut Domain, env: &Env<Limits>, hold: Token, message: Message, out: &mut Queue<Request>) {
@@ -425,39 +465,50 @@ fn start(domain: &mut Domain, env: &Env<Limits>, hold: Token, to: To, message: M
         return;
     };
     let hold = domain.holds.get_mut(id).expect("addressed above");
+    let was_active = active(&hold.state);
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = match state {
         State::Ready => begin(&hold.holding, id, to, message, env, out),
-        busy @ (State::Preparing { .. } | State::Waiting { .. } | State::Pushing { .. } | State::Unprepared) => {
+        busy @ (State::Queued { .. } | State::Preparing { .. } | State::Waiting { .. } | State::Pushing { .. } | State::Unprepared) => {
             answer(hold.holding.client, &to, Outcome::Refused { refusal: Refusal::Busy }, out);
             busy
         }
         State::Closed => unreachable!("an addressed hold has not been released"),
     };
-    conclude(domain, id, out, mark);
+    conclude(domain, id, was_active, out, mark);
 }
 
-pub(crate) fn abort(domain: &mut Domain, hold: Token, out: &mut Queue<Request>) {
-    ask(domain, hold, Asked::Abort, out);
+pub(crate) fn abort(domain: &mut Domain, env: &Env<Limits>, hold: Token, out: &mut Queue<Request>) {
+    ask(domain, env, hold, Asked::Abort, out);
 }
 
-pub(crate) fn release(domain: &mut Domain, hold: Token, out: &mut Queue<Request>) {
-    ask(domain, hold, Asked::Release, out);
+pub(crate) fn release(domain: &mut Domain, env: &Env<Limits>, hold: Token, out: &mut Queue<Request>) {
+    ask(domain, env, hold, Asked::Release, out);
 }
 
 /// The client asks to abort, or to release: a prepare's operation is
 /// cancelled the first time it asks, a push's runs to its end, and a hold
 /// with nothing under way is released at once.
-fn ask(domain: &mut Domain, hold: Token, now: Asked, out: &mut Queue<Request>) {
+fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mut Queue<Request>) {
     let mark = out.len();
     let Some(id) = addressed(&domain.holds, hold) else {
         return;
     };
     let hold = domain.holds.get_mut(id).expect("addressed above");
+    let was_active = active(&hold.state);
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = match state {
         State::Preparing { step, asked } => State::Preparing { step, asked: cancelling(id, asked, now, out) },
         State::Pushing { push, step, asked } => State::Pushing { push, step, asked: outranking(asked, now) },
+        State::Queued { .. } => {
+            crate::cache::unqueue(&mut domain.queued, id);
+            out.push(Request::Prepared { client: hold.holding.client, prepared: Prepared::Aborted });
+            match now {
+                Asked::Release => released(hold.holding.client, out),
+                Asked::Abort => State::Unprepared,
+                Asked::Nothing => unreachable!("a client asks to abort or to release"),
+            }
+        }
         State::Waiting { repository, look: _ } => {
             domain.cache.unwait(borrowed(&hold.holding, repository).store, id);
             out.push(Request::Prepared { client: hold.holding.client, prepared: Prepared::Aborted });
@@ -474,7 +525,8 @@ fn ask(domain: &mut Domain, hold: Token, now: Asked, out: &mut Queue<Request>) {
         },
         State::Closed => unreachable!("an addressed hold has not been released"),
     };
-    conclude(domain, id, out, mark);
+    conclude(domain, id, was_active, out, mark);
+    admissions(domain, env, out);
 }
 
 /// Terminal for an operation: what the hold does next.
@@ -488,6 +540,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
     if damages(&done) {
         domain.cache.spoil(hold.holding.workspace);
     }
+    let was_active = active(&hold.state);
     let state = mem::replace(&mut hold.state, State::Closed);
     let holding = &mut hold.holding;
     let mut waiters = Queue::uncapped();
@@ -527,11 +580,11 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             prepare_next(holding, &mut domain.cache, id, next, detail, asked, env, out)
         }
         State::Pushing { push, step, asked } => pushed(holding, id, push, step, asked, done, env, out),
-        State::Waiting { .. } | State::Ready | State::Unprepared | State::Closed => {
+        State::Queued { .. } | State::Waiting { .. } | State::Ready | State::Unprepared | State::Closed => {
             unreachable!("an operation ends only while its hold prepares, pushes or saves")
         }
     };
-    conclude(domain, id, out, mark);
+    conclude(domain, id, was_active, out, mark);
     for _ in 0..waiters.len() {
         let waiter = waiters.pop().expect("the waiters to resume");
         let mark = out.len();
@@ -541,12 +594,13 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
                 let from = if store_succeeded { after(repository) } else { repository };
                 stores_step(&hold.holding, &mut domain.cache, waiter, from, look, env, out)
             }
-            State::Preparing { .. } | State::Ready | State::Unprepared | State::Pushing { .. } | State::Closed => {
+            State::Queued { .. } | State::Preparing { .. } | State::Ready | State::Unprepared | State::Pushing { .. } | State::Closed => {
                 unreachable!("only waiting holds are queued");
             }
         };
-        conclude(domain, waiter, out, mark);
+        conclude(domain, waiter, true, out, mark);
     }
+    admissions(domain, env, out);
 }
 
 /// The hold a client's handle names, or `None` if it has been released: the
@@ -555,7 +609,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
 fn addressed(holds: &Slab<Hold>, hold: Token) -> Option<Id<Hold>> {
     let id = Id::from_token(hold);
     match &holds.get(id)?.state {
-        State::Preparing { .. } | State::Waiting { .. } | State::Ready | State::Unprepared | State::Pushing { .. } => {
+        State::Queued { .. } | State::Preparing { .. } | State::Waiting { .. } | State::Ready | State::Unprepared | State::Pushing { .. } => {
             Some(id)
         }
         State::Closed => None,
@@ -564,10 +618,21 @@ fn addressed(holds: &Slab<Hold>, hold: Token) -> Option<Id<Hold>> {
 
 /// Applied after every transition: what it tells, and what the new state
 /// implies. `mark` is where the requests the transition made begin in `out`.
-fn conclude(domain: &mut Domain, id: Id<Hold>, out: &Queue<Request>, mark: u32) {
+fn conclude(domain: &mut Domain, id: Id<Hold>, was_active: bool, out: &Queue<Request>, mark: u32) {
     let hold = domain.holds.get(id).expect("a hold lives until it is retired");
     tell(&mut domain.facts, hold.holding.client, out, mark);
+    if was_active && !active(&hold.state) {
+        domain.active = domain.active.checked_sub(1).expect("a settled prepare returns its permit once");
+    }
     follow(&mut domain.holds, &mut domain.cache, id);
+}
+
+/// A store waiter keeps its permit even with no operation in flight.
+fn active(state: &State) -> bool {
+    match state {
+        State::Preparing { .. } | State::Waiting { .. } => true,
+        State::Queued { .. } | State::Ready | State::Unprepared | State::Pushing { .. } | State::Closed => false,
+    }
 }
 
 /// What a transition tells, derived from the requests it made: a fact for
@@ -694,7 +759,7 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
             cache.release(hold.holding.workspace);
             holds.retire(id);
         }
-        State::Preparing { .. } | State::Waiting { .. } | State::Ready | State::Unprepared | State::Pushing { .. } => {}
+        State::Queued { .. } | State::Preparing { .. } | State::Waiting { .. } | State::Ready | State::Unprepared | State::Pushing { .. } => {}
     }
 }
 

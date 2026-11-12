@@ -23,7 +23,7 @@ fn at(secs: u64) -> Time {
 
 fn settings(reuse: bool, seed: u64) -> Settings {
     Settings {
-        checkout: Limits { workspaces: 1, ..LIMITS },
+        checkout: Limits { workspaces: 1, preparations: 1, ..LIMITS },
         repositories: 1,
         workstreams: 2,
         reuse,
@@ -292,7 +292,7 @@ fn a_restart_with_another_remote_makes_it_again() {
     for reuse in [true, false] {
         let mut world = World::new(Settings {
             repositories: 2,
-            checkout: Limits { repositories: 1, workspaces: 1, ..LIMITS },
+            checkout: Limits { repositories: 1, workspaces: 1, preparations: 1, ..LIMITS },
             ..settings(reuse, 1)
         });
         assert_ne!(world.workstream(0), world.workstream(1));
@@ -355,7 +355,7 @@ fn what_an_earlier_worker_left_is_made_again() {
 fn a_restart_keeps_the_paths() {
     for reuse in [true, false] {
         for order in [[0, 1], [1, 0]] {
-            let mut world = World::new(Settings { checkout: Limits { workspaces: 2, ..LIMITS }, ..settings(reuse, 1) });
+            let mut world = World::new(Settings { checkout: Limits { workspaces: 2, preparations: 2, ..LIMITS }, ..settings(reuse, 1) });
             let first = world.submit(Time::ZERO, plan(order[0]));
             let second = world.submit(at(100), plan(order[1]));
             world.run(ITERATIONS);
@@ -397,7 +397,7 @@ fn a_noisy_run_across_restarts_holds_the_referees() {
 fn a_restart_keeps_the_count_of_facts_dropped_before_it() {
     for reuse in [true, false] {
         let mut world =
-            World::new(Settings { checkout: Limits { workspaces: 2, facts: 2, ..LIMITS }, ..settings(reuse, 1) });
+            World::new(Settings { checkout: Limits { workspaces: 2, preparations: 2, facts: 2, ..LIMITS }, ..settings(reuse, 1) });
         world.submit(Time::ZERO, plan(0));
         world.submit(Time::ZERO, plan(1));
         world.run(ITERATIONS);
