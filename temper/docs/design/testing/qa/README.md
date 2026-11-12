@@ -67,8 +67,8 @@ the passes come with Q2 and Q3, each adding its documents here.
   4.2 has them, exit 2; a command that ran, exit 0; a refusal of the
   ledger's (`ledger.md`, 5), a bad configuration or a failure, `temper-qa:
   WHY` on stderr, exit 1, with nothing recorded.
-- **Its reference documents,** `temper-qa-args.md` and `temper-qa-env.md`
-  in `../../cli/`, rendered from its table (`../tools.md`, 4.4).
+- **Its reference documents,** its arguments' and its environment's in
+  `../../cli/`, rendered from its table (`../tools.md`, 4.4).
 
 ## 3. Its home and configuration
 

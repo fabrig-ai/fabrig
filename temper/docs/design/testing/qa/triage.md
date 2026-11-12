@@ -33,7 +33,7 @@ there is a next landing:
 2. **Recorded:** a session in the ledger, `triage`, its landing, its
    effort (`agent.triage`), its start, and the pages and setups its
    commands check against (`ledger.md`, 2.5).
-3. **Its directory,** `sessions/N/` in the home: `brief.md` (section 3),
+3. **Its directory,** `sessions/N/` in the home: `brief` (section 3),
    `diff.patch`, `git diff MERGE^1 MERGE`, and `tree/`, `git -C
    DIRECTORY worktree add --detach sessions/N/tree MERGE`, for the agent
    to read the whole tree at the merge.
@@ -46,7 +46,7 @@ found) ends the session `unstarted`: it counts for no landing's
 
 ## 3. Its brief
 
-`brief.md`, given on the agent's stdin, written by code from these, in
+`brief`, given on the agent's stdin, written by code from these, in
 this order:
 
 - **What triage is,** from `../../draft/landed-qa.md`, 4: what a person
@@ -57,21 +57,20 @@ this order:
   alone, no box started, within its bound.
 - **The landing:** its number, goal, pull request, merge commit and
   title.
-- **Its drafts,** each a path in the tree: every
-  `TREE/docs/design/draft/NAME.md` the merge's message names, TREE one
-  of the repository's trees, a `NAME.execution.md` or `NAME.status.md`
-  named read as its `NAME.md`, each once, those present at MERGE; with
-  none named, the drafts whose `NAME.md`, `NAME.status.md` or
-  `NAME.execution.md` the diff touches, but `notes.md` and `archive/`;
-  with none either, a line saying no draft is named and the request was
-  the title's words.
+- **Its drafts,** each a path in the tree: every draft the merge's
+  message names by its path, a Markdown file directly in a tree's
+  `docs/design/draft/`, an execution or status file named read as its
+  draft, each once, those present at MERGE; with none named, the drafts
+  whose file, status file or execution file the diff touches, but the
+  drafts' notes and `archive/`; with none either, a line saying no
+  draft is named and the request was the title's words.
 - **Its diff:** `git diff --stat MERGE^1 MERGE` in the brief, and the
   whole diff's path, `sessions/N/diff.patch`.
 - **Its commits' `QA:` trailers:** each value of a `QA:` trailer among
   `git log MERGE^1..MERGE`, each once, in order; none, said.
 - **The surfaces:**
   - `web`: each page of `temper/docs/design/client/pages/` at MERGE, its
-    name the stem of each `NAME.md` but `README.md` and the status files,
+    name the stem of each Markdown file there but the README and the status files,
     and each subdirectory's name (`chat`), with its design's path; and
     the journeys, `temper/docs/design/client/web/journeys.md`;
   - `tui`: the same of `temper/docs/design/client/tui/pages/`, and
@@ -119,7 +118,7 @@ this order:
 
 - **Its command:** `agent.command` (`README.md`, 3.2), each `{effort}`
   replaced by `agent.triage`; its working directory the session's tree;
-  its stdin `brief.md`; its stdout and stderr both to
+  its stdin `brief`; its stdout and stderr both to
   `sessions/N/output`; its environment the tool's captured one with
   `TEMPER_QA_HOME` and `TEMPER_QA_SESSION=N` set; a process group of its
   own.
@@ -139,7 +138,7 @@ this order:
 - **At the loop's second step,** a session whose process has exited, or
   whose bound has passed, is ended in the ledger with its exit, tokens
   and time (`ledger.md`, 4.4), and its tree removed (`git worktree
-  remove --force`); `brief.md`, `diff.patch` and `output` stay.
+  remove --force`); `brief`, `diff.patch` and `output` stay.
 - **Lost:** a session still running when the loop starts is ended `lost`
   (`README.md`, 4) and counts as any end does.
 - **Then** the next session may start in the same step.
