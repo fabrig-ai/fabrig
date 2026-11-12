@@ -15,11 +15,6 @@ process ID on Linux and no parent on macOS; the child mode is Unix-only
 and absent from the portable face. macOS's direct launch and deferred
 crash lifetime are ../protocol/programs.md, sections 5.1 and 9's.
 
-- **Not yet:**
-  - 2.6: the standard product document is `smith-agent-document`'s
-    fixture under its `fixture` Cargo feature, re-exported by
-    `smith-agent-shell`, not `smith-agent-document-fixtures`
-    [in flight: change 1441].
 - **Departs:**
   - 2.5: in `smith/crates/smith-agent-document/src/config/`,
     `TrustDocument`'s fields, `EndpointTransport::Tls`'s and the

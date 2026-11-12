@@ -20,24 +20,6 @@
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).
-  - 7: `smith-domain-tools`, `smith-domain-run`, `smith-domain-session`,
-    `smith-domain`, `smith-inline-agent` and `smith-protocol-channel`
-    expose their fixtures through a `fixture` Cargo feature, not
-    `testing/<crate>-fixtures` crates [in flight: change 1437].
-  - 7: `smith-host-domain`, `smith-host-protocol`, `smith-local-domain`,
-    `smith-local-protocol`, `smith-local-service` and
-    `smith-protocol-machine` expose their fixtures through a `fixture`
-    Cargo feature, not `testing/<crate>-fixtures` crates
-    [in flight: change 1438].
-  - 7: `smith-events`, `smith-protocol-events`, `smith-agent-profile`,
-    `smith-agent-document`, `smith-agent-service`, `smith-agent-shell`,
-    `smith-bench`, `smith-transcript` and `smith-channel` expose their
-    fixtures through a `fixture` Cargo feature, not
-    `testing/<crate>-fixtures` crates [in flight: change 1441].
-  - 7: `smith-protocol-llm` and `smith-protocol-program` expose their
-    fixtures through a `fixture` Cargo feature, not
-    `testing/<crate>-fixtures` crates, and `smith-protocol-llm`'s
-    translation entrances are public only with it [in flight: change 1442].
 - **Departs:**
   - 2: domain worlds use domains and fakes only, never protocol crates,
     but `tests/agent/src/backend.rs` uses `smith-protocol-llm`,
