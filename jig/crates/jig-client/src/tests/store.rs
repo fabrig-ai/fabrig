@@ -204,6 +204,8 @@ fn a_final_answer_that_does_not_decode_is_told_retrying_as_undecodable() {
     let message = fixtures::answer(&jig_client_protocol_wire::v20::KeyedAnswer::FinalAnswer(record));
     c.step(Event::Reply { exchange: c.exchange(), message });
     assert_eq!(c.machine.pending(STOP).unwrap().progress, Progress::Retrying { why: Retry::Undecodable });
+    assert_eq!(c.machine.link().state, Link::Live);
+    assert!(!c.machine.link().unreadable);
     let [Request::Told { told }] = c.requests() else {
         panic!("one pending notice: {:?}", c.requests());
     };

@@ -658,7 +658,10 @@ impl Link {
                         out.push(Request::Signing { signing: crate::Signing::SignedOut });
                     }
                 }
-                Err(_) => self.failure(attempt, out),
+                Err(_) => {
+                    out.push(Request::Fact { fact: Fact::UndecodableWatchAnswer });
+                    self.failure(attempt, out);
+                }
             },
             ExchangeKind::WatchClose { .. } => {
                 match w::CloseAnswer::decode(self.limits.wire(), &mut Reader::new(body)) {
@@ -670,7 +673,10 @@ impl Link {
                         self.end_sign_in(out);
                         out.push(Request::Signing { signing: crate::Signing::SignedOut });
                     }
-                    Err(_) => self.failure(attempt, out),
+                    Err(_) => {
+                        out.push(Request::Fact { fact: Fact::UndecodableWatchAnswer });
+                        self.failure(attempt, out);
+                    }
                 }
             }
             ExchangeKind::Approval(_)

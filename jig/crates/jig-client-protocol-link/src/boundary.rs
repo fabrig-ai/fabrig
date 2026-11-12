@@ -152,6 +152,7 @@ pub enum Fact {
     UndecodableAnswer,
     UndecodableDocument,
     UndecodableEvent,
+    UndecodableWatchAnswer,
     StreamDropped,
     UndecodableStore,
 }

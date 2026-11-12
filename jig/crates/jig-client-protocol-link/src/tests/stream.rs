@@ -633,6 +633,28 @@ fn a_malformed_stream_record_drops_the_stream_and_is_reported() {
 }
 
 #[test]
+fn an_undecodable_opening_answer_drops_the_stream_and_is_reported() {
+    let mut harness = fixtures::Harness::streaming(fixtures::frame_subject());
+    let (exchange, _) = harness.opening();
+    harness.clear();
+    harness.answer(exchange, &[255]);
+    assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
+    assert!(harness.has(&Request::CloseStream));
+    assert!(harness.has(&Request::Fact { fact: Fact::UndecodableWatchAnswer }));
+}
+
+#[test]
+fn an_undecodable_closing_answer_drops_the_stream_and_is_reported() {
+    let mut harness = fixtures::Harness::admitted_stream();
+    let exchange = harness.close();
+    harness.clear();
+    harness.answer(exchange, &[255]);
+    assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
+    assert!(harness.has(&Request::CloseStream));
+    assert!(harness.has(&Request::Fact { fact: Fact::UndecodableWatchAnswer }));
+}
+
+#[test]
 fn a_watch_ended_not_served_ends_its_handle_naming_why() {
     let mut h = fixtures::Harness::streaming(fixtures::family_subject());
     let (_, name) = h.opening();
