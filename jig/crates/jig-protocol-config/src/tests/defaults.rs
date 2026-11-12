@@ -88,7 +88,10 @@ fn a_seed_policy_above_the_passed_rules_is_refused_at_pass() {
     );
     let expected = parse(&document, Defaults::Document).unwrap_err();
     assert_eq!(found.problems, expected.problems);
-    assert_eq!(found.problems.get(0).unwrap().what, What::Bound);
+    assert_eq!(
+        found.problems.get(0).unwrap().what,
+        What::Because(b"policy authority or period spend exceeds deployment rules")
+    );
 }
 #[test]
 fn files_name_no_charter_for_passed_defaults() {

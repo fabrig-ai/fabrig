@@ -3669,21 +3669,7 @@ fn the_worst_small_ways_document_fits_its_decision() {
         worst_view <= u64::from(delivery_bytes),
         "ViewAnswer: {worst_view} encoded bytes; decision allowance: {delivery_bytes}"
     );
-    let value_bytes = u32::try_from(ways::VALUE).unwrap();
-    // Approval and tier stops are smaller: words and name at most 64 bytes,
-    // with one fact of VALUE bytes for a tier, or two short approval facts.
-    let card = ways::Card {
-        who: "an agent · repairs what a check or a review found, then goes back through them".as_bytes().into(),
-        name: b"the coding agent".as_slice().into(),
-        facts: Box::new([
-            ways::Fact { label: b"Model".as_slice().into(), value: repeated(b'm', value_bytes) },
-            ways::Fact { label: b"Can".as_slice().into(), value: ways::can(true, true, true, true, false).into() },
-            ways::Fact {
-                label: b"Asked to".as_slice().into(),
-                value: repeated(b'a', u32::try_from(ways::ASKED).unwrap()),
-            },
-        ]),
-    };
+    let card = worst_ways_card();
     let mut stops = List::uncapped();
     for _ in 0..ways::STOPS {
         stops
@@ -3763,6 +3749,24 @@ fn the_worst_small_ways_document_fits_its_decision() {
         "WaysPanel: {} encoded bytes; decision allowance: {delivery_bytes}",
         bytes.len()
     );
+}
+
+fn worst_ways_card() -> ways::Card {
+    let value_bytes = u32::try_from(ways::VALUE).unwrap();
+    // Approval and tier stops are smaller: words and name at most 64 bytes,
+    // with one fact of VALUE bytes for a tier, or two short approval facts.
+    ways::Card {
+        who: "an agent · repairs what a check or a review found, then goes back through them".as_bytes().into(),
+        name: b"the coding agent".as_slice().into(),
+        facts: Box::new([
+            ways::Fact { label: b"Model".as_slice().into(), value: repeated(b'm', value_bytes) },
+            ways::Fact { label: b"Can".as_slice().into(), value: ways::can(true, true, true, true, false).into() },
+            ways::Fact {
+                label: b"Asked to".as_slice().into(),
+                value: repeated(b'a', u32::try_from(ways::ASKED).unwrap()),
+            },
+        ]),
+    }
 }
 
 fn repeated(byte: u8, count: u32) -> Box<[u8]> {

@@ -164,19 +164,7 @@ pub(super) fn admitted(
             keep_trial_answer(domain, token, retention, answer, env);
             finished(domain, request, Ok(token));
         }
-        Application::AddDevice(call) => {
-            let person_kind = match domain.core.people.kind(person) {
-                Some(people::Kind::Person) => true,
-                Some(people::Kind::Service) | None => false,
-            };
-            domain.work.push(Work::Forge(forge::Event::AddDevice {
-                request,
-                token,
-                party: person,
-                person: person_kind,
-                call,
-            }));
-        }
+        Application::AddDevice(call) => add_device(domain, request, token, person, call),
         Application::RemoveDevice { number } => {
             domain.work.push(Work::Forge(forge::Event::RemoveDevice { request, token, party: person, number }));
         }
@@ -237,6 +225,14 @@ fn keep_trial_answer(
             ),
         )
         .expect("one marker per retained key");
+}
+
+fn add_device(domain: &mut Domain, request: Token, token: Token, person: u64, call: forge::AddDevice) {
+    let person_kind = match domain.core.people.kind(person) {
+        Some(people::Kind::Person) => true,
+        Some(people::Kind::Service) | None => false,
+    };
+    domain.work.push(Work::Forge(forge::Event::AddDevice { request, token, party: person, person: person_kind, call }));
 }
 
 pub(super) fn drop(domain: &mut Domain, owner: Token) {

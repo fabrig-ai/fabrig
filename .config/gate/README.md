@@ -52,6 +52,10 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
     part of item 4's focused suite. Rule: `temper/docs/design/protocol/baseline.md`, 7,
     and `tests/boundary/tests/patches.rs`: every stored owner passes `check` against
     git's landed files and `current`, and the owner list covers every kept crate.
+12. **The size check:** `tools/tiers/one-process default -p fabrig-boundary`,
+    part of item 4's focused suite. Rule: `tools/crates/design.md`, 3.1, and
+    `tests/boundary/tests/sizes.rs`'s module doc: library and shared-family lines,
+    with their shrinking exceptions.
 
 ## The gate's lists
 

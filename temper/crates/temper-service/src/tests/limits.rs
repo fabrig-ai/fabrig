@@ -205,6 +205,10 @@ fn the_small_profile_passes_each_domains_validity() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let root = limits::engine(&jig, &settings.limits).expect("coherent root profile");
     assert!(temper_engine_domain::valid(&root));
+    assert_eq!(root.journal.transcript_bytes, root.forge.client.answer_bytes);
+    let mut short = settings.limits;
+    short.root.journal.transcript_bytes -= 1;
+    assert!(limits::engine(&jig, &short).is_none());
     assert_eq!(root.public_watermark, root.watermark / 2);
     let mut jig = jig;
     jig.clients.public.reads = 8;
@@ -252,8 +256,8 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 ..small.root.brief
             },
             journal: temper_engine_domain::JournalLimits {
-                // The closer and session each add 32 bytes; two executor places add 16.
-                transcript_bytes: 22_467_808,
+                // The deep task row's 22,467,664 bytes plus 21 eight-byte executors.
+                transcript_bytes: 22_467_832,
                 result_bytes: 336_713,
                 ..small.root.journal
             },
