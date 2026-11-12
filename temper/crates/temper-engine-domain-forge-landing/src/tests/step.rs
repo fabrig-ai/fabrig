@@ -16,6 +16,8 @@ fn at(seconds: u64) -> Wall {
 }
 fn landing_of_one() -> Landing {
     Landing {
+        round: crate::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
         task: 7,
         project: 9,
         phase: Phase::Waiting,
@@ -37,7 +39,15 @@ fn landing_of_one() -> Landing {
 }
 fn facts() -> Facts {
     Facts {
+        opened: Some(10),
+        opening: Status::Passed,
+        closed: Status::Unknown,
+        deleted: Status::Unknown,
         members: Box::new([MemberFacts {
+            contained: Status::Failed,
+            candidate: Some((HEAD, crate::Combine::Merge)),
+            preparation: crate::Preparation::Idle,
+            record: Status::Unknown,
             ready: true,
             cancelled: false,
             head: HEAD,
@@ -81,6 +91,17 @@ fn turn() -> Landing {
     Landing { phase: Phase::Turn { at: at(4) }, ..proving(Proof::Passed { key: KEY }) }
 }
 
+fn close_round(landing: &Landing, f: &Facts) -> Stepped {
+    let close = decide(landing, f);
+    assert_eq!(close.decision, Decision::Close);
+    let mut f = f.clone();
+    f.closed = Status::Passed;
+    let delete = decide(&close.landing, &f);
+    assert_eq!(delete.decision, Decision::Delete);
+    f.deleted = Status::Passed;
+    decide(&delete.landing, &f)
+}
+
 #[test]
 fn a_member_not_ready_waits() {
     let mut f = facts();
@@ -90,7 +111,7 @@ fn a_member_not_ready_waits() {
     assert_eq!(next.landing.phase, Phase::Waiting);
 }
 #[test]
-fn a_head_that_contains_main_is_its_candidate() {
+fn a_candidate_found_on_the_landing_branch_is_proved() {
     let next = decide(&preparing(), &facts());
     assert_eq!(next.decision, Decision::None);
     assert_eq!(next.landing.phase, Phase::Proving);
@@ -100,29 +121,18 @@ fn a_head_that_contains_main_is_its_candidate() {
     assert_eq!(member.gates[0].proof, Proof::Unkeyed);
 }
 #[test]
-fn a_head_behind_main_asks_its_change_to_prepare_once() {
+fn a_prepare_job_waits_and_its_branch_supplies_the_candidate() {
     let mut f = facts();
-    f.members[0].contains_main = Status::Failed;
+    f.members[0].candidate = None;
     let one = decide(&preparing(), &f);
     assert_eq!(one.decision, Decision::Prepare { member: 0, head: HEAD, main: MAIN });
-    assert_eq!(one.landing.members[0].asked, Some(1));
     assert_eq!(one.landing.preparation, 1);
+    f.members[0].preparation = crate::Preparation::Running;
     assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: None });
-    f.members[0].asked = true;
-    assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: None });
-}
-#[test]
-fn a_rebased_head_that_contains_main_is_its_candidate() {
-    let mut f = facts();
-    f.members[0].contains_main = Status::Failed;
-    let one = decide(&preparing(), &f);
-    f.members[0].head = NEW;
-    f.members[0].contains_main = Status::Passed;
+    f.members[0].candidate = Some((NEW, crate::Combine::Merge));
     let two = decide(&one.landing, &f);
     assert_eq!(two.landing.members[0].candidate, Some(NEW));
-    assert_eq!(two.landing.members[0].base, Some(MAIN));
-    assert_eq!(two.landing.members[0].asked, None);
-    assert_eq!(two.landing.preparation, 1);
+    assert_eq!(two.landing.members[0].head, Some(HEAD));
     assert_eq!(two.landing.phase, Phase::Proving);
 }
 #[test]
@@ -223,6 +233,7 @@ fn a_main_that_moves_during_proof_is_checked_in_the_turn() {
     let owned = decide(&proved.landing, &f);
     assert_eq!(owned.landing.phase, Phase::Turn { at: at(10) });
     let stale = decide(&owned.landing, &f);
+    let stale = close_round(&stale.landing, &f);
     assert_eq!(stale.decision, Decision::Stale);
     assert_eq!(stale.landing.stale_proofs, 1);
 }
@@ -241,7 +252,7 @@ fn a_repaired_head_does_not_erase_the_old_candidates_unposted_failure() {
     let posted = decide(&pending.landing, &f);
     assert_eq!(posted.decision, Decision::Post { member: 0, gate: 0, posting: Posting::Ran { passed: false } });
     assert_eq!(posted.landing.members[0].candidate, Some(HEAD));
-    assert_eq!(decide(&posted.landing, &f).landing.phase, Phase::Preparing);
+    assert_eq!(decide(&posted.landing, &f).landing.round.ending, Some(crate::RoundEnd::Leave));
 }
 #[test]
 fn a_member_back_to_repairing_takes_the_landing_back_to_waiting() {
@@ -258,8 +269,8 @@ fn a_member_back_to_repairing_takes_the_landing_back_to_waiting() {
         let ready = decide(&next.landing, &f);
         assert_eq!(ready.landing.phase, Phase::Preparing);
         let prepared = decide(&ready.landing, &f);
-        assert_eq!(prepared.landing.members[0].candidate, Some(NEW));
-        assert_eq!(prepared.landing.members[0].gates[0].proof, Proof::Unkeyed);
+        assert_eq!(prepared.landing.round.ending, Some(crate::RoundEnd::Leave));
+        assert_eq!(prepared.landing.members[0].candidate, Some(HEAD));
     }
 }
 #[test]
@@ -305,49 +316,42 @@ fn a_proved_landing_takes_its_own_trains_turn() {
     }
 }
 #[test]
-fn the_turn_merges_each_member_at_its_candidate_once() {
-    let mut landing = turn();
-    landing.members = Box::new([landing.members[0].clone(), landing.members[0].clone()]);
+fn the_turn_merges_at_the_candidate_then_tells_its_change_after_readback() {
+    let landing = turn();
     let mut f = facts();
-    f.members = Box::new([f.members[0].clone(), f.members[0].clone()]);
     let one = decide(&landing, &f);
     assert_eq!(one.decision, Decision::Merge { member: 0, candidate: HEAD });
-    f.members[0].merge = Status::Pending;
-    assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: None });
     f.members[0].merge = Status::Passed;
-    f.members[0].merged = Some(HEAD);
+    assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: None });
     f.members[0].main = HEAD;
     let two = decide(&one.landing, &f);
+    assert_eq!(two.decision, Decision::Landed { member: 0, prefix: HEAD });
     assert_eq!(two.landing.members[0].landed, Some(HEAD));
-    assert_eq!(two.decision, Decision::Merge { member: 1, candidate: HEAD });
-    f.members[1].merge = Status::Pending;
-    assert_eq!(decide(&two.landing, &f).decision, Decision::Wait { until: None });
+    assert_eq!(decide(&two.landing, &f).decision, Decision::Finish);
 }
 #[test]
-fn a_main_moved_before_the_turns_merge_is_stale() {
-    let mut landing = turn();
-    landing.members = Box::new([landing.members[0].clone(), landing.members[0].clone()]);
+fn a_main_moved_before_the_turns_merge_closes_before_preparing_again() {
+    let landing = turn();
     let mut f = facts();
-    f.members = Box::new([f.members[0].clone(), f.members[0].clone()]);
     f.members[0].main = NEW;
     let next = decide(&landing, &f);
+    let next = close_round(&next.landing, &f);
     assert_eq!(next.decision, Decision::Stale);
-    assert_eq!(next.landing.phase, Phase::Preparing);
     assert_eq!(next.landing.stale_proofs, 1);
     assert_eq!(next.landing.members[0].candidate, None);
-    assert_eq!(next.landing.members[0].gates[0].proof, Proof::Unkeyed);
-    assert_eq!(next.landing.members[1], landing.members[1]);
 }
 #[test]
 fn a_merged_member_lands_the_landing() {
     let mut f = facts();
     f.members[0].merged = Some(HEAD);
     f.members[0].main = HEAD;
-    let next = decide(&turn(), &f);
+    let told = decide(&turn(), &f);
+    assert_eq!(told.decision, Decision::Landed { member: 0, prefix: HEAD });
+    let next = decide(&told.landing, &f);
     assert_eq!(next.decision, Decision::Finish);
     assert_eq!(next.landing.phase, Phase::Landed);
     assert_eq!(next.landing.members[0].landed, Some(HEAD));
-    assert_eq!(decide(&next.landing, &f).decision, Decision::None);
+    assert_eq!(decide(&next.landing, &f).decision, Decision::Finish);
 }
 #[test]
 fn a_cancelled_member_cancels_a_landing_of_one() {
@@ -410,6 +414,7 @@ fn a_refused_merge_makes_its_candidate_stale() {
     let mut f = facts();
     f.members[0].merge = Status::Failed;
     let next = decide(&turn(), &f);
+    let next = close_round(&next.landing, &f);
     assert_eq!(next.decision, Decision::Stale);
     assert_eq!(next.landing.members[0].candidate, None);
     assert_eq!(next.landing.stale_proofs, 1);
@@ -428,121 +433,4 @@ fn the_same_snapshot_always_gives_the_same_decision() {
     for landing in [landing_of_one(), preparing(), keyed(), dispatched(), turn()] {
         assert_eq!(decide(&landing, &facts()), decide(&landing, &facts()));
     }
-}
-
-fn two_members() -> (Landing, Facts) {
-    let mut landing = turn();
-    let mut second = landing.members[0].clone();
-    second.change = 9;
-    second.repository.repository = 3;
-    landing.members = Box::new([landing.members[0].clone(), second]);
-    let mut f = facts();
-    f.members = Box::new([f.members[0].clone(), f.members[0].clone()]);
-    (landing, f)
-}
-
-#[test]
-fn two_proved_members_merge_upstream_first() {
-    let (landing, mut f) = two_members();
-    let first = decide(&landing, &f);
-    assert_eq!(first.decision, Decision::Merge { member: 0, candidate: HEAD });
-    f.members[0].merged = Some(HEAD);
-    f.members[0].main = HEAD;
-    let second = decide(&first.landing, &f);
-    assert_eq!(second.decision, Decision::Merge { member: 1, candidate: HEAD });
-    f.members[1].merged = Some(HEAD);
-    f.members[1].main = HEAD;
-    let done = decide(&second.landing, &f);
-    assert_eq!(done.decision, Decision::Finish);
-    assert_eq!(done.landing.phase, Phase::Landed);
-}
-
-#[test]
-fn a_landed_member_stays_landed_when_the_next_goes_stale() {
-    let (landing, mut f) = two_members();
-    f.members[0].merged = Some(HEAD);
-    f.members[0].main = HEAD;
-    f.members[1].main = NEW;
-    f.members[1].contains_main = Status::Failed;
-    let stale = decide(&landing, &f);
-    assert_eq!(stale.decision, Decision::Stale);
-    let mut upstream = landing.members[0].clone();
-    upstream.landed = Some(HEAD);
-    assert_eq!(stale.landing.members[0], upstream);
-    // Even an ended upstream's readiness and gate facts cannot ask it to work again.
-    f.members[0].ready = false;
-    let prepare = decide(&stale.landing, &f);
-    assert_eq!(prepare.decision, Decision::Prepare { member: 1, head: HEAD, main: NEW });
-    f.members[1].head = NEW;
-    f.members[1].contains_main = Status::Passed;
-    let prepared = decide(&prepare.landing, &f);
-    f.members[1].gates[0].key = Some(KEY);
-    f.members[1].gates[0].receipt = Status::Passed;
-    let posted = decide(&prepared.landing, &f);
-    assert_eq!(posted.decision, Decision::Post { member: 1, gate: 0, posting: Posting::Received });
-    let proved = decide(&posted.landing, &f);
-    assert_eq!(proved.decision, Decision::Proved);
-    f.turn_free = true;
-    let turn = decide(&proved.landing, &f);
-    let merge = decide(&turn.landing, &f);
-    assert_eq!(merge.decision, Decision::Merge { member: 1, candidate: NEW });
-    f.members[1].merged = Some(NEW);
-    let finished = decide(&merge.landing, &f);
-    assert_eq!(finished.decision, Decision::Finish);
-    assert_eq!(finished.landing.members[0], upstream);
-}
-
-#[test]
-fn a_member_joining_a_proving_landing_is_proved_alone() {
-    let (mut landing, f) = two_members();
-    let member = landing.members[1].clone();
-    landing.members = Box::new([landing.members[0].clone()]);
-    landing.phase = Phase::Proved { at: at(4) };
-    landing.members[0].gates[0].posted = Posted::Verdict;
-    let original = landing.members[0].clone();
-    let mut member = Member { head: None, base: None, candidate: None, ..member };
-    member.gates[0].proof = Proof::Unkeyed;
-    let joined = crate::join(landing, member, &[original.change]).expect("join before turn");
-    let prepared = decide(&joined, &f);
-    assert_eq!(prepared.landing.members[0], original);
-    assert_eq!(decide(&prepared.landing, &f).decision, Decision::Key { member: 1, gate: 0, candidate: HEAD });
-}
-
-#[test]
-fn a_cancelled_member_leaves_and_the_rest_lands() {
-    let (landing, mut f) = two_members();
-    f.members[1].cancelled = true;
-    let left = decide(&landing, &f);
-    assert_eq!(left.landing.members.as_ref(), &[landing.members[0].clone()]);
-    f.members = Box::new([f.members[0].clone()]);
-    let prepared = decide(&left.landing, &f);
-    let proved = decide(&prepared.landing, &f);
-    f.turn_free = true;
-    let owned = decide(&proved.landing, &f);
-    f.members[0].merged = Some(HEAD);
-    assert_eq!(decide(&owned.landing, &f).decision, Decision::Finish);
-}
-
-#[test]
-fn an_upstream_preparation_finishes_before_the_downstream_is_asked() {
-    let (mut landing, mut f) = two_members();
-    landing.phase = Phase::Preparing;
-    for member in &mut landing.members {
-        member.head = None;
-        member.base = None;
-        member.candidate = None;
-    }
-    for member in &mut f.members {
-        member.contains_main = Status::Failed;
-    }
-    let upstream = decide(&landing, &f);
-    assert_eq!(upstream.decision, Decision::Prepare { member: 0, head: HEAD, main: MAIN });
-    f.members[0].asked = true;
-    assert_eq!(decide(&upstream.landing, &f).decision, Decision::Wait { until: None });
-    f.members[0].asked = false;
-    f.members[0].head = NEW;
-    f.members[0].contains_main = Status::Passed;
-    let downstream = decide(&upstream.landing, &f);
-    assert_eq!(downstream.landing.members[0].candidate, Some(NEW));
-    assert_eq!(downstream.decision, Decision::Prepare { member: 1, head: HEAD, main: MAIN });
 }

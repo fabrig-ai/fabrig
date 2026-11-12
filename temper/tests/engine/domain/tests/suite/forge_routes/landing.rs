@@ -138,6 +138,17 @@ fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit()
         && matches!(word.kind, tasks::MessageKind::Result(tasks::ResultKind::Change { .. }))));
 }
 
+fn hello_prepare(slots: u32) -> engine::Event {
+    let mut event = protocol::hello_slots(Token::new(7), slots, Box::new([]));
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("hello")
+    };
+    let mut bound = protocol::merge_bound();
+    bound.kind = jig_domain_link::JobKind(1);
+    hello.jobs = Box::new([bound]);
+    event
+}
 fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
     let mut world = World::configured_limits(
         true,
@@ -149,7 +160,7 @@ fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
         StoryLimits { turn: true, landing_members, ..StoryLimits::default() },
     );
     world.adopt();
-    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    world.send(hello_prepare(2));
     let ask = adoption_chat(&world);
     let chat = assigned_chat(&mut world, 92, ask);
     let engine::CallAnswer::Delegated(made) =
@@ -193,7 +204,7 @@ fn a_chats_change_lands_by_turn() {
     let (mut world, change) = produced_turn_change(None);
     let mut landing = None;
     for _ in 0..600 {
-        world.tick();
+        world.prepare_tick();
         for record in world.store.rows.values() {
             if let Record::Forge { row } = record
                 && let forge_top::Stored::Landing(row) = row.as_ref()
@@ -219,14 +230,17 @@ fn a_chats_change_lands_by_turn() {
     assert_eq!(row.requester, tasks::Party::Deployment { project: 1 });
     assert_eq!(row.spec.words.as_ref(), b"Land Small fix");
     assert!(row.dependencies.is_empty());
-    for kind in [3, 4, 6, 9, 12, 16, 17] {
+    for kind in [3, 4, 6, 9, 12, 15, 16, 17] {
         assert!(row.authority.grants.iter().any(|grant| grant.kind == kind), "landing granted kind {kind}");
     }
-    assert!(!row.authority.grants.iter().any(|grant| grant.kind == 5 || grant.kind == 15));
+    assert!(!row.authority.grants.iter().any(|grant| grant.kind == 5));
     let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) = &row.phase else {
         panic!("landing done: {:?}; writes={:?}", row.phase, world.writes);
     };
     let report = words.clone();
+    let own_branch =
+        &landing_rows(&world).into_iter().find(|row| row.landing.task == landing).expect("round").landing.round.branch;
+    assert_eq!(world.fake.branch(b"org/repo", own_branch), None, "the landing releases its own held branch");
     let change_row = task_row(&world, change).expect("change task");
     let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { words, .. })) = &change_row.phase else {
         panic!("change done: {:?}", change_row.phase)
@@ -247,7 +261,7 @@ fn a_chats_change_lands_by_turn() {
         world
             .writes
             .iter()
-            .filter(|write| matches!(write, api::Write::Update { style: api::UpdateStyle::Rebase, .. }))
+            .filter(|write| matches!(write, api::Write::OpenPull { head, .. } if head.windows(2).any(|bytes| bytes == b"/l")))
             .count(),
         1
     );
@@ -276,6 +290,7 @@ fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
         StoryLimits { turn: true, ..StoryLimits::default() },
     );
     let (mut world, goal, producer, branch) = change_world_in(world, Change { tracked: true, ..Change::default() });
+    world.send(hello_prepare(2));
     let owner = live_task(&world, goal.task);
     assert_ne!(owner.root, goal.task, "goal is delegated");
     let tasks::Party::Task(change) = live_task(&world, producer.task).requester else {
@@ -294,7 +309,7 @@ fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
         world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
     world.send(event);
     for _ in 0..30 {
-        world.tick();
+        world.prepare_tick();
     }
     world.external(1, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fixed", 1)
@@ -318,7 +333,7 @@ fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
     );
     world.send(event);
     for _ in 0..600 {
-        world.tick();
+        world.prepare_tick();
     }
     assert_eq!(world.merges, 1);
     let inbox = &live_task(&world, goal.task).inbox;
@@ -346,7 +361,7 @@ fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
 fn a_ready_change_waits_when_landing_room_is_full() {
     let (mut world, change) = produced_turn_change(Some(0));
     for _ in 0..300 {
-        world.tick();
+        world.prepare_tick();
     }
     assert!(task_row(&world, change).is_some_and(|row| matches!(row.phase, tasks::Phase::Active(_))));
     let row = world
@@ -419,7 +434,7 @@ fn make_change(
         {
             return (change, run.clone());
         }
-        world.tick();
+        world.prepare_tick();
     }
     panic!("producer assigned for {change}: {:?}", task_row(world, change));
 }
@@ -481,7 +496,7 @@ fn turn_chat_with_library_gate(library_gate_latency: Option<Duration>) -> (World
     );
     world.adopt();
     adopt_library(&mut world);
-    world.send(protocol::hello_slots(Token::new(7), 3, Box::new([])));
+    world.send(hello_prepare(3));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { unreachable!() };
     batch[0].budget = people::Budget::AsAllowed { cap: Some(250) };
     let chat = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
@@ -513,7 +528,7 @@ fn add_dependency(world: &mut World, chat: &engine::Assignment, a: u64, b: u64) 
     );
     world.send(event);
     for _ in 0..PAIR_TICKS {
-        world.tick();
+        world.prepare_tick();
         if live_task(world, b).waiting_on.as_ref() == [a] {
             break;
         }
@@ -571,7 +586,7 @@ fn land_pair(world: &mut World, a: u64, b: u64, stale_downstream: bool) {
     let mut ends = Vec::new();
     let mut upstream_landed = None;
     for _ in 0..PAIR_TICKS {
-        world.tick();
+        world.prepare_tick();
         if stale_downstream
             && !moved
             && landing_rows(world).iter().any(|row| {
@@ -626,9 +641,21 @@ fn land_pair(world: &mut World, a: u64, b: u64, stale_downstream: bool) {
     assert_eq!(
         ends,
         expected,
-        "changes={changes:?}; landings={:?}; writes={:?}",
-        landing_rows(world),
-        world.repository_writes
+        "changes={changes:?}; rounds={:?}; landing tasks={:?}",
+        landing_rows(world)
+            .iter()
+            .map(|row| (
+                &row.landing.phase,
+                row.landing.preparation,
+                &row.landing.round,
+                &row.landing.members[0].gates,
+                &row.entries
+            ))
+            .collect::<Vec<_>>(),
+        landing_rows(world)
+            .iter()
+            .map(|row| task_row(world, row.landing.task).map(|task| &task.phase))
+            .collect::<Vec<_>>()
     );
 }
 
@@ -674,7 +701,7 @@ fn assert_pair_result(world: &mut World, a: u64, b: u64, downstream_rebases: usi
                 .repository_writes
                 .iter()
                 .filter(|(repo, write)| *repo == repository
-                    && matches!(write, api::Write::Update { style: api::UpdateStyle::Rebase, .. }))
+                    && matches!(write, api::Write::OpenPull { head, .. } if head.windows(2).any(|bytes| bytes == b"/l")))
                 .count(),
             expected
         );
@@ -705,7 +732,7 @@ fn assert_pair_result(world: &mut World, a: u64, b: u64, downstream_rebases: usi
 fn dependent_changes_in_two_repositories_are_refused_as_a_unit() {
     let (mut world, a, b) = dependent_pair(false);
     for _ in 0..PAIR_TICKS {
-        world.tick();
+        world.prepare_tick();
         if matches!(task_row(&world, a).expect("change").phase, tasks::Phase::Held { .. }) {
             break;
         }
@@ -750,7 +777,7 @@ fn a_dependency_amendment_leaves_a_proving_landing_sealed() {
     let Pair { mut world, chat, a, b, producer_a, producer_b } = pushed_pair(false);
     finish_producer(&mut world, &producer_a, LIB);
     for _ in 0..PAIR_TICKS {
-        world.tick();
+        world.prepare_tick();
         if world
             .repository_writes
             .iter()
@@ -776,7 +803,7 @@ fn a_dependency_between_two_formed_trains_does_not_keep_either_turn() {
     finish_producer(&mut world, &producer_a, LIB);
     finish_producer(&mut world, &producer_b, forge_world::REPO);
     for _ in 0..PAIR_TICKS {
-        world.tick();
+        world.prepare_tick();
         if landing_rows(&world).len() == 2 {
             break;
         }
@@ -787,7 +814,7 @@ fn a_dependency_between_two_formed_trains_does_not_keep_either_turn() {
     add_dependency(&mut world, &chat, a, b);
     let mut turned_before_upstream = false;
     for _ in 0..PAIR_TICKS {
-        world.tick();
+        world.prepare_tick();
         let rows = landing_rows(&world);
         assert_eq!(rows.iter().map(|row| row.landing.task).collect::<Vec<_>>(), ids);
         assert!(rows.iter().all(|row| row.landing.members.len() == 1));
@@ -827,7 +854,7 @@ fn a_change_created_with_a_dependency_does_not_join_a_formed_landing() {
     push_change(&mut world, &producer_a, b"org/lib");
     finish_producer(&mut world, &producer_a, LIB);
     for _ in 0..PAIR_TICKS {
-        world.tick();
+        world.prepare_tick();
         if !landing_rows(&world).is_empty() {
             break;
         }
@@ -860,7 +887,7 @@ fn a_change_created_with_a_dependency_does_not_join_a_formed_landing() {
     );
     world.send(event);
     for _ in 0..PAIR_TICKS {
-        world.tick();
+        world.prepare_tick();
         if world.answers.len() > before {
             break;
         }
@@ -870,7 +897,7 @@ fn a_change_created_with_a_dependency_does_not_join_a_formed_landing() {
     };
     let b = made[0].task;
     for _ in 0..PAIR_TICKS {
-        world.tick();
+        world.prepare_tick();
         if world.assigned.iter().any(|producer| producer.task != producer_a.task && producer.task != chat.task) {
             break;
         }
@@ -878,4 +905,46 @@ fn a_change_created_with_a_dependency_does_not_join_a_formed_landing() {
     assert_eq!(landing_rows(&world).len(), 1);
     assert_eq!(landing_rows(&world)[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), [a]);
     assert!(!ended(&world, b), "new change is still producing, outside the sealed landing");
+}
+
+#[test]
+fn the_prepare_jobs_conflict_result_ends_the_round_and_asks_for_resolution() {
+    let (mut world, change) = produced_turn_change(None);
+    world.manual_prepare_jobs();
+    for _ in 0..600 {
+        world.tick();
+        if !world.jobs.is_empty() {
+            break;
+        }
+    }
+    assert_eq!(world.jobs.len(), 1);
+    let job = world.jobs.remove(0);
+    assert_eq!(job.kind, jig_domain_link::JobKind(1));
+    let landing = job.workspace.as_ref().expect("job workspace").workstream;
+    let result = format!("{{\"conflict\":{{\"member\":{change},\"with\":\"branch\",\"files\":[\"file\"]}}}}");
+    let event = world.protocol.answer_job(
+        Token::new(7),
+        job.run.raw(),
+        job.attempt.raw(),
+        host::JobEnding::Finished { result: result.into_bytes().into(), work: host::Work { left: None, saved: None } },
+    );
+    world.send(event);
+    for _ in 0..600 {
+        world.tick();
+        if task_row(&world, landing).is_some_and(|row| matches!(row.phase, tasks::Phase::Ended(_)))
+            && matches!(
+                super::light_rules::change_row(&world, change).change.state,
+                temper_engine_domain_forge_change::State::Resolving { .. }
+            )
+        {
+            break;
+        }
+    }
+    assert!(matches!(task_row(&world, landing).expect("landing").phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
+    let row = landing_rows(&world).into_iter().find(|row| row.landing.task == landing).expect("round");
+    assert!(row.landing.members[0].landed.is_none());
+    assert!(
+        matches!(super::light_rules::change_row(&world, change).change.state, temper_engine_domain_forge_change::State::Resolving { base, .. } if Some(base) == row.landing.members[0].base)
+    );
+    assert!(!world.writes.iter().any(|write| matches!(write, api::Write::Merge { .. } | api::Write::Update { .. })));
 }

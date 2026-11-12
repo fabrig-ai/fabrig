@@ -284,6 +284,10 @@ pub enum Ask {
     Prepare { head: Commit, main: Commit },
     /// Repair a real gate failure at the landing's candidate.
     Repair { gate: u16, candidate: Commit },
+    /// The landing's prefix is on the train's branch.
+    Landed { prefix: Commit },
+    /// Resolve the prepare job's conflict against this round's base.
+    Resolve { base: Commit },
 }
 
 /// What the top reads of the landing's verification each step

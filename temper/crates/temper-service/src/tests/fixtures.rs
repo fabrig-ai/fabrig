@@ -58,7 +58,7 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 pub fn engine() -> settings::Engine {
     static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
     let jig = ENGINE_SETTINGS.get_or_init(|| parse_engine(ENGINE)).clone();
-    // This typed fixture reaches the core's start; policy 1 needs 6014 bytes with the standing charter executor.
+    // This typed fixture reaches the core's start; policy 1 needs 6359 bytes with the standing charter executor.
 
     settings::Engine {
         host_reply_bytes: None,

@@ -658,8 +658,8 @@ fn trial(models: &[CatalogueModel]) -> Charter {
 }
 
 fn grants() -> Box<[authority::Grant]> {
-    let mut grants = List::with_capacity(14);
-    for kind in [1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17] {
+    let mut grants = List::with_capacity(15);
+    for kind in [1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17] {
         grants
             .push(authority::Grant {
                 connector: FORGE,

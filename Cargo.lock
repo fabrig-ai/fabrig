@@ -6050,6 +6050,7 @@ dependencies = [
  "skein-ui",
  "skein-ui-web",
  "skein-world",
+ "smith-agent-service",
  "smith-agent-shell",
  "smith-channel",
  "smith-charter",

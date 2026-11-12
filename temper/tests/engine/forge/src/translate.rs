@@ -13,7 +13,7 @@ pub fn commit(number: u64) -> client::Commit {
     id[..20].copy_from_slice(&skein_fake_forge_domain::object_bytes(number));
     id
 }
-fn number(id: client::Commit) -> u64 {
+pub(crate) fn number(id: client::Commit) -> u64 {
     let mut bytes = [0; 8];
     bytes.copy_from_slice(&id[8..16]);
     let number = u64::from_be_bytes(bytes);

@@ -139,9 +139,11 @@ fn a_conflicting_rebase_resolves_and_asks_every_gate_again() {
 }
 
 #[test]
-fn a_ready_change_whose_pull_its_landing_merged_is_landed() {
+fn a_ready_change_lands_only_when_told_its_prefix() {
     let mut f = facts();
     f.pull = Pull::Merged { commit: NEW };
+    assert_eq!(decide(&ready(), &f, &heard()).change.state, ready().state);
+    f.ask = Some(Ask::Landed { prefix: NEW });
     let next = decide(&ready(), &f, &heard());
     assert_eq!(next.change.state, State::Landed { merge: NEW, since: at(1) });
     assert_eq!(next.decision, Decision::Finish { merge: NEW });

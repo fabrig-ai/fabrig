@@ -1064,9 +1064,15 @@ pub enum Operation {
     Pending,
     Verdict,
     Merge,
+    Open,
+    Close,
+    Delete,
+    Record,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
+    pub failure: Box<[u8]>,
+    pub preparation: landing::Preparation,
     /// Live landings waiting prepared on a member of another live landing.
     pub kept: Box<[u64]>,
     pub released: bool,

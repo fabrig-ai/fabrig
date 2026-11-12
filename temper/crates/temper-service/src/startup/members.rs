@@ -9,7 +9,7 @@ pub(crate) use temper_forge_setup::machine::MemberObject as Object;
 mod tests;
 
 /// Every application shape, including the machine decoder’s own rows.
-pub static SHAPES: [Shape; 32] = [
+pub static SHAPES: [Shape; 33] = [
     Shape { name: "document", paths: &[""], line: "The top-level members of the configuration document." },
     Shape {
         name: "application",
@@ -66,6 +66,11 @@ pub static SHAPES: [Shape; 32] = [
         line: "One project’s landing way, merge command and checks.",
     },
     Shape {
+        name: "landing-combine",
+        paths: &["application.landing.projects[].combine"],
+        line: "How trains combine their members.",
+    },
+    Shape {
         name: "repository-checks",
         paths: &["application.landing.projects[].gates[]"],
         line: "One repository’s test gates and after-landing tiers.",
@@ -117,7 +122,7 @@ pub static SHAPES: [Shape; 32] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 115] = [
+pub static MEMBERS: [Member; 118] = [
     Member {
         shape: "document",
         name: "engine",
@@ -521,6 +526,33 @@ pub static MEMBERS: [Member; 115] = [
         bound: "queue or turn; queue when absent",
         required: false,
         line: "The project’s way of landing changes.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-project",
+        name: "combine",
+        kind: "landing-combine",
+        bound: "stock merge for main, squash for other",
+        required: false,
+        line: "How each train combines its member.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-combine",
+        name: "main",
+        kind: "text",
+        bound: "merge or squash; merge when absent",
+        required: false,
+        line: "Trains into the default branch.",
+        gone: None,
+    },
+    Member {
+        shape: "landing-combine",
+        name: "other",
+        kind: "text",
+        bound: "merge or squash; squash when absent",
+        required: false,
+        line: "Trains into other branches.",
         gone: None,
     },
     Member {

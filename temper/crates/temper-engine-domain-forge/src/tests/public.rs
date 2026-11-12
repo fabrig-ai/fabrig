@@ -376,6 +376,8 @@ fn setup_with_limits(limits: &Limits) -> Domain {
             LANDING,
             LandingRow {
                 landing: policy::Landing {
+                    round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
                     task: LANDING,
                     project: 5,
                     phase: policy::Phase::Turn { at: env().wall },
@@ -833,6 +835,8 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                 task,
                 LandingRow {
                     landing: policy::Landing {
+                        round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
                         task,
                         project: 5,
                         phase: policy::Phase::Landed,

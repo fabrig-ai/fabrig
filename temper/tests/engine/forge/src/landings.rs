@@ -33,6 +33,8 @@ pub fn turn_world() -> World {
 pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
     top::LandingRow {
         landing: landing::Landing {
+            round: landing::Round::new(format!("temper/1/l{LANDING}").into_bytes().into_boxed_slice()),
+
             task: LANDING,
             project: PROJECT,
             phase: landing::Phase::Waiting,
@@ -46,11 +48,15 @@ pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
                 head: None,
                 base: None,
                 candidate: None,
-                gates: Box::new([landing::GateProof {
-                    proof: landing::Proof::Unkeyed,
-                    posted: landing::Posted::Nothing,
-                    faults: 0,
-                }]),
+                gates: if change.base.as_ref() == b"main" {
+                    Box::new([landing::GateProof {
+                        proof: landing::Proof::Unkeyed,
+                        posted: landing::Posted::Nothing,
+                        faults: 0,
+                    }])
+                } else {
+                    Box::new([])
+                },
                 asked: None,
                 landed: None,
             }]),
@@ -63,11 +69,24 @@ pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
     }
 }
 pub fn step_landing(world: &mut World, task: u64, entry: u64) -> landing::Decision {
+    let decision = step_landing_raw(world, task, entry);
+    if let landing::Decision::Prepare { .. } = decision {
+        world.prepare_landing(task, false);
+    }
+    decision
+}
+pub fn step_landing_raw(world: &mut World, task: u64, entry: u64) -> landing::Decision {
     world.take_seen();
     world.event(top::Event::StepLanding {
         task,
         entry,
-        heard: top::LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+        heard: top::LandingHeard {
+            failure: Box::new([]),
+            preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+            released: false,
+            cancelled: false,
+            kept: Box::new([]),
+        },
     });
     world.run_for(1);
     let mut decision = None;
@@ -102,11 +121,15 @@ pub fn drive_landing(world: &mut World, task: u64) {
 }
 /// Open a produced change and let its actual procedure reach Ready.
 pub fn ready_change(world: &mut World, task: u64, branch: &[u8]) {
-    let pull = world.open_pull(branch, b"main");
+    ready_change_into(world, task, branch, b"main");
+}
+pub fn ready_change_into(world: &mut World, task: u64, branch: &[u8], base: &[u8]) {
+    let pull = world.open_pull(branch, base);
     let head = crate::translate::commit(world.branch(branch));
     let mut row = changes::change_row();
     row.task = task;
     row.branch = Box::from(branch);
+    row.base = Box::from(base);
     row.change.task = task;
     row.change.state = change::State::Gating { head, asked: Box::new([]) };
     row.change.last_head = Some(head);
@@ -134,6 +157,7 @@ pub fn documentation_landing(world: &mut World, change: u64, landing: u64, branc
     ready_change(world, change, branch);
     let mut row = landing_row(world.change(change));
     row.landing.task = landing;
+    row.landing.round = landing::Round::new(format!("temper/1/l{landing}").into_bytes().into_boxed_slice());
     world.event(top::Event::Landing { row });
     drive_landing(world, landing);
 }
@@ -160,6 +184,8 @@ impl Trains {
                 self.next = self.next.max(LANDING);
                 let mut row = landing_row(world.change(task));
                 row.landing.task = self.next;
+                row.landing.round =
+                    landing::Round::new(format!("temper/1/l{}", self.next).into_bytes().into_boxed_slice());
                 self.next += 1;
                 world.event(top::Event::Landing { row });
             }

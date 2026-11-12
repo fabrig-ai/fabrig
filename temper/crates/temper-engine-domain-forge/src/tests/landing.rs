@@ -287,6 +287,8 @@ fn landing_fixture() -> Domain {
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
         landing: policy::Landing {
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
             task,
             project: 5,
             phase,
@@ -322,65 +324,80 @@ fn landing_preflight_checks_rules_and_live_room() {
 #[test]
 fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
     use skein_forge::api::{Answer, Op, Read};
-    use temper_engine_domain_forge_change::Status;
-    for (result, mut status) in fixtures::ancestry_cases() {
+    const CANDIDATE: [u8; 32] = [9; 32];
+    for complete in [true, false] {
         let mut d = landing_fixture();
-        let mut env = env();
-        env.limits.client.read_attempts = 1;
+        fixtures::connect(&mut d);
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::ReadAfresh);
         outputs(&mut d, Event::SettleOutbox);
         d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
-            temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env.wall };
+            temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
         member_landing(&mut d);
+        let row = d.landing.rows.get_mut(&61).expect("round");
+        row.landing.phase = policy::Phase::Preparing;
+        row.landing.round.pull = None;
+        row.landing.round.combined = None;
+        let member = &mut row.landing.members[0];
+        member.candidate = None;
+        member.head = None;
+        member.base = None;
         outputs(
             &mut d,
             Event::StepLanding {
                 task: 61,
                 entry: 91,
-                heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+                heard: LandingHeard {
+                    failure: Box::new([]),
+                    preparation: policy::Preparation::Idle,
+                    released: false,
+                    cancelled: false,
+                    kept: Box::new([]),
+                },
             },
         );
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
+        fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
         let (call, op) = fixtures::next_call(&mut d);
-        assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: fixtures::BASE, page: 1 }));
-        let unavailable = result == Err(skein_forge::api::Error::Unavailable);
-        let requests = fixtures::answer_at(&mut d, &env, call, result);
-        if unavailable {
-            assert!(requests.is_empty(), "an outage produces no landing decision");
-            fixtures::advance(&mut d, &mut env, CLIENT.backoff);
-            let (again, retried) = fixtures::next_at(&mut d, &env);
-            assert_eq!(retried, op, "retry the same ancestry proof");
-            fixtures::answer_at(&mut d, &env, again, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-            status = Status::Passed;
+        assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/1/l61".as_slice().into() }));
+        fixtures::answer(&mut d, call, Ok(Answer::Commit(CANDIDATE)));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: CANDIDATE, after: fixtures::BASE, page: 1 }));
+        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: CANDIDATE, after: fixtures::HEAD, page: 1 }));
+        let mut requests =
+            fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: !complete }));
+        if complete {
+            fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+            fixtures::answer_next(
+                &mut d,
+                Ok(Answer::Commits {
+                    commits: Box::new([skein_forge::api::CommitMessage {
+                        id: fixtures::HEAD,
+                        parents: Box::new([]),
+                        message: Box::new([]),
+                    }]),
+                    more: false,
+                }),
+            );
+            requests = fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
         }
-        let (call, _) = fixtures::next_at(&mut d, &env);
-        fixtures::answer_at(&mut d, &env, call, Ok(Answer::Pull(fixtures::open_pull())));
-        let (call, _) = fixtures::next_at(&mut d, &env);
-        let requests = fixtures::answer_at(
-            &mut d,
-            &env,
-            call,
-            Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
-        );
         let mut decision = None;
-        for request in &requests {
+        for request in requests {
             if let Request::LandingDecision { decision: found, .. } = request {
-                decision = Some(*found);
+                decision = Some(found);
             }
         }
-        let decision = decision.expect("landing decision");
-        let expected = match status {
-            Status::Passed => policy::Decision::None,
-            Status::Failed => policy::Decision::Prepare { member: 0, head: fixtures::HEAD, main: fixtures::BASE },
-            Status::Unknown | Status::Pending => policy::Decision::Wait { until: None },
-        };
-        assert_eq!(decision, expected);
-        assert_eq!(
-            d.landing.rows.get(&61).expect("landing").landing.members[0].candidate,
-            if status == Status::Passed { Some(fixtures::HEAD) } else { None }
-        );
+        let decision = decision.expect("decision");
+        assert!(if complete {
+            decision == policy::Decision::Open
+        } else {
+            matches!(decision, policy::Decision::Wait { .. })
+        });
     }
 }
 
@@ -432,7 +449,13 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
         Event::StepLanding {
             task: 61,
             entry: 91,
-            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            heard: LandingHeard {
+                failure: Box::new([]),
+                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
         },
     );
     let mut branches = 0_u32;
@@ -511,13 +534,21 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
         landed: None,
     }]);
     row.asks = Box::new([None]);
+    row.landing.round.pull = Some(2);
+    row.landing.round.combined = Some(policy::Combine::Merge);
     outputs(&mut d, Event::Landing { row });
     outputs(
         &mut d,
         Event::StepLanding {
             task: 61,
             entry: 91,
-            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            heard: LandingHeard {
+                failure: Box::new([]),
+                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
         },
     );
     let (branch_call, op) = fixtures::next_call(&mut d);
@@ -527,7 +558,6 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
     assert!(ready(&mut d).is_empty(), "the higher entry waits while the landing's lower entry is reserved");
     fixtures::answer(&mut d, branch_call, Ok(Answer::Commit(fixtures::HEAD)));
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
-    fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
@@ -634,7 +664,13 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
         Event::StepLanding {
             task: 61,
             entry: 91,
-            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            heard: LandingHeard {
+                failure: Box::new([]),
+                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
         },
         &mut out,
     );
@@ -652,19 +688,21 @@ fn member_landing(d: &mut Domain) {
 }
 
 fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
-    let mut row = landing_row(61, policy::Phase::Preparing);
+    let mut row = landing_row(61, policy::Phase::Proving);
     row.landing.members = Box::new([policy::Member {
         change: fixtures::CHANGE,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
         pull: 1,
-        head: None,
-        base: None,
-        candidate: None,
+        head: Some(fixtures::HEAD),
+        base: Some(fixtures::BASE),
+        candidate: Some(fixtures::HEAD),
         gates,
         asked: None,
         landed: None,
     }]);
     row.asks = Box::new([None]);
+    row.landing.round.pull = Some(2);
+    row.landing.round.combined = Some(policy::Combine::Merge);
     outputs(d, Event::Landing { row });
 }
 
@@ -825,7 +863,13 @@ fn cancelling_the_last_member_cancels_its_landing_without_reading_the_missing_br
         Event::StepLanding {
             task: 61,
             entry: 92,
-            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            heard: LandingHeard {
+                failure: Box::new([]),
+                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
         },
     );
     assert!(requests.contains(&Request::LandingDecision {
@@ -1076,7 +1120,13 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
             Event::StepLanding {
                 task: 61,
                 entry: 91,
-                heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+                heard: LandingHeard {
+                    failure: Box::new([]),
+                    preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                    released: false,
+                    cancelled: false,
+                    kept: Box::new([]),
+                },
             },
             &mut out,
         );
@@ -1286,7 +1336,13 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
             Event::StepLanding {
                 task: 61,
                 entry: 91,
-                heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+                heard: LandingHeard {
+                    failure: Box::new([]),
+                    preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                    released: false,
+                    cancelled: false,
+                    kept: Box::new([]),
+                },
             },
         );
         let mut decision = None;
@@ -1305,6 +1361,9 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
                 if let Request::LandingDecision { decision: choice, .. } = request {
                     decision = Some(choice);
                 }
+            }
+            if decision.is_some() {
+                break;
             }
         }
         let expected = if retries == 0 {
