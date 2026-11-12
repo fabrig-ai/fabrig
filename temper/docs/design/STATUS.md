@@ -245,6 +245,7 @@ Design documents:
 - [`domain/worker/jobs.md`](domain/worker/jobs.status.md)
 - [`playground.md`](playground.status.md)
 - [`protocol/README.md`](protocol/README.status.md)
+- [`protocol/baseline.md`](protocol/baseline.status.md)
 - [`protocol/binaries.md`](protocol/binaries.status.md)
 - [`protocol/channel.md`](protocol/channel.status.md)
 - [`protocol/cluster.md`](protocol/cluster.status.md)

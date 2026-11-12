@@ -107,7 +107,7 @@ pub(crate) const BOX: Command = Command {
     notes: "Without --front, the box runs with no TUI, in a terminal or not. With --front, its local link goes to fd 3, its lines to fd 4 and stdin's end stops it; it writes nothing on its terminal. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
 };
 
-const COMMANDS: [Command; 28] = [
+const COMMANDS: [Command; 30] = [
     BOX,
     Command {
         reach: Reach::Words(&["init"]),
@@ -146,6 +146,8 @@ Refused, changing nothing, when the configuration directory already holds temper
     temper_worker_shell::PROGRAM_LOGIN,
     HELP,
     temper_engine_shell::commands::VERSIONS,
+    temper_engine_shell::commands::UPGRADE_CHECK,
+    temper_engine_shell::commands::UPGRADE_BACK,
     FETCH,
     PREPARE,
     RUN,

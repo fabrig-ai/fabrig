@@ -5,11 +5,13 @@ use alloc::boxed::Box;
 use jig_domain_core::{CoreKey, CoreRecord, Key, Record};
 use skein_lib::{Queue, Token};
 
+#[expect(clippy::too_many_lines, reason = "the ordered open checks include the rehearsal's pre-plan walk")]
 pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, below: &mut crate::Below) {
     if store.phase != Phase::Closed {
         refuse(store, owner, OpenRefusal::Failed, above);
         return;
     }
+    crate::rehearsal::announce(store, above);
     let format_key = keys::encode_own(&keys::Own::Format, store.limits.store.key).expect("format key fits");
     let header_key = keys::encode(&Key::Core(CoreKey::Deployment), store.limits.store.key).expect("header key fits");
     let Ok(found) = get_open(store, owner, format_key) else {
@@ -42,18 +44,31 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     };
     let binary = plan::binary(&store.patch_sets);
     let Some(found) = decode(store, owner, &found, binary.jig, above) else { return };
-    let found_levels = found.levels;
+    let found_levels = match found_levels(store, owner, &found, binary) {
+        Ok(levels) => levels,
+        Err(why) => return refuse(store, owner, why, above),
+    };
     let compared = match format::compare(found_levels, binary) {
         Ok(compared) => compared,
         Err(why) => return refuse(store, owner, why, above),
     };
+    if !crate::rehearsal::records(store, owner, found_levels, above) {
+        return;
+    }
+    if compared == format::Compared::Behind
+        && let Err(why) = pending(store, found_levels, binary)
+    {
+        return refuse(store, owner, why, above);
+    }
     // Refuse another family's version before decoding its header.
-    let wanted = format::current(store.application.version, found.deployment);
+    let wanted = wanted(store, found_levels, binary, found.deployment);
     if let Err(why) = format::check_versions(&found, &wanted, compared) {
         refuse(store, owner, why, above);
         return;
     }
-    if let Err(why) = check_layouts(store, owner) {
+    if compared == format::Compared::Same
+        && let Err(why) = check_layouts(store, owner, found_levels, binary)
+    {
         refuse(store, owner, why, above);
         return;
     }
@@ -68,17 +83,12 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     };
     match header {
         Record::Core(CoreRecord::Deployment(header)) => {
-            let wanted = format::current(store.application.version, header.id);
+            let wanted = codec::component::Format { deployment: header.id, ..wanted };
             if let Err(why) = format::check_versions(&found, &wanted, compared) {
                 refuse(store, owner, why, above);
             } else if header.commits != last {
                 refuse(store, owner, OpenRefusal::Numbers { store: last, header: header.commits }, above);
             } else {
-                if compared == format::Compared::Behind
-                    && let Err(why) = pending(store, found_levels, binary)
-                {
-                    return refuse(store, owner, why, above);
-                }
                 restore_installation(store, owner, last, above, below);
             }
         }
@@ -101,6 +111,33 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
     }
 }
 
+fn wanted(store: &Store, found: plan::Levels, binary: plan::Levels, deployment: [u8; 16]) -> codec::component::Format {
+    if found.jig < binary.jig {
+        let pending = store.directory.patch.as_ref().expect("behind open planned");
+        format::at_level(store.application.version, deployment, &pending.machines)
+    } else {
+        format::current(store.application.version, deployment)
+    }
+}
+
+fn found_levels(
+    store: &mut Store,
+    owner: Token,
+    found: &codec::component::Format,
+    binary: plan::Levels,
+) -> Result<plan::Levels, OpenRefusal> {
+    let baseline_layouts = if found.levels == format::NONE {
+        let key = keys::encode_own(&keys::Own::Layouts, store.limits.store.key).expect("layouts key fits");
+        match get_open(store, owner, key)? {
+            Some(bytes) => codec::component::Layouts::decode(&bytes).ok(),
+            None => None,
+        }
+    } else {
+        None
+    };
+    Ok(format::found_levels(found, baseline_layouts.as_ref(), binary))
+}
+
 fn pending(store: &mut Store, found: plan::Levels, binary: plan::Levels) -> Result<(), OpenRefusal> {
     let plan = match plan::plan(&store.patch_sets, &found, &binary) {
         Ok(plan) => plan,
@@ -117,13 +154,21 @@ fn pending(store: &mut Store, found: plan::Levels, binary: plan::Levels) -> Resu
     flights
 }
 
-fn check_layouts(store: &mut Store, owner: Token) -> Result<(), OpenRefusal> {
+fn check_layouts(
+    store: &mut Store,
+    owner: Token,
+    found_levels: plan::Levels,
+    binary: plan::Levels,
+) -> Result<(), OpenRefusal> {
+    if !format::needs_layouts(found_levels, binary) {
+        return Ok(());
+    }
     let key = keys::encode_own(&keys::Own::Layouts, store.limits.store.key).expect("layouts key fits");
     let bytes = get_open(store, owner, key)?.ok_or(OpenRefusal::OlderBuild { why: Older::Unrecorded })?;
     let Ok(found) = codec::component::Layouts::decode(&bytes) else {
         return Err(OpenRefusal::OlderBuild { why: Older::Layout(Family::Component) });
     };
-    format::check_layouts(&found, &store.layouts)
+    format::check_unleveled_layouts(&found, &store.layouts, found_levels, binary)
 }
 
 /// The identifier kept by the first commit replaces the drawn one (4.4); a
@@ -233,6 +278,7 @@ fn ready(
 }
 
 pub(crate) fn refuse(store: &mut Store, owner: Token, why: OpenRefusal, above: &mut Queue<Event>) {
+    crate::rehearsal::announce(store, above);
     store.open_failed(restore::OpenFailure::Refused(why.clone()));
     store.phase = Phase::Stopped;
     above.push(Event::OpenRefused { owner, why });

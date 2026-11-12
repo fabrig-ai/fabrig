@@ -1,6 +1,12 @@
 //! The box binary's table and dispatch (temper/docs/design/protocol/binaries.md, 2).
 use std::process::{Command, Stdio};
 use temper_box_shell::TABLE;
+#[path = "../../../temper-engine/tests/support/upgrade.rs"]
+mod upgrade;
+#[test]
+fn upgrade_refuses_an_empty_deployment_directory() {
+    upgrade::empty_directory("temper-box");
+}
 
 fn empty(text: &str) -> bool {
     text.is_empty()
@@ -29,7 +35,7 @@ fn help(text: &str) -> bool {
         .filter_map(|line| line.split_whitespace().next())
         .collect();
     text == TABLE.help()
-        && names == ["init", "serve", "program-login", "help", "versions"]
+        && names == ["init", "serve", "program-login", "help", "versions", "upgrade", "upgrade"]
         && text.contains("temper-box [--config DIR]")
         && ["forge", "fake", "internal", "ctl", "open"].iter().all(|word| !names.contains(word))
 }
@@ -87,6 +93,18 @@ const ROWS: &[Case] = &[
     (&["internal", "tui"], 2, empty, "temper-box: no command internal tui; temper-box --help lists them\n"),
     (&["frobnicate"], 2, empty, "temper-box: no command frobnicate; temper-box --help lists them\n"),
     (&["init", "extra"], 2, empty, "temper-box init: invalid arguments\nusage: temper-box init [DIRECTORIES]\n"),
+    (
+        &["upgrade", "--check"],
+        2,
+        empty,
+        "temper-box upgrade --check: invalid arguments\nusage: temper-box upgrade --check [DIRECTORIES] DIRECTORY\n",
+    ),
+    (
+        &["upgrade", "--back", "extra"],
+        2,
+        empty,
+        "temper-box upgrade --back: invalid arguments\nusage: temper-box upgrade --back [DIRECTORIES]\n",
+    ),
 ];
 
 #[test]
@@ -140,6 +158,12 @@ fn versions_are_the_engines_lines_and_refusals() {
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     assert!(output.stderr.is_empty(), "{output:?}");
     assert_eq!(output.stdout, temper_engine_shell::versions().as_bytes());
+    assert!(String::from_utf8_lossy(&output.stdout).lines().take(4).eq([
+        "level skein 0",
+        "level smith 0",
+        "level jig 1",
+        "level temper 1",
+    ]));
     let refused = Command::new(skein_scratch::paths::binary("temper-box"))
         .args(["versions", "x"])
         .env_clear()
