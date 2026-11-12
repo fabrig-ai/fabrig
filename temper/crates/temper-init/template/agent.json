@@ -58,6 +58,25 @@
       }
     },
     {
+      "name": "anthropic-api",
+      "number": 4,
+      "dialect": 2,
+      "provider": "anthropic",
+      "address": "api.anthropic.com:443",
+      "transport": "tls",
+      "headers": [],
+      "server_name": "api.anthropic.com",
+      "connect": 10000,
+      "handshake": 10000,
+      "limits": {
+        "window": 1048576,
+        "output": 8192,
+        "reasoning_item": 65536,
+        "head": 60000,
+        "idle": 120000
+      }
+    },
+    {
       "name": "demo",
       "number": 3,
       "dialect": 3,

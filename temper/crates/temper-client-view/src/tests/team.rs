@@ -24,7 +24,7 @@ struct Row {
     boxes: Vec<BoxWords>,
 }
 fn person(you: bool, name: &[u8], role: HeldRole, waits: Option<Waits>) -> Person {
-    Person { party: if you { READER } else { SAM }, you, name: name.into(), role, waits }
+    Person { party: if you { READER } else { SAM }, you, name: name.into(), role, waits, signed: None }
 }
 fn read(label: &'static str, people: Vec<Person>, cut: bool, lede: &'static str, boxes: Vec<BoxWords>) -> Row {
     Row {
@@ -285,5 +285,34 @@ fn team_draws_what_it_shows() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn team_draws_signoffs_after_waits_or_alone_and_never_at_zero() {
+    for words in [f::browser_words(), f::words()] {
+        let mut reader = person(true, b"Reader", HeldRole::Owner, Some(Waits::default()));
+        reader.signed = Some(temper_client_domain::pages::team::Signed { count: 4, floor: false });
+        let mut sam = person(false, b"Sam", HeldRole::Member, None);
+        sam.signed = Some(temper_client_domain::pages::team::Signed { count: 2, floor: true });
+        let mut kit = person(false, b"Kit", HeldRole::Member, None);
+        kit.party = 9;
+        kit.signed = Some(temper_client_domain::pages::team::Signed { count: 0, floor: true });
+        let shown = Shown::Read(Facts {
+            people: List::from_boxed(Box::new([reader, sam, kit])),
+            cut: false,
+            triager: None,
+            standing_roles: None,
+        });
+        let mut b = Builder::new(&f::tree_limits());
+        draw(&mut b, &words, b"shop", &shown);
+        let tree = b.finish();
+        let lines: Vec<_> = tree
+            .nodes()
+            .iter()
+            .filter(|node| node.styles.as_slice().contains(&look::TEAM_LINE))
+            .map(|node| node.name.as_deref().unwrap())
+            .collect();
+        assert_eq!(lines, [b"Nothing waits on you.".as_slice(), b"Signed four last week.", b"Signed 2+ last week."]);
     }
 }

@@ -40,7 +40,7 @@ impl Closer {
 pub enum Child {
     Pending,
     Done,
-    Ended,
+    Ended { branch: bool },
 }
 
 #[derive(Debug)]
@@ -54,6 +54,9 @@ pub struct Facts {
     pub child: Child,
     pub landing_child: Child,
     pub released: bool,
+    pub close_ended: u32,
+    pub land_ended: u32,
+    pub bound: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -84,20 +87,7 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
         closer.retry = Some(running.step);
     }
     if let Some(retry) = closer.retry {
-        if facts.pending {
-            return Stepped { closer, decision: Decision::Wait };
-        }
-        let decision = match retry {
-            Step::Close => Decision::Make(Step::Close),
-            Step::Land => land(facts),
-        };
-        match decision {
-            Decision::Check => {}
-            Decision::Make(_) | Decision::Report | Decision::Wait | Decision::Hold(_) => closer.retry = None,
-        }
-        if decision == Decision::Report {
-            closer.landing = None;
-        }
+        let decision = retry_step(&mut closer, facts, retry);
         return Stepped { closer, decision };
     }
     if let Some(running) = closer.running {
@@ -113,13 +103,13 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
                 }
                 return Stepped { closer, decision: Decision::Wait };
             }
-            Child::Ended => match running.step {
+            Child::Ended { branch } => match running.step {
                 Step::Close => {
-                    let decision = hold(&mut closer, running);
+                    let decision = ended_step(&mut closer, facts, running, branch);
                     return Stepped { closer, decision };
                 }
                 Step::Land => {
-                    if let Some(decision) = ended_landing(&mut closer, facts, running.change) {
+                    if let Some(decision) = ended_landing(&mut closer, facts, running.change, branch) {
                         return Stepped { closer, decision };
                     }
                 }
@@ -134,7 +124,7 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
     } else if let Some(change) = closer.landing {
         match facts.landing_child {
             Child::Pending => Decision::Wait,
-            Child::Ended => match ended_landing(&mut closer, facts, change) {
+            Child::Ended { branch } => match ended_landing(&mut closer, facts, change, branch) {
                 Some(decision) => decision,
                 None => land(facts),
             },
@@ -164,10 +154,44 @@ fn hold(closer: &mut Closer, running: Running) -> Decision {
     Decision::Hold(hold)
 }
 
-fn ended_landing(closer: &mut Closer, facts: &Facts, change: u64) -> Option<Decision> {
+fn retry_step(closer: &mut Closer, facts: &Facts, kind: Step) -> Decision {
+    closer.running = None;
+    closer.retry = Some(kind);
+    if facts.pending {
+        return Decision::Wait;
+    }
+    let decision = match kind {
+        Step::Close => Decision::Make(Step::Close),
+        Step::Land => land(facts),
+    };
+    match decision {
+        Decision::Check => {}
+        Decision::Make(Step::Close | Step::Land) | Decision::Report | Decision::Wait | Decision::Hold(_) => {
+            closer.retry = None;
+        }
+    }
+    if decision == Decision::Report {
+        closer.landing = None;
+    }
+    decision
+}
+
+fn ended_step(closer: &mut Closer, facts: &Facts, running: Running, branch: bool) -> Decision {
+    let ended = match running.step {
+        Step::Close => facts.close_ended,
+        Step::Land => facts.land_ended,
+    };
+    if branch || ended >= u32::from(facts.bound) {
+        hold(closer, running)
+    } else {
+        retry_step(closer, facts, running.step)
+    }
+}
+
+fn ended_landing(closer: &mut Closer, facts: &Facts, change: u64, branch: bool) -> Option<Decision> {
     match land(facts) {
         Decision::Check => Some(Decision::Check),
-        Decision::Make(Step::Land) => Some(hold(closer, Running { step: Step::Land, change })),
+        Decision::Make(Step::Land) => Some(ended_step(closer, facts, Running { step: Step::Land, change }, branch)),
         Decision::Report => {
             closer.running = None;
             closer.landing = None;

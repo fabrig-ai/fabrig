@@ -190,7 +190,11 @@ finds it written and swaps in its own: the provider's one model, the model
 and the endpoint, each found by Anthropic's name and replaced where it stands,
 not doubled, so that one model, `fake-claude`, the fake model serves through
 an Anthropic-dialect endpoint in both effective documents, ahead of the
-scripted model as init's stands. An init-shaped document without them is
+scripted model as init's stands. The fake box offers Claude through its fake
+program alone: the rewrite drops the provider's `keys` and `direct` and the
+`anthropic-api` endpoint from both documents, so that nothing of it reaches
+Anthropic. An init-shaped document without the provider, its model or the
+`anthropic` endpoint is
 refused by name. It keeps the configured `documents.lines`
 capacity, raising it to at least 3 so that the Model step offers OpenAI,
 demo and Anthropic without shrinking creating's executor lists. If the override

@@ -734,9 +734,6 @@ fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w
                     line: question.line,
                     stands: match question.stands {
                         forge::PanelStands::Taken => w::Stands::Taken,
-                        forge::PanelStands::Foreman(task) => {
-                            w::Stands::Foreman(w::Foreman::new(limits, w::ForemanParts { task }).ok()?)
-                        }
                         forge::PanelStands::Asked => w::Stands::Asked,
                         forge::PanelStands::Held => w::Stands::Held,
                     },
@@ -751,7 +748,6 @@ fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w
         w::QuestionsParts {
             route: match value.route {
                 change::Route::None => w::Route::None,
-                change::Route::Foreman => w::Route::Foreman,
                 change::Route::Up => w::Route::Up,
             },
             taken: used(value.taken, limits)?,
@@ -1878,11 +1874,24 @@ fn changes_landed(
 ) -> Option<List<w::ChangesLanded>> {
     let mut landed = List::with_capacity(capacity);
     for row in rows {
+        let mut signed = List::with_capacity(u32::try_from(forge::SIGN_OFFS).ok()?);
+        for sign in row.signed {
+            signed
+                .push(
+                    w::ChangesSigned::new(
+                        limits,
+                        w::ChangesSignedParts { party: sign.person, head: sign.head, at: sign.at.as_nanos() },
+                    )
+                    .ok()?,
+                )
+                .ok()?;
+        }
         landed
             .push(
                 w::ChangesLanded::new(
                     limits,
                     w::ChangesLandedParts {
+                        signed,
                         task: row.task,
                         title: row.title,
                         at: row.at.as_nanos(),

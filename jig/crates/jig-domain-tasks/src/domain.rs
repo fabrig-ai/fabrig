@@ -757,6 +757,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 out,
             );
         }
+        Event::Talk { reply_to, project, operation } => {
+            crate::inbox::talk(domain, env, reply_to, project, operation, out);
+        }
+        Event::Leave { reply_to, project, task, party, maintainer } => {
+            crate::inbox::leave(domain, env, reply_to, project, (task, party, maintainer), out);
+        }
         Event::AuthorizedMessage { reply_to, project, operation } => {
             crate::inbox::message(domain, env, reply_to, project, operation, true, out);
         }
@@ -807,6 +813,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 },
                 out,
             );
+        }
+        Event::NowWritten { task, attempt, line } => {
+            crate::activity::now_written(domain, env, task, attempt, &line, out);
         }
         Event::Started { task, attempt } => crate::run::started(domain, env, task, attempt, out),
         Event::Refusals { task, attempt, refused, offered } => {
@@ -1489,6 +1498,7 @@ pub(crate) fn make_admitted(
         let number = new.number;
         let task = Task::new(TaskRecord {
             session: None,
+            talk: None,
             activation_open: false,
             closer: None,
             reasons: crate::Reasons::FIRST,

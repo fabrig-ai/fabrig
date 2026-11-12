@@ -966,6 +966,7 @@ pub struct FollowCheck {
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
     pub ending: Option<Ending>,
@@ -1009,8 +1010,6 @@ pub struct ChangeRow {
     /// The LLM choices by role it was made with (domain/forge/change/README.md, 1, and domain/forge/change/gates.md, 3).
     pub producing_llm: Option<jig_domain_tasks::LlmChoice>,
     pub review_llm: Option<jig_domain_tasks::LlmChoice>,
-    /// The foreman's charter captured when made (domain/forge/change/questions.md, 1).
-    pub foreman_charter: u32,
     pub effect_account: Option<EffectAccount>,
     /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
@@ -1213,6 +1212,8 @@ pub enum CallPayload {
 #[expect(clippy::large_enum_variant, reason = "the durable change row keeps role choices and merge-job state inline")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
+    /// Identity only: a stored setting the codec refused, never its retired value.
+    RefusedSetting(crate::settings::SettingKey),
     /// The connector part of a live named call.
     Call {
         key: NamedCall,
@@ -1445,6 +1446,11 @@ pub struct ChangeDependencies {
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
+    /// Keep the merge judgement in the decision admitting its effect.
+    Signed {
+        task: u64,
+        signed: Box<[SignOff]>,
+    },
     SetDraft {
         request: Token,
         token: Token,
@@ -2108,6 +2114,7 @@ pub enum Request {
     StatusRun {
         project: u32,
         words: Box<[u8]>,
+        signers: Box<[u64]>,
     },
     /// Make the tier run's task; the root answers `TierTask` or `TierRefused`.
     FollowRun {
@@ -2598,7 +2605,19 @@ pub struct LoggedLanding {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LoggedChange {
+    pub signed: Box<[SignOff]>,
     pub task: u64,
     pub pull: Option<u64>,
     pub title: Box<[u8]>,
 }
+
+/// Approval evidence retained at admission (temper/docs/design/domain/forge/change/gates.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct SignOff {
+    pub person: u64,
+    pub head: skein_forge::api::Commit,
+    pub at: skein_lib::Wall,
+}
+
+/// Maximum distinct people retained with one change.
+pub const SIGN_OFFS: usize = 8;

@@ -6,8 +6,8 @@ use std::{ffi::OsStr, os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode}
 pub const TABLE: Table = Table {
     binary: "temper-twin",
     line: "a live run's twin: a fake LLM document that replays its agents.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    version: "",
+    commit: "",
     commands: &[TWIN],
     settings: &[],
     variables: &[],
@@ -104,12 +104,12 @@ const FLAGS: Settings = Settings {
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-twin's arguments, once (skein/docs/foundation/cli.md, 6)"
 )]
-pub fn main() -> ExitCode {
-    run(&skein_shell::arguments())
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
+    run(&skein_shell::arguments(), &Table { version, commit, ..TABLE })
 }
 
-fn run(arguments: &[Box<[u8]>]) -> ExitCode {
-    match TABLE.front(arguments) {
+fn run(arguments: &[Box<[u8]>], table: &Table) -> ExitCode {
+    match table.front(arguments) {
         Front::Print(text) => {
             print!("{text}");
             ExitCode::SUCCESS
@@ -123,7 +123,7 @@ fn run(arguments: &[Box<[u8]>]) -> ExitCode {
             let input = match parse(rest) {
                 Ok(input) => input,
                 Err(why) => {
-                    eprint!("{}", TABLE.refusal(&TWIN, &why));
+                    eprint!("{}", table.refusal(&TWIN, &why));
                     return ExitCode::from(2);
                 }
             };

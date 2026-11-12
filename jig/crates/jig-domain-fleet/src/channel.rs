@@ -49,7 +49,6 @@ pub(crate) struct Channel {
     pub(crate) worker: Option<u32>,
     /// Model eligibility in configured charter order, independent of free slots.
     pub(crate) eligible: Box<[bool]>,
-    pub(crate) declarations: Box<[bool]>,
     /// Which kind of host owns these slots.
     pub(crate) kind: HostKind,
     /// The protocol's name for its channel.
@@ -212,7 +211,6 @@ pub(crate) fn hello(
             // Drop the construction bits before allocating their replacement.
             host.eligible = Box::new([]);
             host.eligible = crate::needs::eligibility(&domain.needs, &hello.bounds.endpoints);
-            host.declarations = crate::needs::declarations(&domain.needs, &hello.bounds.endpoints);
             host.evidence = crate::needs::evidence(&hello.bounds);
             host.program_endpoints = hello.bounds.program_endpoints;
             host.jobs = hello.jobs;
@@ -240,7 +238,6 @@ pub(crate) fn hello(
         jobs,
         evidence: crate::needs::evidence(&bounds),
         program_endpoints: bounds.program_endpoints,
-        declarations: crate::needs::declarations(&domain.needs, &bounds.endpoints),
         worker: Some(worker),
         sources: crate::sources::Sources::new(domain.program_sources.clone(), limits.program_sources, true),
         eligible: crate::needs::eligibility(&domain.needs, &bounds.endpoints),
@@ -416,7 +413,7 @@ pub(crate) fn probe(
             || !kinds.allows(channel.kind)
             || !crate::needs::fits(&domain.needs, version, &channel.evidence, channel.kind)
             || excluded.contains(&channel.token)
-            || !crate::needs::allows_models(&domain.needs, &channel.declarations, models)
+            || !crate::needs::allows_models(&channel.evidence.endpoints, models)
         {
             continue;
         }

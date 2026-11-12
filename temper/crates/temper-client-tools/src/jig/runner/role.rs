@@ -13,7 +13,7 @@ pub(super) fn next(reading: &Reading) -> Option<(u32, c::Read)> {
             for (index, row) in page.live.as_slice().iter().enumerate() {
                 let local = 8u32.checked_add(u32::try_from(index).expect("bounded task rows")).expect("read slot");
                 if !reading.pages.contains_key(&local) {
-                    return Some((local, now(row.project, row.chip.task)));
+                    return Some((local, note(row.project, row.chip.task, b"now")));
                 }
             }
             None
@@ -24,16 +24,18 @@ pub(super) fn next(reading: &Reading) -> Option<(u32, c::Read)> {
             }
             let Readout::Jig(c::ReadResult::Value(value)) = reading.pages.get(&1)? else { return None };
             let (task, _) = crate::jig::render::read_task(value)?;
-            Some((8, now(task.project, task.chip.task)))
+            let description =
+                if crate::jig::call::value(&reading.called.call, 1).is_some() { b"report".as_slice() } else { b"now" };
+            Some((8, note(task.project, task.chip.task, description)))
         }
         _ => None,
     }
 }
 
-fn now(project: u32, task: u64) -> c::Read {
+fn note(project: u32, task: u64, description: &[u8]) -> c::Read {
     c::Read::Notes {
         scope: c::NoteScope::Task { project, task },
-        description: Some(c::Text::new(b"now".as_slice().into(), 3).expect("Now description")),
+        description: Some(c::Text::new(description.into(), 6).expect("role note description")),
         after: None,
     }
 }

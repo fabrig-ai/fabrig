@@ -452,6 +452,8 @@ pub enum JigPhrase {
     /// Loading object.
     LoadingObject,
     /// Write.
+    ActTalk,
+    ActLeave,
     ActWrite,
     /// Answer.
     ActAnswer,
@@ -1382,6 +1384,8 @@ impl JigPhrase {
             Self::Reply => 155,
             Self::LoadingPart => 156,
             Self::LoadingObject => 157,
+            Self::ActTalk => 7992,
+            Self::ActLeave => 7993,
             Self::ActWrite => 158,
             Self::ActAnswer => 159,
             Self::ActTake => 160,
@@ -2074,6 +2078,8 @@ impl JigPhrase {
             | Self::ApprovalAuthorityMissing
             | Self::LoadingPart
             | Self::LoadingObject
+            | Self::ActTalk
+            | Self::ActLeave
             | Self::ActWrite
             | Self::ActAnswer
             | Self::ActTake
@@ -2424,7 +2430,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 650] = [
+pub const ALL: [JigPhrase; 652] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -2730,6 +2736,8 @@ pub const ALL: [JigPhrase; 650] = [
     JigPhrase::Reply,
     JigPhrase::LoadingPart,
     JigPhrase::LoadingObject,
+    JigPhrase::ActTalk,
+    JigPhrase::ActLeave,
     JigPhrase::ActWrite,
     JigPhrase::ActAnswer,
     JigPhrase::ActTake,

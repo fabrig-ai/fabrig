@@ -11,7 +11,14 @@ each draft landed in its repositories that its writer says is ready, by
 its commit, title, chat and, once started, its goal; Work lists the ready
 ones under Drafts, each starting a goal at the project's way; its render
 check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
-`draft/surfaces.status.md`, 5). QA's hands are landed-qa's milestone Q2,
+`draft/surfaces.status.md`, 5). A person talks with a standing role through
+`role talk`, with instructions for every case becoming rules by settings
+proposals. A role reports through its Now, a line per session and a weekly
+`report` note, with its Now in Home's brief's words; areas and routing remain
+a later milestone, and Team's and the terminal's talk and report surfaces
+remain the pages' (`draft/standing-roles.status.md`).
+
+QA's hands are landed-qa's milestone Q2,
 by goal 1000: a drive session on a fake box from a given build, taking a
 person's steps and looks a line at a time; recipes and their walk; the
 fake model's given scripts and strict switch; a store this build cannot
@@ -75,6 +82,25 @@ of the project's path's tiers after landing; Budgets' rows for its live
 standing roles under its open period; and Roles the charters its standing
 roles and follows run (`domain/forge/change/branch-path.md`). Their render
 check and walk follow landing (`client/pages/settings.md`, 3).
+
+Each binary's
+package, the client's included, links `temper-version` and hands its
+build identity to its crate; no library links it, a row of the boundary
+test's direction rule holds it, and a new commit relinks the binaries
+and rebuilds no library or world below them (`release.status.md`;
+`draft/version-rebuilds.status.md`).
+
+The stock from files is the stock charters' milestone S1, by goal 1144
+(`draft/stock-charters.execution.md`): the stock's charters 5, the goal's
+agent, and 2, the implementer, assembled from five Markdown files in
+`temper/docs/charters/stock/` by the step crate `temper-charter-set`
+(`domain/agent/charter.md`, 1), a stock box's `root.journal.run_bytes`
+65,536 to hold them, and the foreman retired with its whole reach, the
+reference's charter 6 among it: a change's questions go `up` or nowhere,
+and a stored foreman is refused naming its setting
+(`domain/forge/change/questions.md`, 1; `protocol/configuration/settings.md`,
+2). Its walk on a fresh box follows landing; overlays are S2
+(`draft/stock-charters.status.md`).
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -221,6 +247,7 @@ Drafts:
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/claude-api.md`](draft/claude-api.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
@@ -263,6 +290,7 @@ Drafts:
 - [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)
+- [`draft/version-rebuilds.md`](draft/version-rebuilds.status.md)
 - [`draft/what-reaches-you.md`](draft/what-reaches-you.status.md)
 - [`draft/whole-story.md`](draft/whole-story.status.md)
 

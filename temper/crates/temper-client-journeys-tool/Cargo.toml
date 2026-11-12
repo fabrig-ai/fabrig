@@ -18,7 +18,6 @@ temper-client-tui.workspace = true
 skein-ui-screen.workspace = true
 skein-ui-screen-terminal.workspace = true
 temper-client-shell-web.workspace = true
-temper-version.workspace = true
 skein-ui.workspace = true
 skein-ui-bundle.workspace = true
 skein-ui-web.workspace = true

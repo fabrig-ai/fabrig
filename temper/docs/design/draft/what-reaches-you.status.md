@@ -19,8 +19,10 @@ milestone N3a, but for lag 8. `what-reaches-you.md`, section 7 is carried by
 `../client/forge/README.md`, 4.1 and `../client/ctl/tools.md`, 3,
 milestone N2, and by `../domain/forge/change/branch-path.md`'s *A rule
 by path*, step 5 and *Rules by path* and `../client/pages/settings.md`,
-2's *Rules by path*, milestone P3c, but for lag 7. Where the code lags
-them is their status files'.
+2's *Rules by path*, milestone P3c, and the sign-offs a merge counted, kept with its landing
+for Work, Team and the brief, by `../domain/forge/change/gates.md`, 2,
+*Sign-offs kept at landing*, milestone N6, but for lag 7. Where the code lags them is their status
+files'.
 
 - **Design lags:**
   - 4: `../domain/forge/attention.md`, 6 judges the
@@ -28,8 +30,7 @@ them is their status files'.
     head, which the forge reads for rules by path alone
     (`../domain/forge/change/gates.md`, 2, *What a change touches*):
     N1's repair's.
-  - 7: no design says who can still sign a waiting sign-off, or keeps
-    the sign-offs counted at landing: N5 and N6 of
+  - 7: no design says who can still sign a waiting sign-off: N5 of
     `whole-story.execution.md`.
   - 8: `../client/pages/README.md`'s **Only you** lists a person's own
     sign-in signed out and a login their account reads as expiring, as

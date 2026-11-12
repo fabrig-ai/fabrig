@@ -6,4 +6,4 @@ waiting on: you: question of task 42 · 1 waiting
 acts:
   take (no tool)
   task cancel 41 REASON --key KEY
-digest: task d9767dd541046697
+digest: task 8f5dd856bd6ccf9f

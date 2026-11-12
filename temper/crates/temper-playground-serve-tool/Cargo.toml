@@ -9,7 +9,6 @@ publish.workspace = true
 
 [dependencies]
 skein-shell.workspace = true
-temper-version.workspace = true
 
 [dev-dependencies]
 temper-test-env.workspace = true

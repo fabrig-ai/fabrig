@@ -278,6 +278,8 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
         | ActKind::LeaveHeld
         | ActKind::Take
         | ActKind::HandBack
+        | ActKind::Talk
+        | ActKind::Leave
         | ActKind::Message
         | ActKind::Amend
         | ActKind::Cancel

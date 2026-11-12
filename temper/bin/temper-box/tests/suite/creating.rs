@@ -86,7 +86,7 @@ fn the_cluster_offers_every_stock_charter_but_the_trial() {
     let mut expected: Vec<_> =
         engine.charters.iter().filter(|charter| charter.number != 10).map(|charter| charter.number).collect();
     expected.sort_unstable();
-    assert_eq!(expected.len(), 9, "stock agents except the trial, including the standing role");
+    assert_eq!(expected.len(), 8, "stock agents except the trial, including the standing role");
     assert_eq!(offered(&frame), expected);
     let received = browser_frame(&frame, &jig_protocol_config::clients::models(&engine.llm));
     let words = jig_client::contract::Text::new(b"Hello".as_slice().into(), engine.limits.core.people.words)
@@ -125,7 +125,7 @@ fn the_forgejo_fixture_offers_every_stock_charter_but_the_trial() {
     let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
     let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
     let engine = configured_engine(&value);
-    assert_eq!(engine.charters.len(), 10);
+    assert_eq!(engine.charters.len(), 9);
     let mut expected: Vec<_> =
         engine.charters.iter().filter(|charter| charter.number != 10).map(|charter| charter.number).collect();
     expected.sort_unstable();

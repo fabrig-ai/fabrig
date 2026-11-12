@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 66] = [
+pub static PAGES: [Page; 68] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -315,6 +315,20 @@ pub static PAGES: [Page; 66] = [
         text: include_str!("../../../docs/help/server.md"),
     },
     Page {
+        name: "review-before-landing",
+        kind: Kind::Recipe,
+        title: "Review before landing",
+        summary: "Require a person's approval on the forge before a project's changes land, keeping the agent review.",
+        text: include_str!("../../../docs/help/review-before-landing.md"),
+    },
+    Page {
+        name: "tester-that-cannot-land",
+        kind: Kind::Recipe,
+        title: "A tester that cannot land",
+        summary: "Run tests under a tester's own charter and report findings for another task to fix.",
+        text: include_str!("../../../docs/help/tester-that-cannot-land.md"),
+    },
+    Page {
         name: "weekly-budget",
         kind: Kind::Recipe,
         title: "A weekly budget",
@@ -396,7 +410,7 @@ pub static PAGES: [Page; 66] = [
         name: "ctl-role",
         kind: Kind::Reference,
         title: "temper ctl role",
-        summary: "Standing roles: start one, list them, read one and its Now.",
+        summary: "Standing roles: start, list, read their Now or report, and talk.",
         text: include_str!("../../../docs/help/reference/ctl-role.md"),
     },
     Page {

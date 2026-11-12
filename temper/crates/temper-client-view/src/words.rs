@@ -236,7 +236,6 @@ pub enum Word {
     SettingsProposalOff,
     SettingsProposalShown,
     SettingsProposalHidden,
-    SettingsProposalForeman,
     SettingsProposalUp,
     SettingsProposalNone,
     SettingsProposalChange,
@@ -271,7 +270,6 @@ pub enum Word {
     SettingsWays,
     SettingsDefault,
     SettingsQuestions,
-    SettingsForeman,
     SettingsUp,
     SettingsAlone,
     SettingsWhole,
@@ -1195,6 +1193,12 @@ pub enum Word {
     Model,
 
     WaitRefused,
+    NowWritten,
+    TalkOpened,
+    TalkEnded,
+    TalkLapsed,
+    SessionTalk,
+    SessionLeft,
     DependencyParked,
     WaitInvalid,
     WaitingAccountName,
@@ -1585,8 +1589,6 @@ pub enum Word {
     WelcomeBoxServer,
     WelcomeModelSignInTime,
     WelcomeModelProgramTime,
-    WelcomeKeyTitle,
-    WelcomeKeyBody,
     WelcomeKeyField,
     WelcomeKeyFacts,
     WelcomePasteOpen,
@@ -1838,7 +1840,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2390;
+const PHRASES: u32 = 2393;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1865,10 +1867,10 @@ const PHRASES: u32 = 2390;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4335;
+const SEGMENTS: u32 = 4345;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 57580;
-const ALL: [Word; 1705] = [
+const ENGLISH_BYTES: u32 = 57596;
+const ALL: [Word; 1707] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2088,7 +2090,6 @@ const ALL: [Word; 1705] = [
     Word::SettingsProposalOff,
     Word::SettingsProposalShown,
     Word::SettingsProposalHidden,
-    Word::SettingsProposalForeman,
     Word::SettingsProposalUp,
     Word::SettingsProposalNone,
     Word::SettingsProposalChange,
@@ -2122,7 +2123,6 @@ const ALL: [Word; 1705] = [
     Word::SettingsWays,
     Word::SettingsDefault,
     Word::SettingsQuestions,
-    Word::SettingsForeman,
     Word::SettingsUp,
     Word::SettingsAlone,
     Word::SettingsWhole,
@@ -3022,6 +3022,12 @@ const ALL: [Word; 1705] = [
     Word::ModelDefault,
     Word::Model,
     Word::WaitRefused,
+    Word::NowWritten,
+    Word::TalkOpened,
+    Word::TalkEnded,
+    Word::TalkLapsed,
+    Word::SessionTalk,
+    Word::SessionLeft,
     Word::DependencyParked,
     Word::WaitInvalid,
     Word::WaitingAccountName,
@@ -3397,8 +3403,6 @@ const ALL: [Word; 1705] = [
     Word::WelcomeBoxServer,
     Word::WelcomeModelSignInTime,
     Word::WelcomeModelProgramTime,
-    Word::WelcomeKeyTitle,
-    Word::WelcomeKeyBody,
     Word::WelcomeKeyField,
     Word::WelcomeKeyFacts,
     Word::WelcomePasteOpen,
@@ -3912,7 +3916,6 @@ impl Word {
             Self::SettingsProposalOff => 3423,
             Self::SettingsProposalShown => 3424,
             Self::SettingsProposalHidden => 3425,
-            Self::SettingsProposalForeman => 3426,
             Self::SettingsProposalUp => 3427,
             Self::SettingsProposalNone => 3428,
             Self::SettingsProposalChange => 3429,
@@ -3946,7 +3949,6 @@ impl Word {
             Self::SettingsWays => 3447,
             Self::SettingsDefault => 3448,
             Self::SettingsQuestions => 3458,
-            Self::SettingsForeman => 3459,
             Self::SettingsUp => 3460,
             Self::SettingsAlone => 3461,
             Self::SettingsWhole => 3391,
@@ -4812,6 +4814,12 @@ impl Word {
             Self::ModelDefault => 3952,
             Self::Model => 3951,
             Self::WaitRefused => 1029,
+            Self::NowWritten => 5720,
+            Self::TalkOpened => 5721,
+            Self::TalkEnded => 5722,
+            Self::TalkLapsed => 5723,
+            Self::SessionTalk => 5724,
+            Self::SessionLeft => 5725,
             Self::DependencyParked => 1030,
             Self::WaitInvalid => 1028,
             Self::WaitingAccountName => 1027,
@@ -5186,8 +5194,6 @@ impl Word {
             Self::WelcomeBoxServer => 3028,
             Self::WelcomeModelSignInTime => 3029,
             Self::WelcomeModelProgramTime => 3030,
-            Self::WelcomeKeyTitle => 3361,
-            Self::WelcomeKeyBody => 3362,
             Self::WelcomeKeyField => 3363,
             Self::WelcomeKeyFacts => 3364,
             Self::WelcomePasteOpen => 3366,
@@ -6197,10 +6203,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
         Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
         Word::WelcomeModelSignInTime => (&[b"Sign in, in a new tab \xc2\xb7 about a minute"], &[]),
-        Word::WelcomeKeyTitle => (&[b"An OpenAI API key"], &[]),
-        Word::WelcomeKeyBody => (&[b"From OpenAI\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[]),
         Word::WelcomeKeyField => (&[b"Key, pasted once"], &[]),
-        Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once OpenAI refuses a run."], &[]),
+        Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once ", b" refuses a run."], &[Name]),
         Word::WelcomePasteOpen => (&[b"Open ", b"\xe2\x80\x99s sign-in \xe2\x80\xba"], &[Name]),
         Word::WelcomePasteField => (&[b"Address of the page that couldn\xe2\x80\x99t be reached"], &[]),
         Word::WelcomePasteFinish => (&[b"Finish connecting"], &[]),
@@ -6786,6 +6790,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ModelApiKey => (&[b"your API key"], &[]),
         Word::ModelEffort | Word::UpdateTime => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::WaitRefused => (&[b"Next run refused \xc2\xb7 ", b""], &[Name]),
+        Word::NowWritten => (&[b"Wrote its Now: "], &[]),
+        Word::TalkOpened => (&[b"Talk opened by party "], &[Number]),
+        Word::TalkEnded => (&[b"Talk ended"], &[]),
+        Word::TalkLapsed => (&[b"Talk lapsed"], &[]),
+        Word::SessionTalk => (&[b"Session ", b" ended by a talk"], &[Number]),
+        Word::SessionLeft => (&[b"Session ", b" ended as its person left"], &[Number]),
         Word::DependencyParked => (&[b"parked"], &[]),
         Word::WaitInvalid => (&[b"The requested account cannot serve this work"], &[]),
         Word::WaitingAccountName => (&[b"Waiting account: ", b""], &[Name]),
@@ -7127,7 +7137,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsProposalOff => (&[b"off"], &[]),
         Word::SettingsProposalShown => (&[b"shown"], &[]),
         Word::SettingsProposalHidden => (&[b"hidden"], &[]),
-        Word::SettingsProposalForeman => (&[b"Questions: answered by the goal"], &[]),
         Word::SettingsProposalUp => (&[b"Questions: asked of me too"], &[]),
         Word::SettingsProposalNone => (&[b"Questions: not asked"], &[]),
         Word::SettingsProposalChange => (&[b"Change something"], &[]),
@@ -7145,7 +7154,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsWays => (&[b"Ways of working"], &[]),
         Word::SettingsDefault => (&[b"The default"], &[]),
         Word::SettingsQuestions => (&[b"Questions a goal can answer from its plan"], &[]),
-        Word::SettingsForeman => (&[b"Answered by the goal, kept in its decisions"], &[]),
         Word::SettingsUp => (&[b"Asked of me too"], &[]),
         Word::SettingsAlone => (&[b"Not asked: each agent decides alone"], &[]),
         Word::SettingsWhole => (&[b"Plan, tasks, land whole"], &[]),

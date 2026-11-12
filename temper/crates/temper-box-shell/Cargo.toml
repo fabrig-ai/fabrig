@@ -8,7 +8,6 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-temper-version.workspace = true
 temper-service-shell.workspace = true
 temper-engine-shell.workspace = true
 temper-agent-shell.workspace = true
@@ -63,6 +62,8 @@ skein-fake-forge-domain.workspace = true
 skein-kv.workspace = true
 
 [dev-dependencies]
+temper-engine-domain.workspace = true
+jig-domain-tasks.workspace = true
 temper-test-env.workspace = true
 jig-domain-authority.workspace = true
 temper-fixtures.workspace = true

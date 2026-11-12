@@ -45,6 +45,7 @@ mod watch_room;
 mod ways;
 
 mod fuzzy {
+    mod closer_attempts;
     mod endings;
     mod escalation;
     mod follows;

@@ -88,6 +88,7 @@ pub fn open_pull() -> skein_forge::api::Pull {
 pub fn opening_row() -> ChangeRow {
     use temper_engine_domain_forge_change as change;
     ChangeRow {
+        signed: Box::new([]),
         task: CHANGE,
         repository: REPO,
         branch: Box::from(b"temper/51".as_slice()),
@@ -97,6 +98,7 @@ pub fn opening_row() -> ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            ended_held: None,
             early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
@@ -134,7 +136,7 @@ pub fn opening_row() -> ChangeRow {
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
-        foreman_charter: 6,
+
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,

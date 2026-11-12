@@ -134,13 +134,15 @@ pub(crate) fn parse(
     }
     let providers = providers::parse(&mut object, document, path, models.as_slice(), directories, defaults, problems);
     for (index, provider) in providers.iter().enumerate() {
+        let provider_path = check::index(&path.member(b"providers"), index);
+        direct_binding(provider, endpoints.as_slice(), &provider_path, problems);
         if let Some(name) = &provider.endpoint {
             let mut found = false;
             for endpoint in &endpoints {
                 found |= endpoint.name == *name;
             }
             if !found {
-                problems.push(check::index(&path.member(b"providers"), index).member(b"endpoint"), What::Refers);
+                problems.push(provider_path.member(b"endpoint"), What::Refers);
             }
         }
     }
@@ -155,6 +157,26 @@ pub(crate) fn parse(
     object.finish(document, path, problems);
     Some(Llm { endpoints: endpoints.into_boxed(), models: models.into_boxed(), providers: providers.into_boxed() })
 }
+/// A direct way speaks the program endpoint's dialect and accepts credentials (configuration.md, 3).
+fn direct_binding(provider: &Provider, endpoints: &[Endpoint], path: &Path, problems: &mut Problems) {
+    let Some(name) = &provider.direct else { return };
+    let mut program_dialect = None;
+    for endpoint in endpoints {
+        if provider.endpoint.as_deref() == Some(endpoint.name.as_ref()) && endpoint.program.is_some() {
+            program_dialect = Some(endpoint.dialect);
+        }
+    }
+    let mut valid = false;
+    for endpoint in endpoints {
+        if endpoint.name == *name && endpoint.program.is_none() && program_dialect == Some(endpoint.dialect) {
+            valid = true;
+        }
+    }
+    if !valid || (!provider.keys && provider.sign_in.is_none()) {
+        problems.push(path.member(b"direct"), What::Refers);
+    }
+}
+
 /// A shared endpoint must name a program offered by every provider whose models use it.
 fn program_bindings(
     endpoints: &[Endpoint],

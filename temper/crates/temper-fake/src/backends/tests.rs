@@ -180,7 +180,7 @@ fn init_targets_change_together_and_preserve_registration_terms() {
         effective["workers"][0]["agent"]["arguments"],
         json!(["internal", "agent", "/effective/config/agent.json"])
     );
-    assert_eq!(effective_agent["endpoints"][2], agent["endpoints"][2]);
+    assert_eq!(effective_agent["endpoints"][2], agent["endpoints"][3]);
     assert_eq!(docs, write(&temper, &agent, &paths, &peers).expect("deterministic rewrite"));
 }
 
@@ -672,7 +672,9 @@ fn written_anthropic_entries_are_replaced_once() {
     let effective_agent = json(&docs.agent);
     let llm = &effective["engine"]["llm"];
     assert_eq!(llm["providers"].as_array().unwrap().iter().filter(|p| p["name"] == "anthropic").count(), 1);
+    assert_program_provider(llm, &temper);
     for endpoints in [&llm["endpoints"], &effective_agent["endpoints"]] {
+        assert!(!endpoints.as_array().unwrap().iter().any(|e| e["name"] == "anthropic-api"));
         let selected: Vec<_> = endpoints.as_array().unwrap().iter().filter(|e| e["number"] == 2).collect();
         assert_eq!(selected.len(), 1);
         assert_eq!(selected[0]["name"], "fake-claude");

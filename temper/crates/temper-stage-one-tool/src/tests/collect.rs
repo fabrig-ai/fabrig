@@ -20,7 +20,7 @@ pub(super) fn project_settings_outputs(project: u32, accepted: &[usize], listed:
                 number: None,
                 project: Some(ProjectRef::Number(project)),
             },
-            edit: Edit::Set(json!("foreman")),
+            edit: Edit::Set(json!("up")),
         },
         Item {
             setting: SettingKey {
@@ -231,14 +231,14 @@ fn a_projects_ways_and_questions_are_collected_from_their_own_reads() {
     ]});
     outputs.by_command.insert(words("settings show --json"), inventory.to_string());
     let revision = json!({"head":{"number":5},"items":[
-        {"setting":{"kind":"project-questions","project":1},"set":"foreman","replaced":"not_offered"},
+        {"setting":{"kind":"project-questions","project":1},"set":"up","replaced":"not_offered"},
     ]});
     outputs.by_command.insert(words("revision show 5 --json"), revision.to_string());
     let ways = json!({"setting":{"kind":"project-ways","project":1},"revision":5,
         "value":{"drafts":true,"goals":true,"changes":true,"way":4},
         "application":{"follows":"change","revision":5,"size":7,"charters":[]}});
     outputs.by_command.insert(words("settings show project-ways 1 --json"), ways.to_string());
-    let questions = json!({"setting":{"kind":"project-questions","project":1},"revision":5,"value":"foreman",
+    let questions = json!({"setting":{"kind":"project-questions","project":1},"revision":5,"value":"up",
         "application":{"follows":"change","revision":5,"size":1,"charters":[]}});
     outputs.by_command.insert(words("settings show project-questions 1 --json"), questions.to_string());
     let (items, current) = collect::assemble(&outputs).expect("assemble");

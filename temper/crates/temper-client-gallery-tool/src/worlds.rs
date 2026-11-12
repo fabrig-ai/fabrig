@@ -3991,7 +3991,9 @@ fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
                 live_runs: 0,
                 proposals: 0,
             })),
-            c::ActKind::Message
+            c::ActKind::Talk
+            | c::ActKind::Leave
+            | c::ActKind::Message
             | c::ActKind::Answer
             | c::ActKind::Take
             | c::ActKind::HandBack
@@ -4089,6 +4091,8 @@ fn base_task(number: u64, title: &str) -> c::Task {
         deadline: None,
     };
     c::Task {
+        talk: None,
+        session: None,
         settings: Some(c::TaskSettings { task: 1, run: None, newest: 1 }),
         chip: c::Chip {
             task: number,
@@ -4918,6 +4922,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                     v::ChangesLanded::new(
                         &v::CEILINGS,
                         v::ChangesLandedParts {
+                            signed: skein_lib::List::with_capacity(8),
                             commit: [0xab; 32],
                             default_branch: true,
                             task,
@@ -4935,6 +4940,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 v::ChangesLanded::new(
                     &v::CEILINGS,
                     v::ChangesLandedParts {
+                        signed: skein_lib::List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
                         task: 107,
@@ -5034,7 +5040,7 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
         writer.finish()
     } else {
         assert_eq!(kind, 6);
-        let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Foreman };
+        let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Up };
         let questions =
             v::ProjectQuestions::new(&v::CEILINGS, v::ProjectQuestionsParts { route }).expect("settings questions");
         let mut writer = skein_lib::Writer::new(usize::try_from(questions.measure()).expect("questions bytes"));

@@ -265,8 +265,8 @@ const RECIPE: Command = Command {
 pub const TABLE: Table = Table {
     binary: "temper-qa",
     line: "QA after landing: main's landings triaged into cases, and passes run on builds kept for them.",
-    version: temper_version::VERSION,
-    commit: temper_version::COMMIT,
+    version: "",
+    commit: "",
     commands: &[
         RUN, KEEP, NONE, CASE, SETUP, RECIPE, OPEN, LINE, CLOSE, HOLD, OUTCOME, FINDING, CHECK, NOTE, SHOW, LINES,
         REPORT, TUNE,
@@ -281,10 +281,10 @@ pub const TABLE: Table = Table {
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-qa's arguments and environment, once (skein/docs/foundation/cli.md, 6)"
 )]
-pub fn main() -> ExitCode {
+pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let arguments = skein_shell::arguments();
     let environment = skein_shell::environment();
-    match TABLE.front(&arguments) {
+    match (Table { version, commit, ..TABLE }).front(&arguments) {
         Front::Print(text) => {
             print!("{text}");
             ExitCode::SUCCESS

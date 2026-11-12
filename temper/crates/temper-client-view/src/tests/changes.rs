@@ -54,6 +54,7 @@ fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) ->
                 w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        signed: List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
                         task: 80,

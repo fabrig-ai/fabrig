@@ -279,6 +279,7 @@ pub struct Domain {
     pub(crate) follow_reads: Map<Token, crate::follows::Pending>,
     pub(crate) tier_ops: crate::tiers::State,
     pub(crate) tiers: Map<(skein_forge::api::Repository, Box<[u8]>), crate::TierRow>,
+    pub(crate) refused_settings: Map<crate::settings::SettingKey, ()>,
     pub(crate) setting_rows: Map<crate::settings::SettingKey, crate::settings::Edit>,
     pub(crate) setting_stock: Option<Box<[crate::settings::Stock]>>,
     pub(crate) held_rules: crate::settings::HeldRules,
@@ -897,6 +898,10 @@ impl Domain {
                 crate::settings::rows(l)
                     .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?,
             ),
+            refused_settings: Map::with_capacity(
+                crate::settings::rows(l)
+                    .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?,
+            ),
             setting_stock: None,
             held_rules: empty_rules(l),
             held_charters: crate::ForgeCharters { change: 0, review: 0 },
@@ -1410,6 +1415,13 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::Signed { task, signed } => {
+            if let Some(row) = d.changes.get_mut(&task) {
+                row.signed = signed;
+                let saved = row.clone();
+                save_change(d, out, saved);
+            }
+        }
         Event::Closer { row } => crate::closer::save(d, row, out),
         Event::ReadCloserSelection { task, repository } => crate::closer::read_selection(d, env, task, repository, out),
         Event::CheckCloser { task, step, repository, branch, base } => {
@@ -1826,10 +1838,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 let before = crate::panel::ready(row);
                 let owned = row.change.owns_turn;
                 row.questions = questions;
-                row.change.state = change::State::Held {
-                    was: Box::new(before_relay_hold(&row.change.state)),
-                    why: change::Hold::Failed,
-                };
+                row.change.state = relay_hold(&row.change.state, change::Hold::Failed);
                 row.change.owns_turn = false;
                 row.producer_failure = Some(words);
                 let saved = row.clone();
@@ -1852,10 +1861,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 row.questions = questions;
                 let answered = was_asking && !agent_asking(row);
                 if hold {
-                    row.change.state = change::State::Held {
-                        was: Box::new(before_relay_hold(&row.change.state)),
-                        why: change::Hold::Questions,
-                    };
+                    row.change.state = relay_hold(&row.change.state, change::Hold::Questions);
                     row.change.owns_turn = false;
                 }
                 let saved = row.clone();
@@ -2351,7 +2357,11 @@ fn outcome_facts(
         }
         skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Merged(commit), .. } => {
             let task = crate::landing::merged_owner(d, task, entry);
-            crate::landing_log::landed(d, env.wall, commit, task, out);
+            let signed = match d.changes.get(&task) {
+                Some(row) => row.signed.clone(),
+                None => Box::new([]),
+            };
+            crate::landing_log::landed(d, env.wall, commit, task, signed, out);
             if !d.releases.contains_key(&task) {
                 crate::verification::landed(d, commit, task, out);
                 if let Some(row) = d.changes.get_mut(&task)
@@ -3250,8 +3260,11 @@ fn effect_permitted(kinds: Kinds, write: &skein_forge::api::Write) -> bool {
     }
 }
 
-fn before_relay_hold(state: &change::State) -> change::State {
-    match state {
+fn relay_hold(state: &change::State, why: change::Hold) -> change::State {
+    if *state == change::State::Ended {
+        return change::State::Ended;
+    }
+    let was = match state {
         change::State::Held { was, .. } => was.as_ref().clone(),
         change::State::Producing { .. }
         | change::State::Opening { .. }
@@ -3275,7 +3288,8 @@ fn before_relay_hold(state: &change::State) -> change::State {
         | change::State::Uncleared { .. }
         | change::State::NoChange { .. }
         | change::State::Ended => state.clone(),
-    }
+    };
+    change::State::Held { was: Box::new(was), why }
 }
 
 fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &mut Queue<Request>) {
@@ -3586,7 +3600,7 @@ fn delegate_result(
             words,
             env.limits.client.answer_bytes,
         ),
-        change::Delegate::Resolve { .. } => {}
+        change::Delegate::Resolve { .. } => producer_result(row, false, failed, words),
     }
     if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
@@ -4953,7 +4967,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
                 if landed_commit(&prior.state).is_none()
                     && let Some(commit) = landed_commit(&row.change.state)
                 {
-                    crate::landing_log::landed(d, env.wall, commit, row.task, out);
+                    crate::landing_log::landed(d, env.wall, commit, row.task, Box::new([]), out);
                 }
                 if !prior.owns_turn && in_queue(&prior.state) && !in_queue(&row.change.state) {
                     wake_queue(d, &row);
@@ -6158,7 +6172,14 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     let Some(row) = d.changes.get_mut(&task) else { return };
     let before = crate::panel::ready(row);
     let owned = row.change.owns_turn;
-    row.change.state = ended_change_state(&row.change.state, merge, cancelled, env.wall);
+    let ended = ended_change_state(&row.change.state, merge, cancelled, env.wall);
+    if ended == change::State::Ended
+        && row.change.ended_held.is_none()
+        && let change::State::Held { why, .. } = &row.change.state
+    {
+        row.change.ended_held = Some(*why);
+    }
+    row.change.state = ended;
     row.ending = match &row.change.state {
         change::State::Landed { .. }
         | change::State::Red { .. }
@@ -7793,6 +7814,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
                     Outboxed { entry, held, handoff: if held { Handoff::Handed } else { Handoff::Restored } },
                 )
                 .expect("restored entry within limits");
+        }
+        Stored::RefusedSetting(key) => {
+            d.refused_settings.insert(key, ()).expect("refused setting identity fits");
         }
         Stored::Setting(row) => {
             d.setting_rows.insert(row.key, row.edit).expect("restored setting within limits");

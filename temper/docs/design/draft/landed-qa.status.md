@@ -35,6 +35,8 @@ that take values from the conversation (skein's `testing/fakes/llm.md`,
 the drive session's `forge` lines, a person's commit and the wait on its
 checks on the box's own Forgejo (`../client/drive.md`, 3.5).
 
+- **Design lags:**
+  - 5, 6, 10: the setups and their places run on the box's own Forgejo, with its runner (`../testing/qa/places.md`; `../../development/qa/setups/`), where the draft, since 2026-11-12, has the fakes alone; Q5 moves them.
 - **Design departs:**
   - 6, 10: a take reads the whole conversation, the agent's brief in its system text among it, rather than a tool's output alone, since a review's brief is where its pull request and head are named (skein's `testing/fakes/llm.md`, 2.6). The goal's designer, 2026-11-12.
   - 2, 12: bounds and places are tuned by the deployment from `temper-qa tune`'s figures and suggestions, never by the loop itself, since `qa.json` is the deployment's (`../testing/qa/ledger.md`, 6). More than one place gives each place its own ports (`../testing/qa/places.md`, 2). The goal's designer, 2026-11-12.

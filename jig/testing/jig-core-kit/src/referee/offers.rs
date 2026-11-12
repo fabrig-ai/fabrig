@@ -237,6 +237,8 @@ fn fits(received: &Subject, request: &Subject) -> bool {
 }
 fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
     Some(match ask {
+        people::Ask::Talk { task, .. } => (Act::Talk, Subject::Task { task: *task }),
+        people::Ask::Leave { task, .. } => (Act::Leave, Subject::Task { task: *task }),
         people::Ask::Say { task, .. } => (Act::Message, Subject::Task { task: *task }),
         people::Ask::AnswerQuestion { task, question, .. } => {
             (Act::Answer, Subject::Question { task: *task, message: *question })

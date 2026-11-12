@@ -350,6 +350,18 @@ fn document_name_parts_and_fixed_byte_bounds_name_the_refused_member() {
     }
 }
 #[test]
+fn a_resuming_charter_keeps_its_parts_in_a_settings_file() {
+    let file = with_parts(&charter_file(DOCUMENTS), PARTS, true);
+    let decoded = settings_file::decode(&file, &crate::limits::tools()).expect("resuming charter with parts");
+    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Charter(charter) }) =
+        &decoded.get(0).expect("charter item").edit
+    else {
+        panic!("charter");
+    };
+    assert!(charter.resume);
+    assert_eq!(charter.parts, parts());
+}
+#[test]
 fn document_shape_refusals_name_the_member_and_a_heading_is_optional() {
     for (member, value) in [
         ("forge", "null"),
@@ -396,7 +408,6 @@ fn document_shape_refusals_name_the_member_and_a_heading_is_optional() {
             r#""question" twice"#,
         ),
         (r#"[{"on":[],"instructions":"x"}]"#, false, "charter.parts[0].on", "names no kind"),
-        (PARTS, true, "charter.parts", "a charter that resumes takes no parts"),
         ("null", false, "charter.parts", "expected array"),
         (r#"[{"instructions":"x"}]"#, false, "charter.parts[0].on", "missing member"),
         (r#"[{"on":["first"]}]"#, false, "charter.parts[0].instructions", "missing member"),
@@ -2136,7 +2147,7 @@ fn forge_value(kind: u32) -> Box<[u8]> {
     } else if kind == 7 {
         br#"{"items":[{"setting":{"kind":"project-ways","project":7},"set":{"drafts":true,"goals":false,"changes":false,"way":0}}]}"#.as_slice()
     } else if kind == 6 {
-        br#"{"items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#.as_slice()
+        br#"{"items":[{"setting":{"kind":"project-questions","project":7},"set":"up"}]}"#.as_slice()
     } else if kind == 9 {
         br#"{"items":[{"setting":{"kind":"charter-words","number":1},"set":"reviews every change"}]}"#.as_slice()
     } else if kind == 10 {
@@ -2271,7 +2282,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             if json {
                 let expected = match kind {
                     3 => "\"value\":6",
-                    6 => "\"value\":\"foreman\"",
+                    6 => "\"value\":\"up\"",
                     7 => "\"drafts\":true",
                     8 => "\"class\":\"ask-away\"",
                     9 => "\"value\":\"reviews every change\"",
@@ -2348,7 +2359,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             assert!(text.contains(if json { "\"revision\":5" } else { ", revision 5" }), "{text}");
             let expected = match kind {
                 3 => "6",
-                6 => "\"foreman\"",
+                6 => "\"up\"",
                 7 => "\"drafts\":true",
                 8 => {
                     if json {

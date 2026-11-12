@@ -62,6 +62,19 @@ fn each_page_keeps_its_head_template_links_and_voice() {
 }
 
 #[test]
+fn tester_recipe_enables_the_shell_but_keeps_the_coding_charters_tools() {
+    let text = find(b"tester-that-cannot-land").expect("tester recipe").text;
+    let command = text
+        .lines()
+        .find(|line| line.starts_with("temper ctl DIR settings show charter 2 --json"))
+        .expect("copy stock coding charter 2");
+    assert!(command.contains(".shell = true"), "the stock shell is disabled; the tester must run tests");
+    assert!(!command.contains(".tools ="), "keep the coding charter's tool-family bits");
+    assert!(command.contains(".instructions ="), "give the tester its own instructions");
+    assert!(command.contains("Report each test, its path, its content and its result. Fix nothing."));
+}
+
+#[test]
 fn chat_help_shows_the_goal_questions_answer_form() {
     let text = find(b"chat").expect("chat page").text;
     assert!(text.contains("`G asks (question Q; answer with message target=G, form=answer, question=Q): ...`"));
@@ -170,7 +183,7 @@ fn budget_help_sizes_a_hundred_change_goal() {
     for instruction in [
         "For a goal of up to a hundred changes",
         "100 change procedures, 100 producers, 200 reviews and 100 repairs",
-        "12 coordinator/foreman tasks including the goal",
+        "12 coordinator tasks including the goal",
         "512 tasks in the tree, 511 delegated tasks",
         "412K units",
         "five delegation levels below the goal",
@@ -274,7 +287,7 @@ fn the_reference_readme_grants_its_tools_and_note_scopes() {
         "select(.number == $role)",
         ".set.ceiling |= widen",
         ".notes |= grant($required[0].notes)",
-        "map(select(. != {\"charter\": 12}))",
+        "map(select(. != {\"charter\": 12} and . != {\"charter\": 6}))",
     ] {
         assert!(text.contains(command), "the reference's recipe must use: {command}");
     }

@@ -278,7 +278,8 @@ members = [
     "temper/testing/temper-test-env",
     "temper/crates/temper-box-shell",
     "temper/bin/temper-box",
-    "temper/crates/temper-client",
+    "temper/bin/temper-client",
+    "temper/crates/temper-client-shell",
     "temper/bin/temper-agent",
     "temper/crates/temper-agent-shell",
     "temper/crates/temper-client-bundle",
@@ -323,6 +324,7 @@ members = [
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
     "temper/crates/temper-protocol-brief",
+    "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
     "temper/crates/temper-engine-domain-calendar",
     "temper/crates/temper-engine-domain-trials",
@@ -608,6 +610,7 @@ jig-boundary = { path = "jig/tests/boundary" }
 temper-fake-git = { path = "temper/crates/temper-fake-git" }
 temper-fake-git-hosted = { path = "temper/crates/temper-fake-git-hosted" }
 jig-channel-world = { path = "jig/tests/channel" }
+temper-client-shell = { path = "temper/crates/temper-client-shell" }
 temper-client-shell-terminal = { path = "temper/crates/temper-client-shell-terminal" }
 temper-client-shell-tui = { path = "temper/crates/temper-client-shell-tui" }
 temper-client-shell-cli = { path = "temper/crates/temper-client-shell-cli" }
@@ -639,6 +642,7 @@ temper-client-protocol-wire = { path = "temper/crates/temper-client-protocol-wir
 temper-protocol-worker-wire = { path = "temper/crates/temper-protocol-worker-wire" }
 temper-protocol-store = { path = "temper/crates/temper-protocol-store" }
 temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
+temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
 temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-calendar" }
 temper-engine-domain-trials = { path = "temper/crates/temper-engine-domain-trials" }

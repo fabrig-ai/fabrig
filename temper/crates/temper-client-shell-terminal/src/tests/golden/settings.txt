@@ -47,25 +47,24 @@ Always waits for you
 Away or not.
 Questions a goal can answer from its plan
 Questions a goal can answer from its plan:
-  [19] ( ) Answered by the goal, kept in its decisions
-  [20] ( ) Asked of me too
-  [21] (*) Not asked: each agent decides alone
+  [19] ( ) Asked of me too
+  [20] (*) Not asked: each agent decides alone
 Away until
 When it isn’t turned off by hand.
 Away until:
-  [22] (*) 08:00, the end of quiet hours
-  [23] ( ) I turn it off
+  [21] (*) 08:00, the end of quiet hours
+  [22] ( ) I turn it off
 ## What the project shows
 Chats can write drafts
 A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.
 On
-[24] [x] Chats can write drafts
+[23] [x] Chats can write drafts
 Goals
 Bigger work from a draft: a plan, tasks, landing.
 Hidden
-[25] [ ] Goals
+[24] [ ] Goals
 Changes
 The landing queue, as Work's filter.
 Hidden
-[26] [ ] Changes
-[27] Delete project
+[25] [ ] Changes
+[26] Delete project

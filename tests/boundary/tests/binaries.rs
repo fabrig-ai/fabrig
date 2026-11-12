@@ -26,6 +26,7 @@ const ROWS: &[Row] = &[
                 "temper",
                 Rule::Only(&[
                     "temper-client",
+                    "temper-client-shell",
                     "temper-client-domain",
                     "temper-client-protocol-wire",
                     "temper-client-shell-cli",
