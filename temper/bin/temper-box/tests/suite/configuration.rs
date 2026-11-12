@@ -52,7 +52,7 @@ fn the_native_forge_fixture_fits_its_store() {
     let document = std::fs::read(scratch.path().join("temper.json")).expect("deployment");
     let agent = temper_worker_shell::agent::read(&scratch.path().join("agent.json")).expect("fixture agent");
     let store =
-        temper_service::startup::store_limits(&document, &jig_protocol_config::Directories::working(), Some(&agent))
+        temper_service::startup::store_limits(&document, &jig_protocol_config::Directories::working(), Some(&agent.declaration()))
             .unwrap_or_else(|why| {
                 panic!("fixture store: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why)))
             });
