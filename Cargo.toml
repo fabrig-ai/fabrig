@@ -235,6 +235,11 @@ members = [
     "jig/crates/jig-protocol-tools",
     "jig/crates/jig-protocol-config",
     "jig/crates/jig-protocol-store",
+    "jig/crates/jig-protocol-store-people",
+    "jig/crates/jig-protocol-store-tasks",
+    "jig/crates/jig-protocol-store-core",
+    "jig/crates/jig-protocol-store-settings",
+    "jig/crates/jig-protocol-store-families",
     "jig/tests/accounts",
     "jig/tests/protocol-accounts",
     "jig/tests/brief",
@@ -538,6 +543,11 @@ jig-protocol-worker-wire = { path = "jig/crates/jig-protocol-worker-wire" }
 jig-client-protocol-wire = { path = "jig/crates/jig-client-protocol-wire" }
 jig-protocol-config = { path = "jig/crates/jig-protocol-config" }
 jig-protocol-store = { path = "jig/crates/jig-protocol-store" }
+jig-protocol-store-people = { path = "jig/crates/jig-protocol-store-people" }
+jig-protocol-store-tasks = { path = "jig/crates/jig-protocol-store-tasks" }
+jig-protocol-store-core = { path = "jig/crates/jig-protocol-store-core" }
+jig-protocol-store-settings = { path = "jig/crates/jig-protocol-store-settings" }
+jig-protocol-store-families = { path = "jig/crates/jig-protocol-store-families" }
 jig-protocol-tools = { path = "jig/crates/jig-protocol-tools" }
 jig-client-world = { path = "jig/tests/client" }
 jig-protocol-transcript = { path = "jig/crates/jig-protocol-transcript" }
