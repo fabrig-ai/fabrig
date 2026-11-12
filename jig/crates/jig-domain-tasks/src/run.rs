@@ -690,6 +690,14 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     let nothing_awaited = end_kind == crate::EndKind::Parked
         && !narrowed
         && nothing_awaited(domain, record(domain, number).expect("answered task live"));
+    let question = if end_kind == crate::EndKind::Parked && !narrowed {
+        question_left_open(domain, record(domain, number).expect("answered task live"))
+    } else {
+        None
+    };
+    if question.is_some() {
+        task_mut(domain, number).expect("idle question task").record.tries = previous_tries;
+    }
     let closer = crate::closer::named(record(domain, number).expect("answered task live"));
     if nothing_awaited {
         let task = task_mut(domain, number).expect("idle task live");
@@ -704,6 +712,9 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     }
     crate::closer::take_available(domain, env, number, out);
     publish(domain, env, number, out);
+    if let Some(question) = question {
+        out.push(Request::QuestionParked { task: number, question });
+    }
     if nothing_awaited && record(domain, number).expect("idle task live").phase == Phase::Active(Active::Idle) {
         if closer {
             crate::closer::ask(domain, number, out);
@@ -911,6 +922,88 @@ fn exceeded(domain: &mut Domain, number: u64, exceeded: crate::Exceeded) -> Phas
     Phase::Held { was: Was::Active(Active::Due), why, source: None }
 }
 
+/// An idle fresh-brief task polls only when nothing can bring its answer
+/// (domain/tasks/lifecycle.md, 2). The received positions and the asker's credits
+/// are the same predicate used by reasons and briefs.
+fn question_left_open(domain: &Domain, row: &crate::TaskRecord) -> Option<crate::OpenQuestion> {
+    if row.phase != Phase::Active(Active::Idle)
+        || !row.wake.questions
+        || row.flags.conversation
+        || !ends::for_record(row).finishes_alone()
+    {
+        return None;
+    }
+    let charter = match row.executor {
+        crate::Executor::Agent { charter } => charter,
+        crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => return None,
+    };
+    let mut latest = 0;
+    let mut resumes = false;
+    for version in domain.charters() {
+        if version.number == charter && version.revision <= row.settings.task && version.revision >= latest {
+            latest = version.revision;
+            resumes = version.resumes;
+        }
+    }
+    if resumes {
+        return None;
+    }
+    if let Some(proposal) = &row.proposal {
+        match proposal.state {
+            crate::ProposalState::Pending { .. } => return None,
+            crate::ProposalState::Accepted { .. }
+            | crate::ProposalState::Rejected { .. }
+            | crate::ProposalState::Withdrawn => {}
+        }
+    }
+    for delegate in &row.delegates {
+        if let Some(child) = record(domain, *delegate) {
+            match child.executor {
+                crate::Executor::Person(_) => return None,
+                crate::Executor::Agent { .. } | crate::Executor::Procedure { .. } | crate::Executor::Job { .. } => {}
+            }
+        }
+    }
+    for subscription in &row.subscriptions {
+        match subscription.kind {
+            crate::SubscriptionKind::Timer { .. } => return None,
+            crate::SubscriptionKind::Task { target, .. } => {
+                if record(domain, target).is_some() {
+                    return None;
+                }
+            }
+            crate::SubscriptionKind::Topic { .. } => {}
+        }
+    }
+    domain.open_questions(row.number).get(0).copied()
+}
+
+pub(crate) fn question_parked(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    number: u64,
+    question: u64,
+    reason: &[u8],
+    out: &mut Queue<Request>,
+) {
+    let Some(row) = record(domain, number) else { return };
+    let Some(open) = question_left_open(domain, row) else { return };
+    if open.number != question {
+        return;
+    }
+    if row.tries.of(Class::Run) >= env.limits.retries.run.retries {
+        let phase = failure(domain, env, number, Class::Run, Some(preparation_reason(reason)));
+        task_mut(domain, number).expect("idle question task").record.phase = phase;
+        publish(domain, env, number, out);
+    } else {
+        let task = task_mut(domain, number).expect("idle question task");
+        task.record.tries.add(Class::Run);
+        task.record.phase = Phase::Active(Active::Due);
+        publish(domain, env, number, out);
+        crate::domain::activate(domain, number, out);
+    }
+}
+
 /// Fixed durable notice text (domain/tasks/lifecycle.md, 2).
 pub(crate) const NOTHING_AWAITED_WORDS: &[u8] =
     b"Nothing more will come: your delegates have ended and no question waits. Finish with your result.";
@@ -923,10 +1016,8 @@ pub(crate) fn nothing_awaited(domain: &Domain, row: &crate::TaskRecord) -> bool 
     {
         return false;
     }
-    for line in &row.question_lines {
-        if line.answer.is_none() {
-            return false;
-        }
+    if !domain.open_questions(row.number).is_empty() {
+        return false;
     }
     if let Some(proposal) = &row.proposal {
         match proposal.state {
