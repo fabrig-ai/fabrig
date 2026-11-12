@@ -1748,3 +1748,5 @@ pub fn stock_configuration(payload: u32, output: u32) -> Result<smith_agent_shel
 
 mod kernel;
 pub use kernel::Kernel;
+
+pub use startup::engine_part;

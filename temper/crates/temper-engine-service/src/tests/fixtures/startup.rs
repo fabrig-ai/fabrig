@@ -262,3 +262,10 @@ fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) ->
     }
     start.unwrap()..end.unwrap_or(input.len())
 }
+
+/// The engine member of a generated standalone fixture, with no local worker.
+pub fn engine_part(input: &[u8]) -> Box<[u8]> {
+    let input = with(input, b"workers", b"[]");
+    let input = with(&input, b"application.workers", b"[]");
+    with(&input, b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:7200"}]"#)
+}

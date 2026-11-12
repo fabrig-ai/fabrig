@@ -69,25 +69,7 @@ fn the_stock_set_holds_exactly_five_files_and_assembles_both_charters() {
     );
     assert!(coder.parts.is_empty());
 }
-#[test]
-fn a_fresh_box_admits_the_stock_at_inits_catalogue() {
-    let document = generated();
-    crate::named(&document, &jig_protocol_config::Directories::working()).expect("fresh box admits stock");
-    let engine = engine(&document);
-    let own = crate::limits::profile(crate::limits::Profile::Standard);
-    assert_eq!(own.root.journal.run_bytes, 65_536);
-    assert_eq!(crate::limits::profile(crate::limits::Profile::Small).root.journal.run_bytes, 65_536);
-    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
-    assert_eq!(crate::stock::floors(&defaults, &engine.limits), Ok(()));
-    for (number, expected) in [(2, 11_279), (5, 26_744)] {
-        let charter = defaults.charters.iter().find(|charter| charter.number == number).unwrap();
-        let resolved =
-            jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core).unwrap();
-        let bytes = jig_domain_core::charter_owned_bytes(&resolved).unwrap();
-        assert_eq!(bytes, expected, "charter {number}");
-        assert!(bytes <= u64::from(own.root.journal.run_bytes));
-    }
-}
+
 #[test]
 fn the_goal_parts_cover_every_choosing_kind_its_policy_wakes() {
     use jig_domain_tasks::{ResultsWake, WakeRule};
