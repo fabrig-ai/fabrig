@@ -107,7 +107,11 @@ copy's build stay known (`places.md`, 7).
   (`triage.md`, 5);
 - for triage, what its commands check against, given at its start:
   `pages`, the pages of each surface, and `setups`, the catalogue's
-  names (`triage.md`, 3).
+  names (`triage.md`, 3);
+- for a pass, `before`, what its start or resume changed, so that an
+  unstarted end undoes it exactly (4.12): the pass's `state`, `place`
+  and `build` before it, absent for a start, and each case it took or
+  assigned again, its `number`, `state` and `pass` before it.
 
 A session's time is `ended` less `started`. A pass session has recorded
 something once an outcome, a finding, a check or a note names it.
@@ -345,10 +349,12 @@ this order, in one write:
    Either way the place is free once its holder has gone
    (`places.md`, 5).
 
-**Unstarted** (`passes.md`, 3): a start's pass is `ended` at once, its
-cases `queued` again, uncounted, and its build released; a resume's
-pass is `waiting` again, its cases as they were before the resume and
-its build's hold with them. Nothing else of this section applies.
+**Unstarted** (`passes.md`, 3): undone from the session's `before`
+(2.5). A start's pass is `ended` at once, its cases `queued` again,
+uncounted, and its build released; a resume's pass is `waiting` again
+at its build before the resume, which it holds again, the resume's new
+build released unless it is that one, and each case as `before` has it.
+Nothing else of this section applies.
 
 ### 4.13 A waiting pass's resume
 
