@@ -331,7 +331,20 @@
   the rail's strip with `.temper-rail-unfold` and `files/menu.svg`. What those
   name is drawn; a flow takes the tokens' look below. The sheet to start a goal
   is the mock's `dialog.sheet`, `.option`, `.field` and `.text`, and `Ctrl+\` steps
-  through the modes.
+  through the modes. The empty pane's acts, `.temper-doc-acts`, stand 16 px under
+  its words, and "Write it up from this chat", `.temper-doc-write-up`, has the
+  bar's quiet bordered look: an inline flex button at least 34 px high, 5 px by
+  12 px, a 1 px `--gf-line-2` border with 8 px corners on `--gf-surface`, ink,
+  13.5/1.6 in the sans, its border `--gf-control-hover-line` hovered (the look
+  request `chat-bar`).
+- **A chat's status line** (`../pages/chat/README.md`, 1, *Its status line*), the
+  look request `chat-bar`'s rules: `.temper-status-line`, the form's first row, a
+  baseline flex row with an 8 px gap, the full width up to 720 px and centred, as
+  the composer is, 8 px above it and 6 px in from its left, 13/1.5 and muted;
+  its star, `.temper-status-star`, faint; with `.temper-status-working`, the
+  star ink-2 and pulsing with the conversation's dots' animation
+  (`chat-typing`, 1.4 s, ease-in-out, repeated). Reduced motion stills it, as
+  it stills the terminal look's running star. The bar keeps no status of its own.
 - **A chat's terminal** (`../pages/README.md`) is the requests `chat-terminal`,
   `chat-terminal-font` and `chat-terminal-draft`'s `terminal.css`, in `temper.css`
   under `/* ==== ui: chats ==== */`, its selectors on temper's tokens:
