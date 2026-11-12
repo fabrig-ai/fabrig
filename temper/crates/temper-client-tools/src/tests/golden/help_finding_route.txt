@@ -1,0 +1,8 @@
+finding route FINDING --goal TASK --key KEY
+  FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
+  --goal TASK: a number; required. The live goal's task number
+Route a finding to a live goal of its project
+Prints: routed: P/N
+--json: the record finding_routed.
+Key: --key KEY, required.
+The goal hears it. Only the holder or a project owner may triage.

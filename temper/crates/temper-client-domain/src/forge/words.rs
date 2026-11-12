@@ -1557,6 +1557,10 @@ pub fn sheet_outcome(outcome: &temper_client_protocol_wire::v1::Outcome) -> Box<
         | Outcome::DeviceAdded(_)
         | Outcome::DeviceRemoved
         | Outcome::DeviceRefused(_)
+        | Outcome::Filed(_)
+        | Outcome::Handed
+        | Outcome::Triaged
+        | Outcome::FindingRefused(_)
         | Outcome::Drafted(_)
         | Outcome::DraftRefused(_)
         | Outcome::Follow(_)

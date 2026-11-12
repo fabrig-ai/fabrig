@@ -229,6 +229,9 @@ fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> Strin
 #[must_use]
 pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
     match note {
+        temper_engine_service::Note::ClientStreamFailed { sign_in, why } => {
+            format!("{binary} serve: client stream closed: sign_in={sign_in} reason={why:?}\n")
+        }
         temper_engine_service::Note::CoreWaiting { why } => temper_service_shell::core_wait_line(binary, &why.words()),
         temper_engine_service::Note::CoreAnswers => temper_service_shell::core_answers_line(binary),
         temper_engine_service::Note::StartupWarning { line } => {

@@ -143,6 +143,9 @@ fn configure_reference_authority_allows_coordinator_tools() {
             .collect();
     }
     widen_reference(&mut configured.roles[0].authority, &required);
+    assert_eq!(rules.ceiling.delegation.kinds.len(), 18);
+    assert_eq!(configured.ceiling.delegation.kinds.len(), 18);
+    assert_eq!(configured.roles[0].authority.delegation.kinds.len(), 16);
     for (old, new) in [
         (&stock.rules.ceiling, &rules.ceiling),
         (&policy.ceiling, &configured.ceiling),
@@ -169,19 +172,15 @@ fn assert_reference_authority(old: &jig_domain_authority::Authority, new: &jig_d
     use jig_domain_authority::{Executor, Scopes, Tools};
     assert_eq!(new.tools, Tools(4031));
     assert_eq!(new.notes, Scopes(3));
+    for retired in [6, 7, 8, 12, 13] {
+        assert!(!new.delegation.kinds.contains(&Executor::Charter(retired)));
+    }
     let mut restored = new.clone();
     restored.tools = old.tools;
     restored.notes = old.notes;
     restored.delegation.kinds = old.delegation.kinds.clone();
     assert_eq!(&restored, old, "budgets, grants and other authority fields survive");
-    for executor in [
-        Executor::Charter(5),
-        Executor::Charter(7),
-        Executor::Charter(8),
-        Executor::Procedure(6),
-        Executor::Job(4),
-        Executor::Role(0),
-    ] {
+    for executor in [Executor::Charter(5), Executor::Procedure(6), Executor::Job(4), Executor::Role(0)] {
         assert!(new.delegation.kinds.contains(&executor));
     }
 }
@@ -316,7 +315,7 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
                 && charter.number != 10
                 && charter.number != 11
                 && charter.number != 12
-                && charter.number != 13
+                && charter.number < 13
         );
         assert!(!charter.policy.shell);
         assert_eq!(charter.policy.modify, charter.number == 2 || charter.number == 5);
@@ -485,6 +484,60 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
 }
 
 #[test]
+fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
+    use jig_domain_authority::Executor;
+    use temper_engine_domain_forge::settings::Value;
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let standing = defaults.charters.iter().find(|charter| charter.number == 13).unwrap();
+    let configured = fixtures::engine();
+    let limits = crate::limits::engine(&configured.jig.limits, &configured.limits).unwrap();
+    let stock = crate::stock::forge(&limits);
+    for (number, text, words) in [
+        (
+            14,
+            include_str!("../stock/triager.md"),
+            "Routes what comes in to its area's owner, and triages what fits no area.",
+        ),
+        (
+            15,
+            include_str!("../stock/prover.md"),
+            "Owns its area's tests: triages their reds and flakes and makes the repairs.",
+        ),
+        (16, include_str!("../stock/porter.md"), "Keeps its area's port in step with its source."),
+    ] {
+        let charter = defaults.charters.iter().find(|charter| charter.number == number).expect("stock role");
+        let mut sections = text.strip_prefix("## shared\n").unwrap().split("\n## ");
+        let shared = sections.next().unwrap().trim_matches('\n');
+        assert_eq!(charter.policy.instructions.as_ref(), shared.as_bytes());
+        let mut expected = standing.clone();
+        expected.number = number;
+        expected.policy.instructions = shared.as_bytes().into();
+        for (part, section) in expected.parts.iter_mut().zip(sections) {
+            let (heading, words) = section.split_once('\n').unwrap();
+            let on = heading.strip_prefix("part, on: ").unwrap();
+            let mut reasons = jig_domain_tasks::Reasons::EMPTY;
+            for name in on.split(", ") {
+                reasons = reasons.union(jig_domain_tasks::Reasons::named(name.as_bytes()).unwrap());
+            }
+            assert_eq!(part.on, reasons);
+            part.instructions = words.trim_matches('\n').as_bytes().into();
+        }
+        assert_eq!(charter, &expected, "only instructions differ for charter {number}");
+        assert!(shared.contains("Never accept your own proposal"));
+        assert!(shared.contains("Never change what is outside your area"));
+        assert!(shared.contains("Before every park, write your Now"));
+        assert!(shared.contains("`finding` tool's `list`"));
+        let line = stock.iter().find(|item| (item.kind, item.number) == (9, number)).unwrap();
+        assert_eq!(line.value.value, Value::CharterWords(words.as_bytes().into()));
+        let policy = &defaults.policies.get(&1).unwrap().policy;
+        for authority in [&defaults.rules.ceiling, &policy.ceiling, &policy.roles[0].authority] {
+            assert!(authority.delegation.kinds.contains(&Executor::Charter(number)));
+        }
+    }
+}
+
+#[test]
 fn the_standing_role_talks_keeps_a_session_line_and_sets_its_weekly_report() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -603,12 +656,19 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     }
 }
 
+fn chat_and_goal_use_asking() {
+    let words = include_str!("../stock/chat.txt");
+    for prefix in ["If your brief says you are a goal", "If neither line"] {
+        let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("role paragraph");
+        assert!(paragraph.contains("Use Reports and Asking."));
+    }
+}
+
 // temper/docs/design/protocol/configuration/stock.md; domain/agent/tools.md.
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
-    for (words, prefixes) in
-        [(include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..])]
-    {
+    chat_and_goal_use_asking();
+    for (words, prefixes) in [(include_str!("../stock/chat.txt"), &["Asking, for a goal and the person's chat:"][..])] {
         for prefix in prefixes {
             let paragraph =
                 words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
@@ -635,9 +695,8 @@ fn a_goal_is_told_to_call_decided_before_it_asks() {
 
 #[test]
 fn asks_always_is_told_every_answer_is_ask() {
-    for (words, prefixes) in
-        [(include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..])]
-    {
+    chat_and_goal_use_asking();
+    for (words, prefixes) in [(include_str!("../stock/chat.txt"), &["Asking, for a goal and the person's chat:"][..])] {
         for prefix in prefixes {
             let paragraph =
                 words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
@@ -762,7 +821,7 @@ fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
     }
     for role in ["If your brief says you are a goal", "If neither line is in your brief"] {
         let paragraph = words.split("\n\n").find(|paragraph| paragraph.starts_with(role)).expect("role instructions");
-        assert!(paragraph.contains("Use Reports."), "{role} must retain reporting rules");
+        assert!(paragraph.contains("Use Reports and Asking."), "{role} must retain reporting rules");
     }
 }
 
@@ -1316,6 +1375,22 @@ fn kinds_are_declared_with_their_bounds() {
                 per_scope: limits.forge.dependencies,
                 charters: 0
             },
+            Kind {
+                number: 14,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 4 + 16 * (4 + 32 + 4 + 480 + 1 + 8),
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 15,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: 9,
+                per_scope: 1,
+                charters: 0
+            },
         ]
     );
     limits.authority.segment_bytes = 6;
@@ -1325,7 +1400,7 @@ fn kinds_are_declared_with_their_bounds() {
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
     // protocol/configuration/stock.md: every project's rule 1, both forge charters and each charter's words and template 4's work.
-    const ITEMS: usize = 13;
+    const ITEMS: usize = 16;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
@@ -1524,6 +1599,30 @@ fn the_stock_ways_hold_their_words_and_settings() {
         assert_eq!(way.ways, ways, "{name:?}");
         assert_eq!(way.classes, classes, "{name:?}");
         assert_eq!(way.delegation, delegation, "{name:?}");
+        if name == b"Draft first" {
+            assert_eq!(way.triager, Some(forge::settings::AreaOwner::Charter(14)));
+            assert_eq!(
+                way.roles.as_ref(),
+                &[temper_engine_domain_ways::WayRole {
+                    charter: 14,
+                    words: b"Routes what comes in to its area's owner, and triages what fits no area."
+                        .as_slice()
+                        .into(),
+                    budget: 25_000,
+                }]
+            );
+            let items = temper_engine_domain_ways::items(way, 7, None);
+            let item = items.iter().find(|item| item.kind == 15).unwrap();
+            assert_eq!(
+                item.edit,
+                temper_engine_domain_ways::Edit::Set(Value::ProjectTriager(forge::settings::ProjectTriager {
+                    owner: forge::settings::AreaOwner::Charter(14),
+                }))
+            );
+        } else {
+            assert_eq!(way.triager, None);
+            assert!(way.roles.is_empty());
+        }
     }
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();

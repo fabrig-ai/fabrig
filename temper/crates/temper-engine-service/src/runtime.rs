@@ -430,6 +430,10 @@ impl engine::Engine {
         }
     }
     pub fn notes(&mut self) -> &mut Queue<crate::Note> {
+        for _ in 0..self.notes.room() {
+            let Some(note) = self.clients.notes.pop() else { break };
+            self.notes.push(note);
+        }
         &mut self.notes
     }
     pub fn listening(&mut self) -> &mut Queue<crate::Note> {

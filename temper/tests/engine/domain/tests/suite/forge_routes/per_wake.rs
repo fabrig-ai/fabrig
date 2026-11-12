@@ -52,7 +52,7 @@ fn reference_items(model: &engine::Model, words: u32) -> Box<[settings::Item]> {
         &limits,
     )
     .expect("shipped reference settings");
-    let mut items = skein_lib::List::with_capacity(2); // Charter 5 and template 4 travel whole.
+    let mut items = skein_lib::List::with_capacity(2); // Charter 5's overlay and template 4.
     for item in decoded.into_boxed() {
         if item.setting == c::Setting::Charter(c::SettingNumber { number: CHARTER })
             || item.setting == c::Setting::Template(c::SettingNumber { number: TEMPLATE })
@@ -93,10 +93,10 @@ fn reference_items(model: &engine::Model, words: u32) -> Box<[settings::Item]> {
             .expect("reference settings reach the core with catalogue models");
     for item in &mut items {
         match &mut item.edit {
-            settings::Edit::Set(settings::Value::Charter(charter)) => {
-                charter.policy.model = model.clone();
-                charter.policy.alternatives = Box::new([]);
-                charter.documents = Box::new([]);
+            settings::Edit::Set(settings::Value::Overlay(overlay)) => {
+                overlay.model = Some(model.clone());
+                overlay.alternatives = Some(Box::new([]));
+                overlay.documents = Some(Box::new([]));
             }
             settings::Edit::Set(settings::Value::Template(template)) => {
                 template.contract = tasks::Contract::Report { words };
@@ -196,6 +196,7 @@ struct ReferenceGoal {
     template: jig_domain_core::Template,
     cut: Vec<u8>,
     questions: Vec<u8>,
+    results: Vec<u8>,
 }
 
 fn reference_goal() -> ReferenceGoal {
@@ -216,7 +217,10 @@ fn reference_goal() -> ReferenceGoal {
     let charter = items
         .iter()
         .find_map(|item| match &item.edit {
-            settings::Edit::Set(settings::Value::Charter(charter)) => Some(charter.clone()),
+            settings::Edit::Set(settings::Value::Overlay(overlay)) => {
+                let stock = defaults.charters.iter().find(|charter| charter.number == CHARTER).expect("stock goal");
+                Some(settings::overlaid(stock, overlay))
+            }
             _ => None,
         })
         .expect("decoded charter 5");
@@ -227,7 +231,17 @@ fn reference_goal() -> ReferenceGoal {
             _ => None,
         })
         .expect("decoded template 4");
-    let cut = instructions(&charter.policy.instructions, &charter.parts[0].instructions);
+    let cut = [
+        charter.policy.instructions.as_ref(),
+        b"\n\n",
+        &charter.parts[0].instructions,
+        b"\n\n",
+        &charter.parts[1].instructions,
+        b"\n\n",
+        &charter.parts[2].instructions,
+    ]
+    .concat();
+    let results = instructions(&charter.policy.instructions, &charter.parts[2].instructions);
     let questions = instructions(&charter.policy.instructions, &charter.parts[1].instructions);
     let mut world = World::configured_stock_limits(&defaults, &model, &limits);
     world.adopt();
@@ -244,18 +258,22 @@ fn reference_goal() -> ReferenceGoal {
     world.send(event);
     let ask = request(&world, &template);
     let first = assigned_chat(&mut world, GOAL_REQUEST, ask);
-    ReferenceGoal { world, first, template: *template, cut, questions }
+    ReferenceGoal { world, first, template: *template, cut, questions, results }
 }
 
 #[test]
 fn the_reference_goal_reads_its_cut_then_its_questions_part() {
-    let ReferenceGoal { mut world, first, template, cut, questions } = reference_goal();
+    let ReferenceGoal { mut world, first, template, cut, questions, .. } = reference_goal();
     assert_eq!(first.run.policy.model.name.as_ref(), MODEL, "row 1: model");
     assert_eq!(first.run.policy.model.effort.as_deref(), Some(b"xhigh".as_slice()), "row 1: effort");
     assert!(live_task(&world, first.task).reasons.contains(tasks::Reasons::FIRST));
 
     let delegate = delegate(&mut world, &first);
     let child = delegate.task;
+    let turns = live_task(&world, first.task).turn;
+    park_after_turn(&mut world, &first, None, turns);
+    world.until(Until::Ready);
+    assert_eq!(live_task(&world, first.task).phase, tasks::Phase::Active(tasks::Active::Idle));
     let answer = world.scripted_call(
         &delegate,
         QUESTION_CALL,
@@ -272,12 +290,6 @@ fn the_reference_goal_reads_its_cut_then_its_questions_part() {
     assert_eq!(question.from, tasks::Party::Task(child));
     assert_eq!(question.words.as_ref(), QUESTION);
     assert_eq!(question.kind, tasks::MessageKind::Question);
-    let withheld =
-        !world.delivered_messages.get(&(first.task, first.attempt)).is_some_and(|messages| messages.contains(&message));
-
-    let turns = live_task(&world, first.task).turn;
-    park_after_turn(&mut world, &first, None, turns);
-    world.until(Until::Ready);
     let next = world
         .assigned
         .iter()
@@ -289,7 +301,6 @@ fn the_reference_goal_reads_its_cut_then_its_questions_part() {
         cut_read && questions_read,
         "row 1: shared instructions and cut: {cut_read}; row 3: shared instructions and questions: {questions_read}"
     );
-    assert!(withheld, "row 2: question withheld from the cut");
     assert_eq!(next.run.policy.model.name.as_ref(), MODEL, "row 3: model");
     assert_eq!(next.run.policy.model.effort.as_deref(), Some(b"high".as_slice()), "row 3: later effort");
     assert!(next.messages.contains(&question), "row 3: start carries the question");
@@ -306,7 +317,7 @@ fn the_reference_goals_running_cut_hears_a_cancelled_change_and_its_last_landing
     let row = live_task(&world, first.task);
     assert!(matches!(row.flags.ended_by, tasks::EndedBy::Closer(_)));
     assert_eq!(row.wake.results, tasks::ResultsWake::LastOrFailure);
-    assert!(!row.offered.contains(tasks::Reasons::RESULT));
+    assert!(row.offered.contains(tasks::Reasons::RESULT));
 
     let answer = super::change_tool::named_read(
         &mut world,
@@ -405,7 +416,7 @@ fn delegate(world: &mut World, first: &engine::Assignment) -> engine::Assignment
 
 #[test]
 fn a_tasks_words_to_a_coordinator_are_offered_to_the_run_they_wake() {
-    let ReferenceGoal { mut world, first, questions, .. } = reference_goal();
+    let ReferenceGoal { mut world, first, results, .. } = reference_goal();
     let delegate = delegate(&mut world, &first);
     let turns = live_task(&world, first.task).turn;
     park_after_turn(&mut world, &first, None, turns);
@@ -430,10 +441,10 @@ fn a_tasks_words_to_a_coordinator_are_offered_to_the_run_they_wake() {
     assert_eq!(offered.kind, tasks::MessageKind::Words);
     assert_eq!(offered.from, tasks::Party::Task(delegate.task));
     assert_eq!(offered.words.as_ref(), QUESTION);
-    assert_eq!(next.run.policy.instructions.as_ref(), questions);
+    assert_eq!(next.run.policy.instructions.as_ref(), results);
     assert!(
         String::from_utf8_lossy(&next.run.policy.instructions)
-            .contains("On a task's words, read them and act as on a question")
+            .contains("**Words:** read them; act on what is yours, and note what is news.")
     );
 
     let runs = world.assigned.len();

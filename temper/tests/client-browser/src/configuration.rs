@@ -51,15 +51,15 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         // Holds charter 5's resolved models, shared instructions and four parts.
         ("core.run_bytes", 32_768),
         ("authority.grants", 16),
-        // The standing charter, closer procedure and close job are delegation targets.
-        ("authority.executors", 18),
+        // The standing charters, closer procedure and close job are delegation targets.
+        ("authority.executors", 21),
         ("tasks.authority_grants", 16),
-        // The standing charter, closer procedure and close job are delegation targets.
-        ("tasks.executor_kinds", 18),
+        // The standing charters, closer procedure and close job are delegation targets.
+        ("tasks.executor_kinds", 21),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.
-        ("tasks.charters", 10),
+        ("tasks.charters", 16),
         ("core.templates", 6),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
@@ -82,7 +82,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
     // The creation offer carries nine stock charters and four procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 9.into();
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 11.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     value["application"] = serde_json::json!({
@@ -321,11 +321,10 @@ mod tests {
         for charter in &engine.charters {
             assert!(u64::from(charter.policy.turns) <= turns, "charter {} exceeds agent turns", charter.number);
         }
-        assert_eq!(engine.charters.len(), 9);
-        assert!(
-            usize::try_from(engine.limits.core.documents.lines).expect("line capacity")
-                >= engine.charters.iter().filter(|charter| charter.number != 10).count(),
-            "the configured page admits every live stock charter"
+        assert_eq!(engine.charters.len(), 12);
+        assert_eq!(
+            usize::try_from(engine.limits.core.documents.lines).expect("line capacity"),
+            engine.charters.iter().filter(|charter| charter.number != 10).count()
         );
     }
 }

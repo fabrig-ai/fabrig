@@ -22,6 +22,8 @@ pub fn forge_items(stock: &[temper_engine_domain_forge::settings::Stock]) -> Vec
             | settings::Value::Ways(_)
             | settings::Value::CharterWords(_)
             | settings::Value::Classes(_)
+            | settings::Value::ProjectAreas(_)
+            | settings::Value::ProjectTriager(_)
             | settings::Value::ProjectWords(_)
             | settings::Value::Dependency(_)
             | settings::Value::Follow(_) => {

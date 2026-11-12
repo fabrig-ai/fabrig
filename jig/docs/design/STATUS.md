@@ -48,13 +48,14 @@ a person the core does not hold; the core world, killed at any file
 operation of a decision and again during its restart, starts from a
 whole one, but the core-world crash-coverage departure remains `protocol/store/README.status.md`, 9. An
 application's own kinds of setting, a project's policy in a change of
-settings and a settings revision's `Restore` are built, but the settings-holder gap remains `domain/engine/settings.status.md`, 6, and ignored restore stories remain `domain/engine/settings.status.md`, 10; a setting reset to a default
+settings, a charter's overlay kept over its default
+(`domain/engine/overlays.md`) and a settings revision's `Restore` are built, but the settings-holder gap remains `domain/engine/settings.status.md`, 6, and ignored restore stories remain `domain/engine/settings.status.md`, 10; a setting reset to a default
 its connector neither reports nor names as dropped keeps its state at the
 next start (`domain/engine/README.md`, `domain/connectors.md`). A run's fresh settings proposal replaces its own
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks/proposals.md`;
 `domain/engine/settings.md`, 6). Derived run-wait refusals carry admitted hosts'
-bound shortfalls and required/offered figures through the v19 client
+bound shortfalls and required/offered figures through the v20 client
 wire, including a standing hello's figures and every charter-bound
 shortfall's charter (`domain/engine/fleet.md`;
 `client/domain/contract/documents.md`, 1; `protocol/client/wire.md`, section 1).

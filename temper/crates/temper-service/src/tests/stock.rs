@@ -74,17 +74,17 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     assert_eq!(run, (26_744, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        // Each policy authority includes the standing role's charter executor.
-        (b"core.policy_bytes", 5982, Setting::Policy(1), "the stock's policy 1 needs 5982 bytes"),
+        // Each policy authority includes the standing roles' charter executors.
+        (b"core.policy_bytes", 6078, Setting::Policy(1), "the stock's policy 1 needs 6078 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        // The standing charter, closer procedure and close job are delegation targets.
-        (b"authority.executors", 17, Setting::Rules, "the stock's rules need 17 executors"),
+        // The standing charters, closer procedure and close job are delegation targets.
+        (b"authority.executors", 20, Setting::Rules, "the stock's rules need 20 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 9, Setting::Charter(1), "the stock offers 9 charters"),
+        (b"tasks.charters", 12, Setting::Charter(1), "the stock offers 12 charters"),
         (b"core.templates", 6, Setting::Template(1), "the stock offers 6 templates"),
         (b"documents.text_bytes", 16, Setting::Template(4), "the stock's template 4 needs 16 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
@@ -176,7 +176,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     // Two executor places in four authorities add 64 bytes to the policy.
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5982 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6078 bytes; raise it in engine.limits.overrides\n"
     );
 }
 

@@ -1063,3 +1063,15 @@ fn cutoff_comparison_refusal_names_no_error_or_heads() {
         "temper serve: brief read refused task=7 section=pull stage=compare reason=not read by the section's cutoff\n"
     );
 }
+
+#[test]
+fn client_stream_failure_line_names_the_sign_in_and_bound() {
+    let note = temper_engine_service::Note::ClientStreamFailed {
+        sign_in: 41,
+        why: temper_engine_service::StreamFailure::QueueBound { queued_bytes: 65_536 },
+    };
+    assert_eq!(
+        super::note_line("temper", note),
+        "temper serve: client stream closed: sign_in=41 reason=QueueBound { queued_bytes: 65536 }\n"
+    );
+}

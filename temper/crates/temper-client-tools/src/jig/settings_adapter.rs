@@ -28,6 +28,127 @@ pub fn client_authority_models(v: &n::AuthorityModels) -> c::AuthorityModels {
     }
 }
 
+pub fn form_overlay(v: &c::Overlay) -> n::Overlay {
+    n::Overlay {
+        charters: List::with_capacity(0),
+        rest: v.rest,
+        model: match &v.model {
+            Some(v) => Some(form_setting_model(v)),
+            None => None,
+        },
+        alternatives: match &v.alternatives {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(form_setting_model(item)).expect("same count");
+                }
+                Some(out)
+            }
+            None => None,
+        },
+        inspect: v.inspect,
+        modify: v.modify,
+        shell: v.shell,
+        agents: v.agents,
+        tools: v.tools,
+        hosts: match &v.hosts {
+            Some(v) => Some(form_setting_hosts(v)),
+            None => None,
+        },
+        waiting: v.waiting,
+        resume: v.resume,
+        turns: v.turns,
+        time: v.time,
+        reserve_turns: v.reserve_turns,
+        reserve_time: v.reserve_time,
+        call_timeout: v.call_timeout,
+        spend: v.spend,
+        documents: match &v.documents {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(n::CharterDocument {
+                        connector: item.connector,
+                        name: item.name.clone(),
+                        path: item.path.clone(),
+                        heading: item.heading.clone(),
+                    })
+                    .expect("same count");
+                }
+                Some(out)
+            }
+            None => None,
+        },
+        instructions: form_text(&v.instructions),
+        parts: {
+            let mut out = List::with_capacity(v.parts.len());
+            for p in &v.parts {
+                out.push(n::CharterPart { on: p.on, instructions: form_text(&p.instructions) }).expect("same count");
+            }
+            out
+        },
+    }
+}
+pub fn client_overlay(v: &n::Overlay) -> c::Overlay {
+    c::Overlay {
+        rest: v.rest,
+        model: match &v.model {
+            Some(v) => Some(client_setting_model(v)),
+            None => None,
+        },
+        alternatives: match &v.alternatives {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(client_setting_model(item)).expect("same count");
+                }
+                Some(out)
+            }
+            None => None,
+        },
+        inspect: v.inspect,
+        modify: v.modify,
+        shell: v.shell,
+        agents: v.agents,
+        tools: v.tools,
+        hosts: match &v.hosts {
+            Some(v) => Some(client_setting_hosts(v)),
+            None => None,
+        },
+        waiting: v.waiting,
+        resume: v.resume,
+        turns: v.turns,
+        time: v.time,
+        reserve_turns: v.reserve_turns,
+        reserve_time: v.reserve_time,
+        call_timeout: v.call_timeout,
+        spend: v.spend,
+        documents: match &v.documents {
+            Some(v) => {
+                let mut out = List::with_capacity(v.len());
+                for item in v {
+                    out.push(c::CharterDocument {
+                        connector: item.connector,
+                        name: item.name.clone(),
+                        path: item.path.clone(),
+                        heading: item.heading.clone(),
+                    })
+                    .expect("same count");
+                }
+                Some(out)
+            }
+            None => None,
+        },
+        instructions: client_text(&v.instructions),
+        parts: {
+            let mut out = List::with_capacity(v.parts.len());
+            for p in &v.parts {
+                out.push(c::CharterPart { on: p.on, instructions: client_text(&p.instructions) }).expect("same count");
+            }
+            out
+        },
+    }
+}
 pub fn form_charter(v: &c::Charter) -> n::Charter {
     n::Charter {
         parts: {
@@ -674,6 +795,10 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
 }
 pub fn form_setting_document(v: &c::SettingDocument) -> n::SettingDocument {
     n::SettingDocument {
+        overlay: match &v.overlay {
+            Some(v) => Some(Box::new(form_overlay(v))),
+            None => None,
+        },
         setting: form_setting(v.setting),
         revision: v.revision,
         value: match &v.value {
@@ -713,6 +838,7 @@ pub fn form_setting_fault(v: c::SettingFault) -> n::SettingFault {
 
 pub fn form_setting_follows(v: &c::SettingFollows) -> n::SettingFollows {
     match v {
+        c::SettingFollows::Overlay => n::SettingFollows::Overlay,
         c::SettingFollows::Default => n::SettingFollows::Default,
         c::SettingFollows::Change => n::SettingFollows::Change,
     }
@@ -895,6 +1021,7 @@ pub fn client_setting_set(v: &n::SettingSet) -> c::SettingSet {
 }
 pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
     match v {
+        c::SettingValue::Overlay(x) => n::SettingValue::Overlay(Box::new(form_overlay(x))),
         c::SettingValue::Model(x) => n::SettingValue::Model(Box::new(form_catalogue(x))),
         c::SettingValue::Application(x) => n::SettingValue::Application(x.clone()),
         c::SettingValue::Charter(x) => n::SettingValue::Charter(Box::new(form_charter(x))),
@@ -905,6 +1032,7 @@ pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
 }
 pub fn client_setting_value(v: &n::SettingValue) -> c::SettingValue {
     match v {
+        n::SettingValue::Overlay(x) => c::SettingValue::Overlay(Box::new(client_overlay(x))),
         n::SettingValue::Model(x) => c::SettingValue::Model(Box::new(client_catalogue(x))),
         n::SettingValue::Application(x) => c::SettingValue::Application(x.clone()),
         n::SettingValue::Charter(x) => c::SettingValue::Charter(Box::new(client_charter(x))),
@@ -1245,8 +1373,8 @@ pub fn limits(v: &crate::jig::Limits) -> settings_form::Limits {
         result_bytes: v.result_bytes,
         text: v.words,
         rows: 32,
-        // Eighteen executor places size each receiving authority list.
-        authority: 18,
+        // The stock's delegation and one deployment charter fit whole.
+        authority: 22,
         fields: 16,
     }
 }

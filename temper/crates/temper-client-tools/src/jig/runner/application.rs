@@ -268,6 +268,7 @@ fn setting_received(
     } else {
         let page = match decoded {
             Ok(value) => Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+                overlay: None,
                 setting,
                 revision: 0,
                 value,
@@ -299,6 +300,7 @@ pub(super) fn inventory(reading: &mut reads::Reading, settings: &c::SettingsDocu
     reading.pages.insert(
         1,
         Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision: settings.newest,
             value: None,
@@ -323,6 +325,7 @@ pub(super) fn historical(
     reading.pages.insert(
         1,
         Readout::Jig(c::ReadResult::Value(c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting,
             revision,
             value: None,

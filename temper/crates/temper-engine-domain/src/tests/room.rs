@@ -17,17 +17,38 @@ const TABLE: HostPart = HostPart {
 
 #[test]
 fn check_requires_at_least_2048_bytes() {
-    let policy = crate::tests::resume_fixture::charter().policy;
-    let cost = TABLE.non_brief(&policy);
+    let mut charter = crate::tests::resume_fixture::charter();
+    charter.number = 7;
+    let cost = TABLE.non_brief(&charter);
     let short = HostPart { bound: cost + BRIEF_ROOM - 1, ..TABLE };
-    assert_eq!(short.check(7, &policy), Err(Short { charter: 7, room: 2_047, bound: short.bound }));
+    assert_eq!(short.check(&charter), Err(Short { charter: 7, room: 2_047, bound: short.bound }));
     let enough = HostPart { bound: cost + BRIEF_ROOM, ..TABLE };
-    assert_eq!(enough.check(7, &policy), Ok(()));
+    assert_eq!(enough.check(&charter), Ok(()));
     for bound in [0, cost - 1, cost] {
         let table = HostPart { bound, ..TABLE };
-        assert_eq!(table.room(&policy), 0);
-        assert_eq!(table.check(7, &policy), Err(Short { charter: 7, room: 0, bound }));
+        assert_eq!(table.room(&charter), 0);
+        assert_eq!(table.check(&charter), Err(Short { charter: 7, room: 0, bound }));
     }
+}
+
+#[test]
+fn parts_include_their_join_and_the_joined_text_ending() {
+    let mut charter = crate::tests::resume_fixture::charter();
+    charter.policy.instructions = Box::new([]);
+    let empty = TABLE.non_brief(&charter);
+    charter.parts = Box::new([
+        jig_domain_core::CharterPart { on: jig_domain_tasks::Reasons::FIRST, instructions: Box::new([b'x'; 3_000]) },
+        jig_domain_core::CharterPart { on: jig_domain_tasks::Reasons::WORDS, instructions: Box::new([]) },
+    ]);
+    // Both joining blank lines count; the final empty part leaves a newline for smith.
+    assert_eq!(TABLE.non_brief(&charter) - empty, 3_005);
+    charter.parts = Box::new([jig_domain_core::CharterPart {
+        on: jig_domain_tasks::Reasons::FIRST,
+        instructions: b"x\n".as_slice().into(),
+    }]);
+    assert_eq!(TABLE.non_brief(&charter) - empty, 5);
+    charter.parts.first_mut().unwrap().instructions = b"x".as_slice().into();
+    assert_eq!(TABLE.non_brief(&charter) - empty, 5);
 }
 
 #[test]
@@ -44,22 +65,22 @@ fn short_names_the_charter_room_and_bound() {
 
 #[test]
 fn the_table_counts_only_enabled_families_and_saturates() {
-    let mut policy = crate::tests::resume_fixture::charter().policy;
-    policy.instructions = Box::new([]);
-    policy.inspect = false;
-    policy.modify = false;
-    policy.shell = false;
-    policy.agents = false;
-    policy.tools = jig_domain_tasks::Tools(512);
-    assert_eq!(TABLE.non_brief(&policy), 300);
-    policy.tools = jig_domain_core::RunPolicy::EVERY_FAMILY;
-    assert_eq!(TABLE.non_brief(&policy), 600);
-    policy.inspect = true;
-    policy.modify = true;
-    policy.shell = true;
-    policy.agents = true;
-    assert_eq!(TABLE.non_brief(&policy), 700);
+    let mut charter = crate::tests::resume_fixture::charter();
+    charter.policy.instructions = Box::new([]);
+    charter.policy.inspect = false;
+    charter.policy.modify = false;
+    charter.policy.shell = false;
+    charter.policy.agents = false;
+    charter.policy.tools = jig_domain_tasks::Tools(512);
+    assert_eq!(TABLE.non_brief(&charter), 300);
+    charter.policy.tools = jig_domain_core::RunPolicy::EVERY_FAMILY;
+    assert_eq!(TABLE.non_brief(&charter), 600);
+    charter.policy.inspect = true;
+    charter.policy.modify = true;
+    charter.policy.shell = true;
+    charter.policy.agents = true;
+    assert_eq!(TABLE.non_brief(&charter), 700);
     let huge = HostPart { fixed: u64::MAX, ..TABLE };
-    assert_eq!(huge.non_brief(&policy), u64::MAX);
-    assert_eq!(huge.room(&policy), 0);
+    assert_eq!(huge.non_brief(&charter), u64::MAX);
+    assert_eq!(huge.room(&charter), 0);
 }

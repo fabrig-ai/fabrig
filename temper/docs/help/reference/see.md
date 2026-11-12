@@ -184,6 +184,18 @@ A charter's words; stock where none is stored, marked so, or that it has none.
 
 Next: settings · revisions · help settings-fields
 
+## settings project-areas
+
+This project's areas, or that it has none.
+
+Next: settings · revisions · help settings-fields
+
+## settings project-triager
+
+This project's triager, or that it has none.
+
+Next: settings · revisions · help settings-fields
+
 ## settings project-words
 
 This project's words, or that it has none.

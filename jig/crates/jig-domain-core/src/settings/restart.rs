@@ -224,6 +224,21 @@ impl Core {
                 return false;
             }
         }
+        if let Some(overlay) = &value.overlay {
+            let stored = super::Value::Overlay(overlay.clone());
+            if let Err(failure) = super::check::restore_fit(Setting::Charter(charter), &stored, limits) {
+                let _refused = self.refuse_settings(failure);
+                return false;
+            }
+            if value.charter.is_none() {
+                let _refused = self.refuse_settings(Failure {
+                    setting: Setting::Charter(charter),
+                    fault: Fault::Shape,
+                    detail: None,
+                });
+                return false;
+            }
+        }
         self.held.versions.insert(key, value).is_ok()
     }
 
@@ -261,7 +276,7 @@ impl Core {
         }
         let mut changed = false;
         for (&setting, _) in &self.settings_restore.pending {
-            changed |= !self.current.changed(setting);
+            changed |= !self.current.changed(setting) || self.current.overlay(setting).is_some();
         }
         if changed {
             let previous = self.current.newest();
@@ -381,10 +396,12 @@ impl Core {
         let count = self.settings_restore.pending.len();
         let mut items = List::with_capacity(count);
         for (&setting, &present) in &self.settings_restore.pending {
-            if self.current.changed(setting) {
+            if self.current.changed(setting) && self.current.overlay(setting).is_none() {
                 continue;
             }
-            let edit = if present {
+            let edit = if self.current.overlay(setting).is_some() {
+                Edit::Set(self.current.value(setting).expect("stored overlay").clone())
+            } else if present {
                 Edit::Set(self.settings_restore.defaults.get(&setting).expect("given default").value.clone())
             } else {
                 Edit::Removed
@@ -513,6 +530,14 @@ impl Core {
             };
             defaults.push(write).expect("default differences");
         }
+        for item in &items {
+            if self.current.overlay(item.setting).is_some() {
+                for write in super::charters::stamp(&mut self.current, core::slice::from_ref(item), newest).into_boxed()
+                {
+                    out.push(Request::Write(write));
+                }
+            }
+        }
         let mut implicit = List::with_capacity(env.limits.tasks.charters);
         for item in version_items {
             if super::check::edit(items.as_slice(), item.setting).is_none() {
@@ -533,8 +558,13 @@ impl Core {
                 recorded
                     .push(super::RevisionItem {
                         setting: item.setting,
-                        edit: item.edit,
-                        replaced: super::Replaced::Default,
+                        edit: item.edit.clone(),
+                        replaced: match &item.edit {
+                            Edit::Set(super::Value::Overlay(overlay)) => {
+                                super::Replaced::Value(super::Value::Overlay(overlay.clone()))
+                            }
+                            Edit::Set(_) | Edit::Removed | Edit::Reset => super::Replaced::Default,
+                        },
                     })
                     .expect("release revision items");
             }

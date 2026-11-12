@@ -7,7 +7,7 @@ use skein_lib::{Env, Queue};
 /// Only signed-out authorization addresses must fit Google's return path (protocol/openid-provider.md, 3).
 const SIGNED_OUT_ADDRESS_BYTES: usize = 1024;
 /// Jig's raw authorization query ceiling, shared with its wire codec.
-pub const QUERY_BYTES: u32 = jig_client_protocol_wire::v19::CEILINGS.authorize_query;
+pub const QUERY_BYTES: u32 = jig_client_protocol_wire::v20::CEILINGS.authorize_query;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Flight {
     Idle,
@@ -163,7 +163,7 @@ mod tests {
         }
     }
     fn signed_in() -> Domain {
-        use jig_client_protocol_wire::v19 as w;
+        use jig_client_protocol_wire::v20 as w;
         let limits = fixtures::limits();
         let mut root = crate::new(&limits, 11);
         let mut out = Queue::uncapped();
@@ -285,7 +285,7 @@ mod tests {
     }
     #[test]
     fn authorization_waits_for_exchange_credit_and_sends_once() {
-        use jig_client_protocol_wire::v19 as w;
+        use jig_client_protocol_wire::v20 as w;
         let limits = fixtures::limits();
         let env = fixtures::env(&limits);
         let mut root = signed_in();
@@ -338,7 +338,7 @@ mod tests {
     }
     #[test]
     fn signed_in_sends_long_queries_byte_for_byte_once() {
-        use jig_client_protocol_wire::v19 as w;
+        use jig_client_protocol_wire::v20 as w;
         for bytes in [1025 - b"/oauth/authorize?".len(), usize::try_from(QUERY_BYTES).unwrap()] {
             let mut root = signed_in();
             let query = query(bytes);

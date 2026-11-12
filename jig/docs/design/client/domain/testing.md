@@ -238,6 +238,11 @@ In every world, whatever stands in front of the client:
 
 - **Nothing reported done before it was durable:** no answer to a
   request is reported before the commit that answers it is durable.
+  Refusals before admission need no stored answer: an unconfigured model,
+  and an application request for a closed or unknown project, refused
+  with no held role and no operation position (`../../domain/people/acts.md`, 2).
+  These final replies still meet the request deadline; other final
+  answers need their durable write.
 - **Ordinary deciding requests made once:** each is made once by the
   engine, whatever the faults: drops, restarts, a request sent twice
   under one key, reloads. `Seen` retains no completed engine answer:

@@ -17,3 +17,11 @@ mod worker_alone;
 mod worker_parts;
 mod workers;
 mod workspace_reuse;
+
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "the shared test helper decodes the embedded reference fixture"
+)]
+#[path = "../../../testing/reference_settings.rs"]
+mod reference_settings;

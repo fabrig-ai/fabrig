@@ -63,3 +63,26 @@ fn a_call_past_the_room_waits_without_reading_and_a_closed_waiter_is_forgotten()
     };
     assert_eq!(call, waiting);
 }
+
+#[test]
+fn a_client_stream_failure_reaches_the_operator_notes() {
+    for standalone in [false, true] {
+        let mut service = crate::tests::fixtures::demo_service();
+        let engine = service.engine.as_mut().expect("engine");
+        engine.clients.starting = None;
+        engine.clients.out.push(kit::Request::StreamFailed {
+            sign_in: 41,
+            why: kit::StreamFailure::QueueBound { queued_bytes: 65_536 },
+        });
+        engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+        let note =
+            if standalone { service.notes().pop() } else { service.engine.as_mut().expect("engine").notes().pop() };
+        assert_eq!(
+            note,
+            Some(crate::Note::ClientStreamFailed {
+                sign_in: 41,
+                why: kit::StreamFailure::QueueBound { queued_bytes: 65_536 },
+            })
+        );
+    }
+}

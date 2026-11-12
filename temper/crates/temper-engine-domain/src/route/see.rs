@@ -225,6 +225,12 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"settings", b"gates", repository] if repository_name(repository) => {
             Address::Gates { repository: (*repository).into() }
         }
+        [b"settings", b"project-areas"] => {
+            Address::Setting(Setting::Application { kind: 14, scope: project, number: 1 })
+        }
+        [b"settings", b"project-triager"] => {
+            Address::Setting(Setting::Application { kind: 15, scope: project, number: 1 })
+        }
         [b"settings", b"project-words"] => {
             Address::Setting(Setting::Application { kind: 10, scope: project, number: 1 })
         }

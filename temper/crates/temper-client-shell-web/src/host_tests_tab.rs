@@ -1,6 +1,6 @@
 //! A press opens the sign-in's tab; its answer points it while the page holds.
 use super::*;
-use jig_client_protocol_wire::{VERSION, v19 as w};
+use jig_client_protocol_wire::{VERSION, v20 as w};
 use skein_lib::{Duration, Reader};
 use temper_client_protocol_wire as wire;
 

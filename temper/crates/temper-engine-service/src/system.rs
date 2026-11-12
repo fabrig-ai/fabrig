@@ -281,7 +281,7 @@ impl Service {
     }
     /// Operator diagnostics, taken by the binary.
     pub fn notes(&mut self) -> &mut Queue<crate::Note> {
-        &mut self.engine.as_mut().expect("engine service").notes
+        self.engine.as_mut().expect("engine service").notes()
     }
     /// Root, component and I/O deadlines on the injected clock.
     #[must_use]

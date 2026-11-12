@@ -1,5 +1,6 @@
 //! Version, bounds and total outcome round trips (client/forge/records.md).
 mod drafts;
+mod findings;
 mod fixtures;
 mod source;
 use crate::v1;
@@ -1103,6 +1104,39 @@ fn ways_panel_round_trips() {
         assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel));
         assert_eq!(crate::decode_ways_panel(&fixtures::trailing(&bytes), &limits), None);
     }
+    let panel = crate::decode_ways_panel(include_bytes!("../golden/record_ways_panel_full.bin"), &limits).unwrap();
+    let mut parts = panel.into_parts();
+    let mut way = parts.ways.get(0).unwrap().clone().into_parts();
+    let item = way.items.get(0).unwrap().clone();
+    way.items = List::with_capacity(10);
+    for _ in 0_u32..10 {
+        way.items.push(item.clone()).unwrap();
+    }
+    way.roles = List::with_capacity(4);
+    for running in [false, true, false, true] {
+        way.roles
+            .push(
+                v1::WayRole::new(
+                    &limits,
+                    v1::WayRoleParts { charter: 14, words: Box::new([b'w'; 480]), budget: 25_000, running },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    *parts.ways.get_mut(0).unwrap() = v1::StockWay::new(&limits, way).expect("ten items and four roles fit");
+    let panel = v1::WaysPanel::new(&limits, parts).unwrap();
+    let bytes = crate::ways_panel(&panel);
+    assert_eq!(crate::decode_ways_panel(&bytes, &limits), Some(panel.clone()));
+    let mut receiving = limits;
+    receiving.stock_way_items = 9;
+    assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
+    receiving = limits;
+    receiving.stock_way_roles = 3;
+    assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
+    receiving = limits;
+    receiving.way_role_words = 479;
+    assert_eq!(crate::decode_ways_panel(&bytes, &receiving), None);
     for bytes in [
         include_bytes!("../golden/record_ways_panel_smallest.bin").as_slice(),
         include_bytes!("../golden/record_ways_panel_full.bin").as_slice(),

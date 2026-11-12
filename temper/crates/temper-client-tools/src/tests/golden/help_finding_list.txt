@@ -1,0 +1,9 @@
+finding list --project PROJECT [--state new|routed|backlog|dropped] [--mine]
+  --project PROJECT: a project's name or number; required. The project
+  --state new|routed|backlog|dropped: one of new, routed, backlog or dropped; optional. Only this state
+  --mine: a switch. Only findings held by you or a role you hold
+Read a project's areas, triager and findings, newest first
+Prints: Each area's NAME owner OWNER, held by HOLDER: WORDS, the triager, then P/N, state, kind, severity, area or -, holder and title per finding
+--json: the record findings.
+Key: none.
+Reads the findings subject once. At most 128 findings; a cut is marked.

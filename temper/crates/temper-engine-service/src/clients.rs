@@ -84,6 +84,7 @@ pub struct Clients {
     out: Queue<kit::Request>,
     pub(crate) io: Queue<io::Request>,
     pub(crate) links: Queue<Box<[u8]>>,
+    pub(crate) notes: Queue<crate::Note>,
     pub(crate) local_links: Queue<Box<[u8]>>,
     pub(crate) secrets: Queue<kit::SecretsRequest>,
     pub(crate) closed: bool,
@@ -305,6 +306,7 @@ impl Clients {
             out,
             io: Queue::uncapped(),
             links: Queue::uncapped(),
+            notes: Queue::uncapped(),
             local_links: Queue::uncapped(),
             secrets: Queue::uncapped(),
             closed: false,
@@ -581,6 +583,9 @@ impl Clients {
             match self.out.pop().expect("client requests") {
                 kit::Request::Transport(message) => {
                     self.mount.down(&self.mount_env, http::Event::Component(message));
+                }
+                kit::Request::StreamFailed { sign_in, why } => {
+                    self.notes.push(crate::Note::ClientStreamFailed { sign_in, why });
                 }
                 kit::Request::LinkSignedIn => {
                     if !self.linked {

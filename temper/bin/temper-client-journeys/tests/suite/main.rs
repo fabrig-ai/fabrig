@@ -53,7 +53,7 @@ const ROWS: &[Case] = &[
         &["again"],
         2,
         empty,
-        "temper-client-journeys again: NAME is not given\nusage:\n  temper-client-journeys again NAME\n",
+        "temper-client-journeys again: NAME is not given\nusage:\n  temper-client-journeys again [--prepared DIR] NAME\n",
     ),
     (&["nope"], 2, empty, "temper-client-journeys: unexpected arguments\nusage:\n  temper-client-journeys\n"),
 ];

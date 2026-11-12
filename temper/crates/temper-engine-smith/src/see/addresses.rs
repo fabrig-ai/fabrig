@@ -4,7 +4,7 @@
 use skein_lib::{Overflow, Writer};
 
 /// The compact line an unknown address answers with, held to this table and ask.txt by a step test.
-pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
+pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words | project-areas | project-triager] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
 
 pub(crate) struct Group {
     pub form: &'static str,
@@ -116,7 +116,7 @@ pub(crate) const GROUPS: &[Group] = &[
         }],
     },
     Group {
-        form: "settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words]",
+        form: "settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions | project-classes | charter-words N | project-words | project-areas | project-triager]",
         rows: &[
             Address {
                 form: "settings",
@@ -201,6 +201,16 @@ pub(crate) const GROUPS: &[Group] = &[
             Address {
                 form: "settings charter-words N",
                 line: "A charter's words; stock where none is stored, marked so, or that it has none.",
+                next: "settings · revisions · help settings-fields",
+            },
+            Address {
+                form: "settings project-areas",
+                line: "This project's areas, or that it has none.",
+                next: "settings · revisions · help settings-fields",
+            },
+            Address {
+                form: "settings project-triager",
+                line: "This project's triager, or that it has none.",
                 next: "settings · revisions · help settings-fields",
             },
             Address {

@@ -6,7 +6,7 @@ use crate::{
     limits,
 };
 use jig_client::{Message, Request};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_client_test_records as records;
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall, Writer};
 use skein_ui_screen::{Rgb, Size};
@@ -222,7 +222,7 @@ fn reply(host: &mut Host, exchange: skein_lib::Token, message: Box<[u8]>) -> Dut
 }
 
 fn approval_bytes(code: &[u8], tail: &[u8]) -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let record = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -312,7 +312,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     for answer in [
         w::ApprovalSignInAnswer::Refused,
         w::ApprovalSignInAnswer::Expired,
@@ -384,7 +384,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
 
 #[test]
 fn approval_deadline_includes_the_views_tick() {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let mut host = host();
     let exchange = ask(&start(&mut host, None));
     let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
@@ -2949,7 +2949,8 @@ fn waiting_at(chat: bool) -> Host {
     // The fixture supplies the terminal look so event rows isolate event translation.
     host.step(root::Event::LookKept { look: terminal::Look { terminal: true, ..terminal::Look::default() } });
     host.step(root::Event::Went { place: Place::Address(Address::Home { project: 3 }) });
-    watches.asked.extend(host.report(Report::Due).asked);
+    let duties = host.report(Report::Due);
+    watches.asked.extend(admit(&mut host, duties).asked);
     if chat {
         host.step(root::Event::Went { place: Place::Address(Address::Chat { task: 7 }) });
     }

@@ -1,5 +1,5 @@
 //! Settings requests, reads and the watch reach the core.
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_engine_clients_kit::fixtures::{self, Peer};
 use skein_lib::{Reader, Writer};
 macro_rules! encoded {
@@ -24,7 +24,7 @@ fn settings_requests_reach_the_core_and_keep_its_stale_fact() {
     );
     let keyed = w::Keyed::new(
         &limits,
-        w::KeyedParts { key: [7; 16], owner: w::Owner::Jig, version: 19, request: encoded!(&ask), value: None },
+        w::KeyedParts { key: [7; 16], owner: w::Owner::Jig, version: 20, request: encoded!(&ask), value: None },
     )
     .expect("keyed");
     let socket = peer.post(b"/jig/v1/request", encoded!(&keyed), Some(&bearer));
@@ -125,7 +125,7 @@ fn settings_reads_and_watch_reach_the_core() {
         w::Read::Revisions(w::ReadRevisions::new(&limits, w::ReadRevisionsParts { before: Some(5) }).expect("page")),
     ] {
         let owned =
-            w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: encoded!(&read) })
+            w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 20, record: encoded!(&read) })
                 .expect("owned");
         let socket = peer.post(b"/jig/v1/read", encoded!(&owned), Some(&bearer));
         let Some(jig_domain_core::Event::Read { reply, .. }) = peer.take_core() else {
@@ -144,7 +144,7 @@ fn settings_reads_and_watch_reach_the_core() {
     let stream = peer.open_stream();
     let subject = w::Owned::new(
         &limits,
-        w::OwnedParts { owner: w::Owner::Jig, version: 19, record: encoded!(&w::Subject::Settings) },
+        w::OwnedParts { owner: w::Owner::Jig, version: 20, record: encoded!(&w::Subject::Settings) },
     )
     .expect("subject");
     let open = w::Open::new(&limits, w::OpenParts { stream, watch: 999, subject }).expect("open");

@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v19 as wire;
+use jig_client_protocol_wire::v20 as wire;
 use skein_io as io;
 use skein_lib::{Decimal, Reader, Time, Token, Wall, Writer};
 use temper_engine_service::Engine;

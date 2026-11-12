@@ -605,6 +605,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::CancelFollow { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
+                | top::Request::FileRedFinding { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::LinkNoted { .. }

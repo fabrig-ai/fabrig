@@ -91,18 +91,31 @@ record DismissMaking { forge: u16 org: bytes 1024 name: bytes 1024 into: option 
 record DraftRepository { owner: bytes 1024 name: bytes 1024 }
 record ReadyDraft { chat: option u64 }
 record StartedDraft { goal: u64 }
-enum DraftChange { ready: ReadyDraft, not_ready, started: StartedDraft }
-record SetDraft { project: u32 repository: option DraftRepository path: bytes 1024 change: DraftChange }
-enum DraftRefusal { no_repository, path, missing, not_a_file, unreachable, unknown, full }
-record DraftRefused { reason: DraftRefusal }
 record LandedDraft { forge: u16 owner: bytes 1024 name: bytes 1024 path: bytes 1024 branch: bytes 1024 commit: bytes 64 title: bytes 200 writer: u64 at: u64 chat: option u64 goal: option u64 ready: bool }
 record DraftsSubject { project: u32 }
 
 record FollowAt { after: fixed 32 }
 record FollowReasonAct { after: fixed 32 reason: bytes 8192 }
 record FollowMergeAct { afters: list 32 fixed 32 }
-enum FollowAct { start: FollowAt, hold: FollowReasonAct, skip: FollowReasonAct, merge: FollowMergeAct }
 record FollowOutcome { refusal: option bytes 8192 }
+# Findings (temper/docs/design/client/forge/records.md; domain/areas.md, 5 and 7).
+record HolderTask { number: u64 }
+record HolderParty { number: u64 }
+record HolderRole { number: u32 }
+record HandFinding { project: u32 number: u32 area: text 32 why: text 200 }
+record FindingRoute { task: u64 }
+record FindingDrop { reason: text 400 }
+record Filed { number: u32 }
+record FindingAreas { areas: list 16 text 32 }
+record FindingsFull { count: u32 }
+record FindingWords { field: text 32 }
+record FindingRead { project: u32 number: u32 }
+
+enum DraftChange { ready: ReadyDraft, not_ready, started: StartedDraft }
+record SetDraft { project: u32 repository: option DraftRepository path: bytes 1024 change: DraftChange }
+enum DraftRefusal { no_repository, path, missing, not_a_file, unreachable, unknown, full }
+record DraftRefused { reason: DraftRefusal }
+enum FollowAct { start: FollowAt, hold: FollowReasonAct, skip: FollowReasonAct, merge: FollowMergeAct }
 record FollowActRequest { project: u32 follow: u32 act: FollowAct }
 # A person's devices (client/forge/records.md; domain/forge/attention.md, 7.1).
 record AddDevice { endpoint: bytes 1024 p256dh: fixed 65 auth: fixed 16 label: bytes 60 }
@@ -112,7 +125,23 @@ enum DeviceRefusal { person, off, service, malformed, too_many, unknown }
 record DeviceRefused { reason: DeviceRefusal }
 record DeviceRow { number: u32 label: bytes 60 at: u64 endpoint: bytes 1024 }
 versioned record Devices { rows: list 8 DeviceRow }
-enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount, set_draft: SetDraft, follow_act: FollowActRequest, add_device: AddDevice, remove_device: RemoveDevice }
+enum FindingKind { qa, flake, red, review, feedback }
+enum Severity { low, medium, high }
+record FileFinding { project: u32 kind: FindingKind severity: Severity area: option text 32 title: text 200 body: text 4096 }
+enum FindingState { new, routed, backlog, dropped }
+record FindingsSubject { project: u32 state: option FindingState mine: bool }
+enum Holder { task: HolderTask, party: HolderParty, role: HolderRole }
+record FindingNotYours { holder: Holder }
+enum Filer { task: HolderTask, party: HolderParty }
+record FindingRow { number: u32 kind: FindingKind severity: Severity area: option text 32 state: FindingState title: text 200 holder: Holder at: u64 why: option text 200 hander: option Filer }
+record FindingDetail { row: FindingRow body: text 4096 filer: Filer goal: option u64 reason: option text 400 }
+enum Triage { route: FindingRoute, backlog, drop: FindingDrop }
+record TriageFinding { project: u32 number: u32 act: Triage }
+enum FindingRefusal { no_area: FindingAreas, full: FindingsFull, not_yours: FindingNotYours, no_finding, no_goal, ended, words: FindingWords }
+record FindingRefused { reason: FindingRefusal }
+enum FindingResult { finding: FindingDetail, no_finding }
+versioned record FindingAnswer { result: FindingResult }
+enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount, set_draft: SetDraft, follow_act: FollowActRequest, add_device: AddDevice, remove_device: RemoveDevice, file_finding: FileFinding, hand_finding: HandFinding, triage_finding: TriageFinding }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -187,7 +216,8 @@ record BranchPath { repository: option bytes 2048 branch: bytes 1024 stops: list
 # A project's stock ways, watched (client/forge/records.md; protocol/configuration/settings.md, 8).
 record CharterWords { line: text 120 }
 record ProjectWords { headline: text 120 lede: text 480 }
-record StockWay { name: text 64 headline: text 120 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
+record WayRole { charter: u32 words: text 480 budget: u64 running: bool }
+record StockWay { name: text 64 headline: text 120 line: text 256 path: BranchPath items: list 10 ProposalItem delegation: bool roles: list 4 WayRole }
 record WaysSubject { project: u32 }
 # Rules by path (client/forge/records.md, A project's ways).
 record PathRule { paths: text 256 review: text 64 sign_off: text 64 lands: text 64 }
@@ -204,7 +234,7 @@ record NotDrawn { words: text 512 }
 enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, rule: RuleView, roles: RolesView, not_drawn: NotDrawn }
 versioned record ViewAnswer { view: View }
 
-enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead }
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead, finding: FindingRead }
 versioned record Reading { read: Read }
 
 # temper/docs/design/client/forge/records.md: no playground is no record.
@@ -225,7 +255,7 @@ record ChangesSubject { project: u32 }
 record StatusSubject { project: u32 }
 record DecidedSubject { project: u32 }
 record FollowsSubject { project: u32 }
-enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject, drafts: DraftsSubject, follows: FollowsSubject, devices }
+enum Watch { change: ChangeSubject, forges, landing: LandingSubject, landings: LandingsSubject, dismissed, changes: ChangesSubject, status: StatusSubject, away, decided: DecidedSubject, trials, approvals, ways: WaysSubject, drafts: DraftsSubject, follows: FollowsSubject, devices, findings: FindingsSubject }
 enum LandingPhase { waiting, preparing, proving, proved, turn, landed, held, cancelled }
 record Receipted { run: u64 number: u64 address: bytes 2048 }
 record Dispatched { attempt: u16 run: option u64 }
@@ -302,7 +332,7 @@ record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
 enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full, not_failed }
 record MakeRefused { why: MakeRefusal }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, drafted: LandedDraft, draft_refused: DraftRefused, follow: FollowOutcome, device_added: DeviceAdded, device_removed, device_refused: DeviceRefused }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs, drafted: LandedDraft, draft_refused: DraftRefused, follow: FollowOutcome, device_added: DeviceAdded, device_removed, device_refused: DeviceRefused, filed: Filed, handed, triaged, finding_refused: FindingRefused }
 versioned record Answer { outcome: Outcome }
 
 # Values of temper's settings kinds (temper/docs/design/domain/routing.md, 6;
@@ -333,20 +363,32 @@ record FollowRepository { forge: u16 repository: u32 }
 record FollowSource { repository: FollowRepository branch: bytes 4096 paths: list 256 bytes 256 }
 record FollowTarget { repository: FollowRepository branch: bytes 4096 }
 record FollowPerson { person: u64 }
+
+# A project's follows (domain/forge/follows.md, 7).
+record FollowWords { words: bytes 8192 }
+record FollowWait { change: u64 }
+record FollowSkip { after: fixed 32 reason: bytes 8192 }
+record FollowFailing { count: u32 }
+# Project ownership (temper/docs/design/protocol/configuration/settings.md, 2).
+record AreaTask { number: u64 }
+record AreaParty { number: u64 }
+record AreaRole { number: u32 }
+record AreaCharter { number: u32 }
 enum FollowOwner { person: FollowPerson }
 enum FollowStart { owner, code }
 enum FollowFormat { junit, lines }
 record FollowCheck { workflow: bytes 256 artifact: bytes 256 format: FollowFormat }
 record Follow { source: FollowSource target: FollowTarget owner: FollowOwner start: FollowStart producer: option bytes 8192 verification: FollowCheck }
-
-# A project's follows (domain/forge/follows.md, 7).
-record FollowWords { words: bytes 8192 }
-record FollowWait { change: u64 }
 enum FollowState { not_made, waits_word, held_by_owner: FollowWords, waits_for: FollowWait, producing, held: FollowWords, ended: FollowWords }
 record FollowEntry { after: fixed 32 change: option u64 state: FollowState }
-record FollowSkip { after: fixed 32 reason: bytes 8192 }
-record FollowFailing { count: u32 }
 enum FollowVerdict { passed, failing: FollowFailing, many }
 record FollowParity { source: fixed 32 head: fixed 32 verdict: FollowVerdict run: bytes 2048 }
 record FollowView { number: u32 setting: Follow source: bytes 2048 source_branch: bytes 4096 target: bytes 2048 target_branch: bytes 4096 task: option u64 stopped: option bytes 8192 lag: u32 entries: list 256 FollowEntry skips: list 256 FollowSkip parity: option FollowParity }
 versioned record FollowsPanel { project: u32 follows: list 256 FollowView dependencies: list 256 DependencyView }
+enum AreaOwner { task: AreaTask, party: AreaParty, role: AreaRole, charter: AreaCharter }
+record Area { name: text 32 words: text 480 owner: AreaOwner }
+record ProjectAreas { areas: list 16 Area }
+record ProjectTriager { owner: AreaOwner }
+
+record AreaRow { name: text 32 words: text 480 owner: AreaOwner holder: option Holder }
+versioned record Findings { project: u32 rows: list 128 FindingRow areas: list 16 AreaRow triager: option AreaOwner holder: Holder cut: bool }
