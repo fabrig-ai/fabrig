@@ -1,4 +1,5 @@
 //! Landed QA's ledger and commands (temper/docs/design/testing/qa/ledger.md).
+mod build;
 mod case;
 mod cli;
 mod config;
