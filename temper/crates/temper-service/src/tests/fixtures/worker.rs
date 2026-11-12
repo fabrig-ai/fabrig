@@ -45,6 +45,19 @@ pub fn assignment() -> jig_domain_host::Assignment {
 
 pub const TEMPER: &[u8] = b"/opt/temper/bin/temper";
 pub const AGENT_JSON: &[u8] = b"/opt/temper/agent.json";
+pub const PINNED_TEMPER: &[u8] = b"/worker/agent/temper";
+pub const PINNED_AGENT_JSON: &[u8] = b"/worker/agent/agent.json";
+pub fn pinned_agent(agent: &jig_protocol_config::Agent) -> jig_protocol_config::Agent {
+    jig_protocol_config::Agent {
+        program: PINNED_TEMPER.into(),
+        configuration: PINNED_AGENT_JSON.into(),
+        arguments: agent
+            .arguments
+            .iter()
+            .map(|argument| if *argument == agent.configuration { PINNED_AGENT_JSON.into() } else { argument.clone() })
+            .collect(),
+    }
+}
 pub const WORKER_SECRET: &[u8] = b"worker-secret-value";
 pub const NOW: skein_lib::Time = skein_lib::Time::ZERO;
 
@@ -54,7 +67,11 @@ pub fn worker() -> crate::Worker {
         &worker_agent(),
         &worker_limits(),
         &worker_files(),
-        crate::WorkerRuntime { root: skein_io::kernel::Fd::new(9), path: b"/worker".as_slice().into() },
+        crate::WorkerRuntime {
+            root: skein_io::kernel::Fd::new(9),
+            path: b"/worker".as_slice().into(),
+            agent: pinned_agent(&worker_settings().jig.agent),
+        },
         7,
     )
     .expect("worker settings fit")

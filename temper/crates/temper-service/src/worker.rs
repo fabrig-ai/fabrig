@@ -27,11 +27,13 @@ use smith_host_protocol as host;
 use temper_worker_domain as root;
 use worker_settings::problem;
 
-/// The worker's root directory, opened by the shell.
+/// The worker's root directory and pinned agent, prepared by the shell
+/// (domain/worker/README.md, 5).
 #[derive(Debug)]
 pub struct WorkerRuntime {
     pub root: Fd,
     pub path: Box<[u8]>,
+    pub agent: jig_protocol_config::Agent,
 }
 /// The filesystem's absolute path envelope, including the worker root.
 pub(crate) const WORKER_PATH_BYTES: usize = 4096;
@@ -182,9 +184,9 @@ impl Worker {
             socket: None,
             prefix: prepared.prefix,
             next: 2,
-            program: config.agent.program.clone(),
-            configuration: config.agent.configuration.clone(),
-            arguments: config.agent.arguments.clone(),
+            program: runtime.agent.program,
+            configuration: runtime.agent.configuration,
+            arguments: runtime.agent.arguments,
             environment: Box::default(),
             directory: Some(runtime.root),
             path: runtime.path,

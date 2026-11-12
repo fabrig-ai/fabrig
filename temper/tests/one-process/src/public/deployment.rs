@@ -16,7 +16,11 @@ fn start(value: &serde_json::Value) -> Result<temper_service::Service, String> {
         Some(&temper_playground::documents::agent()),
         &fixtures::seeds(),
         None,
-        Some(temper_service::WorkerRuntime { root: Fd::new(3), path: b"/worker".as_slice().into() }),
+        Some(temper_service::WorkerRuntime {
+            root: Fd::new(3),
+            path: b"/worker".as_slice().into(),
+            agent: temper_playground::documents::pinned_agent(),
+        }),
         temper_playground::documents::forges(),
         None,
         None,
