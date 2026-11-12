@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 smith-agent-world.workspace = true
 skein-scratch.workspace = true
-smith-local-protocol = { path = "../../crates/smith-local-protocol", features = ["fixture"] }
+smith-local-protocol.workspace = true
 skein-shell.workspace = true
 skein-channel.workspace = true
 skein-http.workspace = true
@@ -39,10 +39,13 @@ smith-protocol-events.workspace = true
 smith-agent-shell.workspace = true
 smith-agent-process-world.workspace = true
 smith-local-world.workspace = true
-smith-local-domain = { workspace = true, features = ["fixture"] }
-smith-local-service = { workspace = true, features = ["fixture"] }
+smith-local-domain.workspace = true
+smith-local-domain-fixtures.workspace = true
+smith-local-service.workspace = true
+smith-local-service-fixtures.workspace = true
 smith-host-world.workspace = true
-smith-host-protocol = { workspace = true, features = ["fixture"] }
+smith-host-protocol.workspace = true
+smith-host-protocol-fixtures.workspace = true
 smith-protocol-channel.workspace = true
 smith-protocol-translate.workspace = true
 smith-domain = { workspace = true, features = ["fixture"] }
@@ -55,3 +58,6 @@ serde = { version = "1", features = ["derive"] }
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"
 unused_must_use = "deny"
+
+[dev-dependencies]
+smith-local-protocol-fixtures.workspace = true

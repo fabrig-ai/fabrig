@@ -197,7 +197,7 @@ impl World {
                     search_line_bytes: 65_536,
                     env_bytes: 65_536,
                     group_stop: Duration::from_millis(1),
-                    ..smith_protocol_machine::fixture::SMALL
+                    ..smith_protocol_machine_fixtures::SMALL
                 },
             ),
             machine_trace: Vec::new(),

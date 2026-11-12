@@ -125,16 +125,22 @@ members = [
     "smith/crates/smith-domain-tools",
     "smith/crates/smith-events",
     "smith/crates/smith-host-domain",
+    "smith/testing/smith-host-domain-fixtures",
     "smith/crates/smith-host-protocol",
+    "smith/testing/smith-host-protocol-fixtures",
     "smith/crates/smith-inline-agent",
     "smith/crates/smith-local-domain",
+    "smith/testing/smith-local-domain-fixtures",
     "smith/crates/smith-local-protocol",
+    "smith/testing/smith-local-protocol-fixtures",
     "smith/crates/smith-local-service",
+    "smith/testing/smith-local-service-fixtures",
     "smith/crates/smith-local-shell",
     "smith/crates/smith-protocol-channel",
     "smith/crates/smith-protocol-translate",
     "smith/crates/smith-protocol-llm",
     "smith/crates/smith-protocol-machine",
+    "smith/testing/smith-protocol-machine-fixtures",
     "smith/crates/smith-protocol-program",
     "smith/crates/smith-transcript",
     "smith/tests/tools",
@@ -477,8 +483,10 @@ rustls-pki-types = { version = "1.15" }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
 smith-host-domain = { path = "smith/crates/smith-host-domain" }
+smith-host-domain-fixtures = { path = "smith/testing/smith-host-domain-fixtures" }
 smith-inline-agent = { path = "smith/crates/smith-inline-agent" }
 smith-local-domain = { path = "smith/crates/smith-local-domain" }
+smith-local-domain-fixtures = { path = "smith/testing/smith-local-domain-fixtures" }
 smith-host-world = { path = "smith/tests/host" }
 smith-local-world = { path = "smith/tests/local" }
 smith-agent-world = { path = "smith/tests/agent" }
@@ -489,6 +497,7 @@ smith-domain-session = { path = "smith/crates/smith-domain-session" }
 smith-domain-tools = { path = "smith/crates/smith-domain-tools" }
 smith-protocol-llm = { path = "smith/crates/smith-protocol-llm" }
 smith-protocol-machine = { path = "smith/crates/smith-protocol-machine" }
+smith-protocol-machine-fixtures = { path = "smith/testing/smith-protocol-machine-fixtures" }
 smith-protocol-program = { path = "smith/crates/smith-protocol-program" }
 smith-events = { path = "smith/crates/smith-events" }
 smith-charter = { path = "smith/crates/smith-charter" }
@@ -497,11 +506,14 @@ smith-channel = { path = "smith/crates/smith-channel" }
 smith-protocol-channel = { path = "smith/crates/smith-protocol-channel" }
 smith-protocol-translate = { path = "smith/crates/smith-protocol-translate" }
 smith-host-protocol = { path = "smith/crates/smith-host-protocol" }
+smith-host-protocol-fixtures = { path = "smith/testing/smith-host-protocol-fixtures" }
 smith-agent-service = { path = "smith/crates/smith-agent-service" }
 smith-agent-profile = { path = "smith/crates/smith-agent-profile" }
 smith-protocol-events = { path = "smith/crates/smith-protocol-events" }
 smith-local-protocol = { path = "smith/crates/smith-local-protocol" }
+smith-local-protocol-fixtures = { path = "smith/testing/smith-local-protocol-fixtures" }
 smith-local-service = { path = "smith/crates/smith-local-service" }
+smith-local-service-fixtures = { path = "smith/testing/smith-local-service-fixtures" }
 smith-agent-process-world = { path = "smith/tests/agent-process" }
 smith-real-world = { path = "smith/tests/real" }
 smith-local-process-world = { path = "smith/tests/local-process" }

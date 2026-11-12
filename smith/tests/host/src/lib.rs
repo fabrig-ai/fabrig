@@ -99,7 +99,7 @@ pub struct World {
 /// Small valid capacities; every sealed delivery fits the reply cap.
 #[must_use]
 pub fn limits() -> Limits {
-    host::fixture::small()
+    smith_host_domain_fixtures::small()
 }
 
 /// Opaque source cells, optional workspace and credential names only.

@@ -14,7 +14,7 @@ use smith_local_protocol::{Action, History, Store, StoreLimits, StoreRequest};
 
 const SIGNAL: Token = Token::new(u64::MAX);
 fn limits() -> StoreLimits {
-    smith_local_protocol::fixture::STORE
+    smith_local_protocol_fixtures::STORE
 }
 struct Owner {
     store: Store,

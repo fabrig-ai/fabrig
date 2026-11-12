@@ -2059,6 +2059,7 @@ dependencies = [
  "smith-domain-run",
  "smith-host-domain",
  "smith-host-protocol",
+ "smith-host-protocol-fixtures",
  "smith-protocol-channel",
  "smith-protocol-program",
 ]
@@ -4287,6 +4288,7 @@ dependencies = [
  "smith-domain-session",
  "smith-host-domain",
  "smith-host-protocol",
+ "smith-host-protocol-fixtures",
  "smith-host-world",
  "smith-protocol-channel",
  "smith-protocol-translate",
@@ -4387,6 +4389,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-host-domain-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-host-domain",
+]
+
+[[package]]
 name = "smith-host-protocol"
 version = "0.0.0"
 dependencies = [
@@ -4405,6 +4415,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-host-protocol-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-channel",
+ "smith-channel",
+ "smith-charter",
+ "smith-host-protocol",
+ "smith-transcript",
+]
+
+[[package]]
 name = "smith-host-world"
 version = "0.0.0"
 dependencies = [
@@ -4415,9 +4436,11 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "smith-host-domain",
+ "smith-host-domain-fixtures",
  "smith-inline-agent",
  "smith-machine-world",
  "smith-protocol-machine",
+ "smith-protocol-machine-fixtures",
 ]
 
 [[package]]
@@ -4445,6 +4468,7 @@ dependencies = [
  "smith-fake-claude",
  "smith-host-domain",
  "smith-host-protocol",
+ "smith-host-protocol-fixtures",
  "smith-local-process-world",
  "smith-local-service",
  "smith-local-shell",
@@ -4470,7 +4494,17 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "smith-host-domain",
+ "smith-host-domain-fixtures",
  "smith-inline-agent",
+]
+
+[[package]]
+name = "smith-local-domain-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-domain",
+ "smith-local-domain",
 ]
 
 [[package]]
@@ -4507,10 +4541,14 @@ dependencies = [
  "smith-domain",
  "smith-events",
  "smith-host-protocol",
+ "smith-host-protocol-fixtures",
  "smith-host-world",
  "smith-local-domain",
+ "smith-local-domain-fixtures",
  "smith-local-protocol",
+ "smith-local-protocol-fixtures",
  "smith-local-service",
+ "smith-local-service-fixtures",
  "smith-local-shell",
  "smith-local-world",
  "smith-protocol-channel",
@@ -4536,9 +4574,17 @@ dependencies = [
  "smith-events",
  "smith-host-domain",
  "smith-local-domain",
- "smith-local-protocol",
+ "smith-local-domain-fixtures",
+ "smith-local-protocol-fixtures",
  "smith-protocol-translate",
  "smith-transcript",
+]
+
+[[package]]
+name = "smith-local-protocol-fixtures"
+version = "0.0.0"
+dependencies = [
+ "smith-local-protocol",
 ]
 
 [[package]]
@@ -4567,17 +4613,29 @@ dependencies = [
  "smith-events",
  "smith-host-domain",
  "smith-host-protocol",
+ "smith-host-protocol-fixtures",
  "smith-host-world",
  "smith-inline-agent",
  "smith-local-domain",
+ "smith-local-domain-fixtures",
  "smith-local-process-world",
  "smith-local-protocol",
- "smith-local-service",
+ "smith-local-protocol-fixtures",
  "smith-protocol-channel",
  "smith-protocol-events",
  "smith-protocol-program",
  "smith-protocol-translate",
  "smith-transcript",
+]
+
+[[package]]
+name = "smith-local-service-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "smith-host-protocol",
+ "smith-local-domain",
+ "smith-local-service",
 ]
 
 [[package]]
@@ -4633,6 +4691,7 @@ dependencies = [
  "smith-domain",
  "smith-inline-agent",
  "smith-local-domain",
+ "smith-local-domain-fixtures",
  "smith-local-protocol",
  "smith-session-world",
 ]
@@ -4651,6 +4710,7 @@ dependencies = [
  "skein-world",
  "smith-domain",
  "smith-protocol-machine",
+ "smith-protocol-machine-fixtures",
  "smith-tools-world",
 ]
 
@@ -4739,6 +4799,14 @@ dependencies = [
  "skein-lib",
  "skein-world",
  "smith-domain",
+]
+
+[[package]]
+name = "smith-protocol-machine-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "smith-protocol-machine",
 ]
 
 [[package]]
