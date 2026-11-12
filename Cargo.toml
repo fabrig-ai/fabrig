@@ -118,6 +118,12 @@ members = [
     "smith/testing/smith-agent-profile-fixtures",
     "smith/testing/smith-agent-document-fixtures",
     "smith/testing/smith-bench-fixtures",
+    "smith/testing/smith-domain-tools-fixtures",
+    "smith/testing/smith-domain-run-fixtures",
+    "smith/testing/smith-domain-session-fixtures",
+    "smith/testing/smith-domain-fixtures",
+    "smith/testing/smith-inline-agent-fixtures",
+    "smith/testing/smith-protocol-channel-fixtures",
     "smith/crates/smith-agent-profile",
     "smith/crates/smith-agent-service",
     "smith/crates/smith-protocol-events",
@@ -503,6 +509,12 @@ smith-protocol-events-fixtures = { path = "smith/testing/smith-protocol-events-f
 smith-agent-profile-fixtures = { path = "smith/testing/smith-agent-profile-fixtures" }
 smith-agent-document-fixtures = { path = "smith/testing/smith-agent-document-fixtures" }
 smith-bench-fixtures = { path = "smith/testing/smith-bench-fixtures" }
+smith-domain-tools-fixtures = { path = "smith/testing/smith-domain-tools-fixtures" }
+smith-domain-run-fixtures = { path = "smith/testing/smith-domain-run-fixtures" }
+smith-domain-session-fixtures = { path = "smith/testing/smith-domain-session-fixtures" }
+smith-domain-fixtures = { path = "smith/testing/smith-domain-fixtures" }
+smith-inline-agent-fixtures = { path = "smith/testing/smith-inline-agent-fixtures" }
+smith-protocol-channel-fixtures = { path = "smith/testing/smith-protocol-channel-fixtures" }
 smith-charter = { path = "smith/crates/smith-charter" }
 smith-transcript = { path = "smith/crates/smith-transcript" }
 smith-channel = { path = "smith/crates/smith-channel" }

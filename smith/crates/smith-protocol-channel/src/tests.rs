@@ -336,7 +336,7 @@ fn a_window_suffix_round_trips_its_noninitial_place_and_rejects_a_second_window(
         endpoint: Some(llm::Endpoint(3)),
         sequence: 8,
         spent: 9,
-        ..smith_domain::session::fixture::turn(
+        ..smith_domain_session_fixtures::turn(
             b"model".as_slice().into(),
             record::Kind::Window(Box::new(record::Opener {
                 system: None,

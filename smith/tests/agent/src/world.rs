@@ -2018,7 +2018,7 @@ pub fn world(settings: &Settings, charter: run::Charter, granted: &[u32]) -> Wor
         .collect();
     World::with_start(
         *settings,
-        Event::Start(smith_domain::Start { grants, ..smith_domain::fixture::start(Token::new(1), charter) }),
+        Event::Start(smith_domain::Start { grants, ..smith_domain_fixtures::start(Token::new(1), charter) }),
     )
 }
 
@@ -2211,7 +2211,7 @@ mod bridge_tests {
                 name: GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(7200),
             }]),
-            ..smith_domain::fixture::start(Token::new(71), charter(&settings))
+            ..smith_domain_fixtures::start(Token::new(71), charter(&settings))
         });
         let mut world = World::with_start(settings, start);
         world.enable_parent_host_calls();
@@ -2251,7 +2251,7 @@ mod bridge_tests {
                 name: GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(7200),
             }]),
-            ..smith_domain::fixture::start(Token::new(71), charter)
+            ..smith_domain_fixtures::start(Token::new(71), charter)
         });
         let scripts = Box::new([Script {
             cue: b"@hosttools".as_slice().into(),

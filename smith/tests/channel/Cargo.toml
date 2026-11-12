@@ -8,16 +8,19 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+smith-protocol-channel-fixtures.workspace = true
+smith-domain-session-fixtures.workspace = true
+smith-domain-fixtures.workspace = true
 skein-lib.workspace = true
 skein-channel.workspace = true
 skein-world.workspace = true
 smith-channel.workspace = true
 smith-charter.workspace = true
 smith-transcript.workspace = true
-smith-domain = { workspace = true, features = ["fixture"] }
+smith-domain.workspace = true
 smith-domain-session.workspace = true
 smith-host-domain.workspace = true
-smith-protocol-channel = { workspace = true, features = ["fixture"] }
+smith-protocol-channel.workspace = true
 smith-protocol-translate.workspace = true
 smith-host-protocol = { workspace = true, features = ["fixture"] }
 smith-agent-world.workspace = true
