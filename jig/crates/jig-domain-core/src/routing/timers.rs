@@ -1,5 +1,5 @@
 //! Child timers and deployment headers (jig/docs/design/domain/engine/README.md, 4.1 and jig/docs/design/domain/engine/restart.md).
-use crate::{Core, CoreRecord, Counters, Record, Timer, Write};
+use crate::{Core, Record, Timer};
 use skein_lib::{Duration, Time, Wall};
 
 impl Core {
@@ -75,18 +75,6 @@ impl Core {
     #[must_use]
     pub fn decision_header(&mut self, wrote: bool) -> Option<Record> {
         if wrote || self.counters.dirty() { Some(self.counters.commit_record()) } else { None }
-    }
-}
-
-impl Counters {
-    /// Number a writing decision and construct its deployment row (domain/engine/README.md, 5.4).
-    #[must_use]
-    pub fn commit_header(&mut self) -> Write {
-        Write::Save(self.commit_record())
-    }
-
-    fn commit_record(&mut self) -> Record {
-        Record::Core(CoreRecord::Deployment(self.next_commit()))
     }
 }
 

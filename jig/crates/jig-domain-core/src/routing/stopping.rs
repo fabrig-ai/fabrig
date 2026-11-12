@@ -1,5 +1,5 @@
 //! Admission while the engine drains (domain/engine/restart.md, 1).
-use crate::{Core, Event, Held, Limits, Now, Request, Timer, effects::projections, routing};
+use crate::{Core, Event, Held, Limits, Now, Request, effects::projections, routing};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
@@ -224,21 +224,6 @@ fn people_gate(event: people::Event) -> Result<Event, Queue<Request>> {
         | people::Event::Restore { .. }) => Ok(Event::People(event)),
     }
 }
-impl Timer {
-    /// Whether the core pauses this child timer while the service stops.
-    #[must_use]
-    pub fn waits_while_stopping(self) -> bool {
-        waits(self)
-    }
-}
-
-pub(crate) fn waits(timer: Timer) -> bool {
-    match timer {
-        Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief => true,
-        Timer::Account => false,
-    }
-}
-
 /// The journal holds this terminal behind every earlier commit.
 pub(crate) fn drained(core: &mut Core, out: &mut Queue<Request>) {
     if core.draining == Some(true) && (core.watch_flights() == 0) {
