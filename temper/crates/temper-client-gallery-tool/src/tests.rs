@@ -11,7 +11,7 @@ fn names_are_the_promised_ones() {
         names.push(sample.name);
     }
     if temper_test_env::rewrite() {
-        fs::write(Path::new(env!("CARGO_MANIFEST_DIR")).join("names.txt"), format!("{}\n", names.join("\n"))).unwrap();
+        fs::write(skein_scratch::paths::package().join("names.txt"), format!("{}\n", names.join("\n"))).unwrap();
     } else {
         let promised: Vec<&str> = include_str!("../names.txt").lines().collect();
         assert_eq!(names, promised);
