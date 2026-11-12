@@ -84,6 +84,18 @@ file the site serves beside it (5.1). The site that links them is
   `VERSION` and `COMMIT`, and `line(NAME)`, the line above. Only a
   binary's package links it, so a commit rebuilds it and relinks those
   binaries, and nothing they link.
+- **Each binary hands its identity in:** its package's `main.rs` passes
+  `temper-version`'s `VERSION` and `COMMIT` to its crate's `main`, which
+  prints them with its table (`cli/README.md`, 2 and 3; a tool's,
+  `testing/tools.md`, 3 and 4); the client's
+  passes `line`'s line, which its crate prints as it is. No library
+  names a build identity of its own, and no package outside
+  `temper/bin/` depends on `temper-version` in any of its tables: a row
+  of the boundary test's direction rule fails one that does
+  (`tests/boundary/tests/direction.rs`). A binary's package's own
+  tests, which Cargo builds against every dependency of their package,
+  recompile with it, as `temper-version`'s own do; nothing they link
+  does.
 
 ## 4. What the machine must have
 

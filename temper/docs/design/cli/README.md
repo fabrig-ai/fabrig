@@ -14,9 +14,11 @@ C3).
 ## 1. In one page
 
 - **A binary is a package** at `temper/bin/<binary>/`, whose `main.rs`
-  installs fail-stop and calls its crate's `main` (2). The box's crate
-  is `temper-box-shell`, the engine's `temper-engine-shell`, the
-  worker's `temper-worker-shell` and the agent's `temper-agent-shell`.
+  installs fail-stop and calls its crate's `main`, handing it
+  `temper-version`'s build identity, which no other package links (2).
+  The box's crate is `temper-box-shell`, the engine's
+  `temper-engine-shell`, the worker's `temper-worker-shell`, the agent's
+  `temper-agent-shell` and the client's `temper-client-shell`.
 - **Its crate holds its table,** a `skein_shell::Table`, and captures
   the process's arguments and environment once (3). Every other reader
   takes what the capture holds.
@@ -45,19 +47,26 @@ C3).
 | `temper-engine` | `temper/bin/temper-engine` | `temper-engine-shell` | `temper_engine_shell::ENGINE` |
 | `temper-worker` | `temper/bin/temper-worker` | `temper-worker-shell` | `temper_worker_shell::WORKER` |
 | `temper-agent` | `temper/bin/temper-agent` | `temper-agent-shell` (`temper/crates/temper-agent-shell`) | `temper_agent_shell::AGENT` |
+| `temper-client` | `temper/bin/temper-client` | `temper-client-shell` (`temper/crates/temper-client-shell`) | `temper-shell`'s rows, `temper_client_shell::COMMANDS`, until `../draft/cli.execution.md`'s C3 |
 
-- **`main.rs`** is the package's whole source:
+- **`main.rs`** is the package's whole source, and hands its crate the
+  build identity (`../release.md`, 3):
 
   ```rust
   //! The box's binary (temper/docs/design/cli/README.md, 2).
   fn main() -> std::process::ExitCode {
       skein_fail_stop::install();
-      temper_box_shell::main()
+      temper_box_shell::main(temper_version::VERSION, temper_version::COMMIT)
   }
   ```
 
-  Its `[dependencies]` are its crate and `skein-fail-stop`, which decide
-  what it links (`skein/docs/foundation/cli.md`, 2).
+  The client's hands its crate the line itself:
+  `temper_client_shell::main(&temper_version::line(temper_client_shell::NAME))`.
+  Its `[dependencies]` are its crate, `skein-fail-stop` and
+  `temper-version`, which decide what it links
+  (`skein/docs/foundation/cli.md`, 2). Only these packages depend on
+  `temper-version`, so a new commit relinks the binaries and rebuilds no
+  crate they link.
 - **The libraries that held the names are renamed:** the whole
   product's library, `temper` at `temper/crates/temper`, is
   `temper-box-shell` at `temper/crates/temper-box-shell`, holding the
@@ -73,6 +82,14 @@ C3).
   the library's code, its table and everything the binary runs. No other
   crate names the old library. The worker's package is already at
   `temper/bin/temper-worker`, its crate `temper-worker-shell`.
+- **The client's package splits the same way:**
+  `temper/crates/temper-client`, a library and a binary in one package,
+  becomes the binary's package `temper-client` at
+  `temper/bin/temper-client` and its crate `temper-client-shell` at
+  `temper/crates/temper-client-shell`, which holds the library's code
+  and the capture the old `main.rs` made (3). Its suite moves to the
+  binary's package, as the agent's did. The binary's file and target
+  keep the name `temper-client` until C3 names it `temper`.
 - **Tests that run a binary live in its package,** under its `tests/`,
   since Cargo gives `CARGO_BIN_EXE_<name>` to its own package's tests
   alone: the whole product's integration tests, with their `[[test]]`
@@ -91,7 +108,9 @@ C3).
 
 ## 3. Its `main`: the capture and the reach
 
-Each binary's crate has `pub fn main() -> std::process::ExitCode`:
+Each binary's crate has `pub fn main(version: &'static str, commit:
+&'static str) -> std::process::ExitCode`, given `temper-version`'s
+`VERSION` and `COMMIT` by its binary's package (2):
 
 1. **The capture,** one function, the only place the binary reads the
    process: argv's first word, the arguments after it, the environment
@@ -102,7 +121,9 @@ Each binary's crate has `pub fn main() -> std::process::ExitCode`:
 2. **The reach,** `TABLE.reach(run_as, &arguments)`
    (`skein/docs/design/runtime/shell.md`, 14.4):
    - `Help`: `TABLE.help()` on stdout, exit 0;
-   - `Version`: `TABLE.version_line()` on stdout, exit 0;
+   - `Version`: the version line of the table with `main`'s identity,
+     `Table { version, commit, ..TABLE }.version_line()`, on stdout,
+     exit 0;
    - `CommandHelp(command)`: `TABLE.command_help(command)` on stdout,
      exit 0;
    - `Unknown(line)`: the line on stderr, exit 2;
@@ -117,9 +138,15 @@ Each binary's crate has `pub fn main() -> std::process::ExitCode`:
    tree's that reads the process itself, smith's relay and program child,
    stays as it is until its tree's round.
 
-The version and commit in each table are `temper_version::VERSION` and
-`temper_version::COMMIT`, so `--version` prints `temper-box VERSION
-(COMMIT)` as `../release.md`, section 3, words it.
+**The build identity is `main`'s alone.** A crate's table names none:
+its `version` and `commit` are empty (`""`), and the crate links no
+`temper-version`. Every place the crate prints its version line, a
+pure `configure` that answers `--version` among them, takes the
+identity `main` was handed, so `--version` prints `temper-box VERSION
+(COMMIT)` as `../release.md`, section 3, words it. The client's crate
+has `pub fn main(line: &str) -> std::process::ExitCode` instead,
+given `temper_version::line(NAME)` whole, and prints it, a newline
+after it, for `--version`.
 
 ## 4. Exits and refusals
 
@@ -394,7 +421,7 @@ pub fn list(words: &str, configuration: &std::path::Path) -> Result<u8, String>;
   | Today | After | Read by |
   |---|---|---|
   | `TEMPER_BUNDLE` | `TEMPER_INTERNAL_BUNDLE` | the bundle's build script |
-  | `TEMPER_COMMIT`, `TEMPER_CLIENT_COMMIT` | `TEMPER_INTERNAL_COMMIT` | `temper-version`, from its build script alone; `temper-client` reads `temper-version`'s |
+  | `TEMPER_COMMIT`, `TEMPER_CLIENT_COMMIT` | `TEMPER_INTERNAL_COMMIT` | `temper-version`, from its build script alone, into its `COMMIT`, which each binary's package hands its crate (2 and 3) |
   | `TEMPER_DUMP_LLM` | `TEMPER_INTERNAL_DUMP_LLM` | the service and its agents |
   | `TEMPER_FAKE_BOX_PORTS` | `TEMPER_INTERNAL_FAKE_BOX_PORTS` | the box with fake backends |
   | `TEMPER_FORGE_NO_REGISTRATION` | `TEMPER_INTERNAL_FORGE_NO_REGISTRATION` | the forge's sign-in |
@@ -403,6 +430,10 @@ pub fn list(words: &str, configuration: &std::path::Path) -> Result<u8, String>;
 
   A compile-time name (`env!`) is declared as internal in each table
   whose binary links its crate, as is the bundle's build variable.
+  `TEMPER_INTERNAL_COMMIT`'s `Variable` is
+  `temper_shell::environment::INTERNAL_COMMIT`, since every table
+  declares it and no table's crate links `temper-version`; its words are
+  as they were, so the generated documents (9) don't change.
 - **Empty is unset** for each of them (`skein/docs/foundation/cli.md`,
   5), switches included: `TEMPER_INTERNAL_WORKSPACE_REUSE` set to any
   nonempty value turns reuse on, and an empty one leaves it off, as
@@ -459,7 +490,12 @@ The help page `commands` (`../protocol/documentation.md`, 8) is
   `--version` prints its name, the workspace's version and a commit of
   twelve hexadecimal digits, `-dirty` or `unknown`; an unknown command
   is refused, exit 2; another binary's document is refused, exit 1, as
-  today, by each binary that reads one.
+  today, by each binary that reads one. A row that checks the version
+  line whole reads `temper-version`'s `VERSION` and `COMMIT`, a
+  dependency of its package, where the identity enters; no crate's unit
+  test names `temper-version`, and a crate's own tests of a `configure`
+  that answers `--version` give it an identity of their own, such as
+  `("0.0.0", "0123456789ab")`.
 - **Dispatch and parsing** stay unit tests of the crate, on its
   `configure` without a process.
 - **The agent's suite** keeps a row per mode as well
