@@ -47,15 +47,26 @@ const TUI_VARIABLES: &[&Variable] = &[
 const BUNDLE_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     tool: "temper",
     about: "The fake backends' web client bundle.",
-    table: &[skein_shell::Setting {
-        name: "bundle",
-        value: "BUNDLE",
-        set: Set::Internal,
-        twin: None,
-        about: "The web client's bundle directory; a relative path is taken from the working directory.",
-        fallback: skein_shell::Fallback::Text(""),
-        notes: "Requires --fake-backends; absent, use the configured bundle.",
-    }],
+    table: &[
+        skein_shell::Setting {
+            name: "bundle",
+            value: "BUNDLE",
+            set: Set::Internal,
+            twin: None,
+            about: "The web client's bundle directory; a relative path is taken from the working directory.",
+            fallback: skein_shell::Fallback::Text(""),
+            notes: "Requires --fake-backends; absent, use the configured bundle.",
+        },
+        skein_shell::Setting {
+            name: "scripts",
+            value: "FILE",
+            set: Set::Internal,
+            twin: None,
+            about: "A JSON script file; repeat to join in order, relative to the working directory.",
+            fallback: skein_shell::Fallback::Text(""),
+            notes: "Requires --fake-backends; replaces generated model scripts for this start.",
+        },
+    ],
 };
 const INTERNAL: Command = Command {
     reach: Reach::Words(&[]),
@@ -87,6 +98,12 @@ pub(crate) const BOX: Command = Command {
             set: Set::Internal,
             line: "Run against temper's fake LLM provider, forge and OAuth issuer.",
             notes: "An isolated deployment under DATA/box/fake-backends, sharing the cache.",
+        },
+        Switch {
+            name: "strict",
+            set: Set::Internal,
+            line: "Fail a model turn no script answers.",
+            notes: "Requires --fake-backends.",
         },
         Switch {
             name: "no-tui",
@@ -224,13 +241,18 @@ Refused, changing nothing, when the configuration directory already holds temper
         reach: Reach::Words(&["fake", "llm"]),
         set: Set::Internal,
         forms: &[
-            "[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]",
-            "--document FILE [--ready PREFIX] [--seed N] [--observations FILE]",
+            "[DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]",
+            "--document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]",
         ],
         line: "Serve a fake LLM provider: the demo's, from the configuration, or one from a JSON document.",
         arguments: &[DIRECTORIES],
         settings: &[&fake::LLM_SETTINGS, &directories::SETTINGS],
-        switches: &[],
+        switches: &[Switch {
+            name: "strict",
+            set: Set::Internal,
+            line: "Fail a turn no script answers.",
+            notes: "",
+        }],
         variables: &[&environment::LISTEN_FDS],
         notes: "",
     },

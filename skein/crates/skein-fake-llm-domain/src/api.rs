@@ -474,11 +474,14 @@ pub struct Failure {
     pub error: Error,
     /// Evidence supplied by the script.
     pub report: Report,
+    /// Provider text, or empty for the route's default message.
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.5.
+    pub message: Box<[u8]>,
     /// Reply parts before the failing line.
     pub parts: Box<[Part]>,
 }
 impl From<Error> for Failure {
     fn from(error: Error) -> Failure {
-        Failure { error, report: Report::none(), parts: Box::new([]) }
+        Failure { error, report: Report::none(), message: Box::new([]), parts: Box::new([]) }
     }
 }

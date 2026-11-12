@@ -236,19 +236,17 @@ pub fn ending_with_binary(
             Stop::Binding => format!("{binary} serve: deployment namespace binding refused\n"),
             Stop::StoreOpen { why } => {
                 let deployment = super::path(store);
-                let (lines, exit) = temper_service::refused_start(why, deployment.display().to_string().as_bytes());
-                let lines = String::from_utf8(lines.into_vec()).expect("refusal is UTF-8");
-                let mut named = String::new();
-                for line in lines.lines() {
-                    use std::fmt::Write as _;
-                    writeln!(
-                        named,
-                        "{binary} serve: {}",
-                        line.strip_prefix("temper serve: ").expect("service refusal prefix")
-                    )
-                    .expect("writing into a string");
-                }
-                return (named, exit);
+                return store_refusal(
+                    binary,
+                    temper_service::refused_start(why, deployment.display().to_string().as_bytes()),
+                );
+            }
+            Stop::StoreRow { row } => {
+                let deployment = super::path(store);
+                return store_refusal(
+                    binary,
+                    temper_service::refused_row_start(row, deployment.display().to_string().as_bytes()),
+                );
             }
             Stop::FrameTooLarge { number, task, bytes, limit } => format!(
                 "{binary} serve: commit {number} refused: task {task}'s transcript frame, {bytes} bytes, past the store's page of {limit} bytes\n"
@@ -283,6 +281,17 @@ pub fn ending_with_binary(
         }
     }
     (lines, u8::from(output_failed || end != Some(&End::Drained)))
+}
+
+fn store_refusal(binary: &str, (lines, exit): (Box<[u8]>, u8)) -> (String, u8) {
+    use std::fmt::Write as _;
+    let lines = String::from_utf8(lines.into_vec()).expect("refusal is UTF-8");
+    let mut named = String::new();
+    for line in lines.lines() {
+        writeln!(named, "{binary} serve: {}", line.strip_prefix("temper serve: ").expect("service refusal prefix"))
+            .expect("writing into a string");
+    }
+    (named, exit)
 }
 
 fn restore_kind(kind: temper_service::RestoreRangeKind) -> &'static str {
@@ -1630,6 +1639,29 @@ fn start_failures_name_the_set_key_setting_and_measured_limit() {
         (Failure::LlmChoice { key }, "LLM choice refused, key Tasks(Live(17))"),
     ] {
         assert_eq!(start_failure(&failure), words);
+    }
+}
+
+#[test]
+fn unreadable_temper_rows_end_with_the_named_recovery_words_and_exit_one() {
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    for (tag, name) in [(21, "Flight"), (9, "Landed"), (20, "Setting")] {
+        let end = End::Stopped(Stop::StoreRow { row: temper_service::UnreadableRow { key: Box::from([tag]) } });
+        for deployment in ["/data/deployment", "/elsewhere/store"] {
+            for binary in ["temper", "temper-engine"] {
+                assert_eq!(
+                    ending_with_binary(binary, Some(&end), false, &directories, deployment.as_bytes(), &[]),
+                    (
+                        format!(
+                            "{binary} serve: The store in {deployment} holds a {name} record, family {tag}, that this build cannot read, and the start stopped there. Start the build that wrote it again, or, to start afresh, stop the service, move `active`, `generations/` and `transcripts/` out of {deployment} together, and start again: nothing is deleted, and the next start makes a new, empty store.\n"
+                        ),
+                        1
+                    )
+                );
+            }
+        }
     }
 }
 

@@ -61,7 +61,8 @@ mod route;
 mod setup;
 mod start_refusal;
 mod stop;
-pub use start_refusal::refused_start;
+pub use start_refusal::{refused_row_start, refused_start};
+pub use store::UnreadableRow;
 mod tools;
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
 pub use tools::{render_for_task, render_for_task_page, settings_note};
@@ -112,6 +113,10 @@ pub enum Stop {
     /// The store refuses this start (jig's protocol/store/records.md, 3 and protocol/store/opening.md).
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,
+    },
+    /// A temper row refused decoding at restart (protocol/store.md, 5).
+    StoreRow {
+        row: UnreadableRow,
     },
     Listener {
         listener: Listening,

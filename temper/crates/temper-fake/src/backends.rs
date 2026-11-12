@@ -35,7 +35,7 @@ pub const PROGRAM_MODEL: &str = "claude-opus-5-5";
 
 /// Long peers before ordinary box steps. The caller checks absolute, bounded config bytes and sockets.
 #[must_use]
-pub fn steps(config: &[u8], peers: &Peers) -> Box<[Step]> {
+pub fn steps(config: &[u8], peers: &Peers, scripts: Option<&[u8]>, strict: bool) -> Box<[Step]> {
     let mut steps = List::with_capacity(4);
     let seed = Decimal::of(SEED);
     for (name, command, document, listen) in [
@@ -44,13 +44,23 @@ pub fn steps(config: &[u8], peers: &Peers) -> Box<[Step]> {
         (b"fake model", b"llm", b"llm.json", peers.llm),
         (b"fake forgejo", b"forge", b"forgejo.json", peers.forgejo),
     ] {
-        let mut arguments = List::with_capacity(6);
+        let mut arguments = List::with_capacity(9);
         for word in [b"fake".as_slice(), command, b"--document"] {
             arguments.push(bytes::copy_of(word)).expect("peer arguments counted");
         }
         arguments.push(path(config, document)).expect("peer document counted");
         arguments.push(bytes::copy_of(b"--seed")).expect("seed flag counted");
         arguments.push(bytes::copy_of(seed.as_bytes())).expect("seed counted");
+        // protocol/setup/box.md, 5: scripts and strict belong to this start's model alone.
+        if command == b"llm" {
+            if let Some(scripts) = scripts {
+                arguments.push(bytes::copy_of(b"--scripts")).expect("scripts flag counted");
+                arguments.push(bytes::copy_of(scripts)).expect("scripts path counted");
+            }
+            if strict {
+                arguments.push(bytes::copy_of(b"--strict")).expect("strict flag counted");
+            }
+        }
         steps
             .push(Step::new(bytes::copy_of(name), arguments.into_boxed(), StepKind::Long).listening(Box::new([listen])))
             .expect("four welcome peers counted");

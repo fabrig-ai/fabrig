@@ -98,13 +98,263 @@ fn each_watch_refusal_is_handed_up() {
 #[test]
 fn a_close_s_answer_and_stream_ending_yield_one_terminal() {
     let mut harness = fixtures::Harness::streaming(fixtures::frame_subject());
-    let (_, name) = harness.opening();
+    let (opening, name) = harness.opening();
+    harness.answer(opening, &fixtures::open_answer(&w::OpenAnswer::Admitted));
     let close = harness.close();
     harness.answer(close, &fixtures::close_answer());
     harness.stream_record(&fixtures::ending(name, w::WatchEnd::Closed));
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Closed));
     assert_eq!(harness.closed_count(), 1);
 }
+#[test]
+fn an_opening_waits_for_a_read_reply() {
+    let mut h = fixtures::Harness::admitted_stream();
+    let mut reads = h.fill_reads();
+    let watch = Token::new(42);
+    h.open(watch, fixtures::family_subject());
+    assert!(h.out.is_empty(), "local exchange pressure is not Busy");
+    assert_eq!(h.link.in_flight(), fixtures::EXCHANGE_ROOM);
+    h.answer(reads.pop().unwrap(), &fixtures::read_none_answer(w::ReadNone::Unknown));
+    let (opening, _) = h.opening();
+    assert_eq!(h.closed_count(), 0);
+    assert_eq!(h.link.in_flight(), fixtures::EXCHANGE_ROOM);
+    assert!(!h.link.has_exchange_room());
+    h.clear();
+    h.answer(opening, &fixtures::open_answer(&w::OpenAnswer::Admitted));
+    assert!(h.has(&Request::Watch { watch, event: c::WatchEvent::Opened }));
+}
+
+#[test]
+fn an_opening_waits_for_a_read_loss() {
+    let mut h = fixtures::Harness::admitted_stream();
+    let mut reads = h.fill_reads();
+    h.open(Token::new(42), fixtures::frame_subject());
+    assert!(h.out.is_empty());
+    h.link.step(Time::ZERO, Event::Lost { exchange: reads.pop().unwrap() }, &mut h.out);
+    h.opening();
+    assert_eq!(h.closed_count(), 0);
+    assert_eq!(h.link.in_flight(), fixtures::EXCHANGE_ROOM);
+}
+
+#[test]
+fn held_openings_leave_in_request_order_not_handle_order() {
+    let mut h = fixtures::Harness::admitted_stream();
+    let mut reads = h.fill_reads();
+    let first = Token::new(43);
+    let second = Token::new(42);
+    h.open(first, fixtures::frame_subject());
+    h.open(second, fixtures::family_subject());
+    assert!(h.out.is_empty());
+    for watch in [first, second] {
+        h.answer(reads.pop().unwrap(), &fixtures::read_none_answer(w::ReadNone::Unknown));
+        assert_eq!(h.out.len(), 2, "one read terminal and one opening per freed credit");
+        let (exchange, _) = h.opening();
+        assert_eq!(h.link.attempts.get(&exchange).unwrap().token, watch);
+        assert_eq!(h.closed_count(), 0);
+        h.clear();
+    }
+}
+
+#[test]
+fn closing_a_held_opening_ends_once_without_taking_credit() {
+    let mut h = fixtures::Harness::admitted_stream();
+    let mut reads = h.fill_reads();
+    let watch = Token::new(42);
+    h.open(watch, fixtures::frame_subject());
+    for _ in 0_u32..2 {
+        h.link.step(Time::ZERO, Event::Close { watch }, &mut h.out);
+    }
+    assert_eq!(h.ended(watch), Some(c::WatchEnd::Closed));
+    assert_eq!(h.closed_count(), 1);
+    h.answer(reads.pop().unwrap(), &fixtures::read_none_answer(w::ReadNone::Unknown));
+    h.assert_no_watch_exchange();
+    assert_eq!(h.closed_count(), 1);
+    assert_eq!(h.link.in_flight(), fixtures::EXCHANGE_ROOM - 1);
+    assert!(h.link.has_exchange_room());
+}
+
+#[test]
+fn an_admitted_closing_waits_for_exchange_credit() {
+    for lost in [false, true] {
+        let mut h = fixtures::Harness::admitted_stream();
+        let mut reads = h.fill_reads();
+        h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+        h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+        assert!(h.out.is_empty(), "a closing waits instead of Dropped");
+        let exchange = reads.pop().unwrap();
+        if lost {
+            h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+        } else {
+            h.answer(exchange, &[]);
+        }
+        let (close, _) = h.unwatching();
+        assert_eq!(h.closed_count(), 0);
+        assert_eq!(h.link.in_flight(), fixtures::EXCHANGE_ROOM);
+        h.clear();
+        h.answer(close, &fixtures::close_answer());
+        h.answer(close, &fixtures::close_answer());
+        assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::Closed));
+        assert_eq!(h.closed_count(), 1);
+        h.assert_no_watch_exchange();
+    }
+}
+
+#[test]
+fn held_closings_and_openings_share_request_order() {
+    let mut h = fixtures::Harness::admitted_stream();
+    let mut reads = h.fill_reads();
+    h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+    h.open(Token::new(42), fixtures::frame_subject());
+    assert!(h.out.is_empty());
+    h.answer(reads.pop().unwrap(), &fixtures::read_none_answer(w::ReadNone::Unknown));
+    h.unwatching();
+    assert_eq!(h.out.len(), 2);
+    h.clear();
+    h.answer(reads.pop().unwrap(), &fixtures::read_none_answer(w::ReadNone::Unknown));
+    h.opening();
+    assert_eq!(h.out.len(), 2);
+}
+
+#[test]
+fn a_stream_end_discards_held_openings_and_closings() {
+    let mut h = fixtures::Harness::admitted_stream();
+    let reads = h.fill_reads();
+    let held = Token::new(42);
+    h.open(held, fixtures::frame_subject());
+    h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+    h.link.step(Time::ZERO, Event::StreamGone, &mut h.out);
+    assert_eq!(h.ended(held), Some(c::WatchEnd::Dropped));
+    assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
+    assert_eq!(h.closed_count(), 2);
+    h.clear();
+    h.link.step(Time::ZERO, Event::StreamGone, &mut h.out);
+    for exchange in &reads {
+        h.answer(*exchange, &[]);
+    }
+    h.assert_no_watch_exchange();
+    assert_eq!(h.closed_count(), 0, "late terminals cannot revive a held watch");
+}
+
+#[test]
+fn signing_out_discards_held_openings_and_closings() {
+    let mut h = fixtures::Harness::admitted_stream();
+    let reads = h.fill_reads();
+    let held = Token::new(42);
+    h.open(held, fixtures::frame_subject());
+    h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+    h.link.step(Time::ZERO, Event::Streamed { message: Streamed::SignedOut }, &mut h.out);
+    assert_eq!(h.ended(held), Some(c::WatchEnd::SignedOut));
+    assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::SignedOut));
+    assert_eq!(h.closed_count(), 2);
+    h.clear();
+    for exchange in &reads {
+        h.answer(*exchange, &[]);
+    }
+    h.assert_no_watch_exchange();
+    assert_eq!(h.closed_count(), 0);
+}
+
+#[test]
+fn a_closing_waits_for_its_opening_answer_even_after_a_delivery() {
+    let mut h = fixtures::Harness::streaming(fixtures::family_subject());
+    let (opening, name) = h.opening();
+    h.clear();
+    h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+    assert!(h.out.is_empty());
+    h.stream_record(&fixtures::family_delivery(name));
+    h.assert_no_watch_exchange();
+    assert_eq!(h.link.in_flight(), 1, "the held closing takes no credit");
+    h.answer(opening, &fixtures::open_answer(&w::OpenAnswer::Admitted));
+    let (close, closing_name) = h.unwatching();
+    assert_eq!(closing_name, name);
+    h.answer(close, &fixtures::close_answer());
+    assert_eq!(h.closed_count(), 1);
+    assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::Closed));
+}
+
+#[test]
+fn a_refused_opening_never_sends_its_held_closing() {
+    let mut h = fixtures::Harness::streaming(fixtures::frame_subject());
+    let (opening, _) = h.opening();
+    h.clear();
+    h.link.step(Time::ZERO, Event::Close { watch: fixtures::WATCH }, &mut h.out);
+    let refused = w::OpenAnswer::Refused(
+        w::OpenAnswerRefused::new(&w::CEILINGS, w::OpenAnswerRefusedParts { why: w::WatchRefusal::Busy }).unwrap(),
+    );
+    h.answer(opening, &fixtures::open_answer(&refused));
+    assert_eq!(h.closed_count(), 1);
+    assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::Busy));
+    h.assert_no_watch_exchange();
+}
+
+#[test]
+fn held_watches_wait_for_cancelled_transport_credit() {
+    for lost in [false, true] {
+        let limits = Limits::new(*fixtures::limits().client(), 1).unwrap();
+        let mut h = fixtures::Harness::new(&limits);
+        h.open(fixtures::WATCH, fixtures::frame_subject());
+        h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
+        let (exchange, name) = h.opening();
+        h.clear();
+        h.open(Token::new(42), fixtures::frame_subject());
+        h.stream_record(&fixtures::ending(name, w::WatchEnd::Closed));
+        assert!(h.link.has_exchange_room(), "the logical attempt was cancelled");
+        assert_eq!(h.link.in_flight(), 1, "HTTP still owns its credit");
+        h.assert_no_watch_exchange();
+        h.clear();
+        if lost {
+            h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+        } else {
+            h.answer(exchange, &[]);
+        }
+        h.opening();
+        assert_eq!(h.closed_count(), 0);
+        assert_eq!(h.link.in_flight(), 1);
+    }
+}
+
+#[test]
+fn a_lost_watch_exchange_discards_held_work_with_its_stream() {
+    for closing in [false, true] {
+        let limits = Limits::new(*fixtures::limits().client(), 1).unwrap();
+        let mut h = fixtures::Harness::new(&limits);
+        h.open(fixtures::WATCH, fixtures::frame_subject());
+        h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
+        let (mut exchange, _) = h.opening();
+        if closing {
+            h.answer(exchange, &fixtures::open_answer(&w::OpenAnswer::Admitted));
+            h.clear();
+            exchange = h.close();
+        }
+        h.clear();
+        let held = Token::new(42);
+        h.open(held, fixtures::frame_subject());
+        h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
+        assert_eq!(h.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
+        assert_eq!(h.ended(held), Some(c::WatchEnd::Dropped));
+        assert_eq!(h.closed_count(), 2);
+        h.assert_no_watch_exchange();
+        assert!(h.has(&Request::CloseStream));
+    }
+}
+
+#[test]
+fn a_full_watch_table_still_refuses_busy_while_openings_wait() {
+    let base = fixtures::limits();
+    let limits = Limits::new(jig_client_domain::Limits { watches: 1, ..*base.client() }, 8).unwrap();
+    let mut h = fixtures::Harness::new(&limits);
+    h.fill_reads();
+    h.open(fixtures::WATCH, fixtures::frame_subject());
+    h.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
+    h.clear();
+    let refused = Token::new(42);
+    h.open(refused, fixtures::frame_subject());
+    assert_eq!(h.ended(refused), Some(c::WatchEnd::Busy));
+    assert_eq!(h.closed_count(), 1);
+    assert_eq!(h.ended(fixtures::WATCH), None);
+    h.assert_no_watch_exchange();
+}
+
 // The browser reserves one fetch beyond the link's exchange limit for cleanup.
 const AUTHORIZATION_ROOM: u32 = 1;
 const CLEANUP_ROOM: u32 = 1;
@@ -143,13 +393,18 @@ fn a_stream_end_keeps_authorization_waiting_for_its_http_exchanges() {
         let mut fetch = skein_ui_web::fetch::Fetch::new(AUTHORIZATION_ROOM + CLEANUP_ROOM);
         harness.open(fixtures::WATCH, fixtures::frame_subject());
         harness.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
-        let (opening, name) = harness.opening();
+        let (opening, _) = harness.opening();
         let opened = fetch.begin(u32::try_from(opening.raw()).unwrap(), ANSWER_BYTES, &[]).unwrap();
         harness.clear();
-        let close = harness.close();
+        harness.link.step(Time::ZERO, Event::StreamGone, &mut harness.out);
+        let mut cleanup = None;
+        for request in &harness.out {
+            if let Request::Exchange { exchange, message: Message::StreamGone(_), .. } = request {
+                cleanup = Some(*exchange);
+            }
+        }
+        let close = cleanup.expect("stream cleanup exchange");
         let closed = fetch.begin(u32::try_from(close.raw()).unwrap(), ANSWER_BYTES, &[]).unwrap();
-        harness.clear();
-        harness.stream_record(&fixtures::ending(name, w::WatchEnd::Closed));
         assert_eq!(harness.closed_count(), 1, "the stream ends the watch once");
         harness.clear();
 

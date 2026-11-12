@@ -193,6 +193,9 @@ forge, temper adds:
   forge's part of the client, `client/web/README.md` the browser shell,
   `client/web/journeys.md` its pages recorded and printed,
   `client/web/look-requests.md` the look requests' round trip,
+  `client/drive.md` QA's session driving the browser, the TUI and ctl a
+  line at a time from a given build, `client/recipe.md` the recipes it
+  walks to the states QA's cases start from,
   `client/ctl/README.md`
   `temper ctl`, temper for agents (reads, jig's operations and waits,
   from a command line), and `client/web/mockups/` the pages' design: their look,

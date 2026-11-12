@@ -96,6 +96,7 @@ impl AllHome {
     pub(super) fn configure(
         &mut self,
         me: Option<&Me>,
+        own: Option<u32>,
         next: &mut u64,
         limits: forge::Limits,
         out: &mut Queue<Request>,
@@ -105,7 +106,13 @@ impl AllHome {
         }
         let mut homes = List::with_capacity(ACROSS);
         if let Some(me) = me {
-            for row in &me.projects {
+            for (index, row) in me.projects.iter().enumerate() {
+                if index >= usize::try_from(ACROSS).expect("project bound fits") {
+                    break;
+                }
+                if own == Some(row.project) {
+                    continue;
+                }
                 if self.project.is_some() && self.project != Some(row.project) {
                     continue;
                 }
@@ -162,10 +169,9 @@ impl AllHome {
 }
 fn reads(root: &Domain) -> Option<&AllHome> {
     match root.pages.address() {
-        crate::Address::AllHome => root.pages.all_home.as_ref(),
+        crate::Address::AllHome | crate::Address::Home { .. } => root.pages.all_home.as_ref(),
         crate::Address::Inbox { .. } => root.pages.needs_decided.as_ref(),
-        crate::Address::Home { .. }
-        | crate::Address::Team { .. }
+        crate::Address::Team { .. }
         | crate::Address::Ask { .. }
         | crate::Address::NewChat { .. }
         | crate::Address::Chats { .. }
@@ -214,6 +220,12 @@ pub fn facts(root: &Domain, wall: Wall) -> Facts {
             }
             let mut status = Status::Unknown;
             if let Some(reads) = &root.pages.all_home {
+                if let crate::Address::Home { project } = root.pages.address
+                    && project == row.project
+                    && let Some(home) = &root.pages.home
+                {
+                    status = home.shown_status();
+                }
                 for (project, home) in &reads.homes {
                     if *project == row.project {
                         status = home.shown_status();

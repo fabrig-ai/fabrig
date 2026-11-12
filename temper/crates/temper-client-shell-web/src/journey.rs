@@ -14,7 +14,7 @@ mod setup;
 mod stream;
 mod walk;
 pub use fields::fields_mut;
-pub use line::{Line, Unreadable, lines};
+pub use line::{Field, Line, Read as Fields, Unreadable, fields as read_fields, lines};
 pub use originals::{SECRET_EVENT, kept_head, originals, typed};
 pub use record::Recorder;
 pub use redact::{Redacted, Unredacted, redact};
