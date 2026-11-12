@@ -2,7 +2,7 @@
 
 2026-11-12. Where the tree's code lags or departs from [box.md](box.md).
 
-
+- **Not yet:** 5: the fake forges' declared CI, `.fake-forge/ci` on each seeded repository and as each document's `made_ci` [in flight: change 1691].
 
 - **Departs:** 5: a malformed `TEMPER_INTERNAL_FAKE_BOX_PORTS` refuses even a
   retained sandbox, where the section says it keeps its ports whatever

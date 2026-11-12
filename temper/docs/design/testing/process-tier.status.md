@@ -10,6 +10,7 @@
   Their original CPU medians transfer about 15.9 CPU s to a tier whose
   current margin is unknown; neither a current tier total nor its fit
   within 540 CPU s is established by the instruction account.
+- **Not yet:** the whole document: the box at its place restarted with a newer build on its fake forges' state, with no Forgejo or runner [in flight: change 1697].
 
 - **Departs:** the whole document: `temper-fixtures/src/ports.rs`, `ephemeral_first`,
   uses 49152 when `/proc/sys/net/ipv4/ip_local_port_range` is absent,
