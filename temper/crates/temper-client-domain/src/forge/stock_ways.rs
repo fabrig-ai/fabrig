@@ -200,6 +200,11 @@ impl StockWays {
             self.open = None;
         }
     }
+    /// The project's rules, only while its `ways` read is shown.
+    #[must_use]
+    pub fn rules(&self) -> Option<&w::PathRules> {
+        Some(self.panel()?.rules())
+    }
     /// The running path (client/pages/settings.md, 2, *What follows a landing*).
     #[must_use]
     pub fn current_path(&self) -> Option<&w::BranchPath> {

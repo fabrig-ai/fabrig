@@ -94,7 +94,12 @@ fn print_path(b: &mut Builder, path: &w::BranchPath) {
         b.open(Role::Paragraph);
         text(b, Role::Text, mark, mark_style);
         text(b, Role::Text, b" ", None);
-        text(b, Role::Text, stop.words(), word_style);
+        let words = if stop.over().is_empty() {
+            skein_lib::bytes::copy_of(stop.words())
+        } else {
+            skein_lib::bytes::concat(&[stop.words(), b" (", stop.over(), b")"])
+        };
+        text(b, Role::Text, &words, word_style);
         b.close();
         if indented {
             b.close();
