@@ -166,7 +166,7 @@ fn creation_with_a_decoder_bound_admin_login_stays_under_its_peak_ceiling() {
     let mut admin = fixtures::admin();
     admin.login = skein_lib::bytes::zeroed(usize::try_from(limits.string_bytes).expect("decoder bound"));
     admin.login.fill(b'a');
-    create::step(&mut machine, Event::Reply(Reply::Document(Document::User(admin))), &mut out);
+    create::step(&mut machine, Event::Reply(Reply::Document(Box::new(Document::User(admin)))), &mut out);
     drop(out.pop());
     create::step(&mut machine, Event::Reply(Reply::Status(404)), &mut out);
     let measured = meter.end();
