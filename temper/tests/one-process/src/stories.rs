@@ -169,9 +169,9 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
     let config = skein_fake_forge_domain::Config {
         limits: skein_fake_forge_domain::Limits {
             statuses: fixtures::FORGE_STATUSES,
-            ..documents::hosted_git::CONFIG.limits
+            ..documents::hosted_git::config().limits
         },
-        ..documents::hosted_git::CONFIG
+        ..documents::hosted_git::config()
     };
     let mut domain = skein_fake_forge_domain::Domain::new(&config, fixtures::SEED);
     let base = skein_fake_forge_domain::repository(
@@ -222,7 +222,7 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
         .expect("the fixture's existing topic is already on the forge");
     if matches!(story, Story::Merge) {
         let mut forge = transport.forge.borrow_mut();
-        let config = forge.config;
+        let config = forge.config.clone();
         let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::from_nanos(0), limits: config };
         let moved = skein_fake_forge_domain::advance(
             &mut forge.domain,
@@ -241,7 +241,7 @@ pub(crate) fn forge(story: Story) -> temper_fake_git_hosted::Typed {
 }
 pub(crate) fn prepare_merge_branch(transport: &temper_fake_git_hosted::Typed) {
     let mut forge = transport.forge.borrow_mut();
-    let env = skein_lib::Env { now: forge.now, wall: skein_lib::Wall::EPOCH, limits: forge.config };
+    let env = skein_lib::Env { now: forge.now, wall: skein_lib::Wall::EPOCH, limits: forge.config.clone() };
     let token = forge.next_reply();
     let skein_fake_peers::forge::Forge { domain, pending, .. } = &mut *forge;
     skein_fake_forge_domain::step(
