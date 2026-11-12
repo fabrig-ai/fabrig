@@ -255,6 +255,8 @@ pub const STARTER_WAYS: Style = Style { owner: owner(), token: 251 };
 pub const PROJECTS_MENU: Style = Style { owner: owner(), token: 190 };
 /// The rail switcher's actions.
 pub const PROJECTS_ACTS: Style = Style { owner: owner(), token: 191 };
+/// The switcher's phone-only links (client/view.md, 3).
+pub const PROJECTS_PHONE: Style = Style { owner: owner(), token: 196 };
 /// A switcher row's repository words.
 pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
 /// The additional repository count.
@@ -917,7 +919,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-projects-more",
         b"temper-projects-row",
         b"temper-repository-link",
-        b"temper-reserved-196",
+        b"temper-projects-phone",
         b"temper-reserved-197",
         b"temper-reserved-198",
         b"temper-reserved-199",
