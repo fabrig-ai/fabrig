@@ -1,6 +1,6 @@
 # The channel
 
-Provisional, 2026-10-07, revised 2026-10-19. The channel between a run and
+Provisional, 2026-10-07, revised 2026-11-12. The channel between a run and
 its host is smith's application protocol on skein's framed channel
 (skein's `net/channel.md`). This document covers:
 
@@ -69,10 +69,25 @@ of domain/host.md, section 2.
 
 - **The magic is `smth`.** Versions start at 1. Each version is one table
   of kinds, and the records of that version's schema. Each half speaks
-  one version, its release's, and offers only that one: the channel is
-  pre-release, and no half reads an older version (README.md, section
-  8).
-  The current version is 7 (`channel-v7.schema`), which added the drain (section 3). From 2026-11-12 the version moves with every change to its layout (the owner, 2026-11-12), as a new kind always moved it, and the previous version's schema and goldens stay in the tree unchanged, as its kept text, which no code reads: no half speaks an older version, since both halves are built together.
+  one version, its build's, and offers only that one: this channel is
+  per-build (README.md, section 8).
+  The current version is 7 (`channel-v7.schema`), which added the drain
+  (section 3). From 2026-11-12 the version moves with every change to its
+  layout (the owner, 2026-11-12), as a new kind always moved it, and the
+  previous version's schema and goldens stay in the tree unchanged, as
+  its kept text. Version 6 is kept text, not a negotiated version.
+- **The host and agent stay on one build.** A consumer that spawns agents
+  pins their program and configuration for its lifetime, and never
+  adopts a previous host process's agents. In temper, the worker pins
+  both at startup and every run spawns that copy over local standard
+  input and output (`temper/docs/design/domain/worker/README.md`, section
+  5). The engine talks to the worker on jig's channel, not this one:
+  restarting the engine leaves the worker and its agents together;
+  replacing the configured agent program cannot change a running
+  worker's later spawns. This is the per-build exemption in temper's
+  bridge inventory (`temper/docs/design/draft/redeploys.md`, 4.2 and
+  4.4). A connected agent spanning builds needs a compatibility contract
+  before that shape is supported (README.md, sections 4 and 11).
 - **The credential** is empty over a spawned agent's pipes. A connected
   agent's is still open (README.md, section 11).
 - **The agent accepts at once** over pipes. A daemon decides by its
