@@ -1,6 +1,9 @@
 # forgejo: status
 
-2026-11-11. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+2026-11-12. Where the tree's code lags or departs from [forgejo.md](forgejo.md).
+
+- **Not yet:** 1.3: a changed file's `unchanged` status is a malformed answer, so a pull's files page listing a modified binary file or a change of mode alone fails `InvalidAnswer` (`skein-forge/src/forgejo/client/files.rs`, `status`) [in flight: change 1227].
+- **Not yet:** 1.3: a JSON document past `body_bytes_in` fails a read `InvalidAnswer`, not `TooLarge` (`Forge`) (`skein-forge/src/forgejo/plans/reads/done.rs`, `plans/contents.rs`; GitHub's `plans/failure.rs`, `malformed`) [in flight: change 1228].
 
 - **Not yet:** 1.1 to 1.3: `Reviews`, `PullFiles` and a `Remarks` slice sized for real rows and cut at the answer's bytes, read on with `skip`: each holds as many of its listing's largest rows as `answer_bytes` holds (`skein-forge-connection/src/limits.rs`, `page_size`) [in flight: change 161].
 - **Not yet:** 1.2: `Read::Pull`'s `ci`; `PullFor`'s status read (`plans/reads/done.rs`, `pull_status`) [in flight: change 158].
