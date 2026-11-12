@@ -532,17 +532,31 @@ fn a_pull_section_reads_its_own_tasks_moved_head() {
 
 #[test]
 fn another_writers_pull_head_pauses_the_brief_and_wakes_the_change() {
-    for writer in [
-        None,
-        Some(Writer::Run { task: 8, attempt: 2 }),
-        Some(Writer::Lost { task: 8, attempt: 1 }),
-        Some(Writer::Entry(17)),
-    ] {
-        let (mut d, owner) = pending_pull_item(
-            b"Whole body",
+    for (writer, state, fate) in [
+        (None, change::State::Resolving { requested: true, base: fixtures::BASE }, BriefFate::Transient),
+        (
+            Some(Writer::Run { task: 8, attempt: 2 }),
             change::State::Resolving { requested: true, base: fixtures::BASE },
-            [1; 32],
-        );
+            BriefFate::Transient,
+        ),
+        (
+            Some(Writer::Lost { task: 8, attempt: 1 }),
+            change::State::Resolving { requested: true, base: fixtures::BASE },
+            BriefFate::Transient,
+        ),
+        (
+            Some(Writer::Entry(17)),
+            change::State::Resolving { requested: true, base: fixtures::BASE },
+            BriefFate::Transient,
+        ),
+        (None, change::State::Gating { head: [1; 32], asked: Box::new([]) }, BriefFate::Capacity),
+        (
+            Some(Writer::Run { task: 8, attempt: 2 }),
+            change::State::Repairing { requested: true, why: change::Repair::Ci },
+            BriefFate::Capacity,
+        ),
+    ] {
+        let (mut d, owner) = pending_pull_item(b"Whole body", state, [1; 32]);
         outputs(
             &mut d,
             Event::Restore {
@@ -574,10 +588,7 @@ fn another_writers_pull_head_pauses_the_brief_and_wakes_the_change() {
             out.pop(),
             Some(Request::BriefSized {
                 section: SECTION,
-                size: Err(BriefUnread {
-                    fate: BriefFate::Capacity,
-                    words: Box::from(b"the change's head moved".as_slice()),
-                })
+                size: Err(BriefUnread { fate, words: Box::from(b"the change's head moved".as_slice()) })
             })
         );
         assert!(out.is_empty());
