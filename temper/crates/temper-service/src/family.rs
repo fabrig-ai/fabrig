@@ -1874,11 +1874,24 @@ fn changes_landed(
 ) -> Option<List<w::ChangesLanded>> {
     let mut landed = List::with_capacity(capacity);
     for row in rows {
+        let mut signed = List::with_capacity(u32::try_from(forge::SIGN_OFFS).ok()?);
+        for sign in row.signed {
+            signed
+                .push(
+                    w::ChangesSigned::new(
+                        limits,
+                        w::ChangesSignedParts { party: sign.person, head: sign.head, at: sign.at.as_nanos() },
+                    )
+                    .ok()?,
+                )
+                .ok()?;
+        }
         landed
             .push(
                 w::ChangesLanded::new(
                     limits,
                     w::ChangesLandedParts {
+                        signed,
                         task: row.task,
                         title: row.title,
                         at: row.at.as_nanos(),

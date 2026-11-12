@@ -34,6 +34,7 @@ pub struct ChangesQueued {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesLanded {
+    pub signed: Box<[crate::SignOff]>,
     pub task: u64,
     pub title: Box<[u8]>,
     pub at: Wall,
@@ -132,6 +133,7 @@ impl Domain {
                         .insert(
                             (key, change.task),
                             ChangesLanded {
+                                signed: change.signed.clone(),
                                 task: change.task,
                                 title: change.title.clone(),
                                 at: logged.at,
