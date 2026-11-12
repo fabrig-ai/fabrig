@@ -1,9 +1,11 @@
 # browser: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-12. Where temper's code lags or departs from [README.md](README.md).
 
 
 
+- **Not yet:** 2.6: no `rust-toolchain.toml` pins the channel or names the
+  `wasm32-unknown-unknown` target [in flight: change 1919].
 - **Not yet:** 2.7, *Tested*: no browser-tier story turns push on. The
   browser kit can't do it offline: `skein-browser`'s requests and
   `fake-person-browser`'s steps can't grant a notification permission,
