@@ -64,6 +64,9 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
     admitted(landing, facts, limits);
     let mut next = landing.clone();
     if let Some(ending) = next.round.ending {
+        if ending == crate::RoundEnd::Leave && let Some(decision) = failed_post(&mut next, facts) {
+            return done(next, decision);
+        }
         return closing(next, facts, ending);
     }
     match &landing.phase {

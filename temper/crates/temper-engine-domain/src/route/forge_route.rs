@@ -3774,8 +3774,12 @@ fn change_delegate(
             resource: forge::tag(row.repository.forge, row.repository.repository),
         })
         .ok()?;
-    parameters.push(tasks::Parameter::Bytes { name: 2, value: row.base.clone() }).ok()?;
-    parameters.push(tasks::Parameter::Bytes { name: 3, value: row.branch.clone() }).ok()?;
+    let (base, branch) = if let forge_change::Delegate::Gate { .. } = kind
+        && let forge_change::State::Judging { target, .. } = &row.change.state {
+        (target.base.clone(), target.branch.clone())
+    } else { (row.base.clone(), row.branch.clone()) };
+    parameters.push(tasks::Parameter::Bytes { name: 2, value: base }).ok()?;
+    parameters.push(tasks::Parameter::Bytes { name: 3, value: branch }).ok()?;
     let change_contract = tasks::Contract::Change {
         connector: domain.config.forge_connector,
         kind: 2,
@@ -3923,7 +3927,9 @@ fn review_words(
         append(&mut words, failure);
         append(&mut words, b"\n");
     }
-    let (pull, branch, base, _) = row.review_target()?;
+    let (pull, branch, base) = if let forge_change::State::Judging { target, .. } = &row.change.state {
+        (target.pull, target.branch.as_ref(), target.base.as_ref())
+    } else { (row.pull?, row.branch.as_ref(), row.base.as_ref()) };
     let number = skein_lib::Decimal::of(pull);
     let head = commit_text(head);
     let identity: [&[u8]; 9] = [

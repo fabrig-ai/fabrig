@@ -234,8 +234,11 @@ fn current_review(domain: &Domain, task: u64) -> bool {
     let Some((child, temper_engine_domain_forge_change::Delegate::Gate { number, head })) = row.delegate else {
         return false;
     };
+    let expected = if let temper_engine_domain_forge_change::State::Judging { target, .. } = &row.change.state {
+        Some(target.prefix)
+    } else { row.change.last_head };
     if child != task
-        || row.change.last_head != Some(head)
+        || expected != Some(head)
         || row.change.state == (temper_engine_domain_forge_change::State::CancellingGates { head })
     {
         return false;

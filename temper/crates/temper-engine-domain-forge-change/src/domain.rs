@@ -1749,5 +1749,5 @@ fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Ste
     }
     if waiting_gate { return waiting(change, now, limits); }
     change.state = State::Ready { head, ready_since };
-    Stepped { change, decision: Decision::None }
+    Stepped { change, decision: Decision::Wait { until: None } }
 }

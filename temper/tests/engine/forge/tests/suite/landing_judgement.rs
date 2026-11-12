@@ -38,8 +38,7 @@ fn change_step(world: &mut World, entry: u64) -> change::Decision {
     changes::change_step_task(world, CHANGE, entry, change::Status::Passed, Box::new([]), false, false)
 }
 fn ask_gate(world: &mut World, prefix: api::Commit, entry: u64) {
-    assert_eq!(change_step(world, entry), change::Decision::None);
-    assert_eq!(change_step(world, entry + 1), change::Decision::Delegate(change::Delegate::Gate { number: GATE, head: prefix }));
+    assert_eq!(change_step(world, entry), change::Decision::Delegate(change::Delegate::Gate { number: GATE, head: prefix }));
     world.event(top::Event::Delegated { task: CHANGE, child: 71, kind: change::Delegate::Gate { number: GATE, head: prefix } });
 }
 fn verdict(world: &mut World, passed: bool) {
