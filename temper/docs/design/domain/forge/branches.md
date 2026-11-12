@@ -255,8 +255,10 @@ section 6).
     (`BranchMissing`), the change's holds (`change/repairs.md`). The
     change keeps the hold its state was in as that state becomes
     `Ended`, as `Change.ended_held`, an `Option<Hold>`, none where it
-    was not held: an additive member of its stored record, so that its
-    reason outlives the hold.
+    was not held, so that its reason outlives the hold. The store keeps
+    it in the stored state it already has, an ended state with that
+    one hold (`ChangeState`'s `holds`), so that its format stays and
+    every row stored before reads as none.
   - *for any other reason* (a cancel while it went on, a lost or failed
     run, a stall, any other hold, or none) is made again with no hold,
     as a release makes it, waiting for new work first and, for a
