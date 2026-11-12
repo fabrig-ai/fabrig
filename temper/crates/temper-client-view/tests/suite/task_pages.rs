@@ -35,8 +35,8 @@ mod tests {
                     requests,
                     ask_bytes: requests.bytes / u64::from(requests.requests),
                     // Page handles, trials and a running trial task.
-                    handles: 11,
-                    watches: 11,
+                    handles: 16, // Four findings subjects and one live-goals menu.
+                    watches: 16, // Four findings subjects and one live-goals menu.
                     turn_bytes: 65536,
                     backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                     authority: 12,

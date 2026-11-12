@@ -1415,6 +1415,38 @@ pub enum Word {
     QuestionAnswered,
     Held,
     PersonTask,
+    Finding,
+    FindingFrom,
+    FindingFacts,
+    FindingHanded,
+    FindingNotYours,
+    FindingNoAreaRefused,
+    FindingFull,
+
+    FindingHand,
+    FindingRoute,
+    FindingBacklog,
+    FindingDrop,
+    FindingArea,
+    FindingWhy,
+    FindingReason,
+    FindingNoArea,
+    FindingQa,
+    FindingFlake,
+    FindingRed,
+    FindingReview,
+    FindingFeedback,
+    FindingLow,
+    FindingMedium,
+    FindingHigh,
+    FindingWaiting,
+    FindingNoGoal,
+    FindingGone,
+    FindingEnded,
+    FindingTask,
+    FindingParty,
+    FindingRole,
+
     Job,
     DelegationJob,
     Task,
@@ -1780,7 +1812,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2333;
+const PHRASES: u32 = 2363;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1807,10 +1839,10 @@ const PHRASES: u32 = 2333;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4194;
+const SEGMENTS: u32 = 4256;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56628;
-const ALL: [Word; 1649] = [
+const ENGLISH_BYTES: u32 = 57025;
+const ALL: [Word; 1679] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -3175,6 +3207,36 @@ const ALL: [Word; 1649] = [
     Word::QuestionAnswered,
     Word::Held,
     Word::PersonTask,
+    Word::Finding,
+    Word::FindingFrom,
+    Word::FindingFacts,
+    Word::FindingHanded,
+    Word::FindingNotYours,
+    Word::FindingNoAreaRefused,
+    Word::FindingFull,
+    Word::FindingHand,
+    Word::FindingRoute,
+    Word::FindingBacklog,
+    Word::FindingDrop,
+    Word::FindingArea,
+    Word::FindingWhy,
+    Word::FindingReason,
+    Word::FindingNoArea,
+    Word::FindingQa,
+    Word::FindingFlake,
+    Word::FindingRed,
+    Word::FindingReview,
+    Word::FindingFeedback,
+    Word::FindingLow,
+    Word::FindingMedium,
+    Word::FindingHigh,
+    Word::FindingWaiting,
+    Word::FindingNoGoal,
+    Word::FindingGone,
+    Word::FindingEnded,
+    Word::FindingTask,
+    Word::FindingParty,
+    Word::FindingRole,
     Word::Job,
     Word::DelegationJob,
     Word::Task,
@@ -4910,6 +4972,38 @@ impl Word {
             Self::QuestionAnswered => 2021,
             Self::Held => 119,
             Self::PersonTask => 120,
+            Self::Finding => 8000,
+            Self::FindingFrom => 8030,
+            Self::FindingFacts => 8031,
+            Self::FindingHanded => 8032,
+            Self::FindingNotYours => 8033,
+            Self::FindingNoAreaRefused => 8034,
+            Self::FindingFull => 8035,
+
+            Self::FindingHand => 8001,
+            Self::FindingRoute => 8002,
+            Self::FindingBacklog => 8003,
+            Self::FindingDrop => 8004,
+            Self::FindingArea => 8005,
+            Self::FindingWhy => 8006,
+            Self::FindingReason => 8007,
+            Self::FindingNoArea => 8008,
+            Self::FindingQa => 8009,
+            Self::FindingFlake => 8010,
+            Self::FindingRed => 8011,
+            Self::FindingReview => 8012,
+            Self::FindingFeedback => 8013,
+            Self::FindingLow => 8014,
+            Self::FindingMedium => 8015,
+            Self::FindingHigh => 8016,
+            Self::FindingWaiting => 8017,
+            Self::FindingNoGoal => 8018,
+            Self::FindingGone => 8019,
+            Self::FindingEnded => 8020,
+            Self::FindingTask => 8021,
+            Self::FindingParty => 8022,
+            Self::FindingRole => 8023,
+
             Self::Job => 2030,
             Self::DelegationJob => 2032,
             Self::Task => 122,
@@ -5335,6 +5429,19 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     if last && [Word::UsingModel, Word::UsingKey, Word::UsingPlan, Word::UsingProgram].contains(&word) {
         let doubled = model_name.checked_mul(2).ok_or(Invalid::Overflow)?;
         return doubled.checked_add(3).ok_or(Invalid::Overflow);
+    }
+    if kind == HoleKind::Name
+        && [
+            Word::FindingFrom,
+            Word::FindingFacts,
+            Word::FindingHanded,
+            Word::FindingNotYours,
+            Word::FindingNoAreaRefused,
+        ]
+        .contains(&word)
+    {
+        // A refusal names sixteen 32-byte areas, separated by comma-space.
+        return Ok(joined.max(542));
     }
     Ok(if kind == HoleKind::Name { joined } else { 0 })
 }
@@ -7134,6 +7241,38 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Job => (&[b"job ", b""], &[Number]),
         Word::DelegationJob => (&[b"T", b" \xc2\xb7 job"], &[Number]),
         Word::PersonTask => (&[b"Person task"], &[]),
+        Word::Finding => (&[b"Finding"], &[]),
+        Word::FindingFrom => (&[b"", b" \xe2\x80\xba ", b"/", b" ", b""], &[Name, Number, Number, Name]),
+        Word::FindingFacts => (&[b"", b" \xc2\xb7 ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
+        Word::FindingHanded => (&[b"Handed on by ", b": \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name, Name]),
+        Word::FindingNotYours => (&[b"finding ", b"/", b" is not yours: its owner is ", b""], &[Number, Number, Name]),
+        Word::FindingNoAreaRefused => (&[b"no area ", b" in project ", b"; its areas: ", b""], &[Name, Number, Name]),
+        Word::FindingFull => (&[b"the project's findings are full: ", b" new"], &[Number]),
+
+        Word::FindingHand => (&[b"Hand on"], &[]),
+        Word::FindingRoute => (&[b"Route to a goal"], &[]),
+        Word::FindingBacklog => (&[b"Backlog"], &[]),
+        Word::FindingDrop => (&[b"Drop with reason"], &[]),
+        Word::FindingArea => (&[b"Area"], &[]),
+        Word::FindingWhy => (&[b"Why hand it on"], &[]),
+        Word::FindingReason => (&[b"Reason to drop"], &[]),
+        Word::FindingNoArea => (&[b"no area"], &[]),
+        Word::FindingQa => (&[b"qa"], &[]),
+        Word::FindingFlake => (&[b"flake"], &[]),
+        Word::FindingRed => (&[b"red"], &[]),
+        Word::FindingReview => (&[b"review"], &[]),
+        Word::FindingFeedback => (&[b"feedback"], &[]),
+        Word::FindingLow => (&[b"low"], &[]),
+        Word::FindingMedium => (&[b"medium"], &[]),
+        Word::FindingHigh => (&[b"high"], &[]),
+        Word::FindingWaiting => (&[b"Waiting for the findings document."], &[]),
+        Word::FindingNoGoal => (&[b"not a live goal of the project"], &[]),
+        Word::FindingGone => (&[b"no finding"], &[]),
+        Word::FindingEnded => (&[b"finding is already routed or dropped"], &[]),
+        Word::FindingTask => (&[b"task "], &[]),
+        Word::FindingParty => (&[b"party "], &[]),
+        Word::FindingRole => (&[b"role "], &[]),
+
         Word::Task => (&[b"Task ", b""], &[Number]),
         Word::ReadingTask => (&[b"Reading task ", b"\xe2\x80\xa6"], &[Number]),
         Word::TaskUnknown => (&[b"This task could not be found."], &[]),

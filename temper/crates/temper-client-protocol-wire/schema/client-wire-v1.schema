@@ -107,7 +107,7 @@ record FindingNotYours { holder: Holder }
 enum FindingRefusal { no_area: FindingAreas, full: FindingsFull, not_yours: FindingNotYours, no_finding, no_goal, ended, words: FindingWords }
 record FindingRefused { reason: FindingRefusal }
 record FindingsSubject { project: u32 state: option FindingState mine: bool }
-record FindingRow { number: u32 kind: FindingKind severity: Severity area: option text 32 state: FindingState title: text 200 holder: Holder at: u64 why: option text 200 }
+record FindingRow { number: u32 kind: FindingKind severity: Severity area: option text 32 state: FindingState title: text 200 holder: Holder at: u64 why: option text 200 hander: option Filer }
 record FindingRead { project: u32 number: u32 }
 record FindingDetail { row: FindingRow body: text 4096 filer: Filer goal: option u64 reason: option text 400 }
 enum FindingResult { finding: FindingDetail, no_finding }

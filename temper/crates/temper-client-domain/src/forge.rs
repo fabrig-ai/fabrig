@@ -11,6 +11,7 @@ pub mod decided;
 pub mod deployment;
 pub mod dismissed;
 pub mod family;
+pub mod findings;
 pub mod forges;
 mod form;
 pub mod github;

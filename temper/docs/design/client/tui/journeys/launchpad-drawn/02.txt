@@ -1,5 +1,7 @@
 ❯ Add a CSV export to the report
 
+▸ goal
+
 ✦ A CSV export question waits for you.
 
 ✦ T3 · csv-export: comma or semicolon?
@@ -8,7 +10,6 @@
 
 ✦ Hello from the local fake model.
 
-✦ T3 · REPORT · Choose the CSV export delimiter. · Running
 
 
 
@@ -17,8 +18,7 @@
 
 
 
-
-────────────────────────── Hello / Add a CSV export to… T2 on 127.0.0.1:38243 ──
+────────────────────────── Hello / Add a CSV export to… T2 on 127.0.0.1:35523 ──
 ❯ /new
 ────────────────────────────────────────────────────────────────────────────────
 ❯ /new   Start a new chat

@@ -43,6 +43,7 @@ pub mod composer;
 pub mod connect_model;
 pub mod decided;
 pub mod delegation;
+pub mod findings;
 pub mod goal;
 pub mod goals;
 pub mod home;
@@ -203,6 +204,7 @@ pub enum Act {
     },
     Choice(choice::Act),
     Needs(needs::Act),
+    Finding(findings::Act),
     StopAsking(stop_asking::Act),
     Away(away::Act),
     Models(models::Act),
@@ -771,6 +773,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             let me = pages.me(client);
             pages.switcher.act(me, pages.project, act, &mut pages.serial, out);
         }
+        Event::Act { act: Act::Finding(act) } => findings::act(pages, env, act, out),
         Event::Act { act: Act::Needs(act) } => {
             needs::act(pages, env, client, &crate::forge::approvals::Approvals::default(), act, out);
         }
@@ -1279,6 +1282,9 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         } else {
             open.failed = Some(outcome.clone());
         }
+    }
+    if pages.needs.findings.told(&told, client, env.limits.forge) {
+        return true;
     }
     if pages.decided.told(&told, client, env.limits.forge, out) {
         return true;
@@ -2253,6 +2259,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Models(_)
         | Act::StopAsking(_)
         | Act::Needs(_)
+        | Act::Finding(_)
         | Act::Choice(_)
         | Act::MakeDefault
         | Act::AdoptFirst

@@ -228,9 +228,11 @@ pub fn facts(root: &Domain, wall: Wall) -> Facts {
     }
     let needs = match root.pages().inbox() {
         Some(inbox) if inbox.filter == Filter::ALL && inbox.known() => Needs::Count {
-            count: u32::try_from(root.pages().needs().needs(inbox, root.forge().approvals()).len())
+            count: u32::try_from(root.pages().needs().all(inbox, root.forge().approvals()).len())
                 .expect("inbox cards fit"),
-            cut: *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() > 0,
+            cut: *inbox.cut.first().expect("needs cut")
+                || root.forge().approvals().more() > 0
+                || root.pages().needs().findings().cut_for(inbox.filter),
         },
         Some(_) | None => Needs::Unknown,
     };

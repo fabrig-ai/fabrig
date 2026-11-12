@@ -204,3 +204,41 @@ pub(crate) fn ask_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut
     );
     b.close();
 }
+
+// Findings share the browser list, without changing the terminal inbox's card set.
+pub(crate) fn all(
+    b: &mut Builder,
+    root: &Domain,
+    open: &[temper_client_domain::pages::findings::Need<'_>],
+    across: bool,
+    w: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+) {
+    for need in open.iter().take(3) {
+        match need {
+            temper_client_domain::pages::findings::Need::Existing(need) => {
+                cards(b, root, &[*need], across, w, bindings, times);
+            }
+            temper_client_domain::pages::findings::Need::Finding(card) => {
+                super::findings::preview(b, root, card, w, bindings, times);
+            }
+        }
+    }
+    let more = open.len().saturating_sub(3);
+    if more > 0 {
+        let label = if more == 1 {
+            w.say(Word::HomeCardsOneMore, &[])
+        } else {
+            w.say(Word::HomeCardsMore, &[Hole::Number(u64::try_from(more).expect("needs fit"))])
+        };
+        ask::link(
+            b,
+            bindings,
+            &label,
+            Address::Inbox {
+                filter: Filter { project: if across { None } else { root.pages().project() }, ..Filter::ALL },
+            },
+        );
+    }
+}

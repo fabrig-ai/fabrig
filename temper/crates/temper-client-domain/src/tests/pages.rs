@@ -17,6 +17,7 @@ mod choice;
 mod composer;
 mod connect_model;
 mod delegation;
+mod findings;
 mod goal;
 mod goals;
 mod home;

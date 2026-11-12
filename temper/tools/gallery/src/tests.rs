@@ -1963,6 +1963,31 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "needs-finding",
+        heading: "The phone card is clipped",
+        parts: &[Part::Named { role: Role::Button, name: "Hand on" }],
+    },
+    Holds {
+        name: "needs-finding-hand",
+        heading: "The phone card is clipped",
+        parts: &[Part::Named { role: Role::TextField, name: "Why hand it on" }],
+    },
+    Holds {
+        name: "needs-finding-route",
+        heading: "The phone card is clipped",
+        parts: &[Part::Named { role: Role::Disclosure, name: "Goal" }],
+    },
+    Holds {
+        name: "needs-finding-drop",
+        heading: "The phone card is clipped",
+        parts: &[Part::Named { role: Role::TextField, name: "Reason to drop" }],
+    },
+    Holds {
+        name: "needs-finding-refused",
+        heading: "The phone card is clipped",
+        parts: &[Part::Named { role: Role::Paragraph, name: "not a live goal of the project" }],
+    },
+    Holds {
         name: "needs-proposal",
         heading: "Three things need you.",
         parts: &[
@@ -5825,5 +5850,81 @@ fn a_settings_cards_later_reply_follows_it() {
             }
         }
         assert_eq!(order, expected, "{name}");
+    }
+}
+
+#[test]
+fn finding_gallery_cards_keep_facts_forms_and_responsive_hooks() {
+    use temper_client_domain::{
+        Action,
+        pages::{
+            Act,
+            findings::{Act as F, Id},
+        },
+    };
+    use temper_client_view::look;
+    const ID: Id = Id { project: 1, number: 7 };
+    for sample in samples::samples().into_iter().filter(|sample| sample.name.starts_with("needs-finding")) {
+        let root = samples::domain(&sample);
+        assert_eq!(temper_client_domain::pages::parts::needs_facts(&root, worlds::now(samples::World::Solo)).open, 1);
+        let (mut view, _, _) = built_root(&sample, ViewInputs::new(), &root);
+        for (role, name) in [
+            (Role::Text, "Finding"),
+            (Role::Paragraph, "feedback · high · no area"),
+            (Role::Paragraph, "Handed on by task 55: “Your area owns the view”"),
+            (Role::Button, "Backlog"),
+        ] {
+            find(view.tree(), role, name, sample.name);
+        }
+        assert!(view.tree().nodes().iter().any(|node| {
+            node.name
+                .as_deref()
+                .is_some_and(|name| name.starts_with("fabrig › 1/7 The phone card is clipped".as_bytes()))
+        }));
+        // The browser's single tree carries both the laptop list and the phone's one-card bar.
+        for style in [look::ASK, look::ASK_CHOICES, look::NEEDS_BAR, look::NEEDS_HEAD] {
+            assert!(
+                view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&style)),
+                "{}: responsive hook {style:?}",
+                sample.name
+            );
+        }
+        let backlog = find(view.tree(), Role::Button, "Backlog", sample.name);
+        assert_eq!(
+            temper_client_view::act(&mut view, backlog, skein_ui::Act::Press),
+            Some(Action::Pages(Act::Finding(F::Backlog { id: ID })))
+        );
+        if sample.name == "needs-finding-hand" {
+            find(view.tree(), Role::Button, "view", sample.name);
+            let field = find(view.tree(), Role::TextField, "Why hand it on", sample.name);
+            assert_eq!(
+                temper_client_view::act(
+                    &mut view,
+                    field,
+                    skein_ui::Act::Input { value: b"The view owns this".as_slice().into() }
+                ),
+                Some(Action::Pages(Act::Finding(F::Why { id: ID, words: b"The view owns this".as_slice().into() })))
+            );
+        }
+        if sample.name == "needs-finding-drop" {
+            let field = find(view.tree(), Role::TextField, "Reason to drop", sample.name);
+            assert_eq!(
+                temper_client_view::act(
+                    &mut view,
+                    field,
+                    skein_ui::Act::Input { value: b"Duplicate".as_slice().into() }
+                ),
+                Some(Action::Pages(Act::Finding(F::Reason { id: ID, words: b"Duplicate".as_slice().into() })))
+            );
+        }
+        if sample.name == "needs-finding-route" {
+            assert!(
+                !root.pages().needs().findings().goals(ID).is_empty(),
+                "the live-goal menu has the project's goals"
+            );
+        }
+        if sample.name == "needs-finding-refused" {
+            find(view.tree(), Role::Paragraph, "not a live goal of the project", sample.name);
+        }
     }
 }

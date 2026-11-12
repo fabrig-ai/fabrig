@@ -247,6 +247,7 @@ pub struct FindingRow {
     pub holder: Holder,
     pub at: Wall,
     pub why: Option<Box<[u8]>>,
+    pub hander: Option<Filer>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AreaRow {
@@ -285,6 +286,7 @@ impl Finding {
             holder,
             at: self.at,
             why: self.why.clone(),
+            hander: self.hander,
         }
     }
 }

@@ -28,8 +28,8 @@ pub fn limits() -> Limits {
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
                 // Page handles, stock ways, project needs and the goals fact, trials and a running trial task.
-                handles: 18, // Holds four projects' decided watches.
-                watches: 17, // Holds four projects' decided watches.
+                handles: 23, // Four findings subjects and one live-goals menu.
+                watches: 22, // Four findings subjects and one live-goals menu.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,

@@ -142,6 +142,13 @@ fn task_hand_news_and_charter_standing_use_the_same_decision() {
         .unwrap();
     assert_eq!(news.words.as_ref(), format!("Finding 1/1 is yours: Broken test\nqa, high, area tests\nHanded on by task {task}: your suite\nreproduction").as_bytes());
     assert_eq!(domain.forge.finding(1, 1).unwrap().why.as_deref(), Some(b"your suite".as_slice()));
+    let findings = document(&domain, 1, 1, Some(forge::FindingState::New), false);
+    let handed = findings.rows.first().unwrap();
+    assert_eq!(handed.hander, Some(Filer::Task(task)));
+    assert_eq!(handed.why.as_deref(), Some(b"your suite".as_slice()));
+    let detail = read(&domain, 1, 1).unwrap();
+    assert_eq!(detail.row.hander, Some(Filer::Task(task)));
+    assert_eq!(detail.row, *handed);
     assert_eq!(
         triage_finding(
             &mut domain,

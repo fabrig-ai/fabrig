@@ -39,6 +39,7 @@ fn row() -> w::FindingRow {
             holder: held(40),
             at: 77,
             why: Some(b"words, not code".as_slice().into()),
+            hander: Some(w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 39 }).unwrap())),
         },
     )
     .unwrap()

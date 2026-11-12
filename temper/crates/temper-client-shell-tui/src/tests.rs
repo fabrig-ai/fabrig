@@ -2886,7 +2886,8 @@ fn waiting_at(chat: bool) -> Host {
     // The fixture supplies the terminal look so event rows isolate event translation.
     host.step(root::Event::LookKept { look: terminal::Look { terminal: true, ..terminal::Look::default() } });
     host.step(root::Event::Went { place: Place::Address(Address::Home { project: 3 }) });
-    watches.asked.extend(host.report(Report::Due).asked);
+    let duties = host.report(Report::Due);
+    watches.asked.extend(admit(&mut host, duties).asked);
     if chat {
         host.step(root::Event::Went { place: Place::Address(Address::Chat { task: 7 }) });
     }

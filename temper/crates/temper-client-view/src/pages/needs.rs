@@ -51,9 +51,9 @@ pub(crate) fn main(
     }
     if parts.list
         && let Some(inbox) = inbox
-        && let Some(need) = session.shown(inbox, root.forge().approvals())
+        && let Some(need) = session.shown_all(inbox, root.forge().approvals())
     {
-        if needs::ready(root, need) {
+        if need.ready(root) {
             flow(b, root, w, bindings, times, need, &lines, rows, sign_in);
         }
     } else if parts.done {
@@ -123,18 +123,21 @@ fn flow(
     w: &Words,
     bindings: &mut Bindings,
     times: &mut Times,
-    need: needs::Need<'_>,
+    need: temper_client_domain::pages::findings::Need<'_>,
     lines: &[&needs::Answered],
     rows: u32,
     sign_in: &crate::forge_sign_in::Forges,
 ) {
     let inbox = root.pages().inbox().expect("flow inbox");
     let session = root.pages().needs();
-    let open = session.needs(inbox, root.forge().approvals());
+    let open = session.all(inbox, root.forge().approvals());
     let total = lines.len().checked_add(open.len()).expect("bounded session and inbox");
     let at = lines.len().checked_add(1).expect("bounded session");
     let head = w.say(
-        if *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() != 0 {
+        if *inbox.cut.first().expect("needs cut")
+            || root.forge().approvals().more() != 0
+            || root.pages().needs().findings().cut_for(inbox.filter)
+        {
             Word::NeedsProgressCut
         } else {
             Word::NeedsProgress
@@ -154,7 +157,9 @@ fn flow(
     intro(b, root, w, open.len(), times.now);
     b.open(Role::Slot);
     b.style(look::NEEDS_HEAD);
-    let cut = *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() != 0;
+    let cut = *inbox.cut.first().expect("needs cut")
+        || root.forge().approvals().more() != 0
+        || root.pages().needs().findings().cut_for(inbox.filter);
     let heading = w.say(
         if cut { Word::NeedsHeadCut } else { Word::HomeNeedsCount },
         &[Hole::Number(u64::try_from(open.len()).expect("bounded needs"))],
@@ -171,17 +176,34 @@ fn flow(
     ask::text(b, Role::Text, &w.say(Word::NeedsOldest, &[]), look::HOME_KICKER);
     b.close();
     for other in &open {
-        if other.object() == need.object() {
+        if other.same(need) {
             match other {
-                needs::Need::Card(card) => card_main(b, root, w, bindings, times, card, rows),
-                needs::Need::Approval(row) => approval(b, root, row, w, bindings, times, sign_in),
+                temper_client_domain::pages::findings::Need::Existing(needs::Need::Card(card)) => {
+                    card_main(b, root, w, bindings, times, card, rows);
+                }
+                temper_client_domain::pages::findings::Need::Existing(needs::Need::Approval(row)) => {
+                    approval(b, root, row, w, bindings, times, sign_in);
+                }
+                temper_client_domain::pages::findings::Need::Finding(card) => {
+                    super::findings::main(b, root, card, w, bindings, times);
+                }
             }
         } else {
             b.open(Role::Button);
             b.style(look::NEED_ROW);
-            b.bind(bindings.insert(Act::Needs(needs::Act::Open { object: other.object() })));
-            from(b, root, *other, w, bindings, times, false);
-            ask::text(b, Role::Text, &crate::shared::need_line(other, w).words, look::ASK_QUESTION);
+            b.bind(bindings.insert(other.open()));
+            from_all(b, root, *other, w, bindings, times);
+            ask::text(
+                b,
+                Role::Text,
+                &match other {
+                    temper_client_domain::pages::findings::Need::Existing(need) => {
+                        crate::shared::need_line(need, w).words
+                    }
+                    temper_client_domain::pages::findings::Need::Finding(card) => card.row.title().into(),
+                },
+                look::ASK_QUESTION,
+            );
             b.close();
         }
     }
@@ -400,7 +422,9 @@ fn intro(b: &mut Builder, root: &Domain, w: &Words, count: usize, now: skein_lib
         }
         None => w.say(Word::NeedsAcross, &[]),
     };
-    let cut = *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() != 0;
+    let cut = *inbox.cut.first().expect("needs cut")
+        || root.forge().approvals().more() != 0
+        || root.pages().needs().findings().cut_for(inbox.filter);
     let sentence = super::home::needs_sentence(
         w,
         temper_client_domain::pages::home::Needs::Count { count: u32::try_from(count).expect("bounded inbox"), cut },
@@ -630,4 +654,18 @@ fn keep_button(
         b.state(State::Disabled);
     }
     b.close();
+}
+
+fn from_all(
+    b: &mut Builder,
+    root: &Domain,
+    need: temper_client_domain::pages::findings::Need<'_>,
+    w: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+) {
+    match need {
+        temper_client_domain::pages::findings::Need::Existing(need) => from(b, root, need, w, bindings, times, false),
+        temper_client_domain::pages::findings::Need::Finding(card) => super::findings::from(b, root, card, w, times),
+    }
 }

@@ -32,7 +32,7 @@ fn list(name: &str) -> bool {
     matches!(name, "needs-list" | "needs-list-second" | "needs-tell" | "needs-approval-first")
 }
 fn entries(name: &str) -> List<c::InboxEntry> {
-    if name == "needs-only-you-done" {
+    if name == "needs-only-you-done" || name.starts_with("needs-finding") {
         return List::with_capacity(0);
     }
     if name == "needs-only-you" {
@@ -149,6 +149,11 @@ pub fn domain(name: &str) -> Domain {
                     &mut out,
                 );
                 crate::samples::account_states(&mut root, name, Some(watch), &mut out);
+            }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
+                if name.starts_with("needs-finding") && matches!(temper_client_protocol_wire::decode_watching(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS).expect("finding watch").watch(), temper_client_protocol_wire::v1::Watch::Findings(_)) => {
+                use temper_client_protocol_wire as wire;
+                driver::step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::findings(&finding()) } } } }, &mut out);
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
                 driver::deliver(&mut root, watch, c::Delivery::Me(Box::new(me.clone())), &mut out);
@@ -452,6 +457,9 @@ pub fn domain(name: &str) -> Domain {
         }
     }
     actions(&mut root, name, &mut out);
+    if name.starts_with("needs-finding") {
+        finding_actions(&mut root, name, &mut out);
+    }
     root
 }
 
@@ -609,4 +617,108 @@ fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queu
         },
         out,
     );
+}
+
+fn finding() -> temper_client_protocol_wire::v1::Findings {
+    use temper_client_protocol_wire::v1 as w;
+    let b = &w::CEILINGS;
+    let holder = w::Holder::Party(
+        w::HolderParty::new(b, w::HolderPartyParts { number: 1 }).expect("finding sample within wire bounds"),
+    );
+    let row = w::FindingRow::new(
+        b,
+        w::FindingRowParts {
+            number: 7,
+            kind: w::FindingKind::Feedback,
+            severity: w::Severity::High,
+            area: None,
+            state: w::FindingState::New,
+            title: b"The phone card is clipped".as_slice().into(),
+            holder: holder.clone(),
+            at: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(3600).as_nanos()),
+            why: Some(b"Your area owns the view".as_slice().into()),
+            hander: Some(w::Filer::Task(
+                w::HolderTask::new(b, w::HolderTaskParts { number: 55 }).expect("finding sample within wire bounds"),
+            )),
+        },
+    )
+    .expect("finding sample within wire bounds");
+    let area = w::AreaRow::new(
+        b,
+        w::AreaRowParts {
+            name: b"view".as_slice().into(),
+            words: b"What the person sees".as_slice().into(),
+            owner: w::AreaOwner::Party(
+                w::AreaParty::new(b, w::AreaPartyParts { number: 1 }).expect("finding sample within wire bounds"),
+            ),
+            holder: Some(holder.clone()),
+        },
+    )
+    .expect("finding sample within wire bounds");
+    w::Findings::new(
+        b,
+        w::FindingsParts {
+            project: 1,
+            rows: List::from_boxed(Box::new([row])),
+            areas: List::from_boxed(Box::new([area])),
+            triager: None,
+            holder,
+            cut: false,
+        },
+    )
+    .expect("finding sample within wire bounds")
+}
+fn finding_actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
+    use temper_client_domain::pages::findings::{Act as F, Id, Mode};
+    const ID: Id = Id { project: 1, number: 7 };
+    let mode = match name {
+        "needs-finding-hand" => Mode::Hand,
+        "needs-finding-route" => Mode::Route,
+        "needs-finding-drop" => Mode::Drop,
+        _ => Mode::Closed,
+    };
+    for act in [F::Open { id: ID }, F::Show { id: ID, mode }] {
+        driver::step(root, Event::Act { action: Action::Pages(Act::Finding(act)) }, out);
+    }
+    if mode == Mode::Hand {
+        for act in [
+            F::Area { id: ID, words: b"view".as_slice().into() },
+            F::Why { id: ID, words: b"This belongs to the view".as_slice().into() },
+        ] {
+            driver::step(root, Event::Act { action: Action::Pages(Act::Finding(act)) }, out);
+        }
+    }
+    if mode == Mode::Drop {
+        driver::step(
+            root,
+            Event::Act {
+                action: Action::Pages(Act::Finding(F::Reason { id: ID, words: b"Duplicate report".as_slice().into() })),
+            },
+            out,
+        );
+    }
+    if name == "needs-finding-refused" {
+        driver::step(root, Event::Act { action: Action::Pages(Act::Finding(F::Backlog { id: ID })) }, out);
+    }
+    while let Some(request) = out.pop() {
+        match driver::down(request) {
+            Some(jig_client::Down::Open {
+                watch,
+                subject: jig_client::Watchable::Jig(c::Subject::Tasks { window, .. }),
+            }) => driver::deliver(
+                root,
+                watch,
+                c::Delivery::Tasks(Box::new(worlds::goal_window(World::Solo, window, None))),
+                out,
+            ),
+            Some(jig_client::Down::Send { attempt, .. }) if name == "needs-finding-refused" => {
+                use temper_client_protocol_wire::v1 as w;
+                let refused =
+                    w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason: w::FindingRefusal::NoGoal })
+                        .expect("finding sample within wire bounds");
+                worlds::sample_forge_answer(root, attempt, w::Outcome::FindingRefused(refused), out);
+            }
+            _ => {}
+        }
+    }
 }
