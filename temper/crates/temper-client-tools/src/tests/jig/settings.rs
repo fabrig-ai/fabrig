@@ -2201,6 +2201,7 @@ fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::Re
     })))
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one table joins each forge setting kind in text and JSON")]
 fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_json() {
     use temper_client_protocol_wire::v1 as w;
     for (argv, kind, scope, label, stock) in [
