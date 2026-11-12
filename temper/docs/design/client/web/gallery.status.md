@@ -4,6 +4,13 @@
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
+- **Not yet:** 2: `team-role` and `night-team-role` hold no areas
+  [in flight: change 2012].
+- **Not yet:** 2: `team-role` and `night-team-role` hold no weekly
+  report [in flight: change 2014].
+- **Not yet:** 2: `team-hand` [in flight: change 2018].
+- **Not yet:** 2: `team-hand`'s stock lines [in flight: change 2019].
+- **Not yet:** 2: `role-talk` [in flight: change 2013].
 
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:
@@ -31,7 +38,9 @@
   `how-reaches` and `night-how-reaches`, which `ui-p3b-reaches` printed in
   place of `settings-away` and `settings-away-you-approve`, with none on
   record, and Team's role's card's two, `team-role` and
-  `night-team-role`, which goal 713 added, with none on record.
+  `night-team-role`, which goal 713 added, with none on record, and
+  `team-hand` and `role-talk`, which goal 1983 adds, with none on
+  record.
 
 Section 2 holds what reaches a person, by plan `ui-reaches`: those five
 states and
