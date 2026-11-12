@@ -413,6 +413,7 @@ pub const LIMITS: domain::Config = domain::Config {
     tool_rounds: 0,
     cache_lifetime: Duration::ZERO,
     cache_entries: 0,
+    strict: false,
     unscoped_reads: 0,
 };
 
