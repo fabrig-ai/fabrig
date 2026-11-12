@@ -365,8 +365,8 @@ from the engine's own answers, is where the look is tuned.
 | `task-solo-T3` | the solo world's goal T3, on `goal.html`'s page |
 | `accounts-solo` | the solo world's accounts |
 | `chats-first-run-1` | the first run's Chats at step 1: an empty list |
-| `welcome-first-run-0` | the first run's welcome: its two cards |
-| `welcome-go-on` | Welcome asked for with a real forge under way: Go on setting up, no playground |
+| `welcome-first-run-0` | the first run's welcome: its two cards, their note, then temper box's paragraph |
+| `welcome-go-on` | Welcome asked for with a real forge under way: Go on setting up, no playground or note, temper box's paragraph after the card |
 | `connect-forge-first-run-6` | the first run's `ConnectForge` at step 6: Forgejo here setting up, the box preparing |
 | `forges-first-run-7` | the first run's Forges at step 7: Forgejo here connected |
 | `welcome-forge-choose` | the welcome's Forge choices, before any forge is connected |
@@ -499,6 +499,14 @@ from the engine's own answers, is where the look is tuned.
 | `task-reference-T24` | the reference world's change T24, landed, its ended task T25 |
 | `task-reference-T12` | the reference world's goal T12, its tasks with its ended delegates T13, T14 and T24 folded |
 | `task-solo-T9` | the solo world's agent T9, its run's committed calls and words within the shipped window |
+
+All `welcome-*` states keep the welcome's bar: temper's mark, Steps and
+its link region alone, no person, Sign out or sign-out alert. Only the
+Welcome step draws temper box's paragraph, under the cards' note, or
+under the cards where there is no note (`../pages/welcome.md`, 1;
+`welcome-top`). On Model and Ready, "Open Forgejo ↗", when an address is
+known, is a quiet link at the forge text's 24 px indent, muted, 13.5 px
+(`forgejo-link`); with no address there is no link.
 
 ## 3. Its tests
 
