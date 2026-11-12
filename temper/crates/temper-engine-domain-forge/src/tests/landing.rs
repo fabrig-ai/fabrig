@@ -418,74 +418,83 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
 fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
     use skein_forge::api::{Answer, Op, Read};
     use temper_engine_domain_forge_change as change;
-    let mut d = landing_fixture();
-    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    outputs(&mut d, Event::ReadAfresh);
-    outputs(&mut d, Event::SettleOutbox);
-    d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
-        change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
-    let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
-    row.landing.members = Box::new([policy::Member {
-        change: fixtures::CHANGE,
-        repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
-        pull: 1,
-        head: Some(fixtures::HEAD),
-        base: Some(fixtures::BASE),
-        candidate: Some(fixtures::HEAD),
-        gates: Box::new([]),
-        asked: None,
-        landed: None,
-    }]);
-    row.asks = Box::new([None]);
-    outputs(&mut d, Event::Landing { row });
-    outputs(
-        &mut d,
-        Event::StepLanding {
-            task: 61,
-            entry: 91,
-            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
-        },
-    );
-    let (branch_call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
-    outputs(&mut d, Event::Enqueue { entry: status(92, 8) });
-    outputs(&mut d, Event::Committed { entry: 92 });
-    assert!(ready(&mut d).is_empty(), "the higher entry waits while the landing's lower entry is reserved");
-    fixtures::answer(&mut d, branch_call, Ok(Answer::Commit(fixtures::HEAD)));
-    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
-    fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-    fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
-    let (call, op) = fixtures::next_call(&mut d);
-    assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
-    let requests =
-        fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
-    assert!(ready(&mut d).is_empty(), "the higher entry waits for the landing's lower reserved entry");
-    outputs(&mut d, Event::Withdraw { entry: 92 });
-    let mut evidence = None;
-    for request in &requests {
-        if let Request::LandingDecision { evidence: Some(facts), entry: Some(91), .. } = request {
-            evidence = Some(facts);
+    let size = skein_forge::api::Size { files: 4, additions: 142, deletions: 18 };
+    for (pull_head, pull_size, expected) in
+        [(fixtures::HEAD, Some(size), Some(size)), (fixtures::HEAD, None, None), (fixtures::BASE, Some(size), None)]
+    {
+        let mut d = landing_fixture();
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
+            change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+        let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
+        row.landing.members = Box::new([policy::Member {
+            change: fixtures::CHANGE,
+            repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
+            pull: 1,
+            head: Some(fixtures::HEAD),
+            base: Some(fixtures::BASE),
+            candidate: Some(fixtures::HEAD),
+            gates: Box::new([]),
+            asked: None,
+            landed: None,
+        }]);
+        row.asks = Box::new([None]);
+        outputs(&mut d, Event::Landing { row });
+        outputs(
+            &mut d,
+            Event::StepLanding {
+                task: 61,
+                entry: 91,
+                heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            },
+        );
+        let (branch_call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/51".as_slice().into() }));
+        outputs(&mut d, Event::Enqueue { entry: status(92, 8) });
+        outputs(&mut d, Event::Committed { entry: 92 });
+        assert!(ready(&mut d).is_empty(), "the higher entry waits while the landing's lower entry is reserved");
+        fixtures::answer(&mut d, branch_call, Ok(Answer::Commit(fixtures::HEAD)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        fixtures::answer_next(
+            &mut d,
+            Ok(Answer::Pull(skein_forge::api::Pull { commit: pull_head, size: pull_size, ..fixtures::open_pull() })),
+        );
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1, skip: 0 }));
+        let requests =
+            fixtures::answer(&mut d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }));
+        assert!(ready(&mut d).is_empty(), "the higher entry waits for the landing's lower reserved entry");
+        outputs(&mut d, Event::Withdraw { entry: 92 });
+        let mut evidence = None;
+        for request in &requests {
+            if let Request::LandingDecision { evidence: Some(facts), entry: Some(91), .. } = request {
+                evidence = Some(facts);
+            }
         }
-    }
-    let evidence = evidence.expect("merge evidence");
-    assert_eq!(evidence.change, fixtures::CHANGE);
-    assert_eq!(evidence.facts.head, Some(fixtures::HEAD));
-    assert_eq!(evidence.facts.base_tip, fixtures::BASE);
-    assert_eq!(evidence.facts.contains_base, change::Status::Passed);
-    assert_eq!(evidence.facts.ci, change::Status::Passed);
-    assert!(evidence.facts.reviews_complete);
-    let (repository, _, described) = d.describe_landing_effect(61, 91).expect("saved merge description");
-    assert_eq!(repository, REPO);
-    assert_eq!(described.kind, 4);
-    assert_eq!(described.state, fixtures::HEAD);
-    let vetoed = outputs(&mut d, Event::VetoLanding { task: 61, entry: 91 });
-    assert!(vetoed.contains(&Request::Erase { key: Key::Entry(91) }));
-    assert!(d.describe_landing_effect(61, 91).is_none());
-    assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Failed));
-    outputs(&mut d, Event::Committed { entry: 91 });
-    for request in ready(&mut d) {
-        if let Request::Call { op: Op::Write(_), .. } = request {
-            panic!("vetoed write reached client");
+        let evidence = evidence.expect("merge evidence");
+        assert_eq!(evidence.change, fixtures::CHANGE);
+        assert_eq!(evidence.facts.head, Some(fixtures::HEAD));
+        assert_eq!(evidence.facts.size, expected, "pull at {pull_head:?}");
+        assert_eq!(evidence.facts.base_tip, fixtures::BASE);
+        assert_eq!(evidence.facts.contains_base, change::Status::Passed);
+        assert_eq!(evidence.facts.ci, change::Status::Passed);
+        assert!(evidence.facts.reviews_complete);
+        let (repository, _, described) = d.describe_landing_effect(61, 91).expect("saved merge description");
+        assert_eq!(repository, REPO);
+        assert_eq!(described.kind, 4);
+        assert_eq!(described.state, fixtures::HEAD);
+        let vetoed = outputs(&mut d, Event::VetoLanding { task: 61, entry: 91 });
+        assert!(vetoed.contains(&Request::Erase { key: Key::Entry(91) }));
+        assert!(d.describe_landing_effect(61, 91).is_none());
+        assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Failed));
+        outputs(&mut d, Event::Committed { entry: 91 });
+        for request in ready(&mut d) {
+            if let Request::Call { op: Op::Write(_), .. } = request {
+                panic!("vetoed write reached client");
+            }
         }
     }
 }
@@ -1116,6 +1125,7 @@ fn committing_a_merge_drops_its_changes_review_facts_and_marks_the_wait_and_pane
             &mut Queue::uncapped(),
         );
         let facts = ReviewFacts {
+            size: None,
             head: Some(fixtures::HEAD),
             reviews_complete: true,
             reviewers: Box::new([]),

@@ -2170,6 +2170,7 @@ fn landing_reviewers(
     }
     Some(forge::ReviewFacts {
         head: evidence.head,
+        size: evidence.size,
         reviews_complete: evidence.reviews_complete,
         reviewers: reviews.into_boxed(),
         unmapped: unmapped.into_boxed(),

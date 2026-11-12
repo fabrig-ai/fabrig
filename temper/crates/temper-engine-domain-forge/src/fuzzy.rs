@@ -17,6 +17,7 @@ fn sign_offs_are_a_bounded_ordered_union_and_times_do_not_change_verdicts() {
         contains_base: temper_engine_domain_forge_change::Status::Passed,
         ci: temper_engine_domain_forge_change::Status::Passed,
         gates: Box::new([]),
+        size: None,
         reviews: Box::new([]),
         reviews_complete: true,
     };
