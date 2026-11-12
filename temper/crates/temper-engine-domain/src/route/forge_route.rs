@@ -5737,7 +5737,13 @@ pub(crate) fn effect_ask(
             match flight {
                 Ok(flight) => {
                     assert!(domain.forge_effects.insert(owner, flight).is_ok(), "fresh proposal description");
-                    effect_ask(domain, env, decision, number, jig_domain_core::effects::connector::Ask::Describe { owner });
+                    effect_ask(
+                        domain,
+                        env,
+                        decision,
+                        number,
+                        jig_domain_core::effects::connector::Ask::Describe { owner },
+                    );
                 }
                 Err(why) => domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
                     if why == skein_forge::api::Error::Busy {

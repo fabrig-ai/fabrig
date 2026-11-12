@@ -209,7 +209,8 @@ pub(super) fn settings_holders(domain: &Domain, items: &[forge::settings::Asked]
     for (&project, ()) in &projects {
         for (_, row) in domain.forge.findings(project) {
             if !row.state.ended() {
-                holders.push((project, row.number, holder(domain, project, row.area.as_deref())))
+                holders
+                    .push((project, row.number, holder(domain, project, row.area.as_deref())))
                     .expect("one old holder per open finding");
             }
         }
@@ -242,9 +243,15 @@ pub(super) fn settings_saved(
         }
     }
     for (&(project, task), numbers) in &groups {
-        super::emit(decision, &env.limits, crate::Delivery::FindingsOwned {
-            project, task, words: ownership_words(project, numbers.as_slice(), env.limits.tasks.message_bytes),
-        });
+        super::emit(
+            decision,
+            &env.limits,
+            crate::Delivery::FindingsOwned {
+                project,
+                task,
+                words: ownership_words(project, numbers.as_slice(), env.limits.tasks.message_bytes),
+            },
+        );
     }
 }
 
@@ -271,11 +278,17 @@ fn ownership_words(project: u32, numbers: &[u32], limit: u32) -> Box<[u8]> {
     append(&mut out, b" are yours now:");
     let header = out.as_slice().len();
     for (index, &number) in numbers.iter().enumerate() {
-        if index == 0 { append(&mut out, b" "); } else { append(&mut out, b", "); }
+        if index == 0 {
+            append(&mut out, b" ");
+        } else {
+            append(&mut out, b", ");
+        }
         append(&mut out, Decimal::of(u64::from(number)).as_bytes());
     }
     let limit = skein_lib::usize_of(limit);
-    if out.as_slice().len() <= limit { return out.into_boxed(); }
+    if out.as_slice().len() <= limit {
+        return out.into_boxed();
+    }
     let mut end = header;
     let mut kept = header;
     let mut count = 0_usize;
@@ -293,13 +306,19 @@ fn ownership_words(project: u32, numbers: &[u32], limit: u32) -> Box<[u8]> {
     let mut words = List::uncapped();
     if count == 0 {
         // A tiny message bound may not fit even the header and the omitted count.
-        let prefix = cut_words(out.as_slice().get(..header).expect("header prefix"),
-            u32::try_from(limit.saturating_sub(10).saturating_sub(more.as_bytes().len())).expect("message bound"));
+        let prefix = cut_words(
+            out.as_slice().get(..header).expect("header prefix"),
+            u32::try_from(limit.saturating_sub(10).saturating_sub(more.as_bytes().len())).expect("message bound"),
+        );
         append(&mut words, &prefix);
     } else {
         append(&mut words, out.as_slice().get(..kept).expect("fitting number prefix"));
     }
-    if count != 0 { append(&mut words, b", "); } else { append(&mut words, b" "); }
+    if count != 0 {
+        append(&mut words, b", ");
+    } else {
+        append(&mut words, b" ");
+    }
     append(&mut words, b"and ");
     append(&mut words, more.as_bytes());
     append(&mut words, b" more");

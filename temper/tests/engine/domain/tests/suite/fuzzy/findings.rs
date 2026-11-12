@@ -71,7 +71,12 @@ fn expected(driver: &Driver, finding: &forge::Finding, doc: &forge::Findings) ->
         .or_else(|| doc.triager.and_then(|owner| stands(driver, owner)))
         .unwrap_or(forge::Holder::Role(0))
 }
-fn check(driver: &Driver, heard: &mut BTreeSet<(u64, u32, Box<[u8]>)>, sent: &mut Vec<(u64, u64, Box<[u8]>)>, before_save: Option<&forge::Findings>) {
+fn check(
+    driver: &Driver,
+    heard: &mut BTreeSet<(u64, u32, Box<[u8]>)>,
+    sent: &mut Vec<(u64, u64, Box<[u8]>)>,
+    before_save: Option<&forge::Findings>,
+) {
     let doc = engine::findings_document(&driver.root, 1, 1, None, false);
     let mut numbers = BTreeSet::new();
     for row in &doc.rows {
@@ -98,10 +103,16 @@ fn check(driver: &Driver, heard: &mut BTreeSet<(u64, u32, Box<[u8]>)>, sent: &mu
             let text = std::str::from_utf8(&word.words).expect("news is UTF-8");
             if let Some(numbers) = text.strip_prefix("Findings on project 1 are yours now: ") {
                 let before = before_save.expect("owner news only follows a save");
-                let gained: Vec<_> = doc.rows.iter().filter(|row| !row.state.ended()
-                    && row.holder == forge::Holder::Task(task.number)
-                    && before.rows.iter().any(|old| old.number == row.number && old.holder != row.holder))
-                    .map(|row| row.number).collect();
+                let gained: Vec<_> = doc
+                    .rows
+                    .iter()
+                    .filter(|row| {
+                        !row.state.ended()
+                            && row.holder == forge::Holder::Task(task.number)
+                            && before.rows.iter().any(|old| old.number == row.number && old.holder != row.holder)
+                    })
+                    .map(|row| row.number)
+                    .collect();
                 assert!(!gained.is_empty(), "news after a save needs a newly held finding");
                 assert!(saved_news.insert(task.number), "one news per new task holder");
                 let mut named = Vec::new();
@@ -130,10 +141,16 @@ fn check(driver: &Driver, heard: &mut BTreeSet<(u64, u32, Box<[u8]>)>, sent: &mu
         }
     }
     if let Some(before) = before_save {
-        let expected: BTreeSet<_> = doc.rows.iter().filter_map(|row| {
-            let forge::Holder::Task(task) = row.holder else { return None };
-            (!row.state.ended() && before.rows.iter().any(|old| old.number == row.number && old.holder != row.holder)).then_some(task)
-        }).collect();
+        let expected: BTreeSet<_> = doc
+            .rows
+            .iter()
+            .filter_map(|row| {
+                let forge::Holder::Task(task) = row.holder else { return None };
+                (!row.state.ended()
+                    && before.rows.iter().any(|old| old.number == row.number && old.holder != row.holder))
+                .then_some(task)
+            })
+            .collect();
         assert_eq!(saved_news, expected, "every new task holder hears once after a save");
     }
 }

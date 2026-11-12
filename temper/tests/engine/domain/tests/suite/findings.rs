@@ -35,12 +35,17 @@ pub(super) fn configuration() -> engine::Config {
 pub(crate) fn driver() -> (Driver, engine::Assignment) {
     configured_driver(&limits(), configuration(), 0, 1)
 }
-fn configured_driver(limits: &engine::Limits, config: engine::Config, previous_task: u64, charter: u32) -> (Driver, engine::Assignment) {
+fn configured_driver(
+    limits: &engine::Limits,
+    config: engine::Config,
+    previous_task: u64,
+    charter: u32,
+) -> (Driver, engine::Assignment) {
     let restart = temper_engine_domain_world::oracle::config::copy(&config);
-    let mut driver =
-        Driver::cold(temper_engine_domain_world::store::Store::with_limits(limits), config, limits);
+    let mut driver = Driver::cold(temper_engine_domain_world::store::Store::with_limits(limits), config, limits);
     driver.settle();
-    let mut records = temper_engine_domain_world::fixtures::account_rows(&configuration().core.settings.llm_providers).into_vec();
+    let mut records =
+        temper_engine_domain_world::fixtures::account_rows(&configuration().core.settings.llm_providers).into_vec();
     let mut header = driver.store.header();
     header.tasks = previous_task;
     records.push(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))));
@@ -67,7 +72,11 @@ fn configured_driver(limits: &engine::Limits, config: engine::Config, previous_t
         ask,
     }));
     driver.settle();
-    assert!(driver.delivered.iter().any(|d| matches!(d, Delivery::Assigned { .. })), "standing role created: {:?}", driver.delivered);
+    assert!(
+        driver.delivered.iter().any(|d| matches!(d, Delivery::Assigned { .. })),
+        "standing role created: {:?}",
+        driver.delivered
+    );
     let run = driver.last_assignment();
     (driver, run)
 }

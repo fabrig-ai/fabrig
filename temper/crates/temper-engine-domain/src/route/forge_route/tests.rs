@@ -1655,12 +1655,24 @@ fn an_erased_tasks_unname_reaches_the_forge_as_unnamed() {
     let (mut domain, env, _) = restored_change([]);
     let connector = domain.config.forge_connector;
     let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-    super::effect_ask(&mut domain, &env, &mut decision, connector, jig_domain_core::effects::connector::Ask::Unname { task: 7 });
+    super::effect_ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector,
+        jig_domain_core::effects::connector::Ask::Unname { task: 7 },
+    );
     let Some(Work::Forge(forge::Event::Unnamed { task: 7 })) = domain.work.pop() else {
         panic!("the erased task reaches the forge");
     };
     assert!(domain.work.is_empty());
-    super::effect_ask(&mut domain, &env, &mut decision, connector + 1, jig_domain_core::effects::connector::Ask::Unname { task: 7 });
+    super::effect_ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector + 1,
+        jig_domain_core::effects::connector::Ask::Unname { task: 7 },
+    );
     assert!(domain.work.is_empty());
 }
 
