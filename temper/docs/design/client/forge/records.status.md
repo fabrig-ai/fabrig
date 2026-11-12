@@ -3,7 +3,6 @@
 2026-11-11. Where the tree's code lags or departs from [records.md](records.md).
 
 - **Not yet:** the whole document: the first-usable-model real-box walk remains `../pages/accounts.status.md`, 2.
-- **Not yet:** *A project's changes*: `ChangesLanded` has no `signed`, and the wire no `ChangesSigned` [in flight: change 867].
 - **Not yet:** 
   the Board address and reordering remains `../engine.status.md` (Not yet).
    the project-only settings-role gap remains `../pages/settings.status.md`, 2.
