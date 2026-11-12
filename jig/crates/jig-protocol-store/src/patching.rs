@@ -6,6 +6,7 @@ pub(crate) mod machines;
 pub(crate) mod phase;
 pub(crate) mod plan;
 pub mod sets;
+pub mod baseline;
 pub(crate) mod switch;
 pub(crate) mod walk;
 

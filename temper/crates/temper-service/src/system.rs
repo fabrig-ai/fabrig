@@ -370,6 +370,11 @@ impl Service {
     pub fn setup_page(&self, forge: u16, state: &[u8], now: Time) -> Option<&[u8]> {
         self.engine.as_ref()?.setup.page(forge, state, now)
     }
+    /// Test seam: replace this service's patch sets before `adopt_store`
+    /// (protocol/baseline.md, 4). Production keeps the binary's sets.
+    pub fn patch_sets(&mut self, sets: jig_protocol_store::PatchSets) {
+        self.engine.as_mut().expect("engine patch sets").store.patch_sets(sets);
+    }
     /// Adopt the binary's deployment directory.
     pub fn adopt_store(&mut self, root: Fd, effective_user: u32) -> Result<(), Fd> {
         match &mut self.engine {

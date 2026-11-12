@@ -1,5 +1,5 @@
 //! Durability observations from real file completions, independent of the service.
-mod snapshots;
+pub(crate) mod snapshots;
 #[cfg(test)]
 mod tests;
 use jig_domain_core as core;
@@ -313,7 +313,7 @@ impl Store {
     }
 }
 type Frames = Vec<(u64, Box<[skein_kv::Op]>)>;
-fn frames(bytes: &[u8], after: u64) -> (Frames, usize) {
+pub(crate) fn frames(bytes: &[u8], after: u64) -> (Frames, usize) {
     let mut reader = Reader::new(bytes);
     let mut frames = Vec::new();
     let mut used = 0;
