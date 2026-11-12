@@ -168,6 +168,7 @@ fn scheduled_landing(world: &mut Protocol, first_entry: u64, seconds: u64) -> Ve
                     change::Decision::Delegate(delegate) => panic!("unexpected delegate: {delegate:?}"),
                     change::Decision::CancelGates { .. }
                     | change::Decision::CancelRepair { .. }
+                    | change::Decision::CancelResolution { .. }
                     | change::Decision::EndHold
                     | change::Decision::RepairEnded { .. } => panic!("unexpected gate cancellation"),
                     change::Decision::None
@@ -398,6 +399,7 @@ fn ruleset_refuses_merge_without_landing() {
             | change::Decision::QueueRepair
             | change::Decision::NoChange
             | change::Decision::CancelRepair { .. }
+            | change::Decision::CancelResolution { .. }
             | change::Decision::EndHold
             | change::Decision::RepairEnded { .. }
             | change::Decision::Cancel => {}
