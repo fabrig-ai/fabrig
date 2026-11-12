@@ -149,7 +149,7 @@ fn team_areas_read_the_findings_document_and_its_triager() {
     let task = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 40 }).unwrap());
     let person = w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 2 }).unwrap());
     let mut parts = document(1, Box::new([]), false).into_parts();
-    parts.areas = List::uncapped();
+    parts.areas = List::with_capacity(3);
     for (name, holder) in [(b"tests".as_slice(), Some(task)), (b"core", Some(person)), (b"docs", None)] {
         parts
             .areas

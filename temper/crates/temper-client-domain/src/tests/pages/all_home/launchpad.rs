@@ -371,7 +371,8 @@ fn launchpad_findings_and_decided_keep_the_root_once_before_needs() {
         let mut fixture = Across::waiting(Address::Accounts);
         fixture.event(Event::Launchpad);
         fixture.go(Address::Home { project: FIRST });
-        inbox(&mut fixture, &needs);
+        let out = inbox(&mut fixture, &needs);
+        questions(&mut fixture, &out);
         fixture.frame(&[FIFTH, FOURTH, THIRD, SECOND, FIRST]);
         for kind in ["findings", "decided"] {
             let mut projects = List::uncapped();

@@ -108,8 +108,31 @@ fn tell_files_trimmed_feedback_once_and_keeps_each_outcome() {
 fn tell_loses_an_ended_or_unknown_request_and_can_send_again() {
     for outcome in [None, Some(w::Outcome::Unknown)] {
         let mut root = setup();
-        let (attempt, _) = sent(&tell(&mut root, b"Something off"));
-        answer(&mut root, attempt, outcome);
+        let out = tell(&mut root, b"Something off");
+        let (attempt, _) = sent(&out);
+        match outcome {
+            Some(outcome) => answer(&mut root, attempt, Some(outcome)),
+            None => {
+                let mut key = None;
+                for request in &out {
+                    if let Request::Unlinked {
+                        request: jig_client::UnlinkedRequest::Down { down: Down::Save { record } },
+                    } = request
+                    {
+                        key = Some(record.request.key);
+                    }
+                }
+                crate::route::told(
+                    &mut root,
+                    &f::env(&f::limits()),
+                    jig_client::Told::Answered {
+                        key: key.expect("filing saved under its Pages key"),
+                        outcome: jig_client::Outcome::Lost,
+                    },
+                    &mut Queue::uncapped(),
+                );
+            }
+        }
         assert_eq!(root.pages().tell().unwrap().state, State::Lost);
         sent(&tell(&mut root, b"Try again"));
         assert_eq!(root.pages().tell().unwrap().serial, 2);
