@@ -57,6 +57,8 @@ struct State {
     transport: Option<temper_fake_git_hosted::Typed>,
     end_after_kill: bool,
     killed: bool,
+    dead_status: String,
+    kill_told: bool,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 struct Observer { inner: ServiceObserver, cuts: cuts::Capture }
@@ -229,9 +231,19 @@ impl skein_world::Referee<Proc> for Judge {
                 if let Proc::Other(HarnessProcess::Calls(caller)) = proc {caller.closed=true;}
                 if let Proc::Other(HarnessProcess::Ctl(caller)) = proc {caller.drain();}
             }
+            if !STATE.with(|s|s.borrow().kill_told) {
+                for (index,proc) in others.iter().enumerate() {
+                    if matches!(proc, Proc::Agent(_)) && !proc.is_empty() {
+                        self.controls.signal(index+1,ServiceSignal::Terminate);
+                        self.controls.signal(index+1,ServiceSignal::Terminate);
+                    }
+                }
+                STATE.with(|s|s.borrow_mut().kill_told=true);
+            }
             self.stopped=true;
             self.stop_peers(others);
             self.finished=first[0].is_empty() && others.iter().all(Host::is_empty);
+            STATE.with(|s| s.borrow_mut().dead_status=format!("closer empty {} others {:?}",first[0].is_empty(),others.iter().map(|p| (std::mem::discriminant(p),p.is_empty(),p.next_policy_deadline())).collect::<Vec<_>>()));
             return;
         };
         if !self.upgrade { for proc in others.iter() { if let Proc::Other(HarnessProcess::Calls(caller)) = proc && let Some(answer) = caller.answers.first() { STATE.with(|s| s.borrow_mut().kept_answer.clone_from(&answer.output)); } } }
@@ -321,7 +333,7 @@ impl skein_world::Referee<Proc> for Judge {
     }
     fn next_deadline(&self) -> Option<Time> { Some(Time::from_nanos(60_000_000_000)) }
     fn overdue(&self, now: Time) -> Option<String> {
-        (!self.finished && now >= Time::from_nanos(60_000_000_000)).then(|| format!("upgrade stalled: checked {}, issue {}, tasks {:?}", STATE.with(|s| s.borrow().checked), STATE.with(|s| s.borrow().issue), self.store.borrow().rows.values().filter_map(|row| if let temper_engine_domain::Record::Core(Record::Tasks(jig_domain_tasks::Stored::Live(task))) = row { Some((task.number, task.attempt, task.turn, &task.phase)) } else { None }).collect::<Vec<_>>()))
+        (!self.finished && now >= Time::from_nanos(60_000_000_000)).then(|| format!("upgrade stalled: {} checked {}, issue {}, tasks {:?}", STATE.with(|s|s.borrow().dead_status.clone()), STATE.with(|s| s.borrow().checked), STATE.with(|s| s.borrow().issue), self.store.borrow().rows.values().filter_map(|row| if let temper_engine_domain::Record::Core(Record::Tasks(jig_domain_tasks::Stored::Live(task))) = row { Some((task.number, task.attempt, task.turn, &task.phase)) } else { None }).collect::<Vec<_>>()))
     }
     fn passed(&self) -> bool { self.finished }
 }
