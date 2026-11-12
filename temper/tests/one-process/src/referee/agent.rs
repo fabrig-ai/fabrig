@@ -58,7 +58,7 @@ impl Wire {
     }
     pub fn complete(&mut self, complete: &Complete) {
         match (&complete.kind, &complete.result) {
-            (Op::Spawn { spawn }, Ok(Done::Spawned { .. })) if spawn.program.as_ref() == b"/opt/temper/bin/temper" => {
+            (Op::Spawn { spawn }, Ok(Done::Spawned { .. })) if spawn.program.as_ref() == temper_playground::documents::PINNED_AGENT_PROGRAM => {
                 for entry in &spawn.env {
                     super::secrets::require(entry, "agent environment");
                 }

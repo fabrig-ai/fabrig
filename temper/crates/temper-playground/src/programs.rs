@@ -263,7 +263,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         Some(&documents::agent()),
         &H::seeds(parameters.seed),
         None,
-        Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into() }),
+        Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into(), agent: documents::pinned_agent() }),
         documents::forges(),
         None,
         None,
@@ -391,7 +391,7 @@ pub fn programs<H: Harness>() -> Vec<(HostedProgram<Process<H>>, StartupRoots)> 
     vec![
         (
             HostedProgram {
-                program: b"/opt/temper/bin/temper".as_slice().into(),
+                program: documents::PINNED_AGENT_PROGRAM.into(),
                 make: agent::<H>,
                 instances: documents::AGENTS,
                 operations: (documents::agent_limits().routes + 3).max(smith_agent_shell::list::operations()),

@@ -252,7 +252,7 @@ fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters)
         Some(&temper_playground::documents::agent()),
         &ReadyWorld::seeds(parameters.seed),
         None,
-        Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into() }),
+        Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into(), agent: temper_playground::documents::pinned_agent() }),
         temper_playground::documents::forges(),
         None,
         Some(BOX_BYTES),
