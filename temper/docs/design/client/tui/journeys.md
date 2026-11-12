@@ -252,7 +252,7 @@ the TUI's lines.
 - **The shared code** gains three kinds of original, `Kind::Approval`,
   `Kind::Credential` and `Kind::Bearer`, each sought in the forms and
   digests every original is, and is reached from the TUI's lines
-  through `Originals::new` and `redact_field`, beside `Originals::of`
+  through `Originals::new` and `redact_field`, beside `journey::originals`
   and `redact`, which the browser's lines keep. What the browser's
   journeys redact and refuse stays as it is.
 - **The TUI's originals:**

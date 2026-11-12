@@ -5238,6 +5238,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client-redaction"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
 name = "temper-client-shell-cli"
 version = "0.0.0"
 dependencies = [
@@ -5308,8 +5315,8 @@ dependencies = [
  "smith-transcript",
  "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-client-redaction",
  "temper-client-shell-terminal",
- "temper-client-shell-web",
  "temper-client-tui",
  "temper-client-view",
  "temper-shell",
@@ -5333,6 +5340,7 @@ dependencies = [
  "skein-world",
  "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-client-redaction",
  "temper-client-view",
  "wasm-bindgen",
  "web-sys",
