@@ -28,6 +28,7 @@ impl Input {
             Event::Checked { owner, .. } => Self::Checked(*owner),
             Event::Ended { conversation, .. } => Self::Ended(*conversation),
             Event::HostReturned { .. }
+            | Event::Drain { .. }
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Turn { .. }

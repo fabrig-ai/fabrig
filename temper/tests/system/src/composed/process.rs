@@ -296,6 +296,10 @@ impl Process {
                 around.observed.cancels += 1;
                 self.agent.as_mut().expect("live agent").cancel_run();
             }
+            agent::Down::Drain => {
+                let agent = self.agent.as_mut().expect("live agent");
+                agent.drain_at(agent.now());
+            }
             agent::Down::Grant { .. } => {}
         }
     }

@@ -313,6 +313,7 @@ impl World {
                 parent::Event::Spawn { .. }
                 | parent::Event::Message { .. }
                 | parent::Event::Grant { .. }
+                | parent::Event::Drain { .. }
                 | parent::Event::Stop { .. },
             ) => None,
         };
@@ -327,6 +328,7 @@ impl World {
                 | parent::Event::Answer { .. }
                 | parent::Event::Acknowledge { .. }
                 | parent::Event::Grant { .. }
+                | parent::Event::Drain { .. }
                 | parent::Event::Stop { .. }
                 | parent::Event::Drop { .. },
             )
@@ -366,7 +368,11 @@ impl World {
                         Down::Message { name, .. } => {
                             self.seen.sent_messages.insert(*name);
                         }
-                        Down::Answer { .. } | Down::Acknowledge { .. } | Down::Grant { .. } | Down::Cancel => {}
+                        Down::Answer { .. }
+                        | Down::Acknowledge { .. }
+                        | Down::Grant { .. }
+                        | Down::Cancel
+                        | Down::Drain => {}
                     }
                     self.seen.down.push(message);
                 }

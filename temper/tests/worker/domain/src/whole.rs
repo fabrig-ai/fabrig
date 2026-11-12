@@ -325,7 +325,10 @@ impl World {
                 self.deliveries += 1;
             }
             agent::Down::Cancel => self.report.cancellations += 1,
-            agent::Down::Acknowledge { .. } | agent::Down::Grant { .. } | agent::Down::Message { .. } => {
+            agent::Down::Acknowledge { .. }
+            | agent::Down::Grant { .. }
+            | agent::Down::Message { .. }
+            | agent::Down::Drain => {
                 panic!("unscripted process record")
             }
         }

@@ -260,6 +260,7 @@ fn spawn(agent: &mut Domain, env: &Env<Limits>, client: Token, start: host::Star
 }
 
 /// Handle one command in the shared agent parent vocabulary.
+#[expect(clippy::too_many_lines, reason = "each parent control has one typed route to its live root")]
 fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mut Queue<Output>) {
     match event {
         parent::Event::Spawn { client, start } => spawn(agent, env, client, start, out),
@@ -344,6 +345,19 @@ fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mu
                     root_step(agent, env, id, smith::Event::Grant { grant: translate::grant(grant) }, out);
                 }
                 State::Settling(_) | State::Gone => {}
+            }
+        }
+        parent::Event::Drain { agent: handle } => {
+            let id = Id::<Slot>::from_token(handle);
+            if let Some(slot) = agent.slots.get(id) {
+                match slot.state {
+                    State::Live => {
+                        if let Some(run) = slot.run {
+                            root_step(agent, env, id, smith::Event::Drain { run }, out);
+                        }
+                    }
+                    State::Cancelling { .. } | State::Settling(_) | State::Gone => {}
+                }
             }
         }
         parent::Event::Stop { agent: handle } => stop::cancel(agent, env, Id::<Slot>::from_token(handle), out),
