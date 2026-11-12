@@ -38,4 +38,4 @@ workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true
-tempfile = "3"
+tempfile.workspace = true
