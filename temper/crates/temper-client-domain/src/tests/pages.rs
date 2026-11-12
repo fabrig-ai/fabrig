@@ -22,6 +22,7 @@ mod goals;
 mod home;
 mod how;
 mod inbox;
+mod findings;
 mod members;
 mod parts;
 mod paste;

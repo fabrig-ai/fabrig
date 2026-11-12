@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 406;
+pub const N: usize = 411;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -917,6 +917,11 @@ pub fn samples() -> [Sample; N] {
             address: Address::Inbox { filter: Filter::ALL },
             then: Shown,
         },
+        Sample { name: "needs-finding", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-finding-hand", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-finding-route", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-finding-drop", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "needs-finding-refused", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "needs-proposal", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
             name: "needs-stop-asking",

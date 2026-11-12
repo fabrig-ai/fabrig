@@ -2200,7 +2200,7 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
     }
     line
 }
-fn goal_window(w: World, window: u32, name: Option<&str>) -> c::Tasks {
+pub(super) fn goal_window(w: World, window: u32, name: Option<&str>) -> c::Tasks {
     let mut rows = List::with_capacity(window);
     let mut more = false;
     for f in goal_facts(w) {
@@ -4639,7 +4639,7 @@ fn sample_answer(root: &mut Domain, attempt: Token, answer: jig_client::Answered
         out,
     );
 }
-fn sample_forge_answer(
+pub(super) fn sample_forge_answer(
     root: &mut Domain,
     attempt: Token,
     outcome: temper_client_protocol_wire::v1::Outcome,

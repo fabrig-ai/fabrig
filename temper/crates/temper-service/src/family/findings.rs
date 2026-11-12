@@ -23,10 +23,6 @@ pub(super) fn request(value: w::Request) -> Option<root::Application> {
                 number: value.number,
                 area: value.area,
                 why: value.why,
-            hander: match value.hander {
-                Some(value) => Some(filer(value, limits)?),
-                None => None,
-            },
             }))
         }
         w::Request::TriageFinding(value) => {
