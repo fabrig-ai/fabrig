@@ -123,6 +123,10 @@ impl Bindings {
                         PageAct::StartDraft { words: value }
                     }
                     (PageAct::StartName { .. }, skein_ui::Act::Input { value }) => PageAct::StartName { words: value },
+                    (PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Name(_)), skein_ui::Act::Input { value }) =>
+                        PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Name(value)),
+                    (PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Words(_)), skein_ui::Act::Input { value }) =>
+                        PageAct::HandArea(temper_client_domain::pages::team::hand::Act::Words(value)),
                     (PageAct::AmendWords { .. }, skein_ui::Act::Input { value }) => {
                         PageAct::AmendWords { words: value }
                     }
@@ -1173,6 +1177,10 @@ pub(crate) fn toast(
                 None,
             )
         }
+        Toasted::AreaHanded { title, revision } => (w.say(Word::HandToast, &[
+            skein_ui::phrases::Hole::Name(title.clone()), skein_ui::phrases::Hole::Number(u64::from(*revision))]), None),
+        Toasted::AreasGivenBack { revision } => (w.say(Word::GiveToast, &[skein_ui::phrases::Hole::Number(u64::from(*revision))]), None),
+        Toasted::AreasProposed => (w.say(Word::HandProposed, &[]), None),
         Toasted::StopApplied => (w.say(Word::StopAskingApplied, &[]), None),
         Toasted::StopProposed => (w.say(Word::StopAskingProposed, &[]), None),
         Toasted::KeptAsking => (w.say(Word::KeepAskingKept, &[]), None),
@@ -1248,7 +1256,10 @@ pub(crate) fn toast(
                 );
             }
         }
-        Toasted::StopApplied
+        Toasted::AreaHanded { .. }
+        | Toasted::AreasGivenBack { .. }
+        | Toasted::AreasProposed
+        | Toasted::StopApplied
         | Toasted::StopProposed
         | Toasted::KeptAsking
         | Toasted::KeepAskingRefused

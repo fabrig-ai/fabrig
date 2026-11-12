@@ -100,7 +100,7 @@ fn who(holder: &w::Holder) -> Who {
         w::Holder::Party(_) | w::Holder::Role(_) => Who::Person,
     }
 }
-fn absent(words: &Words, owner: &w::AreaOwner, project: &[u8]) -> Box<[u8]> {
+pub(super) fn absent(words: &Words, owner: &w::AreaOwner, project: &[u8]) -> Box<[u8]> {
     match owner {
         w::AreaOwner::Task(task) => words.say(Word::TeamOwnerEnded, &[Hole::Number(task.number())]),
         w::AreaOwner::Party(party) => {
@@ -126,6 +126,13 @@ pub(super) fn draw(
         return;
     }
     super::super::settings::section_head(b, &words.say(Word::TeamAreas, &[]));
+    if parts.hand_area {
+        b.open(Role::Button);
+        b.style(look::GOAL_BTN);
+        b.name(&words.say(Word::TeamHandArea, &[]));
+        b.bind(bindings.insert(Act::HandArea(team::hand::Act::Open)));
+        b.close();
+    }
     b.close();
     if parts.areas_empty {
         paragraph(b, &words.say(Word::TeamNoAreas, &[]), look::SETTINGS_EMPTY);

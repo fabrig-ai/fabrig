@@ -1,5 +1,6 @@
 //! Team's plain facts and parts (temper/docs/design/client/pages/README.md, Team).
 mod areas;
+mod hand;
 mod sessions;
 use crate::pages::team::{self, Facts, Parts, Person, Waits};
 use jig_client::contract as c;
@@ -139,9 +140,12 @@ fn gather_lists_each_person_once_the_reader_first() {
         ),
         ("cut copied", Box::<[_]>::from([you]), None, Box::<[_]>::from([]), true, Box::<[_]>::from([reader])),
     ] {
+        let mut is_member = false;
+        for person in &expected { is_member |= person.you; }
         assert_eq!(
             team::gather(&project(members, cut), YOU, yours, &others, None, Wall::EPOCH),
             Facts {
+                member: is_member,
                 people: List::from_boxed(expected),
                 cut,
                 areas: None,
@@ -175,6 +179,7 @@ fn parts_show_what_the_facts_hold() {
             people.push(person(u64::try_from(at).unwrap(), false, b"Person", *role, None)).unwrap();
         }
         let facts = Facts {
+            member: true,
             people,
             cut,
             areas: None,
@@ -510,6 +515,7 @@ fn read_shown(members: &[u64], waits: &[(u64, Waits)]) -> team::Shown {
         people.push(person(*party, *party == YOU, b"Person", c::HeldRole::Member, count)).unwrap();
     }
     team::Shown::Read(Facts {
+        member: true,
         people,
         cut: false,
         areas: None,

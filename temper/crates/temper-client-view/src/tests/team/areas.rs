@@ -24,6 +24,7 @@ fn owner_task(number: u64) -> w::AreaOwner {
 }
 fn facts() -> Facts {
     Facts {
+        member: true,
         people: List::from_boxed(Box::new([
             person(true, b"Alex", HeldRole::Owner, Some(Waits::default())),
             person(false, b"Sam", HeldRole::Member, Some(Waits { questions: 1, ..Waits::default() })),

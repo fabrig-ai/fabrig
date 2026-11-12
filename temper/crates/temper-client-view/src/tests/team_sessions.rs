@@ -12,6 +12,7 @@ use temper_client_domain::pages::team::{self, Facts, Shown};
 
 pub(super) fn facts() -> Facts {
     Facts {
+        member: true,
         people: List::with_capacity(0),
         cut: false,
         areas: None,

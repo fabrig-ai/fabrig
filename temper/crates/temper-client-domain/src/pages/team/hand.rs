@@ -67,6 +67,7 @@ impl Open {
     #[must_use]
     pub fn words_valid(&self) -> bool { valid_words(&self.words) }
     #[must_use]
+    #[expect(clippy::manual_find, reason = "step code uses explicit loops, not closures")]
     pub fn chosen_role(&self) -> Option<&Role> {
         for role in &self.facts.roles {
             if Some(role.task) == self.role { return Some(role); }
@@ -103,8 +104,12 @@ fn valid_name(name: &[u8]) -> bool {
 }
 fn valid_words(words: &[u8]) -> bool {
     if words.is_empty() || words.len() > 480 { return false; }
-    let Ok(words) = core::str::from_utf8(words) else { return false; };
-    for ch in words.chars() { if ch.is_control() { return false; } }
+    if !skein_lib::bytes::is_utf8(words) { return false; }
+    let mut c2 = false;
+    for byte in words {
+        if byte.is_ascii_control() || (c2 && (0x80..=0x9f).contains(byte)) { return false; }
+        c2 = *byte == 0xc2;
+    }
     true
 }
 #[must_use]
@@ -120,14 +125,19 @@ fn open(root: &mut Domain, give: bool) {
     let Some(facts) = shown.facts() else { return };
     let parts = super::parts(facts);
     if !parts.hand_area || (give && parts.give_areas == 0) { return; }
-    let Some(project_name) = crate::pages::project_name(root.pages.me(&root.client), project) else { return };
+    let Some(me) = root.pages.me(&root.client) else { return };
+    let mut project_name = None;
+    for row in &me.projects {
+        if row.project == project { project_name = Some(row.name.bytes().into()); break; }
+    }
+    let Some(project_name) = project_name else { return };
     let areas = facts.areas.as_ref().expect("hand control requires areas read");
-    let area = match areas.rows.first() { Some(area) => Some(area.name.clone()), None => None };
-    let role = match facts.roles.first() { Some(role) => Some(role.task), None => None };
+    let area = match areas.rows.get(0) { Some(area) => Some(area.name.clone()), None => None };
+    let role = match facts.roles.get(0) { Some(role) => Some(role.task), None => None };
     let give = if give {
         let task = parts.card.expect("give back has selected card");
         let Some(document) = root.pages.team.standing.document(&root.client) else { return };
-        let c::Requester::Person(party) = document.requester else { return };
+        let c::Requester::Person(requester) = document.requester else { return };
         let mut names = List::with_capacity(areas.rows.len());
         let mut charters = List::with_capacity(areas.rows.len());
         for area in &areas.rows {
@@ -138,7 +148,7 @@ fn open(root: &mut Domain, give: bool) {
                 }
             }
         }
-        Some(GiveBack { task, party, names, charters })
+        Some(GiveBack { task, party: requester, names, charters })
     } else { None };
     root.pages.hand_area = Some(Open {
         project, project_name, facts: facts.clone(), apply: stop_asking::owner(root, project), area, role,
@@ -169,13 +179,13 @@ pub(crate) fn act(root: &mut Domain, env: &Env<Limits>, act: Act, out: &mut Queu
         }
         Act::Name(name) => {
             if let Some(open) = &mut root.pages.hand_area && !open.busy() {
-                open.name = crate::pages::composer::held(name, 33).0;
+                open.name = crate::pages::composer::held(name, 36).0;
                 open.failure = None;
             }
         }
         Act::Words(words) => {
             if let Some(open) = &mut root.pages.hand_area && !open.busy() {
-                open.words = crate::pages::composer::held(words, 481).0;
+                open.words = crate::pages::composer::held(words, 484).0;
                 open.failure = None;
             }
         }
@@ -284,11 +294,11 @@ fn send(root: &mut Domain, env: &Env<Limits>, page: &Readout, revision: u32, out
         value: c::SettingValue::Application(writer.finish()),
     }) }).expect("one whole areas item");
     let ask = if open.apply {
-        c::Ask::ChangeSettings { against: revision, items, running: c::Running::Stays }
+        c::Ask::ChangeSettings(c::ChangeSettings { against: revision, items, running: c::Running::Stays })
     } else {
         let reason = if let Some(give) = &open.give {
             if give.names.len() == 1 {
-                concat(&[b"Give ", give.names.first()?.as_ref(), b" back"])
+                concat(&[b"Give ", give.names.get(0)?.as_ref(), b" back"])
             } else { concat(&[b"Give ", skein_lib::Decimal::of(u64::from(give.names.len())).as_bytes(), b" areas back"]) }
         } else { concat(&[b"Hand ", open.chosen()?.0, b" to ", &open.chosen_role()?.name]) };
         c::Ask::Propose { project: 0, action: c::ProposeAction::Settings(c::ProposeSettings { against: revision, items }),
@@ -327,7 +337,7 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: &Told, out: &mut 
         && open.apply {
         Some(if open.give.is_some() { Toasted::AreasGivenBack { revision: changed.revision } }
             else { Toasted::AreaHanded { title: open.chosen_role().expect("sent to a listed role").name.clone(), revision: changed.revision } })
-    } else if !open.apply && crate::pages::seen_answered(outcome) { Some(Toasted::AreasProposed) }
+    } else if !open.apply && let Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Proposed { .. })))) = outcome { Some(Toasted::AreasProposed) }
     else { None };
     if let Some(toast) = toast { root.pages.needs.say(toast, env.now); root.pages.hand_area = None; }
     else {
