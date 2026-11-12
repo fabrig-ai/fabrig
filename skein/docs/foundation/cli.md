@@ -71,6 +71,26 @@ shrink (section 9). The reasons are the user's, of 2026-11-08
     has;
   - **a fixtures crate beside the crate,** when it exposed fixtures to
     other crates' tests, which depend on it.
+- **A fixtures crate** is the package `<crate>-fixtures`, in its tree's
+  `testing/`, and holds what other crates' tests, the crate's own
+  integration tests among them, read of the crate's fixtures. It is
+  built on the crate's public items. Where a fixture needs what the
+  crate keeps private, the crate makes public the least that serves,
+  in every build, named for what it gives rather than for tests. A
+  fixture no test outside the crate reads needs no fixtures crate, and
+  one only re-exporting another crate's leaves its readers to take
+  that crate's.
+- **A crate's own step tests keep their fixtures:** step tests that
+  read a crate depending on their own build their crate twice, so its
+  types differ between the two. They keep, under `#[cfg(test)]`, the
+  fixtures they read, and a fixture both they and other crates' tests
+  read is held in each: the crate's copy for its step tests, the
+  fixtures crate's for the rest.
+- **A test's fake program** that a package's tests run is the fake's
+  package's own binary, found where the build puts it beside the
+  binary under test; the package under test takes the fake's crate as
+  a dev-dependency alone. A run that hasn't built it fails, naming the
+  build that makes it.
 - **No other switch chooses what's built:** no custom `--cfg` and no
   `RUSTFLAGS` in the repository. The one exception is development
   speed: a declared internal variable may leave out a step of a build
@@ -265,8 +285,7 @@ otherwise.
 Checks 1, 2, 3 and 5 carry exceptions in their source, each with the
 round or milestone that removes it:
 
-- the other trees' binaries, features and names, until their own
-  rounds;
+- the other trees' binaries and names, until their own rounds;
 - temper's own, until the milestone of
   `temper/docs/design/draft/cli.execution.md` that brings each into line
   lands and removes its exception.
@@ -277,6 +296,6 @@ its exception.
 
 ## 10. Later
 
-- smith's, skein's, jig's and hearth's binaries, features and names, each
-  in its tree's own round of these conventions.
+- smith's, skein's, jig's and hearth's binaries and names, each in its
+  tree's own round of these conventions.
 - Shell completions, and `NO_COLOR`.

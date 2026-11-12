@@ -159,6 +159,14 @@ patch and drift tests check the generated `encoded_bound` and
   state and credentials directories are in it, so no test reads the
   user's own. The settings move the `sign_in` account's addresses to the
   fake issuer, and give the fake program's path as `claude_code`'s.
+- **The fake program** is `smith-fake-claude`'s own binary `fake-claude`
+  (section 4), which the build puts beside `smith` in the target's
+  profile directory, where the test finds it; the package takes the
+  fake's crate as a dev-dependency, for its stories and observations,
+  and has no binary of its own for it (skein/docs/foundation/cli.md, 3).
+  A run that hasn't built it fails, naming
+  `cargo build -p smith-fake-claude --bin fake-claude`; the gate's runs
+  build every package's binaries.
 - **The referee reads what shows from outside:**
   - the terminal's transcript;
   - what the fakes saw;
@@ -689,12 +697,25 @@ tests/transcript-patches         the transcript patches' fixture family (protoco
 tests/*/tests/suite/             a world's focused tests: one suite binary per world
 tests/*/tests/suite/fuzzy/       its fuzzy tests
 tests/end-to-end/end_to_end.rs   end to end against fakes: a package target, with its modules beside it
-tests/end-to-end/fake-claude.rs  the fake program's binary, for end to end
 tests/end-to-end/live.rs         the live suite: a package target
 tests/end-to-end/live_configuration.rs  the live configuration's focused checks: a package target
 tests/end-to-end/support/        their shared setup
+testing/<crate>-fixtures         a crate's fixtures for other crates' tests and its own integration tests
 benchmarks/                      smith-bench, the benchmark harness (benchmarks.md)
 ```
+
+- **A crate's fixtures** (skein/docs/foundation/cli.md, 3): the small
+  limits, configurations, turns and documents other crates' tests start
+  from are the package `<crate>-fixtures` in `testing/`, built on the
+  crate's public items, and its readers depend on it, a world's library
+  as an ordinary dependency and a crate's tests as a dev-dependency.
+  The crate's own step tests keep, in a `#[cfg(test)]` module, the
+  fixtures they read, a copy where a fixtures crate holds the same.
+  A fixture only re-exported, as `smith-domain` re-exports its
+  children's, is read from its own crate's fixtures crate:
+  `smith_domain_session_fixtures::turn`, not
+  `smith_domain::session::fixture::turn`. smith's crates have no
+  Cargo features.
 
 - **The end-to-end and live tests are the package's `[[test]]`
   targets** (shell/README.md, section 3.1). Cargo gives a package's own tests
