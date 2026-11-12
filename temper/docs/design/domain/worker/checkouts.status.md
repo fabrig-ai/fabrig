@@ -2,9 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
 
-- **Not yet:** *One object store per repository* and *One operation at a time*: every prepare admitted before its store is made makes the store itself, a full clone each, since whether to make it is fixed at admission (`temper-worker-domain-checkout/src/cache.rs`, `Cache::hold`; `src/tests.rs`, `concurrent_prepares_make_one_remote_independently`), so a deployment of 2026-11-12 saw up to 36 clones of one repository against one forge at once; and a store's token is its slab place, so a restart may hand a remote another's [in flight: change 1508].
-- **Not yet:** *One object store per repository*: a start sets `stores` aside and `Store` clones before it looks for its store (`temper-worker-protocol-git/src/files.rs`, `layout`; `src/files/objects.rs`, `Store`), so every prepare after a restart starts cold: 5 to 15 minutes of prepares failing `store: TimedOut` after each redeploy of 2026-11-12 [in flight: change 1509].
-- **Not yet:** *One object store per repository* and *One operation at a time*: a store is a full clone, every file's contents of the whole history (17.4 s and 198 MB for one deployment's main, against 2.3 s and 50 MB blob-less), and a check out and a merge name no identity and run under the local deadline (`temper-worker-domain-checkout/src/git.rs`, `Op::CheckOut`, `Op::Merge`, `Op::is_remote`) [in flight: change 1529].
 
 `checkouts.md`'s design delivery has no known gap in running the repository's
 `.temper/pre-pr` and refusing a failed check. Its landing pin stays frozen
