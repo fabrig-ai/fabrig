@@ -1100,6 +1100,7 @@ impl World {
                 Request::ServiceMade { request, outcome } => {
                     people::step(&mut self.domain, &self.env, Event::Decided { request, outcome }, &mut self.out);
                 }
+                Request::NeedArrived { .. } => {}
                 Request::RestoreRefused { .. } => panic!("valid world records must restore"),
             }
         }

@@ -1324,6 +1324,9 @@ pub enum Request {
         /** Restore representation bound reason; this instance stays unready. */
         refusal: Refusal,
     },
+    /// A new task-derived need reaches this party; the root holds it until durable
+    /// (domain/people/README.md, section 8).
+    NeedArrived { party: u64, project: u32, task: u64, needs: u32 },
 }
 
 /// One party's membership in one project, borrowed through a bounded read.
