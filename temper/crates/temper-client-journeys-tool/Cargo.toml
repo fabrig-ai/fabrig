@@ -33,6 +33,7 @@ skein-json.workspace = true
 skein-forge.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
 jig-client.workspace = true
 skein-scratch.workspace = true
 
