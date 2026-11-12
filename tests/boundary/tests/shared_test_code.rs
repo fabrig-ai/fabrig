@@ -35,16 +35,6 @@ const EXCEPTIONS: &[Exception] = &[
         until: "G8: smith/testing/smith-end-to-end-kit",
     },
     Exception {
-        package: "skein-browser-world",
-        path: "skein/tests/browser/tests/support",
-        until: "G8: skein/testing/skein-browser-rig",
-    },
-    Exception {
-        package: "skein-browser-world",
-        path: "skein/tests/browser/src/pages.rs",
-        until: "G8: skein/testing/skein-browser-rig",
-    },
-    Exception {
         package: "jig-test",
         path: "jig/testing/jig-test/tests/support",
         until: "G8: jig/testing/jig-test-kit",

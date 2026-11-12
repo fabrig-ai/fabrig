@@ -1,6 +1,5 @@
 //! The accessible facts the browser face relies on (ui/web/testing.md, 1).
-#[path = "support/real.rs"]
-pub mod real;
+pub use skein_browser_rig as real;
 
 use real::{Profile, Rig, Scenario, chromium};
 use skein_ui::{Builder, EntryKind, Limits, Made, NodeId, Role, Run, State};

@@ -12,14 +12,12 @@ skein-browser.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
-skein-world.workspace = true
+skein-browser-rig.workspace = true
 skein-fake-person-browser.workspace = true
 skein-ui.workspace = true
 skein-ui-web.workspace = true
 skein-io.workspace = true
-skein-shell.workspace = true
 skein-heap.workspace = true
-skein-http.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
