@@ -72,7 +72,7 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
     let (_, _, _, peers) = fixture();
     assert_eq!(SEED, 7);
     for config in [b"/effective/config".as_slice(), b"/effective/config/"] {
-        let given = steps(config, &peers, None, false);
+        let given = steps(config, b"/effective/data/", &peers, None, false);
         assert_eq!(given.len(), 4);
         for (step, name, command, document, listen) in [
             (
@@ -106,10 +106,13 @@ fn welcome_steps_name_only_the_four_held_peers_and_share_the_seed() {
         ] {
             assert_eq!(step.name(), name);
             assert_eq!(step.kind(), temper_forge_setup::Kind::Long);
-            assert_eq!(
-                step.arguments(),
-                [b"fake".as_slice(), command, b"--document", document, b"--seed", b"7"].map(Box::<[u8]>::from)
-            );
+            let mut expected = vec![b"fake".as_slice(), command, b"--document", document, b"--seed", b"7"];
+            if name == b"fake github" {
+                expected.extend([b"--state".as_slice(), b"/effective/data/github-forge.state"]);
+            } else if name == b"fake forgejo" {
+                expected.extend([b"--state".as_slice(), b"/effective/data/forgejo-forge.state"]);
+            }
+            assert_eq!(step.arguments(), expected.into_iter().map(Box::<[u8]>::from).collect::<Vec<_>>());
             assert_eq!(step.listeners(), &[listen]);
             assert_eq!(step.ready(), None);
         }

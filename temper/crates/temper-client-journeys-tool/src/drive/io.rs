@@ -427,25 +427,15 @@ impl Session {
                     }
                 }
                 Action::Classify => match self.logs() {
-                    Ok((serve, box_tail)) => self.event(Event::Logs { serve, box_tail }),
+                    Ok((serve, forges, box_tail)) => self.event(Event::Logs { serve, forges, box_tail }),
                     Err(why) => self.event(Event::OwnFailure(why)),
                 },
                 Action::Finished(exit) => self.exit = Some(exit),
             }
         }
     }
-    fn logs(&self) -> Result<(LogLines, LogLines), String> {
-        let read = |path: PathBuf| -> Result<LogLines, String> {
-            match fs::read(&path) {
-                Ok(bytes) => Ok(bytes
-                    .split_inclusive(|b| *b == b'\n')
-                    .map(|line| line.strip_suffix(b"\n").unwrap_or(line).into())
-                    .collect()),
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
-                Err(error) => Err(format!("{}: {error}", path.display())),
-            }
-        };
-        Ok((read(self.scratch.join("data/box/logs/serve.log"))?, read(self.scratch.join("session/box.log"))?))
+    fn logs(&self) -> Result<(LogLines, LogLines, LogLines), String> {
+        logs(&self.scratch)
     }
     fn drain(&mut self) {
         self.tui.stop();
@@ -468,4 +458,23 @@ impl Session {
             }
         }
     }
+}
+
+pub(super) fn logs(scratch: &std::path::Path) -> Result<(LogLines, LogLines, LogLines), String> {
+    let read = |path: PathBuf| -> Result<LogLines, String> {
+        match fs::read(&path) {
+            Ok(bytes) => Ok(bytes
+                .split_inclusive(|b| *b == b'\n')
+                .map(|line| line.strip_suffix(b"\n").unwrap_or(line).into())
+                .collect()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(vec![]),
+            Err(error) => Err(format!("{}: {error}", path.display())),
+        }
+    };
+    let serve = read(scratch.join("data/box/logs/serve.log"))?;
+    let mut forges = Vec::new();
+    for name in ["fake-github.log", "fake-forgejo.log"] {
+        forges.extend(read(scratch.join("data/box/logs").join(name))?);
+    }
+    Ok((serve, forges, read(scratch.join("session/box.log"))?))
 }
