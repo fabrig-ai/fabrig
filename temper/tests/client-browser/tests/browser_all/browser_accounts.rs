@@ -1,6 +1,6 @@
 //! Accounts history, field re-entry, and both sign-in stories (temper/docs/design/client/web/testing.md, 6).
 use skein_fake_person::{Find, Step as PersonStep};
-use skein_fake_person_browser::{Harness, Script, Step};
+use skein_fake_person_browser::{Script, Step};
 use skein_ui::Role;
 use temper_client_browser_world::{Stories, Tier, WITHIN};
 
@@ -20,8 +20,8 @@ fn the_sign_in_opens_a_tab_and_lands_on_accounts() {
     stories.begin("key return row and field history", &steps);
     steps.extend(key_history_steps());
     let mut script = Script::new(steps.into_boxed_slice());
-    let outcome =
-        Harness::new(tier.setup()).run_lending(&mut [&mut script], &mut [Lent { name: b"issuer", peer: &mut issuer }]);
+    let outcome = temper_client_browser_world::harness(tier.setup())
+        .run_lending(&mut [&mut script], &mut [Lent { name: b"issuer", peer: &mut issuer }]);
     stories.assert_done(outcome);
     assert_eq!(
         issuer.observations().iter().filter(|event| matches!(event, Observation::Authorize { .. })).count(),
@@ -37,13 +37,15 @@ fn the_sign_in_opens_a_tab_and_lands_on_accounts() {
 
 fn sign_in_steps() -> Vec<Step> {
     vec![
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) }),
         Step::Person(PersonStep::See {
             find: Find::named(Role::Heading { level: 1 }, b"Talk to an agent"),
             within: WITHIN,
         }),
         Step::Address(b"/chats".as_slice().into()),
-        Step::Person(PersonStep::Go { address: Box::from(b"/accounts/connect".as_slice()) }),
+        Step::Person(PersonStep::Go {
+            address: temper_client_browser_world::page_address(b"/accounts/connect".as_slice()),
+        }),
         Step::Person(PersonStep::See {
             find: Find::exactly_named(Role::Heading { level: 1 }, b"Connect a model"),
             within: WITHIN,
@@ -81,7 +83,7 @@ fn returned_history_steps() -> Vec<Step> {
         }),
         Step::Address(b"/accounts".as_slice().into()),
         Step::Person(PersonStep::Gone { find: Find::text(b"Added your"), within: WITHIN }),
-        Step::Person(PersonStep::Reload),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/accounts") }),
         Step::Person(PersonStep::See {
             find: Find::named(Role::Heading { level: 2 }, "Your accounts · ".as_bytes()),
             within: WITHIN,
@@ -112,7 +114,7 @@ fn key_history_steps() -> Vec<Step> {
             within: WITHIN,
         }),
         // No chat has started work, so Work has no Chats filter.
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) }),
         see(chats()),
         Step::Back,
         see(Find::named(Role::Heading { level: 2 }, "Your accounts · ".as_bytes())),
@@ -125,7 +127,7 @@ fn key_history_steps() -> Vec<Step> {
         // The browser kit refuses typing into a nonempty field: this proves re-entry after clearing.
         input(b"Key (pasted once)", b"another-private-key"),
         // No chat has started work, so Work has no Chats filter.
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) }),
         see(chats()),
         Step::Back,
         see(Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key")),
@@ -143,7 +145,7 @@ fn key_link_steps() -> Vec<Step> {
     let see = |role, name: &[u8]| Step::Person(PersonStep::See { find: Find::named(role, name), within: WITHIN });
     let key = |nth| Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Add key").nth(nth) });
     vec![
-        Step::Person(PersonStep::Go { address: b"/accounts".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/accounts".as_slice()) }),
         see(Role::Heading { level: 2 }, "Your accounts · ".as_bytes()),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"+ Connect a model") }),
         see(Role::Heading { level: 1 }, b"Connect a model"),
@@ -172,7 +174,9 @@ fn welcome_steps() -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     vec![
         see(Find::exactly_named(Role::Link, b"Set up temper")),
-        Step::Person(PersonStep::Go { address: b"/welcome?at=model".as_slice().into() }),
+        Step::Person(PersonStep::Go {
+            address: temper_client_browser_world::page_address(b"/welcome?at=model".as_slice()),
+        }),
         see(Find::exactly_named(Role::Button, b"Sign in to Welcome provider")),
         Step::Address(b"/welcome?at=model".as_slice().into()),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign in to Welcome provider") }),

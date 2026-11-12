@@ -82,7 +82,7 @@ fi
 if [ "$mode" = live ]; then
     # Keep TEMPER_INTERNAL_BUNDLE=none; build a separate, explicit browser bundle in this scratch.
     printf '%s\n' 'building the browser bundle offline'
-    if ! ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo build --locked --profile web --target wasm32-unknown-unknown -p temper-client-shell-web < /dev/null > "$scratch/web-build.log" 2>&1; then
+    if ! ${TEMPER_TEST_WRAPPER:+"$TEMPER_TEST_WRAPPER"} cargo build --locked --profile web --target wasm32-unknown-unknown -p temper-client-web-page < /dev/null > "$scratch/web-build.log" 2>&1; then
         tail -n 15 "$scratch/web-build.log" >&2
         exit 1
     fi
@@ -91,8 +91,8 @@ if [ "$mode" = live ]; then
         exit 1
     fi
     "$CARGO_TARGET_DIR/debug/skein-ui-bundle" \
-        --module "$CARGO_TARGET_DIR/wasm32-unknown-unknown/web/temper_client_shell_web.wasm" \
-        --name temper_client_shell_web --prefix /bundle/ \
+        --module "$CARGO_TARGET_DIR/wasm32-unknown-unknown/web/temper_client_web_page.wasm" \
+        --name temper_client_web_page --prefix /bundle/ \
         --stylesheet crates/temper-client-shell-web/temper.css \
         --stylesheet crates/temper-client-shell-web/task-pages.css \
         --files crates/temper-client-shell-web/files \

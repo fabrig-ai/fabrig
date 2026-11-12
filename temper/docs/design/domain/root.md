@@ -840,7 +840,7 @@ Startup also checks the seed policy after enforced landing requirements are join
   twice as many offers behind admitted work.
 - **The watches' rooms follow the streams:** the root's `streams` is
   `clients.streams`, and `core_limits` gives the views `streams` times
-  `WATCHES_PER_STREAM`, 22, one shipped client's bound, in all and to a
+  `WATCHES_PER_STREAM`, 26, one shipped client's bound, in all and to a
   party, above jig's profiles' 4 (`../protocol/configuration/limits.md`
   ). The rest of the views'
   limits are jig's small profile's: 4 runs watched, 65,536 bytes of a

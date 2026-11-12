@@ -10,16 +10,22 @@
   - 4: a red after landing routed to the follow's owner by its area waits
     for areas (`standing-roles.md`, section 4; `../domain/forge/follows.md`,
     section 6).
-  - 5: `../client/README.md` draws no lag or parity: Home, Team and How
-    work runs are `surfaces.md`'s, and draw them from the forge's
-    `follows` document (`../domain/forge/follows.md`, section 7).
-  - 7: `../client/README.md` draws no dependency: Home's What follows
-    what is `surfaces.md`'s, and draws a project's dependencies beside
-    its follows from the forge's `follows` document
-    (`../domain/forge/dependencies.md`, section 4).
+  - 5: `../client/pages/team.md`, 1 draws no follow on its owner's row
+    or card (`surfaces.md`, section 6); Home's and How work runs' lag and
+    parity are `../client/pages/home.md`, 1, *What follows what*, and
+    `../client/pages/settings.md`, 2, *What follows a landing*.
   - 9: `../testing/README.md` has no world with a follow, and
     `../../development/acceptance.md` no follow story.
 - **Design departs:**
+  - 5 and 7: Home's What follows what draws a box a follow, "follows
+    SOURCE" over the holding project's name, its line "2 behind · check
+    passes at 9c04d7e1a2b3", where this draft's line is "vsr-rs follows
+    vsr · 2 behind · all C tests pass on Rust": no setting holds what a
+    check checks; and a box a dependency, "depends on vsr-rs" over the
+    dependent's name, beside the follows rather than in one chain from
+    vsr, since the `follows` document names a follow's source by its
+    repository, not its project (`../client/pages/home.md`, 1,
+    *What follows what*). Decided by goal 1243's design, 2026-11-12.
   - 2: a follow change's words carry the landing's commits, their
     messages, its files in the follow's paths and a link to its
     comparison, not its diff: no forge read gives a range's patch, and

@@ -261,6 +261,7 @@ members = [
     "temper/bin/temper-playground-serve",
     "temper/crates/temper-protocol-reaches",
     "temper/crates/temper-protocol-records",
+    "temper/crates/temper-protocol-records-forge",
     "temper/tests/real-loop",
     "temper/crates/temper-box-machine",
     "temper/crates/temper-client-gallery-tool",
@@ -286,7 +287,10 @@ members = [
     "temper/crates/temper-client-shell-terminal",
     "temper/crates/temper-client-shell-tui",
     "temper/crates/temper-client-shell-cli",
+    "temper/crates/temper-client-redaction",
     "temper/crates/temper-client-shell-web",
+    "temper/crates/temper-client-web-page",
+    "temper/crates/temper-playground-page",
     "temper/tests/client",
     "temper/tests/client-browser",
     "temper/crates/temper-client-view",
@@ -294,6 +298,7 @@ members = [
     "temper/crates/temper-client-domain",
     "temper/crates/temper-client-tools",
     "temper/crates/temper-service",
+    "temper/crates/temper-service-core",
     "temper/tests/worker/protocol-git",
     "temper/crates/temper-forge-setup",
     "temper/crates/temper-fetch",
@@ -386,6 +391,7 @@ rust-version = "1.95"
 publish = false
 
 [workspace.dependencies]
+aho-corasick = { version = "1.1.5", default-features = false, features = ["std"] }
 syn = { version = "2", features = ["full", "visit"] }
 skein-fork = { path = "skein/testing/skein-fork" }
 skein-rows = { path = "skein/testing/skein-rows" }
@@ -398,7 +404,7 @@ skein-ui-example-server = { path = "skein/examples/ui/server" }
 skein-ui-web = { path = "skein/crates/skein-ui-web" }
 wasm-bindgen = { version = "=0.2.126" }
 js-sys = { version = "=0.3.103" }
-web-sys = { version = "=0.3.103" }
+web-sys = { version = "=0.3.103", features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "KeyboardEvent", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "AddEventListenerOptions"] }
 skein-fake-person = { path = "skein/testing/skein-fake-person" }
 skein-ui-example-view = { path = "skein/examples/ui/view" }
 skein-ui-text = { path = "skein/crates/skein-ui-text" }
@@ -463,6 +469,8 @@ ring = { version = "0.17" }
 # its std, whose clock wasm32-unknown-unknown lacks, is native only, asked for by each crate
 # that uses it.
 rustls = { version = "=0.23.41", default-features = false, features = ["ring", "tls12"] }
+# rustls for native crates needing std; the plain entry stays without it for wasm32.
+rustls-std = { package = "rustls", version = "=0.23.41", default-features = false, features = ["ring", "tls12", "std"] }
 rustls-pki-types = { version = "1.15" }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
@@ -504,7 +512,8 @@ smith-tools-world = { path = "smith/tests/tools" }
 jig-test-patches = { path = "jig/testing/jig-test-patches" }
 jig-test-patches-jig = { path = "jig/testing/jig-test-patches-jig" }
 jig-test-patches-smith = { path = "jig/testing/jig-test-patches-smith" }
-serde_json = { version = "1" }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }
 jig-client-shell-web = { path = "jig/crates/jig-client-shell-web" }
 jig-client-domain = { path = "jig/crates/jig-client-domain" }
 jig-client = { path = "jig/crates/jig-client" }
@@ -585,7 +594,8 @@ temper-playground = { path = "temper/crates/temper-playground" }
 temper-playground-serve-tool = { path = "temper/crates/temper-playground-serve-tool" }
 temper-playground-world = { path = "temper/tests/playground" }
 temper-protocol-reaches = { path = "temper/crates/temper-protocol-reaches" }
-temper-protocol-records = { path = "temper/crates/temper-protocol-records", default-features = false }
+temper-protocol-records = { path = "temper/crates/temper-protocol-records" }
+temper-protocol-records-forge = { path = "temper/crates/temper-protocol-records-forge" }
 temper-box-machine = { path = "temper/crates/temper-box-machine" }
 temper-forge-setup-shell = { path = "temper/crates/temper-forge-setup-shell" }
 temper-fetch-shell = { path = "temper/crates/temper-fetch-shell" }
@@ -601,7 +611,10 @@ jig-channel-world = { path = "jig/tests/channel" }
 temper-client-shell-terminal = { path = "temper/crates/temper-client-shell-terminal" }
 temper-client-shell-tui = { path = "temper/crates/temper-client-shell-tui" }
 temper-client-shell-cli = { path = "temper/crates/temper-client-shell-cli" }
+temper-client-redaction = { path = "temper/crates/temper-client-redaction" }
 temper-client-shell-web = { path = "temper/crates/temper-client-shell-web" }
+temper-client-web-page = { path = "temper/crates/temper-client-web-page" }
+temper-playground-page = { path = "temper/crates/temper-playground-page" }
 jig-client-test-records = { path = "jig/testing/jig-client-test-records" }
 jig-client-shell-native = { path = "jig/crates/jig-client-shell-native" }
 temper-client-view = { path = "temper/crates/temper-client-view" }
@@ -618,6 +631,7 @@ temper-qa-tool = { path = "temper/crates/temper-qa-tool" }
 temper-stage-one-tool = { path = "temper/crates/temper-stage-one-tool" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-box-shell = { path = "temper/crates/temper-box-shell" }
+temper-service-core = { path = "temper/crates/temper-service-core" }
 temper-service = { path = "temper/crates/temper-service", default-features = false }
 temper-worker-protocol-git-world = { path = "temper/tests/worker/protocol-git" }
 temper-worker-protocol-git = { path = "temper/crates/temper-worker-protocol-git" }

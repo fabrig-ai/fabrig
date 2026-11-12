@@ -1,9 +1,13 @@
 //! Forge startup access and the facade to skein setup (protocol/credentials.md, 2.1).
-use crate::{CARRIED, FAMILY_FORGE, Item, Unreadable, decode, parse, v1};
+#![cfg_attr(not(test), no_std)]
+#![forbid(unsafe_code)]
+extern crate alloc;
+
 use alloc::boxed::Box;
 use skein_forge_connection::{Access, settings::Kind};
 use skein_forge_setup::item;
 use skein_lib::{Map, Secret, Writer};
+use temper_protocol_records::{CARRIED, FAMILY_FORGE, Item, Unreadable, decode, decoded_origin, parse, v1};
 const FORGES: u32 = 65536;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -20,7 +24,7 @@ impl Origin {
         out.finish()
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, Unreadable> {
-        origin_from_record(crate::codec::decoded_origin(bytes)?)
+        origin_from_record(decoded_origin(bytes)?)
     }
 }
 /// Display is part of the stored format, including IPv6 brackets.
