@@ -68,6 +68,7 @@ impl OneShot {
             }
         }
     }
+    #[expect(clippy::too_many_lines, reason = "input forms share one preparation state machine")]
     pub(super) fn prepare_progress(&mut self) {
         if !self.preparing || self.status.is_some() {
             return;
