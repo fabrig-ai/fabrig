@@ -19,6 +19,7 @@ pub(crate) struct Reading {
     pub pages: BTreeMap<u32, Readout>,
     pub documents: BTreeMap<u32, c::Delivery>,
     pub text: Option<c::RunText>,
+    pub project: Option<u32>,
     pub specification: Option<super::specification::Specification>,
     pub thread: Option<Thread>,
     pub questions: BTreeMap<(u64, u64), Option<Box<c::Question>>>,
@@ -85,6 +86,7 @@ fn start_reading(
         pages: BTreeMap::new(),
         documents: BTreeMap::new(),
         text: None,
+        project: None,
         specification: None,
         thread: None,
         questions: BTreeMap::new(),
@@ -225,6 +227,7 @@ fn start_detail(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut rea
                 finish(reading, printed, out);
                 return;
             };
+            reading.project = Some(project);
             read(runner, &mut reading, 1, c::Read::Project { project }, out);
         }
         rows::PROPOSAL_AT => {
@@ -694,7 +697,7 @@ fn setting_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) {
         None => super::super::settings_file::selector(call),
     };
     if let c::Setting::Application { .. } = setting {
-        if let Some(revision) = number(call, if call.form == 2 { 3 } else { 2 }) {
+        if let Some(revision) = number(call, if call.form == 2 || call.form == 7 { 3 } else { 2 }) {
             super::application::historical(
                 runner,
                 reading,

@@ -279,6 +279,108 @@ fn new_start(env: &Env<Limits>) -> (Domain, Queue<Request>) {
 }
 
 #[test]
+fn explicit_start_links_a_roles_answer_to_its_kept_deletion() {
+    let env = env();
+    let (mut domain, mut out) = new_start(&env);
+    let ask = Ask::SetRoles { project: 4, holdings: Box::new([Holding { person: 2, role: Role::Member }]) };
+    let rows = [
+        person(1),
+        person(2),
+        Stored::SignIn { number: 1, person: 1, expires: Wall::from_nanos(1) },
+        answer(1, ask.clone(), Outcome::RolesSet { project: 4 }),
+        Stored::Deletion { project: 4, step: DeletionStep::Tasks, grace: None },
+    ];
+    for row in &rows {
+        load(&mut domain, &env, row.clone(), &mut out);
+    }
+    assert!(out.is_empty());
+    assert!(domain.start_link(), "{:?}", domain.restore_failure());
+    domain.start_sweep();
+    for row in &rows {
+        domain.start_sweep_row(&env, row, &mut out);
+    }
+    assert!(domain.start_complete(&env));
+    assert!(out.is_empty(), "the retained answer is not erased");
+    step(
+        &mut domain,
+        &env,
+        Event::Ask {
+            reply_to: skein_lib::ReplyTo::new(Token::new(1)),
+            sign_in: 1,
+            key: [1; 16],
+            ask,
+            models: Box::new([]),
+        },
+        &mut out,
+    );
+    assert_eq!(
+        out.pop(),
+        Some(Request::Reply {
+            to: skein_lib::ReplyTo::new(Token::new(1)),
+            reply: Reply::Outcome(Outcome::RolesSet { project: 4 }),
+        })
+    );
+    assert!(out.is_empty());
+}
+
+#[test]
+fn explicit_start_requires_a_roster_or_kept_deletion_for_a_roles_answer() {
+    for marked in [false, true] {
+        let env = env();
+        let (mut domain, mut out) = new_start(&env);
+        for row in [
+            person(1),
+            person(2),
+            answer(
+                1,
+                Ask::SetRoles { project: 4, holdings: Box::new([Holding { person: 2, role: Role::Member }]) },
+                Outcome::RolesSet { project: 4 },
+            ),
+        ] {
+            load(&mut domain, &env, row, &mut out);
+        }
+        if marked {
+            load(&mut domain, &env, Stored::Deleted { project: 4 }, &mut out);
+        }
+        assert!(!domain.start_link());
+        assert_eq!(
+            domain.restore_failure(),
+            Some(RestoreFailure {
+                key: Key::Answer(RequestKey { person: 1, key: [1; 16] }),
+                cause: RestoreCause::Link { target: Key::Roles(4) },
+            })
+        );
+        assert!(out.is_empty(), "link refusal erases no row");
+    }
+}
+
+#[test]
+fn explicit_start_kept_deletion_does_not_excuse_a_missing_roster_person() {
+    let env = env();
+    let (mut domain, mut out) = new_start(&env);
+    for row in [
+        person(1),
+        Stored::Deletion { project: 4, step: DeletionStep::Tasks, grace: None },
+        answer(
+            1,
+            Ask::SetRoles { project: 4, holdings: Box::new([Holding { person: 2, role: Role::Member }]) },
+            Outcome::RolesSet { project: 4 },
+        ),
+    ] {
+        load(&mut domain, &env, row, &mut out);
+    }
+    assert!(!domain.start_link());
+    assert_eq!(
+        domain.restore_failure(),
+        Some(RestoreFailure {
+            key: Key::Answer(RequestKey { person: 1, key: [1; 16] }),
+            cause: RestoreCause::Link { target: Key::Person(2) },
+        })
+    );
+    assert!(out.is_empty());
+}
+
+#[test]
 fn explicit_start_live_fit_failure_is_sticky_and_does_not_erase() {
     let mut env = env();
     env.limits.people = 1;

@@ -19,7 +19,7 @@ pub(super) fn parse(
     let path = Path::root().member(b"application").member(b"landing");
     let mut object = read::object(document, at, "landing", &path, problems)?;
     if object.member(document, b"deployment").is_some() {
-        problems.push(path.member(b"deployment"), What::LandingStored);
+        problems.push(path.member(b"deployment"), What::Half(crate::startup::EngineWhat::LandingStored));
     }
     let project_ats =
         read::list(&mut object, document, b"projects", jig.limits.core.authority.projects, &path, problems);
@@ -32,7 +32,7 @@ pub(super) fn parse(
             let Some(mut object) = read::object(document, *at, "landing-project", &path, problems) else { continue };
             let project = read::number(&mut object, document, b"project", &path, problems);
             if object.member(document, b"rules").is_some() {
-                problems.push(path.member(b"rules"), What::ProjectLandingStored);
+                problems.push(path.member(b"rules"), What::Half(crate::startup::EngineWhat::ProjectLandingStored));
             }
             let landing = project_landing(&mut object, document, &path, &limits.forge, problems);
             read::finish(object, document, &path, problems);

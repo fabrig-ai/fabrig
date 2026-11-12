@@ -313,6 +313,42 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     the template's `ended_by` (jig's `protocol/configuration.md`, 3.2),
     which every way of making a goal from the template carries, while
     this kind is read by no way that makes a task.
+- **A project's follows, kind 12** (`../../domain/forge/follows.md`,
+  section 2): each a follow of a branch of a repository the project
+  adopts as context, into a repository it owns. A kind of temper's beside
+  the table's, owned by the forge's connector and kept, erased, read and
+  never pinned as they are:
+  - *its scope and numbers:* each project's; its number a follow's, 1 to
+    `forge.follows`; decided by that project's owners;
+  - *its value,* a `Follow` record in temper's codec, its members
+    `follows.md`'s table; its bound, the kind's, is its encoding with
+    every list at its limit;
+  - *judged* by the forge's structure first, then by the root across
+    domains, each refusal `follows.md`, section 2 names; a removal or a
+    reset always good, and either cancels the follow's task;
+  - *named* `follow`, with the `project` and its `number`, in a settings
+    file and a run's `settings`, `see` and `propose_settings`, its value
+    `follows.md`'s settings-file form; read by a party with a role in the
+    project, as kinds 6 to 8 are;
+  - *the stock's:* none.
+- **A project's dependencies, kind 13**
+  (`../../domain/forge/dependencies.md`, section 2): each another project
+  of the deployment the project builds on, acted on by nothing. A kind of
+  temper's beside the table's, owned by the forge's connector and kept,
+  erased, read and never pinned as they are:
+  - *its scope and numbers:* each project's; its number a dependency's,
+    1 to `forge.dependencies`; decided by that project's owners;
+  - *its value,* a `Dependency` record in temper's codec, its one member
+    `project`, the number of the project depended on; its bound, the
+    kind's, is its encoding;
+  - *judged* by the forge's structure first, then by the root across
+    domains, each refusal `dependencies.md`, section 2 names; a removal
+    or a reset always good;
+  - *named* `dependency`, with the `project` and its `number`, in a
+    settings file and a run's `settings`, `see` and `propose_settings`,
+    its value `{"project": Q}`; read by a party with a role in the
+    project, as kinds 6 to 8 and 12 are;
+  - *the stock's:* none.
 
 ## 3. How the landing rules are enforced
 
@@ -713,7 +749,8 @@ defaults (`stock.md`), so that a test world gives its own or none.
   `../../client/forge/served.md`) gives each way
   with its words, its path and its items, the way the project runs or
   none, the project's own path, the project's words (kind 10) or none,
-  and whether the reader may change the
+  its rules by path (`../../domain/forge/change/branch-path.md`, *Rules
+  by path*), and whether the reader may change the
   project's settings: an owner of the project, as jig's `ChangeSettings`
   asks (jig's `domain/people/acts.md`, 1). "Use this" and "Keep it" send
   its items (`../../client/pages/settings.md`, 2).

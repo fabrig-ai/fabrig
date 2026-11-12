@@ -212,6 +212,7 @@ impl Decoder {
                         Malformed::Json(error) => log::json_error(error),
                         Malformed::TooLong { field } => Malformed::Bound { field },
                         Malformed::Bound { .. }
+                        | Malformed::DocumentTooLong { .. }
                         | Malformed::Shape { .. }
                         | Malformed::Missing { .. }
                         | Malformed::Range { .. }

@@ -203,6 +203,8 @@ fn arguments() {
         assert_eq!(
             arguments,
             Arguments {
+                scripts: None,
+                strict: false,
                 kind,
                 source: Source::Document(document.into()),
                 ready: ready.map(|s| s.as_bytes().into()),
@@ -211,6 +213,44 @@ fn arguments() {
             }
         );
     }
+}
+
+#[test]
+fn document_llm_reads_scripts_and_strict_flags() {
+    let scratch = skein_scratch::Scratch::new("llm-script-flags");
+    let document = scratch.path().join("llm.json");
+    let scripts = scratch.path().join("scripts.json");
+    fs::write(
+        &document,
+        serde_json::to_vec(&serde_json::json!({
+            "listen":{"socket":"127.0.0.1:0"},"key":scratch.path().join("key"),"tls":null,
+            "models":[{"name":"qa","window":4096,"output":1024}],
+            "cued":[],"asked":[],"otherwise":["generated"]
+        }))
+        .expect("JSON"),
+    )
+    .expect("document");
+    fs::write(&scripts, br#"{"cued":[{"cue":"Plan the widget","turns":["Planned."]}]}"#).expect("scripts");
+    let Command::Fake { arguments } = configured(
+        &[
+            "fake",
+            "llm",
+            "--document",
+            document.to_str().expect("path"),
+            "--scripts",
+            scripts.to_str().expect("path"),
+            "--strict",
+        ],
+        &[],
+    )
+    .expect("document command flags") else {
+        panic!("fake command")
+    };
+    assert_eq!(arguments.scripts, Some(scripts));
+    assert!(arguments.strict);
+    let configuration = llm_configuration(&arguments, &mut Created::default()).expect("configuration, no process");
+    assert!(configuration.limits.strict);
+    assert!(configured(&["fake", "llm", "--scripts", "scripts.json"], &[("HOME", "/fixture")]).is_err());
 }
 
 #[test]
@@ -236,11 +276,11 @@ fn argument_refusals() {
         (vec!["fake", "other"], "temper-box: no command fake other; temper-box --help lists them\n"),
         (
             vec!["fake", "llm"],
-            "temper-box fake llm: --config CONFIG is not given, TEMPER_CONFIG is not set, and its default $XDG_CONFIG_HOME/temper needs XDG_CONFIG_HOME or HOME as an absolute path\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE]\n",
+            "temper-box fake llm: --config CONFIG is not given, TEMPER_CONFIG is not set, and its default $XDG_CONFIG_HOME/temper needs XDG_CONFIG_HOME or HOME as an absolute path\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]\n",
         ),
         (
             vec!["fake", "llm", "--document", "doc", "--seed", "no"],
-            "temper-box fake llm: --seed N: expected a decimal u64\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE]\n",
+            "temper-box fake llm: --seed N: expected a decimal u64\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]\n",
         ),
         (
             vec!["fake", "forge", "--document", "doc", "extra"],
@@ -398,6 +438,8 @@ fn github_installation_records_end_at_the_pass_checkpoint() {
     .expect("fixture");
     let path = directory.join("observations");
     let arguments = Arguments {
+        scripts: None,
+        strict: false,
         kind: Kind::Forge,
         source: Source::Document(document),
         ready: None,
@@ -514,6 +556,8 @@ fn observation_write_failure_drains_the_peer_and_keeps_its_outputs() {
         .expect("valid fixture");
         let path = directory.join("observations");
         let arguments = Arguments {
+            scripts: None,
+            strict: false,
             kind: Kind::Forge,
             source: Source::Document(document.clone()),
             ready: None,
@@ -605,6 +649,8 @@ fn llm_records_full_counts_connections_without_queries() {
     .expect("fixture");
     let path = directory.join("observations");
     let arguments = Arguments {
+        scripts: None,
+        strict: false,
         kind: Kind::Llm,
         source: Source::Document(document),
         ready: None,
@@ -695,6 +741,8 @@ fn deployment_arguments() {
             configured(&words, &environment),
             Ok(Command::Fake {
                 arguments: Arguments {
+                    scripts: None,
+                    strict: false,
                     kind: Kind::Forge,
                     source: Source::Setup { directories, forge },
                     ready: Some(b"ready ".as_slice().into()),
@@ -731,6 +779,8 @@ fn deployment_arguments() {
             configured(&words, &environment),
             Ok(Command::Fake {
                 arguments: Arguments {
+                    scripts: None,
+                    strict: false,
                     kind: Kind::Llm,
                     source: Source::Demo { directories },
                     ready: None,

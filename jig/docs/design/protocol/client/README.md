@@ -483,6 +483,12 @@ recipient.
   free its transport credit. `Link::in_flight` is the greater of the
   logical reservations and unfinished transport exchanges; a late
   terminal frees the latter without ending the logical operation twice.
+- **A watch's opening and closing wait for credit,** as a read does: one
+  that finds every exchange in flight is held, in the order asked, and
+  sent when a terminal answer frees credit, never ended busy or dropped
+  for the client's own admission. A held opening the client closes ends
+  closed, unsent (section 5). Only the engine's refusal ends an opening
+  busy.
 - **The transport's:** an exchange's deadline, and what it buffers of the
   stream and of the small store's writes.
 - **The component's:** streams in all, whatever their sign-ins (`wire.md`, section 2

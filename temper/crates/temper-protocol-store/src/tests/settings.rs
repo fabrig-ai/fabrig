@@ -244,3 +244,54 @@ fn a_replaced_row_has_store_v11_golden_bytes() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(records::decode(bytes, &bounds), Ok(row));
 }
+
+#[test]
+fn a_follow_setting_round_trips_its_wire_value_and_every_slot() {
+    use skein_lib::{Reader, Writer};
+    use temper_client_protocol_wire::v1;
+    let follow = d::Follow {
+        source: d::FollowSource {
+            repository: skein_forge::api::Repository { forge: 1, repository: 12 },
+            branch: b"main".as_slice().into(),
+            paths: Box::new([b"src".as_slice().into(), b"include".as_slice().into()]),
+        },
+        target: d::FollowTarget {
+            repository: skein_forge::api::Repository { forge: 1, repository: 13 },
+            branch: b"stable".as_slice().into(),
+        },
+        owner: d::FollowOwner::Person(4),
+        start: d::FollowStart::Code,
+        producer: Some(b"6;3.1;".as_slice().into()),
+        check: d::FollowCheck {
+            workflow: b"tests.yml".as_slice().into(),
+            artifact: b"results".as_slice().into(),
+            format: temper_engine_domain_forge_tiers::Format::Lines,
+        },
+    };
+    let wire = d::follow_record(&follow).unwrap();
+    let mut writer = Writer::new(usize::try_from(wire.measure()).unwrap());
+    wire.encode(&mut writer).unwrap();
+    let bytes = writer.finish();
+    assert_eq!(d::follow_from(v1::Follow::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).unwrap()), follow);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for slot in [d::SettingSlot::Change, d::SettingSlot::Proposal(7), d::SettingSlot::Replaced(2)] {
+        for edit in [
+            d::Edit::Set(d::SizedValue { value: d::Value::Follow(follow.clone()), size: wire.measure() }),
+            d::Edit::Remove,
+            d::Edit::Reset,
+        ] {
+            let key = d::SettingKey { kind: 12, scope: 2, number: 1, slot };
+            let row = forge::Stored::Setting(d::SettingRow { key, edit });
+            let meter = skein_world::domain::heap::Meter::new();
+            meter.start();
+            let cloned = row.clone();
+            let held = meter.end().held();
+            assert_eq!(forge::stored_bytes(&cloned), Some(held));
+            drop(cloned);
+            let bytes = records::encode(&row);
+            assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
+            let key = keys::encode(&forge::Key::Setting(key), u32::MAX).unwrap();
+            assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+        }
+    }
+}

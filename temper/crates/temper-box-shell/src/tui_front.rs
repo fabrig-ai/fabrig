@@ -92,16 +92,20 @@ fn start(
             tui::Refused::Directory(format!("{}: cannot open sign-in parent: errno {number}", directory.display()))
                 .line("temper")
         })?;
-        #[cfg(feature = "record")]
-        let record = Some(skein_shell::open_root(parent).map_err(|number| {
-            skein_shell::close_startup_fd(files);
-            skein_shell::close_startup_fd(root);
-            skein_shell::close_startup_fd(signals);
-            tui::Refused::Directory(format!("{}: cannot open recording parent: errno {number}", directory.display()))
+        let record = if tui::recording(environment) {
+            Some(skein_shell::open_root(parent).map_err(|number| {
+                skein_shell::close_startup_fd(files);
+                skein_shell::close_startup_fd(root);
+                skein_shell::close_startup_fd(signals);
+                tui::Refused::Directory(format!(
+                    "{}: cannot open recording parent: errno {number}",
+                    directory.display()
+                ))
                 .line("temper")
-        })?);
-        #[cfg(not(feature = "record"))]
-        let record = None;
+            })?)
+        } else {
+            None
+        };
         let settings = Settings {
             record,
             front: Some(Front { link, lines: Fd::new(4) }),

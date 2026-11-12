@@ -45,6 +45,7 @@ pub const STEP_NOW: Style = Style { owner: OWNER, token: 30 };
 pub const STEP_AHEAD: Style = Style { owner: OWNER, token: 31 };
 pub const PLAYGROUND: Style = Style { owner: OWNER, token: 32 };
 pub const END_FAINT: Style = Style { owner: OWNER, token: 33 };
+pub const WHY: Style = Style { owner: OWNER, token: 34 };
 pub const NAMES: Names<'static> = Names {
     owner: OWNER,
     prefix: b"tui",
@@ -83,6 +84,7 @@ pub const NAMES: Names<'static> = Names {
         b"tui-step-ahead",
         b"tui-playground",
         b"tui-end-faint",
+        b"tui-why",
     ],
     regions: &[b"tui-top", b"tui-bottom", b"tui-sections", b"tui-working", b"tui-box", b"tui-list", b"tui-pane"],
 };

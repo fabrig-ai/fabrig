@@ -66,6 +66,16 @@ pub const LIMITS: top::Limits = top::Limits {
     decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -164,7 +174,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(35) {
+    match random.below(36) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -212,6 +222,10 @@ pub fn key(random: &mut Rng) -> top::Key {
         30 => top::Key::ProjectFacts { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         32 => top::Key::Away { party: number, project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         34 => top::Key::Closer(number),
+        35 => top::Key::Follow {
+            project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+            follow: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+        },
         33 => top::Key::Decided {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
@@ -258,6 +272,7 @@ pub fn named_branch() -> top::Name {
 }
 pub fn adopted(protection: top::Protection) -> top::Stored {
     top::Stored::Repository(top::Repository {
+        contexts: Box::new([]),
         workflows: Box::new([Box::from(b"ci.yml".as_slice()), Box::from(b"lint.yml".as_slice())]),
         project: 3,
         home: true,
@@ -893,9 +908,11 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         producer_failure: None,
         report: Box::new([]),
         repairs: Some([28; 32]),
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 /// A merge job with its catch-up commit and retained result (temper/docs/design/domain/forge/change/repairs.md).

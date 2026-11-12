@@ -25,7 +25,7 @@ fn two_agents_run_at_once_under_the_real_host_limits() {
     let mut own = fixtures::worker_limits();
     own.checkout.workspaces = 2;
     let payload = crate::worker_settings::payload_limits(&own).unwrap();
-    let link = crate::worker_settings::link_limits(&settings.jig, &payload, own.forge.forges).unwrap();
+    let link = crate::worker_settings::link_limits(&settings.jig, &payload, own.peer.forges).unwrap();
     settings.jig.limits.io.output =
         jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn)
             .unwrap()

@@ -5,6 +5,7 @@ use skein_lib::{List, Secret, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as domain;
 use temper_protocol_records::{self as records, Item};
+use temper_protocol_records_forge as forge_records;
 
 const NUMBER: u16 = 77;
 const PORT: u16 = 3076;
@@ -47,7 +48,7 @@ fn service(host: &[u8]) -> Service {
         Ok(ip) => jig_protocol_config::Address::Addr(skein_io::Addr::Ip(core::net::SocketAddr::new(ip, PORT))),
         Err(_) => jig_protocol_config::Address::Host { name: Box::from(host), port: PORT },
     };
-    let origin = records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
+    let origin = forge_records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
     for (item, bytes) in [
         (Item::Origin, origin),
         (Item::User, Box::from(42_u64.to_le_bytes())),
@@ -177,7 +178,8 @@ fn identities_and_tokens_take_a_forge_kept_at_runtime() {
     github.kind = domain::Kind::GitHub;
     let number = github.number;
     let origin =
-        records::Origin { kind: skein_forge_connection::settings::Kind::GitHub, api: "127.0.0.1:3076".into() }.encode();
+        forge_records::Origin { kind: skein_forge_connection::settings::Kind::GitHub, api: "127.0.0.1:3076".into() }
+            .encode();
     for (item, bytes) in [
         (Item::Origin, origin),
         (Item::User, Box::from(9_u64.to_le_bytes())),

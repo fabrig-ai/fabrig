@@ -71,11 +71,13 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 w::Request::RemoveForge(_) => false,
                 w::Request::DismissMaking(_)
                 | w::Request::MakeRepository(_)
+                | w::Request::FollowAct(_)
                 | w::Request::Adopt(_)
                 | w::Request::SetUp(_)
                 | w::Request::SetAway(_)
                 | w::Request::Overturn(_)
                 | w::Request::Looked(_)
+                | w::Request::SetDraft(_)
                 | w::Request::TryAccount(_)
                 | w::Request::Dismiss(_)
                 | w::Request::Replace(_)
@@ -256,6 +258,9 @@ fn answer_words(answer: w::Outcome, end: bool) -> Option<AnswerWords> {
         | w::Outcome::RemoveRefused(_)
         | w::Outcome::Away
         | w::Outcome::Tried
+        | w::Outcome::Drafted(_)
+        | w::Outcome::DraftRefused(_)
+        | w::Outcome::Follow(_)
         | w::Outcome::NotTheirs
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)

@@ -2,7 +2,7 @@
 //! signed-out page with no stream, its public reads, and a 404 under the page's policy.
 use skein_fake_person::{Face, Find, Found, Next, Step as PersonStep, Target};
 use skein_fake_person_browser::harness::Output;
-use skein_fake_person_browser::{BrowserFace, Command, Harness, Opens, Outcome, Play, Script, Sent, Stdin, Step};
+use skein_fake_person_browser::{BrowserFace, Command, Opens, Outcome, Play, Script, Sent, Stdin, Step};
 use skein_lib::Time;
 use skein_ui::Role;
 use std::{fs, path::Path};
@@ -22,7 +22,7 @@ fn press(find: Find) -> Step {
     Step::Person(PersonStep::Press { find })
 }
 fn go(path: &[u8]) -> Step {
-    Step::Person(PersonStep::Go { address: path.into() })
+    Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(path) })
 }
 fn heading(name: &[u8]) -> Find {
     Find::exactly_named(Role::Heading { level: 1 }, name)
@@ -84,7 +84,7 @@ fn owner_steps(tier: &Tier, client: &Path) -> Vec<Step> {
         exited(),
         see(Find::exactly_named(Role::Button, b"Try the playground")),
         press(Find::exactly_named(Role::Button, b"Try the playground")),
-        Step::Person(PersonStep::Go { address: b"/chats/new".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats/new".as_slice()) }),
         see(Find::exactly_named(Role::Status, b"Ready")),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Status, b"Starting"), within: WITHIN }),
         see(tier.states().live),
@@ -522,5 +522,5 @@ fn public_board_and_task_lines_are_readable_at_desktop_and_phone_widths() {
     let mut ctl = Script::new(Box::new([sign_in(reader.walk.client.path()), exited(), open_printed(), exited()]));
     let mut setup = tier.setup();
     setup.printed.sent = Sent::Command;
-    assert_eq!(Harness::new(setup).run(&mut [&mut ctl, &mut reader]), Outcome::Done);
+    assert_eq!(temper_client_browser_world::harness(setup).run(&mut [&mut ctl, &mut reader]), Outcome::Done);
 }
