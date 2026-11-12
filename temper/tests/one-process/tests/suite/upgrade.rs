@@ -39,6 +39,13 @@ fn golden_rehearsal_decodes_all_kept_records() {
 }
 
 #[test]
+fn deployment_rehearsal_with_remote_workers_and_forge_starts_only_the_store() {
+    temper_one_process_world::upgrade::rehearsal::deployment_check(
+        &skein_scratch::paths::tree().join("tests/one-process/golden/baseline"),
+    );
+}
+
+#[test]
 fn broken_golden_rehearsal_names_temper_record_and_leaves_source_unchanged() {
     temper_one_process_world::upgrade::rehearsal::golden_check(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),

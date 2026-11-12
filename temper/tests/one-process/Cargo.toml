@@ -70,6 +70,7 @@ skein-fake-llm-domain = { path = "../../../skein/crates/skein-fake-llm-domain" }
 skein-kv = { path = "../../../skein/crates/skein-kv" }
 
 [dev-dependencies]
+skein-scratch.workspace = true
 skein-heap.workspace = true
 jig-test-store-files.workspace = true
 

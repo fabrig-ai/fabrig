@@ -7,10 +7,19 @@ use skein_shell::Host;
 use std::{collections::BTreeMap, path::Path};
 use temper_playground::machine::{self, SignalHost};
 
-struct Tool(temper_service::Service);
+struct Tool(temper_service::Service, Time);
 impl Host for Tool {
     fn iterate(&mut self, now: Time, wall: Wall) {
+        self.1 = now;
         temper_service::iterate(&mut self.0, now, wall);
+        for submit in self.0.submissions().iter() {
+            if let skein_io::kernel::Op::Listen { .. }
+            | skein_io::kernel::Op::Connect { .. }
+            | skein_io::kernel::Op::Spawn { .. } = &submit.kind
+            {
+                panic!("upgrade tool made an effect: {:?}", submit.kind);
+            }
+        }
     }
     fn completions(&mut self) -> &mut Queue<Complete> {
         self.0.completions()
@@ -36,6 +45,7 @@ impl Host for Tool {
     fn drain(&mut self) {
         while self.0.notes().pop().is_some() {}
         while self.0.listening().pop().is_some() {}
+        self.0.check_wait_boundary(self.1);
     }
     fn exit(&self) -> Option<Exit> {
         self.is_empty().then_some(Exit::Code(render(&self.0).1))
@@ -69,10 +79,22 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     let mut document: serde_json::Value = serde_json::from_slice(&configuration).expect("configuration JSON");
     let given = temper_playground::documents::given(&document);
     temper_playground::documents::settings::strip_models(&mut document);
+    let mut files = fixtures::files();
+    for worker in document["engine"]["hosts"]["workers"].as_array().expect("configured workers") {
+        let name = worker["digest"].as_str().expect("digest path").as_bytes();
+        if !files.entries.iter().any(|(path, _)| path.as_ref() == name) {
+            // A SHA-256 digest has 64 hexadecimal digits.
+            const DIGEST_BYTES: usize = 64;
+            files
+                .entries
+                .push((name.into(), skein_lib::Secret::new(Box::new([b'0'; DIGEST_BYTES]))))
+                .expect("remote worker fixture files");
+        }
+    }
     let mut service = temper_service::startup::restoring_with(
         &serde_json::to_vec(&document).expect("configuration"),
         &jig_protocol_config::Directories::working(),
-        &fixtures::files(),
+        &files,
         Some(&temper_playground::documents::agent()),
         &fixtures::seeds(),
         None,
@@ -81,7 +103,12 @@ fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
     let root = |name: &[u8]| inherited.roots.iter().find(|(key, _)| key.as_ref() == name).expect("tool root").1;
     service.rehearse_store(root(b"source"), root(b"scratch"), 1000).expect("tool roots adopted");
-    SignalHost::new(Tool(service), Some(inherited.signal))
+    let owners = service.wait_state().engine.expect("upgrade engine");
+    assert!(
+        owners.workers.closed && owners.setup.closed && owners.forge.closed,
+        "upgrade closes unstarted owners before store I/O: {owners:?}"
+    );
+    SignalHost::new(Tool(service, Time::ZERO), Some(inherited.signal))
 }
 
 type Contents = BTreeMap<Vec<u8>, Option<Vec<u8>>>;
@@ -125,6 +152,30 @@ fn collect(disk: &mut Machine, root: Opened, prefix: &[u8], found: &mut Contents
 /// Rehearse the production sets; the broken copy has a valid KV commit holding
 /// an invalid application record. Only the scratch may change in either case.
 pub fn golden_check(directory: &Path, broken: bool) {
+    golden_check_with(directory, broken, golden::read_configuration(directory));
+}
+
+/// A deployment's remote workers and owned Forgejo must stay unstarted.
+pub fn deployment_check(directory: &Path) {
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&golden::read_configuration(directory)).expect("golden configuration");
+    document["workers"] = serde_json::json!([]);
+    document["application"]["workers"] = serde_json::json!([]);
+    document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:7103"}]);
+    document["engine"]["hosts"]["workers"] = serde_json::json!([
+        {"name":"worker-a", "digest":"secrets/worker-a.digest"},
+        {"name":"worker-b", "digest":"secrets/worker-b.digest"},
+        {"name":"worker-c", "digest":"secrets/worker-c.digest"}
+    ]);
+    document["application"]["machine"] = serde_json::json!({"owned": {
+        "listen":{"socket":"127.0.0.1:3000"}, "remote":"http://127.0.0.1:3000",
+        "forgejo":"/opt/forgejo/forgejo", "runner":null,
+        "person":{"login":"person", "email":"person@example.invalid"}, "sign_in":null
+    }});
+    golden_check_with(directory, false, serde_json::to_vec(&document).expect("deployment configuration"));
+}
+
+fn golden_check_with(directory: &Path, broken: bool, configuration: Vec<u8>) {
     let mut disk = golden::files::load(directory);
     let maps = super::maps::Maps::read(&mut disk);
     let expected = maps.store.len() - 4 + maps.secrets.len();
@@ -139,7 +190,7 @@ pub fn golden_check(directory: &Path, broken: bool) {
     }
     let before = contents(&mut disk, 0);
     // The fixture client's root is the tool's disposable scratch, not a running client.
-    CONFIGURATION.with(|bytes| *bytes.borrow_mut() = golden::read_configuration(directory));
+    CONFIGURATION.with(|bytes| *bytes.borrow_mut() = configuration);
     let mut world = skein_world::World::new(
         fixtures::SEED,
         skein_sim::Config::calm(),

@@ -48,6 +48,13 @@ fn drive(disk: &mut Machine, document: &[u8], sets: PatchSets, until: Until) -> 
         Until::Back => service.back_store(source, 1000).expect("back adoption"),
         Until::Switched | Until::Wires => service.adopt_store(source, 1000).expect("start adoption"),
     }
+    if let Until::Check | Until::Back = until {
+        let owners = service.wait_state().engine.expect("upgrade engine");
+        assert!(
+            owners.workers.closed && owners.setup.closed && owners.forge.closed,
+            "upgrade closes unstarted owners before store I/O: {owners:?}"
+        );
+    }
     let mut patched = Vec::new();
     for _ in 0..100_000 {
         temper_service::iterate(&mut service, sim.now(), sim.wall());
