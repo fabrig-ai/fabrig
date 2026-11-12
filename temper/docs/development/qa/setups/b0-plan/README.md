@@ -1,0 +1,1 @@
+B0’s work has inspected widget, reported its plan and asked for go-ahead, with no change pushed. Its scripts are the B0 twin’s cued and asked groups, without a fallback; it serves the chat, Needs you and its question, the goal, Work and widget’s Home while the plan waits, and checks the work’s question on Needs you.

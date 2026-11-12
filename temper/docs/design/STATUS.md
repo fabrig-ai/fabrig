@@ -37,16 +37,21 @@ process-tier story runs after landing (`client/drive.md`;
 `client/recipe.md`; `protocol/setup/box.md`, 1 and 5; `protocol/store.md`,
 5; `draft/landed-qa.status.md`).
 
-Landed QA's milestones Q1 and Q3: `temper-qa`
+Landed QA's milestones Q1, Q3 and Q4: `temper-qa`
 watches main's ref, triages each goal's landing into cases in main's
 order, and keeps the deployment's builds of landed tips until no pass
 can need them, all in one ledger; a pass, by goal 1210, takes the newest
-reached build with every web case it holds, restores each case's setup
+reached build with every case it holds, restores each case's setup
 at a place from its copy or its recipe, drives the box a line at a time,
 records outcomes and findings as it goes, files its open findings as one
 request and one goal, and resumes on a build holding that goal's
-landing, two goals at most; its first passes follow landing, and the
-TUI's cases wait for Q4 (`testing/qa/README.md`; `testing/qa/passes.md`;
+landing, two goals at most. By goal 1334 it takes the TUI's cases too.
+Its places have their own ports, and `temper-qa tune` gives the figures
+bounds and places are tuned from. The box's fake forges keep their state
+across a restart. Fake-model scripts take values from the conversation,
+so B0's twin replays as setups on a box's own Forgejo; B1's waits on how
+its gate's commit is made. Its passes follow landing
+(`testing/qa/README.md`; `testing/qa/setups.md`;
 `draft/landed-qa.status.md`).
 
 A follow across projects is the whole story's milestone F1
@@ -283,6 +288,7 @@ Design documents:
 - [`testing/qa/ledger.md`](testing/qa/ledger.status.md)
 - [`testing/qa/passes.md`](testing/qa/passes.status.md)
 - [`testing/qa/places.md`](testing/qa/places.status.md)
+- [`testing/qa/setups.md`](testing/qa/setups.status.md)
 - [`testing/qa/triage.md`](testing/qa/triage.status.md)
 - [`testing/real-loop.md`](testing/real-loop.status.md)
 - [`testing/reference-case.md`](testing/reference-case.status.md)

@@ -1,5 +1,6 @@
 {
   "request": "Add CSV export to widget. Before anything is changed, have the work tell me its plan and wait for my go-ahead.",
   "answer": "Go ahead. The CSV's first line must be the header fruit,count.",
-  "question": "I inspected src/main.rs: the widget is currently a hard-coded table of (name, count) pairs printed in aligned columns. Plan: add CSV output for that table, including a header row and properly escaped fields, while preserving the existing display behavior (likely with a command-line option to select CSV). Shall I go ahead?"
+  "question": "I inspected src/main.rs: the widget is currently a hard-coded table of (name, count) pairs printed in aligned columns. Plan: add CSV output for that table, including a header row and properly escaped fields, while preserving the existing display behavior (likely with a command-line option to select CSV). Shall I go ahead?",
+  "last_word": "CSV export landed:"
 }

@@ -4,6 +4,7 @@
 extern crate alloc;
 pub mod answers;
 pub mod delivery;
+pub mod image;
 use alloc::boxed::Box;
 use skein_lib::{List, Secret};
 pub mod errors;

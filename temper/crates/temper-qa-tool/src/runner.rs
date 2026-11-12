@@ -306,7 +306,20 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             result?;
             cleanup?;
         }
-        Ok(())
+        home.transact(|ledger| {
+            let mut free = false;
+            for place in &home.configuration.places {
+                if !ledger.passes.iter().any(|pass| pass.state == PassState::Running && &pass.place == place) {
+                    let directory = home.configuration.place_directory(&home.directory, place)?;
+                    if pass_files::free_lock(&directory)?.is_some() {
+                        free = true;
+                        break;
+                    }
+                }
+            }
+            ledger.update_place_wait(&home.configuration.surfaces, free, self.clock.now().wall);
+            Ok(())
+        })
     }
 
     fn end_record(

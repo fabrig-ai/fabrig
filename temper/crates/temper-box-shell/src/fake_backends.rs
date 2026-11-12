@@ -156,12 +156,12 @@ fn scripts_for_start(
             Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
             Err(why) => return Err(format!("{}: {why}", path.display())),
         }
-        return Ok(backends::steps(&dirs.config, peers, None, options.strict));
+        return Ok(backends::steps(&dirs.config, &dirs.data, peers, None, options.strict));
     }
     let document = peer_document(dirs, "llm.json", temper_fake::DOCUMENT_BYTES)?;
     let joined = join_scripts(&options.scripts, &document)?;
     write(&path, &joined, path.exists())?;
-    Ok(backends::steps(&dirs.config, peers, Some(&bytes(&path)), options.strict))
+    Ok(backends::steps(&dirs.config, &dirs.data, peers, Some(&bytes(&path)), options.strict))
 }
 fn join_scripts(files: &[PathBuf], document: &[u8]) -> Result<Box<[u8]>, String> {
     let mut joined = Json::Object(

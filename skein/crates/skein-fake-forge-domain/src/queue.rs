@@ -20,7 +20,7 @@ use crate::{
 pub(crate) struct Group {
     pub(crate) commit: u64,
     /// The first settled group verdict survives CI reruns while waiting.
-    verdict: Check,
+    pub(crate) verdict: Check,
 }
 
 impl Group {
@@ -134,7 +134,7 @@ pub(crate) fn enqueue(
     let pull = repository.item_mut(number)?.pull.as_mut().expect("queued pull");
     pull.dequeued = None;
     pull.queued_by = by;
-    repository.touch(number, domain::clock(env));
+    repository.touch(number, domain::clock(env).max(domain.floor));
     let observation =
         Observation::Enqueued { repository: copy_of(&repository.name), number, head, position: entry.position, by };
     domain::changed(domain, env, id, observation, Hook::queued(number, by, crate::api::QueueHook::Enqueued));
@@ -223,7 +223,7 @@ fn remove(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, index: u32
     let pull = repository.item_mut(entry.number).expect("queued item").pull.as_mut().expect("queued pull");
     pull.dequeued = Some(reason);
     let by = pull.queued_by;
-    repository.touch(entry.number, domain::clock(env));
+    repository.touch(entry.number, domain::clock(env).max(domain.floor));
     let observation = Observation::Dequeued { repository: copy_of(&repository.name), number: entry.number, reason };
     domain::changed(
         domain,
@@ -394,7 +394,7 @@ fn land(domain: &mut Domain, env: &Env<Config>, id: Id<Repository>, entry: Queue
     let base = copy_of(&pull.base);
     let by = pull.queued_by;
     let from = repository.branches.insert(copy_of(&base), commit).expect("base branch exists");
-    repository.touch(entry.number, domain::clock(env));
+    repository.touch(entry.number, domain::clock(env).max(domain.floor));
     let observation = Observation::Merged {
         repository: copy_of(&repository.name),
         number: entry.number,

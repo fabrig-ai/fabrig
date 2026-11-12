@@ -4,6 +4,7 @@ mod commands;
 mod hold;
 mod passes;
 mod place;
+mod tune;
 use std::process::{Command, Stdio};
 use temper_qa_tool::TABLE;
 

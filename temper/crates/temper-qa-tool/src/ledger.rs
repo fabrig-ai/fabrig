@@ -15,7 +15,15 @@ pub struct Ledger {
     pub passes: Vec<crate::Pass>,
     pub findings: Vec<crate::Finding>,
     pub notes: Vec<crate::Note>,
+    pub place_waits: Vec<PlaceWait>,
 }
+/// A span of queued work behind busy places (qa/ledger.md, 2.10).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PlaceWait {
+    pub from: u64,
+    pub to: Option<u64>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Landing {
     pub number: u64,

@@ -53,7 +53,8 @@ pub fn scripts(config: &Config, accepted: &[Credential], scripts: &[api::Script]
                             return Err(Error::Limits);
                         }
                     }
-                    api::Line::Text { .. }
+                    api::Line::Take { .. }
+                    | api::Line::Text { .. }
                     | api::Line::Opaque { .. }
                     | api::Line::Call { .. }
                     | api::Line::Pieces { .. } => {}
