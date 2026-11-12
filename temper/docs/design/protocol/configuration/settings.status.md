@@ -3,7 +3,7 @@
 2026-11-12. Where the tree's code lags or departs from [settings.md](settings.md).
 
 - **Not yet:** 2: kind 13, a project's dependencies, its `Dependency`
-  value, codecs, settings-file form, judgement and read permissions.
+  value, codecs, settings-file form, judgement and read permissions [in flight: change 1042].
 
 - **Not yet:** 7: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected
