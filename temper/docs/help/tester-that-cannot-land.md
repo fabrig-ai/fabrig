@@ -10,22 +10,22 @@ An agent runs and writes tests under its own charter and reports what it finds, 
 
 ## Settings
 
-Choose free charter and template numbers; these examples use 13 for both.
+Choose free charter and template numbers; these examples use 3 for both.
 Read temper help charter and temper help template for their fields.
 Copy stock coding charter 2, keeping its `tools` 514 without the delegate bit (1),
 enabling its shell and replacing its instructions:
 
 ```
-temper ctl DIR settings show charter 2 --json | jq '{items: [{setting: {kind: "charter", number: 13}, set: (.value | .number = 13 | .shell = true | .instructions = "Run and write the tests you are asked for. Report each test, its path, its content and its result. Fix nothing.\n")}]}' > FILE
+temper ctl DIR settings show charter 2 --json | jq '{items: [{setting: {kind: "charter", number: 3}, set: (.value | .number = 3 | .shell = true | .instructions = "Run and write the tests you are asked for. Report each test, its path, its content and its result. Fix nothing.\n")}]}' > FILE
 ```
 
 Apply FILE as in temper help configure, step 3.
 Then write FILE with this template:
 
 ```json
-{"items":[{"setting":{"kind":"template","number":13},"set":{
- "number":13,"name":{"bytes":"tester","cut":false},
- "executor":{"charter":13},"contract":{"report":{"words":16000}},
+{"items":[{"setting":{"kind":"template","number":3},"set":{
+ "number":3,"name":{"bytes":"tester","cut":false},
+ "executor":{"charter":3},"contract":{"report":{"words":16000}},
  "resources":[],"shallower":1,"budget":{"as_allowed":{"cap":null}},
  "deadline":"none","tracked":1,
  "flags":{"conversation":false,"listed":true,"retention":"kept","ended_by":"result"},
@@ -34,12 +34,12 @@ Then write FILE with this template:
 ```
 
 Apply it the same way, against the newest revision.
-Widen the starter's authority for charter 13 within the ceilings as configure's
+Widen the starter's authority for charter 3 within the ceilings as configure's
 *Authority for new charters* says; a template grants no authority.
 Start it with the tests to run in TEXT (temper help ctl-goal):
 
 ```
-temper ctl DIR goal start --project PROJECT --template 13 TEXT --key KEY
+temper ctl DIR goal start --project PROJECT --template 3 TEXT --key KEY
 ```
 
 ## Enforced and followed
@@ -60,10 +60,10 @@ temper ctl DIR goal start --project PROJECT --template 13 TEXT --key KEY
 ## Checking it took
 
 ```
-temper ctl DIR settings show charter 13
+temper ctl DIR settings show charter 3
 ```
 
-The first line is `charter 13, revision REVISION`; the whole value follows.
+The first line is `charter 3, revision REVISION`; the whole value follows.
 Check `tools` is 514, with 514 & 1 = 0.
 
 ```
