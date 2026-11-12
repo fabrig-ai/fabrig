@@ -2,6 +2,7 @@
 
 2026-11-12. Where the tree's code lags or departs from [executors.md](executors.md).
 
+- **Not yet:** 5: a job's cancel for its host's shutdown uses lost [in flight: change 1732].
 - **Not yet:** 4: a standing task's finish parked (`../tasks/standing.md`, section 2).
 - **Not yet:** 4: a standing task's runs resuming only within a session (`../tasks/standing.md`, section 5).
 

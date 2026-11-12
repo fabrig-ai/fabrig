@@ -3,6 +3,8 @@
 2026-11-12. Where temper's code lags or departs from [README.md](README.md).
 
 
+- **Not yet:** 2: the drain, its bound, and the stop bound kept as a deadline from a stop and from the grace's end [in flight: change 1767].
+- **Not yet:** 5: the agent pinned at the worker's start: each spawn runs the configured program, which reads the configured file [in flight: change 1749].
 - **Not yet:** 4.1 and `checkouts.md`, *The replaced head's pin*: a writable item naming no landing branch (a repair, a resolution, a merge job, a chat's run) writes no `refs/temper/landing` (`temper-worker-domain-checkout/src/hold.rs`, `pin_branch`), and a pin a cached checkout kept from an earlier hold is read by its checks, so a repair of a goal's landing into main checked the goal's packages.
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline.
 
