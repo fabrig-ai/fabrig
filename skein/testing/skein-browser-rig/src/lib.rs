@@ -1,24 +1,19 @@
 //! Real Chromium in one service loop with a skein-http page server.
+//!
+//! Shared browser test rig (tools/crates/design.md, 3.2).
 
-#[path = "real/beside.rs"]
 mod beside;
-#[path = "real/dialogs.rs"]
 mod dialogs;
-#[path = "real/downloads.rs"]
 mod downloads;
-#[path = "real/scope.rs"]
 mod scope;
-#[path = "real/tabs.rs"]
 mod tabs;
-#[path = "real/viewport.rs"]
 mod viewport;
 use skein_fake_person_browser::{
     BrowserFace, origins as serve,
     person::{Doing, Face, Find, Found},
 };
 use skein_ui::{Act, Role};
-#[path = "../../src/pages.rs"]
-mod pages;
+pub mod pages;
 
 use std::collections::VecDeque;
 use std::os::unix::ffi::OsStrExt;
