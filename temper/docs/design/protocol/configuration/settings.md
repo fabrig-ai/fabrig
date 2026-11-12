@@ -643,9 +643,13 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 - **The store's ceiling:** jig's `standard` page holds a turn's frame of
   a transcript of up to 33,554,432 bytes, any turn smith admits, and the
   store's frame and the worker wire carry it (jig's
-  `protocol/store/transcripts.md`, 1); small's page holds a loaded transcript of
-  at most 2,168,915 bytes (its 2,168,979 less the frame's 64), so a
-  deployment on `small` keeps T within that. The page ceiling admits
+  `protocol/store/transcripts.md`, 1); small's base page ceiling is
+  4,270,667 bytes, holding a loaded transcript of at most 4,270,603 bytes
+  after the frame's 64. Its effective page ceiling is the larger of
+  that base and the profile's key ceiling plus the settings revision
+  bound derived from the deployment's effective capacities (`../store.md`,
+  4). A deployment on `small` keeps T's full frame within that ceiling.
+  The page ceiling admits
   the largest shipped ordinary transcript (jig's
   `protocol/limits.md`). A deployment with larger output or
   reasoning items derives T from its own agent and checks that its full
