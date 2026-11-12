@@ -40,6 +40,9 @@ process-temper = [
     "temper-box",
 ]
 
+[test-binaries]
+smith = [{ package = "smith-fake-claude", bin = "fake-claude" }]
+
 [binaries]
 browser-jig = [{ package = "jig-test", bin = "jig-test" }]
 browser-skein = [{ package = "skein-ui-example-server", bin = "skein-ui-example" }]
