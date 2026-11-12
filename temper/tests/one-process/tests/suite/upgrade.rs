@@ -1,5 +1,13 @@
 //! Baseline owner admission, coverage and the application's mark-only fixture.
 #[test]
+fn prebaseline_rehearsals_without_wires_report_the_older_layout() {
+    temper_one_process_world::upgrade::check::prebaseline_rehearsals();
+}
+#[test]
+fn a_corrupt_store_open_reaches_a_report_and_empties_scratch() {
+    temper_one_process_world::upgrade::check::corrupt_open_rehearsal();
+}
+#[test]
 fn rehearsal_preserves_the_deployment_then_start_and_back_obey_the_first_commit() {
     temper_one_process_world::upgrade::check::rehearsal_then_start_and_back();
 }
@@ -35,6 +43,20 @@ fn golden_rehearsal_decodes_all_kept_records() {
     temper_one_process_world::upgrade::rehearsal::golden_check(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/baseline"),
         false,
+    );
+}
+
+#[test]
+fn deployment_rehearsal_with_remote_workers_and_forge_starts_only_the_store() {
+    temper_one_process_world::upgrade::rehearsal::deployment_check(
+        &skein_scratch::paths::tree().join("tests/one-process/golden/baseline"),
+    );
+}
+
+#[test]
+fn configured_accounts_rehearsal_starts_only_the_store_and_reaches_its_report() {
+    temper_one_process_world::upgrade::rehearsal::accounts_check(
+        &skein_scratch::paths::tree().join("tests/one-process/golden/baseline"),
     );
 }
 
