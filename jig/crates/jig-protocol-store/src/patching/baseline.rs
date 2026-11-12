@@ -1,5 +1,4 @@
-//! Owners kept by the deployment (temper/docs/design/protocol/baseline.md, 4;
-//! jig/docs/design/protocol/store/opening.md, 3).
+//! Owners kept by the deployment (jig/docs/design/protocol/store/opening.md, 3).
 use super::sets::{KeptFamily, KeptMap, Owner, PatchSet};
 
 /// OAuth records are held inside the secrets family's Source, never direct map rows.

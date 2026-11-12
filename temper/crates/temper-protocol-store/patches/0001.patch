@@ -8,6 +8,7 @@ rename Route.foreman retired
 add Stands.retired
 drop Stands.foreman
 written Stands
+add SignOff
 add ChangeFollows
 add FollowAt
 add FollowReasonAct
@@ -28,6 +29,7 @@ add FollowCheck
 add Follow
 add SettingValue.follow
 add SettingValue.dependency
+add LoggedChange.signed list 8 SignOff []
 add LandedDraft
 add FollowCommit
 add FollowReason
@@ -41,6 +43,7 @@ add FollowParity
 add FollowQuestion
 add FollowRow
 add FollowCheckProgress
+add ChangeRow.signed list 8 SignOff []
 add ChangeRow.follows option ChangeFollows none
 add ChangeRow.follow_check option FollowCheckProgress none
 drop ChangeRow.foreman_charter

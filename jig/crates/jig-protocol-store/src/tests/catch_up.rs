@@ -1,4 +1,4 @@
-//! The baseline's live record reaches the before-talk payload (temper baseline.md, 9).
+//! The baseline's live record reaches the before-talk payload (protocol/store/opening.md, 3).
 use skein_codec::patch::{Capacity, Patcher, Step};
 
 fn patched(root: &[u8], bytes: Box<[u8]>) -> Box<[u8]> {

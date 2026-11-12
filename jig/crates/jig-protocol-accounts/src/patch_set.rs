@@ -1,5 +1,4 @@
-//! Jig's owner set (temper/docs/design/protocol/baseline.md, 4;
-//! jig/docs/design/protocol/store/opening.md, 3).
+//! Jig's owner set (jig/docs/design/protocol/store/opening.md, 3).
 use jig_protocol_store::{KeptFamily, KeptMap, Keys, Owner, PatchSet, patches};
 
 /// The component, core, children and secrets; Moved is held inside Carried.
