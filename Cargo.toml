@@ -316,6 +316,7 @@ members = [
     "temper/tests/codecs",
     "temper/crates/temper-protocol-store",
     "temper/crates/temper-protocol-brief",
+    "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
     "temper/crates/temper-engine-domain-calendar",
     "temper/crates/temper-engine-domain-trials",
@@ -622,6 +623,7 @@ temper-client-protocol-wire = { path = "temper/crates/temper-client-protocol-wir
 temper-protocol-worker-wire = { path = "temper/crates/temper-protocol-worker-wire" }
 temper-protocol-store = { path = "temper/crates/temper-protocol-store" }
 temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
+temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
 temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-calendar" }
 temper-engine-domain-trials = { path = "temper/crates/temper-engine-domain-trials" }

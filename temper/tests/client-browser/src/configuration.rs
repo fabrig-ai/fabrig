@@ -49,7 +49,7 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     for (name, count) in [
         ("core.policy_bytes", 8192),
         // Holds charter 5's resolved models, shared instructions and four parts.
-        ("core.run_bytes", 16_384),
+        ("core.run_bytes", 32_768),
         ("authority.grants", 16),
         // The standing charter, closer procedure and close job are delegation targets.
         ("authority.executors", 18),

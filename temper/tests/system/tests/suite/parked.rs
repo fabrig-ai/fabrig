@@ -17,7 +17,7 @@ fn script(continuation: Vec<Turn>) -> Script {
         call(b"wait", b"{}"),
     ];
     turns.extend(continuation);
-    Script { cue: b"Read only what the change needs".as_slice().into(), turns: turns.into_boxed_slice() }
+    Script { cue: b"Run only what your change needs".as_slice().into(), turns: turns.into_boxed_slice() }
 }
 
 #[test]
