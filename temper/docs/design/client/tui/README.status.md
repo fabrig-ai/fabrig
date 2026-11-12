@@ -111,5 +111,5 @@ of each screen in a real terminal against its mockup follows landing
 (`../README.md`, section 5), owned by temper/tui; where the design departs from the
 mockups is `../../draft/surfaces.status.md`.
 
-- **Not yet:** 3: the host following `Talk { project, task }`, its events `Accept` and `Leave`, Esc and `/exit` leaving a talk, and `Own::Talk`, `/talk WORDS` and `/tell WORDS` on Send.
-- **Not yet:** 3: `Own::Tell` and `/tell WORDS` on Send.
+- **Not yet:** 3: the host following `Talk { project, task }`, its events `Accept` and `Leave`, Esc and `/exit` leaving a talk, and `Own::Talk`, `/talk WORDS` and `/tell WORDS` on Send [in flight: change 2039].
+- **Not yet:** 3: `Own::Tell` and `/tell WORDS` on Send [in flight: change 2038].
