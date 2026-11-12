@@ -121,6 +121,7 @@ fn builds_learn_holds_only_when_the_observed_head_contains_them() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one serial triage session pins its inputs, fakes-only brief and environment")]
 fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::Case, Agent::None]);
@@ -194,6 +195,10 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
         "A project ready for work. Two lines.",
         "temper-qa triage none WHY",
         "temper-qa triage case FILE",
+        "The fakes alone",
+        "the person's forge is the box's fake Forgejo",
+        "what only the box's own Forgejo or another real backend shows is no case",
+        "a landing that changes nothing else a person meets is no QA, its line saying so",
         "\"expect\"",
     ] {
         assert!(brief.contains(words), "{words}\n{brief}");

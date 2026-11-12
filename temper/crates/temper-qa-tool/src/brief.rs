@@ -67,7 +67,7 @@ impl Inputs {
     }
     pub fn render(&self, home: &Home, number: u64, landing: &Landing, ledger: &Ledger) -> String {
         let mut text = String::from(
-            "# Triage\n\nJudge what a person now sees or does in the web client or TUI, the green path only: the draft's intended use, weighed by v0.1.0's stories and each part's bar (`temper/docs/design/draft/v0.1.0.md`, 4–5). Edge cases, failures and recovery wait; ctl and help are outside these surfaces. Read the draft's promises and write expectations before anything is tried. If nothing a person meets changes, answer no QA with a line saying why. Read only: start no box. A security hole or lost data is a finding wherever it is.\n",
+            "# Triage\n\nJudge what a person now sees or does in the web client or TUI, the green path only: the draft's intended use, weighed by v0.1.0's stories and each part's bar (`temper/docs/design/draft/v0.1.0.md`, 4–5). Edge cases, failures and recovery wait; ctl and help are outside these surfaces. Read the draft's promises and write expectations before anything is tried. If nothing a person meets changes, answer no QA with a line saying why. The fakes alone: the person's forge is the box's fake Forgejo, so what only the box's own Forgejo or another real backend shows is no case, and a landing that changes nothing else a person meets is no QA, its line saying so. Read only: start no box. A security hole or lost data is a finding wherever it is.\n",
         );
         writeln!(
             text,
