@@ -186,6 +186,8 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
                 1 => 6,
                 2 => 8,
                 3 => 10,
+                4 => 12,
+                5 => 13,
                 _ => unreachable!("project setting kind"),
             },
             scope: *project,

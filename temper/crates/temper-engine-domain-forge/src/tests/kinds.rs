@@ -810,8 +810,8 @@ fn a_deleted_project_loses_its_questions_and_ways() {
         assert_eq!(d.setting(kind, 1, 1), None);
         assert_eq!(d.setting(kind, 2, 1), Some(&value));
     }
-    // Four slots of each of the four project kinds, then the release acknowledgement.
-    assert_eq!(sent.len(), 17);
+    // Four slots of each project kind, then the release acknowledgement.
+    assert_eq!(sent.len(), 4 * project_values().len() + 1);
     assert_eq!(d.charter_words(1), Some(line));
     assert_eq!(d.template_goal(1), Some(GOAL));
     for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(7), SettingSlot::Replaced(3)] {
