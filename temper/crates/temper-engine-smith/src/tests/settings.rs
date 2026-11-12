@@ -524,6 +524,14 @@ fn settings_proposals_carry_typed_landing_values() {
             9, 0, settings::Value::CharterWords(b"Reviews changes".as_slice().into()),
         ),
         (
+            br#"{"against":1,"reason":"areas","items":[{"setting":{"kind":"project-areas","project":7},"set":{"areas":[{"name":"tests","words":"C tests","owner":{"role":0}}]}}]}"#,
+            12, 7, settings::Value::ProjectAreas(settings::ProjectAreas { areas: Box::new([settings::Area { name: b"tests".as_slice().into(), words: b"C tests".as_slice().into(), owner: settings::AreaOwner::Role(0) }]) }),
+        ),
+        (
+            br#"{"against":1,"reason":"triager","items":[{"setting":{"kind":"project-triager","project":7},"set":{"owner":{"charter":14}}}]}"#,
+            13, 7, settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Charter(14) }),
+        ),
+        (
             br#"{"against":1,"reason":"words","items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review changes."}}]}"#,
             10, 7, settings::Value::ProjectWords(settings::ProjectWords { headline: b"Our way".as_slice().into(), lede: b"We review changes.".as_slice().into() }),
         ),
@@ -768,8 +776,14 @@ fn settings_proposals_carry_typed_project_questions() {
 }
 #[test]
 fn project_settings_reads_require_project_and_refuse_number() {
-    for (kind, number) in [("project-ways", 7), ("project-questions", 6), ("project-classes", 8), ("project-words", 10)]
-    {
+    for (kind, number) in [
+        ("project-ways", 7),
+        ("project-questions", 6),
+        ("project-classes", 8),
+        ("project-words", 10),
+        ("project-areas", 12),
+        ("project-triager", 13),
+    ] {
         let bytes = format!(r#"{{"setting":{{"kind":"{kind}","project":7}},"revision":2}}"#);
         let call = decided(b"settings", bytes.as_bytes()).expect("project read");
         assert_eq!(

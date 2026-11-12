@@ -186,6 +186,8 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
                 1 => 6,
                 2 => 8,
                 3 => 10,
+                4 => 12,
+                5 => 13,
                 _ => unreachable!("project setting kind"),
             },
             scope: *project,
@@ -340,7 +342,11 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
         13 => b"project-triager ",
         _ => b"landing-rule ",
     });
-    out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 { scope } else { number }));
+    out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 12 || kind == 13 {
+        scope
+    } else {
+        number
+    }));
     if kind == 2 {
         out.put(b" --project ");
         out.number(u64::from(scope));

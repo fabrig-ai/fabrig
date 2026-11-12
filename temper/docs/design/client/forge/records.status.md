@@ -2,7 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [records.md](records.md).
 
-- **Not yet:** the requests `FileFinding`, `HandFinding` and `TriageFinding`, `FindingRefusal`, the subject `findings` and the read `Finding` [in flight: change 746].
+- **Not yet:** the requests `FileFinding`, `HandFinding` and `TriageFinding`, `FindingRefusal`, the subject `findings` and the read `Finding`, at the root and the forge [in flight: change 746].
+- **Not yet:** the same records on the client wire, translated by the service [in flight: change 1176].
 - **Not yet:** the subject `ways`' `roles`, each way's standing roles and whether each runs, and "Use this" starting them [in flight: change 748].
 
 - **Not yet:** the whole document: the walk the request `first-usable-model` of

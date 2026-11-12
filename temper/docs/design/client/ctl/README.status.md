@@ -62,7 +62,6 @@ The browser boundary check remains later work (section 11).
   reproduced cause on record; the settings-effort tests likewise guard an
   existing final refusal, without reproducing that walk's silence. The next
   QA walk remains the requested proof (section 11).
-- **Not yet:** 7: area 3's `party make` and the host's `sign-in --service` (`tools.md`, sections 3 and 5), and the group `party` [in flight: change 724].
 - **Not yet:** the groups `finding` and `need`: `finding list`, `finding show`, `finding file`, `finding hand`, `finding route`, `finding backlog`, `finding drop` and `need ask` (`tools.md`, sections 1 to 3) [in flight: change 749].
 - **Not yet:**  the groups `qa` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.

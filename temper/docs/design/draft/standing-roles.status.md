@@ -53,7 +53,7 @@ each but for the lags and departures below.
     `domain/tasks/standing.md`, section 9).
   - 6: who may talk with a standing role, and whose instruction may become a
     rule (section 12).
-  - 10 and 12: the stock triager's weekly budget, 25,000 units, $25 at
-    init's prices, taken as the default (`../protocol/configuration/stock.md`,
-    charter 14) and asked of the user on 2026-11-11; the other roles'
-    budgets and every role's default model, per stock way.
+  - 10 and 12: the other stock roles' budgets and every role's default
+    model, per stock way. The triager's weekly budget is 25,000 units, $25
+    at init's prices (`../protocol/configuration/stock.md`, charter 14),
+    the user's word of 2026-11-12.

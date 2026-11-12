@@ -255,7 +255,9 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     d::Value::ProjectWords(d::ProjectWords { headline, lede })
                 }
                 w::SettingValue::Areas(value) => d::Value::ProjectAreas(areas_from(value)),
-                w::SettingValue::Triager(value) => d::Value::ProjectTriager(d::ProjectTriager { owner: owner_from(value.into_parts().owner) }),
+                w::SettingValue::Triager(value) => {
+                    d::Value::ProjectTriager(d::ProjectTriager { owner: owner_from(value.into_parts().owner) })
+                }
                 w::SettingValue::Goal(value) => {
                     let w::TemplateGoalParts { design, close_out } = value.into_parts();
                     d::Value::Goal(d::TemplateGoal { design, close_out })
@@ -271,10 +273,18 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
 
 fn owner_record(value: d::AreaOwner) -> w::AreaOwner {
     match value {
-        d::AreaOwner::Task(number) => w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).expect("fixed owner number")),
-        d::AreaOwner::Party(number) => w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number }).expect("fixed owner number")),
-        d::AreaOwner::Role(number) => w::AreaOwner::Role(w::AreaRole::new(&w::CEILINGS, w::AreaRoleParts { number }).expect("fixed owner number")),
-        d::AreaOwner::Charter(number) => w::AreaOwner::Charter(w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number }).expect("fixed owner number")),
+        d::AreaOwner::Task(number) => {
+            w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).expect("fixed owner number"))
+        }
+        d::AreaOwner::Party(number) => w::AreaOwner::Party(
+            w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number }).expect("fixed owner number"),
+        ),
+        d::AreaOwner::Role(number) => {
+            w::AreaOwner::Role(w::AreaRole::new(&w::CEILINGS, w::AreaRoleParts { number }).expect("fixed owner number"))
+        }
+        d::AreaOwner::Charter(number) => w::AreaOwner::Charter(
+            w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number }).expect("fixed owner number"),
+        ),
     }
 }
 fn owner_from(value: w::AreaOwner) -> d::AreaOwner {
@@ -286,14 +296,27 @@ fn owner_from(value: w::AreaOwner) -> d::AreaOwner {
     }
 }
 fn wire_areas(value: &d::ProjectAreas) -> w::ProjectAreas {
-    let mut areas = List::uncapped();
+    let mut areas = List::with_capacity(u32::try_from(value.areas.len()).expect("admitted area count"));
     for area in &value.areas {
-        areas.push(w::Area::new(&w::CEILINGS, w::AreaParts { name: area.name.clone(), words: area.words.clone(), owner: owner_record(area.owner) }).expect("admitted area fits")).expect("counted areas");
+        areas
+            .push(
+                w::Area::new(
+                    &w::CEILINGS,
+                    w::AreaParts {
+                        name: area.name.clone(),
+                        words: area.words.clone(),
+                        owner: owner_record(area.owner),
+                    },
+                )
+                .expect("admitted area fits"),
+            )
+            .expect("counted areas");
     }
     w::ProjectAreas::new(&w::CEILINGS, w::ProjectAreasParts { areas }).expect("admitted areas fit")
 }
 fn wire_triager(value: &d::ProjectTriager) -> w::ProjectTriager {
-    w::ProjectTriager::new(&w::CEILINGS, w::ProjectTriagerParts { owner: owner_record(value.owner) }).expect("fixed triager fields")
+    w::ProjectTriager::new(&w::CEILINGS, w::ProjectTriagerParts { owner: owner_record(value.owner) })
+        .expect("fixed triager fields")
 }
 fn areas_from(value: w::ProjectAreas) -> d::ProjectAreas {
     let mut areas = List::uncapped();

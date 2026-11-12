@@ -626,7 +626,10 @@ fn a_restore_item_with_no_replaced_row_is_refused() {
         Restored { kind: 2, scope: 2, number: 1, edit: RestoredEdit::Set { revision: 4 } },
         Restored { kind: 2, scope: 1, number: 2, edit: RestoredEdit::Set { revision: 4 } },
     ];
-    assert_eq!(d.restore_settings(&BOUNDS, 7, &items, &mut out).as_ref(), &[const { Judged::Refuse(Refusal::Replaced) }; 4]);
+    assert_eq!(
+        d.restore_settings(&BOUNDS, 7, &items, &mut out).as_ref(),
+        &[const { Judged::Refuse(Refusal::Replaced) }; 4]
+    );
     assert_eq!(Refusal::Replaced.words().as_ref(), b"the replaced value is no longer kept");
     assert!(out.is_empty());
     assert!(d.proposal_settings(7).is_empty());
@@ -742,8 +745,18 @@ fn words() -> crate::settings::ProjectWords {
     crate::settings::ProjectWords { headline: Box::from(b"headline".as_slice()), lede: Box::from(b"lede".as_slice()) }
 }
 
-fn project_values() -> [(u32, SizedValue); 4] {
+fn project_values() -> [(u32, SizedValue); 6] {
     [
+        (12, SizedValue { value: Value::ProjectAreas(crate::settings::ProjectAreas { areas: Box::new([]) }), size: 4 }),
+        (
+            13,
+            SizedValue {
+                value: Value::ProjectTriager(crate::settings::ProjectTriager {
+                    owner: crate::settings::AreaOwner::Charter(14),
+                }),
+                size: 5,
+            },
+        ),
         (10, SizedValue { value: Value::ProjectWords(words()), size: 20 }),
         (6, SizedValue { value: Value::Questions(temper_engine_domain_forge_change::Route::Foreman), size: 1 }),
         (
@@ -797,8 +810,8 @@ fn a_deleted_project_loses_its_questions_and_ways() {
         assert_eq!(d.setting(kind, 1, 1), None);
         assert_eq!(d.setting(kind, 2, 1), Some(&value));
     }
-    // Four slots of each of the four project kinds, then the release acknowledgement.
-    assert_eq!(sent.len(), 17);
+    // Four slots of each project kind, then the release acknowledgement.
+    assert_eq!(sent.len(), 4 * project_values().len() + 1);
     assert_eq!(d.charter_words(1), Some(line));
     assert_eq!(d.template_goal(1), Some(GOAL));
     for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(7), SettingSlot::Replaced(3)] {

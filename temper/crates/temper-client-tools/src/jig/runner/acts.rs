@@ -54,9 +54,12 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
     if called.call.tool == rows::PROJECT_FUND_AT
         || called.call.tool == rows::PROJECT_AMEND_AT
         || called.call.tool == rows::PROJECT_REMOVE_AT
+        || called.call.tool == rows::PARTY_MAKE_AT
     {
         let Some(me) = me(runner, client) else { return };
-        let request = if called.call.tool == rows::PROJECT_AMEND_AT {
+        let request = if called.call.tool == rows::PARTY_MAKE_AT {
+            party_make(&called.call, me, &env.limits)
+        } else if called.call.tool == rows::PROJECT_AMEND_AT {
             project_amend(&called.call, me)
         } else if called.call.tool == rows::PROJECT_REMOVE_AT {
             project_remove(&called.call, me)
@@ -103,6 +106,18 @@ fn immediate(call: &Call, limits: &Limits) -> Option<Prepared> {
         _ => return None,
     };
     Some(request)
+}
+// client/ctl/tools.md, 3: the host alone handles the output file.
+fn party_make(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
+    let project = super::reads::project(call, me).ok_or(Failed::Fixed(b"unknown project"))?;
+    let role = match u32::try_from(number(call, 1).expect("role argument")).expect("role fits") {
+        0 => c::HeldRole::Owner,
+        1 => c::HeldRole::Maintainer,
+        2 => c::HeldRole::Member,
+        3 => c::HeldRole::Observer,
+        role => c::HeldRole::Policy { role },
+    };
+    Ok((Request::Ask(c::Ask::MakeService { project, name: words(call, 3, limits)?, role }), None))
 }
 fn project_make(call: &Call, limits: &Limits) -> Prepared {
     let name = words(call, 0, limits)?;
@@ -901,6 +916,14 @@ pub(super) fn answered(
             &env.limits,
             runner.parts.expect("host vocabulary").diagnostic_prefix(),
         );
+        if sent.called.call.tool == rows::PARTY_MAKE_AT
+            && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
+                c::Outcome::Made { what: c::Made::Service { party } }
+                | c::Outcome::Document(c::DocumentOutcome::ServiceMade { person: party }),
+            ))) = outcome
+        {
+            printed.file = super::FileEnd::Service { party: *party };
+        }
         if sent.called.call.tool == rows::IMPORT_AT
             && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
                 c::DocumentOutcome::AccountMovedIn { .. },

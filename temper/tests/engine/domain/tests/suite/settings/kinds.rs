@@ -36,7 +36,7 @@ fn a_rule_out_of_bounds_is_refused_naming_what_fails() {
     assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
         Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { setting, why, at: 1 })), .. }
         if *setting == people::Setting::Application { kind: 1, scope: 0, number: 2 }
-            && why.as_ref() == settings::Refusal::Gates.words()
+            && why.as_ref() == settings::Refusal::Gates.words().as_ref()
     )), "forge refusal: {:?}", driver.delivered);
     assert_eq!(kinds::revision(&driver.store.rows), 1);
     assert!(!driver.store.rows.values().any(|record| matches!(record,

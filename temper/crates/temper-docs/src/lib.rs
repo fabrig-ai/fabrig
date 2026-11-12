@@ -89,7 +89,7 @@ pub const HOW_TEMPER_BUILDS_TEMPER: Page = Page {
 
 /// `index`, then the concepts, walks, recipes, ways and reference pages, each by name.
 #[expect(clippy::disallowed_macros, reason = "pages compile their single Markdown source as static data")]
-pub static PAGES: [Page; 64] = [
+pub static PAGES: [Page; 65] = [
     Page {
         name: "index",
         kind: Kind::Index,
@@ -333,7 +333,7 @@ pub static PAGES: [Page; 64] = [
         name: "ctl-sign-in",
         kind: Kind::Reference,
         title: "temper ctl sign-in",
-        summary: "Sign in with the link the deployment printed.",
+        summary: "Sign in with a printed link or a service file.",
         text: include_str!("../../../docs/help/reference/ctl-sign-in.md"),
     },
     Page {
@@ -468,6 +468,13 @@ pub static PAGES: [Page; 64] = [
         title: "temper ctl revision",
         summary: "Settings revisions: read one or the history, move running work to the newest.",
         text: include_str!("../../../docs/help/reference/ctl-revision.md"),
+    },
+    Page {
+        name: "ctl-party",
+        kind: Kind::Reference,
+        title: "temper ctl party",
+        summary: "Parties: make a service with a project's role.",
+        text: include_str!("../../../docs/help/reference/ctl-party.md"),
     },
     Page {
         name: "ctl-project",
