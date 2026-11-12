@@ -122,8 +122,8 @@ cancel, from any state ──────────────► stop ─►
    as it hears it, never acknowledging it (../engine/fleet.md).
 
 A run with no workspace skips preparing, saving and releasing. A cancel
-from the engine, a lost link or shutdown, or a fault of the agent, takes
-the same tail: stop, save, release, answer. A run that says how it
+from the engine, a lost link or shutdown, a drain's turn end (7), or a
+fault of the agent, takes the same tail: stop, save, release, answer. A run that says how it
 finishes as it winds down has that as its answer; only a run that says
 nothing is answered as the host stopped it. The hub arms no timers: each
 wait is bounded below it.
@@ -363,13 +363,31 @@ happens.
 
 ## 7. Shutting down
 
-Shutting down cancels every run and admits no more. A worker's hub
-first says it drains, on its link, before anything the cancelled runs
-send, and again after each hello while it shuts down, so that the fleet
-places nothing more on it (../engine/fleet.md). The host is done
-once the engine has every turn and answer. A worker gives up what it
-keeps, counted, only once no run is left and the engine is still out of
-reach past the grace.
+A hub shuts down in up to two steps, which its root times, since the
+hub arms no timers (2):
+
+1. **The drain,** if its root asks for one. The hub admits no more, and
+   asks each live run's agent, active or waiting, to stop at the end of
+   its current turn (`README.md`, section 5; smith's `domain/run.md`,
+   section 9): the run goes on until then, its turns, calls and messages
+   as ever. A run not yet live, preparing or starting, is cancelled at
+   once, having no turn to end. A drained run's end takes the cancel's
+   tail (2): stop, save, release, and the answer `Cancelled(Shutdown)`,
+   unless the run said in that turn how it finished, which is its
+   answer. A job runs on (9): its work is never saved, so a job that
+   finishes within the drain is not run again.
+2. **The cancel** of every run and job still going, for shutdown: at
+   the drain's bound, or at once for a root that does not drain. A run
+   whose stop has begun goes on with it.
+
+Either step says the hub drains, on its link, before anything its runs
+send after it, and again after each hello while it shuts down, so that
+the fleet places nothing more on it (../engine/fleet.md). The host is
+done once the engine has every turn and answer. A worker gives up what
+it keeps, counted, once no run is left and the engine is still out of
+reach past the grace, or at its stop bound (6). A worker's root drains;
+the engine's own hub has no drain, since the engine's stop settles its
+claims at once (../engine/restart.md, 1).
 
 ## 8. smith's payloads
 
@@ -436,6 +454,17 @@ with no agent:
   a passed deadline stops the job at once, kills its processes, makes
   no delivery that has not begun, and takes the same tail. A job saves
   nothing: a job cut short is run again from the start.
+- **On shutdown,** a job runs on through the drain (7), and the cancel
+  for shutdown reaches it only after. The job's delivery is its one
+  effect on a system, since the job has no credential: a job that
+  cancel stops before its delivery began answers `Cancelled(Shutdown)`,
+  which the core ends interrupted, spending no try
+  (../tasks/lifecycle.md, 2). One whose delivery began lets it settle
+  and answers as it ends, finished or failed as the delivery says,
+  never cancelled, so `Cancelled(Shutdown)` always means that nothing
+  of the job reached a system. A delivery cut by the stop bound (6)
+  leaves the job unanswered: the engine finds its attempt lost, as
+  after any loss, and the next attempt recovers what it made.
 - **Its answer** is finished, with a result of the application's bytes
   within the result's bound, or failed: the job's own failure (it said
   so), its deadline passed, a workspace that would not prepare or
