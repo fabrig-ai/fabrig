@@ -1,3 +1,6 @@
+#[path = "tests/goal.rs"]
+mod goal;
+
 use crate::{
     host::{Duties, Host, Report, Settings, Start},
     limits,
@@ -1691,6 +1694,43 @@ fn person_chat(host: &mut Host) {
 const REPLY_TURN: jig_client::contract::TurnName = jig_client::contract::TurnName { attempt: 44, number: 1 };
 
 fn reply_host() -> Host {
+    reply_host_draft(false)
+}
+fn pane_document() -> w::NotePage {
+    let body = format!("# Draft\n\n{}", "line\n\n".repeat(40));
+    let note = w::Note::new(
+        &w::CEILINGS,
+        w::NoteParts {
+            number: 1,
+            revision: w::Revision::new(&w::CEILINGS, w::RevisionParts { value: 1 }).unwrap(),
+            scope: w::NoteScope::Task(
+                w::NoteScopeTask::new(&w::CEILINGS, w::NoteScopeTaskParts { project: 3, task: 7 }).unwrap(),
+            ),
+            description: records::wire_text(b"Draft"),
+            body: w::DocumentText::new(
+                &w::CEILINGS,
+                w::DocumentTextParts { bytes: body.into_bytes().into(), cut: false },
+            )
+            .unwrap(),
+            writer: w::NoteAuthor::Task(
+                w::NoteAuthorTask::new(&w::CEILINGS, w::NoteAuthorTaskParts { task: 7, attempt: 1 }).unwrap(),
+            ),
+            tasks: List::with_capacity(0),
+            changed: None,
+            acts: Box::default(),
+            cut: false,
+        },
+    )
+    .unwrap();
+    let mut writer = Writer::new(usize::try_from(note.measure()).unwrap());
+    note.encode(&mut writer).unwrap();
+    w::NotePage::new(
+        &w::CEILINGS,
+        w::NotePageParts { cut: false, rows: pieces(&[writer.finish()]), before: None, after: None },
+    )
+    .unwrap()
+}
+fn reply_host_draft(draft: bool) -> Host {
     use smith_transcript as s;
     let (mut host, me_watch, _) = signed_host(true);
     let mut me = launchpad_me(true).into_parts();
@@ -1747,7 +1787,13 @@ fn reply_host() -> Host {
     let mut writer = Writer::new(usize::try_from(offer.measure()).unwrap());
     offer.encode(&mut writer).unwrap();
     task.acts = pieces(&[writer.finish()]);
-    delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())));
+    let duties =
+        delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())));
+    if draft {
+        let read = read_exchange(&duties, "notes");
+        let page = pane_document();
+        read_reply(&mut host, read, &w::ReadValue::Notes(page));
+    }
     let mut turn = s::decode_archived(&s::CEILINGS, records::FULL_TURN).unwrap().into_parts();
     let text = s::Block::Text(
         s::Text::new(
@@ -2069,6 +2115,7 @@ fn sent_ask(duties: &Duties) -> Vec<(skein_lib::Token, w::Ask)> {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table holds the host's look, navigation and closing rules")]
 fn the_host_goes_to_the_launchpad_and_follows_the_root() {
+    goal::navigation();
     let mut failures = Vec::new();
     for row in [
         "first project once",
@@ -2427,14 +2474,21 @@ fn each_event_becomes_its_acts() {
         assert_eq!(duties.open.as_deref(), open, "{event:?}");
         assert!(duties.asked.is_empty(), "{event:?}");
     }
-    for (projects, chat, selected, address) in [
-        (false, false, false, None),
-        (true, false, false, Some(b"http://127.0.0.1:8367/projects/3".as_slice())),
-        (true, true, false, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
-        (true, false, true, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
+    for (projects, chat, selected, linked, address) in [
+        (false, false, false, false, None),
+        (true, false, false, false, Some(b"http://127.0.0.1:8367/projects/3".as_slice())),
+        (true, true, false, false, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
+        (true, false, true, false, Some(b"http://127.0.0.1:8367/chats/9".as_slice())),
+        (true, true, false, true, Some(b"http://127.0.0.1:8367/tasks/25".as_slice())),
     ] {
-        let mut host = if projects { left_off_host() } else { signed_host(false).0 };
-        if chat {
+        let mut host = if linked {
+            goal::host(true, false)
+        } else if projects {
+            left_off_host()
+        } else {
+            signed_host(false).0
+        };
+        if chat && !linked {
             give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
         }
         if selected {
@@ -2507,7 +2561,9 @@ fn each_event_becomes_its_acts() {
         assert_eq!(host.state().brief_shown(), brief, "{own:?}");
         assert_eq!(host.state().walk().is_some_and(|walk| !walk.by_key()), walk, "{own:?}");
     }
+    pane_events();
     reply_events();
+    goal::events();
     let mut failures = Vec::new();
     for row in [
         "stop",
@@ -2789,6 +2845,7 @@ fn read_exchange(duties: &Duties, wanted: &str) -> skein_lib::Token {
                         (w::Read::Inbox(_), "inbox")
                             | (w::Read::Question(_), "question")
                             | (w::Read::Activity(_), "activity")
+                            | (w::Read::Notes(_), "notes")
                     ) {
                         return Some(*exchange);
                     }
@@ -3497,4 +3554,81 @@ pub(crate) fn home_subject(duties: &Duties) -> w::Subject {
             matches!(&subject, w::Subject::Tasks(tasks) if *tasks.query().label() == Some(8)).then_some(subject)
         })
         .expect("launchpad's chats watch")
+}
+
+#[test]
+fn the_terminal_control_p_cycles_the_pane() {
+    use root::pages::chat::document::Mode;
+    use skein_ui_screen_terminal::Decoder;
+
+    let mut decoder = Decoder::new(1);
+    let mut keys = skein_lib::Queue::with_capacity(1);
+    decoder.read(b"\x10", &mut keys);
+    let key = keys.pop().expect("the terminal's Ctrl-P");
+    let mut host = reply_host_draft(true);
+    give(&mut host, Event::Act { act: Act::Mode { mode: Mode::Split } });
+    for mode in [Mode::Draft, Mode::Chat, Mode::Split] {
+        host.frame();
+        assert_eq!(host.event_of(&key), Some(Event::Act { act: Act::Mode { mode } }));
+        host.report(Report::Key(key.clone()));
+        assert_eq!(host.root.pages().chat().expect("chat with a draft").mode, mode);
+    }
+}
+
+fn pane_events() {
+    use root::pages::chat::document::Mode;
+    for (name, draft, columns, mode, words, next) in [
+        ("no pane", false, 80, Mode::Split, "", None),
+        ("folded", true, 80, Mode::Chat, "", Some(Mode::Split)),
+        ("writing", true, 80, Mode::Split, "", Some(Mode::Draft)),
+        ("typed words", true, 80, Mode::Split, "my words", Some(Mode::Draft)),
+        ("list", true, 80, Mode::Draft, "/", Some(Mode::Chat)),
+        ("narrow", true, 79, Mode::Chat, "/", Some(Mode::Draft)),
+    ] {
+        let mut host = reply_host_draft(draft && name != "writing");
+        if name == "writing" {
+            give(&mut host, Event::Act { act: Act::AddDraft });
+        }
+        give(&mut host, Event::Act { act: Act::Mode { mode } });
+        host.report(Report::Resize(Size { columns, rows: 24 }));
+        typed(&mut host, words.as_bytes());
+        host.frame();
+        let want = next.map(|mode| Event::Act { act: Act::Mode { mode } });
+        assert_eq!(host.event_of(&Key::Control(b'p')), want, "{name}");
+        host.report(Report::Key(Key::Control(b'p')));
+        assert_eq!(host.root.pages().chat().unwrap().mode, next.unwrap_or(mode), "{name}");
+        assert_eq!(host.words(), words.as_bytes(), "{name}: composer unchanged");
+    }
+    for (before, after, columns, all) in [
+        (Mode::Chat, Mode::Draft, 80, true),
+        (Mode::Split, Mode::Draft, 80, true),
+        (Mode::Draft, Mode::Chat, 80, false),
+        (Mode::Draft, Mode::Split, 80, false),
+        (Mode::Chat, Mode::Split, 79, true),
+    ] {
+        let mut host = reply_host_draft(true);
+        host.report(Report::Resize(Size { columns, rows: 24 }));
+        give(&mut host, Event::Act { act: Act::Mode { mode: before } });
+        host.frame();
+        host.focus.scroll = 10;
+        host.focus.follow = all;
+        give(&mut host, Event::Act { act: Act::Mode { mode: after } });
+        host.frame();
+        assert_eq!(host.focus.follow, !all, "{before:?} -> {after:?}");
+        if all {
+            assert_eq!(host.focus.scroll, 0, "draft begins at its head");
+        }
+    }
+    let mut host = reply_host_draft(true);
+    host.report(Report::Resize(Size { columns: 80, rows: 24 }));
+    host.frame();
+    host.focus.scroll = 10;
+    host.focus.follow = true;
+    host.report(Report::Resize(Size { columns: 79, rows: 24 }));
+    host.frame();
+    assert_eq!(host.focus.scroll, 0, "resizing half to all starts at the head");
+    assert!(!host.focus.follow);
+    host.report(Report::Resize(Size { columns: 80, rows: 24 }));
+    host.frame();
+    assert!(host.focus.follow, "resizing back follows the conversation");
 }

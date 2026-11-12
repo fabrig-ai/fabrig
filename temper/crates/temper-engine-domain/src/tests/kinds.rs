@@ -23,6 +23,7 @@ fn rule(ci: bool) -> settings::SizedValue {
     settings::SizedValue {
         size: RULE_BYTES,
         value: settings::Value::Rule(settings::LandingRule {
+            sets: Box::new([]),
             pattern: forge::GatePattern {
                 segments: Box::new([Box::from(b"forge".as_slice())]),
                 last: forge::GateLast::Open(Box::default()),
@@ -572,6 +573,7 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
     let limits = resume_fixture::limits();
     let mut config = resume_fixture::config(7);
     let deployment = Box::new([crate::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         pattern: authority::Pattern {
@@ -585,7 +587,9 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
         approvals: Box::new([crate::Approval { role: 0, people: 1, freshness: crate::Freshness::Exact }]),
     }]);
     let mut projects = skein_lib::Map::with_capacity(1);
-    projects.insert(PROJECT, deployment.as_slice().into()).unwrap();
+    let mut project = deployment.clone();
+    project[0].sets = Box::new([3, 1]);
+    projects.insert(PROJECT, project.as_slice().into()).unwrap();
     config.kinds_stock = crate::landing_stock(deployment.as_slice(), &projects, 1, 4);
     for item in &mut config.kinds_stock {
         if item.kind == 3 {
@@ -603,6 +607,7 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
     let expected = settings::SizedValue {
         size: 0,
         value: settings::Value::Rule(settings::LandingRule {
+            sets: Box::new([]),
             pattern: forge::GatePattern {
                 segments: Box::new([Box::from(b"forge".as_slice())]),
                 last: forge::GateLast::Open(Box::new([])),
@@ -623,7 +628,10 @@ fn a_worlds_rule_reaches_the_forge_as_a_default() {
         }),
     };
     assert_eq!(domain.forge.setting(1, 0, 1), Some(&expected));
-    assert_eq!(domain.forge.setting(2, PROJECT, 1), Some(&expected));
+    let settings::Value::Rule(mut project) = expected.value.clone() else { panic!("rule fixture") };
+    project.sets = Box::new([3, 1]);
+    let expected_project = settings::SizedValue { size: 0, value: settings::Value::Rule(project) };
+    assert_eq!(domain.forge.setting(2, PROJECT, 1), Some(&expected_project));
     assert_eq!(
         domain.forge.setting(3, 0, 1),
         Some(&settings::SizedValue { size: CHARTER_BYTES, value: settings::Value::Charter(1) })

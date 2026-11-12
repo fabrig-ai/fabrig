@@ -127,5 +127,13 @@ fn render_rule(value: &w::LandingRule, out: &mut Encoder) {
         out.object_end();
     }
     out.array_end();
+    if !value.sets().is_empty() {
+        out.key(b"sets");
+        out.array_start();
+        for set in value.sets() {
+            out.unsigned(u64::from(*set));
+        }
+        out.array_end();
+    }
     out.object_end();
 }

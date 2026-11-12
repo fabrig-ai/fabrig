@@ -606,9 +606,13 @@ pub(super) fn phase_cases() -> [(Reachable, Stage, &'static [u8]); 5] {
 }
 #[test]
 #[expect(clippy::too_many_lines, reason = "the labelled cases keep every input and expectation of one rule together")]
+#[expect(
+    clippy::disallowed_macros,
+    reason = "the picker cases are allocated on the heap rather than in a large stack array"
+)]
 fn out_of_order_events_stop_each_picker_phase() {
     skein_rows::check(
-        [
+        vec![
             (
                 "an_out_of_order_event_stops_each_phase: begin / read",
                 (at(0), Event::Read(None), failure(Stage::Admin, Why::Unexpected)),

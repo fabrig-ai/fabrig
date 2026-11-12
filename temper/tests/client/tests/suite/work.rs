@@ -96,8 +96,9 @@ fn configuration(limits: &mut engine::Limits) -> engine::Config {
     config.core.owners = Box::new([owner.clone(), people::InitialOwner { project: 0, identity: owner.identity }]);
     limits.people.initial_owners = 2;
     temper_client_world::front::first_run_projects(&mut config, limits);
-    // A pushed change stays on its way until the owner reviews it on the forge.
+    // A pushed change waits outside the queue until the owner reviews it on the forge.
     let landing = engine::LandingRule {
+        sets: Box::new([]),
         connector: fixtures::FORGE,
         kind: 4,
         enforce: true,
@@ -330,14 +331,14 @@ fn first_project(world: &mut ClientWorld, person: ClientId) {
         person,
         vec![
             see(Find::text("Project 1 · Work".as_bytes())),
-            see(Find::exactly_named(Role::Heading { level: 1 }, b"Two in flight, one draft.")),
+            see(Find::exactly_named(Role::Heading { level: 1 }, b"One in flight, one draft.")),
             see(filter(b"All")),
             see(filter(b"Drafts")),
             see(filter(b"Goals")),
-            see(filter(b"Changes")),
-            see(filter(b"Chats")),
+            gone(filter(b"Changes")),
+            gone(filter(b"Chats")),
             see(Find::named(Role::Link, FIRST_GOAL)),
-            see(Find::named(Role::Link, CHANGE)),
+            gone(Find::named(Role::Link, CHANGE)),
             see(Find::text(FIRST_CHAT)),
             see(Find::text(b"draft-for-project-1")),
             gone(Find::text(SECOND_GOAL)),
@@ -359,7 +360,7 @@ fn work_keeps_one_projects_lists_across_filters_then_switches_projects() {
     for (label, address, shown, hidden) in [
         (b"Drafts".as_slice(), Address::Work { project: FIRST, filter: WorkFilter::Drafts }, FIRST_CHAT, FIRST_GOAL),
         (b"Goals".as_slice(), Address::Goals { project: FIRST, filter: GoalsFilter::All }, FIRST_GOAL, FIRST_CHAT),
-        (b"All".as_slice(), all.clone(), CHANGE, SECOND_GOAL),
+        (b"All".as_slice(), all.clone(), FIRST_GOAL, SECOND_GOAL),
     ] {
         run(
             &mut world,
@@ -374,14 +375,12 @@ fn work_keeps_one_projects_lists_across_filters_then_switches_projects() {
             "{label:?} reads nothing again",
         );
     }
+    // The sign-off wait supplies no Work filter; the shared chats route still opens.
+    world.go(person, Address::Chats { filter: ChatsFilter::All });
     run(
         &mut world,
         person,
-        vec![
-            Step::Press { find: filter(b"Chats") },
-            see(Find::text("Project 1 · chats".as_bytes())),
-            see(Find::named(Role::Link, b"+ New chat")),
-        ],
+        vec![see(Find::text("Project 1 · chats".as_bytes())), see(Find::named(Role::Link, b"+ New chat"))],
     );
     assert_eq!(world.root(person).person().pages().address(), &Address::Chats { filter: ChatsFilter::All });
     world.go(person, all);

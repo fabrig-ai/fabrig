@@ -33,6 +33,9 @@ fn pull() -> document::Pull {
         head_commit: [0; 32],
         base_commit: [0; 32],
         reviewers: Box::from([]),
+        changed_files: None,
+        additions: None,
+        deletions: None,
     }
 }
 fn context() -> document::Context {
@@ -80,6 +83,21 @@ impl State {
         match token {
             Token::Number(text) => {
                 let number = bytes::decimal(&text).expect("walker checked integer");
+                match key {
+                    b"changed_files" => {
+                        self.pull.changed_files = Some(number);
+                        return Ok(());
+                    }
+                    b"additions" => {
+                        self.pull.additions = Some(number);
+                        return Ok(());
+                    }
+                    b"deletions" => {
+                        self.pull.deletions = Some(number);
+                        return Ok(());
+                    }
+                    _ => {}
+                }
                 if node == Node::PullObject {
                     self.pull.number = number;
                 } else if node == Node::Reviewer {

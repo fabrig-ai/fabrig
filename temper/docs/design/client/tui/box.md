@@ -2,11 +2,11 @@
 
 `temper-box`, run in a terminal, runs its services and the TUI in front
 of them: a small front end for the box, started by it, which quitting
-stops (`../../protocol/setup/box.md`, 6). The TUI is the one of `README.md`, 1 to 3 and `pages.md` and `theme.md` and `README.md`, 4
+stops (`../../protocol/setup/box.md`, 6). The TUI is the one of `README.md`, 1 to 3 and `pages/README.md` and `theme.md` and `README.md`, 4
  but where this section says otherwise. Its pages are drawn from
 the user's hand-made frames of the look request `tui-box-front`
 (2026-11-08), at 80 by 24 in the dark theme, and are illustrative, as
-`pages.md`'s are.
+`pages/README.md`'s are.
 
 - **Its start:** the box spawns `temper-box internal tui --box
   http://HOST:PORT`, HOST:PORT the clients' listener, on loopback, never
@@ -41,7 +41,7 @@ the user's hand-made frames of the look request `tui-box-front`
   and a credential the engine does not hold signs in afresh (`../README.md`, section 4;
   jig's `protocol/client/sign-in.md`, *A sign-in held is kept*).
   While it signs in, the welcome is drawn, its state "Connecting". It
-  ends as `pages.md`'s *Signed in from the engine's link* says: `link_used` or
+  ends as `pages/sign-in.md`, section 2 says: `link_used` or
   `link_expired` reads the engine's link file a second later. Not ready
   and busy wait for jig's resend after its backoff, still "Connecting",
   because the box starts serve beside the front. Any other end falls
@@ -74,7 +74,7 @@ the user's hand-made frames of the look request `tui-box-front`
   restarting and the step given up, in memory alone; of them the printed
   link alone is a secret, and it is drawn on the welcome, nowhere else.
 - **Its pages:** the welcome while `me` names no project, then the
-  launchpad and a chat as `pages.md` draws them, with the playground's words
+  launchpad and a chat as `pages/README.md` draws them, with the playground's words
   where the project is the playground's. The sign-in screen only where
   the handed link's sign-in fell back.
 
@@ -109,7 +109,7 @@ signed in, and 02, after):
 
 - **When:** in front, from the first frame, while the sign-in screen is
   not drawn and `me`, read or not, names no project: in the no-project
-  launchpad's place (`pages.md`, *No project yet*), "Connecting" included.
+  launchpad's place (`pages/launchpad.md`, 1, *No project yet*), "Connecting" included.
   Once `me` names a project the host goes to its launchpad (`README.md`, 3, *Its
   pages*), and once it names none again, the welcome stands again.
 - **Its header,** the region `tui-top`, as the launchpad's: "temper" in
@@ -200,7 +200,7 @@ signed in, and 02, after):
   launchpad, and the sections below as on any project.
 - **The quiet line,** on the launchpad and a chat: " · " and
   "playground" (`tui-hint`) after the box's state, if any, and before
-  the needs' count (`pages.md`, *The quiet line*). A chat's top line is as on
+  the needs' count (`pages/README.md`, 1, *The quiet line*). A chat's top line is as on
   any chat.
 - **Read again:** a playground another client started reaches the TUI
   through the forge's side, which reads the playground again whenever
@@ -267,11 +267,10 @@ Stop the box? csv-export's running task stops with it.
  / for commands · forgejo-3 restarting          Claude Opus 5.5 · high · ● Live
 ```
 
-- **The box's state,** on the quiet line, first at its right (`pages.md`,
-  *The quiet line*): "STEP restarting" (`tui-signal`) from the box's `restarting` line
+- **The box's state,** on the quiet line, first at its right (`pages/README.md`, 1, *The quiet line*): "STEP restarting" (`tui-signal`) from the box's `restarting` line
   until its `running` line for that step, for the step it last said
   restarting; once it gave up, "STEP gave up" (`tui-down`). A notice
-  stands in its place for its time (`pages.md`, *The notice*). STEP is as
+  stands in its place for its time (`pages/README.md`, 1, *The notice*). STEP is as
   the box names it, its bytes read as UTF-8 with a replacement for each
   invalid one (`forge::words::lossy`) and cut at 64 bytes,
   `limits::STEP`.
@@ -304,7 +303,7 @@ header's border end with no project, as the frames show.
 
 **Its state, events, words and tokens:**
 
-- **The TUI's state** (`pages.md`) holds, beside the rest: whether it is in
+- **The TUI's state** (`pages/README.md`) holds, beside the rest: whether it is in
   front; the printed link; the box's last lines; the step restarting;
   the step given up; whether the quit question stands; and whether
   `/log`'s note stands. `Tui::box_state` says running, restarting or

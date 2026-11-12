@@ -14,10 +14,9 @@ of `whole-story.execution.md`, but for the lags and departures below.
     (`../domain/agent/standing.md`, section 2).
   - 5: no landing rule by path holds a standing role's change that touches
     paths a rule guards (`what-reaches-you.status.md`, 7).
-  - 6 and 7: `../client/pages/README.md`, *Team*, draws a project's people
-    alone (`surfaces.status.md`, 6), with no standing role's card or
-    report, and its 5.3 and `standing-roles.md`, section 6 no conversation with one; Home's
-    brief reading the owners' Nows is `surfaces.status.md`'s.
+  - 6 and 7: the Team role-card and report gap remains `surfaces.status.md`, 6,
+    and its 5.3 and `standing-roles.md`, section 6 no conversation with one;
+    Home's brief reading the owners' Nows remains `surfaces.status.md`, 3.
   - 8 and 11: `../client/ctl/tools.md`, 3 has `finding route`, `finding
     backlog` and `finding drop`, but no `finding file`, `need ask` or
     `role talk`.

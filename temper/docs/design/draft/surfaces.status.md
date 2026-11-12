@@ -17,11 +17,15 @@
     **Only you**'s question names the source as Accounts does, "Your Claude Code login NAME is
     expiring.", where `needs.html` names who uses it, "The Claude login
     vsr's agents use", which no read gives (`what-reaches-you.status.md`,
-    8).
+    8). An approval's chips hold its size alone
+    (`../client/forge/README.md`, 4.1, *Its size*): no design holds
+    `pair/needs.html`'s table of its files with their counts, an open
+    question there (section 8), or its chips for CI at the head and its
+    repairs, "CI green at 9c04d7e" and "repaired once".
   - 6: `../client/pages/team.md`, 1 holds a project's people and
     what waits on each, and the project's triager once a setting names
     one; no design holds a project's areas, an area's owner, a person's
-    areas on their box, a role's card or "Hand an area to a role"
+    areas on their box, a role's card or report, or "Hand an area to a role"
     (`standing-roles.md` has no design yet either), and its lede counts
     the people alone. This section has the triager as Who routes, a chip
     under the areas, where `../client/pages/team.md`, 1 has a line at
@@ -55,18 +59,21 @@
     brief tell what became of a finding (`../domain/forge/attention.md`, 3). Its
     routing to an area's owner is P5b's (`whole-story.execution.md`,
     section 3).
-  - 11: `../client/tui/README.md`, 3 and `../client/tui/pages.md`, hold the launchpad as
+  - 11: `../client/tui/README.md`, 3 and `../client/tui/pages/README.md`, hold the launchpad as
     11.1 draws it but for its team lines and `/talk` in
     Start, 11.4's commands but for `/talk` and `/tell`, and
     11.5's printed views (the plan `tui-whole-t1`); its brief, Where you
     left off and Needs you are the project's, where 11.1 has them across
     the person's projects: 3.5, *Home on All projects*, reads every
     project and joins their briefs in `pages::all_home::brief`, which the
-    launchpad doesn't read (3). 6.14, *A design session*, holds 11.2 and
-    11.1's and 11.4's `/draft` (the plan `tui-design-session`), where it
+    launchpad doesn't read (3). `../client/tui/pages/design-session.md`, 1, holds 11.2 and
+    11.1's and 11.4's `/draft`, where it
     departs from `design-session.html` as it says and
     `tui-design-session.status.md` records. No design holds 11.3's
-    talking with a role.
+    talking with a role, or the launchpad's "checked · +142 -18 in 4
+    files" on an approval's row, as `pair/launchpad.html` draws it, which
+    temper/tui's design would draw from the row's size
+    (`../client/forge/records.md`, the subject `approvals`).
   - 12: `../client/pages/README.md`, *A page's parts*, holds Home's and
     Needs you's rules, without owners' lines, follows or Away; 5.13,
     *The page*, keeps "What the project shows" at How work runs' foot as
@@ -77,8 +84,8 @@
     parts by one pure function too (3.5, *Team*, *Its parts*); and 3.5,
     *Away*, shows Away by the project's classes in its own function,
     `Domain::away_shown`, outside *A page's parts*.
-  - 13: `../client/greenfield/README.md` names the whole story's
-    mockups, and `../client/mockups/README.md`,
+  - 13: `../client/web/greenfield/README.md` names the whole story's
+    mockups, and `../client/web/mockups/README.md`,
     section 1, not at all; and no design marks who acts on the chips,
     as the path's marks are (`../client/pages/chat/conversation.md`, 3), but Work's
     tags and What reaches you's columns (3.5, *Work*; 5.13).
@@ -134,22 +141,21 @@
     alone: the page is one tree at every width, and no design gives a
     short form's words for each reason. Decided by goal 367's design,
     2026-11-11.
-  - 11.1, 13 and 15: `../client/tui/pages.md`, *Where you left off*,
+  - 11.1, 13 and 15: `../client/tui/pages/launchpad.md`, 1, *Where you left off*,
     ends each chat's row with "/chats N", N its place, which `/chats N`
     opens, where the mockups draw "/chats" once, on the first row, and
     number no row. Decided by the cut of `tui-whole-t1`, from 15's
     default, a list numbered as the launchpad numbers it; the mockups
     win (13), so a look request draws the rows as they do: T2's request
     (`tui-design-session.md`) leaves them.
-  - 11.1 and 13: `../client/tui/pages.md`, draws a need's row as
+  - 11.1 and 13: `../client/tui/pages/README.md`, draws a need's row as
     Home's line alone (*Needs you*), with no asker or age, where the Pair
     mockup (`../client/tui/whole-story/pair/launchpad.html`) has "asked
     by the change 20 min ago"; and a left-off row's time today as the
     view's clock, "18:40", where it has "today 18:40". Decided by the cut
     of `tui-whole-t1`, whose list of the launchpad's departures from its
-    mockups names neither. The code also lacks the blank row under the
-    header that the mockups and the design draw
-    (`../client/tui/pages.status.md`).
+    mockups names neither. The blank header-row code gap remains `../client/tui/pages/launchpad.status.md`, 1.
+
   - 10 and 13: on a phone, `../client/view.md`, 3, reaches Team, How
     work runs and Deployment by the switcher's menu alone, where this
     section has Team and How work runs from Home's project rows too and
@@ -198,7 +204,7 @@
     of today's commands, the TUI names the closing one `/quit`, `/exit`
     taking it still, unlisted, and `/theme` opens a list of Auto, Light
     and Dark, kept for the next run, where it flipped
-    (`../client/tui/pages.md` and `../client/tui/theme.md`).
+    (`../client/tui/pages/README.md` and `../client/tui/theme.md`).
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
     design takes `/chats N` (above).

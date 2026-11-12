@@ -18,6 +18,7 @@ const BOUNDS: Bounds =
 fn rule(ci: bool) -> SizedValue {
     SizedValue {
         value: Value::Rule(LandingRule {
+            sets: Box::new([]),
             pattern: GatePattern {
                 segments: Box::new([Box::from(b"forge".as_slice())]),
                 last: GateLast::Open(Box::new([])),
@@ -119,6 +120,7 @@ fn project_rules(d: &Domain, project: u32) -> Box<[Held]> {
 fn given_rule() -> SizedValue {
     SizedValue {
         value: Value::Rule(LandingRule {
+            sets: Box::new([]),
             pattern: GatePattern {
                 segments: Box::new([b"branch".as_slice().into()]),
                 last: GateLast::Open(Box::new([])),

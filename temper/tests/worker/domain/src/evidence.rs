@@ -1,6 +1,6 @@
 //! A resumed delivery's evidence, as temper's protocol layer is to encode
 //! and decode it: smith's channel record of the delivery's terminal, which
-//! must agree with the outcome the engine committed (`domain/worker.md`,
+//! must agree with the outcome the engine committed (`domain/worker/README.md`,
 //! 4.1). temper has no protocol layer yet, so its codec lives with the world
 //! that plays one.
 

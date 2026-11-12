@@ -52,7 +52,7 @@ file `../release.md`'s. Nothing here is adopted.
   the part that exists; the rest is direction, and the page says so.
 - **Its strongest proof is that temper is built by temper,** shown live
   on dev.fabrig.ai, as `reference-code-production.md` and
-  `reference-landing.md` describe it.
+  `archive/reference-landing.md` describe it.
 - **Static,** in a repository of its own, on a host that serves TLS. Its
   look may share its tokens with temper's client.
 - **Built now, published at launch.** The copy and the look are taste:
