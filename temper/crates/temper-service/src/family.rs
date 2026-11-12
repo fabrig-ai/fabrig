@@ -1455,7 +1455,10 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                         w::HeldFaults::new(limits, w::HeldFaultsParts { member: *member, gate: *gate }).ok()?,
                     ))
                 }
-                forge::LandingPhase::Held { why: forge::LandingHold::Prepare | forge::LandingHold::Record { .. }, .. }
+                forge::LandingPhase::Held {
+                    why: forge::LandingHold::Prepare | forge::LandingHold::Record { .. },
+                    ..
+                }
                 | forge::LandingPhase::Waiting
                 | forge::LandingPhase::Preparing
                 | forge::LandingPhase::Proving

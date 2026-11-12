@@ -497,7 +497,8 @@ fn project_landing(
     let (combine_main, combine_other) = combining?;
     Some(engine::ProjectLanding {
         check_timeout,
-        combine_main, combine_other,
+        combine_main,
+        combine_other,
         gate_retries: u8::try_from(gate_retries?).expect("bounded gate retries"),
         gate_timeout: skein_lib::Duration::from_millis(gate_timeout?),
         by,
@@ -511,8 +512,15 @@ fn project_landing(
     })
 }
 
-fn combine(object: &mut crate::startup::members::Object, document: &Document, path: &Path, problems: &mut Problems) -> Option<(engine::Combine, engine::Combine)> {
-    let Some(at) = object.member(document, b"combine") else { return Some((engine::Combine::Merge, engine::Combine::Squash)) };
+fn combine(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<(engine::Combine, engine::Combine)> {
+    let Some(at) = object.member(document, b"combine") else {
+        return Some((engine::Combine::Merge, engine::Combine::Squash));
+    };
     let path = path.member(b"combine");
     let mut object = read::object(document, at, "landing-combine", &path, problems)?;
     let main = combine_value(&mut object, document, b"main", b"merge", &path, problems);
@@ -520,9 +528,20 @@ fn combine(object: &mut crate::startup::members::Object, document: &Document, pa
     read::finish(object, document, &path, problems);
     Some((main?, other?))
 }
-fn combine_value(object: &mut crate::startup::members::Object, document: &Document, name: &[u8], default: &[u8], path: &Path, problems: &mut Problems) -> Option<engine::Combine> {
+fn combine_value(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    name: &[u8],
+    default: &[u8],
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<engine::Combine> {
     match optional_word(object, document, name, default, path, problems)?.as_ref() {
-        b"merge" => Some(engine::Combine::Merge), b"squash" => Some(engine::Combine::Squash),
-        _ => { read::form(false, path.member(name), problems); None }
+        b"merge" => Some(engine::Combine::Merge),
+        b"squash" => Some(engine::Combine::Squash),
+        _ => {
+            read::form(false, path.member(name), problems);
+            None
+        }
     }
 }

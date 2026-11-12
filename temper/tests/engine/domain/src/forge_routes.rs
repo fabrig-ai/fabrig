@@ -816,8 +816,10 @@ impl World {
                 limits.tasks.spec_bytes = spec_bytes;
             }
             if turn {
-                let mut bound = protocol::merge_bound(); bound.kind = jig_domain_link::JobKind(1);
-                bound.spec = bound.spec.min(limits.tasks.spec_bytes); bound.result = bound.result.min(limits.tasks.result_bytes);
+                let mut bound = protocol::merge_bound();
+                bound.kind = jig_domain_link::JobKind(1);
+                bound.spec = bound.spec.min(limits.tasks.spec_bytes);
+                bound.result = bound.result.min(limits.tasks.result_bytes);
                 config.core.jobs = Box::new([bound]);
             }
             if merge_kind {
@@ -917,7 +919,6 @@ impl World {
             fake_config.limits.comments = limits.forge.issue_policy.milestones;
         }
         if turn {
-            fake_config.limits.branches = 16;
             fake_config.limits.workflows = 1;
             fake_config.limits.workflow_runs = 8;
         }
@@ -993,8 +994,18 @@ impl World {
         fake::grant(&mut fake, b"org/repo", 2, raw::Permission::Write);
         fake::grant(&mut fake, b"org/repo", 7, raw::Permission::Read);
         if turn {
-            fake::manual_merges(&mut fake, b"org/repo", raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true });
-            if across { fake::manual_merges(&mut fake, b"org/lib", raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true }); }
+            fake::manual_merges(
+                &mut fake,
+                b"org/repo",
+                raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true },
+            );
+            if across {
+                fake::manual_merges(
+                    &mut fake,
+                    b"org/lib",
+                    raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true },
+                );
+            }
         }
         let fake_env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: fake_config };
         // Match production's derived document bounds to the admitted authorities.
@@ -1274,28 +1285,82 @@ impl World {
         self.tick();
         let Some(index) = self.jobs.iter().position(|job| job.kind == jig_domain_link::JobKind(1)) else { return };
         let job = self.jobs.remove(index);
-        let workspace = self.job_workspaces.get(&job.run.raw()).expect("typed prepare items").clone(); let item = &workspace.repositories[0];
+        let workspace = self.job_workspaces.get(&job.run.raw()).expect("typed prepare items").clone();
+        let item = &workspace.repositories[0];
         let landing = job.workspace.as_ref().expect("prepare workspace").workstream;
-        let row = self.store.rows.values().find_map(|record| match record {
-            Record::Forge { row } => match row.as_ref() { forge_top::Stored::Landing(row) if row.landing.task == landing => Some(row.clone()), _ => None }, Record::Core(_) => None,
-        }).expect("job's landing");
+        let row = self
+            .store
+            .rows
+            .values()
+            .find_map(|record| match record {
+                Record::Forge { row } => match row.as_ref() {
+                    forge_top::Stored::Landing(row) if row.landing.task == landing => Some(row.clone()),
+                    _ => None,
+                },
+                Record::Core(_) => None,
+            })
+            .expect("job's landing");
         let member = &row.landing.members[0];
-        let base = fake::commit_count(&member.base.expect("round base")).expect("fake base"); let head = fake::commit_count(&member.head.expect("member head")).expect("fake head");
+        let base = fake::commit_count(&member.base.expect("round base")).expect("fake base");
+        let head = fake::commit_count(&member.head.expect("member head")).expect("fake head");
         assert_eq!(item.start, engine::ForgeStart::Commit(translate::commit(base)));
-        assert_eq!(item.push.as_deref(), Some(row.landing.round.branch.as_ref())); assert!(item.save.is_none());
-        let spec = temper_protocol_worker_wire::v1::JobSpec::decode(&temper_protocol_worker_wire::v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("prepare spec");
+        assert_eq!(item.push.as_deref(), Some(row.landing.round.branch.as_ref()));
+        assert!(item.save.is_none());
+        let spec = temper_protocol_worker_wire::v1::JobSpec::decode(
+            &temper_protocol_worker_wire::v1::CEILINGS,
+            &mut skein_lib::Reader::new(&job.spec),
+        )
+        .expect("prepare spec");
         assert!(spec.command().is_empty());
         let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
-        let mut tree: BTreeMap<_, _> = self.fake.object(base).expect("base").tree.iter().map(|(path, content)| (path.clone(), content.clone())).collect();
-        for (path, content) in &self.fake.object(head).expect("head").tree { tree.insert(path.clone(), content.clone()); }
+        let mut tree: BTreeMap<_, _> = self
+            .fake
+            .object(base)
+            .expect("base")
+            .tree
+            .iter()
+            .map(|(path, content)| (path.clone(), content.clone()))
+            .collect();
+        for (path, content) in &self.fake.object(head).expect("head").tree {
+            tree.insert(path.clone(), content.clone());
+        }
         let files = tree.into_iter().map(|(path, content)| raw::File { path, content }).collect();
         let squash = request["combine"] == "squash";
-        let message = request["members"][0][if squash { "squash" } else { "message" }].as_str().expect("member message");
-        let candidate = fake::commit_tree(&mut self.fake, &self.fake_env.limits, base, if squash { None } else { Some(head) }, files, message.as_bytes()).expect("prepared commit");
+        let message =
+            request["members"][0][if squash { "squash" } else { "message" }].as_str().expect("member message");
+        let candidate = fake::commit_tree(
+            &mut self.fake,
+            &self.fake_env.limits,
+            base,
+            if squash { None } else { Some(head) },
+            files,
+            message.as_bytes(),
+        )
+        .expect("prepared commit");
         let repository = if item.provider.repository == 2 { b"org/repo".as_slice() } else { b"org/lib".as_slice() };
-        assert_eq!(self.external_at(repository, 1, raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate })), raw::Answer::PushNew { existing: None });
-        let result = format!("{{\"combined\":[{{\"member\":{},\"by\":\"{}\"}}]}}", member.change, if squash { "squash" } else { "merge" });
-        let event = self.protocol.answer_job(Token::new(7), job.run.raw(), job.attempt.raw(), host::JobEnding::Finished { result: result.into_bytes().into(), work: host::Work { left: None, saved: None } }); self.send(event);
+        assert_eq!(
+            self.external_at(
+                repository,
+                1,
+                raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate })
+            ),
+            raw::Answer::PushNew { existing: None }
+        );
+        let result = format!(
+            "{{\"combined\":[{{\"member\":{},\"by\":\"{}\"}}]}}",
+            member.change,
+            if squash { "squash" } else { "merge" }
+        );
+        let event = self.protocol.answer_job(
+            Token::new(7),
+            job.run.raw(),
+            job.attempt.raw(),
+            host::JobEnding::Finished {
+                result: result.into_bytes().into(),
+                work: host::Work { left: None, saved: None },
+            },
+        );
+        self.send(event);
     }
 
     /// Configure the project's delivery checks' bound before startup.

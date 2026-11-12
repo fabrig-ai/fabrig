@@ -188,8 +188,12 @@ fn decode_operation(op: w::LandingOperation) -> top::Operation {
 }
 fn encode_ask(ask: change::Ask) -> w::LandingAsk {
     match ask {
-        change::Ask::Landed { prefix } => w::LandingAsk::Landed(w::LandingPrefix::new(&w::CEILINGS, w::LandingPrefixParts { prefix }).expect(FITS)),
-        change::Ask::Resolve { base } => w::LandingAsk::Resolve(w::LandingResolve::new(&w::CEILINGS, w::LandingResolveParts { base }).expect(FITS)),
+        change::Ask::Landed { prefix } => {
+            w::LandingAsk::Landed(w::LandingPrefix::new(&w::CEILINGS, w::LandingPrefixParts { prefix }).expect(FITS))
+        }
+        change::Ask::Resolve { base } => {
+            w::LandingAsk::Resolve(w::LandingResolve::new(&w::CEILINGS, w::LandingResolveParts { base }).expect(FITS))
+        }
         change::Ask::Prepare { head, main } => w::LandingAsk::Prepare(
             w::LandingPrepare::new(&w::CEILINGS, w::LandingPrepareParts { head, main }).expect(FITS),
         ),
@@ -213,19 +217,50 @@ fn decode_ask(ask: w::LandingAsk) -> change::Ask {
     }
 }
 fn encode_round(round: &d::Round) -> w::LandingRound {
-    w::LandingRound::new(&w::CEILINGS, w::LandingRoundParts {
-        branch: round.branch.clone(), pull: round.pull, upstream: round.upstream,
-        combined: match round.combined { Some(d::Combine::Merge) => Some(w::LandingCombine::Merge), Some(d::Combine::Squash) => Some(w::LandingCombine::Squash), None => None },
-        recorded: round.recorded, told: round.told, failure: round.failure.clone(),
-        ending: match round.ending { Some(d::RoundEnd::Stale) => Some(w::LandingRoundEnd::Stale), Some(d::RoundEnd::Leave) => Some(w::LandingRoundEnd::Leave), Some(d::RoundEnd::Conflict) => Some(w::LandingRoundEnd::Conflict), None => None },
-    }).expect(FITS)
+    w::LandingRound::new(
+        &w::CEILINGS,
+        w::LandingRoundParts {
+            branch: round.branch.clone(),
+            pull: round.pull,
+            upstream: round.upstream,
+            combined: match round.combined {
+                Some(d::Combine::Merge) => Some(w::LandingCombine::Merge),
+                Some(d::Combine::Squash) => Some(w::LandingCombine::Squash),
+                None => None,
+            },
+            recorded: round.recorded,
+            told: round.told,
+            failure: round.failure.clone(),
+            ending: match round.ending {
+                Some(d::RoundEnd::Stale) => Some(w::LandingRoundEnd::Stale),
+                Some(d::RoundEnd::Leave) => Some(w::LandingRoundEnd::Leave),
+                Some(d::RoundEnd::Conflict) => Some(w::LandingRoundEnd::Conflict),
+                None => None,
+            },
+        },
+    )
+    .expect(FITS)
 }
 fn decode_round(round: w::LandingRound) -> d::Round {
     let w::LandingRoundParts { branch, pull, upstream, combined, recorded, told, ending, failure } = round.into_parts();
-    d::Round { branch, pull, upstream,
-        combined: match combined { Some(w::LandingCombine::Merge) => Some(d::Combine::Merge), Some(w::LandingCombine::Squash) => Some(d::Combine::Squash), None => None },
-        recorded, told, failure,
-        ending: match ending { Some(w::LandingRoundEnd::Stale) => Some(d::RoundEnd::Stale), Some(w::LandingRoundEnd::Leave) => Some(d::RoundEnd::Leave), Some(w::LandingRoundEnd::Conflict) => Some(d::RoundEnd::Conflict), None => None },
+    d::Round {
+        branch,
+        pull,
+        upstream,
+        combined: match combined {
+            Some(w::LandingCombine::Merge) => Some(d::Combine::Merge),
+            Some(w::LandingCombine::Squash) => Some(d::Combine::Squash),
+            None => None,
+        },
+        recorded,
+        told,
+        failure,
+        ending: match ending {
+            Some(w::LandingRoundEnd::Stale) => Some(d::RoundEnd::Stale),
+            Some(w::LandingRoundEnd::Leave) => Some(d::RoundEnd::Leave),
+            Some(w::LandingRoundEnd::Conflict) => Some(d::RoundEnd::Conflict),
+            None => None,
+        },
     }
 }
 pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
@@ -246,8 +281,17 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
             round: encode_round(&row.landing.round),
             own_hold: match row.landing.phase {
                 d::Phase::Held { why: d::Hold::Prepare, .. } => Some(w::LandingOwnHold::Prepare),
-                d::Phase::Held { why: d::Hold::Record { member }, .. } => Some(w::LandingOwnHold::Record(w::LandingRecordHold::new(&w::CEILINGS, w::LandingRecordHoldParts { member }).expect(FITS))),
-                d::Phase::Held { why: d::Hold::Faults { .. }, .. } | d::Phase::Waiting | d::Phase::Preparing | d::Phase::Proving | d::Phase::Proved { .. } | d::Phase::Turn { .. } | d::Phase::Landed | d::Phase::Cancelled => None,
+                d::Phase::Held { why: d::Hold::Record { member }, .. } => Some(w::LandingOwnHold::Record(
+                    w::LandingRecordHold::new(&w::CEILINGS, w::LandingRecordHoldParts { member }).expect(FITS),
+                )),
+                d::Phase::Held { why: d::Hold::Faults { .. }, .. }
+                | d::Phase::Waiting
+                | d::Phase::Preparing
+                | d::Phase::Proving
+                | d::Phase::Proved { .. }
+                | d::Phase::Turn { .. }
+                | d::Phase::Landed
+                | d::Phase::Cancelled => None,
             },
         },
     )
@@ -316,8 +360,13 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
             task,
             project,
             phase: match own_hold {
-                Some(w::LandingOwnHold::Prepare) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Prepare },
-                Some(w::LandingOwnHold::Record(value)) => d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Record { member: value.member() } },
+                Some(w::LandingOwnHold::Prepare) => {
+                    d::Phase::Held { was: Box::new(decode_phase(phase)), why: d::Hold::Prepare }
+                }
+                Some(w::LandingOwnHold::Record(value)) => d::Phase::Held {
+                    was: Box::new(decode_phase(phase)),
+                    why: d::Hold::Record { member: value.member() },
+                },
                 None => decode_phase(phase),
             },
             members: decoded_members.into_boxed(),

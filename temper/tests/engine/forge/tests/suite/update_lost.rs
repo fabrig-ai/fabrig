@@ -107,34 +107,60 @@ fn a_lost_update_is_made_again_and_lands_under_a_queue() {
 }
 
 fn lost_prepare(found: bool) {
-    let mut world = landings::turn_world(); world.produce(BRANCH); world.push_file(b"main", b"base", b"main moved");
-    landings::ready_change(&mut world, CHANGE, BRANCH); let original = world.branch(BRANCH);
-    let row = landings::landing_row(world.change(CHANGE)); world.event(top::Event::Landing { row });
+    let mut world = landings::turn_world();
+    world.produce(BRANCH);
+    world.push_file(b"main", b"base", b"main moved");
+    landings::ready_change(&mut world, CHANGE, BRANCH);
+    let original = world.branch(BRANCH);
+    let row = landings::landing_row(world.change(CHANGE));
+    world.event(top::Event::Landing { row });
     assert_eq!(landings::step_landing_raw(&mut world, LANDING, 100), landing::Decision::None);
     assert!(matches!(landings::step_landing_raw(&mut world, LANDING, 101), landing::Decision::Prepare { .. }));
-    if found { world.prepare_landing(LANDING, false); }
-    world.restart(); world.run_for(1);
+    if found {
+        world.prepare_landing(LANDING, false);
+    }
+    world.restart();
+    world.run_for(1);
     let next = landings::step_landing_raw(&mut world, LANDING, 102);
-    assert_eq!(matches!(next, landing::Decision::Prepare { .. }), !found, "read the landing branch before making another job");
-    if !found { world.prepare_landing(LANDING, false); }
+    assert_eq!(
+        matches!(next, landing::Decision::Prepare { .. }),
+        !found,
+        "read the landing branch before making another job"
+    );
+    if !found {
+        world.prepare_landing(LANDING, false);
+    }
     landings::drive_landing(&mut world, LANDING);
-    assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Landed); assert_eq!(world.branch(BRANCH), original);
+    assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Landed);
+    assert_eq!(world.branch(BRANCH), original);
     assert_eq!(updates(&mut world, api::UpdateStyle::Rebase), 0);
 }
 #[test]
-fn a_lost_prepare_is_found_and_the_landing_goes_on() { lost_prepare(true); }
+fn a_lost_prepare_is_found_and_the_landing_goes_on() {
+    lost_prepare(true);
+}
 #[test]
-fn a_lost_prepare_is_made_again_and_the_landing_goes_on() { lost_prepare(false); }
+fn a_lost_prepare_is_made_again_and_the_landing_goes_on() {
+    lost_prepare(false);
+}
 #[test]
 fn a_job_finding_the_branch_already_there_is_undelivered_and_the_read_takes_it() {
-    let mut world = landings::turn_world(); world.produce(BRANCH); landings::ready_change(&mut world, CHANGE, BRANCH);
-    let row = landings::landing_row(world.change(CHANGE)); world.event(top::Event::Landing { row });
+    let mut world = landings::turn_world();
+    world.produce(BRANCH);
+    landings::ready_change(&mut world, CHANGE, BRANCH);
+    let row = landings::landing_row(world.change(CHANGE));
+    world.event(top::Event::Landing { row });
     landings::step_landing_raw(&mut world, LANDING, 100);
     assert!(matches!(landings::step_landing_raw(&mut world, LANDING, 101), landing::Decision::Prepare { .. }));
-    let candidate = world.prepare_landing(LANDING, false); let branch = world.landing(LANDING).landing.round.branch.clone();
-    assert_eq!(world.external(raw::Op::Git(raw::Git::PushNew { branch, commit: candidate }), 1), raw::Answer::PushNew { existing: Some(candidate) });
+    let candidate = world.prepare_landing(LANDING, false);
+    let branch = world.landing(LANDING).landing.round.branch.clone();
+    assert_eq!(
+        world.external(raw::Op::Git(raw::Git::PushNew { branch, commit: candidate }), 1),
+        raw::Answer::PushNew { existing: Some(candidate) }
+    );
     assert!(!matches!(landings::step_landing_raw(&mut world, LANDING, 102), landing::Decision::Prepare { .. }));
-    landings::drive_landing(&mut world, LANDING); assert_eq!(world.branch(b"main"), candidate);
+    landings::drive_landing(&mut world, LANDING);
+    assert_eq!(world.branch(b"main"), candidate);
 }
 
 #[test]

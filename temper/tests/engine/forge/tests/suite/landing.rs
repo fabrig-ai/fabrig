@@ -79,7 +79,9 @@ fn a_landing_of_one_is_prepared_on_its_branch_proved_and_fast_forwarded() {
     assert_eq!(writes.len(), 5);
     let round = &world.landing(LANDING).landing.round;
     let title = format!("Land #{}: {}", row.pull.expect("member pull"), String::from_utf8_lossy(&row.title));
-    assert!(matches!(&writes[0], api::Write::OpenPull { title: actual, head, base, .. } if actual.as_ref() == title.as_bytes() && *head == round.branch && base.as_ref() == b"main"));
+    assert!(
+        matches!(&writes[0], api::Write::OpenPull { title: actual, head, base, .. } if actual.as_ref() == title.as_bytes() && *head == round.branch && base.as_ref() == b"main")
+    );
     assert!(matches!(&writes[1], api::Write::Dispatch { branch, .. } if *branch == round.branch));
     assert_ne!(translate::commit(world.branch(b"temper/51")), candidate, "the member's branch is untouched");
     for (index, check, description, expected_link) in [
@@ -395,10 +397,23 @@ fn a_moving_base_reruns_only_the_gate_that_reads_it() {
     assert_eq!(member.gates[0].proof, first[0].proof, "the non-base receipt holds");
     assert_ne!(member.gates[1].proof, first[1].proof, "the base key moves");
     let final_runs = runs(&world);
-    assert_eq!(
-        world.take_calls().iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(),
-        3
-    );
+    let calls = world.take_calls();
+    assert_eq!(world.landing(LANDING).landing.stale_proofs, 1);
+    assert_eq!(world.landing(LANDING).landing.preparation, 2);
+    let close =
+        calls.iter().position(|op| matches!(op, api::Op::Write(api::Write::Close { .. }))).expect("round closed");
+    let delete = calls
+        .iter()
+        .position(|op| matches!(op, api::Op::Write(api::Write::DeleteBranch { .. })))
+        .expect("branch deleted");
+    let open = calls
+        .iter()
+        .enumerate()
+        .filter_map(|(at, op)| matches!(op, api::Op::Write(api::Write::OpenPull { .. })).then_some(at))
+        .nth(1)
+        .expect("next round opened");
+    assert!(close < delete && delete < open, "the old round ends before the next prepare");
+    assert_eq!(calls.iter().filter(|op| matches!(op, api::Op::Write(api::Write::Dispatch { .. }))).count(), 3);
     assert!(final_runs.iter().any(|run| !initial.iter().any(|old| old.id == run.id)), "a new run was made");
     assert!(final_runs.iter().any(|run| {
         run.inputs.iter().any(|(name, value)| name.as_ref() == b"temper_base" && *value == hex(&next_base[..20]))

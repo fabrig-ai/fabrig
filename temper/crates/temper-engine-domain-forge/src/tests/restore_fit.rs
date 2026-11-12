@@ -38,7 +38,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
             landing: policy::Landing {
-round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+                round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                 task: n,
                 project: 5,
@@ -611,7 +611,7 @@ fn landing(members: u32, gates: u32) -> LandingRow {
     };
     LandingRow {
         landing: policy::Landing {
-round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
             task: 1,
             project: 5,

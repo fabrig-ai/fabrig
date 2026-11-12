@@ -74,7 +74,13 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
             next.phase = match landing.phase {
                 Phase::Held { why: Hold::Record { .. }, .. } => Phase::Turn { at: now },
                 Phase::Held { why: Hold::Prepare | Hold::Faults { .. }, .. } => Phase::Preparing,
-                Phase::Waiting | Phase::Preparing | Phase::Proving | Phase::Proved { .. } | Phase::Turn { .. } | Phase::Landed | Phase::Cancelled => unreachable!("held phase"),
+                Phase::Waiting
+                | Phase::Preparing
+                | Phase::Proving
+                | Phase::Proved { .. }
+                | Phase::Turn { .. }
+                | Phase::Landed
+                | Phase::Cancelled => unreachable!("held phase"),
             };
             for member in &mut next.members {
                 for gate in &mut member.gates {
@@ -181,7 +187,8 @@ fn preparing(mut landing: Landing, facts: &Facts) -> Stepped {
             member.base = Some(fresh.main);
         }
         if member.head != Some(fresh.head) || member.base != Some(fresh.main) {
-            landing.round.ending = Some(if member.head == Some(fresh.head) { crate::RoundEnd::Stale } else { crate::RoundEnd::Leave });
+            landing.round.ending =
+                Some(if member.head == Some(fresh.head) { crate::RoundEnd::Stale } else { crate::RoundEnd::Leave });
             return done(landing, Decision::None);
         }
         if fresh.contained == Status::Passed {
@@ -206,7 +213,12 @@ fn preparing(mut landing: Landing, facts: &Facts) -> Stepped {
                     landing.phase = Phase::Held { was: Box::new(landing.phase), why };
                     return done(landing, Decision::Hold(why));
                 }
-                crate::Preparation::Idle => return done(landing, Decision::Prepare { member: position(index), head: fresh.head, main: fresh.main }),
+                crate::Preparation::Idle => {
+                    return done(
+                        landing,
+                        Decision::Prepare { member: position(index), head: fresh.head, main: fresh.main },
+                    );
+                }
             }
         }
     }
@@ -326,7 +338,13 @@ fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
                 | Decision::Merge { .. }
                 | Decision::Stale
                 | Decision::Finish
-                | Decision::Cancel | Decision::Open | Decision::Close | Decision::Delete | Decision::Record { .. } | Decision::Landed { .. } | Decision::Resolve { .. } => unreachable!("gate decisions only"),
+                | Decision::Cancel
+                | Decision::Open
+                | Decision::Close
+                | Decision::Delete
+                | Decision::Record { .. }
+                | Decision::Landed { .. }
+                | Decision::Resolve { .. } => unreachable!("gate decisions only"),
             }
         }
     }
@@ -463,7 +481,8 @@ fn turn(mut landing: Landing, facts: &Facts) -> Stepped {
             continue;
         }
         if member.head != Some(fresh.head) || member.base != Some(fresh.main) || fresh.merge == Status::Failed {
-            landing.round.ending = Some(if member.head == Some(fresh.head) { crate::RoundEnd::Stale } else { crate::RoundEnd::Leave });
+            landing.round.ending =
+                Some(if member.head == Some(fresh.head) { crate::RoundEnd::Stale } else { crate::RoundEnd::Leave });
             return done(landing, Decision::None);
         }
         return match fresh.merge {

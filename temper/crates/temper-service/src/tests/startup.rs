@@ -1929,20 +1929,28 @@ fn landing_gate_retries_refuse_non_u8_values_at_the_member() {
 fn landing_combine_reads_stock_each_value_and_problems_at_the_member() {
     use temper_engine_domain::Combine::{Merge, Squash};
     for (setting, main, other) in [
-        ("", Merge, Squash), (r#""combine":{},"#, Merge, Squash),
+        ("", Merge, Squash),
+        (r#""combine":{},"#, Merge, Squash),
         (r#""combine":{"main":"squash"},"#, Squash, Squash),
         (r#""combine":{"main":"merge","other":"merge"},"#, Merge, Merge),
         (r#""combine":{"main":"squash","other":"squash"},"#, Squash, Squash),
     ] {
-        let projects = tier_projects("[]", setting); let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::engine().jig); assert!(problems.is_empty(), "{:?}", lines(&problems));
-        let members = members.expect("valid combining"); let landing = members.landings.get(&1).expect("project");
+        let projects = tier_projects("[]", setting);
+        let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(problems.is_empty(), "{:?}", lines(&problems));
+        let members = members.expect("valid combining");
+        let landing = members.landings.get(&1).expect("project");
         assert_eq!((landing.combine_main, landing.combine_other), (main, other));
     }
     for member in ["main", "other"] {
         let projects = tier_projects("[]", &format!(r#""combine":{{"{member}":"rebase"}},"#));
         let input = fixtures::with(fixtures::APPLICATION, b"landing.projects", &projects);
-        let (members, problems) = application(&input, &fixtures::engine().jig); assert!(members.is_none());
-        assert_eq!(lines(&problems).as_ref(), format!("application.landing.projects[0].combine.{member}: invalid form\n").as_bytes());
+        let (members, problems) = application(&input, &fixtures::engine().jig);
+        assert!(members.is_none());
+        assert_eq!(
+            lines(&problems).as_ref(),
+            format!("application.landing.projects[0].combine.{member}: invalid form\n").as_bytes()
+        );
     }
 }

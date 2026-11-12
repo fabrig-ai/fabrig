@@ -150,15 +150,36 @@ pub struct Round {
 impl Round {
     #[must_use]
     pub fn new(branch: Box<[u8]>) -> Self {
-        Self { branch, pull: None, upstream: None, combined: None, recorded: false, told: false, ending: None, failure: Box::new([]) }
+        Self {
+            branch,
+            pull: None,
+            upstream: None,
+            combined: None,
+            recorded: false,
+            told: false,
+            ending: None,
+            failure: Box::new([]),
+        }
     }
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Combine { Merge, Squash }
+pub enum Combine {
+    Merge,
+    Squash,
+}
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum RoundEnd { Stale, Leave, Conflict }
+pub enum RoundEnd {
+    Stale,
+    Leave,
+    Conflict,
+}
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Preparation { Idle, Running, Conflict, Failed }
+pub enum Preparation {
+    Idle,
+    Running,
+    Conflict,
+    Failed,
+}
 
 /// Current dispatch of this key. The top follows the current try, clearing
 /// its old run when committing a retry (domain/landing.md, 7.4).

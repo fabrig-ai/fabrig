@@ -16,7 +16,7 @@ fn at(seconds: u64) -> Wall {
 }
 fn landing_of_one() -> Landing {
     Landing {
-round: crate::Round::new(Box::from(b"temper/1/l61".as_slice())),
+        round: crate::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
         task: 7,
         project: 9,
@@ -39,9 +39,15 @@ round: crate::Round::new(Box::from(b"temper/1/l61".as_slice())),
 }
 fn facts() -> Facts {
     Facts {
-        opened: Some(10), opening: Status::Passed, closed: Status::Unknown, deleted: Status::Unknown,
+        opened: Some(10),
+        opening: Status::Passed,
+        closed: Status::Unknown,
+        deleted: Status::Unknown,
         members: Box::new([MemberFacts {
-            contained: Status::Failed, candidate: Some((HEAD, crate::Combine::Merge)), preparation: crate::Preparation::Idle, record: Status::Unknown,
+            contained: Status::Failed,
+            candidate: Some((HEAD, crate::Combine::Merge)),
+            preparation: crate::Preparation::Idle,
+            record: Status::Unknown,
             ready: true,
             cancelled: false,
             head: HEAD,
@@ -86,10 +92,14 @@ fn turn() -> Landing {
 }
 
 fn close_round(landing: &Landing, f: &Facts) -> Stepped {
-    let close = decide(landing, f); assert_eq!(close.decision, Decision::Close);
-    let mut f = f.clone(); f.closed = Status::Passed;
-    let delete = decide(&close.landing, &f); assert_eq!(delete.decision, Decision::Delete);
-    f.deleted = Status::Passed; decide(&delete.landing, &f)
+    let close = decide(landing, f);
+    assert_eq!(close.decision, Decision::Close);
+    let mut f = f.clone();
+    f.closed = Status::Passed;
+    let delete = decide(&close.landing, &f);
+    assert_eq!(delete.decision, Decision::Delete);
+    f.deleted = Status::Passed;
+    decide(&delete.landing, &f)
 }
 
 #[test]
@@ -112,7 +122,8 @@ fn a_candidate_found_on_the_landing_branch_is_proved() {
 }
 #[test]
 fn a_prepare_job_waits_and_its_branch_supplies_the_candidate() {
-    let mut f = facts(); f.members[0].candidate = None;
+    let mut f = facts();
+    f.members[0].candidate = None;
     let one = decide(&preparing(), &f);
     assert_eq!(one.decision, Decision::Prepare { member: 0, head: HEAD, main: MAIN });
     assert_eq!(one.landing.preparation, 1);
@@ -121,7 +132,8 @@ fn a_prepare_job_waits_and_its_branch_supplies_the_candidate() {
     f.members[0].candidate = Some((NEW, crate::Combine::Merge));
     let two = decide(&one.landing, &f);
     assert_eq!(two.landing.members[0].candidate, Some(NEW));
-    assert_eq!(two.landing.members[0].head, Some(HEAD)); assert_eq!(two.landing.phase, Phase::Proving);
+    assert_eq!(two.landing.members[0].head, Some(HEAD));
+    assert_eq!(two.landing.phase, Phase::Proving);
 }
 #[test]
 fn an_unkeyed_gate_asks_for_its_key() {
@@ -305,19 +317,28 @@ fn a_proved_landing_takes_its_own_trains_turn() {
 }
 #[test]
 fn the_turn_merges_at_the_candidate_then_tells_its_change_after_readback() {
-    let landing = turn(); let mut f = facts(); let one = decide(&landing, &f);
+    let landing = turn();
+    let mut f = facts();
+    let one = decide(&landing, &f);
     assert_eq!(one.decision, Decision::Merge { member: 0, candidate: HEAD });
     f.members[0].merge = Status::Passed;
     assert_eq!(decide(&one.landing, &f).decision, Decision::Wait { until: None });
-    f.members[0].main = HEAD; let two = decide(&one.landing, &f);
+    f.members[0].main = HEAD;
+    let two = decide(&one.landing, &f);
     assert_eq!(two.decision, Decision::Landed { member: 0, prefix: HEAD });
-    assert_eq!(two.landing.members[0].landed, Some(HEAD)); assert_eq!(decide(&two.landing, &f).decision, Decision::Finish);
+    assert_eq!(two.landing.members[0].landed, Some(HEAD));
+    assert_eq!(decide(&two.landing, &f).decision, Decision::Finish);
 }
 #[test]
 fn a_main_moved_before_the_turns_merge_closes_before_preparing_again() {
-    let landing = turn(); let mut f = facts(); f.members[0].main = NEW;
-    let next = decide(&landing, &f); let next = close_round(&next.landing, &f);
-    assert_eq!(next.decision, Decision::Stale); assert_eq!(next.landing.stale_proofs, 1); assert_eq!(next.landing.members[0].candidate, None);
+    let landing = turn();
+    let mut f = facts();
+    f.members[0].main = NEW;
+    let next = decide(&landing, &f);
+    let next = close_round(&next.landing, &f);
+    assert_eq!(next.decision, Decision::Stale);
+    assert_eq!(next.landing.stale_proofs, 1);
+    assert_eq!(next.landing.members[0].candidate, None);
 }
 #[test]
 fn a_merged_member_lands_the_landing() {

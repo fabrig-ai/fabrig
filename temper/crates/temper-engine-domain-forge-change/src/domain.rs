@@ -46,7 +46,9 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if let Some(stepped) = after_landing(&next, facts, standing, now) {
         return stepped;
     }
-    if change.way == Way::Turn && let Some(Ask::Landed { prefix }) = facts.ask {
+    if change.way == Way::Turn
+        && let Some(Ask::Landed { prefix }) = facts.ask
+    {
         next.state = State::Landed { merge: prefix, since: now };
         next.owns_turn = false;
         next.released = None;
@@ -1556,7 +1558,15 @@ fn pushed(change: &Change, head: [u8; 32]) -> State {
     }
 }
 
-fn ready(change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
+fn ready(
+    change: Change,
+    head: [u8; 32],
+    ready_since: Wall,
+    facts: &Facts,
+    standing: &Heard,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
     if facts.branch != Some(head) {
         return hold(change, Hold::BranchMoved);
     }

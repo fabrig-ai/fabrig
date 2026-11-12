@@ -140,8 +140,14 @@ fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit()
 
 fn hello_prepare(slots: u32) -> engine::Event {
     let mut event = protocol::hello_slots(Token::new(7), slots, Box::new([]));
-    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event else { panic!("hello") };
-    let mut bound = protocol::merge_bound(); bound.kind = jig_domain_link::JobKind(1); hello.jobs = Box::new([bound]); event
+    let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
+    else {
+        panic!("hello")
+    };
+    let mut bound = protocol::merge_bound();
+    bound.kind = jig_domain_link::JobKind(1);
+    hello.jobs = Box::new([bound]);
+    event
 }
 fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
     let mut world = World::configured_limits(
@@ -232,6 +238,9 @@ fn a_chats_change_lands_by_turn() {
         panic!("landing done: {:?}; writes={:?}", row.phase, world.writes);
     };
     let report = words.clone();
+    let own_branch =
+        &landing_rows(&world).into_iter().find(|row| row.landing.task == landing).expect("round").landing.round.branch;
+    assert_eq!(world.fake.branch(b"org/repo", own_branch), None, "the landing releases its own held branch");
     let change_row = task_row(&world, change).expect("change task");
     let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { words, .. })) = &change_row.phase else {
         panic!("change done: {:?}", change_row.phase)
@@ -889,21 +898,40 @@ fn a_change_created_with_a_dependency_does_not_join_a_formed_landing() {
 #[test]
 fn the_prepare_jobs_conflict_result_ends_the_round_and_asks_for_resolution() {
     let (mut world, change) = produced_turn_change(None);
-    for _ in 0..600 { world.tick(); if !world.jobs.is_empty() { break; } }
+    for _ in 0..600 {
+        world.tick();
+        if !world.jobs.is_empty() {
+            break;
+        }
+    }
     assert_eq!(world.jobs.len(), 1);
-    let job = world.jobs.remove(0); assert_eq!(job.kind, jig_domain_link::JobKind(1));
+    let job = world.jobs.remove(0);
+    assert_eq!(job.kind, jig_domain_link::JobKind(1));
     let landing = job.workspace.as_ref().expect("job workspace").workstream;
     let result = format!("{{\"conflict\":{{\"member\":{change},\"with\":\"branch\",\"files\":[\"file\"]}}}}");
-    let event = world.protocol.answer_job(Token::new(7), job.run.raw(), job.attempt.raw(), host::JobEnding::Finished { result: result.into_bytes().into(), work: host::Work { left: None, saved: None } });
+    let event = world.protocol.answer_job(
+        Token::new(7),
+        job.run.raw(),
+        job.attempt.raw(),
+        host::JobEnding::Finished { result: result.into_bytes().into(), work: host::Work { left: None, saved: None } },
+    );
     world.send(event);
     for _ in 0..600 {
         world.tick();
         if task_row(&world, landing).is_some_and(|row| matches!(row.phase, tasks::Phase::Ended(_)))
-            && matches!(super::light_rules::change_row(&world, change).change.state, temper_engine_domain_forge_change::State::Resolving { .. }) { break; }
+            && matches!(
+                super::light_rules::change_row(&world, change).change.state,
+                temper_engine_domain_forge_change::State::Resolving { .. }
+            )
+        {
+            break;
+        }
     }
     assert!(matches!(task_row(&world, landing).expect("landing").phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
     let row = landing_rows(&world).into_iter().find(|row| row.landing.task == landing).expect("round");
     assert!(row.landing.members[0].landed.is_none());
-    assert!(matches!(super::light_rules::change_row(&world, change).change.state, temper_engine_domain_forge_change::State::Resolving { base, .. } if Some(base) == row.landing.members[0].base));
+    assert!(
+        matches!(super::light_rules::change_row(&world, change).change.state, temper_engine_domain_forge_change::State::Resolving { base, .. } if Some(base) == row.landing.members[0].base)
+    );
     assert!(!world.writes.iter().any(|write| matches!(write, api::Write::Merge { .. } | api::Write::Update { .. })));
 }

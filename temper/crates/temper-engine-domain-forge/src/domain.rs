@@ -2235,21 +2235,21 @@ fn outcome_facts(
             let turn = d.landing.rows.contains_key(&task);
             let task = crate::landing::merged_owner(d, task, entry);
             if !turn {
-            crate::landing_log::landed(d, env.wall, commit, task, out);
-            if !d.releases.contains_key(&task) {
-                crate::verification::landed(d, commit, task, out);
-                if let Some(row) = d.changes.get_mut(&task)
-                    && landed_commit(&row.change.state).is_none()
-                {
-                    let owned = row.change.owns_turn;
-                    row.change.owns_turn = false;
-                    row.change.state = change::State::Landed { merge: commit, since: env.wall };
-                    let saved = row.clone();
-                    wake_after_turn(d, &saved, owned);
-                    save_change(d, out, saved);
+                crate::landing_log::landed(d, env.wall, commit, task, out);
+                if !d.releases.contains_key(&task) {
+                    crate::verification::landed(d, commit, task, out);
+                    if let Some(row) = d.changes.get_mut(&task)
+                        && landed_commit(&row.change.state).is_none()
+                    {
+                        let owned = row.change.owns_turn;
+                        row.change.owns_turn = false;
+                        row.change.state = change::State::Landed { merge: commit, since: env.wall };
+                        let saved = row.clone();
+                        wake_after_turn(d, &saved, owned);
+                        save_change(d, out, saved);
+                    }
                 }
-            }
-            landed::landed_room(d, env, commit, task, out);
+                landed::landed_room(d, env, commit, task, out);
             }
             if let Some(change) = d.changes.get(&task) {
                 let repository = change.repository;
@@ -3672,7 +3672,9 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
         return;
     }
-    if row.change.way == change::Way::Turn && let Some(change::Ask::Landed { prefix }) = crate::landing::ask_for(d, row) {
+    if row.change.way == change::Way::Turn
+        && let Some(change::Ask::Landed { prefix }) = crate::landing::ask_for(d, row)
+    {
         step_verified(d, env, task, prefix, heard, out);
         return;
     }
