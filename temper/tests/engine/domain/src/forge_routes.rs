@@ -1823,7 +1823,7 @@ impl World {
                     }
                     Delivery::Application { outcome, .. } => match outcome {
                         Some(engine::ApplicationAnswer::Adopt(outcome)) => self.adopted.push(outcome),
-                        Some(engine::ApplicationAnswer::Looked(_)) => {}
+                        Some(engine::ApplicationAnswer::Looked(_) | engine::ApplicationAnswer::FileFinding(_)) => {}
                         answer => panic!("retained application answer: {answer:?}"),
                     },
                     _ => {}
