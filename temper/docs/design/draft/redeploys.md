@@ -4,7 +4,7 @@ Draft, 2026-11-12. How a deployment takes a new build of temper while its work g
 
 ## 1. In one page
 
-- **Versions move with their layouts, from now** (section 3). Every wire between the engine, its workers and their agents takes a new version at the landing that changes its layout, keeps the old version's text and brings its bridge, as a stored family brings its patch (`staged-upgrades.md`, section 3). The gate refuses a layout changed in place.
+- **Versions move with their layouts, from now** (section 3). Every wire between the engine, its workers and their agents takes a new version at the landing that changes its layout and keeps the old version's text. A wire that spans builds brings its bridge, as a stored family brings its patch (`staged-upgrades.md`, section 3); smith's channel is declared per-build (4.4). The gate refuses a layout changed in place.
 - **Each side states what it speaks, by layout** (3.2): at the opening, each wire's range of versions and each version's fingerprint. An in-place change the gate missed is refused there, named, rather than met by a task's first assignment.
 - **A version mismatch is never a task's failure** (3.4): what a worker cannot read waits for one that can, spending no try.
 - **The newer side bridges** (section 4). It speaks every version of a wire from its floor up, translating up by the forward patch and down by its reverse. What the older side cannot hold is never sent to it. A change no bridge can carry is declared breaking, and raises the floor.
@@ -42,7 +42,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
   - smith's channel between a worker and its agents, which has no bridge (4.4).
 
   Clients' wires are section 8's.
-- **The old version's text is kept,** with its golden bytes, as a stored family's is (skein's `data/codec/command.md`, section 7), and the change brings its bridge (section 4).
+- **The old version's text is kept,** with its golden bytes, as a stored family's is (skein's `data/codec/command.md`, section 7), and a wire that spans builds brings its bridge (section 4). The bridge inventory (4.2) also names per-build wires, whose exemption is from translation, never from version moves or kept text.
 - **The gate refuses** a wire whose layout differs from its latest kept text with its version unmoved, as it refuses a stored family's (`upgrades.md`, section 12).
 - **The churn it meets** (main, 2026-10-15 to 11-12): 29 in-place changes to the schemas of jig's channel (14), temper's payloads (4), smith's charter (4), its turns (2) and its channel (5); 14 of them a field, an option or a variant appended; and 19 version moves beside them.
 
@@ -60,7 +60,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 - **Each build speaks every version of a wire from its floor to its current.** The floor is kept in the repository, one per wire.
 - **It bounds what is spoken, not what is read.** A kept text and its forward patch stay for good, as a stored family's do (skein's `data/codec/command.md`, section 7), since stored turns, calls' names and deliveries' evidence keep the versions they were written in. Below the floor, a build no longer negotiates the version or translates down to it.
 - **It moves only by a landing that says so:** one that raises it once no deployment speaks the versions below, or a breaking change (4.5), which raises it to its own version.
-- **At least the previous version.** A landing that moves a wire's version leaves its floor at or below the previous one, unless the change is breaking.
+- **At least the previous version, for a wire that spans builds.** A landing that moves its version leaves its floor at or below the previous one, unless the change is breaking. A wire declared per-build in the bridge inventory (4.2) speaks only its build's version and needs no breaking declaration for that move.
 - **Until bridges are built,** each build's floor is its current version: versions move and are compared, and nothing is translated. A worker of another layout is then refused at the opening by name, and the check (5.1) says it may not stay.
 - **Workers keep up with it:** dev.fabrig.ai's workers are restarted in turn (7.2) before a new build's floor passes the versions they speak, which the check says.
 
@@ -94,6 +94,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 | a call's name, a delivery's evidence | the agent; the engine, resuming | kept as written, crossing as written to a worker that reads it | kept as written, read forward |
 | a host tool's input | the agent | — | by the tools' contract of the run's charter (below) |
 | a job's request and result | the engine; the worker | by the kind's reverse | forward |
+| smith's channel (`smith-channel`), per-build (4.4) | the worker; its spawned agent | no bridge: the worker pins its agent's program and configuration at startup | no bridge: a restarted worker spawns fresh agents, adopting none |
 
 - **Stored turns are never rewritten.** The engine keeps a turn's bytes in the version its agent wrote, and patches them forward as it reads them (`upgrades.md`, 7.2; smith's `protocol/README.md`, section 8). A window resumed on a worker of an older version crosses as written when that worker reads it, goes down otherwise, or is placed elsewhere (4.3).
 - **A git identity's value is a secret inside a grant,** opaque to jig's records, so its translation is temper's, for each channel, where it encodes the value (`../protocol/channel.md`, section 6). The two newest generations are kept in each version a connected worker speaks.
@@ -110,6 +111,8 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 - **Pinned at the worker's start.** The worker takes its agent's program and the agent's configuration, as its own configuration names them (`../domain/worker/README.md`, section 5; `../protocol/binaries.md`, section 5), into its own data directory as it starts, and spawns that copy for every run until it exits. A redeploy replacing the program or the configuration changes what the worker's next start pins, never a running worker's agents.
 - **So smith's channel never spans two builds.** It speaks one version and has no bridge. Its version still moves with its layout, so that a misconfigured program is refused at the opening, by name (smith's `protocol/README.md`, section 8). The pieces of it the engine keeps are wires of their own (3.1).
+- **The boundary is local pipes,** from the worker's `smith-host-protocol` to its child agent's `smith-protocol-channel`, one channel per run (`../domain/worker/README.md`, section 5; smith's `protocol/channel.md`, section 2). The engine is neither endpoint nor a relay for these frames. An engine-only redeploy leaves the worker and its pinned agents together on their existing build, including agents spawned after the program at its configured path is replaced. A worker restart starts new channels with its newly pinned agent; agents from its previous start are never adopted. Thus the move from channel 6 to 7, adding drain, is a per-build version move, recorded in the bridge inventory (4.2), without a bridge or a breaking declaration for the deployment's cross-build wires.
+- **Pinning is a prerequisite for keeping a worker.** A worker from before pinning must be stopped before its configured agent program is replaced, then restarted on the new build. Keeping that worker across a swap could make it spawn an agent from another build; the per-build exemption does not cover that rollout. Section 7.3's restart of every part establishes the pinned workers before engine-only redeploys rely on them.
 - **An agent goes with its worker.** A worker that stops or dies takes its agents' process groups with it, and a worker's start finds nothing of its previous life still writing in its workspaces (smith's `domain/host.md`, section 4, whose status records today's gap).
 - **Agents outliving their worker,** adopted by its next start, are later (the user, 2026-11-12; section 12).
 

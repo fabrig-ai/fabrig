@@ -142,7 +142,7 @@ fn a_dependency_given_after_forming_does_not_join_anything() {
     assert_eq!(world.landing(first), &before);
     let second = world.change(public::SECOND).change.landing.expect("its own sealed unit");
     assert_ne!(second, first);
-    assert!(root.held.is_empty());
+    assert_eq!(root.held, Vec::<(u64, Box<[u8]>)>::new());
 }
 #[test]
 fn full_live_slots_wait_without_holding_and_form_when_a_slot_frees() {
@@ -159,10 +159,10 @@ fn full_live_slots_wait_without_holding_and_form_when_a_slot_frees() {
         root.judge(&mut world);
     }
     assert_eq!(world.change(53).change.landing, None);
-    assert!(root.held.is_empty());
+    assert_eq!(root.held, Vec::<(u64, Box<[u8]>)>::new());
     root.land(&mut world, LANDING);
     assert_eq!(world.change(53).change.landing, Some(LANDING + 2));
-    assert!(root.held.is_empty());
+    assert_eq!(root.held, Vec::<(u64, Box<[u8]>)>::new());
 }
 
 #[test]

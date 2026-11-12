@@ -1498,7 +1498,7 @@ impl World {
             &mut skein_lib::Reader::new(&job.spec),
         )
         .expect("prepare spec");
-        assert!(spec.command().is_empty());
+        assert_eq!(spec.command(), b"");
         let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
         let mut tree: BTreeMap<_, _> = self
             .fake
