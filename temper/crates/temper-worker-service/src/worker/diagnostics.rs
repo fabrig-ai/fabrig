@@ -71,6 +71,6 @@ fn event_tag(event: &root::Event) -> WorkerEvent {
         root::Event::Encoded { .. } => WorkerEvent::Encoded,
         root::Event::Activity { .. } => WorkerEvent::Activity,
         root::Event::Done { .. } => WorkerEvent::Done,
-        root::Event::Shutdown => WorkerEvent::Shutdown,
+        root::Event::Shutdown { .. } => WorkerEvent::Shutdown,
     }
 }

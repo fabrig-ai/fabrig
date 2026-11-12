@@ -475,7 +475,11 @@ fn measure_worker() {
         &agent,
         &crate::limits::worker(&own),
         &files,
-        crate::WorkerRuntime { root: skein_io::kernel::Fd::new(9), path: b"/worker".as_slice().into() },
+        crate::WorkerRuntime {
+            root: skein_io::kernel::Fd::new(9),
+            path: b"/worker".as_slice().into(),
+            agent: fixtures::pinned_agent(&worker.jig.agent),
+        },
         7,
     )
     .unwrap();

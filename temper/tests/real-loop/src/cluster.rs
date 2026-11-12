@@ -136,8 +136,28 @@ impl Shape {
         let silence_ms = 3 * ping_ms;
         let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
         let grace_ms = grace.as_millis();
-        let [agent_stop_ms, delivery_ms, save_ms] = [5_u64, 5, 5];
-        let stop_bound_ms = ping_ms + silence_ms + grace_ms + agent_stop_ms.max(delivery_ms) + save_ms;
+        let mut agent: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(data.join("agent.json")).expect("agent document"))
+                .expect("agent JSON");
+        // Preserve the story's supervision policy; its stop bound is derived below.
+        // Cancellation must leave the held peer time to release its response.
+        let [delivery_ms, save_ms] = [5_u64, 5];
+        let graces = jig_protocol_config::Graces {
+            grace: *grace,
+            // A held model call is cancelled promptly even in a long engine-away story.
+            drain: skein_lib::Duration::from_millis(10),
+            agent_stop: agent_stop_bound(&agent),
+            delivery: skein_lib::Duration::from_millis(delivery_ms),
+            save: skein_lib::Duration::from_millis(save_ms),
+        };
+        let agent_stop_ms = graces.agent_stop.as_millis();
+        let stop_bound_ms = jig_protocol_config::stop_bound(
+            &graces,
+            skein_lib::Duration::from_millis(ping_ms),
+            skein_lib::Duration::from_millis(silence_ms),
+        )
+        .expect("cluster stop bound fits a duration")
+        .as_millis();
         match self {
             Self::Engine { workers, .. } => {
                 document["workers"] = json!([]);
@@ -169,16 +189,13 @@ impl Shape {
                 for (limit, size) in [("hub.turns", 1), ("hub.held", 1), ("hub.program_sources", 0)] {
                     worker["limits"]["overrides"][limit] = size.into();
                 }
-                let mut agent: serde_json::Value =
-                    serde_json::from_slice(&std::fs::read(data.join("agent.json")).expect("agent document"))
-                        .expect("agent JSON");
                 agent["profile"]["policy"]["unacknowledged"] = 1.into();
                 fixtures::private(&data.join("agent.json"), &serde_json::to_vec(&agent).expect("agent JSON"))
                     .expect("cluster agent");
                 worker["name"] = (*name).into();
                 worker["secret"] = format!("secrets/{name}.secret").into();
                 worker["engine"] = json!({"socket": engine.unwrap_or(([127,0,0,1],0).into()).to_string()});
-                worker["graces"] = json!({"grace_ms":grace_ms,"agent_stop_ms":agent_stop_ms,"delivery_ms":delivery_ms,"save_ms":save_ms});
+                worker["graces"] = json!({"grace_ms":grace_ms,"drain_ms":graces.drain.as_millis(),"agent_stop_ms":agent_stop_ms,"delivery_ms":delivery_ms,"save_ms":save_ms});
                 worker["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
                 worker["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
                 if grace_ms >= 1_000 {
@@ -196,6 +213,17 @@ impl Shape {
         fixtures::private(&config.join("temper.json"), &serde_json::to_vec(&document).expect("cluster document"))
             .expect("private cluster document");
     }
+}
+
+/// The worker promises the configured host's cancel, terminate and exit tail.
+fn agent_stop_bound(agent: &serde_json::Value) -> skein_lib::Duration {
+    let configured = smith_agent_shell::config::from_value(agent.clone()).expect("cluster agent configuration");
+    let host = smith_agent_profile::host_limits(&configured.profile, &configured.service.limits)
+        .expect("cluster host supervision");
+    host.cancel_grace
+        .checked_add(host.kill_after)
+        .and_then(|bound| bound.checked_add(host.exit_grace))
+        .expect("cluster agent stop fits a duration")
 }
 
 // Observe the worker's own received assignments and successful agent spawns.
@@ -240,7 +268,9 @@ impl Runs {
                     self.bytes.drain(..end);
                 }
             }
-            (Op::Spawn { spawn }, Ok(Done::Spawned { .. })) if spawn.program.as_ref() == fixtures::AGENT => {
+            (Op::Spawn { spawn }, Ok(Done::Spawned { .. }))
+                if spawn.program.ends_with(fixtures::PINNED_AGENT_SUFFIX) =>
+            {
                 self.tasks.push(self.pending.take().expect("agent follows assignment"));
             }
             (Op::Connect { fd, addr }, Ok(Done::Nothing)) if *addr == engine => {
@@ -263,4 +293,28 @@ pub fn directories_in(roots: [&Path; 3]) -> temper_box_shell::directories::Direc
         .flat_map(|(option, path)| [option.as_bytes().into(), path.as_os_str().as_bytes().into()])
         .collect();
     temper_box_shell::directories::resolve(&args, &[], b"/").expect("fixture directories").0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cluster_preparation_preserves_the_agents_supervision_policy() {
+        let scratch = crate::Scratch::new("cluster-policy");
+        let data = scratch.path().join("data");
+        let address = ([127, 0, 0, 1], 0).into();
+        fixtures::write(&data, address, address).expect("fixture documents");
+        let path = data.join("agent.json");
+        let mut expected: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("agent document")).expect("agent JSON");
+        expected["profile"]["policy"]["unacknowledged"] = 1.into();
+
+        Shape::Worker { name: "w1", engine: Some(address), started: true, grace: skein_lib::Duration::from_millis(10) }
+            .write(scratch.path(), false);
+
+        let prepared: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("prepared agent")).expect("prepared JSON");
+        assert_eq!(prepared, expected);
+    }
 }

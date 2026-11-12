@@ -986,8 +986,8 @@ impl skein_world::Referee<support::cluster::Root> for OwnedWorkerJudge {
                         serde_json::from_str(include_str!("../../../docs/examples/owned.json")).expect("owned example");
                     engine["engine"]["limits"] = example["engine"]["limits"].clone();
                     engine["application"]["limits"] = example["application"]["limits"].clone();
-                    // The example's 17 s worker stop bound must fit the engine's grace.
-                    engine["engine"]["limits"]["overrides"]["fleet.grace_ms"] = 30_000.into();
+                    // The example's 186 s worker stop bound must fit the engine's 240 s grace.
+                    engine["engine"]["limits"]["overrides"]["fleet.grace_ms"] = 240_000.into();
                     support::write_private(&path, &serde_json::to_vec(&engine).expect("engine JSON"));
                     self.members.up(&["engine"]);
                     self.phase = OwnedWorkerPhase::Worker;

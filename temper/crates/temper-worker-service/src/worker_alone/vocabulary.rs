@@ -14,6 +14,7 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
+    StopBoundPassed { abandoned: u64 },
     WorkerJob { run: u64, attempt: u64, kind: u32, verb: Box<[u8]>, ending: crate::WorkerJobEnding, why: Box<[u8]> },
     Linked { worker: Box<[u8]>, address: Box<core::net::SocketAddr> },
     Lost { worker: Box<[u8]>, address: Box<core::net::SocketAddr>, why: crate::WorkerLoss },

@@ -11,10 +11,10 @@ fn a_dump_directory_reaches_the_agent_as_its_one_variable() {
     let worker = service.worker.as_mut().expect("one worker");
     worker.link(fixtures::NOW, fixtures::chat_assignment());
     let (_, launched) = fixtures::spawn(worker);
-    assert_eq!(launched.program.as_ref(), fixtures::TEMPER);
+    assert_eq!(launched.program.as_ref(), fixtures::PINNED_TEMPER);
     assert_eq!(
         launched.args.as_ref(),
-        [Box::from(&b"internal"[..]), Box::from(&b"agent"[..]), Box::from(fixtures::AGENT_JSON)]
+        [Box::from(&b"internal"[..]), Box::from(&b"agent"[..]), Box::from(fixtures::PINNED_AGENT_JSON)]
     );
     assert_eq!(launched.root, io::kernel::Fd::new(9));
     assert_eq!(launched.env.as_ref(), [Box::from(b"TEMPER_INTERNAL_DUMP_LLM=/request-dumps".as_slice())]);

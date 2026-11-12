@@ -154,6 +154,7 @@ fn take(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             run::turn(domain, conversation, record, sequence, opens_window, out);
         }
         Event::Cancel { run } => run::cancel(domain, run, out),
+        Event::Drain { run } => run::drain(domain, run, out),
         Event::Started { conversation, peer } => run::started(domain, conversation, peer, out),
         Event::JobsCancelled { conversation } => run::jobs_cancelled(domain, env, conversation, out),
         Event::Yielded { conversation, stop, text } => run::yielded(domain, env, conversation, stop, &text, out),
@@ -201,7 +202,7 @@ pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     facts::tell(&mut domain.facts, &domain.runs, &domain.conversations, out, mark);
 }
 
-pub use run::{completion_overflow, completion_permit, reserve, settle_reservation};
+pub use run::{close_drained, completion_overflow, completion_permit, reserve, settle_reservation};
 
 /// Live run that owns this conversation, for its parent's acknowledgement routing.
 #[must_use]

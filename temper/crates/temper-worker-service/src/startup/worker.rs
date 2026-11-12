@@ -21,6 +21,7 @@ pub struct NamedWorker {
     pub root: Box<[u8]>,
     pub agent: Box<[u8]>,
     pub program: Box<[u8]>,
+    pub arguments: Box<[Box<[u8]>]>,
 }
 fn problem(path: Path, what: What) -> Problems {
     let mut problems = Problems::empty();
@@ -231,6 +232,7 @@ pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<Wo
             root: own.root.clone(),
             agent: jig.agent.configuration.clone(),
             program: jig.agent.program.clone(),
+            arguments: jig.agent.arguments.clone(),
         },
         worker: settings::Worker { jig, root: own.root, git: own.git },
         limits,

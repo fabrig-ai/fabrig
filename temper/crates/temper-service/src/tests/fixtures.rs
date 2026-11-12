@@ -611,7 +611,8 @@ mod startup;
 pub use startup::*;
 pub use temper_worker_service_fixtures::agent;
 pub use worker::{
-    AGENT_JSON, NOW, TEMPER, assignment as worker_assignment, chat_assignment, one_repository, spawn, worker,
+    AGENT_JSON, NOW, PINNED_AGENT_JSON, PINNED_TEMPER, TEMPER, assignment as worker_assignment, chat_assignment,
+    one_repository, pinned_agent, spawn, worker,
 };
 
 pub fn store_limits() -> (temper_engine_domain::Limits, jig_domain_core::Limits, jig_protocol_store::Limits) {

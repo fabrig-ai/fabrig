@@ -263,7 +263,7 @@ impl Joint {
                     | temper_worker_domain::Event::Encoded { .. }
                     | temper_worker_domain::Event::Activity { .. }
                     | temper_worker_domain::Event::Done { .. }
-                    | temper_worker_domain::Event::Shutdown) => {
+                    | temper_worker_domain::Event::Shutdown { .. }) => {
                         panic!("unexpected worker root event; the link must stay up: {other:?}")
                     }
                 }

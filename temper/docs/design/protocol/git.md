@@ -97,7 +97,8 @@ the worker's root directory     workers[].root
 ├── stores/<token>/             a repository's store, bare, named by the store's token in decimal (4.11), kept across starts
 ├── making/<m>/                 a store being made, moved into `stores` once whole (4.11)
 ├── trash/<n>/                  what Make set aside, emptied by the sweep
-└── home/                       git's HOME: empty, private
+├── home/                       git's HOME: empty, private
+└── agent/                      the agent's program and configuration, pinned at start (../domain/worker/README.md, section 5)
 ```
 
 - **The root's requests reach it through the routing,** which keeps no
@@ -128,7 +129,9 @@ the worker's root directory     workers[].root
   (`../domain/worker/checkouts.md`), while what must survive is never on
   the worker (`../domain/worker/README.md`, section 1). A store half made
   when the worker stopped is in `making`, and goes with it; git's `HOME`
-  must be empty.
+  must be empty. It never touches `agent/`, which the
+  worker's start writes before its loop and no operation of the
+  component's names.
 - **What it depends on:** `skein-lib`, `skein-io` and the checkout's
   vocabulary. It never decodes a channel record or reads configuration.
 

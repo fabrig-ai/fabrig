@@ -22,6 +22,7 @@ jig-protocol-config.workspace = true
 temper-worker-domain.workspace = true
 skein-shell.workspace = true
 skein-io.workspace = true
+skein-lib.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true

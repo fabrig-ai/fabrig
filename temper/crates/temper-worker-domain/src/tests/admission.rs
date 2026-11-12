@@ -85,7 +85,7 @@ fn admission_classes() -> Box<[(Event, bool, bool)]> {
         (Event::Encoded { owner: OWNER, encoded: Encoded::Undecodable }, false, false),
         (Event::Activity { owner: OWNER, activity: None }, false, false),
         (Event::Done { owner: OWNER, done: checkout::git::Done::Succeeded }, false, false),
-        (Event::Shutdown, false, false),
+        (Event::Shutdown { drain: true }, false, false),
     ])
 }
 

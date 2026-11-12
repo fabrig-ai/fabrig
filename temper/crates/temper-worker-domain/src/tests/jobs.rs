@@ -301,8 +301,8 @@ fn a_job_retry_during_preparation_keeps_the_first_decoded_spec() {
     let rows = git(&mut h, preparing, false);
     assert!(requested(&rows), "the first, decoded spec starts");
     let owner = owner(&rows);
-    let rows = h.step(Event::Shutdown);
-    assert_eq!(&*rows, [Request::Link(host::LinkUp::Draining)], "shutdown schedules the job's cancellation");
+    let rows = h.step(Event::Shutdown { drain: false });
+    assert_eq!(&*rows, [Request::Link(host::LinkUp::Draining)], "at-once shutdown schedules the job's cancellation");
     crate::resume(&mut h.domain, &h.env, &mut h.out);
     let mut stopped = List::with_capacity(h.out.len());
     while let Some(row) = h.out.pop() {
@@ -317,6 +317,31 @@ fn a_job_retry_during_preparation_keeps_the_first_decoded_spec() {
     let rows = h.step(Event::Job { owner, event: tooling::Event::Written { owner, written: true } });
     assert!(!requested(&rows), "a late write cannot spawn a cancelled job");
     assert_eq!(h.domain.workspaces(), 0);
+}
+
+/// temper/docs/design/domain/worker/jobs.md; jig's domain/hosts/hub.md, 7 and 9.
+#[test]
+fn a_draining_worker_lets_a_job_finish_without_cancelling_it() {
+    let mut h = harness(false);
+    let owner = running(&mut h, false);
+    let rows = h.step(Event::Shutdown { drain: true });
+    assert_eq!(&*rows, [Request::Link(host::LinkUp::Draining)]);
+    crate::resume(&mut h.domain, &h.env, &mut h.out);
+    assert!(h.out.is_empty(), "a job runs on through the drain");
+    assert!(result(&mut h, owner).is_empty(), "the job waits for its process to close");
+    let rows = job(&mut h, owner, tooling::Event::Gone { owner });
+    assert_eq!(
+        answer(&rows),
+        &host::JobEnding::Finished {
+            result: Box::from(b"result".as_slice()),
+            work: host::Work { left: None, saved: None },
+        }
+    );
+    assert_eq!(h.domain.workspaces(), 0);
+    assert_eq!(
+        &*h.run(Event::Link(host::LinkDown::Acknowledge { run: fixtures::RUN, attempt: fixtures::ATTEMPT })),
+        &[Request::Stop]
+    );
 }
 
 /// temper/docs/design/domain/worker/jobs.md.

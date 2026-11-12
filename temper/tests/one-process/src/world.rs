@@ -1216,7 +1216,9 @@ pub(crate) fn run_phase(
             })
             .with_machine(machine);
         for (mut program, roots) in programs::programs::<OneProcess>() {
-            if matches!(scenario, Story::ModelsList) && program.program.as_ref() == b"/opt/temper/bin/temper" {
+            if matches!(scenario, Story::ModelsList)
+                && program.program.as_ref() == temper_playground::documents::PINNED_AGENT_PROGRAM
+            {
                 program.make = model_list_agent;
             }
             world.host_roots(program, roots);

@@ -29,7 +29,11 @@ pub fn one_process_under_box(under_box: bool) -> SystemStand {
         &agent,
         &limits,
         &super::worker_files(),
-        WorkerRuntime { root: Fd::new(9), path: b"/worker".as_slice().into() },
+        WorkerRuntime {
+            root: Fd::new(9),
+            path: b"/worker".as_slice().into(),
+            agent: super::pinned_agent(&settings.jig.agent),
+        },
         7,
     )
     .unwrap();

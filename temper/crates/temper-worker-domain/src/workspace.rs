@@ -267,7 +267,7 @@ pub(crate) fn smith_delivery(domain: &Domain, left: Token) -> agent::Delivery {
 #[derive(Debug)]
 pub(crate) struct Workspace {
     /// The hosted run it is for: the host's token for the run.
-    run: Token,
+    pub(crate) run: Token,
     items: Token,
     repositories: u32,
     /// Each repository's directory, what the agent calls it, and whether it
@@ -367,6 +367,25 @@ pub(crate) fn abort(domain: &mut Domain, env: &Env<Limits>, owner: Token) {
         }
     };
     follow(domain, env, id, then);
+}
+
+/// Cut the operations of an attempt whose contact stop bound passed. The hold
+/// remembers the cut, so an agent's later end cannot start a save after it.
+pub(crate) fn cut(domain: &mut Domain, env: &Env<Limits>, owner: Token) {
+    let mut holds = List::with_capacity(domain.workspaces.len());
+    for (_, workspace) in &domain.workspaces {
+        if workspace.run == owner {
+            match workspace.state {
+                State::Preparing { hold: Some(hold), .. } | State::Ready { hold, .. } => {
+                    holds.push(hold).expect("one hold per workspace");
+                }
+                State::Preparing { hold: None, .. } | State::Releasing | State::Closed => {}
+            }
+        }
+    }
+    for hold in &holds {
+        route::checkout_step(domain, env, checkout::Event::Cut { hold: *hold });
+    }
 }
 
 /// The host's push or save, the host's `owner`, of `workspace`.

@@ -22,6 +22,9 @@ pub fn worker_service_ending(
 #[must_use]
 pub fn note_line(binary: &str, note: service::Note) -> String {
     match note {
+        service::Note::StopBoundPassed { abandoned } => {
+            format!("{binary} worker: stop bound passed; abandoned {abandoned} turns and answers\n")
+        }
         service::Note::WorkerJob { run, attempt, kind, verb, ending, why } => {
             let verb = verb.escape_ascii();
             let prefix = format!("{binary} worker: run {run} attempt {attempt} job {kind} {verb} ");

@@ -84,7 +84,11 @@ pub fn without(entries: List<(Box<[u8]>, Secret)>, name: &[u8]) -> List<(Box<[u8
     kept
 }
 pub fn worker_runtime() -> crate::WorkerRuntime {
-    crate::WorkerRuntime { root: skein_io::kernel::Fd::new(9), path: b"/worker".as_slice().into() }
+    crate::WorkerRuntime {
+        root: skein_io::kernel::Fd::new(9),
+        path: b"/worker".as_slice().into(),
+        agent: super::pinned_agent(&super::worker_settings().jig.agent),
+    }
 }
 pub fn startup_agent() -> settings::Agent {
     let mut agent = super::agent();

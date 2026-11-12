@@ -354,7 +354,7 @@ pub enum Up {
     Answer { answer: Answer },
 }
 
-/// Owned downlink; Start first, ordered controls and at most one Cancel.
+/// Owned downlink; Start first, ordered controls, one Drain at most, then one Cancel at most.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Down {
     /// First and exactly once; concrete values moved from Spawn.
@@ -393,4 +393,6 @@ pub enum Down {
     },
     /// First polite stop, once; operations retain terminal rights.
     Cancel,
+    /// Stop at the current turn boundary, once and never after Cancel.
+    Drain,
 }

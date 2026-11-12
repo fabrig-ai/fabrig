@@ -214,6 +214,7 @@ enum Delivery {
     Host { relay: run::RelayName, reply: run::HostReply },
     Job { owner: Token },
     Cancel,
+    Drain,
     Grant { grant: Grant },
 }
 
@@ -656,6 +657,11 @@ impl<B: Backend> World<B> {
     /// Script a parent input; delivery requires prior Admitted, as the host does.
     pub fn message_at(&mut self, at: Time, name: Token, label: Box<[u8]>, text: Box<[u8]>) {
         self.schedule.send(at, Delivery::Message { finish_requested: false, name, label, text });
+    }
+
+    /// Ask the host to finish the current main turn, without cutting its calls.
+    pub fn drain_at(&mut self, at: Time) {
+        self.schedule.send(at, Delivery::Drain);
     }
 
     /// Script durable host acknowledgement of this turn and its prefix.
@@ -1375,6 +1381,11 @@ impl<B: Backend> World<B> {
                 self.stage.push(Event::HostReturned { relay, reply });
                 self.terminals += 1;
             }
+            Delivery::Drain => {
+                if let Some(run) = self.admitted {
+                    self.stage.push(Event::Drain { run });
+                }
+            }
             Delivery::Cancel => {
                 if let Some(run) = self.admitted {
                     self.host_history.shutdown(self.now);
@@ -1462,6 +1473,7 @@ impl<B: Backend> World<B> {
             | Event::Acknowledge { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
+            | Event::Drain { .. }
             | Event::Delivered { .. }
             | Event::Below(
                 smith_domain::Below::BuiltinResult { .. }
@@ -1531,6 +1543,7 @@ impl<B: Backend> World<B> {
             | Event::Start(_)
             | Event::Grant { .. }
             | Event::Cancel { .. }
+            | Event::Drain { .. }
             | Event::Below(
                 smith_domain::Below::BuiltinResult { .. }
                 | smith_domain::Below::ReadVersion { .. }
@@ -1550,6 +1563,7 @@ impl<B: Backend> World<B> {
                 self.messages_seen.push((self.now, crate::messages_referee::Seen::CompletionEnded));
             }
             Event::Cancel { .. }
+            | Event::Drain { .. }
             | Event::Start(_)
             | Event::Message { .. }
             | Event::Acknowledge { .. }

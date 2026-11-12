@@ -496,7 +496,11 @@ fn a_real_job_has_only_its_environment_and_releases_its_group() {
         &fixtures::worker_agent(),
         &fixtures::worker_limits(),
         &fixtures::worker_files(),
-        WorkerRuntime { root: Fd::new(root_fd.as_raw_fd()), path: scratch.path().as_os_str().as_bytes().into() },
+        WorkerRuntime {
+            root: Fd::new(root_fd.as_raw_fd()),
+            path: scratch.path().as_os_str().as_bytes().into(),
+            agent: fixtures::pinned_agent(&settings.jig.agent),
+        },
         7,
     )
     .unwrap();

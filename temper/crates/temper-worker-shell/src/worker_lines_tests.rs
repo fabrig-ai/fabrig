@@ -26,6 +26,13 @@ fn worker_job_words_keep_the_binary_prefix_and_reason() {
     );
 }
 #[test]
+fn stop_bound_words_count_the_abandoned_turns_and_answers() {
+    assert_eq!(
+        worker_note_words("temper", worker::Note::StopBoundPassed { abandoned: 4 }),
+        "temper worker: stop bound passed; abandoned 4 turns and answers\n"
+    );
+}
+#[test]
 fn worker_linked_words_name_the_worker_and_address() {
     let address: Box<core::net::SocketAddr> = Box::new(([127, 0, 0, 1], 7100).into());
     let worker = worker::Note::Linked { worker: b"worker-a".as_slice().into(), address };

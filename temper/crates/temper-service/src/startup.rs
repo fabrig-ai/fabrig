@@ -119,6 +119,7 @@ fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWork
         root: own.root.clone(),
         agent: worker.agent.configuration.clone(),
         program: worker.agent.program.clone(),
+        arguments: worker.agent.arguments.clone(),
     }
 }
 

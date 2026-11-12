@@ -80,7 +80,10 @@ no try spent and no backoff, keeping the turns and calls it committed,
 and the task is due again. Nor is a run its host cancelled for lost
 contact or for the host's own shutdown (../hosts/hub.md, 6), whose answer
 ends its attempt interrupted in the same way, with the saved work it
-names kept for the next attempt. A kept
+names kept for the next attempt; nor a job its host cancelled for its
+shutdown, which it answers so only before the job's delivery began
+(../hosts/hub.md, 9): its attempt ends interrupted alike, and the next
+runs the job from the start. A kept
 task is never due, and a run of it that finishes done parks instead
 (8). A standing task's run that finishes parks too (`standing.md`,
 section 2).

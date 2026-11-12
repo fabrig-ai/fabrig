@@ -1510,6 +1510,7 @@ fn describe_event(event: &Event) -> String {
         Event::Push { hold, .. } => format!("push {}", hold.raw()),
         Event::Save { hold, .. } => format!("save {}", hold.raw()),
         Event::Abort { hold } => format!("abort {}", hold.raw()),
+        Event::Cut { hold } => format!("cut {}", hold.raw()),
         Event::Release { hold } => format!("release {}", hold.raw()),
         Event::PushUnchecked { hold } => format!("save unchecked {}", hold.raw()),
         Event::Done { owner, done } => format!("done {} {done:?}", owner.raw()),

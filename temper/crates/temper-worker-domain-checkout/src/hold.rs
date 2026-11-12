@@ -135,6 +135,7 @@ use crate::limits::Limits;
 pub(crate) struct Hold {
     holding: Holding,
     state: State,
+    cut: bool,
 }
 
 /// What a hold holds in every state.
@@ -399,7 +400,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
     let tips = List::with_capacity(count(repositories.len()));
     let conflicts = List::with_capacity(count(repositories.len()));
     let holding = Holding { client, workspace, stores, repositories, tips, conflicts, fetched: List::uncapped() };
-    let hold = Hold { holding, state: State::Closed };
+    let hold = Hold { holding, state: State::Closed, cut: false };
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
     if domain.active < env.limits.preparations {
@@ -475,6 +476,10 @@ fn start(domain: &mut Domain, env: &Env<Limits>, hold: Token, to: To, message: M
     let was_active = active(&hold.state);
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = match state {
+        State::Ready if hold.cut => {
+            let push = Push { to, message, landings: List::with_capacity(count(hold.holding.repositories.len())) };
+            end_push(&hold.holding, push, Asked::Abort, out)
+        }
         State::Ready => begin(&hold.holding, id, to, message, env, out),
         busy @ (State::Queued { .. }
         | State::Preparing { .. }
@@ -491,6 +496,20 @@ fn start(domain: &mut Domain, env: &Env<Limits>, hold: Token, to: To, message: M
 
 pub(crate) fn abort(domain: &mut Domain, env: &Env<Limits>, hold: Token, out: &mut Queue<Request>) {
     ask(domain, env, hold, Asked::Abort, out);
+}
+
+/// Unlike Abort, a stop-bound cut cancels pushes and saves too, and is sticky.
+pub(crate) fn cut(domain: &mut Domain, env: &Env<Limits>, hold: Token, out: &mut Queue<Request>) {
+    let Some(id) = addressed(&domain.holds, hold) else { return };
+    let hold = domain.holds.get_mut(id).expect("addressed above");
+    if hold.cut {
+        return;
+    }
+    hold.cut = true;
+    if let State::Pushing { .. } = hold.state {
+        out.push(Request::Cancel { owner: id.token() });
+    }
+    ask(domain, env, id.token(), Asked::Abort, out);
 }
 
 pub(crate) fn release(domain: &mut Domain, env: &Env<Limits>, hold: Token, out: &mut Queue<Request>) {
@@ -589,6 +608,19 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
                 | PrepareStep::CheckOutMerged { .. } => {}
             }
             prepare_next(holding, &mut domain.cache, id, next, detail, asked, env, out)
+        }
+        State::Pushing { mut push, step, asked } if hold.cut => {
+            // Only a completed push proves a landing without further IO.
+            if let PushStep::Push { repository }
+            | PushStep::Design { delivery: design::Delivery { repository, .. }, step: design::Step::Push } = step
+            {
+                let landing = match pushed_to(holding, &push.to, repository, done) {
+                    Ok(landing) => landing,
+                    Err(failure) => failed_landing(failure),
+                };
+                push.landings.push(landing).expect("one landing per repository");
+            }
+            end_push(holding, push, asked, out)
         }
         State::Pushing { push, step, asked } => pushed(holding, id, push, step, asked, done, env, out),
         State::Queued { .. } | State::Waiting { .. } | State::Ready | State::Unprepared | State::Closed => {

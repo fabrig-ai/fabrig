@@ -9,7 +9,9 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 pub fn read(configuration: &Path) -> Result<Agent, String> {
-    let configuration = self::configuration(configuration)?;
+    settings(self::configuration(configuration)?)
+}
+fn settings(configuration: smith_agent_document::config::Configuration) -> Result<Agent, String> {
     let limits = &configuration.service.limits;
     let host_limits =
         smith_agent_document::host_limits(&configuration.profile, limits).map_err(|_| "agent host limits refused")?;
@@ -76,12 +78,29 @@ pub fn read(configuration: &Path) -> Result<Agent, String> {
 /// Read declarations and check existing programs directories at their names (skein/docs/design/runtime/io/files.md, 3).
 /// Missing directories stay missing; neither this nor smith's check reads any login.
 pub fn preflight_worker(worker: &service::startup::NamedWorker) -> Result<Agent, String> {
-    let agent = read(path(&worker.agent)).map_err(|why| format!("workers[0].agent.configuration: {why}"))?;
-    for program in &agent.programs {
+    Ok(prepare_worker(worker)?.agent)
+}
+/// One read supplies the host settings, source environment and pinned document.
+pub struct Prepared {
+    pub agent: Agent,
+    pub bytes: Box<[u8]>,
+    pub environment: Box<[Box<[u8]>]>,
+}
+pub fn prepare_worker(worker: &service::startup::NamedWorker) -> Result<Prepared, String> {
+    let prepared = prepare(path(&worker.agent)).map_err(|why| format!("workers[0].agent.configuration: {why}"))?;
+    for program in &prepared.agent.programs {
         smith_agent_document::program::private_directory(path(&program.directory))
             .map_err(|why| program_directory_refusal(&why))?;
     }
-    Ok(agent)
+    Ok(prepared)
+}
+fn prepare(path: &Path) -> Result<Prepared, String> {
+    let bytes = smith_agent_document::config::read_bytes(path)?;
+    let configuration = decoded_bytes(&bytes)?
+        .resolve(&mut std::io::stderr())
+        .map_err(smith_agent_document::config::ConfigurationRefusal::detail)?;
+    let environment = configuration.service.environment.command_entries();
+    Ok(Prepared { agent: settings(configuration)?, bytes, environment })
 }
 #[must_use]
 pub fn program_directory_refusal(why: &smith_agent_document::program::Refusal) -> String {
@@ -96,10 +115,36 @@ pub fn launcher(directory: &Path) -> Option<PathBuf> {
 /// agent.json as smith decodes it: a program `"fetched"` names its launcher.
 pub fn decoded(configuration: &Path) -> Result<smith_agent_document::config::Decoded, String> {
     let bytes = smith_agent_document::config::read_bytes(configuration)?;
-    let bytes = temper_launcher::substituted(&bytes)?.unwrap_or(bytes);
-    smith_agent_document::config::decode(&bytes)
+    decoded_bytes(&bytes)
+}
+fn decoded_bytes(bytes: &[u8]) -> Result<smith_agent_document::config::Decoded, String> {
+    let substituted = temper_launcher::substituted(bytes)?;
+    smith_agent_document::config::decode(substituted.as_deref().unwrap_or(bytes))
 }
 /// `decoded`, resolved with stderr's diagnostics, as `config::read` does.
 pub fn configuration(path: &Path) -> Result<smith_agent_document::config::Configuration, String> {
     decoded(path)?.resolve(&mut std::io::stderr()).map_err(smith_agent_document::config::ConfigurationRefusal::detail)
+}
+
+/// Keep the generic start from reading the agent document again.
+#[must_use]
+pub fn without_configuration(
+    files: Box<[jig_protocol_config::File]>,
+    configuration: &[u8],
+) -> Box<[jig_protocol_config::File]> {
+    files.into_iter().filter(|file| file.path.as_ref() != configuration).collect()
+}
+/// Supply the already checked bytes to the service's ordinary file checks.
+#[must_use]
+pub fn with_configuration(
+    files: service::settings::Files,
+    configuration: &[u8],
+    bytes: &[u8],
+) -> service::settings::Files {
+    let mut entries = skein_lib::List::with_capacity(files.entries.len().checked_add(1).expect("configuration entry"));
+    for entry in files.entries.into_boxed() {
+        entries.push(entry).expect("existing file capacity");
+    }
+    entries.push((configuration.into(), skein_lib::Secret::new(bytes.into()))).expect("configuration capacity");
+    service::settings::Files { entries }
 }

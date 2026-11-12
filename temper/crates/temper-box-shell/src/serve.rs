@@ -70,8 +70,12 @@ fn prepare_with_limits(
     let engine = engine::settings(bytes, directories, given);
     let engine::Runtimes { roots, github } = engine::runtimes(binary, &named.machine)?;
     let user = skein_shell::effective_user();
-    let agent = named.worker.as_ref().map(agent::preflight_worker).transpose()?;
-    let engine::Inputs { files, google, bundle } = engine::before_root(
+    let agent = named.worker.as_ref().map(agent::prepare_worker).transpose()?;
+    if let Some(worker) = &named.worker {
+        named.files = agent::without_configuration(core::mem::take(&mut named.files), &worker.agent);
+        named.asked_files = agent::without_configuration(core::mem::take(&mut named.asked_files), &worker.agent);
+    }
+    let engine::Inputs { mut files, google, bundle } = engine::before_root(
         &mut named.files,
         &mut named.asked_files,
         named.sign_in.as_ref(),
@@ -80,7 +84,18 @@ fn prepare_with_limits(
         user,
         record,
     )?;
-    let runtime = named.worker.as_ref().map(|worker| worker::root(&worker.root, user, owned)).transpose()?;
+    if let Some(prepared) = &agent {
+        files = agent::with_configuration(
+            files,
+            &named.worker.as_ref().expect("local agent checked").agent,
+            &prepared.bytes,
+        );
+    }
+    let runtime = named
+        .worker
+        .as_ref()
+        .map(|worker| worker::root(worker, &agent.as_ref().expect("local agent checked").bytes, user, owned))
+        .transpose()?;
     let program_login = if named.worker.is_some() {
         program_login::line(directories, &printed::running_word(environment), skein_shell::HOME.value(environment))
             .map(|line| line.into_bytes().into_boxed_slice())
@@ -93,7 +108,7 @@ fn prepare_with_limits(
         bytes,
         &jig_directories(directories),
         &files,
-        agent.as_ref(),
+        agent.as_ref().map(|prepared| &prepared.agent),
         &seeds,
         Some(accounts),
         runtime,
@@ -110,8 +125,8 @@ fn prepare_with_limits(
     if let Some(agent) = &agent {
         let worker = named.worker.as_ref().expect("local agent checked");
         let sources = worker::sources(
-            agent,
-            path(&worker.agent),
+            &agent.agent,
+            agent.environment.clone(),
             path(&worker.program),
             path(&directories.cache),
             user,

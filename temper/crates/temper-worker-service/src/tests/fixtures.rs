@@ -12,7 +12,11 @@ pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
     crate::worker_settings::payload_limits(&worker_limits()).unwrap()
 }
 pub fn worker_runtime() -> crate::WorkerRuntime {
-    crate::WorkerRuntime { root: skein_io::kernel::Fd::new(9), path: b"/worker".as_slice().into() }
+    crate::WorkerRuntime {
+        root: skein_io::kernel::Fd::new(9),
+        path: b"/worker".as_slice().into(),
+        agent: pinned_agent(&worker_settings().jig.agent),
+    }
 }
 pub fn answer(ending: jig_domain_host::Ending) -> jig_domain_host::LinkUp {
     jig_domain_host::LinkUp::Answer {
