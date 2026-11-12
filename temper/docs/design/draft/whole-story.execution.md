@@ -90,7 +90,7 @@ or the nearest thing, and says so in that draft's status.
 | N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | not started |
 | R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | must | landed; its walk follows R2's and R3's (*R1 to R3*, below) |
 | R2 | Areas in words, the triager's routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | must | not started |
-| R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | must for talking, nice for reports | not started |
+| R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | must for talking, nice for reports | in flight: goal 712 |
 | F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | must | landed for a person as owner; a standing role as owner waits on R1 (section 5) |
 | F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | must | not started |
 | G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | later | low priority, not for v0.1.0 |
@@ -300,6 +300,7 @@ P1's that day, as goal 368, its repair, landed, and
 P2's, as goal 338, its repair's wording, landed, and
 N1's that day, as goal 367, its repair's web part, landed, and
 R1's, R2's, R3's, P4b's and N1's on 2026-11-11, as R1 landed, and
+R3's that day, as goal 712 designed it, and
 N1's, N2's, N5's, N6's and P3c's that day, as N2 retired, and
 F1's, F2's and P3d's on 2026-11-11, as F1 landed, and
 P7's that day, as goal 493 landed, and
@@ -333,7 +334,8 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | N4 | done | goal 147, PR #41 |
 | N5, N6 | start | |
 | R1 | landed; its walk follows | goal 63: jig's task that stands, its sessions and its Now (jig's `domain/tasks/standing.md`), and temper's standing role, its stock charter and template, its person and `role start`, `role list` and `role show` (`../domain/agent/standing.md`); its walk is R2's and R3's |
-| R2, R3 | start | R1 has landed |
+| R2 | starts | R1 has landed |
+| R3 | in flight | goal 712: jig's talk (jig's `domain/tasks/standing.md`, 5.6), the Now's `NowWritten` line and period, and temper's talk, `role talk`, the weekly report and the roles' Nows in Home's brief's words (`../domain/agent/standing.md`, sections 7 and 8); Team's and the terminal's drawing of them are P4c's and T3's |
 | F1 | landed for a person as owner | a follow owned by a person, its queue, its follow task, the owner's acts in `temper ctl`, its check and its lag and parity (`../domain/forge/follows.md`); a standing role as owner, its acts as a tool and its questions, wait on R1 (`follows.status.md`); its walk follows landing |
 | F2 | starts | |
 | G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |

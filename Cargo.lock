@@ -5424,6 +5424,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-host",
  "jig-domain-link",
+ "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",

@@ -2,6 +2,10 @@
 
 2026-11-11. Where the tree's code lags or departs from [tools.md](tools.md).
 
+- **Not yet:** 2: `role show`'s talk line and `--report`; 3: `role talk` and `role talk --leave` (`../../domain/agent/standing.md`, sections 7 and 8) [in flight: change 778].
+
+- **Not yet:** 3: `settings file`'s decoder still refuses parts on a charter whose runs resume, `charter.parts: a charter that resumes takes no parts`, which jig admits (jig's `domain/tasks/standing.md`, 5.4) [in flight: change 778].
+
 - **Not yet:** 2 and 3: `draft list`, `draft ready` and `draft not-ready`,
   absent from the table [in flight: change 665].
 - **Not yet:** 2: `follow list` and `follow show` [in flight: change 112].

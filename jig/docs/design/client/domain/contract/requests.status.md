@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [requests.md](requests.md).
 
+- **Not yet:** 2: `Talk` and `Leave` (`../../../domain/tasks/standing.md`, 5.6) [in flight: change 775].
+
 - **Departs:** 2: from `ui-goal-asks-2`'s request for a replaced
   proposal to answer decided first: automatic task replacement retains
   no decision and answers `Unknown`. The answer of 2026-11-07 retained

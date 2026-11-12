@@ -471,7 +471,8 @@ const STANDARD_ROOT: Root = Root {
         // The task's closer adds 32 bytes to the task owner.
         // Two added executor places retain two 8-byte AuthorityExecutor values.
         // A standing task's session adds 32 bytes to the task record (TaskRecord.session).
-        transcript_bytes: 22_467_776,
+        // A talk adds 32 bytes to the task record (TaskRecord.talk).
+        transcript_bytes: 22_467_808,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },

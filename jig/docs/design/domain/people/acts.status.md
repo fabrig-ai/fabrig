@@ -2,6 +2,8 @@
 
 2026-11-11. Where the tree's code lags or departs from [acts.md](acts.md).
 
+- **Not yet:** 1: `Talk` and `Leave` (`../tasks/standing.md`, 5.6) [in flight: change 775].
+
 - **Not yet:**  service credential changes remain `README.status.md`, 3. 1:
   `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a
   release; a widening funded from the amender's pool.  retention and a conversation's kept question remain `README.status.md`, 5.  A chat's person-task questions remain `README.status.md`, 6. 2: a note entry left without its index line stays in
