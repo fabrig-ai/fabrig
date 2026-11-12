@@ -3,20 +3,23 @@
 2026-11-12. Where the design lags or departs from [follows.md](follows.md).
 
 - **Design lags:**
-  - 2, 3 and 5: a standing role as a follow's owner, its tool for the
-    owner's acts and its producers' questions passed to it wait for
-    standing roles (`standing-roles.md`, sections 2 and 3):
-    `../domain/forge/follows.md`, sections 2 and 13 hold a person alone.
-  - 4: a red after landing routed to the follow's owner by its area waits
-    for areas (`standing-roles.md`, section 4; `../domain/forge/follows.md`,
-    section 6).
-  - 5: `../client/pages/team.md`, 1 draws no follow on its owner's row
-    or card (`surfaces.md`, section 6); Home's and How work runs' lag and
-    parity are `../client/pages/home.md`, 1, *What follows what*, and
-    `../client/pages/settings.md`, 2, *What follows a landing*.
   - 9: `../testing/README.md` has no world with a follow, and
     `../../development/acceptance.md` no follow story.
 - **Design departs:**
+  - 2 and 3: a standing role's follow changes are the delegates of a
+    follow task the role requests and funds, as a goal's closer is its
+    goal's, not the role's own: code makes them, so a procedure stands
+    between; their producers' questions reach the role from that task in
+    the question form, and their holds as escalations past it, and an
+    edit of the owner makes a new follow task that remakes the queue's
+    changes (`../domain/forge/follows.md`, sections 2 and 4). Decided by
+    goal 1985's design, 2026-11-12.
+  - 4: a red after landing of a follow change is filed by code with the
+    first area its follow's owner owns, so it reaches the owner with no
+    agent's run, rather than handed on by the triager's judgement; an
+    owner that owns no area gets it through the triager
+    (`../domain/forge/follows.md`, section 6). Decided by goal 1985's
+    design, 2026-11-12.
   - 5 and 7: Home's What follows what draws a box a follow, "follows
     SOURCE" over the holding project's name, its line "2 behind · check
     passes at 9c04d7e1a2b3", where this draft's line is "vsr-rs follows
