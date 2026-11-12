@@ -407,7 +407,7 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
     // The process uses stock's fourteen grants, beyond the world's ten-grant policy.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
     // The creation offer carries nine stock charters and four procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 9.into();
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
     super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
     write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
 }

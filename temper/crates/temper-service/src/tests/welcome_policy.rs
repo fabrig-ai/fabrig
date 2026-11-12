@@ -310,7 +310,7 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     // Init runs the Standard profile; also prove the stricter product question.
     assert_eq!(limits.policy_bytes, 16_384);
     assert!(config.core.seed_projects.is_empty());
-    assert_eq!(config.kinds_stock.len(), 14);
+    assert_eq!(config.kinds_stock.len(), 17);
     let stock = config.core.defaults.policies.get(&1).expect("stock policy 1");
     let snapshot =
         core::policy_snapshot(&stock.policy, &stock.permissions, &stock.templates).expect("whole stock policy");

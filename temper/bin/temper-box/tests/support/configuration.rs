@@ -70,7 +70,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
     // The creation offer carries nine stock charters and four procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 9.into();
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
     for name in ["clients.exchanges", "clients_http.calls"] {
@@ -105,7 +105,7 @@ pub fn use_stock(value: &mut serde_json::Value) {
     value["engine"]["limits"]["overrides"]["authority.executors"] = 21.into();
     // The standing charters, closer procedure and close job are delegation targets.
     value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 21.into();
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 9.into();
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 12.into();
 }
 
 /// All directories are explicit and belong to this fixture's scratch.

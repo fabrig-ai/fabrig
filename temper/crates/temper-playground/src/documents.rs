@@ -24,7 +24,7 @@ pub const REPOSITORY: u32 = 2;
 /// Producer tools for the composition.
 pub const PRODUCER_TOOLS: u64 = 3;
 /// Document lines for the composition.
-pub const DOCUMENT_LINES: u32 = 9;
+pub const DOCUMENT_LINES: u32 = 12;
 /// Chat wait ms for the composition.
 pub const CHAT_WAIT_MS: u32 = 1000;
 /// Worker user for the composition.
@@ -173,7 +173,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         ("tasks.hold_bytes", 256),
         ("tasks.funders", 4),
         ("tasks.dependencies", 2),
-        // Ten slots hold the stock charters.
+        // Stock charter words run through number 16.
         ("tasks.charters", 16),
         ("notes.entries_per_scope", 2),
         ("notes.party_entries", 2),

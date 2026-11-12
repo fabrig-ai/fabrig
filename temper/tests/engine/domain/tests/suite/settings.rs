@@ -13,7 +13,7 @@ use temper_engine_domain::{self as engine, Delivery, Event, Key, PartyInput, Rec
 use temper_engine_domain_world::{direct::Driver, host_tool::host_tool, store::Store, walking};
 
 const SEED: u64 = 9761;
-const SETTINGS_CHARTER: u32 = 14;
+const SETTINGS_CHARTER: u32 = 17;
 const SETTINGS_TEMPLATE: u32 = 12;
 // Restoration keeps two archived revisions; pruning keeps one (jig's domain/engine/settings.md, 7).
 const HISTORY: u32 = 2;
@@ -295,7 +295,7 @@ fn stock_limits() -> engine::Limits {
     limits.documents.executors = 21;
     limits.notes.scopes = 32;
     // Room for the stock charters and the world's settings charter.
-    limits.tasks.charters = 13;
+    limits.tasks.charters = 17;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
     // The per-row loaded payload includes charter 5's shared instructions and parts.

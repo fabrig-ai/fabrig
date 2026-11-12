@@ -663,11 +663,11 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     assert_eq!(run, (11_418, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        // Each policy authority includes the standing role's charter executor.
+        // Each policy authority includes the standing roles' charter executors.
         (b"core.policy_bytes", 6074, Setting::Policy(1), "the stock's policy 1 needs 6074 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        // The standing charter, closer procedure and close job are delegation targets.
+        // The standing charters, closer procedure and close job are delegation targets.
         (b"authority.executors", 21, Setting::Rules, "the stock's rules need 21 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
