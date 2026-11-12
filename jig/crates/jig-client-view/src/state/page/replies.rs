@@ -27,7 +27,8 @@ fn source(domain: &Ui, fallback: Source, conversations: bool, lent: &jig_client:
             | Subject::Tree { .. }
             | Subject::Chips { .. }
             | Subject::Run { .. }
-            | Subject::Accounts
+            | Subject::Terminal { .. }
+        | Subject::Accounts
             | Subject::Settings
             | Subject::Deployment => false,
         };

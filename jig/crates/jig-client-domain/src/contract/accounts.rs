@@ -140,9 +140,6 @@ pub enum AccountRefusal {
     NotOurs,
     Cancelled,
     Moving,
-    NoTerminal,
-    LoginUnderWay,
-    NotLending,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AccountFailure {

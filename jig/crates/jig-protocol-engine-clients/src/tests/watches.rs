@@ -401,10 +401,12 @@ fn an_accounts_document_is_watched_but_never_read() {
             w::Accounts::new(
                 &limits,
                 w::AccountsParts {
-                    skein_bools: [false, true, false, false],
+                    skein_bools: [false, false, true, false, false],
                     readiness: Box::new([]),
                     accounts: Box::from([]),
                     signing: Box::from([]),
+                    lending: None,
+                    lent_end: None,
                     last_end: None,
                     program_hosts: Box::new([]),
                 }

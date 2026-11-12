@@ -55,9 +55,6 @@ pub(crate) fn account_refusal(value: &w::AccountRefusal) -> c::AccountRefusal {
         w::AccountRefusal::Cancelled => c::AccountRefusal::Cancelled,
         w::AccountRefusal::Moving => c::AccountRefusal::Moving,
         w::AccountRefusal::NotStarted => c::AccountRefusal::NotStarted,
-        w::AccountRefusal::NoTerminal => c::AccountRefusal::NoTerminal,
-        w::AccountRefusal::LoginUnderWay => c::AccountRefusal::LoginUnderWay,
-        w::AccountRefusal::NotLending => c::AccountRefusal::NotLending,
     }
 }
 pub(crate) fn account_failure(value: &w::AccountFailure) -> c::AccountFailure {
@@ -207,6 +204,11 @@ pub(crate) fn accounts(value: w::Accounts, limits: &Limits) -> Result<c::Account
         settled: value.settled(),
         cut: value.cut(),
     })
+}
+pub(crate) fn terminal(value: w::Terminal, limits: &Limits) -> Result<c::Terminal, w::Problem> {
+    let mut room = document_room(limits);
+    charge(&mut room, Some(u64::try_from(size_of::<c::Terminal>()).expect("a record's size fits u64")))?;
+    Ok(c::Terminal { login: terminal_login(value.login().as_ref(), &mut room)? })
 }
 /// The terminal's variable name shares the owning document's native byte budget.
 pub(crate) fn terminal_login(value: Option<&w::TerminalLogin>, room: &mut u64) -> Result<Option<c::TerminalLogin>, w::Problem> {

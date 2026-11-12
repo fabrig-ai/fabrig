@@ -75,6 +75,9 @@ fn document(end: Option<c::AccountEnd>) -> c::Accounts {
             },
         ]),
         signing: list([c::AccountSignIn { source: 19, provider: 3, holder: c::AccountHolder::Party(23) }]),
+        lendable: false,
+        lending: None,
+        lent_end: None,
         last_end: match end {
             Some(end) => Some(c::AccountLastEnd { source: 11, end }),
             None => None,

@@ -176,7 +176,7 @@ impl Word {
             Refusal::Provider => RefusalWord::Provider,
             Refusal::Unknown => RefusalWord::Unknown,
             Refusal::NameTaken => RefusalWord::NameTaken,
-            Refusal::NotOffered => RefusalWord::NotOffered,
+            Refusal::NoTerminal | Refusal::LoginUnderWay | Refusal::NotLending | Refusal::NotOffered => RefusalWord::NotOffered,
             Refusal::ProgramNameReserved => RefusalWord::ProgramNameReserved,
             Refusal::KeyConflict => RefusalWord::KeyConflict,
             Refusal::Llm { .. } => RefusalWord::Llm,

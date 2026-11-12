@@ -157,6 +157,7 @@ pub(in crate::codec) fn wire_document_outcome(
         c::DocumentOutcome::AccountKeyKept { source } => w::DocumentOutcome::AccountKeyKept(
             w::OutcomeAccountKeyKept::new(limits, w::OutcomeAccountKeyKeptParts { source: *(source) })?,
         ),
+        c::DocumentOutcome::AccountLoginAsked { number } => w::DocumentOutcome::AccountLoginAsked(w::OutcomeAccountLoginAsked::new(limits, w::OutcomeAccountLoginAskedParts { number: *number })?),
         c::DocumentOutcome::AccountProgramDeclared { source, name } => {
             w::DocumentOutcome::AccountProgramDeclared(w::OutcomeAccountProgramDeclared::new(
                 limits,

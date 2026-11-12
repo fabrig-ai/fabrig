@@ -295,7 +295,7 @@ fn account_change(value: &w::AccountChange) -> Result<c::AccountChange, w::Probl
             c::AccountChange::LoginProgram { provider: row.provider(), name: bytes::copy_of(row.name()) }
         }
         w::AccountChange::CancelLogin(row) => c::AccountChange::CancelLogin { number: row.number() },
-        w::AccountChange::LoginEnded(row) => c::AccountChange::LoginEnded { number: row.number(), exit: super::accounts::login_exit(row.exit()) },
+        w::AccountChange::LoginEnded(row) => c::AccountChange::LoginEnded { number: row.number(), exit: documents::login_exit(row.exit()) },
         w::AccountChange::MoveOut(row) => c::AccountChange::MoveOut { account: row.account() },
         w::AccountChange::Written(row) => c::AccountChange::Written { number: row.number() },
         w::AccountChange::FinishSignIn(row) => {

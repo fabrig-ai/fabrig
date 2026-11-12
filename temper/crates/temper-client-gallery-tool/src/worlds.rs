@@ -4001,6 +4001,9 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
         program_hosts: hosts,
         accounts: rows,
         signing: List::with_capacity(0),
+        lendable: false,
+        lending: None,
+        lent_end: None,
         last_end: match then {
             Then::SignInReady | Then::Declined => Some(c::AccountLastEnd {
                 source: 43,

@@ -4,6 +4,28 @@ use alloc::boxed::Box;
 use jig_domain_accounts as a;
 use jig_domain_core::documents as d;
 use skein_lib::{List, Writer};
+/// Until terminal offers are served, login changes are refused before entering the core
+/// (domain/terminal-login.md, 5).
+pub(crate) fn login_refusal(value: &w::AccountChange) -> Option<w::Refusal> {
+    match value {
+        w::AccountChange::LoginProgram(_) => Some(w::Refusal::NoTerminal),
+        w::AccountChange::CancelLogin(_) | w::AccountChange::LoginEnded(_) => Some(w::Refusal::NotLending),
+        w::AccountChange::DeclareProgram(_)
+        | w::AccountChange::CheckProgram(_)
+        | w::AccountChange::AddKey(_)
+        | w::AccountChange::ReplaceKey(_)
+        | w::AccountChange::RemoveKey(_)
+        | w::AccountChange::Resume(_)
+        | w::AccountChange::Remove(_)
+        | w::AccountChange::MoveAccount(_)
+        | w::AccountChange::MoveSource(_)
+        | w::AccountChange::SetUses(_)
+        | w::AccountChange::MoveOut(_)
+        | w::AccountChange::Written(_)
+        | w::AccountChange::MoveIn(_)
+        | w::AccountChange::FinishSignIn(_) => None,
+    }
+}
 pub fn facts(value: &List<a::AccountFact>, limits: &w::Limits) -> Result<List<w::AccountFact>, w::Problem> {
     let mut rows = List::with_capacity(value.len());
     for fact in value {
