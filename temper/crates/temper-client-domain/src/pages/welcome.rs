@@ -28,6 +28,8 @@ pub enum ModelStep {
     Usable,
     /// No way: the plans' cards.
     Choose,
+    /// Claude Code holds the terminal, or its source's check is under way.
+    TerminalLogin,
     /// A sign-in's way, not yet asked or ended with no model.
     SignIn {
         way: Way,
@@ -52,6 +54,13 @@ pub enum ModelStep {
 pub fn model_step(root: &Domain) -> Option<ModelStep> {
     let page = root.pages().connect_model()?;
     accounts::current_me(root.client())?;
+    match page.login_state(root.client()) {
+        connect_model::LoginState::Waiting { .. } => return Some(ModelStep::TerminalLogin),
+        connect_model::LoginState::Idle
+        | connect_model::LoginState::Usable { .. }
+        | connect_model::LoginState::NotFinished
+        | connect_model::LoginState::Refused { .. } => {}
+    }
     if model_usable(root) == Some(true) {
         return Some(ModelStep::Usable);
     }

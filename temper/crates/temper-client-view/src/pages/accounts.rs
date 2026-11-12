@@ -300,7 +300,7 @@ fn named_end(b: &mut Builder, w: &Words, rows: &skein_lib::List<c::AccountLine>,
     }
     false
 }
-fn refused(b: &mut Builder, w: &Words, refusal: c::AccountRefusal) {
+pub(super) fn refused(b: &mut Builder, w: &Words, refusal: c::AccountRefusal) {
     use c::AccountRefusal as R;
     let word = match refusal {
         R::NotSignedIn => W::NotSignedIn,
@@ -678,7 +678,7 @@ pub(super) fn outcome(
     }
 }
 
-fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&'a [u8]>)> {
+pub(super) fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&'a [u8]>)> {
     let change = match ask {
         c::Ask::AccountChange { change, .. } => change,
         c::Ask::ReadLists { .. }
@@ -718,7 +718,7 @@ fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&
         | c::Ask::SetVisibility { .. } => return None,
     };
     match change {
-        c::AccountChange::DeclareProgram { name, .. } => {
+        c::AccountChange::DeclareProgram { name, .. } | c::AccountChange::LoginProgram { name, .. } => {
             if *refusal == c::Refusal::NameTaken {
                 Some((W::ProgramNameTaken, Some(name)))
             } else if *refusal == c::Refusal::NotOffered {
@@ -734,8 +734,7 @@ fn act_refusal<'a>(ask: &'a c::Ask, refusal: &c::Refusal) -> Option<(W, Option<&
                 None
             }
         }
-        c::AccountChange::LoginProgram { .. }
-        | c::AccountChange::CancelLogin { .. }
+        c::AccountChange::CancelLogin { .. }
         | c::AccountChange::LoginEnded { .. }
         | c::AccountChange::CheckProgram { .. }
         | c::AccountChange::AddKey { .. }
@@ -919,10 +918,7 @@ pub(crate) fn account_words(
     };
     let (brand, plan_name) = words::provider_words(supplied);
     let (label, display) = match source.kind {
-        c::AccountKind::Program => (
-            named(w, W::Subscription, plan_name),
-            words::who(row.email(), source.name.as_deref().unwrap_or(row.display.bytes())),
-        ),
+        c::AccountKind::Program => (named(w, W::Subscription, plan_name), row.email().unwrap_or(b"")),
         c::AccountKind::SignIn if row.plan => (
             w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::choice::shown(plan_name, w))]),
             words::who(row.email(), row.display.bytes()),
@@ -935,7 +931,11 @@ pub(crate) fn account_words(
         return label;
     }
     let detail = match source.kind {
-        c::AccountKind::Program => w.say(crate::words::Word::WelcomeProgramAccount, &[Hole::Name(display.into())]),
+        c::AccountKind::Program => {
+            let signed_in = w.say(crate::words::Word::WelcomeProgramAccount, &[]);
+            let separator = words::say(w, W::Separator, &[]);
+            words::join(&[&signed_in, if display.is_empty() { b"" } else { &separator }, display])
+        }
         c::AccountKind::Key => w.say(crate::words::Word::WelcomeKeyAccount, &[]),
         c::AccountKind::SignIn | c::AccountKind::None => display.into(),
     };
