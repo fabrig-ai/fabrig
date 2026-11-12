@@ -22,11 +22,11 @@ impl CryptoRng {
         for (slot, word) in words.iter_mut().zip([0x6170_7865, 0x3320_646e, 0x7962_2d32, 0x6b20_6574]) {
             *slot = word;
         }
-        for (slot, bytes) in words.get_mut(4..12)?.iter_mut().zip(seed.expose().as_chunks::<4>().0) {
-            *slot = u32::from_le_bytes(*bytes);
+        for (slot, bytes) in words.get_mut(4..12)?.iter_mut().zip(seed.expose().chunks_exact(4)) {
+            *slot = u32::from_le_bytes(bytes.try_into().ok()?);
         }
-        for (slot, bytes) in words.get_mut(14..)?.iter_mut().zip(stream.to_le_bytes().as_chunks::<4>().0) {
-            *slot = u32::from_le_bytes(*bytes);
+        for (slot, bytes) in words.get_mut(14..)?.iter_mut().zip(stream.to_le_bytes().chunks_exact(4)) {
+            *slot = u32::from_le_bytes(bytes.try_into().ok()?);
         }
         Some(CryptoRng { words, block: [0; 64], used: 64, stream, exhausted: false })
     }
@@ -57,7 +57,7 @@ impl CryptoRng {
                 quarter(&mut words, a, b, c, d);
             }
         }
-        for ((bytes, word), initial) in self.block.as_chunks_mut::<4>().0.iter_mut().zip(words).zip(self.words) {
+        for ((bytes, word), initial) in self.block.chunks_exact_mut(4).zip(words).zip(self.words) {
             for (slot, byte) in bytes.iter_mut().zip(word.wrapping_add(initial).to_le_bytes()) {
                 *slot = byte;
             }
