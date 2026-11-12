@@ -402,7 +402,10 @@ fn changes(work: Work) -> w::ChangesPanel {
             w::ChangesLanded::new(
                 &w::CEILINGS,
                 w::ChangesLandedParts {
-                    signed: skein_lib::List::with_capacity(8),
+                    signed: crate::samples::signoffs(
+                        if matches!(work, Work::Whole) { &[73] } else { &[] },
+                        at(-2482).as_nanos(),
+                    ),
                     commit: [0xab; 32],
                     default_branch: true,
                     task: *task,
