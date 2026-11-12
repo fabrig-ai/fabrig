@@ -2,8 +2,6 @@
 
 2026-11-11. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
-- **Not yet:** 2: `how-rules`, `how-rules-card`, `how-team` and
-  `night-how-team` [in flight: change 873].
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
 
