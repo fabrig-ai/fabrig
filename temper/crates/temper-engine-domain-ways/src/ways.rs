@@ -118,7 +118,7 @@ pub fn items(way: &StockWay, project: u32, ways: Option<&ProjectWays>) -> Box<[I
     if let Some(owner) = &way.triager {
         items
             .push(Item { kind: 13, scope: project, number: 1,
-                edit: Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager { owner: owner.clone() })) })
+                edit: Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager { owner: *owner })) })
             .expect("one triager item");
     }
     items.into_boxed()

@@ -383,7 +383,7 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
                 && charter.number != 10
                 && charter.number != 11
                 && charter.number != 12
-                && charter.number != 13
+                && charter.number < 13
         );
         assert!(!charter.policy.shell);
         assert_eq!(charter.policy.modify, charter.number == 2 || charter.number == 5);
@@ -552,6 +552,52 @@ fn the_standing_role_resumes_in_parts_and_keeps_its_period_budget() {
 }
 
 #[test]
+fn the_specialized_roles_keep_the_standing_policy_and_load_their_parts() {
+    use jig_domain_authority::Executor;
+    use temper_engine_domain_forge::settings::Value;
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let standing = defaults.charters.iter().find(|charter| charter.number == 13).unwrap();
+    let configured = fixtures::engine();
+    let limits = crate::limits::engine(&configured.jig.limits, &configured.limits).unwrap();
+    let stock = crate::stock::forge(&limits);
+    for (number, text, words) in [
+        (14, include_str!("../stock/triager.md"), "Routes what comes in to its area's owner, and triages what fits no area."),
+        (15, include_str!("../stock/prover.md"), "Owns its area's tests: triages their reds and flakes and makes the repairs."),
+        (16, include_str!("../stock/porter.md"), "Keeps its area's port in step with its source."),
+    ] {
+        let charter = defaults.charters.iter().find(|charter| charter.number == number).expect("stock role");
+        let mut sections = text.strip_prefix("## shared\n").unwrap().split("\n## ");
+        let shared = sections.next().unwrap().trim_matches('\n');
+        assert_eq!(charter.policy.instructions.as_ref(), shared.as_bytes());
+        let mut expected = standing.clone();
+        expected.number = number;
+        expected.policy.instructions = shared.as_bytes().into();
+        for (part, section) in expected.parts.iter_mut().zip(sections) {
+            let (heading, words) = section.split_once('\n').unwrap();
+            let on = heading.strip_prefix("part, on: ").unwrap();
+            let mut reasons = jig_domain_tasks::Reasons::EMPTY;
+            for name in on.split(", ") {
+                reasons = reasons.union(jig_domain_tasks::Reasons::named(name.as_bytes()).unwrap());
+            }
+            assert_eq!(part.on, reasons);
+            part.instructions = words.trim_matches('\n').as_bytes().into();
+        }
+        assert_eq!(charter, &expected, "only instructions differ for charter {number}");
+        assert!(shared.contains("Never accept your own proposal"));
+        assert!(shared.contains("Never change what is outside your area"));
+        assert!(shared.contains("Before every park, write your Now"));
+        assert!(shared.contains("`finding` tool's `list`"));
+        let line = stock.iter().find(|item| (item.kind, item.number) == (9, number)).unwrap();
+        assert_eq!(line.value.value, Value::CharterWords(words.as_bytes().into()));
+        let policy = &defaults.policies.get(&1).unwrap().policy;
+        for authority in [&defaults.rules.ceiling, &policy.ceiling, &policy.roles[0].authority] {
+            assert!(authority.delegation.kinds.contains(&Executor::Charter(number)));
+        }
+    }
+}
+
+#[test]
 fn stock_models_keep_a_five_minute_cache_except_the_scripted_one() {
     let models = crate::stock::models(&engine(&generated()).llm);
     assert_eq!(models.len(), 8);
@@ -610,16 +656,16 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Each policy authority includes the standing role's charter executor.
-        (b"core.policy_bytes", 6014, Setting::Policy(1), "the stock's policy 1 needs 6014 bytes"),
+        (b"core.policy_bytes", 6074, Setting::Policy(1), "the stock's policy 1 needs 6074 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
         // The standing charter, closer procedure and close job are delegation targets.
-        (b"authority.executors", 18, Setting::Rules, "the stock's rules need 18 executors"),
+        (b"authority.executors", 21, Setting::Rules, "the stock's rules need 21 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 10, Setting::Charter(1), "the stock offers 10 charters"),
+        (b"tasks.charters", 13, Setting::Charter(1), "the stock offers 13 charters"),
         (b"core.templates", 6, Setting::Template(1), "the stock offers 6 templates"),
         (b"documents.text_bytes", 16, Setting::Template(4), "the stock's template 4 needs 16 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
@@ -739,7 +785,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     // Two executor places in four authorities add 64 bytes to the policy.
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6014 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 6074 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -1816,6 +1862,22 @@ fn the_stock_ways_hold_their_words_and_settings() {
         assert_eq!(way.ways, ways, "{name:?}");
         assert_eq!(way.classes, classes, "{name:?}");
         assert_eq!(way.delegation, delegation, "{name:?}");
+        if name == b"Draft first" {
+            assert_eq!(way.triager, Some(forge::settings::AreaOwner::Charter(14)));
+            assert_eq!(way.roles.as_ref(), &[temper_engine_domain_ways::WayRole {
+                charter: 14,
+                words: b"Routes what comes in to its area's owner, and triages what fits no area.".as_slice().into(),
+                budget: 25_000,
+            }]);
+            let items = temper_engine_domain_ways::items(way, 7, None);
+            let item = items.iter().find(|item| item.kind == 13).unwrap();
+            assert_eq!(item.edit, temper_engine_domain_ways::Edit::Set(Value::ProjectTriager(forge::settings::ProjectTriager {
+                owner: forge::settings::AreaOwner::Charter(14),
+            })));
+        } else {
+            assert_eq!(way.triager, None);
+            assert!(way.roles.is_empty());
+        }
     }
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();

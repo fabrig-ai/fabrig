@@ -257,7 +257,7 @@ fn role_running(domain: &Domain, project: u32, charter: u32) -> bool {
             && let Some(task) = domain.core.tasks.task(view.number)
             && task.label == 3
             && task.ended_at.is_none()
-            && task.executor == jig_domain_tasks::Executor::Agent { charter }
+            && task.executor == (jig_domain_tasks::Executor::Agent { charter })
         {
             return true;
         }

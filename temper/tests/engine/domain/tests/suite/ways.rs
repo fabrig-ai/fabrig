@@ -148,6 +148,9 @@ fn items() -> [Box<[ways::Item]>; STOCK_WAYS] {
             number: 1,
             edit: ways::Edit::Set(settings::Value::Classes(Classes::stock(way))),
         });
+        if way == Way::DraftFirst {
+            items.push(ways::Item { kind: 13, scope: PROJECT, number: 1, edit: ways::Edit::Set(settings::Value::ProjectTriager(settings::ProjectTriager { owner: settings::AreaOwner::Charter(14) })) });
+        }
         items.into_boxed_slice()
     })
 }
@@ -234,6 +237,13 @@ fn a_ways_watch_delivers_the_stock_items_and_readers_permission_after_commit() {
             assert_eq!(entry.name.as_ref(), name.as_bytes());
             assert_eq!(entry.items, items, "{name}");
             assert_eq!(entry.delegation, name == "Draft first");
+            if name == "Draft first" {
+                assert_eq!(entry.roles.len(), 1);
+                assert_eq!(entry.roles[0].role.charter, 14);
+                assert!(!entry.roles[0].running);
+            } else {
+                assert!(entry.roles.is_empty());
+            }
         }
     }
 }
@@ -936,4 +946,45 @@ fn ways_current_is_the_first_equal_path_and_see_ways_marks_yours() {
         assert!(text.contains("\n\nYours · now\n"), "{text}");
         assert_eq!(text.matches(" · now").count(), 1, "only Yours: {text}");
     }
+}
+
+#[test]
+fn a_ways_watch_marks_a_live_triager_only_after_its_commit() {
+    use jig_domain_authority::Executor;
+    let (mut config, mut limits) = configuration();
+    limits.tasks.charters = 16;
+    limits.authority.executors = 2;
+    limits.tasks.executor_kinds = 2;
+    let mut triager = config.core.defaults.charters[0].clone();
+    triager.number = 14;
+    config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), triager]);
+    let kinds = Box::new([Executor::Charter(1), Executor::Charter(14)]);
+    config.core.defaults.rules.ceiling.delegation.kinds = kinds.clone();
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    policy.ceiling.delegation.kinds = kinds.clone();
+    for role in &mut policy.roles {
+        role.authority.delegation.kinds = kinds.clone();
+    }
+    let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    let session = driver.session();
+    watch(&mut driver, session);
+    driver.settle();
+    let roles = &documents(&driver).last().unwrap().ways[2].roles;
+    assert_eq!(roles.len(), 1);
+    assert!(!roles[0].running);
+    ack(&mut driver);
+    let people::Ask::Create { project, mut batch } = driver.chat_ask(PROJECT, b"Route findings") else { panic!("create fixture") };
+    batch[0].executor = people::Executor::Agent { charter: 14 };
+    batch[0].label = 3;
+    batch[0].flags = people::Flags { ended_by: people::EndedBy::Standing, conversation: false, listed: true, retention: people::Retention::Kept };
+    driver.send(Event::Party(PartyInput::Ask { reply_to: ReplyTo::new(Token::new(99)), sign_in: session, key: [99; 16], models: Box::new([]), ask: people::Ask::Create { project, batch } }));
+    let before = documents(&driver).len();
+    for _ in 0..HELD_PASSES { driver.advance(false); }
+    assert_eq!(documents(&driver).len(), before, "role state waits for its commit");
+    driver.settle();
+    assert!(driver.delivered.iter().any(|delivery| matches!(delivery, Delivery::WebReply { reply: people::Reply::Outcome(people::Outcome::Created { .. }), .. })), "created role: {:?}", driver.delivered);
+    assert!(documents(&driver).last().unwrap().ways[2].roles[0].running, "the committed live triager marks ways");
 }

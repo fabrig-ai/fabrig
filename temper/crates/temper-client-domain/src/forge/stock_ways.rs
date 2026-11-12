@@ -501,7 +501,11 @@ impl StockWays {
     fn start_roles(&mut self, mut roles: Queue<w::WayRole>, client: &Client, serial: &mut u64, out: &mut Queue<Request>) {
         use jig_client::shapes::{self, GoalDraft, Judged};
         let Some(role) = roles.pop() else { return };
-        let Some(Latest::Jig(c::Delivery::Me(me))) = client.document(crate::pages::me_handle()).and_then(|doc| doc.latest) else {
+        let latest = match client.document(crate::pages::me_handle()) {
+            Some(document) => document.latest,
+            None => None,
+        };
+        let Some(Latest::Jig(c::Delivery::Me(me))) = latest else {
             self.refused = Some(c::Refusal::NotOffered);
             return;
         };

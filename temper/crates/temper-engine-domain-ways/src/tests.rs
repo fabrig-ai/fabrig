@@ -179,7 +179,11 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
         for (kind, number, edit) in expected {
             expected_items.push(Item { kind, scope: PROJECT, number, edit }).expect("expected items");
         }
-        assert_eq!(items(way, PROJECT, ways), expected_items.into_boxed());
+        let got = items(way, PROJECT, ways);
+        for item in &got {
+            assert_ne!(item.kind, 12, "a way never touches project areas");
+        }
+        assert_eq!(got, expected_items.into_boxed());
     }
 }
 

@@ -84,6 +84,9 @@ fn opened(out: &Queue<Request>, wanted: &Watchable) -> Option<Token> {
     None
 }
 fn fixture() -> Fixture {
+    fixture_me(f::chats::me())
+}
+fn fixture_me(identity: c::Me) -> Fixture {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let me = f::start(&mut root, List::with_capacity(0));
     up(
@@ -95,7 +98,7 @@ fn fixture() -> Fixture {
     );
     let out = up(
         &mut root,
-        Up::Watched { watch: me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(f::chats::me()))) },
+        Up::Watched { watch: me, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(identity))) },
     );
     let settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).expect("session settings watch");
     let out = go(&mut root, Address::Ask { project: f::PROJECT });
@@ -850,5 +853,67 @@ fn later_documents_keep_the_tab_key_and_only_the_same_stops_card() {
         show(&mut f, &w::WaysPanel::new(&w::CEILINGS, next).unwrap());
         let page = f.root.pages().stock_ways().unwrap();
         assert_eq!((page.shown(), page.open()), (Some(shown), open), "{change:?}");
+    }
+}
+
+fn role_me() -> c::Me {
+    let mut me = f::chats::me();
+    let project = me.projects.get_mut(0).unwrap();
+    let template = project.templates.get_mut(0).unwrap();
+    template.number = 7;
+    template.executor = c::TemplateExecutor::Chosen;
+    template.budget = c::TemplateBudget::Given;
+    template.flags = c::TaskFlags { ended_by: c::EndedBy::Standing, conversation: false, listed: true, retention: c::Retention::Kept };
+    template.label = 3;
+    template.grace = None;
+    let within = &mut project.creating.as_mut().unwrap().within;
+    within.charters = List::from_boxed(Box::new([14]));
+    within.budget = 50_000;
+    within.maximum_budget = 50_000;
+    within.pool_left = 50_000;
+    within.authority.authority.spend = 50_000;
+    me
+}
+
+#[test]
+fn draft_first_starts_only_missing_roles_after_settings_and_keeps_settings_on_refusal() {
+    const WORDS: &[u8] = b"Routes what comes in to its area's owner, and triages what fits no area.";
+    for running in [false, true] {
+        let identity = role_me();
+        let mut f = fixture_me(identity.clone());
+        let mut parts = panel(f::PROJECT, Some(0), true).into_parts();
+        let mut way = parts.ways.get(1).unwrap().clone().into_parts();
+        way.name = b"Draft first".as_slice().into();
+        let role = w::WayRole::new(&w::CEILINGS, w::WayRoleParts { charter: 14, words: WORDS.into(), budget: 25_000, running }).unwrap();
+        way.roles = List::from_boxed(Box::new([role]));
+        *parts.ways.get_mut(1).unwrap() = w::StockWay::new(&w::CEILINGS, way).unwrap();
+        show(&mut f, &w::WaysPanel::new(&w::CEILINGS, parts).unwrap());
+        let (key, settings) = use_way(&mut f);
+        assert_eq!(settings.items, way_items(None), "settings precede any role request");
+        let out = answer(&mut f, key, c::Answer::Done(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: NEXT })));
+        let mut sent = List::uncapped();
+        for request in &out {
+            if let pages::Request::Client(jig_client::Event::Send { key, request: jig_client::Ask::Jig(ask), .. }) = request {
+                sent.push((*key, ask.clone())).unwrap();
+            }
+        }
+        assert_eq!(sent.len(), u32::from(!running));
+        assert_eq!(f.root.pages().needs().toast(), Some(&pages::needs::Toasted::Way { name: b"Draft first".as_slice().into(), revision: NEXT, kept: false }));
+        if !running {
+            let draft = jig_client::shapes::GoalDraft { words: c::Text::new(WORDS.into(), 480).unwrap(), executor: c::Executor::Agent { charter: 14 }, budget: 25_000, deadline: None, priority: None, llm: None };
+            let jig_client::shapes::Judged::Create(expected) = jig_client::shapes::set_goal_from(&identity, f::PROJECT, 7, draft, c::Text::new(Box::new([]), 0).unwrap()) else { panic!("offered role") };
+            let (key, ask) = sent.get(0).unwrap();
+            assert_eq!(ask.as_ref(), &expected);
+            let c::Ask::Create { tasks, .. } = ask.as_ref() else { panic!("starts role") };
+            let task = tasks.get(0).unwrap();
+            assert_eq!((task.executor, task.label, task.authority.spend), (c::Executor::Agent { charter: 14 }, 3, 25_000));
+            assert_eq!(task.flags.ended_by, c::EndedBy::Standing);
+            assert_eq!(task.spec.words.bytes(), WORDS);
+            let refusal = c::Refusal::Judged { at: 0, setting: c::Setting::Charter(c::SettingNumber { number: 14 }), why: c::Text::new(b"The triager cannot start here.".as_slice().into(), 128).unwrap() };
+            let out = answer(&mut f, *key, refused(refusal.clone()));
+            assert!(out.is_empty(), "role refusal sends no rollback");
+            assert_eq!(f.root.pages().stock_ways().unwrap().refused(), Some(&refusal), "the refusal's words reach the page");
+        }
+        assert!(!f.root.pages().stock_ways().unwrap().sending());
     }
 }

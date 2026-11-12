@@ -3097,7 +3097,10 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
                 line: b"How it lands".as_slice().into(),
                 path: path.clone(),
                 delegation,
-                roles: Box::default(),
+                roles: Box::new([ways::WayRoleEntry {
+                    role: ways::WayRole { charter: 14, words: b"Route findings".as_slice().into(), budget: 25_000 },
+                    running: delegation,
+                }]),
                 items: Box::new([
                     ways::Item {
                         kind: 3,
@@ -3153,6 +3156,9 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
             (got.name(), got.headline(), got.line(), got.delegation()),
             (entry.name.as_ref(), entry.headline.as_ref(), entry.line.as_ref(), entry.delegation)
         );
+        assert_eq!(got.roles().len(), 1);
+        let role = got.roles().get(0).unwrap();
+        assert_eq!((role.charter(), role.words(), role.budget(), role.running()), (14, b"Route findings".as_slice(), 25_000, entry.delegation));
         assert_eq!(got.path(), &expected);
         assert_eq!(got.items().len(), 3);
         let set = got.items().get(0).unwrap();
