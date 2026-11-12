@@ -22,7 +22,13 @@ fn facts(goals: &[Goal], changes: &[Change], chats: &[Chat]) -> Facts {
         match change.at {
             Where::Landed { at, default_branch: true } => {
                 landed_default
-                    .push(Landing { task: change.task, commit: [0xab; 32], at, belongs: change.belongs })
+                    .push(Landing {
+                        signed: change.signed.clone(),
+                        task: change.task,
+                        commit: [0xab; 32],
+                        at,
+                        belongs: change.belongs,
+                    })
                     .unwrap();
             }
             Where::Landed { default_branch: false, .. } | Where::Queued { .. } => {}
@@ -40,15 +46,19 @@ fn chat(task: u64, activity: u64, draft: bool) -> Chat {
 }
 
 fn queued(task: u64, place: u32, since: u64, belongs: Belongs) -> Change {
-    Change { task, at: Where::Queued { place, since: wall(since) }, belongs }
+    Change { signed: None, task, at: Where::Queued { place, since: wall(since) }, belongs }
 }
 
 fn landed(task: u64, at: u64, belongs: Belongs) -> Change {
-    Change { task, at: Where::Landed { at: wall(at), default_branch: true }, belongs }
+    Change { signed: None, task, at: Where::Landed { at: wall(at), default_branch: true }, belongs }
 }
 
 fn card(item: Item, changes: &[u64]) -> Card {
-    Card { item, changes: list(changes) }
+    let mut rows = List::with_capacity(u32::try_from(changes.len()).unwrap());
+    for task in changes {
+        rows.push(work::Row { task: *task, signed: None }).unwrap();
+    }
+    Card { item, changes: rows }
 }
 
 struct Expected {
@@ -283,8 +293,15 @@ fn each_item_is_placed_by_its_own_facts() {
             name: "the week preserves nanoseconds",
             facts: Facts {
                 landed_default: list(&[
-                    Landing { task: 1, commit: [0xab; 32], at: wall(WEEK_AGO), belongs: Belongs::Nothing },
                     Landing {
+                        signed: None,
+                        task: 1,
+                        commit: [0xab; 32],
+                        at: wall(WEEK_AGO),
+                        belongs: Belongs::Nothing,
+                    },
+                    Landing {
+                        signed: None,
                         task: 2,
                         commit: [0xab; 32],
                         at: Wall::from_nanos(wall(WEEK_AGO).as_nanos() + 1),
@@ -293,11 +310,13 @@ fn each_item_is_placed_by_its_own_facts() {
                 ]),
                 changes: list(&[
                     Change {
+                        signed: None,
                         task: 1,
                         at: Where::Landed { at: wall(WEEK_AGO), default_branch: true },
                         belongs: Belongs::Nothing,
                     },
                     Change {
+                        signed: None,
                         task: 2,
                         at: Where::Landed { at: Wall::from_nanos(wall(WEEK_AGO).as_nanos() + 1), default_branch: true },
                         belongs: Belongs::Nothing,
@@ -441,8 +460,8 @@ impl Fixture {
         template.tracked = Some(1);
         template.label = 8;
         project.templates = list(&[project.templates.get(0).unwrap().clone(), template]);
-        super::welcome::deliver(&mut root, watch, c::Delivery::Me(Box::new(me)));
-        let out = super::welcome::event(
+        let mut initial = super::welcome::deliver(&mut root, watch, c::Delivery::Me(Box::new(me)));
+        let mut out = super::welcome::event(
             &mut root,
             Event::Went { place: Place::Address(Address::Work { project: f::PROJECT, filter: WorkFilter::All }) },
         );
@@ -473,6 +492,9 @@ impl Fixture {
                     Watchable::Jig(_) => {}
                 }
             }
+        }
+        while let Some(request) = initial.pop() {
+            out.push(request);
         }
         Self {
             root,
@@ -556,7 +578,7 @@ impl Fixture {
             },
         });
     }
-    fn panel(&mut self) {
+    fn panel(&mut self) -> w::ChangesPanel {
         let mut queued = List::with_capacity(4);
         for task in 11..=14 {
             queued
@@ -595,6 +617,7 @@ impl Fixture {
                 landed: list(&[w::ChangesLanded::new(
                     &w::CEILINGS,
                     w::ChangesLandedParts {
+                        signed: List::with_capacity(8),
                         commit: [0xab; 32],
                         default_branch: true,
                         task: 15,
@@ -615,6 +638,7 @@ impl Fixture {
                 bytes: wire::changes_panel(&panel),
             },
         });
+        panel
     }
 }
 
@@ -929,7 +953,7 @@ fn main_landings_group_goals_but_keep_chat_and_unread_changes_and_count_goal_bra
     ] {
         facts
             .landed_default
-            .push(Landing { task, at: wall(at), commit: [u8::try_from(task).unwrap(); 32], belongs })
+            .push(Landing { signed: None, task, at: wall(at), commit: [u8::try_from(task).unwrap(); 32], belongs })
             .unwrap();
     }
     for (task, at, belongs, default_branch) in [
@@ -942,18 +966,143 @@ fn main_landings_group_goals_but_keep_chat_and_unread_changes_and_count_goal_bra
         (26, NOW, Belongs::Chat(9), false),
         (27, NOW, Belongs::Nothing, false),
     ] {
-        facts.changes.push(Change { task, at: Where::Landed { at: wall(at), default_branch }, belongs }).unwrap();
+        facts
+            .changes
+            .push(Change { signed: None, task, at: Where::Landed { at: wall(at), default_branch }, belongs })
+            .unwrap();
     }
     let got = work::place(&facts, wall(NOW));
     assert_eq!(
         got.landed.as_slice(),
         &[
-            work::Landed { item: Item::Goal(7), change: 21, at: wall(NOW - 3_600), commit: [21; 32] },
-            work::Landed { item: Item::Change(30), change: 30, at: wall(NOW - 7_200), commit: [30; 32] },
-            work::Landed { item: Item::Change(40), change: 40, at: wall(NOW - 7_200), commit: [40; 32] },
-            work::Landed { item: Item::Change(50), change: 50, at: wall(WEEK_AGO), commit: [50; 32] },
+            work::Landed { signed: None, item: Item::Goal(7), change: 21, at: wall(NOW - 3_600), commit: [21; 32] },
+            work::Landed { signed: None, item: Item::Change(30), change: 30, at: wall(NOW - 7_200), commit: [30; 32] },
+            work::Landed { signed: None, item: Item::Change(40), change: 40, at: wall(NOW - 7_200), commit: [40; 32] },
+            work::Landed { signed: None, item: Item::Change(50), change: 50, at: wall(WEEK_AGO), commit: [50; 32] },
         ]
     );
     assert_eq!(got.goal_branches, 2, "each goal-branch task once, only in the window");
     assert_eq!(got.filters.changes, 7, "default-branch history adds no filter rows");
+}
+
+#[test]
+fn signed_names_the_reader_members_and_unlisted_parties() {
+    use super::team::{member, project};
+    let people = project(
+        Box::new([
+            member(1, c::PartyKind::Person, b"Reader", c::HeldRole::Owner),
+            member(5, c::PartyKind::Person, b"Sam", c::HeldRole::Member),
+            member(6, c::PartyKind::Person, b"Kit", c::HeldRole::Member),
+            member(7, c::PartyKind::Person, b"", c::HeldRole::Member),
+        ]),
+        false,
+    );
+    for (parties, words) in [
+        (b"".as_slice(), None),
+        (&[1], Some("signed by you")),
+        (&[5, 1], Some("signed by you and Sam")),
+        (&[1, 5, 6], Some("signed by you, Sam and Kit")),
+        (&[5, 9], Some("signed by Sam and one other")),
+        (&[9, 10], Some("signed by two others")),
+        (&[7], Some("signed by login")),
+        (&[5, 6, 9, 10], Some("signed by Sam, Kit and two others")),
+        (&[9, 10, 11, 12, 13, 14, 15, 16, 17, 18], Some("signed by 10 others")),
+    ] {
+        let mut parties64 = List::with_capacity(u32::try_from(parties.len()).unwrap());
+        for party in parties {
+            parties64.push(u64::from(*party)).unwrap();
+        }
+        assert_eq!(
+            work::signed(1, parties64.as_slice(), Some(&people)).as_deref(),
+            match words {
+                Some(words) => Some(words.as_bytes()),
+                None => None,
+            }
+        );
+        assert_eq!(work::signed(1, parties64.as_slice(), None), None, "people unread, refused or failed");
+    }
+}
+
+#[test]
+fn landed_rows_keep_their_own_signers_on_cards_and_the_newest_goal_landing() {
+    let mut old = landed(11, NOW - 2, Belongs::Goal(1));
+    old.signed = Some(b"signed by Sam".as_slice().into());
+    let mut newest = landed(12, NOW - 1, Belongs::Goal(1));
+    newest.signed = Some(b"signed by you".as_slice().into());
+    let mut chat_change = landed(13, NOW, Belongs::Chat(3));
+    chat_change.signed = Some(b"signed by Kit".as_slice().into());
+    let placed = work::place(
+        &facts(
+            &[goal(1, true, NOW)],
+            &[old, newest, chat_change, queued(14, 1, NOW, Belongs::Chat(3))],
+            &[chat(3, NOW, false)],
+        ),
+        wall(NOW),
+    );
+    assert_eq!(placed.landed.get(1).unwrap().signed.as_deref(), Some(b"signed by you".as_slice()));
+    assert_eq!(placed.landed.get(0).unwrap().signed.as_deref(), Some(b"signed by Kit".as_slice()));
+    let goal_rows = &placed.in_flight.get(0).unwrap().changes;
+    assert_eq!(goal_rows.get(0).unwrap().signed.as_deref(), Some(b"signed by you".as_slice()));
+    assert_eq!(goal_rows.get(1).unwrap().signed.as_deref(), Some(b"signed by Sam".as_slice()));
+    let chat_rows = &placed.in_flight.get(1).unwrap().changes;
+    assert_eq!(chat_rows.get(0).unwrap().signed, None, "queued");
+    assert_eq!(chat_rows.get(1).unwrap().signed.as_deref(), Some(b"signed by Kit".as_slice()));
+}
+
+#[test]
+fn facts_name_signers_from_the_rails_project_read_and_stay_silent_without_it() {
+    for answer in 0_u32..4 {
+        let mut fixture = Fixture::new();
+        fixture.lists();
+        fixture.drafts(&[]);
+        let mut panel = fixture.panel().into_parts();
+        let mut row = panel.landed.get(0).unwrap().clone().into_parts();
+        row.signed =
+            list(&[
+                w::ChangesSigned::new(&w::CEILINGS, w::ChangesSignedParts { party: 5, head: [1; 32], at: 0 }).unwrap()
+            ]);
+        let row = w::ChangesLanded::new(&w::CEILINGS, row).unwrap();
+        panel.landed = list(core::slice::from_ref(&row));
+        panel.landed_default = list(&[row]);
+        let panel = w::ChangesPanel::new(&w::CEILINGS, panel).unwrap();
+        fixture.up(Up::FamilyDelivered {
+            watch: fixture.changes,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::changes_panel(&panel),
+            },
+        });
+        let mut reads = List::uncapped();
+        for request in &fixture.out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Read { read, what: Readable::Jig(c::Read::Project { project }) },
+                    },
+            } = request
+            {
+                assert_eq!(*project, f::PROJECT);
+                reads.push(*read).unwrap();
+            }
+        }
+        assert_eq!(reads.len(), 1, "the rail's read serves Work, with no second read");
+        let read = *reads.get(0).unwrap();
+        if answer == 1 {
+            let mut project = super::team::project(
+                Box::new([super::team::member(5, c::PartyKind::Person, b"Sam", c::HeldRole::Member)]),
+                false,
+            );
+            project.number = f::PROJECT;
+            fixture.answer(read, c::ReadValue::Project(Box::new(project)));
+        } else if answer == 2 {
+            fixture.up(Up::ReadDone { read, result: Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)) });
+        } else if answer == 3 {
+            fixture.up(Up::ReadDone { read, result: Readout::Limit });
+        }
+        let facts = work::facts(&fixture.root, f::PROJECT).unwrap();
+        let expected = if answer == 1 { Some(b"signed by Sam".as_slice()) } else { None };
+        assert_eq!(facts.changes.get(4).unwrap().signed.as_deref(), expected, "card fact, answer {answer}");
+        assert_eq!(facts.landed_default.get(0).unwrap().signed.as_deref(), expected, "landed fact, answer {answer}");
+    }
 }

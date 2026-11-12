@@ -226,12 +226,14 @@ fn approval_size_follows_the_question_before_acts_or_draws_nothing() {
         let question = nodes.iter().position(|n| n.styles.as_slice().contains(&look::ASK_QUESTION)).unwrap();
         let after = question + usize::try_from(nodes[question].size).unwrap();
         let acts = nodes.iter().position(|n| n.styles.as_slice().contains(&look::NEED_ACTS)).unwrap();
+        let context = nodes.iter().position(|n| n.styles.as_slice().contains(&look::ASK_CONTEXT)).unwrap();
         if size.is_some() {
             assert!(nodes[after].styles.as_slice().contains(&look::CHIPS));
-            assert_eq!(after + usize::try_from(nodes[after].size).unwrap(), acts);
+            assert_eq!(after + usize::try_from(nodes[after].size).unwrap(), context);
         } else {
-            assert_eq!(after, acts, "no placeholder without a size");
+            assert_eq!(after, context, "no placeholder without a size");
         }
+        assert_eq!(context + usize::try_from(nodes[context].size).unwrap(), acts);
         assert!(f::find(&tree, Role::Link, "Review on Forgejo ↗".as_bytes()).is_some());
         assert_eq!(
             control(&tree, &bindings, "Tell it something else"),
