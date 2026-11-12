@@ -1,0 +1,37 @@
+   Compiling temper-service v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-service)
+   Compiling temper-github-app v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/testing/temper-github-app)
+   Compiling temper-playground v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/crates/temper-playground)
+   Compiling temper-one-process-world v0.0.0 (/home/free/src/fabrig/temper-worker/root/workspaces/12884901888/fabrig/temper/tests/one-process)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.84s
+────────────
+ Nextest run ID 9557fb94-76b0-4362-b33c-f165ef48b824 with nextest profile: default
+    Starting 1 test across 1 binary (45 tests skipped)
+        FAIL [   0.049s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
+  stdout ───
+
+    running 1 test
+    test public::every_inaccessible_identifier_is_one_unknown_byte_for_byte ... FAILED
+
+    failures:
+
+    failures:
+        public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 45 filtered out; finished in 0.03s
+
+  stderr ───
+
+    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (2667020) panicked at temper/crates/temper-playground/src/programs.rs:269:32:
+    engine.limits.store: the store's map sizing is past its codec or arithmetic bounds
+
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+    thread 'public::every_inaccessible_identifier_is_one_unknown_byte_for_byte' (2667020) panicked at temper/tests/one-process/src/public.rs:128:9:
+    public walk every_inaccessible_identifier_is_one_unknown_byte_for_byte, seed 7: engine.limits.store: the store's map sizing is past its codec or arithmetic bounds
+
+
+  Cancelling due to test failure
+────────────
+     Summary [   0.051s] 1 test run: 0 passed, 1 failed, 45 skipped
+        FAIL [   0.049s] (1/1) temper-one-process-world::suite public::every_inaccessible_identifier_is_one_unknown_byte_for_byte
+error: test run failed
