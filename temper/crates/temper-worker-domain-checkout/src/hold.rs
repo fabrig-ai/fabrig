@@ -473,7 +473,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
     let holding = &mut hold.holding;
     hold.state = match state {
         State::Preparing { step, asked } => {
-            let detail = preparation_detail(step, &done);
+            let detail = preparation_detail(holding, step, &done);
             let next = prepared(holding, &mut domain.cache, step, done, &env.limits);
             prepare_next(holding, id, next, detail, asked, env, out)
         }
@@ -1348,17 +1348,53 @@ fn next_head(holding: &mut Holding, repository: u32, head: u32, last: u32) -> Ne
 
 /// Full object spelling for the merge message (protocol/channel.md, 4).
 fn merge_title(head: Commit) -> Box<[u8]> {
-    let raw = head.raw();
-    let size = if raw.get(20..).expect("fixed id") == [0; 12] { 20_usize } else { 32 };
-    let length = size.checked_mul(2).expect("fixed id").checked_add(6).expect("fixed prefix");
+    let length = hex_length(head).checked_add(6).expect("fixed prefix");
     let mut title = Writer::new(length);
     title.put(b"Merge ").expect("measured prefix");
-    for byte in raw.get(..size).expect("fixed id") {
+    put_hex(&mut title, head);
+    title.finish()
+}
+
+fn hex_length(head: Commit) -> usize {
+    if head.raw().get(20..).expect("fixed id") == [0; 12] { 40 } else { 64 }
+}
+
+fn put_hex(text: &mut Writer, head: Commit) {
+    let size = hex_length(head).checked_div(2).expect("two digits per byte");
+    for byte in head.raw().get(..size).expect("fixed id") {
         for digit in [byte >> 4_u32, byte & 15] {
-            title.put(&[*b"0123456789abcdef".get(usize::from(digit)).expect("hex nibble")]).expect("measured hex");
+            text.put(&[*b"0123456789abcdef".get(usize::from(digit)).expect("hex nibble")]).expect("measured hex");
         }
     }
-    title.finish()
+}
+
+fn conflicted_head_detail(holding: &Holding, repository: u32, head: Commit) -> Box<[u8]> {
+    let branch = match &nth(holding, repository).start {
+        Start::Merged { branch, .. } => branch,
+        Start::Base { .. }
+        | Start::Branch { .. }
+        | Start::Commit { .. }
+        | Start::Saved { .. }
+        | Start::Merge { .. } => {
+            unreachable!("only a merged start refuses a head's conflict")
+        }
+    };
+    let prefix = b"merge: Conflicted: head ";
+    let reason = b" does not merge into ";
+    let length = prefix
+        .len()
+        .checked_add(hex_length(head))
+        .expect("fixed head")
+        .checked_add(reason.len())
+        .expect("fixed reason")
+        .checked_add(branch.len())
+        .expect("admitted branch");
+    let mut text = Writer::new(length);
+    text.put(prefix).expect("measured prefix");
+    put_hex(&mut text, head);
+    text.put(reason).expect("measured reason");
+    text.put(branch).expect("measured branch");
+    text.finish()
 }
 
 fn after_merged(repository: u32, last: u32) -> Next {
@@ -1366,11 +1402,11 @@ fn after_merged(repository: u32, last: u32) -> Next {
 }
 
 /// The named step and git's fault, outside the checkout's facts (domain/worker/jobs.md).
-fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
-    let (fault, output) = match done {
-        Done::Failed { fault } => (fault.name(), b"".as_slice()),
-        Done::FailedWithOutput { fault, diagnostic } => (fault.name(), diagnostic.output()),
-        Done::Conflicted { .. } => (b"Conflicted".as_slice(), b"".as_slice()),
+fn preparation_detail(holding: &Holding, step: PrepareStep, done: &Done) -> Box<[u8]> {
+    let (fault, output, conflicted) = match done {
+        Done::Failed { fault } => (fault.name(), b"".as_slice(), false),
+        Done::FailedWithOutput { fault, diagnostic } => (fault.name(), diagnostic.output(), false),
+        Done::Conflicted { .. } => (b"Conflicted".as_slice(), b"".as_slice(), true),
         Done::Succeeded
         | Done::Fetched { .. }
         | Done::Committed { .. }
@@ -1402,6 +1438,9 @@ fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
         PrepareStep::CheckOutMerge { .. } => b"check out merge",
         PrepareStep::CompareBase { .. } => b"compare base",
         PrepareStep::CompareHead { .. } => b"compare head",
+        PrepareStep::Merge { repository, theirs, head: Some(_) } if conflicted => {
+            return conflicted_head_detail(holding, repository, theirs);
+        }
         PrepareStep::Merge { .. } => b"merge",
         PrepareStep::CommitHead { .. } => b"commit head",
         PrepareStep::CheckOutHead { .. } => b"check out head",

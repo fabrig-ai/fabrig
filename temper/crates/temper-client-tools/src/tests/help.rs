@@ -64,6 +64,47 @@ fn the_help_prints_as_its_golden_files() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "the help test compares rendered UTF-8 with the page's quoted lines")]
+fn review_recipe_quotes_the_waiting_changes_output() {
+    use temper_client_protocol_wire::v1 as w;
+    let page = temper_docs::find(b"review-before-landing").expect("review recipe");
+    let checking = page.text.split("## Checking it took\n").nth(1).expect("checking section");
+    let mut parts = super::change::approval_parts();
+    parts.step = w::Step::First;
+    parts.ci = w::Ci::Passed;
+    let mut approval = parts.approvals.get(0).expect("waiting approval").clone().into_parts();
+    approval.number = 1;
+    approval.role = 1;
+    approval.freshness = w::RuleFreshness::Exact;
+    *parts.approvals.get_mut(0).expect("waiting approval") = w::Approval::new(&w::CEILINGS, approval).unwrap();
+    let panel = w::ChangePanel::new(&w::CEILINGS, parts).expect("waiting change");
+    let output =
+        crate::change::print(Some(&panel), false, None, b"", &fixtures::limits_root(), &crate::change::Holds::new());
+    assert_eq!(output.status, 0);
+    let output = core::str::from_utf8(&output.stdout).expect("text output");
+    let mut quoted = List::with_capacity(2);
+    for block in checking.split("```\n").skip(1).step_by(2) {
+        for line in block.lines() {
+            if line.starts_with("approval:") || line.starts_with("next:") {
+                quoted.push(line).expect("two quoted output lines");
+            }
+        }
+    }
+    assert_eq!(quoted.len(), 2, "quote both the approval and next lines");
+    for line in quoted.as_slice() {
+        let expected = line
+            .replace("PROJECT", "1")
+            .replace("ROLE", "1")
+            .replace("URL", core::str::from_utf8(panel.pull().as_ref().expect("pull request").address()).unwrap());
+        let mut found = false;
+        for rendered in output.lines() {
+            found |= rendered == expected;
+        }
+        assert!(found, "quoted line differs from ctl: {expected}\n{output}");
+    }
+}
+
+#[test]
 fn help_names_how_to_read_a_runs_brief() {
     for name in [b"chat".as_slice(), b"charter", b"configure"] {
         let page = temper_docs::find(name).expect("help page");
