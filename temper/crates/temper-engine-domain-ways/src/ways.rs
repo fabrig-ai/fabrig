@@ -54,6 +54,7 @@ pub struct WaysDocument {
     pub current: Option<u32>,
     pub own: Path,
     pub words: Option<temper_engine_domain_forge::settings::ProjectWords>,
+    pub rules: crate::PathRules,
     pub may_change: bool,
 }
 
