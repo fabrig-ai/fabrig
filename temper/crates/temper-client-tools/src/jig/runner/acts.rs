@@ -1,8 +1,8 @@
 //! Offered acts are read once, then kept by the shared client's request table.
 pub(crate) mod choice;
 mod goal;
-mod role;
 mod need;
+mod role;
 mod subject;
 use super::{Called, Out, Runner, finish};
 use crate::jig::{

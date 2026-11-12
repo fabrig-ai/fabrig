@@ -11,6 +11,8 @@ role  Standing roles: start one, list them, read one and its Now
 proposal  Proposals: read one, decide it
 hold  Placed holds: lift one you may lift
 change  Changes: read a change's way to landing
+finding  Findings: file, read, hand on and triage them
+need  Needs: ask a person with choices and why
 landing  Landings: read one or a project's landings
 repository  Repositories: make, copy or adopt one into a project
 forge  Forges: read them, set one up, connect it, accept an installation, read what it reaches

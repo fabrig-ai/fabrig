@@ -64,7 +64,21 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["finding", "route", "3/12", "--goal", "41", "--key", "route"],
     &["finding", "backlog", "3/12", "--key", "backlog"],
     &["finding", "drop", "3/12", "duplicate", "--key", "drop"],
-    &["need", "ask", "--project", "3", "--choice", "yes", "--choice", "no", "--why", "the deploy waits", "Ship it?", "--key", "ask"],
+    &[
+        "need",
+        "ask",
+        "--project",
+        "3",
+        "--choice",
+        "yes",
+        "--choice",
+        "no",
+        "--why",
+        "the deploy waits",
+        "Ship it?",
+        "--key",
+        "ask",
+    ],
     &["party", "make", "--project", "1", "--role", "2", "--out", "service", "scout"],
     &["sign-in", "--service", "service"],
     &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"],
@@ -680,6 +694,8 @@ impl Harness {
                 | crate::jig::rows::TASK_NOTES_AT
                 | crate::jig::rows::ROLE_LIST_AT
                 | crate::jig::rows::ROLE_SHOW_AT
+                | crate::jig::rows::FINDING_FILE_AT
+                | crate::jig::rows::FINDING_HAND_AT
                 | crate::jig::rows::FINDING_SHOW_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {

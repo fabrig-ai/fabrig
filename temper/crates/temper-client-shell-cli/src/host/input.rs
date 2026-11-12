@@ -163,8 +163,11 @@ impl OneShot {
                 let specs = TOOLS[usize::from(call.tool)].forms[usize::from(call.form)];
                 for (index, (spec, slot)) in specs.iter().zip(call.values.iter_mut()).enumerate() {
                     if file == Some(index) || (file.is_none() && *slot == Some(Values::One(Value::Stdin))) {
-                        let text =
-                            if spec.kind == Kind::File && spec.name != b"body" { bytes.strip_suffix(b"\n").unwrap_or(&bytes) } else { &bytes };
+                        let text = if spec.kind == Kind::File && spec.name != b"body" {
+                            bytes.strip_suffix(b"\n").unwrap_or(&bytes)
+                        } else {
+                            &bytes
+                        };
                         *slot = Some(Values::One(Value::Text(text.into())));
                     }
                 }
@@ -283,7 +286,18 @@ mod tests {
     #[test]
     fn finding_body_keeps_its_bytes_from_a_file_stdin_or_json() {
         for source in ["-", "/body/link-file"] {
-            let mut frame = amendment(&["finding", "file", "--project", "shop", "--kind", "red", "Flaky boot", source, "--key", "file"]);
+            let mut frame = amendment(&[
+                "finding",
+                "file",
+                "--project",
+                "shop",
+                "--kind",
+                "red",
+                "Flaky boot",
+                source,
+                "--key",
+                "file",
+            ]);
             frame.input = WORDS;
             frame.link = WORDS;
             frame.drain();

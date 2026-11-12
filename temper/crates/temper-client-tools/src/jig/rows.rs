@@ -1171,7 +1171,13 @@ pub const FINDING_ROUTE_AT: u8 = 80;
 pub const FINDING_BACKLOG_AT: u8 = 81;
 pub const FINDING_DROP_AT: u8 = 82;
 pub const NEED_ASK_AT: u8 = 83;
-const FINDING: super::table::Argument = positional(b"finding", b"FINDING", Kind::Finding, Required, b"P/N: the project's name or number and its finding number");
+const FINDING: super::table::Argument = positional(
+    b"finding",
+    b"FINDING",
+    Kind::Finding,
+    Required,
+    b"P/N: the project's name or number and its finding number",
+);
 const AREA: super::table::Argument = flag(b"area", b"AREA", Kind::Literal, Required, b"The area's name in the project");
 pub const FINDING_LIST: Tool = Tool {
     name: b"finding list",
@@ -1187,45 +1193,83 @@ pub const FINDING_LIST: Tool = Tool {
     notes: b"Reads the findings subject once. At most 128 findings; a cut is marked.\n",
 };
 pub const FINDING_SHOW: Tool = Tool {
-    name: b"finding show", line: b"Read one finding whole",
+    name: b"finding show",
+    line: b"Read one finding whole",
     prints: b"Its line, filer, filing time, last hand-off's why, goal and drop reason, then its body",
-    result: b"finding", forms: &[&[FINDING]], keyed: Keyed::Never, area: 2,
+    result: b"finding",
+    forms: &[&[FINDING]],
+    keyed: Keyed::Never,
+    area: 2,
     notes: b"FINDING is P/N, P the project's name or number.\n",
 };
 pub const FINDING_FILE: Tool = Tool {
-    name: b"finding file", line: b"File a finding, held by its area's owner or the triager",
-    prints: b"filed: P/N, held by HOLDER", result: b"finding_filed",
+    name: b"finding file",
+    line: b"File a finding, held by its area's owner or the triager",
+    prints: b"filed: P/N, held by HOLDER",
+    result: b"finding_filed",
     forms: &[&[
         flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
-        flag(b"kind", b"qa|flake|red|review|feedback", Kind::Word { set: &[b"qa", b"flake", b"red", b"review", b"feedback"] }, Required, b"What kind of finding"),
-        flag(b"severity", b"low|medium|high", Kind::Word { set: &[b"low", b"medium", b"high"] }, Optional, b"medium when absent"),
+        flag(
+            b"kind",
+            b"qa|flake|red|review|feedback",
+            Kind::Word { set: &[b"qa", b"flake", b"red", b"review", b"feedback"] },
+            Required,
+            b"What kind of finding",
+        ),
+        flag(
+            b"severity",
+            b"low|medium|high",
+            Kind::Word { set: &[b"low", b"medium", b"high"] },
+            Optional,
+            b"medium when absent",
+        ),
         flag(b"area", b"AREA", Kind::Literal, Optional, b"The area's name; the triager's when absent"),
         positional(b"title", b"TEXT", Kind::Text, Required, b"Its title, 1 to 200 bytes"),
         positional(b"body", b"FILE", Kind::File, Required, b"Its body, at most 4096 bytes; - reads stdin"),
-    ]], keyed: Keyed::Required, area: 2,
+    ]],
+    keyed: Keyed::Required,
+    area: 2,
     notes: b"An unknown area exits 2 naming the project's areas.\n",
 };
 pub const FINDING_HAND: Tool = Tool {
-    name: b"finding hand", line: b"Hand a finding on to an area's owner, with why",
-    prints: b"handed: P/N, held by HOLDER", result: b"finding_handed",
+    name: b"finding hand",
+    line: b"Hand a finding on to an area's owner, with why",
+    prints: b"handed: P/N, held by HOLDER",
+    result: b"finding_handed",
     forms: &[&[FINDING, AREA, positional(b"why", b"TEXT", Kind::Text, Required, b"Why, 1 to 200 bytes")]],
-    keyed: Keyed::Required, area: 2, notes: b"Only its holder or a project owner hands it on. Its new owner hears why.\n",
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Only its holder or a project owner hands it on. Its new owner hears why.\n",
 };
 pub const FINDING_ROUTE: Tool = Tool {
-    name: b"finding route", line: b"Route a finding to a live goal of its project",
-    prints: b"routed: P/N", result: b"finding_routed",
+    name: b"finding route",
+    line: b"Route a finding to a live goal of its project",
+    prints: b"routed: P/N",
+    result: b"finding_routed",
     forms: &[&[FINDING, flag(b"goal", b"TASK", Kind::Number, Required, b"The live goal's task number")]],
-    keyed: Keyed::Required, area: 2, notes: b"The goal hears it. Only the holder or a project owner may triage.\n",
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"The goal hears it. Only the holder or a project owner may triage.\n",
 };
 pub const FINDING_BACKLOG: Tool = Tool {
-    name: b"finding backlog", line: b"Put a finding in the backlog", prints: b"backlog: P/N", result: b"finding_backlog",
-    forms: &[&[FINDING]], keyed: Keyed::Required, area: 2,
+    name: b"finding backlog",
+    line: b"Put a finding in the backlog",
+    prints: b"backlog: P/N",
+    result: b"finding_backlog",
+    forms: &[&[FINDING]],
+    keyed: Keyed::Required,
+    area: 2,
     notes: b"Only its holder or a project owner may triage.\n",
 };
 pub const FINDING_DROP: Tool = Tool {
-    name: b"finding drop", line: b"Drop a finding and keep the reason", prints: b"dropped: P/N", result: b"finding_dropped",
+    name: b"finding drop",
+    line: b"Drop a finding and keep the reason",
+    prints: b"dropped: P/N",
+    result: b"finding_dropped",
     forms: &[&[FINDING, positional(b"reason", b"REASON", Kind::Text, Required, b"Why, 1 to 400 bytes")]],
-    keyed: Keyed::Required, area: 2, notes: b"Only its holder or a project owner may triage. Its issue, if any, closes with the reason.\n",
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Only its holder or a project owner may triage. Its issue, if any, closes with the reason.\n",
 };
 pub const NEED_ASK: Tool = Tool {
     name: b"need ask", line: b"Ask a person a question with choices and why", prints: b"done: task N, need", result: b"need",

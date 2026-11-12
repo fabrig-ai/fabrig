@@ -135,7 +135,10 @@ pub(crate) fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) ->
                 Project::Name(Box::from(word))
             })
         }
-        Kind::Finding => { finding(word)?; Value::Text(Box::from(word)) }
+        Kind::Finding => {
+            finding(word)?;
+            Value::Text(Box::from(word))
+        }
         Kind::Turn => Value::Turn(turn(word)?),
         Kind::Cursor => Value::Cursor(hex(word)?),
         Kind::Group => Value::Group(match word {
@@ -455,9 +458,15 @@ pub(crate) fn finding(word: &[u8]) -> Option<(&[u8], u32)> {
     let slash = skein_lib::bytes::find(word, b"/")?;
     let project = word.get(..slash)?;
     let number = u32::try_from(number(word.get(slash.checked_add(1)?..)?)?).ok()?;
-    if project.is_empty() || number == 0 { return None; }
+    if project.is_empty() || number == 0 {
+        return None;
+    }
     let mut digits = true;
-    for byte in project { digits &= byte.is_ascii_digit(); }
-    if digits { u32::try_from(self::number(project)?).ok()?; }
+    for byte in project {
+        digits &= byte.is_ascii_digit();
+    }
+    if digits {
+        u32::try_from(self::number(project)?).ok()?;
+    }
     Some((project, number))
 }
