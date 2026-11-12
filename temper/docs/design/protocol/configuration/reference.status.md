@@ -3,7 +3,7 @@
 2026-11-12. Where the tree's code lags or departs from [reference.md](reference.md).
 
 
-- **Not yet:** the whole document: `docs/examples/reference/settings.json` sets charters 5, 7, 2 and 8 whole, with text of their own, and template 4's work; its README's recipe delegates to charters 7 and 8; the tests that read it read its items' text.
+- **Not yet:** the whole document: `docs/examples/reference/settings.json` sets charters 5, 7, 2 and 8 whole, with text of their own, and template 4's work; its README's recipe delegates to charters 7 and 8; the tests that read it read its items' text [in flight: change 1416].
 - **Not yet:** the whole document: stage one's golden (`../../testing/README.md`, the
   reference's roles) names the deployment's two landing rules and not
   the case's project's rule 1, so a box Ask temper configures from the
