@@ -2269,6 +2269,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                     9 => "\"value\":\"reviews every change\"",
                     10 => "\"value\":{\"headline\":\"Our way\",\"lede\":\"We review every change.\"}",
                     11 => "\"design\":true,\"close_out\":true",
+                    12 => "\"owner\":{\"task\":42}",
+                    13 => "\"owner\":{\"charter\":14}",
                     _ => "\"ci\":false",
                 };
                 assert!(text.contains(expected), "{text}");
@@ -2351,6 +2353,8 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 9 => "reviews every change",
                 10 => "We review every change.",
                 11 => "\"design\":true,\"close_out\":true",
+                12 => "\"owner\":{\"task\":42}",
+                13 => "\"owner\":{\"charter\":14}",
                 _ => "\"ci\":false",
             };
             assert!(text.contains(expected), "{text}");
