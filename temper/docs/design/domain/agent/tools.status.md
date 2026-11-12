@@ -7,8 +7,6 @@
   `read_pull_files` take no `skip`, and a page the answer's bytes cut
   says no way on (`temper-engine-smith/src/calls.rs`, `src/answers.rs`)
   [in flight: change 161].
-- **Not yet:** the whole document, *A coordinator's task reads*, and 1, `after`: a run reads a task below its direct delegates for its result alone, and its requester's dependencies not at all (jig's `jig-domain-core`, `reads/run_task.rs`) [in flight: change 1493].
-- **Not yet:** the whole document, *A coordinator's task reads*: a live task's `field=result` read is refused as unknown, not answered with its specification and the line that its result comes when it ends (`temper-engine-smith/src/answers.rs`) [in flight: change 1496].
 - **Not yet:** the whole document: the stock charters (`chat.txt`, `../../../charters/stock/goal.md`)
   say sign-ins, machines and a plan's go-ahead always wait but name no
   kind for them, where this section has them `money` or `irreversible`;

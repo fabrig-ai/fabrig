@@ -4,7 +4,6 @@
 
 - **Not yet:** 1 and 2: a standing task's Now, its own scope, no contract and no transcript tail on a session's first run (`../tasks/standing.md`, sections 2 and 6) [in flight: change 107].
 - **Not yet:** 1.2: the waiting section's open questions, with their askers, numbers, words and answer form; nothing plans `Core::Waiting` yet [in flight: change 838].
-- **Not yet:** 2: a line write with `remove` 0 and `first` past lines + 1 is refused as past the end, not appended (`jig-domain-notes`'s `lines.rs`, `splice`) [in flight: change 1486].
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `README.status.md`, 4.2 and 5.3.
   1: the brief's lineage and calls sections, and the waiting section's proposals and escalations, which reach a run as inbox entries instead.  turn-call objects remain `executors.status.md`, 2.  the missing tools remain `executors.status.md`, 3.
