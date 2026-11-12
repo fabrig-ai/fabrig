@@ -4068,6 +4068,7 @@ dependencies = [
  "smith-agent-world",
  "smith-bench",
  "smith-events",
+ "smith-events-fixtures",
  "smith-fake-claude",
  "smith-hosts-world",
  "smith-local-process-world",
@@ -4099,6 +4100,13 @@ dependencies = [
  "smith-protocol-machine",
  "smith-protocol-program",
  "smith-protocol-translate",
+]
+
+[[package]]
+name = "smith-agent-document-fixtures"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -4163,11 +4171,27 @@ dependencies = [
  "smith-host-domain",
  "smith-protocol-channel",
  "smith-protocol-events",
+ "smith-protocol-events-fixtures",
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
  "smith-protocol-translate",
  "smith-transcript",
+]
+
+[[package]]
+name = "smith-agent-profile-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-channel",
+ "skein-lib",
+ "skein-llm",
+ "smith-agent-profile",
+ "smith-domain",
+ "smith-protocol-llm",
+ "smith-protocol-machine",
+ "smith-protocol-program",
+ "smith-protocol-translate",
 ]
 
 [[package]]
@@ -4184,14 +4208,16 @@ dependencies = [
  "skein-llm-connection",
  "skein-tls",
  "smith-agent-profile",
- "smith-agent-service",
+ "smith-agent-profile-fixtures",
  "smith-agent-world",
  "smith-channel",
  "smith-charter",
  "smith-domain",
  "smith-events",
+ "smith-events-fixtures",
  "smith-protocol-channel",
  "smith-protocol-events",
+ "smith-protocol-events-fixtures",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-protocol-machine",
@@ -4216,8 +4242,8 @@ dependencies = [
  "skein-shell",
  "skein-tls",
  "smith-agent-document",
+ "smith-agent-document-fixtures",
  "smith-agent-service",
- "smith-agent-shell",
  "smith-channel",
  "smith-charter",
  "smith-domain",
@@ -4271,11 +4297,23 @@ dependencies = [
  "skein-shell",
  "skein-world",
  "smith-agent-service",
- "smith-bench",
+ "smith-bench-fixtures",
  "smith-events",
+ "smith-events-fixtures",
  "smith-local-shell",
  "time",
  "toml",
+]
+
+[[package]]
+name = "smith-bench-fixtures"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-lib",
+ "smith-bench",
+ "smith-events",
+ "smith-events-fixtures",
 ]
 
 [[package]]
@@ -4330,6 +4368,7 @@ dependencies = [
  "smith-channel",
  "smith-charter",
  "smith-events",
+ "smith-events-fixtures",
  "smith-transcript",
  "smith-transcript-patches",
 ]
@@ -4372,6 +4411,13 @@ version = "0.0.0"
 dependencies = [
  "skein-json",
  "skein-lib",
+]
+
+[[package]]
+name = "smith-events-fixtures"
+version = "0.0.0"
+dependencies = [
+ "smith-events",
 ]
 
 [[package]]
@@ -4695,8 +4741,21 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "smith-events",
+ "smith-events-fixtures",
  "smith-protocol-llm",
  "smith-protocol-translate",
+]
+
+[[package]]
+name = "smith-protocol-events-fixtures"
+version = "0.0.0"
+dependencies = [
+ "skein-io",
+ "skein-lib",
+ "smith-domain",
+ "smith-events",
+ "smith-events-fixtures",
+ "smith-protocol-events",
 ]
 
 [[package]]
@@ -4751,7 +4810,9 @@ dependencies = [
  "smith-domain-session",
  "smith-domain-tools",
  "smith-events",
+ "smith-events-fixtures",
  "smith-protocol-events",
+ "smith-protocol-events-fixtures",
  "smith-protocol-llm",
  "smith-protocol-llm-fixtures",
  "smith-protocol-translate",

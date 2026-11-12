@@ -101,6 +101,18 @@ let c = other_layer::Limits { files: 2 };
 ''')
         self.assertEqual(totals['full_limits'], 1)
 
+    def test_smith_limits_exempt_fixture_definitions_but_count_readers_and_step_copies(self):
+        source = 'const SMALL: Limits = Limits { calls: 2 }; fn worst_case() {}'
+        fixture = self.count(source, 'testing/smith-protocol-llm-fixtures/src/lib.rs')
+        self.assertEqual(fixture['full_limits'], 0)
+        self.assertEqual(fixture['worst_case'], 1)
+        for name in ('tests/protocol-llm/src/fixture.rs',
+                     'crates/smith-protocol-llm/src/fixture.rs', 'testing_more/src/lib.rs'):
+            with self.subTest(name=name):
+                self.assertEqual(self.count(source, name)['full_limits'], 1)
+        inline = '#[cfg(test)] mod tests { ' + source + ' }'
+        self.assertEqual(self.count(inline, 'crates/smith-protocol-llm/src/lib.rs')['full_limits'], 1)
+
     def test_test_windows_in_files_and_inline_items(self):
         source = '''fn production() { bytes.windows(2); }
 #[cfg(test)] mod checks { #[test] fn check() { bytes.windows(2); } }
