@@ -5,9 +5,6 @@
 - **Not yet:** *A project's ways, the subject `ways`*: `WaysPanel`'s
   `rules`, a `PathRules` of `PathRule` rows, on the wire [in flight:
   change 871].
-- **Not yet:** *A project's ways, the subject `ways`*: its rules by path
-  filled from the derivation, and the document marked at any person's
-  role change in the project [in flight: change 872].
 - **Not yet:** *`SetDraft`* and *A project's landed drafts, the subject
   `drafts`*: no such request, outcome, subject or panel on the wire
   [in flight: change 662].
