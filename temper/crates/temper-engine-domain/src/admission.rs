@@ -150,6 +150,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StepChange { .. }
             | forge::Event::SavedWork { .. }
             | forge::Event::Closer { .. }
+            | forge::Event::CloserRelayed { .. }
             | forge::Event::ReadCloserSelection { .. }
             | forge::Event::CheckCloser { .. }
             | forge::Event::ChangeEnding { .. }

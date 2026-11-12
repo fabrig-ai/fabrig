@@ -119,6 +119,7 @@ pub struct Domain {
     pub(crate) forge_effects: Map<Token, forge_route::EffectFlight>,
     pub(crate) next_effect_owner: u64,
     pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
+    pub(crate) closer_steps: Map<(u64, u64), forge_route::CloserStep>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
     pub(crate) loads: loads::Loads,
     pub(crate) hub_link: jig_domain_hub_link::Link,
@@ -591,6 +592,7 @@ impl Domain {
                 limits.forge.judge_projects.checked_mul(limits.forge.follows).expect("follow capacity"),
             ),
             forge_delegating: Map::with_capacity(limits.forge.changes),
+            closer_steps: Map::with_capacity(limits.tasks.tasks),
             loads: loads::Loads::new(&limits.loads),
             hub_link: jig_domain_hub_link::Link::new(
                 jig_domain_hub_link::Limits {

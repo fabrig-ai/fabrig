@@ -471,8 +471,8 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
                 answer: jig_domain_core::SettledAnswer::Host { error, body },
             }));
         }
-        root::HostDelivery::Render { to, answer, tool, key, job, page, .. } => {
-            render_host(engine, to, &answer, &tool, key, job, page);
+        root::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {
+            render_host(engine, to, &answer, &tool, key, job, page, ask);
         }
         root::HostDelivery::Answer { channel, task, attempt, name, call } => engine.workers.send(
             engine.env.now,
@@ -489,6 +489,7 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
     }
 }
 
+#[expect(clippy::too_many_arguments, reason = "root rendering carries HOW beside the stored decision and read context")]
 fn render_host(
     engine: &mut Engine,
     to: skein_lib::ReplyTo,
@@ -497,6 +498,7 @@ fn render_host(
     key: jig_domain_core::CallKey,
     job: Option<skein_forge::api::JobAttempt>,
     page: Option<(u32, u32)>,
+    ask: root::AskHow,
 ) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
@@ -513,6 +515,7 @@ fn render_host(
         },
         job,
         page,
+        ask,
     ));
     if let Some(reason) = temper_engine_smith::unasked_kind(answer) {
         engine.notes.push(crate::Note::ReadRefused {

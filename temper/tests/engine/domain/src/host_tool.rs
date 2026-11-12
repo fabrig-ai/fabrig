@@ -85,7 +85,9 @@ fn render(driver: &mut Driver, to: ReplyTo, body: engine::Call, name: &[u8], too
         assert_eq!(rendered_name.as_ref(), name);
         let (_, answer) = driver.protocol.answers.last().expect("typed answer");
         let maximum = driver.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("tool name"));
-        let answer = if let Some((page, skip)) = driver.protocol.read_pages.get(&rendered_name) {
+        let answer = if let Some(ask) = driver.protocol.asks.get(&rendered_name) {
+            temper_engine_smith::answer_for_decided(answer, *ask)
+        } else if let Some((page, skip)) = driver.protocol.read_pages.get(&rendered_name) {
             temper_engine_smith::answer_for_page(
                 answer,
                 tool,
