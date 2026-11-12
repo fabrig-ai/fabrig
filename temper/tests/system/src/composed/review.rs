@@ -8,6 +8,7 @@ use temper_engine_domain_forge_change as change;
 fn config(seed: u64) -> engine::Config {
     let mut config = agreement::config(seed);
     let rule = engine::LandingRule {
+        sets: Box::new([]),
         connector: 0,
         kind: 4,
         enforce: true,
@@ -36,7 +37,7 @@ impl World {
             ]),
         };
         let producer = Script {
-            cue: b"Read only what the change needs".as_slice().into(),
+            cue: b"Run only what your change needs".as_slice().into(),
             turns: Box::new([
                 call(b"write", br#"{"path":"export.csv","content":"fruit,count\n"}"#),
                 call(b"finish", br#"{"title":"Add CSV export","body":"Add the header."}"#),

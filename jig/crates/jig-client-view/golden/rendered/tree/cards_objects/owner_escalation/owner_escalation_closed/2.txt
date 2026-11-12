@@ -390,3 +390,27 @@
     Permanent failure
     Reason: whole offered failure
     At 23:34
+    Release
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34
+    Leave it held
+    The hold or its reason changed
+    Current revision 18446744073709551615
+    Held: out of tries
+    Attempt 0
+    Host lost
+    Reason: whole offered failure
+    At 01:00
+    Attempt 18446744073709551615
+    Permanent failure
+    Reason: whole offered failure
+    At 23:34

@@ -130,6 +130,9 @@ pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> 
         }
         domain::Outcome::Proposed { proposal, to } => encode_proposed(*proposal, *to, limits)?,
         domain::Outcome::Withdrawn { proposal } => encode_withdrawn(*proposal, limits)?,
+        domain::Outcome::Left { task } => {
+            wire::Outcome::Left(wire::OutcomeStopped::new(limits, wire::OutcomeStoppedParts { task: *task })?)
+        }
         domain::Outcome::Stopped { task } => {
             wire::Outcome::Stopped(wire::OutcomeStopped::new(limits, wire::OutcomeStoppedParts { task: *task })?)
         }
@@ -287,6 +290,7 @@ pub(super) fn decode_outcome(value: wire::Outcome) -> domain::Outcome {
             domain::Outcome::Proposed { proposal, to }
         }
         wire::Outcome::Withdrawn(value) => domain::Outcome::Withdrawn { proposal: value.into_parts().proposal },
+        wire::Outcome::Left(value) => domain::Outcome::Left { task: value.task() },
         wire::Outcome::Stopped(value) => {
             let wire::OutcomeStoppedParts { task } = value.into_parts();
             domain::Outcome::Stopped { task }

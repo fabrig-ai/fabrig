@@ -216,6 +216,7 @@ pub(crate) fn limits() -> Limits {
             plan: 128,
             notes: 64,
             preferences: 64,
+            now: 64,
         },
         accounts: accounts::Limits {
             accounts: 1,
@@ -382,6 +383,7 @@ fn scripted_model() -> Model {
         endpoint: 1,
         program: None,
         name: b"scripted".as_slice().into(),
+        cache_life_ms: 0,
         window: 8192,
         output: 1024,
         input_price: 1,
@@ -455,7 +457,13 @@ pub(crate) fn config(seed: u64) -> Config {
         }]),
         connectors: Box::new([1, 2]),
         settings: Settings {
-            endpoints: Box::new([EndpointFacts { providers: Box::new([1]), number: 1, dialect: 3, program: None }]),
+            endpoints: Box::new([EndpointFacts {
+                direct: Box::new([]),
+                providers: Box::new([1]),
+                number: 1,
+                dialect: 3,
+                program: None,
+            }]),
             deployment_provider: 3,
             models: Box::new([scripted_model()]),
             resume_bytes: 256,
@@ -1555,6 +1563,7 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,
             account: None,

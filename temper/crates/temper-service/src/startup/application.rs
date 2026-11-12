@@ -214,6 +214,18 @@ fn configured_limits(
         object.finish(document, &path, &mut found);
         problems.append(found, &Path::root());
     }
+    // Both runtime startup and offline store readers pass here before sizing the store.
+    let bound = temper_protocol_store::forge_changes_bound().expect("schema tier rows hold at least one landing");
+    if limits.forge.changes > bound {
+        problems.push(
+            super::checks::own(b"forge.changes"),
+            What::Half(crate::startup::EngineWhat::TierChanges {
+                count: limits.forge.changes,
+                bound,
+                ceiling: temper_protocol_store::tier_landings_ceiling(),
+            }),
+        );
+    }
     // Pass the resolved client capacity once, including the profile default.
     handed
         .push((bytes::copy_of(b"forge.client.repositories"), u64::from(limits.forge.client.repositories)))
@@ -270,45 +282,6 @@ fn workers(
     }
     workers
 }
-pub(super) fn worker_alone(
-    document: &Document,
-    at: u32,
-    directories: &config::Directories,
-    problems: &mut Problems,
-) -> Option<(Worker, limits::Limits)> {
-    let path = Path::root().member(b"application");
-    let mut object = read::object(document, at, "application", &path, problems)?;
-    let ats = read::list(&mut object, document, b"workers", document.len(), &path, problems);
-    if match &ats {
-        Some(ats) => ats.len() != 1,
-        None => false,
-    } {
-        problems.push(path.member(b"workers"), What::WorkerAlone);
-    }
-    let worker = workers(document, ats, document.len(), directories, &path, problems).into_boxed().into_iter().next();
-    let mut overrides = List::with_capacity(document.len());
-    let limits = match read::required(&mut object, document, b"limits", &path, problems) {
-        Some(at) => configured_limits(document, at, &path.member(b"limits"), problems, &mut overrides),
-        None => None,
-    };
-    if let Some(limits) = limits {
-        super::checks::limits(&limits, &limits.git_component, problems);
-        let bounds = temper_protocol_worker_wire::Bounds {
-            repositories: limits.checkout.repositories,
-            name_bytes: limits.checkout.name_bytes,
-            remote_bytes: limits.checkout.name_bytes,
-            conflicts: limits.checkout.conflicts,
-            path_bytes: limits.checkout.path_bytes,
-            token_bytes: temper_protocol_worker_wire::v1::CEILINGS.token_token,
-            entries: limits.forges.installations,
-            entry_token_bytes: limits.forge_component.token_bytes,
-            text_bytes: temper_protocol_worker_wire::v1::CEILINGS.identity_name,
-        };
-        super::checks::channel(None, Some(&bounds), None, &limits, problems);
-    }
-    super::finish_shape(document, object, &path, problems);
-    Some((worker?, limits?))
-}
 fn webhooks(document: &Document, at: Option<u32>, path: &Path, problems: &mut Problems) -> Option<Webhooks> {
     let at = at?;
     if document.token(at)?.kind == Kind::Null {
@@ -337,7 +310,7 @@ pub fn parse(
     let bounds = limits.unwrap_or(limits::profile(limits::Profile::Small));
     let workers_ats = read::list(&mut object, document, b"workers", jig.limits.core.fleet.workers, &path, problems);
     if object.member(document, b"charter").is_some() {
-        problems.push(path.member(b"charter"), What::CharterStored);
+        problems.push(path.member(b"charter"), What::Half(crate::startup::EngineWhat::CharterStored));
     }
     let clients_at = read::required(&mut object, document, b"clients", &path, problems);
     let clients = match clients_at {
@@ -389,7 +362,10 @@ pub fn parse(
             problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Jig(config::What::Refers));
         }
         if sign_in.is_some() {
-            problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::BoxSignIn);
+            problems.push(
+                path.member(b"machine").member(b"owned").member(b"sign_in"),
+                What::Half(crate::startup::EngineWhat::BoxSignIn),
+            );
         }
     }
     if let Some(sign_in) = &sign_in {

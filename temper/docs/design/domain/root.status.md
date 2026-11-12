@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-10. Where temper's code lags or departs from [root.md](root.md).
+2026-11-12. Where temper's code lags or departs from [root.md](root.md).
 
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past
@@ -128,7 +128,7 @@ LINKED`, as for every link jig's start cannot make
   step 3 refuses the start naming the record and what it links to, as
   jig's children's do
   (`temper-engine-domain-forge/src/reconcile.rs`, `reconcile`;
-  `missing_link` already finds the link). The request
+  `missing_link` already finds the link). Serve retains its fail-stop report and backtrace. The request
   `store-crash-safe` of 2026-11-09 asks that a store failing a link
   check at start stop with a reason, not a panic; its plan built that
   in jig alone.

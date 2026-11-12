@@ -333,6 +333,14 @@ fn a_document_is_held_to_its_length_whitespace_and_all() {
 }
 
 #[test]
+fn delivered_count_includes_the_scan_past_length() {
+    let limits = Limits { length: 6, chunk: 4, ..LIMITS };
+    let mut feed = super::super::tokenizer::Feed::new(b"\"abcdef\"", &limits);
+    assert_eq!(feed.answer(Request::Next), Event::Failed(Error::TooLong));
+    assert_eq!(feed.delivered(), 8, "the rejected scan includes the closing quote");
+}
+
+#[test]
 fn numbers_are_held_to_their_limit() {
     let limits = Limits { number: 3, ..LIMITS };
     assert_eq!(

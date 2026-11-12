@@ -1,6 +1,6 @@
-//! What the checkout asks of io (domain/worker.md, 9): git and file
+//! What the checkout asks of io (domain/worker/README.md, 8): git and file
 //! operations on the worker's disk. The protocol layer runs each as one
-//! contained git invocation, or one file operation, and parses what it says
+//! fixed sequence of contained git invocations and file operations, and parses what it says
 //! into one terminal ([`Done`]); the domain never parses.
 //!
 //! A workspace is a directory io names by the workspace's token. Its
@@ -60,17 +60,26 @@ pub struct Place {
 pub enum Op {
     /// Make the workspace's directory empty: rename the old tree aside
     /// into trash, make it afresh, and sweep the old tree later.
-    Make { workspace: Token },
+    Make { workspace: Token, stores: Box<[Token]> },
+    /// Make a bare object store whole before moving it into place (protocol/git.md, 4.11).
+    Store {
+        store: Token,
+        aside: Option<Token>,
+        remote: Box<[u8]>,
+        identity: u32,
+        account: Option<u64>,
+        git: Option<Box<[u8]>>,
+    },
     /// Whether the directory holds a clone of remote. Local and read-only; ends Looked.
     Look { at: Place, remote: Box<[u8]> },
-    /// Clone the repository at `remote` on the forge into its directory, which
-    /// does not exist yet, without checking a tree out. Fails `Missing` if the
-    /// forge has no such repository.
-    Clone { at: Place, remote: Box<[u8]>, identity: u32, account: Option<u64> },
-    /// Fetch `want` from the repository at `remote` into the repository. Ends
+    /// Make an empty repository borrowing its store, without reaching the forge.
+    Clone { at: Place, remote: Box<[u8]>, store: Token },
+    /// Fetch `want` into the store and point the repository at it. Ends
     /// in `Fetched`, or fails `Missing` if the forge has no such branch or
     /// commit, or no default branch.
-    Fetch { at: Place, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
+    Fetch { at: Place, store: Token, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
+    /// Point a repository reference at a commit already present. Ends in `Succeeded`.
+    Point { at: Place, into: Into, commit: Commit },
     /// Create `branch` on the forge at `commit`, only if it does not exist:
     /// a branch that does is left where it is, and the operation ends in
     /// `Exists`.
@@ -167,7 +176,7 @@ pub enum Done {
     /// Merge left conflicts, or a merge commit refused remaining markers.
     /// Paths are bounded by the checkout's conflict/path limits.
     Conflicted { files: Box<[Box<[u8]>]> },
-    /// `Make`, `Clone`, `Create`, `CheckOut`, `Push`: done as asked.
+    /// `Make`, `Store`, `Clone`, `Create`, `CheckOut`, `Push`: done as asked.
     Succeeded,
     /// `Fetch`: what was asked for is at `commit`, now in the repository.
     Fetched { commit: Commit },
@@ -189,13 +198,13 @@ pub enum Done {
 /// Why an operation failed.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Fault {
-    /// `Clone`, `Fetch`, `Create`, `Push`: the forge has no such repository;
+    /// `Store`, `Fetch`, `Create`, `Push`: the forge has no such repository;
     /// Fetch may also name a branch or commit the forge lacks.
     Missing { missing: Missing },
-    /// `Clone`, `Fetch`, `Create`, `Push`: the forge refused: the identity's
+    /// `Store`, `Fetch`, `Create`, `Push`: the forge refused: the identity's
     /// credentials or permissions, a protected branch, a hook.
     Refused,
-    /// `Clone`, `Fetch`, `Create`, `Push`: the forge could not be reached or failed.
+    /// `Store`, `Fetch`, `Create`, `Push`: the forge could not be reached or failed.
     Unreachable,
     /// Something failed on the worker's side: the disk, or git itself.
     Broken,
@@ -206,7 +215,7 @@ pub enum Fault {
 }
 
 impl Fault {
-    /// Closed fault words for operator diagnostics (temper/docs/design/domain/worker.md, 4.4).
+    /// Closed fault words for operator diagnostics (temper/docs/design/domain/worker/jobs.md).
     #[must_use]
     pub const fn name(self) -> &'static [u8] {
         match self {
@@ -233,10 +242,12 @@ pub enum Missing {
 /// An operation's kind, for the facts.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
+    Store,
     Look,
     Make,
     Clone,
     Fetch,
+    Point,
     Create,
     CheckOut,
     Merge,
@@ -250,10 +261,12 @@ impl Op {
     #[must_use]
     pub const fn kind(&self) -> Kind {
         match self {
+            Op::Store { .. } => Kind::Store,
             Op::Make { .. } => Kind::Make,
             Op::Look { .. } => Kind::Look,
             Op::Clone { .. } => Kind::Clone,
             Op::Fetch { .. } => Kind::Fetch,
+            Op::Point { .. } => Kind::Point,
             Op::Create { .. } => Kind::Create,
             Op::CheckOut { .. } => Kind::CheckOut,
             Op::Merge { .. } => Kind::Merge,
@@ -268,9 +281,11 @@ impl Op {
     #[must_use]
     pub const fn is_remote(&self) -> bool {
         match self {
-            Op::Clone { .. } | Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
+            Op::Store { .. } | Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
             Op::Commit { snapshot, .. } => snapshot.is_some(),
-            Op::Look { .. }
+            Op::Point { .. }
+            | Op::Clone { .. }
+            | Op::Look { .. }
             | Op::IsAncestor { .. }
             | Op::DiffPaths { .. }
             | Op::Make { .. }

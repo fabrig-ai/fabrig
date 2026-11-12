@@ -94,6 +94,7 @@ fn an_agent_finish_waits_for_live_delegates_unless_it_cancels_them() {
         assert!(made.iter().any(|request| if let Request::Made { .. } = request { true } else { false }));
         h.send(Event::Prepare { reply_to: to(), task: 1 });
         h.send(Event::Claim {
+            session_end: None,
             reply_to: to(),
             task: 1,
             attempt: 1,

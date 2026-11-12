@@ -131,6 +131,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
         | people::Outcome::ServiceMade { .. }
         | people::Outcome::Proposed { .. }
         | people::Outcome::Withdrawn { .. }
+        | people::Outcome::Left { .. }
         | people::Outcome::Stopped { .. }
         | people::Outcome::Cancelled { .. }
         | people::Outcome::Released { .. }
@@ -165,6 +166,7 @@ fn acted(domain: &mut Domain, key: forge::MakingKey, outcome: people::Outcome) {
 }
 fn refusal_words(why: people::Refusal) -> Box<[u8]> {
     let words = match why {
+        people::Refusal::LiveTasks { .. } => unreachable!("only an owner's RemoveProject refuses live tasks"),
         people::Refusal::NotOffered => b"the forge connector is not granted adopt (engine.acts)".as_slice(),
         people::Refusal::Role { held: None } => b"adopt has no configured first owner",
         people::Refusal::Role { held: Some(_) } => b"adopt lacks the required role",

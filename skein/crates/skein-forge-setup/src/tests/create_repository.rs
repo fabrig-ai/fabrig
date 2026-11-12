@@ -40,13 +40,13 @@ fn repository_creation_returns_the_decoded_document_through_the_shared_transport
     let head = format!("HTTP/1.1 201 Created\r\nContent-Length: {}\r\n\r\n", body.len());
     assert_eq!(
         answering(connection(), head.as_bytes(), body).result,
-        Some(Reply::Document(Document::CreatedRepository(CreatedRepository {
+        Some(Reply::Document(Box::new(Document::CreatedRepository(CreatedRepository {
             id: 1,
             full_name: Box::from(*b"creation/starter"),
             default_branch: Box::from(*b"main"),
             clone_url: Box::from(*b"http://h/r.git"),
             ssh_url: Box::from(*b"ssh://h/r.git"),
-        })))
+        }))))
     );
 }
 #[test]

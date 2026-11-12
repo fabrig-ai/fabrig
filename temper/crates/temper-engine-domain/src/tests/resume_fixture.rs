@@ -196,6 +196,7 @@ pub fn limits() -> engine::Limits {
                 plan: 128,
                 notes: 64,
                 preferences: 64,
+                now: 64,
             },
             brief_bytes: 384,
             gather: Duration::from_secs(1),
@@ -267,7 +268,7 @@ pub fn config(seed: u64) -> engine::Config {
     config_with_project_room(seed, 1)
 }
 
-#[expect(clippy::too_many_lines, reason = "the fixture supplies the whole root configuration, including push off")]
+#[expect(clippy::too_many_lines, reason = "the configuration fixture spells out required settings and endpoint facts")]
 pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
     let ceiling = authority_value(1000, Box::new([authority::Executor::Charter(1)]));
     let rules = authority::Rules {
@@ -325,6 +326,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
             },
             settings: jig_domain_core::Settings {
                 endpoints: Box::new([jig_domain_core::EndpointFacts {
+                    direct: Box::new([]),
                     providers: Box::new([]),
                     number: 1,
                     dialect: 1,
@@ -427,6 +429,7 @@ pub fn charter() -> engine::Charter {
                 dialect: 1,
                 endpoint: 1,
                 name: b"scripted".as_slice().into(),
+                cache_life_ms: 0,
                 window: 1024,
                 output: 1024,
                 input_price: 1,
@@ -514,6 +517,16 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
     decided_per_project: 64,
     judge_criteria: 8,
     landing_rules: 4,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 8,
+    follow_queue: 16,
+    follow_merge: 8,
+    follow_commits: 8,
+    follow_files: 32,
+    follow_message_bytes: 512,
+    follow_skips: 8,
+    follow_reason_bytes: 256,
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
@@ -529,6 +542,7 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
         interval: Duration::from_secs(5),
     },
     change_policy: temper_engine_domain_forge_change::Limits {
+        reruns: 1,
         repairs: 3,
         resolutions: 3,
         updates: 3,

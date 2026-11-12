@@ -38,7 +38,6 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             }
             out.string(match value.route() {
                 w::QuestionsRoute::None => b"none",
-                w::QuestionsRoute::Foreman => b"foreman",
                 w::QuestionsRoute::Up => b"up",
             });
         }
@@ -127,5 +126,13 @@ fn render_rule(value: &w::LandingRule, out: &mut Encoder) {
         out.object_end();
     }
     out.array_end();
+    if !value.sets().is_empty() {
+        out.key(b"sets");
+        out.array_start();
+        for set in value.sets() {
+            out.unsigned(u64::from(*set));
+        }
+        out.array_end();
+    }
     out.object_end();
 }

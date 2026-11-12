@@ -31,6 +31,8 @@ pub(crate) fn yield_for_run(domain: &mut Domain, env: &Env<Limits>, task: u64, o
     publish(domain, env, closer, out);
 }
 
+/// Funds returned to an idle closer make it due, even when none remain
+/// (jig/docs/design/domain/tasks/lifecycle.md, 11, Its funds follow its task's runs).
 pub(crate) fn take_available(domain: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     let Some(row) = record(domain, task) else { return };
     if row.phase != Phase::Active(Active::Idle) && row.phase != Phase::Waiting {
@@ -42,23 +44,26 @@ pub(crate) fn take_available(domain: &mut Domain, env: &Env<Limits>, task: u64, 
         Phase::Closing(_) | Phase::Held { was: Was::Closing(_), .. } | Phase::Ended(_) => true,
         Phase::Waiting | Phase::Active(_) | Phase::Held { was: Was::Waiting | Was::Active(_), .. } => false,
     };
-    if left == 0 || closing {
+    if closing {
         return;
     }
-    let budget = record(domain, closer)
-        .expect("live closer")
-        .numbers
-        .budget
-        .checked_add(left)
-        .expect("closer within its task's budget");
-    crate::funders::resize(domain, env, closer, budget, out);
-    publish(domain, env, closer, out);
+    if left > 0 {
+        let budget = record(domain, closer)
+            .expect("live closer")
+            .numbers
+            .budget
+            .checked_add(left)
+            .expect("closer within its task's budget");
+        crate::funders::resize(domain, env, closer, budget, out);
+        publish(domain, env, closer, out);
+    }
+    crate::domain::wake_procedure(domain, env, closer, out);
 }
 
 pub(crate) fn named(row: &crate::TaskRecord) -> bool {
     match row.flags.ended_by {
         EndedBy::Closer(_) => true,
-        EndedBy::Result | EndedBy::Requester => false,
+        EndedBy::Result | EndedBy::Requester | EndedBy::Standing => false,
     }
 }
 
@@ -76,7 +81,7 @@ pub(crate) fn make(domain: &mut Domain, env: &Env<Limits>, task: u64, number: u6
     }
     let closer = match row.flags.ended_by {
         EndedBy::Closer(closer) => closer,
-        EndedBy::Result | EndedBy::Requester => return,
+        EndedBy::Result | EndedBy::Requester | EndedBy::Standing => return,
     };
     let Some(spend) = crate::funders::available(row.numbers) else {
         refused(domain, env, task, Hold::Budget, out);

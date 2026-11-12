@@ -17,6 +17,13 @@ pub struct ActivityLine {
 /// Ordered semantic activity; larger retained records are loaded by their exact identity.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Line {
+    TalkOpened {
+        party: u64,
+    },
+    TalkEnded {
+        party: u64,
+        lapsed: bool,
+    },
     Words {
         message: u64,
         by: Party,
@@ -52,6 +59,18 @@ pub enum Line {
     Milestone {
         position: u64,
     },
+    NowWritten {
+        attempt: u64,
+        line: Box<[u8]>,
+    },
+    Stood {
+        attempt: u64,
+        words: Box<[u8]>,
+    },
+    SessionEnded {
+        attempt: u64,
+        end: crate::SessionEnd,
+    },
     /// The run finished done while its task was kept, and parked: the
     /// dependencies it waits for, at most `Limits.dependencies`
     /// (domain/tasks/lifecycle.md, 8; domain/engine/executors.md).
@@ -61,6 +80,12 @@ pub enum Line {
         question: Option<u64>,
     },
 }
+
+/// Maximum bytes retained from a standing run's result (jig/docs/design/domain/tasks/standing.md, 7).
+pub const STOOD_WORDS: u32 = 512;
+
+/// Maximum bytes retained from a Now's first line (jig/docs/design/domain/tasks/standing.md, 7).
+pub const NOW_LINE: u32 = 512;
 
 /// Which proposal a decision line names, and whether it records its making.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -108,6 +133,25 @@ pub(crate) fn append(task: &mut TaskRecord, at: Wall, line: Line, out: &mut Queu
     });
 }
 
+pub(crate) fn now_written(
+    domain: &mut crate::Domain,
+    env: &skein_lib::Env<crate::Limits>,
+    number: u64,
+    attempt: u64,
+    line: &[u8],
+    out: &mut Queue<Request>,
+) {
+    let Some(task) = crate::domain::task_mut(domain, number) else { return };
+    if task.record.flags.ended_by != crate::EndedBy::Standing
+        || crate::run::run_attempt(&task.record.phase) != Some(attempt)
+    {
+        return;
+    }
+    let line = Box::from(skein_lib::bytes::utf8_prefix(line, skein_lib::length::usize_of(NOW_LINE)));
+    append(&mut task.record, env.wall, Line::NowWritten { attempt, line }, out);
+    crate::domain::publish(domain, env, number, out);
+}
+
 pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32, out: &mut Queue<Request>) {
     let line = match word.kind.family() {
         MessageFamily::Spoken(_) => {
@@ -130,7 +174,9 @@ pub fn line_bytes_limit(limits: &crate::Limits) -> Option<u64> {
         .checked_mul(u64::try_from(size_of::<crate::ResultField>()).ok()?)?
         .checked_add(u64::from(limits.message_bytes.max(limits.result_bytes)))?;
     let notice = len_u64(crate::run::NOTHING_AWAITED_WORDS.len());
-    u64::try_from(size_of::<ActivityLine>()).ok()?.checked_add(caller.max(notice))
+    u64::try_from(size_of::<ActivityLine>())
+        .ok()?
+        .checked_add(caller.max(notice).max(u64::from(STOOD_WORDS)).max(u64::from(NOW_LINE)))
 }
 
 /// Whole-decision line ceiling: admission, decisions and lifecycle cascades,

@@ -354,7 +354,7 @@ pub static SHAPES: [Shape; 65] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 275] = [
+pub static MEMBERS: [Member; 277] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -789,6 +789,15 @@ pub static MEMBERS: [Member; 275] = [
     },
     Member {
         shape: "model",
+        name: "cache_life_ms",
+        kind: "integer",
+        bound: "0 to 4294967295 milliseconds",
+        required: false,
+        line: "Gives the prompt cache life in milliseconds, zero or absent for none.",
+        gone: None,
+    },
+    Member {
+        shape: "model",
         name: "window",
         kind: "integer",
         bound: "0 to 4294967295 tokens",
@@ -929,6 +938,15 @@ pub static MEMBERS: [Member; 275] = [
         bound: "4096 bytes; a configured endpoint name",
         required: false,
         line: "Names the endpoint its added models take.",
+        gone: None,
+    },
+    Member {
+        shape: "llm-provider",
+        name: "direct",
+        kind: "text",
+        bound: "4096 bytes; program-free endpoint of the same dialect; requires program endpoint and sign-in or key",
+        required: false,
+        line: "Names the direct endpoint its sign-ins, keys and list reads take.",
         gone: None,
     },
     Member {
@@ -1736,9 +1754,9 @@ pub static MEMBERS: [Member; 275] = [
         shape: "template",
         name: "ended_by",
         kind: "text or object",
-        bound: "result, requester or closer",
+        bound: "result, requester, standing or closer",
         required: false,
-        line: "Chooses whether a result, the requester or a closer ends the task, defaulting to result.",
+        line: "Chooses result, requester, closer or standing ending authority, defaulting to result.",
         gone: None,
     },
     Member {

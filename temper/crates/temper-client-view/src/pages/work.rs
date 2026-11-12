@@ -13,7 +13,7 @@ use temper_client_domain::{
     pages::{
         Act,
         changes::State,
-        work::{self, Item, Work},
+        work::{self, Item, Landed, Work},
     },
 };
 use temper_client_protocol_wire::v1 as w;
@@ -57,10 +57,24 @@ pub(crate) fn main(
             b.close();
             b.open(Role::List);
             b.style(look::WORK_ROWS);
-            for task in &placed.landed {
-                landed(b, root, words, bindings, times, *task);
+            for row in &placed.landed {
+                landed(b, root, words, bindings, times, row);
             }
             b.close();
+            if placed.goal_branches > 0 {
+                let line = if placed.goal_branches == 1 {
+                    words.say(Word::WorkGoalBranchOne, &[])
+                } else {
+                    words.say(
+                        Word::WorkGoalBranchMany,
+                        &[Hole::Name(super::goals::lowercase(&super::changes::count_named(
+                            u64::from(placed.goal_branches),
+                            words,
+                        )))],
+                    )
+                };
+                text(b, Role::Paragraph, look::WORK_BYLINE, &line);
+            }
             b.close();
         }
     }
@@ -255,6 +269,7 @@ fn card_view(
         Item::Change(task) => change(b, root, words, bindings, task),
         Item::Chat(task) => chat(b, root, words, bindings, times, task, false),
         Item::Draft(task) => chat(b, root, words, bindings, times, task, true),
+        Item::Landed(index) => landed_draft(b, root, words, bindings, times, project, index),
     }
     if !card.changes.is_empty() {
         b.open(Role::List);
@@ -393,6 +408,92 @@ fn chat(
         linked_from(b, words, bindings, Word::WorkChatTag, look::WORK_PERSON, &label, Address::Chat { task }, &[]);
     }
 }
+fn landed_draft(
+    b: &mut Builder,
+    root: &Domain,
+    words: &Words,
+    bindings: &mut Bindings,
+    times: &mut Times,
+    project: u32,
+    index: u32,
+) {
+    let Some(page) = root.pages().drafts() else { return };
+    let temper_client_domain::pages::drafts::State::Shown(panel) = page.state() else { return };
+    let Some(row) = panel.drafts().get(index) else { return };
+    let file = temper_client_domain::pages::goal::file_of(row.path());
+    let dir = row.path().strip_suffix(file).expect("file is the last segment");
+    let dir = if dir.is_empty() { crate::accounts::words::join(&[row.name(), b"/"]) } else { dir.into() };
+    b.open(Role::Paragraph);
+    b.style(look::WORK_FROM);
+    text(b, Role::Text, look::WORK_PERSON, &words.say(Word::WorkDraftTag, &[]));
+    separated(b, words, file);
+    separated(b, words, &words.say(Word::WorkLandedIn, &[Hole::Name(dir)]));
+    separated(
+        b,
+        words,
+        &words.say(Word::WorkReadySince, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(row.at())))]),
+    );
+    b.close();
+    if !row.title().is_empty() {
+        text(b, Role::Paragraph, look::WORK_QUOTE, row.title());
+    }
+    let Some(me) = root.pages().me(root.client()) else { return };
+    let ways = super::goals::ways(me, project, words);
+    if ways.is_empty() {
+        return;
+    }
+    let configured = root.forge().ways(project);
+    let mut recommended = None;
+    for way in &ways {
+        if let Some(configured) = configured
+            && configured.way == way.number
+        {
+            recommended = Some(way);
+        }
+    }
+    let draft = work::LandedDraft::row(row);
+    b.open(Role::Slot);
+    b.style(look::WORK_CHOICES);
+    match recommended {
+        Some(way) => {
+            let label = words.say(Word::WorkStartWay, &[Hole::Name(way.name.clone())]);
+            let project = super::project_name(Some(me), project)
+                .unwrap_or(words.say(Word::Project, &[Hole::Number(u64::from(project))]));
+            let small = words.say(Word::WorkProjectWay, &[Hole::Name(project)]);
+            match words.shell {
+                Shell::Browser => draft_choice(b, bindings, &label, Some(&small), draft.clone(), true, true),
+                Shell::Terminal => {
+                    draft_choice(b, bindings, &label, None, draft.clone(), true, true);
+                    text(b, Role::Text, look::WORK_WAY, &small);
+                }
+            }
+            draft_choice(b, bindings, &words.say(Word::WorkAnotherWay, &[]), None, draft, false, false);
+        }
+        None => draft_choice(b, bindings, &words.say(Word::WorkStartGoal, &[]), None, draft, false, true),
+    }
+    b.close();
+}
+fn draft_choice(
+    b: &mut Builder,
+    bindings: &mut Bindings,
+    label: &[u8],
+    small: Option<&[u8]>,
+    draft: work::LandedDraft,
+    start: bool,
+    recommended: bool,
+) {
+    b.open(Role::Button);
+    b.style(look::WORK_CHOICE);
+    if recommended {
+        b.style(look::WORK_RECOMMENDED);
+    }
+    b.name(label);
+    b.bind(bindings.insert(Act::OpenLanded { draft, start }));
+    if let Some(small) = small {
+        text(b, Role::Text, look::WORK_WAY, small);
+    }
+    b.close();
+}
 fn chat_line(root: &Domain, task: u64) -> Option<&c::TaskLine> {
     let chats = root.pages().chats()?;
     for line in &chats.live(root.client())?.rows {
@@ -457,26 +558,48 @@ fn change_row(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bind
         }
     }
 }
-fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times, task: u64) {
+fn landed(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, times: &mut Times, row: &Landed) {
     let Some(panel) = panel(root) else { return };
-    for change in panel.landed() {
-        if change.task() != task {
+    for change in panel.landed_default() {
+        if change.task() != row.change {
             continue;
         }
-        let when = times.say(words, TimeForm::Clock, Wall::from_nanos(change.at()));
+        let when = times.say(words, TimeForm::Clock, row.at);
         let origin = match root.pages().changes() {
-            Some(page) => page.from(root.client(), task),
+            Some(page) => page.from(root.client(), row.change),
             None => None,
         };
-        let from = match origin {
-            Some(temper_client_domain::pages::changes::From::Goal(title)) => title.into(),
-            Some(temper_client_domain::pages::changes::From::Chat(_)) => words.say(Word::WorkAChatWithYou, &[]),
-            None => Box::default(),
+        let (task, title) = match row.item {
+            Item::Goal(goal) => {
+                let title = match origin {
+                    Some(temper_client_domain::pages::changes::From::Goal(title)) => title,
+                    Some(temper_client_domain::pages::changes::From::Chat(_)) | None => change.title(),
+                };
+                (goal, title)
+            }
+            Item::Change(task) => (task, change.title()),
+            Item::Chat(_) | Item::Draft(_) | Item::Landed(_) => unreachable!("landed rows are goals or changes"),
         };
-        work_row(b, words, bindings, task, &when, change.title(), &from);
+        let commit = crate::public::short(&row.commit);
+        let status = match origin {
+            Some(temper_client_domain::pages::changes::From::Chat(_)) if row.item == Item::Change(row.change) => {
+                crate::accounts::words::join(&[
+                    &words.say(Word::WorkAChatWithYou, &[]),
+                    &words.say(Word::ToolSeparator, &[]),
+                    &commit,
+                ])
+            }
+            Some(
+                temper_client_domain::pages::changes::From::Chat(_)
+                | temper_client_domain::pages::changes::From::Goal(_),
+            )
+            | None => commit.as_slice().into(),
+        };
+        work_row(b, words, bindings, task, &when, title, &status);
         return;
     }
 }
+
 fn work_row(
     b: &mut Builder,
     words: &Words,

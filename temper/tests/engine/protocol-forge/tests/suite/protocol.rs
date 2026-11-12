@@ -19,6 +19,7 @@ fn change_row() -> top::ChangeRow {
         priority: 1,
         ci: None,
         change: change::Change {
+            ended_held: None,
             early: change::Early::None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
@@ -56,15 +57,17 @@ fn change_row() -> top::ChangeRow {
         review_charter: 4,
         producing_llm: None,
         review_llm: None,
-        foreman_charter: 6,
+
         questions: temper_engine_domain_forge_change::Questions::default(),
         effect_account: None,
         producer_failure: None,
         report: Box::new([]),
         repairs: None,
+        follows: None,
         catch_up: None,
         close: None,
         merge_result: None,
+        follow_check: None,
     }
 }
 
@@ -553,6 +556,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
                 | top::Request::ChangeDecision { .. }
+                | top::Request::Reviewed { .. }
                 | top::Request::Resource { .. }
                 | top::Request::Adopted { .. }
                 | top::Request::Save { .. }
@@ -596,6 +600,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::StatusRun { .. }
+                | top::Request::FollowRun { .. }
+                | top::Request::CancelFollow { .. }
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::MakingCopied { .. }
@@ -1060,7 +1066,7 @@ fn a_sha1_pull_files_answer_matches_the_requested_head_and_fills_the_review_brie
     };
     assert_eq!(observed.commit, head);
     let Answer::PullFiles { head: observed, files, more, .. } =
-        commit_read(&mut world, Read::PullFiles { number: pull, head, page: 1, skip: 0 })
+        commit_read(&mut world, Read::PullFiles { number: pull, head, page: 1, skip: 0, sides: true })
     else {
         panic!("pull files matched by the client")
     };

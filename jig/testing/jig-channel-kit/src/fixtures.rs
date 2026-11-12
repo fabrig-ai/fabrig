@@ -38,7 +38,7 @@ const ENGINE: &[u8] = br#"{
 "people.people":1,"people.projects":2,"people.sign_ins":2,"people.holdings":1,
 "people.inbox_tasks":4,"people.pending":1,"people.waiters":1,
 "fleet.attempts":1,"fleet.calls":1,"fleet.turns":8,
-"brief.briefs":1,"brief.sections":7,"tasks.charter_documents":0,
+"brief.briefs":1,"brief.sections":8,"tasks.charter_documents":0,
 "notes.entries_per_scope":1,"notes.party_entries":1,"views.runs":1,"views.watchers":4,"views.watchers_per_party":4,
 "core.load_slots":1,"core.load_bytes":8192,"core.resume_bytes":4096,"core.run_bytes":4096,"views.text_bytes":1024
 ,"core.templates":2,"documents.rows":1,"documents.lines":1,"documents.chips":1,"documents.text_bytes":128
@@ -298,6 +298,26 @@ pub fn provider_at(
     transport: skein_fake_peers::Transport,
     dialect: skein_fake_llm_protocol::documents::Provider,
 ) -> skein_fake_peers::llm::Peer {
+    provider_played_at(
+        address,
+        skein_fake_llm_domain::api::Scripts { cued: scripts, asked: Box::new([]), otherwise: Box::new([]) },
+        credential,
+        latency,
+        transport,
+        dialect,
+    )
+}
+
+/// A byte peer with system-, request-cued and fallback scripts.
+#[must_use]
+pub fn provider_played_at(
+    address: std::net::SocketAddr,
+    scripts: skein_fake_llm_domain::api::Scripts,
+    credential: skein_llm::Credential,
+    latency: Duration,
+    transport: skein_fake_peers::Transport,
+    dialect: skein_fake_llm_protocol::documents::Provider,
+) -> skein_fake_peers::llm::Peer {
     use skein_fake_llm_protocol::{documents, provider};
     let mut config = skein_llm_kit::fake::config();
     config.latency_min = latency;
@@ -333,7 +353,13 @@ pub fn provider_at(
         },
         credential,
         protocol,
-        skein_fake_llm_domain::Domain::try_scripted(&config, 17, scripts).expect("bounded provider scripts"),
+        skein_fake_llm_domain::Domain::played(
+            &config,
+            17,
+            scripts,
+            skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
+        )
+        .expect("bounded provider scripts"),
         config,
     )
     .expect("configured provider")

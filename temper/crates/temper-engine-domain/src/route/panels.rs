@@ -90,9 +90,11 @@ pub(crate) fn document(
                                 document @ (temper_engine_domain_forge::Document::Landing(_)
                                 | temper_engine_domain_forge::Document::Landings(_)
                                 | temper_engine_domain_forge::Document::Devices(_)
+                                | temper_engine_domain_forge::Document::Follows(_)
                                 | temper_engine_domain_forge::Document::Aways(_)
                                 | temper_engine_domain_forge::Document::Decisions(_)
                                 | temper_engine_domain_forge::Document::Status(_)
+                                | temper_engine_domain_forge::Document::Drafts(_)
                                 | temper_engine_domain_forge::Document::Changes(_)
                                 | temper_engine_domain_forge::Document::Dismissals(_)) => {
                                     Delivery::ForgeDocument { watcher, document: Box::new(document) }

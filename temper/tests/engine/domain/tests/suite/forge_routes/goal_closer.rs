@@ -32,6 +32,26 @@ fn goal_world_with_ci(
     passes: u32,
     commits: Option<u32>,
 ) -> (World, engine::Assignment, Box<[u8]>) {
+    goal_world_with_updates(close, branch, tier, main_ci, silent_ci, passes, commits, false, None, 1)
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    clippy::fn_params_excessive_bools,
+    reason = "the update stories reuse the closer fixture with an independent main containment rule"
+)]
+fn goal_world_with_updates(
+    close: bool,
+    branch: bool,
+    tier: Option<temper_engine_domain_world::tier_runs::Tier>,
+    main_ci: bool,
+    silent_ci: bool,
+    passes: u32,
+    commits: Option<u32>,
+    up_to_date: bool,
+    stall: Option<Duration>,
+    attempts: u8,
+) -> (World, engine::Assignment, Box<[u8]>) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -51,13 +71,16 @@ fn goal_world_with_ci(
             tasks_batch: Some(8),
             result_bytes: Some(4096),
             forge_commits: commits,
+            stall,
             ..StoryLimits::default()
         },
     )
     .with_close_job(close.then_some(b".temper/close".as_slice()), true)
     .with_goal_closer()
+    .with_landing_attempts(attempts)
     .with_landing_deployment(Box::new([
         engine::LandingRule {
+            sets: Box::new([]),
             connector: 0,
             kind: 4,
             enforce: true,
@@ -72,11 +95,12 @@ fn goal_world_with_ci(
                 last: authority::Last::Exact(b"main".as_slice().into()),
             },
             ci: main_ci,
-            up_to_date: false,
+            up_to_date,
             gates: Box::new([]),
             approvals: Box::new([]),
         },
         engine::LandingRule {
+            sets: Box::new([]),
             connector: 0,
             kind: 4,
             enforce: true,
@@ -640,8 +664,51 @@ fn a_closers_landing_held_escalates_to_the_goal() {
     world.close();
 }
 
+pub(super) fn updating_landing(close: bool) -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
+    updating_landing_with_stall(close, None)
+}
+
+pub(super) fn updating_landing_with_stall(
+    close: bool,
+    stall: Option<Duration>,
+) -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
+    let (mut world, goal, branch) = goal_world_with_updates(close, true, None, true, true, STEPS, None, true, stall, 1);
+    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+    let main = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"base", b"new main", 1)
+        .expect("main advances");
+    status(&mut world, main, raw::Check::Passed);
+    let closer = make_closer(&mut world, &goal, 94);
+    if close {
+        let job = close_job(&mut world);
+        let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+        finish_close(&mut world, close, &branch, &job);
+        wait_ended(&mut world, close);
+        assert!(matches!(row(&world, close).change.state, change::State::Landed { .. }));
+    }
+    let landing = wait_landing(&mut world, closer);
+    for _ in 0..STEPS {
+        world.tick();
+        if matches!(row(&world, landing).change.state, change::State::Updating { .. }) {
+            break;
+        }
+    }
+    assert!(
+        matches!(row(&world, landing).change.state, change::State::Updating { .. }),
+        "{:?}",
+        row(&world, landing).change.state
+    );
+    assert_eq!(world.writes.iter().filter(|write| matches!(write, skein_forge::api::Write::Update { .. })).count(), 0);
+    (world, goal, branch, closer, landing)
+}
+
 fn pending_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
-    let (mut world, goal, branch) = goal_world_in(false, true, None, true);
+    // Hold/release stories judge each ended landing, rather than automatic attempts.
+    pending_landing_with_attempts(1)
+}
+
+fn pending_landing_with_attempts(attempts: u8) -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
+    let (mut world, goal, branch) =
+        goal_world_with_updates(false, true, None, true, true, STEPS, None, false, None, attempts);
     add_change(&mut world, &goal, &branch, 93, b"First", b"done");
     let head = branch_tip(&mut world, &branch);
     status(&mut world, head, raw::Check::Pending);
@@ -658,6 +725,107 @@ fn cancel_landing(world: &mut World, goal: &engine::Assignment, landing: u64) {
     );
     assert!(matches!(answer, engine::CallAnswer::Controlled), "{answer:?}");
     wait_ended(world, landing);
+}
+
+pub(super) fn assert_hold_words(world: &World, task: u64, expected: &str) {
+    let tasks::Phase::Held { source: Some(source), .. } = &live_task(world, task).phase else { panic!("held account") };
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("hold words") };
+    assert_eq!(core::str::from_utf8(words).expect("hold UTF-8"), expected);
+}
+
+fn next_landing(world: &mut World, closer: u64, count: usize) -> u64 {
+    for _ in 0..STEPS {
+        if closer_row(world, closer).expect("closer").landing_changes.len() == count {
+            break;
+        }
+        world.tick();
+    }
+    assert_eq!(
+        closer_row(world, closer).expect("closer").landing_changes.len(),
+        count,
+        "an ended attempt below the bound must retry without holding"
+    );
+    closer_row(world, closer).expect("closer").closer.landing.expect("next landing")
+}
+
+#[test]
+fn cancelled_landings_retry_to_the_project_bound_and_release_adds_one_attempt() {
+    let (mut world, goal, _, closer, first) = pending_landing_with_attempts(3);
+    let spend = live_task(&world, first).authority.budget.spend;
+    let runs = world.assigned.iter().filter(|run| run.task == goal.task).count();
+    let mut landing = first;
+    for count in 1..=3 {
+        cancel_landing(&mut world, &goal, landing);
+        assert_eq!(row(&world, landing).change.ended_held, None);
+        if count < 3 {
+            landing = next_landing(&mut world, closer, count + 1);
+            assert_eq!(
+                live_task(&world, landing).authority.budget.spend,
+                spend,
+                "an unspent cancelled attempt returns its half"
+            );
+            assert_eq!(live_task(&world, closer).revisions.hold, 0);
+            assert_eq!(world.assigned.iter().filter(|run| run.task == goal.task).count(), runs);
+        }
+    }
+    wait_held(&mut world, closer, goal.task);
+    assert_hold_words(
+        &world,
+        closer,
+        &format!("the landing T{landing} ended cancelled; attempts ended without landing: 3, the project's bound 3"),
+    );
+    let revision = live_task(&world, closer).revisions.hold;
+    let answer = world.scripted_call(&goal, 96, engine::Tool::Release { target: closer, revision, again: None });
+    assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
+    landing = next_landing(&mut world, closer, 4);
+    cancel_landing(&mut world, &goal, landing);
+    wait_held(&mut world, closer, goal.task);
+    assert_hold_words(
+        &world,
+        closer,
+        &format!("the landing T{landing} ended cancelled; attempts ended without landing: 4, the project's bound 3"),
+    );
+    world.close();
+}
+
+#[test]
+fn cancelled_close_changes_count_their_attempts_alone() {
+    let (mut world, goal, _) = goal_world_with_updates(true, true, None, true, true, STEPS, None, false, None, 3);
+    let closer = make_closer(&mut world, &goal, 93);
+    let mut close = 0;
+    for _ in 0..3 {
+        let job = close_job(&mut world);
+        let tasks::Party::Task(task) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+        close = task;
+        let answer = world.scripted_call(
+            &goal,
+            95,
+            engine::Tool::Cancel { target: close, reason: b"Retry close".as_slice().into() },
+        );
+        assert!(matches!(answer, engine::CallAnswer::Controlled), "{answer:?}");
+        let event = world.protocol.answer_job(
+            CHANNEL,
+            job.run.raw(),
+            job.attempt.raw(),
+            host::JobEnding::Finished {
+                result: br#"{"settled":[]}"#.as_slice().into(),
+                work: host::Work { left: None, saved: None },
+            },
+        );
+        world.send(event);
+        wait_ended(&mut world, close);
+    }
+    wait_held(&mut world, closer, goal.task);
+    assert_hold_words(
+        &world,
+        closer,
+        &format!(
+            "the close step's change T{close} ended cancelled; attempts ended without landing: 3, the project's bound 3"
+        ),
+    );
+    assert_eq!(closer_row(&world, closer).expect("closer").close_changes.len(), 3);
+    assert!(closer_row(&world, closer).expect("closer").landing_changes.is_empty());
+    world.close();
 }
 
 fn base_holds_goal(world: &mut World, branch: &[u8]) {

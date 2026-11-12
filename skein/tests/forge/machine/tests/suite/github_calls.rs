@@ -98,7 +98,7 @@ fn github_item_reads_its_comments() {
         vec![
             Answer::served(LOCATE),
             bytes("GET /repos/acme/widgets/issues/7", ISSUE),
-            bytes("GET /repos/acme/widgets/issues/7/comments?per_page=1&page=1", COMMENTS),
+            bytes("GET /repos/acme/widgets/issues/7/comments?per_page=8&page=1", COMMENTS),
         ],
     );
     located(&mut w);
@@ -179,6 +179,7 @@ fn github_pull_reads_both_ci_sources() {
             ci: api::Ci::None,
             queued: None,
             dequeued: None,
+            size: None,
         })),
     );
     assert!(w.script_done());

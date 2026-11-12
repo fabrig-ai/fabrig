@@ -102,14 +102,14 @@ first failure, but where a row says otherwise.
 |---|---|---|
 | `Read::Items { since, page, kind }` | `GET R/issues?state=all&type=issues\|pulls&since=<since>&sort=leastupdate&page=<page>&limit=<size>`, `type` only with a kind | each row a `Summary` (1.3): `number`; a `pull_request` object makes it a pull; `state`; `user.id`; `labels[].name`, for display; `updated_at`; `title`; `body` and its key; `more` when the page came full; `now` from `Date` |
 | `Read::Item { number, after, since }` | `GET R/issues/<number>`; `GET R/issues/<number>/comments?since=<since>` (unpaged), `since` only when not 0 | the issue as a `Summary`; its comments with ids above `after`, oldest first, as many as the answer holds (1.3): `id`, `user.id`, `created_at`, `body` and its key, its provenance and revision; `more` when one is left |
-| `Read::Pull { number, ci }` | `GET R/pulls/<number>`; then, only when `ci`, `Read::Checks`' status pages for `head.sha`, from page 1, until one comes short, with none of its job reads | `number`; `state`; `head.ref`, `base.ref`; `head.sha` as `commit`; `base.sha` as `base_commit`, none when empty; `merge_commit_sha` when `merged`; `mergeable`; `requested_reviewers[].id`; CI, when `ci`, the first page's combined `state` when that page came short and its `state` is not `warning` (1.1), else folded from every context's latest status over every page, as `Checks` folds them, no row kept; `Ci::None` without `ci` |
+| `Read::Pull { number, ci }` | `GET R/pulls/<number>`; then, only when `ci`, `Read::Checks`' status pages for `head.sha`, from page 1, until one comes short, with none of its job reads | `number`; `state`; `head.ref`, `base.ref`; `head.sha` as `commit`; `base.sha` as `base_commit`, none when empty; `merge_commit_sha` when `merged`; `mergeable`; `requested_reviewers[].id`; `size` from `changed_files` as `files`, `additions` and `deletions`, at `head.sha`, none when one is absent, null or no whole number, as Forgejo leaves them out where it could not count the change (README.md, 3.6); CI, when `ci`, the first page's combined `state` when that page came short and its `state` is not `warning` (1.1), else folded from every context's latest status over every page, as `Checks` folds them, no row kept; `Ci::None` without `ci` |
 | `Read::PullFor { head, base }` | `GET R/pulls/<base>/<head>`; when it names a pull request that is not open, `GET R/pulls?state=open&head=<head>&base=<base>&sort=oldest&page=<n>&limit=<size>` from page 1, until a row has the head and base or a page comes short; no status read | the open pull request for the head and base, else the one the lookup named; as `Pull` without `ci`; a lookup answered `404` names none, `Missing`, and keeps the repository row (1.4) |
 | `Read::Reviews { number, page, skip }` | `GET R/pulls/<number>/reviews?page=<page>&limit=<size>` | submitted reviews, oldest first, past the page's first `skip` rows, each kept whole while it fits (1.3): `id`, `user.id`, `state` as the verdict, `commit_id`, `body` and its key, `submitted_at` as `at`, `official`, provenance and revision; `more` when the page came full or was cut; `cut` when it was |
 | `Read::Statuses { commit, page }` | `GET R/commits/<commit>/status?page=<page>&limit=<size>`; for each status whose link names a run of this repository's Actions, the job resolved as `Checks` resolves it | each context's latest status on the page: `updated_at`, `context`, `status`, `description`, `target_url` as its link (links are absolute, below), its `job` as for `Checks`; `more` when the page came full, never by `total_count` (1.1); `ci` the page's combined `state` and `total_count`, the commit's verdict only on a first page that came short (1.1) |
 | `Read::Remarks { number, review, page, skip }` | `GET R/pulls/<number>/reviews/<review>/comments` (unpaged) | the `page`th slice of `<size>`, past its first `skip` comments, each kept whole while it fits (1.3): `id`, `user.id`, `path`, `position` as `line`, `body`; `more` when a comment follows what was kept; `cut` when the answer's bytes cut the slice |
 | `Read::Branch { branch }` | `GET R/branches/<branch>` | `commit.id` |
 | `Read::Branches { prefix }` | `GET R/git/refs/heads/<prefix>` | branch names from matching `refs/heads/` refs, as many as `answer_bytes` holds by the measure (`README.md`, 3.7), with no row bound; no matches (`404`) gives an empty list and keeps the repository row; matching names past `answer_bytes`, `TooLarge` |
-| `Read::PullFiles { number, head, page, skip }` | `GET R/pulls/<number>`; `GET R/pulls/<number>/files?page=<page>&limit=<size>`; for each file past the page's first `skip`, while the files kept fit (1.3), `GET R/raw/<path>?ref=<merge_base>` (but for `added`; at `previous_filename` for `renamed`) and `GET R/raw/<filename>?ref=<head>` (but for `deleted`) | `head`; each file's `filename` with its contents at the merge base and at the head, a side absent when the file's `status` says so or its read answers `404`; `more` from `X-HasMore`, or when cut; `cut` when a file's sides would pass what is left of the answer, that file and those after it left to the next read; a `head.sha` other than `head` fails the call `Stale` before any file is read |
+| `Read::PullFiles { number, head, page, skip, sides }` | `GET R/pulls/<number>`; `GET R/pulls/<number>/files?page=<page>&limit=<size>`; when `sides`, for each file past the page's first `skip`, while the files kept fit (1.3), `GET R/raw/<path>?ref=<merge_base>` (but for `added`; at `previous_filename` for `renamed`) and `GET R/raw/<filename>?ref=<head>` (but for `deleted`) | `head`; each file's `filename`, with, when `sides`, its contents at the merge base and at the head, a side absent when the file's `status` says so or its read answers `404`, and without, its name alone, both sides `None`; `more` from `X-HasMore`, or when cut; `cut` when a file's sides would pass what is left of the answer, that file and those after it left to the next read; a `head.sha` other than `head` fails the call `Stale` before any file is read |
 | `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?verification=false`; `GET R/compare/<after>...<before>?files=false&verification=false` | `files[].filename`, in Forgejo's order, kept while they fit `rows` and what is left of the answer's bound, and each counted in `changed`; `ahead`, the first comparison's `total_commits`, and `behind`, the second's; no commit's id and no file's side is kept or read |
 | `Read::Range { before, after }` | `GET R/compare/<before>...<after>?files=false&verification=false` | `total_commits` as `commits`; the `commits` list skipped as it streams, none of it kept |
 | `Read::Checks { commit }` | `GET R/commits/<commit>/status?page=<n>&limit=<size>`, every page; for each run the statuses' links name, pending, passed or failed, once, in the order its first status comes: `GET R/actions/runs?head_sha=<commit>&run_number=<n>&page=1&limit=1`, then `GET R/actions/runs/<id>/jobs`; every status linking to that run takes its job from that one list | each context's latest status as for `Statuses`, its `job` the commit, the run's `id`, the job's `id` and its `attempt` when found, none otherwise: the link's index of the job in its run is never taken for the job's `id` |
@@ -360,9 +360,13 @@ Notes on the table:
 - **Markers** at the head of a body, a comment or a review are decoded
   into its `key` (`README.md`, section 5).
 - **A changed file's `status`** is `added`, `deleted` or `removed`,
-  `modified` or `changed`, `renamed` or `copied`; `removed` is what a real
-  Forgejo's comparison says of a file gone, and reads as `deleted` does. Any
-  other word is a malformed answer.
+  `modified`, `changed` or `unchanged`, `renamed` or `copied`; `removed` is what a real
+  Forgejo's comparison says of a file gone, and reads as `deleted` does.
+  `unchanged` is what Forgejo's pull files listing says of a file
+  modified with no line added or deleted (a binary file, as a wire
+  golden is, or a change of mode alone), and reads as `modified` does:
+  with `sides`, both its sides are read. Any other word is a malformed
+  answer.
 - **What may follow** is told by the page coming full, `X-HasMore`, or
   `total_count`. For a call made of several requests, `more` is its
   listing's.
@@ -372,14 +376,19 @@ Notes on the table:
   `X-HasMore` has more only when it came full.
 - **A malformed answer** (a success status other than its request's,
   1.2; a document that does not decode, a field missing, a number out
-  of range, a commit id of the wrong length, a string past its cap, a
-  body past the component's `body_bytes_in`, a log read through
-  included; a repository read by its id answering another) fails a
-  write as `Timeout`: the request reached the forge, so what it asked
-  may have been done. It fails a read as `InvalidAnswer`. Either way the
-  connection is closed, since what followed on it can no longer be
-  trusted. A repository id past the vocabulary's 32 bits fails the call
-  as `TooLarge` (`Forge`, `limit` 4,294,967,295, `size` the id).
+  of range, a commit id of the wrong length; a log read through past the
+  component's `body_bytes_in`; a repository read by its id answering
+  another) fails a write as `Timeout`: the request reached the forge, so
+  what it asked may have been done. It fails a read as `InvalidAnswer`.
+  An answer past a bound (a string past its cap; a JSON document past
+  the component's `body_bytes_in`, as an unpaged comparison far behind
+  its base can be) fails a write as `Timeout` too, and a read as
+  `TooLarge` (1.4): a document past `body_bytes_in` names `Forge`, its
+  `limit` that figure and its `size` what had been delivered when the
+  bound stopped it, not exact; a string past its cap names `Unnamed`.
+  Either way the connection is closed, since what followed on it can no
+  longer be trusted. A repository id past the vocabulary's 32 bits fails
+  the call as `TooLarge` (`Forge`, `limit` 4,294,967,295, `size` the id).
 
 ### 1.4 Failures
 

@@ -157,7 +157,7 @@ fn a_kept_project_removal_prints_its_operation_and_outcome() {
         let expected = if json {
             b"{\"operation\":\"remove-project\",\"outcome\":{\"done\":{\"document\":{\"project_removed\":{\"project\":7}}}}}\n".as_slice()
         } else {
-            b"kept: remove-project, removed: project 7\n".as_slice()
+            b"kept: remove-project, deleted: project 7\n".as_slice()
         };
         assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected)]);
     }
@@ -703,6 +703,7 @@ fn refused_answer(
     let mut document = fixtures::person_document();
     document.contract = contract;
     root.serve(call, c::ReadResult::Value(c::ReadValue::PersonTask(Box::new(document))));
+    assert!(root.sends.contains_key(&call), "the engine decides whether the answer fits its contract");
     root.answered(call, c::Answer::Refused { refusal, at: None });
     root.answer(call).expect("engine refused")
 }
@@ -737,19 +738,118 @@ fn a_person_answer_past_its_contract_names_the_bound() {
     }
 }
 #[test]
+fn a_choice_for_words_names_the_contract_and_answer_instead() {
+    for reason in ["blue", "blue!"] {
+        for json in [false, true] {
+            let printed =
+                refused_answer(c::TaskContractDocument::Report { words: 4 }, &["1", reason], contract_refusal(), json);
+            assert_eq!(printed.status, 2);
+            if json {
+                for field in [
+                    br#""takes":"words""#.as_slice(),
+                    br#""bound":4"#,
+                    br#""answer_instead":"task answer 41 --rev 7 TEXT""#,
+                ] {
+                    assert!(skein_lib::bytes::find(&printed.stderr, field).is_some(), "{printed:?}");
+                }
+                assert!(skein_lib::bytes::find(&printed.stderr, br#""choices""#).is_none());
+            } else {
+                assert_eq!(printed.stderr.as_ref(), b"task answer: Limit reached: task 41 takes words, at most 4 bytes, not a choice\nanswer instead: task answer 41 --rev 7 TEXT\n");
+            }
+        }
+    }
+}
+#[test]
+fn a_choice_for_approval_names_the_contract_and_answer_instead() {
+    for reason in ["blue", "blue!"] {
+        for json in [false, true] {
+            let contract = c::TaskContractDocument::Approval {
+                state: Box::new([]),
+                part: c::Part { connector: 1, kind: c::PartKind::Resource, key: c::PartKey::Number(0) },
+            };
+            let printed = refused_answer(contract, &["1", reason], contract_refusal(), json);
+            assert_eq!(printed.status, 2);
+            if json {
+                for field in [
+                    br#""takes":"approval""#.as_slice(),
+                    br#""answer_instead":"task answer 41 --rev 7 --approve STATE [TEXT]""#,
+                ] {
+                    assert!(skein_lib::bytes::find(&printed.stderr, field).is_some(), "{printed:?}");
+                }
+                assert!(skein_lib::bytes::find(&printed.stderr, br#""bound""#).is_none());
+                assert!(skein_lib::bytes::find(&printed.stderr, br#""choices""#).is_none());
+            } else {
+                assert_eq!(printed.stderr.as_ref(), b"task answer: Limit reached: task 41 takes an approval, not a choice\nanswer instead: task answer 41 --rev 7 --approve STATE [TEXT]\n");
+            }
+        }
+    }
+}
+#[test]
+fn a_missing_choice_names_the_whole_contracts_codes_in_read_order() {
+    for (codes, text, field) in [
+        (
+            [1, 3],
+            b"task answer: Limit reached: task 41 has no choice 2; its choices are 1, 3\n".as_slice(),
+            br#""choices":[1,3]"#.as_slice(),
+        ),
+        (
+            [3, 1],
+            b"task answer: Limit reached: task 41 has no choice 2; its choices are 3, 1\n".as_slice(),
+            br#""choices":[3,1]"#.as_slice(),
+        ),
+    ] {
+        for reason in ["blue", "blue!"] {
+            for json in [false, true] {
+                let mut choices = skein_lib::List::with_capacity(2);
+                for code in codes {
+                    choices
+                        .push(c::VerdictChoice {
+                            code,
+                            words: 4,
+                            followups: 0,
+                            fields: skein_lib::List::with_capacity(0),
+                        })
+                        .expect("two choices");
+                }
+                let printed = refused_answer(
+                    c::TaskContractDocument::Verdict { choices, cut: false },
+                    &["2", reason],
+                    contract_refusal(),
+                    json,
+                );
+                assert_eq!(printed.status, 2);
+                if json {
+                    assert!(skein_lib::bytes::find(&printed.stderr, field).is_some(), "{printed:?}");
+                    for absent in [br#""bound""#.as_slice(), br#""takes""#, br#""answer_instead""#] {
+                        assert!(skein_lib::bytes::find(&printed.stderr, absent).is_none());
+                    }
+                } else {
+                    assert_eq!(printed.stderr.as_ref(), text);
+                }
+            }
+        }
+    }
+}
+#[test]
 fn a_refusal_with_no_bound_the_task_asks_for_stays_bare() {
     let mut cut_contract = answer_contract();
     if let c::TaskContractDocument::Verdict { choices, cut } = &mut cut_contract {
-        choices.clear();
+        assert!(!choices.is_empty());
         *cut = true;
     }
     for (contract, form, refusal) in [
         (answer_contract(), &["1", "blue"][..], contract_refusal()),
         (c::TaskContractDocument::Report { words: 4 }, &["blue"][..], contract_refusal()),
-        (answer_contract(), &["2", "blue!"][..], contract_refusal()),
-        (cut_contract, &["1", "blue!"][..], contract_refusal()),
+        (cut_contract, &["2", "blue!"][..], contract_refusal()),
+        (
+            c::TaskContractDocument::Verdict { choices: skein_lib::List::with_capacity(0), cut: false },
+            &["2", "blue!"][..],
+            contract_refusal(),
+        ),
+        (c::TaskContractDocument::Job { bytes: 4 }, &["1", "blue!"][..], contract_refusal()),
+        (c::TaskContractDocument::Change { connector: 1, kind: 2, words: 4 }, &["1", "blue!"][..], contract_refusal()),
+        (answer_contract(), &["--approve", "", "blue!"][..], contract_refusal()),
         (answer_contract(), &["words"][..], contract_refusal()),
-        (c::TaskContractDocument::Report { words: 4 }, &["1", "blue!"][..], contract_refusal()),
         (answer_contract(), &["--cannot", "blue!"][..], contract_refusal()),
         (
             c::TaskContractDocument::Approval {
@@ -760,12 +860,20 @@ fn a_refusal_with_no_bound_the_task_asks_for_stays_bare() {
             contract_refusal(),
         ),
         (answer_contract(), &["1", "blue!"][..], c::Refusal::Limit { which: c::Limit::Inbox { task: 41, limit: 4 } }),
+        (
+            c::TaskContractDocument::Report { words: 4 },
+            &["1", "blue!"][..],
+            c::Refusal::Limit { which: c::Limit::Inbox { task: 41, limit: 4 } },
+        ),
+        (answer_contract(), &["2", "blue!"][..], c::Refusal::Limit { which: c::Limit::Inbox { task: 41, limit: 4 } }),
     ] {
         for json in [false, true] {
             let printed = refused_answer(contract.clone(), form, refusal.clone(), json);
             assert_eq!(printed.status, 2);
             if json {
-                assert!(skein_lib::bytes::find(&printed.stderr, br#""bound""#).is_none(), "{printed:?}");
+                for absent in [br#""bound""#.as_slice(), br#""takes""#, br#""choices""#, br#""answer_instead""#] {
+                    assert!(skein_lib::bytes::find(&printed.stderr, absent).is_none(), "{printed:?}");
+                }
             } else {
                 assert_eq!(printed.stderr.as_ref(), b"task answer: Limit reached\n");
             }

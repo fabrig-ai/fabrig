@@ -129,17 +129,41 @@ The table grows area by area, each with its stories (`testing.md`).
    answer reaches it for replay even after the task ends. The numbered
    question form of `tools.md`, 3 keeps its separate question read and answer.
 
-   An answer past what its contract asks, a report's words or the
-   reason of the choice it names, reaches the engine and is refused as
-   past its contract (exit 2). The act's read gave the contract, so the
-   refusal names the bound: `task answer: Limit reached: task 44's reason
-   for choice 1 is at most 128 bytes`, or `task 44's words are at most 128
-   bytes`, and JSON's `bound` beside the refusal. The same refusal for any
-   other cause (a choice the contract lacks, an answer of another form, a
-   `--cannot` or an `--approve` past the deployment's result bound) has no
-   bound the task asks for, and prints as it is; so does a restored
-   request, which read nothing. TEXT's bound in the tool's line is the most
-   any call takes: the tool's notes say a person task may ask for less.
+   An answer its contract does not take reaches the engine and is
+   refused as past its contract (exit 2): the client checks nothing
+   first, since a keyed answer must reach the engine for its replay.
+   The act's read gave the contract, so after jig's words the refusal
+   says what the task takes:
+
+   - **Past its bound,** a report's words or the reason of the choice it
+     names: `task answer: Limit reached: task 44's reason for choice 1
+     is at most 128 bytes`, or `task 44's words are at most 128 bytes`;
+     JSON's `bound`.
+   - **A choice for a task that takes words:** `task answer: Limit
+     reached: task 44 takes words, at most 4096 bytes, not a choice`,
+     then the line `answer instead: task answer 44 --rev 3 TEXT`, REV
+     the call's own; JSON's `takes` (`"words"`), `bound` and
+     `answer_instead`, that call as a string.
+   - **A choice for a task that takes an approval:** `task answer: Limit
+     reached: task 44 takes an approval, not a choice`, then `answer
+     instead: task answer 44 --rev 3 --approve STATE [TEXT]`; JSON's
+     `takes` (`"approval"`) and `answer_instead`.
+   - **A choice the contract lacks,** its choices read whole (not cut)
+     and at least one: `task answer: Limit reached: task 44 has no
+     choice 2; its choices are 1, 3`, the codes in the read's order,
+     comma-separated; JSON's `choices`, an array of those codes.
+
+   The `answer instead:` call names no key: the refused answer's key
+   replays its refusal. JSON's keys sit beside the refusal, as
+   `read_again` does. The same refusal for any other cause has nothing
+   the task asks for, and prints as it is: an answer within its bounds,
+   words or an approval for a task with choices, a choice its read's cut
+   choices lack, a choice for a change's or a job's contract, a
+   `--cannot` or an `--approve` past the deployment's result bound; so
+   does a restored request, which read nothing. TEXT's bound in the
+   tool's line is the most any call takes: the tool's notes say a person
+   task may ask for less, and that CHOICE answers only a task with
+   choices, a task that takes words being answered with TEXT alone.
 
 4. **jig's plumbing whole:** `create`, `propose`, `compound --project
    PROJECT FILE`, a batch, a proposal or a compound request as JSON
@@ -384,7 +408,7 @@ The table grows area by area, each with its stories (`testing.md`).
    | `playground start` | starts the playground (`../../protocol/setup/playground.md`): the engine makes its fake forge, the box starts its fakes, and the engine adds the scripted model's account and adopts its repository into its project, in the caller's name; waits for the answer, then prints `running` and exits 0, the same when it already runs. Refused, exit 2: "not offered" (a real forge kept). Start failed, exit 1, naming why: the fakes did not start (the box's why), the account refused, the adoption refused, or the forge not connected in time; run again, it makes what is not done | `StartPlayground` | |
    | `playground end` | resets the playground (`../../protocol/setup/playground.md`), as the banner's "set up temper" does (`../forge/family.md`, 7): its project deleted, its fake forge removed and the scripted model's account removed, each a kept act the engine resumes at its next start if one is cut; waits for the answer, then prints `reset` and exits 0, once the playground is gone. Refused, exit 2: "not offered" (no playground) | `EndPlayground` | |
    | `forge remove FORGE` | removes forge FORGE (`../../domain/forge/adoption.md`, 1): ended at once, then, by kept acts, its live work cancelled, its box group stopped and its directory removed, its records erased; on the forge itself only what temper ran is undone, a managed Forgejo's bot and hooks and a GitHub App staying the person's. Prints `removed` and exits 0 once the forge is ended. Refused, exit 2, in `ForgeRefusal`'s words: not the deployment's owner, no such forge, or not taken by this forge (the playground's, which `playground end` removes) | `RemoveForge { forge }` | |
-   | `change show TASK [--project PROJECT]` | the panel of change task TASK (`../forge/served.md`, 2; `../forge/records.md`), read as the change's page watches it, in the scope of PROJECT, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; its pull request's number and address on the forge; its step in `../forge/README.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; its questions (`../forge/served.md`, 2): its route, the questions taken used of its bound, and one line per open question, its asker's task and the question's number, where it stands (`taken`, `with foreman F`, `asked of requester`, `answered, held for dependencies`) and the first line of its words; then the call that follows it, `change show TASK --until landed` while it is live and has not landed, `change show TASK --until cleared` while it is verifying or red. An ended step points to `task show TASK` for its report; a successful no-change report adds `completed, no change`. A landed or ended change keeps its last panel. `task show TASK` of a change task, live or ended, prints `change show TASK` among the calls that follow it. A task that is no change into a repository of PROJECT, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`../forge/served.md`, 2) | |
+   | `change show TASK [--project PROJECT]` | the panel of change task TASK (`../forge/served.md`, 2; `../forge/records.md`), read as the change's page watches it, in the scope of PROJECT, the task's project when none is named: its repository by forge, owner and name; its branch and landing branch; its head; its pull request's number and address on the forge; its step in `../forge/README.md`, 2.1's words, with its place in its queue, a repair's reason or, landed, its merge commit, whole; its hold; the task its step runs; CI at its head; its gates, each with its kind, whether it blocks and its verdict; its repairs, resolutions and updates, each used of its limit; its questions (`../forge/served.md`, 2): its route, the questions taken used of its bound, and one line per open question, its asker's task and the question's number, where it stands (`taken`, `asked of requester`, `answered, held for dependencies`) and the first line of its words; then the call that follows it, `change show TASK --until landed` while it is live and has not landed, `change show TASK --until cleared` while it is verifying or red. An ended step points to `task show TASK` for its report; a successful no-change report adds `completed, no change`. A landed or ended change keeps its last panel. `task show TASK` of a change task, live or ended, prints `change show TASK` among the calls that follow it. A task that is no change into a repository of PROJECT, or a change the forge has not registered yet, prints `no change panel for task N`, exit 2 | the forge's `change` subject, read once (`../forge/served.md`, 2) | |
    | `forge repositories FORGE [--installation INSTALLATION] [--page PAGE]` | the picker's PAGE, from 1 (`../forge/family.md`, 4): a line per row, `OWNER/NAME`, `private` where it is, and `R/U`, its repository id and owner id for `repository adopt --ids`; then the call that reads page PAGE plus one while more follow, or that none do. `--installation INSTALLATION` is an accepted installation's id, as `forge list` prints it, GitHub alone | `Reachable { forge, installation?, page }` | |
 
    - **`forge list`'s text,** one line per forge, in number order: `forge N
@@ -458,7 +482,34 @@ The table grows area by area, each with its stories (`testing.md`).
      2, with what would make it reachable, the installation's page among
      it (`../forge/family.md`, 6; `../forge/repositories.md`, 4).
 
-- **Areas 1, 5 and 6 are designed here in full.** Areas 2 to 4 name their
+7. **Landed drafts** (`../../domain/forge/drafts.md`): a writer saying
+   that a draft landed in one of a project's repositories is ready to
+   start a goal, or no longer is, and the project's landed drafts listed,
+   as Work draws the ready ones (`../pages/work.md`, 1). The group
+   `draft`. Each act is the FORGE request `SetDraft`
+   (`../forge/records.md`), made through `jig-client` as `repository
+   adopt`'s is; OWNER and NAME name a repository adopted into PROJECT,
+   both or neither, the project's home with neither.
+
+   | Tool | What it does | temper's | K |
+   |---|---|---|---|
+   | `draft ready --project PROJECT [--owner OWNER --name NAME] [--chat TASK] PATH` | says the draft at PATH is ready to start a goal: temper reads it at the head of the repository's landing branch and keeps it, with TASK the chat it was written in; prints `ready: OWNER/NAME PATH at COMMIT on BRANCH`, COMMIT its first 12 digits, then its title where it has one, exit 0 | `SetDraft { change: ready { chat } }` | yes |
+   | `draft not-ready --project PROJECT [--owner OWNER --name NAME] PATH` | says it no longer is; Work stops listing it; prints `not ready: OWNER/NAME PATH`, exit 0 | `SetDraft { change: not_ready }` | yes |
+   | `draft list --project PROJECT` | the project's landed drafts, a watched read of the subject `drafts`: a line each, newest first, `OWNER/NAME PATH`, then `ready`, `not ready` or `goal G`, COMMIT's first 12 digits, BRANCH, when it was said ready in the clock form, `chat T` where it names one, and its title; "No landed drafts." with none, exit 0 | the subject `drafts` | |
+
+   - **The refusals,** exit 2, each saying what to do: `no repository`,
+     "no repository OWNER/NAME in PROJECT", or "PROJECT has no home
+     repository: name one with --owner and --name"; `path`, "PATH is no
+     draft's path: a relative path ending .md"; `missing`, "no PATH at
+     the head of the landing branch: land it first"; `not a file`, "PATH
+     is a directory"; `unreachable`, "the forge did not answer: try
+     again"; `unknown`, "no landed draft at PATH"; `full`, "PROJECT keeps
+     64 landed drafts, every one listed: say one not ready first". A
+     refusal at admission is jig's, as for `repository adopt`.
+   - **`--json`** prints the outcome's row, or the panel's rows, as the
+     wire has them, a commit whole.
+
+- **Areas 1, 5, 6 and 7 are designed here in full.** Areas 2 to 4 name their
   tools and jig's operations; each area's arguments are checked against
   jig's operations as they stand when the area is built.
 - **A tool no area names** is a design question, and joins the table as

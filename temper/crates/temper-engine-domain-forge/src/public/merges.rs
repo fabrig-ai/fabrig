@@ -25,18 +25,21 @@ impl Domain {
         Some(recent)
     }
 
-    /// Every change handed, of the project and by the queue, and at least one.
+    /// Every member handed, at least one, and retained rows of the project and by the queue.
     fn public_merge(&self, ask: &PublicAsk<'_>, logged: &LoggedLanding) -> bool {
         if logged.changes.is_empty() {
             return false;
         }
         for change in &logged.changes {
-            let Some(row) = self.public_change(ask, change.task) else {
-                return false;
-            };
-            if row.change.way != Way::Queue {
+            if ask.handed(change.task).is_none() {
                 return false;
             }
+            if let Some(row) = self.changes.get(&change.task)
+                && (self.public_change(ask, change.task).is_none() || row.change.way != Way::Queue)
+            {
+                return false;
+            }
+            // A dropped member is named by the log; no retained queue or proof facts remain.
         }
         true
     }

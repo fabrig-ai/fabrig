@@ -832,6 +832,7 @@ impl World {
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
+            | Delivery::MoveStanding { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }

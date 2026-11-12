@@ -2,14 +2,15 @@ use crate::{limits, settings};
 use jig_domain_host as host;
 use jig_domain_link::{Bounds, EndpointBound, Form, Grant};
 use skein_lib::{Secret, Token};
+use temper_protocol_records_forge as forge_records;
 
 // smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
 pub const DIALECT: u32 = 3;
 
-// The stock catalogue holds nine charters.
+// The stock catalogue holds ten charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
-"limits": {"profile": "small", "overrides": {"tasks.charters":9,"core.templates":5,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":17,"tasks.executor_kinds":17,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
+"limits": {"profile": "small", "overrides": {"core.run_bytes":32768,"tasks.charters":10,"core.templates":6,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":18,"tasks.executor_kinds":18,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
 "llm": {
 "providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
 "endpoints": [{
@@ -58,7 +59,7 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 pub fn engine() -> settings::Engine {
     static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
     let jig = ENGINE_SETTINGS.get_or_init(|| parse_engine(ENGINE)).clone();
-    // This typed fixture reaches the core's start; policy 1 needs 5982 bytes with the two added executor places.
+    // This typed fixture reaches the core's start; policy 1 needs 6014 bytes with the standing charter executor.
 
     settings::Engine {
         host_reply_bytes: None,
@@ -82,8 +83,15 @@ pub fn engine() -> settings::Engine {
         ways_stock: crate::stock::ways(),
         kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
         landings: skein_lib::Map::with_capacity(0),
-        limits: limits::profile(limits::Profile::Small),
+        limits: small_limits(),
     }
+}
+
+// The small worlds admit the stock's larger goal charter while keeping Small's store page.
+fn small_limits() -> limits::Limits {
+    let mut own = limits::profile(limits::Profile::Small);
+    own.root.journal.run_bytes = 32_768;
+    own
 }
 
 pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
@@ -96,6 +104,7 @@ pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
             endpoint: 1,
             program: None,
             name: b"small".as_slice().into(),
+            cache_life_ms: 0,
             window: 8192,
             output: 1024,
             input_price: 1,
@@ -209,6 +218,9 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
     use jig_domain_tasks as tasks;
     use skein_lib::Wall;
     tasks::TaskRecord {
+        session: None,
+        talk: None,
+        activation_open: false,
         closer: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
@@ -1619,7 +1631,7 @@ fn seed_forge_rows(service: &mut crate::Service, forge: u16, token: &[u8], seed:
             api.expect("fixture forge record")
         }
     };
-    let origin = records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
+    let origin = forge_records::origin(skein_forge_connection::settings::Kind::Forgejo, &api).encode();
     let secret_requests = engine.store.secret_requests;
     let original = if engine.store.host.mark_durable() {
         None
@@ -1846,4 +1858,8 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
             reply_bytes: None,
         },
     }
+}
+
+pub(crate) fn assert_worker_only(service: &crate::worker_alone::Service) {
+    let crate::worker_alone::Service { process: _, worker: _, held_listeners: _, listeners_closing: _ } = service;
 }

@@ -53,7 +53,7 @@ fn the_box_has_room_for_reference_creating_executors() {
     let answered = files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
     let written = parse(content(&answered, b"temper.json"));
     let reference = parse(include_bytes!("../../../../docs/examples/reference/settings.json"));
-    let mut charters = vec![1, 2, 4, 5, 6, 9, 10, 11, 12];
+    let mut charters = vec![1, 2, 4, 5, 6, 9, 10, 11, 12, 13];
     for item in reference["items"].as_array().unwrap() {
         if item["setting"]["kind"] == "charter" {
             charters.push(item["setting"]["number"].as_u64().unwrap());
@@ -61,7 +61,7 @@ fn the_box_has_room_for_reference_creating_executors() {
     }
     charters.sort_unstable();
     charters.dedup();
-    assert_eq!(charters, [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    assert_eq!(charters, [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
     let bytes = serde_json::to_vec(&written["engine"]["limits"]).unwrap();
     let document = jig_protocol_config::document(
         &bytes,
@@ -236,6 +236,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
                 json!([
                     owned["engine"]["llm"]["endpoints"][0],
                     anthropic("endpoints"),
+                    anthropic("direct"),
                     {"name": "demo", "number": 3_u64, "dialect": 3_u64, "provider": "demo",
                      "address": {"socket": format!("127.0.0.1:{}", facts.ports.llm)},
                      "transport": "plaintext", "headers": parse(b"[]"), "connect_ms": 10_000_u64, "handshake_ms": 10_000_u64}
@@ -386,6 +387,10 @@ fn chat_document(revised: bool) -> Value {
 
 // The template delegates playground/widget: forge 1, repository 1, tag 4294967297.
 fn csv_chat() -> Value {
+    // The stock's scripted change takes 5K, with K = 4C at Fable's cache-write rate.
+    let c = (1_048_576_u64 * 12_500 + 8192 * 50_000).div_ceil(1_000_000);
+    let k = c.checked_mul(4).unwrap();
+    let change_spend = k.checked_mul(5).unwrap();
     json!([
         scripted_turn(json!([
             {"text": "I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge."},
@@ -398,7 +403,7 @@ fn csv_chat() -> Value {
                 "contract": {"kind": "change", "connector": 1, "change_kind": 1, "words": 128},
                 "authority": {"tools": 1, "grants": [demo_grant(2), demo_grant(3), demo_grant(4), demo_grant(10), demo_grant(11), demo_grant(12)],
                     "delegation": {"kinds": [{"kind": "agent", "number": 2}, {"kind": "agent", "number": 4}], "tasks": 4, "depth": 2},
-                    "budget": {"spend": 217_920}, "notes": 0}
+                    "budget": {"spend": change_spend}, "notes": 0}
             }]}}
         ])),
         scripted_turn(json!([{"call": "wait", "arguments": {}}])),
@@ -493,7 +498,12 @@ fn the_agent_configuration_is_the_owned_examples_but_its_programs() {
         set(
             &mut expected,
             "/endpoints",
-            json!([owned["endpoints"][0], anthropic_agent(), demo_agent(facts.ports.llm.get())]),
+            json!([
+                owned["endpoints"][0],
+                anthropic_agent("endpoints"),
+                anthropic_agent("direct"),
+                demo_agent(facts.ports.llm.get())
+            ]),
         );
         expected["endpoints"][0]["limits"] = agent_limits("openai");
         assert_eq!(parse(content(&answered, b"agent.json")), expected, "{row}");
@@ -519,8 +529,8 @@ fn facts_are_written_as_json_text() {
         let document = content(&answered, b"temper.json");
         assert!(bytes::find(document, escaped).is_some(), "{row}: JSON escaped the path");
         let parsed = parse(document);
-        assert_eq!(parsed["engine"]["llm"]["endpoints"][2]["address"], json!({"socket": "127.0.0.1:8370"}), "{row}");
-        assert_eq!(parse(content(&answered, b"agent.json"))["endpoints"][2], demo_agent(8370), "{row}");
+        assert_eq!(parsed["engine"]["llm"]["endpoints"][3]["address"], json!({"socket": "127.0.0.1:8370"}), "{row}");
+        assert_eq!(parse(content(&answered, b"agent.json"))["endpoints"][3], demo_agent(8370), "{row}");
         assert_eq!(
             parsed
                 .pointer("/workers/0/agent/program")
@@ -691,16 +701,23 @@ fn agent_limits(endpoint: &str) -> Value {
 fn anthropic(member: &str) -> Value {
     match member {
         "providers" => {
-            parse(br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","endpoint":"anthropic","keep":["claude-*"],"drop":["*-20??????"],"sources":{"programs":["claude_code"]}}"#)
+            parse(br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","endpoint":"anthropic","direct":"anthropic-api","keep":["claude-*"],"drop":["*-20??????"],"sources":{"programs":["claude_code"],"keys":true}}"#)
         }
         "endpoints" => {
             parse(br#"{"name":"anthropic","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":{"host":"api.anthropic.com","port":443},"transport":"tls","headers":[],"connect_ms":10000,"handshake_ms":10000,"server_name":"api.anthropic.com"}"#)
         }
+        "direct" => {
+            let mut endpoint = anthropic("endpoints");
+            endpoint["name"] = json!("anthropic-api");
+            endpoint["number"] = json!(4_u32);
+            endpoint.as_object_mut().unwrap().remove("program");
+            endpoint
+        }
         _ => panic!("known LLM member"),
     }
 }
-fn anthropic_agent() -> Value {
-    let mut endpoint = anthropic("endpoints");
+fn anthropic_agent(member: &str) -> Value {
+    let mut endpoint = anthropic(member);
     endpoint["address"] = json!("api.anthropic.com:443");
     let object = endpoint.as_object_mut().unwrap();
     for (old, new) in [("connect_ms", "connect"), ("handshake_ms", "handshake")] {
@@ -725,7 +742,9 @@ fn every_deployment_offers_claude_found_or_fetched() {
                 assert_eq!(document["engine"]["llm"][member][at], anthropic(member), "{row}: {member}");
             }
             assert!(document["engine"]["llm"].get("models").is_none());
-            assert_eq!(agent["endpoints"][1], anthropic_agent(), "{row}");
+            assert_eq!(document["engine"]["llm"]["endpoints"][2], anthropic("direct"), "{row}: direct");
+            assert_eq!(agent["endpoints"][1], anthropic_agent("endpoints"), "{row}");
+            assert_eq!(agent["endpoints"][2], anthropic_agent("direct"), "{row}");
             assert_eq!(
                 agent["programs"]["claude_code"],
                 json!({"path": text(facts.claude.unwrap_or(crate::FETCHED)), "directory": "/d/temper/programs"}),

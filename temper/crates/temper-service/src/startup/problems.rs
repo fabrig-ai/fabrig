@@ -1,85 +1,23 @@
-//! Bounded problems and measured stderr lines (protocol/configuration/README.md, 2).
-use crate::limits;
+//! Engine startup problems around the core's vocabulary (protocol/services.md, 3).
 use alloc::boxed::Box;
-use jig_protocol_config as config;
-use skein_lib::{Decimal, List, Writer};
-
+use skein_lib::{Decimal, Writer};
+use temper_service_core::startup::problems::{put, render_past, render_path, render_problem};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum What {
+pub enum EngineWhat {
     Room(temper_engine_domain::room::Short),
     Stock(crate::stock::Floor),
-    Jig(config::What),
-    Standalone,
     EngineAlone,
     UnbuiltWorker,
-    WorkerAlone,
     Loopback,
     Connectors,
-    Absolute,
     OldAgentCommand,
     NoWebhooks,
-    Profile,
-    Override(limits::Refused),
-    Against {
-        other: &'static [u8],
-    },
-    /// Every carrier short of the checkout's conflicted paths, reported together.
-    Checkout {
-        conflicts: u32,
-        path_bytes: u32,
-        repositories: u32,
-        stdout: Option<(u32, u32)>,
-        stdout_of: &'static [u8],
-        agent_conflicts: Option<(u32, u32)>,
-        agent_paths: Option<(u32, u32)>,
-        saved: Option<(u32, u32)>,
-        engine: Option<(u32, u32)>,
-        worker: Option<(u32, u32)>,
-    },
-    Past {
-        bytes: u64,
-        bound: u64,
-    },
-    Short {
-        bytes: u64,
-        of: &'static [u8],
-        needs: u64,
-    },
-    Within {
-        bytes: u64,
-        limit: &'static [u8],
-        bound: u64,
-    },
-    StorePage {
-        transcript: u32,
-        frame: u32,
-        page: u32,
-        ceiling: u32,
-    },
+    TierChanges { count: u32, bound: u32, ceiling: u32 },
+    StorePage { transcript: u32, frame: u32, page: u32, ceiling: u32 },
     StoreMap(jig_protocol_store::sizes::SizeRefusal),
-    /// A task row drives the store's value past its fixed profile ceiling.
-    StoreTask {
-        needs: u32,
-        has: u32,
-        batch_bytes: u32,
-    },
-    /// An explicit call bound below the local agent's call input
-    /// (protocol/configuration/limits.md): `bytes` the configured bound, also
-    /// the wire answer's; `input` the agent's `tool_payload`; `ask` its
-    /// channel's `host_ask_input`; `reply` its `host_reply_text`, smith's
-    /// `host_reply_bytes`.
-    CallInput {
-        bytes: u64,
-        input: u64,
-        ask: u64,
-        reply: u64,
-    },
+    StoreTask { needs: u32, has: u32, batch_bytes: u32 },
     Agent,
-    Admission {
-        why: jig_domain_fleet::AgentShortfall,
-        offered: u64,
-        required: u64,
-    },
+    Admission { why: jig_domain_fleet::AgentShortfall, offered: u64, required: u64 },
     Adapter,
     Redirect(super::Listener),
     NoHub,
@@ -94,139 +32,34 @@ pub enum What {
     ProjectLandingStored,
     CharterStored,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Problem {
-    pub path: config::Path,
-    pub what: What,
-    pub file: Option<Box<[u8]>>,
-}
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Problems {
-    pub problems: List<Problem>,
-    pub past: u32,
-}
-impl Problems {
-    #[must_use]
-    pub fn empty() -> Self {
-        Self { problems: List::with_capacity(config::PROBLEMS), past: 0 }
-    }
-    pub fn push(&mut self, path: config::Path, what: What) {
-        self.push_file(path, what, None);
-    }
-    pub(crate) fn push_file(&mut self, path: config::Path, what: What, file: Option<Box<[u8]>>) {
-        if self.problems.push(Problem { path, what, file }).is_err() {
-            self.past = self.past.saturating_add(1);
-        }
-    }
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.problems.is_empty() && self.past == 0
-    }
-    #[must_use]
-    pub fn jig(found: config::Problems, prefix: &config::Path) -> Self {
-        let mut result = Self::empty();
-        result.append(found, prefix);
-        result
-    }
-    pub(crate) fn append(&mut self, found: config::Problems, prefix: &config::Path) {
-        for problem in &found.problems {
-            let mut path = prefix.clone();
-            for segment in &problem.path.segments {
-                path = path.child(segment.clone());
-            }
-            self.push(path, What::Jig(problem.what));
-        }
-        self.past = self.past.saturating_add(found.past);
-    }
-}
-fn put(writer: &mut Writer, length: &mut usize, measuring: bool, bytes: &[u8]) {
-    *length = length.checked_add(bytes.len()).expect("bounded diagnostic fits usize");
-    if !measuring {
-        writer.put(bytes).expect("diagnostic was measured");
-    }
-}
-fn words(what: What) -> &'static [u8] {
+pub type What = temper_service_core::startup::problems::What<EngineWhat>;
+pub type Problem = temper_service_core::startup::problems::Problem<What>;
+pub type Problems = temper_service_core::startup::problems::Problems<What>;
+fn words(what: EngineWhat) -> &'static [u8] {
     match what {
-        What::LandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule",
-        What::ProjectLandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule --project",
-        What::CharterStored => b"the forge's charters live in the store; read them with temper ctl settings show forge-charter 1",
-        What::InlineSeedPolicy => b"name a policy, policy: 1; change it with temper ctl settings apply",
-        What::MissingNull => b"missing: null for none",
-        What::Standalone => b"standalone takes one worker, joined to the engine by the in-process name \"workers\"",
-        What::EngineAlone => b"an engine alone takes no local worker, one plaintext loopback listener and workers with distinct digest paths",
-        What::UnbuiltWorker => b"this build serves an engine alone",
-        What::WorkerAlone => b"a worker alone takes one worker dialling a plaintext loopback socket, and only application.workers and application.limits",
-        What::Loopback => b"must be a socket address on loopback",
-        What::Connectors => b"must be [1], the forge connector",
-        What::Absolute => b"must be an absolute path",
-        What::OldAgentCommand => b"\"agent\" is now \"internal\", \"agent\": write [\"internal\", \"agent\", PATH], PATH agent.configuration's",
-        What::NoWebhooks => b"needs application.webhooks",
-        What::Profile => b"the only profile is \"small\"",
-        What::Override(limits::Refused::Unknown) => b"no limit of temper's has this name",
-        What::Override(limits::Refused::Range) => b"outside its type",
-        What::Against { .. } => b"must agree with ",
-        What::Room(_)
-        | What::Stock(_)
-        | What::Checkout { .. }
-        | What::Past { .. }
-        | What::Within { .. }
-        | What::Short { .. }
-        | What::CallInput { .. }
-        | What::Admission { .. }
-        | What::StorePage { .. }
-        | What::StoreMap(_)
-        | What::StoreTask { .. } => b"",
-        What::Redirect(_) => b"fixed port conflicts with ",
-        What::Adapter => b"program adapter not declared in the agent's programs",
-        What::Agent => b"not in the agent's configuration under the same name",
-        What::NoHub => b"the root has no hub, so the fleet must place every run on a worker",
-        What::Credentials => b"must be from 1 to accounts.credentials, in engine.limits and in the worker's limits",
-        What::Escalation => b"an owner's project must name an escalation role from 0 to 3",
-        What::Handover => b"admin_token must be exactly 40 lowercase hexadecimal digits",
-        What::Provider => b"the deployment's provider must not be 0, the forge's sign-in provider",
-        What::BoxSignIn => b"a box's sign-in takes application.sign_in null",
-        What::Jig(what) => jig_words(what),
-    }
+        EngineWhat::EngineAlone => b"an engine alone takes no local worker, one plaintext loopback listener and workers with distinct digest paths",
+        EngineWhat::UnbuiltWorker => b"this build serves an engine alone",
+        EngineWhat::Loopback => b"must be a socket address on loopback",
+        EngineWhat::Connectors => b"must be [1], the forge connector",
+        EngineWhat::OldAgentCommand => b"\"agent\" is now \"internal\", \"agent\": write [\"internal\", \"agent\", PATH], PATH agent.configuration's",
+        EngineWhat::NoWebhooks => b"needs application.webhooks",
+        EngineWhat::Agent => b"not in the agent's configuration under the same name",
+        EngineWhat::Adapter => b"program adapter not declared in the agent's programs",
+        EngineWhat::Redirect(_) => b"fixed port conflicts with ",
+        EngineWhat::NoHub => b"the root has no hub, so the fleet must place every run on a worker",
+        EngineWhat::Credentials => b"must be from 1 to accounts.credentials, in engine.limits and in the worker's limits",
+        EngineWhat::Escalation => b"an owner's project must name an escalation role from 0 to 3",
+        EngineWhat::Provider => b"the deployment's provider must not be 0, the forge's sign-in provider",
+        EngineWhat::BoxSignIn => b"a box's sign-in takes application.sign_in null",
+        EngineWhat::Handover => b"admin_token must be exactly 40 lowercase hexadecimal digits",
+        EngineWhat::MissingNull => b"missing: null for none",
+        EngineWhat::InlineSeedPolicy => b"name a policy, policy: 1; change it with temper ctl settings apply",
+        EngineWhat::LandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule",
+        EngineWhat::ProjectLandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule --project",
+        EngineWhat::CharterStored => b"the forge's charters live in the store; read them with temper ctl settings show forge-charter 1",
+EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
+ }
 }
-fn jig_words(what: config::What) -> &'static [u8] {
-    match what {
-        config::What::Because(words) => words,
-        config::What::PolicyEnvelope { .. }
-        | config::What::AmendmentEnvelope { .. }
-        | config::What::CodecCeiling { .. }
-        | config::What::Capacity { .. }
-        | config::What::CodecArithmetic
-        | config::What::StoreCodec => b"",
-        config::What::Json => b"invalid JSON",
-        config::What::Stored => b"settings live in the store; read them with temper ctl DIR settings show",
-        config::What::Unknown => b"unknown member",
-        config::What::Missing => b"missing",
-        config::What::Duplicate => b"duplicate",
-        config::What::Kind => b"wrong value kind",
-        config::What::Bound => b"past its bound",
-        config::What::SlotsPastHub => {
-            b"past this worker's limits.overrides.hub.slots, which must be at least its slots"
-        }
-        config::What::Form | config::What::ProviderKey { .. } => b"invalid form",
-        config::What::Unique => b"must be unique",
-        config::What::Refers => b"unknown reference",
-        config::What::Plaintext => b"plaintext requires loopback or in-process",
-        config::What::Confidential => b"a confidential registration is refused: only a public one signs in",
-        config::What::NoProvider => b"no provider offers this model",
-        config::What::Digest => b"invalid digest",
-        config::What::Reserve { .. } => b"reserve does not fit charter ",
-        config::What::Budget { .. } => b"budget does not fit charter ",
-        config::What::Grace { .. } => b"grace does not fit template ",
-        config::What::Operations { .. } => b"operations do not fit compound requests: operations ",
-        config::What::Message => b"message bounds do not agree",
-        config::What::Silence => b"heartbeat does not fit silence bound",
-        config::What::StopBound => b"stop bound does not fit grace",
-        config::What::Override => b"invalid override",
-        config::What::Unreadable => b"not read",
-        config::What::Relative => b"relative path must be non-empty with no .. component",
-    }
-}
-
 fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mut usize, measuring: bool) {
     let name = match listener {
         super::Listener::Demo => b"application.demo.llm.listen".as_slice(),
@@ -259,7 +92,7 @@ fn admission(
     use jig_domain_fleet::AgentShortfall;
     // Missing names carry no numerical claim, even if constructed by a caller.
     if let AgentShortfall::Model { .. } = why {
-        put(writer, length, measuring, words(What::Agent));
+        put(writer, length, measuring, words(EngineWhat::Agent));
         return;
     }
     let (before, between, after): (&[u8], &[u8], &[u8]) = match why {
@@ -302,32 +135,6 @@ fn admission(
         put(writer, length, measuring, b"'s reserve_time (temper help settings) or lower the timeout");
     }
 }
-fn render_path(path: &config::Path, writer: &mut Writer, length: &mut usize, measuring: bool) {
-    let mut member = false;
-    for segment in &path.segments {
-        match segment {
-            config::Segment::Member(name) => {
-                if member {
-                    put(writer, length, measuring, b".");
-                }
-                put(writer, length, measuring, name);
-                member = true;
-            }
-            config::Segment::Index(index) => {
-                put(writer, length, measuring, b"[");
-                put(writer, length, measuring, Decimal::of(u64::from(*index)).as_bytes());
-                put(writer, length, measuring, b"]");
-            }
-        }
-    }
-}
-fn codec_words(what: config::What, writer: &mut Writer, length: &mut usize, measuring: bool) {
-    let problem = config::Problem { path: config::Path::root(), what };
-    let line = problem.codec_message().expect("codec-envelope diagnostic variant");
-    let words = line.strip_prefix(b": ").expect("root codec diagnostic prefix");
-    put(writer, length, measuring, words);
-}
-
 fn store_page(frame: u32, ceiling: u32, writer: &mut Writer, length: &mut usize, measuring: bool) {
     put(writer, length, measuring, b"its turn's transcript frame, ");
     put(writer, length, measuring, Decimal::of(u64::from(frame)).as_bytes());
@@ -364,21 +171,6 @@ fn store_map(why: jig_protocol_store::sizes::SizeRefusal, writer: &mut Writer, l
     put(writer, length, measuring, b" ");
     put(writer, length, measuring, unit);
 }
-fn operation_counts(
-    operations: u32,
-    delegates: u32,
-    goals: u32,
-    writer: &mut Writer,
-    length: &mut usize,
-    measuring: bool,
-) {
-    put(writer, length, measuring, Decimal::of(u64::from(operations)).as_bytes());
-    put(writer, length, measuring, b", delegates ");
-    put(writer, length, measuring, Decimal::of(u64::from(delegates)).as_bytes());
-    put(writer, length, measuring, b", goals ");
-    put(writer, length, measuring, Decimal::of(u64::from(goals)).as_bytes());
-}
-
 fn store_task(needs: u32, has: u32, batch_bytes: u32, writer: &mut Writer, length: &mut usize, measuring: bool) {
     store_map(jig_protocol_store::sizes::SizeRefusal::Value { needs, has }, writer, length, measuring);
     put(writer, length, measuring, b"; binding record tasks-v9.TaskRecord with tasks.batch_bytes ");
@@ -438,238 +230,84 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
     put(writer, length, measuring, unit);
     put(writer, length, measuring, b"; raise it in engine.limits.overrides");
 }
-/// A capacity's first line is not an override path: all its carriers follow it.
-fn checkout(what: What, writer: &mut Writer, length: &mut usize, measuring: bool) -> bool {
-    match what {
-        What::Checkout {
-            conflicts,
-            path_bytes,
-            repositories,
-            stdout,
-            stdout_of,
-            agent_conflicts,
-            agent_paths,
-            saved,
-            engine,
-            worker,
-        } => {
-            for (name, value) in [
-                (b"checkout.conflicts ".as_slice(), conflicts),
-                (b", checkout.path_bytes ", path_bytes),
-                (b", checkout.repositories ", repositories),
-            ] {
-                put(writer, length, measuring, name);
-                put(writer, length, measuring, Decimal::of(u64::from(value)).as_bytes());
-            }
-            put(writer, length, measuring, b": raise these with them\n");
-            for (name, of, unit, short) in [
-                (b"git_component.stdout_bytes".as_slice(), stdout_of, b" bytes".as_slice(), stdout),
-                (b"workers[0].agent.conflicts", b"checkout.conflicts", b" paths", agent_conflicts),
-                (b"workers[0].agent.path_bytes", b"checkout.path_bytes", b" bytes", agent_paths),
-                (b"jig's Work.saved", b"Saved's encoded bound", b" bytes", saved),
-                (b"engine.limits.io.output", b"the largest answer a run's saved work makes", b" bytes", engine),
-                (b"workers[0].limits.io.output", b"the largest answer a run's saved work makes", b" bytes", worker),
-            ] {
-                if let Some((has, needs)) = short {
-                    put(writer, length, measuring, name);
-                    put(writer, length, measuring, b": ");
-                    put(writer, length, measuring, Decimal::of(u64::from(has)).as_bytes());
-                    put(writer, length, measuring, unit);
-                    put(writer, length, measuring, b", short of ");
-                    put(writer, length, measuring, of);
-                    put(writer, length, measuring, b", ");
-                    put(writer, length, measuring, Decimal::of(u64::from(needs)).as_bytes());
-                    put(writer, length, measuring, unit);
-                    put(writer, length, measuring, b"\n");
-                }
-            }
-            true
-        }
-        What::Room(_)
-        | What::Stock(_)
-        | What::Jig(_)
-        | What::Standalone
-        | What::EngineAlone
-        | What::UnbuiltWorker
-        | What::WorkerAlone
-        | What::Loopback
-        | What::Connectors
-        | What::Absolute
-        | What::OldAgentCommand
-        | What::NoWebhooks
-        | What::Profile
-        | What::Override(_)
-        | What::Against { .. }
-        | What::Past { .. }
-        | What::Short { .. }
-        | What::Within { .. }
-        | What::StorePage { .. }
-        | What::StoreMap(_)
-        | What::StoreTask { .. }
-        | What::CallInput { .. }
-        | What::Agent
-        | What::Admission { .. }
-        | What::Adapter
-        | What::Redirect(_)
-        | What::NoHub
-        | What::Credentials
-        | What::Escalation
-        | What::Provider
-        | What::BoxSignIn
-        | What::Handover
-        | What::MissingNull
-        | What::InlineSeedPolicy
-        | What::LandingStored
-        | What::ProjectLandingStored
-        | What::CharterStored => false,
-    }
-}
-#[expect(clippy::too_many_lines, reason = "one exhaustive diagnostic vocabulary shared by both rendering passes")]
 fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
     let mut length = 0_usize;
     for problem in &problems.problems {
-        if checkout(problem.what, writer, &mut length, measuring) {
-            continue;
-        }
+        let what = match problem.what {
+            What::Half(what) => what,
+            What::Jig(_)
+            | What::Standalone
+            | What::WorkerAlone
+            | What::Absolute
+            | What::Profile
+            | What::Override(_)
+            | What::Against { .. }
+            | What::Checkout { .. }
+            | What::Past { .. }
+            | What::Short { .. }
+            | What::Within { .. }
+            | What::CallInput { .. } => {
+                length = length.checked_add(render_problem(problem, writer, measuring)).expect("bounded diagnostics");
+                continue;
+            }
+        };
         render_path(&problem.path, writer, &mut length, measuring);
         put(writer, &mut length, measuring, b": ");
         if let Some(file) = &problem.file {
             put(writer, &mut length, measuring, file);
             put(writer, &mut length, measuring, b": ");
         }
-        put(writer, &mut length, measuring, words(problem.what));
-        match problem.what {
-            What::Checkout { .. } => unreachable!("checkout capacity rendered whole"),
-            What::Room(short) => put(writer, &mut length, measuring, &short.words()),
-            What::Stock(floor) => stock(floor, writer, &mut length, measuring),
-            What::Jig(
-                what @ (config::What::PolicyEnvelope { .. }
-                | config::What::AmendmentEnvelope { .. }
-                | config::What::CodecCeiling { .. }
-                | config::What::Capacity { .. }
-                | config::What::CodecArithmetic
-                | config::What::StoreCodec),
-            ) => codec_words(what, writer, &mut length, measuring),
-            What::CallInput { bytes, input, ask, reply } => {
-                put(writer, &mut length, measuring, Decimal::of(bytes).as_bytes());
+        put(writer, &mut length, measuring, words(what));
+        match what {
+            EngineWhat::Room(short) => put(writer, &mut length, measuring, &short.words()),
+            EngineWhat::Stock(floor) => stock(floor, writer, &mut length, measuring),
+            EngineWhat::TierChanges { count, bound, ceiling } => {
+                put(writer, &mut length, measuring, Decimal::of(u64::from(count)).as_bytes());
+                put(writer, &mut length, measuring, b", past its bound of ");
+                put(writer, &mut length, measuring, Decimal::of(u64::from(bound)).as_bytes());
                 put(
                     writer,
                     &mut length,
                     measuring,
-                    b" bytes, short of the agent's call input (profile.declared.tool_payload), ",
+                    b", the most the store's tier rows hold (2 * forge.changes + 1 within ",
                 );
-                put(writer, &mut length, measuring, Decimal::of(input).as_bytes());
-                put(writer, &mut length, measuring, b" bytes; raise it to at least ");
-                put(writer, &mut length, measuring, Decimal::of(input).as_bytes());
-                put(writer, &mut length, measuring, b" bytes, or omit it to follow the agent's call input\n");
-                render_path(&problem.path, writer, &mut length, measuring);
-                put(writer, &mut length, measuring, b": call input ");
-                put(writer, &mut length, measuring, Decimal::of(ask).as_bytes());
-                put(writer, &mut length, measuring, b" bytes; wire answer ");
-                put(writer, &mut length, measuring, Decimal::of(bytes).as_bytes());
-                put(writer, &mut length, measuring, b" bytes; smith host_reply_bytes ");
-                put(writer, &mut length, measuring, Decimal::of(reply).as_bytes());
-                put(writer, &mut length, measuring, b" bytes");
+                put(writer, &mut length, measuring, Decimal::of(u64::from(ceiling)).as_bytes());
+                put(writer, &mut length, measuring, b")");
             }
-            What::Admission { why, offered, required } => {
-                admission(why, offered, required, writer, &mut length, measuring);
-            }
-            What::StorePage { frame, ceiling, .. } => {
+            EngineWhat::StorePage { frame, ceiling, .. } => {
                 store_page(frame, ceiling, writer, &mut length, measuring);
             }
-            What::StoreMap(why) => store_map(why, writer, &mut length, measuring),
-            What::StoreTask { needs, has, batch_bytes } => {
+            EngineWhat::StoreMap(why) => store_map(why, writer, &mut length, measuring),
+            EngineWhat::StoreTask { needs, has, batch_bytes } => {
                 store_task(needs, has, batch_bytes, writer, &mut length, measuring);
             }
-            What::Redirect(listener) => redirect_listener(listener, writer, &mut length, measuring),
-            What::Against { other } => put(writer, &mut length, measuring, other),
-            What::Past { bytes, bound } => {
-                put(writer, &mut length, measuring, Decimal::of(bytes).as_bytes());
-                put(writer, &mut length, measuring, b" bytes, past its bound of ");
-                put(writer, &mut length, measuring, Decimal::of(bound).as_bytes());
+            EngineWhat::Admission { why, offered, required } => {
+                admission(why, offered, required, writer, &mut length, measuring);
             }
-            What::Short { bytes, of, needs } => {
-                put(writer, &mut length, measuring, Decimal::of(bytes).as_bytes());
-                put(writer, &mut length, measuring, b" bytes, short of ");
-                put(writer, &mut length, measuring, of);
-                put(writer, &mut length, measuring, b", ");
-                put(writer, &mut length, measuring, Decimal::of(needs).as_bytes());
-                put(writer, &mut length, measuring, b" bytes");
-            }
-            What::Within { bytes, limit, bound } => {
-                put(writer, &mut length, measuring, Decimal::of(bytes).as_bytes());
-                put(writer, &mut length, measuring, b" bytes, past ");
-                put(writer, &mut length, measuring, limit);
-                put(writer, &mut length, measuring, b" of ");
-                put(writer, &mut length, measuring, Decimal::of(bound).as_bytes());
-            }
-            What::Jig(config::What::Operations { operations, delegates, goals }) => {
-                operation_counts(operations, delegates, goals, writer, &mut length, measuring);
-            }
-            What::Jig(
-                config::What::Reserve { charter }
-                | config::What::Budget { charter }
-                | config::What::Grace { template: charter },
-            ) => {
-                put(writer, &mut length, measuring, Decimal::of(u64::from(charter)).as_bytes());
-            }
-            What::Jig(
-                config::What::Because(_)
-                | config::What::Json
-                | config::What::Stored
-                | config::What::Unknown
-                | config::What::Missing
-                | config::What::Duplicate
-                | config::What::Kind
-                | config::What::Bound
-                | config::What::SlotsPastHub
-                | config::What::Form
-                | config::What::Unique
-                | config::What::Refers
-                | config::What::Plaintext
-                | config::What::Confidential
-                | config::What::NoProvider
-                | config::What::ProviderKey { .. }
-                | config::What::Digest
-                | config::What::Message
-                | config::What::Silence
-                | config::What::StopBound
-                | config::What::Override
-                | config::What::Unreadable
-                | config::What::Relative,
-            )
-            | What::UnbuiltWorker
-            | What::EngineAlone
-            | What::WorkerAlone
-            | What::Standalone
-            | What::Loopback
-            | What::Connectors
-            | What::Absolute
-            | What::OldAgentCommand
-            | What::NoWebhooks
-            | What::Profile
-            | What::Override(_)
-            | What::Adapter
-            | What::Agent
-            | What::NoHub
-            | What::Credentials
-            | What::Escalation
-            | What::Provider
-            | What::BoxSignIn
-            | What::MissingNull
-            | What::InlineSeedPolicy
-            | What::LandingStored
-            | What::ProjectLandingStored
-            | What::CharterStored
-            | What::Handover => {}
+            EngineWhat::Redirect(listener) => redirect_listener(listener, writer, &mut length, measuring),
+            EngineWhat::EngineAlone
+            | EngineWhat::UnbuiltWorker
+            | EngineWhat::Loopback
+            | EngineWhat::Connectors
+            | EngineWhat::OldAgentCommand
+            | EngineWhat::NoWebhooks
+            | EngineWhat::Agent
+            | EngineWhat::Adapter
+            | EngineWhat::NoHub
+            | EngineWhat::Credentials
+            | EngineWhat::Escalation
+            | EngineWhat::Provider
+            | EngineWhat::BoxSignIn
+            | EngineWhat::Handover
+            | EngineWhat::MissingNull
+            | EngineWhat::InlineSeedPolicy
+            | EngineWhat::LandingStored
+            | EngineWhat::ProjectLandingStored
+            | EngineWhat::CharterStored => {}
         }
         put(writer, &mut length, measuring, b"\n");
     }
-    if problems.past > 0 {
-        put(writer, &mut length, measuring, b"and ");
-        put(writer, &mut length, measuring, Decimal::of(u64::from(problems.past)).as_bytes());
-        put(writer, &mut length, measuring, b" more\n");
-    }
+    render_past(problems.past, writer, &mut length, measuring);
     length
 }
 #[must_use]
@@ -678,4 +316,14 @@ pub fn lines(problems: &Problems) -> Box<[u8]> {
     let mut writer = Writer::new(length);
     assert_eq!(render(problems, &mut writer, false), length, "diagnostic passes measure identically");
     writer.finish()
+}
+
+#[cfg(feature = "worker")]
+pub(super) fn from_worker(found: temper_service_core::startup::problems::SharedProblems) -> Problems {
+    let mut result = Problems::empty();
+    for problem in found.problems.into_boxed() {
+        result.push_file(problem.path, problem.what.extend(), problem.file);
+    }
+    result.past = result.past.saturating_add(found.past);
+    result
 }

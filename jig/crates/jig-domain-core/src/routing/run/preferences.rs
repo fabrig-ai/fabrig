@@ -1,5 +1,6 @@
 //! Whole requester preferences in asking briefs
 //! (`jig/docs/design/domain/engine/briefs.md`, sections 1, 1.1 and 2.1).
+//! The run's charter must name the asking family and its authority must hold it.
 //! The party index is gathered before the ordinary notes index and retained
 //! for this preparation alone. Its required section cannot be cut.
 
@@ -30,7 +31,13 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
 
 fn party(core: &Core, task: u64) -> Option<u64> {
     let context = core.contexts.get(&task)?;
-    if context.authority.tools.0 & core.settings.tools.ask.0 == 0 {
+    let charter = match context.executor {
+        tasks::Executor::Agent { .. } => core.charter_of(task),
+        tasks::Executor::Procedure { .. } | tasks::Executor::Job { .. } | tasks::Executor::Person(_) => return None,
+    };
+    if context.authority.tools.0 & core.settings.tools.ask.0 == 0
+        || charter.policy.tools.0 & core.settings.tools.ask.0 == 0
+    {
         return None;
     }
     match context.requester {

@@ -244,6 +244,7 @@ pub struct Rig {
     pub download_trouble: bool,
     form_node: u64,
     tabs_cut: Option<u64>,
+    tabs_until: Option<Time>,
     tab_due: Option<Time>,
 }
 
@@ -291,6 +292,7 @@ impl Rig {
             download_trouble: false,
             form_node: 0,
             tabs_cut: None,
+            tabs_until: None,
             tab_due: None,
             context_ready: false,
             exception_seen: false,

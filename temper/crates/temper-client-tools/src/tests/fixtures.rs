@@ -57,7 +57,55 @@ pub(crate) fn owned(words: &[&str]) -> Box<[Box<[u8]>]> {
 }
 /// One argv per table row and form; the help derivation shares these examples.
 pub(crate) const PUSH_SUBSCRIPTION: &[u8] = br#"{"endpoint":"http://push.test:4000/sub","keys":{"p256dh":"BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4","auth":"BTBZMqHH6r4Tts7J_aSIgg"}}"#;
+pub(crate) const FOLLOW_START: &[&str] =
+    &["follow", "start", "--project", "shop", "1", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "--key", "follow-start"];
+pub(crate) const FOLLOW_HOLD: &[&str] = &[
+    "follow",
+    "hold",
+    "--project",
+    "shop",
+    "1",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "--reason",
+    "waits",
+    "--key",
+    "follow-hold",
+];
+pub(crate) const FOLLOW_SKIP: &[&str] = &[
+    "follow",
+    "skip",
+    "--project",
+    "shop",
+    "1",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "--reason",
+    "build only",
+    "--key",
+    "follow-skip",
+];
+pub(crate) const FOLLOW_MERGE: &[&str] = &[
+    "follow",
+    "merge",
+    "--project",
+    "shop",
+    "1",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "--key",
+    "follow-merge",
+];
 pub(crate) const EVERY_TOOL: &[&[&str]] = &[
+    FOLLOW_START,
+    FOLLOW_HOLD,
+    FOLLOW_SKIP,
+    FOLLOW_MERGE,
+    &["follow", "list", "--project", "shop"],
+    &["follow", "show", "--project", "shop", "1"],
+    &["role", "start", "--project", "2", "--budget", "50", "Owns the tests", "--key", "k"],
+    &["role", "list", "--project", "shop"],
+    &["role", "show", "41"],
+    &["role", "talk", "41", "Hello", "--key", "talk"],
+    &["role", "talk", "41", "--leave", "--key", "leave"],
     &["project", "make", "Second", "--key", "second-project"],
     &["repository", "make", "--project", "shop", "team/widget", "--key", "make"],
     &["repository", "copy", "--project", "shop", "source.invalid/team/widget", "--key", "copy"],
@@ -69,7 +117,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["task", "hand-back", "41"],
     &["task", "notes", "41", "--project", "shop"],
     &["project", "amend", "shop", "--visibility", "public", "--key", "visibility"],
-    &["project", "remove", "shop", "--key", "drop-shop"],
+    &["project", "delete", "shop", "--key", "drop-shop"],
     &[
         "goal",
         "start",
@@ -169,6 +217,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["settings", "show", "forge-charter", "1"],
     &["settings", "show", "project-classes", "shop"],
     &["settings", "show", "template-goal", "4"],
+    &["settings", "show", "follow", "1", "--project", "shop"],
+    &["settings", "show", "dependency", "1", "--project", "shop"],
     &["settings", "show", "charter-words", "12", "--revision", "5"],
     &["revision", "show", "5"],
     &["revision", "list"],
@@ -185,6 +235,9 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["push", "list"],
     &["push", "add", "subscription.json"],
     &["push", "remove", "1"],
+    &["draft", "ready", "--project", "shop", "draft.md", "--key", "draft-ready"],
+    &["draft", "not-ready", "--project", "shop", "draft.md", "--key", "draft-not-ready"],
+    &["draft", "list", "--project", "shop"],
 ];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
@@ -448,15 +501,8 @@ pub(crate) fn golden(name: &str) -> Box<[u8]> {
     std::fs::read(path).expect("checked golden").into_boxed_slice()
 }
 /// Task-rendering fixtures regenerate only through their owning tests.
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
-)]
 pub(crate) fn check_golden(name: &str, bytes: &[u8]) {
-    let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
-        Some(value) => value == "1",
-        None => false,
-    };
+    let write = temper_test_env::rewrite();
     if write {
         let path = std::path::Path::new("src/tests/golden").join(name).with_extension("txt");
         std::fs::write(path, bytes).expect("write golden");
@@ -676,6 +722,9 @@ impl Harness {
                 | crate::jig::rows::PROPOSAL_AT
                 | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::TASK_NOTES_AT
+                | crate::jig::rows::ROLE_LIST_AT
+                | crate::jig::rows::ROLE_SHOW_AT
+                | crate::jig::rows::ROLE_TALK_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
                     if crate::jig::call::number(&call, 2).is_some() {
@@ -834,7 +883,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 92;
+pub(super) const TOOL_FORMS: u32 = 108;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.
@@ -944,3 +993,6 @@ pub(crate) fn offer_programs(root: &mut Harness) {
     me.providers = provider_offers();
     root.deliver(c::Delivery::Me(Box::new(me)));
 }
+
+mod drafts;
+pub(crate) use drafts::*;

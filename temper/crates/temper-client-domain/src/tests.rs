@@ -14,6 +14,7 @@ mod copy;
 mod decided;
 mod deployment;
 mod dismissed;
+mod drafts;
 mod playground;
 mod public;
 mod question;

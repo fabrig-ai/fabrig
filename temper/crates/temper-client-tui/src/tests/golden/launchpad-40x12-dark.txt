@@ -1,11 +1,11 @@
 ╭─ temper · Hello ──── 127.0.0.1:8367 ─╮
-│ 3 changes landed overnight.          │
-│  written by the status agent 07:42 · │
+│ 4 changes landed across two          │
+│ projects. One thing needs you.       │
+│ shop: Coupons are two of three in.   │
+│ Hello: csv-export is two of three    │
+│ tasks in; one waits on you.          │
+│  written by the status agent 08:00 · │
 │                               /brief │
-╰──────────────────────────────────────╯
- Where you left off
-   Hello   Away mode, a chat · 08:12 ·…
-   Hello   csv-export, a goal · 07:42…
 ────────────────────────────────────────
 ❯ Ask for a change, or ask temper.  / fo
 ────────────────────────────────────────
@@ -13,12 +13,12 @@
 --
 aaabbbbbbaaacccccaaaaaaddddddddddddddaaa
 a......................................a
+a......................................a
+a......................................a
+a......................................a
+a......................................a
 a..ddddddddddddddddddddddddddddddddddd.a
 a...............................dddddd.a
-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-.cccccccccccccccccc.....................
-...cccccccc.........ddddddddddddddddddd.
-...cccccccc..........ddddddddddddddddd..
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 eeaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

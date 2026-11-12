@@ -154,7 +154,6 @@ fn value(asked: Asked) -> Box<[u8]> {
                 w::ProjectQuestionsParts {
                     route: match route {
                         Route::None => w::QuestionsRoute::None,
-                        Route::Foreman => w::QuestionsRoute::Foreman,
                         Route::Up => w::QuestionsRoute::Up,
                     },
                 },
@@ -372,8 +371,8 @@ fn kind_six_is_read_on_the_tab_alone() {
         let found = reads(&out, 6);
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].1, project);
-        page(&mut f.root, found[0].0, Some(value(Asked::Questions(Route::Foreman))));
-        assert_eq!(f.root.forge().questions(project), Some(Route::Foreman));
+        page(&mut f.root, found[0].0, Some(value(Asked::Questions(Route::Up))));
+        assert_eq!(f.root.forge().questions(project), Some(Route::Up));
         assert!(reads(&go(&mut f.root, Address::Repositories { project }), 6).is_empty());
     }
 }

@@ -21,9 +21,12 @@ fn client_crates_carry_the_client_prefix() {
             // (temper/docs/design/testing/README.md, 5).
             "temper-engine-domain-world",
             "temper-fixtures",
+            "temper-test-env",
             "temper-one-process-world",
             "temper-real-loop-world",
             "temper-playground",
+            // The playground's page is the playground's entry crate (temper/docs/design/playground.md, 3).
+            "temper-playground-page",
             "temper-playground-world",
         ],
     );

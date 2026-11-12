@@ -290,9 +290,10 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // Direct delegates' endings occupy 16 aligned bytes in the task owner.
 // The retry notice's optional reason occupies 16 inline bytes.
 // The task's later choice and two reason sets occupy 32 inline bytes.
-// The task's closer adds 32 bytes to the task owner.
+// The task's closer and optional session each occupy 32 bytes in the task owner.
+// The optional talk occupies another 32 bytes in the task owner.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2649;
+pub const TURN_OVERLAP_BYTES: u64 = 2713;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();

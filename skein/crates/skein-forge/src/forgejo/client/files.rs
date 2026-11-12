@@ -293,7 +293,7 @@ pub(crate) fn status(text: &[u8]) -> Option<FileStatus> {
     match text {
         b"added" => Some(FileStatus::Added),
         b"deleted" | b"removed" => Some(FileStatus::Deleted),
-        b"modified" | b"changed" => Some(FileStatus::Modified),
+        b"modified" | b"changed" | b"unchanged" => Some(FileStatus::Modified),
         b"renamed" => Some(FileStatus::Renamed),
         b"copied" => Some(FileStatus::Copied),
         _ => None,

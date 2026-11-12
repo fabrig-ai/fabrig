@@ -189,6 +189,20 @@ pub struct Settings {
     pub redirect_bytes: u32,
 }
 
+impl Settings {
+    /// The provider's credential endpoint, where configured (protocol/configuration.md, 3).
+    #[must_use]
+    #[expect(clippy::manual_find, reason = "the strict subset iterates without a closure")]
+    pub fn direct_endpoint(&self, provider: u32) -> Option<&EndpointFacts> {
+        for endpoint in &self.endpoints {
+            if endpoint.direct.contains(&provider) {
+                return Some(endpoint);
+            }
+        }
+        None
+    }
+}
+
 /// Jig's authority bits for the engine's tool families.
 #[derive(Clone, Copy, Hash, Debug)]
 pub struct ToolFamilies {
@@ -351,6 +365,7 @@ pub struct Core {
     /// at most one per live task (`jig/docs/design/domain/engine/briefs.md`, 2.2).
     pub(crate) pending_note_briefs: Map<u64, routing::NoteBrief>,
     pub(crate) preferences: routing::run::preferences::State,
+    pub(crate) now: routing::run::now::State,
     /// Durable deployment numbers.
     pub counters: Counters,
     /// Live task preparation contexts.
@@ -368,7 +383,7 @@ pub struct Core {
     /// Restored claims not yet reported by a host.
     pub(crate) unreported_restored: Map<u64, u64>,
     /// Claims awaiting completion of their route: attempt and prepared offered kinds.
-    pub claiming: Map<u64, (u64, tasks::Reasons)>,
+    pub claiming: Map<u64, (u64, tasks::Reasons, Option<tasks::SessionEnd>)>,
     /// Child work due to activation.
     pub(crate) due: Queue<Box<tasks::RunContext>>,
     /// Host adoption events held through startup.
@@ -584,6 +599,7 @@ impl Core {
             projections: Map::with_capacity(limits.tasks.tasks),
             pending_note_briefs: Map::with_capacity(limits.tasks.tasks),
             preferences: routing::run::preferences::State::new(limits.brief.briefs),
+            now: routing::run::now::State::new(limits.brief.briefs),
             run_now: skein_lib::Time::ZERO,
             run_wall: Wall::EPOCH,
             contexts: Map::with_capacity(limits.tasks.tasks),
@@ -642,6 +658,8 @@ pub use effects::connector::PersonSeed;
 pub struct EndpointFacts {
     /// Providers that name this endpoint for added models (domain/engine/settings.md, 11).
     pub providers: Box<[u32]>,
+    /// Providers that name this endpoint as their direct way (protocol/configuration.md, 3).
+    pub direct: Box<[u32]>,
     pub number: u32,
     pub dialect: u32,
     pub program: Option<Box<[u8]>>,

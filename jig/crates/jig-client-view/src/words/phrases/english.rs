@@ -1347,6 +1347,8 @@ pub fn language() -> Language {
             JigPhrase::Reply => Box::new([Segment::Text(copy_of(b"Reply"))]),
             JigPhrase::LoadingPart => Box::new([Segment::Text(copy_of(b"Loading connector content"))]),
             JigPhrase::LoadingObject => Box::new([Segment::Text(copy_of(b"Loading object"))]),
+            JigPhrase::ActTalk => Box::new([Segment::Text(copy_of(b"Talk"))]),
+            JigPhrase::ActLeave => Box::new([Segment::Text(copy_of(b"Leave"))]),
             JigPhrase::ActWrite => Box::new([Segment::Text(copy_of(b"Write"))]),
             JigPhrase::ActAnswer => Box::new([Segment::Text(copy_of(b"Answer"))]),
             JigPhrase::ActTake => Box::new([Segment::Text(copy_of(b"Take it"))]),

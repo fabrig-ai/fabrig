@@ -223,7 +223,9 @@ temper's phrasebook words what jig's accounts document holds (jig's
 `client/domain/contract/README.md`, 5.1; jig's `domain/accounts.md`, 3.5 and
 section 5); the providers' names and their plans' are the
 configuration's. The owned example and the default document offer
-OpenAI's ChatGPT sign-in and API keys (`../../protocol/setup/init.md`, 1).
+OpenAI's ChatGPT sign-in and API keys (`../../protocol/setup/init.md`, 1),
+and the default document Anthropic's Claude Code and API keys beside
+them (`../../protocol/setup/init.md`, 3).
 The words for each offered source are:
 
 - **The providers' words.** A provider is named by its configured name,
@@ -253,10 +255,16 @@ The words for each offered source are:
   first unconnected way becomes primary. API keys are rows under “Or an
   API key”, each with “Add key”; the scripted model is never offered.
 
-- **Details:** a key's heading is "An OpenAI API key", then "From
-  OpenAI’s platform, under API keys. What temper’s agents use is billed
-  to the key’s organization.", the secret "Key (pasted once)" field and
-  the primary “Add key”. A program’s panel is “Your Claude subscription”,
+- **Details:** a key's heading names its provider, "An OpenAI API key" or
+  "An Anthropic API key", then where its keys come from, "From OpenAI’s
+  platform, under API keys." or, for Anthropic's, "From the Claude
+  Console, under API keys.", another provider's "From PROVIDER’s
+  platform, under API keys.", then "What temper’s agents use is billed to
+  the key’s organization.", the secret "Key (pasted once)" field and
+  the primary “Add key”. The welcome's key panel, where a key way opens
+  it, words that way's provider the same way; OpenAI's words stay as
+  they are, and the welcome's look of one Claude with two ways is
+  `../../draft/claude-api.md`, 8.2's. A program’s panel is “Your Claude subscription”,
   with “temper sets Claude Code up on this machine in an environment of its
   own: its settings, sessions and sign-in stay apart from your own Claude
   Code. In a terminal here:”, the command with Copy, then “It makes that
@@ -274,14 +282,14 @@ The words for each offered source are:
   a model", offers no picker and keeps its draft editable; its button and
   Enter cannot send. Unknown usability keeps the existing behaviour.
 - **Completion:** Settings returns to Accounts, with “Added your OpenAI
-  API key”, “Added your ChatGPT plan” or, once the host check succeeds,
+  API key” (“Added your Anthropic API key”), “Added your ChatGPT plan” or, once the host check succeeds,
   “Added your Claude subscription”, and its follow-up words, plus the quiet “Start a chat”. The
   line clears on leaving or acting. Manage usage stays in the account’s
   row. The program’s command, Copy and host checks stay in its way’s
   panel and account row, not a separate Ready card. The welcome keeps
   its Model completion and its own Ready step (`README.md`).
 - **An account** is its provider and who it is, "ChatGPT ·
-  alice@example.com"; a key-only account, "OpenAI API key"; a program's,
+  alice@example.com"; a key-only account, "OpenAI API key" or "Anthropic API key"; a program's,
   "Claude subscription · claude-alice". Who it is is the email its LLM
   provider gave (jig's `domain/accounts.md`, 3.7) where it gave one, and
   otherwise its display name, or for a program's the source's name. Its card's heading follows with
@@ -316,7 +324,7 @@ The words for each offered source are:
     to `Forges`.
   - *A host:* on a box, where the deployment's read says `owned` (`../forge/records.md`),
     "Waiting for other work to finish. It starts by itself."; a box's
-    worker runs with its engine (`../../domain/worker.md`, section 6), and
+    worker runs with its engine (`../../domain/worker/README.md`, section 5), and
     a person who has only run `temper box` doesn't know "host". Otherwise,
     and until that read answers, "No host has room for this, or none is
     connected. It starts when one does." Either way, with nothing to press.

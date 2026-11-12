@@ -529,6 +529,13 @@ named scenario ceiling with headroom.
   `canAccessOpener` false once its opener is cut, and an opening with no
   press refused by Chromium's pop-up rule), and a letter (alone, it types; with
   Alt and Shift, the page hears its code, both modifiers and no text).
+  Chromium's targets trail a press: when the press's `Done` comes, the
+  tab it opened may still be titled `about:blank`, and its
+  `canAccessOpener` may still read as before a cut. So the tab story asks
+  for the tabs again each `Limits::poll` until they show what its stage
+  expects (one tab, titled `Opening`, its opener true before the cut and
+  false after) or 3 seconds pass, the bound the suite's press stories
+  give a press's effect, and then checks them, naming what it last saw.
   The keys a native date or time field takes, and their order, are the
   face's facts, checked with its others in this suite (../ui/web/testing.md, 1). A
   new Chromium version is a run of these, and a fact that changed is fixed

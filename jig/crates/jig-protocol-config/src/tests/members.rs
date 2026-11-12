@@ -114,8 +114,10 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("llm.models.0", "description", br#""For later work""#),
     ("llm.models.0", "shown", br#""Small""#),
     ("llm.models.0", "picker", b"false"),
+    ("llm.models.0", "cache_life_ms", b"300000"),
     ("llm.models.0.prices", "cache_write", b"1"),
     ("llm.providers.0", "endpoint", br#""fake""#),
+    ("llm.providers.0", "direct", br#""anthropic-api""#),
     ("llm.providers.0", "keep", br#"["*"]"#),
     ("llm.providers.0", "drop", br#"["*audio*"]"#),
     ("llm.providers.0", "signed_in_plan", b"true"),
@@ -141,6 +143,18 @@ const REQUIREMENTS: &[u8] = br#"[{"connector":1,"kind":2,"pattern":{"segments":[
 
 fn expanded_engine() -> Document {
     let mut base = document(fixtures::ENGINE_SMALL);
+    let direct = document(
+        br#"{
+        "name":"anthropic-api","number":4,"dialect":3,"provider":"fake-provider",
+        "address":{"socket":"127.0.0.1:7101"},"transport":"plaintext",
+        "headers":[],"connect_ms":10000,"handshake_ms":10000
+    }"#,
+    );
+    let mut all = tokens(&base);
+    let end = usize::try_from(read::after(&base, at(&base, "llm.endpoints")).unwrap().checked_sub(1).unwrap()).unwrap();
+    all.splice(end..end, tokens(&direct));
+    base = Document::from_tokens(&all, &skein_json::document::Limits { tokens: LIMITS.tokens, text: LIMITS.bytes })
+        .unwrap();
     for (parent, name, value) in EXTRAS {
         base = put(&base, parent, name, value);
     }

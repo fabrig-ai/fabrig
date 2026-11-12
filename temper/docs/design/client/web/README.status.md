@@ -1,6 +1,8 @@
 # browser: status
 
-2026-11-09. Where temper's code lags or departs from [README.md](README.md).
+2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+
+
 
 - **Not yet:** 2.7, *Tested*: no browser-tier story turns push on. The
   browser kit can't do it offline: `skein-browser`'s requests and
@@ -102,9 +104,6 @@ establish no rendered equality.
   loader removes the placeholder at 200 ms all the same. `#boot` also sets
   `letter-spacing: normal`, beyond that stylesheet, since an arriving `temper.css` would
   otherwise move its words by -0.18 px.
-- **Departs:** `look.md`, *The first paint*: "no byte for 15 s" holds only once the module's
-  answer has begun: a stall before that answer draws the mark and an empty bar, with no
-  line (skein's `ui/web/bundle.status.md`, 3).
 - **Design departs:** `testing.md`, 3, 6, from the request `browser-trim` of 2026-11-06, decided
   by its plan's cut. Goals' link's target is held by the view's
   `the_link_shows_with_a_tracked_template`, where the request has the client world,
@@ -167,10 +166,7 @@ section 5, *Away on All projects after landing*).
 - **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
   elsewhere's Details (`temper-client-domain`'s `address.rs`
   `forge_choice`), words for a forge added to the configuration by hand,
-  which names none (`../forge/README.status.md`).  `google-sign-in`,
-  `forge-details`, `forge-setting-up-middle` and `welcome-setup-failed` are
-  states the gallery holds (`tools/gallery/names.txt`,
-  `tools/gallery/src/samples.rs`) that the table does not list.
+  which names none (`../forge/README.status.md`).  the unlisted gallery states remain `gallery.status.md`, 2.
 
 `README.md`, sections 2.3 and 2.4 and `look.md` have `/terminal`, its parsed and canonical
 `code` query, transport sign-in by cookie, the signed-out state with

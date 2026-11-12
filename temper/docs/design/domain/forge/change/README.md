@@ -52,12 +52,12 @@ branch. Its parameters:
   a word marked with “…”; a landing's name prefixes the explicit change title
   with “Land ”, fitted to its task bound without sentence extraction.
   A change is never refused or held for the length of its words;
-- **its bounds:** repairs, resolutions, updates, and the stall of each
-  wait;
+- **its bounds:** repairs, resolutions, updates, the re-runs of a job
+  the runner failed at one head (`reruns`, 2, step 3), and the stall of
+  each wait;
 - **its questions:** how it takes its agents' questions (`questions.md`, 1): `none`,
-  the default, asking no one; `foreman`, each settled first by a foreman
-  of its own; `up`, each passed straight to its requester; and how many
-  it takes, a bound beside the others.
+  the default, asking no one; `up`, each passed straight to its
+  requester; and how many it takes, a bound beside the others.
 
 A run asks for one with `change`, giving the words, and the root fills
 in the rest from the project (`../../agent/tools.md`, 1). A run whose authority
@@ -83,8 +83,7 @@ start.
 
 Before building a change batch, the root reserves one task for each
 member and shares the remaining descendant capacity equally, bounded
-by each member's change policy: its task allowance, plus its question
-allowance for `foreman`. Room beyond a member's cap is redistributed;
+by each member's change policy: its task allowance. Room beyond a member's cap is redistributed;
 remainder slots go in call order. Each member needs at least one
 descendant for its producer. One change keeps its policy allowance
 within the requester's remaining authority. These allowances are
@@ -105,7 +104,7 @@ A change made with questions `none` asks no one. What to change is
 agreed before it is asked for, by a goal that asks first where its
 person wants to agree a plan (`../../agent/agents.md`, 2), and the procedure
 delegates its agents without the Message family. One made with
-`foreman` or `up` relays its own agents' questions instead (`questions.md`, 1); what
+`up` relays its own agents' questions instead (`questions.md`, 1); what
 follows describes `none`; an enabled route's fallback feedback follows 8.11.
 A change with `none` takes no questions, answers or words, and says
 so rather than drop one: at its next step, a question in its inbox is
@@ -156,10 +155,10 @@ the branch:
   the branch while the change lives (`../branches.md`, 3). That doesn't stop the change,
   which steps at the head it reads (3).
 
-The question route is number parameter 14: 1 for `foreman`, 2 for `up`;
-absent means `none`. The root writes it only for `foreman` or `up`. Any
-other value refuses the change's start as a malformed parameter
-(2026-11-04).
+The question route is number parameter 14: 2 for `up`; absent means
+`none`. The root writes it only for `up`. Any other value, 1, the retired
+foreman's (`questions.md`, 1), among them, refuses the change's start as a
+malformed parameter (2026-11-04).
 
 The close request a goal's close step carries is bytes parameter 17, the
 request's exact text form (`../../../protocol/tooling.md`, 4.2), within the close
@@ -177,6 +176,15 @@ commit as 40 or 64 lowercase hexadecimal digits. The start keeps it with the
 change; a value outside that text form refuses the start as a malformed
 parameter. Without it the change names no red landing to repair
 (2026-11-04).
+
+The source landings a follow change follows are bytes parameter 18,
+`N:COMMIT[,COMMIT]...`, made by a follow's task alone and checked by the
+root as it decides the delegate (`../follows.md`, section 4). The start
+keeps them with the change (`follows`); a value outside that form refuses
+the start as a malformed parameter. A change with parameter 18 takes
+question route `up` with no parameter 14, never starts early, under its
+follow's `owner` start produces only once its owner's word starts it, and
+carries its follow's check (`../follows.md`, sections 4 and 6).
 
 ## 2. Its way to landing
 
@@ -239,13 +247,13 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    branch starts at the next step. Every producing delegate's writable
    repository carries the change's landing branch beside its write
    destination, whatever its start, and the worker pins its tip for the
-   project's checks (`../../worker.md`, 4.1 and section 5). A producing delegate
+   project's checks (`../../worker/README.md`, 4.1 and `../../worker/checkouts.md`). A producing delegate
    retried while it still owns an existing change branch starts at that
    branch. Only a writable producer whose start is that destination gets
    the comparison for existing work;
    saved starts, repairs, resolution, gates and ordinary runs do not. The
    worker fetches the landing tip per hold and verifies an existing
-   unlanded head through a guarded push (../../worker.md, section 5). This does
+   unlanded head through a guarded push (../../worker/checkouts.md). This does
    not substitute a historical receipt for current ownership or drift checks.
    A catch-up's producer is the merge job (`repairs.md`): its landing branch's
    tip with the catch-up's commit merged in, pushed as the change's
@@ -264,7 +272,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    request open does the same.
 3. **Checking:** CI runs on its head, where its landing branch's rules
    ask CI passed (`gates.md`, 2). A failure is a repair (`repairs.md`): a task given the
-   failing output. A repository without CI is checked by its checks
+   failing output, unless the runner caused it (below). A repository without CI is checked by its checks
    (`gates.md`, 1). Where they ask no CI, the change goes on to its gates at once,
    and neither a check nor CI at its head holds it or asks a repair.
    **A head already behind takes its base first.** Where its landing
@@ -283,6 +291,33 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    the head replaced stays the forge's, since temper has no effect that stops
    one: the change stops waiting for it, and what it spends goes by the
    repository's own CI settings.
+   **The runner's failures run again** (`../../../draft/ci-on-forgejo-17.md`, 2). When CI
+   fails at the head, the change reads the run of each failed check's job
+   (skein's `Read::Run`). A job's failure is the runner's when its first
+   failed step is the set-up step or the completion step (every workflow
+   step having passed), or it failed with no step failed; never by its
+   log's words. A failure in a workflow's own step, a cancelled job, and a
+   failed check that names no job are the change's. When every failed
+   check is the runner's and each one's job was re-run fewer than
+   `reruns` times at this head, the change re-runs those jobs, one write
+   each (`../README.md`, section 4, kind 17), instead of asking a repair.
+   A job's re-runs at a head are counted by the forge's attempts, not
+   kept by the change: a job at attempt *a* was run again *a* − 1 times,
+   by temper or by anyone, and a new head's jobs start at their first.
+   A re-run keeps what the head earned: it moves no head, so the gates'
+   verdicts there stay valid and a live gate runs on; no repair is
+   counted; under its queue the change keeps its turn (`../queues.md`);
+   CI read at the head is pending again until the new attempts end, and
+   the wait on it counts its stall afresh from the re-run. Each re-run's
+   account, as every write's, names its job, its check and its reason
+   (`set-up failed`, `completion failed`, `no step failed`). Otherwise
+   the failure is a repair, as above, whose brief says, of each failed
+   check, whether its failure was the runner's, why, and how many times
+   its job was run again at this head (`repairs.md`). A re-run whose
+   answer is lost is found by the job's attempt moved past the one it
+   named; not found, it was not made, and the change decides again on a
+   fresh read. Only a change's CI at its head is re-run: the branch's
+   own CI on its tip keeps its repair (`../queues.md`).
 4. **Gating:** each gate without a verdict valid at this head runs: a
    task at the exact head. A blocking review or check that asks for
    changes is a repair, given its remarks; a blocking approval a person
@@ -336,7 +371,9 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    cancelled, no-change and unrelated children supply no successful
    repair account. Only production sets the pull request's title (1).
    Then what the landing passed, as facts the change itself saw: each
-   check at the landed head with its conclusion, and each review's verdict
+   check at the landed head with its conclusion, and the attempt it
+   concluded at where its job ran again (`ci/test passed at attempt 2`,
+   step 3), and each review's verdict
    (without repairs, their count remains after the checks). All that
    follows the three lines is cut to the result's bound, the change's
    contract's words (the deployment's `tasks.result_bytes`), from the end
@@ -371,10 +408,13 @@ the change reads the head afresh once the slot is freed. Otherwise:
   when. A release reopens it; a cancel closes the change.
 - **Its branch moved** while nothing of temper's writes it, a late copy
   of its own update among them (`../README.md`, section 6), or by another
-  identity, or not forward: held, the head kept as it is. Under its
+  identity, or not forward: held, the head kept as it is, the hold's
+  words naming the head it expected and the one it found, each at the
+  forge's short length (`its branch moved: expected 0123456789ab, found
+  89abcdef0123`). Under its
   project's turn, the rewrite its own prepare made is the change's: the
   forge's rebase (`../../landing.md`, 5.2) or a prepare job's delivery
-  (`../../worker.md`, 4.4). A release
+  (`../../worker/jobs.md`). A release
   takes the new head as the change's and checks it, gates asked again,
   its pull request opened first where none is open (2, step 2).
 - **Its branch deleted:** held. A release creates the branch again at
@@ -409,6 +449,26 @@ while the run goes on, never "branch moved"; a move by another identity,
 or not forward, is drift. The change's own delegates, its repairs, its
 resolution and its merge job, take the slot as any claim does (jig's
 `domain/tasks/holds.md`, 3), beside the design writer.
+
+**Its own writes are its own.** A head a write of temper's made for the
+change is the change's, recorded as its branch's head in the step that
+settles the write, so no later read takes it for drift:
+
+- **Its update** (`../README.md`, section 6): the head the forge's answer
+  names, or, its answer let go, a head read afresh that holds the base
+  the update asked for (its `base`, though the base has moved on since).
+  It goes on to CI on that head (2, step 3; under its turn, step 6).
+- **On its requester's held branch, a merge into it** by a change of its
+  requester's subtree (a goal's close-out or catch-up landing into the
+  goal's branch, `../branches.md`): the merge holds the branch's writer
+  slot from its entry until it settles, so the change decides nothing on
+  the head meanwhile, as above; once settled, the merge's commit is the
+  branch's head and the change's new head, checked again (2, step 3).
+  The same holds for the merge job's push on the branch (`repairs.md`).
+
+So a goal's landing whose own update, or its goal's close-out merged just
+before, moves the goal's branch goes on to CI on that head and merges;
+only a head no write of temper's in flight or settled explains is drift.
 
 Nothing is written over: a held change makes no effect until it is
 released. A drift is the change's to judge: what the forge says of a
@@ -473,7 +533,8 @@ What the connector makes of a change for the client's panel
   Gone; the client's bounded reopen and its limit are in
   `../../../client/forge/served.md`, 2, **Its subject**.
 - **Kept as long as its record:** the record outlives the task's end, so
-  a landed or cancelled change still has its panel.
+  a landed or cancelled change still has its panel, until a new change
+  needs its room (section 7).
 - **Its rules and its charter:** what the landing rules wait on at its
   head, the rule and criterion its last verdict named (`gates.md`, 2), and the
   forge's charter it was made with (`gates.md`, 3).
@@ -486,3 +547,112 @@ landing: under the queue, while its merge is sent and not yet settled;
 under the turn, while its landing has begun its proof and not yet landed
 (`../../landing.md`, 4.2). Its producing, repair or resolution run finishes
 its turn and parks, as every run under a drain does.
+
+## 7. Its room
+
+The forge keeps a record of each change, `forge.changes` of them at
+most, live and ended alike: in memory and as the store's `Change` row
+(`Key::Change`, `../../../protocol/store.md`, 2). A record outlives its
+task (section 5), and leaves only when a new change needs its room, so
+`forge.changes` bounds the changes kept at once, and through them the
+changes live at once, never every change made.
+
+- **Settled:** a change is over for good once its task has ended (its
+  ending recorded and its release finished, so no release row of its
+  task is left) and its state is `Ended`, `Cleared` or `NoChange`. A
+  live change never goes, nor a landed one whose task lives.
+- **Dropped last:** an `Uncleared` change, or a `Landed` or `Red` one,
+  whose task has ended (its ending recorded, its release finished) is
+  never stepped again (`../../after-landing.md`, 6). It goes only when
+  no settled change can, oldest first, pinned as any settled change is,
+  so a tier runner down for long refuses no new change while such a
+  change can go (the user, 2026-11-11).
+- **Pinned while read:** a settled change still stays while
+  - **its goal lives:** the tracked goal it served (its row's `goal`),
+    or else the tracked ancestor its goal's closer finds for it, is a
+    live task. The closer reads every original change of its goal for
+    the landed set, its close request and its report (`../branches.md`,
+    2), and the close command settles each `[in flight: change N]` tag
+    by it (`../../../protocol/tooling.md`, 4.2): a goal's change goes
+    only once its goal has ended;
+  - **a landing names it:** a landing row of `../../landing.md`, ended
+    or not, holds it among its members, whose steps and document read
+    each member's record (`../../landing.md`, 4 and 14).
+- **Dropped when room is needed, oldest first:** a new change finding
+  the table full drops, in the same decision that registers it, the
+  settled, unpinned change with the lowest task number; task numbers
+  are jig's, deployment-wide and never reused, so the lowest was made
+  first. Its record leaves memory and its `Change` row is erased. While
+  the table has room nothing is dropped, so a quiet deployment keeps as
+  many panels as the table holds.
+- **The root chooses:** only the root knows which goals live, so it
+  picks the change to drop, a settled one first and one dropped last
+  only when no settled one can go, as `start_change` makes the registration,
+  and asks the forge to drop it first (`forge::Event::DropChange { task
+  }`, then `forge::Event::Change`). The forge drops it only if its
+  table is full and the change is still settled, or dropped last with
+  no settled one left to go, and no landing names it; otherwise it
+  drops nothing.
+- **What goes with it:** every account the forge keeps by its task: its
+  panel's CI, its settling, its start conflicts, its wakes and its
+  deadline, its pending steps and goal-file reads (a late answer to one
+  then finds nothing and is dropped), its goal files, and its `landed`
+  commits, each erased where it is stored; and the queue repairs it
+  made leave its landing branch's count of them. Its landing log entries stay
+  (`../../after-landing.md`, 10), so its project's landed history and
+  status, which read the log, keep it.
+- **Its landed commits are bounded alike:** the forge's `landed` table,
+  each merge temper made and its task (the store's `Landed` row,
+  `Key::Landed`), holds `max(forge.landings, forge.changes)` entries
+  at most. A merge finding it full makes room in the same decision,
+  erasing one entry where it is stored: one whose task has no change
+  record first (a dropped change's, or a record a deployment removed by
+  hand), else one whose change is settled, else the oldest; lowest task
+  number first, the merging change's own last. Every reader of the table
+  asks about a change it keeps (its release, its tier's ownership of a
+  landing, a subscription's own landing), so an entry without a record
+  is read by no one. The merge's own effects never wait on that room:
+  its landing branch's head moves to the merge, is saved and pushed
+  (`Pushed`), and its tiers observe it, whether or not its entry is kept
+  (the operator, 2026-11-11: a full table held goals on their own merges
+  into g).
+- **A dropped change reads as an unknown task:** its panel is Gone
+  (section 5); a subscription naming it reads it as over, as it read
+  its ended record, and wakes no one; a public merge one of whose
+  members is gone shows that member from the landing log's own entry,
+  its task, pull request and title; a tier reads its landing as one
+  not its own (`../../after-landing.md`, 2).
+- **Refused, named:** a new change that finds the table full and
+  nothing to drop is held before it registers, its words naming the
+  bound, as every limit's refusal does
+  (`../../../protocol/configuration/limits.md`):
+  `forge.changes = 128; required usage 129; reduce the named work or
+  raise this limit in the deployment configuration, restart, then
+  release`. A release registers it once a change can go.
+- **Why no bound of its own for kept panels:** a second limit, the
+  ended changes kept, would need its own room in the store's sizing,
+  and could refuse a live change beside room held for panels. Dropping
+  on demand gives every row to live changes first and keeps the most
+  history the table can hold.
+
+## 8. Open questions
+
+- **Ten busy goals:** pinning each live goal's changes keeps every
+  record its closer reads, but a deployment whose live goals hold more
+  than `forge.changes` changes between them refuses the next, naming
+  it, until one ends or the limit is raised
+  (`../../../protocol/configuration/limits.md`). A
+  closer reading a compact account of its goal's changes, kept beside
+  its own row, would lift the pin.
+
+- **A forge's run on a head replaced** (`README.md`, 2, step 3): the update first ends the
+  change's wait for that head's CI, not the run, since temper has no effect that
+  stops one, and a pull request must exist before the forge can update it, so a
+  run that starts at its opening starts first. Default: so; what it spends goes by
+  the repository's own CI settings.
+
+- **An early update against the bound** (`README.md`, 2, step 3): it counts against
+  `forge.change_policy.updates` (3 in `small`, 80 in `standard`), so under a base
+  that keeps moving `Hold::Updates` comes one update sooner. Not counting it would
+  leave the bound untrue of update attempts. Default: it counts; the figure is the
+  user's.

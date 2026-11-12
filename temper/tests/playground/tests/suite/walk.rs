@@ -15,7 +15,7 @@ const BOUND: Duration = Duration::from_secs(120);
 const REPOSITORY: &[u8] = b"playground/widget";
 
 fn kept_log() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/story-a.log")
+    skein_scratch::paths::package().join("tests/fixtures/story-a.log")
 }
 
 fn doubled_byte_bounds(deployment: &[u8]) -> Box<[u8]> {
@@ -58,10 +58,6 @@ fn doubled_byte_bounds(deployment: &[u8]) -> Box<[u8]> {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
-)]
 fn story_a_walks_from_the_welcome_to_the_csv_change_landed() {
     let mut page = Page::start(&A, SEED, Wall::EPOCH);
     let script = stories::a();
@@ -85,7 +81,7 @@ fn story_a_walks_from_the_welcome_to_the_csv_change_landed() {
     assert_eq!(read.start, Wall::EPOCH);
     assert_eq!(read.build, None, "the native build is -");
     assert!(matches!(read.end, log::End::At { .. }), "the whole walk fits the log bound");
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
+    if temper_test_env::rewrite() {
         std::fs::create_dir_all(kept_log().parent().expect("fixtures directory")).expect("create fixtures directory");
         std::fs::write(kept_log(), &bytes).expect("write story A's kept log");
     }

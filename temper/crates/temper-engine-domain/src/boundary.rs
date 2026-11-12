@@ -1,6 +1,6 @@
 //! The engine boundary, wrapping its typed peers (jig's domain/root.md, 2).
 //! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
-pub use crate::route::approvals::{ApprovalRow, Approvals, YourReview};
+pub use crate::route::approvals::{ApprovalRow, ApprovalSet, ApprovalSize, Approvals, YourReview};
 use crate::route::{HostRequest, escalation, forge_route, proposals};
 use crate::{CallKey, Delivery, Key, Range, Record, RunPolicy, Write};
 use alloc::boxed::Box;
@@ -100,7 +100,7 @@ pub enum ForgeStart {
         base: skein_forge::api::Commit,
     },
     /// The landing branch with each head merged into it in order
-    /// (temper/docs/design/domain/worker.md, 4.1).
+    /// (temper/docs/design/domain/worker/README.md, 4.1).
     Merged {
         branch: Box<[u8]>,
         heads: Box<[skein_forge::api::Commit]>,
@@ -330,7 +330,6 @@ pub enum ChangeLanding {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeQuestions {
     None,
-    Foreman,
     Up,
 }
 
@@ -606,6 +605,7 @@ pub enum WorkerInput {
 /// Trials: temper/docs/design/domain/trial.md, 6.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum Application {
+    Follow { project: u32, follow: u32, act: forge::follows::FollowAct },
     Forge(forge::Ask),
     Try { account: u32, again: bool },
     Dismiss { what: forge::PersonFact },
@@ -618,6 +618,7 @@ pub enum Application {
 /// The family's terminal answer (client/forge/records.md).
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
+    Follow(Option<Box<[u8]>>),
     Make(forge::MakeAnswer),
     Adopt(forge::ApplicationOutcome),
     SetUp(forge::SetUpAnswer),
@@ -632,6 +633,7 @@ pub enum ApplicationAnswer {
     Dismiss(forge::DismissAnswer),
     Looked(forge::LookedAnswer),
     SetAway(forge::SetAwayAnswer),
+    SetDraft(forge::SetDraftAnswer),
     Overturn(forge::OverturnAnswer),
     Device(forge::DeviceAnswer),
 }
@@ -1160,6 +1162,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
     match delivery {
         delivery @ (Delivery::ProjectMade { .. }
         | Delivery::ProjectReleased { .. }
+        | Delivery::MoveStanding { .. }
         | Delivery::PublicWait { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)
@@ -1207,7 +1210,7 @@ pub struct Unsettled {
     pub task: u64,
 }
 
-/// A failed run's volatile operator evidence (temper/docs/design/domain/worker.md, 4.3).
+/// A failed run's volatile operator evidence (temper/docs/design/domain/worker/README.md, 4.3).
 /// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunDiagnostic {
@@ -1223,7 +1226,7 @@ pub struct RunDiagnostic {
     pub detail: Box<[u8]>,
 }
 
-/// A refused assignment's volatile operator evidence (temper/docs/design/domain/worker.md, 4.3).
+/// A refused assignment's volatile operator evidence (temper/docs/design/domain/worker/README.md, 4.3).
 /// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunRefusalDiagnostic {
@@ -1237,7 +1240,7 @@ pub struct RunRefusalDiagnostic {
     pub reason: jig_domain_host::Refusal,
 }
 
-/// An accepted job's volatile operator evidence (temper/docs/design/domain/worker.md, 4.4).
+/// An accepted job's volatile operator evidence (temper/docs/design/domain/worker/jobs.md).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct JobDiagnostic {
     pub task: u64,

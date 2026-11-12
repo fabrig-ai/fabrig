@@ -230,6 +230,13 @@ and no policy. Every type is a plain value.
 - **`Reviews`, `Remarks` and `PullFiles` take `skip`,** the rows of their
   page already read: a page the answer's bytes cut (3.3) is read on at
   the same page past them, so a cut loses no row and repeats none.
+- **`PullFiles { number, head, page, skip, sides }`** reads a page of a
+  pull request's changed files at `head`. With `sides`, each `File`
+  carries its contents at the merge base and at the head, `None` for a
+  side the file lacks; without, its path alone, both `None`, and the
+  dialect reads neither a merge base nor a side: the files' listing is
+  the read. A reader that needs paths alone, as goal overlap does
+  (temper's `domain/forge/README.md`, 5.3), asks without `sides`.
 - **`Item { number, after, since }`** asks for an item and its comments
   with ids above `after`. `since` is a time at or before the update of
   every comment above `after`, which the dialect sends as its forge's own
@@ -461,7 +468,18 @@ By name; the code holds the fields.
   merge commit, whether it is mergeable, its reviewers, its `Ci`, and
   `queued`, its position in a merge queue when it is in one, and
   `dequeued`, the forge's words for why a queue last ejected it, at most
-  `DEQUEUED_BYTES` (256) bytes.
+  `DEQUEUED_BYTES` (256) bytes, and `size`, its `Size` at the head the
+  same answer gives, none where the forge's answer gives none.
+- **`Size`:** a pull request's size as the forge counts it at its head:
+  `files`, the files it changes, and `additions` and `deletions`, the
+  lines it adds and removes, each a `u64`. They are the forge's own
+  counts, read from its answer about the pull request, never counted
+  from the files or a listing. An answer that lacks one of the three,
+  or gives one that is no whole number within 64 bits, gives no `Size`,
+  and the pull request reads as it does without one: a size never fails
+  a read. They are kept as given: no fact on record caps them, as the
+  files' listings are capped (`github.md`, 4.1), so a reader that keeps
+  them narrower says where it cut one.
 - **`Review`:** a review, with its `Verdict`, its commit, its key, its
   `Provenance`, its `revision`, its time and whether it is official.
 - **`Remark`:** a comment attached to a review at a path and a line.
@@ -1050,11 +1068,11 @@ the suites (../testing/README.md, section 6).
   an answer shows a fault.
 - **Dismissed reviews:** whether one counts as no verdict, or as the
   comment it was. Default: the comment it was.
-- **Contents on demand.** A pull request's files cost two reads per file,
-  since `File` carries contents; an overlap needs paths only. Default: a
-  pull request's contents always read, as the client asks; a comparison
-  reads names alone (3.2), and a pull request's paths alone would be
-  another read for the client to name.
+- **Contents on demand.** A pull request's files with `sides` cost two
+  reads per file, since `File` carries contents. Default: a reader that
+  needs paths alone, as an overlap, asks without `sides` (3.2); one that
+  needs contents asks them for the whole page, or reads one path by
+  `File` at each commit; a comparison reads names alone (3.2).
 - **A file too large for the answer** fails its call as `TooLarge`.
   Default: so; a side cut with a mark would need `File` to carry one.
 - **Bodies past `body_bytes`** are carried empty. Default: so, the

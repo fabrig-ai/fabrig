@@ -30,7 +30,7 @@ with open(os.environ["CALLS"], "a") as output:
         key: os.environ.get(key) for key in (
             "NEXTEST_DOUBLE_SPAWN", "TEMPER_INTERNAL_BUNDLE", "SKEIN_UI_EXAMPLE_BUNDLE",
             "JIG_TEST_BUNDLE", "TEMPER_TEST_BUNDLE", "TEMPER_TEST_PLAYGROUND",
-            "CARGO_TARGET_DIR", "TEMPER_TEST_CLAUDE")}}) + "\\n")
+            "CARGO_TARGET_DIR", "DEMO_TEST_CLAUDE")}}) + "\\n")
 if name == "cargo" and args[:1] == ["metadata"]:
     if args != ["metadata", "--format-version", "1", "--no-deps"]:
         sys.exit(91)
@@ -201,8 +201,8 @@ class RunnerTests(unittest.TestCase):
               "--noscript", "jig needs WebAssembly and scripts."]),
         )
         shell = "temper/crates/temper-client-shell-web"
-        cases += (("temper", "browser", "temper-client-shell-web", "temper-box", "TEMPER_TEST_BUNDLE",
-                   "temper-bundle", ["--features", "loopback-navigation,small-window"],
+        cases += (("temper", "browser", "temper-client-web-page", "temper-box", "TEMPER_TEST_BUNDLE",
+                   "temper-bundle", [],
                    ["--title", "temper", "--placeholder", f"{shell}/loading.html",
                     "--placeholder-stylesheet", f"{shell}/loading.css",
                     "--stylesheet", f"{shell}/temper.css", "--stylesheet", f"{shell}/task-pages.css",
@@ -317,17 +317,31 @@ class RunnerTests(unittest.TestCase):
                     self.assertIn("tools/tiers/packages.toml", result.stderr)
                     self.assertEqual(calls, [])
 
+    def test_process_temper_builds_fake_claude_without_environment_setting(self):
+        shutil.copyfile(RUN.parents[2] / '.config/nextest.toml', self.config)
+        shutil.copyfile(RUN.with_name('packages.toml'), self.packages)
+        inventory = MODULE['tomllib'].loads(self.packages.read_text())
+        adapter = [binary for binary in inventory['binaries']['process-temper']
+                   if binary['bin'] == 'fake-claude']
+        self.assertEqual(adapter, [{'package': 'smith-fake-claude', 'bin': 'fake-claude'}])
+        result, calls = self.invoke('temper', 'process')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        builds = [call['args'] for call in calls if call['args'][:2] == ['cargo', 'build']]
+        self.assertIn(['cargo', 'build', '-p', 'smith-fake-claude', '--bin', 'fake-claude'], builds)
+        self.assertEqual(calls[-1]['args'][:3], ['cargo', 'nextest', 'run'])
+        self.assertNotIn('cargo', [call['name'] for call in calls], 'no target lookup for an env setting')
+
     def test_binary_environment_uses_metadata_target_after_build(self):
         self.packages.write_text(self.packages.read_text().replace(
             'process-jig = []',
-            'process-jig = [{package="adapter",bin="fake-claude",env="TEMPER_TEST_CLAUDE"}]'))
-        result, calls = self.invoke("jig", "process", TEMPER_TEST_CLAUDE="/stale")
+            'process-jig = [{package="adapter",bin="fake-claude",env="DEMO_TEST_CLAUDE"}]'))
+        result, calls = self.invoke("jig", "process", DEMO_TEST_CLAUDE="/stale")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([call['name'] for call in calls], ["cargo", "df", "wrap", "df", "wrap"])
         self.assertEqual(calls[2]['args'], ["cargo", "build", "-p", "adapter", "--bin", "fake-claude"])
-        self.assertEqual(calls[2]['env']['TEMPER_TEST_CLAUDE'], "/stale")
-        self.assertEqual(calls[-1]['env']['TEMPER_TEST_CLAUDE'], str(self.target / "debug/fake-claude"))
-        result, calls = self.invoke("--verify", "jig", "process", TEMPER_TEST_CLAUDE="/stale")
+        self.assertEqual(calls[2]['env']['DEMO_TEST_CLAUDE'], "/stale")
+        self.assertEqual(calls[-1]['env']['DEMO_TEST_CLAUDE'], str(self.target / "debug/fake-claude"))
+        result, calls = self.invoke("--verify", "jig", "process", DEMO_TEST_CLAUDE="/stale")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([call['name'] for call in calls], ["df", "wrap", "df", "wrap"])
 
@@ -539,17 +553,17 @@ class RunnerTests(unittest.TestCase):
     def test_cpu_preserves_native_prerequisites_and_reuses_metadata(self):
         self.packages.write_text(self.packages.read_text().replace(
             'qa-smith = []',
-            'qa-smith = [{package="adapter",bin="fake-claude",env="TEMPER_TEST_CLAUDE"}]'))
+            'qa-smith = [{package="adapter",bin="fake-claude",env="DEMO_TEST_CLAUDE"}]'))
         directory = self.root / 'CPU with native'
-        result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa', TEMPER_TEST_CLAUDE='/stale')
+        result, calls = self.invoke('--cpu', str(directory), 'smith', 'qa', DEMO_TEST_CLAUDE='/stale')
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'wrap', 'df', 'wrap', 'df', 'wrap'])
         self.assertEqual(calls[2]['args'], ['cargo', 'build', '-p', 'adapter', '--bin', 'fake-claude'])
         self.assertEqual(calls[4]['args'][0], 'cc')
         self.assertEqual(calls[6]['args'][:3], ['cargo', 'nextest', 'run'])
-        self.assertEqual(calls[2]['env']['TEMPER_TEST_CLAUDE'], '/stale')
+        self.assertEqual(calls[2]['env']['DEMO_TEST_CLAUDE'], '/stale')
         for call in (calls[4], calls[6]):
-            self.assertEqual(call['env']['TEMPER_TEST_CLAUDE'], str(self.target / 'debug/fake-claude'))
+            self.assertEqual(call['env']['DEMO_TEST_CLAUDE'], str(self.target / 'debug/fake-claude'))
         result, calls = self.invoke('--cpu', str(self.root / 'native-failure'), 'smith', 'qa', FAIL_BUILD='adapter')
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertEqual([call['name'] for call in calls], ['cargo', 'df', 'wrap'])

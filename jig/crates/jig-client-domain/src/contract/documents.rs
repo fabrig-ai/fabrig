@@ -50,6 +50,8 @@ pub struct TaskSettings {
 /// A complete task document with independently moving revisions.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Task {
+    pub talk: Option<Talk>,
+    pub session: Option<Session>,
     /// None for a procedure's or a person's task.
     pub settings: Option<TaskSettings>,
     pub label: u32,
@@ -135,11 +137,15 @@ pub struct SpendLine {
 
 /// Allocated offer slots for the closed act vocabulary (client/domain/contract/documents.md, 3).
 /// Offers are independent of paged rows; their nested values keep their own bounds.
-pub const MAX_OFFERED_ACTS: u32 = 25;
+pub const MAX_OFFERED_ACTS: u32 = 27;
 
 /// An engine offered act kind, without view words.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ActKind {
+    /// Open or continue a standing task's talk.
+    Talk,
+    /// Leave a standing task's talk.
+    Leave,
     /// Write to an agent.
     Message,
     /// Answer a question or person task.
@@ -611,6 +617,11 @@ impl DecodedActivityLine {
             | super::Activity::RunBegan { .. }
             | super::Activity::RunEnded { .. }
             | super::Activity::Decided { .. }
+            | super::Activity::NowWritten { .. }
+            | super::Activity::Stood { .. }
+            | super::Activity::TalkOpened { .. }
+            | super::Activity::TalkEnded { .. }
+            | super::Activity::SessionEnded { .. }
             | super::Activity::Kept { .. }
             | super::Activity::Milestone { .. } => None,
         }
@@ -631,6 +642,11 @@ impl DecodedActivityLine {
             | super::Activity::RunEnded { .. }
             | super::Activity::Turn { .. }
             | super::Activity::Decided { .. }
+            | super::Activity::NowWritten { .. }
+            | super::Activity::Stood { .. }
+            | super::Activity::TalkOpened { .. }
+            | super::Activity::TalkEnded { .. }
+            | super::Activity::SessionEnded { .. }
             | super::Activity::Kept { .. }
             | super::Activity::Milestone { .. } => None,
         }
@@ -646,6 +662,11 @@ impl DecodedActivityLine {
             | super::Activity::RunBegan { .. }
             | super::Activity::RunEnded { .. }
             | super::Activity::Decided { .. }
+            | super::Activity::NowWritten { .. }
+            | super::Activity::Stood { .. }
+            | super::Activity::TalkOpened { .. }
+            | super::Activity::TalkEnded { .. }
+            | super::Activity::SessionEnded { .. }
             | super::Activity::Kept { .. }
             | super::Activity::Milestone { .. } => None,
         }
@@ -720,8 +741,13 @@ fn activity_weight(activity: &super::Activity) -> u64 {
         super::Activity::Heard(word) | super::Activity::Notified { word, .. } => {
             u64::from(LINE_ROOM).saturating_add(byte_weight(word.words.bytes())).saturating_add(kind_weight(&word.kind))
         }
+        super::Activity::Stood { words, .. } => byte_weight(words.bytes()),
+        super::Activity::NowWritten { line, .. } => byte_weight(line.bytes()),
         super::Activity::Kept { pending, .. } => u64::from(pending.len()).saturating_mul(u64::from(LINE_ROOM)),
-        super::Activity::RunBegan { .. }
+        super::Activity::TalkOpened { .. }
+        | super::Activity::TalkEnded { .. }
+        | super::Activity::SessionEnded { .. }
+        | super::Activity::RunBegan { .. }
         | super::Activity::RunEnded { .. }
         | super::Activity::Turn { .. }
         | super::Activity::Decided { .. }
@@ -787,4 +813,18 @@ fn part_weight(part: &ApplicationPart) -> u64 {
         | ApplicationPart::Deployment { .. } => {}
     }
     weight
+}
+
+/// A standing task's talk (domain/tasks/standing.md, 7).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Talk {
+    pub party: u64,
+    pub opened: Wall,
+    pub last: Wall,
+}
+/// A standing task's current session (domain/tasks/standing.md, 7).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Session {
+    pub first: u64,
+    pub last: Wall,
 }

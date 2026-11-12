@@ -39,6 +39,7 @@ fn configuration() -> engine::Config {
     config.core.defaults = temper_service::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
 
     config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+        direct: Box::new([]),
         providers: Box::new([]),
         number: model.endpoint,
         dialect: model.dialect,
@@ -50,6 +51,7 @@ fn configuration() -> engine::Config {
         config.core.defaults.policies.get(&POLICY_NUMBER).expect("stock policy 1").clone();
     config.core.owners[0].project = 1;
     let deployment = Box::new([engine::LandingRule {
+        sets: Box::new([]),
         connector: 1,
         kind: 4,
         enforce: true,
@@ -104,8 +106,8 @@ fn limits() -> engine::Limits {
     limits.forge.tasks = 16;
     limits.journal.deliveries = 128;
     limits.journal.held = 512;
-    // Charter 11's resolved stock run policy needs 16,601 bytes.
-    limits.journal.run_bytes = 20_480;
+    // Holds the stock goal agent's instructions, four parts and resolved model.
+    limits.journal.run_bytes = 32_768;
     limits.journal.result_bytes = 1024;
     limits.journal.transcript_bytes = 32768;
     limits.loads.transcript_bytes = 32768;
@@ -289,7 +291,16 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
     let mut worker = child_run(driver, change);
     assert_eq!(
         worker.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../../crates/temper-service/src/stock/coding.txt"),
+        configuration()
+            .core
+            .defaults
+            .charters
+            .iter()
+            .find(|charter| charter.number == 2)
+            .expect("assembled charter 2")
+            .policy
+            .instructions
+            .as_ref(),
         "the producer reads the stock coding instructions"
     );
     assert!(!worker.run.policy.shell, "the producer can run nothing");

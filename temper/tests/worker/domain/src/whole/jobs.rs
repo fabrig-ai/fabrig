@@ -1,5 +1,5 @@
 //! Whole job stories with the real root, hub, capability and checkout, and
-//! the fake disk and forge (temper/docs/design/domain/worker.md, 4.4).
+//! the fake disk and forge (temper/docs/design/domain/worker/jobs.md).
 
 use jig_domain_link::{JobBound, JobKind};
 use std::collections::VecDeque;
@@ -135,7 +135,7 @@ impl World {
             Request::Io { owner, op, deadline } => {
                 assert!(deadline > self.env.now);
                 match &op {
-                    git::Op::Make { workspace } => self.workspace = Some(*workspace),
+                    git::Op::Make { workspace, .. } => self.workspace = Some(*workspace),
                     git::Op::Commit { at, title, body, .. } => {
                         assert_eq!(at.repository, self.repository);
                         assert_eq!(title, &self.title);
@@ -147,7 +147,9 @@ impl World {
                         assert!(self.held_push.replace((owner, op)).is_none());
                         return;
                     }
-                    git::Op::Clone { .. }
+                    git::Op::Store { .. }
+                    | git::Op::Clone { .. }
+                    | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }

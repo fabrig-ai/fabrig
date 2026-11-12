@@ -100,15 +100,16 @@ pub fn across_people(limits: Limits) -> Joint {
     front.engine.settle();
     front
 }
-/// Eight delegates fill the chat's watch set beside its session approvals and Home's full room.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 8;
+/// Twelve delegates fill one stream's room beside the chat's session watches and Home.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = 12;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]
 pub fn watch_room_limits() -> Limits {
     let mut limits = domain_limits();
-    limits.client.domain.watches = 20; // Holds four projects' decided watches.
-    limits.client.domain.handles = 22; // Holds four projects' decided watches.
+    // The shipped shells hold four projects' documents and the session's own watches.
+    limits.client.domain.watches = 26;
+    limits.client.domain.handles = 28;
     limits.client.domain.delegates = 80;
     limits.client.domain.reads = 32;
     limits.client.domain.rows = 16;
@@ -277,12 +278,12 @@ pub fn tui_first_run_world(seed: u64) -> World<Temper, Joint> {
 pub fn tui_asking_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_asking_printed_link(seed, domain_limits()))
 }
-/// A committed engine question with the printed link the shipped TUI signs in by.
+/// A committed question in the second of two projects, with the shipped TUI's printed link.
 #[must_use]
 pub fn tui_question_world(seed: u64, words: &[u8]) -> (World<Temper, Joint>, u64) {
-    let mut world = tui_world(seed);
-    let chat = question(world.front(), words);
-    world.front().offer_printed_link(domain_limits());
+    let mut world = world_with(seed, across_people(domain_limits()));
+    let chat = project_question(world.front(), 2, words);
+    world.front().offer_printed_link(temper_client_shell_tui::limits::tui().native.client);
     (world, chat)
 }
 #[must_use]

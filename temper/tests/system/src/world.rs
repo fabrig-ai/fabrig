@@ -39,6 +39,7 @@ pub fn charter() -> engine::Charter {
         dialect: temper_worker_domain_world::DIALECT,
         endpoint: 0,
         name: b"fake-1".as_slice().into(),
+        cache_life_ms: 0,
         window: 65_536,
         output: 4096,
         input_price: 1,
@@ -68,6 +69,7 @@ pub fn config(seed: u64) -> engine::Config {
     // The charter's model is in the catalogue, as jig's core world sets it (tests/core charters.rs).
     config.core.settings.models = Box::new([charter.policy.model.clone()]);
     config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+        direct: Box::new([]),
         providers: Box::new([]),
         number: charter.policy.model.endpoint,
         dialect: charter.policy.model.dialect,

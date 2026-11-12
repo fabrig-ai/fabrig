@@ -5,7 +5,7 @@ use temper_engine_domain_forge::settings;
 use temper_engine_domain_world::kinds;
 
 const ASK_CHARTER: u32 = 11;
-const SETTINGS_CHARTER: u32 = 13;
+const SETTINGS_CHARTER: u32 = 14;
 
 fn box_owner() -> people::IdentityKey {
     people::IdentityKey { provider: 3, subject: b"owner-a".as_slice().into() }
@@ -79,7 +79,7 @@ fn world_with_owner(identity: people::IdentityKey) -> World {
     world
 }
 
-fn forge_with_only_temper(world: &mut World) {
+pub(super) fn forge_with_only_temper(world: &mut World) {
     // Only temper is returned at adoption; the deployment owner is a separate identity.
     world.fake_env.limits.limits.users = 6;
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
@@ -112,6 +112,7 @@ fn forge_with_only_temper(world: &mut World) {
 
 fn approval_rule(role: u32, people: u32) -> settings::Value {
     settings::Value::Rule(settings::LandingRule {
+        sets: Box::new([]),
         pattern: forge_top::GatePattern {
             segments: Box::new([b"forge".as_slice().into()]),
             last: forge_top::GateLast::Open(Box::new([])),
@@ -231,7 +232,11 @@ fn a_box_refuses_an_unfulfillable_person_approval_rule() {
     }
 }
 
-fn approval_identity_world(link: bool, second_forge: bool, fake_forge: bool) -> World {
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "the table varies the link, box and forge identities independently"
+)]
+fn approval_identity_world(link: bool, under_box: bool, second_forge: bool, fake_forge: bool) -> World {
     let identity = if link { box_owner() } else { forge_top::user_key(1, 7) };
     let mut world = world_with_owner(identity);
     let person = world
@@ -288,6 +293,7 @@ fn approval_identity_world(link: bool, second_forge: bool, fake_forge: bool) -> 
         });
     }
     world.store.seed(records.into_boxed_slice(), Box::new([]));
+    world = world.with_restart_under_box(under_box);
     world.restart_same();
     settle(&mut world);
     world
@@ -297,29 +303,32 @@ fn approval_identity_world(link: bool, second_forge: bool, fake_forge: bool) -> 
 fn approval_rules_count_known_forge_people_with_the_required_role() {
     const ONE_SHORT: &str =
         "project 1 role 0 on forge forge.example requires 2 distinct known forge people; currently 1 eligible.";
+    const NO_LINK: &str =
+        "project 1 role 0 on forge forge.example requires 1 distinct known forge people; currently 0 eligible.";
     const WRONG_ROLE: &str =
         "project 1 role 1 on forge forge.example requires 1 distinct known forge people; currently 0 eligible.";
     const OTHER_FORGE: &str =
         "project 1 role 0 on forge other.example requires 1 distinct known forge people; currently 0 eligible.";
     const FAKE: &str = "project 1: the playground's forge has no accounts, so no one can approve there. Name a branch pattern or a project that leaves its repository out, or remove the approval requirement.";
-    for (kind, scope, role, required, link, second_forge, fake_forge, host, refusal) in [
-        (1, 0, 0, 1, false, false, false, None, None),
-        (2, 1, 0, 1, false, false, false, None, None),
-        (1, 0, 0, 2, false, false, false, None, Some(ONE_SHORT)),
-        (2, 1, 0, 2, false, false, false, None, Some(ONE_SHORT)),
-        (1, 0, 1, 1, false, false, false, None, Some(WRONG_ROLE)),
-        (2, 1, 1, 1, false, false, false, None, Some(WRONG_ROLE)),
-        (1, 0, 0, 1, true, false, false, None, None),
-        (2, 1, 0, 1, true, false, false, None, None),
-        (1, 0, 0, 2, true, false, false, None, Some(ONE_SHORT)),
-        (2, 1, 0, 2, true, false, false, None, Some(ONE_SHORT)),
-        (1, 0, 0, 1, false, true, false, None, Some(OTHER_FORGE)),
-        (2, 1, 0, 1, false, true, false, Some(b"other.example".as_slice()), Some(OTHER_FORGE)),
-        (2, 1, 0, 1, false, true, false, Some(b"forge.example".as_slice()), None),
-        (1, 0, 0, 1, false, false, true, None, Some(FAKE)),
-        (2, 1, 0, 2, false, false, true, None, Some(FAKE)),
+    for (kind, scope, role, required, link, under_box, second_forge, fake_forge, host, refusal) in [
+        (1, 0, 0, 1, false, false, false, false, None, None),
+        (2, 1, 0, 1, false, false, false, false, None, None),
+        (1, 0, 0, 2, false, false, false, false, None, Some(ONE_SHORT)),
+        (2, 1, 0, 2, false, false, false, false, None, Some(ONE_SHORT)),
+        (1, 0, 1, 1, false, false, false, false, None, Some(WRONG_ROLE)),
+        (2, 1, 1, 1, false, false, false, false, None, Some(WRONG_ROLE)),
+        (1, 0, 0, 1, true, true, false, false, None, None),
+        (2, 1, 0, 1, true, true, false, false, None, None),
+        (1, 0, 0, 2, true, true, false, false, None, Some(ONE_SHORT)),
+        (2, 1, 0, 2, true, true, false, false, None, Some(ONE_SHORT)),
+        (1, 0, 0, 1, true, false, false, false, None, Some(NO_LINK)),
+        (1, 0, 0, 1, false, false, true, false, None, Some(OTHER_FORGE)),
+        (2, 1, 0, 1, false, false, true, false, Some(b"other.example".as_slice()), Some(OTHER_FORGE)),
+        (2, 1, 0, 1, false, false, true, false, Some(b"forge.example".as_slice()), None),
+        (1, 0, 0, 1, false, false, false, true, None, Some(FAKE)),
+        (2, 1, 0, 2, false, false, false, true, None, Some(FAKE)),
     ] {
-        let mut world = approval_identity_world(link, second_forge, fake_forge);
+        let mut world = approval_identity_world(link, under_box, second_forge, fake_forge);
         let mut rule = approval_rule(role, required);
         if let Some(host) = host {
             let settings::Value::Rule(rule) = &mut rule else { panic!("approval rule") };
@@ -336,7 +345,7 @@ fn approval_rules_count_known_forge_people_with_the_required_role() {
         assert_eq!(
             kinds::revision(&world.store.rows),
             before + u32::from(refusal.is_none()),
-            "kind {kind} requiring {required} people, link {link}, second forge {second_forge}, fake {fake_forge}: {:?}",
+            "kind {kind} requiring {required} people, link {link}, box {under_box}, second forge {second_forge}, fake {fake_forge}: {:?}",
             world.web_replies
         );
         if let Some(expected) = refusal {
@@ -377,7 +386,9 @@ fn drop_approvals(world: &mut World) {
                         | settings::Value::CharterWords(_)
                         | settings::Value::Goal(_)
                         | settings::Value::Classes(_)
-                        | settings::Value::ProjectWords(_) => None,
+                        | settings::Value::ProjectWords(_)
+                        | settings::Value::Dependency(_)
+                        | settings::Value::Follow(_) => None,
                     }
                 }
                 _ => None,
@@ -451,7 +462,7 @@ fn an_unknown_head_approval_waits_until_the_approval_requirement_is_removed() {
 pub(crate) fn approval_wait_story() {
     let (mut world, change) = waiting_approval();
     let panel = approval_panel(&mut world, change, 990);
-    assert_eq!(panel.step, forge_top::PanelStep::First);
+    assert!(matches!(panel.step, forge_top::PanelStep::Queued { .. }), "a sign-off waits outside the queue");
     assert_eq!(panel.ci, temper_engine_domain_forge_change::Status::Passed);
     assert_eq!(panel.gates[0].verdict, temper_engine_domain_forge_change::Status::Passed);
     assert_approval_wait(&panel);
@@ -469,6 +480,149 @@ pub(crate) fn approval_wait_story() {
     drop_approvals(&mut world);
     assert!(approval_panel(&mut world, change, 993).approvals.is_empty(), "live rules determine the panel");
     world.close();
+}
+
+fn another_waiting_approval(world: &mut World, name: u64) -> u64 {
+    let chat = world.assigned[0].clone();
+    let before = world.assigned.len();
+    let engine::CallAnswer::Delegated(made) =
+        super::change_tool::change(world, &chat, name, None, b"Independent change")
+    else {
+        panic!("second change delegated: {:?}", world.answers);
+    };
+    let change = made[0].task;
+    let producer = reviews::next_assignment(world, before);
+    let branch = light_rules::change_row(world, change).branch.clone();
+    reviews::produce(world, &producer, &branch);
+    let head = world.fake.branch(b"org/repo", &branch).expect("produced head");
+    super::update_first::status(world, head, raw::Check::Passed);
+    let reviewer = reviews::next_assignment(world, before + 1);
+    reviews::finish_review(
+        world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+    );
+    settle(world);
+    change
+}
+
+#[test]
+fn a_later_approved_change_lands_while_the_earlier_waits_outside_the_queue() {
+    use temper_engine_domain_forge_change::State;
+    let (mut world, x) = waiting_approval();
+    let since = light_rules::change_row(&world, x).change.ready_since;
+    world.restart_same();
+    settle(&mut world);
+    assert!(matches!(light_rules::change_row(&world, x).change.state, State::Queued { .. }));
+    world.env.now = world.env.now.saturating_add(Duration::from_secs(1));
+    let y = another_waiting_approval(&mut world, 94);
+    post_approval(&mut world, y, 7);
+    assert_eq!(world.merges, 1, "Y lands while X's sign-off waits");
+    assert!(matches!(light_rules::change_row(&world, y).change.state, State::Landed { .. }));
+    let row = light_rules::change_row(&world, x);
+    assert!(matches!(row.change.state, State::Queued { .. }));
+    assert!(!row.change.owns_turn);
+    assert_eq!(row.change.ready_since, since);
+    world.signed_in = None;
+    world.sign_in();
+    let watcher = Token::new(994);
+    watch_approvals_at(&mut world, watcher, 0);
+    let document = approvals_of(&world, watcher);
+    assert_eq!(document.rows.len(), 1);
+    assert_eq!(document.rows[0].task, x);
+    assert!(document.rows[0].sets.is_empty(), "these rules name no path set");
+    post_approval(&mut world, x, 7);
+    finish_change_gate(&mut world, x);
+    assert_eq!(
+        world.merges,
+        2,
+        "X returns and lands at its first ready time: {:?}",
+        light_rules::change_row(&world, x).change
+    );
+    assert_eq!(light_rules::change_row(&world, x).change.ready_since, since);
+    world.close();
+}
+
+#[test]
+fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked_again() {
+    use temper_engine_domain_forge_change::State;
+    let (mut world, x) = waiting_approval_with_client(true);
+    let since = light_rules::change_row(&world, x).change.ready_since;
+    world.env.now = world.env.now.saturating_add(Duration::from_secs(1));
+    let y = another_waiting_approval(&mut world, 94);
+    world.env.now = world.env.now.saturating_add(Duration::from_secs(1));
+    let z = another_waiting_approval(&mut world, 95);
+    super::update_first::move_base(&mut world, b"main");
+    world.hold_write_answers = Some(HoldWrite::All);
+    post_approval_read(&mut world, y, 7);
+    for _ in 0..200 {
+        world.tick();
+        if !world.held_write_answers.is_empty() {
+            break;
+        }
+    }
+    assert!(matches!(light_rules::change_row(&world, y).change.state, State::Updating { .. }));
+    assert!(!world.held_write_answers.is_empty());
+    post_approval_read(&mut world, z, 7);
+    post_approval_read(&mut world, x, 7);
+    let panel = approval_panel(&mut world, x, 995);
+    assert!(
+        panel.approvals.iter().all(|line| line.remaining == Some(0)),
+        "X's sign-off counts while Y updates: {panel:?}"
+    );
+    assert_eq!(world.merges, 0);
+    assert!(light_rules::change_row(&world, y).change.owns_turn, "Y keeps its update turn");
+    for task in [x, z] {
+        let row = light_rules::change_row(&world, task);
+        assert!(matches!(row.change.state, State::Queued { .. }), "{row:?}");
+        assert!(!row.change.owns_turn, "a returning sign-off never overtakes the owner");
+    }
+    assert_eq!(light_rules::change_row(&world, x).change.ready_since, since);
+    world.release_write_answers();
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    settle(&mut world);
+    assert_eq!(world.merges, 1, "Y lands first");
+    assert!(matches!(light_rules::change_row(&world, y).change.state, State::Landed { .. }));
+    finish_change_gate(&mut world, x);
+    settle(&mut world);
+    assert_eq!(world.merges, 2, "Z keeps its turn while X's exact gate is asked again");
+    assert!(matches!(light_rules::change_row(&world, z).change.state, State::Landed { .. }));
+    assert!(matches!(light_rules::change_row(&world, x).change.state, State::Gating { .. }));
+    assert!(!light_rules::change_row(&world, x).change.owns_turn);
+    finish_change_gate(&mut world, x);
+    assert_eq!(world.merges, 3);
+    let merged: Vec<_> = world
+        .writes
+        .iter()
+        .filter_map(|write| match write {
+            skein_forge::api::Write::Merge { number, .. } => Some(*number),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(merged, [y, z, x].map(|task| light_rules::change_row(&world, task).pull.expect("pull")));
+    world.close();
+}
+
+fn finish_change_gate(world: &mut World, change: u64) {
+    for _ in 0..200 {
+        if let Some((task, _)) = light_rules::change_row(world, change).delegate
+            && world.assigned.iter().any(|run| run.task == task)
+        {
+            break;
+        }
+        world.tick();
+    }
+    let (task, kind) = light_rules::change_row(world, change).delegate.unwrap_or_else(|| {
+        panic!("exact gate at the updated head for {change}: {:?}", light_rules::change_row(world, change).change)
+    });
+    assert!(matches!(kind, temper_engine_domain_forge_change::Delegate::Gate { .. }));
+    let reviewer = world.assigned.iter().rev().find(|run| run.task == task).expect("gate assigned").clone();
+    reviews::finish_review(
+        world,
+        &reviewer,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"updated head approved".as_slice().into() },
+    );
+    settle(world);
 }
 
 fn assert_approval_wait(panel: &forge_top::Panel) {
@@ -512,7 +666,7 @@ fn approval_panel(world: &mut World, change: u64, watcher: u64) -> forge_top::Pa
     panel
 }
 
-fn post_approval(world: &mut World, change: u64, user: u64) {
+pub(super) fn post_approval_read(world: &mut World, change: u64, user: u64) {
     fake::grant(&mut world.fake, b"org/repo", user, raw::Permission::Write);
     let pull = light_rules::change_row(world, change).pull.expect("opened pull");
     assert!(matches!(
@@ -533,10 +687,12 @@ fn post_approval(world: &mut World, change: u64, user: u64) {
             key: None,
         },
     })));
+}
+
+pub(super) fn post_approval(world: &mut World, change: u64, user: u64) {
+    post_approval_read(world, change, user);
     world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
-    for _ in 0..200 {
-        world.tick();
-    }
+    settle(world);
 }
 
 // The fake forge has no inline-remark write; its domain read supplies that row.
@@ -621,6 +777,7 @@ fn a_persons_request_for_changes_repairs_with_its_remarks() {
         (b"At the bound".as_slice(), false, false, true),
     ] {
         let (mut world, change) = waiting_approval();
+        assert!(matches!(light_rules::change_row(&world, change).change.state, State::Queued { .. }));
         if bound {
             let mut row = light_rules::change_row(&world, change).clone();
             row.change.repairs = world.env.limits.forge.change_policy.repairs;
@@ -659,6 +816,10 @@ fn a_persons_request_for_changes_repairs_with_its_remarks() {
         for _ in 0..200 {
             request_reads(&mut world, review, reviewed, remarks);
             world.tick();
+            assert!(
+                !light_rules::change_row(&world, change).change.owns_turn,
+                "an out-of-queue request repairs without taking a turn"
+            );
         }
         let row = light_rules::change_row(&world, change);
         assert_eq!(world.merges, 0);
@@ -701,7 +862,7 @@ fn a_persons_request_for_changes_repairs_with_its_remarks() {
     }
 }
 
-fn approvals_of(world: &World, watcher: Token) -> engine::Approvals {
+pub(super) fn approvals_of(world: &World, watcher: Token) -> engine::Approvals {
     world
         .approvals
         .iter()
@@ -713,12 +874,16 @@ fn approvals_of(world: &World, watcher: Token) -> engine::Approvals {
 }
 
 fn watch_approvals(world: &mut World, watcher: Token) {
+    watch_approvals_at(world, watcher, 1);
+}
+
+fn watch_approvals_at(world: &mut World, watcher: Token, connector: u16) {
     world.send(engine::Event::Party(engine::PartyInput::Watch {
         watcher,
         sign_in: world.signed_in.expect("approval watcher session"),
         subject: jig_domain_core::documents::Watched::Application {
             scope: people::ApplicationScope::Own,
-            connector: 1,
+            connector,
             subject: Token::new(engine::APPROVALS_SUBJECT),
         },
         window: jig_domain_core::documents::Window { rows: world.env.limits.documents.rows, after: None },
@@ -869,6 +1034,13 @@ fn a_box_persons_change_waits_under_needs_you_until_their_review_lands_it() {
     assert_eq!((&*row.owner, &*row.name), (b"org".as_slice(), b"repo".as_slice()));
     assert_eq!(Some(row.pull), light_rules::change_row(&world, change).pull);
     assert_eq!((row.required, row.counted, row.yours, row.whole), (1, 0, engine::YourReview::Counts, true));
+    let raw::Answer::Pull(pull) = world.external(1, raw::Op::Read(raw::Read::Pull { number: row.pull })) else {
+        panic!("waiting pull request")
+    };
+    let kept = light_rules::change_row(&world, change);
+    assert_eq!(kept.change.last_head, Some(forge_world::translate::commit(pull.commit)));
+    assert_eq!(pull.size, raw::Size { files: 1, additions: 1, deletions: 0 });
+    assert_eq!(row.size, Some(engine::ApprovalSize { files: 1, additions: 1, deletions: 0, cut: false }));
     sign_in_other_project(&mut world);
     let other_watcher = Token::new(171);
     watch_approvals(&mut world, other_watcher);
@@ -880,6 +1052,10 @@ fn a_box_persons_change_waits_under_needs_you_until_their_review_lands_it() {
 }
 
 fn waiting_approval() -> (World, u64) {
+    waiting_approval_with_client(false)
+}
+
+fn waiting_approval_with_client(concurrent: bool) -> (World, u64) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -889,6 +1065,13 @@ fn waiting_approval() -> (World, u64) {
         None,
         StoryLimits { kinds: true, ..StoryLimits::default() },
     );
+    if concurrent {
+        // Three fresh chains and their keep reads can progress beside the held update.
+        let mut client = world.env.limits.forge.client;
+        client.pending = 16;
+        client.calls = 8;
+        world = world.with_forge_client(client);
+    }
     forge_with_only_temper(&mut world);
     let (mut world, _, producer, branch) = change_world_in(world, Change::default());
     fake::grant(&mut world.fake, b"org/repo", 2, raw::Permission::Write);
@@ -918,7 +1101,7 @@ fn waiting_approval() -> (World, u64) {
     (world, change)
 }
 
-fn settle(world: &mut World) {
+pub(super) fn settle(world: &mut World) {
     for _ in 0..200 {
         world.tick();
     }

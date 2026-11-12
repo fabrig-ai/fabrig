@@ -635,18 +635,22 @@ nothing made twice, and one the restart lost is made then; acts are
 refused, nothing made, while the configuration names no first owner,
 of a kind their connector is not granted, and on a subject outside
 their act's: a person's account, a task that is no conversation,
-another connector's resource; an owner deletes a project with a live
-chat and its delegates, with a grace, and a member is refused, as is a
-grace past the bound, nothing deleted; the delegates are cancelled and
+another connector's resource; an owner's deletion of a project with a
+live task is refused, naming its live roots, and a member's is refused,
+nothing deleted; the deployment's act deletes a project with a live
+chat and its delegates, with a grace, and a grace past the bound is
+refused, nothing deleted; the delegates are cancelled and
 the chat asked to finish, cancelled when the grace ends, then all
 erased whole with their transcripts, its own rows erased and each
 connector asked to release it until it answers, and only its spend
 left in the period's totals; the deleted project refuses every
-request, act and watch as one never made, leaves every `me`, and its
+request, act and watch as one never made, but its read answers gone,
+leaves every `me`, and its
 name is taken again by a new project of a new number; a deletion cut
 by a restart after any of its commits ends the same, with its grace; a
 connector granted it deletes a project, and its act sent again is
-answered removed while the deletion lasts and unknown after.
+answered removed while the deletion lasts and unknown after; an
+owner's sent again is answered removed after it as while it lasts.
 
 In jig's conformance world (../testing.md, section 5), a project is deleted
 in a case for each family of jig's store, the core's, the tasks', the

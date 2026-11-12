@@ -44,7 +44,13 @@ pub(crate) struct Pending {
     entries: List<policy::Entry>,
     woken: bool,
     evidence: Box<[crate::LandingEvidence]>,
+    paths: Box<[Paths]>,
     reads: Map<(api::Repository, GatherRead), Result<api::Answer, api::Error>>,
+}
+#[derive(Hash, Debug)]
+struct Paths {
+    files: Box<[Box<[u8]>]>,
+    whole: bool,
 }
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 enum GatherRead {
@@ -67,6 +73,7 @@ enum Stage {
     Ancestry(u16),
     Pull(u16),
     Reviews(u16, u32),
+    Paths(u16),
     Collect,
     Run { key: ReceiptKey, pages: u32 },
     Tree { member: u16, gate: u16, candidate: api::Commit, object: api::Commit, page: u32, main: bool },
@@ -78,7 +85,10 @@ fn result_slots(l: &Limits) -> Option<u32> {
     slots(l)?.checked_mul(4)?.checked_add(l.landings.checked_mul(l.landing_members)?)
 }
 fn receipt_slots(l: &Limits) -> Option<u32> {
-    l.repositories.checked_mul(l.gates.checked_add(l.tiers.tiers)?)?.checked_mul(l.receipts_per_gate)
+    l.repositories
+        .checked_mul(l.gates.checked_add(l.tiers.tiers)?)?
+        .checked_add(l.judge_projects.checked_mul(l.follows)?)?
+        .checked_mul(l.receipts_per_gate)
 }
 // Landing row indices and retained table counts must fit before construction.
 pub(crate) fn valid(l: &Limits) -> bool {
@@ -808,12 +818,14 @@ pub(crate) fn step(
     }
     let mut facts = List::with_capacity(env.limits.landing_members);
     let mut evidence = List::with_capacity(env.limits.landing_members);
+    let mut paths = List::with_capacity(env.limits.landing_members);
     for member in &row.landing.members {
         let change = d.changes.get(&member.change).expect("member change");
         evidence
             .push(crate::LandingEvidence {
                 change: member.change,
                 facts: crate::ChangeEvidence {
+                    touched: crate::Touched::UNKNOWN,
                     prior: change.change.clone(),
                     head: None,
                     base_tip: [0; 32],
@@ -822,10 +834,12 @@ pub(crate) fn step(
                     gates: change.verdicts.clone(),
                     reviews: Box::new([]),
                     reviews_complete: false,
+                    size: None,
                 },
             })
             .expect("bounded evidence");
         facts.push(fresh(d.landing.gates(row.landing.project, repository(member)))).expect("admitted members");
+        paths.push(Paths { files: Box::new([]), whole: false }).expect("admitted members");
     }
     let Some(first) = row.landing.members.first() else {
         return;
@@ -855,6 +869,7 @@ pub(crate) fn step(
                 entries: List::with_capacity(env.limits.key_entries),
                 woken: false,
                 evidence: evidence.into_boxed(),
+                paths: paths.into_boxed(),
                 reads: Map::with_capacity(env.limits.landing_members.checked_mul(3).expect("u16 members fit")),
             },
         )
@@ -1046,6 +1061,9 @@ fn advance(
                         wait(d, p.task, env, p.repository, out);
                         return;
                     };
+                    let evidence = &mut p.evidence.get_mut(usize::from(index)).expect("member evidence").facts;
+                    evidence.head = Some(pull.commit);
+                    evidence.size = pull.size;
                     fact.merged = pull.merged;
                     fact.ready = if let change::State::Ready { .. } = change.change.state { true } else { false };
                     fact.asked = row.asks.get(usize::from(index)).expect("member ask").is_some();
@@ -1053,7 +1071,7 @@ fn advance(
                     p.stage = Stage::Reviews(index, 1);
                     api::Read::Reviews { number: member.pull, page: 1, skip: 0 }
                 }
-                Stage::Reviews(_, _) | Stage::Collect | Stage::Run { .. } | Stage::Tree { .. } => {
+                Stage::Reviews(_, _) | Stage::Paths(_) | Stage::Collect | Stage::Run { .. } | Stage::Tree { .. } => {
                     unreachable!("member stage")
                 }
             };
@@ -1091,18 +1109,33 @@ fn advance(
                 }
                 evidence.reviews_complete = fits && !more;
             }
-            if usize::from(index) + 1 < row.landing.members.len() {
-                let index = index.checked_add(1).expect("member index");
-                let next = row.landing.members.get(usize::from(index)).expect("member");
-                let change = d.changes.get(&next.change).expect("member's change");
-                let repo = change.repository;
-                let read = api::Read::Branch { branch: change.branch.clone() };
-                p.stage = Stage::Branch(index);
-                ask(d, env, owner, p, repo, read, out);
-                return;
+            let member = row.landing.members.get(usize::from(index)).expect("member");
+            let change = d.changes.get(&member.change).expect("member's change");
+            if let (Some(after), Some(repository)) = (member.candidate, d.repositories.get(&change.repository)) {
+                for held in &d.landing_rules(repository.project) {
+                    if !held.rule.sets.is_empty() && crate::covers_branch(&held.rule.pattern, repository, &change.base)
+                    {
+                        let before = p.facts.get(usize::from(index)).expect("member fact").main;
+                        let repo = change.repository;
+                        p.stage = Stage::Paths(index);
+                        ask(d, env, owner, p, repo, api::Read::Compare { before, after }, out);
+                        return;
+                    }
+                }
             }
-            p.stage = Stage::Collect;
-            collect(d, env, owner, p, out);
+            next_member(d, env, owner, p, index, out);
+        }
+        Stage::Paths(index) => {
+            let member = row.landing.members.get(usize::from(index)).expect("member");
+            let fact = p.facts.get(usize::from(index)).expect("member fact");
+            let paths = p.paths.get_mut(usize::from(index)).expect("member paths");
+            if let Ok(api::Answer::Compare { before, after, files, changed, .. }) = answer {
+                paths.whole = before == fact.main
+                    && Some(after) == member.candidate
+                    && skein_lib::len_u64(files.len()) == changed;
+                paths.files = files;
+            }
+            next_member(d, env, owner, p, index, out);
         }
         Stage::Run { key, pages } => {
             let writer = d.writers.get(&key.repository.forge).copied().unwrap_or(0);
@@ -1258,11 +1291,32 @@ fn advance(
                         );
                     }
                 }
-                policy::Keyed::TooLarge => emit(out, Request::Refused { task: p.task }),
+                policy::Keyed::TooLarge { bound: None, .. } => emit(out, Request::Refused { task: p.task }),
+                policy::Keyed::TooLarge { bound: Some(bound), needed } => {
+                    let (member, configured) = match bound {
+                        policy::KeyBound::Entries => ("forge.key_entries", env.limits.key_entries),
+                        policy::KeyBound::PathBytes => ("forge.key_path_bytes", env.limits.key_path_bytes),
+                    };
+                    crate::refusal::limit(out, p.task, repo, member, configured, needed);
+                }
             }
         }
         Stage::Collect => unreachable!("collect emits the next read itself"),
     }
+}
+fn next_member(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, index: u16, out: &mut Queue<Request>) {
+    let row = d.landing.rows.get(&p.task).expect("pending landing");
+    let next = index.checked_add(1).expect("member index");
+    if let Some(member) = row.landing.members.get(usize::from(next)) {
+        let change = d.changes.get(&member.change).expect("member's change");
+        let repo = change.repository;
+        let read = api::Read::Branch { branch: change.branch.clone() };
+        p.stage = Stage::Branch(next);
+        ask(d, env, owner, p, repo, read, out);
+        return;
+    }
+    p.stage = Stage::Collect;
+    collect(d, env, owner, p, out);
 }
 fn collect(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: &mut Queue<Request>) {
     let row = d.landing.rows.get(&p.task).expect("pending landing");
@@ -1418,7 +1472,13 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     let evidence = if let policy::Decision::Merge { member, candidate } = decision {
         let fact = p.facts.get(usize::from(member)).expect("fresh member facts");
         let mut evidence = p.evidence.get(usize::from(member)).expect("member evidence").clone();
+        if evidence.facts.head != Some(candidate) {
+            evidence.facts.size = None;
+        }
         evidence.facts.head = Some(candidate);
+        let paths = p.paths.get(usize::from(member)).expect("member paths");
+        let classes = d.project_classes(row.landing.project);
+        evidence.facts.touched = crate::touched(&classes, &paths.files, paths.whole);
         evidence.facts.base_tip = fact.main;
         evidence.facts.contains_base = match fact.contains_main {
             policy::Status::Unknown => change::Status::Unknown,

@@ -3,7 +3,8 @@ use super::*;
 use temper_client_domain::copy::Written;
 
 fn welcome() -> Host {
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
+    let mut host =
+        Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
     host.root = root::unlinked(&host.env.limits, 11);
     host.client(jig_client::Event::StartUnlinked { kept: List::with_capacity(0) });
     host.event(Event::Start {

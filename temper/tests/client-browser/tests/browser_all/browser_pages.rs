@@ -19,13 +19,14 @@ fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
     let message = || Find::exactly_named(Role::TextArea, b"Message");
     // These chats have no changes, so Work has no Chats filter.
-    let chats = || Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() });
+    let chats =
+        || Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) });
     let mut stories = Stories::of_person(0);
     let mut steps = Vec::new();
     stories.begin("composer", &steps);
     steps.extend([
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) }),
         see(tier.states().live),
         temper_client_browser_world::connected(),
         chats(),
@@ -67,7 +68,7 @@ fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
     ]);
     stories.begin("panic", &steps);
     steps.extend([
-        Step::Person(PersonStep::Go { address: b"/test/panic".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/test/panic".as_slice()) }),
         Step::Person(PersonStep::See {
             find: Find::text(b"The application failed."),
             within: skein_lib::Duration::from_secs(6),
@@ -76,7 +77,7 @@ fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
     let mut script = Script::new(steps.into_boxed_slice());
     let mut setup = tier.setup();
     setup.expected.push(b"Uncaught".as_slice().into());
-    stories.assert_done(Harness::new(setup).run(&mut [&mut script]));
+    stories.assert_done(temper_client_browser_world::harness(setup).run(&mut [&mut script]));
 }
 
 #[test]
@@ -108,7 +109,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     steps.extend([
         Step::Viewport { width: 420, height: 900 },
         // NewChat hides its tab bar on a phone; open the project's Home by address.
-        Step::Person(PersonStep::Go { address: b"/projects/1".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/projects/1".as_slice()) }),
         see(Find::exactly_named(Role::Region, b"To begin")),
         temper_client_browser_world::connected(),
         press(Role::Button, b"Start"),
@@ -149,7 +150,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     steps.extend([
         press(Role::Button, b"Night mode"),
         pressed(b"Night mode"),
-        Step::Person(PersonStep::Reload),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats") }),
         pressed(b"Night mode"),
         press(Role::Button, b"Night mode"),
     ]);
@@ -162,7 +163,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
         Step::Forward,
         see(first_chat(words)),
-        Step::Person(PersonStep::Go { address: b"/".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/".as_slice()) }),
         see(tier.states().live),
         temper_client_browser_world::connected(),
         // The rail comes with the page once `me` is read; until then the main is empty and busy
@@ -177,25 +178,27 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Focused(Find::exactly_named(Role::TextArea, b"What do you want done?")),
         Step::Address(b"/chats/new".as_slice().into()),
         // This chat read docs without starting work; its Work filter is empty.
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) }),
         see(Find::exactly_named(Role::Button, b"Closed")),
         press(Role::Button, b"Closed"),
         Step::Address(b"/chats?state=closed".as_slice().into()),
-        Step::Person(PersonStep::Reload),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats?state=closed") }),
         see(Find::exactly_named(Role::Button, b"Closed")),
         pressed(b"Closed"),
+        // Loading with settings again made a history entry before the page cleaned it.
+        Step::Back,
         Step::Back,
         see(Find::exactly_named(Role::Button, b"All")),
         Step::Address(b"/chats".as_slice().into()),
         pressed(b"All"),
-        Step::Person(PersonStep::Go { address: b"/nowhere".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/nowhere".as_slice()) }),
         see(Find::exactly_named(Role::Button, b"New draft or change")),
         see(Find::exactly_named(Role::Main, b"")),
         needs_page(),
         Step::Address(b"/".as_slice().into()),
     ]);
     let mut script = Script::new(steps.into_boxed_slice());
-    let mut harness = Harness::new(tier.setup());
+    let mut harness = temper_client_browser_world::harness(tier.setup());
     stories.assert_done(harness.run(&mut [&mut script]));
     let (composer_y, composer_height) = box_of(&harness, "phone-ask", "composer");
     let (picker_y, picker_height) = box_of(&harness, "phone-ask", "picker");
@@ -300,13 +303,13 @@ fn reload_chats(tier: &Tier) -> Vec<Step> {
     vec![
         // The playground's project made, the link stays up across a reload: the page's own
         // client bounds receive the box's Me (temper/docs/design/client/README.md, 2).
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) }),
         see(heading(1, b"Talk to an agent about playground/widget.")),
         see(tier.states().live),
         temper_client_browser_world::connected(),
         Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),
         see(chat()),
-        Step::Person(PersonStep::Reload),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats") }),
         see(heading(1, b"Talk to an agent about playground/widget.")),
         see(tier.states().live),
         temper_client_browser_world::connected(),
@@ -329,7 +332,7 @@ fn closing_project_rename_returns_focus_to_the_summary() {
     let rename = || Find::exactly_named(Role::TextField, b"Rename");
     let mut script = Script::new(Box::new([
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
-        Step::Person(PersonStep::Go { address: b"/projects/1".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/projects/1".as_slice()) }),
         see(summary(b"Project 1")),
         Step::Person(PersonStep::Press { find: summary(b"Project 1") }),
         press(Role::Button, b"Rename Project 1"),
@@ -351,7 +354,7 @@ fn closing_project_rename_returns_focus_to_the_summary() {
         Step::Focused(summary(b"Saved name")),
         main_unfocused(),
     ]));
-    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
+    assert_eq!(temper_client_browser_world::harness(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }
 
 /// One `temper box`, three chats through ctl, a page load for each story (client/web/testing.md, 6, item 14).
@@ -377,7 +380,7 @@ fn a_chat_opens_at_its_end_and_reads_back_keeping_its_place() {
     stories.begin("long", &steps);
     steps.extend(long_steps(&tier));
     let mut reader = Script::new(steps.into_boxed_slice());
-    let mut harness = Harness::new(tier.held_setup());
+    let mut harness = temper_client_browser_world::harness(tier.held_setup());
     let outcome = harness.run(&mut [&mut ctl, &mut reader]);
     eprintln!("kept boxes: {:?}", harness.kept());
     stories.assert_done(outcome);
@@ -425,13 +428,13 @@ fn latest_steps(tier: &Tier) -> Vec<Step> {
     let latest = || Find::exactly_named(Role::Button, b"Latest");
     let words = reading::latest_words;
     let mut steps = vec![
-        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(b"/chats".as_slice()) }),
         see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
     ];
     let history: Vec<_> = (1..=reading::LATEST_MESSAGES).map(words).collect();
     let then: Vec<_> = history.iter().map(|words| std::str::from_utf8(words).expect("latest words")).collect();
     steps.extend(tier.ctl_messages(1, 0, &then));
-    steps.push(Step::Person(PersonStep::Go { address: FIRST_CHAT_ADDRESS.into() }));
+    steps.push(Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(FIRST_CHAT_ADDRESS) }));
     steps.extend([see(paragraph(&words(reading::LATEST_MESSAGES))), see(paragraph(&words(1)))]);
     steps.extend([
         gone(latest()),
@@ -473,7 +476,7 @@ fn latest_steps(tier: &Tier) -> Vec<Step> {
 
 fn reading_chat(address: &[u8], last: &[u8]) -> Vec<Step> {
     vec![
-        Step::Person(PersonStep::Go { address: address.into() }),
+        Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(address) }),
         see(paragraph(last)),
         gone(Find::exactly_named(Role::Status, b"Loading earlier messages")),
         gone(Find::exactly_named(Role::Button, b"Older")),

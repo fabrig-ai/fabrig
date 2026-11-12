@@ -90,6 +90,8 @@ impl Harness {
             | w::Request::SetAway(_)
             | w::Request::Overturn(_)
             | w::Request::Looked(_)
+            | w::Request::SetDraft(_)
+            | w::Request::FollowAct(_)
             | w::Request::TryAccount(_)
             | w::Request::Dismiss(_)
             | w::Request::EndPlayground

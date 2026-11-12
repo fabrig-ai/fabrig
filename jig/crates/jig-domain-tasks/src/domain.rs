@@ -441,22 +441,13 @@ impl Domain {
         numbers.into_boxed()
     }
 
-    /// Current subscribed top-level connector procedures eligible for period renewal.
+    /// Live standing root agents and subscribed root procedures eligible for period renewal.
     #[must_use]
     pub fn standing_tasks(&self, project: u32) -> Box<[u64]> {
         let mut numbers = List::with_capacity(self.names.capacity());
         for (number, _) in &self.names {
             let row = record(self, *number).expect("live name");
-            let procedure = match row.executor {
-                crate::Executor::Procedure { .. } => true,
-                crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
-            };
-            if row.project == project
-                && row.root == *number
-                && procedure
-                && row.recurring.is_none()
-                && !row.subscriptions.is_empty()
-            {
+            if row.project == project && crate::standing::eligible(row) {
                 numbers.push(*number).expect("one identity per task");
             }
         }
@@ -501,7 +492,7 @@ impl Domain {
         Some(crate::DelegationContext {
             project: record.project,
             requester: record.requester,
-            deciding: record.flags.ended_by != crate::EndedBy::Requester
+            deciding: !crate::run::ends::pending(&[], record.flags.ended_by).open
                 && !crate::run::ends::kept(self, task).blocks_claims()
                 && match record.phase {
                     Phase::Waiting | Phase::Active(_) => match record.executor {
@@ -766,6 +757,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 out,
             );
         }
+        Event::Talk { reply_to, project, operation } => {
+            crate::inbox::talk(domain, env, reply_to, project, operation, out);
+        }
+        Event::Leave { reply_to, project, task, party, maintainer } => {
+            crate::inbox::leave(domain, env, reply_to, project, (task, party, maintainer), out);
+        }
         Event::AuthorizedMessage { reply_to, project, operation } => {
             crate::inbox::message(domain, env, reply_to, project, operation, true, out);
         }
@@ -774,12 +771,22 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::recurring::after_delegate(domain, env, task, out);
         }
         Event::Prepare { reply_to, task } => crate::run::prepare(domain, env, reply_to, task, out),
-        Event::Claim { reply_to, task, attempt, resumed, budget, account, writes, reasons, offered } => {
+        Event::Claim { reply_to, task, attempt, resumed, budget, account, writes, reasons, offered, session_end } => {
             crate::run::claim(
                 domain,
                 env,
                 reply_to,
-                crate::run::Claiming { number: task, attempt, resumed, budget, account, writes, reasons, offered },
+                crate::run::Claiming {
+                    number: task,
+                    attempt,
+                    resumed,
+                    budget,
+                    account,
+                    writes,
+                    reasons,
+                    offered,
+                    session_end,
+                },
                 out,
             );
         }
@@ -806,6 +813,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 },
                 out,
             );
+        }
+        Event::NowWritten { task, attempt, line } => {
+            crate::activity::now_written(domain, env, task, attempt, &line, out);
         }
         Event::Started { task, attempt } => crate::run::started(domain, env, task, attempt, out),
         Event::Refusals { task, attempt, refused, offered } => {
@@ -876,6 +886,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Retained { task, root, holding } => crate::holds::retained(domain, env, task, root, &holding, out),
         Event::Settled { task } => crate::closing::settled(domain, env, task, out),
         Event::QuestionOwedNotice { task, message } => crate::questions::owed(domain, env, task, message, out),
+        Event::QuestionParked { task, question, reason } => {
+            crate::run::question_parked(domain, env, task, question, &reason, out);
+        }
         Event::NothingAwaitedNotice { task, message } => {
             crate::run::nothing_awaited_notice(domain, env, task, message, out);
         }
@@ -1113,7 +1126,13 @@ impl Domain {
                 .expect("bounded delegate snapshot");
         }
         Some(Box::new(crate::RunContext {
-            reasons: crate::wake::reasons(domain, number, inbox.as_slice()),
+            session_wake: task.flags.ended_by == crate::EndedBy::Standing && !task.activation_open,
+            session_kinds: crate::wake::session_kinds(domain, number, inbox.as_slice()),
+            reasons: if self.open_questions(number).is_empty() {
+                crate::wake::reasons(domain, number, inbox.as_slice())
+            } else {
+                crate::wake::reasons(domain, number, inbox.as_slice()).union(crate::Reasons::QUESTION)
+            },
             ended_by: task.flags.ended_by,
             llm: task.llm.clone(),
             payer: domain.payer(number).expect("admitted financial chain has a payer"),
@@ -1478,6 +1497,9 @@ pub(crate) fn make_admitted(
     for new in batch {
         let number = new.number;
         let task = Task::new(TaskRecord {
+            session: None,
+            talk: None,
+            activation_open: false,
             closer: None,
             reasons: crate::Reasons::FIRST,
             offered: crate::Reasons::ALL,

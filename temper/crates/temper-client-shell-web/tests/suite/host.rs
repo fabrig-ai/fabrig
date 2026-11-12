@@ -6,7 +6,14 @@ use skein_ui_web::mapping::Primary;
 use temper_client_shell_web::host::{self, Duties, Host, Report};
 
 fn started(path: &[u8]) -> Host {
-    let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
+    let mut host = Host::new(
+        temper_client_shell_web::limits::client(),
+        11,
+        Time::ZERO,
+        Wall::EPOCH,
+        0,
+        temper_client_view::sign_in::Ways::NONE,
+    );
     host.start(path, Vec::new(), None);
     host
 }
@@ -278,8 +285,8 @@ fn a_saves_control_is_found_by_its_event() {
 fn a_saves_control_skips_a_menu_item_for_the_pages_link() {
     use skein_ui::{Act, Role};
     use temper_client_shell_web::journey::{Control, control, giving};
-    let mut records =
-        lines(include_bytes!("../../../../docs/design/client/journeys/chat-draft/recording")).expect("chat records");
+    let mut records = lines(include_bytes!("../../../../docs/design/client/web/journeys/chat-draft/recording"))
+        .expect("chat records");
     let at = records
         .iter()
         .position(|line| matches!(line, Line::Act { event, .. } if event.as_ref() == b"Act { action: Pages(Go { address: NewChat { draft: false } }) }"))

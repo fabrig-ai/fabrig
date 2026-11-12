@@ -1,3 +1,6 @@
+#[path = "root_routes/standing.rs"]
+mod standing;
+
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;

@@ -398,7 +398,7 @@ fn agreed_goal_walk(seed: u64, reads: bool) {
     world.hold_goal(skein_lib::Duration::from_secs(121));
     world.pending_plan();
     world.next_script(Script {
-        cue: b"Read only what the change needs".as_slice().into(),
+        cue: b"Run only what your change needs".as_slice().into(),
         turns: Box::new([
             call(b"write", br#"{"path":"export.csv","content":"fruit,count\n"}"#),
             call(b"finish", br#"{"title":"Add CSV export","body":"Add the agreed header."}"#),

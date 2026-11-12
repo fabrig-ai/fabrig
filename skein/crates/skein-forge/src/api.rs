@@ -131,8 +131,8 @@ pub enum Read {
     /// Names starting with the nonempty branch prefix, bounded like a branch name.
     /// Only matching names count toward the adapter's answer limit.
     Branches { prefix: Box<[u8]> },
-    /// Whole changed files past the page's first `skip` rows.
-    PullFiles { number: u64, head: Commit, page: u32, skip: u32 },
+    /// Changed paths past the page's first `skip` rows; `sides` asks for their whole contents.
+    PullFiles { number: u64, head: Commit, page: u32, skip: u32, sides: bool },
     /// Names and counts; fewer names than `changed` means unknown overlap.
     Compare { before: Commit, after: Commit },
     /// Provider descriptions and links, with a failing job's attempt.
@@ -476,6 +476,13 @@ pub struct Comment {
     pub key: Option<Box<[u8]>>,
     pub body: Box<[u8]>,
 }
+/// The forge's own counts at a pull request's head (forge/README.md, 3.6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Size {
+    pub files: u64,
+    pub additions: u64,
+    pub deletions: u64,
+}
 /// A pull request and the facts needed by a change decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Pull {
@@ -493,6 +500,8 @@ pub struct Pull {
     pub queued: Option<u32>,
     /// Why a queue last ejected it; decoders truncate to `DEQUEUED_BYTES` at a UTF-8 boundary for display.
     pub dequeued: Option<Box<[u8]>>,
+    /// The forge's own counts at the head the same answer gives.
+    pub size: Option<Size>,
 }
 /// A review with its identity, verdict and observed version.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

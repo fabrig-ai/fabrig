@@ -1,4 +1,4 @@
-//! The worker's job limits (temper/docs/design/domain/worker.md, 4.4;
+//! The worker's job limits (temper/docs/design/domain/worker/jobs.md;
 //! temper/docs/design/protocol/tooling.md, 6).
 
 use alloc::boxed::Box;

@@ -275,8 +275,8 @@ fn retained_reconciliation_references_fit_their_heap_ceiling() {
     assert!(meter.held() > 0, "restoration retains references");
 }
 
-// Measured peak: 9,139 bytes; 25% headroom, rounded up to two significant digits.
-const RECONCILIATION_HEAP_CEILING: u64 = 12_000;
+// Measured peak: 12,011 bytes; 25% headroom, rounded up to two significant digits.
+const RECONCILIATION_HEAP_CEILING: u64 = 16_000;
 
 #[test]
 fn populated_reconciliation_owner_fits_its_heap_ceiling() {
@@ -564,6 +564,37 @@ fn production_link_requires_a_live_unfinished_issues_goal() {
             need: Need::Task { task: TASK, retired: Some(REPO.forge) }
         })
     );
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "ordinary restore story searches the decision's saved rows and run requests"
+)]
+fn a_restored_tier_whose_task_is_absent_drops_its_run_before_linking() {
+    let live = tiers::dispatched();
+    let mut saved = tiers::row(&live).clone();
+    saved.task = Some(51);
+    let mut d = tiers::restoring(None);
+    for (_, head) in &live.heads {
+        outputs(&mut d, Event::Restore { record: Stored::BranchHead(head.clone()) });
+    }
+    outputs(&mut d, Event::Restore { record: Stored::Tier(saved.clone()) });
+    let tasks = empty_tasks();
+    d.link_names(&tasks, &LIMITS);
+    d.link_tiers(&tasks, &LIMITS);
+    assert!(resolved(&d, &Stored::Tier(saved), false));
+    assert_eq!(d.missing_link(&tasks), None);
+    d.reconcile(&tasks);
+    assert!(tiers::row(&d).record.run.is_none());
+    assert!(tiers::row(&d).task.is_none());
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    let out = outputs(&mut d, Event::ReadAfresh);
+    assert!(out.iter().any(|request| matches!(request,
+        Request::Save { record: Stored::Tier(row), .. }
+            if row.task.is_none() && row.record.run.is_none() && row.record.sequence == 1)));
+    let out = tiers::key_trees(&mut d);
+    assert!(out.iter().any(|request| matches!(request, Request::TierRun { number: 2, .. })));
 }
 
 #[test]

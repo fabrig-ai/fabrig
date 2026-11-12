@@ -690,7 +690,7 @@ fn running_tier(d: &mut Domain, number: u64, tip: skein_forge::api::Commit, comm
 fn a_panel_shows_its_questions() {
     let mut row = fixtures::opening_row();
     row.questions = change::Questions {
-        route: change::Route::Foreman,
+        route: change::Route::Up,
         taken: 2,
         open: Box::new([
             change::Open {
@@ -698,7 +698,7 @@ fn a_panel_shows_its_questions() {
                 number: 1,
                 line: Box::from(b"Which branch?".as_slice()),
                 words: Box::from(b"Which branch?".as_slice()),
-                stands: change::Stands::Foreman { task: Some(15) },
+                stands: change::Stands::Asked,
             },
             change::Open {
                 asker: 72,
@@ -720,14 +720,14 @@ fn a_panel_shows_its_questions() {
     assert_eq!(
         got.questions,
         PanelQuestions {
-            route: change::Route::Foreman,
+            route: change::Route::Up,
             taken: PanelUsed { used: 2, limit: LIMITS.change_policy.questions },
             open: Box::new([
                 PanelQuestion {
                     asker: 71,
                     number: 1,
                     line: Box::from(b"Which branch?".as_slice()),
-                    stands: PanelStands::Foreman(Some(15))
+                    stands: PanelStands::Asked
                 },
                 PanelQuestion {
                     asker: 72,

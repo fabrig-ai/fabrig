@@ -279,6 +279,8 @@ fn reports() -> Answer {
 }
 fn task() -> d::Task {
     d::Task {
+        talk: None,
+        session: None,
         settings: None,
         waits_on: d::WaitsOn::Nothing,
         label: 2,
@@ -652,6 +654,8 @@ fn panel(pull: Option<u64>) -> Box<temper_engine_domain_forge::Document> {
 fn changes() -> Box<temper_engine_domain_forge::Document> {
     use temper_engine_domain_forge as f;
     Box::new(f::Document::Changes(f::ChangesView {
+        landed_default: Box::new([]),
+        landed_default_more: 0,
         project: 7,
         landing: b"main".as_slice().into(),
         more: 0,
@@ -688,7 +692,13 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
                 }]),
             },
         ]),
-        landed: Box::new([f::ChangesLanded { task: 40, title: b"Keep delimiters".as_slice().into(), at: AT }]),
+        landed: Box::new([f::ChangesLanded {
+            commit: [0xab; 32],
+            default_branch: true,
+            task: 40,
+            title: b"Keep delimiters".as_slice().into(),
+            at: AT,
+        }]),
     }))
 }
 fn landings() -> Box<temper_engine_domain_forge::Document> {

@@ -290,6 +290,10 @@ impl Core {
         cut: bool,
     ) -> bool {
         self.start_input();
+        let standing = match self.tasks.task(task) {
+            Some(row) => row.flags.ended_by == tasks::EndedBy::Standing,
+            None => false,
+        };
         let transcript = self.transcripts.get_mut(&task).expect("load belongs to prepared task");
         if turn.task != task || turn.attempt > transcript.previous_attempt || turn.attempt == 0 || turn.turn == 0 {
             return false;
@@ -310,7 +314,10 @@ impl Core {
         transcript.bytes = total;
         transcript.cut |= cut;
         transcript.last = Some((turn.attempt, turn.turn));
-        transcript.append_text(text, self.settings.tail_bytes);
+        // A standing retry carries only the attempt it retries (domain/tasks/standing.md, 5.4).
+        if !standing || turn.attempt == transcript.previous_attempt {
+            transcript.append_text(text, self.settings.tail_bytes);
+        }
         if transcript.closed || transcript.cut {
             return true;
         }
@@ -393,6 +400,8 @@ pub struct Model {
     pub name: Box<[u8]>,
     /// The input tokens a conversation's window may hold on this model.
     pub window: u32,
+    /// Prompt cache life in milliseconds; zero for none (domain/tasks/standing.md, 5.3).
+    pub cache_life_ms: u32,
     /// The most output tokens one completion may have, thinking included.
     pub output: u32,
     pub input_price: u64,
@@ -422,6 +431,7 @@ impl Model {
             program: None,
             name: Box::default(),
             window: 0,
+            cache_life_ms: 0,
             output: 0,
             input_price: 0,
             cached_price: 0,
@@ -543,6 +553,7 @@ pub enum PersonProposalRoute {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PersonTaskRoute {
+    Leave(u64),
     Compound { project: u32, operations: u32, first_message: u64 },
     PoolSet { project: u32, person: u64 },
     Take(u64),

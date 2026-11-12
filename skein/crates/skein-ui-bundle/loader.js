@@ -7,8 +7,9 @@ const figure=s=>say(s,{got:mb(got/TOTAL*travel),total:mb(travel)});
 function draw(){
   if(over)return;
   p.value=got/TOTAL;
-  if(!answered)return;
-  if(got<TOTAL)l.textContent=performance.now()-last>15e3?w.waiting:figure(w.figure)+left;
+  const waiting=performance.now()-last>15e3;
+  if(!answered){l.textContent=waiting?w.waiting:"";return;}
+  if(got<TOTAL)l.textContent=waiting?w.waiting:figure(w.figure)+left;
   else{b.dataset.state="start";l.textContent=w.starting;}
 }
 function add(n){last=performance.now();first||=last;got+=n;draw();}

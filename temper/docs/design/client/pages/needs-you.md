@@ -173,7 +173,7 @@
     report keeps the ordinary person-task card.
   - *An approval,* a change waiting on a review on the forge: a row of the
     subject `approvals` (`../forge/records.md`), its kind "an approval", its question, context,
-    review link and "Open" as `../forge/README.md`, 4.1 has them, the review link
+    size, review link and "Open" as `../forge/README.md`, 4.1 has them, the review link
     "Review on GitHub ↗" or "Review on Forgejo ↗" first and primary, one tap
     to the forge's review page (`../../draft/forge-identity.md`, section 8), and
     in the terminal's inbox "Later" too, its key
@@ -226,8 +226,8 @@
     under its question on Home's cards (`home.md`, 1, *The cards*), as the
     whole story's `needs.html` and `home.html` place it, from one domain function
     every shell calls (`pages::needs::why`), its words the view's shared ones
-    (`temper_client_view::shared::why`), so that the TUI's launchpad can say
-    it too. By the card's kind:
+    (`temper_client_view::shared::why`), so that the TUI's walk says it
+    too (`../tui/pages/launchpad.md`, 6). By the card's kind:
     - *A question,* by `message` or a person task in words. Its asking task
       is a question's sender where that is a task (`from`,
       `Requester::Task`), else the question's own task, and a person task's
@@ -472,10 +472,13 @@
     Done's "Home", and before *Decided for you*, wherever the page draws
     that, on a phone too: a `section-head`, the level-2 heading "Only you ·
     1", at its right "work goes on around it", muted. Then
-    `temper-only-item` an item, the mock's `.card`, gap 12:
-    - its from line, `.mono`: the chip `temper-chip` "Deployment", where
-      Accounts is (`settings.md`, 1), then "an LLM account";
-    - its question line, `.q`, 19 px, by its source as Accounts words it
+    `temper-only-item` an item, the mock's `.card`, gap 10, as `needs.html`
+    draws it (`../../draft/surfaces.md`, 13):
+    - its from line, the mock's `.from`, in the sans, 13 px and muted,
+      where a need card's is in the mono: the chip `temper-chip`
+      "Deployment", where Accounts is (`settings.md`, 1), then "an LLM
+      account";
+    - its question line, `.q`, 16.5 px, by its source as Accounts words it
       (`accounts.md`, 2, *An account*: "ChatGPT sign-in", "Claude Code login NAME"):
       signed out, "Your ChatGPT sign-in is signed out. Sign in again?";
       expiring, "Your Claude Code login claude-alice is expiring. Sign in

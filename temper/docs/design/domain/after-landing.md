@@ -104,7 +104,7 @@ what waits, `after-landing.md`, section 14.
   tier or on a branch none of its tiers names, is cleared as it
   lands.
 - **A tier's start:** when a tier is first configured, it runs once at
-  its branch's tip, the baseline. Its failures, if any, are failing at
+  its branch's tip, read afresh (section 3), the baseline. Its failures, if any, are failing at
   the baseline: blamed on no landing, inherited by the first run after
   it, and kept on the tier's record. The first run's range starts after
   the baseline's tip.
@@ -122,6 +122,19 @@ branch text matches (2026-11-04).
   when that run ends, the next starts at the newest tip, if it moved
   since. The forge follows a branch for its tiers as long as one names
   it, whether or not a goal or a change follows it too.
+- **A baseline's tip is read afresh** (section 2's start): a tier with
+  no judged tip, no run in flight and no baseline asks the forge for its
+  branch's head, a fresh read of the tier's own (skein's `Read::Branch`),
+  and its baseline is the answer's commit. The head the engine last knew
+  never chooses it: a restart restores that head, and the branch may
+  have moved since, by the very commit that added the tier's workflow.
+  Until the answer, the tier starts nothing, and a move it sees then is
+  no landing of its: the baseline's range is empty, and the first run's
+  starts after the baseline's tip, as section 2 has it. A baseline
+  started again, after its run was dropped (below), reads afresh too,
+  and the moves seen meanwhile are within its tip. A run after a move
+  reads nothing more: the move is the branch's tip as the forge last
+  answered it.
 - **A run in flight is polled** as a landing polls its runs
   (`landing.md`, 7.1): at the client's `poll_at` for its repository,
   every `poll` or, while that repository hears, at its last hint plus
@@ -159,6 +172,40 @@ branch text matches (2026-11-04).
   run (`after-landing.md`, section 9). The tier waits for a person's release, which
   dispatches the run again with its faults counted from 0, its
   landings still verifying; its verdict replaces that status.
+- **A workflow missing at the run's commit:** a dispatch the forge
+  refuses as missing (a 404, skein's `Error::Missing`) is a fault of its
+  own kind, the run's workflow absent at the commit it was dispatched
+  at. Counted and retried as any fault, it is worded, wherever a
+  fault's kind is (the task's part words, the hold's `last: KIND`, the
+  pending status), `workflow WORKFLOW not found at COMMIT`: WORKFLOW the
+  tier's workflow file as its settings name it, COMMIT the full commit
+  dispatched. A rerun refused as missing is `lost`, its forge run gone.
+  Its kind is stored as the tier's other faults are, appended to them
+  in place (`../protocol/store.md`, section 4): every row stored before
+  it still reads, and a restart keeps its words (the requester,
+  2026-11-11).
+- **A run whose task ends without its verdict,** cancelled by a person
+  (the usual end of a held run) or ended with its project, is dropped
+  as its task closes: in the decision that hears the close (jig's
+  `domain/tasks/lifecycle.md`, 1), the hook a landing's cancellation
+  takes too, never by a step of the task, which a closing task no longer
+  takes. The tier's record is left with no run and no task, or with its
+  next run's: no verdict, no news, no status; the run's landings go back
+  to the front of the tier's range, still verifying, for the next run;
+  its number is spent, the tier's sequence passing it, so no later run
+  reuses its branch's name or its steps' purposes (section 10); and the
+  tier starts its next run as a move would, at once when due, a baseline
+  again, read afresh, when the dropped run was the baseline. The
+  dropped run's branch stays on the forge (section 14). A run ended
+  done has left the record already: the step giving its verdict takes
+  it.
+- **A restored record whose run's task is gone** restores as a tier
+  with no run in flight, never a stopped start: as the start links the
+  forge's rows to jig's tasks (`forge/README.md`, 9), a tier's record
+  naming a task jig no longer holds drops its run as a close would
+  (above), and the restart saves it so. A record never needs its run's
+  task to restore, whatever left it naming one: a crash, or an older
+  build that never heard the close.
 
 A failed receipt at the tip is treated as a failed-test rerun that failed
 again. Its failures go directly to inheritance and blame, with no further
@@ -397,8 +444,10 @@ blamed landing's full commit (2026-11-04).
   branches are released as it closes, by the release a change's branch
   takes (`forge/branches.md`), never by an effect of kind 15, so that no
   grant of it is needed. A fault past `tier_retries` holds it. The
-  tier's record names its task; at most one per tier and repository
-  lives, so they are bounded by the repositories and `tiers`.
+  tier's record names its task while it lives, and no longer once it
+  closes, however it ends (section 3); at most one per tier and repository
+  lives, so they are bounded by the repositories and `tiers`. A tier's
+  sequence counts the runs it has numbered, judged or dropped.
 - **The run task's words** start with `Tier NAME run N`, then name the
   repository, the full tested commit and the owned `temper/tier/NAME.N`
   branch at creation. Each part is identified separately: the judged
@@ -499,6 +548,15 @@ repository (no). Until the kinds are settings, the tiers,
 `landing` member, as the gates are, and the suspects' rule and a red's
 pause wait for kind 4 (`landing.md`, 13.1).
 
+A tier's settings start its runs, never its record. A tier newly
+configured starts its baseline at its branch's tip read afresh
+(section 3), so a workflow that landed before the tier's first start,
+the configuration that names it already given, is found at the
+baseline's commit. A tier removed from the settings starts no run;
+its record stays (section 10) and restores whatever its last run's
+task became (section 3), so a person never removes a tier to make the
+engine start.
+
 ## 12. The world
 
 Stories in the forge's world, the fake forge running dispatched tiers
@@ -514,6 +572,15 @@ with failing tests by id and uploading their artifacts:
 - **a flake:** one test fails, passes alone, and the range is cleared;
 - **a fault:** a run lost when its runner restarts is retried, and the
   retry clears;
+- **a cancelled run:** a tier's run cancelled by a person is dropped as
+  its task closes; the engine starts again, and the tier's next run
+  starts, numbered after the dropped one;
+- **a stale head:** a tier first configured while the head the engine
+  knows of its branch is behind the forge's runs its baseline at the
+  forge's tip;
+- **a missing workflow:** a dispatch refused 404 is a fault worded
+  `workflow WORKFLOW not found at COMMIT`, and past `tier_retries` the
+  hold says so;
 - **the bound:** a runner down past it ends a change landed and
   uncleared; the late red is kept for findings;
 - **a repair** naming a red landing clears it, "repaired by";
@@ -560,4 +627,9 @@ with failing tests by id and uploading their artifacts:
   its changes' merges to the change that brought it. A goal's landing
   is one landing to its tiers, so its red names the goal's landing
   alone and the goal triages it (section 7;
-  `../draft/reference-landing.md`, section 11).
+  `../draft/archive/reference-landing.md`, section 11).
+- **A dropped run's branch:** a run dropped as its task closes (section
+  3) leaves its `temper/tier/<tier>.<n>` branch on the forge, since a
+  closing task makes no effect, and no later run takes its name, its
+  number being spent. Deleting it, by the tier's next run or by a sweep
+  of temper's tier branches, waits; meanwhile a person deletes it.

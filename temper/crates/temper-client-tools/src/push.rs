@@ -236,6 +236,8 @@ pub(crate) fn told(state: &mut Devices, client: &Client, env: &Env<Limits>, told
                 | w::Request::DismissMaking(_)
                 | w::Request::Looked(_)
                 | w::Request::SetAway(_)
+                | w::Request::SetDraft(_)
+                | w::Request::FollowAct(_)
                 | w::Request::Overturn(_) => return,
             };
             state.sent.entry(*key).or_insert(Pending {
@@ -298,6 +300,7 @@ pub(crate) fn told(state: &mut Devices, client: &Client, env: &Env<Limits>, told
         | Told::Page { .. } => {}
     }
 }
+#[expect(clippy::too_many_lines, reason = "the push answer lists every forge outcome and renders its device result")]
 fn answer(request: &Ask, outcome: &Outcome, number: u32, json: bool, limits: &Limits) -> jig::Printed {
     let answer = match outcome {
         Outcome::Answered(jig_client::Answered::Family(record))
@@ -378,6 +381,9 @@ fn answer(request: &Ask, outcome: &Outcome, number: u32, json: bool, limits: &Li
         | w::Outcome::Overturned
         | w::Outcome::OverturnRefused(_)
         | w::Outcome::Tried
+        | w::Outcome::Drafted(_)
+        | w::Outcome::DraftRefused(_)
+        | w::Outcome::Follow(_)
         | w::Outcome::NotTheirs => return render::failure(b"unknown push outcome", json, 1),
     };
     let bytes = if json {

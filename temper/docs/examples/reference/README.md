@@ -43,8 +43,8 @@ mv temper.next.json temper.json
 ```
 
 `root.journal.run_bytes` bounds a run's stored policy, a charter's whole
-policy among it, and the box's bound of 24,576 bytes refuses a charter of 31 KB, so
-the room sets 65,536 bytes. A charter's `turns`, its `time` and the run's
+policy among it. The box's bound and the reference room's override are both
+65,536 bytes, admitting the reference's charter of 31 KB. A charter's `turns`, its `time` and the run's
 spend must fit the bounds a worker advertises, or no host takes its tasks
 (`../../../../jig/crates/jig-domain-fleet/src/needs.rs`, `charter_shortfall`
 and `shortfall`).
@@ -72,7 +72,7 @@ temper ctl DIR settings show rules --json > reference-rules.json
 temper ctl DIR settings show policy 1 --json > reference-policy.json
 cat > reference-authority.json <<'JSON'
 {"tools": [8, 16, 32, 128, 256], "notes": [1, 2],
- "kinds": [{"charter": 5}, {"charter": 7}, {"charter": 8}, {"charter": 6},
+ "kinds": [{"charter": 5}, {"charter": 7}, {"charter": 8},
            {"procedure": 2}, {"procedure": 6}, {"job": 3}, {"job": 4}, {"role": 0}]}
 JSON
 cat > reference-authority.jq <<'JQ'
@@ -82,11 +82,11 @@ def grant($bits):
 def widen:
   .tools |= grant($required[0].tools)
   | .notes |= grant($required[0].notes)
-  | .delegation.kinds |= (. + $required[0].kinds | unique | map(select(. != {"charter": 12})));
+  | .delegation.kinds |= (. + $required[0].kinds | unique | map(select(. != {"charter": 12} and . != {"charter": 6})));
 .items |= map(
   .set.ceiling |= widen
   | if .setting.kind == "rules" then .
-    else (.set.roles[] | .authority.delegation.kinds) |= map(select(. != {"charter": 12}))
+    else (.set.roles[] | .authority.delegation.kinds) |= map(select(. != {"charter": 12} and . != {"charter": 6}))
       | (.set.roles[] | select(.number == $role) | .authority) |= widen
     end)
 JQ
@@ -95,10 +95,10 @@ jq --slurpfile required reference-authority.json --argjson role ROLE -f referenc
 ```
 
 Expect: widened rules and policy 1 in `FILE`. The stock's
-delegation already holds coordinator charter 5, foreman charter 6, change procedure 2,
+delegation already holds coordinator charter 5, change procedure 2,
 goal closer procedure 6, merge job 3, close job 4 and person role 0; the widening adds designer charter 7 and takes out
-the drafter's charter 12, which the reference's work never starts, keeping each
-kind once. With triage charter 8, the reference holds eighteen executor places,
+the drafter's charter 12, which the reference's work never starts, and retired charter 6, keeping each
+kind once. With triage charter 8, the reference holds seventeen executor places,
 within jig standard's `authority.executors` and `tasks.executor_kinds` of 18.
 No executor override is needed in `limits.json`. Install charters first, offering these families.
 Size tasks, depth and spend (temper help budget).

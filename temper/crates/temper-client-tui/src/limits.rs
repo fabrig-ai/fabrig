@@ -1,4 +1,4 @@
-//! The screens' and chat page's bound (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md).
+//! The screens' and chat page's bound (temper/docs/design/client/tui/pages/README.md and temper/docs/design/client/tui/box.md).
 use crate::words::Word;
 use temper_client_domain::Limits as Domain;
 
@@ -42,7 +42,10 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
         .checked_add(Word::QuitKeys.capacity(domain)?)?
         .checked_add(Word::State.capacity(domain)?)?;
     let forge = temper_client_domain::forge::wire_limits(&domain.forge)?;
-    let brief = forge.status_brief_sentence.checked_add(1)?.checked_add(forge.status_brief_lede)?;
+    let named = domain.client.domain.text.checked_add(2)?;
+    let brief = named.checked_add(forge.status_brief_sentence)?.checked_add(1)?.checked_add(forge.status_brief_lede)?;
+    // Four project names and first sentences of ledes, separated by spaces.
+    let joined = named.checked_add(forge.status_brief_lede)?.checked_mul(4)?.checked_add(3)?;
     let need = domain
         .client
         .domain
@@ -50,13 +53,14 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
         .max(domain.forge.field_bytes)
         .checked_add(domain.client.domain.long_text.max(domain.forge.field_bytes))?
         .checked_add(256)?;
-    line = line.max(brief).max(need);
+    line = line.max(brief).max(joined).max(need);
     let launchpad = Word::Title
         .capacity(domain)?
         .checked_add(Word::Separator.capacity(domain)?)?
         .checked_add(domain.client.domain.text)?
         .checked_add(64)?
-        .checked_add(brief)?
+        .checked_add(joined)?
+        .checked_add(brief.checked_mul(4)?)?
         .checked_add(Word::Byline.capacity(domain)?)?
         .checked_add(Word::NotKept.capacity(domain)?)?
         .checked_add(Word::LeftOff.capacity(domain)?)?

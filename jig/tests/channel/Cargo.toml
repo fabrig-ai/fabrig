@@ -12,6 +12,7 @@ jig-channel-kit.workspace = true
 
 [dev-dependencies]
 skein-llm.workspace = true
+skein-fake-llm-domain.workspace = true
 serde_json.workspace = true
 smith-transcript.workspace = true
 jig-domain-link.workspace = true

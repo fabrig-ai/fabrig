@@ -69,8 +69,8 @@ or the nearest thing, and says so in that draft's status.
 | P2 | Home and Needs you across projects, and the brief | `surfaces.md`, 3, 4 | M0 | temper/ui | must | landed; its render check and walk follow (section 5) |
 | P3a | How work runs: the page and the path, on today's settings | `surfaces.md`, 7, but for the parts below; `stock-ways.md`, 4 | M0 | temper/ui | must | landed; its render check and walk follow (`../client/README.md`, 5) |
 | P3b | How work runs: What reaches you | `surfaces.md`, 7 | P3a, N1 | temper/ui | nice | landed; its render check and walk follow (`../client/README.md`, 5) |
-| P3c | How work runs: Rules by path, and the path's stops for a path set, "if core" and "one of you" | `surfaces.md`, 7; `what-reaches-you.md`, 7 | P3a, N2 | temper/ui | should | not started |
-| P3d | How work runs: What follows a landing, and a role's budget | `surfaces.md`, 7 | P3a, F1, R1 | temper/ui | nice | not started |
+| P3c | How work runs: Rules by path, and the path's stops for a path set, "if core" and "one of you" | `surfaces.md`, 7; `what-reaches-you.md`, 7 | P3a, N2 | temper/ui | should | landed; its render check and walk follow (`../client/README.md`, 5) |
+| P3d | How work runs: What follows a landing, and a role's budget | `surfaces.md`, 7 | P3a, F1, R1 | temper/ui | nice | landed; its render check and walk follow (`../client/pages/settings.md`, 3) |
 | P3e | Words saved with a setting: a charter's line on Roles, How work runs' headline, a tier's description | `surfaces.md`, 7; its entry below | P3a | temper/ui | should | landed; its render check follows (`../client/README.md`, 5) |
 | P3f | The path's "design" and "close-out", from what a goal's template says its coordinator does | `stock-ways.md`, 4; its entry below | P3a | temper/ui | should | done |
 | P4a | Team: its people, what waits on each, and the project's triager | `surfaces.md`, 6 | M0 | temper/ui | must | landed and repaired; its render check and walk follow (`../client/README.md`, 5) |
@@ -79,23 +79,23 @@ or the nearest thing, and says so in that draft's status.
 | P5a | The phone, Ask, and Tell temper filing for the project's triager | `surfaces.md`, 9, 10 | P2 | temper/ui | should | landed but for Tell temper, which waits (section 5) |
 | P5b | Tell temper's routing to an area's owner | `surfaces.md`, 9 | P5a, R2 | temper/ui | nice | not started |
 | P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | must | done |
-| P7 | A change's size on its approval card: its files, additions and deletions at the head reviewed | `surfaces.md`, 4; its entry below | P2 | temper/ui | nice | not started |
-| P8 | Work's drafts landed and ready to start a goal | `surfaces.md`, 5; its entry below | P1, P6 | temper/ui | nice | not started |
-| N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | landed but for a standing role's case, which waits on R1; its repair's web part landed, its render check and walk following (section 5) |
-| N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | must | not started |
+| P7 | A change's size on its approval card: its files, additions and deletions at the head reviewed | `surfaces.md`, 4; its entry below | P2 | temper/ui | nice | landed; its render check and walk follow (`../client/README.md`, 5) |
+| P8 | Work's drafts landed and ready to start a goal | `surfaces.md`, 5; its entry below | P1, P6 | temper/ui | nice | landed; its render check follows (`../client/README.md`, 5) |
+| N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | landed, R1 a standing role's case; its repair's web part landed, its render check and walk following (section 5) |
+| N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | must | landed; its walk follows (section 5) |
 | N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | nice | landed but for what waits on a login and Only you's other kinds, which wait on reads (section 5) |
 | N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | landed for a push; a mail and the digest left, designed and not built, and a sign-off's push waits on N2 (section 5) |
 | N4 | A person's request for changes on the forge starts a repair with their remarks, as a blocking review's does | `../domain/forge/change/gates.md`, 1; its entry below | | temper/migration | should | done |
 | N5 | Who can still sign: the people a waiting sign-off can still come from, on its card | `what-reaches-you.md`, 7; its entry below | N2 | temper/ui | should | not started |
 | N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | not started |
-| R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | must | in flight |
+| R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | must | landed; its walk follows R2's and R3's (*R1 to R3*, below) |
 | R2 | Areas in words, the triager's routing, outside parties, stock roles | `standing-roles.md`, 4, 8, 10 | R1 | temper/migration | must | not started |
-| R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | must for talking, nice for reports | not started |
-| F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | must | in flight |
-| F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | must | not started |
+| R3 | Talking with a role, and its reports | `standing-roles.md`, 6, 7 | R1 | temper/migration | must for talking, nice for reports | in flight: goal 712 |
+| F1 | A follow, across projects | `follows.md`, 2 to 6 | R1 for a standing role as its owner; a person owns it until then | temper/migration | must | landed for a person as owner; a standing role as owner waits on R1 (section 5) |
+| F2 | Depends on | `follows.md`, 7 | F1 | temper/migration | must | landed; its walk follows (section 5) |
 | G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | later | low priority, not for v0.1.0 |
 | T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | must | landed; its walk follows (`../client/README.md`, 5) |
-| T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | must | designed, building: plan `tui-design-session` |
+| T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | must | landed; its walk follows (`../client/README.md`, section 5) |
 | T3 | Talking with a role, and the launchpad's team | `surfaces.md`, 11.1's team lines, 11.3, 11.4's `/talk` and `/tell` | T1, R2, R3 | temper/tui | nice | not started |
 | E | The whole story on a box, a part for each step (section 4) | `whole-story.md`, 11 | each part, its step's milestones | each owner writes its part of the story | must | not started |
 | V1 | The pilot, vsr alone: adopted, its way Draft first, its checks as CI, a goal from a draft | `whole-story.md`, 5.2 | GitHub's rungs (`v0.1.0.md`, 2.2); a worker with vsr's C toolchain | temper/migration, with the user | must | not started |
@@ -111,7 +111,7 @@ or the nearest thing, and says so in that draft's status.
   precedence over the greenfield mock (`surfaces.md`, section 13). Mockups
   under `docs/` are documents, whatever their format (the user,
   2026-11-08), so they land as the drafts do.
-- **Then** the drafts and `../client/greenfield/README.md` may cite them
+- **Then** the drafts and `../client/web/greenfield/README.md` may cite them
   as paths.
 - **Done** when it lands. No code.
 
@@ -299,44 +299,58 @@ P3a's and P3e's on 2026-11-11, as goal 310, their repairs, landed, and
 P1's that day, as goal 368, its repair, landed, and
 P2's, as goal 338, its repair's wording, landed, and
 N1's that day, as goal 367, its repair's web part, landed, and
+R1's, R2's, R3's, P4b's and N1's on 2026-11-11, as R1 landed, and
+R3's that day, as goal 712 designed it, and
+N1's, N2's, N5's, N6's and P3c's that day, as N2 retired, and
+P3c's that day, as goal 835 cut it, and
+F1's, F2's and P3d's on 2026-11-11, as F1 landed, and
+P7's that day, as goal 493 landed, and
+P8's, as goal 638 landed, and
+T1's that day, as goal 761, its repair, landed, and
+P3d's on 2026-11-12, as goal 1016 landed, and
+F2's on 2026-11-12, as goal 1015 landed, and
+P2's and F2's that day, as goal 1243, P2's repair for What follows
+what, landed, and
 N3b's that day, as goal 492, its push, landed. Plans
+
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
 |---|---|---|
 | M0 | done | |
-| P1 | landed but for a standing role's Team; its render check and walk follow | `ui-p1-rail` drew the rail as this draft stood at its cut; its repair, goal 368, draws To begin's rail with its hairline and "How work runs", turns the words that still sent a person to Settings to How work runs and Deployment, and keeps "Home" and "Needs you" across projects under All projects, Needs you's count across them (`../client/view.md`, 3); the phone's "Needs" landed with P5a; Away across projects landed by `ui-away-all`; Team in the rail landed with P4a, for a second person, and waits on R1 for a standing role; its render check and walk, and `project-landing`'s new recording of To begin's rail, follow landing (`../client/README.md`, 5) |
-| P2 | landed; its render check and walk follow | `ui-p2-home` drew Home and Needs you across projects; its repair, goal 338, words the byline across projects as `surfaces.md`, 3 does and gives the phone's headline `phone-home.html`'s words; a project's row's Now, tiers, a follow's parity and "owned", and What follows what wait on R1, R3 and F1, by their needs, and Decided for you's who and a card's asker are Needs you's (`surfaces.status.md`, 3 and 4); the launchpad's brief across projects is T1's repair, temper/tui's (`surfaces.status.md`, 11); its render check and walk follow landing (`../client/README.md`, 5) |
+| P1 | landed; its render check and walk follow | `ui-p1-rail` drew the rail as this draft stood at its cut; its repair, goal 368, draws To begin's rail with its hairline and "How work runs", turns the words that still sent a person to Settings to How work runs and Deployment, and keeps "Home" and "Needs you" across projects under All projects, Needs you's count across them (`../client/view.md`, 3); the phone's "Needs" landed with P5a; Away across projects landed by `ui-away-all`; Team in the rail landed with P4a, for a second person, and for a standing role, R1 having landed, is a repair's; its render check and walk, and `project-landing`'s new recording of To begin's rail, follow landing (`../client/README.md`, 5) |
+| P2 | landed; its render check and walk follow | `ui-p2-home` drew Home and Needs you across projects; its repair, goal 338, words the byline across projects as `surfaces.md`, 3 does and gives the phone's headline `phone-home.html`'s words; a second repair, goal 1243, draws What follows what on Home on All projects, a box each follow and each dependency of the first four projects read, from their `follows` documents, within a shipped client's watches raised to 26 (`../client/pages/home.md`, 1); a project's row's Now, tiers, a follow's parity and "owned" wait on R1, R3 and F1, by their needs, and Decided for you's who and a card's asker are Needs you's (`surfaces.status.md`, 3 and 4); its render check and walk follow landing (`../client/README.md`, 5) |
 | P3a | landed; its render check and walk follow | `ui-p3a-how` drew the path in lanes, and its repair, `look-round-25`, draws it as Ask temper's ways do, their agent's star and its rise in ink, and Roles; a second repair, goal 310, gives the drafter, in the stock since P6, its place among Roles; their render check and walk follow landing (`../client/README.md`, 5) |
 | P3b | landed; its walk follows | `ui-p3b-reaches` drew `surfaces.md`, 7's What reaches you from the project's classes, three columns in `how.html`'s words with what Away changes, then the question route and "Away until", in place of the classes' checks, a class changing by proposal; the mockups' lines no class holds, a landing rule's approvals and an agent's own repairs, stay the path's and Rules by path's, P3c (`surfaces.status.md`, 7 and 13); its render check and walk follow landing (`../client/README.md`, 5) |
-| P3c, P3d | wait | N2, or F1 and R1, by their needs |
+| P3c | landed; its render check and walk follow | goal 835 derived a role's sign-off as one stop, "you", "one of you" or the role's name, with "if NAME" or "by path" over a stop that only rules by path ask, and its card's "Only for", "Asks" and "Counts" (`../domain/forge/change/branch-path.md`); the `ways` read's rules by path, which `see ways` prints; and How work runs' Rules by path, as `how.html` and `team/how.html` draw it; the heading's chief departure is the project's words, which Ask temper writes; its render check and walk follow landing (`../client/README.md`, 5) |
+| P3d | landed; its render check and walk follow | goal 1016 draws `surfaces.md`, 7's What follows a landing on How work runs: a box a follow of the project's, from the forge's `follows` document, its words made from its setting, its lag and parity, and who acts' chips, then a box of its path's tiers after landing; Budgets' rows for the project's live standing roles, each its title, what it has left and its budget, under the project's open period, "a week · renews DAY", then "Goals"; and Roles the charters its standing roles and follows run (`../domain/forge/change/branch-path.md`, *The project's roles*). Where they depart from `how.html` is `surfaces.status.md`, 7 and 13; their render check and walk follow landing (`../client/pages/settings.md`, 3) |
 | P3e | landed; its render check follows | `ui-p3e-words` keeps a charter's words, kind 9, and a project's, kind 10, which Ask temper writes with what it proposes, the stock's for each stock charter, a headline for each stock way, which How work runs' heading and lede say, the project's own where it runs none, and a tier's description, which its card says; the stock holds no tier, so none of its words. Its repair, goal 310, carries kind 9 on the `roles` view's cards, after when the role runs, its instructions' first sentence where none is kept, as `how.html` does, and has `see ways` say each way's headline; its render check follows landing |
 | P3f | done | |
 | P4a | landed and repaired; its render check and walk follow | `ui-p4a-team` drew Team's people, and its repair gives a box the role "Owner", People's head the role its people share, "owners of shop", and a line's count in words (`../client/pages/team.md`, 1); the triager as Who routes, under the areas, is P4c's; a line's sign-offs wait on N2, N5 and N6 (`surfaces.status.md`, 6); its render check and walk follow landing (`../client/README.md`, 5) |
-| P4b, P4c | wait | R1, then R2 and R3, by their needs |
+| P4b | starts | R1 has landed: a role's card draws its Now, read as the note described `now` in its scope (`../domain/agent/standing.md`, section 4) |
+| P4c | waits | R2 and R3, by its needs |
 | P5a | landed; Tell temper waits | `ui-p5a-phone` drew the phone's tabs from one pure rule, "Needs" with its count and the Ask tab's tabs under Ask temper's page and its chats, Needs you's phone bar, and every target of the frame, Home, Needs you, Work and a chat's bar and composer at 44 px; its render check and walk follow landing (`../client/README.md`, 5). Tell temper is designed and drawn nowhere: it waits for the engine to file a person's word as a finding and for a setting naming the project's triager, which no milestone above builds, and follows as a milestone of its own once they land (temper/ui's answer to the plan's question `tell-temper-findings`; `surfaces.status.md`, 9) |
 | P5b | waits | R2, by its needs, and Tell temper's filing (P5a) |
 | P6 | done | |
-| P7 | starts | |
-| P8 | starts | |
-| N1 | landed; its render check and walk follow | `ui-reaches` built `what-reaches-you.md`, 2 to 6, in the engine and the web client; a standing role's case waits on R1, and the paths an asker's change touches at its head on N2 (`what-reaches-you.status.md`, 4); its repair, goal 367, draws Needs you's Decided head with "Limits" on a filtered page, a words offer's sentence over its field and Home's Away spell with no row showing, and the why line on the signal ground, over the choices, with "Keep asking" and the narrower rule on it, as `needs.html` does, saying "agents" where it says "goals" (`surfaces.status.md`, 4); the TUI's reason line is temper/tui's, T1 having drawn none; its render check and walk follow landing (`../client/README.md`, 5) |
-| N2 | starts | |
+| P7 | landed; its render check and walk follow | goal 493 reads the forge's own counts of a pull request's files, additions and deletions with it (skein's `forge/README.md`, 3.6), keeps them with the change's approval evidence at the head reviewed (`../domain/forge/change/gates.md`, 2), and draws them on the approval's card on Needs you and Home, "+142 -18 in 4 files", a count past 32 bits marked "+" (`../client/forge/README.md`, 4.1); `pair/needs.html`'s table of files, the CI and repair chips and the launchpad's line wait (`surfaces.status.md`, 4 and 11); its render check and walk follow landing (`../client/README.md`, 5) |
+| P8 | landed; its render check follows | goal 638 keeps a project's landed drafts (`../domain/forge/drafts.md`): a writer says one ready by `temper ctl draft ready`, temper reads it at the landing branch's head and keeps its commit, title, chat and, once started, its goal; Work lists the ready ones under Drafts and starts a goal from each (`../client/pages/work.md`, 1); saying ready on the web or in a design session, and a goal's card naming its draft, are those documents' open questions; its render check follows landing (`../client/README.md`, 5) |
+| N1 | landed; its render check and walk follow | `ui-reaches` built `what-reaches-you.md`, 2 to 6, in the engine and the web client, and R1 a standing role's case; judging the paths an asker's change touches at its head, read since N2, is N1's repair's (`what-reaches-you.status.md`, 4); its repair, goal 367, draws Needs you's Decided head with "Limits" on a filtered page, a words offer's sentence over its field and Home's Away spell with no row showing, and the why line on the signal ground, over the choices, with "Keep asking" and the narrower rule on it, as `needs.html` does, saying "agents" where it says "goals" (`surfaces.status.md`, 4); the TUI's walk says a need's reason since T1's repair, goal 761 (`../client/tui/pages/launchpad.md`, 6); its render check and walk follow landing (`../client/README.md`, 5) |
+| N2 | landed; its walk follows | goal 187 built `what-reaches-you.md`, 7, in the engine and the web client: a landing rule's `sets` of the project's path sets, through settings files and ctl; what a change touches, from its merge base to its head, judged at that exact head by every reader of the rules and by the turn's merge; a change whose sign-off waits out of its branch's queue, so the rest of the branch lands; and Needs you's card saying the path sets it signs off, with "Sign off on Forgejo ↗"; the domain world's story holds a path rule's change for its sign-off while another lands. The path's stop for a path set is P3c's (`what-reaches-you.status.md`, 7); its walk follows landing |
 | N3a | landed; its later parts wait | `ui-n3a-only` built `what-reaches-you.md`, 8, in the web client: a person's own sign-in signed out, or a login read as expiring, listed apart on Needs you with "Sign in again" to Accounts, which offers an expiring source its renewal; the line saying what waits ("Two agents on vsr wait for this login."), a forge's token to replace and a person task asking an act wait for reads no milestone above builds, and the terminal's inbox is temper/tui's (`what-reaches-you.status.md`, 8); a repair, or a look request, draws an item's from line, question and gap as `needs.html` does (`surfaces.status.md`, 4); its render check and walk follow landing |
 | N3b | landed for a push; its walk follows | goal 492 built `what-reaches-you.md`, 9's push against fakes alone: a person's devices, jig's need's arrival, the root's pushes and the service's Web Push (`../domain/forge/attention.md`, section 7), `temper ctl push add`, and Telling you in the browser (`../client/pages/told.md`); mail and the digest are designed and not built (`../domain/forge/attention.md`, 7.4), left as nice when push took the six changes it was given; a sign-off's wait pushes nothing until N2 reshapes it; a real push needs a deployment at a name over HTTPS and its VAPID key, which a person sets (`../protocol/configuration/engine.md`, `push`); its walk needs a fake push service a box runs, which no design has yet (`what-reaches-you.status.md`, 9) |
 | N4 | done | goal 147, PR #41 |
-| N5, N6 | wait | N2 |
-| R1 | in flight | goal 101 |
-| R2, R3 | wait | R1, by their needs |
-| F1 | in flight | goal 102 |
-| F2 | waits | F1, by its needs |
+| N5, N6 | start | |
+| R1 | landed; its walk follows | goal 63: jig's task that stands, its sessions and its Now (jig's `domain/tasks/standing.md`), and temper's standing role, its stock charter and template, its person and `role start`, `role list` and `role show` (`../domain/agent/standing.md`); its walk is R2's and R3's |
+| R2 | starts | R1 has landed |
+| R3 | in flight | goal 712: jig's talk (jig's `domain/tasks/standing.md`, 5.6), the Now's `NowWritten` line and period, and temper's talk, `role talk`, the weekly report and the roles' Nows in Home's brief's words (`../domain/agent/standing.md`, sections 7 and 8); Team's and the terminal's drawing of them are P4c's and T3's |
+| F1 | landed for a person as owner | a follow owned by a person, its queue, its follow task, the owner's acts in `temper ctl`, its check and its lag and parity (`../domain/forge/follows.md`); a standing role as owner, its acts as a tool and its questions, wait on R1 (`follows.status.md`); its walk follows landing |
+| F2 | landed; its walk follows | goal 1015: kind 13, a project's dependency on another project of the deployment, judged by the root, carried in the forge's `follows` document beside the follows and printed by `temper ctl follow list`, "dependency 1: fabrig depends on vsr-rs", acted on by nothing (`../domain/forge/dependencies.md`); Home's What follows what draws follows and dependencies from that document since P2's repair, goal 1243 (`../client/pages/home.md`, 1); its walk follows landing |
 | G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
-| T1 | waits | temper/tui's `tui-box-front`, which changes how the TUI starts |
-| T2 | in flight | the plan `tui-design-session`: its design in `../client/tui/pages.md`, *A design session*, and skein's side region (`skein/docs/design/ui/screen.md`, 5.2) first |
+| T1 | landed; its walk follows | `tui-whole-t1` drew the launchpad and printed views; its repair, goal 761, reads the brief, Where you left off and Needs you across the person's projects, says why a walked need reached the person, when each need asked and a left-off row's day, and draws the blank row under the header (`../client/tui/pages/launchpad.md`); Stop asking in the terminal stays the web's (`surfaces.status.md`, 11); its walk follows landing (`../client/README.md`, 5) |
+| T2 | landed | goal 172: `../client/tui/pages/design-session.md`, 1, on skein's side region (`skein/docs/design/ui/screen.md`, 5.2); its walk follows landing |
 | T3 | waits | T1, R2 and R3, by its needs |
 | E | part by part | each part, its step's milestones |
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
-- **Next to start:** P7; T2, whose needs have landed: T1 by
-  `tui-whole-t1`, P6 by `ui-drafter`, and finding-465's repair; and N2,
-  temper/migration's, must.
+- **Next to start:** N5 and N6, N2 having landed.

@@ -7,7 +7,7 @@
 //! to be decoded as jig's activity. An agent that has gone waits behind its
 //! hand-outs. The hub hears an agent has started only once smith admits its
 //! run. A refused start waits for cleanup's bounded operator evidence
-//! (`temper/docs/design/domain/worker.md`, 4.3).
+//! (`temper/docs/design/domain/worker/README.md`, 4.3).
 
 use alloc::boxed::Box;
 use jig_domain_host as host;

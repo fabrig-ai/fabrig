@@ -84,6 +84,12 @@ fn describe(exchange: &Exchange) -> String {
 fn no_branch(exchange: &Exchange) -> bool {
     exchange.status == 404
 }
+fn refused_and_left_empty(refusal: &Exchange, read: &Exchange) -> Result<bool> {
+    Ok(refusal.status >= 400
+        && crate::json(refusal)?.root().get("message").str().is_some_and(|message| !message.is_empty())
+        && read.status == 200
+        && crate::json(read)?.root().get("empty").bool() == Some(true))
+}
 fn fact(facts: &mut Vec<Fact>, name: &'static str, holds: bool, exchanges: &[&Exchange]) {
     add(facts, name, holds, &exchanges.iter().map(|x| describe(x)).collect::<Vec<_>>().join("; "));
 }
@@ -99,6 +105,8 @@ pub fn run(binary: &Path, runner: Option<&Path>, scratch: &Path, out: &Path) -> 
     let mut source = Fixture::bare(&forgejo, &scratch.join("source"), &Settings::small())?;
     source.instance.create_repository(&source.owner, "source", Init::Readme).map_err(|e| crate::failure(&e))?;
     source.instance.create_repository(&source.owner, "empty", Init::Empty).map_err(|e| crate::failure(&e))?;
+    source.instance.create_repository(&source.owner, "private", Init::Readme).map_err(|e| crate::failure(&e))?;
+    source.api("PATCH", "/api/v1/repos/fixture/private", br#"{"private":true}"#)?;
     source.branch(SOURCE, "other", "main")?;
     source.api("PATCH", SOURCE, br#"{"default_branch":"other"}"#)?;
     source.api("POST", &format!("{SOURCE}/issues"), br#"{"title":"source issue"}"#)?;
@@ -210,14 +218,26 @@ fn ordinary(r: &mut Recorder<'_>, source: &Fixture, from: &str, facts: &mut Vec<
         MIGRATE,
         Some(&body("missing", &from.replace("source.git", "missing.git"))?),
     )?;
-    let absent = read(r, "setup-migrate-missing-source-read", "missing", "")?;
+    let missing_read = read(r, "setup-migrate-missing-source-read", "missing", "")?;
     fact(
         facts,
-        "setup-migrate-of-a-missing-source-says-why-and-leaves-nothing",
-        missing.status >= 400
-            && crate::json(&missing)?.root().get("message").str().is_some_and(|s| !s.is_empty())
-            && absent.status == 404,
-        &[&missing, &absent],
+        "setup-migrate-of-a-missing-source-says-why-and-leaves-an-empty-repository",
+        refused_and_left_empty(&missing, &missing_read)?,
+        &[&missing, &missing_read],
+    );
+    let private = send(
+        r,
+        "setup-migrate-private-source",
+        "POST",
+        MIGRATE,
+        Some(&body("private", &from.replace("source.git", "private.git"))?),
+    )?;
+    let private_read = read(r, "setup-migrate-private-source-read", "private", "")?;
+    fact(
+        facts,
+        "setup-migrate-of-a-private-source-says-why-and-leaves-an-empty-repository",
+        refused_and_left_empty(&private, &private_read)?,
+        &[&private, &private_read],
     );
     let empty = send(
         r,
@@ -643,4 +663,64 @@ fn a_migration_request_capture_frames_its_masked_source_address() {
         expected_body.len()
     );
     assert_eq!(captured, expected.as_bytes());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::refused_and_left_empty;
+    use skein_throwaway_forgejo::Exchange;
+
+    fn exchange(status: u16, body: &str) -> Exchange {
+        Exchange { sent: Vec::new(), status, head: Vec::new(), body: body.as_bytes().to_vec() }
+    }
+
+    fn recorded(name: &str) -> Exchange {
+        let out = skein_scratch::paths::package();
+        let bytes = std::fs::read(out.join("transcripts").join(name).join("response")).expect("recorded response");
+        let end = bytes.windows(4).position(|w| w == b"\r\n\r\n").expect("case head");
+        let head = bytes[..end].to_vec();
+        let status = std::str::from_utf8(&head)
+            .expect("UTF-8 head")
+            .split_whitespace()
+            .nth(1)
+            .expect("case status")
+            .parse()
+            .expect("numeric status");
+        Exchange { sent: Vec::new(), status, head, body: bytes[end + 4..].to_vec() }
+    }
+
+    #[test]
+    fn recorded_refused_migration_leaves_an_empty_repository() {
+        let refusal = recorded("setup-migrate-missing-source");
+        let read = recorded("setup-migrate-missing-source-read");
+        assert!(refused_and_left_empty(&refusal, &read).expect("recorded migration judgment"));
+    }
+
+    #[test]
+    fn refused_migration_requires_an_error_with_a_message() {
+        let read = exchange(200, r#"{"empty":true}"#);
+        assert!(refused_and_left_empty(&exchange(400, r#"{"message":"refused"}"#), &read).expect("judgment"));
+        for (status, body) in [
+            (399, r#"{"message":"not an error"}"#),
+            (422, "{}"),
+            (422, r#"{"message":""}"#),
+            (422, r#"{"message":true}"#),
+        ] {
+            assert!(!refused_and_left_empty(&exchange(status, body), &read).expect("judgment"), "{status}: {body}");
+        }
+    }
+
+    #[test]
+    fn refused_migration_requires_a_successful_read_of_an_empty_repository() {
+        let refusal = exchange(422, r#"{"message":"refused"}"#);
+        for (status, body) in [
+            (404, r#"{"empty":true}"#),
+            (201, r#"{"empty":true}"#),
+            (200, r#"{"empty":false}"#),
+            (200, "{}"),
+            (200, r#"{"empty":"true"}"#),
+        ] {
+            assert!(!refused_and_left_empty(&refusal, &exchange(status, body)).expect("judgment"), "{status}: {body}");
+        }
+    }
 }

@@ -1,6 +1,7 @@
 # ui-web: status
 
-2026-11-09. Where skein's code lags or departs from [README.md](README.md).
+2026-11-11. Where skein's code lags or departs from [README.md](README.md).
+
 
 `elements.md` and `README.md`, section 5 have no known gap in a field's options: listbox and
 option mapping, retained active selection, arrows, Enter without a
@@ -65,15 +66,6 @@ it; no browser has painted one on record.
   is recorded; seen by reading: `a_log_kept_busy_says_nothing_until_the_person_moves`
   moves nearer from short of the head, temper's `a_failed_head_read_says_so_and_the_next_near_retries`
   gives its `Near` by hand, and no browser story has a read fail.
-- **Departs:** `bundle.md`, 3, *The loader*: a stall before the module's answer draws no words,
-  where the line has `data-waiting` after 15 s with no byte. `loader.js`'s `draw`
-  returns until the glue and that answer are both in, as the same section's "the line
-  says nothing" has it, so a server holding the answer's head leaves the mark and an
-  empty bar with no line, and `#boot-note` empties at 15 s. The draft that asks the
-  loader has a stall say it is waiting
-  (`temper/docs/design/draft/bundle-loading.status.md`). No reason is recorded; seen by
-  reading, and no test stalls an answer: the proof (the `bundle-loading` plan's figures
-  on its render check, at `668f7cd3e5`) paused one part-way.
 - **Not yet:** 5: no run on record shows that tier within its budget with
   `log_reading`'s seven stories, from the plan `chat-reading-c`, which waits for its run
   after landing likewise.

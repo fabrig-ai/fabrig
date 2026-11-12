@@ -3,7 +3,7 @@ use crate::{Event, Request, Unusable, Version};
 use skein_io::kernel;
 use temper_worker_domain_checkout::git;
 const FETCHED: &[u8] =
-    b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/fetched\n";
+    b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/7/fetched\n";
 
 #[test]
 fn every_push_fault_keeps_gits_stderr_tail() {
@@ -65,7 +65,7 @@ fn design_paths_stream_past_the_stdout_and_conflict_limits() {
     component.shutdown();
 }
 #[test]
-fn a_fetch_runs_one_invocation_and_ends_fetched() {
+fn a_fetch_runs_two_invocations_and_ends_fetched() {
     let mut component = fixtures::Started::new();
     component.down(fixtures::fetch(fixtures::OWNER, fixtures::DEADLINE));
     let (child, pipes) = component.spawned();
@@ -74,6 +74,11 @@ fn a_fetch_runs_one_invocation_and_ends_fetched() {
     component.end(pipes[0]);
     component.end(pipes[1]);
     assert_eq!(component.done(), None);
+    component.closed(child, &pipes);
+    let (child, pipes) = component.spawned();
+    component.end(pipes[0]);
+    component.end(pipes[1]);
+    component.exited(child, 0);
     component.closed(child, &pipes);
     assert_eq!(component.done(), Some((fixtures::OWNER, git::Done::Fetched { commit: fixtures::COMMIT })));
     assert!(component.below.out.io.is_empty());
@@ -110,6 +115,11 @@ fn a_cancel_after_the_last_exit_ends_with_the_operation_s_outcome() {
     component.down(fixtures::fetch(fixtures::OWNER, fixtures::DEADLINE));
     let (child, pipes) = component.spawned();
     component.stdout(pipes[0], FETCHED);
+    component.end(pipes[0]);
+    component.end(pipes[1]);
+    component.exited(child, 0);
+    component.closed(child, &pipes);
+    let (child, pipes) = component.spawned();
     component.end(pipes[0]);
     component.end(pipes[1]);
     component.exited(child, 0);
@@ -267,7 +277,7 @@ fn an_abort_during_commit_tree_spawn_settles_without_a_done() {
     assert_eq!(component.below.out.io.len(), 4, "abort child and all three pipes");
     component.closed(child, &pipes);
     assert_eq!(component.done(), None);
-    for _ in 0_u8..2 {
+    for _ in 0_u8..3 {
         component.file_operation();
         component.complete_ok();
     }
@@ -315,6 +325,37 @@ fn a_look_spawns_at_the_worker_root_without_an_identity() {
         })
     );
     assert_eq!(component.done(), None);
+}
+
+#[test]
+fn a_point_spawns_one_local_update_ref_without_an_identity() {
+    for into in [git::Into::Fetched, git::Into::Landing] {
+        let mut component = fixtures::Started::new();
+        component.down(Request::Io {
+            owner: fixtures::OWNER,
+            op: git::Op::Point { at: fixtures::at(), into, commit: fixtures::COMMIT },
+            deadline: fixtures::DEADLINE,
+            identity: None,
+        });
+        let Some(skein_io::Request::Spawn { spawn, .. }) = component.below.out.io.pop() else { panic!("point spawn") };
+        assert_eq!(&*spawn.dir, b"workspaces/7/app");
+        let mut expected = skein_lib::List::uncapped();
+        for setting in crate::invocation::SETTINGS {
+            expected.push(Box::from(b"-c".as_slice())).expect("uncapped args");
+            expected.push(Box::from(setting)).expect("uncapped args");
+        }
+        let reference = match into {
+            git::Into::Fetched => b"refs/temper/fetched".as_slice(),
+            git::Into::Landing => b"refs/temper/landing".as_slice(),
+        };
+        for word in [b"update-ref".as_slice(), reference, b"abababababababababababababababababababab"] {
+            expected.push(Box::from(word)).expect("uncapped args");
+        }
+        assert_eq!(spawn.args.as_ref(), expected.as_slice());
+        assert_eq!(spawn.env, crate::invocation::environment(fixtures::HOME, None, None));
+        assert!(component.below.out.io.is_empty(), "one invocation");
+        assert_eq!(component.done(), None);
+    }
 }
 
 /// temper/docs/design/protocol/git.md, 4.6: merge progress is not a parsed result.

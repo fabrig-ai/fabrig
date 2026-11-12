@@ -99,6 +99,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::AddDevice { .. }
             | forge::Event::RemoveDevice { .. }
             | forge::Event::Pushed { .. }
+            | forge::Event::SetDraft { .. }
             | forge::Event::SetAway { .. }
             | forge::Event::Overturn { .. }
             | forge::Event::Decided { .. }
@@ -132,6 +133,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Project { .. }
             | forge::Event::FailProjection { .. }
             | forge::Event::ProjectDesired { .. }
+            | forge::Event::DropChange { .. }
             | forge::Event::Change { .. }
             | forge::Event::Priority { .. }
             | forge::Event::QueueRepairStarted { .. }
@@ -143,6 +145,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Relayed { .. }
             | forge::Event::StartConflicted { .. }
             | forge::Event::ReviewRequested { .. }
+            | forge::Event::ReviewsChanged { .. }
             | forge::Event::StepChange { .. }
             | forge::Event::SavedWork { .. }
             | forge::Event::Closer { .. }
@@ -168,6 +171,9 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::Restored { .. }
             | forge::Event::ReadAfresh
             | forge::Event::ProducedTitle { .. }
+            | forge::Event::Follow { .. }
+            | forge::Event::FollowChangeAmended { .. }
+            | forge::Event::FollowAct { .. }
             | forge::Event::SettleOutbox => true,
         },
     }

@@ -40,7 +40,7 @@
   `SetUp`, `connect`, `Connect`, `install`, `Install`, `reachable`,
   `Reachable`, `accept`, `Accept`, `remove_forge`, `RemoveForge`,
   `make_repository`, `MakeRepository`, `dismiss_making`, `DismissMaking`,
-  `dismiss`, `Dismiss`, `looked`, `Looked`,
+  `dismiss`, `Dismiss`, `looked`, `Looked`, `set_draft`, `SetDraft`,
   `start_playground` and `end_playground`, the last two with no fields
   (below). Each is answered by the family's one record,
   `Answer`, whose outcome is one of either request's (below); the client
@@ -204,9 +204,23 @@
   committed; *device refused*, `unknown`, the party holds no such
   device; or *unknown*, no longer held.
 
-  Both requests' variants follow `TryAccount`'s, the last, in the
+  Both requests' variants follow `FollowAct`'s, the last, in the
   order above, and their outcomes follow the last outcome's, so the
   records already on the wire keep their bytes.
+- **`SetDraft`:** of the project it names, from any party with a role
+  there, as `SetAway` (`../../domain/forge/drafts.md`, 2): `project`, u32;
+  `repository`, an option of `DraftRepository`: `owner` and `name`, at
+  most 1024 bytes each, none for the project's home; `path`, at most 1024
+  bytes; and `change`, `DraftChange`: `ready`, `ReadyDraft`, with `chat`,
+  an optional u64; `not_ready`, no fields; or `started`, `StartedDraft`,
+  with `goal`, u64. Appended after the family's last request, so that
+  every request before it keeps its tag. Its outcome: *drafted*,
+  `drafted`, the row as it stands once committed, a `LandedDraft`
+  (*A project's landed drafts*, below); *draft refused*,
+  `draft_refused`, `DraftRefusal`: `no_repository`, `path`, `missing`,
+  `not_a_file`, `unreachable`, `unknown` or `full`, as the domain names
+  them; or *unknown*, no longer held, which the subject `drafts`
+  answers. Both outcomes are appended after the family's last.
 - **`Connect`:** of the deployment's scope (`../engine.md`): the forge,
   `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
   and how it connects, `How`: `github_app`, `GitHubApp`,
@@ -390,12 +404,12 @@
     head: none, pending, approved, or changes asked;
   - its repairs, its resolutions and its updates, each used of its
     limit (u32 each);
-  - its questions (`../../domain/forge/change/questions.md`, 1): its route, none, foreman
+  - its questions (`../../domain/forge/change/questions.md`, 1): its route, none
     or up; the questions taken, used of its limit (u32 each); and its
     open questions, at most 8 in the order taken, each with its asker's
     task (u64) and the question's number there (u32), the first line of
     its words (at most 256 bytes, cut on a UTF-8 boundary and marked),
-    and where it stands: taken, with its foreman (its task, u64), asked
+    and where it stands: taken, asked
     of the change's requester, or answered and held for the change's
     dependencies. A change past its bound
     shows the question that held it among them, as its hold says.
@@ -554,14 +568,37 @@
     across the queues, which fill in order; the changes queued are the
     rows listed and `more`;
   - `landed`, at most `forge.changes_landed` (8 in `small`), newest first,
-    across the project's repositories, each a `ChangesLanded`: `task`,
-    `title` and `at`, the landing log's (`../../domain/after-landing.md`,
-    section 10);
-  - `landed_more`, what `landed` cut.
+    across the project's repositories, a row for each change of each
+    landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing
+    log's (`../../domain/after-landing.md`, section 10); `commit`, the
+    landing's, 32 bytes; and `default_branch`, whether the branch the
+    landing moved is its repository's default branch;
+  - `landed_more`, what `landed` cut;
+  - `landed_default`, the rows of `landed`'s kind whose `default_branch` is
+    set, at most `forge.changes_landed`, newest first, so that landings
+    into goal branches never push them out (`../pages/work.md`, 1, *Work*);
+    a landing with no change, a push from outside temper, gives no row;
+  - `landed_default_more`, what `landed_default` cut.
 
   It is marked as a change enters, leaves or moves in a queue, as the step
   of the change that owns one changes, as a branch's red changes and at each
   merge.
+- **A project's landed drafts, the subject `drafts`:** of the project's
+  scope, for a party with a role there, its window unused
+  (`../../domain/forge/drafts.md`, 3); on the wire `Watching`'s `drafts`,
+  `DraftsSubject`: `project`, appended after the family's last subject.
+  Work watches it while open, as it does `changes` (`../pages/work.md`,
+  1). Its document, `DraftsPanel`: `project`; and `drafts`, at most 64,
+  newest `at` first, then the lower path, each a `LandedDraft`:
+  - `forge`, u16; `owner` and `name`, its repository's, at most 1024
+    bytes each; `path`, at most 1024 bytes;
+  - `branch`, at most 1024 bytes, and `commit`, at most 64 bytes, the
+    commit's id as the forge names it;
+  - `title`, at most 200 bytes, empty with none;
+  - `writer`, the party, u64; `at`, nanoseconds since the epoch;
+  - `chat` and `goal`, optional u64s; `ready`, bool.
+
+  It is marked at each row written or erased.
 - **What changed since the person last looked, the subject `status`:** of
   the project's scope, for a party with a role there, its window unused;
   on the wire `Watching`'s `status`, `StatusSubject`: `project`. `Home`
@@ -600,6 +637,11 @@
     `whole`, whether its reviews were read whole;
   - `yours`, `ApprovalYours`: `counts`, `no_account`, `too_few` or
     `other_role`, whether the watcher's review would count and, if not, why;
+  - `size`, option, last, `ApprovalSize`: the pull request's size at the
+    head its reviews were read at, as the forge counts it
+    (`../../domain/forge/change/questions.md`, 2): `files`, `additions`
+    and `deletions`, u32 each, a count past 4294967295 kept at it; and
+    `cut`, bool, whether one was; none where the forge gave none;
 
   then `more`, the rows past the bound. Times are nanoseconds since the
   epoch. Every client of the party's watches it once, for the session (`../pages/needs-you.md`, 1, *What the client
@@ -650,15 +692,21 @@
   - `current`, option, the index of the way the project runs; `own`, the
     project's own path; `words`, option, the project's words, kind 10, a
     `ProjectWords`, `headline` at most 120 bytes and `lede` at most 480
-    (`../../protocol/configuration/settings.md`, 2); `may_change`, whether the
-    reader may change the project's settings, an owner of it.
+    (`../../protocol/configuration/settings.md`, 2); `rules`, a `PathRules`,
+    the project's rules by path (`../../domain/forge/change/branch-path.md`,
+    *Rules by path*): `rows`, at most 9, each a `PathRule`, `paths` at most
+    256 bytes, `review`, `sign_off` and `lands` at most 64 each, an empty
+    `review` or `sign_off` for none; and `note`, at most 160, empty for
+    none; no rows where the project holds no rule by path; `may_change`,
+    whether the reader may change the project's settings, an owner of it.
 
   Marked at each committed change of settings, at each adoption into the
-  project or removal from it, and at a change of the reader's role. A
+  project or removal from it, and at a change of any person's role in the
+  project, since how many hold a role words its sign-offs. A
   path's bounds are set so that the worst document the root makes, the
   stock's ways and the project's own path, each at 24 stops of the
-  largest agent's card, fits one decision's delivery in the smallest
-  profile.
+  largest agent's card, with its rules by path at every bound, fits one
+  decision's delivery in the smallest profile.
 - **A view, the read `View`:** `ViewRead`: `project` and `address`, at most
   512 bytes, a `view` block's line (`../pages/chat/conversation.md`, 3), read in the project's scope by a
   party with a role there. Its answer, `ViewAnswer`, holds a `View`: `way`,

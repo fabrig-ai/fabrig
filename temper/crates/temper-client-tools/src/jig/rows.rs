@@ -285,6 +285,7 @@ pub const ANSWER: Tool = Tool {
 with task take before answering; task hand-back returns it to the role.
 Use the printed revision: a changed contract refuses a stale answer.
 Choice codes belong to the contract; TEXT explains the choice.
+CHOICE answers only a task with choices; a task taking words is answered with TEXT alone.
 TEXT's bound is the most any call takes; a person task may ask for less:
 task show prints what it asks, and a refusal past it names the bound.
 ",
@@ -876,7 +877,7 @@ pub const PROJECT_SHOW: Tool = Tool {
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so.\n",
+    notes: b"Amounts are in the deployment's unit. Spent includes what ended tasks spent. A missing next start or open period says so. A deleted project prints project N was deleted on stderr, exit 2; an unknown one prints unknown.\n",
 };
 pub const PROJECT_FUND: Tool = Tool {
     name: b"project fund",
@@ -942,6 +943,74 @@ pub const TASK_NOTES: Tool = Tool {
 };
 
 /// The goal creation tool's durable position.
+pub const ROLE_START_AT: u8 = 72;
+pub const ROLE_LIST_AT: u8 = 73;
+pub const ROLE_SHOW_AT: u8 = 74;
+pub const ROLE_TALK_AT: u8 = 75;
+/// Standing roles (client/ctl/tools.md, 2 and 3).
+pub const ROLE_START: Tool = Tool {
+    name: b"role start",
+    line: b"Start a standing role from template 7",
+    prints: b"`done: task N, role`, or `proposed: PROPOSAL, to RECIPIENT` when another party must agree",
+    result: b"role_create",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"budget", b"AMOUNT", Kind::Number, Required, b"The budget each period, in the deployment's unit"),
+        positional(b"text", b"TEXT", Kind::Text, Required, b"What the role owns and how"),
+        flag(b"charter", b"CHARTER", Kind::NumberRange { min: 1, max: 4_294_967_295 }, Optional, b"The role's charter; 13 when absent"),
+    ]],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Template 7 supplies the standing flags, label, contract and models.\nWithin your bounds the role is created; beyond them it is proposed\nwhen your role allows a proposal. It has no deadline.\n",
+};
+pub const ROLE_LIST: Tool = Tool {
+    name: b"role list",
+    line: b"List a project's live standing roles and their Now headlines",
+    prints: b"A line per role: its number, charter, state, budget left and Now's first line, or `no Now yet`; then a continuation or `no more`",
+    result: b"roles",
+    forms: &[&[
+        flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project"),
+        flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"The cursor a page printed, to read on"),
+    ]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"Reads live tasks labelled 3 and the note described now in each\nrole's own scope. The lowest-numbered matching note is its Now.\n",
+};
+pub const ROLE_SHOW: Tool = Tool {
+    name: b"role show",
+    line: b"Read a standing role's task document and its Now or weekly report whole",
+    prints: b"The task document, its open talk, then its whole Now or report with note number, revision and time, or `no Now yet` / `no report yet`", 
+    result: b"role",
+    forms: &[&[
+        positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
+        switch(b"report", b"Read its weekly report instead of its Now"),
+    ]],
+    keyed: Keyed::Never,
+    area: 1,
+    notes: b"The Now or report is the lowest-numbered note described now or\nreport in the role's own task scope. A supplied cut body is marked.\n",
+};
+
+pub const ROLE_TALK: Tool = Tool {
+    name: b"role talk",
+    line: b"Talk with a standing role, or leave your talk",
+    prints: b"The role's reply, or `left: task N`; refusals exit 2; a timeout, hold or end before its reply exits 3 with what came",
+    result: b"role_reply",
+    forms: &[
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
+            positional(b"text", b"TEXT", Kind::Text, Required, b"Words for the role"),
+            flag(b"timeout", b"DURATION", Kind::Duration, Optional, b"How long to wait; 300 seconds when absent, at most 3600"),
+        ],
+        &[
+            positional(b"task", b"TASK", Kind::Number, Required, b"The role's task number"),
+            super::table::Argument { occurs: Required, ..switch(b"leave", b"End your talk and its session") },
+        ],
+    ],
+    keyed: Keyed::Required,
+    area: 2,
+    notes: b"Your first words open a talk; later words continue it. Waits as\ntask show TASK --until replied, then reads the role's turns after\nthese words. Refusals: not a standing role; talking with PARTY;\nno talk to leave. TEXT and --leave cannot be used together.\n",
+};
+
 pub const GOAL_START_AT: u8 = 62;
 /// Fill a project's offered goal template and submit a keyed request.
 pub const GOAL_START: Tool = Tool {
@@ -1046,17 +1115,17 @@ pub const PROJECT_AMEND: Tool = Tool {
     notes: b"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too. Nothing asks first; made public, it prints these words on stderr. Only an owner changes visibility. A member and project 0 are refused, exit 2. The public page is a path under the deployment's address, from me's public identifier. A key replay prints the first answer.\n",
 };
 
-/// Appended position for removing an owned project (client/ctl/tools.md, 3).
-pub const PROJECT_REMOVE_AT: u8 = 71;
-pub const PROJECT_REMOVE: Tool = Tool {
-    name: b"project remove",
-    line: b"Remove your own project, closing it at once and deleting it whole after",
-    prints: b"`removed: project 3, fabrig`, the answer's number and the name me gave at the call; the number alone with no name",
+/// Appended position for deleting an owned project (client/ctl/tools.md, 3).
+pub const PROJECT_DELETE_AT: u8 = 71;
+pub const PROJECT_DELETE: Tool = Tool {
+    name: b"project delete",
+    line: b"Delete your own project, closing it at once and deleting it whole after",
+    prints: b"`deleted: project 3, fabrig`, the answer's number and the name me gave at the call; the number alone with no name",
     result: b"project_removed",
     forms: &[&[positional(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project")]],
     keyed: Keyed::Required,
     area: 1,
-    notes: b"Only an owner removes a project, a fresh store's default project among them. Each live chat is asked to finish within its chat template's grace from me; no chat template, no grace. No confirmation. A project not in your me sends nothing, exit 2. A member who is not its owner, or a project already being deleted, is refused, exit 2. A key replay prints the same removal while deletion lasts. A restored request prints kept: remove-project, removed: project N, with no name.\n",
+    notes: b"Only an owner deletes a project, a fresh store's default project among them. Live tasks refuse it in jig's words, naming the live roots: end them first, then use a new key. No confirmation. A number is sent as given, in me or not; a name is resolved through me, and one not there sends nothing, exit 2, unknown project. The ask has no grace and uses no chat template. A member who is not its owner, an unknown project, or one already being deleted under another key is refused, exit 2. A key replay prints the same deletion after it ends as while it lasts, within the engine's retention. A restored request prints kept: remove-project, deleted: project N, with no name. project show PROJECT then says project N was deleted, exit 2.\n",
 };
 
 /// Appended host position for claiming role-addressed person work.

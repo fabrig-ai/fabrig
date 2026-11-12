@@ -36,10 +36,11 @@ fn random_worlds_settle_with_every_client_heard() {
         if seed < 1000 {
             submit_noisily(&mut world, &settings, seed);
         } else {
-            // Reach saves without faults or earlier pushes consuming the
-            // interruption window. Release during a save's commit stops it
-            // before it pushes, with the remaining repositories aborted too.
-            let interrupt = Some((Duration::from_millis(350), Interrupt::Release));
+            // Sweep preparation and saves without faults or earlier pushes
+            // consuming the interruption window. Store and checkout setup
+            // precede a save; a release during its commit stops it before it
+            // pushes, with the remaining repositories aborted too.
+            let interrupt = Some((Duration::from_millis((seed - 999) * 100), Interrupt::Release));
             world.submit(Time::ZERO, Plan { pushes: 0, save: true, interrupt, ..Plan::simple(0) });
         }
         world.run(ITERATIONS);

@@ -331,7 +331,13 @@ fn populate_page(
                         .push(
                             w::ChangesLanded::new(
                                 &w::CEILINGS,
-                                w::ChangesLandedParts { task: 10, title: b"A landed change".as_slice().into(), at: 0 },
+                                w::ChangesLandedParts {
+                                    commit: [0xab; 32],
+                                    default_branch: true,
+                                    task: 10,
+                                    title: b"A landed change".as_slice().into(),
+                                    at: 0,
+                                },
                             )
                             .unwrap(),
                         )
@@ -339,6 +345,8 @@ fn populate_page(
                     let panel = w::ChangesPanel::new(
                         &w::CEILINGS,
                         w::ChangesPanelParts {
+                            landed_default: skein_lib::List::with_capacity(0),
+                            landed_default_more: 0,
                             project: subject.project(),
                             landing: b"main".as_slice().into(),
                             queues,

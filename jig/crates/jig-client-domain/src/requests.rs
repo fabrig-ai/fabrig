@@ -260,6 +260,8 @@ fn kept(request: &Ask) -> bool {
             | contract::Ask::Create { .. }
             | contract::Ask::Propose { .. }
             | contract::Ask::Withdraw { .. }
+            | contract::Ask::Talk { .. }
+            | contract::Ask::Leave { .. }
             | contract::Ask::Message { .. }
             | contract::Ask::Compound { .. }
             | contract::Ask::Answer { .. }

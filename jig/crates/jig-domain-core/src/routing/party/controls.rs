@@ -398,3 +398,39 @@ fn amend_release_admit(core: &Core, person: u64, task: u64, release: Option<u64>
     }
     Ok(())
 }
+
+pub(crate) fn talk_request(
+    core: &mut Core,
+    env: &Env<Limits>,
+    routed: &mut Routed,
+    party: Party,
+    task: u64,
+    words: Box<[u8]>,
+) {
+    let Party { request, person, project, .. } = party;
+    match core.person_talk(
+        &env.limits,
+        crate::PersonMessage { request, person, project, task, question: None, words, at: env.wall },
+    ) {
+        Ok(event) => routed.work.push(Work::Event(Event::Tasks(event))),
+        Err(why) => routed.work.push(Work::Event(Event::People(people::Event::Decided {
+            request,
+            outcome: people::Outcome::Refused(why),
+        }))),
+    }
+}
+
+pub(crate) fn leave_request(core: &mut Core, routed: &mut Routed, party: Party, task: u64) {
+    let maintainer = match party.role {
+        Some(people::Role::Owner | people::Role::Maintainer) => true,
+        Some(people::Role::Member | people::Role::Observer | people::Role::Policy { .. }) | None => false,
+    };
+    let token = core.fly_person_task(party.request, PersonTaskRoute::Leave(task));
+    routed.work.push(Work::Event(Event::Tasks(tasks::Event::Leave {
+        reply_to: ReplyTo::new(token),
+        project: party.project,
+        task,
+        party: party.person,
+        maintainer,
+    })));
+}
