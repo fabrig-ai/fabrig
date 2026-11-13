@@ -50,12 +50,13 @@ fn each_code_of_the_table_gives_its_class() {
 }
 
 #[test]
-fn a_code_the_table_names_beats_its_status() {
+fn responses_failures_are_classed_by_code_then_status() {
     for (code, status, expected) in [
         ("insufficient_quota", 429, Failure::Exhausted { retry_after: None }),
         ("subscription_sharing_user_not_eligible", 400, Failure::Refused),
         ("subscription_sharing_usage_unavailable", 503, Failure::Unavailable),
         ("subscription_sharing_route_not_supported", 403, Failure::Invalid),
+        ("synthetic_unknown", 403, Failure::Invalid),
     ] {
         let world = http_failure(public_call(1), status, "retry-after: 7\r\n", code);
         assert_failure(&world, expected, code, b"");

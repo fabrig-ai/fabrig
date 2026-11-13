@@ -1,8 +1,9 @@
 # channel: status
 
-2026-11-11. Where smith's code lags or departs from [channel.md](channel.md).
+2026-11-13. Where smith's code lags or departs from [channel.md](channel.md).
+
 
 - **Not yet:** 2: `schema/` holds `channel-v6.schema` beside the current text [in flight: change 2447].
-- **Not yet:** the workspace's files left in conflict: the schema allows 64 in a directory (`channel-v7.schema`), and the run limits' `conflicts` is fixed at 64 (`smith-domain-run/src/limits.rs`, `derive`).
+- **Not yet:** the workspace's files left in conflict: the schema allows 64 in a directory (`channel-v8.schema`), and the run limits' `conflicts` is fixed at 64 (`smith-domain-run/src/limits.rs`, `derive`).
 
 Sections 3 and 4 have no known implementation gap in the save ask in channel version 6.

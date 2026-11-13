@@ -1,4 +1,4 @@
-//! Bounded channel records and the version-seven kind table. This crate keeps no
+//! Bounded channel records and the version-eight kind table. This crate keeps no
 //! runtime state and knows no domain, credentials or host policy. Generated
 //! constructors, encoders and decoders handle bodies; [`schema`] advertises
 //! their largest permitted encodings. Contracts: `protocol/channel.md`,
@@ -11,10 +11,10 @@ extern crate alloc;
 
 #[rustfmt::skip]
 mod generated {
-    pub mod v7;
+    pub mod v8;
 }
 
-pub use generated::v7;
+pub use generated::v8;
 
 mod frame;
 pub mod kind;
@@ -23,13 +23,13 @@ pub mod reason;
 
 pub use frame::{Body, frame};
 
-pub use kinds::{KindRule, Overflow, V7, peer_terms_gap, schema};
-pub use v7::{
+pub use kinds::{KindRule, Overflow, V8, peer_terms_gap, schema};
+pub use v8::{
     Cap, CompletionLimit, CompletionPhase, LimitFailure, LimitFailureParts, PathCap, PathCapParts, PoolLimit,
     PoolLimitParts, ResponseEvidence, ResponseEvidenceParts, TimeoutFailure, TimeoutFailureParts,
 };
 
-pub use v7::{
+pub use v8::{
     Accepted, AcceptedParts, AccountRefused, AccountRefusedParts, Acknowledge, AcknowledgeParts, Admitted,
     AdmittedParts, Answer, AnswerParts, AnsweredCall, AnsweredCallParts, Ask, BudgetCeiling, BudgetCeilingValue,
     BudgetCeilingValueParts, BudgetChecks, BudgetChecksParts, BudgetCompletion, BudgetCompletionParts, BudgetFailure,
@@ -54,7 +54,7 @@ pub use v7::{
     WindowBoundParts, WindowParts, Withdraw, WithdrawParts, Workspace, WorkspaceParts,
 };
 
-pub use v7::{
+pub use v8::{
     ListAnswer, ListAsk, ListAskParts, ListFailed, ListFailure, ListFailureParts, ListRefused, ListRefusedParts,
     ListRow, ListRowParts, ListRows, ListRowsParts,
 };
@@ -65,10 +65,10 @@ pub mod wire {
     pub const FAMILY: &str = "smith-channel";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 7;
+    pub const VERSION: u16 = 8;
 
     #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/channel-v7.schema");
+    const TEXT: &str = include_str!("../schema/channel-v8.schema");
 
     /// The current schema's family fingerprint.
     #[must_use]
