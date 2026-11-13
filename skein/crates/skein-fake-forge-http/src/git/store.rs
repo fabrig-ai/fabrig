@@ -32,7 +32,12 @@ pub fn answer(hosted: &mut Hosted<'_>, call: Call, limits: &Limits, cap: u32) ->
             Answer::Ancestor(hosted.domain.is_ancestor(ancestor, commit))
         }
         Call::Objects { commits } => return objects(hosted.domain, &commits, limits, cap),
-        Call::Clone { .. } | Call::Fetch { .. } | Call::Create { .. } | Call::Push { .. } | Call::Branch { .. } => {
+        Call::Clone { .. }
+        | Call::Fetch { .. }
+        | Call::Create { .. }
+        | Call::PushNew { .. }
+        | Call::Push { .. }
+        | Call::Branch { .. } => {
             unreachable!("only store calls borrow the object database")
         }
     };

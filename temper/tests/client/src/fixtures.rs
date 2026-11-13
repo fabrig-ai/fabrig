@@ -20,12 +20,12 @@ pub const FORGE: u16 = temper_client_protocol_wire::number(temper_client_protoco
 pub const FORGE_HOST: &[u8] = b"forge.example";
 /// The stand speaks Forgejo, with walking's forge number, writer and git host.
 #[must_use]
-pub fn forge_settings() -> temper_service::forges::Forges {
-    use temper_service::settings::{Forge, Kind, Transport};
+pub fn forge_settings() -> temper_engine_service::forges::Forges {
+    use temper_engine_service::settings::{Forge, Kind, Transport};
     let mut base = b"http://".to_vec();
     base.extend_from_slice(FORGE_HOST);
     {
-        let mut table = temper_service::forges::Forges::with_capacity(1);
+        let mut table = temper_engine_service::forges::Forges::with_capacity(1);
         assert!(table.insert(Forge {
             log_origins: None,
             mode: temper_engine_domain_forge::Mode::Connected,
@@ -100,17 +100,15 @@ pub fn across_people(limits: Limits) -> Joint {
     front.engine.settle();
     front
 }
-/// Eleven delegates fill one stream's room beside the chat's session watches and
-/// Home, including each page's standing-role watch.
-pub(crate) const WATCH_ROOM_DELEGATES: u32 = 11;
+/// Delegates fill one stream's room beside the two pages' fifteen other watches, including findings.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = temper_engine_domain::WATCHES_PER_STREAM - 15;
 
 /// Page watch figures from temper-client-shell-web/src/limits.rs.
 #[must_use]
 pub fn watch_room_limits() -> Limits {
     let mut limits = domain_limits();
-    // The shipped shells hold four projects' documents and the session's own watches.
-    limits.client.domain.watches = 26;
-    limits.client.domain.handles = 28;
+    limits.client.domain.watches = 31; // The shipped watch room, including findings.
+    limits.client.domain.handles = 33; // The shipped watch room, including findings.
     limits.client.domain.delegates = 80;
     limits.client.domain.reads = 32;
     limits.client.domain.rows = 16;
@@ -209,9 +207,9 @@ pub fn domain_limits() -> Limits {
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
                 // Page handles, session settings and Away, project-needs and the goals watch/read, trials and a running trial task.
-                handles: 20, // Holds four projects' decided watches and the open project's standing roles.
+                handles: 25, // Four findings subjects and one live-goals menu.
                 // Closing page watches overlap the session watches.
-                watches: 19, // Holds four projects' decided watches and the open project's standing roles.
+                watches: 24, // Four findings subjects and one live-goals menu.
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -1455,6 +1453,15 @@ pub fn give_with_file(
     words: &[&[u8]],
     bytes: &[u8],
 ) -> u32 {
+    give_with_loaded_file(world, agent, words, &temper_client_tools::jig::call::Value::Text(bytes.into()))
+}
+/// Supply an input-step settings file, including its already-read directories.
+pub fn give_with_loaded_file(
+    world: &mut World<Temper, Joint>,
+    agent: jig_client_kit::harness::ClientId,
+    words: &[&[u8]],
+    input: &temper_client_tools::jig::call::Value,
+) -> u32 {
     use jig_client_kit::harness::Until;
     use temper_client_tools::jig::call::{Value, Values};
     let start = world.now();
@@ -1470,9 +1477,20 @@ pub fn give_with_file(
     let crate::app::Event::Call { mut call, json, .. } = call(words) else { unreachable!() };
     let mut files = 0;
     for slot in &mut call.values {
-        if matches!(slot, Some(Values::One(Value::File(_)))) {
-            *slot = Some(Values::One(Value::Text(bytes.into())));
-            files += 1;
+        match slot {
+            Some(Values::One(value @ Value::File(_))) => {
+                *value = input.clone();
+                files += 1;
+            }
+            Some(Values::Many(values)) => {
+                for value in values {
+                    if let Value::File(_) = value {
+                        *value = input.clone();
+                        files += 1;
+                    }
+                }
+            }
+            _ => {}
         }
     }
     assert_eq!(files, 1, "one FILE slot");
@@ -1804,7 +1822,7 @@ pub(crate) fn asking_configuration(seed: u64, member: bool) -> engine::Config {
     use jig_domain_authority as authority;
     let mut config = temper_engine_domain_world::walking::config(seed);
     config.core.kinds =
-        temper_service::stock::kinds(&temper_engine_domain_world::walking::limits(), config.core.connectors[0])
+        temper_engine_service::stock::kinds(&temper_engine_domain_world::walking::limits(), config.core.connectors[0])
             .into_vec()
             .into_iter()
             .filter(|kind| kind.number == 6 || kind.number == 7)
@@ -1830,7 +1848,7 @@ pub(crate) fn asking_configuration(seed: u64, member: bool) -> engine::Config {
 
         providers: Box::new([]),
     };
-    let stock = temper_service::stock::with_models(
+    let stock = temper_engine_service::stock::with_models(
         llm.models.clone(),
         temper_engine_domain_world::fixtures::forge_limits().tasks.result_bytes,
     );

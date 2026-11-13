@@ -48,7 +48,7 @@ fn a_drained_shutdown_ends_with_nothing_waiting_for_a_commit() {
     assert_eq!(world.peers.answers, answers);
     actions::stop(&mut world);
     world.drain().expect("stop waits for the outstanding commit");
-    assert!(world.peers.drained.is_empty());
+    assert_eq!(world.peers.drained.len(), 0);
     world.release_commits();
     world.drain().expect("held answers precede the drain barrier");
     assert_eq!(world.peers.answers, answers + 1);

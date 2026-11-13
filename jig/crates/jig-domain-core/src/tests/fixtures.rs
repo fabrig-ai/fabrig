@@ -255,3 +255,54 @@ pub(crate) fn member(words: &[u8], spend: u64) -> jig_domain_people::Member {
         flags: people::Flags::PLAIN,
     }
 }
+
+/// Test-only mutators of the settings' current state, kept with the core's
+/// tests now that the state lives in `jig-domain-core-vocabulary`.
+pub(crate) trait CurrentFixtures {
+    fn test_charter_mut(&mut self, number: u32) -> &mut Charter;
+    fn test_templates(&mut self, templates: Box<[Template]>);
+}
+
+impl CurrentFixtures for crate::settings::Current {
+    fn test_charter_mut(&mut self, number: u32) -> &mut Charter {
+        use crate::settings::{Setting, Value};
+        drop(self.resolved.remove(&number));
+        match &mut self.defaults.get_mut(&Setting::Charter(number)).expect("fixture default charter").value {
+            Value::Charter(value) => value,
+            Value::Overlay(_)
+            | Value::Template(_)
+            | Value::Policy(_)
+            | Value::Rules(_)
+            | Value::Model(_)
+            | Value::Application(_) => {
+                panic!("fixture charter value")
+            }
+        }
+    }
+    fn test_templates(&mut self, templates: Box<[Template]>) {
+        use crate::settings::{Setting, Value};
+        let mut old = List::with_capacity(self.defaults.capacity());
+        for (&setting, _) in &self.defaults {
+            match setting {
+                Setting::Template(_) => old.push(setting).expect("fixture defaults"),
+                Setting::Charter(_)
+                | Setting::Policy(_)
+                | Setting::Model(_)
+                | Setting::Rules
+                | Setting::ProjectPolicy { .. } => {}
+                Setting::Application { .. } => panic!("fixture defaults contain only jig settings"),
+            }
+        }
+        for setting in old.into_boxed() {
+            self.defaults.remove(&setting);
+        }
+        for template in templates {
+            self.defaults
+                .insert(
+                    Setting::Template(template.number),
+                    crate::settings::Default { value: Value::Template(Box::new(template)), revision: 1 },
+                )
+                .expect("fixture templates");
+        }
+    }
+}

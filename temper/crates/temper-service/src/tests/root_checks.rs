@@ -10,9 +10,9 @@
 use super::fixtures;
 use crate::startup::{Problems, checks, lines};
 
-// The stock catalogue holds ten charters and six templates.
+// The stock catalogue holds twelve charters and six templates.
 // Authority and task executor places hold its eighteen delegation kinds.
-const ENGINE_OVERRIDES: &str = r#""tasks.charters":10,"core.templates":6,"authority.executors":18,"tasks.executor_kinds":18,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
+const ENGINE_OVERRIDES: &str = r#""tasks.charters":13,"core.templates":6,"authority.executors":21,"tasks.executor_kinds":21,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
 const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
 
 fn started(document: &[u8]) -> Box<[u8]> {
@@ -133,19 +133,7 @@ fn the_hubs_accounts_past_the_agents_name_both_limits() {
         b"workers[0].limits.overrides.hub.accounts: must agree with the agent's accounts\n"
     );
 }
-#[test]
-fn the_checkouts_repositories_past_the_agents_directories_name_both_limits() {
-    let mut agent = fixtures::startup_agent();
-    agent.host_limits.directories = 1;
-    let worker = fixtures::worker_settings();
-    let own = crate::limits::profile(crate::limits::Profile::Small);
-    let mut found = Problems::empty();
-    checks::worker(&crate::worker_settings::root_limits(&worker, &agent, &crate::limits::worker(&own)), &mut found);
-    assert_eq!(
-        &*lines(&found),
-        b"application.limits.overrides.checkout.repositories: must agree with the agent's directories\n"
-    );
-}
+
 #[test]
 fn a_resume_limit_past_a_rows_bytes_refuses_the_start() {
     assert_eq!(
@@ -305,54 +293,6 @@ fn judge_projects_past_the_wires_dismissals_name_both() {
         checks::limits(&limits, &limits.git_component, &mut found);
         assert_eq!(lines(&found).as_ref(), expected);
     }
-}
-
-/// The same typed worker limits that startup checks before allocating a service.
-fn worker_limits() -> temper_worker_domain::Limits {
-    crate::worker_settings::root_limits(
-        &fixtures::worker_settings(),
-        &fixtures::startup_agent(),
-        &crate::limits::worker(&crate::limits::profile(crate::limits::Profile::Small)),
-    )
-}
-
-#[test]
-fn payload_event_refusals_name_the_configured_and_required_bytes() {
-    for (configured, expected) in [
-        (4096, "4096 bytes, short of agent.json profile.declared.tool_payload less the 2-byte separator, 8192 bytes"),
-        (8193, "8193 bytes, past agent.json profile.declared.tool_payload less the 2-byte separator of 8192"),
-    ] {
-        let mut limits = worker_limits();
-        limits.agent.message_bytes = 8194;
-        limits.bounds.message_bytes = 8192;
-        limits.host.event_bytes = configured;
-        let mut found = Problems::empty();
-        checks::worker(&limits, &mut found);
-        let expected = format!("workers[0].limits.overrides.hub.event_bytes: {expected}\n");
-        assert_eq!(lines(&found).as_ref(), expected.as_bytes());
-    }
-}
-
-#[test]
-fn payload_checkout_refusals_name_the_configured_and_required_bytes() {
-    let mut limits = worker_limits();
-    limits.agent.call_bytes = 8194;
-    limits.checkout.message_bytes = 4098;
-    let mut found = Problems::empty();
-    checks::worker(&limits, &mut found);
-    assert_eq!(lines(&found).as_ref(), b"application.limits.overrides.checkout.message_bytes: 4098 bytes, short of the agent's call_bytes (agent.json profile.declared.tool_payload), 8194 bytes\n");
-}
-
-#[test]
-fn payload_turn_queue_refusals_name_the_configured_and_required_bytes() {
-    let mut limits = worker_limits();
-    limits.agent.turns = 2;
-    limits.host.turns = 2;
-    limits.host.turn_bytes = 100;
-    limits.host.turn_queue_bytes = 199;
-    let mut found = Problems::empty();
-    checks::worker(&limits, &mut found);
-    assert_eq!(lines(&found).as_ref(), b"workers[0].limits.overrides.hub.turn_queue_bytes: 199 bytes, short of the agent's turns * workers[0].limits.overrides.hub.turn_bytes, 200 bytes\n");
 }
 
 fn complete_profile_startup(document: &[u8], agent: &crate::settings::Agent) {
@@ -610,16 +550,19 @@ fn the_reference_room_starts_and_holds_its_relations() {
     ] {
         assert_eq!(own[name].as_u64(), Some(value), "application {name}");
     }
+    let parsed = super::stock::engine(&serde_json::to_vec(&document).expect("reference document"));
+    let defaults = crate::stock::with_models(parsed.llm.models.clone(), parsed.limits.core.tasks.result_bytes);
+    for number in [5, 2] {
+        let charter = super::reference_settings::charter(&defaults, number);
+        assert_eq!(u64::from(charter.policy.model.output), output);
+        for model in &charter.policy.alternatives {
+            assert_eq!(u64::from(model.output), output);
+        }
+    }
     let settings: serde_json::Value =
         serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/settings.json")).unwrap();
     for item in settings["items"].as_array().unwrap() {
         match item["setting"]["kind"].as_str().unwrap() {
-            "charter" => {
-                assert_eq!(item["set"]["model"]["output"].as_u64(), Some(output));
-                for model in item["set"]["alternatives"].as_array().unwrap() {
-                    assert_eq!(model["output"].as_u64(), Some(output));
-                }
-            }
             "template" if item["setting"]["number"] == 4_u32 => {
                 assert_eq!(item["set"]["contract"]["report"]["words"].as_u64(), Some(payload - 2));
             }

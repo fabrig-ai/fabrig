@@ -61,12 +61,16 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   `turn`, each repository's test gates; and, by either way, its tiers;
   a `gates` entry being
   `{"forge": u16, "repository": u64, "gates": [{"name": string,
-  "workflow": string, "ignored": [string], "blocking": boolean}],
+  "workflow": string, "ignored": [string], "blocking": boolean,
+  "base": boolean}],
   "tiers": [{"name": string, "workflow": string, "ignored": [string],
   "artifact": string, "format": "junit" | "lines", "branch": string,
   "span_ms": u64, "description": string}]}`,
   a repository at most once (`../../domain/landing.md`, 13.1;
-  `../../domain/after-landing.md`, section 11). A tier's `branch` is the
+  `../../domain/after-landing.md`, section 11). A gate's `base`, false
+  when absent, says that it reads the base: it is given `temper_base`
+  and its key holds the base's tree (`../../domain/landing.md`, 6.1 and
+  7.1). A tier's `branch` is the
   branch it follows, by its name on the forge, the repository's landing
   branch when absent, or `goal`, the goals' own branches, a tier that
   judges no landing (`../../domain/after-landing.md`, section 2). Its
@@ -97,6 +101,23 @@ document with kinds 4 and 5, the ways and checks `../../domain/landing.md`,
   `tier_retries`, a u8, 2 when absent; `verification_bound_ms`, the
   project's verification bound, a u64, 7,200,000 (two hours) when absent
   (`../../domain/after-landing.md`, sections 3 and 6).
+- **The trains' way of combining,** beside `by`: `combine`,
+  `{"main": "merge" | "squash", "other": "merge" | "squash"}`, how a
+  train under `turn` combines its member onto the candidate, `main` for
+  the trains into a repository's main and `other` for those into any
+  other branch; a member absent, or `combine` absent, takes its stock,
+  `merge` for `main` and `squash` for `other`
+  (`../../domain/landing.md`, 5.2 and 13.1). Another value refuses the
+  start at its member, `application.landing.projects[i].combine.main`
+  or `.other`.
+- **The gates' bound,** beside `by`: `gate_timeout_ms`, a u64 of
+  milliseconds from 60,000 to 86,400,000, 3,600,000 (one hour) when
+  absent: how long a gate's run may be in flight before it holds its
+  landing (`../../domain/landing.md`, 7.1); and `gate_retries`, a u8, 2
+  when absent: how many times a runner's fault is dispatched again per
+  key (`../../domain/landing.md`, 7.4). One past its bounds refuses
+  the start at its member,
+  `application.landing.projects[i].gate_timeout_ms` or `.gate_retries`.
 - **The merge job's command,** beside `by`, by either way: `merge_job`,
   a relative path of at most 4,096 bytes, without `..`, in each
   repository the merge job merges, none when absent: the project's merge
@@ -253,6 +274,39 @@ path and each script's cue, and reads the key at the playground's start,
 which makes the scripted account with it (../setup/playground.md); with `null`,
 the playground is not offered.
 
+**`push`:** pushing to people's devices (`../../domain/forge/attention.md`,
+7.3), absent or `null` for none. Unlike the members above, it may be
+missing, so a document written before it reads as it did: absent is
+`null`, and nothing is pushed.
+
+```json
+"push": {
+  "key": "push.key",
+  "subject": "mailto:operator@example.com",
+  "services": null
+}
+```
+
+| Member | Type | Bounds | Feeds |
+|---|---|---|---|
+| `key` | a data path | a secrets' file (`README.md`, section 5), private, 0o600, at most skein's `VAPID_PEM_BYTES`, PKCS#8 PEM of a P-256 key with its public half (skein's `net/push.md`, 3), as `openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out push.key` writes it; one skein's `Vapid::from_pkcs8_pem` refuses refuses the start, naming the file | each push's VAPID token; its public half, the deployment's read's `push` (`../../client/forge/records.md`) |
+| `subject` | a string | a `mailto:` or `https:` URI, 1 to skein's `SUBJECT_BYTES` | each token's `sub`: where a push service may reach the operator |
+| `services` | a list, or `null` | `null` for Google's, Mozilla's and Apple's push services, `https://fcm.googleapis.com`, `https://updates.push.services.mozilla.com` and `https://web.push.apple.com`; otherwise 1 to 8 origins, each `https` and a host with an optional port, or `http` to a loopback host, for a test's fake push service | which endpoints a device may name (`AddDevice`'s `service` refusal) and where pushes go; each host resolved when a push is sent, over TLS with the machine's roots for `https` |
+
+- **What else push needs,** none of it configuration: the web client at
+  the deployment's name over HTTPS, `clients.public` (`../sign-in.md`,
+  section 2), since a browser subscribes only on a secure origin; and
+  the key kept for good, since every device subscribed with its public
+  half (`../../domain/forge/attention.md`, 7.3).
+
+**`mail`:** sending mail, designed and not built
+(`../../domain/forge/attention.md`, 7.4); absent or `null` for none, as
+`push`. On: `host`, a host name; `port`, 465 for TLS from the start or
+587 for STARTTLS; `from`, an address of 3 to 254 bytes; `user`, 1 to 256
+bytes; `password`, a data path, a secrets' file, private, 0o600. Until
+it is built, the start refuses a document naming `mail` as it refuses
+any member it doesn't know.
+
 **What the engine root's `Config` takes,** field by field:
 
 | Field | From |
@@ -266,6 +320,7 @@ the playground is not offered.
 | `machine` | `application.machine`'s places, from which the forge connector makes a new forge's record (../forge/engine.md, 2) |
 | `playground` | `application.demo`'s provider, with `setup.deadline_ms`; none for `null` (../setup/playground.md) |
 | `under_box` | whether `temper-box internal serve` was given `--box` (../setup/box.md, 1) |
+| `forge.push` | `application.push`'s `services`, none for absent or `null`, which `AddDevice` judges an endpoint by (`../../domain/forge/attention.md`, 7.1) |
 
 Beside the root: the forge component takes each kept forge's number,
 kind, address and transport from its record, and its kind's log

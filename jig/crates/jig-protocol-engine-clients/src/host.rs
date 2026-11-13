@@ -1,7 +1,7 @@
 //! The clients' side of a service (jig/docs/design/protocol/service.md, 11.6).
 use crate as kit;
 use alloc::boxed::Box;
-use jig_domain_core as domain;
+use jig_domain_core_vocabulary as domain;
 use jig_domain_people as people;
 use jig_protocol_store as store;
 use skein_lib::{List, Map, Token, Wall};

@@ -1,7 +1,7 @@
 //! Program document facts reach their allocated client records.
 use crate::translate::programs;
-use jig_client_protocol_wire::v19 as w;
-use jig_domain_core::documents as d;
+use jig_client_protocol_wire::v20 as w;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_fleet as fleet;
 use jig_domain_link::{LoginState, SourceFailure};
 use skein_lib::List;
@@ -9,7 +9,7 @@ fn host() -> d::Host {
     d::Host {
         name: Some(b"configured-worker".as_slice().into()),
         awaiting_logins: true,
-        rule: jig_domain_core::HostRule::Open,
+        rule: jig_domain_core_vocabulary::HostRule::Open,
         programs: List::with_capacity(0),
         channel: 17,
         kind: fleet::HostKind::Worker,
@@ -72,7 +72,7 @@ fn a_refused_worker_position_reaches_the_wire_record() {
 
 #[test]
 fn a_host_rule_reaches_the_wire() {
-    use jig_domain_core::HostRule;
+    use jig_domain_core_vocabulary::HostRule;
     for (rule, expected) in [
         (HostRule::Open, w::HostRule::Open),
         (

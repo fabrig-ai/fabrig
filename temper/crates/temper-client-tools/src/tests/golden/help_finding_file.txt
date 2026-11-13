@@ -1,0 +1,12 @@
+finding file --project PROJECT --kind qa|flake|red|review|feedback [--severity low|medium|high] [--area AREA] TEXT FILE --key KEY
+  --project PROJECT: a project's name or number; required. The project
+  --kind qa|flake|red|review|feedback: one of qa, flake, red, review or feedback; required. What kind of finding
+  --severity low|medium|high: one of low, medium or high; optional. medium when absent
+  --area AREA: text, at most 1048576 bytes; optional. The area's name; the triager's when absent
+  TEXT (title): text, at most 1048576 bytes, or - to read stdin; required. Its title, 1 to 200 bytes
+  FILE (body): a file, at most 4096 bytes; required. Its body, at most 4096 bytes; - reads stdin
+File a finding, held by its area's owner or the triager
+Prints: filed: P/N, held by HOLDER
+--json: the record finding_filed.
+Key: --key KEY, required.
+An unknown area exits 2 naming the project's areas.

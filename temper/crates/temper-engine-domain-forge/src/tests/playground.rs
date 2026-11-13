@@ -15,7 +15,7 @@ fn configured() -> Domain {
     let mut d = Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+        Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
         &[],
         &[],
         true,

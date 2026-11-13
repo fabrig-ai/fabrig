@@ -412,9 +412,10 @@ the change reads the head afresh once the slot is freed. Otherwise:
   words naming the head it expected and the one it found, each at the
   forge's short length (`its branch moved: expected 0123456789ab, found
   89abcdef0123`). Under its
-  project's turn, the rewrite its own prepare made is the change's: the
-  forge's rebase (`../../landing.md`, 5.2) or a prepare job's delivery
-  (`../../worker/jobs.md`). A release
+  project's turn, no prepare writes the change's branch: its landing's
+  job pushes to the landing's own (`../../landing.md`, 5.2). A head
+  moved while the change is in a landing takes it out of the landing
+  (`../../landing.md`, 4.3). A release
   takes the new head as the change's and checks it, gates asked again,
   its pull request opened first where none is open (2, step 2).
 - **Its branch deleted:** held. A release creates the branch again at

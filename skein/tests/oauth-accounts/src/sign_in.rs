@@ -604,13 +604,13 @@ pub fn assert_replay(first: &Outcome<Process>, second: &Outcome<Process>) {
         match (first, second) {
             (Process::Client(first), Process::Client(second)) => {
                 assert_eq!(owner(first).facts, owner(second).facts);
-                assert!(owner(first).records == owner(second).records);
-                assert!(owner(first).visits == owner(second).visits);
+                assert_eq!(owner(first).records, owner(second).records);
+                assert_eq!(owner(first).visits, owner(second).visits);
             }
             (Process::Issuer(first), Process::Issuer(second)) => assert!(first.observations() == second.observations()),
             (Process::Browser(first), Process::Browser(second)) => {
                 assert_eq!(first.done, second.done);
-                assert!(first.redirect == second.redirect);
+                assert_eq!(first.redirect, second.redirect);
             }
             _ => panic!("process order"),
         }

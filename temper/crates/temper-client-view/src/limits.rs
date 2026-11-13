@@ -157,7 +157,15 @@ impl Limits {
         let document = skein_ui::markdown::max_nodes(receiving.long_text)?
             .checked_add(receiving.long_text.checked_div(3)?.checked_mul(2)?)?
             .checked_add(24)?;
+        // Four findings subjects, 128 rows each: closed rows, one open card's
+        // areas and live-goal menu, facts, fields and actions (client/pages/needs-you.md, 1).
+        let findings = temper_client_domain::pages::findings::CARDS
+            .checked_mul(12)?
+            .checked_add(16_u32.checked_mul(2)?)?
+            .checked_add(receiving.rows.checked_mul(2)?)?
+            .checked_add(64)?;
         let structural = cards
+            .checked_add(findings)?
             .checked_add(follows_nodes)?
             .checked_add(turns)?
             .checked_add(delegated)?

@@ -87,7 +87,8 @@ fn configuration(directories: &Directories) -> Result<temper_service::startup::S
         .as_ref()
         .map(|worker| temper_worker_shell::agent::read(Path::new(std::ffi::OsStr::from_bytes(&worker.agent))))
         .transpose()?;
-    let limits = temper_service::startup::store_limits(&bytes, &jig, agent.as_ref())
+    let declaration = agent.as_ref().map(temper_service::settings::Agent::declaration);
+    let limits = temper_service::startup::store_limits(&bytes, &jig, declaration.as_ref())
         .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
     Ok(limits)
 }
@@ -397,7 +398,7 @@ impl Observations {
 const GIT_FULL: &str = "GitHub git-call record is full";
 const INSTALLATIONS_FULL: &str = "GitHub installation record is full";
 fn decode(bytes: &[u8]) -> Result<Option<Recorded>, String> {
-    match decode_with_limits(bytes, &temper_fake::forge::LIMITS.limits) {
+    match decode_with_limits(bytes, &temper_fake::forge::limits().limits) {
         Ok(record) => Ok(Some(record)),
         Err(refused) => match temper_fake::forge::observations::decode(bytes) {
             Ok(Some(

@@ -4,8 +4,11 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/v1.rs"]
-pub mod v1;
+mod generated {
+    pub mod v1;
+}
+
+pub use generated::v1;
 
 use alloc::boxed::Box;
 use skein_lib::{Secret, Writer};
@@ -167,6 +170,7 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = 5;
 
+    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
     const TEXT: &str = include_str!("../schema/worker-wire-v1.schema");
 
     /// The current schema's family fingerprint.

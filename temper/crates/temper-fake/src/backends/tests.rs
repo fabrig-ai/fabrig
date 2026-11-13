@@ -381,7 +381,7 @@ fn forgejo_alone_seeds_the_two_copy_sources() {
             assert!(!object.tree.contains_key(temper_forge_setup::STARTER_PATH));
         }
     }
-    assert!(crate::forge::Document::decode(&docs.github).expect("GitHub document").sources().is_empty());
+    assert_eq!(crate::forge::Document::decode(&docs.github).expect("GitHub document").sources(), []);
 }
 
 #[test]
@@ -567,7 +567,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let llm = &effective["engine"]["llm"];
     assert_program_provider(llm, &temper);
     assert!(llm.get("models").is_none());
-    let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+    let stock = temper_engine_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     let model = stock.models.iter().find(|entry| entry.model.name.as_ref() == super::PROGRAM_MODEL.as_bytes()).unwrap();
     assert_eq!(model.model.endpoint, 2);
     let engine_endpoint = llm["endpoints"]
@@ -593,7 +593,7 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
         let actual = if field == "window" { model.model.window } else { model.model.output };
         assert_eq!(json!(actual), agent_limits[field], "program quantities agree: {field}");
     }
-    let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+    let stock = temper_engine_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     for charter in &stock.charters {
         assert_eq!(charter.policy.model.name.as_ref(), super::PROGRAM_MODEL.as_bytes());
         let names: Vec<_> = stock
@@ -699,7 +699,7 @@ fn the_templates_list_patterns_keep_every_stock_model() {
         let (mut value, _, _, _) = fixture();
         value["engine"]["llm"]["providers"] = json(template)["engine"]["llm"]["providers"].clone();
         let admitted = admit(&serde_json::to_vec(&value).unwrap());
-        let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+        let stock = temper_engine_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
         for provider in &admitted.llm.providers {
             if provider.number == 3 {
                 assert!(provider.list.is_none(), "the scripted provider reads no list");
@@ -737,7 +737,7 @@ fn the_fake_list_preserves_openais_stock() {
     let docs = write(&temper, &agent, &paths, &peers).unwrap();
     let fake = crate::llm::Document::decode(&docs.llm).unwrap();
     let admitted = admit(&docs.temper);
-    let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
+    let stock = temper_engine_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     let body = crate::wire::llm_config(fake.models()).list.unwrap();
     let listed = skein_llm::list::parse(skein_llm::Provider::OpenAi, &body, &skein_llm::list::Limits::DEFAULT).unwrap();
     for row in stock.models.iter().filter(|row| row.model.provider == 1) {
@@ -746,5 +746,19 @@ fn the_fake_list_preserves_openais_stock() {
             "the fake omits stock model {:?}",
             row.model.name
         );
+    }
+}
+
+#[test]
+fn box_forge_documents_declare_head_owned_ci() {
+    let (temper, agent, paths, peers) = fixture();
+    let docs = write(&temper, &agent, &paths, &peers).expect("rewrite init");
+    for bytes in [&docs.forgejo, &docs.github] {
+        let doc = json(bytes);
+        assert_eq!(doc["owner"], "fake-person");
+        assert_eq!(doc["repositories"][0]["name"], "widget");
+        assert_eq!(doc["repositories"][0]["ci"], json!({"declared":".fake-forge/ci"}));
+        assert_eq!(doc["made_ci"], json!({"declared":".fake-forge/ci"}));
+        crate::forge::Document::decode(bytes).expect("generated forge document");
     }
 }

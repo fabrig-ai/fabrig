@@ -299,7 +299,7 @@ pub struct Rule {
 }
 impl Rule {
     pub(crate) fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
-        if matches!(self.answer, Answer::Refused { refusal: _, .. }) && !self.changes.is_empty() {
+        if matches!(self.answer, Answer::Refused { .. }) && !self.changes.is_empty() {
             return Err(Invalid::Script);
         }
         if crate::codec::ask(&self.ask, bounds).is_err() || crate::codec::answer(&self.answer, bounds).is_err() {
@@ -326,7 +326,7 @@ pub struct Script {
 impl Default for Script {
     fn default() -> Self {
         Self {
-            versions: jig_client_domain::contract::VersionRange { first: 19, last: 19 },
+            versions: jig_client_domain::contract::VersionRange { first: 20, last: 20 },
             truth: Truth::default(),
             bounds: Bounds::default(),
             rules: Vec::new(),

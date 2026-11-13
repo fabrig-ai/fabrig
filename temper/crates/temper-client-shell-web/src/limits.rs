@@ -13,6 +13,8 @@ use temper_client_domain as client;
 pub const EXCHANGES: u32 = 8;
 /// Whole small-store and HTTP response bodies.
 pub const BODY_BYTES: u32 = 33_554_432;
+/// Recording bytes in memory (client/web/README.md, 2.1): two of `BODY_BYTES`.
+pub const RECORDING_BYTES: u32 = 67_108_864;
 /// Stream body chunk bytes.
 pub const PIECE: u32 = 4096;
 /// Field text and a person's conversation words (client/view.md, 4).
@@ -47,12 +49,11 @@ pub fn client_for(small_window: bool) -> client::Limits {
             requests,
             // A jig ask reserves this much, so the table holds `requests` asks.
             ask_bytes: requests.bytes / u64::from(requests.requests),
-            // Hold four projects' statuses, decided and follows, and the session's own watches.
-            handles: 28,
-            watches: 26,
+            handles: 33, // Four findings subjects and one live-goals menu.
+            watches: 31, // Four findings subjects and one live-goals menu.
             turn_bytes: 1_048_576,
             backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(30) },
-            authority: 18, // Eighteen executor places size grants, delegation kinds and notes' scopes.
+            authority: 22, // The stock's 20 executors and two deployment charters fit whole.
             heartbeat: Duration::from_secs(30),
             reads: 32, // Sixteen inbox cards, seven decisions and nine other Home/session reads.
             parts: 16,

@@ -9,9 +9,9 @@ publish.workspace = true
 
 [dependencies]
 skein-lib.workspace = true
-skein-channel.workspace = true
 
 [dev-dependencies]
+skein-channel.workspace = true
 # The counting allocator for actual framing allocation measurements.
 skein-heap.workspace = true
 

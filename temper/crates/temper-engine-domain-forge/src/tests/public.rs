@@ -86,6 +86,7 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
     follows: 2,
@@ -135,7 +136,8 @@ fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         limits,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -312,6 +314,7 @@ fn ask(kind: u16, task: Option<u64>, public: &[PublicTask]) -> PublicAsk<'_> {
 }
 fn member(task: u64) -> policy::Member {
     policy::Member {
+        left: None,
         change: task,
         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
         pull: 1,
@@ -368,6 +371,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                         workflow: Box::from(b"gate.yml".as_slice()),
                         ignored: Box::new([]),
                         blocking: true,
+                        base: false,
                     }]),
                     tiers: Box::new([]),
                 }]),
@@ -380,6 +384,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                 },
                 None,
                 None,
+                policy::Project::DEFAULT,
             ),
         )
         .expect("project");
@@ -389,12 +394,15 @@ fn setup_with_limits(limits: &Limits) -> Domain {
             LANDING,
             LandingRow {
                 landing: policy::Landing {
+                    round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
                     task: LANDING,
                     project: 5,
                     phase: policy::Phase::Turn { at: env().wall },
                     members: Box::new([member(CHANGE), member(SECOND)]),
                     preparation: 2,
                     stale_proofs: 3,
+                    branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None, None]),
                 entries: Box::new([]),
@@ -406,6 +414,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
         .insert(
             ReceiptKey { project: 5, repository: REPO, check: Check::Gate(Box::from(MARKERS[3])), key: [7; 32] },
             Receipt {
+                logs: Box::new([]),
                 failures: None,
                 passed: false,
                 run: ReceiptRun { id: 7, number: 7, url: Box::from(RUN) },
@@ -507,6 +516,28 @@ fn expected_landing() -> w::PublicLanding {
                 w::PublicMember::new(
                     l,
                     w::PublicMemberParts {
+                        head: Some(HEAD),
+                        left: None,
+                        judgement: Some(
+                            w::PublicJudgement::new(
+                                l,
+                                w::PublicJudgementParts {
+                                    prefix: CANDIDATE,
+                                    verdict: w::PublicCi::Failed,
+                                    gates: list([w::PublicGate::new(
+                                        l,
+                                        w::PublicGateParts {
+                                            number: 9,
+                                            kind: w::PublicGateKind::Review,
+                                            blocks: true,
+                                            verdict: w::PublicVerdict::Changes,
+                                        },
+                                    )
+                                    .unwrap()]),
+                                },
+                            )
+                            .unwrap(),
+                        ),
                         task,
 
                         base: Some(BASE),
@@ -515,6 +546,7 @@ fn expected_landing() -> w::PublicLanding {
                         gates: list([w::PublicGateProof::new(
                             l,
                             w::PublicGateProofParts {
+                                faults: 1,
                                 number: 0,
                                 kind: w::PublicGateKind::Check,
                                 blocks: true,
@@ -531,6 +563,8 @@ fn expected_landing() -> w::PublicLanding {
     w::PublicLanding::new(
         l,
         w::PublicLandingParts {
+            combined: None,
+            step: Some(w::PublicLandingStep::Telling),
             phase: w::PublicLandingPhase::Turn,
             hold: None,
             preparation: 2,
@@ -706,7 +740,7 @@ fn the_largest_answers_fit_their_declared_bounds() {
         refusal_bytes: 64,
     };
     let declared = temper_client_protocol_wire::public_bounds(&bounds);
-    assert_eq!(declared, [822, 67_405, 1562]);
+    assert_eq!(declared, [822, 67_405, 8102]);
     for ((kind, task), bound) in
         [(w::PUBLIC_CHANGE, Some(CHANGE)), (w::PUBLIC_LANDINGS, None), (w::PUBLIC_LANDING, Some(CHANGE))]
             .into_iter()
@@ -770,6 +804,7 @@ fn maximal_proofs(d: &mut Domain) {
                 workflow: Box::from(b"gate.yml".as_slice()),
                 ignored: Box::new([]),
                 blocking: true,
+                base: false,
             })
             .expect("gate");
         d.landing
@@ -777,6 +812,7 @@ fn maximal_proofs(d: &mut Domain) {
             .insert(
                 ReceiptKey { project: 5, repository: REPO, check: Check::Gate(name), key: [7; 32] },
                 Receipt {
+                    logs: Box::new([]),
                     failures: None,
                     passed: false,
                     run: ReceiptRun { id: 7, number: 7, url: Box::from(RUN) },
@@ -844,14 +880,17 @@ fn maximal() -> (Domain, Limits, Box<[PublicTask]>) {
                 task,
                 LandingRow {
                     landing: policy::Landing {
+                        round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
                         task,
                         project: 5,
                         phase: policy::Phase::Landed,
                         members: members.clone(),
                         preparation: u16::MAX,
                         stale_proofs: u32::MAX,
+                        branch: Box::from(b"main".as_slice()),
                     },
-                    asks: Box::new([None; 8]),
+                    asks: Box::new([const { None }; 8]),
                     entries: Box::new([]),
                 },
             )
@@ -909,6 +948,9 @@ fn expected_merge(tasks: &[u16]) -> w::PublicLanding {
                 w::PublicMember::new(
                     &w::CEILINGS,
                     w::PublicMemberParts {
+                        head: None,
+                        left: None,
+                        judgement: None,
                         task: *task,
                         base: None,
                         candidate: None,
@@ -923,6 +965,8 @@ fn expected_merge(tasks: &[u16]) -> w::PublicLanding {
     w::PublicLanding::new(
         &w::CEILINGS,
         w::PublicLandingParts {
+            combined: None,
+            step: None,
             phase: w::PublicLandingPhase::Landed,
             hold: None,
             preparation: 0,
@@ -1053,4 +1097,31 @@ fn landings_by_turn_stand_before_queue_merges_within_the_bound() {
     .expect("bounded landings");
     let record = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("history");
     assert_eq!(record, expected);
+}
+
+#[test]
+fn a_public_landing_keeps_squash_and_prefix_evidence_without_forge_names() {
+    let mut d = setup();
+    let row = &mut d.landing.rows.get_mut(&LANDING).unwrap().landing;
+    row.phase = policy::Phase::Landed;
+    row.round.combined = Some(policy::Combine::Squash);
+    row.round.judging = true;
+    for task in [CHANGE, SECOND] {
+        let row = d.changes.get_mut(&task).unwrap();
+        row.verdicts = Box::new([c::GateReport { number: 9, head: CANDIDATE, status: c::Status::Passed }]);
+    }
+    let m = made(&d, w::PUBLIC_LANDING, Some(CHANGE), &handed());
+    let got = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&m.record)).unwrap();
+    assert_eq!(got.combined(), &Some(w::PublicCombined::Squash));
+    assert_eq!(got.step(), &Some(w::PublicLandingStep::Landed));
+    let member = got.members().get(0).unwrap();
+    assert_eq!((member.head(), member.landed()), (&Some(HEAD), &Some(MERGE)));
+    let judgement = member.judgement().as_ref().unwrap();
+    assert_eq!((judgement.prefix(), judgement.verdict()), (&CANDIDATE, &w::PublicCi::Passed));
+    assert_eq!(judgement.gates().get(0).unwrap().verdict(), &w::PublicVerdict::Approved);
+    assert_eq!(member.gates().get(0).unwrap().faults(), 1);
+    for marker in MARKERS {
+        assert!(skein_lib::bytes::find(&m.record, marker).is_none());
+    }
+    assert!(skein_lib::bytes::find(&m.record, RUN).is_none());
 }

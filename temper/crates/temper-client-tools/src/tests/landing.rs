@@ -29,6 +29,9 @@ fn panel(phase: w::LandingPhase) -> w::LandingPanel {
             w::Member::new(
                 &w::CEILINGS,
                 w::MemberParts {
+                    head: None,
+                    left: None,
+                    judgement: None,
                     change: 51,
                     forge: 1,
                     owner: b"work".as_slice().into(),
@@ -64,6 +67,8 @@ fn panel(phase: w::LandingPhase) -> w::LandingPanel {
     w::LandingPanel::new(
         &w::CEILINGS,
         w::LandingPanelParts {
+            train: None,
+            round: None,
             task: 61,
             project: 1,
             phase,
@@ -221,6 +226,19 @@ fn list(turn: Option<u64>, tasks: &[u64]) -> w::LandingsPanel {
                 w::LandingLine::new(
                     &w::CEILINGS,
                     w::LandingLineParts {
+                        train: Some(
+                            w::Train::new(
+                                &w::CEILINGS,
+                                w::TrainParts {
+                                    forge: 1,
+                                    repository: 9,
+                                    owner: b"work".as_slice().into(),
+                                    name: b"hello".as_slice().into(),
+                                    branch: b"release".as_slice().into(),
+                                },
+                            )
+                            .unwrap(),
+                        ),
                         task: *task,
                         phase: if *task == 61 { w::LandingPhase::Turn } else { w::LandingPhase::Landed },
                         changes,
@@ -249,11 +267,15 @@ fn read_list(panel: &w::LandingsPanel, json: bool) -> jig::Printed {
     answer
 }
 #[test]
-fn landings_print_the_turns_holder_first_then_newest() {
-    f::check_golden("landings_live", &read_list(&list(Some(61), &[60, 61]), false).stdout);
-    let answer = read_list(&list(Some(61), &[62, 60, 61, 63]), false);
+fn landings_print_live_first_then_newest() {
+    let mut parts = list(Some(61), &[62, 60, 61, 63]).into_parts();
+    let mut newest = parts.landings.get(3).unwrap().clone().into_parts();
+    newest.phase = w::LandingPhase::Waiting;
+    *parts.landings.get_mut(3).unwrap() = w::LandingLine::new(&w::CEILINGS, newest).unwrap();
+    let answer = read_list(&w::LandingsPanel::new(&w::CEILINGS, parts).unwrap(), false);
+    assert!(contains(&answer.stdout, "train: work/hello on forge 1 into release"));
     let mut previous = 0;
-    for prefix in ["\nlanding 61 ·", "\nlanding 63 ·", "\nlanding 62 ·", "\nlanding 60 ·"] {
+    for prefix in ["\nlanding 63 ·", "\nlanding 61 ·", "\nlanding 62 ·", "\nlanding 60 ·"] {
         let at = skein_lib::bytes::find(&answer.stdout, prefix.as_bytes()).unwrap();
         assert!(at > previous);
         previous = at;
@@ -278,6 +300,7 @@ fn landings_with_none_print_no_landings() {
 }
 #[test]
 fn landing_json_prints_the_panel_record() {
+    f::check_golden("landings_live", &read_list(&list(Some(61), &[60, 61]), false).stdout);
     f::check_golden("landing_json", &read_panel(&panel(w::LandingPhase::Proving), true).stdout);
     f::check_golden("landings_json", &read_list(&list(Some(61), &[60, 61]), true).stdout);
 }
@@ -385,7 +408,7 @@ fn a_line_can_name_several_changes_repositories_and_landed_commits() {
     parts.landings = List::with_capacity(1);
     parts.landings.push(w::LandingLine::new(&w::CEILINGS, line).unwrap()).unwrap();
     let answer = read_list(&w::LandingsPanel::new(&w::CEILINGS, parts).unwrap(), false);
-    assert_eq!(answer.stdout.as_ref(), "landings of project 1 · turn: free\nlanding 61 · in its turn · change 51, 52 · work/hello, work/lib · main at 111111111111 · main at 222222222222\n".as_bytes());
+    assert_eq!(answer.stdout.as_ref(), "landings of project 1 · turn: free\nlanding 61 · in its turn · change 51, 52 · work/hello, work/lib · train: work/hello on forge 1 into release · landed at 111111111111 · landed at 222222222222\n".as_bytes());
 }
 
 #[test]
@@ -512,4 +535,101 @@ fn wrong_change_tasks_and_wrong_landing_projects_remain_document_errors() {
             assert_eq!(root.watches.len(), 1);
         }
     }
+}
+
+#[test]
+fn ended_landings_show_round_evidence_and_outcomes_in_text_and_json() {
+    let mut parts = panel(w::LandingPhase::Landed).into_parts();
+    parts.train = Some(
+        w::Train::new(
+            &w::CEILINGS,
+            w::TrainParts {
+                forge: 1,
+                repository: 9,
+                owner: b"work".as_slice().into(),
+                name: b"hello".as_slice().into(),
+                branch: b"release".as_slice().into(),
+            },
+        )
+        .unwrap(),
+    );
+    parts.round = Some(
+        w::LandingRound::new(
+            &w::CEILINGS,
+            w::LandingRoundParts {
+                number: 2,
+                branch: b"temper/61/2".as_slice().into(),
+                pull: Some(
+                    w::Pull::new(
+                        &w::CEILINGS,
+                        w::PullParts {
+                            number: 8,
+                            address: b"https://forge.example/work/hello/pulls/8".as_slice().into(),
+                        },
+                    )
+                    .unwrap(),
+                ),
+                combined: Some(w::Combined::Squash),
+                step: w::LandingStep::Landed,
+                upstream: Some([0x44; 32]),
+                failure: Box::default(),
+            },
+        )
+        .unwrap(),
+    );
+    let mut member = parts.members.get(0).unwrap().clone().into_parts();
+    member.head = Some([0x55; 32]);
+    member.landing = b"release".as_slice().into();
+    member.judgement = Some(
+        w::PrefixJudgement::new(
+            &w::CEILINGS,
+            w::PrefixJudgementParts {
+                prefix: [0x11; 32],
+                verdict: w::Ci::Passed,
+                gates: List::from_boxed(Box::new([w::PrefixGate::new(
+                    &w::CEILINGS,
+                    w::PrefixGateParts { number: 3, blocking: true, verdict: w::Ci::Passed },
+                )
+                .unwrap()])),
+            },
+        )
+        .unwrap(),
+    );
+    parts.members = List::from_boxed(Box::new([w::Member::new(&w::CEILINGS, member.clone()).unwrap()]));
+    let landed = w::LandingPanel::new(&w::CEILINGS, parts.clone()).unwrap();
+    let text = read_panel(&landed, false);
+    for words in [
+        "train: work/hello on forge 1 into release",
+        "round 2: temper/61/2 · pull request #8",
+        " · squash · step: landed",
+        "  round head: 55555555",
+        "  landed: release at 11111111",
+        "  candidate 11111111",
+        " on release 22222222",
+        "  judgement at 11111111",
+        "    gate 3, blocking: passed",
+    ] {
+        assert!(contains(&text.stdout, words), "{words}");
+    }
+    let json = read_panel(&landed, true);
+    for words in [
+        "\"combined\":\"squash\"",
+        "\"step\":\"landed\"",
+        "\"landed\":\"1111111111111111111111111111111111111111111111111111111111111111\"",
+        "\"number\":8",
+        "\"prefix\":\"11111111",
+        "\"head\":\"55555555",
+        "\"branch\":\"release\"",
+    ] {
+        assert!(contains(&json.stdout, words), "{words}");
+    }
+    parts.phase = w::LandingPhase::Cancelled;
+    member.landed = None;
+    member.left = Some(w::LandingLeave::Failed(
+        w::FailedGate::new(&w::CEILINGS, w::FailedGateParts { gate: 0, run: 7 }).unwrap(),
+    ));
+    parts.members = List::from_boxed(Box::new([w::Member::new(&w::CEILINGS, member).unwrap()]));
+    let left = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+    assert!(contains(&read_panel(&left, false).stdout, "left: gate 0 failed in run 7"));
+    assert!(contains(&read_panel(&left, true).stdout, "\"left\":{\"failed\":{\"gate\":0,\"run\":7}}"));
 }

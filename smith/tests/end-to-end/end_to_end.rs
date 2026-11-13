@@ -1,5 +1,6 @@
 mod chat_crossing;
 mod credentials;
+mod fake_lookup;
 mod program_check;
 mod program_children;
 mod program_commands;
@@ -393,7 +394,7 @@ fn smith_check_json_shows_each_value_with_its_layer() {
     assert!(!String::from_utf8_lossy(&ran.stdout).contains("repository-value"));
     assert_eq!(
         report["formats"],
-        serde_json::json!({"channel":6,"charter":4,"transcript":6,"events":4,"chat_store":1,"check":2})
+        serde_json::json!({"channel":7,"charter":4,"transcript":7,"events":4,"chat_store":1,"check":2})
     );
     for tool in ["sh", "rg", "git"] {
         assert!(report["tools"][tool].as_str().expect("tool path").starts_with('/'));
@@ -412,7 +413,7 @@ fn smith_check_names_both_sides_of_a_budget_past_the_profile_ceiling() {
         String::from_utf8(ran.stderr).expect("UTF-8"),
         "smith: budget.turns = 5000 (from -c) exceeds the standard profile's ceiling of 4096 turns\n"
     );
-    assert!(ran.stdout.is_empty());
+    assert_eq!(ran.stdout, Vec::<u8>::new());
 }
 
 #[test]
@@ -453,7 +454,7 @@ fn an_account_without_a_credential_exits_3_before_any_request() {
     std::fs::remove_file(scratch.path().join("auth.json")).unwrap();
     let ran = support::smith(&scratch, &["exec", "Ask first"], b"");
     assert_eq!(ran.code, 3);
-    assert!(ran.stdout.is_empty());
+    assert_eq!(ran.stdout, Vec::<u8>::new());
     assert!(!scratch.path().join("state/smith/chats").exists());
 }
 
@@ -588,7 +589,7 @@ fn smith_exec_ephemeral_removes_its_private_files_after_acceptance() {
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
     assert_eq!(ran.stdout, b"First answer");
     assert_eq!(std::fs::read(scratch.path().join("answer.txt")).unwrap(), b"First answer");
-    assert!(ephemeral_directories(&scratch).is_empty());
+    assert_eq!(ephemeral_directories(&scratch), Vec::<std::path::PathBuf>::new());
     assert!(!String::from_utf8_lossy(&ran.stderr).contains("smith: warning: ephemeral directory "));
 }
 
@@ -607,7 +608,7 @@ fn smith_exec_ephemeral_removes_its_private_files_after_a_failed_answer() {
     assert_eq!(records.last().unwrap()["type"], "session.ended");
     assert_eq!(records.last().unwrap()["exit"], 1);
     assert_eq!(records.iter().find(|record| record["type"] == "run.completed").unwrap()["status"], "failed");
-    assert!(ephemeral_directories(&scratch).is_empty());
+    assert_eq!(ephemeral_directories(&scratch), Vec::<std::path::PathBuf>::new());
 }
 
 #[test]
@@ -636,8 +637,8 @@ fn an_ephemeral_directory_is_removed_when_product_startup_refuses() {
     let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
     let ran = support::smith(&scratch, &["exec", "--ephemeral", "--trace", "absent/events.jsonl", "message"], b"");
     assert_eq!(ran.code, 1, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert!(ran.stdout.is_empty());
-    assert!(ephemeral_directories(&scratch).is_empty());
+    assert_eq!(ran.stdout, Vec::<u8>::new());
+    assert_eq!(ephemeral_directories(&scratch), Vec::<std::path::PathBuf>::new());
 }
 
 /// What an ephemeral run left in the scratch runtime directory, where its

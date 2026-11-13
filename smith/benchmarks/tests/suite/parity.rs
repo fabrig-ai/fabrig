@@ -49,7 +49,7 @@ fn a_summary_with_a_retried_failure_row_verifies_against_its_own_section() {
         ..Rows::equal()
     });
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 524_288;
         fixture_limits.content = 4096;
         fixture_limits.items = 512;

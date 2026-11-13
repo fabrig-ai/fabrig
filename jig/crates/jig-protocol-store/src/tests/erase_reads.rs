@@ -3,7 +3,7 @@
 use super::fixtures;
 use crate::{Event, Request, Store, Write, codec, keys};
 use alloc::boxed::Box;
-use jig_domain_core::{self as core, Record, reads};
+use jig_domain_core_vocabulary::{self as core, Record, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Token, Wall};
@@ -187,7 +187,7 @@ fn task_rows_include_their_accepted_party_proposal_decision_and_update() {
         fixtures::person_proposal(proposal, true),
         fixtures::update(fixtures::ALICE, 19, owner, object),
     ]);
-    for record in expected.iter() {
+    for record in &expected {
         save(&mut store, record.clone());
     }
     save(&mut store, fixtures::update(fixtures::ALICE, 20, 24, object));

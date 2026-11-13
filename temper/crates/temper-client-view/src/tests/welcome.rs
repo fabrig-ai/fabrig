@@ -205,8 +205,8 @@ fn the_sheet_opens_over_the_forge_choices() {
             .map(|n| n.value.as_ref().unwrap().text.as_ref())
             .collect();
         assert_eq!(values, [b"work".as_slice(), b"hello"]);
-        assert!(named(nodes, Role::TextArea).is_empty());
-        assert!(named(nodes, Role::Alert).is_empty());
+        assert_eq!(named(nodes, Role::TextArea).len(), 0);
+        assert_eq!(named(nodes, Role::Alert).len(), 0);
         assert_eq!(named(nodes, Role::Button), [b"Cancel".as_slice(), b"Run on this machine"]);
         let cancel = nodes.iter().find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Cancel")).unwrap();
         assert_eq!(cancel.shortcut, Some(skein_ui::Shortcut::ESCAPE));
@@ -265,7 +265,7 @@ fn the_sheets_copies_take_addresses_and_are_not_made_yet() {
     start(&mut root, d::forge::forges::Start::Copies);
     let mut view = f::page_view(&root);
     let nodes = sheet(view.tree());
-    assert!(named(nodes, Role::TextField).is_empty());
+    assert_eq!(named(nodes, Role::TextField).len(), 0);
     assert_eq!(named(nodes, Role::TextArea), [b"Their addresses, one per line".as_slice()]);
     let area = nodes.iter().find(|n| n.role == Role::TextArea).unwrap();
     assert_eq!(area.placeholder.as_deref(), Some(b"github.com/owner/name".as_slice()));
@@ -290,13 +290,13 @@ fn the_sheets_copies_take_addresses_and_are_not_made_yet() {
         nodes.iter().find(|n| n.role == Role::TextArea).unwrap().value.as_ref().unwrap().text.as_ref(),
         b"github.com/a/b"
     );
-    assert!(named(nodes, Role::Alert).is_empty());
+    assert_eq!(named(nodes, Role::Alert).len(), 0);
     start(&mut root, d::forge::forges::Start::Nothing);
     let view = f::page_view(&root);
     let nodes = sheet(view.tree());
-    assert!(named(nodes, Role::Alert).is_empty());
-    assert!(named(nodes, Role::TextArea).is_empty());
-    assert!(named(nodes, Role::TextField).is_empty());
+    assert_eq!(named(nodes, Role::Alert).len(), 0);
+    assert_eq!(named(nodes, Role::TextArea).len(), 0);
+    assert_eq!(named(nodes, Role::TextField).len(), 0);
 }
 
 fn model_view(rows: skein_lib::List<w::ForgeRow>) -> crate::View {
@@ -2418,6 +2418,7 @@ fn welcome_claude_states_keep_the_command_and_check_in_both_shells() {
                             | d::Request::KeepSignIn { .. }
                             | d::Request::Tab { .. }
                             | d::Request::Copy { .. }
+                            | d::Request::Push(_)
                             | d::Request::Fact { .. } => None,
                         })
                         .expect("chained check sent");

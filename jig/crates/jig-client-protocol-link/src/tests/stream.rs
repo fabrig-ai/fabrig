@@ -2,7 +2,7 @@ use super::*;
 #[test]
 fn the_hello_s_jig_range_reaches_the_domain() {
     let harness = fixtures::Harness::streaming(fixtures::frame_subject());
-    assert!(harness.has(&Request::Hello { family: None, versions: Some(c::VersionRange { first: 19, last: 19 }) }));
+    assert!(harness.has(&Request::Hello { family: None, versions: Some(c::VersionRange { first: 20, last: 20 }) }));
 }
 #[test]
 fn the_hello_s_family_range_reaches_its_owner() {
@@ -23,7 +23,7 @@ fn a_hello_reopens_no_watch_of_an_owner_it_does_not_serve() {
     hello.served.clear();
     hello
         .served
-        .push(w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: 19, last: 19 }).unwrap())
+        .push(w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: 20, last: 20 }).unwrap())
         .unwrap();
     harness.stream_record(&fixtures::event_bytes(&w::StreamEvent::Hello(w::Hello::new(&w::CEILINGS, hello).unwrap())));
     assert!(harness.has(&Request::Hello { family: Some(19), versions: None }));
@@ -630,6 +630,28 @@ fn a_malformed_stream_record_drops_the_stream_and_is_reported() {
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
     assert!(harness.has(&Request::Fact { fact: Fact::UndecodableEvent }));
     assert!(harness.has(&Request::CloseStream));
+}
+
+#[test]
+fn an_undecodable_opening_answer_drops_the_stream_and_is_reported() {
+    let mut harness = fixtures::Harness::streaming(fixtures::frame_subject());
+    let (exchange, _) = harness.opening();
+    harness.clear();
+    harness.answer(exchange, &[255]);
+    assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
+    assert!(harness.has(&Request::CloseStream));
+    assert!(harness.has(&Request::Fact { fact: Fact::UndecodableWatchAnswer }));
+}
+
+#[test]
+fn an_undecodable_closing_answer_drops_the_stream_and_is_reported() {
+    let mut harness = fixtures::Harness::admitted_stream();
+    let exchange = harness.close();
+    harness.clear();
+    harness.answer(exchange, &[255]);
+    assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
+    assert!(harness.has(&Request::CloseStream));
+    assert!(harness.has(&Request::Fact { fact: Fact::UndecodableWatchAnswer }));
 }
 
 #[test]

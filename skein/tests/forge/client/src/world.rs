@@ -134,7 +134,7 @@ impl World {
             client: configured(&limits, settings.seed, settings.writer),
             env: Env { now: Time::from_nanos(100_000_000_000), wall: Wall::from_nanos(100_000_000_000), limits },
             forge: neighbour,
-            forge_env: Env { now: Time::from_nanos(100_000_000_000), wall: Wall::EPOCH, limits: config },
+            forge_env: Env { now: Time::from_nanos(100_000_000_000), wall: Wall::EPOCH, limits: config.clone() },
             client_out: Queue::uncapped(),
             forge_out: Queue::uncapped(),
             to_forge: Queue::with_capacity(16),
@@ -551,7 +551,7 @@ impl World {
     }
     pub fn historical_topic(&mut self) {
         self.external(raw::Op::Git(raw::Git::Create { branch: Box::from(&b"topic"[..]), commit: 1 }), 21_000, 2);
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.forge_env.limits.clone() };
         forge::advance(&mut self.forge, &env, b"org/repo", b"topic", b"file", b"topic", 2).expect("fixture branch");
     }
     pub fn historical_pull(&mut self) -> u64 {
@@ -686,7 +686,7 @@ impl World {
         self.external_at(op, call, user, Time::ZERO)
     }
     fn external_at(&mut self, op: raw::Op, call: u64, user: u64, now: Time) -> raw::Answer {
-        let mut config = self.forge_env.limits;
+        let mut config = self.forge_env.limits.clone();
         config.latency_min = Duration::ZERO;
         config.latency_max = Duration::ZERO;
         config.unavailable = 0;
@@ -738,7 +738,7 @@ fn config(faults: bool) -> Config {
         timeouts: if faults { 150 } else { 0 },
         landing: if faults { 150 } else { 0 },
         rate_limit: if faults { 8 } else { 0 },
-        ..Config::TEST
+        ..Config::test()
     }
 }
 

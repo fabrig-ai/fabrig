@@ -130,6 +130,12 @@ pub fn settings(domain: &mut Domain, repository: &[u8], settings: crate::api::Se
         crate::store::Styles { merge: settings.merge, rebase: settings.rebase, squash: settings.squash };
 }
 
+/// Sets the repository's manual merge settings, both off by default.
+pub fn manual_merges(domain: &mut Domain, repository: &[u8], settings: crate::api::ManualMerges) {
+    let id = domain.id(repository);
+    domain.repositories.get_mut(id).expect("a repository of the forge").manual_merges = settings;
+}
+
 /// Makes `repository` reachable by git, or not.
 pub fn set_reachable(domain: &mut Domain, repository: &[u8], reachable: bool) {
     let id = domain.id(repository);
@@ -322,7 +328,7 @@ fn validate_cue(cue: &Cue, limits: &crate::Limits) {
             fits(step, limits.name_bytes).expect("a step name within the limits");
             assert!(crate::ci::template_bound(log) <= limits.content_bytes, "expanded log within the limits");
         }
-        Cue::Tests { path } => {
+        Cue::Declared { path } | Cue::Tests { path } => {
             fits(path, limits.name_bytes).expect("cue path fits");
         }
         Cue::File { path, green } => {

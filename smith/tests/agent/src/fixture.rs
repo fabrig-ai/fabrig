@@ -59,6 +59,6 @@ pub fn start(charter: smith_domain::run::Charter) -> smith_domain::Start {
             name: smith_domain::GrantName { account: 0, generation: 1 },
             valid: skein_lib::Duration::from_secs(7200),
         }]),
-        ..smith_domain::fixture::start(skein_lib::Token::new(1), charter)
+        ..smith_domain_fixtures::start(skein_lib::Token::new(1), charter)
     }
 }

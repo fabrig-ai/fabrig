@@ -2348,7 +2348,8 @@ fn latest_and_sending_go_to_the_end_and_read_it_where_it_went() {
                         read_count += 1;
                     }
                     Request::Client(Event::Send { .. }) => send_count += 1,
-                    other @ (Request::Screen { .. }
+                    other @ (Request::Push(_)
+                    | Request::Screen { .. }
                     | Request::KeepLook { .. }
                     | Request::Client(_)
                     | Request::Show { .. }
@@ -2492,7 +2493,7 @@ fn paused_task() -> c::Task {
         revision: PAUSE_REVISION,
         before: c::PriorPhase::Active(c::RunStage::Idle),
         escalation: None,
-        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: None,
     });
     task.acts = skein_lib::List::with_capacity(2);
@@ -2684,7 +2685,7 @@ fn a_decided_card_stays_when_the_document_arrives_after_its_line() {
     proposals(&mut f, &[]);
     making_page(&mut f, 1);
     assert!(reads(&mut f.out).is_empty(), "document and line must not restart the read");
-    assert!(f.chat.departures().is_empty());
+    assert_eq!((f.chat.departures()).len(), 0);
     assert_eq!(f.chat.cards.get(0).unwrap().handle, handle);
 }
 #[test]

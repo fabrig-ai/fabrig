@@ -15,7 +15,7 @@ unreadable-result cause through wire 19 and the client link. The protocol
 world drives contract-invalid and adapter-invalid endings; no gap is known
 in this diagnostic.
 
-`wire.md`, section 1's v19 run-wait records carry hello figures, bounds refusals
+`wire.md`, section 1's v20 run-wait records carry hello figures, bounds refusals
 and the turns, time and waiting shortfalls' charters in both directions.
 The server-bytes-to-client-task table covers figures present and absent,
 and a bounds refusal with no shared shortfall. No known gap remains in

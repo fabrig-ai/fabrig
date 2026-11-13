@@ -25,7 +25,7 @@ fn agent() -> crate::settings::Agent {
     agent
 }
 
-fn start(room: u64) -> Result<crate::Service, startup::Problems> {
+fn start(room: u64, part: Option<usize>) -> Result<crate::Service, startup::Problems> {
     let mut agent = agent();
     // Exercise the brief floor within the fixture's small charter carriers.
     agent.run_limits.host_part = 65_536;
@@ -41,12 +41,22 @@ fn start(room: u64) -> Result<crate::Service, startup::Problems> {
         if charter.number == CHARTER {
             charter.policy.instructions = Box::new([]);
             // Smith adds two line-ending bytes after these non-newline instructions.
-            let instructions = host.room(&charter.policy).checked_sub(room).unwrap().checked_sub(2).unwrap();
+            let instructions = host.room(charter).checked_sub(room).unwrap().checked_sub(2).unwrap();
             let mut bytes = skein_lib::List::with_capacity(u32::try_from(instructions).unwrap());
             for _ in 0..instructions {
                 bytes.push(b'x').unwrap();
             }
             charter.policy.instructions = bytes.into_boxed();
+            if let Some(bytes) = part {
+                let mut instructions = skein_lib::List::with_capacity(u32::try_from(bytes).unwrap());
+                for _ in 0..bytes {
+                    instructions.push(b'x').unwrap();
+                }
+                charter.parts = Box::new([jig_domain_core::CharterPart {
+                    on: jig_domain_tasks::Reasons::FIRST,
+                    instructions: instructions.into_boxed(),
+                }]);
+            }
         }
     }
     startup::startup_with(
@@ -64,7 +74,7 @@ fn start(room: u64) -> Result<crate::Service, startup::Problems> {
 
 #[test]
 fn defaults_leaving_2047_bytes_refuse_the_start() {
-    let Err(found) = start(SHORT) else { panic!("a short charter refuses the start") };
+    let Err(found) = start(SHORT, None) else { panic!("a short charter refuses the start") };
     assert_eq!(
         startup::lines(&found).as_ref(),
         b"charter 11: charter 11 leaves its brief 2,047 bytes of its host part's 65,536; it needs at least 2,048\n",
@@ -73,7 +83,17 @@ fn defaults_leaving_2047_bytes_refuse_the_start() {
 
 #[test]
 fn defaults_leaving_2048_bytes_start() {
-    start(ENOUGH).expect("the least brief room starts");
+    start(ENOUGH, None).expect("the least brief room starts");
+}
+
+#[test]
+fn default_parts_are_counted_before_start() {
+    let Err(found) = start(4_000, Some(3_000)) else { panic!("the default's part takes its brief room") };
+    assert_eq!(
+        startup::lines(&found).as_ref(),
+        b"charter 11: charter 11 leaves its brief 998 bytes of its host part's 65,536; it needs at least 2,048\n"
+    );
+    start(4_000, None).expect("without the part the default fits");
 }
 
 #[test]
@@ -83,11 +103,27 @@ fn defaults_leaving_2048_bytes_start() {
     reason = "the check reports each stock charter's room for the implementation report"
 )]
 fn stock_charters_leave_at_least_2048_bytes() {
-    let engine = fixtures::parse_engine(&fixtures::value(&fixtures::document(), b"engine"));
     let host = temper_engine_smith::room::host_part(&agent().run_limits);
-    for charter in &engine.charters {
-        let room = host.room(&charter.policy);
-        std::eprintln!("stock charter {}: room {room}, bound {}", charter.number, host.bound);
-        assert!(room >= ENOUGH);
+    let generated = super::stock::generated();
+    for (name, profile) in [("small", b"\"small\"".as_slice()), ("standard", b"\"standard\"")] {
+        let document = fixtures::with(&generated, b"engine.limits.profile", profile);
+        let engine = super::stock::engine(&document);
+        let mut problems = startup::Problems::empty();
+        startup::checks::room(&engine, host, &mut problems);
+        assert!(problems.is_empty(), "{:?}", startup::lines(&problems));
+        for charter in &engine.charters {
+            let resolved =
+                jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core)
+                    .unwrap();
+            let room = host.room(&resolved);
+            std::eprintln!("stock charter {}: profile {name}, room {room}, bound {}", charter.number, host.bound);
+            assert!(room >= ENOUGH);
+            if charter.number == 5 {
+                let mut without = resolved.clone();
+                without.parts = Box::new([]);
+                std::eprintln!("charter 5 before parts: {}, after: {room}", host.room(&without));
+                assert!(room < host.room(&without));
+            }
+        }
     }
 }

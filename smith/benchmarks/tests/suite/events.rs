@@ -197,7 +197,7 @@ fn unknown_types_are_skipped_and_version_or_partial_records_fault() {
     partial.feed(b"{\"v\":4").expect("partial bytes held");
     assert!(partial.finish().is_err());
     let invalid = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 128;
         fixture_limits.content = 65_536;
         fixture_limits.items = 128;

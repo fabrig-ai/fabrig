@@ -55,6 +55,7 @@ pub fn world(passes: u32) -> World {
         workflow: Box::from(b"gate.yml".as_slice()),
         ignored: Box::new([]),
         blocking: true,
+        base: false,
     }]);
     assert!(world.project_landing(
         landings::PROJECT,
@@ -118,17 +119,9 @@ pub fn queued(world: &mut World) {
     world.event(top::Event::Change { row });
 }
 
-pub fn install_landing(world: &mut World, two: bool) {
+pub fn install_landing(world: &mut World) {
     let mut row = landings::landing_row(world.change(CHANGE));
     row.landing.task = LANDING;
-    if two {
-        let mut second = row.landing.members.first().expect("member").clone();
-        second.repository.repository = 3;
-        second.change = SECOND;
-        second.pull = world.change(SECOND).pull.expect("pull");
-        row.landing.members = Box::new([row.landing.members.first().expect("member").clone(), second]);
-        row.asks = Box::new([None, None]);
-    }
     world.event(top::Event::Landing { row });
 }
 #[must_use]

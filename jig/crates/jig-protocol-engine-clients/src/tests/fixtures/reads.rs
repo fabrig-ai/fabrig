@@ -1,6 +1,6 @@
 use super::*;
 use jig_client_test_records as records;
-use jig_domain_core::reads;
+use jig_domain_core_vocabulary::reads;
 use skein_lib::{Reader, length::len_u64};
 pub fn read_exchange() -> Exchange {
     read_exchange_with(settings())
@@ -30,7 +30,7 @@ pub fn value_answer(value: &w::ReadValue) -> w::ReadAnswer {
     value.encode(&mut out).expect("value bytes");
     let limits = w::Limits { owned_record: 4096, ..wire() };
     w::ReadAnswer::Value(
-        w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: out.finish() })
+        w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 20, record: out.finish() })
             .expect("value envelope"),
     )
 }
@@ -78,7 +78,7 @@ impl Exchange {
         self.read_until(value, Wall::from_nanos(86_400_000_000_000))
     }
     pub fn read_until(&mut self, value: &w::Read, expires: Wall) -> (Token, ReplyTo, reads::Read) {
-        let owner = self.send(crate::Message::Read(owned_read(w::Owner::Jig, 19, encoded_read(value))));
+        let owner = self.send(crate::Message::Read(owned_read(w::Owner::Jig, 20, encoded_read(value))));
         self.authenticate_until(expires);
         let Some(Request::Core(event)) = self.out.pop() else { panic!("core read") };
         let core::Event::Read { reply, sign_in, read } = *event else { panic!("read") };
@@ -120,7 +120,7 @@ impl Exchange {
     }
 }
 pub fn cursors() -> Box<[(&'static str, reads::Cursor)]> {
-    use jig_domain_core::{Key, documents as d};
+    use jig_domain_core_vocabulary::{Key, documents as d};
     let position =
         reads::Position::Owner(Key::Tasks(jig_domain_tasks::Key::Activity { task: u64::MAX, position: u64::MAX }));
     let scopes = cursor_scopes();
@@ -188,7 +188,7 @@ fn cursor_scopes() -> [(&'static str, reads::Scope); 17] {
     ]
 }
 fn inbox_cursors(rows: &mut List<(&'static str, reads::Cursor)>) {
-    use jig_domain_core::{CoreKey, Key, documents as d};
+    use jig_domain_core_vocabulary::{CoreKey, Key, documents as d};
     use jig_domain_people as p;
     for (label, group) in [
         ("Needs", reads::Group::Needs),
@@ -238,7 +238,7 @@ fn inbox_cursors(rows: &mut List<(&'static str, reads::Cursor)>) {
     }
 }
 fn note_cursors(rows: &mut List<(&'static str, reads::Cursor)>) {
-    use jig_domain_core::Key;
+    use jig_domain_core_vocabulary::Key;
     use jig_domain_notes as notes;
     for (label, last) in [
         ("ResourceExact", notes::Last::Exact(Box::from([255, b'/']))),

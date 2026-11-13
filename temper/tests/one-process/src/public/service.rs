@@ -55,10 +55,27 @@ impl Harness for Deployment {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
+    fn agent_profile() -> smith_agent_service::profile::Profile {
+        agent_profile()
+    }
+    fn agent_settings() -> temper_service::settings::Agent {
+        agent_settings()
+    }
     fn given(document: &serde_json::Value) -> temper_service::stock::Given {
         stories::given(document)
     }
 }
+pub(super) fn agent_profile() -> smith_agent_service::profile::Profile {
+    let mut profile = temper_playground::documents::agent_profile();
+    profile.declared.tool_payload = 4098;
+    profile
+}
+pub(super) fn agent_settings() -> temper_service::settings::Agent {
+    let mut agent = temper_playground::documents::agent_for(&agent_profile());
+    agent.bounds.message_bytes = 4096;
+    agent
+}
+
 pub(super) enum Extra {
     Native(HarnessProcess),
     Proxy(Box<Proxy>),

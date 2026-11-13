@@ -34,15 +34,20 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
                 json!({"grace_ms":60_000_u64,"agent_stop_ms":5_000_u64,"delivery_ms":1_000_u64,"save_ms":1_000_u64})
             );
             assert_eq!(worker["limits"]["overrides"]["hub.transcript_bytes"], window);
-            let stop = profile.link.ping.as_millis()
-                + profile.link.silence.as_millis()
-                + worker["graces"]["grace_ms"].as_u64().unwrap()
-                + worker["graces"]["agent_stop_ms"]
-                    .as_u64()
+            let bytes = serde_json::to_vec(worker).unwrap();
+            let document = jig_protocol_config::document(
+                &bytes,
+                &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
+            )
+            .unwrap();
+            let worker =
+                jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working()).unwrap();
+            let stop =
+                jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
                     .unwrap()
-                    .max(worker["graces"]["delivery_ms"].as_u64().unwrap())
-                + worker["graces"]["save_ms"].as_u64().unwrap();
-            assert_eq!(stop, 86_000);
+                    .as_millis();
+            assert_eq!(stop, 186_000);
+            assert_eq!(grace, 240_000);
             assert!(stop < grace);
         }
     }
@@ -53,7 +58,7 @@ fn the_box_has_room_for_reference_creating_executors() {
     let answered = files(&fixtures::facts(), &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
     let written = parse(content(&answered, b"temper.json"));
     let reference = parse(include_bytes!("../../../../docs/examples/reference/settings.json"));
-    let mut charters = vec![1, 2, 4, 5, 6, 9, 10, 11, 12, 13];
+    let mut charters = vec![1, 2, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16];
     for item in reference["items"].as_array().unwrap() {
         if item["setting"]["kind"] == "charter" {
             charters.push(item["setting"]["number"].as_u64().unwrap());
@@ -61,7 +66,7 @@ fn the_box_has_room_for_reference_creating_executors() {
     }
     charters.sort_unstable();
     charters.dedup();
-    assert_eq!(charters, [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+    assert_eq!(charters, [1, 2, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16]);
     let bytes = serde_json::to_vec(&written["engine"]["limits"]).unwrap();
     let document = jig_protocol_config::document(
         &bytes,
@@ -72,12 +77,25 @@ fn the_box_has_room_for_reference_creating_executors() {
     assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
     let limits = parsed.limits.core;
     jig_protocol_config::check_effective_limits(&limits).expect("deployment receiving limits fit the codecs");
+    assert_eq!(limits.authority.executors, 21);
+    assert_eq!(limits.tasks.executor_kinds, 21);
     assert_eq!(limits.documents.lines, 16);
     assert!(usize::try_from(limits.documents.lines).unwrap() >= charters.len());
     assert!(limits.documents.lines >= limits.tasks.charters);
     // The closer adds procedure p6 beside p2, p3 and p4 on each configured connector.
     let procedures = 4 * written["engine"]["connectors"].as_array().unwrap().len();
     assert!(usize::try_from(limits.documents.lines).unwrap() >= procedures);
+    // The reference omits the trial, drafter and general standing role from delegation.
+    let mut delegated = 0;
+    for number in &charters {
+        if ![10, 12, 13].contains(number) {
+            delegated += 1;
+        }
+    }
+    let executors = delegated + procedures + 2 + 3; // Merge/close jobs and owner/maintainer/member roles.
+    assert_eq!(executors, 18);
+    assert!(executors <= usize::try_from(limits.authority.executors).unwrap());
+    assert!(executors <= usize::try_from(limits.tasks.executor_kinds).unwrap());
 }
 
 #[test]
@@ -192,7 +210,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
         expected["workers"][0]["graces"]["grace_ms"] = json!(60_000_u64);
         expected["engine"]["acts"] =
             json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account", "adopt"] }]);
-        assert!(!actual["engine"]["owners"].as_array().unwrap().is_empty());
+        assert_ne!(actual["engine"]["owners"].as_array().unwrap().len(), 0);
         // The startup turn_bounds writer holds these to each document's own
         // agent; init adds a demo endpoint, so smith derives a different T.
         let template = parse(include_bytes!("../../template/temper.json"));

@@ -31,7 +31,7 @@ pub struct Config {
     /// The stock ways, in their order (temper/docs/design/protocol/configuration/settings.md, 8).
     pub ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
     /// Forge writer identities and this deployment's branch namespace.
-    pub forge: skein_forge_client::Config,
+    pub forge: temper_engine_domain_forge::Config,
     /// Each forge's git identity, an application credential (D10;
     /// protocol/credentials.md, "each repository to a git identity").
     pub identities: Box<[forge::GitIdentity]>,
@@ -46,6 +46,7 @@ pub struct Config {
 #[derive(Hash, Debug)]
 pub(crate) struct RootConfig {
     pub(crate) ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
+    pub(crate) prepare_kind: Option<JobBound>,
     pub(crate) merge_kind: Option<JobBound>,
     pub(crate) close_kind: Option<JobBound>,
     pub(crate) forge_connector: u16,
@@ -65,8 +66,12 @@ pub const LANDING_ATTEMPTS: u8 = 3;
 /// A project's landing way and repository checks (protocol/configuration/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectLanding {
+    pub gate_retries: u8,
+    pub gate_timeout: skein_lib::Duration,
     pub check_timeout: Option<skein_lib::Duration>,
     pub by: Way,
+    pub combine_main: temper_engine_domain_forge_landing::Combine,
+    pub combine_other: temper_engine_domain_forge_landing::Combine,
     pub merge_job: Option<Box<[u8]>>,
     pub close_job: Option<Box<[u8]>>,
     pub landing_attempts: u8,
@@ -86,6 +91,7 @@ pub struct RepositoryChecks {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct GateCheck {
+    pub base: bool,
     pub name: Box<[u8]>,
     pub workflow: Box<[u8]>,
     pub ignored: Box<[Box<[u8]>]>,
@@ -121,6 +127,7 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
                     workflow: gate.workflow.clone(),
                     ignored: gate.ignored.clone(),
                     blocking: gate.blocking,
+                    base: gate.base,
                 })
                 .expect("counted gates");
         }
@@ -157,6 +164,10 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
             Way::Turn => temper_engine_domain_forge_change::Way::Turn,
         },
         repositories.into_boxed(),
+        temper_engine_domain_forge_landing::Project {
+            gate_retries: u32::from(landing.gate_retries),
+            gate_timeout: landing.gate_timeout,
+        },
         forge::AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: u32::from(landing.after.tier_retries),
@@ -197,7 +208,8 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             Tool::Note { .. } | Tool::NoteLines { .. } | Tool::Recall { .. } => {
                 Tool::RejectedNote(jig_domain_notes::Refusal::Oversized)
             }
-            Tool::Decided(_)
+            Tool::Finding(_)
+            | Tool::Decided(_)
             | Tool::Goal { .. }
             | Tool::ReadTask { .. }
             | Tool::See { .. }
@@ -237,7 +249,8 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
             }
         }
         Tool::Recall { by, .. } => (!notes::valid_recall(by, &limits.notes)).then_some(notes::Refusal::Oversized),
-        Tool::Decided(_)
+        Tool::Finding(_)
+        | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
         | Tool::See { .. }
@@ -286,7 +299,8 @@ pub(crate) fn relay_call(
 pub(crate) fn call_needs_input(tool: &Tool) -> bool {
     match tool {
         Tool::Goal { agree, .. } => *agree,
-        Tool::Decided(_)
+        Tool::Finding(_)
+        | Tool::Decided(_)
         | Tool::ReadTask { .. }
         | Tool::See { .. }
         | Tool::Document { .. }
@@ -347,7 +361,8 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
             }
             EscalationChoice::Release | EscalationChoice::Reject { .. } | EscalationChoice::Pass => None,
         },
-        Tool::Decided(_)
+        Tool::Finding(_)
+        | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
         | Tool::See { .. }
@@ -464,7 +479,7 @@ fn proposal_shape(action: &ProposedAction, reason: &[u8], limits: &tasks::Limits
                 Some(tasks::Refusal::Read)
             } else if match &amendment.authority {
                 Some(authority) => !tasks::valid_authority(limits, authority),
-                None => true,
+                None => false,
             } {
                 Some(tasks::Refusal::AuthorityShape)
             } else {
@@ -488,7 +503,9 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
         Tool::Settings { .. } | Tool::ProposeSettings { .. } | Tool::ProposeSettingsNote { .. } => {
             jig_domain_core::ToolKind::Settings
         }
-        Tool::Goal { .. } | Tool::Change { .. } | Tool::Delegate { .. } => jig_domain_core::ToolKind::Delegate,
+        Tool::Finding(_) | Tool::Goal { .. } | Tool::Change { .. } | Tool::Delegate { .. } => {
+            jig_domain_core::ToolKind::Delegate
+        }
         Tool::Message { target, .. } => jig_domain_core::ToolKind::Message { target: *target },
         Tool::Introduce { left, .. } => jig_domain_core::ToolKind::Message { target: *left },
         Tool::Decided(_) | Tool::Amend { .. } | Tool::Cancel { .. } | Tool::Release { .. } => {
@@ -532,6 +549,7 @@ pub(crate) fn connector_answer(domain: &Domain, key: crate::CallKey) -> Option<C
 
 pub(crate) fn call_payload_answer(payload: forge::CallPayload) -> CallAnswer {
     match payload {
+        forge::CallPayload::Finding(reply) => CallAnswer::Finding(Box::new(crate::FindingToolAnswer::Write(*reply))),
         forge::CallPayload::Decided { took, reach } => CallAnswer::Decided { took, reach },
         forge::CallPayload::Effect { entry, deadline, outcome } => CallAnswer::ForgeEffect { entry, deadline, outcome },
         forge::CallPayload::Refused(error) => CallAnswer::ForgeEffectRefused(error),
@@ -549,6 +567,12 @@ pub(crate) fn keep_connector_answer(
     answer: CallAnswer,
 ) -> Result<Option<CallAnswer>, CallAnswer> {
     let payload = match answer {
+        CallAnswer::Finding(answer) => match *answer {
+            crate::FindingToolAnswer::Write(reply) => forge::CallPayload::Finding(Box::new(reply)),
+            crate::FindingToolAnswer::List(_) | crate::FindingToolAnswer::Show { .. } => {
+                unreachable!("finding reads are not recorded")
+            }
+        },
         CallAnswer::Decided { took, reach } => forge::CallPayload::Decided { took, reach },
         CallAnswer::ForgeEffect { entry, deadline, outcome } => forge::CallPayload::Effect { entry, deadline, outcome },
         CallAnswer::ForgeEffectRefused(error) => forge::CallPayload::Refused(error),
@@ -603,6 +627,12 @@ pub(crate) fn keep_connector_answer(
 
 pub(crate) fn is_core_read(tool: &Tool) -> bool {
     match tool {
+        Tool::Finding(call) => match call {
+            crate::FindingCall::List { .. } | crate::FindingCall::Show { .. } => true,
+            crate::FindingCall::File { .. } | crate::FindingCall::Hand { .. } | crate::FindingCall::Triage { .. } => {
+                false
+            }
+        },
         Tool::ReadTask { .. } | Tool::See { .. } | Tool::Settings { .. } => true,
         Tool::Document { .. }
         | Tool::Remember { .. }
@@ -649,4 +679,66 @@ pub fn landing_stock(
     review: u32,
 ) -> Box<[forge::settings::Stock]> {
     crate::route::policy_translate::landing_stock(deployment, projects, change, review)
+}
+
+#[cfg(test)]
+mod proposal_tests {
+    use super::{ProposedAction, proposal_shape, tasks};
+    use alloc::boxed::Box;
+
+    fn amendment(authority: Option<tasks::Authority>, reason: &[u8]) -> ProposedAction {
+        ProposedAction::Amend {
+            task: 1,
+            revision: 0,
+            amendment: tasks::Amendment {
+                tracked: None,
+                addressed: None,
+                instructions: Some(b"revised instructions".as_slice().into()),
+                release: None,
+                spec: None,
+                wake: None,
+                dependencies: None,
+                authority,
+                llm: None,
+                reason: reason.into(),
+            },
+        }
+    }
+
+    #[test]
+    fn an_amend_proposal_may_omit_authority() {
+        let limits = crate::tests::resume_fixture::limits().tasks;
+        assert_eq!(proposal_shape(&amendment(None, b"new plan"), b"please amend", &limits), None);
+    }
+
+    #[test]
+    fn an_amend_proposal_rejects_malformed_named_authority() {
+        let limits = crate::tests::resume_fixture::limits().tasks;
+        let mut authority = tasks::Authority {
+            tools: tasks::Tools(0),
+            models: tasks::Models::NONE,
+            grants: Box::new([]),
+            delegation: tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 },
+            budget: tasks::Budget { spend: 0, deadline: None },
+            notes: tasks::Scopes(0),
+            note_resources: Box::new([]),
+        };
+        assert!(tasks::valid_authority(&limits, &authority));
+        assert_eq!(proposal_shape(&amendment(Some(authority.clone()), b"plan"), b"ask", &limits), None);
+        authority.notes = tasks::Scopes(8);
+        assert!(!tasks::valid_authority(&limits, &authority));
+        assert_eq!(
+            proposal_shape(&amendment(Some(authority), b"plan"), b"ask", &limits),
+            Some(tasks::Refusal::AuthorityShape)
+        );
+    }
+
+    #[test]
+    fn an_amend_proposal_bounds_both_reasons() {
+        let mut limits = crate::tests::resume_fixture::limits().tasks;
+        limits.message_bytes = 4;
+        assert_eq!(proposal_shape(&amendment(None, b"plan"), b"ask!", &limits), None);
+        assert_eq!(proposal_shape(&amendment(None, b"plan!"), b"ask!", &limits), Some(tasks::Refusal::Read));
+        assert_eq!(proposal_shape(&amendment(None, b"plan"), b"ask!!", &limits), Some(tasks::Refusal::Read));
+    }
 }

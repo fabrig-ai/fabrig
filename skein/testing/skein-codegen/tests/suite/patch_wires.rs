@@ -134,10 +134,12 @@ mod tests {
             Rename::Declaration { old: "E".into(), new: "State".into() },
             Rename::Part { decl: "R".into(), old: "id".into(), new: "key".into() },
         ];
-        let report = run(root, &base, &Options {
-            renames: renames.iter().cloned().map(|rename| ("w".into(), rename)).collect(),
-            ..options()
-        }).expect("confirmed renames wait");
+        let report = run(
+            root,
+            &base,
+            &Options { renames: renames.iter().cloned().map(|rename| ("w".into(), rename)).collect(), ..options() },
+        )
+        .expect("confirmed renames wait");
         assert_eq!(report.outcomes, [Outcome::Waiting { family: "w".into(), renames }]);
         assert_eq!(report.findings, []);
         assert_eq!(report.patch, None);
@@ -170,14 +172,16 @@ mod tests {
     fn wire_versioned_fingerprints_set_aside_header_version() {
         const OLD: &str = "family w 1\nversioned record R { id: u8 }\nenum E { a, b }\n";
         const SAME: &str = "# header comment\nfamily\nw # family\n2\nversioned record R { id: u8 }\nenum E { a, b }\n";
-        const NEXT: &str = "# header comment\nfamily\nw # family\n2\nversioned record R { id: u8 }\nenum E { a, b, c }\n";
+        const NEXT: &str =
+            "# header comment\nfamily\nw # family\n2\nversioned record R { id: u8 }\nenum E { a, b, c }\n";
         let (scratch, base) = fixture("versioned", OLD, OLD, WIRES);
         let root = scratch.path();
         fs::remove_file(root.join("schema/w-v1.schema")).expect("move current filename");
         put(root, "schema/w-v2.schema", SAME);
-        assert_eq!(check(root, &base), Ok(vec![Finding::Version {
-            family: "w".into(), verdict: Version::Needless, kept: 1, current: 2,
-        }]));
+        assert_eq!(
+            check(root, &base),
+            Ok(vec![Finding::Version { family: "w".into(), verdict: Version::Needless, kept: 1, current: 2 }])
+        );
         let report = run(root, &base, &options()).expect("version alone is needless");
         assert_eq!(report.outcomes, [Outcome::Refused { family: "w".into(), verdict: Version::Needless }]);
         text(root, "schema/kept/w-v1.schema", OLD);

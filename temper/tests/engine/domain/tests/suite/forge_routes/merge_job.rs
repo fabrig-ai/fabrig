@@ -274,7 +274,7 @@ fn an_update_conflict_goes_to_the_merge_job_before_a_resolution() {
 fn without_a_merge_job_a_conflict_goes_to_a_resolution() {
     let (mut world, task, head, base) = pushed_change_in(world(false, true, true), true, GOAL);
     let resolution = next_resolution(&mut world, task);
-    assert!(world.jobs.is_empty());
+    assert_eq!(world.jobs.len(), 0);
     assert_preserving_resolution(&live_task(&world, resolution.task).spec.words);
     let merged = push_merge(&mut world, task, head, base);
     finish_resolution(&mut world, &resolution);
@@ -339,7 +339,7 @@ fn a_merge_job_needs_its_declared_kind_authority_and_spec_room() {
         let (mut world, task, _, _) =
             pushed_change_in(world(false, kind, authority).with_merge_job(command), true, GOAL);
         let _ = next_resolution(&mut world, task);
-        assert!(world.jobs.is_empty());
+        assert_eq!(world.jobs.len(), 0);
         assert_eq!(
             live_task(&world, task).authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Job(3)),
             authority

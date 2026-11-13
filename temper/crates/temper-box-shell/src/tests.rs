@@ -6,7 +6,6 @@ mod init_clients;
 mod limits;
 mod reference_settings;
 mod settings_fields;
-mod tui;
 
 // jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box.md, 2.
 #[test]
@@ -148,7 +147,9 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     ] {
         write(name, bytes);
     }
-    let (agent, document) = configuration::documents(&directory, "/fixture/temper");
+    let program = directory.join("temper");
+    write("temper", b"program at start");
+    let (agent, document) = configuration::documents(&directory, program.to_str().expect("program path"));
     write("agent.json", &agent);
     assert_eq!(configuration::flags(&directory).len(), 6);
     let operations = super::operations_in(&[], b"/", &configuration::directories(&directory), &document)
@@ -161,6 +162,13 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     drop(service);
     super::close(owned);
     assert_no_descriptors_in(&directory);
+    assert_eq!(fs::read(directory.join("worker-root/agent/temper")).expect("pinned program"), b"program at start");
+    assert_eq!(fs::read(directory.join("worker-root/agent/agent.json")).expect("pinned configuration"), agent);
+    fs::remove_file(&program).expect("remove configured program");
+    let why =
+        super::operations_in(&[], b"/", &configuration::directories(&directory), &document).expect_err("pin refused");
+    assert!(why.starts_with("temper serve: "), "{why}");
+    assert!(why.contains(program.to_str().expect("program path")), "{why}");
     fs::remove_dir_all(directory).expect("remove operations scratch");
 }
 fn assert_no_descriptors_in(directory: &std::path::Path) {
@@ -355,7 +363,9 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
     let directory = std::env::temp_dir().join(format!("temper-worker-alone-{}", std::process::id()));
     fs::create_dir(&directory).expect("worker-alone fixture");
     fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).expect("worker-alone fixture");
-    let (agent, input) = worker_document(&directory);
+    let (agent, mut input) = worker_document(&directory);
+    fs::write(directory.join("temper"), b"worker program").expect("program fixture");
+    input["workers"][0]["agent"]["program"] = serde_json::json!(directory.join("temper"));
     fs::write(directory.join("agent.json"), agent).expect("worker-alone fixture");
     fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("worker-alone fixture");
     let secret = directory.join("worker.secret");

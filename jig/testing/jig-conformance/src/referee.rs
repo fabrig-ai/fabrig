@@ -326,7 +326,7 @@ pub struct Snapshot {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Row {
     /// A core row, by its key.
-    Core(jig_domain_core::Key),
+    Core(jig_domain_core_vocabulary::Key),
     /// An application's row, in the words its adapter gives.
     Application(String),
 }

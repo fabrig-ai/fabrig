@@ -185,10 +185,10 @@ temper's deployment puts through them.
   from 1, without a gap; the current version's is the text the code
   renders.
 - **Held by two tests:** the crate's own, focused: the rendered text
-  equals the current version's kept text; `TEMPER_CONTRACT_WRITE=1`
-  writes it for review; a difference fails naming the fix, "the host
-  tools' layout moved: move `wire::VERSION` to N+1 and write its text
-  with `TEMPER_CONTRACT_WRITE=1`". And `fabrig-boundary`'s: a kept text
+  equals the current version's kept text; `SKEIN_CODEGEN_WRITE=1`, the
+  tree's rewrite switch, writes it for review; a difference fails naming
+  the fix, "the host tools' layout moved: move `wire::VERSION` to N+1
+  and write its text with `SKEIN_CODEGEN_WRITE=1`". And `fabrig-boundary`'s: a kept text
   the base holds never changes, and the kept versions run from 1 to the
   greatest without a gap, the base read as the `patches` test reads it
   (`baseline.md`, 7).

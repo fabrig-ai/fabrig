@@ -10,7 +10,7 @@ pub const PATCHES: &[&str] = &[];
 
 pub mod kept {
     pub mod smith_channel {
-        pub const TEXTS: &[&str] = &[r"family smith-channel 6
+        pub const TEXTS: &[&str] = &[r"family smith-channel 7
 
 # The receiving host/agent additionally checks aggregate ownership and counts
 # against its configured domain Limits. Bytes carried from other codec families
@@ -93,6 +93,7 @@ record HostAnswer { name: CallName reply: Reply }
 record Acknowledge { number: u32 }
 record GrantRefresh { grant: Grant }
 record Cancel {}
+record Drain {}
 
 record Admitted {}
 enum MessageRefusal { too_large, full, name_in_use, ending }
@@ -211,7 +212,7 @@ enum LiveKind { text, reasoning, input }
 record LiveCall { id: text 256 tool: text 64 }
 record Live { turn: u32 retry: u32 kind: LiveKind offset: u64 bytes: bytes 4096 call: option LiveCall }
 "];
-        pub mod v6 {
+        pub mod v7 {
             pub mod call_name {
                 use skein_codec::schema::FieldIx;
                 pub const ACTIVATION: FieldIx = FieldIx::new(0);
@@ -415,6 +416,7 @@ record Live { turn: u32 retry: u32 kind: LiveKind offset: u64 bytes: bytes 4096 
                 pub const GRANT: FieldIx = FieldIx::new(65);
             }
             pub mod cancel {}
+            pub mod drain {}
             pub mod admitted {}
             pub mod message_refusal {
                 use skein_codec::schema::VariantIx;

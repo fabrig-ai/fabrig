@@ -1,6 +1,6 @@
 //! The protocol routing's vocabulary (protocol/client/README.md, section 2 and protocol/client/sign-in.md).
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use jig_domain_views as views;
 use skein_lib::{Duration, List, ReplyTo, Secret, Time, Token, Wall};
@@ -80,6 +80,11 @@ pub enum Event {
 }
 #[derive(Debug)]
 pub enum Request {
+    /// A stream closes after an edge or translation refusal; no document bytes.
+    StreamFailed {
+        sign_in: u64,
+        why: StreamFailure,
+    },
     Transport(ToTransport),
     Core(Box<core::Event>),
     Application(ToApplication),
@@ -138,7 +143,7 @@ pub enum ToApplication {
         family: u16,
         version: u32,
         scope: people::ApplicationScope,
-        window: jig_domain_core::documents::Window,
+        window: jig_domain_core_vocabulary::documents::Window,
         record: Box<[u8]>,
     },
     Watch {
@@ -147,7 +152,7 @@ pub enum ToApplication {
         family: u16,
         version: u32,
         scope: people::ApplicationScope,
-        window: jig_domain_core::documents::Window,
+        window: jig_domain_core_vocabulary::documents::Window,
         record: Box<[u8]>,
     },
 }
@@ -388,4 +393,12 @@ impl ::core::fmt::Debug for Reply {
             Self::StreamsFull { size } => f.debug_struct("StreamsFull").field("size", size).finish(),
         }
     }
+}
+
+/// Why an engine stream cannot carry its next record
+/// (jig/docs/design/protocol/client/README.md, 5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StreamFailure {
+    QueueBound { queued_bytes: u32 },
+    Translation(jig_client_protocol_wire::v20::Problem),
 }

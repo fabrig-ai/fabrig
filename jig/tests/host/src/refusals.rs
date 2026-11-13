@@ -44,6 +44,7 @@ impl Referee {
             )
             | Event::Job(_)
             | Event::RelayCancelled { .. }
+            | Event::Drain
             | Event::CancelAll { .. }
             | Event::Opened { .. }
             | Event::Down(_)
@@ -81,6 +82,7 @@ impl Referee {
                 ToAgent::Answer { .. }
                 | ToAgent::Start { .. }
                 | ToAgent::Acknowledge { .. }
+                | ToAgent::Drain { .. }
                 | ToAgent::Cancel { .. }
                 | ToAgent::Grant { .. },
             )

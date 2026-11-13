@@ -1,8 +1,8 @@
 //! Account move values are handed to one exchange and bounded before keeping.
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest};
-use jig_client_protocol_wire::v19 as w;
-use jig_domain_core as core;
+use jig_client_protocol_wire::v20 as w;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as p;
 use skein_lib::{ReplyTo, Secret, Token, Writer};
 
@@ -16,7 +16,7 @@ fn outgoing(exchange: &mut Exchange) -> (Token, ReplyTo) {
     let ask = change(w::AccountChange::MoveOut(
         w::AccountChangeMoveOut::new(&f::wire(), w::AccountChangeMoveOutParts { account: 19 }).unwrap(),
     ));
-    let owner = exchange.send(Message::Request(f::keyed(w::Owner::Jig, 19, f::encode_ask(&ask))));
+    let owner = exchange.send(Message::Request(f::keyed(w::Owner::Jig, 20, f::encode_ask(&ask))));
     exchange.authenticate();
     let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core ask") };
     let core::Event::People(p::Event::Ask { reply_to, ask, .. }) = *event else { panic!("people ask") };
@@ -58,7 +58,7 @@ fn the_record_goes_to_the_first_exchange_and_a_replay_is_empty() {
     let (owner, to) = outgoing(&mut exchange);
     let token = ready(&mut exchange, to);
     taken(&mut exchange, token, None);
-    assert!(record(&exchange, owner).expose().is_empty());
+    assert_eq!((record(&exchange, owner).expose()).len(), 0);
     assert!(exchange.out.is_empty());
 }
 #[test]
@@ -72,7 +72,7 @@ fn a_join_has_no_second_record_and_does_not_answer_its_sibling() {
     assert_eq!(record(&exchange, first).expose(), b"file");
     assert!(exchange.component.connections.get(&join).unwrap().response.is_none());
     taken(&mut exchange, join_token, None);
-    assert!(record(&exchange, join).expose().is_empty());
+    assert_eq!((record(&exchange, join).expose()).len(), 0);
     assert!(exchange.out.is_empty());
 }
 #[test]
@@ -106,7 +106,7 @@ fn carried(exchange: &mut Exchange, kind: u8, value: &[u8], digest: [u8; 32]) ->
         w::KeyedParts {
             key: [5; 16],
             owner: w::Owner::Jig,
-            version: 19,
+            version: 20,
             request: f::encode_ask(&ask),
             value: Some(Secret::new(Box::from(value))),
         },

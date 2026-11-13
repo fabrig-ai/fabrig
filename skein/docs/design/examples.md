@@ -475,8 +475,13 @@ processes, each a host of an `iterate` (a service, or a fake client):
     still running at its exit, naming it (the group's: its ID, probed
     once the binary is reaped); one that measures a binary it
     does not own only kills and counts.
-  - **A test that fails.** A test that unwinds drops its binary
-    unsettled, and the kit ends what is left the same way: every
+  - **A test that fails.** Before reporting a deadline, referee or
+    teardown policy failure, the real-loop harness drops its hosts and
+    ends their trees, cancels and drains the shared kernel, then reaps
+    retained leaders and closes their deferred descriptors
+    (testing/README.md, 5). A panic that aborts therefore reports after
+    cleanup. An unwinding test also drops its binary unsettled as a
+    fallback, and the kit ends what is left the same way: every
     process the walk has found, below the binary's group as well as
     adopted, killed through its pidfd, and, once a binary it killed has
     exited, a last listing for the orphans it left, killed in turn. A

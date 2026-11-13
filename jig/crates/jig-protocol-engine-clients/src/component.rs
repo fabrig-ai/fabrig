@@ -6,8 +6,8 @@ use crate::{
     sign_in::{self, Link, Past, Pending, Slot, Waiting, Which},
 };
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v19 as w;
-use jig_domain_core as core;
+use jig_client_protocol_wire::v20 as w;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use skein_lib::{CryptoRng, Env, Map, Queue, ReplyTo, Time, Token};
 #[path = "approval.rs"]
@@ -291,7 +291,7 @@ impl Component {
                     self.delivery(env, watcher, &document, out);
                 }
             }
-            Event::WatchEnded { watcher, why } => self.watch_ended(env, watcher, why),
+            Event::WatchEnded { watcher, why } => self.watch_ended(env, watcher, why, out),
             Event::RunText { watcher, turn, from, to, text, cut, call, writing } => {
                 self.run_text(
                     env,

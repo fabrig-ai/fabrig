@@ -75,6 +75,7 @@ fn the_trace_setting_changes_no_completion() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_failure_with_its_trace_off_says_so_and_names_the_seed() {
     let result = std::panic::catch_unwind(|| {
         let mut world = World::new(SEED, Config { trace: Trace::Off, ..Config::calm() });

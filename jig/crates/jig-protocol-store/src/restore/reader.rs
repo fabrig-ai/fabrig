@@ -2,7 +2,7 @@
 use super::{Arithmetic, Cause, DecodeFailure, Failure, JoinFailure, RangeFailure, RowSite, ready, site};
 use crate::{Cursor, Restore, Row, Store, codec, intervals, keys, pages};
 use alloc::boxed::Box;
-use jig_domain_core::{Key, Record, RestoreRange};
+use jig_domain_core_vocabulary::{Key, Record, RestoreRange};
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Token, length::len_u64};
 

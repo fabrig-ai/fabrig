@@ -6,7 +6,7 @@ use smith_bench::{CheckVerdict, EventCheck, Measure};
 use smith_events::{Block, Capture, Event, Limits, Record};
 
 const LIMITS: Limits = {
-    let mut fixture_limits = smith_events::fixture::SMALL;
+    let mut fixture_limits = smith_events_fixtures::SMALL;
     fixture_limits.string = 16_384;
     fixture_limits.content = 16_384;
     fixture_limits.items = 16;

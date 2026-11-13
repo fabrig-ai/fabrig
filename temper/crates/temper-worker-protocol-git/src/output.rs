@@ -226,14 +226,18 @@ pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
         | git::Kind::Clone
         | git::Kind::Look
         | git::Kind::DiffPaths
+        | git::Kind::Brings
         | git::Kind::IsAncestor
         | git::Kind::Make
-        | git::Kind::CheckOut
-        | git::Kind::Merge
         | git::Kind::Commit => {
             return git::Fault::Broken;
         }
-        git::Kind::Store | git::Kind::Fetch | git::Kind::Create | git::Kind::Push => {}
+        git::Kind::Store
+        | git::Kind::Fetch
+        | git::Kind::Create
+        | git::Kind::Push
+        | git::Kind::CheckOut
+        | git::Kind::Merge => {}
     }
     let mut end = tail.len();
     for (at, byte) in tail.iter().enumerate().rev() {

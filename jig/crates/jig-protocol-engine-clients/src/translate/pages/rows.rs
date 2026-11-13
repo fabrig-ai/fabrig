@@ -1,7 +1,7 @@
 //! Bounded owner page pieces (protocol/client/wire.md, 1).
 use super::super::{owner, pieces, task, w};
 use alloc::boxed::Box;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{List, Writer};
 

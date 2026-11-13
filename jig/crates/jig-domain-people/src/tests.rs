@@ -4,6 +4,7 @@
     clippy::arithmetic_side_effects,
     reason = "step tests are ordinary Rust (testing-strategy.md, section 4)"
 )]
+mod arrivals;
 mod fixtures;
 mod names;
 mod projects;
@@ -388,8 +389,8 @@ fn waiting_cache_keeps_newest_references_and_removes_one_task() {
 fn identity(provider: u16, subject: u64) -> Identity {
     Identity {
         key: IdentityKey { provider, subject: subject.to_be_bytes().into() },
-        login: Box::new([b'l']),
-        name: Box::new([b'n']),
+        login: Box::new(*b"l"),
+        name: Box::new(*b"n"),
     }
 }
 
@@ -576,6 +577,7 @@ fn reply(rows: &[Request]) -> Reply {
             | Request::ServiceMade { .. }
             | Request::Act { .. }
             | Request::Acted { .. }
+            | Request::NeedArrived { .. }
             | Request::RestoreRefused { .. } => None,
         })
         .expect("reply emitted")
@@ -593,6 +595,7 @@ fn route(rows: &[Request]) -> Token {
             | Request::ServiceMade { .. }
             | Request::Act { .. }
             | Request::Acted { .. }
+            | Request::NeedArrived { .. }
             | Request::RestoreRefused { .. } => None,
         })
         .expect("route emitted")
@@ -623,6 +626,7 @@ fn saved_answer(rows: &[Request]) -> Stored {
             | Request::ServiceMade { .. }
             | Request::Act { .. }
             | Request::Acted { .. }
+            | Request::NeedArrived { .. }
             | Request::RestoreRefused { .. } => None,
         })
         .expect("keyed answer saved")
@@ -777,7 +781,7 @@ fn pending_duplicates_share_one_route_and_reserve_answer_room() {
     test.member();
     let routed = test.request(10, 1, ask(1));
     let token = route(&routed);
-    assert!(test.request(10, 1, ask(1)).is_empty());
+    assert_eq!(test.request(10, 1, ask(1)).len(), 0);
     assert_eq!(reply(&test.request(10, 1, ask(1))), Reply::Again(Again::Busy));
     assert_eq!(reply(&test.request(10, 2, ask(1))), Reply::Again(Again::Full { held: 1, room_at: Wall::EPOCH }));
     assert_eq!(reply(&test.request(10, 1, ask(2))), Reply::Refused(Refusal::KeyConflict));
@@ -844,7 +848,7 @@ fn expired_completed_key_is_erased_in_sweep_and_frees_its_slot() {
         outcome: Outcome::Created { first: 90, last: 90, given: None },
         at: Wall::EPOCH,
     };
-    assert!(test.send(Event::Restore { record: record.clone() }).is_empty());
+    assert_eq!(test.send(Event::Restore { record: record.clone() }).len(), 0);
     test.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
     test.send(Event::Restore {
         record: Stored::Roles { project: 1, holdings: Box::new([Holding { person: 1, role: Role::Member }]) },
@@ -1191,6 +1195,7 @@ fn is_reply(request: &Request) -> bool {
         | Request::ServiceMade { .. }
         | Request::Act { .. }
         | Request::Acted { .. }
+        | Request::NeedArrived { .. }
         | Request::RestoreRefused { .. } => false,
     }
 }
@@ -1219,6 +1224,7 @@ fn is_answer(request: &Request) -> bool {
         | Request::ServiceMade { .. }
         | Request::Act { .. }
         | Request::Acted { .. }
+        | Request::NeedArrived { .. }
         | Request::RestoreRefused { .. } => false,
     }
 }
@@ -1247,6 +1253,7 @@ fn is_roles(request: &Request) -> bool {
         | Request::ServiceMade { .. }
         | Request::Act { .. }
         | Request::Acted { .. }
+        | Request::NeedArrived { .. }
         | Request::RestoreRefused { .. } => false,
     }
 }
@@ -1295,7 +1302,7 @@ fn root_pressure_answers_every_waiter_and_releases_the_key_for_retry() {
         let mut test = Test::new(Limits { requests: 1, ..LIMITS });
         test.member();
         let first = route(&test.request(10, 1, ask(1)));
-        assert!(test.request(10, 1, ask(1)).is_empty());
+        assert_eq!(test.request(10, 1, ask(1)).len(), 0);
         let rows = test.send(Event::Decided { request: first, outcome: Outcome::Again(again) });
         assert_eq!(rows.len(), 2);
         assert!(rows.iter().all(is_reply), "retryable pressure saves no completed answer");
@@ -1394,6 +1401,7 @@ fn authenticated_escalation_decisions_route_without_membership_and_io_pressure_i
         | Request::ServiceMade { .. }
         | Request::Act { .. }
         | Request::Acted { .. }
+        | Request::NeedArrived { .. }
         | Request::RestoreRefused { .. } => false,
     }));
     let request = route(&routed);
@@ -1519,7 +1527,7 @@ fn application_keys_join_flights_and_replay_opaque_tokens_across_sign_ins_and_re
     test.member();
     test.signin(99, 11, identity(0, 1));
     let request = route(&test.request(10, 7, application(1)));
-    assert!(test.request(11, 7, application(1)).is_empty());
+    assert_eq!(test.request(11, 7, application(1)).len(), 0);
     assert_eq!(reply(&test.request(10, 7, application(2))), Reply::Refused(Refusal::KeyConflict));
     assert_eq!(reply(&test.request(10, 7, ask(1))), Reply::Refused(Refusal::KeyConflict));
     let outcome = Outcome::Applied { connector: 2, token: Token::new(42) };
@@ -1536,6 +1544,7 @@ fn application_keys_join_flights_and_replay_opaque_tokens_across_sign_ins_and_re
                 | Request::RolesRefused { .. }
                 | Request::Act { .. }
                 | Request::Acted { .. }
+                | Request::NeedArrived { .. }
                 | Request::RestoreRefused { .. } => false,
             })
             .count(),
@@ -1670,7 +1679,7 @@ fn capacity_facts_keep_actual_times_replay_and_diagnostics_independent() {
     let mut test = Test::new(Limits { requests: 1, room_refusals: 1, facts: 0, ..LIMITS });
     test.member();
     let request = route(&test.request(10, 1, ask(1)));
-    assert!(test.request(10, 1, ask(1)).is_empty());
+    assert_eq!(test.request(10, 1, ask(1)).len(), 0);
     test.env.wall = Wall::from_nanos(7);
     assert_eq!(reply(&test.request(10, 1, ask(1))), Reply::Again(Again::Busy));
     let first = test.d.capacity_refusals();
@@ -1852,7 +1861,7 @@ fn a_proposal_makers_kind_is_kept_in_its_key_and_restored_answer() {
             Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
             saved,
         ] {
-            assert!(test.send(Event::Restore { record }).is_empty());
+            assert_eq!(test.send(Event::Restore { record }).len(), 0);
         }
         assert!(test.complete());
         assert_eq!(reply(&test.request(10, 1, ask)), Reply::Outcome(outcome.clone()));
@@ -1893,7 +1902,7 @@ fn a_stored_account_sign_in_answer_keeps_its_address() {
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
         saved,
     ] {
-        assert!(test.send(Event::Restore { record }).is_empty());
+        assert_eq!(test.send(Event::Restore { record }).len(), 0);
     }
     assert!(test.complete());
     assert!(test.d.ready());
@@ -1977,7 +1986,7 @@ fn a_restored_kept_llm_key_answer_replays_source_zero() {
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
         saved,
     ] {
-        assert!(test.send(Event::Restore { record }).is_empty());
+        assert_eq!(test.send(Event::Restore { record }).len(), 0);
     }
     assert!(test.complete());
     assert!(test.d.ready());
@@ -2003,7 +2012,7 @@ fn a_restored_program_declaration_replays_its_name() {
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
         saved,
     ] {
-        assert!(test.send(Event::Restore { record }).is_empty());
+        assert_eq!(test.send(Event::Restore { record }).len(), 0);
     }
     assert!(test.complete());
     assert_eq!(reply(&test.request(10, 7, ask)), Reply::Outcome(outcome));
@@ -2030,7 +2039,7 @@ fn a_restored_program_sign_out_replays_its_original_host_name() {
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
         saved,
     ] {
-        assert!(test.send(Event::Restore { record }).is_empty());
+        assert_eq!(test.send(Event::Restore { record }).len(), 0);
     }
     assert!(test.complete());
     assert_eq!(reply(&test.request(10, 7, ask)), Reply::Outcome(outcome));
@@ -2681,7 +2690,7 @@ fn model_selectors_fold_all_carriers_and_distinguish_omitted_all_and_empty() {
             .push(Operation::Amend { task: 9, revision: 8, amendment: Box::new(amendment), release: None })
             .unwrap();
     }
-    assert!(valid_model_context(&Ask::Compound { project: 7, operations }, &[Box::from([b'a']), Box::from([b'b'])]));
+    assert!(valid_model_context(&Ask::Compound { project: 7, operations }, &[Box::from(*b"a"), Box::from(*b"b")]));
     for (ask, _) in ask_classes() {
         assert!(!models::has_model_selector(&ask), "{ask:?}");
         assert!(valid_model_context(&ask, &[]), "{ask:?}");

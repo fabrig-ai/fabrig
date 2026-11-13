@@ -474,10 +474,12 @@ fn latest_steps(tier: &Tier) -> Vec<Step> {
     steps
 }
 
-fn reading_chat(address: &[u8], last: &[u8]) -> Vec<Step> {
+fn reading_chat(address: &[u8], last: &[u8], second_last: &[u8]) -> Vec<Step> {
     vec![
         Step::Person(PersonStep::Go { address: temper_client_browser_world::page_address(address) }),
         see(paragraph(last)),
+        // Opening holds only a weight; the second-last message comes by the log's near read.
+        see(paragraph(second_last)),
         gone(Find::exactly_named(Role::Status, b"Loading earlier messages")),
         gone(Find::exactly_named(Role::Button, b"Older")),
         gone(Find::exactly_named(Role::Button, b"Latest")),
@@ -485,7 +487,11 @@ fn reading_chat(address: &[u8], last: &[u8]) -> Vec<Step> {
 }
 
 fn unanchored_steps(tier: &Tier) -> Vec<Step> {
-    let mut steps = reading_chat(b"/chats/2", &reading::position_words(reading::POSITION_MESSAGES));
+    let mut steps = reading_chat(
+        b"/chats/2",
+        &reading::position_words(reading::POSITION_MESSAGES),
+        &reading::position_words(reading::POSITION_MESSAGES - 1),
+    );
     steps.extend([
         keep_box(Find::named(Role::Log, b"Conversation"), "unanchored/log-default"),
         reading::anchoring_off(),
@@ -504,7 +510,7 @@ fn unanchored_steps(tier: &Tier) -> Vec<Step> {
 fn long_steps(tier: &Tier) -> Vec<Step> {
     let messages = reading::LONG_MESSAGES;
     let composer = || Find::exactly_named(Role::TextArea, b"Message");
-    let mut steps = reading_chat(b"/chats/3", &reading::long_words(messages));
+    let mut steps = reading_chat(b"/chats/3", &reading::long_words(messages), &reading::long_words(messages - 1));
     steps.extend(reading_back_steps(
         tier,
         "long",

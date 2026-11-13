@@ -500,7 +500,7 @@ fn saved_outside_choice(choice: Option<Box<[Box<[u8]>]>>) -> llm::NotRun {
     let endpoints = smith_protocol_translate::Endpoints::new(endpoints);
     let turn = record::Turn {
         endpoint: Some(session::Endpoint(1)),
-        ..smith_domain::session::fixture::turn(
+        ..smith_domain_session_fixtures::turn(
             b"model".as_slice().into(),
             record::Kind::First(Box::new(record::Opener {
                 system: None,

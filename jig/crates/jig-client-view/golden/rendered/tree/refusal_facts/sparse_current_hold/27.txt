@@ -1,7 +1,5 @@
 == jig == 
 The hold or its reason changed
 Current revision 23
-Held: the procedure needs a decision
-Connector 2
-Task panel
-Task 123
+Held: out of tries
+Infrastructure failure

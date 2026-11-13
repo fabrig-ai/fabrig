@@ -170,6 +170,8 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         (FORGE_CHARTER, b"23".as_slice(), c::Setting::Application { kind: 3, scope: 0, number: 1 }),
         (CHARTER_WORDS, LINE, c::Setting::Application { kind: 9, scope: 0, number: 4 }),
         (PROJECT_WORDS, WORDS, c::Setting::Application { kind: 10, scope: 7, number: 1 }),
+        (br#"{"kind":"project-areas","project":3}"#, br#"{"areas":[{"name":"tests","words":"vsr's C tests","owner":{"role":0}}]}"#, c::Setting::Application { kind: 14, scope: 3, number: 1 }),
+        (br#"{"kind":"project-triager","project":3}"#, br#"{"owner":{"charter":14}}"#, c::Setting::Application { kind: 15, scope: 3, number: 1 }),
         (TEMPLATE_GOAL, GOAL, c::Setting::Application { kind: 11, scope: 0, number: 4 }),
     ] {
         let items = file::decode(&kind_file(setting, json), &Limits::standard()).expect("temper kind file");
@@ -177,6 +179,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(item.setting, expected);
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting: item.setting,
             revision: 1,
             value: Some(set.value.clone()),
@@ -206,6 +209,7 @@ fn landing_sets_default_empty_and_round_trip_in_number_order_given() {
         let rule = w::LandingRule::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("rule record");
         assert_eq!(rule.sets().as_slice(), expected);
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting: item.setting,
             revision: 1,
             value: Some(set.value.clone()),
@@ -760,6 +764,7 @@ fn the_settings_form_round_trips_a_model() {
     assert_eq!(model.model.input_price, 3);
     assert!(!model.picker);
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
         setting: item.setting,
         revision: 2,
         value: Some(set.value.clone()),
@@ -883,8 +888,9 @@ fn follows_use_the_binding_json_form_and_default_optional_members() {
         assert_eq!(record.source().paths().is_empty(), optional);
         assert_eq!(record.source().branch().is_empty(), optional);
         assert_eq!(record.producer().is_none(), optional);
-        assert!(record.target().branch().is_empty());
+        assert_eq!((record.target().branch()).len(), 0);
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+            overlay: None,
             setting: item.setting,
             revision: 1,
             value: Some(set.value.clone()),
@@ -921,6 +927,7 @@ fn dependencies_round_trip_and_require_a_numeric_project() {
     assert_eq!(item.setting, c::Setting::Application { kind: 13, scope: 3, number: 1 });
     let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
+        overlay: None,
         setting: item.setting,
         revision: 1,
         value: Some(set.value.clone()),

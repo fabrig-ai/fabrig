@@ -516,7 +516,7 @@ fn a_writer_that_refuses_fails_no_fetch() {
     // A full slice accepts no byte and write_all returns WriteZero.
     let mut out = &mut [][..];
     fetch_to_writer("fetch-progress-refusing", false, &mut out);
-    assert!(out.is_empty());
+    assert_eq!(out.len(), 0);
 }
 
 #[test]
@@ -565,10 +565,10 @@ fn claude_fetches_once_and_refuses_a_wrong_digest_or_existing_size() {
             fs::remove_file(file.with_extension("lock")).unwrap();
             fs::create_dir(file.with_extension("lock")).unwrap();
             temper_fetch_shell::fetch::claude_code(&support::io(), &trust, &file, pin, 3, &mut out).unwrap();
-            assert!(out.is_empty());
+            assert_eq!(out.len(), 0);
         } else if let Some(initial) = initial {
             assert_eq!(fs::read(&file).unwrap(), initial);
-            assert!(out.is_empty());
+            assert_eq!(out.len(), 0);
         } else {
             assert!(!file.exists());
         }

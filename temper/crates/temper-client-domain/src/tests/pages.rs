@@ -18,6 +18,7 @@ mod composer;
 mod connect_model;
 mod delegation;
 mod delete_project;
+mod findings;
 mod goal;
 mod goals;
 mod home;

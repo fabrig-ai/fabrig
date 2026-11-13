@@ -9,7 +9,7 @@ use skein_lib::{Env, Id, Queue, Writer};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(super) struct Delivery {
-    repository: u32,
+    pub(super) repository: u32,
     attempt: u8,
     tip: Option<Commit>,
 }
@@ -91,6 +91,7 @@ pub(super) fn pushed(
             }
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -105,7 +106,7 @@ pub(super) fn pushed(
             let landing = super::failed_landing(failure);
             return super::complete_push(holding, id, push, repository, landing, asked, env, out);
         }
-        Done::Conflicted { files } => {
+        Done::Conflicted { files, .. } => {
             return super::complete_push(
                 holding,
                 id,
@@ -119,6 +120,7 @@ pub(super) fn pushed(
         }
         other @ (Done::Paths { .. }
         | Done::Looked { .. }
+        | Done::Brings { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
         | Done::Succeeded
@@ -139,6 +141,7 @@ pub(super) fn pushed(
             }
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -163,6 +166,7 @@ pub(super) fn pushed(
             }
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -193,12 +197,14 @@ pub(super) fn pushed(
             | Done::Exists
             | Done::Rejected
             | Done::Failed { .. }
+            | Done::Brings { .. }
             | Done::FailedWithOutput { .. } => unreachable!("an ancestry query has its own terminals"),
         },
         Step::Merge => match done {
             Done::Merged => Step::Commit,
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Conflicted { .. }
             | Done::Succeeded
@@ -215,6 +221,7 @@ pub(super) fn pushed(
             Done::Succeeded => Step::Paths,
             Done::Paths { .. }
             | Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -249,6 +256,7 @@ pub(super) fn pushed(
                 Step::Push
             }
             Done::Looked { .. }
+            | Done::Brings { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
             | Done::Conflicted { .. }
@@ -282,7 +290,7 @@ fn run(
     let head = super::tips(holding, delivery.repository).head;
     let op = match step {
         Step::Fetch => Op::Fetch {
-            store: super::borrowed(holding, delivery.repository).store.token(),
+            store: super::borrowed(holding, delivery.repository).token,
             at,
             remote: spec.remote.clone(),
             want: Want::Branch { branch: super::branch_of(spec, &push.to) },
@@ -291,7 +299,9 @@ fn run(
             account: spec.account,
         },
         Step::Compare => Op::IsAncestor { at, ancestor: delivery.tip.expect("fetched tip"), commit: head },
-        Step::Merge => Op::Merge { at, theirs: delivery.tip.expect("fetched tip") },
+        Step::Merge => {
+            Op::Merge { at, theirs: delivery.tip.expect("fetched tip"), identity: spec.identity, account: spec.account }
+        }
         Step::Commit => {
             let branch = spec.push.as_deref().expect("a design repository is writable");
             let mut title = Writer::new(b"Merge ".len().checked_add(branch.len()).expect("bounded branch"));
@@ -308,7 +318,9 @@ fn run(
                 identity: spec.identity,
             }
         }
-        Step::CheckOut => Op::CheckOut { at, commit: head, clean: true },
+        Step::CheckOut => {
+            Op::CheckOut { at, commit: head, clean: true, identity: spec.identity, account: spec.account }
+        }
         Step::Paths => Op::DiffPaths { at, before: delivery.tip.expect("fetched tip"), after: head },
         Step::Push => Op::Push {
             at,

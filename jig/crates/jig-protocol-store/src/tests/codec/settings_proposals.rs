@@ -1,6 +1,6 @@
 //! The current families change in place, with settings heads kept after decisions.
 use super::{ask_round_trip, core_round_trip, fixtures, people_round_trip, saved_tasks};
-use jig_domain_core as c;
+use jig_domain_core_vocabulary as c;
 use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::Wall;
@@ -233,7 +233,7 @@ fn a_restore_reason_and_left_out_one_past_their_bounds_are_refused() {
     let mut domain = fixtures::CORE_LIMITS;
     domain.people.words = 7;
     let limits = crate::codec::people::limits(&domain).unwrap();
-    let wider = crate::people_v15::Limits {
+    let wider = crate::people_v16::Limits {
         ask_restore_reason: limits.ask_restore_reason + 1,
         outcome_restored_left_out: limits.outcome_restored_left_out + 1,
         ..limits

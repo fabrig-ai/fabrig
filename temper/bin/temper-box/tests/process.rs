@@ -1,17 +1,20 @@
 //! The shipped binary, on a scratch deployment, drained on a signal.
+#[path = "suite/box_binary.rs"]
+mod box_binary;
 #[path = "suite/box_kinds.rs"]
 mod box_kinds;
 #[path = "suite/box_lifetime.rs"]
 mod box_lifetime;
-#[path = "fake_backends/box_link.rs"]
-mod box_link;
+use temper_box_kit::box_link;
 #[path = "suite/client_binary.rs"]
 mod client_binary;
 #[path = "fake_backends/mod.rs"]
 mod fake_backends;
 #[path = "suite/startover.rs"]
 mod startover;
-pub mod support;
+use temper_box_kit as support;
+#[path = "suite/tui_box.rs"]
+mod tui_box;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::Duration;
 use support::forge_land::{
@@ -166,7 +169,7 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     let began = clock.now().now;
     let scratch = support::Scratch::new(case);
     let barrier = support::forgejo::JobBarrier::new(scratch.path());
-    let forge = turn_restart::start(&scratch, &barrier);
+    let forge = turn_restart::start(&scratch);
     let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
     support::configuration(scratch.path(), &forge.forge());
@@ -982,8 +985,8 @@ impl skein_world::Referee<support::cluster::Root> for OwnedWorkerJudge {
                         serde_json::from_str(include_str!("../../../docs/examples/owned.json")).expect("owned example");
                     engine["engine"]["limits"] = example["engine"]["limits"].clone();
                     engine["application"]["limits"] = example["application"]["limits"].clone();
-                    // The example's 17 s worker stop bound must fit the engine's grace.
-                    engine["engine"]["limits"]["overrides"]["fleet.grace_ms"] = 30_000.into();
+                    // The example's 186 s worker stop bound must fit the engine's 240 s grace.
+                    engine["engine"]["limits"]["overrides"]["fleet.grace_ms"] = 240_000.into();
                     support::write_private(&path, &serde_json::to_vec(&engine).expect("engine JSON"));
                     self.members.up(&["engine"]);
                     self.phase = OwnedWorkerPhase::Worker;
@@ -2419,7 +2422,7 @@ fn account_transfer_restart(case: &str) {
                 1,
                 &scratch.path().join("exported-login"),
             );
-            assert!(!moving["accounts"]["party"].as_array().expect("moving account").is_empty());
+            assert_ne!((moving["accounts"]["party"].as_array().expect("moving account")).len(), 0);
         },
         support::forge_land::fake_face(support::sign_in::restart_issued_issuer(&paths[0]), no_model_scripts()),
     );

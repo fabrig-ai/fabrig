@@ -12,9 +12,11 @@ mod ci_brief;
 mod closer;
 mod completed_reads;
 mod connect;
+mod devices;
 mod dismissed;
 mod drafts;
 mod early;
+mod findings;
 pub(crate) mod fixtures;
 mod flight;
 mod follow_check;
@@ -120,6 +122,7 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
     follows: 2,
@@ -224,6 +227,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         5,
         temper_engine_domain_forge_change::Way::Turn,
         Box::new([]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
@@ -237,10 +241,13 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         Event::Landing {
             row: LandingRow {
                 landing: policy::Landing {
+                    round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
                     task: 61,
                     project: 5,
                     phase: policy::Phase::Turn { at: env().wall },
                     members: Box::new([policy::Member {
+                        left: None,
                         change: fixtures::CHANGE,
                         repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
                         pull: 1,
@@ -253,6 +260,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                     }]),
                     preparation: 0,
                     stale_proofs: 0,
+                    branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None]),
                 entries: Box::new([]),
@@ -264,7 +272,14 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         Event::StepLanding {
             task: 61,
             entry: 91,
-            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            heard: LandingHeard {
+                held: Box::new([]),
+                failure: Box::new([]),
+                preparation: temper_engine_domain_forge_landing::Preparation::Idle,
+                released: false,
+                cancelled: false,
+                kept: Box::new([]),
+            },
         },
     );
     assert_eq!(d.steps.len(), 1, "the change's first read is pending");
@@ -285,11 +300,12 @@ fn restoring_domain(started: Wall) -> Domain {
 pub(crate) fn domain() -> Domain {
     domain_with_limits(&LIMITS)
 }
-fn domain_with_limits(limits: &Limits) -> Domain {
+pub(crate) fn domain_with_limits(limits: &Limits) -> Domain {
     Domain::new(
         limits,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -514,6 +530,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::ResourceRefused { .. }
+        | Request::HeadRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
@@ -535,6 +552,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionFailed { .. }
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
+        | Request::LandingNews { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -572,6 +590,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::FileRedFinding { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -610,6 +629,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::ResourceRefused { .. }
+        | Request::HeadRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
@@ -631,6 +651,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionFailed { .. }
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
+        | Request::LandingNews { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -668,6 +689,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::FileRedFinding { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -699,6 +721,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Taken { .. }
         | Request::Refused { .. }
         | Request::ResourceRefused { .. }
+        | Request::HeadRefused { .. }
         | Request::LostReadFailed { .. }
         | Request::MakeFailed { .. }
         | Request::Outcome { .. }
@@ -720,6 +743,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionFailed { .. }
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
+        | Request::LandingNews { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -757,6 +781,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::CancelFollow { .. }
         | Request::TierRun { .. }
         | Request::TierDecision { .. }
+        | Request::FileRedFinding { .. }
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
@@ -836,7 +861,8 @@ fn ci_reads_retry_and_a_forge_answer_refreshes_only_its_subscriptions() {
     let mut d = Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: b"test".as_slice().into(),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -1978,7 +2004,7 @@ fn routing_domain() -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
+        Config { push: None, namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
         &[GitIdentity { forge: 1, credential: 1 }],
         &configured(),
         false,
@@ -2177,7 +2203,8 @@ fn setup_domain(forges: &[Configured], under_box: bool) -> Domain {
     Domain::new(
         &LIMITS,
         4,
-        skein_forge_client::Config {
+        Config {
+            push: None,
             namespace: Box::from(b"test".as_slice()),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
@@ -2196,7 +2223,7 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
         let result = Domain::new(
             &LIMITS,
             4,
-            skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+            Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) },
             &[],
             &[forge],
             false,
@@ -2361,8 +2388,8 @@ fn closing_the_box_fails_setup_and_marks_every_offer_unavailable() {
 }
 #[test]
 fn configured_forges_are_bounded_at_construction() {
-    fn config() -> skein_forge_client::Config {
-        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) }
+    fn config() -> Config {
+        Config { push: None, namespace: b"test".as_slice().into(), writers: Box::new([]) }
     }
     let count = usize::try_from(LIMITS.forges).unwrap();
     let mut forges = skein_lib::List::with_capacity(LIMITS.forges.checked_add(1).unwrap());
@@ -3090,7 +3117,8 @@ fn workspace_landing_is_for_every_writable_producer_start() {
                     .expect("item");
                 let eligible = kind == change::Delegate::Produce && writable;
                 assert_eq!(item.landing.as_deref(), if eligible { Some(base.as_ref()) } else { None });
-                let start = match &item.start {
+                let start: &[u8] = match &item.start {
+                    items::Start::Commit(_) => b"",
                     items::Start::Base(b)
                     | items::Start::Branch(b)
                     | items::Start::Saved(b)
@@ -3107,7 +3135,8 @@ fn workspace_landing_is_for_every_writable_producer_start() {
                 };
                 let heads = match &item.start {
                     items::Start::Merged { heads, .. } => heads.len() * size_of::<skein_forge::api::Commit>(),
-                    items::Start::Base(_)
+                    items::Start::Commit(_)
+                    | items::Start::Base(_)
                     | items::Start::Branch(_)
                     | items::Start::Saved(_)
                     | items::Start::Merge { .. } => 0,
@@ -3229,6 +3258,7 @@ fn turn_refuses_github_but_queue_remains_available() {
                     repository: skein_forge::api::Repository { forge, repository: 2 },
                     gates: Box::new([])
                 }]),
+                temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
@@ -3260,6 +3290,7 @@ fn repository_gate_and_ignored_path_counts_hold_at_their_bounds() {
                     workflow: Box::from(b"gate.yml".as_slice()),
                     ignored: ignored.into_boxed(),
                     blocking: true,
+                    base: false,
                 })
                 .expect("test gates");
         }
@@ -3268,6 +3299,7 @@ fn repository_gate_and_ignored_path_counts_hold_at_their_bounds() {
                 5,
                 Way::Turn,
                 Box::new([RepositoryGates { tiers: Box::new([]), repository: REPO, gates: gates.into_boxed() }]),
+                temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,

@@ -1,0 +1,8 @@
+finding drop FINDING REASON --key KEY
+  FINDING (finding): P/N: a project name or number, then a finding number; required. P/N: the project's name or number and its finding number
+  REASON (reason): text, at most 1048576 bytes, or - to read stdin; required. Why, 1 to 400 bytes
+Drop a finding and keep the reason
+Prints: dropped: P/N
+--json: the record finding_dropped.
+Key: --key KEY, required.
+Only its holder or a project owner may triage. Its issue, if any, closes with the reason.

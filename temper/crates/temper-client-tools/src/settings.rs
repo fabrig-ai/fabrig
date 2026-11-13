@@ -88,6 +88,8 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
         },
         9 => w::CharterWords::decode(&w::CEILINGS, &mut reader).is_ok(),
         10 => w::ProjectWords::decode(&w::CEILINGS, &mut reader).is_ok(),
+        14 => w::ProjectAreas::decode(&w::CEILINGS, &mut reader).is_ok(),
+        15 => w::ProjectTriager::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
     };
     decoded && reader.is_empty()
@@ -186,6 +188,8 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
                 1 => 6,
                 2 => 8,
                 3 => 10,
+                4 => 14,
+                5 => 15,
                 _ => unreachable!("project setting kind"),
             },
             scope: *project,
@@ -275,8 +279,8 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"project-ways|project-questions|project-classes|project-words",
-                Kind::Word { set: &[b"project-ways", b"project-questions", b"project-classes", b"project-words"] },
+                b"project-ways|project-questions|project-classes|project-words|project-areas|project-triager",
+                Kind::Word { set: &[b"project-ways", b"project-questions", b"project-classes", b"project-words", b"project-areas", b"project-triager"] },
                 Required,
                 b"A project's ways, questions, classes or words",
             ),
@@ -354,9 +358,15 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
         8 => b"project-classes ",
         9 => b"charter-words ",
         10 => b"project-words ",
+        14 => b"project-areas ",
+        15 => b"project-triager ",
         _ => b"landing-rule ",
     });
-    out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 { scope } else { number }));
+    out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 || kind == 14 || kind == 15 {
+        scope
+    } else {
+        number
+    }));
     if kind == 2 || kind == 12 || kind == 13 {
         out.put(b" --project ");
         out.number(u64::from(scope));

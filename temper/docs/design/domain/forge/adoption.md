@@ -73,6 +73,13 @@
 - **One deployment's prefix.** Adoption refuses a repository where
   branches under temper's prefix exist that the store records no making
   of: they are another deployment's (jig's `domain/connectors.md`, 12).
+  A repository this deployment adopts already, as owned, adopted or a
+  fork, is not checked again: its prefix has been this deployment's
+  since that adoption, and the heads that recorded its branches' making
+  are freed once no live work needs them (`keeping-up.md`, 1, *The
+  branch heads*). One whose row went (its project deleted, its forge
+  removed) is checked anew, and branches its earlier work left under
+  the prefix refuse it until they are deleted.
   A prefix whose branches' names would pass the authority's segments
   (`authority.segments`, counting forge, host, owner, repository and
   `branch` before the branch's own parts) is refused as too large.

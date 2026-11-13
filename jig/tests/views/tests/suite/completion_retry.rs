@@ -12,8 +12,8 @@ fn open(world: &mut World, watcher: u64) -> Vec<Request> {
 #[test]
 fn an_empty_retry_replaces_unwatched_text_at_the_world_stream_boundary() {
     let mut world = World::default();
-    assert!(world.text(7, name(0), b"old prefix", None).is_empty());
-    assert!(world.text(7, name(1), b"", None).is_empty());
+    assert_eq!(world.text(7, name(0), b"old prefix", None).len(), 0);
+    assert_eq!(world.text(7, name(1), b"", None).len(), 0);
     let opened = open(&mut world, 1);
     assert!(opened.iter().any(|request| matches!(request, Request::Stream {
                 writing: None,
@@ -37,7 +37,7 @@ fn a_worlds_sole_watcher_reopens_from_an_unwatched_retry_without_a_replay_source
         world.step(Event::EndWatch { watcher: Token::new(1), end: End::Unwatched }),
         vec![Request::Ended { watcher: Token::new(1), end: End::Unwatched }]
     );
-    assert!(world.text(7, name(1), b"retained", None).is_empty());
+    assert_eq!(world.text(7, name(1), b"retained", None).len(), 0);
     let reopened = open(&mut world, 2);
     assert!(reopened.iter().any(|request| matches!(request, Request::Stream {
                 writing: None,

@@ -1,6 +1,6 @@
 //! Method and route dispatch (protocol/client/wire.md, section 2).
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Route {
     ApprovalAsk,
@@ -85,14 +85,14 @@ pub(crate) fn busy() -> Box<[u8]> {
     out.finish()
 }
 
-pub(crate) fn read_none(why: jig_domain_core::reads::Why, limits: &w::Limits) -> Box<[u8]> {
+pub(crate) fn read_none(why: jig_domain_core_vocabulary::reads::Why, limits: &w::Limits) -> Box<[u8]> {
     let answer = crate::translate::reads::none(why, limits);
     let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut out).expect("measured read refusal");
     out.finish()
 }
 
-pub(crate) fn open_answer(why: Option<jig_domain_core::WatchRefusal>, limits: &w::Limits) -> Box<[u8]> {
+pub(crate) fn open_answer(why: Option<jig_domain_core_vocabulary::WatchRefusal>, limits: &w::Limits) -> Box<[u8]> {
     let answer = match why {
         Some(why) => w::OpenAnswer::Refused(
             w::OpenAnswerRefused::new(
@@ -115,8 +115,8 @@ pub(crate) fn close_answer(signed_out: bool) -> Box<[u8]> {
 }
 pub(crate) fn unauthenticated(route: Route, limits: &w::Limits) -> Box<[u8]> {
     match route {
-        Route::Read => read_none(jig_domain_core::reads::Why::SignedOut, limits),
-        Route::Watch => open_answer(Some(jig_domain_core::WatchRefusal::SignedOut), limits),
+        Route::Read => read_none(jig_domain_core_vocabulary::reads::Why::SignedOut, limits),
+        Route::Watch => open_answer(Some(jig_domain_core_vocabulary::WatchRefusal::SignedOut), limits),
         Route::Unwatch => close_answer(true),
         Route::ApprovalAsk => approval_ask_answer(w::ApprovalAskAnswer::Refused),
         Route::ApprovalRead => approval_state(w::ApprovalState::SignedOut),

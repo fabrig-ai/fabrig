@@ -2,7 +2,7 @@
 use super::fixtures::{self, ALICE, ENDED};
 use crate::{Cursor, Family, KeptMap, Phase, Restore, Row, Store, codec, keys, restore};
 use alloc::collections::BTreeMap;
-use jig_domain_core::{Census, Key, ReadResults, Record, RestoreRange};
+use jig_domain_core_vocabulary::{Census, Key, ReadResults, Record, RestoreRange};
 use restore::{Cause, DecodeFailure, Item, JoinFailure, RangeFailure, WalkFailure};
 use skein_lib::{List, Token, length::len_u64};
 

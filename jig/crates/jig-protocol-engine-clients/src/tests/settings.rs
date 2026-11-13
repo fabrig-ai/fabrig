@@ -1,7 +1,7 @@
 use super::fixtures as f;
 use crate::translate::settings as translate;
-use jig_client_protocol_wire::v19 as w;
-use jig_domain_core::{documents as d, reads, settings as s};
+use jig_client_protocol_wire::v20 as w;
+use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use skein_lib::{List, Reader, Wall};
 
 fn head() -> s::Head {
@@ -85,7 +85,7 @@ fn inventory_reads_and_watch_deliveries_carry_the_same_facts() {
 #[test]
 fn settings_watch_subject_enters_the_core() {
     let event = crate::translate::watches::watch(skein_lib::Token::new(1), 2, w::Subject::Settings, 3).unwrap();
-    let jig_domain_core::Event::Watch { subject, .. } = event else { panic!("watch") };
+    let jig_domain_core_vocabulary::Event::Watch { subject, .. } = event else { panic!("watch") };
     assert_eq!(subject, d::Watched::Settings);
 }
 #[test]
@@ -153,16 +153,16 @@ fn authority() -> jig_domain_authority::Authority {
         note_resources: Box::new([]),
     }
 }
-fn charter() -> jig_domain_core::Charter {
-    use jig_domain_core as core;
+fn charter() -> jig_domain_core_vocabulary::Charter {
+    use jig_domain_core_vocabulary as core;
     use skein_lib::Duration;
     core::Charter {
         parts: Box::new([
-            jig_domain_core::CharterPart {
+            jig_domain_core_vocabulary::CharterPart {
                 on: jig_domain_tasks::Reasons::FIRST,
                 instructions: b"first part".as_slice().into(),
             },
-            jig_domain_core::CharterPart {
+            jig_domain_core_vocabulary::CharterPart {
                 on: jig_domain_tasks::Reasons::QUESTION.union(jig_domain_tasks::Reasons::NEWS),
                 instructions: b"later part".as_slice().into(),
             },
@@ -242,7 +242,7 @@ fn values() -> [s::Value; 4] {
             });
             template
         })),
-        s::Value::Policy(Box::new(jig_domain_core::ConfiguredPolicy {
+        s::Value::Policy(Box::new(jig_domain_core_vocabulary::ConfiguredPolicy {
             policy: a::Policy {
                 escalation_role: Some(1),
                 ceiling: authority(),
@@ -281,6 +281,7 @@ fn whole_setting_kinds_reach_the_clients_as_their_values() {
     let names = [s::Setting::Charter(1), s::Setting::Template(1), s::Setting::Policy(1), s::Setting::Rules];
     for (name, value) in names.into_iter().zip(values()) {
         let document = reads::SettingDocument {
+            overlay: None,
             setting: name,
             revision: 6,
             value: Some(value),
@@ -399,6 +400,7 @@ fn review_values_hold_at_the_document_bound_and_give_the_size_one_past_it() {
     limits.owned_record = w::CEILINGS.owned_record;
     for value in values() {
         let setting = match &value {
+            s::Value::Overlay(_) => s::Setting::Charter(1),
             s::Value::Charter(value) => s::Setting::Charter(value.number),
             s::Value::Template(value) => s::Setting::Template(value.number),
             s::Value::Policy(_) => s::Setting::Policy(1),
@@ -580,6 +582,7 @@ fn application_documents_reads_revisions_and_reviews_carry_metadata_only() {
     let setting = s::Setting::Application { kind: 7, scope: 0, number: 2 };
     let state = State { follows: Follows::Removed { revision: 6 }, size: 0, charters: Box::new([]) };
     let read = reads::SettingDocument {
+        overlay: None,
         setting,
         revision: 6,
         value: None,
@@ -742,4 +745,39 @@ fn client_reason_names_follow_the_cores_bit_order() {
     for (client, core) in jig_client_domain::REASON_NAMES.into_iter().zip(jig_domain_tasks::REASON_NAMES) {
         assert_eq!(client.as_bytes(), core);
     }
+}
+
+#[test]
+fn overlays_cross_engine_changes_and_setting_reads_without_losing_presence() {
+    use jig_client_domain::contract as c;
+    use jig_client_protocol_link::translate::settings as client;
+    let source = jig_client_test_records::settings::overlay();
+    let mut items = List::with_capacity(1);
+    items
+        .push(c::SettingItem {
+            setting: c::Setting::Charter(c::SettingNumber { number: 2 }),
+            edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Overlay(Box::new(source.clone())) }),
+        })
+        .unwrap();
+    let request = c::ChangeSettings { against: 1, items, running: c::Running::Stays };
+    let wire = client::wire_change_settings(&request, &w::CEILINGS).unwrap();
+    let change = translate::change(wire, &f::models(), &w::CEILINGS).unwrap();
+    let s::Edit::Set(value) = &change.items[0].edit else { panic!("overlay set") };
+    let returned = translate::value(value, &f::models(), &w::CEILINGS).unwrap();
+    assert_eq!(
+        client::restore_setting_value(&returned, &f::client_limits()).unwrap(),
+        c::SettingValue::Overlay(Box::new(source.clone()))
+    );
+    let s::Value::Overlay(overlay) = value else { panic!("overlay preserved") };
+    let document = reads::SettingDocument {
+        overlay: Some(overlay.clone()),
+        setting: s::Setting::Charter(2),
+        revision: 2,
+        value: Some(s::Value::Charter(Box::new(charter()))),
+        application: None,
+        proposed: None,
+    };
+    let wire = translate::setting_document(&document, &f::models(), &w::CEILINGS).unwrap();
+    let restored = client::restore_setting_document(&wire, &f::client_limits()).unwrap();
+    assert_eq!(restored.overlay.as_deref(), Some(&source));
 }

@@ -149,7 +149,7 @@ fn a_procedure_goal_proposal_restores_and_accepts_the_original_executor() {
     );
     assert_eq!(row.batch().first().expect("proposed member").tracked, Some(7));
     assert_eq!(row.batch().first().expect("proposed member").authority.tools, tasks::Tools(0));
-    assert!(world.procedure_inputs.is_empty());
+    assert_eq!(world.procedure_inputs.len(), 0);
     world.restart_with(jig_core_world::stories::offers::world_configuration(216));
     assert_eq!(
         world.store.rows.get(&key),

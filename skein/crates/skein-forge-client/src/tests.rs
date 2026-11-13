@@ -944,7 +944,7 @@ fn a_job_answers_step_name_counts_against_answer_bytes() {
         let sent = h.one();
         let answer = Answer::Job {
             attempt,
-            step: Some(api::Step { number: 1, name: Box::new([b'x']) }),
+            step: Some(api::Step { number: 1, name: Box::new(*b"x") }),
             log: Box::from(&[b'x'; 4096][..length]),
             truncated: false,
         };
@@ -962,6 +962,7 @@ fn a_job_answers_step_name_counts_against_answer_bytes() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn invalid_forge_limits_fail_validation_and_construction() {
     skein_rows::check(
         [

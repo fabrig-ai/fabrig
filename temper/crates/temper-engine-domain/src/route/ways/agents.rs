@@ -86,7 +86,14 @@ fn allowed_models(domain: &Domain, project: u32, party: u64) -> jig_domain_tasks
 fn row(domain: &Domain, number: u32) -> Option<&CatalogueModel> {
     match domain.core.current.value(Setting::Model(number)) {
         Some(Value::Model(model)) => Some(model),
-        Some(Value::Charter(_) | Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Application(_))
+        Some(
+            Value::Overlay(_)
+            | Value::Charter(_)
+            | Value::Template(_)
+            | Value::Policy(_)
+            | Value::Rules(_)
+            | Value::Application(_),
+        )
         | None => None,
     }
 }

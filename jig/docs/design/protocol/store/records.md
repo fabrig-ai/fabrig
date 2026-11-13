@@ -2,7 +2,7 @@
 
 The families' current versions are the component's 3, the core's 6,
 the tasks' 10, the people's 15, the notes' 1, the accounts' 2, the
-settings' 2 and the secrets' 1. The tasks family's durable
+settings' 3 and the secrets' 1. The tasks family's durable
 `MessageKind` holds `FinishRequested { revision }` for a cancel grace
 and `NothingAwaited` for a result-ended task with nothing pending
 (`../../domain/tasks/lifecycle.md`, 2), and it stores the successful `NoChange`
@@ -28,9 +28,9 @@ delegation's kinds (`../../domain/authority.md`, section 3). The accounts family
 family refuses to open under the format check (3).
 
 A `model` setting's value holds no index, so **at open** the store reads the
-settings family's `model` changes by key range, before any family's
-restore, and takes its names as the given defaults' overlaid with them, so
-that a stored vocabulary's model a person added isn't read as gone; and it
+settings family's `model` changes by key range, after pending patches
+and before any family's restore, and takes its names as the given defaults'
+overlaid with them, so that a stored vocabulary's model a person added isn't read as gone; and it
 takes each later catalogue from the root, before the commit that makes it
 (`../../domain/engine/settings.md`, 11).
 
@@ -404,6 +404,14 @@ settings (decided 2026-11-03).
   > client signs in again.
 
 ## 4. Sizes
+
+`jig_protocol_store::sizes::settings_value(domain) -> Option<u32>`
+returns the settings revision's map-value bound: the core's whole revision
+bound, including replaced values, plus 16 framing bytes and the model-name
+table. The table has a four-byte count and up to `tasks::MODELS` names,
+each a length-prefixed model name and a counted list of length-prefixed
+efforts. Applications can derive settings room from their effective
+capacities before checking the map, without copying this arithmetic.
 
 `jig_protocol_store::sizes::frame(domain, transcript_bytes) -> Option<u32>`
 returns the largest complete current TurnRecord frame for an admitted

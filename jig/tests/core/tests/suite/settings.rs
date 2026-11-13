@@ -986,11 +986,11 @@ fn revision_loads_answer_busy_when_the_load_slab_is_full() {
 
 #[test]
 fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     use jig_protocol_engine_clients::translate::settings as wire;
     const SINGLE_READ_BYTES: u64 = 4096;
     const NAME_BYTES: usize = 4096;
-    // v19 SettingValue tag + this fixture's Template: 50 fixed bytes (including
+    // v20 SettingValue tag + this fixture's Template: 50 fixed bytes (including
     // the empty resource list's count) + its 4096-byte name.
     const ENCODED_TEMPLATE_BYTES: u64 = 4146;
     let (config, mut limits) = configuration();
@@ -1078,7 +1078,7 @@ fn a_charter_changed_while_its_goal_runs_keeps_the_run_and_the_goal_on_their_ver
     change_instructions(&mut world, signed);
     assert_eq!(world.assignments, assignments);
     assert_eq!(world.assigned.as_ref().expect("unchanged assignment").run.policy, old_policy);
-    assert!(world.cancellations.is_empty());
+    assert_eq!(world.cancellations.len(), 0);
     world.park_for_message(0);
     let reply =
         ask(&mut world, signed, 103, people::Ask::Say { project: 1, task: goal, words: b"Continue".as_slice().into() });
@@ -1643,7 +1643,7 @@ fn a_restored_run_must_have_a_charter_on_its_held_revision() {
         record(settings::Record::Charter {
             charter: 1,
             revision: 1,
-            value: settings::CharterVersion { charter: None },
+            value: settings::CharterVersion { overlay: None, charter: None },
         }),
     ]));
     let commits = world.store.applied;
@@ -2355,4 +2355,98 @@ fn a_model_setting_survives_a_restart_and_reads_back_whole() {
     };
     let reads::RevisionAnswer::Revision { revision, .. } = *answer else { panic!("retained model revision") };
     assert_eq!(revision.items[0].edit, item.edit);
+}
+
+#[test]
+fn an_overlay_survives_starts_and_new_defaults_preserve_running_versions() {
+    let (mut config, mut limits) = configuration();
+    config.core.defaults.rules.maximum_run_spend = 20;
+    limits.core.settings.history = 64;
+    limits.core.tasks.inbox_bytes += limits.core.tasks.message_bytes;
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
+    world.client_peer = Some(ClientPeer::default());
+    let signed = sign_in(&mut world);
+    let overlay =
+        settings::Overlay { instructions: b"Deployment words".as_slice().into(), ..settings::Overlay::empty() };
+    let value = settings::Value::Overlay(Box::new(overlay.clone()));
+    changed(
+        &change(
+            &mut world,
+            signed,
+            1,
+            1,
+            Box::new([settings::Item {
+                setting: settings::Setting::Charter(1),
+                edit: settings::Edit::Set(value.clone()),
+            }]),
+        ),
+        2,
+    );
+    assert_eq!(revision(&world, 2, false).items[0].edit, settings::Edit::Set(value.clone()));
+    seed_restart_accounts(&mut world);
+    restart(&mut world, held_restart_configuration());
+    assert_eq!(world.domain.settings().newest(), 2);
+    assert_eq!(world.domain.settings().value(settings::Setting::Charter(1)), Some(&value));
+    let signed = sign_in(&mut world);
+    ready_host(&mut world);
+    world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
+    let goal = held_goal(&mut world, signed, 101);
+    let words = b"Answer within the granted authority.\n\nDeployment words";
+    assert_eq!(world.assigned.as_ref().unwrap().run.policy.instructions.as_ref(), words);
+    assert_eq!(fixtures::live_row(&world, goal).settings.run, Some(2));
+    world.park_for_message(0);
+    let mut config = held_restart_configuration();
+    config.core.defaults.charters[0].policy.instructions = b"New default".as_slice().into();
+    restart(&mut world, config);
+    assert_eq!(world.domain.settings().newest(), 3);
+    let release = revision(&world, 3, false);
+    assert_eq!(release.head.by, settings::Decider::Release);
+    assert_eq!(release.items[0].edit, settings::Edit::Set(value.clone()));
+    assert_eq!(release.items[0].replaced, settings::Replaced::Value(value));
+    let signed = sign_in(&mut world);
+    let reads::Answer::Setting(document) = client_read(
+        &mut world,
+        signed,
+        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 2, proposal: None },
+    ) else {
+        panic!("held setting read")
+    };
+    assert_eq!(document.overlay.as_deref(), Some(&overlay));
+    let Some(settings::Value::Charter(charter)) = document.value else { panic!("charter read") };
+    assert_eq!(charter.policy.instructions.as_ref(), words);
+    let reads::Answer::Setting(current) = client_read(
+        &mut world,
+        signed,
+        reads::Read::Setting { setting: settings::Setting::Charter(1), revision: 3, proposal: None },
+    ) else {
+        panic!("current setting read")
+    };
+    assert_eq!(current.overlay.as_deref(), Some(&overlay));
+    let Some(settings::Value::Charter(charter)) = current.value else { panic!("current charter") };
+    assert_eq!(charter.policy.instructions.as_ref(), b"New default\n\nDeployment words");
+    let newest = inventory(&mut world, signed);
+    assert_eq!(
+        newest.settings.iter().find(|line| line.setting == settings::Setting::Charter(1)).unwrap().follows,
+        documents::Follows::Overlay
+    );
+    world.assigned = None;
+    resume_host_after_restart(&mut world);
+    ask(&mut world, signed, 103, people::Ask::Say { project: 1, task: goal, words: b"Continue".as_slice().into() });
+    assert_eq!(world.assigned.as_ref().unwrap().run.policy.instructions.as_ref(), words);
+    assert_eq!(fixtures::live_row(&world, goal).settings.run, Some(2));
+    fixtures::finish_chat(&mut world, 0, b"Done");
+    let fresh = held_goal(&mut world, signed, 104);
+    assert_eq!(world.assigned.as_ref().unwrap().run.policy.instructions.as_ref(), b"New default\n\nDeployment words");
+    assert_eq!(fixtures::live_row(&world, fresh).settings.run, Some(3));
+    let mut config = held_restart_configuration();
+    config.core.defaults.charters[0].policy.instructions = b"New default".as_slice().into();
+    restart(&mut world, config);
+    assert_eq!(world.domain.settings().newest(), 3);
+    // Engine 6 settles the dead in-process claim at the cold restart, as the held-version stories above do.
+    world.broken();
 }

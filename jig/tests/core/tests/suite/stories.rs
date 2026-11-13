@@ -241,7 +241,7 @@ fn a_policy_narrowed_while_a_proposal_waits_keeps_the_committed_entry_and_checks
         Some((_, _, core::CallPart::EffectDenied { answer: authority::Answer::Refuse, .. }))
     ));
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
-    assert!(world.cancellations.is_empty());
+    assert_eq!(world.cancellations.len(), 0);
     assert_eq!(*world.assignments.last().expect("run remains live"), run);
     assert_eq!(world.spent(), 3);
 }
@@ -1121,7 +1121,7 @@ fn a_context_adoption_still_refuses_effects_after_a_cold_restart() {
     assert!(matches!(world.answers.last(), Some((_, _, core::CallPart::EffectDenied {
         answer: authority::Answer::Refuse, findings,
     })) if findings.contains(&authority::Finding::ResourceAccess)));
-    assert!(world.systems[0].observed().is_empty());
+    assert_eq!((world.systems[0].observed()).len(), 0);
 }
 
 pub(crate) fn amendment(words: &[u8]) -> people::Amendment {

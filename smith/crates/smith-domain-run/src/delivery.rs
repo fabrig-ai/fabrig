@@ -401,10 +401,7 @@ pub(crate) fn relative_path(path: &[u8]) -> bool {
         }
     }
     let part = path.get(start..).expect("position within path");
-    if part.is_empty() || part == b".." || part == b"." {
-        return false;
-    }
-    true
+    !(part.is_empty() || part == b".." || part == b".")
 }
 
 #[cfg(test)]

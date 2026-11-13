@@ -57,7 +57,7 @@ impl Input {
                 && let Some(writing) = &text.writing
             {
                 assert_eq!(writing.tool.bytes(), b"finish");
-                assert!(!writing.id.bytes().is_empty());
+                assert_ne!(writing.id.bytes().len(), 0);
                 assert_eq!(writing.input.bytes(), arguments().as_ref());
                 assert_eq!((writing.from, writing.through, writing.cut), (0, 76, false));
                 assert!(text.call.is_none());

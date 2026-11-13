@@ -1,10 +1,13 @@
 //! Whole owner cursors, with keys carried by the store codec (jig/docs/design/protocol/client/README.md, 4).
 use crate::cursor_v1::{self as c, CEILINGS as C};
 use alloc::boxed::Box;
-use jig_domain_core::{Key, documents, reads};
+use jig_domain_core_vocabulary::{Key, documents, reads};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use skein_lib::{Reader, Wall, Writer};
+
+/// The cursor family version checked at the client boundary.
+pub const CURSOR_VERSION: u16 = 1;
 
 pub fn encode(value: &reads::Cursor, limit: u32) -> Option<Box<[u8]>> {
     let cursor = match value.clone() {
@@ -42,6 +45,9 @@ fn write(form: c::Form, limit: u32) -> Option<Box<[u8]>> {
 }
 pub fn decode(bytes: &[u8]) -> Option<reads::Cursor> {
     if bytes.len() > skein_lib::length::usize_of(super::w::CEILINGS.cursor_value) {
+        return None;
+    }
+    if Reader::new(bytes).u16()? != CURSOR_VERSION {
         return None;
     }
     let held = c::Held::decode(&C, &mut Reader::new(bytes)).ok()?;
@@ -401,3 +407,6 @@ fn take_query(value: c::Query) -> Option<documents::TaskQuery> {
     };
     Some(documents::TaskQuery { project, requester, root, parent, label, phase, executor, tracked, order })
 }
+
+#[cfg(test)]
+mod tests;

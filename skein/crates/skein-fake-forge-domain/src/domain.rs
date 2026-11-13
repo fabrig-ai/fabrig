@@ -37,7 +37,7 @@ pub struct Metadata {
 
 /// How the forge behaves, handed to every step read-only. Chances are per
 /// mille.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Config {
     pub limits: Limits,
     /// The time to answer a call is drawn from `latency_min..=latency_max`,
@@ -66,6 +66,8 @@ pub struct Config {
     pub rate_window: Duration,
     /// The user CI reports as.
     pub ci: u64,
+    /// CI inherited by every repository made through the forge.
+    pub made_checks: crate::api::Checks,
     /// Per mille: a dispatched job fails during set-up.
     pub setup_faults: u32,
     /// Per mille per job: its run loses the job, with no failed step.
@@ -93,34 +95,47 @@ pub struct Config {
 impl Config {
     /// A forge with small latencies and no faults, for test worlds, each of
     /// which names what it wants otherwise (skein/docs/foundation/testing-strategy.md, 10).
-    pub const TEST: Self = Self {
-        limits: Limits::TEST,
-        latency_min: Duration::from_millis(10),
-        latency_max: Duration::from_millis(50),
-        settle_min: Duration::from_secs(2),
-        settle_max: Duration::from_secs(2),
-        late: 0,
-        late_min: Duration::from_secs(1),
-        late_max: Duration::from_secs(3),
-        unavailable: 0,
-        timeouts: 0,
-        landing: 0,
-        land_min: Duration::from_secs(1),
-        land_max: Duration::from_secs(3),
-        rate_limit: 0,
-        rate_window: Duration::from_secs(10),
-        ci: 3,
-        setup_faults: 0,
-        lost: 0,
-        hook_min: Duration::ZERO,
-        hook_max: Duration::ZERO,
-        hooks_late: 0,
-        hooks_lost: 0,
-        resolution: Duration::from_secs(1),
-        skew: Skew::Ahead(Duration::from_secs(20)),
-        status_updates: false,
-        edit_updates: false,
-    };
+    #[must_use]
+    pub fn test() -> Self {
+        Self {
+            limits: Limits::TEST,
+            latency_min: Duration::from_millis(10),
+            latency_max: Duration::from_millis(50),
+            settle_min: Duration::from_secs(2),
+            settle_max: Duration::from_secs(2),
+            late: 0,
+            late_min: Duration::from_secs(1),
+            late_max: Duration::from_secs(3),
+            unavailable: 0,
+            timeouts: 0,
+            landing: 0,
+            land_min: Duration::from_secs(1),
+            land_max: Duration::from_secs(3),
+            rate_limit: 0,
+            rate_window: Duration::from_secs(10),
+            ci: 3,
+            made_checks: crate::api::Checks {
+                cues: Box::new([]),
+                contexts: Box::new([]),
+                latency_min: Duration::ZERO,
+                latency_max: Duration::ZERO,
+                silent: 0,
+                passes: 1000,
+                reruns: 0,
+                cue: None,
+            },
+            setup_faults: 0,
+            lost: 0,
+            hook_min: Duration::ZERO,
+            hook_max: Duration::ZERO,
+            hooks_late: 0,
+            hooks_lost: 0,
+            resolution: Duration::from_secs(1),
+            skew: Skew::Ahead(Duration::from_secs(20)),
+            status_updates: false,
+            edit_updates: false,
+        }
+    }
 }
 
 /// How far the forge's clock is from the world's: the forge's time is the

@@ -269,7 +269,7 @@ impl App for Ops {
                 request @ jig_client::Request::Exchange { message: jig_client::Message::Request(bytes), exchange, .. },
         } = request
         {
-            use jig_client_protocol_wire::v19 as w;
+            use jig_client_protocol_wire::v20 as w;
             let keyed = w::Keyed::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("keyed Ops bytes");
             if *keyed.owner() == w::Owner::Jig {
                 return jig_client_protocol_kit::observe::client_sent(request);
@@ -360,6 +360,7 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
                 attempt: *attempt,
                 final_answer: *envelope == skein_lib::RequestEnvelope::Final,
                 unconfigured_model: false,
+                closed_project: false,
                 words,
             }]
         }
@@ -372,7 +373,7 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
                 result: jig_client::Readout::Jig(result.clone()),
             })
         }
-        Up::Served { .. } | Up::WatchEnded { .. } => observe::up_received(up),
+        Up::Unreadable | Up::Served { .. } | Up::WatchEnded { .. } => observe::up_received(up),
         Up::SignedOut => vec![Receipt::Parked],
         Up::SignedIn
         | Up::StreamsFull { .. }
@@ -394,13 +395,13 @@ fn infrastructure_sent(attempt: skein_lib::Token, key: [u8; 16], ask: &infra::As
             revision.value,
         ),
     };
-    Sent { attempt, key, card: Some(card), revision: Some((0, revision)), words: None }
+    Sent { application: true, attempt, key, card: Some(card), revision: Some((0, revision)), words: None }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     use skein_lib::{Overflow, Token, Writer};
 
     const ATTEMPT: Token = Token::new(7);

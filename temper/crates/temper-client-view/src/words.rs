@@ -390,6 +390,29 @@ pub enum Word {
     ModelsName,
     ModelsProvider,
     ModelsAddHeading,
+    ToldTitle,
+    ToldLede,
+    ToldNotSetUp,
+    ToldNotSetUpLine,
+    ToldBrowser,
+    ToldCannot,
+    ToldHomeScreen,
+    ToldBlocked,
+    ToldOff,
+    ToldTurnOn,
+    ToldTurningOn,
+    ToldTurnOff,
+    ToldDevices,
+    ToldEmpty,
+    ToldRemove,
+    ToldService,
+    ToldTooMany,
+    ToldMalformed,
+    ToldPerson,
+    ToldFailed,
+    ToldUnknown,
+    ToldOn,
+    ToldDeviceWhen,
     RememberedTitle,
     RememberedLede,
     RememberedChange,
@@ -1486,6 +1509,8 @@ pub enum Word {
     SignInLinkUnknown,
     OutOfDateMain,
     OutOfDateHow,
+    Reload,
+    ForgeOutOfDateBrowser,
     InboxNeedsEmpty,
     InboxUpdatesEmpty,
     Kind,
@@ -1510,6 +1535,38 @@ pub enum Word {
     QuestionAnswered,
     Held,
     PersonTask,
+    Finding,
+    FindingFrom,
+    FindingFacts,
+    FindingHanded,
+    FindingNotYours,
+    FindingNoAreaRefused,
+    FindingFull,
+
+    FindingHand,
+    FindingRoute,
+    FindingBacklog,
+    FindingDrop,
+    FindingArea,
+    FindingWhy,
+    FindingReason,
+    FindingNoArea,
+    FindingQa,
+    FindingFlake,
+    FindingRed,
+    FindingReview,
+    FindingFeedback,
+    FindingLow,
+    FindingMedium,
+    FindingHigh,
+    FindingWaiting,
+    FindingNoGoal,
+    FindingGone,
+    FindingEnded,
+    FindingTask,
+    FindingParty,
+    FindingRole,
+
     Job,
     DelegationJob,
     Task,
@@ -1906,7 +1963,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2457;
+const PHRASES: u32 = 2535;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1933,10 +1990,10 @@ const PHRASES: u32 = 2457;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4477;
+const SEGMENTS: u32 = 4619;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 58328;
-const ALL: [Word; 1771] = [
+const ENGLISH_BYTES: u32 = 59864;
+const ALL: [Word; 1826] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2306,6 +2363,29 @@ const ALL: [Word; 1771] = [
     Word::ModelsName,
     Word::ModelsProvider,
     Word::ModelsAddHeading,
+    Word::ToldTitle,
+    Word::ToldLede,
+    Word::ToldNotSetUp,
+    Word::ToldNotSetUpLine,
+    Word::ToldBrowser,
+    Word::ToldCannot,
+    Word::ToldHomeScreen,
+    Word::ToldBlocked,
+    Word::ToldOff,
+    Word::ToldTurnOn,
+    Word::ToldTurningOn,
+    Word::ToldTurnOff,
+    Word::ToldDevices,
+    Word::ToldEmpty,
+    Word::ToldRemove,
+    Word::ToldService,
+    Word::ToldTooMany,
+    Word::ToldMalformed,
+    Word::ToldPerson,
+    Word::ToldFailed,
+    Word::ToldUnknown,
+    Word::ToldOn,
+    Word::ToldDeviceWhen,
     Word::RememberedTitle,
     Word::RememberedLede,
     Word::RememberedChange,
@@ -3370,6 +3450,8 @@ const ALL: [Word; 1771] = [
     Word::SignInLinkUnknown,
     Word::OutOfDateMain,
     Word::OutOfDateHow,
+    Word::Reload,
+    Word::ForgeOutOfDateBrowser,
     Word::InboxNeedsEmpty,
     Word::InboxUpdatesEmpty,
     Word::Kind,
@@ -3394,6 +3476,36 @@ const ALL: [Word; 1771] = [
     Word::QuestionAnswered,
     Word::Held,
     Word::PersonTask,
+    Word::Finding,
+    Word::FindingFrom,
+    Word::FindingFacts,
+    Word::FindingHanded,
+    Word::FindingNotYours,
+    Word::FindingNoAreaRefused,
+    Word::FindingFull,
+    Word::FindingHand,
+    Word::FindingRoute,
+    Word::FindingBacklog,
+    Word::FindingDrop,
+    Word::FindingArea,
+    Word::FindingWhy,
+    Word::FindingReason,
+    Word::FindingNoArea,
+    Word::FindingQa,
+    Word::FindingFlake,
+    Word::FindingRed,
+    Word::FindingReview,
+    Word::FindingFeedback,
+    Word::FindingLow,
+    Word::FindingMedium,
+    Word::FindingHigh,
+    Word::FindingWaiting,
+    Word::FindingNoGoal,
+    Word::FindingGone,
+    Word::FindingEnded,
+    Word::FindingTask,
+    Word::FindingParty,
+    Word::FindingRole,
     Word::Job,
     Word::DelegationJob,
     Word::Task,
@@ -4153,6 +4265,29 @@ impl Word {
             Self::ModelsName => 3971,
             Self::ModelsProvider => 3970,
             Self::ModelsAddHeading => 3969,
+            Self::ToldTitle => 9000,
+            Self::ToldLede => 9001,
+            Self::ToldNotSetUp => 9002,
+            Self::ToldNotSetUpLine => 9003,
+            Self::ToldBrowser => 9004,
+            Self::ToldCannot => 9005,
+            Self::ToldHomeScreen => 9006,
+            Self::ToldBlocked => 9007,
+            Self::ToldOff => 9008,
+            Self::ToldTurnOn => 9009,
+            Self::ToldTurningOn => 9010,
+            Self::ToldTurnOff => 9011,
+            Self::ToldDevices => 9012,
+            Self::ToldEmpty => 9013,
+            Self::ToldRemove => 9014,
+            Self::ToldService => 9015,
+            Self::ToldTooMany => 9016,
+            Self::ToldMalformed => 9017,
+            Self::ToldPerson => 9018,
+            Self::ToldFailed => 9019,
+            Self::ToldUnknown => 9020,
+            Self::ToldOn => 9021,
+            Self::ToldDeviceWhen => 9022,
             Self::RememberedTitle => 4800,
             Self::RememberedLede => 4801,
             Self::RememberedChange => 4802,
@@ -4989,6 +5124,8 @@ impl Word {
             Self::SignInLinkUnknown => 1919,
             Self::OutOfDateMain => 183,
             Self::OutOfDateHow => 184,
+            Self::Reload => 9023,
+            Self::ForgeOutOfDateBrowser => 9024,
             Self::BylineTask => 1505,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
@@ -5280,6 +5417,38 @@ impl Word {
             Self::QuestionAnswered => 2021,
             Self::Held => 119,
             Self::PersonTask => 120,
+            Self::Finding => 8000,
+            Self::FindingFrom => 8030,
+            Self::FindingFacts => 8031,
+            Self::FindingHanded => 8032,
+            Self::FindingNotYours => 8033,
+            Self::FindingNoAreaRefused => 8034,
+            Self::FindingFull => 8035,
+
+            Self::FindingHand => 8001,
+            Self::FindingRoute => 8002,
+            Self::FindingBacklog => 8003,
+            Self::FindingDrop => 8004,
+            Self::FindingArea => 8005,
+            Self::FindingWhy => 8006,
+            Self::FindingReason => 8007,
+            Self::FindingNoArea => 8008,
+            Self::FindingQa => 8009,
+            Self::FindingFlake => 8010,
+            Self::FindingRed => 8011,
+            Self::FindingReview => 8012,
+            Self::FindingFeedback => 8013,
+            Self::FindingLow => 8014,
+            Self::FindingMedium => 8015,
+            Self::FindingHigh => 8016,
+            Self::FindingWaiting => 8017,
+            Self::FindingNoGoal => 8018,
+            Self::FindingGone => 8019,
+            Self::FindingEnded => 8020,
+            Self::FindingTask => 8021,
+            Self::FindingParty => 8022,
+            Self::FindingRole => 8023,
+
             Self::Job => 2030,
             Self::DelegationJob => 2032,
             Self::Task => 122,
@@ -5779,6 +5948,19 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
         let doubled = model_name.checked_mul(2).ok_or(Invalid::Overflow)?;
         return doubled.checked_add(3).ok_or(Invalid::Overflow);
     }
+    if kind == HoleKind::Name
+        && [
+            Word::FindingFrom,
+            Word::FindingFacts,
+            Word::FindingHanded,
+            Word::FindingNotYours,
+            Word::FindingNoAreaRefused,
+        ]
+        .contains(&word)
+    {
+        // A refusal names sixteen 32-byte areas, separated by comma-space.
+        return Ok(joined.max(542));
+    }
     Ok(if kind == HoleKind::Name { joined } else { 0 })
 }
 fn english_language(
@@ -5944,7 +6126,6 @@ impl Words {
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {
         self.book.say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
     }
-    #[expect(clippy::manual_is_multiple_of, reason = "keep the UTC midnight remainder test explicit")]
     pub(crate) fn deadline(&self, at: skein_lib::Wall) -> Box<[u8]> {
         let word = if at.as_secs() % 86_400 == 0 { Word::BudgetDeadlineDate } else { Word::BudgetDeadlineMoment };
         self.say(word, &[Hole::Wall(at)])
@@ -7421,6 +7602,29 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ModelsDefault => (&[b" \xc2\xb7 the default"], &[]),
         Word::ModelsAsk => (&[b"To change a default or a role\xe2\x80\x99s models, "], &[]),
         Word::ModelsAskPage => (&[b"ask temper."], &[]),
+        Word::ToldTitle => (&[b"Telling you"], &[]),
+        Word::ToldLede => (&[b"When something needs you, temper pushes to the devices you turn this on for: how many things wait, and in which project, never what they say."], &[]),
+        Word::ToldNotSetUp => (&[b"Not set up"], &[]),
+        Word::ToldNotSetUpLine => (&[b"This deployment doesn't push. Its owner turns push on in its configuration."], &[]),
+        Word::ToldBrowser => (&[b"This browser"], &[]),
+        Word::ToldCannot => (&[b"This browser can't be pushed to."], &[]),
+        Word::ToldHomeScreen => (&[b"Add temper to the Home Screen, then open it from there and turn this on."], &[]),
+        Word::ToldBlocked => (&[b"Notifications are blocked for this site in the browser's settings."], &[]),
+        Word::ToldOff => (&[b"Off"], &[]),
+        Word::ToldTurnOn => (&[b"Turn on"], &[]),
+        Word::ToldTurningOn => (&[b"Turning on\xe2\x80\xa6"], &[]),
+        Word::ToldTurnOff => (&[b"Turn off"], &[]),
+        Word::ToldDevices => (&[b"Your devices"], &[]),
+        Word::ToldEmpty => (&[b"No device is pushed to yet."], &[]),
+        Word::ToldRemove => (&[b"Remove"], &[]),
+        Word::ToldService => (&[b"This browser's push service isn't one this deployment sends to."], &[]),
+        Word::ToldTooMany => (&[b"You have 8 devices: remove one below first."], &[]),
+        Word::ToldMalformed => (&[b"This browser gave a subscription temper can't use."], &[]),
+        Word::ToldPerson => (&[b"Only a person is pushed to."], &[]),
+        Word::ToldFailed => (&[b"Turning push on or off did not finish. Try again."], &[]),
+        Word::ToldUnknown => (&[b"No such device."], &[]),
+        Word::ToldOn => (&[b"On since ", b""], &[Name]),
+        Word::ToldDeviceWhen => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::RememberedTitle => (&[b"What temper remembers about you"], &[]),
         Word::RememberedLede => (&[b"What Ask temper keeps about you across your chats, when you ask it to. Only you see these lines."], &[]),
         Word::RememberedChange => (&[b"Change"], &[]),
@@ -7712,6 +7916,38 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Job => (&[b"job ", b""], &[Number]),
         Word::DelegationJob => (&[b"T", b" \xc2\xb7 job"], &[Number]),
         Word::PersonTask => (&[b"Person task"], &[]),
+        Word::Finding => (&[b"Finding"], &[]),
+        Word::FindingFrom => (&[b"", b" \xe2\x80\xba ", b"/", b" ", b""], &[Name, Number, Number, Name]),
+        Word::FindingFacts => (&[b"", b" \xc2\xb7 ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
+        Word::FindingHanded => (&[b"Handed on by ", b": \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name, Name]),
+        Word::FindingNotYours => (&[b"finding ", b"/", b" is not yours: its owner is ", b""], &[Number, Number, Name]),
+        Word::FindingNoAreaRefused => (&[b"no area ", b" in project ", b"; its areas: ", b""], &[Name, Number, Name]),
+        Word::FindingFull => (&[b"the project's findings are full: ", b" new"], &[Number]),
+
+        Word::FindingHand => (&[b"Hand on"], &[]),
+        Word::FindingRoute => (&[b"Route to a goal"], &[]),
+        Word::FindingBacklog => (&[b"Backlog"], &[]),
+        Word::FindingDrop => (&[b"Drop with reason"], &[]),
+        Word::FindingArea => (&[b"Area"], &[]),
+        Word::FindingWhy => (&[b"Why hand it on"], &[]),
+        Word::FindingReason => (&[b"Reason to drop"], &[]),
+        Word::FindingNoArea => (&[b"no area"], &[]),
+        Word::FindingQa => (&[b"qa"], &[]),
+        Word::FindingFlake => (&[b"flake"], &[]),
+        Word::FindingRed => (&[b"red"], &[]),
+        Word::FindingReview => (&[b"review"], &[]),
+        Word::FindingFeedback => (&[b"feedback"], &[]),
+        Word::FindingLow => (&[b"low"], &[]),
+        Word::FindingMedium => (&[b"medium"], &[]),
+        Word::FindingHigh => (&[b"high"], &[]),
+        Word::FindingWaiting => (&[b"Waiting for the findings document."], &[]),
+        Word::FindingNoGoal => (&[b"not a live goal of the project"], &[]),
+        Word::FindingGone => (&[b"no finding"], &[]),
+        Word::FindingEnded => (&[b"finding is already routed or dropped"], &[]),
+        Word::FindingTask => (&[b"task "], &[]),
+        Word::FindingParty => (&[b"party "], &[]),
+        Word::FindingRole => (&[b"role "], &[]),
+
         Word::Task => (&[b"Task ", b""], &[Number]),
         Word::ReadingTask => (&[b"Reading task ", b"\xe2\x80\xa6"], &[Number]),
         Word::TaskUnknown => (&[b"This task could not be found."], &[]),
@@ -7758,7 +7994,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SignInLinkUsed => (&[b"This link was already used. A fresh one is in your terminal."], &[]),
         Word::SignInLinkExpired => (&[b"This link has expired. A fresh one is in your terminal."], &[]),
         Word::SignInLinkUnknown => (&[b"This link isn't from this temper. Use the one its terminal printed."], &[]),
-        Word::OutOfDateHow => (&[b"Run the temper the engine runs."], &[]),
+        Word::OutOfDateHow => match shell {
+            Shell::Terminal => (&[b"Run the temper the engine runs."], &[]),
+            Shell::Browser => (&[b"This page doesn't match temper's engine. Reload it to continue."], &[]),
+        },
+        Word::Reload => (&[b"Reload"], &[]),
+        Word::ForgeOutOfDateBrowser => (&[b"This page is out of date for adopting repositories: reload it."], &[]),
         Word::OutOfDateMain => (&[b"This temper is out of date: run the temper the engine runs."], &[]),
         Word::Connecting => (&[b"Connecting"], &[]),
         Word::Behind => (&[b"Behind"], &[]),
@@ -7876,23 +8117,6 @@ fn chat_clock(at: skein_lib::Wall) -> [u8; 12] {
         b'0' + minute % 10,
         b'Z',
     ]
-}
-#[cfg(test)]
-mod clock_tests {
-    #[test]
-    fn the_chat_clock_keeps_day_month_and_leap_boundaries() {
-        for (seconds, expected) in [
-            (0, b"01-01 00:00Z"),
-            (86_399, b"01-01 23:59Z"),
-            (86_400, b"01-02 00:00Z"),
-            (2_678_399, b"01-31 23:59Z"),
-            (2_678_400, b"02-01 00:00Z"),
-            (1_709_251_199, b"02-29 23:59Z"),
-            (1_709_251_200, b"03-01 00:00Z"),
-        ] {
-            assert_eq!(&super::chat_clock(skein_lib::Wall::from_nanos(seconds * 1_000_000_000)), expected);
-        }
-    }
 }
 
 /// Client times (client/view.md, 6) and Home's last-look span (3.5).
@@ -8196,4 +8420,22 @@ pub(crate) fn grouped(value: u64) -> Box<[u8]> {
         number.put(core::slice::from_ref(digit)).expect("grouped length counted");
     }
     number.finish()
+}
+
+#[cfg(test)]
+mod clock_tests {
+    #[test]
+    fn the_chat_clock_keeps_day_month_and_leap_boundaries() {
+        for (seconds, expected) in [
+            (0, b"01-01 00:00Z"),
+            (86_399, b"01-01 23:59Z"),
+            (86_400, b"01-02 00:00Z"),
+            (2_678_399, b"01-31 23:59Z"),
+            (2_678_400, b"02-01 00:00Z"),
+            (1_709_251_199, b"02-29 23:59Z"),
+            (1_709_251_200, b"03-01 00:00Z"),
+        ] {
+            assert_eq!(&super::chat_clock(skein_lib::Wall::from_nanos(seconds * 1_000_000_000)), expected);
+        }
+    }
 }

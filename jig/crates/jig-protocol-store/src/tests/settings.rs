@@ -2,7 +2,7 @@
 use super::fixtures;
 use crate::codec;
 use jig_domain_authority as a;
-use jig_domain_core::{self as core, settings as s};
+use jig_domain_core_vocabulary::{self as core, settings as s};
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -192,8 +192,12 @@ fn each_settings_record_round_trips_its_whole_domain_value() {
                 items: Box::new([]),
             },
         },
-        s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { charter: Some(Box::new(charter())) } },
-        s::Record::Charter { charter: 1, revision: 3, value: s::CharterVersion { charter: None } },
+        s::Record::Charter {
+            charter: 1,
+            revision: 2,
+            value: s::CharterVersion { overlay: None, charter: Some(Box::new(charter())) },
+        },
+        s::Record::Charter { charter: 1, revision: 3, value: s::CharterVersion { overlay: None, charter: None } },
     ] {
         rows.push(row).expect("settings fixture count");
     }
@@ -315,7 +319,11 @@ fn frozen_model_masks_and_template_choices_follow_names_after_a_catalogue_reorde
                 assert_eq!(choice.main.model, 1);
                 assert_eq!(choice.subagents[0].model, 0);
             }
-            s::Value::Policy(_) | s::Value::Charter(_) | s::Value::Model(_) | s::Value::Application(_) => {
+            s::Value::Overlay(_)
+            | s::Value::Policy(_)
+            | s::Value::Charter(_)
+            | s::Value::Model(_)
+            | s::Value::Application(_) => {
                 panic!("fixture setting")
             }
         }
@@ -454,7 +462,7 @@ fn a_charters_tools_survive_the_store() {
         let row = s::Record::Charter {
             charter: 1,
             revision: 2,
-            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+            value: s::CharterVersion { overlay: None, charter: Some(Box::new(charter)) },
         };
         let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
         assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
@@ -472,8 +480,11 @@ fn a_charters_paced_wake_policy_round_trips() {
         results: tasks::ResultsWake::Each,
         ..tasks::WakePolicy::DEFAULT
     };
-    let row =
-        s::Record::Charter { charter: 1, revision: 2, value: s::CharterVersion { charter: Some(Box::new(charter)) } };
+    let row = s::Record::Charter {
+        charter: 1,
+        revision: 2,
+        value: s::CharterVersion { overlay: None, charter: Some(Box::new(charter)) },
+    };
     let bytes = codec::settings::encode(&row, &limits.settings, &[]).expect("charter encoding");
     assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits.settings, &[]), Ok(row));
 }
@@ -488,7 +499,7 @@ fn a_members_absent_wake_round_trips_without_a_default() {
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured batch");
     let bytes = writer.finish();
-    let value = crate::people_v15::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
+    let value = crate::people_v16::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
     assert_eq!(codec::people::decode_ask(value, &limits), Ok(ask));
 }
 
@@ -551,7 +562,7 @@ fn document_records(charter: core::Charter) -> [s::Record; 6] {
         s::Record::Charter {
             charter: charter.number,
             revision: 2,
-            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+            value: s::CharterVersion { overlay: None, charter: Some(Box::new(charter)) },
         },
         s::Record::Revision { history: false, revision: revision.clone() },
         s::Record::Revision { history: true, revision },
@@ -585,6 +596,7 @@ fn assert_documents_refused(charter: core::Charter) {
         charter: charter.number,
         revision: 2,
         value: s::CharterVersion {
+            overlay: None,
             charter: Some(Box::new(core::Charter { documents: Box::new([]), parts: Box::new([]), ..charter.clone() })),
         },
     };
@@ -674,8 +686,8 @@ fn charter_documents_obey_lowered_limits_in_every_settings_record() {
             codec::settings::limits(&fewer_documents).unwrap(),
             codec::settings::limits(&fewer_segments).unwrap(),
             shorter_segments,
-            crate::settings_v2::Limits { document_path: core::DOCUMENT_PATH_BYTES - 1, ..limits },
-            crate::settings_v2::Limits { document_heading_some: core::DOCUMENT_HEADING_BYTES - 1, ..limits },
+            crate::settings_v3::Limits { document_path: core::DOCUMENT_PATH_BYTES - 1, ..limits },
+            crate::settings_v3::Limits { document_heading_some: core::DOCUMENT_HEADING_BYTES - 1, ..limits },
         ] {
             assert_eq!(codec::settings::encode(&row, &lowered, &[]).unwrap_err().reason, skein_codec::Reason::Bound);
             assert_eq!(
@@ -723,7 +735,7 @@ fn charter_parts_refuse_empty_and_unknown_reason_bits() {
         let row = s::Record::Charter {
             charter: charter.number,
             revision: 2,
-            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+            value: s::CharterVersion { overlay: None, charter: Some(Box::new(charter)) },
         };
         let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
         assert_eq!(
@@ -750,4 +762,138 @@ fn a_templates_closer_round_trips_in_the_settings_family() {
         let bytes = codec::encode(&row, &limits, &names).unwrap();
         assert_eq!(codec::decode(&row.key(), &bytes, &limits, &names), Some(row));
     }
+}
+
+fn overlay() -> s::Overlay {
+    let charter = charter();
+    s::Overlay {
+        rest: Some(charter.rest),
+        model: Some(charter.policy.model),
+        alternatives: Some(charter.policy.alternatives),
+        inspect: Some(charter.policy.inspect),
+        modify: Some(charter.policy.modify),
+        shell: Some(charter.policy.shell),
+        agents: Some(charter.policy.agents),
+        tools: Some(charter.policy.tools),
+        hosts: Some(charter.hosts),
+        waiting: Some(charter.policy.waiting),
+        resume: Some(charter.policy.resume),
+        turns: Some(charter.policy.turns),
+        time: Some(charter.policy.time),
+        reserve_turns: Some(charter.policy.reserve_turns),
+        reserve_time: Some(charter.policy.reserve_time),
+        call_timeout: Some(charter.policy.call_timeout),
+        spend: Some(charter.spend),
+        documents: Some(charter.documents),
+        instructions: charter.policy.instructions,
+        parts: charter.parts,
+    }
+}
+#[test]
+fn overlays_round_trip_in_changes_history_proposals_and_held_versions() {
+    let mut domain = fixtures::CORE_LIMITS;
+    domain.run_bytes = 4096;
+    let limits = codec::limits(&domain).unwrap();
+    let overlay = overlay();
+    let value = s::Value::Overlay(Box::new(overlay.clone()));
+    let setting = s::Setting::Charter(1);
+    let head =
+        s::Head { number: 2, against: 1, at: Wall::EPOCH, by: s::Decider::Party(1), proposal: None, moved: false };
+    for row in [
+        s::Record::Changed { setting, changed: s::Changed { value: Some(value.clone()), revision: 2 } },
+        s::Record::Revision {
+            history: true,
+            revision: s::Revision {
+                head,
+                items: Box::new([s::RevisionItem {
+                    setting,
+                    edit: s::Edit::Set(value.clone()),
+                    replaced: s::Replaced::Value(value.clone()),
+                }]),
+                applications: Box::new([]),
+            },
+        },
+        s::Record::Proposal {
+            proposer: people::Proposer::Party(1),
+            proposal: 1,
+            value: s::Proposal {
+                key: None,
+                against: 1,
+                items: Box::new([s::Item { setting, edit: s::Edit::Set(value) }]),
+                applications: Box::new([]),
+            },
+        },
+        s::Record::Charter {
+            charter: 1,
+            revision: 1,
+            value: s::CharterVersion { overlay: Some(Box::new(overlay)), charter: Some(Box::new(charter())) },
+        },
+    ] {
+        let row = core::Record::Core(core::CoreRecord::Settings(row));
+        let bytes = codec::encode(&row, &limits, &[]).unwrap();
+        assert_eq!(codec::decode(&row.key(), &bytes, &limits, &[]), Some(row));
+    }
+}
+#[test]
+fn overlay_codec_bounds_instructions_parts_documents_and_alternatives() {
+    let mut domain = fixtures::CORE_LIMITS;
+    domain.run_bytes = 4096;
+    domain.tasks.charter_parts = 2;
+    domain.tasks.charter_documents = 1;
+    domain.settings.alternatives = 1;
+    let limits = codec::limits(&domain).unwrap();
+    let mut generous = domain;
+    generous.run_bytes = 8192;
+    generous.tasks.charter_parts = 3;
+    generous.tasks.charter_documents = 2;
+    generous.settings.alternatives = 2;
+    let generous = codec::limits(&generous).unwrap();
+    for past in [false, true] {
+        for field in 0_u8..5 {
+            let mut overlay = overlay();
+            match field {
+                0 => overlay.instructions = skein_lib::bytes::zeroed(4096 + usize::from(past)),
+                1 => {
+                    let part = overlay.parts[0].clone();
+                    overlay.parts = if past {
+                        Box::new([part.clone(), part.clone(), part])
+                    } else {
+                        Box::new([part.clone(), part])
+                    };
+                }
+                2 => overlay.alternatives = Some(if past { Box::new([model(), model()]) } else { Box::new([model()]) }),
+                3 => {
+                    let document = core::Document {
+                        connector: 1,
+                        name: a::Name { segments: Box::new([Box::from(b"r".as_slice())]) },
+                        path: b"p".as_slice().into(),
+                        heading: None,
+                    };
+                    overlay.documents =
+                        Some(if past { Box::new([document.clone(), document]) } else { Box::new([document]) });
+                }
+                _ => overlay.parts[0].instructions = skein_lib::bytes::zeroed(4096 + usize::from(past)),
+            }
+            let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Changed {
+                setting: s::Setting::Charter(1),
+                changed: s::Changed { revision: 2, value: Some(s::Value::Overlay(Box::new(overlay))) },
+            }));
+            assert_eq!(codec::encode(&row, &limits, &[]).is_some(), !past, "encode field {field}");
+            let bytes = codec::encode(&row, &generous, &[]).unwrap();
+            assert_eq!(codec::decode(&row.key(), &bytes, &limits, &[]).is_some(), !past, "decode field {field}");
+        }
+    }
+}
+
+#[test]
+fn charter_versions_without_overlays_keep_the_versioned_stored_bytes() {
+    let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
+    let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Charter {
+        charter: 1,
+        revision: 2,
+        value: s::CharterVersion { overlay: None, charter: None },
+    }));
+    let bytes = [0_u8, 3, 0];
+    assert_eq!(codec::decode(&row.key(), &bytes, &limits, &[]), Some(row.clone()));
+    assert_eq!(codec::encode(&row, &limits, &[]).unwrap().as_ref(), bytes);
 }

@@ -149,9 +149,10 @@ with the worker's (`../protocol/README.md`, section 6).
   an answer, `Parts`: the heads the run pushed, the repositories it
   saved, a permanent failure to prepare one.
 - **Facts,** which decide nothing: the root's, among them a failed
-  preparation (`Fact::PreparationFailed`, section 6.4) and a brief's read
+  preparation (`Fact::PreparationFailed`, section 6.4), a brief's read
   refused and a brief failed (`Fact::BriefReadRefused`, `Fact::BriefFailed`;
-  forge/change/repairs.md), at most 32 waiting to be drained, the rest counted as
+  forge/change/repairs.md) and a branch head refused at a full table
+  (`Fact::HeadRefused`, forge/keeping-up.md, 1), at most 32 waiting to be drained, the rest counted as
   lost; and the children's own.
 - **Tools.** The root's `Tool` is a host call in typed form, as the
   protocol layer decodes it (`../protocol/llm.md`, section 4): jig's
@@ -543,7 +544,7 @@ preparing, held until its claim commits:
   client's admission (`Busy`) is retained and retried after the client
   reclaims, within the gather's deadline. A read sent but unanswered
   at that deadline leaves its required section late: the brief fails,
-  counting as transient, and no attempt is spent. A section whose bytes
+  counting as an infrastructure failure, and no attempt is spent. A section whose bytes
   the forge no longer has fails the brief too, counting as permanent
   (jig's `domain/engine/briefs.md`, 1.1).
 

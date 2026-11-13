@@ -158,7 +158,7 @@ fn a_native_effect_slot_reads_its_separate_scoped_description_and_releases_it_on
         panic!("whole owner proposal")
     };
     assert_eq!(retained.as_ref(), &original);
-    assert!(patches(&mut view, &root).is_empty());
+    assert_eq!(patches(&mut view, &root).len(), 0);
     open_families(&mut root, &rows);
     let left = drive(
         &mut root,

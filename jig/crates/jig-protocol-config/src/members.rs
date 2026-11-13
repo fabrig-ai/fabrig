@@ -354,7 +354,7 @@ pub static SHAPES: [Shape; 65] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 277] = [
+pub static MEMBERS: [Member; 278] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -2792,6 +2792,15 @@ pub static MEMBERS: [Member; 277] = [
         bound: "0 to 18446744073709 milliseconds",
         required: true,
         line: "Gives the grace after losing the engine.",
+        gone: None,
+    },
+    Member {
+        shape: "graces",
+        name: "drain_ms",
+        kind: "integer",
+        bound: "0 to 18446744073709 milliseconds; 180000 when absent",
+        required: false,
+        line: "Bounds the drain before cancelling runs on shutdown.",
         gone: None,
     },
     Member {

@@ -97,8 +97,8 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
             crate::next::compare(domain, limits, repository, *base, *head)
         }
         Read::Checks { commit } => crate::next::checks(repository, limits, *commit, config.ci),
-        Read::Job { job } => crate::next::job(repository, *job),
-        Read::Log { job, attempt, step } => crate::next::log(repository, *job, *attempt, *step),
+        Read::Job { job } => crate::next::job(domain, limits, repository, *job),
+        Read::Log { job, attempt, step } => crate::next::log(domain, limits, repository, *job, *attempt, *step),
         Read::Protection { branch } => {
             let protection = match &repository.protection {
                 Some(protection) if protection.branch == *branch => Some(protection.clone()),
@@ -140,7 +140,7 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
         }
         Read::GitTree { object, page, limit } => crate::trees::read(domain, repository, limits, *object, *page, *limit),
         Read::Run { run } => Ok(Answer::Run(crate::actions::run(repository, *run)?.run.clone())),
-        Read::Jobs { run } => crate::actions::jobs(repository, *run),
+        Read::Jobs { run } => crate::actions::jobs(domain, limits, repository, *run),
         Read::Statuses { commit } => {
             if !repository.has.contains(commit) {
                 return Err(Error::Missing(What::Commit));

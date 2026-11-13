@@ -88,16 +88,18 @@ pub enum Op {
     /// in it is removed, including untracked nested repositories. HEAD is
     /// detached at commit, and the merge state is cleared. With `clean: false`,
     /// the caller supplies a newly cloned repository in an empty workspace.
-    CheckOut { at: Place, commit: Commit, clean: bool },
+    CheckOut { at: Place, commit: Commit, clean: bool, identity: u32, account: Option<u64> },
     /// Whether fetched ancestor is contained in commit, including equality. Local and read-only.
     IsAncestor { at: Place, ancestor: Commit, commit: Commit },
+    /// Whether head and upstream share a commit absent from base (protocol/git.md, 4.9).
+    Brings { at: Place, head: Commit, base: Commit, upstream: Commit },
     /// Stream paths differing between two commits, including deletions, without
     /// rename detection. Ends Paths with the first non-Markdown name in git's
     /// order, or none. Each path is bounded; the file count is not.
     DiffPaths { at: Place, before: Commit, after: Commit },
     /// Merge fetched `theirs` into the checked-out commit, without committing;
     /// leave conflict markers and merge state on disk. Ends Merged/Conflicted.
-    Merge { at: Place, theirs: Commit },
+    Merge { at: Place, theirs: Commit, identity: u32, account: Option<u64> },
     /// Commit the working tree exactly as it is, on `parent`, with the message `title` and `body`,
     /// authored as `identity`. Ends in `Committed`, or in `Unchanged` if the tree is `parent`'s and
     /// `merging` is None and `always` is false. With a second parent it always records both parents; before doing so io
@@ -170,12 +172,15 @@ pub enum Done {
     Looked { holds: bool },
     /// The standalone local ancestry query.
     IsAncestor { contains: bool },
+    /// The local upstream contribution query.
+    Brings { brings: bool },
     /// Merge has no unresolved paths; the next explicit merge commit still
     /// records both parents. No commit was made by the merge operation.
     Merged,
     /// Merge left conflicts, or a merge commit refused remaining markers.
-    /// Paths are bounded by the checkout's conflict/path limits.
-    Conflicted { files: Box<[Box<[u8]>]> },
+    /// Paths are bounded by the checkout's conflict/path limits; cut records
+    /// a retained prefix rather than the whole listing.
+    Conflicted { files: Box<[Box<[u8]>]>, cut: bool },
     /// `Make`, `Store`, `Clone`, `Create`, `CheckOut`, `Push`: done as asked.
     Succeeded,
     /// `Fetch`: what was asked for is at `commit`, now in the repository.
@@ -198,13 +203,13 @@ pub enum Done {
 /// Why an operation failed.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Fault {
-    /// `Store`, `Fetch`, `Create`, `Push`: the forge has no such repository;
+    /// `Store`, `Fetch`, `Create`, `Push`, `CheckOut`, `Merge`: the forge has no such repository;
     /// Fetch may also name a branch or commit the forge lacks.
     Missing { missing: Missing },
-    /// `Store`, `Fetch`, `Create`, `Push`: the forge refused: the identity's
+    /// `Store`, `Fetch`, `Create`, `Push`, `CheckOut`, `Merge`: the forge refused: the identity's
     /// credentials or permissions, a protected branch, a hook.
     Refused,
-    /// `Store`, `Fetch`, `Create`, `Push`: the forge could not be reached or failed.
+    /// `Store`, `Fetch`, `Create`, `Push`, `CheckOut`, `Merge`: the forge could not be reached or failed.
     Unreachable,
     /// Something failed on the worker's side: the disk, or git itself.
     Broken,
@@ -252,6 +257,7 @@ pub enum Kind {
     CheckOut,
     Merge,
     IsAncestor,
+    Brings,
     DiffPaths,
     Commit,
     Push,
@@ -271,6 +277,7 @@ impl Op {
             Op::CheckOut { .. } => Kind::CheckOut,
             Op::Merge { .. } => Kind::Merge,
             Op::IsAncestor { .. } => Kind::IsAncestor,
+            Op::Brings { .. } => Kind::Brings,
             Op::DiffPaths { .. } => Kind::DiffPaths,
             Op::Commit { .. } => Kind::Commit,
             Op::Push { .. } => Kind::Push,
@@ -281,16 +288,20 @@ impl Op {
     #[must_use]
     pub const fn is_remote(&self) -> bool {
         match self {
-            Op::Store { .. } | Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
+            Op::Store { .. }
+            | Op::Fetch { .. }
+            | Op::Create { .. }
+            | Op::Push { .. }
+            | Op::CheckOut { .. }
+            | Op::Merge { .. } => true,
             Op::Commit { snapshot, .. } => snapshot.is_some(),
             Op::Point { .. }
             | Op::Clone { .. }
             | Op::Look { .. }
+            | Op::Brings { .. }
             | Op::IsAncestor { .. }
             | Op::DiffPaths { .. }
-            | Op::Make { .. }
-            | Op::CheckOut { .. }
-            | Op::Merge { .. } => false,
+            | Op::Make { .. } => false,
         }
     }
 }

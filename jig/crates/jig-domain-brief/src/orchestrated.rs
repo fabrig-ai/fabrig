@@ -20,6 +20,8 @@ pub enum Fate {
     Capacity,
     /// Counted in the tasks child's transient class.
     Transient,
+    /// Counted in the tasks child's infrastructure class.
+    Infrastructure,
     /// Counted in the tasks child's permanent class.
     Permanent,
 }
@@ -526,7 +528,7 @@ fn permanent(section: &'static [u8], words: &'static [u8]) -> Failure {
 
 fn late(section: &Planned) -> Failure {
     Failure {
-        fate: Fate::Transient,
+        fate: Fate::Infrastructure,
         section: section_name(section),
         words: Box::from(b"not gathered by its deadline".as_slice()),
     }

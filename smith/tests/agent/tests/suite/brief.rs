@@ -372,7 +372,7 @@ fn the_first_provider_request_contains_the_carried_messages_with_the_briefs_inst
                 name: smith_domain::GrantName { account: 0, generation: 1 },
                 valid: skein_lib::Duration::from_secs(7200),
             }]),
-            ..smith_domain::fixture::start(Token::new(1), charter)
+            ..smith_domain_fixtures::start(Token::new(1), charter)
         });
         let scripts = Box::new([Script {
             cue: b"@carried-opening".as_slice().into(),
@@ -566,7 +566,7 @@ fn resume_on_message(
             valid: Duration::from_secs(7200),
         }]),
         messages: Box::new([message]),
-        ..smith_domain::fixture::start(Token::new(1), charter)
+        ..smith_domain_fixtures::start(Token::new(1), charter)
     });
     World::with_workspace_scripts_start(*settings, Checkout::new(), scripts, start)
 }

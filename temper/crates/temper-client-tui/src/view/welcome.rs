@@ -1,12 +1,15 @@
 //! The box's welcome and the browser's steps followed (temper/docs/design/client/tui/box.md).
-use super::{foot, text};
+use super::{foot, front, text};
 use crate::{
-    Tui, look,
+    BoxStage, Local, Tui, look,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
 use jig_client::Link;
-use skein_lib::{List, Wall};
+use skein_lib::{
+    List, Wall,
+    bytes::{copy_of, utf8_prefix},
+};
 use skein_ui::{Builder, Role, Run, Style, phrases::Hole};
 use temper_client_domain::{
     Address, Domain, Step,
@@ -22,6 +25,9 @@ pub(crate) struct Welcome {
     pub unkept: Option<Box<[u8]>>,
     pub signed_in: bool,
     pub printed: Option<Box<[u8]>>,
+    pub stage: Option<(Box<[u8]>, Style)>,
+    pub failed_hint: Option<Box<[u8]>>,
+    pub last_log: Option<Box<[u8]>>,
     pub steps: List<StepLine>,
     pub notes: foot::Notes,
 }
@@ -44,6 +50,7 @@ pub(crate) fn shown(root: &Domain, tui: &Tui) -> bool {
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Ask { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -172,9 +179,49 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Welc
             Some(link) => Some(forge::words::lossy(link.expose())),
             None => None,
         },
+        stage: if tui.printed().is_none() { front::stage(tui, words) } else { None },
+        failed_hint: if tui.printed().is_none()
+            && let BoxStage::Failed { .. } = tui.box_stage()
+        {
+            Some(words.say(Word::FailedBoxHint, &[]))
+        } else {
+            None
+        },
+        last_log: if tui.local() == Local::Signing
+            || super::landing(root)
+            || root.client().link().state == Link::Starting
+        {
+            let mut last = None;
+            for line in tui.box_log() {
+                last = Some(line);
+            }
+            match last {
+                Some(line) => Some(startup_line(line, tui.columns())),
+                None => None,
+            }
+        } else {
+            None
+        },
         steps,
         notes: foot::read_notes(root, tui, words),
     }
+}
+#[expect(clippy::disallowed_methods, reason = "display widths read characters from the box's lossy UTF-8 line")]
+fn startup_line(line: &[u8], columns: u16) -> Box<[u8]> {
+    let lossy = forge::words::lossy(line);
+    let bounded = utf8_prefix(&lossy, usize::try_from(crate::limits::LOG_LINE).expect("log bound fits memory"));
+    let text = core::str::from_utf8(bounded).expect("lossy text is UTF-8");
+    let room = if columns == 0 { 80 } else { columns }.saturating_sub(4);
+    let mut width = 0_u16;
+    let mut end = 0_usize;
+    for character in text.chars() {
+        width = width.saturating_add(u16::from(skein_ui_screen::width(character)));
+        if width > room || character == '\n' || character == '\r' {
+            break;
+        }
+        end = end.saturating_add(character.len_utf8());
+    }
+    copy_of(bounded.get(..end).expect("whole characters in the bounded line"))
 }
 fn indented(b: &mut Builder, words: &[u8], style: Option<Style>) {
     b.open(Role::Description);
@@ -186,6 +233,16 @@ fn before(b: &mut Builder, part: &Welcome, words: &Words) {
     if let Some(link) = &part.printed {
         indented(b, link, None);
         indented(b, &words.say(Word::LinkOnce, &[]), Some(look::HINT));
+    } else if let Some((line, style)) = &part.stage {
+        indented(b, line, Some(*style));
+        if let Some(hint) = &part.failed_hint {
+            indented(b, hint, Some(look::HINT));
+        }
+    }
+    if let Some(line) = &part.last_log {
+        b.open(Role::Description);
+        text(b, Role::Paragraph, line, Some(look::HINT));
+        b.close();
     }
     b.open(Role::Region);
     text(b, Role::Paragraph, &words.say(Word::InTheBrowser, &[]), Some(look::HEAD));
@@ -266,13 +323,13 @@ pub(crate) fn draw(b: &mut Builder, part: &Welcome, words: &Words) {
     } else {
         before(b, part, words);
     }
-    if part.notes.log.is_some() {
+    if part.notes.follows_end() {
         b.open(Role::Group);
     } else {
         b.close();
     }
     foot::draw_notes(b, &part.notes, words);
-    if part.notes.log.is_some() {
+    if part.notes.follows_end() {
         b.close();
         b.close();
     }

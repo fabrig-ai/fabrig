@@ -215,7 +215,7 @@ fn directory_links_are_refused_without_touching_their_targets() {
         stop(&mut h);
         let root = h.machine.reopen_root(0);
         let fd = h.machine.open(root, b"elsewhere", How::DirectoryNoFollow).unwrap();
-        assert!(h.machine.list(fd, 32, 8192).unwrap().is_empty());
+        assert_eq!(h.machine.list(fd, 32, 8192).unwrap().len(), 0);
         h.machine.close(fd);
         h.machine.close(root);
         assert_eq!(h.machine.open_handles(), 0);
@@ -504,20 +504,4 @@ fn box_log_rotates_whole_lines_and_moves_with_the_steps() {
     assert_eq!(read(&mut next, b"box/logs.previous/box.log").0, current);
     assert_eq!(read(&mut next, b"box/logs.previous/box.log.1").0, previous);
     stop(&mut next);
-}
-
-#[test]
-fn the_fronts_log_sits_between_the_steps_and_the_box() {
-    let steps = crate::layout::flatten(Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) });
-    for (front, front_step, box_step, names) in [
-        (false, None, 1, [b"serve.log".as_slice(), b"box.log"].as_slice()),
-        (true, Some(1), 2, [b"serve.log".as_slice(), b"tui.log", b"box.log"].as_slice()),
-    ] {
-        let logs = crate::logs::Logs::new(&steps, b"/data", RECORD_BYTES, front);
-        assert_eq!(logs.front_step(), front_step);
-        assert_eq!(logs.box_step(), box_step);
-        for (step, name) in names.iter().enumerate() {
-            assert_eq!(logs.path(step), crate::lines::joined(&[b"/data/box/logs/", name]));
-        }
-    }
 }

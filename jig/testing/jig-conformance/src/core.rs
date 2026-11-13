@@ -16,7 +16,7 @@ use crate::referee as r;
 mod evidence;
 pub use evidence::*;
 use jig_domain_authority as authority;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 
@@ -902,7 +902,9 @@ impl Observer {
                 requires.push(r::Receipt::Ended(*task));
                 self.observe(now, r::Observed::Result { task: *task, to: r::Source::Person(*person) });
             }
-            core::Held::Acted { .. }
+            // The application's use of need arrivals is its own.
+            core::Held::NeedArrived { .. }
+            | core::Held::Acted { .. }
             | core::Held::Drained
             | core::Held::Load(_)
             | core::Held::ApplicationDelivery { .. }

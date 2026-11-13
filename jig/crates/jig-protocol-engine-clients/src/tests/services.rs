@@ -43,10 +43,10 @@ fn a_replayed_make_service_answers_its_party_without_a_credential() {
                 &mut exchange.out,
             );
             assert_eq!(exchange.service_credential(owner), f::credential());
-            assert!(exchange.service_credential(other).expose().is_empty());
+            assert_eq!((exchange.service_credential(other).expose()).len(), 0);
         } else {
             exchange.service_got(Some(f::service_kept()));
-            assert!(exchange.service_credential(owner).expose().is_empty());
+            assert_eq!((exchange.service_credential(owner).expose()).len(), 0);
         }
         assert!(exchange.out.is_empty());
         assert!(exchange.component.pending.exchanges.is_empty());

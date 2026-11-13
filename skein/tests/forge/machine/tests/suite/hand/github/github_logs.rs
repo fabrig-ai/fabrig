@@ -3,6 +3,7 @@ use skein_forge::{
     api::{self, Answer, Error, Op, Read},
     github::redirect::Origin,
 };
+use skein_forge_connection::seam::Access;
 use skein_forge_connection::{Event, Fact, settings::LogOrigin};
 use skein_forge_machine_world::hand::{self as f, FORGE, Harness, REPO};
 use skein_lib::{Duration, List};

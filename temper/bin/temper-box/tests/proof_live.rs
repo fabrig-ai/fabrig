@@ -1,5 +1,5 @@
 //! Offline B0 driver proofs (temper/docs/design/testing/live-tier.md).
-pub mod support;
+use temper_box_kit as support;
 #[test]
 fn rung_b0s_setup_reaches_account_import_with_the_fake_model_and_no_account() {
     let scratch = support::Scratch::new("rung-b0-offline-setup");

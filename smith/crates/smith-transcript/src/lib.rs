@@ -8,9 +8,6 @@
 
 extern crate alloc;
 
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
-
 #[rustfmt::skip]
 mod generated {
     /// Archived version-6 codec, without supplied system context.
@@ -89,6 +86,7 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = 7;
 
+    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
     const TEXT: &str = include_str!("../schema/transcript-v7.schema");
 
     /// The current schema's family fingerprint.

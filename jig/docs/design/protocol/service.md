@@ -309,9 +309,13 @@ down:  released and door outputs → components → io submissions
 - **Starting:** configuration; the components; the link dialled at once;
   the hub reports what it hosts once the link is up (`channel/README.md`,
   9.1).
-- **Ending:** the hub cancels every run and admits no more; the worker is
-  done once the engine has every turn and answer, or past its grace with
-  no engine (`../domain/hosts/hub.md`, 7).
+- **Ending:** the root drains the hub for its drain bound, then cancels
+  what is left, and the hub admits no more; the worker is done once the
+  engine has every turn and answer, or past its grace with no engine
+  (`../domain/hosts/hub.md`, 7), and at the latest at its stop bound,
+  which the root keeps as a deadline (`../domain/hosts/hub.md`, 6). jig's
+  reference worker (section 7) does not drain: it cancels at once, and
+  keeps no deadline beyond its components' own.
 
 ## 7. The reference binary and service
 

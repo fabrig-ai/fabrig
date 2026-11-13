@@ -547,7 +547,7 @@ fn half_closes(sender: &Sender, half_close: Option<HalfClose>) -> bool {
 /// reads as the refusal `busy`, which answers first.
 fn first_byte(rng: &mut Rng) -> u8 {
     let mut drawn = u8::try_from(rng.below(254)).expect("below 254");
-    for skipped in [b'\n', b'b'] {
+    for skipped in *b"\nb" {
         if drawn >= skipped {
             drawn = drawn.checked_add(1).expect("at most 255");
         }

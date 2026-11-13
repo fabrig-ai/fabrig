@@ -106,7 +106,7 @@ fn keep_news(world: &mut World, news: &mut Vec<top::Request>) {
 }
 fn step_news(world: &mut World, task: u64, entry: u64, news: &mut Vec<top::Request>) -> top::TierDecision {
     keep_news(world, news);
-    world.event(top::Event::StepTier { task, entry, heard: top::TierHeard { released: false } });
+    world.event(top::Event::StepTier { task, entry, heard: top::TierHeard { released: false, message_bytes: 4096 } });
     world.run_for(1);
     let mut decision = None;
     let mut committed = None;
@@ -357,7 +357,7 @@ fn a_push_to_another_branch_starts_no_run() {
     world.run_for(20);
     assert!(row(&world).record.run.is_none());
     assert_eq!(row(&world).record.sequence, 1);
-    assert!(selections(&world.take_calls()).is_empty());
+    assert_eq!(selections(&world.take_calls()).len(), 0);
 }
 fn restarted_part(seed: u64, wanted: u8) {
     let mut world = world(seed, Box::new([]), true);

@@ -100,6 +100,7 @@ pub enum Up {
     StreamsFull { full: StreamsFull },
     SignedIn,
     SignedOut,
+    Unreadable,
     NotKept { key: RequestKey },
     Served { served: bool, versions: Option<contract::VersionRange> },
     FamilyServed { family: u16, versions: Option<contract::VersionRange> },

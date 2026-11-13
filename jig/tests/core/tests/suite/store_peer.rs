@@ -70,11 +70,11 @@ fn repeated_drains_and_released_acknowledgements_do_not_duplicate_a_snapshot() {
         world.drain();
     }
     assert_eq!(world.store.applied, applied);
-    assert!(world.store_peer.as_mut().expect("store peer").take().is_empty());
+    assert_eq!(world.store_peer.as_mut().expect("store peer").take().len(), 0);
     world.release_commits();
     assert_eq!(world.store.applied, applied);
     assert_eq!(world.client_peer.as_ref().expect("client").delivered.len(), 1);
-    assert!(world.store_peer.as_mut().expect("store peer").take().is_empty());
+    assert_eq!(world.store_peer.as_mut().expect("store peer").take().len(), 0);
     let mut empty = StorePeer::new();
     empty.capture(Time::from_nanos(1), &Store::new(&jig_test_profile::limits(), &[]));
     assert!(empty.take().is_empty(), "no invented Durable0");
@@ -147,13 +147,13 @@ fn pending_failed_and_abandoned_transactions_emit_nothing_and_crash_preserves_ca
     store.submit(3, writes(3, Write::Save(opaque_turn(b"abandoned after failure"))), 0);
     assert_eq!(store.tick(false), Err(2));
     peer.capture(Time::from_nanos(23), &store);
-    assert!(peer.take().is_empty());
+    assert_eq!(peer.take().len(), 0);
     assert_eq!(store.applied, 1);
     assert_eq!(store.rows.get(&key), Some(&durable));
     assert!(store.pending.is_empty());
     store.crash(18);
     peer.capture(Time::from_nanos(24), &store);
-    assert!(peer.take().is_empty());
+    assert_eq!(peer.take().len(), 0);
     assert_eq!(captured[0].rows.get(&key), Some(&durable));
 }
 

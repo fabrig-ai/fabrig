@@ -21,11 +21,14 @@ fn no_credential_variable_reaches_the_program() {
     assert!(matches!(run.answer().expect("answer").result(), RunResult::Accepted(_)));
     assert_eq!(run.invocations.len(), 2, "status and print both ran");
     assert_eq!(run.invocations[0].arguments, ["auth", "status"]);
-    assert_eq!(run.invocations[0].environment, ["WAIT_PROOF", "HOME", "EARLY_EXIT", "TERM", "CLAUDE_CONFIG_DIR"]);
+    assert_eq!(
+        run.invocations[0].environment,
+        ["WAIT_PROOF", "HOME", "EARLY_EXIT", "TERM", "CLAUDE_CONFIG_DIR", "ANTHROPIC_CONFIG_DIR"]
+    );
     assert_eq!(run.invocations[1].arguments[0], "-p");
     assert_eq!(
         run.invocations[1].environment,
-        ["WAIT_PROOF", "HOME", "EARLY_EXIT", "TERM", "MCP_TOOL_TIMEOUT", "CLAUDE_CONFIG_DIR"]
+        ["WAIT_PROOF", "HOME", "EARLY_EXIT", "TERM", "MCP_TOOL_TIMEOUT", "CLAUDE_CONFIG_DIR", "ANTHROPIC_CONFIG_DIR"]
     );
     assert_eq!(run.relay_environments.len(), 1, "the print run reached its relay");
     for name in [
@@ -38,7 +41,7 @@ fn no_credential_variable_reaches_the_program() {
         assert!(!run.relay_environments[0].iter().any(|kept| kept == name), "relay kept {name}");
     }
     assert_eq!(run.exits, vec![skein_io::kernel::Exit::Code(0); 5]);
-    assert!(run.run_directories.is_empty());
+    assert_eq!(run.run_directories.len(), 0);
 }
 
 fn fault(run: &Run) -> Option<ModelFault> {

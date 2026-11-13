@@ -155,9 +155,9 @@ impl Decoder<'_> {
             return Err(bound(name, most));
         }
         let mut out = Writer::new(count);
-        for pair in bytes.chunks_exact(2) {
-            let high = digit(*pair.first().expect("pair"))?;
-            let low = digit(*pair.get(1).expect("pair"))?;
+        for &[high, low] in bytes.as_chunks::<2>().0 {
+            let high = digit(high)?;
+            let low = digit(low)?;
             out.put(&[high.checked_mul(16).expect("hex digit").checked_add(low).expect("hex byte")])
                 .expect("measured hex");
         }
@@ -271,6 +271,8 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
         b"project-classes",
         b"charter-words",
         b"project-words",
+        b"project-areas",
+        b"project-triager",
     ]
     .contains(&kind)
     {
@@ -307,8 +309,21 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
     }
 }
 fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
-    let fields = d.object(at, &[b"setting", b"set", b"edit"])?;
+    let fields = d.object(at, &[b"setting", b"set", b"edit", b"overlay"])?;
     let setting = setting(d, field(&fields, b"setting")?)?;
+    if let Some(at) = optional(&fields, b"overlay") {
+        if optional(&fields, b"set").is_some() || optional(&fields, b"edit").is_some() {
+            return Err(error(b"item", b"exactly one of set, edit or overlay required"));
+        }
+        let c::Setting::Charter(n) = setting else {
+            return Err(error(b"overlay", b"charter required"));
+        };
+        let overlay = values::overlay(d, at, n.number)?;
+        return Ok(c::SettingItem {
+            setting,
+            edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Overlay(Box::new(overlay)) }),
+        });
+    }
     let edit = match (optional(&fields, b"set"), optional(&fields, b"edit")) {
         (Some(at), None) => {
             let value = match setting {
@@ -435,6 +450,12 @@ fn decode_root(
             return Err(message(Some(index), bound(b"encoded items bytes", limits.settings.change_settings_items)));
         }
         items.push(next).expect("counted items");
+    }
+    if proposal {
+        let directories = crate::overlay::directories(&items);
+        if let Some(name) = directories.get(0) {
+            return Err(crate::overlay::refusal(name, "directory: ctl file input required"));
+        }
     }
     let ask = c::ChangeSettings { against: 0, items, running: c::Running::Stays };
     let wire = crate::wire::wire_change_settings(&ask, &limits.settings)

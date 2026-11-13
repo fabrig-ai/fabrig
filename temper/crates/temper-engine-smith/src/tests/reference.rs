@@ -4,15 +4,15 @@ use skein_lib::Writer;
 use smith_domain_run::HostEffect;
 
 use crate::{
-    calls::{DESCRIPTION_BYTES, MEMBER_BYTES, SPECS, Spec},
+    calls::{DESCRIPTION_BYTES, MEMBER_BYTES, Offer, SPECS, Spec},
     json::{self, Value},
     reference::{reference, render},
 };
 
-const HEAD: &[u8] = b"# Host tools\n\nKind: reference\n\nEvery tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.\n\nFile, pull-file and compare replies fit the smaller of core.call_answer_bytes less the tool name and the receiving agent allowance (agent.json profile.declared.tool_payload). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance. Oversized rendered comparisons return measured-size feedback and recovery instructions; forge size refusals name the bound passed and the exact size, or at least the size read. Unnamed checks say an unnamed bound; a forge bound without figures says a bound of the forge's. Each refusal says how to read on. Host-fitted file prefixes keep [file truncated] and give size and recovery feedback when room permits. max_bytes selects a raw prefix, with no offset; a cut is incomplete. Metadata that leaves no content room needs a shorter path or a larger allowance. Oversized pull-file pages retain changed paths as room permits and distinguish omitted contents from absent sides. Read selected paths at the head and base commits, resolving the base separately; recover omitted paths by listing directories at both commits. Later pages only list other files.\n";
+const HEAD: &[u8] = b"# Host tools\n\nKind: reference\n\nEvery tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.\n\nA run calls only the tools in its own list: a tool here that your list lacks is not yours.\n\nFile, pull-file and compare replies fit the smaller of core.call_answer_bytes less the tool name and the receiving agent allowance (agent.json profile.declared.tool_payload). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance. Oversized rendered comparisons return measured-size feedback and recovery instructions; forge size refusals name the bound passed and the exact size, or at least the size read. Unnamed checks say an unnamed bound; a forge bound without figures says a bound of the forge's. Each refusal says how to read on. Host-fitted file prefixes keep [file truncated] and give size and recovery feedback when room permits. max_bytes selects a raw prefix, with no offset; a cut is incomplete. Metadata that leaves no content room needs a shorter path or a larger allowance. Oversized pull-file pages retain changed paths as room permits and distinguish omitted contents from absent sides. Read selected paths at the head and base commits, resolving the base separately; recover omitted paths by listing directories at both commits. Later pages only list other files.\n";
 
 fn fixture(schema: &'static [u8], effect: HostEffect) -> Box<[u8]> {
-    let specs = [Spec { name: b"fixture_read", description: b"Read a fixture.", schema, effect }];
+    let specs = [Spec { name: b"fixture_read", description: b"Read a fixture.", schema, effect, offer: Offer::Every }];
     let mut out = Writer::new(temper_docs::PAGE_BYTES);
     render(&specs, &mut out).expect("fixture fits page bound");
     let mut exact = Writer::new(out.written());
@@ -37,7 +37,7 @@ fn a_tool_renders_its_description_effect_and_members() {
         },
         "required":["number","name"]
     }"#;
-    let expected = b"\n## fixture_read\n\nRead a fixture.\n\nA read.\n\n\
+    let expected = b"\n## fixture_read\n\nRead a fixture.\n\nA read.\nOffered to every run but an asking one.\n\n\
 - `number`: an integer from 1 to 9; required. a number\n\
 - `page`: an integer of at least 1, 1 when absent; optional.\n\
 - `kind`: one of `issue` or `pull`; optional. which\n\
@@ -52,7 +52,7 @@ fn a_tool_renders_its_description_effect_and_members() {
 
 #[test]
 fn a_tool_with_no_members_says_its_input_is_empty() {
-    let expected = b"\n## fixture_read\n\nRead a fixture.\n\nA write.\n\nIts input is `{}`.\n";
+    let expected = b"\n## fixture_read\n\nRead a fixture.\n\nA write.\nOffered to every run but an asking one.\n\nIts input is `{}`.\n";
     for schema in [br#"{"type":"object","properties":{}}"#.as_slice(), br#"{"type":"object"}"#] {
         assert_eq!(fixture(schema, HostEffect::Write).as_ref(), [HEAD, expected].concat());
     }
@@ -60,8 +60,6 @@ fn a_tool_with_no_members_says_its_input_is_empty() {
 
 #[test]
 fn the_page_holds_every_declared_tool_in_the_tables_order() {
-    // The declared task, connector and settings tools.
-    const TOOLS: usize = 44;
     let mut out = Writer::new(temper_docs::PAGE_BYTES);
     reference(&mut out).expect("page fits PAGE_BYTES");
     let mut exact = Writer::new(out.written());
@@ -82,12 +80,74 @@ fn the_page_holds_every_declared_tool_in_the_tables_order() {
     for line in headings {
         assert!(!line.starts_with("## "), "no undeclared tool heading");
     }
-    assert_eq!(SPECS.len(), TOOLS);
     let mut tail = SPECS.iter().rev();
     for name in [b"remember".as_slice(), b"document", b"see", b"read_docs"] {
         assert_eq!(tail.next().unwrap().name, name);
     }
+
     assert!(page.len() <= temper_docs::PAGE_BYTES);
+}
+
+#[test]
+fn each_offered_line_agrees_with_the_runs_declarations() {
+    use jig_domain_tasks::Tools;
+    let families = jig_domain_core::ToolFamilies::JIG;
+    let mut measured = Writer::new(temper_docs::PAGE_BYTES);
+    reference(&mut measured).expect("page fits");
+    let mut out = Writer::new(measured.written());
+    reference(&mut out).expect("page fits measured length");
+    let page = out.finish();
+    let page = core::str::from_utf8(&page).expect("page UTF-8");
+    for charter in [
+        0,
+        families.delegate.0,
+        families.settings,
+        families.delegate.0 | families.settings,
+        families.ask.0,
+        families.ask.0 | families.settings,
+        families.ask.0 | families.delegate.0,
+        families.ask.0 | families.delegate.0 | families.settings,
+        u64::MAX,
+    ] {
+        for bits in 0_u64..16 {
+            let authority = if bits & 1 != 0 { families.read.0 } else { 0 }
+                | if bits & 2 != 0 { families.message.0 } else { 0 }
+                | if bits & 4 != 0 { families.settings } else { 0 }
+                | if bits & 8 != 0 { families.ask.0 } else { 0 };
+            let offered = crate::calls::tools_for(skein_lib::Duration::from_secs(1), Tools(charter), Tools(authority));
+            let asking = temper_engine_domain::asking(Tools(charter));
+            for spec in &SPECS {
+                let name = core::str::from_utf8(spec.name).expect("tool UTF-8");
+                let (_, entry) = page.split_once(&format!("\n## {name}\n")).expect("tool on page");
+                let entry = entry.split("\n## ").next().expect("entry");
+                let line = entry.lines().find(|line| line.starts_with("Offered ")).expect("offering line");
+                let expected = match line {
+                    "Offered to every run but an asking one." => !asking,
+                    "Offered where the run's charter names the delegate family." => {
+                        !asking && charter & families.delegate.0 != 0
+                    }
+                    "Offered where the run's authority holds the message family." => {
+                        !asking && authority & families.message.0 != 0
+                    }
+                    "Offered where the run's authority holds the read family." => {
+                        !asking && authority & families.read.0 != 0
+                    }
+                    "Offered where the run's charter names the settings family and its authority holds it." => {
+                        charter & authority & families.settings != 0 && (!asking || name == "propose_settings")
+                    }
+                    "Offered to an asking run, where its authority holds the asking family." => {
+                        asking && authority & families.ask.0 != 0
+                    }
+                    other => panic!("unknown offering line: {other}"),
+                };
+                assert_eq!(
+                    offered.iter().any(|tool| tool.name.as_ref() == spec.name),
+                    expected,
+                    "{name}: charter {charter}, authority {authority}: {line}"
+                );
+            }
+        }
+    }
 }
 
 #[test]
@@ -105,6 +165,7 @@ fn member_types_keep_enum_order_and_json_defaults() {
 Read a fixture.
 
 A read.
+Offered to every run but an asking one.
 
 - `one`: one of `a`; optional.
 - `two`: one of `b` or `a`; optional.

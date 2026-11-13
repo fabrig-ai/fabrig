@@ -1,3 +1,5 @@
+mod fake_box;
+
 use skein_fake_machine::{Item, Machine};
 use skein_io::{
     self as io,
@@ -41,7 +43,10 @@ struct World {
     input: Fd,
     output: Fd,
     signals: Fd,
-    lines: Option<Fd>,
+    children: Vec<fake_box::Child>,
+    bound: std::collections::BTreeSet<Token>,
+    hold_link: bool,
+    connects: Vec<io::Addr>,
     run: Run,
     now: Time,
     bytes: Vec<u8>,
@@ -121,21 +126,30 @@ impl World {
             let fd = files.open(root, b".", skein_fake_machine::How::Directory).expect("note root");
             sim.root(pid, Handle::new(fd.raw()))
         });
+        let spawn_root = front.then(|| {
+            let fd = files.open(root, b".", skein_fake_machine::How::Directory).expect("captured cwd");
+            sim.root(pid, Handle::new(fd.raw()))
+        });
         let root = sim.root(pid, Handle::new(root.raw()));
         let input = sim.open_inherited_read(pid);
         let output = sim.open_inherited_write(pid);
         let signals = sim.open_signal_source(pid);
         let engine = approval.then(|| Engine::new(&mut sim));
-        let lines = front.then(|| sim.open_inherited_read(pid));
         let settings = Settings {
             record: recording,
-            front: lines.map(|lines| temper_client_shell_tui::run::Front {
-                link: skein_lib::Secret::new(HANDED_LINK.into()),
-                lines,
+            front: spawn_root.map(|directory| temper_client_shell_tui::run::Front {
+                executable: b"/bin/temper".as_slice().into(),
+                cache: b"/cache".as_slice().into(),
+                arguments: vec![Box::from(b"--data".as_slice()), Box::from(b"/data".as_slice())].into(),
+                environment: vec![Box::from(b"HOME=/home/person".as_slice())].into(),
+                directory,
+                log: b"/data/box/logs/box.log".as_slice().into(),
             }),
-            engine: skein_io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
+            engine: skein_io::Addr::Ip(
+                if front { "127.0.0.1:9000" } else { "127.0.0.1:8367" }.parse().expect("loopback"),
+            ),
             directory: b"tui".as_slice().into(),
-            address: b"127.0.0.1:8367".as_slice().into(),
+            address: if front { b"127.0.0.1:9000" } else { b"127.0.0.1:8367" }.as_slice().into(),
             scheme,
             boxed: true,
             link_file: link.map(Into::into),
@@ -154,7 +168,10 @@ impl World {
             input,
             output,
             signals,
-            lines,
+            children: Vec::new(),
+            bound: std::collections::BTreeSet::new(),
+            hold_link: false,
+            connects: Vec::new(),
             run,
             now: Time::ZERO,
             bytes: Vec::new(),
@@ -183,14 +200,39 @@ impl World {
                 || self.run.next_deadline().is_some_and(|at| at <= self.now)
             {
                 self.sim.reap(self.pid, self.run.completions());
+                let spawns: Vec<_> = self
+                    .run
+                    .completions()
+                    .iter()
+                    .filter_map(|complete| {
+                        if let (Op::Spawn { spawn }, Ok(io::kernel::Done::Spawned { pidfd, .. })) =
+                            (&complete.kind, &complete.result)
+                            && [b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&spawn.program.as_ref())
+                            && self.bound.insert(complete.op)
+                        {
+                            Some((*pidfd, spawn.program.as_ref() == b"/bin/temper-box"))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                for (pidfd, boxed) in spawns {
+                    self.children.push(fake_box::Child::new(&mut self.sim, self.pid, pidfd, boxed, !self.hold_link));
+                }
                 self.run.iterate(self.now, Wall::from_nanos(self.now.as_nanos()));
                 runnable = self.run.work_pending(self.now);
             }
             for submit in self.run.submissions().iter() {
                 if let Op::Spawn { spawn } = &submit.kind {
-                    self.spawns += 1;
-                    assert_eq!(spawn.program.as_ref(), b"/bin/browser");
-                    assert_eq!(spawn.args.as_ref(), &[Box::<[u8]>::from(APPROVAL)]);
+                    if spawn.program.as_ref() == b"/bin/browser" {
+                        self.spawns += 1;
+                        assert_eq!(spawn.args.as_ref(), &[Box::<[u8]>::from(APPROVAL)]);
+                    } else {
+                        assert!([b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&spawn.program.as_ref()));
+                    }
+                }
+                if let Op::Connect { addr, .. } = &submit.kind {
+                    self.connects.push(io::Addr::Ip(*addr));
                 }
                 if let Op::Signal { to, .. } = &submit.kind {
                     assert_eq!(*to, io::kernel::Target::Child, "the browser's group stays");
@@ -198,6 +240,9 @@ impl World {
             }
             self.sim.submit(self.pid, self.run.submissions());
             self.serve();
+            for child in &mut self.children {
+                child.iterate(&mut self.sim, self.now);
+            }
             if let Some(engine) = &mut self.engine {
                 if self.run.is_empty() {
                     engine.close();
@@ -215,6 +260,7 @@ impl World {
                 || self.sim.deferred(self.pid)
                 || self.run.work_pending(self.now)
                 || self.engine.as_ref().is_some_and(|engine| engine.pending(&self.sim))
+                || self.children.iter().any(|child| child.pending(&self.sim))
             {
                 continue;
             }
@@ -280,7 +326,11 @@ impl World {
                 self.recording_sync = None;
                 self.saved += 1;
             }
-            if let Ask::Spawn { args, .. } = &call.ask {
+            if let Ask::Spawn { program, args, .. } = &call.ask {
+                if [b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&program.as_ref()) {
+                    answers.push(Answer { ticket: call.ticket, result: Ok(Reply::Program(Program::Service)) });
+                    continue;
+                }
                 assert_eq!(args.as_ref(), &[Box::<[u8]>::from(APPROVAL)]);
                 let result = match self.outcome {
                     Outcome::Success => Ok(Reply::Program(Program::Exit(0))),
@@ -296,12 +346,16 @@ impl World {
         self.sim.answer(&mut answers);
     }
 
+    fn box_child(&mut self) -> &mut fake_box::Child {
+        self.children.iter_mut().find(|child| child.boxed).expect("box spawned")
+    }
+
     fn drained(&mut self, refused: bool) {
         assert!(self.bytes.starts_with(ENTER), "ENTER first");
         assert!(self.bytes.ends_with(LEAVE), "LEAVE last");
         assert_eq!(self.bytes.windows(LEAVE.len()).filter(|part| *part == LEAVE).count(), 1);
         assert_eq!(self.run.refused(), refused);
-        assert_eq!(self.run.exit(), Some(Exit::Code(u8::from(refused))));
+        assert_eq!(self.run.exit(), Some(Exit::Code(u8::from(refused || self.run.terminated()))));
         assert!(self.run.is_empty());
         assert!(self.run.signed_in().is_none());
         self.sim.assert_no_open_fds(self.pid);
@@ -324,8 +378,6 @@ enum WayOut {
     ControlC,
     Termination,
     Refused,
-    BoxLinesEnd,
-    BoxLinesEndBeforeStart,
 }
 
 #[test]
@@ -337,10 +389,7 @@ fn every_way_out_leaves_the_terminal_as_it_was_found() {
         (WayOut::ControlC, false),
         (WayOut::Termination, false),
         (WayOut::Refused, false),
-        (WayOut::BoxLinesEnd, true),
-        (WayOut::BoxLinesEndBeforeStart, true),
         (WayOut::ControlC, true),
-        (WayOut::Termination, true),
     ]
     .into_iter()
     .flat_map(|(way, front)| recording.iter().map(move |record| (way, front, *record)))
@@ -358,12 +407,6 @@ fn every_way_out_leaves_the_terminal_as_it_was_found() {
             None,
             front,
         );
-        if matches!(way, WayOut::BoxLinesEndBeforeStart) {
-            world.sim.peer_close(world.pid, world.lines.expect("box pipe before Start"));
-            world.settle();
-            world.drained(false);
-            continue;
-        }
         world.settle();
         if matches!(way, WayOut::Refused) {
             assert!(!world.bytes.windows(SIGN_IN.len()).any(|part| part == SIGN_IN), "no Start on refusal");
@@ -379,14 +422,13 @@ fn every_way_out_leaves_the_terminal_as_it_was_found() {
         world.leave_after = usize::from(record == Recording::Root);
         match way {
             WayOut::End => world.sim.peer_close(world.pid, world.input),
-            WayOut::BoxLinesEnd => world.sim.peer_close(world.pid, world.lines.expect("the box’s lines end")),
             WayOut::ControlC => {
                 assert_eq!(world.sim.peer_feed(world.pid, world.input, b"\x03\rignored"), 9);
             }
             WayOut::Termination => {
                 world.sim.deliver_service_signal(world.pid, world.signals, ServiceSignal::Terminate, None);
             }
-            WayOut::Refused | WayOut::BoxLinesEndBeforeStart => unreachable!("early closing checked above"),
+            WayOut::Refused => unreachable!("early closing checked above"),
         }
         world.settle();
         if record == Recording::Root {
@@ -423,7 +465,7 @@ struct Engine {
     denied: usize,
     bodies: std::collections::BTreeSet<Token>,
     discarding: std::collections::BTreeSet<Token>,
-    link_answer: Option<jig_client_protocol_wire::v19::SignInAnswer>,
+    link_answer: Option<jig_client_protocol_wire::v20::SignInAnswer>,
     link_sign_ins: usize,
     approvals: usize,
 }
@@ -575,7 +617,7 @@ impl Engine {
     }
 
     fn watch(&mut self, owner: Token, bytes: &[u8]) {
-        use jig_client_protocol_wire::v19 as w;
+        use jig_client_protocol_wire::v20 as w;
         let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch body");
         if open.subject().owner() == &w::Owner::Jig
             && w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record())).expect("subject")
@@ -618,7 +660,7 @@ impl Engine {
     }
 }
 fn approval_response() -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let answer = w::ApprovalAskAnswer::Asked(
         w::ApprovalAsked::new(
             &w::CEILINGS,
@@ -1055,7 +1097,7 @@ fn sign_in_expiry_writes_a_private_note_only_with_a_root() {
 }
 
 fn sign_in_response() -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     let answer = w::SignInAnswer::SignedIn(
         w::SignedIn::new(
             &w::CEILINGS,
@@ -1074,7 +1116,7 @@ fn sign_in_response() -> Box<[u8]> {
 }
 
 fn hello_event() -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     use skein_lib::List;
     let limits = &w::CEILINGS;
     let mut served = List::with_capacity(1);
@@ -1098,7 +1140,7 @@ fn hello_event() -> Box<[u8]> {
     sse(&hello)
 }
 fn me_event(watch: u64) -> Box<[u8]> {
-    use jig_client_protocol_wire::v19 as w;
+    use jig_client_protocol_wire::v20 as w;
     use skein_lib::Writer;
     let limits = &w::CEILINGS;
     let text = |bytes: &[u8]| {
@@ -1142,7 +1184,7 @@ fn me_event(watch: u64) -> Box<[u8]> {
     sse(&delivery)
 }
 
-fn sse(event: &jig_client_protocol_wire::v19::StreamEvent) -> Box<[u8]> {
+fn sse(event: &jig_client_protocol_wire::v20::StreamEvent) -> Box<[u8]> {
     use skein_lib::{
         Writer,
         base64::{self, Alphabet},
@@ -1194,9 +1236,6 @@ fn a_front_connects_after_early_readiness_or_a_refused_connect() {
         world.sim.advance_to(world.now);
         world.sim.set_faults(skein_sim::Faults { latency, latency_max: limits::BACKGROUND, ..skein_sim::Faults::NONE });
         world.horizon = world.now.saturating_add(limits::BACKGROUND);
-        let pipe = world.lines.expect("front pipe");
-        let ready = b"running serve\n";
-        world.sim.peer_feed(world.pid, pipe, ready);
         world.settle();
         if world.engine.is_none() {
             world.engine = Some(Engine::new(&mut world.sim));
@@ -1212,6 +1251,121 @@ fn a_front_connects_after_early_readiness_or_a_refused_connect() {
         world.sim.assert_quiescent(world.pid);
         assert_eq!(world.files.open_handles(), 0);
     }
+}
+
+#[test]
+fn a_fronts_own_termination_leaves_without_waiting_for_the_box() {
+    let mut world = World::front_options(
+        false,
+        true,
+        false,
+        Outcome::Success,
+        Recording::None,
+        Some(Scheme::Dark),
+        None,
+        false,
+        None,
+        true,
+    );
+    world.settle();
+    world.box_child().hold_stop = true;
+    world.sim.deliver_service_signal(world.pid, world.signals, ServiceSignal::Terminate, None);
+    world.settle();
+    assert!(world.run.terminated(), "LEAVE is written even while the box has not ended");
+    assert!(!world.box_child().finished, "the own-signal path has not waited on the box");
+    assert!(world.bytes.ends_with(LEAVE));
+    world.box_child().close();
+    world.draining = true;
+    world.settle();
+    assert_eq!(world.run.exit(), Some(Exit::Code(1)));
+    world.sim.assert_no_open_fds(world.pid);
+    world.sim.assert_quiescent(world.pid);
+    assert_eq!(world.files.open_handles(), 0);
+}
+
+#[test]
+fn a_front_makes_no_connection_until_the_whole_link_arrives_after_start() {
+    let mut world = World::front_options(
+        false,
+        true,
+        false,
+        Outcome::Success,
+        Recording::None,
+        Some(Scheme::Dark),
+        None,
+        false,
+        None,
+        true,
+    );
+    world.hold_link = true;
+    world.settle();
+    assert_eq!(world.connects.len(), 0);
+    assert!(
+        terminal_text(&world.bytes).contains("Starting the box"),
+        "the TUI draws before the link: {} (children={})",
+        terminal_text(&world.bytes),
+        world.children.len()
+    );
+    let middle = HANDED_LINK.len() / 2;
+    world.box_child().write(3, &HANDED_LINK[..middle]);
+    world.settle();
+    assert!(world.connects.is_empty(), "a fragment has no connection authority");
+    world.box_child().write(3, &HANDED_LINK[middle..]);
+    world.settle();
+    assert!(world.connects.is_empty(), "even all bytes wait for EOF");
+    world.box_child().end(3);
+    world.settle();
+    assert!(world.run.signed_in().is_some());
+    assert_ne!(world.connects.len(), 0);
+    assert!(
+        world
+            .connects
+            .iter()
+            .all(|address| *address == io::Addr::Ip("127.0.0.1:8367".parse().expect("handed address"))),
+        "not the initial engine at port 9000"
+    );
+    world.draining = true;
+    world.keys(b"\x03");
+    assert_eq!(world.run.exit(), Some(Exit::Code(0)));
+    world.sim.assert_no_open_fds(world.pid);
+    world.sim.assert_quiescent(world.pid);
+    assert!(world.children.iter().all(|child| child.finished));
+    assert_eq!(world.files.open_handles(), 0);
+}
+
+// The front and bare start use the same captured-environment recording choice.
+fn front_from_environment(environment: &[temper_shell::directories::EnvironmentEntry]) -> World {
+    let record = if temper_client_shell_tui::start::recording(environment) { Recording::Root } else { Recording::None };
+    World::front_options(false, true, false, Outcome::Success, record, Some(Scheme::Dark), None, false, None, true)
+}
+
+#[test]
+fn a_front_records_when_requested_in_the_captured_environment() {
+    let mut world = front_from_environment(&[(b"TEMPER_INTERNAL_RECORD".as_slice().into(), b"1".as_slice().into())]);
+    world.settle();
+    world.keys(b"\x1bS");
+    let lines = replay(&world.recording_file().expect("requested front recording").0);
+    assert!(lines.contains(&temper_client_shell_tui::journey::Line::Front));
+    world.draining = true;
+    world.keys(b"\x03");
+    replay(&world.recording_file().expect("front saves on closing").0);
+    world.sim.assert_no_open_fds(world.pid);
+    world.sim.assert_quiescent(world.pid);
+    assert_eq!(world.files.open_handles(), 0);
+}
+
+#[test]
+fn a_front_without_the_captured_record_variable_writes_no_recording() {
+    let mut world = front_from_environment(&[]);
+    world.settle();
+    world.keys(b"\x1bS");
+    assert!(world.recording_file().is_none(), "unrequested front writes no recording");
+    world.draining = true;
+    world.keys(b"\x03");
+    assert!(world.recording_file().is_none(), "closing still writes none");
+    world.sim.assert_no_open_fds(world.pid);
+    world.sim.assert_quiescent(world.pid);
+    assert_eq!(world.files.open_handles(), 0);
 }
 
 #[test]
@@ -1236,24 +1390,18 @@ fn a_front_answers_its_first_read_with_the_handed_link_and_reports_the_boxs_line
     world.files.write(file, 0, LOCAL_LINK).expect("file's link");
     world.files.close(file);
     world.files.close(root);
-    world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::v19::SignInAnswer::LinkUsed);
+    world.engine.as_mut().expect("engine").link_answer = Some(jig_client_protocol_wire::v20::SignInAnswer::LinkUsed);
     world.horizon = Time::ZERO;
-    let pipe = world.lines.expect("front pipe");
-    assert_eq!(
-        world.sim.peer_feed(world.pid, pipe, b"restarting forge\nlog split"),
-        b"restarting forge\nlog split".len()
-    );
+    world.settle();
+    world.box_child().write(4, b"restarting forge\nlog split");
     world.settle();
     world.horizon = Time::ZERO.saturating_add(limits::BACKGROUND).saturating_add(Duration::from_millis(40));
-    assert_eq!(
-        world.sim.peer_feed(world.pid, pipe, b" across writes\nrunning forge\n"),
-        b" across writes\nrunning forge\n".len()
-    );
+    world.box_child().write(4, b" across writes\nrunning forge\n");
     world.settle();
     let mut past = b"log ".to_vec();
     past.extend(vec![b'x'; BoxLine::MOST - b"log ".len()]);
     past.extend_from_slice(b"log forged\nunknown word\nlog after dropped line\n");
-    assert_eq!(world.sim.peer_feed(world.pid, pipe, &past), past.len());
+    world.box_child().write(4, &past);
     world.settle();
     world.horizon = world.now.saturating_add(Duration::from_secs(2));
     world.settle();
@@ -1282,10 +1430,15 @@ fn a_front_answers_its_first_read_with_the_handed_link_and_reports_the_boxs_line
     );
     assert_eq!(world.engine.as_ref().expect("engine").approvals, 0);
     // An unfinished final piece is discarded when the writer closes.
-    assert_eq!(world.sim.peer_feed(world.pid, pipe, b"log unfinished"), 14);
-    world.sim.peer_close(world.pid, pipe);
-    world.draining = true;
+    world.box_child().write(4, b"log unfinished");
+    world.box_child().end(4);
     world.settle();
+    assert!(!world.run.is_empty(), "lines EOF alone is not the box's end");
+    world.box_child().close();
+    world.settle();
+    assert!(!world.run.is_empty(), "an unasked box end stays open");
+    world.draining = true;
+    world.keys(b"\x03");
     let lines = replay(&world.recording_file().expect("closing front recording").0);
     assert_eq!(lines.iter().filter(|line| matches!(line, Line::BoxLine(_))).count(), 4);
     assert!(world.bytes.ends_with(LEAVE));

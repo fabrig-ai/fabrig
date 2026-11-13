@@ -108,7 +108,7 @@ fn an_amendment_while_gathering_drops_every_section_gathered() {
     assert_eq!(asked.len(), 2);
     let abandoned = world.step(GatherEvent::Abandon { brief: Token::new(1) });
     let done = world.settle(abandoned);
-    assert!(done.is_empty());
+    assert_eq!(done.len(), 0);
     assert!(world.closed(Token::new(2)) && world.closed(Token::new(3)));
 }
 
@@ -183,7 +183,7 @@ fn a_required_section_missing_at_the_deadline_fails_before_completion() {
             brief: Token::new(1),
             why: GatherMissing::Late,
             failure: GatherFailure {
-                fate: GatherFate::Transient,
+                fate: GatherFate::Infrastructure,
                 section: b"section",
                 words: Box::from(b"not gathered by its deadline".as_slice())
             }
@@ -234,7 +234,7 @@ fn a_full_table_or_a_busy_brief_refuses_for_capacity() {
             }]
         );
         let abandoned = world.step(GatherEvent::Abandon { brief: Token::new(1) });
-        assert!(world.settle(abandoned).is_empty());
+        assert_eq!(world.settle(abandoned).len(), 0);
         assert!(world.closed(Token::new(2)));
     }
 }
@@ -382,7 +382,7 @@ fn a_required_sections_deadline_frees_its_slot_and_drops_the_other_gather() {
         LIMITS.brief_bytes,
     );
     assert_eq!(asked.len(), 2);
-    assert!(world.settle(asked).is_empty());
+    assert_eq!(world.settle(asked).len(), 0);
     let now = Time::ZERO.saturating_add(Duration::from_secs(11));
     let expired = world.fire(now);
     assert_eq!(
@@ -390,7 +390,7 @@ fn a_required_sections_deadline_frees_its_slot_and_drops_the_other_gather() {
         [GatherRequest::Failed {
             brief: Token::new(1),
             why: GatherMissing::Late,
-            failure: failure(GatherFate::Transient, b"pull", b"not gathered by its deadline"),
+            failure: failure(GatherFate::Infrastructure, b"pull", b"not gathered by its deadline"),
         }]
     );
     for token in [Token::new(2), Token::new(3)] {
@@ -463,7 +463,7 @@ fn a_required_cut_cannot_outlive_the_deadline() {
             [GatherRequest::Failed {
                 brief: Token::new(1),
                 why: GatherMissing::Late,
-                failure: failure(GatherFate::Transient, b"pull", b"not gathered by its deadline")
+                failure: failure(GatherFate::Infrastructure, b"pull", b"not gathered by its deadline")
             }]
         );
         assert!(world.closed(Token::new(2)));
@@ -485,7 +485,7 @@ fn a_deadline_names_the_first_missing_required_section_in_source_order() {
         [GatherRequest::Failed {
             brief: Token::new(1),
             why: GatherMissing::Late,
-            failure: failure(GatherFate::Transient, b"pull", b"not gathered by its deadline")
+            failure: failure(GatherFate::Infrastructure, b"pull", b"not gathered by its deadline")
         }]
     );
     for token in [2, 3, 4] {

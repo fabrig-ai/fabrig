@@ -159,6 +159,8 @@ pub enum HoldFailure {
     Agent,
     Lost,
     Invalid,
+    /// A workspace or required brief section could not be prepared for now.
+    Infrastructure,
 }
 
 /// Which independently decidable facts changed.

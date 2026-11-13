@@ -81,7 +81,7 @@ fn an_openid_sign_in_keeps_the_subject_and_the_id_token() {
     let json = oauth::Json::from_bytes(&answer.body, &documents()).expect("answer");
     let token = oauth::decode_response(&json, &documents()).expect("token answer").id_token;
     let record = record(client_step(&mut client, oauth::Event::Http(answer)));
-    assert!(record.subject.as_deref() == Some(b"user-42"));
+    assert_eq!(record.subject.as_deref(), Some(b"user-42".as_slice()));
     assert!(record.id_token.is_some() && record.id_token == token);
 }
 #[test]
@@ -150,8 +150,8 @@ fn an_issued_client_id_is_the_audience_checked() {
     let mut registration = openid_registration();
     registration.terms.as_mut().expect("terms").issued_client_id = true;
     let record = record(finished(&mut client, &mut issuer, registration));
-    assert!(record.issued_client_id.as_deref() == Some(b"issued-client"));
-    assert!(record.subject.as_deref() == Some(b"user-42"));
+    assert_eq!(record.issued_client_id.as_deref(), Some(b"issued-client".as_slice()));
+    assert_eq!(record.subject.as_deref(), Some(b"user-42".as_slice()));
 }
 
 #[test]
@@ -228,10 +228,10 @@ fn a_google_like_sign_in_keeps_an_access_only_identity() {
             oauth::ProfileClaims { email: Some(boxed(b"person@example.com")), name: Some(boxed(b"Test Person")) }
         );
         assert!(record.refresh_token.is_none());
-        assert!(record.subject.as_deref() == Some(b"user-42"));
+        assert_eq!(record.subject.as_deref(), Some(b"user-42".as_slice()));
         assert!(record.id_token.is_some() && record.id_token == id_token);
-        assert!(record.granted_scopes.as_deref() == Some(b"openid email profile"));
+        assert_eq!(record.granted_scopes.as_deref(), Some(b"openid email profile".as_slice()));
         let encoded = oauth::encode_record(&record, &documents()).expect("encode");
-        assert!(oauth::decode_record(&encoded, &documents()).expect("decode") == record);
+        assert_eq!(oauth::decode_record(&encoded, &documents()).expect("decode"), record);
     }
 }

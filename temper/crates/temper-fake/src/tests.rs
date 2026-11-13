@@ -326,7 +326,7 @@ fn the_forge_documents_pace_is_its_ci_latency() {
             let mut env = Env {
                 now: Time::ZERO.saturating_add(Duration::from_secs(10)),
                 wall: Wall::EPOCH,
-                limits: forge::LIMITS,
+                limits: forge::limits(),
             };
             let due = env.now.saturating_add(latency);
             let head =
@@ -336,7 +336,7 @@ fn the_forge_documents_pace_is_its_ci_latency() {
                 env.now = Time::from_nanos(due.as_nanos().checked_sub(1).expect("positive deadline"));
                 domain::fire(&mut forge.domain, &env, &mut out);
                 let a::Answer::Statuses(statuses) =
-                    forge.domain.inspect(&forge::LIMITS, name, &a::Read::Statuses { commit: head }).unwrap()
+                    forge.domain.inspect(&forge::limits(), name, &a::Read::Statuses { commit: head }).unwrap()
                 else {
                     panic!("statuses")
                 };
@@ -346,7 +346,7 @@ fn the_forge_documents_pace_is_its_ci_latency() {
             env.now = due;
             domain::fire(&mut forge.domain, &env, &mut out);
             let a::Answer::Statuses(statuses) =
-                forge.domain.inspect(&forge::LIMITS, name, &a::Read::Statuses { commit: head }).unwrap()
+                forge.domain.inspect(&forge::limits(), name, &a::Read::Statuses { commit: head }).unwrap()
             else {
                 panic!("statuses")
             };
@@ -711,7 +711,7 @@ fn ci_cue() {
         }
         let doc = forge::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap();
         let (mut forge, _config) = doc.seed(23);
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge::LIMITS };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge::limits() };
         let head =
             domain::advance(&mut forge.domain, &env, b"fake/widget", b"main", b"ci/result", content, forge::OWNER)
                 .unwrap();
@@ -725,7 +725,7 @@ fn ci_cue() {
             forge.domain.reclaim();
         }
         let statuses =
-            forge.domain.inspect(&forge::LIMITS, b"fake/widget", &a::Read::Statuses { commit: head }).unwrap();
+            forge.domain.inspect(&forge::limits(), b"fake/widget", &a::Read::Statuses { commit: head }).unwrap();
         let a::Answer::Statuses(statuses) = statuses else {
             panic!("statuses");
         };
@@ -763,9 +763,9 @@ fn constants_fit() {
     assert_eq!(issued.user, admin.id);
     assert_eq!(issued.secret.expose(), &token);
     assert_eq!(issued.scopes.as_ref(), &[Box::<[u8]>::from(b"all".as_slice())]);
-    assert!(skein_fake_forge_http::git::fits(&crate::wire::forge_limits().git(), &forge::LIMITS.limits));
-    assert!(plain.observations().is_empty());
-    assert!(peer.observations().is_empty());
+    assert!(skein_fake_forge_http::git::fits(&crate::wire::forge_limits().git(), &forge::limits().limits));
+    assert_eq!(plain.observations(), []);
+    assert_eq!(peer.observations(), []);
 }
 
 #[test]
@@ -1088,9 +1088,9 @@ fn llm_failing_lines_refuse_invalid_members() {
 #[test]
 fn llm_added_keys_checks() {
     let mut doc = llm_document();
-    assert!(llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap().added_keys().is_empty());
+    assert_eq!(llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap().added_keys(), []);
     doc["added_keys"] = json!([]);
-    assert!(llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap().added_keys().is_empty());
+    assert_eq!(llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap().added_keys(), []);
     doc["added_keys"] = json!([format!("/{}", "x".repeat(4095))]);
     llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap();
     let keys = (0..15).map(|i| format!("/tmp/added-{i}")).collect::<Vec<_>>();
@@ -1176,4 +1176,94 @@ fn sixteen_script_turns_decode_and_run_and_a_seventeenth_is_refused() {
         llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap_err().line().as_ref(),
         b"cued[0].turns: past its bound\n"
     );
+}
+
+#[test]
+fn declared_ci_and_made_ci_judge_their_heads() {
+    use skein_fake_forge_domain::{self as domain, api as a};
+    for made in [
+        None,
+        Some(Value::Null),
+        Some(json!({"declared":".fake-forge/ci"})),
+        Some(json!({"path":".fake-forge/ci","green":"pass"})),
+    ] {
+        let mut value = forge_document();
+        value["repositories"][0]["ci"] = json!({"declared":".fake-forge/ci"});
+        if let Some(ci) = &made {
+            value["made_ci"] = ci.clone();
+        }
+        let document = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap();
+        let (mut forge, _) = document.seed(23);
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: forge.config.clone() };
+        domain::create_repository(&mut forge.domain, &env.limits, 2, b"fake/made", b"made", forge::OWNER).unwrap();
+        for name in [b"fake/widget".as_slice(), b"fake/made"] {
+            let head =
+                domain::advance(&mut forge.domain, &env, name, b"main", b".fake-forge/ci", b"fail\n", forge::OWNER)
+                    .unwrap();
+            let mut out = Queue::uncapped();
+            domain::fire(&mut forge.domain, &env, &mut out);
+            let a::Answer::Statuses(statuses) =
+                forge.domain.inspect(&env.limits, name, &a::Read::Statuses { commit: head }).unwrap()
+            else {
+                panic!("statuses")
+            };
+            if name == b"fake/made" && made.is_none() {
+                assert!(statuses.is_empty());
+            } else {
+                assert_eq!(statuses.len(), 1);
+                assert_eq!(statuses[0].context.as_ref(), b"check");
+                let expected =
+                    if name == b"fake/made" && made == Some(Value::Null) { a::Check::Passed } else { a::Check::Failed };
+                assert_eq!(statuses[0].state, expected, "{name:?} {made:?}");
+            }
+        }
+    }
+}
+
+#[test]
+fn declared_ci_paths_and_members_are_checked() {
+    for member in ["ci", "made_ci"] {
+        for path in ["", ".", "..", "a//b", "a/./b", "a/../b", "/a", "a/"] {
+            let mut value = forge_document();
+            let ci = json!({"declared":path});
+            if member == "ci" {
+                value["repositories"][0][member] = ci;
+            } else {
+                value[member] = ci;
+            }
+            let prefix = if member == "ci" { "repositories[0].ci" } else { "made_ci" };
+            let expected =
+                alloc::format!("{prefix}.declared: expected a relative file path with no empty, . or .. component\n");
+            let why = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap_err();
+            assert_eq!(why.line().as_ref(), expected.as_bytes());
+        }
+        let mut value = forge_document();
+        let ci = json!({"declared":".fake-forge/ci", "unknown":true});
+        if member == "ci" {
+            value["repositories"][0][member] = ci;
+        } else {
+            value[member] = ci;
+        }
+        let prefix = if member == "ci" { "repositories[0].ci" } else { "made_ci" };
+        let expected = alloc::format!("{prefix}.unknown: unknown member\n");
+        let why = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap_err();
+        assert_eq!(why.line().as_ref(), expected.as_bytes());
+        let ci = json!({"unknown":true});
+        if member == "ci" {
+            value["repositories"][0][member] = ci;
+        } else {
+            value[member] = ci;
+        }
+        let why = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap_err();
+        assert_eq!(why.line().as_ref(), expected.as_bytes());
+        let ci = json!({"declared":"x".repeat(257)});
+        if member == "ci" {
+            value["repositories"][0][member] = ci;
+        } else {
+            value[member] = ci;
+        }
+        let expected = alloc::format!("{prefix}.declared: past its bound\n");
+        let why = forge::Document::decode(&serde_json::to_vec(&value).unwrap()).unwrap_err();
+        assert_eq!(why.line().as_ref(), expected.as_bytes());
+    }
 }

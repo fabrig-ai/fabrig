@@ -126,6 +126,8 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
                     8 => "settings project-classes",
                     9 => "settings charter-words N",
                     10 => "settings project-words",
+                    14 => "settings project-areas",
+                    15 => "settings project-triager",
                     11 => "settings template-goal N",
                     12 => "settings follow N",
                     13 => "settings dependency N",
@@ -349,6 +351,7 @@ fn gates_text(repository: &engine::SeeRepository) -> Result<Box<[u8]>, &'static 
                 &gate.workflow,
                 b", ",
                 blocking,
+                if gate.base { b", base" } else { b"" },
                 &ignored_text(&gate.ignored),
                 b"\n",
             ]))

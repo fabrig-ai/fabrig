@@ -64,7 +64,7 @@ pub fn hello_with(channel: Token, worker: u32, slots: u32, bounds: Bounds, hosti
         engine::Link::Hello {
             worker,
             hello: jig_domain_link::Hello {
-                jobs: Box::new([merge_bound()]),
+                jobs: Box::new([JobBound { kind: JobKind(1), ..merge_bound() }, merge_bound()]),
                 slots,
                 stop_bound: Duration::from_millis(100),
                 workstreams: Box::new([]),
@@ -161,6 +161,8 @@ pub struct Protocol {
     pub answers: Vec<(Box<[u8]>, engine::CallAnswer)>,
     pub read_pages: BTreeMap<Box<[u8]>, (u32, u32)>,
     pub read_jobs: BTreeMap<Box<[u8]>, skein_forge::api::JobAttempt>,
+    /// The root's render-only asking route, separate from each durable decision.
+    pub asks: BTreeMap<Box<[u8]>, engine::AskHow>,
     /// Let a story cut between the durable decision and its rendered answer.
     pub defer_render: bool,
     pub pending_renders: Vec<(ReplyTo, Box<[u8]>)>,
@@ -319,13 +321,16 @@ impl Protocol {
                     ))))),
                 },
                 engine::HostRequest::SettingsNote { to, call, body } => {
-                    Ok(vec![temper_service::settings_note(to, *call, &body, &self.catalogue)])
+                    Ok(vec![temper_engine_service::settings_note(to, *call, &body, &self.catalogue)])
                 }
                 engine::HostRequest::Dropped { .. } => Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Host(delivery))) => {
                 match *delivery {
-                    engine::HostDelivery::Render { to, name, answer, job, page, .. } => {
+                    engine::HostDelivery::Render { to, name, answer, job, page, ask, .. } => {
+                        if let engine::CallAnswer::Decided { .. } = &answer {
+                            self.asks.insert(name.clone(), ask);
+                        }
                         if let Some(job) = job {
                             self.read_jobs.insert(name.clone(), job);
                         }

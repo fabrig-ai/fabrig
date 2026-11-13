@@ -113,7 +113,7 @@ fn a_core_row_outliving_its_project_is_named_by_its_key() {
     let (mut referee, _) = removed();
     let snapshot = Snapshot {
         naming: vec![Naming {
-            row: Row::Core(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Live(TASK))),
+            row: Row::Core(jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::Live(TASK))),
             project: Some(PROJECT),
             task: None,
             outlives: None,

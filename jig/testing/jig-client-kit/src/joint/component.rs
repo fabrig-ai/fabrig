@@ -63,7 +63,7 @@ impl Composition {
                 exchanges: limits.requests.requests.max(64),
                 exchanges_per_client: limits.requests.requests.max(64),
                 message_bytes: u32::try_from(limits.document_bytes).expect("world message bound"),
-                wire: jig_client_protocol_wire::v19::CEILINGS,
+                wire: jig_client_protocol_wire::v20::CEILINGS,
                 link_span: skein_lib::Duration::from_secs(300),
             },
         };
@@ -529,7 +529,11 @@ impl Composition {
                 let record = driver.world.take_moved(source);
                 self.event(Event::MovedTaken { exchange, record });
             }
-            Request::Link { .. } | Request::LocalLink { .. } | Request::LinkSignedIn | Request::Closed => {}
+            Request::StreamFailed { .. }
+            | Request::Link { .. }
+            | Request::LocalLink { .. }
+            | Request::LinkSignedIn
+            | Request::Closed => {}
             Request::Redeemed { .. } | Request::Claimed { .. } => panic!("world has no OAuth issuer"),
         }
     }

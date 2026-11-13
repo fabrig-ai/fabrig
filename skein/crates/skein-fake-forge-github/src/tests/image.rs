@@ -111,7 +111,7 @@ fn github_image_refuses_malformed_and_over_limit_without_replacing_state() {
     for bytes in [b"arbitrary".as_slice(), image.get(..image.len().checked_sub(1).expect("cut")).expect("prefix")] {
         let refusal = target.restore(bytes).expect_err("malformed image");
         match refusal {
-            Refusal::Malformed(what) => assert!(!what.is_empty()),
+            Refusal::Malformed(what) => assert_ne!(what, ""),
             Refusal::Limits(what) => panic!("malformed image diagnosed as limit: {what}"),
         }
         assert!(target.image() == before, "refusal is atomic");

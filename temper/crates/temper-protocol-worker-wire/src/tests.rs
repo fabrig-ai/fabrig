@@ -4,7 +4,7 @@ use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::List;
 
-/// Another family's version is distinct from a malformed Items body (protocol/wires.md, 5).
+/// Another version is distinct from a malformed Items body (protocol/wires.md, 5).
 #[test]
 fn items_refuse_another_version_before_reading_the_body() {
     use skein_codec::Reason;
@@ -17,9 +17,11 @@ fn items_refuse_another_version_before_reading_the_body() {
     assert_eq!(v1::Items::decode(&limits, &mut Reader::new(&bytes)), Ok(value));
 
     let other = crate::wire::VERSION.checked_sub(1).expect("a preceding version").to_be_bytes();
-    let mut changed = bytes.into_vec();
-    changed.get_mut(..2).expect("version prefix").copy_from_slice(&other);
-    for bytes in [changed.as_slice(), other.as_slice()] {
+    let mut changed = bytes;
+    for (byte, value) in changed.iter_mut().zip(other) {
+        *byte = value;
+    }
+    for bytes in [changed.as_ref(), other.as_slice()] {
         assert_eq!(
             v1::Items::decode(&limits, &mut Reader::new(bytes)).expect_err("another version"),
             v1::Problem { path: v1::Path::ItemsVersion, reason: Reason::Version }
@@ -164,9 +166,9 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     assert_eq!(u64::from(sizes.resource), v1::Preparation::encoded_bound(&limits).expect("preparation"));
     assert_eq!(u64::from(sizes.grant), v1::Identity::encoded_bound(&limits).expect("identity"));
     // Merged adds a list length and 64 full ids in place of Merge's base id.
-    assert_eq!(v1::Items::encoded_bound(&v1::CEILINGS), Some(792_260));
-    // At ceilings: 64 * 12,379-byte repositories + the four-byte list length.
-    assert_eq!(sizes, crate::Largest { items: 12730, left: 84, saved: 1084, resource: 41, grant: 233 });
+    assert_eq!(v1::Items::encoded_bound(&v1::CEILINGS), Some(792_262));
+    // At ceilings: 64 * 12,379-byte repositories + the four-byte list length + the two-byte version.
+    assert_eq!(sizes, crate::Largest { items: 12732, left: 84, saved: 1084, resource: 41, grant: 233 });
 }
 
 #[test]

@@ -65,6 +65,7 @@ impl Referee<Proc> for Forced {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn forced_overdue_observes_real_tasks_operations_and_dispatch() {
     use crate::world::{self, ForgePeer};
     const WORKERS: &[&str] = &["ws", "s1"];

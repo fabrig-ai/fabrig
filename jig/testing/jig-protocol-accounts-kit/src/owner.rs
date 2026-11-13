@@ -3,7 +3,7 @@
 use crate::fixtures::{self, ACCOUNT_CHAT, ROOM};
 use crate::world::{Installation, Story};
 use jig_domain_accounts as child;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_protocol_accounts::{
     Component,
     component::{Effect, Event},

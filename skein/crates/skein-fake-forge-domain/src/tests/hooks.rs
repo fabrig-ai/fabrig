@@ -3,7 +3,7 @@ use super::*;
 
 #[test]
 fn a_job_ending_is_heard_with_its_run_job_and_commit() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.until(Time::from_nanos(5_000_000_000));
@@ -27,7 +27,7 @@ fn a_job_ending_is_heard_with_its_run_job_and_commit() {
 fn a_pending_report_and_a_persons_status_are_not_heard() {
     let mut configured = setup();
     configured.checks.silent = 1000;
-    let mut h = Harness::with(CALM, configured);
+    let mut h = Harness::with(calm(), configured);
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.ok(ENGINE, status(work, b"personal", Check::Passed));
@@ -37,7 +37,7 @@ fn a_pending_report_and_a_persons_status_are_not_heard() {
 
 #[test]
 fn an_issue_a_comment_and_a_review_are_heard_with_their_bodies() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     h.issue(PERSON, b"one");
     h.comment(PERSON, 1, b"comment");
     let work = h.commit(FIRST, &[(b"src", b"one")]);
@@ -67,7 +67,7 @@ fn an_issue_a_comment_and_a_review_are_heard_with_their_bodies() {
 
 #[test]
 fn a_pull_reads_not_mergeable_until_the_check_span_passes() {
-    let mut h = Harness::new(CALM);
+    let mut h = Harness::new(calm());
     let work = h.commit(FIRST, &[(b"src", b"one")]);
     h.push(ENGINE, b"work", work).expect("pushed");
     h.open(b"work").expect("opened");

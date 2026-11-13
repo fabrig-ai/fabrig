@@ -1,6 +1,6 @@
-//! The box's table and the tree's tables (temper/docs/design/cli/README.md, 6 and 9).
+//! The box's table (temper/docs/design/cli/README.md, 6).
 use crate::{box_command, directories, fake};
-use skein_shell::{Argument, Command, Reach, Set, Switch, Table, Variable};
+use skein_shell::{Argument, Command, Reach, Set, Switch, Table};
 use temper_engine_shell::commands::{FETCH, FORGE_CHILD, PREPARE, REMOVE, RUN, SIGN_IN, SOURCE};
 use temper_shell::{environment, table::HELP};
 
@@ -24,27 +24,10 @@ pub const TABLE: Table = Table {
     ],
     more: "temper-box COMMAND --help prints one command; temper-box help pages lists the pages.",
 };
-pub const TREE: [&Table; 4] =
-    [&TABLE, &temper_engine_shell::ENGINE, &temper_worker_shell::WORKER, &temper_agent_shell::AGENT];
-
 const DIRECTORIES: Argument =
     Argument { shown: temper_shell::commands::DIRECTORIES.shown, line: temper_shell::commands::DIRECTORIES.line };
 const FORGE: Argument =
     Argument { shown: temper_engine_shell::forge::FORGE.shown, line: temper_engine_shell::forge::FORGE.line };
-const TUI_VARIABLES: &[&Variable] = &[
-    &environment::INTERNAL_RECORD,
-    &environment::PATH,
-    &environment::TERM,
-    &environment::COLORTERM,
-    &environment::COLORFGBG,
-    &environment::DISPLAY,
-    &environment::WAYLAND_DISPLAY,
-    &environment::SSH_CONNECTION,
-    &environment::SSH_TTY,
-    &environment::XDG_RUNTIME_DIR,
-    &skein_shell::HOME,
-    skein_shell::Base::State.variable(),
-];
 const BUNDLE_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     tool: "temper",
     about: "The fake backends' web client bundle.",
@@ -89,11 +72,12 @@ const FAKE_GIT: Command = Command {
 pub(crate) const BOX: Command = Command {
     reach: Reach::Words(&[]),
     set: Set::Public,
-    forms: &["[--config DIR] [--data DIR] [--cache DIR] [--echo none|steps]"],
+    forms: &["[--config DIR] [--data DIR] [--cache DIR] [--echo none|steps] [--record]"],
     line: "Run a deployment as one box: the setup steps of each forge it sets up, then temper-box serve, each a child process.",
     arguments: &[DIRECTORIES],
     settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS, &BUNDLE_SETTINGS],
     switches: &[
+        temper_engine_shell::commands::RECORD,
         Switch {
             name: "fake-backends",
             set: Set::Internal,
@@ -107,9 +91,9 @@ pub(crate) const BOX: Command = Command {
             notes: "Requires --fake-backends.",
         },
         Switch {
-            name: "no-tui",
+            name: "front",
             set: Set::Internal,
-            line: "Run the box with no TUI in front, as on a pipe.",
+            line: "Run as temper box's child, on its parent's pipes.",
             notes: "",
         },
     ],
@@ -121,10 +105,10 @@ pub(crate) const BOX: Command = Command {
         &environment::XDG_RUNTIME_DIR,
         &environment::JOB,
     ],
-    notes: "In a terminal, with --echo none, the box runs the TUI in front, signed in, with its link shown there. The block, --fake-backends lines and errors go to the box log while it runs; quitting the TUI stops the box. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
+    notes: "Without --front, the box runs with no TUI, in a terminal or not. With --front, its local link goes to fd 3, its lines to fd 4 and stdin's end stops it; it writes nothing on its terminal. Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
 };
 
-const COMMANDS: [Command; 31] = [
+const COMMANDS: [Command; 30] = [
     BOX,
     Command {
         reach: Reach::Words(&["init"]),
@@ -152,11 +136,11 @@ Refused, changing nothing, when the configuration directory already holds temper
     Command {
         reach: Reach::Words(&["serve"]),
         set: Set::Public,
-        forms: &["[DIRECTORIES]"],
+        forms: &["[DIRECTORIES] [--record]"],
         line: "Run the deployment's services, as its configuration's shape names them, until stopped.",
         arguments: &[DIRECTORIES],
         settings: &[&directories::SETTINGS],
-        switches: &[],
+        switches: &[temper_engine_shell::commands::RECORD],
         variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &environment::JOB],
         notes: "Its stdout carries only sign-in links, one a line; its stderr, its startup notes and the reason of a failure. A first termination signal settles the engine's forge writes and drains it; a second aborts. Exit 0 after a drained stop, 1 on a refused start or any failure.",
     },
@@ -220,26 +204,15 @@ Refused, changing nothing, when the configuration directory already holds temper
     Command {
         reach: Reach::Words(&["internal", "serve"]),
         set: Set::Internal,
-        forms: &["[DIRECTORIES] --box"],
+        forms: &["[DIRECTORIES] --box [--record]"],
         line: "Run temper-box serve as the box's step, on the listeners and the pipe the box gives it.",
         arguments: &[DIRECTORIES],
         settings: &[&directories::SETTINGS],
-        switches: &[Switch { name: "box", set: Set::Internal, line: "Take the box's listeners and pipe.", notes: "" }],
+        switches: &[temper_engine_shell::commands::RECORD, Switch { name: "box", set: Set::Internal, line: "Take the box's listeners and pipe.", notes: "" }],
         variables: &[&environment::PATH, &environment::TERM, &environment::LISTEN_FDS, &environment::XDG_RUNTIME_DIR, &environment::JOB],
         notes: "",
     },
     FORGE_CHILD,
-    Command {
-        reach: Reach::Words(&["internal", "tui"]),
-        set: Set::Internal,
-        forms: &["--box ADDRESS"],
-        line: "Run the TUI in front of the box that started it, signed in by the link the box hands it.",
-        arguments: &[Argument { shown: "ADDRESS", line: "The box's engine, http://HOST:PORT, on loopback." }],
-        settings: &[],
-        switches: &[],
-        variables: TUI_VARIABLES,
-        notes: "",
-    },
     Command {
         reach: Reach::Words(&["fake", "llm"]),
         set: Set::Internal,

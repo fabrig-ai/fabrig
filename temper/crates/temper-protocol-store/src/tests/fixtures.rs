@@ -64,6 +64,7 @@ pub const LIMITS: top::Limits = top::Limits {
     tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
     follows: 2,
@@ -151,7 +152,8 @@ fn name(random: &mut Rng) -> top::Name {
 }
 fn topic(random: &mut Rng) -> top::Topic {
     let repository = repository(random);
-    match random.below(4) {
+    match random.below(5) {
+        4 => top::Topic::Findings { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         0 => top::Topic::Landings { repository, branch: random_bytes(random) },
         1 => top::Topic::Ci { repository, head: commit(random) },
         2 => top::Topic::Pull { repository, number: random.next_u64() },
@@ -174,7 +176,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(36) {
+    match random.below(37) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -222,7 +224,11 @@ pub fn key(random: &mut Rng) -> top::Key {
         30 => top::Key::ProjectFacts { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         32 => top::Key::Away { party: number, project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         34 => top::Key::Closer(number),
-        35 => top::Key::Follow {
+        35 => top::Key::Finding {
+            project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+            number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
+        },
+        36 => top::Key::Follow {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             follow: u32::try_from(random.below(4_294_967_296)).expect("u32"),
         },
@@ -250,12 +256,12 @@ pub fn key(random: &mut Rng) -> top::Key {
         },
     }
 }
-pub fn core_keys() -> [jig_domain_core::Key; 4] {
+pub fn core_keys() -> [jig_domain_core_vocabulary::Key; 4] {
     [
-        jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment),
-        jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Live(1)),
-        jig_domain_core::Key::People(jig_domain_people::Key::Person(1)),
-        jig_domain_core::Key::Notes(jig_domain_notes::Key::Entry { name: 1 }),
+        jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
+        jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::Live(1)),
+        jig_domain_core_vocabulary::Key::People(jig_domain_people::Key::Person(1)),
+        jig_domain_core_vocabulary::Key::Notes(jig_domain_notes::Key::Entry { name: 1 }),
     ]
 }
 pub fn within(interval: &skein_kv::Range, tagged: &[u8]) -> bool {
@@ -653,7 +659,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v12::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v16::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -711,13 +717,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
-pub fn encoded_row(row: &crate::v12::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v16::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v12::Row {
-    use crate::v12 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v16::Row {
+    use crate::v16 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
             .expect("piece ceiling"),
@@ -1081,6 +1087,7 @@ pub fn tier_row() -> top::TierRow {
         flight: Some(tier_flight()),
         held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
         result: Some(top::Receipt {
+            logs: Box::new([b'l'; 8192]),
             passed: false,
             failures: Some(failures.clone()),
             candidate: [4; 32],
@@ -1157,4 +1164,23 @@ pub fn tier_goals() -> Box<[top::TierGoal]> {
             .unwrap();
     }
     goals.into_boxed()
+}
+
+pub fn finding() -> top::Finding {
+    top::Finding {
+        project: u32::MAX,
+        number: u32::MAX,
+        kind: top::FindingKind::Feedback,
+        severity: top::Severity::High,
+        area: Some(Box::new([b'a'; 32])),
+        state: top::FindingState::Dropped,
+        title: Box::new([b't'; 200]),
+        body: Box::new([b'b'; 4096]),
+        filer: top::Filer::Task(u64::MAX),
+        at: skein_lib::Wall::from_nanos(u64::MAX),
+        why: Some(Box::new([b'w'; 200])),
+        hander: Some(top::Filer::Party(u64::MAX)),
+        goal: Some(u64::MAX),
+        reason: Some(Box::new([b'r'; 400])),
+    }
 }

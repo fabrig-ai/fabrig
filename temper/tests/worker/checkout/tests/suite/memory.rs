@@ -14,6 +14,7 @@ use temper_worker_domain_checkout::{
 
 const LIMITS: Limits = Limits {
     workspaces: 2,
+    preparations: 2,
     repositories: 2,
     name_bytes: 32,
     message_bytes: 128,
@@ -114,6 +115,7 @@ impl Fill {
                 Request::Io { op, .. } => Asked::Io { op: op.kind() },
                 Request::Prepared { prepared, .. } => Asked::Prepared {
                     prepared: match prepared {
+                        Prepared::Candidate { .. } => unreachable!("branch-only clients"),
                         Prepared::Ready { workspace, conflicts } => Preparation::Ready {
                             workspace,
                             conflicts: conflicts.iter().map(|row| skein_lib::len_u64(row.files.len())).sum(),
@@ -273,11 +275,11 @@ fn a_domain_with_every_workspace_held_at_its_limits_stays_within_its_heap_ceilin
     const FULL_WORKSPACES_HEAP_CEILING: u64 = 8_000_000;
     fill(LIMITS, FULL_WORKSPACES_HEAP_CEILING);
     fill(
-        Limits { workspaces: 64, repositories: 8, name_bytes: 256, message_bytes: 65_536, ..LIMITS },
+        Limits { workspaces: 64, preparations: 64, repositories: 8, name_bytes: 256, message_bytes: 65_536, ..LIMITS },
         FULL_WORKSPACES_HEAP_CEILING,
     );
     fill(
-        Limits { workspaces: 1000, repositories: 1, name_bytes: 16, message_bytes: 16, ..LIMITS },
+        Limits { workspaces: 1000, preparations: 1000, repositories: 1, name_bytes: 16, message_bytes: 16, ..LIMITS },
         FULL_WORKSPACES_HEAP_CEILING,
     );
 }
@@ -321,7 +323,7 @@ impl Fill {
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Merge }]);
             if place + 1 < limits.repositories {
                 assert_eq!(
-                    self.done(hold, Done::Conflicted { files: full_paths(&limits) })[..],
+                    self.done(hold, Done::Conflicted { files: full_paths(&limits), cut: false })[..],
                     [Asked::Io { op: Kind::Fetch }]
                 );
             }
@@ -334,7 +336,7 @@ impl Fill {
 fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_heap_ceiling() {
     // Measured peak: 126,776 bytes with retired preparations and live pushes retaining maximum conflict sets; 25% headroom, rounded up.
     const CONFLICT_SETS_HEAP_CEILING: u64 = 160_000;
-    let limits = Limits { workspaces: 8, repositories: 4, conflicts: 8, path_bytes: 128, ..LIMITS };
+    let limits = Limits { workspaces: 8, preparations: 8, repositories: 4, conflicts: 8, path_bytes: 128, ..LIMITS };
     // World bookkeeping predates the meter; only the domain and its admitted
     // ownership transfers are charged against the scenario ceiling.
     let mut active = Vec::with_capacity(limits.workspaces as usize);
@@ -357,7 +359,7 @@ fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_hea
     assert!(fill.meter.held() >= 2 * payload, "released and live preparations both retain full path bytes");
     assert_eq!(fill.domain.holds(), limits.workspaces * 2);
     for hold in &active {
-        let next = fill.done(*hold, Done::Conflicted { files: full_paths(&limits) });
+        let next = fill.done(*hold, Done::Conflicted { files: full_paths(&limits), cut: false });
         let [Asked::Prepared { prepared: Preparation::Ready { conflicts, .. } }] = next[..] else { panic!("prepared") };
         assert_eq!(conflicts, u64::from(limits.repositories) * u64::from(limits.conflicts));
         assert_eq!(
@@ -366,7 +368,7 @@ fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_hea
         );
         for _ in 0..limits.repositories - 1 {
             assert_eq!(
-                fill.done(*hold, Done::Conflicted { files: full_paths(&limits) })[..],
+                fill.done(*hold, Done::Conflicted { files: full_paths(&limits), cut: false })[..],
                 [Asked::Io { op: Kind::Commit }]
             );
         }
@@ -377,6 +379,6 @@ fn retired_preparations_and_live_pushes_own_maximum_conflict_sets_within_the_hea
     assert!(before - fill.meter.held() >= payload, "reclaim releases retired path ownership");
     assert_eq!(fill.domain.holds(), limits.workspaces);
     for hold in active {
-        assert_eq!(fill.done(hold, Done::Conflicted { files: full_paths(&limits) })[..], [Asked::Pushed]);
+        assert_eq!(fill.done(hold, Done::Conflicted { files: full_paths(&limits), cut: false })[..], [Asked::Pushed]);
     }
 }

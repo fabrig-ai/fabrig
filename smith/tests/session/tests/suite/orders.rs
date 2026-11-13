@@ -330,7 +330,7 @@ fn reverse_read_terminals_preserve_write_isolation_and_result_order() {
                 tracked.push((delegates[0].0, "lookup"));
                 (&[SOURCE, FILE, GUIDE], &["source", "readme", "guide"], &FIRST_DELAYS)
             } else {
-                assert!(delegates.is_empty());
+                assert_eq!(delegates.len(), 0);
                 (&[SOURCE, FILE], &["after-source", "after-readme"], &LAST_DELAYS)
             };
             assert_eq!(pending.len(), paths.len(), "every adjacent owned read starts together");

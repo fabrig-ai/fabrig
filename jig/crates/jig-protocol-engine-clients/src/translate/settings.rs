@@ -1,8 +1,8 @@
-//! Settings' whole values and bounded history on client wire 19 (client/domain/contract/README.md, 4).
+//! Settings' whole values and bounded history on client wire 20 (client/domain/contract/README.md, 4).
 use super::{me, objects, owner, w};
 use alloc::boxed::Box;
 use jig_domain_authority as a;
-use jig_domain_core::{self as core, documents as d, reads, settings as s};
+use jig_domain_core_vocabulary::{self as core, documents as d, reads, settings as s};
 use jig_domain_tasks as t;
 use skein_lib::{List, Writer};
 
@@ -105,6 +105,7 @@ pub fn document(value: &d::Settings, limits: &w::Limits) -> Result<w::SettingsDo
                         None => None,
                     },
                     follows: match line.follows {
+                        d::Follows::Overlay => w::SettingFollows::Overlay,
                         d::Follows::Default => w::SettingFollows::Default,
                         d::Follows::Change => w::SettingFollows::Change,
                     },
@@ -351,6 +352,7 @@ fn rules(value: &a::Rules, models: &[crate::Model], limits: &w::Limits) -> Resul
 pub fn value(value: &s::Value, models: &[crate::Model], limits: &w::Limits) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
         s::Value::Model(v) => w::SettingValue::Model(Box::new(catalogue(v, limits)?)),
+        s::Value::Overlay(v) => w::SettingValue::Overlay(Box::new(overlay(v, limits)?)),
         s::Value::Charter(v) => w::SettingValue::Charter(Box::new(charter(v, limits)?)),
         s::Value::Template(v) => w::SettingValue::Template(Box::new(me::template(v, models, limits)?)),
         s::Value::Policy(v) => w::SettingValue::Policy(Box::new(policy(v, models, limits)?)),
@@ -369,6 +371,10 @@ pub fn setting_document(
     w::SettingDocument::new(
         limits,
         w::SettingDocumentParts {
+            overlay: match &v.overlay {
+                Some(item) => Some(overlay(item, limits)?),
+                None => None,
+            },
             setting: name(v.setting, limits)?,
             revision: v.revision,
             value: match &v.value {
@@ -674,4 +680,86 @@ pub fn model_act(value: w::ChangeModel) -> s::catalogue::ModelAct {
             s::catalogue::ModelAct::Add { provider: value.provider, name: value.name }
         }
     }
+}
+
+fn overlay(value: &s::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Problem> {
+    let alternatives = match &value.alternatives {
+        Some(items) => {
+            let mut alternatives = List::with_capacity(super::count(items.len())?);
+            for row in items {
+                alternatives.push(model(row, limits)?).expect("model count");
+            }
+            Some(alternatives)
+        }
+        None => None,
+    };
+    let documents = match &value.documents {
+        Some(items) => {
+            let mut documents = List::with_capacity(super::count(items.len())?);
+            for item in items {
+                let mut name = List::with_capacity(super::count(item.name.segments.len())?);
+                for segment in &item.name.segments {
+                    name.push(segment.clone()).expect("segment count");
+                }
+                documents
+                    .push(w::CharterDocument::new(
+                        limits,
+                        w::CharterDocumentParts {
+                            connector: item.connector,
+                            name,
+                            path: item.path.clone(),
+                            heading: item.heading.clone(),
+                        },
+                    )?)
+                    .expect("document count");
+            }
+            Some(documents)
+        }
+        None => None,
+    };
+    let mut parts = List::with_capacity(super::count(value.parts.len())?);
+    for item in &value.parts {
+        parts
+            .push(w::CharterPart::new(
+                limits,
+                w::CharterPartParts { on: item.on.0, instructions: item.instructions.clone() },
+            )?)
+            .expect("part count");
+    }
+    w::Overlay::new(
+        limits,
+        w::OverlayParts {
+            rest: value.rest,
+            inspect: value.inspect,
+            modify: value.modify,
+            shell: value.shell,
+            agents: value.agents,
+            waiting: value.waiting,
+            resume: value.resume,
+            turns: value.turns,
+            time: value.time,
+            reserve_turns: value.reserve_turns,
+            reserve_time: value.reserve_time,
+            call_timeout: value.call_timeout,
+            spend: value.spend,
+            model: match &value.model {
+                Some(item) => Some(model(item, limits)?),
+                None => None,
+            },
+            alternatives,
+            documents,
+            parts,
+            instructions: value.instructions.clone(),
+            tools: match value.tools {
+                Some(item) => Some(item.0),
+                None => None,
+            },
+            hosts: match value.hosts {
+                Some(jig_domain_fleet::Kinds::Workers) => Some(w::SettingHosts::Workers),
+                Some(jig_domain_fleet::Kinds::Engine) => Some(w::SettingHosts::Engine),
+                Some(jig_domain_fleet::Kinds::Both) => Some(w::SettingHosts::Both),
+                None => None,
+            },
+        },
+    )
 }

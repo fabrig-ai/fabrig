@@ -63,6 +63,8 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
             match field {
                 b"streams" => limits.clients.streams = count,
                 b"exchanges" => limits.clients.exchanges = count,
+                b"queued_bytes" => limits.clients.queued_bytes = count,
+                b"exchanges_per_client" => limits.clients.exchanges_per_client = count,
                 b"provider_codes" => limits.clients.provider_codes = count,
                 b"provider_tokens" => limits.clients.provider_tokens = count,
                 _ => return Err(What::Override),
@@ -166,13 +168,15 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         room_refusals,
         ..
     } = limits;
-    let jig_domain_tasks::Retries { transient, permanent, run, agent, lost, invalid } = retries;
+    let jig_domain_tasks::Retries { transient, permanent, run, agent, lost, invalid, infrastructure } = retries;
     let jig_domain_tasks::Retry { retries: transient_retries, base: transient_base, max: transient_max } = transient;
     let jig_domain_tasks::Retry { retries: permanent_retries, base: permanent_base, max: permanent_max } = permanent;
     let jig_domain_tasks::Retry { retries: run_retries, base: run_base, max: run_max } = run;
     let jig_domain_tasks::Retry { retries: agent_retries, base: agent_base, max: agent_max } = agent;
     let jig_domain_tasks::Retry { retries: lost_retries, base: lost_base, max: lost_max } = lost;
     let jig_domain_tasks::Retry { retries: invalid_retries, base: invalid_base, max: invalid_max } = invalid;
+    let jig_domain_tasks::Retry { retries: infrastructure_retries, base: infrastructure_base, max: infrastructure_max } =
+        infrastructure;
     match name {
         b"placed_holds" => *placed_holds = count(value)?,
         b"project_placed_holds" => *project_placed_holds = count(value)?,
@@ -240,6 +244,9 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         b"retries.invalid.retries" => *invalid_retries = count(value)?,
         b"retries.invalid.base_ms" => *invalid_base = millis(value)?,
         b"retries.invalid.max_ms" => *invalid_max = millis(value)?,
+        b"retries.infrastructure.retries" => *infrastructure_retries = count(value)?,
+        b"retries.infrastructure.base_ms" => *infrastructure_base = millis(value)?,
+        b"retries.infrastructure.max_ms" => *infrastructure_max = millis(value)?,
         _ => return Err(What::Override),
     }
     Ok(())
@@ -519,8 +526,12 @@ fn set_hub(limits: &mut jig_domain_host::Limits, name: &[u8], value: u64) -> Res
     Ok(())
 }
 
-fn set_documents(limits: &mut jig_domain_core::documents::DocumentLimits, name: &[u8], value: u64) -> Result<(), What> {
-    let jig_domain_core::documents::DocumentLimits {
+fn set_documents(
+    limits: &mut jig_domain_core_vocabulary::documents::DocumentLimits,
+    name: &[u8],
+    value: u64,
+) -> Result<(), What> {
+    let jig_domain_core_vocabulary::documents::DocumentLimits {
         roles: _,
         rows,
         text_bytes,
@@ -532,7 +543,7 @@ fn set_documents(limits: &mut jig_domain_core::documents::DocumentLimits, name: 
         executors: _,
         implications: _,
     } = limits;
-    let jig_domain_core::documents::Versions { minimum, maximum } = versions;
+    let jig_domain_core_vocabulary::documents::Versions { minimum, maximum } = versions;
     match name {
         b"rows" => *rows = count(value)?,
         b"text_bytes" => *text_bytes = count(value)?,
@@ -545,7 +556,7 @@ fn set_documents(limits: &mut jig_domain_core::documents::DocumentLimits, name: 
     Ok(())
 }
 
-fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Result<(), What> {
+fn set_core(limits: &mut jig_domain_core_vocabulary::Limits, name: &[u8], value: u64) -> Result<(), What> {
     if let Some(field) = name.strip_prefix(b"public.") {
         let value = u16::try_from(value).or(Err(What::Override))?;
         match field {
@@ -557,7 +568,7 @@ fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Re
         }
         return Ok(());
     }
-    let jig_domain_core::Limits {
+    let jig_domain_core_vocabulary::Limits {
         routes: _,
         public: _,
         settings,
@@ -584,8 +595,16 @@ fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Re
         documents: _,
         views: _,
     } = limits;
-    let jig_domain_core::CoreBriefBudgets { tail, task, dependencies, attempts, plan, notes, preferences, now } =
-        brief_core_budgets;
+    let jig_domain_core_vocabulary::CoreBriefBudgets {
+        tail,
+        task,
+        dependencies,
+        attempts,
+        plan,
+        notes,
+        preferences,
+        now,
+    } = brief_core_budgets;
     match name {
         b"settings.proposals" => {
             if value == 0 {
@@ -891,7 +910,7 @@ fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
             | b"documents",
         ) => {
             if fits.core.is_none() {
-                fits.core = Some(jig_domain_core::valid(&limits.core));
+                fits.core = Some(jig_domain_core_vocabulary::valid(&limits.core));
             }
             fits.core.expect("core fit checked")
         }

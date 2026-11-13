@@ -1,10 +1,15 @@
 //! Upgrade commands share serve's configuration checks (protocol/binaries.md).
-use crate::{path, prefixed, serve::WorkerHalf, setup};
+use crate::{path, prefixed, setup};
 use skein_shell::{Clock, Config, Kernel};
 use std::os::unix::ffi::OsStrExt;
-use temper_service::{self as service, settings::Seeds};
+use temper_engine_service as service;
 use temper_service_shell::{close, jig_directories};
 use temper_shell::directories::{self, Directories, EnvironmentEntry};
+
+mod report;
+#[cfg(test)]
+mod tests;
+pub use report::{lines, owner};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
@@ -31,47 +36,34 @@ pub fn configure(
 }
 
 /// No worker root, listener or external system is started.
-fn prepare(
-    binary: &str,
-    directories: &Directories,
-    worker: Option<&dyn WorkerHalf>,
-) -> Result<(service::Service, Box<[u8]>), String> {
+fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service, Box<[u8]>), String> {
     let bytes = directories.read()?;
-    let mut named = setup::check(&bytes, &jig_directories(directories))?.named;
-    if named.worker.is_some() && worker.is_none() {
-        return Err("temper.json names a worker, and temper-engine runs none".into());
+    if matches!(
+        service::startup::nearest(&bytes),
+        Some(service::startup::Shape::Standalone | service::startup::Shape::WorkerAlone)
+    ) {
+        return Err(format!("temper.json names a worker, and {binary} runs none"));
     }
-    let agent =
-        if named.worker.is_some() { Some(worker.expect("checked worker half").preflight(&named)?) } else { None };
-    let crate::serve::Inputs { files, google, bundle } =
-        crate::serve::before_root(&mut named, skein_shell::effective_user())?;
-    let roots = crate::serve::trust(None)?;
-    let github = crate::serve::github_runtime(binary, named.machine.github.as_ref(), &roots, crate::address)?;
-    let document = jig_protocol_config::document(
-        &bytes,
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 },
-    )
-    .expect("named checked document");
-    let engine =
-        service::startup::engine(&document, crate::member(&document, 0, b"engine"), &jig_directories(directories))
-            .expect("named checked engine");
+    let mut named = setup::check(&bytes, &jig_directories(directories))?.named;
+    let crate::serve::Inputs { files, google, bundle } = crate::serve::before_root(
+        &mut named.files,
+        &mut named.asked_files,
+        named.sign_in.as_ref(),
+        named.bundle.as_deref(),
+        named.bundle_limits,
+        skein_shell::effective_user(),
+        false,
+    )?;
+    let crate::serve::Runtimes { roots, github } = crate::serve::runtimes(binary, &named.machine)?;
+    let engine = crate::serve::settings(&bytes, directories, &service::stock::Given::Stock);
     let accounts = crate::serve::accounts(&engine)?;
-    let drawn = skein_shell::crypto_seed().map_err(|errno| format!("cryptographic seed: errno {errno}"))?;
-    let mut installation = [0; 16];
-    installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
+    let seeds = crate::serve::seeds(None, None)?;
     let mut service = service::startup::restoring_with(
         &bytes,
         &jig_directories(directories),
         &files,
-        agent.as_ref(),
-        &Seeds {
-            seed: skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?,
-            crypto: drawn,
-            deployment: installation,
-            installation,
-            link_secret: None,
-            local_secret: None,
-        },
+        None,
+        &seeds,
         Some(accounts),
         &service::stock::Given::Stock,
     )
@@ -84,24 +76,32 @@ fn prepare(
     Ok((service, named.deployment))
 }
 
-pub fn run(
+pub fn run(binary: &str, directories: &Directories, request: &Request) -> Result<u8, String> {
+    let (service, deployment) =
+        prepare(binary, directories).map_err(|why| prefixed(&format!("{binary} upgrade"), &why))?;
+    run_prepared(binary, directories, request, service, &deployment)
+}
+/// Drive an engine checked and prepared by its binary, without a worker or listeners.
+pub fn run_prepared(
     binary: &str,
     directories: &Directories,
     request: &Request,
-    worker: Option<&dyn WorkerHalf>,
+    service: service::Service,
+    deployment: &[u8],
 ) -> Result<u8, String> {
-    run_inner(binary, directories, request, worker).map_err(|why| prefixed(&format!("{binary} upgrade"), &why))
+    run_inner(binary, directories, request, service, deployment)
+        .map_err(|why| prefixed(&format!("{binary} upgrade"), &why))
 }
 fn run_inner(
     binary: &str,
     directories: &Directories,
     request: &Request,
-    worker: Option<&dyn WorkerHalf>,
+    mut service: service::Service,
+    deployment: &[u8],
 ) -> Result<u8, String> {
-    let (mut service, deployment) = prepare(binary, directories, worker)?;
     let source = match request {
-        Request::Check(directory) => directory,
-        Request::Back => &deployment,
+        Request::Check(directory) => directory.as_ref(),
+        Request::Back => deployment,
     };
     let directory = skein_shell::open_root(path(source))
         .map_err(|errno| format!("{}: no readable deployment directory: errno {errno}", path(source).display()))?;
@@ -139,7 +139,14 @@ fn run_inner(
             return Err(why.to_string());
         }
     };
-    let mut host = temper_service_shell::Host::for_upgrade(binary, service, crate::served::SERVED, directories.clone(), source.clone());
+    let mut host = temper_service_shell::Host::for_upgrade(
+        binary,
+        service,
+        crate::served::SERVED,
+        directories.clone(),
+        source.into(),
+        |service, binary, directories, source| Some(lines(binary, service.upgrade_report()?, directories, source)),
+    );
     let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
     if let Some(scratch) = scratch {
         let _removed = std::fs::remove_dir(scratch);

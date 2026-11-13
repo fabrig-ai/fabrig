@@ -94,7 +94,7 @@ fn an_assignment_hosted_already_is_a_wire_retry_and_dropped() {
 #[test]
 fn a_worker_shutting_down_refuses_assignments_as_busy() {
     let mut h = Harness::new();
-    h.step(Event::Shutdown);
+    h.step(Event::Shutdown { drain: true });
     let rows = h.step(Event::Link(host::LinkDown::Assign { assignment: assignment(false, Box::new([])) }));
     let [Request::Answer { answer, .. }] = &*rows else { panic!("one answer: {rows:?}") };
     assert_eq!(answer.ending, host::Ending::Refused(host::Refusal::Busy));
@@ -103,7 +103,7 @@ fn a_worker_shutting_down_refuses_assignments_as_busy() {
 #[test]
 fn a_worker_shutting_down_still_says_its_slots() {
     let mut h = Harness::new();
-    h.step(Event::Shutdown);
+    h.step(Event::Shutdown { drain: true });
     let rows = h.step(Event::Ready);
     let [Request::Hello(hello), Request::Link(host::LinkUp::Draining)] = &*rows else {
         panic!("hello and draining: {rows:?}");
@@ -122,7 +122,7 @@ fn the_hello_states_the_configured_stop_bound_whole() {
 #[test]
 fn a_worker_told_to_shut_down_with_nothing_left_says_stop_once() {
     let mut h = Harness::new();
-    assert_eq!(&*h.step(Event::Shutdown), [Request::Link(host::LinkUp::Draining), Request::Stop]);
+    assert_eq!(&*h.step(Event::Shutdown { drain: true }), [Request::Link(host::LinkUp::Draining), Request::Stop]);
     assert!(h.step(Event::Lost).is_empty());
 }
 

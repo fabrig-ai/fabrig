@@ -26,7 +26,7 @@ fn tui_help_explains_closing_and_ending_the_sign_in() {
     }
     let search = help::answer(&configured(&["help", "--search", "sign out"])).expect("sign-out search");
     assert!(search.lines().any(|line| line.starts_with("tui:")), "sign out must discover the TUI page: {search}");
-    let commands = temper_shell::rows::TUI.notes;
+    let commands = temper_client_shell::CLIENT.commands.first().expect("bare form").notes;
     assert!(commands.contains("`/exit` or Ctrl+C closes it without signing out"));
     assert!(commands.contains("`q` types a character on every screen"));
 }
@@ -94,6 +94,23 @@ fn server_walk_gives_the_agents_environment_as_entries() {
 }
 
 #[test]
+fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
+    let page = help::answer(&configured(&["help", "server"])).expect("server walk");
+    let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
+    let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
+    let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
+    for required in [
+        "`KillMode=control-group`",
+        "`TimeoutStopSec=240s`",
+        "186-second stop bound",
+        "54-second margin",
+        "Raising the worker's bound raises this timeout too",
+    ] {
+        assert!(text.contains(required), "step 5 must explain {required}");
+    }
+}
+
+#[test]
 fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let page = help::answer(&configured(&["help", "server"])).expect("server walk");
     let (_, steps) = page.split_once("\n## 3. ").expect("step 3");
@@ -101,11 +118,11 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     let line = crate::host::note_line(
         "temper-engine",
-        temper_service::Note::ForgeSignIn {
+        temper_service::Note::Engine(temper_service::EngineNote::ForgeSignIn {
             number: 1,
             client: b"forgejo".as_slice().into(),
             why: temper_service::clients::forge_sign_in::Unserved::NotKept,
-        },
+        }),
     );
     assert!(text.contains(line.trim_end_matches('\n')), "step 3 must give the printed diagnostic: {line}");
     assert!(text.contains("With `application.sign_in.forges` on a new store, `serve`'s stderr says"));
@@ -115,8 +132,8 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
         "The page's `temper-forge-sign-in` meta appears only once `forge connect` has kept the forge.",
-        "If a page fetched after that still lacks the meta, restart the engine once:",
-        "a start makes it from the kept record.",
+        "If a newly fetched page still lacks it, restart once:",
+        "the engine makes it from the kept record.",
     ] {
         assert!(text.contains(required), "step 6 must explain {required}");
     }
@@ -354,12 +371,15 @@ fn review_recipe_changes_only_approvals() {
 
 #[test]
 fn policy_help_allows_other_settings_beside_a_set() {
-    for name in [b"configure".as_slice(), b"settings-fields"] {
+    for (name, operation, count, combined) in [
+        (b"configure".as_slice(), "only `set`", "at most once per file", "may share a file with other settings"),
+        (b"settings-fields", "`set` only", "once per file", "alongside other settings"),
+    ] {
         let page = temper_docs::find(name).expect("policy help");
         let text = page.text.split_whitespace().collect::<Vec<_>>().join(" ");
-        assert!(text.contains("only `set`"), "{name:?}: policy edit operation");
-        assert!(text.contains("at most once per file"), "{name:?}: policy item count");
-        assert!(text.contains("may share a file with other settings"), "{name:?}: combined settings decision");
+        assert!(text.contains(operation), "{name:?}: policy edit operation");
+        assert!(text.contains(count), "{name:?}: policy item count");
+        assert!(text.contains(combined), "{name:?}: combined settings decision");
         assert!(!text.contains("set alone"), "{name:?}: ambiguous operation wording");
     }
 }
@@ -538,7 +558,7 @@ fn box_help_creates_the_first_project_before_using_its_number() {
 }
 
 // The deployment dispatchers are private. Reach their own table first; shared
-// rows use the box parser, while serve takes only the resolved directories.
+// rows use the box parser; serve takes directories and the engine's recording switch.
 fn deployment_page_command(table: &skein_shell::Table, arguments: &[Box<[u8]>]) -> Result<(), String> {
     use skein_shell::{Reach, Reached};
     let environment = [(Box::from(b"HOME".as_slice()), Box::from(b"/home/test".as_slice()))];
@@ -547,10 +567,18 @@ fn deployment_page_command(table: &skein_shell::Table, arguments: &[Box<[u8]>]) 
         Reached::Help | Reached::Version | Reached::CommandHelp(_) => Ok(()),
         Reached::Command(command, rest) => {
             if command.reach == Reach::Words(&["serve"]) {
-                assert_eq!(command.forms, ["[DIRECTORIES]"]);
                 let (_, rest) =
                     temper_shell::directories::resolve(rest, &environment, b"/").map_err(|why| why.to_string())?;
-                if rest.is_empty() { Ok(()) } else { Err("invalid arguments".into()) }
+                match rest.as_ref() {
+                    [] => Ok(()),
+                    [flag]
+                        if flag.as_ref() == b"--record"
+                            && command.switches.iter().any(|switch| switch.name == "record") =>
+                    {
+                        Ok(())
+                    }
+                    _ => Err("invalid arguments".into()),
+                }
             } else {
                 let shared = crate::TABLE.commands.iter().find(|row| row.reach == command.reach);
                 assert_eq!(shared, Some(command), "a shared row must have the same arguments");

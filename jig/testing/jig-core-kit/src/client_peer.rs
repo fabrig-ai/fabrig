@@ -103,6 +103,7 @@ impl ClientPeer {
                 | core::Held::Inbound { .. }
                 | core::Held::Relay { .. }
                 | core::Held::CallAnswer { .. }
+                | core::Held::NeedArrived { .. }
                 | core::Held::Result { .. }
                 | core::Held::Acknowledge { .. }
                 | core::Held::TaskTerminalAcknowledged { .. }

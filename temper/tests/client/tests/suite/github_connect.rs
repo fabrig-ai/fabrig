@@ -118,7 +118,7 @@ fn an_abandoned_install_stays_connecting_and_install_again_can_accept() {
     let ready = view(&root);
     node(&ready, Role::Paragraph, b"Connected GitHub.");
     assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Choice));
-    assert!(front.reachable_reads.is_empty());
+    assert_eq!(front.reachable_reads.len(), 0);
     let d::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("ready rows") };
     assert_eq!(rows[0].installations.len(), 1);
     assert!(!d::forge::connect::underway(&rows[0]));
@@ -127,7 +127,7 @@ fn an_abandoned_install_stays_connecting_and_install_again_can_accept() {
 #[test]
 fn ready_for_an_account_without_repositories_adopts_nothing() {
     let (front, root) = Joint::github_fixture_with(fixtures::SEED, true, true);
-    assert!(front.reachable_reads.is_empty());
+    assert_eq!(front.reachable_reads.len(), 0);
     let ready = view(&root);
     node(&ready, Role::Paragraph, b"Connected GitHub.");
     node(&ready, Role::Description, "app[bot] · user 1".as_bytes());

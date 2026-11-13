@@ -1,6 +1,6 @@
 use super::super::*;
 use super::fixtures as f;
-use jig_domain_core::reads;
+use jig_domain_core_vocabulary::reads;
 #[test]
 fn a_read_is_answered_only_once_held_is_released() {
     let cases = f::held_reads();
@@ -27,7 +27,7 @@ fn a_cursor_round_trips_to_the_same_position() {
                 scope: jig_domain_notes::Scope::Party { party: u64::MAX },
                 description: Some(Box::from(b"filter".as_slice())),
             },
-            after: Some(reads::Position::Owner(jig_domain_core::Key::Notes(jig_domain_notes::Key::Line {
+            after: Some(reads::Position::Owner(jig_domain_core_vocabulary::Key::Notes(jig_domain_notes::Key::Line {
                 scope: jig_domain_notes::Scope::Party { party: u64::MAX },
                 name: u64::MAX,
             }))),
@@ -65,7 +65,7 @@ fn a_cursor_that_does_not_decode_is_answered_unknown() {
         let value = w::Read::Spend(
             w::ReadSpend::new(&limits, w::ReadSpendParts { project: 3, after: Some(after) }).expect(label),
         );
-        let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, 19, f::encoded_read(&value))));
+        let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, 20, f::encoded_read(&value))));
         exchange.authenticate();
         assert_eq!(exchange.read_answer(owner), f::read_none(w::ReadNone::Unknown), "{label}");
         assert!(exchange.out.is_empty(), "{label}");
@@ -79,7 +79,7 @@ fn a_read_signed_out_is_answered_signed_out() {
         let mut exchange = f::read_exchange();
         let owner = if label == "absent digest" {
             let owner =
-                exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, 19, f::encoded_read(&w::Read::Me))));
+                exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, 20, f::encoded_read(&w::Read::Me))));
             let Some(Request::Secrets(SecretsRequest::Get { owner: who })) = exchange.out.pop() else {
                 panic!("digest get")
             };
@@ -137,7 +137,7 @@ fn an_application_read_is_routed_and_answered_under_its_family() {
     }
 }
 
-const TASK_QUERY: jig_domain_core::documents::TaskQuery = jig_domain_core::documents::TaskQuery {
+const TASK_QUERY: jig_domain_core_vocabulary::documents::TaskQuery = jig_domain_core_vocabulary::documents::TaskQuery {
     project: Some(3),
     requester: Some(jig_domain_tasks::Party::Person(5)),
     root: Some(7),
@@ -146,18 +146,18 @@ const TASK_QUERY: jig_domain_core::documents::TaskQuery = jig_domain_core::docum
     phase: None,
     executor: None,
     tracked: None,
-    order: jig_domain_core::documents::QueryOrder::Number,
+    order: jig_domain_core_vocabulary::documents::QueryOrder::Number,
 };
-const QUERY_ORDERS: [jig_domain_core::documents::QueryOrder; 5] = {
-    use jig_domain_core::documents::QueryOrder as O;
+const QUERY_ORDERS: [jig_domain_core_vocabulary::documents::QueryOrder; 5] = {
+    use jig_domain_core_vocabulary::documents::QueryOrder as O;
     [O::Number, O::Changed, O::Activity, O::Priority, O::Ended]
 };
-const QUERY_PHASES: [Option<jig_domain_core::documents::PhaseClass>; 6] = {
-    use jig_domain_core::documents::PhaseClass as P;
+const QUERY_PHASES: [Option<jig_domain_core_vocabulary::documents::PhaseClass>; 6] = {
+    use jig_domain_core_vocabulary::documents::PhaseClass as P;
     [None, Some(P::Working), Some(P::Waiting), Some(P::Held), Some(P::Closing), Some(P::Ended)]
 };
-const QUERY_EXECUTORS: [Option<jig_domain_core::documents::ExecutorKind>; 4] = {
-    use jig_domain_core::documents::ExecutorKind as E;
+const QUERY_EXECUTORS: [Option<jig_domain_core_vocabulary::documents::ExecutorKind>; 4] = {
+    use jig_domain_core_vocabulary::documents::ExecutorKind as E;
     [None, Some(E::Agent), Some(E::Procedure), Some(E::Person)]
 };
 #[test]
@@ -165,11 +165,11 @@ fn task_query_cursors_preserve_their_keys_orders_and_phases() {
     for order in QUERY_ORDERS {
         for phase in QUERY_PHASES {
             for executor in QUERY_EXECUTORS {
-                let query = jig_domain_core::documents::TaskQuery { order, phase, executor, ..TASK_QUERY };
+                let query = jig_domain_core_vocabulary::documents::TaskQuery { order, phase, executor, ..TASK_QUERY };
                 for query in [
                     query,
-                    jig_domain_core::documents::TaskQuery { requester: None, tracked: Some(true), ..query },
-                    jig_domain_core::documents::TaskQuery {
+                    jig_domain_core_vocabulary::documents::TaskQuery { requester: None, tracked: Some(true), ..query },
+                    jig_domain_core_vocabulary::documents::TaskQuery {
                         requester: Some(jig_domain_tasks::Party::Task(19)),
                         tracked: Some(false),
                         ..query
@@ -180,7 +180,7 @@ fn task_query_cursors_preserve_their_keys_orders_and_phases() {
                         reads::Cursor::Store { scope: scope.clone(), after: None },
                         reads::Cursor::Live {
                             scope,
-                            after: jig_domain_core::documents::Cursor::Number { number: 17 },
+                            after: jig_domain_core_vocabulary::documents::Cursor::Number { number: 17 },
                             store_after: None,
                         },
                     ];
@@ -283,7 +283,7 @@ fn a_client_reading_a_too_linked_task_is_told_its_join_bound() {
 #[test]
 fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_forms() {
     use crate::translate::cursor;
-    use jig_domain_core::documents;
+    use jig_domain_core_vocabulary::documents;
     let after = documents::Cursor::Number { number: 7 };
     for scope in [
         reads::Scope::TaskText { task: 7, field: reads::TaskTextField::Result, from: 0 },
@@ -371,7 +371,7 @@ fn a_description_on_tasks_is_refused() {
         let value = tasks_read(Some(description), None);
         assert_eq!(crate::translate::reads::read(value.clone()), None);
         let mut exchange = f::read_exchange();
-        let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, 19, f::encoded_read(&value))));
+        let owner = exchange.send(crate::Message::Read(f::owned_read(w::Owner::Jig, 20, f::encoded_read(&value))));
         exchange.authenticate();
         assert_eq!(exchange.read_answer(owner), f::read_none(w::ReadNone::Unknown));
         assert!(exchange.out.is_empty());
@@ -395,7 +395,7 @@ fn a_later_page_says_more_by_its_after() {
     let scope = reads::Scope::Activity { task: 7 };
     let next = reads::Cursor::Store {
         scope,
-        after: Some(reads::Position::Owner(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Activity {
+        after: Some(reads::Position::Owner(jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::Activity {
             task: 7,
             position: 13,
         }))),

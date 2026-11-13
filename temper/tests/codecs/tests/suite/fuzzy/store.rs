@@ -86,12 +86,23 @@ fn person_fact(rng: &mut Rng) -> forge::PersonFact {
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
-    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v12");
+    let goldens = temper_codecs_world::goldens("crates/temper-protocol-store/golden/v15");
     for _ in 0..2_000 {
         let address = format!("member{}@example.com", rng.next_u64()).into_bytes().into_boxed_slice();
         let binding =
             forge::Stored::Binding { address, subject: temper_codecs_world::drawn(&mut rng, 255).into_boxed_slice() };
         row_and_key(&binding, &mut rng, &bounds);
+        let device = forge::Stored::Device(forge::Device {
+            party: rng.next_u64(),
+            number: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
+            endpoint: vec![b'e'; usize::try_from(rng.below(1024)).unwrap() + 1].into_boxed_slice(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            label: vec![b'l'; usize::try_from(rng.below(60)).unwrap() + 1].into_boxed_slice(),
+            at: skein_lib::Wall::from_nanos(rng.next_u64()),
+        });
+        row_and_key(&device, &mut rng, &bounds);
+        finding_rows(&mut rng, &bounds);
         let making = making_row(&mut rng);
         row_and_key(&making, &mut rng, &bounds);
         let dismissed = forge::Stored::Dismissed { party: rng.next_u64(), what: person_fact(&mut rng) };
@@ -104,6 +115,36 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             author: rng.next_u64().max(1),
         });
         row_and_key(&writer, &mut rng, &bounds);
+    }
+    for owner in [
+        forge::settings::AreaOwner::Task(u64::MAX),
+        forge::settings::AreaOwner::Party(u64::MAX),
+        forge::settings::AreaOwner::Role(u32::MAX),
+        forge::settings::AreaOwner::Charter(u32::MAX),
+    ] {
+        use forge::settings as s;
+        for (kind, value) in [
+            (
+                14,
+                s::Value::ProjectAreas(s::ProjectAreas {
+                    areas: Box::new([s::Area {
+                        name: b"tests".as_slice().into(),
+                        words: b"C tests".as_slice().into(),
+                        owner,
+                    }]),
+                }),
+            ),
+            (15, s::Value::ProjectTriager(s::ProjectTriager { owner })),
+        ] {
+            row_and_key(
+                &forge::Stored::Setting(s::SettingRow {
+                    key: s::SettingKey { kind, scope: 1, number: 1, slot: s::SettingSlot::Change },
+                    edit: s::Edit::Set(s::SizedValue { value, size: 1 }),
+                }),
+                &mut rng,
+                &bounds,
+            );
+        }
     }
     for _ in 0..128 {
         let flags = u8::try_from(rng.below(16)).expect("four flags");
@@ -121,32 +162,34 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             }
         }
     }
-    // Queue-bearing records are also fuzz seeds, with both queue flags.
+    // Every merge way is a fuzz seed, with both queue flags.
     for queued in [false, true] {
-        let row = forge::Stored::Entry {
-            entry: skein_forge_client::Entry {
-                number: 1,
-                task: 2,
-                repository: skein_forge::api::Repository { forge: 1, repository: 3 },
-                effect: skein_forge_client::Effect {
-                    write: skein_forge::api::Write::Merge {
-                        number: 4,
-                        head: [5; 32],
-                        how: skein_forge::api::MergeHow::Style,
+        for how in [
+            skein_forge::api::MergeHow::Style,
+            skein_forge::api::MergeHow::FastForwardOnly,
+            skein_forge::api::MergeHow::Recorded { commit: [u8::try_from(rng.below(256)).expect("byte"); 32] },
+        ] {
+            let row = forge::Stored::Entry {
+                entry: skein_forge_client::Entry {
+                    number: 1,
+                    task: 2,
+                    repository: skein_forge::api::Repository { forge: 1, repository: 3 },
+                    effect: skein_forge_client::Effect {
+                        write: skein_forge::api::Write::Merge { number: 4, head: [5; 32], how },
+                        condition: skein_forge_client::Condition::None,
                     },
-                    condition: skein_forge_client::Condition::None,
+                    start: None,
+                    attempt: None,
+                    failures: 0,
+                    queued,
                 },
-                start: None,
-                attempt: None,
-                failures: 0,
-                queued,
-            },
-            held: false,
-        };
-        let bytes = records::encode(&row);
-        record(&bytes, &bounds);
-        for _ in 0..8 {
-            record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
+                held: false,
+            };
+            row_and_key(&row, &mut rng, &bounds);
+            let bytes = records::encode(&row);
+            for _ in 0..8 {
+                record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
+            }
         }
     }
     for answer in [
@@ -350,6 +393,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
             key: [9; 32],
         },
         receipt: forge::Receipt {
+            logs: Box::new([]),
             failures: if rng.below(2) == 0 { None } else { Some(failures) },
             passed: false,
             run: forge::ReceiptRun { id: rng.next_u64(), number: rng.next_u64(), url: Box::new([]) },
@@ -559,6 +603,51 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
         row.reach.under = u8::try_from(rng.below(21)).expect("item number fits");
         row_and_key(&forge::Stored::Decided(row), rng, bounds);
     }
+}
+
+fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
+    let hand = rng.below(2) == 0;
+    let row = forge::Stored::Finding(forge::Finding {
+        project: u32::try_from(rng.below(4_294_967_296)).expect("drawn field fits"),
+        number: u32::try_from(rng.below(4_294_967_295) + 1).expect("drawn field fits"),
+        kind: match rng.below(5) {
+            0 => forge::FindingKind::Qa,
+            1 => forge::FindingKind::Flake,
+            2 => forge::FindingKind::Red,
+            3 => forge::FindingKind::Review,
+            _ => forge::FindingKind::Feedback,
+        },
+        severity: match rng.below(3) {
+            0 => forge::Severity::Low,
+            1 => forge::Severity::Medium,
+            _ => forge::Severity::High,
+        },
+        state: match rng.below(4) {
+            0 => forge::FindingState::New,
+            1 => forge::FindingState::Routed,
+            2 => forge::FindingState::Backlog,
+            _ => forge::FindingState::Dropped,
+        },
+        area: if rng.below(2) == 0 { Some(b"tests".as_slice().into()) } else { None },
+        title: b"drawn finding".as_slice().into(),
+        body: vec![b'b'; usize::try_from(rng.below(4097)).expect("drawn field fits")].into(),
+        filer: if rng.below(2) == 0 { forge::Filer::Task(rng.next_u64()) } else { forge::Filer::Party(rng.next_u64()) },
+        at: skein_lib::Wall::from_nanos(rng.next_u64()),
+        why: if hand { Some(b"scope".as_slice().into()) } else { None },
+        hander: if hand { Some(forge::Filer::Task(rng.next_u64())) } else { None },
+        goal: if rng.below(2) == 0 { Some(rng.next_u64()) } else { None },
+        reason: if rng.below(2) == 0 { Some(b"not needed".as_slice().into()) } else { None },
+    });
+    row_and_key(&row, rng, bounds);
+    let row = forge::Stored::Subscription(forge::Subscriber {
+        task: rng.next_u64(),
+        number: rng.next_u64(),
+        topic: forge::Topic::Findings { project: u32::try_from(rng.below(4_294_967_296)).expect("drawn field fits") },
+        own_change: None,
+        goal_tasks: None,
+        paths: Box::default(),
+    });
+    row_and_key(&row, rng, bounds);
 }
 
 fn draft_row(rng: &mut Rng, bounds: &Bounds) {

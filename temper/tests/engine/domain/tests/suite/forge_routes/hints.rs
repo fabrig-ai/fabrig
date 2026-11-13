@@ -65,7 +65,7 @@ fn a_repository_hint_wakes_only_the_changes_it_concerns() {
     // procedure fact again (keeping-up.md, 2, A commit's news).
     for branch in [b"temper/a".as_slice(), b"release"] {
         let commit = translate::commit(world.branch(branch));
-        assert!(hint(&mut world, Change::Commit(commit)).is_empty());
+        assert_eq!(hint(&mut world, Change::Commit(commit)).len(), 0);
         assert_eq!(world.take_calls(), [Op::Read(Read::Checks { commit })]);
     }
 }

@@ -3,10 +3,10 @@
     clippy::trivially_copy_pass_by_ref,
     reason = "typed encoders uniformly borrow the domain values they translate"
 )]
-use crate::settings_v2 as wire;
+use crate::settings_v3 as wire;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
-use jig_domain_core::{self as core, settings};
+use jig_domain_core_vocabulary::{self as core, settings};
 use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -23,6 +23,10 @@ const EMPTY: wire::Limits = wire::Limits {
     model_name: 0,
     model_efforts: 0,
     model_effort_some: 0,
+    overlay_instructions: 0,
+    overlay_parts: 0,
+    overlay_documents_some: 0,
+    overlay_alternatives_some: 0,
     run_policy_instructions: 0,
     run_policy_alternatives: 0,
     segment_bytes: 0,
@@ -421,11 +425,13 @@ fn encode_value(value: &settings::Value, limits: &wire::Limits) -> Result<wire::
         settings::Value::Policy(entry) => wire::Value::Policy(Box::new(encode_configured_policy(entry, limits)?)),
         settings::Value::Rules(entry) => wire::Value::Rules(Box::new(encode_rules(entry, limits)?)),
         settings::Value::Model(value) => wire::Value::Model(Box::new(encode_catalogue(value, limits)?)),
+        settings::Value::Overlay(item) => wire::Value::Overlay(Box::new(encode_overlay(item, limits)?)),
         settings::Value::Application(_) => return Err(bound()),
     })
 }
 fn decode_value(value: wire::Value, limits: &wire::Limits) -> Result<settings::Value, wire::Problem> {
     Ok(match value {
+        wire::Value::Overlay(item) => settings::Value::Overlay(Box::new(decode_overlay(*item, limits)?)),
         wire::Value::Charter(entry) => settings::Value::Charter(Box::new(decode_charter(*entry, limits)?)),
         wire::Value::Template(entry) => settings::Value::Template(Box::new(decode_template(*entry, limits)?)),
         wire::Value::Policy(entry) => settings::Value::Policy(Box::new(decode_configured_policy(*entry))),
@@ -1893,7 +1899,7 @@ fn decode_charter_version(
         Some(charter) => Some(Box::new(decode_charter(charter, limits)?)),
         None => None,
     };
-    Ok(settings::CharterVersion { charter: field_charter })
+    Ok(settings::CharterVersion { overlay: None, charter: field_charter })
 }
 fn encode_proposal(
     value: &settings::Proposal,
@@ -2029,6 +2035,10 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     limits.model_name_efforts = core::EFFORTS;
     limits.model_name_efforts_item = core::EFFORT_BYTES;
     limits.run_policy_instructions = domain.run_bytes;
+    limits.overlay_instructions = domain.run_bytes;
+    limits.overlay_parts = domain.tasks.charter_parts;
+    limits.overlay_documents_some = domain.tasks.charter_documents;
+    limits.overlay_alternatives_some = domain.settings.alternatives;
     limits.segment_bytes = domain.authority.segment_bytes.max(domain.tasks.hold_bytes);
     limits.last_exact_bytes = domain.authority.segment_bytes;
     limits.last_open_bytes = domain.authority.segment_bytes;
@@ -2123,12 +2133,7 @@ pub fn encode(
             value.encode(&mut writer).expect("measured row");
             Ok(writer.finish())
         }
-        settings::Record::Charter { value, .. } => {
-            let value = encode_charter_version(value, limits)?;
-            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-            value.encode(&mut writer).expect("measured row");
-            Ok(writer.finish())
-        }
+        settings::Record::Charter { value, .. } => encode_version(value, limits),
         settings::Record::Proposal { value, .. } => {
             let value = encode_proposal(value, limits, names)?;
             let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
@@ -2183,11 +2188,9 @@ pub fn decode(
             let wire::ExtentParts { oldest, keys } = wire::Extent::decode(limits, &mut reader)?.into_parts();
             settings::Record::Extent { oldest, keys }
         }
-        settings::Key::Charter { charter, revision } => settings::Record::Charter {
-            charter: *charter,
-            revision: *revision,
-            value: decode_charter_version(wire::CharterVersion::decode(limits, &mut reader)?, limits)?,
-        },
+        settings::Key::Charter { charter, revision } => {
+            settings::Record::Charter { charter: *charter, revision: *revision, value: decode_version(bytes, limits)? }
+        }
         settings::Key::Proposal { proposer, proposal } => settings::Record::Proposal {
             proposer: *proposer,
             proposal: *proposal,
@@ -2335,4 +2338,234 @@ fn decode_catalogue(value: wire::CatalogueModel) -> settings::CatalogueModel {
             wire::ModelSource::Person => settings::ModelSource::Person,
         },
     }
+}
+
+fn encode_overlay(value: &settings::Overlay, limits: &wire::Limits) -> Result<wire::Overlay, wire::Problem> {
+    let documents = match &value.documents {
+        Some(items) => {
+            let mut documents = List::with_capacity(limits.overlay_documents_some);
+            // Hold paths share Segment, but document names follow the authority's byte bound.
+            let name_limits = wire::Limits { segment_bytes: limits.last_exact_bytes, ..*limits };
+            for document in items {
+                let mut name = List::with_capacity(limits.document_name);
+                for segment in &document.name.segments {
+                    let segment = encode_segment(segment, &name_limits)?;
+                    if name.push(segment).is_err() {
+                        return Err(bound());
+                    }
+                }
+                let document = wire::Document::new(
+                    limits,
+                    wire::DocumentParts {
+                        connector: document.connector,
+                        name,
+                        path: document.path.clone(),
+                        heading: document.heading.clone(),
+                    },
+                )?;
+                if documents.push(document).is_err() {
+                    return Err(bound());
+                }
+            }
+            Some(documents)
+        }
+        None => None,
+    };
+    let mut parts = List::with_capacity(limits.overlay_parts);
+    for part in &value.parts {
+        let part = wire::CharterPart::new(
+            limits,
+            wire::CharterPartParts { on: part.on.0, instructions: part.instructions.clone() },
+        )?;
+        if parts.push(part).is_err() {
+            return Err(bound());
+        }
+    }
+    let alternatives = match &value.alternatives {
+        Some(items) => {
+            let mut values = List::with_capacity(limits.overlay_alternatives_some);
+            for item in items {
+                let item = encode_model(item, limits)?;
+                if values.push(item).is_err() {
+                    return Err(bound());
+                }
+            }
+            Some(values)
+        }
+        None => None,
+    };
+    wire::Overlay::new(
+        limits,
+        wire::OverlayParts {
+            rest: value.rest,
+            inspect: value.inspect,
+            modify: value.modify,
+            shell: value.shell,
+            agents: value.agents,
+            waiting: value.waiting,
+            resume: value.resume,
+            turns: value.turns,
+            time: value.time,
+            reserve_turns: value.reserve_turns,
+            reserve_time: value.reserve_time,
+            call_timeout: value.call_timeout,
+            spend: value.spend,
+            model: match &value.model {
+                Some(item) => Some(encode_model(item, limits)?),
+                None => None,
+            },
+            alternatives,
+            documents,
+            parts,
+            tools: match value.tools {
+                Some(item) => Some(item.0),
+                None => None,
+            },
+            hosts: match &value.hosts {
+                Some(item) => Some(encode_kinds(item)),
+                None => None,
+            },
+            instructions: value.instructions.clone(),
+        },
+    )
+}
+
+fn decode_overlay(value: wire::Overlay, limits: &wire::Limits) -> Result<settings::Overlay, wire::Problem> {
+    let wire::OverlayParts {
+        rest,
+        model,
+        alternatives,
+        inspect,
+        modify,
+        shell,
+        agents,
+        tools,
+        hosts,
+        waiting,
+        resume,
+        turns,
+        time,
+        reserve_turns,
+        reserve_time,
+        call_timeout,
+        spend,
+        documents,
+        instructions,
+        parts,
+    } = value.into_parts();
+    let decoded = match documents {
+        Some(items) => {
+            let mut decoded = List::with_capacity(items.len());
+            for document in items.into_boxed() {
+                let wire::DocumentParts { connector, name, path, heading } = document.into_parts();
+                let mut segments = List::with_capacity(name.len());
+                for segment in name.into_boxed() {
+                    let bytes = decode_segment(segment);
+                    if bytes.len() > skein_lib::length::usize_of(limits.last_exact_bytes) {
+                        return Err(bound());
+                    }
+                    segments.push(bytes).expect("decoded document name bound");
+                }
+                decoded
+                    .push(core::Document {
+                        connector,
+                        name: authority::Name { segments: segments.into_boxed() },
+                        path,
+                        heading,
+                    })
+                    .expect("decoded documents bound");
+            }
+            Some(decoded.into_boxed())
+        }
+        None => None,
+    };
+    let mut decoded_parts = List::with_capacity(parts.len());
+    for part in parts.into_boxed() {
+        let wire::CharterPartParts { on, instructions } = part.into_parts();
+        let on = tasks::Reasons(on);
+        if !on.is_known() || on.is_empty() {
+            return Err(bound());
+        }
+        decoded_parts.push(core::CharterPart { on, instructions }).expect("decoded parts bound");
+    }
+    let alternatives = match alternatives {
+        Some(items) => {
+            let mut values = List::with_capacity(items.len());
+            for item in items.into_boxed() {
+                values.push(decode_model(item)).expect("decoded alternatives");
+            }
+            Some(values.into_boxed())
+        }
+        None => None,
+    };
+    Ok(settings::Overlay {
+        rest,
+        inspect,
+        modify,
+        shell,
+        agents,
+        waiting,
+        resume,
+        turns,
+        time,
+        reserve_turns,
+        reserve_time,
+        call_timeout,
+        spend,
+        model: match model {
+            Some(item) => Some(decode_model(item)),
+            None => None,
+        },
+        alternatives,
+        documents: decoded,
+        parts: decoded_parts.into_boxed(),
+        tools: match tools {
+            Some(item) => Some(tasks::Tools(item)),
+            None => None,
+        },
+        hosts: match hosts {
+            Some(item) => Some(decode_kinds(item)),
+            None => None,
+        },
+        instructions,
+    })
+}
+
+// Versions without an overlay retain their existing stored form (domain/engine/overlays.md, 7).
+fn encode_version(value: &settings::CharterVersion, limits: &wire::Limits) -> Result<Box<[u8]>, wire::Problem> {
+    match &value.overlay {
+        Some(overlay) => {
+            let charter = match &value.charter {
+                Some(charter) => Some(encode_charter(charter, limits)?),
+                None => None,
+            };
+            let value = wire::OverlaidCharterVersion::new(
+                limits,
+                wire::OverlaidCharterVersionParts { charter, overlay: encode_overlay(overlay, limits)? },
+            )?;
+            let mut writer = Writer::new(skein_lib::usize_of(value.measure()));
+            value.encode(&mut writer).expect("measured version");
+            Ok(writer.finish())
+        }
+        None => {
+            let value = encode_charter_version(value, limits)?;
+            let mut writer = Writer::new(skein_lib::usize_of(value.measure()));
+            value.encode(&mut writer).expect("measured version");
+            Ok(writer.finish())
+        }
+    }
+}
+fn decode_version(bytes: &[u8], limits: &wire::Limits) -> Result<settings::CharterVersion, wire::Problem> {
+    if let Ok(value) = wire::CharterVersion::decode(limits, &mut Reader::new(bytes)) {
+        return decode_charter_version(value, limits);
+    }
+    let wire::OverlaidCharterVersionParts { charter, overlay } =
+        wire::OverlaidCharterVersion::decode(limits, &mut Reader::new(bytes))?.into_parts();
+    Ok(settings::CharterVersion {
+        charter: match charter {
+            Some(charter) => Some(Box::new(decode_charter(charter, limits)?)),
+            None => None,
+        },
+        overlay: Some(Box::new(decode_overlay(overlay, limits)?)),
+    })
 }

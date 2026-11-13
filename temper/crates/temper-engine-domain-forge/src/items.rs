@@ -10,6 +10,8 @@ use temper_engine_domain_forge_change as change;
 /// An immutable checkout start, or a branch the worker resolves.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Start {
+    /// The frozen base of a prepare round (temper/docs/design/domain/worker/jobs.md).
+    Commit(api::Commit),
     /// The project's landing branch.
     Base(Box<[u8]>),
     /// A change's current branch.
@@ -55,6 +57,41 @@ pub struct Item {
 type CheckoutSelection = (Start, Option<Box<[u8]>>, Option<u64>, Option<Box<[u8]>>, bool);
 
 impl Domain {
+    /// One landing job's repository and new writable branch (temper/docs/design/domain/worker/jobs.md).
+    #[must_use]
+    pub fn prepare_item(
+        &self,
+        provider: api::Repository,
+        branch: Box<[u8]>,
+        base: api::Commit,
+        holder: u64,
+    ) -> Option<Item> {
+        let repository = self.repository(provider)?;
+        let credential = match self.records.get(&provider.forge) {
+            Some(record) => Some(u32::from(record.number)),
+            None => self.identities.get(&provider.forge).copied(),
+        };
+        let bytes = u64::try_from(size_of::<Item>())
+            .ok()?
+            .checked_add(skein_lib::len_u64(repository.name.len()))?
+            .checked_add(skein_lib::len_u64(repository.host.len()))?
+            .checked_add(skein_lib::len_u64(repository.owner.len()))?
+            .checked_add(skein_lib::len_u64(branch.len()))?;
+        Some(Item {
+            delivers: false,
+            provider,
+            name: repository.name.clone(),
+            host: repository.host.clone(),
+            owner: repository.owner.clone(),
+            start: Start::Commit(base),
+            push: Some(branch),
+            landing: None,
+            holder: Some(holder),
+            credential,
+            bytes,
+        })
+    }
+
     /// The project's context repositories are added to every checkout read-only.
     #[must_use]
     pub fn context_repositories(&self, project: u32, limit: u32) -> Option<Box<[api::Repository]>> {
@@ -169,7 +206,14 @@ impl Domain {
                     None,
                     false,
                 ),
-                change::Delegate::Gate { .. } => (Start::Branch(row.branch.clone()), None, None, None, false),
+                change::Delegate::Gate { .. } => {
+                    let branch = if let change::State::Judging { target, .. } = &row.change.state {
+                        target.branch.clone()
+                    } else {
+                        row.branch.clone()
+                    };
+                    (Start::Branch(branch), None, None, None, false)
+                }
             },
             None => self.task_workspace_item(&seed, repository)?,
         };
@@ -189,7 +233,7 @@ impl Domain {
                             base: branch_head(self, seed.repository, &row.base)?,
                         };
                     }
-                    Start::Base(_) | Start::Merge { .. } | Start::Merged { .. } => {}
+                    Start::Commit(_) | Start::Base(_) | Start::Merge { .. } | Start::Merged { .. } => {}
                 }
             }
         }
@@ -212,9 +256,12 @@ impl Domain {
             None if delivers && push.is_some() => selected_landing,
             None => match &start {
                 Start::Merge { .. } if push.is_some() => selected_landing,
-                Start::Base(_) | Start::Branch(_) | Start::Saved(_) | Start::Merge { .. } | Start::Merged { .. } => {
-                    None
-                }
+                Start::Commit(_)
+                | Start::Base(_)
+                | Start::Branch(_)
+                | Start::Saved(_)
+                | Start::Merge { .. }
+                | Start::Merged { .. } => None,
             },
         };
         let name = repository.name.clone();
@@ -223,7 +270,8 @@ impl Domain {
             .checked_add(skein_lib::len_u64(name.len()))?
             .checked_add(skein_lib::len_u64(repository.host.len()))?
             .checked_add(skein_lib::len_u64(repository.owner.len()))?;
-        let branch = match &start {
+        let branch: &[u8] = match &start {
+            Start::Commit(_) => b"",
             Start::Base(branch)
             | Start::Branch(branch)
             | Start::Saved(branch)

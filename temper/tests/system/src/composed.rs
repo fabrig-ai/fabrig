@@ -874,12 +874,12 @@ impl World {
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
                 engine::HostRequest::Decode { to, call, .. } => self.decode_close_call(to, &call),
                 engine::HostRequest::SettingsNote { to, call, body } => {
-                    return Ok(vec![temper_service::settings_note(to, *call, &body, &self.root.catalogue())]);
+                    return Ok(vec![temper_engine_service::settings_note(to, *call, &body, &self.root.catalogue())]);
                 }
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
-                engine::HostDelivery::Render { to, answer, tool, key, job, page, .. } => {
+                engine::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {
                     engine::WorkerInput::RenderedHostCall {
                         to,
                         answer: link::render(
@@ -890,6 +890,7 @@ impl World {
                             self.worker_env.limits.reply_bytes,
                             job,
                             page,
+                            ask,
                         ),
                     }
                 }
@@ -1005,7 +1006,7 @@ impl World {
             }
             Err(error) => Err(api::error(
                 error,
-                skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::CONFIG, self.env.now),
+                skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::config(), self.env.now),
             )),
         };
         self.root_events.push_back(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
@@ -1079,6 +1080,7 @@ impl World {
             // A run watch first supplies its current document, then streams
             // provisional suffixes. Acknowledge both kinds of delivery.
             Delivery::Document { watcher, .. } => self.acknowledge_run(watcher),
+            Delivery::Push(_) => panic!("this story has no push devices"),
             Delivery::SourceSignedOut { .. } => panic!("this story requests no source sign-out"),
             Delivery::Application { to, outcome } => {
                 assert_eq!(to.into_token(), ADOPTION);
@@ -1126,6 +1128,7 @@ impl World {
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
             | Delivery::MoveStanding { .. }
+            | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }
@@ -1345,7 +1348,7 @@ impl World {
             worker::Request::CancelRelay { run, attempt, call } => {
                 self.worker_events.push_back(worker::Event::RelayCancelled { run, attempt, call });
             }
-            worker::Request::Stop => panic!("the worker stops only once shut down"),
+            worker::Request::Stop | worker::Request::Abandon => panic!("the worker stops only once shut down"),
             worker::Request::Process(request) => self.process_request(*request),
             worker::Request::Decode { agent, run, start } => {
                 let start = worker_protocol::decode(run, *start, &self.worker_env.limits.agent);
@@ -1605,6 +1608,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
+        | Op::Brings { .. }
         | Op::IsAncestor { .. }
         | Op::Merge { .. }
         | Op::Commit { snapshot: None, .. } => return op,

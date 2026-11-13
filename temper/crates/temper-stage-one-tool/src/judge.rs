@@ -344,12 +344,10 @@ fn command(args: &[String], verdict: bool) -> ExitCode {
     }
 }
 /// Print the complete judge brief for EVIDENCE.
-#[must_use]
 pub fn main(args: &[String]) -> ExitCode {
     command(args, false)
 }
 /// Print the stage verdict for EVIDENCE, optionally as JSON.
-#[must_use]
 pub fn verdict_main(args: &[String]) -> ExitCode {
     command(args, true)
 }

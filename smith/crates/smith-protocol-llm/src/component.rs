@@ -650,6 +650,7 @@ impl Component {
             | DomainEvent::Acknowledge { .. }
             | DomainEvent::Grant { .. }
             | DomainEvent::Cancel { .. }
+            | DomainEvent::Drain { .. }
             | DomainEvent::Delivered { .. }
             | DomainEvent::Below(
                 smith_domain::Below::Done { .. }

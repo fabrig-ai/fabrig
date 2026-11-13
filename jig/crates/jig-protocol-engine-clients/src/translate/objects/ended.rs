@@ -1,7 +1,7 @@
 //! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::super::{chips, owner, task, w};
 use alloc::boxed::Box;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{List, bytes};
@@ -220,7 +220,7 @@ pub fn milestone(value: &d::MilestoneLine, limits: &w::Limits) -> Result<w::Mile
     )
 }
 pub fn escalation_decision(
-    value: &jig_domain_core::EscalationDecisionRecord,
+    value: &jig_domain_core_vocabulary::EscalationDecisionRecord,
     limits: &w::Limits,
 ) -> Result<w::EscalationDecisionRecord, w::Problem> {
     w::EscalationDecisionRecord::new(
@@ -246,7 +246,7 @@ pub fn escalation_decision(
     )
 }
 pub fn proposal_decision(
-    value: jig_domain_core::ProposalDecisionRecord,
+    value: jig_domain_core_vocabulary::ProposalDecisionRecord,
     limits: &w::Limits,
 ) -> Result<w::ProposalDecision, w::Problem> {
     w::ProposalDecision::new(

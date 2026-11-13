@@ -1,4 +1,4 @@
-//! Fixtures shared by step tests and the machine world's hand (forge/connection.md, 10).
+//! Fixtures for the crate's step tests (forge/connection.md, 10).
 use crate::{
     Limits, Settings, Shared,
     settings::{Forge, Kind, Transport},

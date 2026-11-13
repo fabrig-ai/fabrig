@@ -103,7 +103,7 @@ impl Tree {
                 || tree.processes.iter().any(|process| {
                     fs::read_link(format!("/proc/{}/exe", process.pid)).ok()
                         == fs::canonicalize(skein_scratch::paths::binary("process_fixture")).ok()
-                        && fs::read_to_string(format!("/proc/{}/stat", process.pid)).ok().is_some_and(|stat| {
+                        && fs::read_to_string(format!("/proc/{}/stat", process.pid)).is_ok_and(|stat| {
                             stat.rsplit_once(") ").is_some_and(|(_, fields)| fields.starts_with("S "))
                         })
                 })

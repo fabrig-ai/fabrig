@@ -454,7 +454,7 @@ impl Cut {
 #[expect(clippy::disallowed_methods, reason = "each hex pair has exactly the two digits copied into it")]
 pub(crate) fn hex(bytes: &[u8], out: &mut Encoder) {
     let mut hex = skein_lib::bytes::zeroed(bytes.len().checked_mul(2).expect("document bound fits"));
-    for (pair, byte) in hex.chunks_exact_mut(2).zip(bytes) {
+    for (pair, byte) in hex.as_chunks_mut::<2>().0.iter_mut().zip(bytes) {
         pair.copy_from_slice(&[skein_lib::bytes::hex_digit(byte >> 4u32), skein_lib::bytes::hex_digit(byte & 15)]);
     }
     out.string(&hex);

@@ -85,7 +85,8 @@ pub(super) fn decoded(
                 return;
             }
         }
-        Call::Clone { .. }
+        Call::PushNew { .. }
+        | Call::Clone { .. }
         | Call::Fetch { .. }
         | Call::Create { .. }
         | Call::Push { .. }
@@ -96,6 +97,9 @@ pub(super) fn decoded(
         | Call::Ancestor { .. } => {}
     }
     let (repository, op) = match call {
+        Call::PushNew { repository, branch, commit } => {
+            (repository, api::Op::Git(api::Git::PushNew { branch, commit }))
+        }
         Call::Clone { repository } => (repository, api::Op::Git(api::Git::Clone)),
         Call::Fetch { repository, want } => (repository, api::Op::Git(api::Git::Fetch { want })),
         Call::Create { repository, branch, commit } => (repository, api::Op::Git(api::Git::Create { branch, commit })),
@@ -174,6 +178,7 @@ pub(super) fn down(
     retire(server, service);
     let result = match result {
         Ok(api::Answer::Cloned { default, branches }) => Ok(git::Answer::Cloned { default, branches }),
+        Ok(api::Answer::PushNew { existing }) => Ok(git::Answer::PushNew { existing }),
         Ok(api::Answer::Commit(commit)) => Ok(git::Answer::Commit(commit)),
         Ok(api::Answer::Branch(created)) => Ok(git::Answer::Created(created)),
         Ok(api::Answer::Pushed(pushed)) => Ok(git::Answer::Pushed(pushed)),

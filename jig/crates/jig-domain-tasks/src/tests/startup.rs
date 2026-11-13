@@ -144,7 +144,7 @@ fn checked_tasks_replay_each_lifecycle_request_exactly_once() {
         Release(u64),
     }
     let mut cold = replay_fixture();
-    assert!(cold.send(Event::Check).is_empty());
+    assert_eq!(cold.send(Event::Check).len(), 0);
     assert!(cold.domain.checked());
     assert!(!cold.domain.ready());
     assert!(cold.send(Event::Check).is_empty(), "a duplicate check cannot replay work");
@@ -194,7 +194,7 @@ fn a_delegates_words_do_not_repeat_person_admission() {
 
 fn loaded_delegate(source: &Harness) {
     let mut restored = cold(source);
-    assert!(restored.send(Event::Check).is_empty());
+    assert_eq!(restored.send(Event::Check).len(), 0);
     assert!(restored.domain.checked());
     assert_eq!(
         restored.domain.task(DELEGATE).expect("linked delegate"),
@@ -309,7 +309,7 @@ fn a_stub_is_retained_without_rejudging_reciprocal_references() {
     cold.send(Event::Restore {
         record: Stored::Stub(Stub { task: UNNAMED, phase: Status::Done, result: Token::new(UNNAMED) }),
     });
-    assert!(cold.send(Event::Check).is_empty());
+    assert_eq!(cold.send(Event::Check).len(), 0);
     assert!(cold.domain.checked());
 }
 

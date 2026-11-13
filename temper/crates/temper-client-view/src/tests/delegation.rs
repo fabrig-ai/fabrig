@@ -204,6 +204,7 @@ fn root_chat_with_reads(
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. } => {}
         }
     }

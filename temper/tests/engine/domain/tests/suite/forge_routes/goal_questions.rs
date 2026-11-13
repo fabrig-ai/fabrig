@@ -333,7 +333,7 @@ fn escalate_b(story: &mut Story) -> (engine::Assignment, u64, u64) {
     assert_eq!(row(&story.world, story.b).base, story.branch);
     let (question, up) = ask_up(&mut story.world, &producer, story.b);
     assert_panel(&mut story.world, story.b, producer.task, question, QUESTION, forge_top::PanelStands::Asked);
-    assert!(replies(&story.world, producer.task, story.b).is_empty());
+    assert_eq!(replies(&story.world, producer.task, story.b).len(), 0);
     (producer, question, up)
 }
 
@@ -515,7 +515,7 @@ fn an_answer_that_adds_a_dependency_waits_for_it() {
         }
     }
     assert_panel(&mut story.world, story.b, producer.task, question, QUESTION, forge_top::PanelStands::Held);
-    assert!(replies(&story.world, producer.task, story.b).is_empty());
+    assert_eq!(replies(&story.world, producer.task, story.b).len(), 0);
     assert!(!story.world.assigned.iter().any(|run| run.task == producer.task && run.attempt > producer.attempt));
     assert_eq!(branch_tip(&mut story.world, &story.branch), base);
     let c_merge = land(&mut story.world, story.goal.task, c, &upstream, base, b"C", C_REPORT);

@@ -1,6 +1,6 @@
 //! Task queries and lines preserve the engine's keys and supplied order.
 use super::{chips, live, me, owner, w};
-use jig_domain_core::documents::{self as d, WaitsOn};
+use jig_domain_core_vocabulary::documents::{self as d, WaitsOn};
 use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{List, Writer};

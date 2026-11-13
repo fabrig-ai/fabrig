@@ -115,14 +115,15 @@ pub use v9::{
     ListRefusedParts, ListRow, ListRowParts, ListedRows, ListedRowsParts, ReadList, ReadListParts,
 };
 
-/// This crate's spoken family and layout (temper/docs/design/protocol/wires.md, 3.1).
+/// This crate's spoken family and layout (protocol/channel/wires.md, 2).
 pub mod wire {
     /// The family named by the current schema's header.
     pub const FAMILY: &str = "jig-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = wire::VERSION;
+    pub const VERSION: u16 = 9;
 
+    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
     const TEXT: &str = include_str!("../schema/worker-wire-v9.schema");
 
     /// The current schema's family fingerprint.

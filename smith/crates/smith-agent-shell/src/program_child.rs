@@ -41,7 +41,6 @@ fn run(arguments: &[OsString], errors: &mut dyn Write) -> ExitCode {
 }
 
 /// Exec the program with Kill on its agent's death, or report one line and exit 1.
-#[must_use]
 pub fn main() -> ExitCode {
     run(&std::env::args_os().skip(2).collect::<Vec<_>>(), &mut std::io::stderr())
 }
