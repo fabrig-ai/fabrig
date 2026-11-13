@@ -2,7 +2,6 @@
 
 2026-11-13. Where the tree's code lags or departs from [binaries.md](binaries.md).
 
-- **Not yet:** 2: `upgrade --check` says whether the workers may stay by the copy's stored wires alone, naming no worker [in flight: change 2301]
 
 - **Not yet:** 2: `upgrade --check` prints no patch's time and no time of the whole: each patch's line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`), since the store's `Event::Patched` carries no time
 
