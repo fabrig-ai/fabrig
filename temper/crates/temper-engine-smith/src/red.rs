@@ -25,7 +25,9 @@ pub(crate) fn decode(value: &Value) -> Result<RedCall, Problem> {
             return Err(Problem::ActMember { tool: b"red", member: name.clone() });
         }
     }
-    if act.as_ref() == b"list" { return Ok(RedCall::List); }
+    if act.as_ref() == b"list" {
+        return Ok(RedCall::List);
+    }
     let key = value.required(b"key")?.text(b"key")?;
     if !forge::reds::key_fits(&key, 512) {
         return Err(Problem::Range(b"red: key must be 1 to forge.red_key_bytes UTF-8 bytes, one line, no control characters or surrounding whitespace"));
@@ -34,7 +36,9 @@ pub(crate) fn decode(value: &Value) -> Result<RedCall, Problem> {
     if !forge::settings::words_fit(&why, 256) {
         return Err(Problem::Range(b"red: why must be one line of 1 to 256 UTF-8 bytes, no control characters"));
     }
-    if act.as_ref() == b"end" { return Ok(RedCall::End { key, why }); }
+    if act.as_ref() == b"end" {
+        return Ok(RedCall::End { key, why });
+    }
     let text = value.required(b"at")?.text(b"at")?;
     if text.len() != 40 && text.len() != 64 {
         return Err(Problem::Range(b"red: at must be 40 or 64 lowercase hexadecimal digits"));

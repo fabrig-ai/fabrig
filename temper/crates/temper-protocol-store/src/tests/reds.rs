@@ -30,7 +30,7 @@ fn red_families_have_golden_keys_and_record_bytes() {
         let stored = d::Stored::Red(d::Red { by, ..red.clone() });
         // Literal field framing, independent of the generated codec.
         let mut golden = Writer::new(83);
-        golden.put(&[0, 21, 39]).unwrap();
+        golden.put(&[0, 22, 39]).unwrap();
         golden.put(&7_u64.to_be_bytes()).unwrap();
         golden.put(b"\0\0\0\x0btest a::t x").unwrap();
         golden.put(b"\0\0\0\x14").unwrap();
@@ -51,7 +51,7 @@ fn red_families_have_golden_keys_and_record_bytes() {
     let key = keys::encode(&d::stored_key(&number), u32::MAX).unwrap();
     assert_eq!(key.as_ref(), &[45]);
     assert_eq!(keys::decode(&key, &fixtures::LIMITS), Some(d::Key::RedNumber));
-    let golden = b"\0\x15\x28\xff\xff\xff\xff\xff\xff\xff\xff";
+    let golden = b"\0\x16\x28\xff\xff\xff\xff\xff\xff\xff\xff";
     assert_eq!(records::encode(&number).as_ref(), golden);
     assert_eq!(records::row(&key, golden, &bounds), Ok(number));
 }
@@ -127,33 +127,76 @@ fn the_red_patch_keeps_old_rows_without_making_a_red_or_counter() {
     let mut bytes = Writer::new(usize::try_from(old.measure()).unwrap());
     old.encode(&mut bytes).unwrap();
     let bytes = patched(20, 9, b"Row", bytes.finish());
-    assert_eq!(bytes.as_ref(), b"\0\x15\x16\0\x03");
+    let bytes = patched(21, 10, b"Row", bytes);
+    assert_eq!(bytes.as_ref(), b"\0\x16\x16\0\x03");
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     assert_eq!(records::decode(&bytes, &bounds), Ok(d::Stored::ForgeNumber { last: 3 }));
     assert_eq!(crate::STORE_VERSION, 22);
 }
 
 fn golden_red() -> Box<[u8]> {
-    [7_u64.to_be_bytes().as_slice(), b"\0\0\0\x0btest a::t x", b"\0\0\0\x14", &[4; 20], b"\0\0\0\x04base", b"\0", &7_u64.to_be_bytes(), &9_u64.to_be_bytes(), &1_u64.to_be_bytes()].concat().into_boxed_slice()
+    skein_lib::bytes::concat(&[
+        7_u64.to_be_bytes().as_slice(),
+        b"\0\0\0\x0btest a::t x",
+        b"\0\0\0\x14",
+        &[4; 20],
+        b"\0\0\0\x04base",
+        b"\0",
+        &7_u64.to_be_bytes(),
+        &9_u64.to_be_bytes(),
+        &1_u64.to_be_bytes(),
+    ])
 }
 #[test]
 fn named_red_answers_have_golden_bytes_and_charge_every_snapshot() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let outcomes = [
-        (Ok(d::RedOutcome::Recorded { head: Box::new([5; 20]), recorded: d::RedRecorded { generation: 2, replaced: None } }), [b"\0\0\0\0\x14".as_slice(), &[5; 20], &2_u64.to_be_bytes(), b"\0"].concat()),
-        (Ok(d::RedOutcome::Recorded { head: Box::new([5; 32]), recorded: d::RedRecorded { generation: 2, replaced: Some(row()) } }), [b"\0\0\0\0\x20".as_slice(), &[5; 32], &2_u64.to_be_bytes(), b"\x01", &golden_red()].concat()),
-        (Ok(d::RedOutcome::Ended(row())), [b"\x01".as_slice(), &golden_red()].concat()),
-        (Err(d::RedRefusal::NoGoal), b"\x02\0".to_vec()),
-        (Err(d::RedRefusal::Full { bound: 64 }), b"\x02\x01\0\0\0\x40".to_vec()),
-        (Err(d::RedRefusal::NoSuch), b"\x02\x02".to_vec()),
+        (
+            Ok(d::RedOutcome::Recorded {
+                head: Box::new([5; 20]),
+                recorded: d::RedRecorded { generation: 2, replaced: None },
+            }),
+            skein_lib::bytes::concat(&[b"\0\0\0\0\x14".as_slice(), &[5; 20], &2_u64.to_be_bytes(), b"\0"]),
+        ),
+        (
+            Ok(d::RedOutcome::Recorded {
+                head: Box::new([5; 32]),
+                recorded: d::RedRecorded { generation: 2, replaced: Some(row()) },
+            }),
+            skein_lib::bytes::concat(&[
+                b"\0\0\0\0\x20".as_slice(),
+                &[5; 32],
+                &2_u64.to_be_bytes(),
+                b"\x01",
+                &golden_red(),
+            ]),
+        ),
+        (Ok(d::RedOutcome::Ended(row())), skein_lib::bytes::concat(&[b"\x01".as_slice(), &golden_red()])),
+        (Err(d::RedRefusal::NoGoal), b"\x02\0".as_slice().into()),
+        (Err(d::RedRefusal::Full { bound: 64 }), b"\x02\x01\0\0\0\x40".as_slice().into()),
+        (Err(d::RedRefusal::NoSuch), b"\x02\x02".as_slice().into()),
     ];
     for (result, body) in outcomes {
         let row = d::Stored::Call {
             key: d::NamedCall { task: 7, attempt: 1, completion: 2, position: 3 },
-            answer: d::CallPayload::Red(Box::new(d::RedReply { goal: 7, key: b"test a::t x".as_slice().into(), result })),
+            answer: d::CallPayload::Red(Box::new(d::RedReply {
+                goal: 7,
+                key: b"test a::t x".as_slice().into(),
+                result,
+            })),
         };
-        let golden = [b"\0\x16\0".as_slice(), &7_u64.to_be_bytes(), &1_u64.to_be_bytes(), &2_u32.to_be_bytes(), &3_u32.to_be_bytes(), b"\x06", &7_u64.to_be_bytes(), b"\0\0\0\x0btest a::t x", &body].concat();
-        assert_eq!(records::encode(&row).as_ref(), golden.as_slice());
+        let golden = skein_lib::bytes::concat(&[
+            b"\0\x16\0".as_slice(),
+            &7_u64.to_be_bytes(),
+            &1_u64.to_be_bytes(),
+            &2_u32.to_be_bytes(),
+            &3_u32.to_be_bytes(),
+            b"\x06",
+            &7_u64.to_be_bytes(),
+            b"\0\0\0\x0btest a::t x",
+            &body,
+        ]);
+        assert_eq!(records::encode(&row).as_ref(), golden.as_ref());
         assert_eq!(records::decode(&golden, &bounds), Ok(row.clone()));
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
@@ -169,10 +212,21 @@ fn named_red_answers_have_golden_bytes_and_charge_every_snapshot() {
 #[test]
 fn the_red_reply_patch_preserves_old_named_calls_without_making_reds() {
     use crate::v21 as old;
-    let call = old::Call::new(&old::CEILINGS, old::CallParts {
-        key: old::NamedCall::new(&old::CEILINGS, old::NamedCallParts { task: 7, attempt: 1, completion: 2, position: 3 }).unwrap(),
-        answer: old::CallPayload::Follow(old::CallFollow::new(&old::CEILINGS, old::CallFollowParts { follow: 4, refusal: None }).unwrap()),
-    }).unwrap();
+    assert_eq!(crate::STORE_VERSION, 22);
+    let call = old::Call::new(
+        &old::CEILINGS,
+        old::CallParts {
+            key: old::NamedCall::new(
+                &old::CEILINGS,
+                old::NamedCallParts { task: 7, attempt: 1, completion: 2, position: 3 },
+            )
+            .unwrap(),
+            answer: old::CallPayload::Follow(
+                old::CallFollow::new(&old::CEILINGS, old::CallFollowParts { follow: 4, refusal: None }).unwrap(),
+            ),
+        },
+    )
+    .unwrap();
     let old = old::Row::new(&old::CEILINGS, old::RowParts { value: old::Value::Call(call) }).unwrap();
     let mut bytes = Writer::new(usize::try_from(old.measure()).unwrap());
     old.encode(&mut bytes).unwrap();
@@ -181,8 +235,11 @@ fn the_red_reply_patch_preserves_old_named_calls_without_making_reds() {
     assert_eq!(after.get(..2).unwrap(), b"\0\x16");
     assert_eq!(after.get(2..).unwrap(), before.get(2..).unwrap());
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    assert_eq!(records::decode(&after, &bounds), Ok(d::Stored::Call {
-        key: d::NamedCall { task: 7, attempt: 1, completion: 2, position: 3 },
-        answer: d::CallPayload::Follow { follow: 4, refusal: None },
-    }));
+    assert_eq!(
+        records::decode(&after, &bounds),
+        Ok(d::Stored::Call {
+            key: d::NamedCall { task: 7, attempt: 1, completion: 2, position: 3 },
+            answer: d::CallPayload::Follow { follow: 4, refusal: None },
+        })
+    );
 }

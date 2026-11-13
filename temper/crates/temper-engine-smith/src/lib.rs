@@ -36,7 +36,6 @@ mod contract;
 mod docs;
 mod document;
 mod finding;
-mod red;
 mod finish;
 mod follow;
 mod forge;
@@ -44,6 +43,7 @@ mod json;
 pub mod kinds;
 mod nested;
 mod notes;
+mod red;
 mod reference;
 mod remember;
 pub mod room;
@@ -118,7 +118,10 @@ pub enum Problem {
     /// A member beside `changes` belongs in each change (domain/agent/tools.md, 1).
     Beside(&'static [u8]),
     /// A tool act refuses a member by its supplied name (forge/reds.md, 3).
-    ActMember { tool: &'static [u8], member: Box<[u8]> },
+    ActMember {
+        tool: &'static [u8],
+        member: Box<[u8]>,
+    },
     UnknownTool,
     /// A forge read's answer has a kind no agent read asks for (domain/agent/agents.md).
     Unasked(&'static str),

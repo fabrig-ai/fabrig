@@ -1201,8 +1201,12 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
             }
         },
         CallAnswer::Red(answer) => match answer.as_ref() {
-            crate::RedToolAnswer::Write(reply) => u64::try_from(size_of_val(answer.as_ref())).ok()?.checked_add(temper_engine_domain_forge::reds::reply_bytes(reply)?),
-            crate::RedToolAnswer::List { .. } | crate::RedToolAnswer::NoGoal { .. } => unreachable!("red reads have no retained answer"),
+            crate::RedToolAnswer::Write(reply) => u64::try_from(size_of_val(answer.as_ref()))
+                .ok()?
+                .checked_add(temper_engine_domain_forge::reds::reply_bytes(reply)?),
+            crate::RedToolAnswer::List { .. } | crate::RedToolAnswer::NoGoal { .. } => {
+                unreachable!("red reads have no retained answer")
+            }
         },
         CallAnswer::Finding(answer) => match answer.as_ref() {
             crate::FindingToolAnswer::Write(reply) => u64::try_from(size_of_val(answer.as_ref()))

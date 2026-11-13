@@ -14,7 +14,8 @@ pub(crate) fn render(answer: &RedToolAnswer, cap: usize) -> HostAnswer {
     let result = match answer {
         RedToolAnswer::Write(reply) => write(&mut text, reply),
         RedToolAnswer::NoGoal { task } => match text.literal(&f::RedRefusal::NoGoal.words(*task, b"")) {
-            Ok(()) => Ok(true), Err(why) => Err(why),
+            Ok(()) => Ok(true),
+            Err(why) => Err(why),
         },
         RedToolAnswer::List { .. } => unreachable!("list uses whole rows"),
     };
@@ -30,7 +31,10 @@ pub(crate) fn render(answer: &RedToolAnswer, cap: usize) -> HostAnswer {
 }
 fn write(text: &mut Text, reply: &f::RedReply) -> Result<bool, Problem> {
     match &reply.result {
-        Err(why) => { text.literal(&why.words(reply.goal, &reply.key))?; return Ok(true); }
+        Err(why) => {
+            text.literal(&why.words(reply.goal, &reply.key))?;
+            return Ok(true);
+        }
         Ok(f::RedOutcome::Recorded { head, recorded }) => {
             text.add(b"Recorded red ")?;
             text.literal(&reply.key)?;
@@ -68,12 +72,18 @@ fn write(text: &mut Text, reply: &f::RedReply) -> Result<bool, Problem> {
 fn hex(text: &mut Text, head: &[u8]) -> Result<(), Problem> {
     const DIGITS: &[u8] = b"0123456789abcdef";
     for &byte in head {
-        text.add(&[*DIGITS.get(usize::from(byte >> 4_u8)).expect("high nibble"), *DIGITS.get(usize::from(byte & 15)).expect("low nibble")])?;
+        text.add(&[
+            *DIGITS.get(usize::from(byte >> 4_u8)).expect("high nibble"),
+            *DIGITS.get(usize::from(byte & 15)).expect("low nibble"),
+        ])?;
     }
     Ok(())
 }
 fn who(text: &mut Text, by: f::Recorder) -> Result<(), Problem> {
-    let (kind, number): (&[u8], u64) = match by { f::Recorder::Task(n) => (b"task ", n), f::Recorder::Party(n) => (b"party ", n) };
+    let (kind, number): (&[u8], u64) = match by {
+        f::Recorder::Task(n) => (b"task ", n),
+        f::Recorder::Party(n) => (b"party ", n),
+    };
     text.add(kind)?;
     text.number(number)
 }
@@ -82,9 +92,16 @@ fn date(text: &mut Text, nanos: u64) -> Result<(), Problem> {
     let civil = wall.civil();
     let minutes = wall.as_secs().div_euclid(60);
     text.number(u64::from(civil.year))?;
-    for (separator, value) in [(b"-".as_slice(), u64::from(civil.month)), (b"-", u64::from(civil.day)), (b" ", minutes.div_euclid(60).rem_euclid(24)), (b":", minutes.rem_euclid(60))] {
+    for (separator, value) in [
+        (b"-".as_slice(), u64::from(civil.month)),
+        (b"-", u64::from(civil.day)),
+        (b" ", minutes.div_euclid(60).rem_euclid(24)),
+        (b":", minutes.rem_euclid(60)),
+    ] {
         text.add(separator)?;
-        if value < 10 { text.add(b"0")?; }
+        if value < 10 {
+            text.add(b"0")?;
+        }
         text.number(value)?;
     }
     Ok(())
@@ -127,7 +144,9 @@ fn list(goal: u64, bound: u32, reds: &[f::Red], cap: usize) -> HostAnswer {
     let header = text.finish(false).expect("header").into_parts().0;
     let mut lines = List::uncapped();
     lines.push(header).expect("header");
-    for red in reds { lines.push(row(red).expect("bounded red row")).expect("bounded reds"); }
+    for red in reds {
+        lines.push(row(red).expect("bounded red row")).expect("bounded reds");
+    }
     let mut count = 0_usize;
     let mut length = 0_usize;
     for line in &lines {
@@ -135,19 +154,29 @@ fn list(goal: u64, bound: u32, reds: &[f::Red], cap: usize) -> HostAnswer {
         let next = length.saturating_add(line.len()).saturating_add(usize::from(count != 0));
         let remaining = reds.len().saturating_sub(next_count.saturating_sub(1));
         let reserved = if remaining == 0 { 0 } else { more(remaining).len().saturating_add(1) };
-        if next.saturating_add(reserved) > cap { break; }
+        if next.saturating_add(reserved) > cap {
+            break;
+        }
         length = next;
         count = next_count;
     }
     let remaining = reds.len().saturating_sub(count.saturating_sub(1));
-    let size = if remaining == 0 { length } else { length.saturating_add(usize::from(count != 0)).saturating_add(more(remaining).len()).min(cap) };
+    let size = if remaining == 0 {
+        length
+    } else {
+        length.saturating_add(usize::from(count != 0)).saturating_add(more(remaining).len()).min(cap)
+    };
     let mut output = Writer::new(size);
     for (at, line) in lines.iter().take(count).enumerate() {
-        if at != 0 { output.put(b"\n").expect("separator"); }
+        if at != 0 {
+            output.put(b"\n").expect("separator");
+        }
         output.put(line).expect("measured whole line");
     }
     if remaining != 0 {
-        if count != 0 { output.put(b"\n").expect("reserved separator"); }
+        if count != 0 {
+            output.put(b"\n").expect("reserved separator");
+        }
         let marker = more(remaining);
         output.put(marker.get(..marker.len().min(output.room())).expect("marker prefix")).expect("reserved marker");
     }
@@ -155,6 +184,13 @@ fn list(goal: u64, bound: u32, reds: &[f::Red], cap: usize) -> HostAnswer {
 }
 fn clipped(text: &[u8], cap: usize, error: bool) -> HostAnswer {
     let mut end = text.len().min(cap);
-    while end > 0 && (match text.get(end) { Some(byte) => byte & 0xc0 == 0x80, None => false }) { end = end.saturating_sub(1); }
+    while end > 0
+        && (match text.get(end) {
+            Some(byte) => byte & 0xc0 == 0x80,
+            None => false,
+        })
+    {
+        end = end.saturating_sub(1);
+    }
     HostAnswer::new(bytes::copy_of(text.get(..end).expect("bounded prefix")), error).expect("bounded red answer")
 }

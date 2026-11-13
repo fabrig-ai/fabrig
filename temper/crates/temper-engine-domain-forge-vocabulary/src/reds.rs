@@ -53,10 +53,18 @@ impl RedRefusal {
         let mut words = List::uncapped();
         let parts: &[&[u8]] = match self {
             Self::NoGoal => &[b"red: task ", number.as_bytes(), b" holds no goal branch; only a goal's run keeps reds"],
-            Self::NoSuch => &[b"red: goal ", number.as_bytes(), b" holds no red ", key, b"; red list shows what it holds"],
+            Self::NoSuch => {
+                &[b"red: goal ", number.as_bytes(), b" holds no red ", key, b"; red list shows what it holds"]
+            }
             Self::Full { bound } => {
                 let bound = Decimal::of(u64::from(bound));
-                for part in [b"red: goal ".as_slice(), number.as_bytes(), b" holds its most reds (at most ", bound.as_bytes(), b"); end one, or look at what its branch carries"] {
+                for part in [
+                    b"red: goal ".as_slice(),
+                    number.as_bytes(),
+                    b" holds its most reds (at most ",
+                    bound.as_bytes(),
+                    b"); end one, or look at what its branch carries",
+                ] {
                     for &byte in part {
                         words.push(byte).expect("bounded red refusal");
                     }
@@ -90,7 +98,9 @@ pub fn reply_bytes(reply: &RedReply) -> Option<u64> {
 }
 #[must_use]
 pub fn row_bytes(red: &Red) -> Option<u64> {
-    skein_lib::len_u64(red.key.len()).checked_add(skein_lib::len_u64(red.head.len()))?.checked_add(skein_lib::len_u64(red.why.len()))
+    skein_lib::len_u64(red.key.len())
+        .checked_add(skein_lib::len_u64(red.head.len()))?
+        .checked_add(skein_lib::len_u64(red.why.len()))
 }
 
 /// The check's opaque, single-line key, without surrounding whitespace (reds.md, 2).

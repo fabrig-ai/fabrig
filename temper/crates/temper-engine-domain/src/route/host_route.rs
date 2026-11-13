@@ -212,7 +212,8 @@ impl DocumentFlight {
                 None => return CallAnswer::ToolDenied { answer, findings },
             },
             answer @ (CallAnswer::Follow(_)
-            | CallAnswer::Finding(_) | CallAnswer::Red(_)
+            | CallAnswer::Finding(_)
+            | CallAnswer::Red(_)
             | CallAnswer::Decided { .. }
             | CallAnswer::TaskRead(_)
             | CallAnswer::SettingsRefused(_)

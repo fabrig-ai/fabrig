@@ -213,7 +213,8 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
                 Tool::RejectedNote(jig_domain_notes::Refusal::Oversized)
             }
             Tool::Follow(_)
-            | Tool::Finding(_) | Tool::Red(_)
+            | Tool::Finding(_)
+            | Tool::Red(_)
             | Tool::Decided(_)
             | Tool::Goal { .. }
             | Tool::ReadTask { .. }
@@ -255,7 +256,8 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
         }
         Tool::Recall { by, .. } => (!notes::valid_recall(by, &limits.notes)).then_some(notes::Refusal::Oversized),
         Tool::Follow(_)
-        | Tool::Finding(_) | Tool::Red(_)
+        | Tool::Finding(_)
+        | Tool::Red(_)
         | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
@@ -306,7 +308,8 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
     match tool {
         Tool::Goal { agree, .. } => *agree,
         Tool::Follow(_)
-        | Tool::Finding(_) | Tool::Red(_)
+        | Tool::Finding(_)
+        | Tool::Red(_)
         | Tool::Decided(_)
         | Tool::ReadTask { .. }
         | Tool::See { .. }
@@ -369,7 +372,8 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
             EscalationChoice::Release | EscalationChoice::Reject { .. } | EscalationChoice::Pass => None,
         },
         Tool::Follow(_)
-        | Tool::Finding(_) | Tool::Red(_)
+        | Tool::Finding(_)
+        | Tool::Red(_)
         | Tool::Decided(_)
         | Tool::Goal { .. }
         | Tool::ReadTask { .. }
@@ -511,9 +515,12 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
         Tool::Settings { .. } | Tool::ProposeSettings { .. } | Tool::ProposeSettingsNote { .. } => {
             jig_domain_core::ToolKind::Settings
         }
-        Tool::Follow(_) | Tool::Finding(_) | Tool::Red(_) | Tool::Goal { .. } | Tool::Change { .. } | Tool::Delegate { .. } => {
-            jig_domain_core::ToolKind::Delegate
-        }
+        Tool::Follow(_)
+        | Tool::Finding(_)
+        | Tool::Red(_)
+        | Tool::Goal { .. }
+        | Tool::Change { .. }
+        | Tool::Delegate { .. } => jig_domain_core::ToolKind::Delegate,
         Tool::Message { target, .. } => jig_domain_core::ToolKind::Message { target: *target },
         Tool::Introduce { left, .. } => jig_domain_core::ToolKind::Message { target: *left },
         Tool::Decided(_) | Tool::Amend { .. } | Tool::Cancel { .. } | Tool::Release { .. } => {
@@ -587,7 +594,9 @@ pub(crate) fn keep_connector_answer(
         },
         CallAnswer::Red(answer) => match *answer {
             crate::RedToolAnswer::Write(reply) => forge::CallPayload::Red(Box::new(reply)),
-            crate::RedToolAnswer::List { .. } | crate::RedToolAnswer::NoGoal { .. } => unreachable!("red reads are not recorded"),
+            crate::RedToolAnswer::List { .. } | crate::RedToolAnswer::NoGoal { .. } => {
+                unreachable!("red reads are not recorded")
+            }
         },
         CallAnswer::Finding(answer) => match *answer {
             crate::FindingToolAnswer::Write(reply) => forge::CallPayload::Finding(Box::new(reply)),

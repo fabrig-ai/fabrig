@@ -32,10 +32,20 @@ pub(crate) fn call(
     };
     if !forge::reds::key_fits(&red_key, env.limits.forge.red_key_bytes) {
         let mut words = List::uncapped();
-        for part in [b"red: key exceeds forge.red_key_bytes (".as_slice(), skein_lib::Decimal::of(u64::from(env.limits.forge.red_key_bytes)).as_bytes(), b")"] {
-            for &byte in part { words.push(byte).expect("fixed limit feedback"); }
+        for part in [
+            b"red: key exceeds forge.red_key_bytes (".as_slice(),
+            skein_lib::Decimal::of(u64::from(env.limits.forge.red_key_bytes)).as_bytes(),
+            b")",
+        ] {
+            for &byte in part {
+                words.push(byte).expect("fixed limit feedback");
+            }
         }
-        host_route::rendered(domain, to, jig_domain_core::SettledAnswer::Host { error: true, body: words.into_boxed() });
+        host_route::rendered(
+            domain,
+            to,
+            jig_domain_core::SettledAnswer::Host { error: true, body: words.into_boxed() },
+        );
         return;
     }
     let mut out = Queue::uncapped();
@@ -43,7 +53,14 @@ pub(crate) fn call(
         RedCall::Record { key, at, why } => {
             let recorded = domain.forge.record_red(
                 &env.limits.forge,
-                forge::RecordRed { goal, key, head: at.clone(), why, by: forge::Recorder::Task(goal), at: env.wall.as_nanos() },
+                forge::RecordRed {
+                    goal,
+                    key,
+                    head: at.clone(),
+                    why,
+                    by: forge::Recorder::Task(goal),
+                    at: env.wall.as_nanos(),
+                },
                 &mut out,
             );
             match recorded {
@@ -64,7 +81,9 @@ pub(crate) fn call(
             task: goal,
             why: jig_domain_tasks::Hold::Procedure,
             source: Box::new(jig_domain_tasks::HoldSource::Account {
-                connector: domain.config.forge_connector, entry: None, words: why.words(goal, &red_key),
+                connector: domain.config.forge_connector,
+                entry: None,
+                words: why.words(goal, &red_key),
             }),
         }));
     }

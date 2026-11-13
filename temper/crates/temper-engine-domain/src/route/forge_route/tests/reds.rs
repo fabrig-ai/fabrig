@@ -1,5 +1,6 @@
 //! Goal reds at a run's check start and host calls (domain/forge/reds.md, 3 and 5.1).
-#![expect(clippy::disallowed_methods, clippy::disallowed_macros, reason = "test assertions inspect emitted writes and host answers")]
+#![expect(clippy::match_like_matches_macro, reason = "the subset uses explicit test patterns rather than matches")]
+#![expect(clippy::disallowed_methods, reason = "test assertions inspect emitted writes and host answers")]
 use super::{adopted, change_row, change_start_fixture};
 use crate::{Domain, Limits, RunRed, reds_for_run};
 use jig_domain_tasks as tasks;
@@ -66,7 +67,7 @@ fn fixture(base: &[u8]) -> (Domain, Env<Limits>) {
     env.limits.tasks.depth = 3;
     domain.core.proofs = skein_lib::Map::with_capacity(8);
     let template = domain.core.tasks.task(context.task).unwrap().clone();
-    let ledger = domain.core.tasks.funding(template.funder).unwrap().clone();
+    let ledger = *domain.core.tasks.funding(template.funder).unwrap();
     domain.core.tasks = tasks::Domain::new(
         &env.limits.tasks,
         tasks::Kept { revisions: env.limits.settings.revisions, versions: env.limits.settings.versions },
@@ -101,7 +102,12 @@ fn fixture(base: &[u8]) -> (Domain, Env<Limits>) {
         assert!(domain.core.tasks.task(number).is_some(), "task {number}: {:?}", domain.core.tasks.restore_failure());
         proof(&mut domain, number);
     }
-    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) }, &mut Queue::uncapped());
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) },
+        &mut Queue::uncapped(),
+    );
     tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), tasks::Event::Check, &mut Queue::uncapped());
     assert_eq!(domain.core.tasks.restore_failure(), None);
     tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), tasks::Event::Restored, &mut Queue::uncapped());
@@ -173,37 +179,68 @@ fn reads_for_main_nonlive_and_stale_attempts_are_empty() {
     assert!(reds_for_run(&domain, 500, 1).is_empty());
 }
 
-fn tool_call(domain: &mut Domain, env: &Env<Limits>, task: u64, position: u32, call: crate::RedCall) -> (crate::CallAnswer, Box<[crate::Write]>) {
+fn tool_call(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    position: u32,
+    call: crate::RedCall,
+) -> (crate::CallAnswer, Box<[crate::Write]>) {
     use crate::route::host_route::{self, Flight, FlightRender};
     use crate::{Decision, JournalOutput, Request, WorkerRequest};
     let right = Token::new(99);
     domain.limits = env.limits;
-    assert!(domain.call_renders.insert(right, Flight {
-        task, attempt: 1, key: None, note_decoding: false, render: FlightRender::Plain,
-        name: Box::new([u8::try_from(position).unwrap()]), tool: b"red".as_slice().into(), job: None, page: None,
-    }).is_ok());
+    domain
+        .call_renders
+        .insert(
+            right,
+            Flight {
+                task,
+                attempt: 1,
+                key: None,
+                note_decoding: false,
+                render: FlightRender::Plain,
+                name: Box::new([u8::try_from(position).unwrap()]),
+                tool: b"red".as_slice().into(),
+                job: None,
+                page: None,
+            },
+        )
+        .unwrap();
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    host_route::decoded(domain, env, &mut decision, skein_lib::ReplyTo::new(right), crate::Call { completion: 1, position, tool: crate::Tool::Red(call) });
+    host_route::decoded(
+        domain,
+        env,
+        &mut decision,
+        skein_lib::ReplyTo::new(right),
+        crate::Call { completion: 1, position, tool: crate::Tool::Red(call) },
+    );
     crate::route::route_into(domain, env, &mut decision);
     assert!(domain.start_stop().is_none(), "route start failure: {:?}", domain.start_stop());
     assert!(domain.work.is_empty(), "unrouted work: {:?}", domain.work);
     crate::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, false).unwrap();
-    let writes = if let Some(JournalOutput::Commit { number, writes }) = crate::commit(&mut domain.journal, &env.limits.journal) {
+    let writes = if let Some(JournalOutput::Commit { number, writes }) =
+        crate::commit(&mut domain.journal, &env.limits.journal)
+    {
         crate::committed(&mut domain.journal, number);
         writes
-    } else { Box::default() };
+    } else {
+        Box::default()
+    };
     let mut answer = None;
     let mut out = Queue::uncapped();
-    for _ in 0..32 {
+    for _ in 0_u32..32 {
         crate::resume(&mut domain.journal, &mut out);
         if let Some(output) = out.pop() {
             let delivery = match output {
-                JournalOutput::Deliver(delivery) => Some(delivery),
-                JournalOutput::Now(Request::Worker(WorkerRequest::Deliver(delivery))) => Some(delivery),
+                JournalOutput::Deliver(delivery)
+                | JournalOutput::Now(Request::Worker(WorkerRequest::Deliver(delivery))) => Some(delivery),
                 JournalOutput::Now(_) | JournalOutput::Commit { .. } | JournalOutput::Stop => None,
             };
-            if let Some(crate::Delivery::Host(delivery)) = delivery {
-                if let crate::HostDelivery::Render { answer: rendered, .. } = *delivery { answer = Some(rendered); }
+            if let Some(crate::Delivery::Host(delivery)) = delivery
+                && let crate::HostDelivery::Render { answer: rendered, .. } = *delivery
+            {
+                answer = Some(rendered);
             }
         }
     }
@@ -224,13 +261,33 @@ fn a_goals_red_call_keeps_its_answer_with_its_record_and_replays_once() {
     assert_eq!(head.as_ref(), &[9; 20]);
     assert_eq!(recorded.replaced, None);
     let generation = recorded.generation;
-    assert!(writes.iter().any(|write| matches!(write, crate::Write::Save(crate::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Red(red) if red.goal == 7 && red.key.as_ref() == b"new" && red.by == forge::Recorder::Task(7) && red.at == env.wall.as_nanos()))));
-    assert!(writes.iter().any(|write| matches!(write, crate::Write::Save(crate::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Call { answer: forge::CallPayload::Red(kept), .. } if kept.as_ref() == reply))));
-    assert!(writes.iter().any(|write| matches!(write, crate::Write::Save(crate::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(_)))))));
-    // Restored connector and core call parts give the same replay before rendering settles it.
-    let payload = domain.forge.named_answer(forge::NamedCall { task: 7, attempt: 1, completion: 1, position: 1 }).unwrap();
+    assert!(writes.iter().filter_map(saved_red).any(|red| red.goal == 7
+        && red.key.as_ref() == b"new"
+        && red.by == forge::Recorder::Task(7)
+        && red.at == env.wall.as_nanos()));
+    assert!(writes.iter().filter_map(saved_reply).any(|kept| kept == reply));
+    assert!(writes.iter().any(|write| {
+        if let crate::Write::Save(crate::Record::Core(jig_domain_core::Record::Core(
+            jig_domain_core::CoreRecord::Call(_),
+        ))) = write
+        {
+            true
+        } else {
+            false
+        }
+    }));
+    // Restoring the connector snapshot leaves the core call's unsettled replay unchanged.
+    let payload =
+        domain.forge.named_answer(forge::NamedCall { task: 7, attempt: 1, completion: 1, position: 1 }).unwrap();
     domain.forge.forget_named_answer(forge::NamedCall { task: 7, attempt: 1, completion: 1, position: 1 });
-    restore(&mut domain, &env, forge::Stored::Call { key: forge::NamedCall { task: 7, attempt: 1, completion: 1, position: 1 }, answer: payload });
+    restore(
+        &mut domain,
+        &env,
+        forge::Stored::Call {
+            key: forge::NamedCall { task: 7, attempt: 1, completion: 1, position: 1 },
+            answer: payload,
+        },
+    );
     let (repeated, writes) = tool_call(&mut domain, &env, 7, 1, record(b"new", 10));
     assert_eq!(repeated, answer);
     assert!(writes.is_empty(), "replay records nothing");
@@ -244,18 +301,36 @@ fn a_goals_red_call_keeps_its_answer_with_its_record_and_replays_once() {
 }
 #[test]
 fn red_end_keeps_the_ended_snapshot_and_refuses_missing_and_nongoals_without_holding() {
-    for (task, key, expected) in [(7, b"a".as_slice(), None), (7, b"missing", Some(forge::RedRefusal::NoSuch)), (20, b"a", Some(forge::RedRefusal::NoGoal))] {
+    for (task, key, expected) in [
+        (7, b"a".as_slice(), None),
+        (7, b"missing", Some(forge::RedRefusal::NoSuch)),
+        (20, b"a", Some(forge::RedRefusal::NoGoal)),
+    ] {
         let (mut domain, env) = fixture(b"main");
-        let (answer, writes) = tool_call(&mut domain, &env, task, 1, crate::RedCall::End { key: key.into(), why: b"fixed".as_slice().into() });
+        let (answer, writes) = tool_call(
+            &mut domain,
+            &env,
+            task,
+            1,
+            crate::RedCall::End { key: key.into(), why: b"fixed".as_slice().into() },
+        );
         let crate::CallAnswer::Red(reply) = answer else { panic!("red answer") };
         let crate::RedToolAnswer::Write(reply) = *reply else { panic!("write") };
-        if let Some(expected) = expected { assert_eq!(reply.result, Err(expected)); } else {
+        if let Some(expected) = expected {
+            assert_eq!(reply.result, Err(expected));
+        } else {
             let Ok(forge::RedOutcome::Ended(red)) = reply.result else { panic!("ended") };
             assert_eq!(red.key.as_ref(), b"a");
             assert_eq!(red.why.as_ref(), b"base failure");
-            assert!(writes.iter().any(|write| matches!(write, crate::Write::Erase(crate::Key::Forge(forge::Key::Red { goal: 7, key })) if key.as_ref() == b"a")));
+            assert!(writes.iter().any(|write| {
+                if let crate::Write::Erase(crate::Key::Forge(forge::Key::Red { goal: 7, key })) = write {
+                    key.as_ref() == b"a"
+                } else {
+                    false
+                }
+            }));
         }
-        assert!(!matches!(domain.core.tasks.task(task).unwrap().phase, tasks::Phase::Held { .. }));
+        assert!(!held(domain.core.tasks.task(task).unwrap()));
     }
 }
 #[test]
@@ -264,13 +339,18 @@ fn red_list_is_a_fresh_goal_local_read_with_no_call_record() {
         let (mut domain, env) = fixture(b"main");
         let (answer, writes) = tool_call(&mut domain, &env, task, 1, crate::RedCall::List);
         assert!(writes.is_empty());
-        assert!(crate::route::call_answer(&domain, crate::CallKey { task, attempt: 1, completion: 1, position: 1 }).is_none());
+        assert!(
+            crate::route::call_answer(&domain, crate::CallKey { task, attempt: 1, completion: 1, position: 1 })
+                .is_none()
+        );
         let crate::CallAnswer::Red(reply) = answer else { panic!("red list") };
         if task == 7 {
             let crate::RedToolAnswer::List { goal, bound, reds } = *reply else { panic!("list") };
             assert_eq!((goal, bound), (7, env.limits.forge.branch_reds));
-            assert_eq!(reds.iter().map(|red| red.key.as_ref()).collect::<Vec<_>>(), [b"a", b"z"]);
-        } else { assert_eq!(*reply, crate::RedToolAnswer::NoGoal { task }); }
+            assert_eq!(reds.iter().map(|red| red.key.as_ref()).collect::<Box<[_]>>().as_ref(), [b"a".as_slice(), b"z"]);
+        } else {
+            assert_eq!(*reply, crate::RedToolAnswer::NoGoal { task });
+        }
     }
 }
 #[test]
@@ -283,22 +363,72 @@ fn a_red_past_the_bound_holds_the_goal_in_the_refusals_decision() {
     assert_eq!(reply.result, Err(forge::RedRefusal::Full { bound: 2 }));
     assert_eq!(domain.forge.reds(7).count(), 2);
     let task = domain.core.tasks.task(7).unwrap();
-    let tasks::Phase::Held { source: Some(source), .. } = &task.phase else { panic!("held red goal: {:?}", task.phase) };
+    let tasks::Phase::Held { source: Some(source), .. } = &task.phase else {
+        panic!("held red goal: {:?}", task.phase)
+    };
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("red refusal account") };
-    assert_eq!(words.as_ref(), b"red: goal 7 holds its most reds (at most 2); end one, or look at what its branch carries");
-    assert!(writes.iter().any(|write| matches!(write, crate::Write::Save(crate::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))) if task.number == 7 && matches!(task.phase, tasks::Phase::Held { .. }))));
-    assert!(writes.iter().any(|write| matches!(write, crate::Write::Save(crate::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Call { answer: forge::CallPayload::Red(_), .. }))));
-    assert!(!writes.iter().any(|write| matches!(write, crate::Write::Save(crate::Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Red(_) | forge::Stored::RedNumber { .. }))));
+    assert_eq!(
+        words.as_ref(),
+        b"red: goal 7 holds its most reds (at most 2); end one, or look at what its branch carries"
+    );
+    assert!(writes.iter().any(|write| {
+        if let crate::Write::Save(crate::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))) =
+            write
+        {
+            task.number == 7 && held(task)
+        } else {
+            false
+        }
+    }));
+    assert!(writes.iter().find_map(saved_reply).is_some());
+    assert!(!writes.iter().any(|write| if let crate::Write::Save(crate::Record::Forge { row }) = write {
+        if let forge::Stored::Red(_) | forge::Stored::RedNumber { .. } = row.as_ref() { true } else { false }
+    } else {
+        false
+    }));
 }
 #[test]
 fn a_red_key_past_the_configured_byte_limit_decides_nothing() {
-    for call in [record(b"new", 9), crate::RedCall::End { key: b"new".as_slice().into(), why: b"fixed".as_slice().into() }] {
+    for call in
+        [record(b"new", 9), crate::RedCall::End { key: b"new".as_slice().into(), why: b"fixed".as_slice().into() }]
+    {
         let (mut domain, mut env) = fixture(b"main");
         env.limits.forge.red_key_bytes = 2;
         let mut decision = crate::Decision::decide(&mut domain.journal, &env.limits.journal);
-        crate::route::red_tool::call(&mut domain, &env, &mut decision, skein_lib::ReplyTo::new(Token::new(99)), crate::CallKey { task: 7, attempt: 1, completion: 1, position: 1 }, call);
+        crate::route::red_tool::call(
+            &mut domain,
+            &env,
+            &mut decision,
+            skein_lib::ReplyTo::new(Token::new(99)),
+            crate::CallKey { task: 7, attempt: 1, completion: 1, position: 1 },
+            call,
+        );
         assert!(decision.write_free());
         assert_eq!(domain.forge.reds(7).count(), 2);
-        assert!(domain.forge.named_answer(forge::NamedCall { task: 7, attempt: 1, completion: 1, position: 1 }).is_none());
+        assert!(
+            domain.forge.named_answer(forge::NamedCall { task: 7, attempt: 1, completion: 1, position: 1 }).is_none()
+        );
     }
+}
+
+fn saved_red(write: &crate::Write) -> Option<&forge::Red> {
+    if let crate::Write::Save(crate::Record::Forge { row }) = write
+        && let forge::Stored::Red(red) = row.as_ref()
+    {
+        Some(red)
+    } else {
+        None
+    }
+}
+fn saved_reply(write: &crate::Write) -> Option<&forge::RedReply> {
+    if let crate::Write::Save(crate::Record::Forge { row }) = write
+        && let forge::Stored::Call { answer: forge::CallPayload::Red(reply), .. } = row.as_ref()
+    {
+        Some(reply)
+    } else {
+        None
+    }
+}
+fn held(task: &tasks::TaskRecord) -> bool {
+    if let tasks::Phase::Held { .. } = task.phase { true } else { false }
 }

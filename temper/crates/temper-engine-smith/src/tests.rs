@@ -146,7 +146,7 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     assert_eq!(charter.brief.sections[0].title.as_ref(), b"Task");
     assert_eq!(charter.brief.sections[0].text.as_ref(), b"Say hello");
     assert_eq!(charter.budget.spend, 40);
-    assert_eq!(charter.grants.host_tools.len(), 39);
+    assert_eq!(charter.grants.host_tools.len(), 40);
     assert_eq!(grants[0].name.generation, 2);
     assert!(transcript.is_none());
 }
@@ -224,7 +224,7 @@ fn settings_and_delegate_tools_need_the_charters_family() {
             && tool.name.as_ref() != b"change"
             && tool.name.as_ref() != b"delegate"
             && tool.name.as_ref() != b"finding"
-                && tool.name.as_ref() != b"red"
+            && tool.name.as_ref() != b"red"
             && tool.name.as_ref() != b"follow"
         {
             assert_eq!(offered.next(), Some(&tool), "unchanged declaration and order: {:?}", tool.name);
@@ -300,7 +300,7 @@ fn settings_and_delegate_tools_need_the_charters_family() {
                         || tool.name.as_ref() == b"change"
                         || tool.name.as_ref() == b"delegate"
                         || tool.name.as_ref() == b"finding"
-                         || tool.name.as_ref() == b"red"
+                        || tool.name.as_ref() == b"red"
                         || tool.name.as_ref() == b"follow")
                 {
                     continue;
@@ -633,10 +633,10 @@ fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
 
 #[path = "finding/tests.rs"]
 mod finding;
-#[path = "red/tests.rs"]
-mod red;
 #[path = "follow/tests.rs"]
 mod follow;
+#[path = "red/tests.rs"]
+mod red;
 
 fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
     &[

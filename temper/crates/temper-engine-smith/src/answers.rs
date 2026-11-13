@@ -273,7 +273,9 @@ fn bounded(
     if let CallAnswer::Follow(answer) = answer {
         return crate::follow::render(answer, cap);
     }
-    if let CallAnswer::Red(answer) = answer { return crate::red::render(answer, cap); }
+    if let CallAnswer::Red(answer) = answer {
+        return crate::red::render(answer, cap);
+    }
     if let CallAnswer::Finding(answer) = answer {
         return crate::finding::render(answer, cap);
     }

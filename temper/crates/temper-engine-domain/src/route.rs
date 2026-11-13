@@ -17,7 +17,6 @@ pub use host_route::{
 mod decided;
 pub(crate) mod document;
 mod finding_tool;
-mod red_tool;
 pub(crate) mod findings;
 mod follow_tool;
 mod goal;
@@ -28,6 +27,7 @@ mod panels;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
+mod red_tool;
 pub(crate) mod remember;
 pub(crate) mod see;
 pub(crate) mod ways;
