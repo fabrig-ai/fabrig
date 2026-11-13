@@ -261,6 +261,18 @@
     temper instead", which section 9's card has: the words are typed to
     be filed, and a question is `/ask`'s. Decided by goal 1984's design,
     2026-11-12.
+  - 9 and 13: `../client/pages/needs-you.md`, 1, *Tell temper*, *Where it
+    goes*, finds a word's area before it is filed from the page alone: said
+    on a standing role's page, its card on Team or its talk, it is filed
+    with the first area that role holds; any other is filed with none, its
+    body naming the page, and the project's triager judges its area from
+    the words and the page once filed, as `standing-roles.md`, section 4
+    has a role route by judgement. So "Goes to" names the triager where
+    `needs.html` and `phone-tell.html` name an area's owner from the words
+    alone: only an agent's run judges words, and the triager's run, one
+    an item, already is one. Decided by goal 2173's design, 2026-11-13;
+    an agent judging before filing is that document's open question
+    (section 2).
   - 10 and 13: on a phone, `../client/view.md`, 3, reaches Team, How
     work runs and Deployment by the switcher's menu alone, where this
     section has Team and How work runs from Home's project rows too and
