@@ -246,12 +246,6 @@ pub fn check() {
             assert_eq!(entries(&tree.join(root).join("golden")), goldens, "store golden directories");
         }
     }
-    // Patch 1 keeps its v16 executor decoder after the live people family moves.
-    let kept_people = tree.join("crates/jig-protocol-store-people/src/generated");
-    inventories
-        .get_mut(&kept_people)
-        .expect("the live people codec has an inventory")
-        .insert(kept_people.join("people_v16.rs"));
     for (directory, expected) in inventories {
         assert_eq!(entries(&directory), expected, "{}: generated inventory", directory.display());
     }
