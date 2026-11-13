@@ -83,7 +83,9 @@ section 4. What is still open is listed in section 14.
 3. **channel/README.md:** jig's channel between the engine and its workers, and
    where host tools' calls are decoded; **channel/wires.md**, the wires a
    worker's opening states by version and layout, and what a version
-   mismatch costs.
+   mismatch costs; **channel/bridges.md**, how the channel speaks them
+   across versions: the engine's statement, terms, translation in its
+   components, and what cannot go down.
 4. **llm.md:** LLM calls in a host's own process, for
    `smith-inline-agent`'s runs, and LLM accounts: skein's accounts
    driver for sign-ins, keys from requests, program sources on their

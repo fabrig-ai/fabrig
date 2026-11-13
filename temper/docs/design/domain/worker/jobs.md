@@ -20,7 +20,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
   declares a kind only once it is built, and none before. A kind's
   meaning to a worker is fixed by its number: a change of it is a new
   kind, so a job is never placed on a worker of a build that reads it
-  otherwise (`../../protocol/wires.md`, section 7).
+  otherwise (`../../protocol/wires.md`, section 8).
 - **One spec and one result for every kind:** the spec, temper's record
   in its payload codec, the command's path in the job's directory and
   the request file's bytes, the path under `home/` for a command of the

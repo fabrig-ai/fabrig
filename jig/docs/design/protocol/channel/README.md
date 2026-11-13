@@ -8,7 +8,8 @@ It covers the opening and what authenticates a worker, the records each
 way, what crosses as bytes of another owner and where smith's are
 decoded, names and credential grants, liveness and flow control, the
 worker's link on each side, the two components that own it, and how it
-is tested; `wires.md` holds the wires its opening states. An application with no workers has no channel: its
+is tested; `wires.md` holds the wires its opening states, and
+`bridges.md` how the channel speaks them across versions. An application with no workers has no channel: its
 engine's hub is linked to the core directly (`../../domain/hosts/hub.md`, 1).
 What is still open is listed in `README.md`, section 13.
 

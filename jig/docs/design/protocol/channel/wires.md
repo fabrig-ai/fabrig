@@ -19,8 +19,9 @@ rule); an application names its own wires (temper's
   name with different layouts refuses the channel with *wires*, naming
   the wire, and the worker redials as after any refusal.
 - **Agreed per wire:** the highest version both speak, kept with the
-  channel. Each build's floor is its current version until bridges, so
-  today each wire's agreed version is both sides' one.
+  channel and stated back to the worker in the engine's first record;
+  each side speaks each wire from its floor, and translates by the
+  agreed versions (`bridges.md`).
 - **The kinds' table is the schema's** (4): two enumerations, one per
   direction, a kind's number its variant's place, so a kind's number,
   direction or record changed moves the channel's version.
@@ -57,14 +58,14 @@ rule); an application names its own wires (temper's
       pub fn highest(&self) -> u16;
       pub fn layout(&self, version: u16) -> Option<[u8; 32]>;
   }
-  /// jig's own wires, in this order: jig-worker-wire, smith-channel,
-  /// smith-charter, smith-transcript, each from its crate's `wire` module.
+  /// jig's own wires, in this order: jig-worker-wire, smith-pieces,
+  /// smith-charter, smith-transcript, each from its crate's floor and kept texts.
   pub fn spoken() -> List<Spoken>;
   ```
 
-  Each build's floor is its current version (temper's
-  `protocol/wires.md`, 3.2), so every `Spoken` is made by `current`
-  until bridges.
+  Each wire's `lowest` is its crate's floor, and its `layouts` its kept
+  texts' fingerprints from the floor (`bridges.md`, 2); `current` makes
+  a wire that speaks one version.
 - **jig states its four and the application's:** the worker's link and
   the engine's workers component are each given the application's wires,
   a `List<Spoken>`, when they are made, where they took its payload
@@ -201,9 +202,5 @@ rule); an application names its own wires (temper's
 
 ## 8. Open questions
 
-- **The engine's statement back.** The worker learns nothing of the
-  engine's wires but its acceptance; enough while each wire's floor is
-  its current. Default: an engine record of the agreed versions, sent
-  with its terms, once bridges translate.
-- **The credential across versions** (temper's `protocol/wires.md`,
-  section 11).
+- **The engine's statement back** and **the credential across
+  versions** are settled in `bridges.md`, 3 and 2.
