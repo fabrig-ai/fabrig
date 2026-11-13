@@ -47,7 +47,7 @@ fn serve_help(text: &str) -> bool {
 fn versions(text: &str) -> bool {
     eprintln!("versions stdout:\n{text}");
     text == temper_engine_shell::versions()
-        && text.lines().take(4).eq(["level skein 0", "level smith 0", "level jig 5", "level temper 7"])
+        && text.lines().take(4).eq(["level skein 0", "level smith 0", "level jig 5", "level temper 8"])
         && text.lines().any(|line| line == format!("family temper {}", temper_protocol_store::STORE_VERSION))
         && text.lines().any(|line| line.starts_with("wire temper-worker-wire "))
 }

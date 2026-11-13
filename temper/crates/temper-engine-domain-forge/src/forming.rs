@@ -9,7 +9,6 @@ pub struct WaitingUnit {
     /// The first queue candidate, which owns a refusal hold.
     pub task: u64,
     pub changes: Box<[u64]>,
-    pub alone: bool,
     pub refused: bool,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -34,12 +33,12 @@ pub fn select_units(units: &[WaitingUnit], batch: u16, landing_members: u32) -> 
             continue;
         }
         let next = count.saturating_add(size);
-        if count != 0 && (unit.alone || next > u32::from(batch) || next > landing_members) {
+        if count != 0 && (next > u32::from(batch) || next > landing_members) {
             break;
         }
         take.push(index).expect("one position per unit");
         count = next;
-        if unit.alone || count >= u32::from(batch) {
+        if count >= u32::from(batch) {
             break;
         }
     }
@@ -74,7 +73,6 @@ impl Domain {
             }
             let joined = self.joined_changes(repo.project, task, graph);
             let mut eligible = true;
-            let mut alone = false;
             let mut refused = false;
             for member in &joined {
                 seen.push(*member).expect("disjoint closures");
@@ -84,10 +82,9 @@ impl Domain {
                 };
                 eligible &= super::landing::waiting(row) && !kept.contains(member);
                 refused |= row.repository != repository;
-                alone |= row.change.alone;
             }
             if eligible {
-                units.push(WaitingUnit { task, changes: joined, alone, refused }).expect("bounded units");
+                units.push(WaitingUnit { task, changes: joined, refused }).expect("bounded units");
             }
         }
         units.into_boxed()

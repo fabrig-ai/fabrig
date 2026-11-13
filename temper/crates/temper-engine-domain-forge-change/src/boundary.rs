@@ -277,8 +277,6 @@ pub struct Change {
     pub ready_since: Option<Wall>,
     pub owns_turn: bool,
     pub last_head: Option<Commit>,
-    /// A red batch falls back to landing this change's unit alone (domain/landing.md, 7.3).
-    pub alone: bool,
 }
 
 /// Observed state of the change's pull request.

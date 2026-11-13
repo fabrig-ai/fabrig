@@ -41,10 +41,9 @@ pub(super) fn combined(value: forge::LandingCombine) -> w::Combined {
 pub(super) fn left(value: forge::LandingLeave, limits: &w::Limits) -> Option<w::LandingLeave> {
     Some(match value {
         forge::LandingLeave::Conflict | forge::LandingLeave::EarlierConflict => w::LandingLeave::Conflict,
-        forge::LandingLeave::Unit { .. }
-        | forge::LandingLeave::Dependency { .. }
-        | forge::LandingLeave::Fallback { .. }
-        | forge::LandingLeave::Held => w::LandingLeave::Held,
+        forge::LandingLeave::Unit { .. } | forge::LandingLeave::Dependency { .. } | forge::LandingLeave::Held => {
+            w::LandingLeave::Held
+        }
         forge::LandingLeave::HeadMoved { head } => {
             w::LandingLeave::HeadMoved(w::MovedHead::new(limits, w::MovedHeadParts { head }).ok()?)
         }
@@ -52,7 +51,7 @@ pub(super) fn left(value: forge::LandingLeave, limits: &w::Limits) -> Option<w::
         forge::LandingLeave::Refused { gate } => {
             w::LandingLeave::Refused(w::RefusedGate::new(limits, w::RefusedGateParts { gate }).ok()?)
         }
-        forge::LandingLeave::Failed { gate, run } => {
+        forge::LandingLeave::Failed { gate, run } | forge::LandingLeave::Blamed { gate, run, .. } => {
             w::LandingLeave::Failed(w::FailedGate::new(limits, w::FailedGateParts { gate, run }).ok()?)
         }
     })
