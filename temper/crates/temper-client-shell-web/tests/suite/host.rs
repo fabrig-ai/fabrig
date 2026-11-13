@@ -118,7 +118,7 @@ fn a_recorded_walk_proves_and_replays_its_marks() {
     let end = replay.next().expect("replay end").expect("end mark");
     assert_eq!(end.number, 2);
     assert!(end.end);
-    assert!(end.acted.is_empty());
+    assert_eq!(end.acted.len(), 0);
     assert!(end.recorded.is_none());
     assert!(end.page.html().contains("Added your ChatGPT plan."), "the accounts watch completes the sign-in");
     assert!(replay.next().expect("after end").is_none());
@@ -285,28 +285,26 @@ fn a_saves_control_is_found_by_its_event() {
 fn a_saves_control_skips_a_menu_item_for_the_pages_link() {
     use skein_ui::{Act, Role};
     use temper_client_shell_web::journey::{Control, control, giving};
-    let mut records = lines(include_bytes!("../../../../docs/design/client/web/journeys/chat-draft/recording"))
-        .expect("chat records");
-    let at = records
-        .iter()
-        .position(|line| matches!(line, Line::Act { event, .. } if event.as_ref() == b"Act { action: Pages(Go { address: NewChat { draft: false } }) }"))
-        .expect("new chat press");
-    records.truncate(at);
-    records.push(Line::End(None));
-    let save = written(&records);
-    let mut replay = Replay::new(&save).expect("chat save");
-    while replay.next().expect("chat prefix replays").is_some() {}
+    let save = include_bytes!("../../../../docs/design/client/web/journeys/welcome-playground/recording");
+    let mut replay = Replay::new(save).expect("Home save");
+    while replay.next().expect("Home replays").is_some() {}
     let host = replay.host();
     let event = b"Act { action: Pages(Go { address: Ask { project: 1 } }) }";
     let nodes = giving(host, &Act::Press, event);
     assert!(nodes.iter().any(|node| Control::of(host.tree(), *node).expect("control").role == Role::MenuItem));
     assert_eq!(
-        control(&save, &Act::Press, event),
+        control(save, &Act::Press, event),
         Ok(Some(Control { role: Role::Link, name: b"Ask temper".as_slice().into(), order: 0 }))
     );
-    let draft = b"Act { action: Pages(Go { address: NewChat { draft: true } }) }";
-    assert_eq!(giving(host, &Act::Press, draft).len(), 1, "only the menu offers a new draft");
-    assert_eq!(control(&save, &Act::Press, draft), Ok(None));
+    let change = host
+        .tree()
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::MenuItem && node.name.as_deref() == Some(b"Sign out"))
+        .expect("Sign out menu item");
+    let change = temper_client_shell_web::journey::event(host, change.id, &Act::Press).expect("sign out event");
+    assert_eq!(giving(host, &Act::Press, &change).len(), 1, "only the menu offers sign out");
+    assert_eq!(control(save, &Act::Press, &change), Ok(None));
 }
 
 #[test]

@@ -13,7 +13,7 @@ const SET_READERS: Token = Token::new(903);
 const SET_READERS_KEY: [u8; 16] = [93; 16];
 const OWNER: u64 = 1;
 const READER_SUBJECT: u64 = 8;
-// bin/temper-box/tests/support/configuration.rs: the process tier's short lists.
+// testing/temper-box-kit/src/configuration.rs: the process tier's short lists.
 const PROCESS_LINES: u32 = 2;
 const LINES: &[(&str, u32)] = &[("jig's small profile", 4), ("the process tier's override", PROCESS_LINES)];
 

@@ -99,7 +99,6 @@ const FLAGS: Settings = Settings {
     ],
 };
 
-#[must_use]
 #[expect(
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-twin's arguments, once (skein/docs/foundation/cli.md, 6)"

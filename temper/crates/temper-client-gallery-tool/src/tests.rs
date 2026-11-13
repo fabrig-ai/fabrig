@@ -49,6 +49,7 @@ fn retired_chat_style_slots_stay_reserved() {
         (297, b"temper-reserved-297"),
         (298, b"temper-reserved-298"),
         (299, b"temper-reserved-299"),
+        (597, b"temper-reserved-597"),
     ] {
         assert_eq!(names.style(skein_ui::Style { owner: names.owner, token }), Some(expected));
     }
@@ -154,6 +155,7 @@ enum Part {
     Configured { value: bool },
     Reader { role: jig_client::contract::HeldRole },
     After { first: skein_ui::Style, then: skein_ui::Style },
+    Buttons { style: skein_ui::Style, names: &'static [&'static str] },
     Links { style: skein_ui::Style, names: &'static [&'static str] },
     NoStyle { style: skein_ui::Style },
     Selected { name: &'static str },
@@ -169,6 +171,11 @@ enum Part {
     Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
 }
+const ASK_KEEP: Part =
+    Part::Buttons { style: temper_client_view::look::WAYS_ACTS, names: &["How does temper work?", "Keep it"] };
+const ASK_USE: Part =
+    Part::Buttons { style: temper_client_view::look::WAYS_ACTS, names: &["How does temper work?", "Use this"] };
+const ASK_ALONE: Part = Part::Buttons { style: temper_client_view::look::WAYS_ACTS, names: &["How does temper work?"] };
 const REMEMBERED_THREE: &[&str] = &[
     "Keep answers concise and start with the result.",
     "Ask temper chat 14 · Today · Thursday 22 October",
@@ -1249,6 +1256,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "night-ask",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
@@ -1619,7 +1627,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Resume" },
             Part::Named { role: Role::Button, name: "Close" },
             Part::Named { role: Role::Status, name: "Paused" },
-            Part::Text { text: "Sending resumes this chat." },
+            Part::Text { text: "Sending resumes this chat. · Ctrl+\\ switches the draft" },
             Part::Absent { role: Role::Button, name: "Pause" },
             Part::Absent { role: Role::Status, name: "Applied" },
         ],
@@ -1629,7 +1637,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "T6 · Why is tally sum slow on big files?",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Closed at 21:05" },
-            Part::Named { role: Role::Status, name: "Closed" },
+            Part::NoStyle { style: temper_client_view::look::STATUS_LINE },
             Part::Absent { role: Role::TextArea, name: "Message" },
         ],
     },
@@ -1917,9 +1925,21 @@ static HOLDS: [Holds; samples::N] = [
         name: "chat-draft-empty",
         heading: "T1 · Away mode, draft",
         parts: &[
-            Part::Named { role: Role::Region, name: "untitled.md" },
+            Part::Named { role: Role::Region, name: "Draft" },
             Part::Named { role: Role::Paragraph, name: "The draft appears here as you write it together." },
             Part::Absent { role: Role::Button, name: "+ Draft" },
+            Part::Named { role: Role::Button, name: "Write it up from this chat" },
+        ],
+    },
+    Holds {
+        name: "ask-chat-draft-empty",
+        heading: "T10 · Ask temper",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Draft" },
+            Part::Text { text: "T10 · no draft yet" },
+            Part::Named { role: Role::Button, name: "Write it up from this chat" },
+            Part::Named { role: Role::Button, name: "Start over" },
+            Part::Named { role: Role::Group, name: "The draft" },
         ],
     },
     Holds {
@@ -3134,7 +3154,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-forge-under-way",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Progress, name: "Setting up: preparing" },
             Part::Named { role: Role::Complementary, name: "Forge and model" },
             Part::Named {
@@ -3148,7 +3169,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-forge-fetching",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Progress, name: "Fetching Forgejo" },
             Part::Named { role: Role::Complementary, name: "Forge and model" },
             Part::Named {
@@ -3165,7 +3187,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-forge-fetching-bytes",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Progress, name: "Fetching Forgejo" },
             Part::Named { role: Role::Complementary, name: "Forge and model" },
             Part::Named {
@@ -3182,7 +3205,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-forge-done",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::NoRole { role: Role::Progress },
             Part::Named { role: Role::Complementary, name: "Forge and model" },
             Part::Named {
@@ -3197,7 +3221,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-forge-failed",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::NoRole { role: Role::Progress },
             Part::Named { role: Role::Complementary, name: "Forge and model" },
             Part::Named {
@@ -3226,7 +3251,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-paste-expired",
         heading: "Signing in to ChatGPT",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Status, name: "This sign-in has ended." },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
             Part::Absent { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
@@ -3235,7 +3261,10 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-declined",
         heading: "Signing in to ChatGPT",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
+        ],
     },
     Holds {
         name: "welcome-model-renewed",
@@ -3245,62 +3274,98 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-refused",
         heading: "Signing in to ChatGPT",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
+        ],
     },
     Holds {
         name: "welcome-paste-waiting",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
+        ],
     },
     Holds {
         name: "welcome-paste-written",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
+        ],
     },
     Holds {
         name: "welcome-paste-too-long",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
+        ],
     },
     Holds {
         name: "welcome-paste-sending",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
+        ],
     },
     Holds {
         name: "welcome-paste-finishing",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::Status, name: "Finishing your sign-in…" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::Status, name: "Finishing your sign-in…" },
+        ],
     },
     Holds {
         name: "welcome-paste-address",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
+        ],
     },
     Holds {
         name: "welcome-paste-state",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
+        ],
     },
     Holds {
         name: "welcome-paste-too-many",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
+        ],
     },
     Holds {
         name: "welcome-paste-ended",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
+        ],
     },
     Holds {
         name: "welcome-paste-lost",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
+        ],
     },
     Holds {
         name: "welcome-paste-unsent",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" },
+        ],
     },
     Holds {
         name: "forges-github-install",
@@ -3327,7 +3392,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-setup-failed",
         heading: "Almost ready",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Status, name: "failed" },
             Part::Named { role: Role::List, name: "Each step" },
             Part::Named { role: Role::Button, name: "Set up again" },
@@ -3336,7 +3402,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-claude",
         heading: "Your Claude subscription",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Text { text: "temper program-login --config CONFIG --data DATA --cache CACHE claude-pat" },
             Part::Named { role: Role::Button, name: "I’ve signed in" },
             Part::Absent { role: Role::TextField, name: "Name" },
@@ -3345,7 +3412,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-ready-checking",
         heading: "Ready",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named {
                 role: Role::Paragraph, name: "Claude subscription · trying: Signed in to your subscription"
             },
@@ -3355,7 +3423,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-ready-not-yet",
         heading: "Almost ready",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Paragraph, name: "Claude subscription · Claude didn’t answer" },
             Part::Named {
                 role: Role::Paragraph,
@@ -3369,12 +3438,16 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-key-details",
         heading: "An OpenAI API key",
-        parts: &[Part::WelcomeFrame { box_note: false }, Part::Named { role: Role::TextField, name: "Key, pasted once" }],
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
+            Part::Named { role: Role::TextField, name: "Key, pasted once" },
+        ],
     },
     Holds {
         name: "welcome-model-connected",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Status, name: "ChatGPT plan · sam@example.com" },
             Part::Named { role: Role::Link, name: "Continue" },
         ],
@@ -3382,7 +3455,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-away",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Status, name: "Waiting for ChatGPT’s sign-in, in the new tab" },
             Part::Named { role: Role::Link, name: "Open it again" },
             Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn’t be reached?" },
@@ -3391,7 +3465,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-signing-in",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Status, name: "Waiting for ChatGPT’s sign-in, in the new tab" },
             Part::Named { role: Role::Link, name: "Open it again" },
             Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn’t be reached?" },
@@ -3400,7 +3475,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-signin-ready",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Link, name: "Continue" },
             Part::Absent { role: Role::Button, name: "Continue with ChatGPT" },
         ],
@@ -3431,7 +3507,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-forge-choose",
         heading: "Connect a forge",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Region, name: "Forgejo" },
             Part::Named { role: Role::Link, name: "Run on this machine" },
             Part::Named { role: Role::Region, name: "GitHub" },
@@ -3441,7 +3518,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-forge-details",
         heading: "Connect a forge",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
             Part::Named { role: Role::Choice, name: "An empty repository" },
             Part::Named { role: Role::TextField, name: "Organization" },
@@ -3452,7 +3530,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-sheet-copies",
         heading: "Connect a forge",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
             Part::Named { role: Role::Choice, name: "Copies of public repositories" },
             Part::Named { role: Role::TextArea, name: "Their addresses, one per line" },
@@ -3462,7 +3541,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-sheet-copies-refused",
         heading: "Connect a forge",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
             Part::Named { role: Role::Choice, name: "Copies of public repositories" },
             Part::Named {
@@ -3475,7 +3555,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-sheet-nothing",
         heading: "Connect a forge",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Dialog, name: "Forgejo on this machine" },
             Part::Named { role: Role::Choice, name: "Nothing for now" },
             Part::Named { role: Role::Button, name: "Run on this machine" },
@@ -3484,7 +3565,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-forge-under-way",
         heading: "Connect a forge",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Paragraph, name: "Forgejo on this machine · Setting up: preparing" },
             Part::Named { role: Role::Disclosure, name: "Each step" },
             Part::Named { role: Role::Link, name: "Continue" },
@@ -3494,7 +3576,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-forge-connected",
         heading: "Connect a forge",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named {
                 role: Role::Paragraph,
                 name: "Forgejo on this machine · connected as temper · work/hello made",
@@ -3507,7 +3590,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-forge-github",
         heading: "Connect a forge",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Paragraph, name: "GitHub · temper’s App on sam" },
             Part::Named { role: Role::Link, name: "Continue" },
             Part::Absent { role: Role::Disclosure, name: "Each step" },
@@ -3517,7 +3601,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-model-choose",
         heading: "Connect a model",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Heading { level: 2 }, name: "ChatGPT" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Claude" },
             Part::Named { role: Role::Paragraph, name: "Sign in, in a new tab · about a minute" },
@@ -3544,7 +3629,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-ready-copies",
         heading: "Ready",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named {
                 role: Role::Paragraph,
                 name: "Everything is connected. Create your first project, with 2 repositories in it, and start working.",
@@ -3557,7 +3643,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-ready-none",
         heading: "Almost ready",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Slot, name: "Forge none yet" },
             Part::Named { role: Role::Link, name: "Connect a forge" },
             Part::Named { role: Role::Slot, name: "Model none yet" },
@@ -3571,7 +3658,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-ready-signing",
         heading: "Almost ready",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named { role: Role::Slot, name: "Forge none yet" },
             Part::Named { role: Role::Paragraph, name: "Model ChatGPT plan · signing in…" },
             Part::Absent { role: Role::Link, name: "Connect a model" },
@@ -3582,7 +3670,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-ready-under-way",
         heading: "Almost ready",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named {
                 role: Role::Paragraph, name: "Forgejo on this machine · work/hello · Setting up: preparing"
             },
@@ -3603,7 +3692,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-ready-adopted",
         heading: "Ready",
-        parts: &[Part::WelcomeFrame { box_note: false }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: false },
             Part::Named {
                 role: Role::Paragraph,
                 name: "Everything is connected. Create your first project and start working.",
@@ -3699,7 +3789,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-go-on",
         heading: "Welcome to temper",
-        parts: &[Part::WelcomeFrame { box_note: true }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: true },
             Part::Named { role: Role::List, name: "Steps" },
             Part::Named { role: Role::Region, name: "Set up temper" },
             Part::Named { role: Role::Link, name: "Go on setting up" },
@@ -3713,7 +3804,8 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "welcome-first-run-0",
         heading: "Welcome to temper",
-        parts: &[Part::WelcomeFrame { box_note: true }, 
+        parts: &[
+            Part::WelcomeFrame { box_note: true },
             Part::Named { role: Role::List, name: "Steps" },
             Part::Named { role: Role::Region, name: "Try the playground" },
             Part::Named { role: Role::Button, name: "Try the playground" },
@@ -3725,6 +3817,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-first-run",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::StyleCount { style: temper_client_view::look::RAIL_SEP, count: 1 },
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
@@ -3758,6 +3851,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-approve",
         heading: "Ask temper",
         parts: &[
+            ASK_USE,
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 0 },
             Part::Named { role: Role::Group, name: "You approve" },
             Part::Text { text: "An agent makes each change; nothing reaches main until you approve it." },
@@ -3783,6 +3877,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-draft",
         heading: "Ask temper",
         parts: &[
+            ASK_USE,
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 2 },
             Part::Named { role: Role::Group, name: "Draft first" },
             Part::Text {
@@ -3814,6 +3909,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-card",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::Named { role: Role::Group, name: "Agents review" },
             Part::Named { role: Role::Region, name: "Review" },
             Part::Expanded { name: "review, an agent" },
@@ -3836,6 +3932,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-card-person",
         heading: "Ask temper",
         parts: &[
+            ASK_USE,
             Part::Named { role: Role::Group, name: "You approve" },
             Part::Named { role: Role::Region, name: "You approve" },
             Part::Expanded { name: "you approve, a person" },
@@ -3850,6 +3947,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-yours",
         heading: "Ask temper",
         parts: &[
+            ASK_ALONE,
             Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
             Part::Named { role: Role::Group, name: "Yours" },
             Part::Path { stops: &["you ask, a person", "produce, an agent", "merge, code", "main, a branch"] },
@@ -3861,6 +3959,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-refused",
         heading: "Ask temper",
         parts: &[
+            ASK_USE,
             Part::Named { role: Role::Group, name: "You approve" },
             Part::Named { role: Role::Button, name: "Use this" },
             Part::Named { role: Role::Alert, name: "" },
@@ -3875,6 +3974,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-member",
         heading: "Ask temper",
         parts: &[
+            ASK_ALONE,
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
             Part::Named { role: Role::Group, name: "Agents review" },
             Part::Named { role: Role::List, name: "The way a change goes" },
@@ -3887,6 +3987,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-ways-kept",
         heading: "Ask temper",
         parts: &[
+            ASK_ALONE,
             Part::Text { text: "Agents review is now this project's own, as revision 1." },
             Part::Tabs { names: &["You approve", "Agents reviewnow", "Draft first"], selected: 1 },
             Part::Named { role: Role::Group, name: "Agents review" },
@@ -3899,6 +4000,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-typing",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
@@ -3915,6 +4017,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-sending",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
@@ -3931,6 +4034,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "ask-refused",
         heading: "Ask temper",
         parts: &[
+            ASK_KEEP,
             Part::Links { style: temper_client_view::look::RAIL_NAV, names: &["Home", "Ask temper", "How work runs"] },
             Part::Links { style: temper_client_view::look::TABBAR, names: &["Home", "Ask temper", "Deployment"] },
             Part::NoStyle { style: temper_client_view::look::RAIL_NEW },
@@ -4451,7 +4555,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "chat-solo-T1",
         heading: "T1 · Make tally sum stream its input",
         parts: &[
-            Part::Named { role: Role::Status, name: "Closed" },
+            Part::NoStyle { style: temper_client_view::look::STATUS_LINE },
             Part::Absent { role: Role::TextArea, name: "Message" },
             Part::Absent { role: Role::Button, name: "Send" },
             Part::Absent { role: Role::Disclosure, name: "Model" },
@@ -4507,7 +4611,14 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
     },
-    Holds { name: "chat-working", heading: "T6", parts: &[Part::Named { role: Role::Slot, name: "Writing" }] },
+    Holds {
+        name: "chat-working",
+        heading: "T6",
+        parts: &[
+            Part::Named { role: Role::Slot, name: "Writing" },
+            Part::Named { role: Role::Status, name: "Working" },
+        ],
+    },
     Holds {
         name: "chat-solo-T6",
         heading: "T6 · Why is tally sum slow on big files?",
@@ -4696,7 +4807,13 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "out-of-date",
         heading: "Out of date",
-        parts: &[Part::Named { role: Role::Paragraph, name: "Run the temper the engine runs." }],
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "This page doesn't match temper's engine. Reload it to continue.",
+            },
+            Part::Named { role: Role::Button, name: "Reload" },
+        ],
     },
     Holds {
         name: "chats-empty",
@@ -5058,13 +5175,31 @@ fn each_state_holds_what_its_name_says() {
                         rest = &rest[usize::try_from(node.size).expect("banner child span")..];
                     }
                     assert_eq!(children.len(), 3, "{}: brand, steps, end alone", sample.name);
-                    assert_eq!((children[0].role, children[0].name.as_deref()), (Role::Link, Some(b"temper".as_slice())));
-                    assert_eq!((children[1].role, children[1].name.as_deref()), (Role::List, Some(b"Steps".as_slice())));
+                    assert_eq!(
+                        (children[0].role, children[0].name.as_deref()),
+                        (Role::Link, Some(b"temper".as_slice()))
+                    );
+                    assert_eq!(
+                        (children[1].role, children[1].name.as_deref()),
+                        (Role::List, Some(b"Steps".as_slice()))
+                    );
                     assert!(children[2].styles.as_slice().contains(&temper_client_view::look::TOP_END));
                     let end = &banner[banner.len() - usize::try_from(children[2].size).expect("end span")..];
-                    assert_eq!(end[1].region, Some(skein_ui::Region { owner: temper_client_view::look::NAMES.owner, number: 0 }));
-                    assert_eq!(usize::try_from(end[1].size).expect("region span") + 1, end.len(), "{}: link alone", sample.name);
-                    let notes: Vec<_> = tree.nodes().iter().filter(|n| n.styles.as_slice().contains(&temper_client_view::look::WELCOME_BOX_NOTE)).collect();
+                    assert_eq!(
+                        end[1].region,
+                        Some(skein_ui::Region { owner: temper_client_view::look::NAMES.owner, number: 0 })
+                    );
+                    assert_eq!(
+                        usize::try_from(end[1].size).expect("region span") + 1,
+                        end.len(),
+                        "{}: link alone",
+                        sample.name
+                    );
+                    let notes: Vec<_> = tree
+                        .nodes()
+                        .iter()
+                        .filter(|n| n.styles.as_slice().contains(&temper_client_view::look::WELCOME_BOX_NOTE))
+                        .collect();
                     assert_eq!(notes.len(), usize::from(*box_note), "{}: box paragraph on Welcome alone", sample.name);
                     if *box_note {
                         assert_eq!(notes[0].role, Role::Paragraph);
@@ -5359,6 +5494,18 @@ fn each_state_holds_what_its_name_says() {
                 }
                 Part::Text { text } => {
                     assert!(has_text(tree, text), "{}: missing text {text:?}", sample.name);
+                }
+                Part::Buttons { style, names } => {
+                    let nodes = tree.nodes();
+                    let start =
+                        nodes.iter().position(|node| node.styles.as_slice().contains(style)).expect("button row");
+                    let end = start + usize::try_from(nodes[start].size).expect("row span");
+                    let actual: Vec<_> = nodes[start..end]
+                        .iter()
+                        .filter(|node| node.role == Role::Button)
+                        .map(|node| std::str::from_utf8(node.name.as_deref().expect("button name")).expect("English"))
+                        .collect();
+                    assert_eq!(actual, *names, "{}: buttons in order", sample.name);
                 }
                 Part::Named { role, name } => {
                     find(tree, *role, name, sample.name);
@@ -5840,6 +5987,10 @@ fn asking_gallery_states_list_the_template_and_send_readiness() {
             .find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Send"))
             .expect("send");
         assert_eq!(send.states.as_slice().contains(&skein_ui::State::Disabled), disabled, "{name}");
+        let how = find(view.tree(), Role::Button, "How does temper work?", name);
+        let how = view.tree().find(how).expect("how button");
+        assert_eq!(how.states.as_slice().contains(&skein_ui::State::Disabled), sending, "{name}");
+        assert!(has_text(view.tree(), "Choose how work runs, or describe how you work below."), "{name}");
     }
 }
 

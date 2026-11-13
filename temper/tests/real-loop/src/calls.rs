@@ -1623,6 +1623,7 @@ mod read_condition_tests {
         *error.downcast::<String>().expect("formatted deadline failure")
     }
     #[test]
+    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn a_late_answer_fails_with_its_scheduler_figures() {
         let call = bounded_call();
         let figures = failed_answer();
@@ -1639,6 +1640,7 @@ mod read_condition_tests {
         call.assert_answered_within_bound();
     }
     #[test]
+    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn a_cli_timeout_fails_with_its_recorded_scheduler_figures() {
         for stdout in [b"task 1\nnot met: timeout\n".as_slice(), br#"{"met":false,"why":"timeout"}"#] {
             let mut call = bounded_call();

@@ -235,7 +235,7 @@ fn ordinary_delta_text_passes_without_delay() {
     assert_eq!(delta_text(&mut backend), b"ordinary words!");
     let secret = mcp::secret_text(backend.names.mcp.expose().try_into().unwrap());
     delta(&mut backend, &secret[..3]);
-    assert!(delta_text(&mut backend).is_empty());
+    assert_eq!(delta_text(&mut backend).len(), 0);
     delta(&mut backend, b"!");
     assert_eq!(delta_text(&mut backend), [secret[..3].as_ref(), b"!"].concat());
 }
@@ -246,7 +246,7 @@ fn private_carries_flush_at_every_terminal_boundary() {
         let mut backend = active(true);
         let secret = mcp::secret_text(backend.names.mcp.expose().try_into().unwrap());
         delta(&mut backend, &secret[..10]);
-        assert!(delta_text(&mut backend).is_empty());
+        assert_eq!(delta_text(&mut backend).len(), 0);
         let mut up = Queue::with_capacity(32);
         let mut below = Queue::with_capacity(64);
         match boundary {

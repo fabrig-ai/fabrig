@@ -18,7 +18,12 @@ fn the_public_schema_names_nothing_from_elsewhere() {
 
 #[test]
 fn the_fields_golden_is_the_reachable_wire_shape() {
-    assert_eq!(shape::listing(SCHEMA), FIELDS);
+    let listing = shape::listing(SCHEMA);
+    let path = std::path::Path::new("schema/public-v1.fields");
+    if temper_test_env::rewrite() {
+        std::fs::write(path, &listing).unwrap();
+    }
+    assert_eq!(listing, std::fs::read_to_string(path).unwrap());
 }
 
 #[test]

@@ -57,10 +57,10 @@ impl Boot {
 // Linux AT_CLKTCK is a native-word pair in this process's auxiliary vector.
 #[expect(clippy::host_endian_bytes, reason = "proc/self/auxv uses this process's native ABI")]
 fn clock_ticks(bytes: &[u8]) -> Option<u64> {
-    let mut words = bytes.chunks_exact(size_of::<usize>());
+    let mut words = bytes.as_chunks::<{ size_of::<usize>() }>().0.iter();
     while let (Some(kind), Some(value)) = (words.next(), words.next()) {
-        let kind = usize::from_ne_bytes(kind.try_into().ok()?);
-        let value = usize::from_ne_bytes(value.try_into().ok()?);
+        let kind = usize::from_ne_bytes(*kind);
+        let value = usize::from_ne_bytes(*value);
         if kind == 17 {
             return u64::try_from(value).ok().filter(|ticks| *ticks != 0);
         }
@@ -325,11 +325,15 @@ mod tests {
     }
 
     #[test]
+    #[expect(clippy::host_endian_bytes, reason = "the auxv fixture uses this process's native ABI")]
     fn proc_birth_parsing_handles_comm_delimiters_and_clock_tick_boundaries() {
         assert_eq!(parse_stat(ROOT), Some((0, 1)));
         assert_eq!(parse_stat(CHILD), Some((10, 101)));
         assert_eq!(parse_stat("10 (short) S 0"), None);
         assert_eq!(clock_ticks(&[]), None);
+        let auxv =
+            [6_usize.to_ne_bytes(), 4096_usize.to_ne_bytes(), 17_usize.to_ne_bytes(), 100_usize.to_ne_bytes()].concat();
+        assert_eq!(clock_ticks(&auxv), Some(100));
         assert!(!Boot { ticks: 0, ..BOOT }.includes(101));
         assert!(!BOOT.includes(u64::MAX));
     }

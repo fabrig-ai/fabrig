@@ -1,4 +1,6 @@
 //! Placement protects kept personal logins (accounts.md, 3.4; domain/engine/fleet.md).
+pub use jig_domain_core_vocabulary::runs::host_rule::*;
+
 use crate::Core;
 use jig_domain_accounts as accounts;
 use jig_domain_accounts::{Holder, HostSource};
@@ -6,23 +8,6 @@ use jig_domain_fleet::{HostKind, PlacementConstraint};
 use jig_domain_link::LoginState;
 use skein_lib::List;
 
-/// One bounded fact per host, independent of any run or payer.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum HostRule {
-    Open,
-    Person(u64),
-    Several,
-    Unknown,
-}
-impl HostRule {
-    pub(crate) fn allows(self, holder: Holder) -> bool {
-        match self {
-            Self::Open => true,
-            Self::Person(person) => holder == Holder::Party(person),
-            Self::Several | Self::Unknown => false,
-        }
-    }
-}
 impl Core {
     pub(crate) fn host_fact_capacity(&self) -> u32 {
         let mut capacity = 0_u32;

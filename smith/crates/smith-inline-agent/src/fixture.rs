@@ -5,6 +5,7 @@ use smith_domain as smith;
 
 /// Two slots with eight maximum turns of credit, using the supplied root's bounds.
 #[must_use]
+#[expect(clippy::large_types_passed_by_value, reason = "the fixture takes a copy of the supplied root bounds")]
 pub fn small(smith: smith::Limits) -> Limits {
     Limits {
         slots: 2,

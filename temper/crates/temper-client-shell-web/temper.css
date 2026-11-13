@@ -1168,6 +1168,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 #app > .temper-welcome .temper-welcome-status > p > span:not(.temper-flow-muted) { grid-column: 2; color: var(--gf-ink); font-weight: 400; }
 #app > .temper-welcome .temper-welcome-status > p > span.temper-flow-muted { display: block; grid-column: 2; padding: 0; color: var(--gf-muted); font-size: 13.5px; }
 #app > .temper-welcome .temper-welcome-status strong { font-weight: 500; }
+#app > .temper-welcome .temper-welcome-status > a.temper-flow-quiet { display: inline-block; margin: 2px 0 0 24px; font-size: 13.5px; line-height: 1.55; color: var(--gf-muted); text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
 #app > .temper-welcome .temper-welcome-status > details { margin: 10px 0 0 24px; font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-welcome .temper-welcome-status > details > summary { cursor: pointer; }
 #app > .temper-welcome .temper-welcome-status .temper-flow-progress { margin: 10px 0 0; gap: 6px; font-size: 13.5px; line-height: 1.45; }
@@ -2027,13 +2028,6 @@ a.temper-repository-link:hover { text-decoration: underline; }
 
 
 /* chat-terminal: the frame, conversation and box, from terminal.css. */
-.temper-to-terminal {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0; line-height: 1;
-  height: 30px; padding: 0 9px; border: 1px solid var(--gf-line-2, var(--gf-control-line)); border-radius: 8px;
-  background: transparent; color: var(--gf-ink-2, var(--gf-control-ink-2)); cursor: pointer;
-}
-.temper-to-terminal::before { content: '>_' / ''; font: 12px/1 'IBM Plex Mono', ui-monospace, monospace; }
-.temper-to-terminal:hover { background: var(--gf-hover, var(--gf-control-hover)); color: var(--gf-ink, var(--gf-control-ink)); }
 body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal {
   --bg: #191816; --ink: #e8e3da; --dim: #9a9388; --faint: #6a655c; --line: #2f2d29; --sel: #2a2825;
@@ -2182,8 +2176,6 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal .temper-thread > .temper-starter { max-width: 100ch; margin-left: 0; margin-right: 0; }
 #app > .temper-terminal .temper-thread .temper-starter :is(h2, p, ul, li, span, button) { font: inherit; color: var(--ink); }
 #app > .temper-terminal .temper-starter .temper-starters button { background: var(--sel); border-color: var(--line); box-shadow: none; }
-/* The bar's small entrance keeps its own mono type beside the mode group. */
-#app > .temper-session .temper-session-right > button.temper-to-terminal { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 0; line-height: 1; min-height: 30px; height: 30px; padding: 0 9px; border: 1px solid var(--gf-line-2, var(--gf-control-line)); color: var(--gf-ink-2, var(--gf-control-ink-2)); }
 @media (max-width: 760px) {
   #app > .temper-terminal .temper-terminal-top { padding: 8px 2ch; gap: 2ch; }
   #app > .temper-terminal .temper-terminal-where :is(.temper-terminal-place, .temper-terminal-sep, .temper-terminal-task) { display: none; }
@@ -3064,6 +3056,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 #app > .temper-settings .temper-ways-legend > .temper-ways-kind-line::before { width: 18px; height: 0; border-top: 1px dotted var(--gf-line-2); vertical-align: 3px; }
 #app > .temper-session .temper-ways-acts,
 #app > .temper-settings .temper-ways-acts { display: flex; gap: 8px; margin-left: auto; }
+#app > .temper-session .temper-ways-acts { flex-wrap: wrap; }
 #app > .temper-session .temper-ways-acts > button,
 #app > .temper-settings .temper-ways-acts > button { min-height: 36px; padding: 5px 16px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 500 13.5px/1.6 var(--gf-sans); white-space: nowrap; cursor: pointer; box-shadow: none; }
 #app > .temper-session .temper-ways-acts > .temper-ways-use,

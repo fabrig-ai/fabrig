@@ -6,6 +6,7 @@
 - **Not yet:** 9: `ask-opening/` is still in the tree [in flight: change 1992].
 - **Not yet:** 9: `switcher-links/` is still in the tree, and the prints that draw the rail lack the switcher's phone-only token [in flight: change 1993].
 - **Not yet:** 9: `chat-path/` and `no-terminal-button/` are still in the tree, and `chat-draft` and `welcome-playground` print the old path and ">_" [in flight: change 1994].
+- **Not yet:** 9: `chat-bar/` is still in the tree, `chat-draft`'s recording and prints are still committed, and `welcome-playground`'s `NewChat` prints no view group [in flight: change 2000].
 
 
 

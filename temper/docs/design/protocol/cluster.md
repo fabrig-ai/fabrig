@@ -108,7 +108,9 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
   deployment's, and never copied from one.
 - **Short graces:** the description's are seconds, each worker's stop
   bound below the engine's grace, so a lost worker's runs are placed
-  again within a test's time.
+  again within a test's time. Each worker's `graces.drain_ms` is given,
+  at most its link's notice and its grace together, so the drain's
+  default never enters its stop bound.
 - **Lines on stderr,** each one line, flushed once what it says holds;
   the cluster's contract, read by their literal prefixes:
 
@@ -175,8 +177,10 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
 
 - **Stopped in reverse**: each worker first, by
   its first termination signal, which runs its worker's ending: its runs
-  stopped, and done once the engine has every turn and answer, or past
-  its grace (jig's `protocol/service.md`, section 6), exiting 0; then
+  drained, then stopped, and done once the engine has every turn and
+  answer, or past its grace, or at its stop bound (jig's
+  `protocol/service.md`, section 6; `../domain/worker/README.md`,
+  section 2), exiting 0; then
   the engine, drained, exiting 0; then the fakes. A process not ended
   within its cost class's `stop_seconds` (5) is killed, its tree with it,
   and the stop fails.
@@ -211,7 +215,7 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
   Templates name addresses by `{proc.P.ready.C}` and directories by
   `{proc.P.dir}`. The description is canonical JSON, with integers
   within ±(2^53−1); each process's `memory_bytes` matches its document.
-- **The process tier's reader,** `bin/temper-box/tests/support/cluster.rs`:
+- **The process tier's reader,** `testing/temper-box-kit/src/cluster.rs`:
   templates rendered; processes started by skein-world's `Binary`, in
   cgroups, by `after`, ties in name order, with no seed; ready lines
   awaited on streams; processes stopped in reverse, a termination signal,

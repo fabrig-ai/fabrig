@@ -1299,7 +1299,7 @@ fn a_front_makes_no_connection_until_the_whole_link_arrives_after_start() {
     );
     world.hold_link = true;
     world.settle();
-    assert!(world.connects.is_empty());
+    assert_eq!(world.connects.len(), 0);
     assert!(
         terminal_text(&world.bytes).contains("Starting the box"),
         "the TUI draws before the link: {} (children={})",
@@ -1316,7 +1316,7 @@ fn a_front_makes_no_connection_until_the_whole_link_arrives_after_start() {
     world.box_child().end(3);
     world.settle();
     assert!(world.run.signed_in().is_some());
-    assert!(!world.connects.is_empty());
+    assert_ne!(world.connects.len(), 0);
     assert!(
         world
             .connects

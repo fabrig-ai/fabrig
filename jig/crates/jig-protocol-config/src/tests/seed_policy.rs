@@ -16,7 +16,7 @@ fn without_defaults(document: &[u8]) -> Box<[u8]> {
 fn seed_path() -> Path {
     Path::root().member(b"projects").child(Segment::Index(0))
 }
-fn given() -> jig_domain_core::settings::Defaults {
+fn given() -> jig_domain_core_vocabulary::settings::Defaults {
     crate::core(&fixtures::engine(&policies::override_document(2)).unwrap(), [3; 16], 11).defaults
 }
 
@@ -95,7 +95,13 @@ fn a_copied_seed_is_checked_against_the_passed_rules() {
     let mut defaults = given();
     defaults.rules.period_spend = 99;
     let problems = crate::pass(&mut engine, defaults).unwrap_err();
-    assert_eq!(problems.problems.as_slice(), &[Problem { path: seed_path().member(b"policy"), what: What::Bound }]);
+    assert_eq!(
+        problems.problems.as_slice(),
+        &[Problem {
+            path: seed_path().member(b"policy"),
+            what: What::Because(b"policy authority or period spend exceeds deployment rules")
+        }]
+    );
 }
 
 #[test]
@@ -104,5 +110,60 @@ fn a_seed_policy_number_must_be_a_u32() {
         let project = fixtures::with(br#""projects": [{"number":1,"policy":N}]"#, b"N", number);
         let problems = fixtures::engine(&document(&project)).unwrap_err();
         assert_eq!(problems.problems.as_slice(), &[Problem { path: seed_path().member(b"policy"), what: What::Bound }]);
+    }
+}
+
+// jig/docs/design/protocol/configuration.md, 3: the copied policy is checked whole.
+#[test]
+fn a_copied_seed_names_its_executor_count_and_limit() {
+    let document = document(br#""projects": [{"number":1,"policy":1}]"#);
+    for limit in [19, 20] {
+        let mut engine = defaults::parse(&without_defaults(&document), Defaults::Passed).unwrap();
+        engine.limits.core.authority.executors = limit;
+        let mut defaults = given();
+        let kinds = Box::new([jig_domain_authority::Executor::Charter(1); 20]);
+        defaults.rules.ceiling.delegation.kinds = kinds.clone();
+        defaults.policies.get_mut(&1).unwrap().policy.ceiling.delegation.kinds = kinds;
+        let result = crate::pass(&mut engine, defaults);
+        if limit == 20 {
+            result.expect("twenty executors fit exactly");
+        } else {
+            let problems = result.unwrap_err();
+            assert_eq!(
+                problems.problems.as_slice(),
+                &[Problem {
+                    path: seed_path().member(b"policy").member(b"ceiling").member(b"delegation").member(b"kinds"),
+                    what: What::PolicyExecutors { executors: 20, limit: 19 },
+                }]
+            );
+            assert_eq!(problems.problems.get(0).unwrap().codec_message().unwrap().as_ref(), b"projects[0].policy.ceiling.delegation.kinds: policy has 20 executor kinds; authority.executors limit is 19.");
+        }
+    }
+}
+
+#[test]
+fn a_copied_seed_names_its_snapshot_bytes_and_limit() {
+    let document = document(br#""projects": [{"number":1,"policy":1}]"#);
+    let initial = given();
+    let policy = initial.policies.get(&1).unwrap();
+    let snapshot = jig_domain_core::policy_snapshot(&policy.policy, &policy.permissions, &policy.templates).unwrap();
+    let bytes = jig_domain_people::policy_bytes(&snapshot).unwrap();
+    for limit in [bytes - 1, bytes] {
+        let mut engine = defaults::parse(&without_defaults(&document), Defaults::Passed).unwrap();
+        engine.limits.core.policy_bytes = limit;
+        let result = crate::pass(&mut engine, given());
+        if limit == bytes {
+            result.expect("whole policy fits exactly");
+        } else {
+            let problems = result.unwrap_err();
+            assert_eq!(
+                problems.problems.as_slice(),
+                &[Problem { path: seed_path().member(b"policy"), what: What::PolicyBytes { bytes, limit } }]
+            );
+            let message = problems.problems.get(0).unwrap().codec_message().unwrap();
+            assert!(skein_lib::bytes::find(&message, skein_lib::Decimal::of(bytes).as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&message, skein_lib::Decimal::of(limit).as_bytes()).is_some());
+            assert!(skein_lib::bytes::find(&message, b"core.policy_bytes").is_some());
+        }
     }
 }

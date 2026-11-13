@@ -5,7 +5,7 @@ pub fn box_model() -> temper_engine_domain::Model {
 }
 
 pub fn defaults(words: u32) -> jig_domain_core::settings::Defaults {
-    temper_service::stock::with_models(engine().llm.models, words)
+    temper_engine_service::stock::with_models(engine().llm.models, words)
 }
 
 fn engine() -> jig_protocol_config::Engine {
@@ -18,5 +18,6 @@ fn engine() -> jig_protocol_config::Engine {
         .expect("document object")
         .member(&document, b"engine")
         .expect("engine member");
-    temper_service::startup::engine(&document, at, &jig_protocol_config::Directories::working()).expect("stock engine")
+    temper_engine_service::startup::engine(&document, at, &jig_protocol_config::Directories::working())
+        .expect("stock engine")
 }

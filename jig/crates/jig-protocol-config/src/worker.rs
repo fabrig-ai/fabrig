@@ -19,9 +19,14 @@ pub struct Worker {
     pub limits: Limits,
     pub memory: Option<u64>,
 }
+const DEFAULT_DRAIN: Duration = Duration::from_millis(180_000);
+
+/// Worker stop deadlines (jig/docs/design/domain/hosts/hub.md, 6 and 7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Graces {
     pub grace: Duration,
+    /// How long a worker told to stop lets runs end their turns before cancelling them.
+    pub drain: Duration,
     pub agent_stop: Duration,
     pub delivery: Duration,
     pub save: Duration,
@@ -38,6 +43,7 @@ pub struct Agent {
 pub fn stop_bound(graces: &Graces, ping: Duration, silence: Duration) -> Option<Duration> {
     ping.checked_add(silence)?
         .checked_add(graces.grace)?
+        .max(graces.drain)
         .checked_add(graces.agent_stop.max(graces.delivery))?
         .checked_add(graces.save)
 }
@@ -118,11 +124,21 @@ pub fn worker(document: &Document, at: u32, directories: &Directories) -> Result
 fn parse_graces(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Graces> {
     let mut object = check::object(document, at, path, problems, "graces")?;
     let grace = check::duration(&mut object, document, b"grace_ms", path, problems);
+    let mut drain = Some(DEFAULT_DRAIN);
+    if let Some(at) = object.member(document, b"drain_ms") {
+        drain = match read::duration(document, at) {
+            Ok(value) => Some(value),
+            Err(what) => {
+                problems.push(path.member(b"drain_ms"), what);
+                None
+            }
+        };
+    }
     let agent_stop = check::duration(&mut object, document, b"agent_stop_ms", path, problems);
     let delivery = check::duration(&mut object, document, b"delivery_ms", path, problems);
     let save = check::duration(&mut object, document, b"save_ms", path, problems);
     object.finish(document, path, problems);
-    Some(Graces { grace: grace?, agent_stop: agent_stop?, delivery: delivery?, save: save? })
+    Some(Graces { grace: grace?, drain: drain?, agent_stop: agent_stop?, delivery: delivery?, save: save? })
 }
 fn parse_agent(
     document: &Document,

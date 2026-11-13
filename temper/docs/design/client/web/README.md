@@ -302,7 +302,8 @@ replay says the same clocks (`../view.md`, 6).
   files, and a reload loads the new (skein's `ui/web/bundle.md`, 4). A page
   from the binary's own bundle always speaks its engine's records, so a
   client out of date (`../view.md`, 1) comes only from a binary
-  replaced under an open tab, or from a directory configured.
+  replaced under an open tab, or from a directory configured, and its
+  page asks the person to reload, which loads the engine's bundle.
 
 ### 2.3 Addresses
 
@@ -645,9 +646,11 @@ without it.
   wasm32-unknown-unknown target: add it (rustup target add
   wasm32-unknown-unknown), or build without the browser
   (TEMPER_INTERNAL_BUNDLE=none)`. Never a binary without its browser in
-  silence. temper ships no `rust-toolchain.toml` naming the target: it
-  would set the channel for every rustup user, which temper does not
-  set (`rust-version` alone).
+  silence. The repository's `rust-toolchain.toml` pins the channel and
+  names the target (`skein/docs/foundation/programming-model.md`,
+  10.1), so rustup
+  installs it with the toolchain; the message is for a toolchain
+  installed otherwise, or rustup told not to install.
 - **Offline:** the nested build may download crates only wasm32 uses,
   as any first build of the target does; an offline build runs `cargo
   fetch` first, which fetches for every target.

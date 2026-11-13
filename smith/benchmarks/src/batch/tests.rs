@@ -214,7 +214,7 @@ fn seeded_blocks_replay_with_one_request_per_arm() {
         first.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>(),
         second.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>()
     );
-    for block in first.chunks_exact(BLOCK_ARMS.len()) {
+    for block in first.as_chunks::<{ BLOCK_ARMS.len() }>().0 {
         assert_ne!(block[0].identity.arm, block[1].identity.arm);
     }
 }

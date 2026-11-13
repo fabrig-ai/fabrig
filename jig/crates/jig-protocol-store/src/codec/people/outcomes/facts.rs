@@ -23,6 +23,7 @@ pub(super) fn encode_failure_class(value: domain::FailureClass) -> wire::Failure
         domain::FailureClass::Agent => wire::FailureClass::Agent,
         domain::FailureClass::Lost => wire::FailureClass::Lost,
         domain::FailureClass::Invalid => wire::FailureClass::Invalid,
+        domain::FailureClass::Infrastructure => wire::FailureClass::Infrastructure,
     }
 }
 pub(super) fn decode_failure_class(value: wire::FailureClass) -> domain::FailureClass {
@@ -33,6 +34,7 @@ pub(super) fn decode_failure_class(value: wire::FailureClass) -> domain::Failure
         wire::FailureClass::Agent => domain::FailureClass::Agent,
         wire::FailureClass::Lost => domain::FailureClass::Lost,
         wire::FailureClass::Invalid => domain::FailureClass::Invalid,
+        wire::FailureClass::Infrastructure => domain::FailureClass::Infrastructure,
     }
 }
 pub(super) fn encode_hold_reason(

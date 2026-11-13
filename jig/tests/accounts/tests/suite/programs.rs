@@ -39,7 +39,7 @@ fn a_declaration_saves_its_reservation_atomically() {
     assert_eq!(declare(&mut world, HOLDER, PROVIDER, None, b"personal"), (Ok(1), declaration_requests(0, 1, 2)));
     let account = world.domain.account(0).expect("kept account");
     assert!(account.plan());
-    assert!(account.subject().is_empty());
+    assert_eq!((account.subject()).len(), 0);
 }
 fn declaration_requests(account: u32, source: u32, next: u32) -> Vec<Request> {
     vec![
@@ -230,9 +230,9 @@ fn a_program_answer_names_every_unconfirmed_configured_position() {
     let mut world = fresh();
     assert_eq!(declare(&mut world, HOLDER, PROVIDER, None, b"personal").0, Ok(1));
     sign_out(&mut world, HOLDER);
-    assert!(targets(&mut world, &[0, 1, 2]).is_empty());
-    assert!(ended(&mut world, 1, ProgramResult::SignedOut).is_empty());
-    assert!(ended(&mut world, 0, ProgramResult::NotInContact).is_empty());
+    assert_eq!(targets(&mut world, &[0, 1, 2]).len(), 0);
+    assert_eq!(ended(&mut world, 1, ProgramResult::SignedOut).len(), 0);
+    assert_eq!(ended(&mut world, 0, ProgramResult::NotInContact).len(), 0);
     assert_eq!(
         ended(&mut world, 2, ProgramResult::Lost),
         vec![Request::Answer {
@@ -260,7 +260,7 @@ fn a_late_program_terminal_cannot_answer_twice() {
     sign_out(&mut world, HOLDER);
     targets(&mut world, &[0]);
     ended(&mut world, 0, jig_domain_accounts::ProgramResult::Lost);
-    assert!(ended(&mut world, 0, jig_domain_accounts::ProgramResult::SignedOut).is_empty());
+    assert_eq!(ended(&mut world, 0, jig_domain_accounts::ProgramResult::SignedOut).len(), 0);
 }
 #[test]
 fn restart_preserves_desired_program_absence() {
@@ -409,7 +409,7 @@ fn an_early_terminal_waits_for_its_target_snapshot() {
     let mut world = fresh();
     declare(&mut world, HOLDER, PROVIDER, None, b"personal").0.expect("declaration");
     sign_out(&mut world, HOLDER);
-    assert!(ended(&mut world, 0, jig_domain_accounts::ProgramResult::SignedOut).is_empty());
+    assert_eq!(ended(&mut world, 0, jig_domain_accounts::ProgramResult::SignedOut).len(), 0);
     assert_eq!(
         targets(&mut world, &[0]),
         vec![Request::Answer {
@@ -533,10 +533,9 @@ fn removal_failures(
     for source in [1, 2] {
         world.step(Event::ProgramTargets { source, hosts: Box::new([jig_accounts_world::worker(0)]) });
     }
-    assert!(
-        world
-            .step(Event::ProgramSignedOut { source: 1, host: jig_accounts_world::worker(0), result: first })
-            .is_empty()
+    assert_eq!(
+        world.step(Event::ProgramSignedOut { source: 1, host: jig_accounts_world::worker(0), result: first }).len(),
+        0
     );
     world.step(Event::ProgramSignedOut { source: 2, host: jig_accounts_world::worker(0), result: last })
 }
@@ -721,16 +720,17 @@ fn program_reports_follow_the_live_source() {
         change: jig_domain_accounts::Change::Remove { account: ACCOUNT },
     });
     assert!(removed.contains(&Request::Erase { key: Key::Facts { account: ACCOUNT } }));
-    assert!(world.domain.account_facts(ACCOUNT).is_empty());
-    assert!(
+    assert_eq!((world.domain.account_facts(ACCOUNT)).len(), 0);
+    assert_eq!(
         world
             .step(Event::ProgramSaid {
                 name: b"personal".as_slice().into(),
                 email: b"late@example.com".as_slice().into()
             })
-            .is_empty()
+            .len(),
+        0
     );
-    assert!(world.domain.account_facts(ACCOUNT).is_empty());
+    assert_eq!((world.domain.account_facts(ACCOUNT)).len(), 0);
 }
 
 fn declaration_change(world: &mut World, key: u64, name: &[u8]) -> Vec<Request> {
@@ -769,7 +769,7 @@ fn a_retired_name_declaration_refuses_another_holder() {
     assert_eq!(*request, skein_lib::Token::new(102));
     assert_eq!(*refusal, Refusal::NameTaken);
     assert_eq!(world.domain.accounts(), 0);
-    assert!(world.views().is_empty());
+    assert_eq!(world.views().len(), 0);
     assert_eq!(world.domain.next_number(), 2);
     let fresh = declaration_change(&mut world, 103, b"claude-7");
     assert_eq!(

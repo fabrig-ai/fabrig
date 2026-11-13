@@ -2,7 +2,7 @@
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest};
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as p;
 use skein_lib::{ReplyTo, Secret, Token, Writer};
 
@@ -58,7 +58,7 @@ fn the_record_goes_to_the_first_exchange_and_a_replay_is_empty() {
     let (owner, to) = outgoing(&mut exchange);
     let token = ready(&mut exchange, to);
     taken(&mut exchange, token, None);
-    assert!(record(&exchange, owner).expose().is_empty());
+    assert_eq!((record(&exchange, owner).expose()).len(), 0);
     assert!(exchange.out.is_empty());
 }
 #[test]
@@ -72,7 +72,7 @@ fn a_join_has_no_second_record_and_does_not_answer_its_sibling() {
     assert_eq!(record(&exchange, first).expose(), b"file");
     assert!(exchange.component.connections.get(&join).unwrap().response.is_none());
     taken(&mut exchange, join_token, None);
-    assert!(record(&exchange, join).expose().is_empty());
+    assert_eq!((record(&exchange, join).expose()).len(), 0);
     assert!(exchange.out.is_empty());
 }
 #[test]

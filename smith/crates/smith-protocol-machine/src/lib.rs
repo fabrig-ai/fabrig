@@ -26,8 +26,8 @@ mod boundary;
 mod component;
 mod environment;
 mod files;
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
+#[cfg(test)]
+mod fixture;
 mod guide;
 mod limits;
 mod listing;

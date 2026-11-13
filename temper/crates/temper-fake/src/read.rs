@@ -62,6 +62,8 @@ pub fn why(p: &Path, words: &'static [u8]) -> Refusal {
 pub(crate) fn kind(p: &Path, what: What) -> Refusal {
     let words: &[u8] = match what {
         What::Because(words) => words,
+        What::PolicyExecutors { .. } => b"policy executor count exceeds authority.executors",
+        What::PolicyBytes { .. } => b"policy snapshot exceeds core.policy_bytes",
         What::PolicyEnvelope { .. } => b"policy bytes exceed the people-v13 codec envelope",
         What::AmendmentEnvelope { .. } => b"amendment bytes exceed the people-v13 codec envelope",
         What::CodecCeiling { .. } => b"required bound exceeds the people-v13 codec ceiling",

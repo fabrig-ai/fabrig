@@ -1761,7 +1761,11 @@ fn start_over_pages(with_document: bool) -> (crate::pages::Pages, jig_client::Cl
     chat_told(&mut pages, &f.client, Told::Changed { handle });
     if with_document {
         let handle = draft_handle(pages.chat().unwrap());
-        chat_told(&mut pages, &f.client, Told::Page { handle, page: notes_page(&[draft_note(1, 1, b"# How it works")]) });
+        chat_told(
+            &mut pages,
+            &f.client,
+            Told::Page { handle, page: notes_page(&[draft_note(1, 1, b"# How it works")]) },
+        );
     }
     (pages, f.client)
 }
@@ -2190,7 +2194,10 @@ fn add_draft_sends_once_and_keeps_the_chosen_pane() {
         assert_eq!(f.chat.words.as_ref(), b"Unsent words");
         let sent = fixtures::acts::sent(&mut f.out);
         let [c::Ask::Message { project, task, words }] = sent.as_ref() else { panic!("one draft message: {sent:?}") };
-        assert_eq!((*project, *task, words.bytes()), (fixtures::PROJECT, f::TASK, b"Write this up as a draft beside us.".as_slice()));
+        assert_eq!(
+            (*project, *task, words.bytes()),
+            (fixtures::PROJECT, f::TASK, b"Write this up as a draft beside us.".as_slice())
+        );
         assert_eq!(f.chat.pending.len(), 1);
         assert_eq!(f.chat.pending.get(0).unwrap().1, Sending::Message);
         assert!(f.chat.thread.words.pending(f.chat.pending.get(0).unwrap().0));
@@ -2199,6 +2206,14 @@ fn add_draft_sends_once_and_keeps_the_chosen_pane() {
 #[test]
 fn a_refused_add_keeps_the_pane_and_its_words() {
     let mut f = draft_ready();
+    f.chat.words = b"Unsent words".as_slice().into();
+    f.chat.act(
+        &fixtures::env(&draft_limits()),
+        &f.client,
+        Act::Mode { mode: crate::pages::chat::document::Mode::Draft },
+        &mut { SERIAL },
+        &mut f.out,
+    );
     f.chat.act(&fixtures::env(&draft_limits()), &f.client, Act::AddDraft, &mut { SERIAL }, &mut f.out);
     let key = f.chat.pending.get(0).unwrap().0;
     let refused = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
@@ -2206,8 +2221,9 @@ fn a_refused_add_keeps_the_pane_and_its_words() {
         at: None,
     }));
     f.chat.told(Time::ZERO, &f.client, Told::Answered { key, outcome: refused.clone() }, &mut f.out);
-    assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Split);
+    assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Draft);
     assert!(!f.chat.writing);
+    assert_eq!(f.chat.words.as_ref(), b"Unsent words");
     assert_eq!(f.chat.outcome, Some(refused));
     assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
     assert!(f.chat.pending.is_empty());
@@ -2498,7 +2514,7 @@ fn paused_task() -> c::Task {
         revision: PAUSE_REVISION,
         before: c::PriorPhase::Active(c::RunStage::Idle),
         escalation: None,
-        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0, infrastructure: 0 },
         hold_wait_since: None,
     });
     task.acts = skein_lib::List::with_capacity(2);
@@ -2690,7 +2706,7 @@ fn a_decided_card_stays_when_the_document_arrives_after_its_line() {
     proposals(&mut f, &[]);
     making_page(&mut f, 1);
     assert!(reads(&mut f.out).is_empty(), "document and line must not restart the read");
-    assert!(f.chat.departures().is_empty());
+    assert_eq!((f.chat.departures()).len(), 0);
     assert_eq!(f.chat.cards.get(0).unwrap().handle, handle);
 }
 #[test]

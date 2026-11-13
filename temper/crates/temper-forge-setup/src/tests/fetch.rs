@@ -233,7 +233,7 @@ fn sha(bytes: &[u8]) -> [u8; 32] {
 }
 fn unhex(text: &str) -> [u8; 32] {
     let mut value = [0; 32];
-    for (value, digits) in value.iter_mut().zip(text.as_bytes().chunks_exact(2)) {
+    for (value, digits) in value.iter_mut().zip(text.as_bytes().as_chunks::<2>().0) {
         *value = u8::from_str_radix(core::str::from_utf8(digits).unwrap(), 16).unwrap();
     }
     value

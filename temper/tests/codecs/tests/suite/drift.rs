@@ -3,8 +3,9 @@ use skein_codegen::{generate, parse};
 use std::fs;
 mod drafts;
 
-fn schema_matches(crate_name: &str, family: &str, version: &str) {
-    let root = skein_scratch::paths::tree().join("crates").join(crate_name);
+fn schema_matches(crate_name: &str, codec_crate: &str, family: &str, version: &str) {
+    let crates = skein_scratch::paths::tree().join("crates");
+    let root = crates.join(crate_name);
     let source =
         fs::read_to_string(root.join("schema").join(format!("{family}-{version}.schema"))).expect("family schema");
     let mut output = generate(&parse(&source).expect("schema valid"));
@@ -12,7 +13,7 @@ fn schema_matches(crate_name: &str, family: &str, version: &str) {
         output.goldens.extend(drafts::goldens());
     }
     let code_name = if family == "public" { format!("public_{version}.rs") } else { format!("{version}.rs") };
-    let code = root.join("src/generated").join(code_name);
+    let code = crates.join(codec_crate).join("src/generated").join(code_name);
     let goldens = match family {
         "store" => root.join("golden").join(version),
         "public" => root.join("golden/public"),
@@ -38,25 +39,25 @@ fn schema_matches(crate_name: &str, family: &str, version: &str) {
 
 #[test]
 fn worker_wire_schema_matches_generated_code_and_goldens() {
-    schema_matches("temper-protocol-worker-wire", "worker-wire", "v1");
+    schema_matches("temper-protocol-worker-wire", "temper-protocol-worker-wire", "worker-wire", "v1");
 }
 
 #[test]
 fn client_wire_schema_matches_generated_code_and_goldens() {
-    schema_matches("temper-client-protocol-wire", "client-wire", "v1");
+    schema_matches("temper-client-protocol-wire", "temper-client-protocol-wire", "client-wire", "v1");
 }
 
 #[test]
 fn store_schema_matches_generated_code_and_goldens() {
-    schema_matches("temper-protocol-store", "store", "v15");
+    schema_matches("temper-protocol-store", "temper-protocol-store-codec", "store", "v16");
 }
 
 #[test]
 fn secrets_schema_matches_generated_code_and_goldens() {
-    schema_matches("temper-protocol-records", "secrets", "v1");
+    schema_matches("temper-protocol-records", "temper-protocol-records", "secrets", "v1");
 }
 
 #[test]
 fn public_wire_schema_matches_generated_code_and_goldens() {
-    schema_matches("temper-client-protocol-wire", "public", "v1");
+    schema_matches("temper-client-protocol-wire", "temper-client-protocol-wire", "public", "v1");
 }

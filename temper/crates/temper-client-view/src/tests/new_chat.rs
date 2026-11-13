@@ -48,21 +48,14 @@ fn disabled(node: &Node) -> bool {
 #[test]
 fn session_parts_follow_the_requested_order_in_both_shells() {
     let root = root();
-    for (view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
         let tree = view.tree();
         assert_eq!(skein_ui::outline::check(tree), None);
         assert_eq!(styled(tree, look::SESSION)[0].styles.as_slice(), [look::MAIN, look::SESSION]);
         for (style, expected) in [
             (look::SESSION, vec![(Role::Slot, vec![look::SESSION_TOP]), (Role::Region, vec![look::CONVO])]),
             (look::SESSION_TOP, vec![(Role::Navigation, vec![look::CRUMBS]), (Role::Slot, vec![look::SESSION_RIGHT])]),
-            (
-                look::SESSION_RIGHT,
-                if browser {
-                    vec![(Role::Button, vec![look::ADD_DRAFT]), (Role::Button, vec![look::TO_TERMINAL])]
-                } else {
-                    vec![(Role::Button, vec![look::ADD_DRAFT])]
-                },
-            ),
+            (look::SESSION_RIGHT, vec![(Role::Group, vec![look::SEG])]),
             (
                 look::CONVO,
                 vec![
@@ -80,7 +73,7 @@ fn session_parts_follow_the_requested_order_in_both_shells() {
         assert_eq!(styled(tree, look::SESSION_FOOT)[0].name.as_deref(), Some(ENTRY));
         assert_eq!(
             styled(tree, look::SESSION_HINT)[0].name.as_deref(),
-            Some("Enter sends · Shift+Enter for a new line".as_bytes())
+            Some("Enter sends · Shift+Enter for a new line · Ctrl+\\ switches the draft".as_bytes())
         );
         assert_eq!(styled(tree, look::MODEL)[0].description.as_deref(), Some(b"Scripted model".as_slice()));
         assert!(f::find(tree, Role::Heading { level: 1 }, b"New chat").is_some());
@@ -412,19 +405,32 @@ fn the_placeholder_and_the_meta_line() {
 }
 
 #[test]
-fn the_bar_offers_a_draft_when_the_setting_offers_it() {
+fn the_bar_offers_the_modes_when_the_setting_offers_them() {
     let mut root = super::document::offered(None, false);
-    f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat { draft: false }) });
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let button = named(view.tree(), Role::Button, b"+ Draft").id;
-        assert_eq!(
-            crate::act(&mut view, button, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go { address: Address::NewChat { draft: true } }))
-        );
+    for draft in [false, true] {
+        f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat { draft }) });
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert!(f::find(view.tree(), Role::Group, b"The draft").is_some());
+            assert!(f::find(view.tree(), Role::Button, b"+ Draft").is_none());
+            assert!(!view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&look::STATUS_LINE)));
+            for (name, target, pressed) in
+                [(b"Chat".as_slice(), false, !draft), (b"Split", true, draft), (b"Draft", true, false)]
+            {
+                let button = named(view.tree(), Role::Button, name);
+                assert_eq!(button.states.as_slice().contains(&State::Pressed), pressed);
+                let id = button.id;
+                assert_eq!(
+                    crate::act(&mut view, id, Act::Press),
+                    Some(d::Action::Pages(pages::Act::Go { address: Address::NewChat { draft: target } }))
+                );
+            }
+        }
     }
     let plain = f::root_with_ways(
         Address::NewChat { draft: false },
         Some(d::forge::ways::Ways { drafts: false, ..d::forge::ways::Ways::STOCK }),
     );
-    assert!(!f::browser_page_view(&plain).tree().nodes().iter().any(|node| node.name.as_deref() == Some(b"+ Draft")));
+    assert!(f::find(f::browser_page_view(&plain).tree(), Role::Group, b"The draft").is_none());
+    f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Ask { project: f::PROJECT }) });
+    assert!(f::find(f::browser_page_view(&root).tree(), Role::Group, b"The draft").is_none());
 }

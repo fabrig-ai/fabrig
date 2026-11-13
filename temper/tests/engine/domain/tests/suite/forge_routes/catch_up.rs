@@ -287,7 +287,7 @@ fn a_catch_up_already_contained_ends_with_no_change() {
         format!("The landing branch already contains commit {}.", core::str::from_utf8(&commit).expect("commit text"))
             .as_bytes()
     );
-    assert!(world.jobs.is_empty());
+    assert_eq!(world.jobs.len(), 0);
     assert!(change_row(&world, task).delegate.is_none());
     assert!(change_row(&world, task).pull.is_none());
     assert_eq!(world.assigned.len(), 1);

@@ -178,10 +178,12 @@ pub struct Connection {
 }
 impl Connection {
     #[cfg(test)]
+    #[must_use]
     pub fn new(forge: &Forge, l: &Limits, shared: Shared, deadline: Time) -> Self {
         Self::at_origin(forge, None, l, shared, deadline)
     }
     #[expect(clippy::manual_map, reason = "the programming model excludes closures")]
+    #[must_use]
     pub fn at_origin(forge: &Forge, origin: Option<u32>, l: &Limits, shared: Shared, deadline: Time) -> Self {
         let configured = match origin {
             Some(origin) => Some(forge.log_origins.get(origin).expect("configured log origin")),
@@ -236,6 +238,7 @@ impl Connection {
             | Idle { until: held, .. } => *held = until,
         }
     }
+    #[must_use]
     pub fn phase(&self) -> Phase {
         match self.state {
             Closed { .. } => Phase::Closed,
@@ -712,6 +715,7 @@ impl Connection {
     pub fn timeout(&mut self) {
         self.failed(if self.written { Failure::Seen } else { Failure::Unseen });
     }
+    #[must_use]
     pub fn in_flight(&self) -> bool {
         match &self.state {
             Closed { .. } | Idle { .. } => false,
@@ -739,6 +743,7 @@ impl Connection {
             Connecting { .. } | Handshaking { .. } | Sending { .. } | Reading { .. } | Idle { .. } => None,
         }
     }
+    #[must_use]
     pub fn ready(&self) -> bool {
         let exchange = match &self.state {
             Closed { ended, .. } => return ended.is_some() || self.link.has_work(),

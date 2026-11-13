@@ -15,7 +15,7 @@
 ✦ I settled the location at the end of  │
   README.md. The draft is ready; nothing│
   blocks the work.                      │
-────────────────────────────── Hello / Plan a farewell… T2 on 127.0.0.1:43313 ──
+────────────────────────────── Hello / Plan a farewell… T2 on 127.0.0.1:45967 ──
 ❯
 ────────────────────────────────────────────────────────────────────────────────
 Start a goal from farewell-line.md. How should it run?

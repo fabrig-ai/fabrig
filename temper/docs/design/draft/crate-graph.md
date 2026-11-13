@@ -216,7 +216,7 @@ A package holding generated record code, `src/generated/<family>_v<N>.rs`, has n
 
 ### 7.3 Sizes
 
-- **A library's hand-written code with its own tests,** the Rust a test build of it compiles outside generated record code: at most 60,000 lines (6.2). Eight crates are over today, each an exception until its split: `temper-client-view` (110,000), `jig-domain-core` (100,000), `temper-service` and `temper-client-domain` (83,000 each), `temper-engine-domain-forge` (73,000), `jig-protocol-store` (69,000), `temper-client-tools` (67,000) and `jig-client-view` (64,000).
+- **A library's hand-written code with its own tests,** the Rust a test build of it compiles outside generated record code: at most 60,000 lines (6.2). Eight crates are over today, each an exception until its split: `temper-client-view` (110,000), `jig-domain-core` (100,000), `temper-engine-service` (66,000) and `temper-client-domain` (83,000), `temper-engine-domain-forge` (73,000), `jig-protocol-store` (69,000), `temper-client-tools` (67,000) and `jig-client-view` (64,000).
 - **A family's generated code** in a codec crate shared with other families: at most 20,000 lines. Past that, it gets a crate of its own (4.3). A codec crate with one family has no bound, as one schema is one crate (4.5).
 - **The figures are the user's:** 60,000 and 20,000 are proposals. Lines stand in for compile time, which a check can't read cheaply. Section 8's figure tells whether they stand in well.
 

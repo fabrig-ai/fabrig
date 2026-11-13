@@ -177,7 +177,7 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         problems.push(path.member(b"core.settings.proposals"), crate::What::Bound);
     }
     // Defaults and changes may name disjoint settings; model numbers share one 64-row range.
-    let inventory = match jig_domain_core::settings::capacity(core) {
+    let inventory = match jig_domain_core_vocabulary::settings::capacity(core) {
         Some(count) => inventory_settings(count),
         None => None,
     };
@@ -347,7 +347,7 @@ mod settings_tests {
     fn profile_core_shares_remain_representable() {
         for profile in [crate::Profile::Small, crate::Profile::Standard] {
             let limits = crate::profile(profile);
-            assert!(jig_domain_core::valid(&limits.core), "a profile's core limits are representable");
+            assert!(jig_domain_core_vocabulary::valid(&limits.core), "a profile's core limits are representable");
         }
     }
 }
@@ -436,7 +436,7 @@ pub(crate) fn check_public(limits: &crate::Limits, problems: &mut Problems) {
     }
 }
 
-fn public_index_bytes(limits: &jig_domain_core::Limits) -> Option<u64> {
+fn public_index_bytes(limits: &jig_domain_core_vocabulary::Limits) -> Option<u64> {
     u64::from(limits.public.goals)
         .checked_add(u64::from(limits.public.ended))?
         .checked_mul(u64::from(limits.public.lines))?

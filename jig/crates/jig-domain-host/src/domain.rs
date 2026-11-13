@@ -284,10 +284,13 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             hosted::finished(domain, env, owner, hosted::Last { turns, spent, finish, read }, out);
         }
         Event::RelayCancelled { run, attempt, call } => hosted::relay_cancelled(domain, run, attempt, &call, out),
+        Event::Drain => {
+            shutting_down(domain, out);
+            hosted::drain(domain, out);
+        }
         Event::CancelAll { reason } => {
             if reason == Reason::Shutdown {
-                out.push(Request::Up(LinkUp::Draining));
-                crate::sources::close(&mut domain.sources, out);
+                shutting_down(domain, out);
             }
             hosted::cancel_all(domain, reason);
         }
@@ -362,7 +365,15 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
     }
 }
 
-/// Cancels a run on the ready list, if one is, for its `CancelAll` reason.
+fn shutting_down(domain: &mut Hub, out: &mut Queue<Request>) {
+    if !domain.shut {
+        out.push(Request::Up(LinkUp::Draining));
+        crate::sources::close(&mut domain.sources, out);
+        domain.shut = true;
+    }
+}
+
+/// Cancels a run on the ready list, if one is, for its drain or `CancelAll` reason.
 /// Also fires due source checks, independently of the run slots.
 pub fn resume(domain: &mut Hub, env: &Env<Limits>, out: &mut Queue<Request>) {
     resume_runs(domain, env, out);

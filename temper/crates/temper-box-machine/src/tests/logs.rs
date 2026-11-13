@@ -215,7 +215,7 @@ fn directory_links_are_refused_without_touching_their_targets() {
         stop(&mut h);
         let root = h.machine.reopen_root(0);
         let fd = h.machine.open(root, b"elsewhere", How::DirectoryNoFollow).unwrap();
-        assert!(h.machine.list(fd, 32, 8192).unwrap().is_empty());
+        assert_eq!(h.machine.list(fd, 32, 8192).unwrap().len(), 0);
         h.machine.close(fd);
         h.machine.close(root);
         assert_eq!(h.machine.open_handles(), 0);

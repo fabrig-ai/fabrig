@@ -2,7 +2,7 @@
 mod patch;
 use crate::codec;
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 pub(crate) use patch::{Decode, Patch, Progress};
 use skein_lib::{Reader, Writer};
 // Leading length, CRC-32C and trailing length, each four bytes (protocol/store/transcripts.md 1).

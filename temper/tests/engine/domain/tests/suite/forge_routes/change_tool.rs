@@ -178,7 +178,7 @@ fn a_control_changes_choices_are_validated_before_delegation() {
             matches!(&answer, Some(engine::CallAnswer::DelegationRefused(problem)) if problem.why == expected),
             "{input:?}: {answer:?}"
         );
-        assert!(world.call_errors.is_empty());
+        assert_eq!(world.call_errors.len(), 0);
         assert!(!world.store.rows.keys().any(|key| matches!(key, Key::Forge(forge_top::Key::Change(_)))));
         assert_eq!(
             world
@@ -203,7 +203,7 @@ fn a_control_changes_producer_llm_is_admitted_and_saved() {
         br#"{"words":"Small fix","producer":1,"llm":{"producer":{"main":{"model":"scripted"}}}}"#,
     );
     let Some(engine::CallAnswer::Delegated(made)) = answer else { panic!("configured choices admitted: {answer:?}") };
-    assert!(world.call_errors.is_empty());
+    assert_eq!(world.call_errors.len(), 0);
     let row = stored_change(&world, made[0].task);
     assert_eq!(row.producing_charter, 1);
     assert_eq!(
@@ -967,7 +967,7 @@ fn a_chat_reads_the_job_attempt_printed_by_its_checks() {
 }
 
 fn pull_request_ci_world() -> World {
-    let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let small = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
     let mut world = World::configured_limits(
         true,
         true,
@@ -1123,7 +1123,7 @@ fn a_decoded_job_zero_read_reaches_the_fake_and_is_answered() {
         matches!(answer, engine::CallAnswer::ForgeRead(result) if result.as_ref() == &Err(skein_forge::api::Error::MissingJob))
     );
     assert_eq!(world.protocol.read_jobs.get(&name), Some(&pin));
-    let event = temper_service::render_for_task(
+    let event = temper_engine_service::render_for_task(
         to,
         answer,
         b"read_job",
@@ -1166,7 +1166,7 @@ fn a_chats_two_kib_change_lands_with_its_words_whole_in_the_producers_brief() {
     const WORD_BYTES: usize = 2048;
     let mut words = vec![b'x'; WORD_BYTES];
     words[..b"Export CSV\n".len()].copy_from_slice(b"Export CSV\n");
-    let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let small = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
     let mut world = World::configured_limits(
         true,
         true,

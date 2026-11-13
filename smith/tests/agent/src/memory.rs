@@ -280,7 +280,7 @@ impl Driver {
                 }]),
                 activation: self.workers,
                 window: smith_domain::Window { turns: u32::MAX, bytes: u64::MAX },
-                ..smith_domain::fixture::start(host_run, charter(brief))
+                ..smith_domain_fixtures::start(host_run, charter(brief))
             }));
         }
         if roll == 1 && !self.runs.is_empty() && self.rng.chance(100) {

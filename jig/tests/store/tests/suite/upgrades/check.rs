@@ -99,7 +99,7 @@ fn tokens_at_bounds_keep_numbers_across_many_pages() {
     world.crash(SEED);
     world.reopen();
     records.check(&mut world, 2, &"restart at patched levels");
-    assert!(world.patched().is_empty());
+    assert_eq!((world.patched()).len(), 0);
 }
 
 #[test]
@@ -443,7 +443,7 @@ fn manifest_bounds_refuse_sets_before_any_first_start_write() {
             world.refusal()
         );
         assert_eq!(world.contents(), before);
-        assert!(world.changes().is_empty());
+        assert_eq!((world.changes()).len(), 0);
     }
 }
 

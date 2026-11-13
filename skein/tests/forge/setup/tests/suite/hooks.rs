@@ -336,7 +336,7 @@ fn the_host_adopt_waits_for_the_secret_write_then_makes_the_hook_before_done() {
     };
     world.run_plan(1, plan.clone());
     world.settle();
-    assert!(world.heard().is_empty());
+    assert_eq!((world.heard()).len(), 0);
     assert!(world.file(Item::WebhookSecret).is_none());
     assert_eq!(world.store().repository_hooks(1).count(), 0);
     assert_eq!(world.tally().routes.get(&Route::ApiSettings), None);

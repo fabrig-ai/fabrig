@@ -1,10 +1,10 @@
 //! Hand-steered component exchanges (skein/docs/design/forge/connection.md, 10).
 use skein_forge::api;
-pub use skein_forge_connection::fixtures::{
+use skein_forge_connection::{Answered, Component, Event, Limits, Settings, Shared, settings::Kind, start::Start};
+pub use skein_forge_connection_fixtures::{
     BODY_ROOM, BRANCH, BRANCH_HEAD, FORGE, OP_BYTES, OTHER_FORGE, REPO, TOKEN, TOKEN_BOUND, USER_AGENT, WORD, WRITER,
     app_access, filled, github_settings, header, limits, ok, response, response_with_fields, settings, shared, user_ok,
 };
-use skein_forge_connection::{Answered, Component, Event, Limits, Settings, Shared, settings::Kind, start::Start};
 use skein_lib::{Duration, Env, List, Queue, Secret, Time, Wall};
 use std::boxed::Box;
 use std::ops::Bound::{Excluded, Unbounded};

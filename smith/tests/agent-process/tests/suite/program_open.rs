@@ -58,7 +58,7 @@ fn parked(run: &Run) {
         run.answer(),
         String::from_utf8_lossy(&run.errors)
     );
-    assert!(run.run_directories.is_empty());
+    assert_eq!(run.run_directories.len(), 0);
 }
 fn turns(run: &Run) -> Vec<smith_channel::Turn> {
     run.frames

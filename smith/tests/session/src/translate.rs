@@ -129,7 +129,7 @@ fn part(block: agent::Block, namespace: &Namespace) -> provider::Part {
         agent::Block::Text { text, .. } | agent::Block::Refusal { text, .. } => provider::Part::Text { text },
         agent::Block::Opaque { bytes } => provider::Part::Opaque { bytes },
         // The call goes back as the LLM wrote it.
-        agent::Block::ToolCall(agent::ToolCall { id, name, input, call: _, .. }) => {
+        agent::Block::ToolCall(agent::ToolCall { id, name, input, .. }) => {
             provider::Part::ToolCall { id, name, arguments: input }
         }
         agent::Block::ToolResult { id, result } => {

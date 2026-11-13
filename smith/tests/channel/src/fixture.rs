@@ -20,6 +20,6 @@ pub fn start(decoded: smith_protocol_translate::DecodedStart, host_run: Token) -
             .iter()
             .map(|grant| Grant { renewable: true, name: grant.name, valid: grant.valid })
             .collect(),
-        ..smith_domain::fixture::start(Token::new(1), decoded.charter)
+        ..smith_domain_fixtures::start(Token::new(1), decoded.charter)
     }
 }

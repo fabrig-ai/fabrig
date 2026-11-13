@@ -398,6 +398,11 @@ impl<P: ShellPlatform> Shell<P> {
             // navigating. The previous turn's close warning is already stale.
             web_sys::window().expect("window").set_onbeforeunload(None);
         }
+        if duties.reload {
+            let window = web_sys::window().expect("window");
+            window.set_onbeforeunload(None);
+            window.location().reload().expect("reload the engine's page");
+        }
         if let Some(to) = duties.replace {
             let window = web_sys::window().expect("window");
             window.set_onbeforeunload(None);

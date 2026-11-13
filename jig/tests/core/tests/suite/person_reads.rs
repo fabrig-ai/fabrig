@@ -39,7 +39,7 @@ fn a_run_reads_as_its_person_only_with_the_asking_family() {
                 let (to, key, answer) = world.person_answers.pop().expect("person read answer");
                 assert_eq!(to, token);
                 assert_eq!(answer, support::read(&mut world, signed, reads::Read::Project { project }));
-                assert!(world.answers.is_empty());
+                assert_eq!(world.answers.len(), 0);
                 key
             } else {
                 let (to, key, part) = world.answers.pop().expect("asking family refusal");
@@ -51,7 +51,7 @@ fn a_run_reads_as_its_person_only_with_the_asking_family() {
                         findings: Box::new([authority::Finding::Tool]),
                     }
                 );
-                assert!(world.person_answers.is_empty());
+                assert_eq!(world.person_answers.len(), 0);
                 key
             };
             assert_eq!(key.task, task);

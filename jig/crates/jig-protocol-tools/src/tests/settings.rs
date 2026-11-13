@@ -1,6 +1,6 @@
 //! The protocol stand carries settings reads, leaving complete rendering to the application.
 use crate::{Decoded, Problem, Why};
-use jig_domain_core::{NamedAction, SettingsRead, settings::Setting};
+use jig_domain_core_vocabulary::{NamedAction, SettingsRead, settings::Setting};
 
 #[test]
 fn settings_reads_decode_through_the_reading_tool_declaration() {

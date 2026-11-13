@@ -489,7 +489,7 @@ fn a_paused_owner_holds_the_connection_s_reads_and_its_reuse() {
             assert_eq!(read_bytes, bytes, "no response bytes are consumed during the pause");
             assert_eq!(deltas.len(), ONE_REQUEST, "only one datum was demanded");
             assert_eq!(complete_requests(&wire.received), ONE_REQUEST, "second call stays unbound");
-            assert!(completed.is_empty());
+            assert_eq!(completed.len(), 0);
             pause += 1;
             if pause == PAUSE_TURNS {
                 component.down(&env, Request::Next { call: FIRST }, &mut up, &mut io);

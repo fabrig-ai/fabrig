@@ -109,7 +109,6 @@ pub(crate) fn main(
                 words.text(b, Word::Asking, &[]);
                 b.close();
             }
-            super::session::to_terminal(b, words, bindings);
             super::chat_sheet::bar(b, root, words, bindings);
             if asking && task.result.is_none() && !super::chats::ended(&task.chip) {
                 b.open(Role::Button);
@@ -367,8 +366,15 @@ fn status_line(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words) {
     let Some(me) = root.pages().me(root.client()) else { return };
     let (token, name) = super::chats::status_words(
         &task.chip,
-        (&task.waits_on, Some(root.pages().chat().expect("chat page").waiting_delegates(root.client())), task.run_wait.as_ref()),
-        (task.project, task.requester), Some(&task.wake), me, words,
+        (
+            &task.waits_on,
+            Some(root.pages().chat().expect("chat page").waiting_delegates(root.client())),
+            task.run_wait.as_ref(),
+        ),
+        (task.project, task.requester),
+        Some(&task.wake),
+        me,
+        words,
     );
     let writing = jig_client::facts::chat_status(&task.chip, &task.waits_on, task.run_wait.as_ref(), task.project, me)
         == jig_client::facts::ChatStatus::Writing;
@@ -383,6 +389,9 @@ fn status_line(b: &mut Builder, root: &Domain, task: &c::Task, words: &Words) {
     b.style(look::STATUS_STAR);
     b.text(Run::Plain, &crate::shared::say(words, crate::shared::TerminalWord::Star));
     b.close();
+    if words.shell == Shell::Terminal {
+        b.text(Run::Plain, b" ");
+    }
     b.text(Run::Plain, &name);
     b.close();
 }

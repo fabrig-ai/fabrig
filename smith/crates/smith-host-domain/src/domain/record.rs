@@ -73,7 +73,15 @@ pub(super) fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bo
                         return false;
                     }
                 }
-                Some(Sent::Start | Sent::Message | Sent::Call(_) | Sent::Ack(_) | Sent::Grant | Sent::Cancel)
+                Some(
+                    Sent::Start
+                    | Sent::Message
+                    | Sent::Call(_)
+                    | Sent::Ack(_)
+                    | Sent::Grant
+                    | Sent::Cancel
+                    | Sent::Drain,
+                )
                 | None => {}
             }
             true

@@ -23,8 +23,12 @@ record PublicQueue { changes: list 64 PublicQueued }
 # The turn names a public landing through one of its member tasks, never its own task.
 versioned record PublicLandings { turn: option u16 landings: list 64 PublicLandingLine queues: list 64 PublicQueue }
 
-enum PublicLandingHold { faults }
+enum PublicLandingHold { faults, prepare, record, timeout, turn }
+enum PublicCombined { merge, squash }
+enum PublicLandingStep { waiting, preparing, proving, proved, turn, landed, held, cancelled, judging, leaving, recording, telling }
+enum PublicLeave { conflict, head_moved, cancelled, held, refused: PublicGateNumber, failed: PublicGateNumber }
+record PublicJudgement { prefix: fixed 32 verdict: PublicCi gates: list 64 PublicGate }
 enum PublicProof { unkeyed, keyed, dispatched, waiting, passed, failed }
-record PublicGateProof { number: u64 kind: PublicGateKind blocks: bool proof: PublicProof }
-record PublicMember { task: u16 base: option fixed 32 candidate: option fixed 32 landed: option fixed 32 gates: list 8 PublicGateProof }
-versioned record PublicLanding { phase: PublicLandingPhase hold: option PublicLandingHold preparation: u32 members: list 8 PublicMember stale_proofs: u32 holds_turn: bool }
+record PublicGateProof { number: u64 kind: PublicGateKind blocks: bool proof: PublicProof faults: u32 }
+record PublicMember { task: u16 base: option fixed 32 candidate: option fixed 32 landed: option fixed 32 gates: list 8 PublicGateProof head: option fixed 32 left: option PublicLeave judgement: option PublicJudgement }
+versioned record PublicLanding { phase: PublicLandingPhase hold: option PublicLandingHold preparation: u32 members: list 8 PublicMember stale_proofs: u32 holds_turn: bool combined: option PublicCombined step: option PublicLandingStep }

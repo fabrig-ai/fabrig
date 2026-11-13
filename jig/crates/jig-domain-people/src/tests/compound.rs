@@ -30,7 +30,7 @@ fn a_compound_sent_twice_under_one_key_is_routed_once() {
     test.signin(1, 10, identity(0, 1));
     test.send(Event::Roles { project: 1, holdings: Box::new([]) });
     let request = route(&test.request(10, 1, compound(2)));
-    assert!(test.request(10, 1, compound(2)).is_empty());
+    assert_eq!(test.request(10, 1, compound(2)).len(), 0);
     let outcome = Outcome::Compound { project: 1, operations: 2, first_message: 1 };
     let replies = test.send(Event::Decided { request, outcome: outcome.clone() });
     let mut answers = 0_u32;

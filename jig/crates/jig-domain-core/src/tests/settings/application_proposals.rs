@@ -684,6 +684,7 @@ fn proposal_key_overflow_is_refused_before_retaining_the_set() {
     clippy::disallowed_types,
     reason = "the panic payload is a String whose text must name the broken proposal link"
 )]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn restart_refuses_a_proposal_key_at_or_past_the_counter() {
     for key in [2, 3] {
         let (mut core, limits) = application_core();

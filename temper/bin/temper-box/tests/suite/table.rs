@@ -161,8 +161,8 @@ fn versions_are_the_engines_lines_and_refusals() {
     assert!(String::from_utf8_lossy(&output.stdout).lines().take(4).eq([
         "level skein 0",
         "level smith 0",
-        "level jig 2",
-        "level temper 4",
+        "level jig 3",
+        "level temper 5",
     ]));
     let refused = Command::new(skein_scratch::paths::binary("temper-box"))
         .args(["versions", "x"])

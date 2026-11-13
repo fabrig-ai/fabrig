@@ -36,17 +36,17 @@
 ><button type="button" class="temper-project-rename"
 >Rename Demo</button
 ><form aria-label="New project" class="temper-project-new"
-><label for="skein-ui-label-88"
+><label for="skein-ui-label-76"
 >New project</label
-><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-88"
+><input type="text" placeholder="+ New project" enterkeyhint="send" value="" id="skein-ui-label-76"
 ><button type="button"
 >Create</button
 ></form
-><a aria-label="How work runs for Demo" href="/projects/1/settings"
+><a aria-label="How work runs for Demo" class="temper-projects-phone" href="/projects/1/settings"
 ><span
 >How work runs for Demo</span
 ></a
-><a aria-label="Deployment" href="/accounts"
+><a aria-label="Deployment" class="temper-projects-phone" href="/accounts"
 ><span
 >Deployment</span
 ></a
@@ -80,25 +80,25 @@
 ></a
 ></div
 ><div class="temper-rail-new"
-><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-192" aria-expanded="false"
+><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-177" aria-expanded="false"
 >New draft or change</button
-><div role="menu" aria-label="New draft or change" id="skein-ui-menu-192" hidden=""
-><div role="menuitem" aria-label="Draft" aria-describedby="skein-ui-description-193"
+><div role="menu" aria-label="New draft or change" id="skein-ui-menu-177" hidden=""
+><div role="menuitem" aria-label="Draft" aria-describedby="skein-ui-description-178"
 ><span
 >Draft</span
-><span id="skein-ui-description-193"
+><span id="skein-ui-description-178"
 >A design session that ends in a goal, best had in the terminal.</span
 ></div
-><div role="menuitem" aria-label="Change" aria-describedby="skein-ui-description-194"
+><div role="menuitem" aria-label="Change" aria-describedby="skein-ui-description-179"
 ><span
 >Change</span
-><span id="skein-ui-description-194"
+><span id="skein-ui-description-179"
 >Ask for one change.</span
 ></div
-><div role="menuitem" aria-label="Ask temper" aria-describedby="skein-ui-description-195"
+><div role="menuitem" aria-label="Ask temper" aria-describedby="skein-ui-description-180"
 ><span
 >Ask temper</span
-><span id="skein-ui-description-195"
+><span id="skein-ui-description-180"
 >Ask about this project, or change how its work runs.</span
 ></div
 ></div
@@ -123,9 +123,9 @@
 >Deployment</span
 ></a
 ><div class="temper-rail-person"
-><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-116" aria-expanded="false"
+><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-104" aria-expanded="false"
 >Owner</button
-><div role="menu" aria-label="Owner" id="skein-ui-menu-116" hidden=""
+><div role="menu" aria-label="Owner" id="skein-ui-menu-104" hidden=""
 ><div role="menuitem"
 >Accounts</div
 ><div role="menuitem"
@@ -160,10 +160,6 @@
 >Chats</span
 ></a
 ><div class="temper-trail"
-><a aria-label="Demo" href="/projects/1"
-><span
->Demo</span
-></a
 ><a aria-label="Chats" href="/chats"
 ><span
 >Chats</span
@@ -175,10 +171,14 @@
 ></h1
 ></nav
 ><div class="temper-session-right"
-><button type="button" class="temper-add-draft"
->+ Draft</button
-><button type="button" class="temper-to-terminal"
->Terminal, full screen</button
+><div role="group" aria-label="The draft" class="temper-seg"
+><button type="button" aria-pressed="true"
+>Chat</button
+><button type="button" class="temper-seg-split" aria-keyshortcuts="Control+\"
+>Split</button
+><button type="button"
+>Draft</button
+></div
 ></div
 ></div
 ><section aria-label="Conversation" class="temper-convo"
@@ -224,13 +224,13 @@
 >Send</button
 ></div
 ><div class="temper-foot-row"
-><p aria-label="Enter sends · Shift+Enter for a new line" class="temper-session-hint"
+><p aria-label="Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft" class="temper-session-hint"
 ><span
->Enter sends · Shift+Enter for a new line</span
+>Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft</span
 ></p
 ><details data-folds-away="" class="temper-model"
 ><summary
->Model<span id="skein-ui-description-165"
+>Model<span id="skein-ui-description-150"
 > Scripted model</span
 ></summary
 ><div class="temper-model-menu"

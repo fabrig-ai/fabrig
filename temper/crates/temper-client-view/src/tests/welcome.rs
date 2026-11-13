@@ -80,10 +80,7 @@ fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
 fn temper_and_end(root: &d::Domain) {
     for view in [f::page_view(root), f::browser_page_view(root)] {
         assert_eq!(f::text(view.tree()).as_ref(), b"temperLive");
-        super::frame::assert_top_end(
-            &view,
-            &[(Role::Region, None)],
-        );
+        super::frame::assert_top_end(&view, &[(Role::Region, None)]);
         let main = view.tree().nodes().iter().find(|node| node.role == Role::Main).unwrap();
         assert_eq!(main.size, 1, "the main has no children");
         assert!(f::find(view.tree(), Role::Link, b"temper").is_some());
@@ -114,7 +111,7 @@ fn an_answer_showing_the_welcome_draws_its_frame_and_heading() {
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         node(view.tree(), Role::Heading { level: 1 }, "Welcome to temper");
         node(view.tree(), Role::List, "Steps");
-        assert!(String::from_utf8_lossy(&f::text(view.tree())).contains("temper box"));
+        assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("temper box"));
     }
 }
 fn choice_cards(tree: &skein_ui::Tree) -> Vec<&[u8]> {
@@ -205,8 +202,8 @@ fn the_sheet_opens_over_the_forge_choices() {
             .map(|n| n.value.as_ref().unwrap().text.as_ref())
             .collect();
         assert_eq!(values, [b"work".as_slice(), b"hello"]);
-        assert!(named(nodes, Role::TextArea).is_empty());
-        assert!(named(nodes, Role::Alert).is_empty());
+        assert_eq!(named(nodes, Role::TextArea).len(), 0);
+        assert_eq!(named(nodes, Role::Alert).len(), 0);
         assert_eq!(named(nodes, Role::Button), [b"Cancel".as_slice(), b"Run on this machine"]);
         let cancel = nodes.iter().find(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Cancel")).unwrap();
         assert_eq!(cancel.shortcut, Some(skein_ui::Shortcut::ESCAPE));
@@ -265,7 +262,7 @@ fn the_sheets_copies_take_addresses_and_are_not_made_yet() {
     start(&mut root, d::forge::forges::Start::Copies);
     let mut view = f::page_view(&root);
     let nodes = sheet(view.tree());
-    assert!(named(nodes, Role::TextField).is_empty());
+    assert_eq!(named(nodes, Role::TextField).len(), 0);
     assert_eq!(named(nodes, Role::TextArea), [b"Their addresses, one per line".as_slice()]);
     let area = nodes.iter().find(|n| n.role == Role::TextArea).unwrap();
     assert_eq!(area.placeholder.as_deref(), Some(b"github.com/owner/name".as_slice()));
@@ -290,13 +287,13 @@ fn the_sheets_copies_take_addresses_and_are_not_made_yet() {
         nodes.iter().find(|n| n.role == Role::TextArea).unwrap().value.as_ref().unwrap().text.as_ref(),
         b"github.com/a/b"
     );
-    assert!(named(nodes, Role::Alert).is_empty());
+    assert_eq!(named(nodes, Role::Alert).len(), 0);
     start(&mut root, d::forge::forges::Start::Nothing);
     let view = f::page_view(&root);
     let nodes = sheet(view.tree());
-    assert!(named(nodes, Role::Alert).is_empty());
-    assert!(named(nodes, Role::TextArea).is_empty());
-    assert!(named(nodes, Role::TextField).is_empty());
+    assert_eq!(named(nodes, Role::Alert).len(), 0);
+    assert_eq!(named(nodes, Role::TextArea).len(), 0);
+    assert_eq!(named(nodes, Role::TextField).len(), 0);
 }
 
 fn model_view(rows: skein_lib::List<w::ForgeRow>) -> crate::View {
@@ -518,21 +515,16 @@ fn the_welcome_frame_is_the_brand_the_steps_and_the_link_alone() {
             .as_slice()
             .contains(&crate::look::WELCOME_INTRO)
     );
-    super::frame::assert_top_end(
-        &view,
-        &[(Role::Region, None)],
-    );
+    super::frame::assert_top_end(&view, &[(Role::Region, None)]);
     let banner = tree.nodes().iter().position(|n| n.role == Role::Banner).unwrap();
     assert_eq!(tree.nodes()[banner].styles.as_slice(), [crate::look::TOP]);
     let brand = &tree.nodes()[banner + 1];
     assert_eq!(brand.name.as_deref(), Some(b"temper".as_slice()));
     let banner = &tree.nodes()[banner..banner + usize::try_from(tree.nodes()[banner].size).unwrap()];
     let mut child = 1;
-    for (role, style) in [
-        (Role::Link, crate::look::BRAND),
-        (Role::List, crate::look::FLOW_STEPS),
-        (Role::Slot, crate::look::TOP_END),
-    ] {
+    for (role, style) in
+        [(Role::Link, crate::look::BRAND), (Role::List, crate::look::FLOW_STEPS), (Role::Slot, crate::look::TOP_END)]
+    {
         assert_eq!(banner[child].role, role);
         assert!(banner[child].styles.as_slice().contains(&style));
         child += usize::try_from(banner[child].size).unwrap();
@@ -548,13 +540,17 @@ fn the_welcome_frame_is_the_brand_the_steps_and_the_link_alone() {
 }
 #[test]
 fn every_welcome_step_keeps_the_person_and_sign_out_alert_out_of_the_bar() {
-    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
+    {
         let mut root = f::welcome_root(step, true);
         f::root_event(&mut root, d::Event::Client { event: jig_client::Event::SignOutLost });
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             super::frame::assert_top_end(&view, &[(Role::Region, None)]);
             assert!(f::find(view.tree(), Role::Button, b"Sign out").is_none());
             assert!(f::find(view.tree(), Role::Alert, b"Sign out did not reach the engine.").is_none());
+            let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+            skein_ui_text::render(view.tree(), b"temper", None, &mut print);
+            assert!(!String::from_utf8_lossy(print.text.as_slice()).contains("Sign out"));
         }
     }
 }
@@ -564,7 +560,11 @@ fn the_box_paragraph_follows_the_cards_note_only_on_the_welcome_step() {
         let root = if offered {
             f::welcome_root(Step::WelcomeAsked, true)
         } else {
-            f::forge_root_accounts(Address::Welcome { step: Step::WelcomeAsked }, forge::rows(w::Connection::Connecting, w::Offer::Offered)).0
+            f::forge_root_accounts(
+                Address::Welcome { step: Step::WelcomeAsked },
+                forge::rows(w::Connection::Connecting, w::Offer::Offered),
+            )
+            .0
         };
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let tree = view.tree();
@@ -578,13 +578,22 @@ fn the_box_paragraph_follows_the_cards_note_only_on_the_welcome_step() {
             assert_eq!(tree.nodes()[start + usize::try_from(previous.size).unwrap()].id, line.id);
             let start = tree.nodes().iter().position(|n| n.id == line.id).unwrap();
             let runs: Vec<_> = tree.nodes()[start + 1].text.iter().map(|r| (r.run, r.text.as_ref())).collect();
-            assert_eq!(runs, [
-                (skein_ui::Run::Strong, b"temper box".as_slice()),
-                (skein_ui::Run::Plain, " · on this machine, to try it · more later, from Settings · ".as_bytes()),
-            ]);
+            assert_eq!(
+                runs,
+                [
+                    (skein_ui::Run::Strong, b"temper box".as_slice()),
+                    (skein_ui::Run::Plain, " · on this machine, to try it · more later, from Settings · ".as_bytes()),
+                ]
+            );
             let server = &tree.nodes()[start + 2];
             assert_eq!(server.name.as_deref(), Some("Run temper on a server ↗".as_bytes()));
             assert!(server.external.as_deref().is_some_and(|a| a.ends_with(b"/docs/help/server.md")));
+            let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+            skein_ui_text::render(tree, b"temper", None, &mut print);
+            let printed = String::from_utf8_lossy(print.text.as_slice());
+            let preceding = if offered { "playground then steps aside." } else { "Go on setting up" };
+            assert!(printed.find(preceding).unwrap() < printed.find("temper box").unwrap());
+            assert!(printed.contains("Run temper on a server"));
         }
     }
     for step in [Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {

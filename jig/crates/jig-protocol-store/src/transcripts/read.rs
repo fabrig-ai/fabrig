@@ -2,7 +2,7 @@
 use super::{File, Stage, frame};
 use crate::{Arrived, Below, Event, Limits, Phase, Store, TranscriptRead, codec, keys, open, reads};
 use alloc::boxed::Box;
-use jig_domain_core::{self as domain, TurnRecord};
+use jig_domain_core_vocabulary::{self as domain, TurnRecord};
 use jig_domain_tasks as tasks;
 use skein_io::file;
 use skein_lib::{List, Queue, Reader, Token, Writer, length::len_u64};

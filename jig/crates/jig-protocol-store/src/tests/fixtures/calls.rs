@@ -1,6 +1,6 @@
 //! Core call rows built from the store fixtures.
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_tasks as tasks;
 use skein_lib::Wall;
 
@@ -71,8 +71,8 @@ pub fn call_parts() -> Box<[core::CallPart]> {
         C::Unsubscribed,
         C::SubscriptionRefused(problem()),
         C::Delegated(Box::new([
-            jig_domain_core::Made { task: 2, revision: 0, given: None },
-            jig_domain_core::Made { task: 3, revision: 0, given: Some(40) },
+            jig_domain_core_vocabulary::Made { task: 2, revision: 0, given: None },
+            jig_domain_core_vocabulary::Made { task: 3, revision: 0, given: Some(40) },
         ])),
         C::DelegationDenied { answer: Answer::Refuse, findings },
         C::DelegationRefused(problem()),

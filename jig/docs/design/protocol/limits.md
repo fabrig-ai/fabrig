@@ -10,8 +10,10 @@
   Small's store page byte ceiling admits an application's page floor
   derived from the largest shipped ordinary transcript's full frame
   (`store/records.md`, 4); standard's admits the frame of smith's largest
-  turn (`store/transcripts.md`, 1), so any turn smith admits is stored. The
-  ceiling is accounting alone: page rows, chunks, decoder capacity,
+  turn (`store/transcripts.md`, 1), so any turn smith admits is stored.
+  Small also holds composed application settings history, including replaced
+  values; its value, page and chunk ceilings grow together when that row grows.
+  The ceiling is accounting alone: page rows, chunks, decoder capacity,
   queues and read slots keep their own bounds; the number and its
   derivation live beside `STORE_KV` in the profile.
 - **Standard's room for a whole spec:** its `hub.charter_bytes` is

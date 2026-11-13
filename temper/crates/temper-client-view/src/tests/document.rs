@@ -326,11 +326,11 @@ fn section_words(tree: &Tree, style: Style) -> Vec<u8> {
 }
 
 #[test]
-fn no_document_no_group_no_pane() {
+fn no_document_still_draws_the_chosen_empty_pane() {
     for mode in [Mode::Chat, Mode::Split, Mode::Draft] {
         let view = view(&root(None, mode, &[]), Shell::Browser);
-        assert!(styled(view.tree(), look::SEG).is_empty());
-        assert!(styled(view.tree(), look::DOC).is_empty());
+        assert_eq!(styled(view.tree(), look::SEG).len(), 0);
+        assert_eq!(styled(view.tree(), look::DOC).len(), usize::from(mode != Mode::Chat));
     }
 }
 #[test]
@@ -372,7 +372,7 @@ fn the_group_presses_its_mode() {
 fn chat_draws_no_pane() {
     let view = view(&root(Some(BODY), Mode::Chat, &[]), Shell::Browser);
     assert_eq!(styled(view.tree(), look::SEG).len(), 1);
-    assert!(styled(view.tree(), look::DOC).is_empty());
+    assert_eq!(styled(view.tree(), look::DOC).len(), 0);
     assert!(!f::text(view.tree()).windows(b"Write a draft.".len()).any(|w| w == b"Write a draft."));
 }
 #[test]
@@ -483,7 +483,7 @@ fn the_terminal_prints_the_document_after_the_conversation() {
             assert_eq!(section_words(view.tree(), look::DOC_MUTED), words.as_bytes());
             assert!(printed.lines().any(|printed| printed.trim() == line), "{printed}");
             assert!(f::find(view.tree(), Role::Region, TITLE).is_some());
-            assert!(styled(view.tree(), look::RAIL_UNFOLD).is_empty());
+            assert_eq!(styled(view.tree(), look::RAIL_UNFOLD).len(), 0);
         }
     }
 }
@@ -495,7 +495,7 @@ fn a_full_document_fits_the_views_limits() {
     assert_eq!(body.len(), usize::try_from(LONG).unwrap());
     for body in [body, vec![b'x'; usize::try_from(LONG).unwrap()], b"## h\n".repeat(13_107)] {
         let view = view(&root(Some(&body), Mode::Split, &[]), Shell::Browser);
-        assert!(styled(view.tree(), look::DOC).len() == 1);
+        assert_eq!(styled(view.tree(), look::DOC).len(), 1);
         let count: usize = view.tree().nodes().iter().flat_map(|node| node.text.iter()).map(|run| run.text.len()).sum();
         assert!(count >= body.iter().filter(|b| **b == b'x' || **b == b'h').count());
     }
@@ -553,7 +553,7 @@ fn a_first_write_says_wrote() {
         let view = view(&root(Some(BODY), Mode::Chat, &[FIRST]), shell);
         let line = String::from_utf8(section_words(view.tree(), look::TURN_TOOL)).unwrap();
         assert_eq!(line, "Wrotehow-shop-works.md12 lines");
-        assert!(styled(view.tree(), look::TOOL_FILE).len() == 1);
+        assert_eq!(styled(view.tree(), look::TOOL_FILE).len(), 1);
         assert!(f::find(view.tree(), Role::Disclosure, b"note").is_none());
     }
     let view = view(&root(None, Mode::Chat, &[FIRST]), Shell::Browser);
@@ -638,7 +638,7 @@ fn show_presses_its_line() {
 fn show_flashes_and_focuses_the_section() {
     let mut root = root(Some(BODY), Mode::Chat, &[LATER]);
     let mut view = view(&root, Shell::Browser);
-    assert!(styled(view.tree(), look::DOC_FLASH).is_empty());
+    assert_eq!(styled(view.tree(), look::DOC_FLASH).len(), 0);
     let show = f::find(view.tree(), Role::Button, b"Show").unwrap();
     let mut previous_flash = None;
     let mut sections = None;
@@ -676,24 +676,6 @@ fn the_hint_names_the_key_only_with_a_document() {
     }
 }
 
-#[test]
-fn no_document_no_group_on_a_chat() {
-    for shell in [Shell::Browser, Shell::Terminal] {
-        let empty = view(&root(None, Mode::Chat, &[]), shell);
-        assert!(styled(empty.tree(), look::SEG).is_empty());
-        let view = view(&root(Some(BODY), Mode::Chat, &[]), shell);
-        let nodes = view.tree().nodes();
-        let byline = nodes.iter().position(|node| node.styles.as_slice().contains(&look::SESSION_RIGHT)).unwrap();
-        let group = nodes.iter().position(|node| node.styles.as_slice().contains(&look::SEG)).unwrap();
-        assert_eq!(group, byline + if shell == Shell::Browser { 3 } else { 1 });
-        let terminal = nodes.iter().position(|node| node.styles.as_slice().contains(&look::TO_TERMINAL));
-        assert_eq!(terminal.is_some(), shell == Shell::Browser);
-        if let Some(terminal) = terminal {
-            assert!(terminal > group);
-        }
-    }
-}
-
 pub(super) fn offered(body: Option<&[u8]>, ended: bool) -> d::Domain {
     document_root(
         body,
@@ -706,74 +688,99 @@ fn plus(tree: &Tree) -> bool {
     tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"+ Draft"))
 }
 #[test]
-fn plus_draft_shows_when_the_setting_offers_it() {
-    for (body, state, offered) in [
+fn the_group_shows_for_a_document_or_a_live_offer() {
+    for (body, state, shows) in [
         (None, ProposalState::DraftOffered, true),
         (None, ProposalState::Ordinary, false),
         (None, ProposalState::NotProposed, true),
-        (Some(BODY), ProposalState::NotProposed, false),
+        (None, ProposalState::EndedDraftOffered, false),
+        (Some(BODY), ProposalState::EndedDraftOffered, true),
+        (Some(BODY), ProposalState::Ordinary, true),
     ] {
         for shell in [Shell::Browser, Shell::Terminal] {
-            let mut root = document_root(body, Mode::Chat, &[], state);
+            let root = document_root(body, Mode::Chat, &[], state);
             let mut shown = view(&root, shell);
-            assert_eq!(plus(shown.tree()), offered);
-            if offered {
-                let node = shown.tree().nodes().iter().find(|node| node.name.as_deref() == Some(b"+ Draft")).unwrap();
-                assert!(node.styles.as_slice().contains(&look::ADD_DRAFT));
-                let id = node.id;
-                assert_eq!(crate::act(&mut shown, id, skein_ui::Act::Press), Some(d::Action::Pages(Act::AddDraft)));
+            assert!(!plus(shown.tree()));
+            assert_eq!(!styled(shown.tree(), look::SEG).is_empty(), shows);
+            if shows {
+                let chat = f::find(shown.tree(), Role::Button, b"Chat").unwrap();
+                assert!(shown.tree().find(chat).unwrap().states.as_slice().contains(&State::Pressed));
+                for (name, mode) in [(b"Chat".as_slice(), Mode::Chat), (b"Split", Mode::Split), (b"Draft", Mode::Draft)]
+                {
+                    let id = f::find(shown.tree(), Role::Button, name).unwrap();
+                    assert_eq!(
+                        crate::act(&mut shown, id, skein_ui::Act::Press),
+                        Some(d::Action::Pages(Act::Mode { mode }))
+                    );
+                }
             }
-            f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(Act::AddDraft) });
-            let chat = root.pages().chat().unwrap();
-            assert_eq!(chat.writing, offered);
-            assert_eq!(chat.mode, if offered { Mode::Split } else { Mode::Chat });
+            if !styled(shown.tree(), look::SESSION_HINT).is_empty() {
+                let hint = section_words(shown.tree(), look::SESSION_HINT);
+                assert_eq!(String::from_utf8(hint).unwrap().contains(" · Ctrl+\\ switches the draft"), shows);
+            }
         }
     }
 }
 #[test]
-fn none_on_an_ended_chat() {
-    for shell in [Shell::Browser, Shell::Terminal] {
-        assert!(!plus(view(&offered(None, true), shell).tree()));
-    }
-}
-#[test]
-fn none_with_a_document() {
-    for shell in [Shell::Browser, Shell::Terminal] {
-        assert!(!plus(view(&offered(Some(BODY), false), shell).tree()));
-    }
-}
-#[test]
 fn the_empty_pane() {
-    let mut root = offered(None, false);
-    f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(Act::AddDraft) });
-    for shell in [Shell::Browser, Shell::Terminal] {
-        let view = view(&root, shell);
-        assert_eq!(skein_ui::outline::check(view.tree()), None);
-        assert!(!plus(view.tree()), "the first press removes the action");
-        assert_eq!(styled(view.tree(), look::MODE_SPLIT).len(), 1);
-        assert_eq!(section_words(view.tree(), look::DOC_EMPTY), b"The draft appears here as you write it together.");
-        let path = section_words(view.tree(), look::DOC_PATH);
-        assert!(path.starts_with(b"untitled.md"));
-        assert!(path.ends_with(b"writing"));
+    for (state, path) in [
+        (ProposalState::DraftOffered, b"untitled.md".as_slice()),
+        (ProposalState::NotProposed, b"T9 \xc2\xb7 no draft yet"),
+    ] {
+        for (mode, style) in [(Mode::Split, look::MODE_SPLIT), (Mode::Draft, look::MODE_DRAFT)] {
+            let mut root = document_root(None, mode, &[], state);
+            for writing in [false, true] {
+                if writing {
+                    d::step(
+                        &mut root,
+                        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() },
+                        d::Event::Act { action: d::Action::Pages(Act::AddDraft) },
+                        &mut Queue::uncapped(),
+                    );
+                }
+                for shell in [Shell::Browser, Shell::Terminal] {
+                    let mut shown = view(&root, shell);
+                    assert_eq!(skein_ui::outline::check(shown.tree()), None);
+                    assert_eq!(styled(shown.tree(), style).len(), 1);
+                    assert!(f::find(shown.tree(), Role::Region, b"Draft").is_some());
+                    assert_eq!(
+                        section_words(shown.tree(), look::DOC_EMPTY),
+                        b"The draft appears here as you write it together."
+                    );
+                    let line = section_words(shown.tree(), look::DOC_PATH);
+                    assert!(line.starts_with(path), "{line:?}");
+                    assert_eq!(line.ends_with(b"writing"), writing);
+                    let button = f::find(shown.tree(), Role::Button, b"Write it up from this chat");
+                    assert_eq!(button.is_some(), !writing);
+                    if let Some(button) = button {
+                        assert!(shown.tree().find(button).unwrap().styles.as_slice().contains(&look::DOC_WRITE_UP));
+                        assert_eq!(
+                            crate::act(&mut shown, button, skein_ui::Act::Press),
+                            Some(d::Action::Pages(Act::AddDraft))
+                        );
+                    }
+                }
+            }
+        }
     }
 }
 #[test]
-fn an_empty_thread_names_its_draft() {
+fn an_empty_thread_names_its_draft_only_once_it_is_writing() {
     for body in [None, Some(BODY)] {
         let mut root = document_root(body, Mode::Chat, &[], ProposalState::UnsendableDraftOffered);
         if body.is_none() {
             f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(Act::AddDraft) });
         }
         let view = view(&root, Shell::Browser);
-        let words = section_words(view.tree(), look::META_LINE);
-        assert_eq!(
-            words,
-            if body.is_some() {
-                b"A chat that writes how-shop-works.md. Say what it should hold.".as_slice()
-            } else {
-                b"A chat that writes a draft. Say what it should hold."
-            }
-        );
+        if body.is_some() {
+            assert_eq!(
+                section_words(view.tree(), look::META_LINE),
+                b"A chat that writes how-shop-works.md. Say what it should hold."
+            );
+        } else {
+            assert!(!root.pages().chat().unwrap().writing);
+            assert_eq!(styled(view.tree(), look::META_LINE).len(), 0);
+        }
     }
 }
 

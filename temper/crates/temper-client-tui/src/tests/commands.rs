@@ -212,14 +212,14 @@ fn the_tui_offers_its_commands() {
         ("launchpad no picker", true, false, false, false, false, true, &[New, Chats, Help, Exit][..]),
         ("no project", false, false, false, false, false, true, &[Help, Exit][..]),
         (
-            "chat writing",
+            "chat write-up refused",
             true,
             true,
             true,
             false,
             false,
             true,
-            &[Model, Effort, Draft, Pause, Close, New, Chats, Help, Exit][..],
+            &[Model, Effort, Pause, Close, New, Chats, Help, Exit][..],
         ),
         ("chat", true, true, true, false, false, true, &[Model, Effort, Pause, Close, New, Chats, Help, Exit][..]),
         ("chat delegate", true, true, true, true, false, true, &[Model, Effort, Pause, New, Chats, Help, Exit][..]),
@@ -245,14 +245,14 @@ fn the_tui_offers_its_commands() {
         ),
     ] {
         let mut root = root(project, picker, chat, delegate, draft, efforts);
-        if name == "chat writing" {
+        if name == "chat write-up refused" {
             f::event(
                 &mut root,
                 Event::Act {
                     action: d::Action::Pages(d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Draft })),
                 },
             );
-            assert!(root.pages().chat().unwrap().writing);
+            assert!(!root.pages().chat().unwrap().writing, "Message is not offered");
         }
         let task = if let Some(chat) = root.pages().chat() { chat.task(root.client()) } else { None };
         if chat {

@@ -161,6 +161,9 @@ pub(super) fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
     let member = f::PublicMember::new(
         &f::CEILINGS,
         f::PublicMemberParts {
+            head: None,
+            left: None,
+            judgement: None,
             task: 1,
             base: None,
             candidate: None,
@@ -172,6 +175,8 @@ pub(super) fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
     let landing = f::PublicLanding::new(
         &f::CEILINGS,
         f::PublicLandingParts {
+            combined: None,
+            step: None,
             phase: f::PublicLandingPhase::Landed,
             hold: None,
             preparation: 0,
@@ -196,6 +201,7 @@ pub(super) fn landing_commits(
     let gate = f::PublicGateProof::new(
         &f::CEILINGS,
         f::PublicGateProofParts {
+            faults: 0,
             number: 3,
             kind: f::PublicGateKind::Check,
             blocks: false,
@@ -205,12 +211,23 @@ pub(super) fn landing_commits(
     .expect("proof");
     let member = f::PublicMember::new(
         &f::CEILINGS,
-        f::PublicMemberParts { task: 0, base, candidate, landed, gates: List::from_boxed(Box::new([gate])) },
+        f::PublicMemberParts {
+            head: None,
+            left: None,
+            judgement: None,
+            task: 0,
+            base,
+            candidate,
+            landed,
+            gates: List::from_boxed(Box::new([gate])),
+        },
     )
     .expect("member");
     let landing = f::PublicLanding::new(
         &f::CEILINGS,
         f::PublicLandingParts {
+            combined: None,
+            step: None,
             phase: f::PublicLandingPhase::Landed,
             hold: None,
             preparation: 0,

@@ -99,7 +99,7 @@ fn every_closed_offer_control_and_whole_refusal_fits_the_public_card_tree_with_t
         }
         assert!(total <= u64::from(limits.text_bytes));
         if refused {
-            assert!(decoded.is_empty());
+            assert_eq!(decoded.len(), 0);
             goldens.check(&tree);
             let revisions = tree
                 .nodes()

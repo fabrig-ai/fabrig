@@ -186,6 +186,21 @@ Chances are per mille, in `Config`, and drawn from the domain's seed.
   base to the head and refuses one that does not contain the base's tip
   (`Conflict`); an update by rebase replays the branch's commits onto the
   base's tip and refuses a conflict, as a merge update does.
+- **A merge recorded at a commit** (`Merge` with `how` `Recorded {
+  commit }`) moves nothing: an open pull request whose base contains
+  `commit` reads merged at it, its head and branch as they were; one
+  whose base lacks it, or a repository whose settings allow no manual
+  merge, is refused (`Refused`). A record repeated at the same commit on
+  a pull request it merged answers `Merged` again.
+- **Manual merges,** two settings of a repository, each off unless a
+  world sets it, as Forgejo's: `allow_manual_merge` admits a record;
+  `autodetect_manual_merge` marks an open pull request merged once its
+  base branch, moved by any write, contains its head, merged at the
+  first merge commit on the ancestry path from its head to the base's
+  tip, or at its head where there is none (a fast-forward), as Forgejo's
+  detection reads it. Nothing else of the pull request moves.
+  Both settings survive an image. Images append a tagged settings table
+  when either is enabled; an image without the table keeps both off.
 - **Trees:** every commit's tree is read through `Read::Tree`, its
   entries in name order, paged.
 - **A run's report:** a workflow may name failing tests by id (`fails:
@@ -397,11 +412,15 @@ against.
 - **The calls** are `Op::Git`. `Clone` (every branch, and the default) and
   `Fetch { Branch | Commit | Default }` (the commit and those before it, by
   both parents) need read permission. `Push { branch, commit, expected }`
-  and `Create { branch, commit }` need write; a protected branch takes
-  neither.
+  `Create { branch, commit }` and `PushNew { branch, commit }` need write;
+  a protected branch takes none of them.
 - **A push** moves a branch by a fast-forward, or creates it; any other move
   is `Rejected`. A given `expected` must be the branch's head, or the push
-  is rejected. A creation answers `Created` or `Exists`.
+  is rejected. `Create` requires the repository already to hold the commit
+  and answers `Created` or `Exists`. `PushNew` uploads the store commit and
+  its ancestry, as `Push` does, only under an empty branch lease: it creates
+  an absent branch, or answers the existing head without moving it or
+  transferring objects. The check and creation are one domain call.
 - **Every move of a branch** is observed, starts CI on the new head, and
   moves the head of each open pull request that follows it. `advance` is
   the world's other party moving a branch under a run.
@@ -539,7 +558,7 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   a JSON number; a branch or repository name is a string; paths, contents
   and messages are base64, so bytes cross whole. The tally counts it
   route by route, and the byte faults reach it as they reach every route.
-- **The repository's calls** are `clone`, `fetch`, `create` and `push`,
+- **The repository's calls** are `clone`, `fetch`, `create`, `push` and `push-new`,
   section 3's `Op::Git` one for one, and `branch`, the domain's read of a
   branch's head, which a fake asks to word its output as git does. Each
   names a repository by its full name and is one domain call, with
@@ -551,7 +570,8 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   naming it: `403` forbidden, protected or refused, so the caller knows
   it was known; `404` missing, naming the repository, branch or commit;
   `502` unreachable; and `429`, `503` and `500` as above. A push answers
-  pushed or rejected, a creation created or exists, both `200`.
+  pushed or rejected, a creation created or exists; `push-new` answers
+  `existing: null` on creation or the unchanged head, all `200`.
 - **The store's calls** reach git's object database, which is the
   domain's: `objects` reads commits, `commit`, `merge` and `commit-tree`
   store them as section 3's scenario functions do, and `ancestor` asks
@@ -588,6 +608,9 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
     "message"}` with optional `"merging"`. Each answers `{"commit":N|null}`;
     trees carry `[{"path", "content"}]` as above.
   - `ancestor`: `{"ancestor", "commit"}` answers `{"ancestor":true|false}`.
+  - `push-new`: `{"repository", "branch", "commit"}` answers
+    `{"existing":N|null}`, the head when the branch exists, or `null` when
+    this call created it by uploading the commit.
   - An error answers `{"error": NAME}`, NAME the domain error in snake
     case (`missing`, `rate_limited`, `already_queued`, ...), with the
     members that error carries: `"what"` for `missing` (`"repository"`,
@@ -644,8 +667,9 @@ and what the two layers share (`github.md`, section 3), and holds no clock of it
   setup store whole: its accounts, issued tokens, organizations, teams,
   subscriptions, collaborators, repository hooks and privacy, and the
   counters that number them, so that a token issued before a restart
-  still acts as its account after it; and the hooks' endpoint the owner
-  set. A restore replaces those on a service built from the same
+  still acts as its account after it. It also keeps the runtime repository
+  table, including repositories created or copied after startup, and the
+  hooks' endpoint the owner set. A restore replaces those on a service built from the same
   configuration, and refuses, naming what, an image that does not
   decode or holds past the store's bounds. What lasts one connection
   (its decoded requests, refusals the setup world turned) is not kept.

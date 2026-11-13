@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::{What, files};
 
-fn model(bytes: &[u8]) -> jig_domain_core::Model {
+fn model(bytes: &[u8]) -> jig_domain_core_vocabulary::Model {
     fixtures::engine(bytes).unwrap().llm.models.first().unwrap().model.clone()
 }
 fn model_path(name: &[u8]) -> crate::Path {
@@ -471,7 +471,7 @@ fn model_shown_and_picker_reach_the_client_catalogue() {
         assert_eq!(model.picker, picker);
         assert_eq!(model.effort.as_deref(), effort);
         let wire = jig_protocol_engine_clients::translate::llm::models(
-            &[jig_domain_core::Offered { model: 0, accounts: skein_lib::List::with_capacity(0) }],
+            &[jig_domain_core_vocabulary::Offered { model: 0, accounts: skein_lib::List::with_capacity(0) }],
             &models,
             &jig_client_protocol_wire::v20::CEILINGS,
         )

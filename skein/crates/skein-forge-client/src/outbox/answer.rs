@@ -221,9 +221,13 @@ fn pulled(d: &mut Domain, env: &Env<Limits>, number: u64, phase: Phase, pull: ap
                     super::retry::not_found(d, env, number, out);
                 }
             }
-            Write::Merge { head, .. } => {
+            Write::Merge { head, how, .. } => {
                 if let Some(merged) = pull.merged {
-                    if pull.commit == *head {
+                    let ours = match how {
+                        api::MergeHow::Style | api::MergeHow::FastForwardOnly => pull.commit == *head,
+                        api::MergeHow::Recorded { commit } => merged == *commit,
+                    };
+                    if ours {
                         merge_verified(d, env, number, pull, merged, true, out);
                     } else {
                         super::finish(d, env, number, Outcome::Failed(Error::Stale), out);

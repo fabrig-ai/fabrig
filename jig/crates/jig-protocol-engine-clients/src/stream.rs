@@ -2,7 +2,7 @@
 use crate::{Limits, translate::watches as translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use skein_lib::{Env, Map, Time, Token};
 #[derive(Debug)]
 pub(crate) struct Watch {

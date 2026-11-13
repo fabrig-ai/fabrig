@@ -1,7 +1,7 @@
 //! Whole selected page rows and their owner continuations (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{cursor, w};
 use alloc::boxed::Box;
-use jig_domain_core::reads;
+use jig_domain_core_vocabulary::reads;
 mod documents;
 mod rows;
 
@@ -141,7 +141,7 @@ pub(super) fn tasks(page: &reads::TaskPage, limits: &w::Limits) -> Result<w::Rea
     )?))
 }
 fn task_pieces(
-    lines: &skein_lib::List<jig_domain_core::documents::TaskLine>,
+    lines: &skein_lib::List<jig_domain_core_vocabulary::documents::TaskLine>,
     limits: &w::Limits,
     bound: u32,
     path: w::Path,

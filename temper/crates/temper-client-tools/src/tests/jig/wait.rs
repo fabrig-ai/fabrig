@@ -985,8 +985,8 @@ fn inbox_read(
     let mut root = f::signed_in(f::PARTY);
     let argv = f::extended(f::INBOX_CALL, if json { &["--json"] } else { &[] });
     let call = root.submit(argv.as_slice());
-    let delivery;
-    if owner {
+
+    let delivery = if owner {
         let (mut needs_page, mut window) = f::owner_first_window(needs, false);
         let (mut updates_page, _) = f::owner_first_window(updates, false);
         for index in 0..updates_page.rows.len() {
@@ -1004,14 +1004,14 @@ fn inbox_read(
         if !needs_more {
             root.serve(call, c::ReadResult::Value(c::ReadValue::Inbox(Box::new(updates_page))));
         }
-        delivery = c::Delivery::Inbox(Box::new(window));
+        c::Delivery::Inbox(Box::new(window))
     } else {
         root.serve(call, f::inbox_rows(c::InboxReadGroup::Needs, needs, needs_more));
         if !needs_more {
             root.serve(call, f::inbox_rows(c::InboxReadGroup::Updates, updates, false));
         }
-        delivery = c::Delivery::Inbox(Box::new(f::inbox_window(needs, updates, false)));
-    }
+        c::Delivery::Inbox(Box::new(f::inbox_window(needs, updates, false)))
+    };
     assert!(root.answer(call).is_none(), "read needs the watch's form too");
     root.deliver_subject(&f::inbox_watch(), delivery.clone());
     let read = root.answer(call).expect("read and first window delivered");
@@ -1236,7 +1236,7 @@ fn a_met_owner_inbox_wait_prints_the_plain_reads_question_and_calls() {
             #[expect(clippy::disallowed_methods, reason = "the test checks a UTF-8 boundary in bounded output")]
             let shown = core::str::from_utf8(&plain.stdout).expect("cut at a character");
             let words = shown.lines().nth(1).expect("words line").strip_suffix(" (cut)").expect("cut marker");
-            assert!(!words.is_empty());
+            assert_ne!(words, "");
             assert!(words.len() < question.words.bytes().len());
         } else {
             assert!(f::has(&plain, INBOX_QUESTION));

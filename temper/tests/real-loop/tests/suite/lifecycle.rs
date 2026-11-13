@@ -3,7 +3,7 @@
 fn a_started_service_drains_on_termination() {
     use temper_real_loop_world::{End, run, scripts};
     let ran = run(|| scripts::chat_scripts(1), Vec::new);
-    assert_eq!(ran.served(), Some(&End::Drained), "link {:?}", ran.link());
+    assert_eq!(ran.served(), Some(&End::Engine(temper_service::EngineEnd::Drained)), "link {:?}", ran.link());
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn a_service_stops_its_held_claude_turn_before_ending() {
     for called in ran.calls() {
         assert_eq!(called.exit, Some(Exit::Code(0)), "{called:?}");
     }
-    assert_eq!(ran.served(), Some(&End::Drained));
+    assert_eq!(ran.served(), Some(&End::Engine(temper_service::EngineEnd::Drained)));
     let bytes =
         std::fs::read(ran.path().join("programs").join(claude::SOURCE).join(smith_fake_claude::OBSERVATIONS_FILE))
             .expect("fake observations");

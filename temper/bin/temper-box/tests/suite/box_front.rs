@@ -1,13 +1,10 @@
 //! The box as its parent's child (temper/docs/design/protocol/setup/box.md, 6).
-#[expect(dead_code, reason = "the shared box fixture also supports ordinary pipe stories")]
-#[expect(clippy::duplicate_mod, reason = "the front and listener stories share sign-in helpers")]
-#[path = "../fake_backends/box_link.rs"]
-mod box_link;
 use crate::support::{self, patience::Patience};
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Queue, Token};
 use skein_shell::{Config, Kernel, Wait, keeper};
 use std::{collections::BTreeMap, fs, os::unix::ffi::OsStrExt, path::Path};
+use temper_box_kit::box_link;
 
 const OPERATIONS: u32 = 12;
 const OUTPUT_BYTES: usize = 262_144;

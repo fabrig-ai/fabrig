@@ -1,3 +1,4 @@
+//! Step-test fixtures (smith/docs/design/testing.md, section 7).
 //! Named typed inputs shared by projection and composition tests.
 
 use alloc::boxed::Box;

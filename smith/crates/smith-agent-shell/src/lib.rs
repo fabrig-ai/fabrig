@@ -9,8 +9,6 @@ mod agent_shell;
 pub use smith_agent_document::{config, trace};
 #[cfg(unix)]
 pub mod dump;
-#[cfg(any(test, feature = "fixture"))]
-pub use smith_agent_document::fixture;
 pub mod list;
 #[cfg(unix)]
 pub use smith_agent_document::program;

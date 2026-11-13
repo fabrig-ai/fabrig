@@ -2,7 +2,7 @@
 use super::super::{Untranslatable, asks, operations, w};
 use alloc::boxed::Box;
 use jig_domain_authority as a;
-use jig_domain_core::{self as c, settings as s};
+use jig_domain_core_vocabulary::{self as c, settings as s};
 use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{List, Reader};

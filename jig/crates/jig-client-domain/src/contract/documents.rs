@@ -771,7 +771,8 @@ fn kind_weight(kind: &super::MessageKind) -> u64 {
             super::WordResult::Report
             | super::WordResult::Change { .. }
             | super::WordResult::Failed
-            | super::WordResult::Cancelled => 0,
+            | super::WordResult::Cancelled
+            | super::WordResult::Job => 0,
         },
         super::MessageKind::QuestionOwed
         | super::MessageKind::NothingAwaited

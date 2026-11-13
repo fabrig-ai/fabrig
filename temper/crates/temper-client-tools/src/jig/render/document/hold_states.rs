@@ -100,6 +100,7 @@ pub(super) fn encode_hold_failure(
         jig_client::contract::HoldFailure::Agent => out.string(b"agent"),
         jig_client::contract::HoldFailure::Lost => out.string(b"lost"),
         jig_client::contract::HoldFailure::Invalid => out.string(b"invalid"),
+        jig_client::contract::HoldFailure::Infrastructure => out.string(b"infrastructure"),
     }
 }
 

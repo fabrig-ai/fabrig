@@ -319,19 +319,19 @@ fn a_start_from_ask_keeps_its_templates_models() {
         (true, Some(llm(b"unoffered")), false),
     ] {
         for act in [Act::StartChat, Act::AskHow] {
-        let mut page = Page::new(me.clone(), Address::Ask { project: fixtures::PROJECT });
-        page.words(b"My workflow");
-        assert_eq!(page.pages.choice.requested, Some(expected.clone()));
-        if edited {
-            page.pages.choice.requested = requested.clone();
-        }
-        assert_eq!(page.pages.choice.valid(&me), valid);
-        page.act(act);
-        if valid {
-            assert_eq!(page.task().llm, requested);
-        } else {
-            assert!(fixtures::acts::sent(&mut page.out).is_empty(), "an unoffered draft sends no Create");
-        }
+            let mut page = Page::new(me.clone(), Address::Ask { project: fixtures::PROJECT });
+            page.words(b"My workflow");
+            assert_eq!(page.pages.choice.requested, Some(expected.clone()));
+            if edited {
+                page.pages.choice.requested = requested.clone();
+            }
+            assert_eq!(page.pages.choice.valid(&me), valid);
+            page.act(act);
+            if valid {
+                assert_eq!(page.task().llm, requested);
+            } else {
+                assert!(fixtures::acts::sent(&mut page.out).is_empty(), "an unoffered draft sends no Create");
+            }
         }
     }
 }
@@ -998,9 +998,12 @@ fn asking_how_sends_once_without_touching_the_composer() {
         assert_eq!(page.pages.chats().unwrap().words, before);
         let key = page.pages.chats().unwrap().start.unwrap();
         page.event(crate::pages::Event::Told {
-            told: Told::Answered { key, outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
-                what: Made::Tasks { tasks: List::from_boxed(Box::new([fixtures::acts::TASK])) },
-            }))) },
+            told: Told::Answered {
+                key,
+                outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Done(Outcome::Made {
+                    what: Made::Tasks { tasks: List::from_boxed(Box::new([fixtures::acts::TASK])) },
+                }))),
+            },
         });
         assert_eq!(page.out.pop(), Some(Request::Show { address: Address::Chat { task: fixtures::acts::TASK } }));
         assert!(page.out.is_empty());
@@ -1042,7 +1045,10 @@ fn asking_how_keeps_start_guards_and_refusals() {
     page.act(Act::AskHow);
     let key = page.pages.chats().unwrap().start.unwrap();
     page.task();
-    let outcome = jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Refused { refusal: Refusal::NotOffered, at: None }));
+    let outcome = jig_client::Outcome::Answered(jig_client::Answered::Jig(Answer::Refused {
+        refusal: Refusal::NotOffered,
+        at: None,
+    }));
     page.event(crate::pages::Event::Told { told: Told::Answered { key, outcome: outcome.clone() } });
     let chats = page.pages.chats().unwrap();
     assert_eq!(chats.outcome, Some(outcome));

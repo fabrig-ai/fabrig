@@ -76,6 +76,13 @@ pub enum Received {
     WriteFailed,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Stopping {
+    Waiting,
+    Draining,
+    Cancelled,
+}
+
 /// The initiator's framed channel and checked sending terms.
 #[derive(Debug)]
 pub struct Component {
@@ -91,7 +98,7 @@ pub struct Component {
     calls_by_token: Map<Token, CallKey>,
     next_call: u64,
     now: Time,
-    cancelled: bool,
+    stopping: Stopping,
     endpoints: smith_protocol_translate::Endpoints,
     charter: smith_charter::v4::Limits,
     transcript: smith_transcript::v7::Limits,
@@ -131,7 +138,7 @@ impl Component {
             calls_by_token: Map::with_capacity(limits.calls),
             next_call: 1,
             now: Time::ZERO,
-            cancelled: false,
+            stopping: Stopping::Waiting,
             endpoints,
             charter: limits.charter,
             transcript: limits.transcript,
@@ -290,12 +297,29 @@ impl Component {
         to_service: &mut Queue<Received>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.state != State::Started && self.state != State::Admitted || self.cancelled {
+        if self.state != State::Started && self.state != State::Admitted || self.stopping == Stopping::Cancelled {
             return Err(Error::Order);
         }
         let record = smith_channel::Cancel::new(&self.bodies, smith_channel::CancelParts {})?;
         let frame = smith_channel::frame(smith_channel::Body::Cancel(record))?;
-        self.cancelled = true;
+        self.stopping = Stopping::Cancelled;
+        self.send_frame(token, frame, to_service, below);
+        Ok(())
+    }
+
+    /// Stop the current turn whole, once and never after a cancel.
+    pub fn send_drain(
+        &mut self,
+        token: Token,
+        to_service: &mut Queue<Received>,
+        below: &mut Queue<Lower>,
+    ) -> Result<(), Error> {
+        if self.state != State::Started && self.state != State::Admitted || self.stopping != Stopping::Waiting {
+            return Err(Error::Order);
+        }
+        let record = smith_channel::Drain::new(&self.bodies, smith_channel::DrainParts {})?;
+        let frame = smith_channel::frame(smith_channel::Body::Drain(record))?;
+        self.stopping = Stopping::Draining;
         self.send_frame(token, frame, to_service, below);
         Ok(())
     }

@@ -208,6 +208,9 @@ pub fn completion_permit(domain: &mut Domain, conversation: Token, now: Time, mo
         | State::Stopping { .. }
         | State::Closed => return CompletionPermit::Closing,
     }
+    if !child && run.draining {
+        return CompletionPermit::Closing;
+    }
     let changed = match gate(run, now, Some(most)) {
         Some(exhausted) => begin_wind_down(run, &mut domain.ready, run_id, Cause::Budget(exhausted)),
         None => false,
@@ -383,6 +386,9 @@ pub fn reserve(domain: &mut Domain, conversation: Token, owner: Token, most: Mos
     run.reserved = run.reserved.checked_add(most.reserved()).expect("checked with total above");
     run.reserved_turns = run.reserved_turns.checked_add(1).expect("one bounded reservation per conversation");
     conversation.reservation = Some((owner, most));
+    if conversation.asker.is_none() {
+        run.main_turn_pending = true;
+    }
     Ok(())
 }
 

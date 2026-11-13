@@ -223,7 +223,7 @@
   is tested with simulated clocks, not by sleeping through it here.
 
 - **Forgejo signing in through temper,** a test of its own at the end of
-  `bin/temper-box/tests/process.rs`, on `support/forgejo_sign_in.rs`
+  `bin/temper-box/tests/process.rs`, on `testing/temper-box-kit/src/forgejo_sign_in.rs`
   (../protocol/openid-provider.md, 8): an owned Forgejo prepared by temper's
   commands with no group's file (../protocol/setup/box.md, 4), with 9.4's
   settings in its `app.ini`, beside `temper-box serve` with jig's provider
@@ -270,7 +270,7 @@
   in jig's secrets' store, and the admin's token the preparation's
   handover, `admin_token`, which the setup host takes once
   (../protocol/setup/README.md, sections 3 and 5).
-- **A person's change on the owned forge, signed in with ChatGPT,** the offline proof of the live driver (`bin/temper-box/tests/support/forge_land.rs`): "A
+- **A person's change on the owned forge, signed in with ChatGPT,** the offline proof of the live driver (`testing/temper-box-kit/src/forge_land.rs`): "A
   Forgejo set up from the client" (above), its set-up, first repository
   and landing reused, carried on with ChatGPT's sign-in as above, a
   chat on the plan, and a restart from a fresh client. The module writes
@@ -310,7 +310,7 @@
   temper's fakes as processes, never on Forgejo:
   `bin/temper-box/tests/fixtures/cluster/`, the process tier's cluster
   fixture (../protocol/cluster.md, 5), read by
-  `bin/temper-box/tests/support/cluster.rs`, which starts the fake forge,
+  `testing/temper-box-kit/src/cluster.rs`, which starts the fake forge,
   the fake LLM, the engine alone and two workers alone as processes,
   each in a cgroup of its own, awaits their ready lines and stops them
   in reverse. Its stories: a task on each worker, on the box's binary
@@ -339,7 +339,7 @@
     the sitting's fake half as `scripts/proof-live-github-managed.sh fake`
     sets it up. That is the fake GitHub with the sitting's accounts and
     its two repositories, the sitting's relay in its fake mode, and the
-    engine alone on `tests/support/github/engine.json`. Ready, the web
+    engine alone on `tests/fixtures/github/engine.json`. Ready, the web
     client's domain, view and transport run natively, signs in by the
     printed link. Connect makes the App by its manifest and installs it
     on the one repository, and Ready adopts that repository. The

@@ -99,7 +99,7 @@ impl Component {
         let record = w::Authorize::decode(&env.limits.wire, &mut Reader::new(body)).expect("checked authorize record");
         let authorization = issuer.authorize(record.query()).expect("same immutable issuer and checked query");
         self.pending.exchanges.insert(exchange, Waiting::Authorize { sign_in, authorization }).expect("same slot");
-        out.push(Request::Core(Box::new(jig_domain_core::Event::People(people::Event::Whose {
+        out.push(Request::Core(Box::new(jig_domain_core_vocabulary::Event::People(people::Event::Whose {
             reply_to: ReplyTo::new(exchange),
             sign_in,
         }))));

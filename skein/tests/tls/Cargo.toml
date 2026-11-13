@@ -16,7 +16,7 @@ skein-tls.workspace = true
 skein-io.workspace = true
 skein-sim.workspace = true
 # The server: rustls's buffered connection, over std's readers and writers.
-rustls = { workspace = true, features = ["std"] }
+rustls-std = { workspace = true }
 
 [dev-dependencies]
 # The counting allocator, shared by the memory worlds.

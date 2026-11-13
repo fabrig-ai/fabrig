@@ -1,7 +1,7 @@
 //! Engine endpoint, model values (llm.md, 4 and 5).
 use crate::{Address, Directories, Directory, Path, Problems, Segment, What, check, read};
 use alloc::boxed::Box;
-use jig_domain_core::{
+use jig_domain_core_vocabulary::{
     Model,
     settings::{CatalogueModel, ModelSource},
 };
@@ -338,7 +338,7 @@ fn model(
     let mut object = check::object(document, at, path, problems, "model")?;
     let mut name = None;
     if let Some(at) = object.required(document, b"name", path, problems) {
-        match read::text(document, at, jig_domain_core::MODEL_NAME_BYTES) {
+        match read::text(document, at, jig_domain_core_vocabulary::MODEL_NAME_BYTES) {
             Ok(value) => name = Some(value),
             Err(what) => problems.push(path.member(b"name"), what),
         }
@@ -362,7 +362,7 @@ fn model(
     }
     let mut effort = None;
     if let Some(at) = object.member(document, b"effort") {
-        match read::text(document, at, jig_domain_core::EFFORT_BYTES) {
+        match read::text(document, at, jig_domain_core_vocabulary::EFFORT_BYTES) {
             Ok(value) if value.is_empty() => problems.push(path.member(b"effort"), What::Form),
             Ok(value) => {
                 if let Some(efforts) = &efforts
@@ -381,7 +381,7 @@ fn model(
     }
     let mut description = None;
     if let Some(at) = object.member(document, b"description") {
-        match read::text(document, at, jig_domain_core::MODEL_DESCRIPTION_BYTES) {
+        match read::text(document, at, jig_domain_core_vocabulary::MODEL_DESCRIPTION_BYTES) {
             Ok(value) if value.is_empty() => problems.push(path.member(b"description"), What::Form),
             Ok(value) => description = Some(value),
             Err(what) => problems.push(path.member(b"description"), what),
@@ -430,7 +430,7 @@ fn model(
 }
 /// The efforts a model takes, by name in order, none when absent (configuration.md, 3).
 fn model_efforts(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Box<[Box<[u8]>]>> {
-    let items = match read::list(document, at, jig_domain_core::EFFORTS) {
+    let items = match read::list(document, at, jig_domain_core_vocabulary::EFFORTS) {
         Ok(items) => items,
         Err(what) => {
             problems.push(path.clone(), what);
@@ -441,7 +441,7 @@ fn model_efforts(document: &Document, at: u32, path: &Path, problems: &mut Probl
     let mut whole = true;
     for (index, at) in items.iter().enumerate() {
         let path = check::index(path, index);
-        match read::text(document, *at, jig_domain_core::EFFORT_BYTES) {
+        match read::text(document, *at, jig_domain_core_vocabulary::EFFORT_BYTES) {
             Ok(effort) if effort.is_empty() => {
                 problems.push(path, What::Form);
                 whole = false;

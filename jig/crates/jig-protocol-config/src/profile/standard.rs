@@ -5,7 +5,7 @@ use super::{Limits, Link};
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_notes as notes;
@@ -27,7 +27,7 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     resource_reports: 256,
     pools: 128,
     hold_waiters: 128,
-    charters: 12,
+    charters: 16,
     charter_documents: 2,
     charter_parts: 8,
     facts: 128,
@@ -42,8 +42,8 @@ pub(super) const TASKS: tasks::Limits = tasks::Limits {
     saved_resources: 8,
     authority_grants: 16,
     authority_bytes: 4_096,
-    // Eighteen executor places hold the development delegation.
-    executor_kinds: 18,
+    // Twenty-one executor places hold the development delegation.
+    executor_kinds: 21,
     depth: 32,
     inbox_messages: 82,
     run_inbox: 82,
@@ -103,8 +103,8 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     roles: 8,
     requirements: 8,
     grants: 16,
-    // Eighteen executor places hold the development delegation.
-    executors: 18,
+    // Twenty-one executor places hold the development delegation.
+    executors: 21,
     segments: 8,
     batch: 32,
     writes: 8,

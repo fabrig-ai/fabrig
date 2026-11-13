@@ -38,7 +38,8 @@ pub(crate) fn style(mode: Mode) -> skein_ui::Style {
 
 pub(crate) fn offers_group(root: &Domain, chat: &Chat, task: &c::Task) -> bool {
     chat.draft.is_some()
-        || (task.result.is_none() && !super::chats::ended(&task.chip)
+        || (task.result.is_none()
+            && !super::chats::ended(&task.chip)
             && temper_client_domain::pages::chat_offers_draft(root, task))
 }
 
@@ -80,18 +81,17 @@ pub(crate) fn modes(b: &mut Builder, name: Word, chosen: Mode, words: &Words, bi
     b.close();
 }
 
-pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, words: &Words, times: &mut Times, bindings: &mut Bindings) {
+pub(crate) fn pane(
+    b: &mut Builder,
+    root: &Domain,
+    chat: &Chat,
+    task: &c::Task,
+    words: &Words,
+    times: &mut Times,
+    bindings: &mut Bindings,
+) {
     let Some(draft) = &chat.draft else {
-        if chat.mode != Mode::Chat {
-            let path = if super::chat::asking(root) {
-                words.say(Word::DraftNotYet, &[Hole::Number(chat.task)])
-            } else {
-                words.say(Word::DraftFile, &[Hole::Name(document::slug(b""))])
-            };
-            let can_write = !chat.writing && task.result.is_none() && !super::chats::ended(&task.chip)
-                && temper_client_domain::pages::chat_offers_draft(root, task);
-            empty(b, words, &path, chat.writing, if can_write { Some(bindings) } else { None });
-        }
+        empty_chat(b, root, chat, task, words, bindings);
         return;
     };
     if chat.mode == Mode::Chat {
@@ -182,6 +182,28 @@ pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, 
     }
     b.close();
     b.close();
+}
+
+fn empty_chat(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, words: &Words, bindings: &mut Bindings) {
+    if chat.mode != Mode::Chat {
+        let path = if super::chat::asking(root) {
+            words.say(Word::DraftNotYet, &[Hole::Number(chat.task)])
+        } else {
+            words.say(Word::DraftFile, &[Hole::Name(document::slug(b""))])
+        };
+        let can_write = !chat.writing
+            && task.result.is_none()
+            && !super::chats::ended(&task.chip)
+            && temper_client_domain::pages::chat_offers_draft(root, task);
+        empty(
+            b,
+            words,
+            &words.say(Word::DraftDraft, &[]),
+            &path,
+            chat.writing,
+            if can_write { Some(bindings) } else { None },
+        );
+    }
 }
 
 fn heading_hash(heading: &[u8]) -> u64 {
@@ -310,9 +332,16 @@ pub(crate) fn tool_line(b: &mut Builder, call: &c::Call, chat: Option<&Chat>, wo
 }
 
 /// An empty pane keeps its path and offers the write-up only before it is asked.
-pub(crate) fn empty(b: &mut Builder, words: &Words, path: &[u8], writing: bool, bindings: Option<&mut Bindings>) {
+pub(crate) fn empty(
+    b: &mut Builder,
+    words: &Words,
+    name: &[u8],
+    path: &[u8],
+    writing: bool,
+    bindings: Option<&mut Bindings>,
+) {
     b.open(Role::Region);
-    b.name(&words.say(Word::DraftDraft, &[]));
+    b.name(name);
     b.style(look::DOC);
     b.open(Role::Slot);
     b.style(look::DOC_INNER);

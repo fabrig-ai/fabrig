@@ -2,7 +2,7 @@
 //! when their durable answers name the made projects (domain/people/acts.md, 2–3).
 use super::Store;
 use jig_domain_authority as authority;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use std::collections::BTreeMap;
 

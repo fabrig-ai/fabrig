@@ -351,6 +351,7 @@ fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::ToAgent, out:
             smith::parent::Event::Message { agent, name, label: sender, text: words, finish_requested }
         }
         host::ToAgent::Acknowledge { agent, turn } => smith::parent::Event::Acknowledge { agent, turn },
+        host::ToAgent::Drain { agent } => smith::parent::Event::Drain { agent },
         host::ToAgent::Cancel { agent } => smith::parent::Event::Stop { agent },
         host::ToAgent::Grant { agent, grant } => {
             let Some(grant) = translate::grant(grant) else { return };

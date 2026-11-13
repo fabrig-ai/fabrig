@@ -305,7 +305,7 @@ fn bounded_message_schedules_replay_with_every_required_class() {
         for fixture in [Fixture::Idle, Fixture::Wall, Fixture::WakeCancel, Fixture::EarlyCancel] {
             eprintln!("message sweep seed {seed}, fixture {fixture:?}");
             let trace = assert_replays(seed, seed ^ 0x819a, |seed| run(seed, fixture));
-            assert!(!trace.is_empty());
+            assert_ne!(trace.len(), 0);
             let (_, outcome) = run(seed, fixture);
             for (total, count) in observed.iter_mut().zip(outcome.counts) {
                 *total += count;
@@ -345,14 +345,14 @@ fn empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wa
                 }
                 referee.assert_passed(seed);
                 if !work {
-                    assert!(world.prompts().is_empty());
+                    assert_eq!((world.prompts()).len(), 0);
                     assert!(
                         matches!(world.answer(), run::Answer::Parked { turns: 0, spent } if *spent == run::Spend::ZERO)
                     );
                 }
                 (world.trace().into(), format!("{:?}", world.answer()))
             });
-            assert!(!trace.is_empty());
+            assert_ne!(trace.len(), 0);
         }
     }
 }

@@ -196,7 +196,7 @@ impl HostService {
                 start_bytes: agent_limits.channel.start_bytes,
                 endpoints: agent_limits.channel.endpoints,
                 calls: domain_limits.calls,
-                ..protocol::fixture::small()
+                ..smith_host_protocol_fixtures::small()
             },
             root: launch.root,
             launch: Some(launch),
@@ -461,7 +461,8 @@ impl HostService {
             | host::Down::Message { .. }
             | host::Down::Acknowledge { .. }
             | host::Down::Grant { .. }
-            | host::Down::Cancel => None,
+            | host::Down::Cancel
+            | host::Down::Drain => None,
         };
         let sent = match message {
             host::Down::Start { start, window } => process.send_start(
@@ -495,6 +496,7 @@ impl HostService {
                 &mut self.io_requests,
             ),
             host::Down::Cancel => process.send_cancel(token, &mut self.process_events, &mut self.io_requests),
+            host::Down::Drain => process.send_drain(token, &mut self.process_events, &mut self.io_requests),
         };
         if sent.is_err() {
             self.domain_events.push(host::Input::Process(host::process::Event::Unsent { owner: self.agent_owner() }));

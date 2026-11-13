@@ -145,8 +145,8 @@ fn configuration_for(
     let mut process = service::ProcessLimits {
         detail_bytes: host.detail_bytes,
         queue,
-        ..smith_local_service::fixture::process(lower.limits.io, {
-            let mut fixture_limits = smith_host_protocol::fixture::small();
+        ..smith_local_service_fixtures::process(lower.limits.io, {
+            let mut fixture_limits = smith_host_protocol_fixtures::small();
             fixture_limits.bodies = lower.limits.channel.bodies;
             fixture_limits.charter = lower.limits.channel.charter;
             fixture_limits.transcript = lower.limits.channel.transcript;
@@ -167,7 +167,7 @@ fn configuration_for(
                 envelope_bytes: host.answer_bytes,
                 queue,
                 watermark: queue,
-                ..smith_local_service::fixture::small(policy.1, process)
+                ..smith_local_service_fixtures::small(policy.1, process)
             },
             endpoints,
             paths: policy.2,
@@ -269,7 +269,7 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
         line_bytes: local::max_line_bytes(native.run.message_bytes).unwrap(),
         show_bytes: 8192,
         facts: 1024,
-        ..smith_local_domain::fixture::small(native)
+        ..smith_local_domain_fixtures::small(native)
     };
     config.validate(&limits).expect("typed fixture local policy");
     (config, limits, paths)

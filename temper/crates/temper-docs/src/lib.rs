@@ -311,7 +311,7 @@ pub static PAGES: [Page; 72] = [
         name: "server",
         kind: Kind::Walk,
         title: "Run temper on a server",
-        summary: "Run a long-lived deployment on a server: the engine behind a TLS proxy with Google sign-in, an owned Forgejo beside it, the workers on a second host, and a redeploy that keeps the model's accounts.",
+        summary: "Run temper long-term: engine behind a TLS proxy with Google sign-in and owned Forgejo, workers on a second host; redeploy keeping model accounts.",
         text: include_str!("../../../docs/help/server.md"),
     },
     Page {

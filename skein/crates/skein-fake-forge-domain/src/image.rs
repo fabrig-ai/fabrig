@@ -99,6 +99,19 @@ impl Domain {
         for _ in 0..count(&mut input, crate::limits::timers(limits).ok_or(Refusal::Limits("timers"))?, "timers")? {
             get_alarm(&mut input, &mut domain, limits)?;
         }
+        if !input.is_empty() {
+            require(input.bytes(8) == Some(b"MANUAL01".as_slice()), "trailing bytes")?;
+            let rows = count(&mut input, limits.repositories, "manual merge settings")?;
+            require(rows == domain.repositories.len(), "manual merge settings")?;
+            for index in 0..rows {
+                let settings = crate::api::ManualMerges {
+                    allow_manual_merge: codec::flag(&mut input)?,
+                    autodetect_manual_merge: codec::flag(&mut input)?,
+                };
+                let (id, _) = domain.repositories.iter().nth(skein_lib::usize_of(index)).expect("bounded repository");
+                domain.repositories.get_mut(id).expect("retained repository").manual_merges = settings;
+            }
+        }
         require(input.is_empty(), "trailing bytes")?;
         Ok(domain)
     }
@@ -130,6 +143,20 @@ fn put(out: &mut Sink, domain: &Domain) {
         if retained(alarm) {
             out.u64(at.saturating_since(domain.now).as_nanos());
             put_alarm(out, domain, alarm);
+        }
+    }
+    let mut manual = false;
+    for (_, repository) in &domain.repositories {
+        if repository.manual_merges != crate::api::ManualMerges::OFF {
+            manual = true;
+        }
+    }
+    if manual {
+        out.put(b"MANUAL01");
+        out.u32(domain.repositories.len());
+        for (_, repository) in &domain.repositories {
+            out.flag(repository.manual_merges.allow_manual_merge);
+            out.flag(repository.manual_merges.autodetect_manual_merge);
         }
     }
 }

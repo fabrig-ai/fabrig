@@ -83,7 +83,7 @@ fn command_output_one_byte_past_the_bound_fails_before_appending() {
 fn unterminated_command_output_overflow_is_bounded() {
     let mut child = child(true);
     bytes(&mut child, Output::Stdout, &vec![b'x'; OUTPUT_BYTES + 1]);
-    assert!(child.output[0].is_empty());
+    assert_eq!(child.output[0].len(), 0);
     assert!(matches!(child.advance(Time::ZERO, false, false), Progress::Failed(_)));
 }
 #[test]

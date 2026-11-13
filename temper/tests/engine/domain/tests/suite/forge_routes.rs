@@ -461,7 +461,8 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
 
 #[test]
 fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
-    let stall = temper_service::limits::profile(temper_service::limits::Profile::Small).forge.change_policy.stall;
+    let stall =
+        temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small).forge.change_policy.stall;
     let world = World::configured_limits(
         true,
         true,
@@ -934,7 +935,7 @@ fn an_unreadable_failed_job_log_is_named_and_repair_still_runs() {
 }
 
 #[test]
-fn a_required_section_past_its_deadline_counts_as_transient_without_an_attempt() {
+fn a_required_section_past_its_deadline_counts_as_infrastructure_without_an_attempt() {
     let (mut world, chat, producer) = failed_ci_with_delayed_brief();
     let mut repair = None;
     for _ in 0..150 {
@@ -944,7 +945,7 @@ fn a_required_section_past_its_deadline_counts_as_transient_without_an_attempt()
             if row.number != chat
                 && row.number != producer
                 && matches!(row.executor, tasks::Executor::Agent { .. })
-                && row.tries.transient > 0
+                && row.tries.infrastructure > 0
             {
                 repair = Some(row.clone());
                 break;
@@ -968,10 +969,11 @@ fn a_required_section_past_its_deadline_counts_as_transient_without_an_attempt()
         )
     });
     assert_eq!(repair.attempt, 0, "no claim was made");
-    assert_eq!(repair.tries.transient, 1, "a late required section counts in its class");
+    assert_eq!(repair.tries.infrastructure, 1, "a late required section counts in its class");
     assert_eq!(repair.tries.permanent, 0);
+    assert_eq!(repair.tries.transient, 0);
     assert!(matches!(&repair.retry_notice,
-        Some(tasks::RetryNotice::Failed { class: tasks::Class::Transient, count: 1, reason: Some(reason), .. })
+        Some(tasks::RetryNotice::Failed { class: tasks::Class::Infrastructure, count: 1, reason: Some(reason), .. })
         if reason.as_ref() == b"ci: not gathered by its deadline"));
     assert_eq!(world.assigned.len(), 2, "repair was never assigned");
     world.close();
@@ -1086,7 +1088,7 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one slow blocking review, its preparation and landing")]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
-    let brief = temper_service::limits::profile(temper_service::limits::Profile::Small).root.brief;
+    let brief = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small).root.brief;
     let world = World::configured_brief(
         true,
         true,
@@ -1207,7 +1209,7 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one delayed blocking review, wakes during preparation and its landing")]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once_and_merges() {
-    let brief = temper_service::limits::profile(temper_service::limits::Profile::Small).root.brief;
+    let brief = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small).root.brief;
     let world = World::configured_brief(
         true,
         true,
@@ -2117,7 +2119,7 @@ fn task_brief(assignment: &engine::Assignment) -> &[u8] {
 
 #[test]
 fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
-    let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
+    let small = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
     let mut world =
         World::configured_brief(true, true, false, 1000, paths::Gate::default(), None, Some(small.root.brief));
     assert_eq!(world.env.limits.brief.budgets.task, 4608);
@@ -2495,7 +2497,7 @@ fn stock_subscription_goal() -> (World, engine::Assignment) {
             })
             .collect(),
     };
-    let mut defaults = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
+    let mut defaults = temper_engine_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     defaults.rules.ceiling.tools = authority::Tools(1967);
     let policy = defaults.policies.get_mut(&1).expect("project policy");
     policy.policy.ceiling.tools = authority::Tools(1967);
@@ -3863,7 +3865,7 @@ fn a_stop_commits_the_answer_of_a_forge_write_already_sent() {
         !world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))),
         "outcome committed before Drained"
     );
-    assert!(world.unsettled.is_empty());
+    assert_eq!(world.unsettled.len(), 0);
     assert!(flights::rows(&world).is_empty(), "a settled stop leaves no flight");
     assert_eq!(issue_count(&mut world), 1);
     world.restart(true, false);
@@ -4023,7 +4025,7 @@ fn a_stop_waits_for_a_sent_merge_to_be_proved() {
         !world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))),
         "the proved outcome is durable before Drained"
     );
-    assert!(world.unsettled.is_empty());
+    assert_eq!(world.unsettled.len(), 0);
     assert_eq!(world.merges, 1);
     world.restart(true, true);
     world.close();

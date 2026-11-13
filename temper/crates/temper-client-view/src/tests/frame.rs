@@ -366,12 +366,12 @@ fn out_of_date_the_browser_main_keeps_its_words() {
         }
     }
     let (start, end) = main.expect("main");
-    let mut content = skein_lib::List::with_capacity(2);
+    let mut content = skein_lib::List::with_capacity(4);
     for (index, node) in nodes.iter().enumerate().take(end).skip(start) {
         if node.role != Role::Text {
             content
                 .push((node.role, node.name.as_deref(), fixtures::node_text(view.tree(), index)))
-                .expect("heading and paragraph");
+                .expect("heading, paragraph and act");
         }
     }
     assert_eq!(
@@ -380,11 +380,37 @@ fn out_of_date_the_browser_main_keeps_its_words() {
             (Role::Heading { level: 1 }, Some(b"Out of date".as_slice()), Box::from(b"Out of date".as_slice())),
             (
                 Role::Paragraph,
-                Some(b"Run the temper the engine runs.".as_slice()),
-                Box::from(b"Run the temper the engine runs.".as_slice())
-            )
+                Some(b"This page doesn't match temper's engine. Reload it to continue.".as_slice()),
+                Box::from(b"This page doesn't match temper's engine. Reload it to continue.".as_slice())
+            ),
+            (Role::Slot, None, Box::default()),
+            (Role::Button, Some(b"Reload".as_slice()), Box::default()),
         ]
     );
+    assert_eq!(fixtures::styles(view.tree(), Role::Main).as_ref(), [Box::from([crate::look::OUTSIDE])]);
+    assert_eq!(fixtures::styles(view.tree(), Role::Button).as_ref(), [Box::from([crate::look::OUTSIDE_PRIMARY])]);
+}
+#[test]
+fn only_the_current_reload_press_gives_the_shell_event() {
+    let mut view = fixtures::browser_page_view(&fixtures::out_of_date());
+    let reload = fixtures::person_find(view.tree(), Role::Button, b"Reload").expect("reload act");
+    assert_eq!(crate::shell_event(&view, reload, &Act::Press), Some(crate::ShellEvent::Reload));
+    assert!(crate::act_event(&mut view, reload, Act::Press).is_none());
+    for act in [
+        Act::Input { value: Box::default() },
+        Act::Submit,
+        Act::Toggle,
+        Act::Near { edge: skein_ui::LogEdge::Foot },
+        Act::Drawing { data: Box::default() },
+    ] {
+        assert_eq!(crate::shell_event(&view, reload, &act), None);
+    }
+    fixtures::build(&mut view, &fixtures::signed_out());
+    assert_eq!(crate::shell_event(&view, reload, &Act::Press), None);
+    fixtures::build(&mut view, &fixtures::out_of_date());
+    let current = fixtures::person_find(view.tree(), Role::Button, b"Reload").expect("new reload act");
+    assert_eq!(crate::shell_event(&view, reload, &Act::Press), None);
+    assert_eq!(crate::shell_event(&view, current, &Act::Press), Some(crate::ShellEvent::Reload));
 }
 #[test]
 fn the_browser_words_fit_the_views_limits() {
@@ -2067,6 +2093,7 @@ fn opening_rename_takes_focus_from_a_shown_document_section() {
                 task,
                 &words,
                 &mut crate::words::Times::new(fixtures::NOW),
+                &mut bindings,
             );
             builder.close();
             let tree = builder.finish();

@@ -91,6 +91,7 @@ pub struct FailureTries {
     pub agent: u32,
     pub lost: u32,
     pub invalid: u32,
+    pub infrastructure: u32,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum HoldEscalation {

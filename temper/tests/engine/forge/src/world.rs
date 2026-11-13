@@ -154,6 +154,7 @@ pub struct World {
     pull_snapshot: Option<skein_forge::api::Pull>,
     held_compares: Option<Vec<(u64, top::Event)>>,
     read_script: ReadScript,
+    landing_policy: temper_engine_domain_forge_landing::Project,
     landing_config: Option<(u32, temper_engine_domain_forge_change::Way, Box<[top::RepositoryGates]>)>,
 }
 
@@ -181,7 +182,21 @@ impl World {
             Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
             None,
             false,
-            4,
+            8,
+            true,
+            None,
+        )
+    }
+    #[must_use]
+    pub fn trains() -> World {
+        Self::configured(
+            11,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            8,
             true,
             None,
         )
@@ -196,6 +211,7 @@ impl World {
             project,
             way,
             gates.clone(),
+            self.landing_policy,
             top::AfterLanding {
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
@@ -211,6 +227,22 @@ impl World {
         }
         accepted
     }
+    pub fn gate_policy(&mut self, settings: temper_engine_domain_forge_landing::Project) {
+        self.landing_policy = settings;
+        let (project, way, gates) = self.landing_config.clone().expect("landing configured");
+        assert!(self.project_landing(project, way, gates));
+    }
+    pub fn runner_setup_faults(&mut self, faults: u32) {
+        self.forge_env.limits.setup_faults = faults;
+    }
+    #[must_use]
+    pub fn first_waiting_change(&self) -> Option<u64> {
+        self.top.first_waiting(REPO, b"main", &[], self.env.wall)
+    }
+    #[must_use]
+    pub fn landing_leave_words(&self, task: u64) -> Option<Box<[u8]>> {
+        self.top.landing_leave_words(task, 0)
+    }
     #[must_use]
     pub fn change(&self, task: u64) -> &top::ChangeRow {
         self.top.change(task).expect("fixture change")
@@ -225,6 +257,10 @@ impl World {
             self.env.wall,
             &self.env.limits,
         )
+    }
+    #[must_use]
+    pub fn landing_hold_words(&self, task: u64) -> Option<Box<[u8]>> {
+        self.top.landing_hold_words(task)
     }
     #[must_use]
     pub fn landing(&self, task: u64) -> &top::LandingRow {
@@ -254,6 +290,33 @@ impl World {
         )
     }
 
+    #[must_use]
+    pub fn workspace_item(&self, seed: top::items::Seed) -> Option<top::items::Item> {
+        self.top.workspace_item(seed)
+    }
+    pub fn pull_brief(&mut self, task: u64, head: skein_forge::api::Commit) -> Box<[u8]> {
+        let row = self.top.change(task).expect("change");
+        let section = Token::new(901);
+        let (number, _, _, _) = row.review_target().expect("review target");
+        self.event(top::Event::PlanBrief {
+            section,
+            partner: None,
+            source: top::BriefSource::Pull {
+                item: top::BriefItem { repository: row.repository.repository, number },
+                head: top::BriefCommit(head),
+            },
+        });
+        self.event(top::Event::GatherPlanned {
+            task,
+            section,
+            parts: 2,
+            bytes: 2048,
+            ci_budget: 2048,
+            deadline: self.env.now.saturating_add(Duration::from_secs(30)),
+        });
+        self.run_for(1);
+        self.top.take_brief(section).expect("gathered pull brief")
+    }
     /// Gather the repair's pinned CI section through the forge client.
     pub fn ci_brief(&mut self, task: u64, head: skein_forge::api::Commit) -> Box<[u8]> {
         let row = self.top.change(task).expect("change");
@@ -492,6 +555,13 @@ impl World {
                 hooked,
             },
         );
+        if turn {
+            forge::manual_merges(
+                &mut fake,
+                b"org/repo",
+                raw::ManualMerges { allow_manual_merge: true, autodetect_manual_merge: true },
+            );
+        }
         forge::grant(&mut fake, b"org/repo", 1, raw::Permission::Admin);
         forge::grant(&mut fake, b"org/repo", 2, raw::Permission::Write);
         let top = top::Domain::new(
@@ -541,6 +611,7 @@ impl World {
                 files_excess: None,
                 files_page: None,
             },
+            landing_policy: temper_engine_domain_forge_landing::Project::DEFAULT,
             landing_config: None,
         };
         world.top.restore_begin(world.env.wall);
@@ -982,6 +1053,7 @@ impl World {
                 *project,
                 *way,
                 gates.clone(),
+                self.landing_policy,
                 top::AfterLanding {
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
@@ -1133,6 +1205,62 @@ impl World {
             ),
             raw::Answer::Pushed(raw::Pushed::Pushed)
         );
+    }
+    /// The scripted worker delivers a clean prepare on a new landing branch.
+    pub fn prepare_landing(&mut self, task: u64, squash: bool) -> u64 {
+        let row = self.landing(task).clone();
+        let member = &row.landing.members[0];
+        let base = translate::number(member.base.expect("round base"));
+        let head = translate::number(member.head.expect("round head"));
+        let mut tree: std::collections::BTreeMap<Box<[u8]>, Box<[u8]>> = self
+            .forge
+            .object(base)
+            .expect("base")
+            .tree
+            .iter()
+            .map(|(path, bytes)| (path.clone(), bytes.clone()))
+            .collect();
+        for (path, bytes) in &self.forge.object(head).expect("head").tree {
+            tree.insert(path.clone(), bytes.clone());
+        }
+        let files = tree.into_iter().map(|(path, content)| raw::File { path, content }).collect();
+        let brings = row.landing.round.upstream.is_some_and(|upstream| {
+            let raw::Answer::Commits { commits } =
+                self.inspect(&raw::Read::Commits { before: base, after: translate::number(upstream) })
+            else {
+                panic!("upstream commits")
+            };
+            commits.iter().any(|commit| self.forge.is_ancestor(commit.id, head))
+        });
+        let squash = squash && !brings;
+        let message = if squash {
+            format!(
+                "candidate\n\nTemper-Head: {}",
+                String::from_utf8(top::commit_text(&translate::commit(head)).into_vec()).expect("hex")
+            )
+        } else {
+            "Prepared merge".to_owned()
+        };
+        let candidate = forge::commit_tree(
+            &mut self.forge,
+            &self.forge_env.limits,
+            base,
+            if squash { None } else { Some(head) },
+            files,
+            message.as_bytes(),
+        )
+        .expect("prepare commit");
+        let provider =
+            skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
+        let adopted = self.top.repository(provider).expect("train repository");
+        let repository = [&adopted.owner[..], b"/", &adopted.name[..]].concat();
+        let answer = self.external_repository(
+            &repository,
+            raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate }),
+            1,
+        );
+        assert!(matches!(answer, raw::Answer::PushNew { existing: None }));
+        candidate
     }
     #[must_use]
     pub fn branch(&self, branch: &[u8]) -> u64 {
@@ -1334,6 +1462,7 @@ impl World {
                 | top::Request::ProjectionSettled { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
+                | top::Request::LandingNews { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::Decided { .. }
                 | top::Request::StatusRun { .. }

@@ -39,7 +39,7 @@ fn status_world_with_spec(allowed: bool, funded: bool, spec_bytes: Option<u32>) 
     if let Some(bytes) = spec_bytes {
         limits.tasks.spec_bytes = bytes;
     }
-    let mut defaults = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
+    let mut defaults = temper_engine_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     // Scripted workers use the same small run bounds as the other forge stories.
     for charter in &mut defaults.charters {
         let number = charter.number;

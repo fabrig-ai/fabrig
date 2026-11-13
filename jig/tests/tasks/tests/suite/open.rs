@@ -78,11 +78,19 @@ fn committed_turn(w: &World) {
 
 fn past_backoff(w: &mut World) {
     let retries = w.env.limits.retries;
-    let longest = [retries.transient, retries.permanent, retries.run, retries.agent, retries.lost, retries.invalid]
-        .into_iter()
-        .map(|retry| retry.max)
-        .max()
-        .expect("retry classes");
+    let longest = [
+        retries.transient,
+        retries.permanent,
+        retries.run,
+        retries.agent,
+        retries.lost,
+        retries.invalid,
+        retries.infrastructure,
+    ]
+    .into_iter()
+    .map(|retry| retry.max)
+    .max()
+    .expect("retry classes");
     w.elapse(longest.saturating_add(Duration::from_nanos(1)));
 }
 

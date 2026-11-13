@@ -166,7 +166,7 @@ fn an_ended_line_says_how_it_ended() {
         assert_eq!(project.counts(1), PublicCounts { ended: 1, ..zero() }, "live counts: {ending:?}");
         end(&mut core, &limits, 1);
         let project = ready(&core);
-        assert!(project.live().is_empty());
+        assert_eq!((project.live()).len(), 0);
         let [frozen] = project.ended() else { panic!("one frozen goal") };
         assert_eq!(frozen.line.phase, PublicPhase::Cancelled);
         let [line] = frozen.tree.as_ref() else { panic!("one frozen delegate") };

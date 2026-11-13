@@ -32,7 +32,7 @@ const LATER_ENTRANCES: u32 = 3;
 const ORDER_SEED: u64 = 0x504f_0102;
 const TRACE_SINK: Token = Token::new(400);
 // The Sinks unit fixture's record limits cover its fixed event vocabulary.
-const SINK_RECORDS: smith_events::Limits = smith_events::Limits { items: 19, ..smith_events::fixture::SMALL };
+const SINK_RECORDS: smith_events::Limits = smith_events::Limits { items: 19, ..smith_events_fixtures::SMALL };
 // Four authoritative/teardown slots and a two-record fact handoff (Sinks::LINE_SLOTS).
 const SINK_LINES: u32 = 6;
 // The Sinks unit fixture's destination write deadline; virtual time stays at zero.
@@ -93,7 +93,7 @@ impl Recorder {
             metadata_items: records.items,
             scalar_content: records.content,
             observation_line: 0,
-            ..smith_protocol_events::sinks::fixture::small()
+            ..smith_protocol_events_fixtures::sinks::small()
         };
         bounds.output =
             bounds.line_ceiling(Capture::None).expect("marker line").checked_mul(SINK_LINES).expect("sink output");

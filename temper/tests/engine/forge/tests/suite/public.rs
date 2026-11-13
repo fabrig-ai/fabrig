@@ -19,7 +19,7 @@ fn a_public_change_read_at_each_step_until_landed() {
     assert_eq!(public::change(&world).step(), &w::PublicStep::Producing, "seed {SEED}");
     public::ready(&mut world, CHANGE, BRANCH);
     assert_eq!(public::change(&world).step(), &w::PublicStep::Ready, "seed {SEED}");
-    public::install_landing(&mut world, false);
+    public::install_landing(&mut world);
     let mut finished = false;
     // The same bound as landings::drive_landing; each iteration reads both public kinds.
     for position in 0..80 {
@@ -36,18 +36,16 @@ fn a_public_change_read_at_each_step_until_landed() {
     assert_eq!(public::change(&world).step(), &w::PublicStep::Landed, "seed {SEED}");
 }
 #[test]
-fn a_two_member_landing_with_a_failed_gate_through_either_member() {
+fn a_one_member_landing_with_a_failed_gate_through_its_change() {
     let mut world = public::world(0);
     public::ready(&mut world, CHANGE, BRANCH);
     public::ready(&mut world, SECOND, OTHER_BRANCH);
-    public::install_landing(&mut world, true);
+    public::install_landing(&mut world);
     let mut failed = false;
     for position in 0..80 {
-        let _decision = public::step(&mut world, position, true);
+        let _decision = public::step(&mut world, position, false);
         let a = public::answer(&world, w::PUBLIC_LANDING, Some(CHANGE), &public::handed());
-        let b = public::answer(&world, w::PUBLIC_LANDING, Some(SECOND), &public::handed());
-        assert_eq!(a.tasks, b.tasks, "seed {SEED}");
-        assert_eq!(a.record, b.record, "seed {SEED}");
+        assert!(world.public(landings::PROJECT, w::PUBLIC_LANDING, Some(SECOND), &public::handed()).is_none());
         let record = w::PublicLanding::decode(&w::CEILINGS, &mut Reader::new(&a.record)).expect("landing");
         for member in record.members() {
             for gate in member.gates() {
@@ -90,17 +88,15 @@ fn a_landing_with_a_member_not_public_is_absent_and_unknown() {
     let mut world = public::world(1000);
     public::ready(&mut world, CHANGE, BRANCH);
     public::ready(&mut world, SECOND, OTHER_BRANCH);
-    public::install_landing(&mut world, true);
-    let public = &public::handed()[..2];
+    public::install_landing(&mut world);
+    let public = &public::handed()[2..];
     let made = public::answer(&world, w::PUBLIC_LANDINGS, None, public);
     let record = w::PublicLandings::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("landings");
     assert!(record.landings().is_empty(), "seed {SEED}");
     for task in [CHANGE, SECOND] {
         assert!(world.public(landings::PROJECT, w::PUBLIC_LANDING, Some(task), public).is_none(), "seed {SEED}");
     }
-    let made = public::answer(&world, w::PUBLIC_CHANGE, Some(CHANGE), public);
-    let record = w::PublicChange::decode(&w::CEILINGS, &mut Reader::new(&made.record)).expect("change");
-    assert!(!record.in_landing(), "seed {SEED}");
+    assert!(world.public(landings::PROJECT, w::PUBLIC_CHANGE, Some(CHANGE), public).is_none());
 }
 #[test]
 fn a_task_jig_did_not_hand_is_never_named() {

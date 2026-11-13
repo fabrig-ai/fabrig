@@ -227,6 +227,7 @@ fn proof() -> w::PublicGateProof {
     w::PublicGateProof::new(
         &w::CEILINGS,
         w::PublicGateProofParts {
+            faults: 0,
             number: u64::MAX,
             kind: w::PublicGateKind::Check,
             blocks: true,
@@ -244,6 +245,9 @@ fn member(limits: &w::Limits) -> w::PublicMember {
     w::PublicMember::new(
         limits,
         w::PublicMemberParts {
+            head: None,
+            left: None,
+            judgement: None,
             task: u16::MAX,
             base: Some([255; 32]),
             candidate: Some([255; 32]),
@@ -262,6 +266,8 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
     w::PublicLanding::new(
         limits,
         w::PublicLandingParts {
+            combined: None,
+            step: None,
             phase: w::PublicLandingPhase::Held,
             hold: Some(w::PublicLandingHold::Faults),
             preparation: u32::MAX,
