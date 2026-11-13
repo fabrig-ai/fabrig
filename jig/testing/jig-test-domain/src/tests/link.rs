@@ -665,6 +665,7 @@ fn a_bound_failure_reaches_the_core_with_its_configured_value() {
             failure: host::Failure::Run(host::RunFailure::Exceeded(host::Exceeded { bound, value: u64::MAX })),
             detail: Box::new([]),
             work: host::Work { left: None, saved: None },
+            model: None,
         };
         let (run, attempt, payload, _) = received_answer(&mut domain, host::LinkUp::Answer { run, attempt, answer });
         let mut work = fixtures::work();

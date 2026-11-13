@@ -185,6 +185,7 @@ fn a_permanent_preparation_goes_up_by_tag_and_a_transient_one_not() {
             failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: Some(Token::new(13)) }),
             detail: Box::new([]),
             work: host::Work { left: None, saved: None },
+            model: None,
         });
         let host::LinkUp::Answer { answer, .. } = answer else { panic!("answer fixture") };
         let parts = worker_route::answer_parts(&answer, &work, Some(&why));

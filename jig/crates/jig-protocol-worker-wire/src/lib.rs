@@ -8,8 +8,8 @@ use alloc::boxed::Box;
 use skein_lib::Token;
 
 #[rustfmt::skip]
-#[path = "generated/v11.rs"]
-pub mod v11;
+#[path = "generated/v12.rs"]
+pub mod v12;
 mod kinds;
 mod spoken;
 pub use spoken::{Agreed, Spoken, spoken};
@@ -24,8 +24,10 @@ pub mod fit;
 #[cfg(test)]
 mod tests;
 
+pub use v12::{ModelEvidence, ModelFailure, ModelFailureKind, ModelFailureParts};
+
 pub use kinds::{KINDS, Kind, KindRule, Overflow, schema, terms_gap};
-pub use v11::{
+pub use v12::{
     AccountRefused, AccountRefusedParts, AgentFailure, AgentFailureValue, AgentFailureValueParts, Answer, AnswerParts,
     Bound, Call, CallParts, CancelReason, CancelReasonValue, CancelReasonValueParts, Count, CountKind, CountParts,
     Ended, EndedParts, Ending, Exceeded, ExceededParts, Fact, FactParts, FactValue, Failed, FailedParts, Failure,
@@ -36,7 +38,7 @@ pub use v11::{
     ResourceParts, RunFailure, RunFailureValue, RunFailureValueParts, StartCause, Turn, TurnParts, Unauthorized,
     UnauthorizedParts, Work, WorkParts,
 };
-pub use v11::{
+pub use v12::{
     Acknowledge, AcknowledgeParts, AnsweredCall, AnsweredCallParts, ApplicationValue, ApplicationValueParts,
     Assignment, AssignmentParts, Cancel, CancelParts, CredentialValue, CredentialValueParts, DeliveryAnswer,
     DeliveryAnswerParts, DeliveryOutcome, Grant, GrantParts, GrantValue, Granted, GrantedParts, HostAnswer,
@@ -44,11 +46,11 @@ pub use v11::{
     RelayText, RelayTextParts, Relayed, RelayedParts, Scheme, SettledAnswer, TurnBusy, TurnBusyParts, TurnKept,
     TurnKeptParts, Workspace, WorkspaceParts,
 };
-pub use v11::{
+pub use v12::{
     Bounds, BoundsParts, CEILINGS, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts,
     Hosting, HostingParts, Phase, Wire, WireParts,
 };
-pub use v11::{Draining, DrainingParts};
+pub use v12::{Draining, DrainingParts};
 
 /// An application's opaque bytes under the token its vocabulary names.
 #[derive(PartialEq, Eq, Debug)]
@@ -99,23 +101,23 @@ impl Reason {
     }
 }
 
-pub use v11::{
+pub use v12::{
     Check, CheckParts, Login, LoginOtherwise, LoginOtherwiseParts, LoginParts, LoginState, Logins, LoginsParts,
     ProgramSource, ProgramSourceParts, SignOut, SignOutParts, SignOutResult, SignedOut, SignedOutParts, SourceFailed,
     SourceFailedParts, SourceFailure, Sources, SourcesParts,
 };
 
-pub use v11::{InputCall, InputCallParts, LiveAsk, LiveAskParts, LiveKind, Piece, PieceParts};
+pub use v12::{InputCall, InputCallParts, LiveAsk, LiveAskParts, LiveKind, Piece, PieceParts};
 
 // Jobs use the worker channel's own records (jig/docs/design/protocol/channel/records.md, 4).
-pub use v11::{
+pub use v12::{
     DeliveryOutcomeValue, DeliveryOutcomeValueParts, Job, JobAnswer, JobAnswerParts, JobBound, JobBoundParts,
     JobEnding, JobFailed, JobFailedParts, JobFailure, JobFinished, JobFinishedParts, JobInvalid, JobInvalidStart,
     JobInvalidStartParts, JobInvalidValue, JobInvalidValueParts, JobParts, JobRefusal, JobRefusalValue,
     JobRefusalValueParts,
 };
 
-pub use v11::{
+pub use v12::{
     ListFailed, ListFailureValue, ListFailureValueParts, ListOutcome, ListRead, ListReadParts, ListRefused,
     ListRefusedParts, ListRow, ListRowParts, ListedRows, ListedRowsParts, ReadList, ReadListParts,
 };
@@ -126,10 +128,10 @@ pub mod wire {
     pub const FAMILY: &str = "jig-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 11;
+    pub const VERSION: u16 = 12;
 
     #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/worker-wire-v11.schema");
+    const TEXT: &str = include_str!("../schema/worker-wire-v12.schema");
 
     /// The current schema's family fingerprint.
     #[must_use]

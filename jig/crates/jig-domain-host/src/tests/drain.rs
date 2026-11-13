@@ -97,6 +97,7 @@ fn cancelled_without_save(requests: &[Request], space: Token) {
             failure: Failure::Cancelled(Reason::Shutdown),
             detail: Box::new([]),
             work: Work { left: None, saved: None },
+            model: None,
         }
     );
 }
@@ -106,11 +107,12 @@ fn a_drained_runs_answer_saves_releases_and_keeps_what_it_said() {
     let work = Work { left: None, saved: Some(Token::new(77)) };
     for (finish, ending) in [
         (
-            Finish::Failed { failure: crate::RunFailure::Cancelled },
+            Finish::Failed { failure: crate::RunFailure::Cancelled, model: None },
             crate::Ending::Failed {
                 failure: Failure::Cancelled(Reason::Shutdown),
                 detail: Box::new([]),
                 work: work.clone(),
+                model: None,
             },
         ),
         (Finish::Parked, crate::Ending::Parked { work: work.clone() }),
@@ -119,11 +121,12 @@ fn a_drained_runs_answer_saves_releases_and_keeps_what_it_said() {
             crate::Ending::Ended { outcome: b"accepted".as_slice().into(), work: work.clone() },
         ),
         (
-            Finish::Failed { failure: crate::RunFailure::Model },
+            Finish::Failed { failure: crate::RunFailure::Model, model: None },
             crate::Ending::Failed {
                 failure: Failure::Run(crate::RunFailure::Model),
                 detail: Box::new([]),
                 work: work.clone(),
+                model: None,
             },
         ),
     ] {
@@ -169,4 +172,42 @@ fn cancel_after_a_drain_stops_live_runs_but_not_one_already_stopping() {
         crate::resume(&mut h.domain, &h.env, &mut h.out);
         assert!(h.out.is_empty());
     }
+}
+
+#[test]
+fn the_hub_keeps_the_named_model_call_through_the_stop_save_and_release() {
+    let model = crate::ModelFailure {
+        endpoint: b"anthropic".as_slice().into(),
+        model: b"claude-opus-5-5".as_slice().into(),
+        kind: crate::ModelFailureKind::Unavailable,
+        evidence: crate::ModelEvidence::Unsent,
+        status: Some(403),
+    };
+    let mut h = Harness::new();
+    let (owner, workspace, agent) = h.live(1);
+    assert_eq!(
+        h.step(fixtures::finished(
+            owner,
+            Finish::Failed { failure: crate::RunFailure::Model, model: Some(model.clone()) }
+        ))
+        .as_ref(),
+        [Request::Agent(ToAgent::Cancel { agent })]
+    );
+    assert_eq!(
+        h.step(Event::Agent(FromAgent::Gone { owner, detail: b"detail".as_slice().into() })).as_ref(),
+        [Request::Save { owner, workspace }]
+    );
+    let requests = h.step(Event::Saved { owner, at: Some(Token::new(77)) });
+    let [Request::Release { .. }, Request::Up(LinkUp::Answer { answer, .. })] = requests.as_ref() else {
+        panic!("model failure tail: {requests:?}");
+    };
+    assert_eq!(
+        answer.ending,
+        crate::Ending::Failed {
+            failure: Failure::Run(crate::RunFailure::Model),
+            detail: b"detail".as_slice().into(),
+            work: Work { left: None, saved: Some(Token::new(77)) },
+            model: Some(model),
+        }
+    );
 }
