@@ -1,6 +1,6 @@
 # redeploys: status
 
-2026-11-12. Where the design lags or departs from [redeploys.md](redeploys.md).
+2026-11-13. Where the design lags or departs from [redeploys.md](redeploys.md).
 
 Sections 3.1, 3.2, 3.3's interim and 3.4 are designed (`../protocol/wires.md`; jig's `protocol/channel/wires.md`; skein's `data/codec/command.md`, 2, the wire rule).
 
@@ -19,6 +19,8 @@ the engine's temper. The clients' wires keep no kept text and no bridge;
 temper's side of section 8 is `../protocol/wires.md`, section 8.
 The rest remains below.
 
+Section 5 is designed (milestone R5). 5.1 in `../protocol/wires.md`, 9: the engine keeps each worker's last opening since its start (jig's `protocol/store/records.md`, 3, *The workers' openings*), and `upgrade --check` judges each configured worker by it, with the function the opening judges by (jig's `protocol/channel/wires.md`, 3), and the engine's own wires, `temper-host-tools`, by the stored wires. 5.2 in `../domain/root.md`, 8.2 and jig's `domain/engine/restart.md`, 1, *Settling before the stop*: no run or job placed and no procedure stepped while the engine settles. 5.3 in `../protocol/configuration/README.md` (the workers' grace) and jig's `domain/engine/fleet.md` (the engine's grace above the stop bound). 5.4 is the workers' admission of preparations, section 6.4's.
+
 Section 9 is designed and built: jig's `domain/tasks/lifecycle.md`, 6 gives infrastructure failures a class and a bound of their own.
 
 - **Design lags:**
@@ -27,7 +29,6 @@ Section 9 is designed and built: jig's `domain/tasks/lifecycle.md`, 6 gives infr
   - 4.2: `../protocol/channel.md`, section 6 encodes a git identity's value once, for every worker; a run's charter names no tools' version, and the engine answers only its current host tools' contract (`../protocol/wires.md`, section 6).
   - 4.3: the fleet places by no agreed version: every agreed version is the current.
   - 4.4: the pieces of smith's channel the engine keeps are versioned as `smith-channel` itself, not as wires of their own (`../protocol/wires.md`, section 2).
-  - 5.1: `../protocol/binaries.md`'s `upgrade --check` compares the stored wires' names and versions, not each worker's ranges, fingerprints and terms.
 - **Design departs:**
   - 3.1, 4.2: a job kind's request and result are no wire between temper's builds: its spec is `temper-worker-wire`'s `JobSpec`, and its request and result files are the project's tooling contract, which the worker carries unread; a kind's meaning to a worker is fixed by its number (`../protocol/wires.md`, section 7). Because `../domain/worker/jobs.md` has the worker never read them, so no build of temper's reads another's; the goal of 2026-11-12 decided it.
   - 3.1: the host tools' contract's layout is each declaration's name, effect and input schema; what a tool means, and its description, move the version by its author's hand (`../protocol/wires.md`, section 6). Because a description's wording is no layout a gate can judge; the goal of 2026-11-12 decided it.
