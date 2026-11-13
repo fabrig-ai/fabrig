@@ -46,6 +46,7 @@ once fixed.
 - lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/lib.rs
 - lint smith-protocol-program clippy::items_after_test_module smith/crates/smith-protocol-program/src/mcp.rs
 - lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/codecs.rs
+- lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/shared_test_code.rs
 - lint skein-http clippy::question_mark skein/crates/skein-http/src/server.rs
 - test temper-box::suite forge_land::setup_accepts_a_project_free_first_repository_row
 - test temper-box::suite forge_land::terminal_login_cleanup_excludes_a_restart_import
