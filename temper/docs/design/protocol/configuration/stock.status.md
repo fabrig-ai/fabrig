@@ -4,7 +4,6 @@
 
 
 
-- **Not yet:** charter 2's and charter 5's rows, squash-in's words: the stock's files don't say that a change's branch commits are its own and its title and report's first paragraph its commit, nor that a goal writes its deliveries for the history and takes main only by a catch-up for a change that needs it (`../../domain/agent/charter.md`, 4) [in flight: change 2235].
 
 - **Not yet:** "Claude's cache prices are Anthropic's": the stock prices Claude's cached input as input and no cache write, so C is still 10,896 ("Budgets in runs of the costliest model") [in flight: change 913].
 

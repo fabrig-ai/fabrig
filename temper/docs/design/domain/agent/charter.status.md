@@ -3,10 +3,6 @@
 2026-11-13. Where the tree's code lags or departs from [charter.md](charter.md).
 
 
-- **Not yet:** 4, *A change's commits are its maker's* and *Main into a
-  goal's branch only for a change that needs it*: the stock's files
-  don't say them; `goal.md` still makes no catch-up
-  (`temper/docs/charters/stock/`) [in flight: change 2235].
 - **Not yet:** 4, *How long a check may take*: no run's charter names a
   checks' bound (`temper-engine-smith/src/start.rs`, `charter_with_history`).
 - **Not yet:** 4, *What a delivery checks*: a repair's and a resolution's
