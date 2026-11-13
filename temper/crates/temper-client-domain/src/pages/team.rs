@@ -31,7 +31,7 @@ pub struct HeldArea {
     pub name: Box<[u8]>,
     pub holder: Option<Holder>,
 }
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Holder {
     Task(u64),
     Party(u64),
@@ -56,7 +56,7 @@ pub fn areas(root: &crate::Domain, project: u32) -> Option<HeldAreas> {
         triager: if document.triager().is_some() { Some(area_holder(document.holder())) } else { None },
     })
 }
-fn area_holder(value: &w::Holder) -> Holder {
+pub(super) fn area_holder(value: &w::Holder) -> Holder {
     match value {
         w::Holder::Task(task) => Holder::Task(task.number()),
         w::Holder::Party(party) => Holder::Party(party.number()),
