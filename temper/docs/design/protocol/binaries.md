@@ -221,9 +221,10 @@ default; the document is `temper.json` in the configuration directory
   of the whole, and the refusal a start would meet, in a start's words,
   or that the patches and the restores pass, saying that what follows
   the switch is not rehearsed; then whether the workers may stay: yes
-  when the copy's wires equal this binary's and no pending patch is
-  marked fresh, no saying which differs, unknown when the copy keeps
-  none (`../draft/upgrades.md`, sections 3.1 and 9). Exit 0 when the
+  when the copy's wires equal this binary's (`wires.md`, section 9) and
+  no pending patch is marked fresh, no saying which differs, unknown
+  when the copy keeps none (`../draft/upgrades.md`, section 3.1;
+  `../draft/redeploys.md`, 5.1). Exit 0 when the
   patches and restores pass, 1 when a start would be refused there.
 - **`temper-box upgrade --back`:** makes the previous generation active
   again (jig's `protocol/store/opening.md`, 5), for a binary that patched and
@@ -395,8 +396,10 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
     NAME VERSION` for jig's families, `core`, `tasks`, `people`,
     `notes`, `accounts` and `settings`, and `temper`'s, `STORE_VERSION`
     (`README.md`, section 7; jig's `format::current`);
-  - `wire NAME VERSION` for each wire the engine speaks to its workers,
-    in the order `temper-engine-service`'s `store::WIRES` gives them.
+  - for each wire of `temper_engine_service::wires()`, in its order
+    (`wires.md`, section 9): `wire NAME LOWEST HIGHEST`, LOWEST its
+    floor, then `layout NAME VERSION FINGERPRINT` for each version from
+    LOWEST to HIGHEST, FINGERPRINT its layout's 64 lowercase hex digits.
 - **`upgrade`** is `binaries.md`'s `temper-box upgrade`, on this binary.
 - **No command is an unknown command:** `temper-engine: no command WORDS;
   temper-engine --help lists them`, the words given as far as a command

@@ -1,6 +1,6 @@
 //! Task lifecycle values and bounded creation templates (protocol/store/records.md, 1).
 use super::value;
-use crate::tasks_v11 as wire;
+use crate::tasks_v12 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{List, Wall};

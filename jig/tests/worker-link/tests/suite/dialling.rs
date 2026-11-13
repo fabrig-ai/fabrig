@@ -42,8 +42,39 @@ fn the_worker_opens_with_its_credential() {
             .expect("wire credential");
     assert_eq!(credential.name(), fixtures::WORKER_A);
     assert_eq!(credential.secret().expose(), fixtures::SECRET_A);
-    assert_eq!(credential.payload(), fixtures::PAYLOAD);
+    let mut expected = Vec::new();
+    for spoken in &jig_protocol_worker_wire::spoken() {
+        expected.push(spoken.clone());
+    }
+    for spoken in &fixtures::application() {
+        expected.push(spoken.clone());
+    }
+    assert_eq!(credential.wires().len(), u32::try_from(expected.len()).expect("wire count"));
+    for (stated, spoken) in credential.wires().iter().zip(&expected) {
+        assert_eq!(stated.name(), spoken.name.as_bytes());
+        assert_eq!(stated.lowest(), spoken.lowest);
+        assert_eq!(stated.layouts(), &spoken.layouts);
+    }
 }
+#[test]
+fn a_refusal_reaches_the_owner_with_its_text_before_redial() {
+    let mut peer = fixtures::engine_accepting();
+    let text = b"wire smith-charter: the worker states none";
+    peer.play(
+        skein_channel::control_frame(
+            &skein_channel::Control::Refuse { reason: 257, text: text.as_slice().into() },
+            &fixtures::channel_limits(),
+        )
+        .expect("refusal"),
+    );
+    let mut world = engine_world(peer);
+    world.run();
+    assert_eq!(world.heard_refusals(), [(257, text.as_slice().into())]);
+    assert_eq!(world.dials().len(), 1, "refusal precedes redial");
+    check_redial(&mut world, 50, 100);
+    assert_eq!(world.heard_refusals().len(), 1);
+}
+
 #[test]
 fn a_refused_worker_redials_after_its_backoff() {
     let mut world = engine_world(fixtures::engine_refusing(258));

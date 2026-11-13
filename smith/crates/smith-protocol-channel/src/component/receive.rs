@@ -77,7 +77,7 @@ impl Component {
                     };
                     self.follow(below);
                 }
-                Event::Closed { why } => self.ending.end(why, to_service),
+                Event::Closed { why, .. } => self.ending.end(why, to_service),
                 Event::Ended => self.ending.end(Closed::Stream, to_service),
                 Event::Unsent { token, why: _ } => self.unsent(token, to_service),
                 Event::OutputFailed => to_service.push(Heard::WriteFailed),

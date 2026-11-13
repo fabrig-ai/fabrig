@@ -329,7 +329,7 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
     for command in &own {
         match command {
             Own::Draft | Own::Change | Own::Talk | Own::Ask => {
-                items.push(own_item(*command, words)).expect("own commands counted")
+                items.push(own_item(*command, words)).expect("own commands counted");
             }
             Own::Brief | Own::Needs | Own::Open | Own::Tell | Own::Theme => {}
         }

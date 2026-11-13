@@ -261,8 +261,18 @@ mod joined_story {
         refusal(Credential { secret: Secret::new(b"wrong".as_slice().into()), ..fixtures::credential() }, 256);
     }
     #[test]
-    fn another_payload_version_worker_redials_after_application() {
-        refusal(Credential { payload: 4, ..fixtures::credential() }, 257);
+    fn another_wire_version_worker_redials_after_wires() {
+        refusal(
+            Credential {
+                wires: {
+                    let mut wires = fixtures::application();
+                    wires.get_mut(0).expect("application wire").lowest = 4;
+                    wires
+                },
+                ..fixtures::credential()
+            },
+            257,
+        );
     }
 }
 

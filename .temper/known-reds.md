@@ -15,8 +15,6 @@ once fixed.
 Inherited from main, 2026-11-13: the lists the goals
 merged into main brought, each key once. Each is dropped once fixed.
 
-- lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/patches/p0001.rs
-- lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/patches/context.rs
 - lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
 
 
@@ -33,12 +31,6 @@ merged into main brought, each key once. Each is dropped once fixed.
 - test temper-box::suite box_listeners::a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up
 - test temper-box::suite box_listeners::a_later_box_refuses_a_taken_port_naming_the_port_and_document
 - test temper-box::suite support_tests::github_file_scan_excludes_only_jigs_generation_secrets_store
-- lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/src/../patches/p0001.rs
-- lint jig-protocol-store unfulfilled_lint_expectations jig/crates/jig-protocol-store/src/../patches/context.rs
-- lint jig-protocol-store clippy::disallowed_types jig/crates/jig-protocol-store/src/tests/catch_up.rs
-- lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/tests/catch_up.rs
-- lint jig-protocol-store clippy::disallowed_macros jig/crates/jig-protocol-store/src/tests/catch_up.rs
-- lint jig-protocol-store clippy::needless_borrow jig/crates/jig-protocol-store/src/tests/policy_patch.rs
 
 
 
@@ -58,7 +50,6 @@ merged into main brought, each key once. Each is dropped once fixed.
 - lint jig-domain-accounts clippy::needless_bool jig/crates/jig-domain-accounts/src/limits.rs
 - lint jig-client-domain clippy::byte_char_slices jig/crates/jig-client-domain/src/contract/accounts.rs
 - lint temper-client-view clippy::disallowed_types temper/crates/temper-client-view/src/tests/task.rs
-- lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/lib.rs
 - lint smith-protocol-program clippy::items_after_test_module smith/crates/smith-protocol-program/src/mcp.rs
 - lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/codecs.rs
 - lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/shared_test_code.rs
@@ -74,14 +65,22 @@ merged into main brought, each key once. Each is dropped once fixed.
 - test temper-box::suite support_tests::printed_links_count_and_fail_without_disclosing_secrets
 
 
-- lint jig-protocol-store clippy::too_many_lines jig/crates/jig-protocol-store/src/tests/phase.rs
 - lint temper-worker-domain clippy::chunks_exact_to_as_chunks temper/crates/temper-worker-domain/src/jobs/prepare.rs
 
 - lint jig-client-protocol-kit clippy::items_after_statements jig/testing/jig-client-protocol-kit/src/front/observe.rs
 - lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
 - lint temper-client-tui clippy::semicolon_if_nothing_returned temper/crates/temper-client-tui/src/view/foot/lists.rs
 - lint temper-client-domain clippy::assert_is_empty temper/crates/temper-client-domain/src/tests/pages/talk.rs
-- lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
+
+Inherited from goal 1705 at this merge, 2026-11-13:
+
+- lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge clippy::needless_borrow temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge clippy::needless_bool temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge clippy::disallowed_methods temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
+- lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/boundary.rs
+- lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs
 
 Failures on the goal branch that no live change of goal 2176 owns; delivery
 checks count them as inherited (`tools/pre-pr/design.md`, section 5).

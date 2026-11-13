@@ -4,6 +4,21 @@ use skein_io as io;
 use skein_lib::{Token, Wall};
 use temper_protocol_worker_wire::v1;
 #[test]
+fn the_workers_credential_uses_the_engines_table_entry() {
+    let settings = fixtures::worker_settings();
+    let credential = worker_settings::credential(&settings, b"worker-secret-value");
+    let wires = temper_engine_service::wires();
+    let mut found = false;
+    for wire in &wires {
+        if wire.name == temper_protocol_worker_wire::wire::FAMILY {
+            assert_eq!(credential.wires.as_slice(), core::slice::from_ref(wire));
+            found = true;
+        }
+    }
+    assert!(found, "temper's worker wire is in the table");
+}
+
+#[test]
 fn a_dump_directory_reaches_the_agent_as_its_one_variable() {
     let mut service = fixtures::system::one_process().service;
     service.worker = Some(fixtures::started_worker().worker);

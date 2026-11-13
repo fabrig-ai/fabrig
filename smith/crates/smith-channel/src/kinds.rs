@@ -174,7 +174,10 @@ fn required_terms_gap(
 
 impl KindRule {
     /// The wire format version this codec writes and reads.
-    pub const FORMAT_VERSION: u64 = 7;
+    pub const FORMAT_VERSION: u64 = {
+        let [high, low] = crate::wire::VERSION.to_be_bytes();
+        u64::from_be_bytes([0, 0, 0, 0, 0, 0, high, low])
+    };
 }
 
 #[cfg(test)]

@@ -13,10 +13,14 @@ use skein_scratch::{Scratch, paths};
 const OWNERS: &[&str] = &[
     "skein/crates/skein-oauth",
     "smith/crates/smith-transcript",
+    "smith/crates/smith-charter",
+    "smith/crates/smith-channel",
+    "jig/crates/jig-protocol-worker-wire",
     "jig/crates/jig-protocol-store",
     "jig/crates/jig-protocol-accounts",
     "temper/crates/temper-protocol-store",
     "temper/crates/temper-protocol-records",
+    "temper/crates/temper-protocol-worker-wire",
 ];
 const RECORDS: &str = "temper/crates/temper-protocol-records";
 
@@ -155,6 +159,34 @@ fn added_field_without_patch_is_unpatched() {
             .any(|finding| matches!(finding, Finding::Unpatched { family, .. } if family == "temper-secrets")),
         "expected Unpatched for temper-secrets, got {findings:?}"
     );
+}
+
+#[test]
+fn channel_kind_layout_changes_require_a_version_move() {
+    use skein_codegen::diff::Version;
+    let source = paths::workspace().join("jig/crates/jig-protocol-worker-wire");
+    for (name, old, new) in [
+        ("appended", "job: Job, read_list: ReadList", "job: Job, read_list: ReadList, added: Cancel"),
+        ("reordered", "assignment: Assignment, message: Inbound", "message: Inbound, assignment: Assignment"),
+        ("other_direction", "    job_answer: JobAnswer\n}", "    job_answer: JobAnswer, assignment: Assignment\n}"),
+    ] {
+        let scratch = Scratch::new("boundary-channel-kinds");
+        copy_directory(&source, scratch.path());
+        let landed = Landed::read(scratch.path()).expect("scratch wire's baseline");
+        let path = scratch.path().join("schema/worker-wire-v11.schema");
+        let text = fs::read_to_string(&path).expect("current channel schema");
+        let mut changed = text.replace(old, new);
+        if name == "other_direction" {
+            changed = changed.replace("    assignment: Assignment, message: Inbound", "    message: Inbound");
+        }
+        assert_ne!(changed, text, "{name} changes the kinds' layout");
+        assert!(changed.starts_with("family jig-worker-wire 11\n"), "{name} keeps the version unmoved");
+        fs::write(&path, changed).expect("mutate channel kind without moving its version");
+        let findings = patch::check(scratch.path(), &landed).expect("check mutated channel kinds");
+        assert!(findings.iter().any(|finding| matches!(finding,
+            Finding::Version { family, verdict: Version::Unmoved, kept: 11, current: 11 } if family == "jig-worker-wire"
+        )), "{name} must move the wire's version: {findings:?}");
+    }
 }
 
 #[test]

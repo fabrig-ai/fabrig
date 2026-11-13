@@ -1,5 +1,5 @@
 //! Values carried by core rows in their own family (protocol/store/records.md, 1).
-use crate::tasks_v11 as wire;
+use crate::tasks_v12 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Reader, Writer};
@@ -543,6 +543,10 @@ pub(super) fn encode_end(value: &tasks::End, limits: &Limits) -> Result<wire::En
             limits,
             wire::EndFailedWithReasonParts { class: super::value::class(*class), reason: reason.clone() },
         )?),
+        tasks::End::RefusedWithReason { reason } => wire::End::RefusedWithReason(wire::EndRefusedWithReason::new(
+            limits,
+            wire::EndRefusedWithReasonParts { reason: reason.clone() },
+        )?),
         tasks::End::Refused => wire::End::Refused,
         tasks::End::Recheck => wire::End::Recheck,
     })
@@ -583,6 +587,7 @@ pub(super) fn decode_end(value: wire::End, limits: &Limits) -> Result<tasks::End
             let wire::EndFailedWithReasonParts { class, reason } = value.into_parts();
             tasks::End::FailedWithReason { class: super::value::read_class(class), reason }
         }
+        wire::End::RefusedWithReason(value) => tasks::End::RefusedWithReason { reason: value.into_parts().reason },
         wire::End::Refused => tasks::End::Refused,
         wire::End::Recheck => tasks::End::Recheck,
     })

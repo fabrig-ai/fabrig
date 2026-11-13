@@ -1,6 +1,7 @@
 # channel: status
 
-2026-11-11. Where temper's code lags or departs from [channel.md](channel.md).
+2026-11-12. Where temper's code lags or departs from [channel.md](channel.md).
+
 
 - **Not yet:** 8: jig's ceiling for `saved` is 65,536, below what temper's payload ceilings let the checkout's conflicts make, so a raise of `checkout.conflicts` past about 120 meets it before the links' rooms.
 

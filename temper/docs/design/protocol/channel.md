@@ -2,7 +2,7 @@
 
 Provisional, 2026-10-03, revised 2026-11-04. What temper carries on the
 channel between its engine and a worker: its parts inside jig's records,
-under its payload version, and a git identity's value inside a credential
+under its wire's version (`wires.md`), and a git identity's value inside a credential
 grant. The channel is jig's (jig's `protocol/channel/README.md`), and this
 document does not repeat it. It covers where temper's parts cross, the
 payload version, each part field by field, a git identity's value, the
@@ -80,22 +80,24 @@ worker's root      Event::Assign { assignment, items }                  Request:
 
 ## 3. The payload version
 
-- **`PAYLOAD_VERSION`,** in `temper-protocol-worker-wire`, covers every
-  encoding of temper's carried on the channel: the workspace items with
-  per-repository saved-work branches, the left and saved work, the
-  preparation, a git identity's value, and a delivery's evidence,
-  smith's record as the smith temper links encodes it.
-- **Checked at the opening.** The services give it to both channel
-  components as they make them, and a worker whose credential names
-  another is refused before any part crosses (jig's
-  `protocol/channel/README.md`, 4.1).
-- **It stays at 4 until the first release.** A change to one of these
-  encodings, including a repin of smith that changes the delivery's
-  record, changes the schema, generated code and one set of golden bytes
-  in place. The version moves at a release (`README.md`, section 7;
-  skein's `data/codec/README.md`, section 5). An engine and its workers come from
-  the same build, and nothing is translated between versions (jig's
-  `protocol/README.md`, section 7).
+- **`temper-worker-wire` is a wire** (`wires.md`, section 2): its family,
+  in `temper-protocol-worker-wire`, covers every encoding of temper's
+  carried on the channel: the workspace items with per-repository
+  saved-work branches, the left and saved work, the preparation, a job's
+  spec and a git identity's value. A delivery's evidence is smith's
+  record, under `smith-channel`'s version.
+- **Checked at the opening.** The services give both channel components
+  its `Spoken` statement as they make them, in place of
+  `PAYLOAD_VERSION`, and a worker that states it otherwise is refused
+  with *wires* before any part crosses (jig's
+  `protocol/channel/wires.md`, 3).
+- **It moves with its layout** (`wires.md`, 3.1): a change to one of
+  these encodings moves the family's version, keeps the old text and
+  brings its forward patch. Each build's floor is its current version,
+  so nothing is translated between versions yet (`wires.md`, 3.2).
+- **`Items` is `versioned`,** so a worker tells items of another version
+  from items that do not decode, and refuses them for their version
+  (`wires.md`, section 5).
 
 ## 4. Down: the workspace items
 
@@ -328,8 +330,8 @@ the routing in the step that routes the record:
 - **A part that does not decode,**
   - on the engine: the root gets the answer with no parts
     (`Parts::none()`), as it does for parts beyond its bounds; the
-    routing counts it. A worker of the same payload version never sends
-    one.
+    routing counts it. A worker of the same wire's version and layout
+    never sends one.
   - on the worker: items that do not decode reach the root as such, and
     the root refuses the start as invalid, naming the workspace items,
     as it refuses items beyond its limits (`../domain/worker/README.md`, 4.1).

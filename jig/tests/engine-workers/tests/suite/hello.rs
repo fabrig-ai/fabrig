@@ -2,7 +2,7 @@
 mod hello {
     use jig_engine_workers_world::{
         World,
-        fixtures::{self, PAYLOAD, SECRET_A, WORKER_A},
+        fixtures::{self, APPLICATION_VERSION, SECRET_A, WORKER_A},
     };
     use jig_protocol_engine_workers::{Event, Request};
     use skein_lib::{Duration, Token};
@@ -28,7 +28,7 @@ mod hello {
     #[test]
     fn the_root_hears_a_channel_only_with_its_hello() {
         let mut world = world();
-        let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, PAYLOAD));
+        let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, APPLICATION_VERSION));
         world.run();
         assert!(world.root().is_empty());
         world.play(connection, fixtures::hello_frame());
@@ -37,7 +37,7 @@ mod hello {
     }
     #[test]
     fn a_turn_before_the_hello_is_refused_as_framing() {
-        let mut peer = fixtures::worker(WORKER_A, SECRET_A, PAYLOAD);
+        let mut peer = fixtures::worker(WORKER_A, SECRET_A, APPLICATION_VERSION);
         peer.play(fixtures::turn_frame());
         let mut world = world();
         let connection = world.connect(peer);
@@ -48,7 +48,7 @@ mod hello {
     #[test]
     fn a_hello_past_its_deadline_closes_the_channel_unheard() {
         let mut world = world();
-        let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, PAYLOAD));
+        let connection = world.connect(fixtures::worker(WORKER_A, SECRET_A, APPLICATION_VERSION));
         world.run();
         world.advance(Duration::from_secs(2));
         world.play(connection, fixtures::hello_frame());

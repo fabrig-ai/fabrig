@@ -793,6 +793,7 @@ impl Host {
         self.tell(Told::Tell { serial, refusal });
     }
 
+    #[expect(clippy::too_many_lines, reason = "composer sends route terminal commands and their screen context")]
     fn send(&mut self, duties: &mut Duties) {
         if self.words() == tui::EXIT && self.root.pages().chat().is_some_and(|chat| chat.talk().is_some()) {
             self.leave();

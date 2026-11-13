@@ -38,6 +38,7 @@ impl Referee {
                 | FromAgent::Finished { .. }
                 | FromAgent::StartRefused { .. }
                 | FromAgent::StartBusy { .. }
+                | FromAgent::StartVersion { .. }
                 | FromAgent::Yielded { .. }
                 | FromAgent::Faulted { .. }
                 | FromAgent::Gone { .. },

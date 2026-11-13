@@ -398,9 +398,10 @@ impl Engine {
         let assigned = self.open.remove(&(run, attempt)).expect("an assignment is answered once, while in flight");
         let refused = match answer {
             Ending::Refused(Refusal::Invalid(refused)) => Some(refused.clone()),
-            Ending::Refused(Refusal::Busy) | Ending::Ended { .. } | Ending::Parked { .. } | Ending::Failed { .. } => {
-                None
-            }
+            Ending::Refused(Refusal::Busy | Refusal::Version(_))
+            | Ending::Ended { .. }
+            | Ending::Parked { .. }
+            | Ending::Failed { .. } => None,
         };
         assert_eq!(
             refused, assigned.invalid,
@@ -436,6 +437,7 @@ impl Engine {
 pub fn ending(answer: &Ending) -> &'static str {
     match answer {
         Ending::Refused(Refusal::Busy) => "refused: busy",
+        Ending::Refused(Refusal::Version(_)) => "refused: version",
         Ending::Refused(Refusal::Invalid(_)) => "refused: invalid",
         Ending::Ended { .. } => "ended",
         Ending::Parked { .. } => "parked",

@@ -46,6 +46,7 @@ fn answers(world: &World) -> Vec<&host::Relayed> {
             | Request::Lower { .. }
             | Request::Close { .. }
             | Request::Abort { .. }
+            | Request::Refused { .. }
             | Request::Fact { .. }
             | Request::RelayCancelled { .. } => None,
         })
@@ -88,6 +89,7 @@ fn a_relay_cancelled_while_the_link_is_down_is_never_sent_again() {
             | Request::Lower { .. }
             | Request::Close { .. }
             | Request::Abort { .. }
+            | Request::Refused { .. }
             | Request::Fact { .. } => None,
         })
         .collect();

@@ -3,7 +3,11 @@ use jig_domain_link::{Bounds, EndpointBound, Hello, Hosting, Phase};
 use skein_lib::{Duration, Secret};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const SECRET_A: &[u8] = b"secret-a";
-pub const PAYLOAD: u32 = 3;
+pub fn application() -> List<wire::Spoken> {
+    let mut wires = List::with_capacity(1);
+    wires.push(wire::Spoken::current("test-worker-wire", 3, [3; 32])).expect("application wire");
+    wires
+}
 pub const SEED_ONE: u64 = 1;
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
     program_sources: 2,
@@ -55,7 +59,7 @@ pub const LIMITS: Limits = Limits {
     busy: Duration::from_millis(200),
 };
 pub fn credential() -> Credential {
-    Credential { name: WORKER_A.into(), secret: Secret::new(SECRET_A.into()), payload: PAYLOAD }
+    Credential { name: WORKER_A.into(), secret: Secret::new(SECRET_A.into()), wires: application() }
 }
 
 use jig_domain_host as host;
@@ -64,7 +68,7 @@ use skein_lib::{List, Token, Writer};
 pub const TOKEN_ONE: &[u8] = b"access";
 pub const RUN_SEVEN: Token = Token::new(7);
 pub const ATTEMPT_TWO: Token = Token::new(2);
-pub fn codec() -> wire::v9::Limits {
+pub fn codec() -> wire::v11::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 pub fn hello() -> Hello {

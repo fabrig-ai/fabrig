@@ -110,7 +110,7 @@ pub fn terminal_bytes(end: &End) -> Option<u64> {
             };
             result.checked_add(followups)
         }
-        End::FailedWithReason { reason, .. } => bytes(reason.len()),
+        End::FailedWithReason { reason, .. } | End::RefusedWithReason { reason } => bytes(reason.len()),
         End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => Some(0),
     }
 }

@@ -22,6 +22,8 @@ pub(crate) struct Crate {
     pub root: PathBuf,
     /// Each family's current text: its greatest version in `schema/`.
     pub current: BTreeMap<String, Text>,
+    /// The families named by `schema/wires`.
+    pub wires: BTreeSet<String>,
     /// Each family's kept texts, by version.
     pub kept: BTreeMap<String, BTreeMap<u16, Text>>,
     /// Each family's waiting renames file, `schema/kept/<family>.renames`.
@@ -67,6 +69,7 @@ impl Crate {
         let mut base = Self {
             root: root.to_path_buf(),
             current: BTreeMap::new(),
+            wires: BTreeSet::new(),
             kept: BTreeMap::new(),
             renames: BTreeMap::new(),
             patches: BTreeMap::new(),
@@ -110,6 +113,23 @@ impl Crate {
                 }
             }
         }
+        let wires_path = Path::new("schema/wires");
+        let wires = if root.join(wires_path).try_exists().map_err(|error| Error::io(wires_path, &error))? {
+            let source = unconflicted(root, wires_path)?;
+            source
+                .lines()
+                .map(|line| line.split('#').next().unwrap_or_default().trim())
+                .filter(|line| !line.is_empty())
+                .map(str::to_owned)
+                .collect::<BTreeSet<_>>()
+        } else {
+            BTreeSet::new()
+        };
+        for family in &wires {
+            if !current.contains_key(family) {
+                return Err(Error::Wire { family: family.clone() });
+            }
+        }
         let mut kept: BTreeMap<String, BTreeMap<u16, Text>> = BTreeMap::new();
         let mut renames = BTreeMap::new();
         for path in listed(root, Path::new(KEPT))? {
@@ -139,7 +159,7 @@ impl Crate {
                 skeletons.insert(number);
             }
         }
-        Ok(Self { root: root.to_path_buf(), current, kept, renames, patches, skeletons })
+        Ok(Self { root: root.to_path_buf(), current, wires, kept, renames, patches, skeletons })
     }
 }
 

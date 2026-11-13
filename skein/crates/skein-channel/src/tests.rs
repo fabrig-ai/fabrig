@@ -286,6 +286,47 @@ fn opening_refusal_reasons_cover_magic_range_version_and_owner() {
     assert!(saw_refusal);
 }
 
+#[test]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the test fails on unexpected opening events")]
+fn a_version_refusal_names_both_ranges_to_the_peer_and_its_owner() {
+    let mut peer = Peer::new(Role::Initiator);
+    let mut responder = Peer::new(Role::Responder);
+    let frame = control_frame(
+        &Control::Open { magic: *b"test", lowest: 3, highest: 4, features: 0, credential: Box::from(*b"unread") },
+        &limits(),
+    )
+    .expect("Open");
+    responder.input.extend(frame.bytes().iter().copied());
+    for _ in 0_u32..30 {
+        responder.step(&mut peer);
+    }
+    let mut sent = Vec::new();
+    for byte in peer.input {
+        sent.push(byte);
+    }
+    let Control::Refuse { reason, text } =
+        decode_control(3, sent.get(8..).expect("Refuse body"), &limits()).expect("Refuse")
+    else {
+        panic!("refusal")
+    };
+    assert_eq!(reason, 1);
+    assert_eq!(text.as_ref(), b"speaks 1..2, offered 3..4");
+    let mut terminal = 0_u32;
+    while let Some(event) = responder.events.pop() {
+        match event {
+            Event::Opening { .. } => panic!("the credential must not reach the owner"),
+            Event::Closed { why, text: sent } => {
+                assert_eq!(why, super::Closed::RefusedHere(reason));
+                assert_eq!(sent, text);
+                terminal += 1;
+            }
+            Event::Drained => {}
+            event => panic!("unexpected opening event {event:?}"),
+        }
+    }
+    assert_eq!(terminal, 1);
+}
+
 fn ready_pair() -> (Peer, Peer) {
     ready_pair_mode(StreamMode::One)
 }
@@ -392,7 +433,7 @@ fn wrong_direction_and_oversized_headers_refuse_before_body() {
         }
         let mut refused = false;
         while let Some(event) = target.events.pop() {
-            if let Event::Closed { why: super::Closed::Framing } = event {
+            if let Event::Closed { why: super::Closed::Framing, .. } = event {
                 refused = true;
             }
         }
@@ -423,7 +464,7 @@ fn end_between_frames_answers_read_and_end_inside_header_or_body_closes() {
     initiator.step(&mut responder);
     initiator.machine.up(LowerEvent::Read(stream::Up::End), &mut initiator.events, &mut initiator.below);
     match initiator.events.pop() {
-        Some(Event::Closed { why: super::Closed::Truncated }) => {}
+        Some(Event::Closed { why: super::Closed::Truncated, .. }) => {}
         event => panic!("expected truncated header: {event:?}"),
     }
 
@@ -438,7 +479,7 @@ fn end_between_frames_answers_read_and_end_inside_header_or_body_closes() {
     }
     initiator.machine.up(LowerEvent::Read(stream::Up::End), &mut initiator.events, &mut initiator.below);
     match initiator.events.pop() {
-        Some(Event::Closed { why: super::Closed::Truncated }) => {}
+        Some(Event::Closed { why: super::Closed::Truncated, .. }) => {}
         event => panic!("expected truncated body: {event:?}"),
     }
 }
@@ -571,7 +612,7 @@ fn refusal_cancels_a_pending_right_and_finishes_after_its_last_word() {
         event => panic!("expected drain: {event:?}"),
     }
     match responder.events.pop() {
-        Some(Event::Closed { why: super::Closed::RefusedHere(256) }) => {}
+        Some(Event::Closed { why: super::Closed::RefusedHere(256), text }) => assert_eq!(text.as_ref(), b"bye"),
         event => panic!("expected refusal terminal: {event:?}"),
     }
     responder.machine.poll(&mut responder.events, &mut responder.below);
@@ -606,7 +647,7 @@ fn close_releases_a_grant_that_beat_cancellation() {
         record => panic!("expected Release: {record:?}"),
     }
     match responder.events.pop() {
-        Some(Event::Closed { why: super::Closed::Owner }) => {}
+        Some(Event::Closed { why: super::Closed::Owner, .. }) => {}
         event => panic!("expected owner terminal: {event:?}"),
     }
     assert!(responder.events.is_empty());
@@ -758,7 +799,7 @@ fn two_pipes_keep_reading_after_write_failure_and_drain_after_read_failure() {
         event => panic!("expected drain: {event:?}"),
     }
     match responder.events.pop() {
-        Some(Event::Closed { why: super::Closed::Stream }) => {}
+        Some(Event::Closed { why: super::Closed::Stream, .. }) => {}
         event => panic!("expected stream terminal: {event:?}"),
     }
 }
@@ -791,7 +832,7 @@ fn one_stream_failure_cancels_output_and_closes_once() {
         &mut responder.below,
     );
     match responder.events.pop() {
-        Some(Event::Closed { why: super::Closed::Stream }) => {}
+        Some(Event::Closed { why: super::Closed::Stream, .. }) => {}
         event => panic!("expected one stream terminal: {event:?}"),
     }
     responder.machine.poll(&mut responder.events, &mut responder.below);
@@ -808,7 +849,7 @@ fn write_failure_during_refusal_reports_stream_terminal() {
         event => panic!("expected output failure: {event:?}"),
     }
     match responder.events.pop() {
-        Some(Event::Closed { why: super::Closed::Stream }) => {}
+        Some(Event::Closed { why: super::Closed::Stream, .. }) => {}
         event => panic!("expected stream terminal: {event:?}"),
     }
     responder.machine.poll(&mut responder.events, &mut responder.below);
@@ -1060,7 +1101,7 @@ fn two_pipes_framing_error_after_finish_waits_for_owner_close() {
     assert!(channel.below.is_empty(), "Finish is not repeated");
     channel.down(Request::Close);
     match channel.events.pop() {
-        Some(Event::Closed { why: super::Closed::Owner }) => {}
+        Some(Event::Closed { why: super::Closed::Owner, .. }) => {}
         event => panic!("expected owner terminal: {event:?}"),
     }
     assert!(channel.events.is_empty());
@@ -1148,7 +1189,7 @@ fn two_pipes_truncation_drains_ignores_close_and_refusal_failure_reports_in_orde
         event => panic!("expected drain: {event:?}"),
     }
     match channel.events.pop() {
-        Some(Event::Closed { why: super::Closed::Truncated }) => {}
+        Some(Event::Closed { why: super::Closed::Truncated, .. }) => {}
         event => panic!("expected truncation terminal: {event:?}"),
     }
     assert!(channel.events.is_empty());
@@ -1162,7 +1203,7 @@ fn two_pipes_truncation_drains_ignores_close_and_refusal_failure_reports_in_orde
         event => panic!("expected output failure before terminal: {event:?}"),
     }
     match channel.events.pop() {
-        Some(Event::Closed { why: super::Closed::Stream }) => {}
+        Some(Event::Closed { why: super::Closed::Stream, .. }) => {}
         event => panic!("expected stream terminal: {event:?}"),
     }
     channel.machine.poll(&mut channel.events, &mut channel.below);
@@ -1214,7 +1255,7 @@ fn two_pipes_read_failure_during_opening_drains_terms_before_terminal() {
         }
     }
     match responder.events.pop() {
-        Some(Event::Closed { why: super::Closed::Stream }) => {}
+        Some(Event::Closed { why: super::Closed::Stream, .. }) => {}
         event => panic!("expected terminal after Terms: {event:?}"),
     }
     responder.machine.poll(&mut responder.events, &mut responder.below);

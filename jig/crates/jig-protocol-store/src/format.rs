@@ -56,7 +56,7 @@ pub fn current(application: u32, deployment: [u8; 16]) -> component::Format {
     component::Format {
         component: 3,
         core: 6,
-        tasks: 11,
+        tasks: 12,
         people: 17,
         notes: 1,
         accounts: 2,

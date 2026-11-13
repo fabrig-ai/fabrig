@@ -9,6 +9,7 @@ pub mod host;
 pub mod limits;
 mod opening;
 mod translate;
+mod wires;
 pub use boundary::{Bound, Event, GrantValue, Loss, Request, Scheme, Unsent, Worker};
 pub use component::{Component, Unusable};
 pub use limits::{Limits, valid};

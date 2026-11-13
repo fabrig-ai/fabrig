@@ -13,11 +13,27 @@ pub(crate) fn start_refused(
     cause: crate::StartCause,
     out: &mut Queue<Request>,
 ) {
-    refused(domain, env, owner, why, Some(cause), out);
+    refused(domain, env, owner, why, Reason::Invalid(cause), out);
 }
 
 pub(crate) fn start_busy(domain: &mut Hub, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
-    refused(domain, env, owner, Box::new([]), None, out);
+    refused(domain, env, owner, Box::new([]), Reason::Busy, out);
+}
+
+pub(crate) fn start_version(
+    domain: &mut Hub,
+    env: &Env<Limits>,
+    owner: Token,
+    mismatch: crate::Mismatch,
+    out: &mut Queue<Request>,
+) {
+    refused(domain, env, owner, Box::new([]), Reason::Version(mismatch), out);
+}
+
+enum Reason {
+    Invalid(crate::StartCause),
+    Busy,
+    Version(crate::Mismatch),
 }
 
 fn refused(
@@ -25,7 +41,7 @@ fn refused(
     env: &Env<Limits>,
     owner: Token,
     why: Box<[u8]>,
-    cause: Option<crate::StartCause>,
+    reason: Reason,
     out: &mut Queue<Request>,
 ) {
     let id = Id::<Hosted>::from_token(owner);
@@ -53,9 +69,10 @@ fn refused(
     if let Some(workspace) = workspace {
         out.push(Request::Release { workspace });
     }
-    let refusal = match cause {
-        Some(cause) => Refusal::Invalid(Invalid::Start { cause, why: tail(why, &env.limits) }),
-        None => Refusal::Busy,
+    let refusal = match reason {
+        Reason::Invalid(cause) => Refusal::Invalid(Invalid::Start { cause, why: tail(why, &env.limits) }),
+        Reason::Busy => Refusal::Busy,
+        Reason::Version(mismatch) => Refusal::Version(mismatch),
     };
     let answer =
         RunAnswer { turns: 0, spent: 0, read: None, refused: entry.refusals.take(), ending: Ending::Refused(refusal) };

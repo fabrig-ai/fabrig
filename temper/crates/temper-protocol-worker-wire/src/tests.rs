@@ -4,6 +4,36 @@ use crate::v1;
 use alloc::boxed::Box;
 use skein_lib::List;
 
+/// Another version is distinct from a malformed Items body (protocol/wires.md, 5).
+#[test]
+fn items_refuse_another_version_before_reading_the_body() {
+    use skein_codec::Reason;
+    use skein_lib::Reader;
+
+    let limits = fixtures::limits();
+    let value = v1::Items::new(&limits, fixtures::items(1)).expect("items within bounds");
+    let bytes = crate::items(&value);
+    assert_eq!(skein_codec::version_of(&bytes), Ok(crate::wire::VERSION));
+    assert_eq!(v1::Items::decode(&limits, &mut Reader::new(&bytes)), Ok(value));
+
+    let other = crate::wire::VERSION.checked_sub(1).expect("a preceding version").to_be_bytes();
+    let mut changed = bytes;
+    for (byte, value) in changed.iter_mut().zip(other) {
+        *byte = value;
+    }
+    for bytes in [changed.as_ref(), other.as_slice()] {
+        assert_eq!(
+            v1::Items::decode(&limits, &mut Reader::new(bytes)).expect_err("another version"),
+            v1::Problem { path: v1::Path::ItemsVersion, reason: Reason::Version }
+        );
+    }
+    assert_eq!(
+        v1::Items::decode(&limits, &mut Reader::new(&crate::wire::VERSION.to_be_bytes()))
+            .expect_err("missing repository count"),
+        v1::Problem { path: v1::Path::ItemsRepositories, reason: Reason::Short }
+    );
+}
+
 #[test]
 fn limits_take_each_bound_from_its_source_field() {
     assert_eq!(
@@ -136,9 +166,9 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     assert_eq!(u64::from(sizes.resource), v1::Preparation::encoded_bound(&limits).expect("preparation"));
     assert_eq!(u64::from(sizes.grant), v1::Identity::encoded_bound(&limits).expect("identity"));
     // Merged adds a list length and 64 full ids in place of Merge's base id.
-    assert_eq!(v1::Items::encoded_bound(&v1::CEILINGS), Some(792_260));
-    // At ceilings: 64 * 12,379-byte repositories + the four-byte list length.
-    assert_eq!(sizes, crate::Largest { items: 12730, left: 84, saved: 1084, resource: 41, grant: 233 });
+    assert_eq!(v1::Items::encoded_bound(&v1::CEILINGS), Some(792_262));
+    // At ceilings: 64 * 12,379-byte repositories + the four-byte list length + the two-byte version.
+    assert_eq!(sizes, crate::Largest { items: 12732, left: 84, saved: 1084, resource: 41, grant: 233 });
 }
 
 #[test]

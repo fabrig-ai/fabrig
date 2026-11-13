@@ -9,11 +9,12 @@
 
 extern crate alloc;
 
-
 #[rustfmt::skip]
-// The schema compiler writes this module to generated/v7.rs.
-#[path = "generated/v7.rs"]
-pub mod v7;
+mod generated {
+    pub mod v7;
+}
+
+pub use generated::v7;
 
 mod frame;
 pub mod kind;
@@ -57,3 +58,46 @@ pub use v7::{
     ListAnswer, ListAsk, ListAskParts, ListFailed, ListFailure, ListFailureParts, ListRefused, ListRefusedParts,
     ListRow, ListRowParts, ListRows, ListRowsParts,
 };
+
+/// This crate's spoken family and layout (temper/docs/design/protocol/wires.md, 3.1).
+pub mod wire {
+    /// The family named by the current schema's header.
+    pub const FAMILY: &str = "smith-channel";
+
+    /// The version named by the current schema's header.
+    pub const VERSION: u16 = 7;
+
+    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
+    const TEXT: &str = include_str!("../schema/channel-v7.schema");
+
+    /// The current schema's family fingerprint.
+    #[must_use]
+    pub fn layout() -> [u8; 32] {
+        skein_codec::schema::parse(TEXT.as_bytes())
+            .expect("the embedded current schema is valid")
+            .fingerprints()
+            .family()
+            .digest()
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{FAMILY, TEXT, VERSION, layout};
+
+        #[test]
+        fn identity_tracks_schema() {
+            let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
+            assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
+            assert_eq!(VERSION, schema.version());
+            assert_eq!(layout(), schema.fingerprints().family().digest());
+
+            let changed = TEXT.replacen("completion: u32", "completion: u64", 1);
+            assert_ne!(changed, TEXT, "the mutation changes a field's type");
+            let changed = skein_codec::schema::parse(changed.as_bytes()).expect("changed schema");
+            assert_ne!(layout(), changed.fingerprints().family().digest());
+        }
+    }
+}
+
+#[path = "../patches/mod.rs"]
+pub mod patches;

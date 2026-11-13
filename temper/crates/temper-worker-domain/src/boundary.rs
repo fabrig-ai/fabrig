@@ -71,7 +71,7 @@ pub enum Event {
     /// items with their per-repository saved-work branches (jig's `protocol/channel/README.md`,
     /// 5.2). The record's workspace, if it has one, names the workstream the
     /// checkout is keyed by; the root names the items to the hub itself.
-    Assign { assignment: host::Assignment, items: Result<wire::Workspace, wire::Undecodable> },
+    Assign { assignment: host::Assignment, items: Result<wire::Workspace, wire::ItemsRefusal> },
     /// A job with the service's decoded workspace items and command spec
     /// (temper/docs/design/domain/worker/jobs.md).
     AssignJob {

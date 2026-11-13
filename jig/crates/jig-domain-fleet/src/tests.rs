@@ -1469,3 +1469,55 @@ mod crossed;
 mod jobs;
 
 mod interrupts;
+
+#[test]
+fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
+    let mut h = Harness::new(LIMITS);
+    let job = jig_domain_link::JobBound {
+        kind: jig_domain_link::JobKind(7),
+        spec: 4,
+        result: 8,
+        deadline: Duration::from_secs(3),
+    };
+    let hello = || Hello {
+        slots: 2,
+        stop_bound: Duration::ZERO,
+        bounds: fixtures::bounds(),
+        jobs: Box::new([job]),
+        workstreams: Box::new([]),
+        hosting: Box::new([]),
+    };
+    h.step(Event::Hello { worker: 37, channel: C1, hello: hello() });
+    assert_eq!(h.place(R1, A1, 1), C1);
+    assert_eq!(h.place(R2, A2, 2), C1);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Version, 1), &[answered(A1, R1, Answer::Version, 1)]);
+    assert!(h.acknowledge(R1, A1).is_empty());
+    assert!(h.domain.probe(Kinds::Workers, 1, crate::Version { charter: 1, revision: 1 }, &[], &[]).is_none());
+    h.start(R1, A3, 1);
+    let job_run = Token::new(4);
+    let job_attempt = Token::new(4);
+    h.step(Event::StartJob {
+        reply_to: to(job_attempt),
+        run: job_run,
+        attempt: job_attempt,
+        workstream: 4,
+        job,
+        adopt: false,
+    });
+    assert!(h.settle().is_empty());
+    // A hosted run still answers, and freeing it cannot clear the mismatch mark.
+    assert_eq!(&*h.answer(C1, R2, A2, Answer::Ended, 2), &[answered(A2, R2, Answer::Ended, 2)]);
+    h.acknowledge(R2, A2);
+    assert!(h.settle().is_empty());
+    h.step(Event::Lost { channel: C1 });
+    h.step(Event::Hello { worker: 37, channel: C2, hello: hello() });
+    assert_eq!(
+        &*h.settle(),
+        &[
+            assign(C2, R1, A3),
+            placed(R1, A3),
+            Request::AssignJob { channel: C2, run: job_run, attempt: job_attempt },
+            placed(job_run, job_attempt)
+        ]
+    );
+}

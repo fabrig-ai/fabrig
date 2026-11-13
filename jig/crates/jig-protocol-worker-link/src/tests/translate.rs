@@ -3,7 +3,7 @@ use jig_domain_host as host;
 use jig_domain_link::{CountKind, Form, Grant, Hello, PROGRAM_ENDPOINTS, Scheme, SourceName};
 use jig_protocol_worker_wire::{self as wire, Part};
 use skein_lib::{List, Queue, Reader, Time, Token};
-fn translated(kind: u16, bytes: &[u8], limits: &wire::v9::Limits) -> (host::LinkDown, Box<[Part]>, Queue<Request>) {
+fn translated(kind: u16, bytes: &[u8], limits: &wire::v11::Limits) -> (host::LinkDown, Box<[Part]>, Queue<Request>) {
     let mut parts = Queue::uncapped();
     let mut values = Queue::with_capacity(4);
     let down =
@@ -408,7 +408,7 @@ fn a_refused_later_program_grant_leaves_no_value_queued() {
 
 #[test]
 fn the_hosts_endpoint_cap_is_the_worker_wires_ceiling() {
-    assert_eq!(PROGRAM_ENDPOINTS, wire::v9::CEILINGS.bounds_program_endpoints);
+    assert_eq!(PROGRAM_ENDPOINTS, wire::v11::CEILINGS.bounds_program_endpoints);
 }
 
 fn hello_with_program_endpoints(count: u32) -> Hello {
@@ -542,4 +542,27 @@ fn a_hubs_draining_notice_becomes_the_empty_draining_record() {
     let mut body = body(&frame);
     assert!(body.is_empty());
     wire::Draining::decode(&limits, &mut body).expect("draining record");
+}
+
+#[test]
+fn a_version_refusal_encodes_its_wire_and_range_without_parts() {
+    let mismatch = host::Mismatch { wire: b"smith-charter".as_slice().into(), version: 5, lowest: 4, highest: 4 };
+    let value = host::LinkUp::Answer {
+        run: Token::new(7),
+        attempt: Token::new(2),
+        answer: host::RunAnswer {
+            turns: 0,
+            spent: 0,
+            read: None,
+            refused: Box::new([]),
+            ending: host::Ending::Refused(host::Refusal::Version(mismatch)),
+        },
+    };
+    let limits = fixtures::codec();
+    let frame = translate::up(value, &[], &limits).expect("version refusal");
+    let record = wire::Answer::decode(&limits, &mut body(&frame)).expect("answer");
+    let wire::Ending::Refused(value) = record.ending() else { panic!("refused") };
+    let wire::Refusal::Version(value) = value.value() else { panic!("version") };
+    assert_eq!(value.wire(), b"smith-charter");
+    assert_eq!((value.version(), value.lowest(), value.highest()), (5, 4, 4));
 }

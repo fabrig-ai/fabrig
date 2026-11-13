@@ -4,7 +4,7 @@
 //! releasing, and answering. The same tail follows cancellation or a fault.
 
 mod start_refused;
-pub(crate) use start_refused::{start_busy, start_refused};
+pub(crate) use start_refused::{start_busy, start_refused, start_version};
 
 use crate::LinkUp;
 use alloc::boxed::Box;

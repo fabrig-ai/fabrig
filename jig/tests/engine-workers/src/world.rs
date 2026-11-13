@@ -10,6 +10,7 @@ pub struct World {
     out: Queue<Request>,
     root: Vec<Request>,
     ended: Vec<Request>,
+    openings: Vec<Request>,
     now: Time,
     rng: Rng,
     next: u64,
@@ -19,12 +20,13 @@ impl World {
     #[must_use]
     pub fn new(limits: &Limits, workers: &[Worker], seed: u64) -> Self {
         Self {
-            component: Component::new(limits, workers.to_vec().into_boxed_slice(), crate::fixtures::PAYLOAD)
+            component: Component::new(limits, workers.to_vec().into_boxed_slice(), crate::fixtures::application())
                 .expect("valid engine"),
             nets: BTreeMap::new(),
             out: Queue::uncapped(),
             root: Vec::new(),
             ended: Vec::new(),
+            openings: Vec::new(),
             now: Time::ZERO,
             rng: Rng::new(seed),
             next: 100,
@@ -68,6 +70,7 @@ impl World {
     fn route(&mut self) {
         while let Some(request) = self.out.pop() {
             match request {
+                Request::Opened { .. } | Request::Refused { .. } => self.openings.push(request),
                 Request::Ended { .. } => self.ended.push(request),
                 Request::Take { connection } => self.net(connection).taken = true,
                 Request::TurnAway { connection } => self.net(connection).gone = true,
@@ -122,6 +125,10 @@ impl World {
     #[must_use]
     pub fn refusal(&self, connection: Token) -> Option<(u16, Box<[u8]>)> {
         self.nets.get(&connection)?.refused.clone()
+    }
+    #[must_use]
+    pub fn openings(&self) -> &[Request] {
+        &self.openings
     }
     #[must_use]
     pub fn ended(&self) -> &[Request] {

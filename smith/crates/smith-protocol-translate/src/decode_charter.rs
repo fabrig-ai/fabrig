@@ -14,7 +14,7 @@ pub fn decode_charter(
     if bytes.len() < 2 {
         return Err(run::Invalid::MalformedCharter);
     }
-    if bytes.get(..2) != Some(&[0, 4][..]) {
+    if bytes.get(..2) != Some(wire::wire::VERSION.to_be_bytes().as_slice()) {
         return Err(run::Invalid::CharterVersion);
     }
     let Ok(charter) = wire::Charter::decode(limits, &mut Reader::new(bytes)) else {

@@ -70,7 +70,7 @@ fn tell_files_in_the_screens_project_and_says_each_outcome_once() {
             let tell = host.root.pages().tell().expect("chat sends the Tell act");
             assert_eq!(tell.project, 3);
             assert_eq!(tell.words.as_ref(), WORDS);
-            assert!(host.words().is_empty());
+            assert_eq!(host.words(), []);
             continue;
         }
         let sent = send(&mut host, b"/tell The export button is grey");
@@ -86,7 +86,7 @@ fn tell_files_in_the_screens_project_and_says_each_outcome_once() {
         assert_eq!(file.title(), WORDS);
         assert_eq!(file.body(), b"The export button is grey\n\nPage: /projects/3");
         assert_eq!(file.area(), &None);
-        assert!(host.words().is_empty());
+        assert_eq!(host.words(), []);
         assert_eq!(host.root.pages().tell().unwrap().words.as_ref(), WORDS);
         answer(
             &mut host,

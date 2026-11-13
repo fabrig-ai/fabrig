@@ -690,7 +690,7 @@ fn batch_past_the_schema_keeps_its_binding_count() {
             bound: crate::CodecBound {
                 field: b"tasks-v9.TaskInterests.result_followups",
                 needed: 1025,
-                ceiling: jig_protocol_store::tasks_v11::CEILINGS.task_interests_result_followups,
+                ceiling: jig_protocol_store::tasks_v12::CEILINGS.task_interests_result_followups,
             },
         },
     );

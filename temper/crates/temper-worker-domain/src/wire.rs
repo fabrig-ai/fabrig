@@ -10,6 +10,13 @@ use alloc::boxed::Box;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Undecodable;
 
+/// An assignment's items do not decode (temper/docs/design/protocol/wires.md, 5).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ItemsRefusal {
+    Invalid,
+    Version(jig_domain_host::Mismatch),
+}
+
 /// A job's command and request bytes, decoded by the service
 /// (temper/docs/design/domain/worker/jobs.md).
 #[derive(PartialEq, Eq, Debug)]
