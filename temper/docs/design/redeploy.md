@@ -433,6 +433,9 @@ command's refused arguments: 2, in its table's words.
   // hosts: 2.2
   pub fn quote(word: &str) -> String;
   pub fn fill(template: &str, values: &[(&str, &str)]) -> String;
+  // the engine's `ctl` with WORDS quoted, `--json` and stdin closed; its stdout on exit 0,
+  // else why, naming the call
+  pub fn ctl(description: &Description, words: &[&str], hosts: &mut dyn Hosts) -> Result<String, String>;
   // record: section 5, its members as fields of the same names
   pub struct Record { /* … */ pub before: Before, /* … */ }
   pub struct Before { pub projects: Vec<u64>, pub cut: bool, pub tasks: Vec<TaskBefore> }
