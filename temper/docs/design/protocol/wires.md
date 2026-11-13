@@ -435,8 +435,12 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   restart and sent a message, a call's answer and a renewed git
   identity after it, and a host tool called by that run; and an
   assignment that cannot go down to that worker, waiting with no try
-  spent. With one host tools' contract kept, the run calls the current
-  one; an older contract's adapters are held by `temper-engine-smith`'s
+  spent. But for `smith-charter`, which the worker speaks from the
+  lowest version that carries the current host tools' contract: a
+  charter of contract 2 or later cannot go down to version 4, whose
+  reverse holds contract 1 alone (7), so its assignment is for a worker
+  that reads version 5 (`../draft/redeploys.md`, 4.3). The run calls
+  the current contract; an older contract's adapters are held by `temper-engine-smith`'s
   focused tests over a contract of two versions made in the test. The world's seam is each side's wires: the worker's link and
   the engine's component take the `Spoken` lists and bridges the world
   gives, so a test caps the worker at the floors with no other change.
