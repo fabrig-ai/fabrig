@@ -300,6 +300,7 @@ fn a_one_argument_agent_lists_with_its_configuration_alone() {
         &fixtures::worker_limits(),
         &fixtures::worker_files(),
         crate::WorkerRuntime {
+            wires: None,
             root: io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: fixtures::pinned_agent(&settings.jig.agent),
@@ -360,6 +361,7 @@ fn reads_without_a_usable_launch_or_grant_fail_without_io() {
             &fixtures::worker_limits(),
             &fixtures::worker_files(),
             crate::WorkerRuntime {
+                wires: None,
                 root: io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
                 agent: fixtures::pinned_agent(&settings.jig.agent),
@@ -401,6 +403,7 @@ fn a_worker_s_secret_is_read_and_checked_at_its_path() {
             &fixtures::worker_limits(),
             &files,
             crate::WorkerRuntime {
+                wires: None,
                 root: io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
                 agent: fixtures::pinned_agent(&settings.jig.agent),

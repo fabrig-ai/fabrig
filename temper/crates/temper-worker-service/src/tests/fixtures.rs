@@ -13,6 +13,7 @@ pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
 }
 pub fn worker_runtime() -> crate::WorkerRuntime {
     crate::WorkerRuntime {
+        wires: None,
         root: skein_io::kernel::Fd::new(9),
         path: b"/worker".as_slice().into(),
         agent: pinned_agent(&worker_settings().jig.agent),
