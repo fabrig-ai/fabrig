@@ -37,7 +37,9 @@ boundary (smith's run.md, 8.1).
   (section 4; `tools/tiers/design.md`, 3).
 - **Known reds, and inherited counts.** Nothing is built or tested at the
   base. A lint or test failure is inherited only when the checked tree's
-  `.temper/known-reds.md` lists it; a build failure is always the
+  `.temper/known-reds.md` lists it, or the goal's reds temper writes to
+  `temper/reds` in the git directory name it, the check waiting for that
+  file where temper says it comes; a build failure is always the
   delivery's. An exceeded baseline count is compared with the base's, with
   no build; citations compare their counted findings and design sizes
   there too. Inherited failures are named and pass (section 5); every
@@ -45,8 +47,8 @@ boundary (smith's run.md, 8.1).
 - **A summary last,** within the host's kept tail: each failing check and
   test with its log's tail, then the inherited ones (section 6).
 - **Fast on a warm checkout:** no `cargo clean`, no whole-workspace run,
-  no build at the base, and the passed-tree cache keyed by tree and base
-  (sections 7 and 8).
+  no build at the base, and the passed-tree cache keyed by tree, base and
+  the goal's reds (sections 7 and 8).
 
 ## 2. The base
 
@@ -303,6 +305,36 @@ cause.
   the failure `known-reds`, never inherited, its log naming the file, what
   it holds and the cap (`.temper/known-reds.md: 65 entries, 2,310 bytes;
   the cap is 64 entries and 8,192 bytes`); none of its entries counts.
+- **The goal's reds,** which temper keeps and its worker writes at each
+  check's start (`temper/docs/design/domain/forge/reds.md`, 5), are
+  `temper/reds` under the git directory, at `git rev-parse --git-path
+  temper/reds`; temper's marker beside it is `temper/reds-wait`:
+  - **Waited for:** where `temper/reds-wait` is one line,
+    `temper-reds-wait 1 MS`, MS from 1 to 600,000, the check waits, first
+    of all, before the cache's check, until `temper/reds` exists, looking
+    every 50 ms, at most MS milliseconds. With no marker it waits for
+    nothing; a marker of another form is no marker, and one line says so,
+    `pre-pr: reds: ignored temper/reds-wait (malformed)`.
+  - **Read once,** right after the wait, before the cache's check, whole
+    or not at all: the bytes read are the ones the cache keys and the
+    judgement counts (section 7). A file of more than 2,097,152 bytes is
+    oversized and not read.
+  - **Its form:** the first line exactly `temper-reds 1`, then each line an
+    entry of the list's two forms above, matched exactly, with no prose
+    and no trailing whitespace; a final line feed is optional and an
+    empty file is malformed. A file of the header alone is no reds.
+  - **No reds, and why:** a missing, malformed or oversized file counts
+    no entry, and one line says which: `pre-pr: reds: none (temper/reds
+    not written within MS ms)` where the marker said to wait, `pre-pr:
+    reds: none (temper/reds malformed at line L)`, `pre-pr: reds: none
+    (temper/reds oversized: B bytes)`. With no marker and no file it
+    prints nothing, as a checkout outside temper has none. A file read
+    prints `pre-pr: reds: <N> entries (temper/reds)`.
+  - **Counted with the list:** an entry of either counts; the file has no
+    cap of its own, temper bounding it (`forge.branch_reds`), and the
+    list's cap is the list's alone: a list past its cap fails
+    `known-reds` and counts none of its entries, while the file's still
+    count.
 - **A lint error** is keyed by its package's name, its lint code (empty
   for a compiler error without one), its primary span's file, relative to
   its worktree's root, and its message; never by line or column. It is
@@ -322,8 +354,8 @@ cause.
   could not judge them. The citation check's independent comparison and
   the known reds still stand.
 - **Inherited never refuses:** each is named in the summary, with the
-  base for a count or a citation and with the file for a known red, and
-  the delivery passes on them.
+  base for a count or a citation and with the file for a known red or a
+  goal's red, and the delivery passes on them.
 
 ## 6. Its output
 
@@ -346,8 +378,11 @@ cause.
   - then each inherited failure, one line each: a known red as
     `inherited: test <binary id> <name> (known red, .temper/known-reds.md)`
     or `inherited: clippy <package> <code> <file> (known red,
-    .temper/known-reds.md)`, exceeded counts as `inherited: old-forms
-    <tree> <form>`, and the inherited citation total;
+    .temper/known-reds.md)`, a goal's red as `inherited: test <binary id>
+    <name> (red, temper/reds)` or `inherited: clippy <package> <code>
+    <file> (red, temper/reds)`, the file's words where both name it,
+    exceeded counts as `inherited: old-forms <tree> <form>`, and the
+    inherited citation total;
   - past 8,192 bytes, the failures it has not room for are counted in
     one line, `[… N more failures]`, the first kept whole.
 - **Its exit:** 0 when nothing this delivery made failed, inherited
@@ -355,12 +390,17 @@ cause.
 
 ## 7. The passed-tree cache
 
-`<git dir>/pre-pr-passed` holds `<tree> <base>` (`<tree> -` without a base)
-once every check passed or was inherited. A check of the same tree on the
-same base prints `pre-pr: passed before (tree <tree>, base <base>)` and
-exits 0 at once: within a hold the base does not move, so a `finish`
-repeats its `deliver`'s pass. A failure, an interruption or a timeout never
-writes it. An earlier record of another shape matches nothing.
+`<git dir>/pre-pr-passed` holds `<tree> <base> <reds>` once every check
+passed or was inherited: `<base>` is `-` without a base, and `<reds>` the
+SHA-256, in lowercase hexadecimal, of the bytes of `temper/reds` the run
+read (section 5), or `-` where it read none. A check of the same tree, on
+the same base, with the same reds prints `pre-pr: passed before (tree
+<tree>, base <base>, reds <reds>)` and exits 0 at once: within a hold the
+base does not move, so a `finish` repeats its `deliver`'s pass, while a
+red ended or recorded since changes the file and so the key, and a pass
+under a red that has ended is never reused. A failure, an interruption or
+a timeout never writes it. An earlier record of another shape, the
+two-field one included, matches nothing.
 
 ## 8. Time
 
@@ -418,6 +458,17 @@ passes, prose lines around it ignored; an entry with another key, or no
 file at all, leaves the failure the delivery's; a build failure refuses whatever the
 entries; and a file over 64 entries or 8,192 bytes fails as `known-reds`.
 No cargo runs at the base. It reads no real build.
+
+It reads the goal's reds from the git directory: an entry of
+`temper/reds` for a failing test or lint makes it `inherited: … (red,
+temper/reds)` and passes, the list naming it too or not, and still counts
+beside a list past its cap; a header alone, a missing file, a malformed or
+an oversized one count nothing, each with its line; a marker with a small
+MS and no file waits about MS and judges with no reds; a marker and a file
+written while the check waits is read; no marker and no file print
+nothing. Its cache: a pass with a reds file is reused with the same bytes
+and not after they change, nor after the file goes, and a two-field record
+matches nothing.
 
 It reads a one-process run's directory as section 4 does, from a fake run
 that writes the files: failures from `junit.xml`, keyed by binary id and

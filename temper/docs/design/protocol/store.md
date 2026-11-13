@@ -199,6 +199,18 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   and variant without inventing a device for an older store; its
   existing rows keep their values under the new version. Push and mail
   delivery state stays in memory (`../domain/forge/attention.md`, 7).
+- **A goal's reds,** after the devices, at the next two free bytes when
+  they land (44 and 45 where no other family has taken them since):
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 44 | `Red` | `Red { goal, key }`: the goal's task, then the key's bytes | a red (`../domain/forge/reds.md`, 2): `goal`, `key` of at most `red_key_bytes`, `head` of 20 or 32 bytes, `why` of at most 256 bytes, `by`, `Task(N)` or `Party(N)`, `at` and `generation`. Written by `red`'s record, a record of a key the goal holds replacing its row; erased by `red`'s end and when the goal's branch is released at its end (`../domain/forge/reds.md`, 4) | `branch_reds` times `holds` |
+  | 45 | `RedNumber` | `RedNumber`: one row | the last generation given, `{ last }`, so that none is given twice. Written with each red's record, never erased | one row |
+
+  Their records are the schema's `Value` variants `red` and
+  `red_number`, appended after the last. Their patch, the one after the
+  latest when it lands, moves `STORE_VERSION` by one and adds the
+  declarations and variants without making a row for an older store.
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads a row: what a party sees of them comes in
   the forge's documents (`../client/forge/family.md`).
