@@ -140,7 +140,12 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
                     }
                 }
             }
-            d::Stored::Flight { .. }
+            d::Stored::HistoryProject(_)
+            | d::Stored::HistoryEvent(_)
+            | d::Stored::HistoryChange(_)
+            | d::Stored::HistoryLanding(_)
+            | d::Stored::HistoryLast(_)
+            | d::Stored::Flight { .. }
             | d::Stored::Call { .. }
             | d::Stored::ProposedEffect(_)
             | d::Stored::Hold(_)

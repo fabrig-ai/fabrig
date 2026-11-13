@@ -206,6 +206,7 @@ pub struct Domain {
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
+    pub(crate) history_projects: Map<u32, crate::history::Project>,
     pub(crate) devices: Option<Box<crate::devices::State>>,
     pub(crate) drafts: Option<Box<crate::drafts::State>>,
     pub(crate) aways: Map<(u64, u32), crate::Away>,
@@ -835,6 +836,7 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             project_facts: Map::with_capacity(l.judge_projects),
+            history_projects: Map::with_capacity(l.judge_projects),
             devices: match config.push {
                 Some(push) => Some(Box::new(crate::devices::State::new(Some(push), l.devices()))),
                 None => None,
@@ -7896,6 +7898,11 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         return;
     }
     match record {
+        Stored::HistoryProject(row) => {
+            d.history_projects.insert(row.project, row).expect("restored history project room checked");
+        }
+        // Demand-loaded history is never restored (landing-history.md, 4.4).
+        Stored::HistoryEvent(_) | Stored::HistoryChange(_) | Stored::HistoryLanding(_) | Stored::HistoryLast(_) => {}
         Stored::Making(mut row) => {
             row.state = match row.state {
                 crate::MakingState::Making => crate::MakingState::Waiting,
@@ -8760,6 +8767,7 @@ impl Domain {
             | RecordKind::Binding
             | RecordKind::Setting
             | RecordKind::Making
+            | RecordKind::HistoryProject
             | RecordKind::ProjectFacts
             | RecordKind::Device
             | RecordKind::LandedDraft
