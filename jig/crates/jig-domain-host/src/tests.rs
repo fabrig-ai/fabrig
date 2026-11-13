@@ -428,6 +428,7 @@ fn messages_held_during_a_failed_prepare_are_returned_by_name() {
                     failure: Failure::Unprepared(Preparation::Transient),
                     detail: Box::new([]),
                     work: Work { left: None, saved: None },
+                    model: None,
                 }
             },
         }),]
@@ -650,7 +651,8 @@ fn an_agent_cannot_supply_the_hubs_turn_refusals() {
         crate::Ending::Failed {
             failure: Failure::Agent(crate::AgentFailure::Rules),
             detail: Box::new([]),
-            work: Work { left: None, saved: None }
+            work: Work { left: None, saved: None },
+            model: None
         }
     );
     assert!(answer.refused.is_empty());
@@ -853,6 +855,7 @@ fn gone_while_starting_still_answers_an_unstarted_agent_failure() {
                         failure: Failure::Agent(crate::AgentFailure::Unstarted),
                         detail: b"exit".as_slice().into(),
                         work: Work { left: None, saved: None },
+                        model: None,
                     },
                 },
             }),
@@ -881,6 +884,7 @@ fn a_start_refusal_after_cancel_keeps_the_cancellations_answer() {
                 failure: Failure::Cancelled(Reason::Engine),
                 detail: if busy { Box::new([]) } else { b"budget".as_slice().into() },
                 work: Work { left: None, saved: None },
+                model: None,
             }
         );
     }
@@ -1091,6 +1095,7 @@ fn a_starting_fault_keeps_its_class_until_gone_without_admission() {
             failure: Failure::Agent(crate::AgentFailure::Rules),
             detail: b"detailed".as_slice().into(),
             work: Work { left: None, saved: None },
+            model: None,
         }
     );
     while let Some(fact) = h.domain.pop_fact() {
@@ -1116,6 +1121,7 @@ fn cancellation_before_a_starting_fault_keeps_the_cancellation() {
             failure: Failure::Cancelled(Reason::Engine),
             detail: b"fault".as_slice().into(),
             work: Work { left: None, saved: None },
+            model: None,
         }
     );
 }

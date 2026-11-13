@@ -200,6 +200,7 @@ fn the_engines_later_records_wait_behind_its_waiting_new_work() {
         answer.ending,
         hub::Ending::Failed {
             failure: hub::Failure::Cancelled(hub::Reason::Engine),
+            model: None,
             detail: Box::new([]),
             work: hub::Work { left: None, saved: None },
         }

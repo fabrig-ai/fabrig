@@ -544,6 +544,7 @@ fn a_contact_cancellation_after_restart_resumes_without_spending_a_try() {
                     failure: host::Failure::Cancelled(host::Reason::Contact),
                     detail: Box::new([]),
                     work: host::Work { left: None, saved: None },
+                    model: None,
                 },
             },
         }),

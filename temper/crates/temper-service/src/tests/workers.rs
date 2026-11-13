@@ -285,6 +285,7 @@ fn assert_startup_fault(up: &fixtures::worker_peers::AskingAnswer) {
             failure: host::Failure::Agent(host::AgentFailure::Exited),
             detail: b"resume channel ended before admission".as_slice().into(),
             work: host::Work { left: None, saved: None },
+            model: None,
         }
     );
 }

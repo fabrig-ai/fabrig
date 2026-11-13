@@ -437,6 +437,7 @@ fn worker_cancellations_interrupt_agents_but_not_engine_cancellations() {
             failure: host::Failure::Cancelled(reason),
             detail: Box::new([]),
             work: host::Work { left: None, saved: Some(Token::new(99)) },
+            model: None,
         };
         assert_eq!(payload::ending(&ending), expected);
     }
@@ -594,6 +595,7 @@ fn a_refused_start_is_transient_permanent_or_busy() {
                 failure: host::Failure::Run(host::RunFailure::Transcript),
                 detail: Box::new([]),
                 work: host::Work { left: None, saved: None },
+                model: None,
             },
             tasks::End::Failed(tasks::Class::Transient),
             fleet::Answer::Failed { turned: None },
@@ -654,6 +656,7 @@ fn a_runs_transient_preparation_is_infrastructure_with_its_detail() {
             failure: host::Failure::Unprepared(host::Preparation::Transient),
             detail: detail.into(),
             work: host::Work { left: None, saved: None },
+            model: None,
         };
         assert_eq!(payload::ending(&ending), expected);
     }
@@ -661,6 +664,7 @@ fn a_runs_transient_preparation_is_infrastructure_with_its_detail() {
         failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: None }),
         detail: Box::from(b"fetch: Forbidden".as_slice()),
         work: host::Work { left: None, saved: None },
+        model: None,
     };
     assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Permanent));
     let ending = host::JobEnding::Failed {
@@ -715,4 +719,72 @@ fn a_version_refusal_pauses_with_its_reason_and_keeps_history_usable() {
     };
     assert_eq!(actual, end);
     assert!(!unusable_history);
+}
+
+#[test]
+fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
+    use host::{ModelEvidence as Evidence, ModelFailureKind as Kind};
+    for (kind, evidence, status, class, words) in [
+        (
+            Kind::Unavailable,
+            Evidence::Unsent,
+            Some(403),
+            tasks::Class::Infrastructure,
+            b"anthropic claude-opus-5-5: unavailable, status 403, unsent".as_slice(),
+        ),
+        (
+            Kind::Invalid,
+            Evidence::Response,
+            Some(400),
+            tasks::Class::Run,
+            b"anthropic claude-opus-5-5: invalid, status 400, response".as_slice(),
+        ),
+    ] {
+        let ending = host::Ending::Failed {
+            failure: host::Failure::Run(host::RunFailure::Model),
+            detail: b"not the reason".as_slice().into(),
+            work: host::Work { left: None, saved: None },
+            model: Some(host::ModelFailure {
+                endpoint: b"anthropic".as_slice().into(),
+                model: b"claude-opus-5-5".as_slice().into(),
+                kind,
+                evidence,
+                status,
+            }),
+        };
+        assert_eq!(payload::ending(&ending), tasks::End::FailedWithReason { class, reason: words.into() });
+    }
+    let mut ending = host::Ending::Failed {
+        failure: host::Failure::Run(host::RunFailure::Model),
+        detail: Box::new([]),
+        work: host::Work { left: None, saved: None },
+        model: None,
+    };
+    assert_eq!(payload::ending(&ending), tasks::End::Failed(tasks::Class::Run));
+    // A call beside another failure cannot reclassify it or replace its reason.
+    for failure in [
+        host::Failure::Unprepared(host::Preparation::Transient),
+        host::Failure::Unprepared(host::Preparation::Permanent { resource: None }),
+        host::Failure::Run(host::RunFailure::Budget),
+        host::Failure::Run(host::RunFailure::Transcript),
+        host::Failure::Run(host::RunFailure::Exceeded(host::Exceeded { bound: host::Bound::Window, value: 100 })),
+        host::Failure::Agent(host::AgentFailure::Exited),
+        host::Failure::Cancelled(host::Reason::Engine),
+        host::Failure::Cancelled(host::Reason::Contact),
+        host::Failure::Cancelled(host::Reason::Shutdown),
+    ] {
+        let host::Ending::Failed { failure: value, model, .. } = &mut ending else { unreachable!() };
+        *value = failure;
+        *model = None;
+        let expected = payload::ending(&ending);
+        let host::Ending::Failed { model, .. } = &mut ending else { unreachable!() };
+        *model = Some(host::ModelFailure {
+            endpoint: b"anthropic".as_slice().into(),
+            model: b"claude-opus-5-5".as_slice().into(),
+            kind: Kind::Unavailable,
+            evidence: Evidence::Unsent,
+            status: None,
+        });
+        assert_eq!(payload::ending(&ending), expected, "{failure:?}");
+    }
 }

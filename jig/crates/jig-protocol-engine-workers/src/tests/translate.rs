@@ -159,7 +159,7 @@ fn a_call_record_keeps_its_name_bytes() {
 #[test]
 fn a_failed_answers_resource_precedes_its_left_and_saved_parts() {
     let (answer, parts) = answer(fixtures::answer_with_resource());
-    let jig_domain_host::Ending::Failed { failure, detail, work } = answer.ending else {
+    let jig_domain_host::Ending::Failed { failure, detail, work, .. } = answer.ending else {
         panic!("failed");
     };
     assert_eq!(
@@ -194,7 +194,7 @@ fn down(record: jig_domain_host::LinkDown) -> translate::Down {
     };
     translated.expect("complete output")
 }
-fn codec() -> jig_protocol_worker_wire::v11::Limits {
+fn codec() -> jig_protocol_worker_wire::v12::Limits {
     jig_protocol_worker_wire::sizes::limits(&fixtures::SIZES).expect("small codec")
 }
 fn assignment_output() -> jig_domain_host::LinkDown {

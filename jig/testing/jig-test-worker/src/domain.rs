@@ -544,7 +544,7 @@ fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, encoded: Encode
             let finish = match finish {
                 Finish::Ended => host::Finish::Ended { outcome: body },
                 Finish::Parked => host::Finish::Parked,
-                Finish::Failed(failure) => host::Finish::Failed { failure },
+                Finish::Failed(failure) => host::Finish::Failed { failure, model: None },
                 Finish::Busy => {
                     hub(domain, env, HubEvent::Agent(FromAgent::StartBusy { owner }));
                     return;

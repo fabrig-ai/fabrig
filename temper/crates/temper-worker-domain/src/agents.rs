@@ -360,7 +360,7 @@ fn result_encoded(domain: &mut Domain, env: &Env<Limits>, pending: Pending, enco
                 let finish = match finish {
                     Finish::Ended => host::Finish::Ended { outcome: body },
                     Finish::Parked => host::Finish::Parked,
-                    Finish::Failed(failure) => host::Finish::Failed { failure },
+                    Finish::Failed(failure) => host::Finish::Failed { failure, model: None },
                     Finish::Refused(_) => unreachable!("a refusal waits for cleanup"),
                 };
                 host::FromAgent::Finished { owner, turns, spent, read, finish }

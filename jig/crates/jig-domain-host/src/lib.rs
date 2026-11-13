@@ -29,7 +29,9 @@ mod jobs;
 mod limits;
 mod link;
 mod live;
+mod model;
 pub use live::{LiveAsk, LiveKind, Piece};
+pub use model::{ModelEvidence, ModelFailure, ModelFailureKind};
 mod refusals;
 pub mod sources;
 #[cfg(test)]

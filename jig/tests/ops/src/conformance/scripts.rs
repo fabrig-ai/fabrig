@@ -182,7 +182,7 @@ impl Agents {
                             owner,
                             turns: agent.turns,
                             spent: agent.spent,
-                            finish: host::Finish::Failed { failure: host::RunFailure::Cancelled },
+                            finish: host::Finish::Failed { failure: host::RunFailure::Cancelled, model: None },
                         });
                     }
                     out.push(host::FromAgent::Gone { owner, detail: Box::new([]) });
