@@ -36,6 +36,10 @@ enum NoteWrite {
     Refuse,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the world independently refuses files, login spawning and box handoff"
+)]
 struct World {
     sim: Sim,
     files: Machine,
@@ -44,6 +48,12 @@ struct World {
     output: Fd,
     signals: Fd,
     children: Vec<fake_box::Child>,
+    login: Option<fake_box::Login>,
+    login_spawns: usize,
+    login_refused: bool,
+    login_name: Box<[u8]>,
+    loan_signals: Vec<(io::kernel::Signal, io::kernel::Target)>,
+    spawn_root: Option<Fd>,
     bound: std::collections::BTreeSet<Token>,
     hold_link: bool,
     connects: Vec<io::Addr>,
@@ -139,7 +149,12 @@ impl World {
             record: recording,
             front: spawn_root.map(|directory| temper_client_shell_tui::run::Front {
                 executable: b"/bin/temper".as_slice().into(),
-                cache: b"/cache".as_slice().into(),
+                directories: temper_shell::directories::Directories {
+                    config: b"/config".as_slice().into(),
+                    data: b"/data".as_slice().into(),
+                    cache: b"/cache".as_slice().into(),
+                    origins: [skein_shell::Origin::Flag; 3],
+                },
                 arguments: vec![Box::from(b"--data".as_slice()), Box::from(b"/data".as_slice())].into(),
                 environment: vec![Box::from(b"HOME=/home/person".as_slice())].into(),
                 directory,
@@ -169,6 +184,12 @@ impl World {
             output,
             signals,
             children: Vec::new(),
+            login: None,
+            login_spawns: 0,
+            login_refused: false,
+            login_name: Box::new([]),
+            loan_signals: Vec::new(),
+            spawn_root,
             bound: std::collections::BTreeSet::new(),
             hold_link: false,
             connects: Vec::new(),
@@ -210,38 +231,34 @@ impl World {
                             && [b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&spawn.program.as_ref())
                             && self.bound.insert(complete.op)
                         {
-                            Some((*pidfd, spawn.program.as_ref() == b"/bin/temper-box"))
+                            Some((
+                                *pidfd,
+                                spawn.program.as_ref() == b"/bin/temper-box",
+                                spawn.args.first().is_some_and(|arg| arg.as_ref() == b"program-login"),
+                            ))
                         } else {
                             None
                         }
                     })
                     .collect();
-                for (pidfd, boxed) in spawns {
+                for (pidfd, boxed, login) in spawns {
+                    if login {
+                        self.login = Some(fake_box::Login::new(&mut self.sim, self.pid, pidfd));
+                        continue;
+                    }
                     self.children.push(fake_box::Child::new(&mut self.sim, self.pid, pidfd, boxed, !self.hold_link));
                 }
                 self.run.iterate(self.now, Wall::from_nanos(self.now.as_nanos()));
                 runnable = self.run.work_pending(self.now);
             }
-            for submit in self.run.submissions().iter() {
-                if let Op::Spawn { spawn } = &submit.kind {
-                    if spawn.program.as_ref() == b"/bin/browser" {
-                        self.spawns += 1;
-                        assert_eq!(spawn.args.as_ref(), &[Box::<[u8]>::from(APPROVAL)]);
-                    } else {
-                        assert!([b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&spawn.program.as_ref()));
-                    }
-                }
-                if let Op::Connect { addr, .. } = &submit.kind {
-                    self.connects.push(io::Addr::Ip(*addr));
-                }
-                if let Op::Signal { to, .. } = &submit.kind {
-                    assert_eq!(*to, io::kernel::Target::Child, "the browser's group stays");
-                }
-            }
+            self.inspect_submissions();
             self.sim.submit(self.pid, self.run.submissions());
             self.serve();
             for child in &mut self.children {
                 child.iterate(&mut self.sim, self.now);
+            }
+            if let Some(login) = &mut self.login {
+                login.iterate(&mut self.sim);
             }
             if let Some(engine) = &mut self.engine {
                 if self.run.is_empty() {
@@ -261,6 +278,7 @@ impl World {
                 || self.run.work_pending(self.now)
                 || self.engine.as_ref().is_some_and(|engine| engine.pending(&self.sim))
                 || self.children.iter().any(|child| child.pending(&self.sim))
+                || self.login.as_ref().is_some_and(|login| login.pending(&self.sim))
             {
                 continue;
             }
@@ -289,6 +307,70 @@ impl World {
             self.run.next_mechanism_deadline(),
             self.sim.render_trace()
         );
+    }
+
+    fn inspect_submissions(&mut self) {
+        for submit in self.run.submissions().iter() {
+            if let Op::Spawn { spawn } = &submit.kind {
+                if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"program-login") {
+                    self.login_spawns += 1;
+                    assert_eq!(spawn.program.as_ref(), b"/bin/temper-box");
+                    assert_eq!(spawn.args.len(), 8);
+                    assert_eq!(spawn.args.last().expect("NAME"), &self.login_name);
+                    let flags: Vec<_> = spawn.args.iter().take(7).map(AsRef::as_ref).collect();
+                    assert_eq!(
+                        flags,
+                        [
+                            b"program-login".as_slice(),
+                            b"--config",
+                            b"/config",
+                            b"--data",
+                            b"/data",
+                            b"--cache",
+                            b"/cache"
+                        ]
+                    );
+                    assert_eq!(spawn.env.as_ref(), &[Box::<[u8]>::from(b"HOME=/home/person".as_slice())]);
+                    assert_eq!(Some(spawn.root), self.spawn_root);
+                    assert_eq!(spawn.dir.as_ref(), b".");
+                    assert_eq!(
+                        spawn.pipes.as_ref(),
+                        &(0..3)
+                            .map(|child| io::kernel::Pipe { child, way: io::kernel::Way::Inherit, parent: None })
+                            .collect::<Vec<_>>()
+                    );
+                    let leave =
+                        self.bytes.windows(LEAVE.len()).rposition(|bytes| bytes == LEAVE).expect("left before spawn");
+                    assert_eq!(self.bytes.get(leave + LEAVE.len()..).expect("after LEAVE"), b"temper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser.\n", "line and LF immediately after LEAVE, before spawn");
+                } else if spawn.program.as_ref() == b"/bin/browser" {
+                    self.spawns += 1;
+                    assert_eq!(spawn.args.as_ref(), &[Box::<[u8]>::from(APPROVAL)]);
+                } else {
+                    assert!([b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&spawn.program.as_ref()));
+                }
+            }
+            if let Op::Connect { addr, .. } = &submit.kind {
+                self.connects.push(io::Addr::Ip(*addr));
+            }
+            if let Op::Signal { to, .. } = &submit.kind {
+                if self.login_spawns > 0 {
+                    if let Op::Signal { signal, to, .. } = &submit.kind {
+                        self.loan_signals.push((*signal, *to));
+                    }
+                } else {
+                    assert_eq!(*to, io::kernel::Target::Child, "the browser's group stays");
+                }
+            }
+        }
+        if self.login.as_ref().is_some_and(|login| !login.finished) {
+            for submit in self.run.submissions().iter() {
+                assert!(
+                    !matches!(&submit.kind, Op::PipeRead { fd, .. } if *fd == self.input),
+                    "no TUI key read while lent"
+                );
+                assert!(!matches!(&submit.kind, Op::PipeWrite { fd, .. } if *fd == self.output), "no frame while lent");
+            }
+        }
     }
 
     fn serve(&mut self) {
@@ -327,6 +409,10 @@ impl World {
                 self.saved += 1;
             }
             if let Ask::Spawn { program, args, .. } = &call.ask {
+                if args.first().is_some_and(|arg| arg.as_ref() == b"program-login") && self.login_refused {
+                    answers.push(Answer { ticket: call.ticket, result: Err(io::kernel::Error::NotFound) });
+                    continue;
+                }
                 if [b"/bin/temper".as_slice(), b"/bin/temper-box"].contains(&program.as_ref()) {
                     answers.push(Answer { ticket: call.ticket, result: Ok(Reply::Program(Program::Service)) });
                     continue;
@@ -468,6 +554,7 @@ struct Engine {
     link_answer: Option<jig_client_protocol_wire::v19::SignInAnswer>,
     link_sign_ins: usize,
     approvals: usize,
+    terminal_watch: Option<u64>,
 }
 impl Engine {
     fn new(sim: &mut Sim) -> Self {
@@ -491,6 +578,7 @@ impl Engine {
             link_answer: None,
             link_sign_ins: 0,
             approvals: 0,
+            terminal_watch: None,
         };
         engine.down(io::Request::Listen {
             owner: Token::new(1),
@@ -619,11 +707,14 @@ impl Engine {
     fn watch(&mut self, owner: Token, bytes: &[u8]) {
         use jig_client_protocol_wire::v19 as w;
         let open = w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("watch body");
-        if open.subject().owner() == &w::Owner::Jig
-            && w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record())).expect("subject")
-                == w::Subject::Me
-        {
-            self.respond(self.stream.expect("opened stream"), me_event(open.watch()));
+        if open.subject().owner() == &w::Owner::Jig {
+            let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
+                .expect("subject");
+            if subject == w::Subject::Me {
+                self.respond(self.stream.expect("opened stream"), me_event(open.watch()));
+            } else if matches!(subject, w::Subject::Terminal(_)) {
+                self.terminal_watch = Some(open.watch());
+            }
         }
         self.respond(owner, {
             let answer = w::OpenAnswer::Admitted;
@@ -711,6 +802,61 @@ fn approval_open_is_carried_and_closing_waits_for_no_opener() {
 }
 
 impl World {
+    fn loan() -> Self {
+        let mut world = Self::front_options(
+            false,
+            true,
+            false,
+            Outcome::Success,
+            Recording::Root,
+            Some(Scheme::Dark),
+            None,
+            false,
+            None,
+            true,
+        );
+        world.settle();
+        world
+    }
+
+    fn lend(&mut self, name: &[u8], cancelled: bool) {
+        use jig_client_protocol_wire::v19 as w;
+        self.login_name = name.into();
+        let engine = self.engine.as_mut().expect("engine");
+        let login = w::TerminalLogin::new(
+            &w::CEILINGS,
+            w::TerminalLoginParts { number: 1, provider: 7, name: name.into(), cancelled },
+        )
+        .expect("login fixture");
+        let terminal = w::Terminal::new(&w::CEILINGS, w::TerminalParts { login: Some(login) }).expect("terminal");
+        engine.respond(
+            engine.stream.expect("stream"),
+            delivery_event(engine.terminal_watch.expect("terminal watch"), &w::DeliveryValue::Terminal(terminal)),
+        );
+        self.settle();
+    }
+
+    fn finish_login(&mut self, exit: Exit) {
+        self.login.as_mut().expect("spawned login").finish(&mut self.sim, exit);
+        self.settle();
+    }
+
+    fn loan_record(&mut self) -> Vec<temper_client_shell_tui::journey::Line> {
+        if self.run.terminated() {
+            return replay(&self.recording_file().expect("closing recording").0);
+        }
+        self.keys(b"\x1bS");
+        replay(&self.recording_file().expect("loan recording").0)
+    }
+
+    fn end_loan_world(&mut self) {
+        self.draining = true;
+        self.keys(b"\x03");
+        self.sim.assert_no_open_fds(self.pid);
+        self.sim.assert_quiescent(self.pid);
+        assert_eq!(self.files.open_handles(), 0);
+    }
+
     fn keys(&mut self, bytes: &[u8]) {
         assert_eq!(self.sim.peer_feed(self.pid, self.input, bytes), bytes.len());
         self.settle();
@@ -1141,7 +1287,6 @@ fn hello_event() -> Box<[u8]> {
 }
 fn me_event(watch: u64) -> Box<[u8]> {
     use jig_client_protocol_wire::v19 as w;
-    use skein_lib::Writer;
     let limits = &w::CEILINGS;
     let text = |bytes: &[u8]| {
         w::DocumentText::new(limits, w::DocumentTextParts { bytes: bytes.into(), cut: false }).expect("text")
@@ -1171,14 +1316,20 @@ fn me_event(watch: u64) -> Box<[u8]> {
         },
     )
     .expect("Me");
-    let value = w::DeliveryValue::Me(me);
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("Me size"));
-    value.encode(&mut writer).expect("Me fits");
+    delivery_event(watch, &w::DeliveryValue::Me(me))
+}
+
+fn delivery_event(watch: u64, value: &jig_client_protocol_wire::v19::DeliveryValue) -> Box<[u8]> {
+    use jig_client_protocol_wire::v19 as w;
+    use skein_lib::Writer;
+    let limits = &w::CEILINGS;
+    let mut writer = Writer::new(usize::try_from(value.measure()).expect("document size"));
+    value.encode(&mut writer).expect("document fits");
     let document = w::Owned::new(
         limits,
         w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
     )
-    .expect("Me document");
+    .expect("document envelope");
     let delivery =
         w::StreamEvent::Delivery(w::Delivery::new(limits, w::DeliveryParts { watch, document }).expect("delivery"));
     sse(&delivery)
@@ -1208,6 +1359,110 @@ fn http_response(body: &[u8]) -> Box<[u8]> {
         format!("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
     response.extend_from_slice(body);
     response.into_boxed_slice()
+}
+
+#[test]
+fn a_loan_runs_only_the_found_box_with_inherited_descriptors_and_resumes() {
+    use jig_client::contract::LoginExit;
+    use temper_client_shell_tui::journey::Line;
+    for (name, end, exit) in [
+        (b"work".as_slice(), Exit::Code(0), LoginExit::Exited { code: 0 }),
+        (b"-", Exit::Code(23), LoginExit::Exited { code: 23 }),
+        (b"abcdefghijklmnopqrstuvwxyz01234-", Exit::Signal(2), LoginExit::Killed { signal: 2 }),
+    ] {
+        let mut world = World::loan();
+        world.lend(name, false);
+        assert_eq!(world.login_spawns, 1);
+        let lent = world.bytes.len();
+        assert_eq!(world.bytes.windows(ENTER.len()).filter(|part| *part == ENTER).count(), 1);
+        world.box_child().write(4, b"log heard while lent\n");
+        world.settle();
+        assert_eq!(world.bytes.len(), lent, "box reports draw nothing during the loan");
+        world.finish_login(end);
+        assert_eq!(
+            world.loan_signals,
+            [(io::kernel::Signal::Kill, io::kernel::Target::Group)],
+            "Spawn reaps the login's own group, not SpawnAlone's child"
+        );
+        assert!(world.bytes.get(lent..).expect("new bytes").starts_with(ENTER), "ENTER before the new frame");
+        let lines = world.loan_record();
+        assert!(lines.contains(&Line::Lent { number: 1, exit }));
+        assert!(lines.contains(&Line::BoxLine(b"log heard while lent".as_slice().into())));
+        assert!(!world.run.is_empty());
+        world.end_loan_world();
+    }
+}
+
+#[test]
+fn a_failed_login_spawn_reports_not_started_and_takes_back_the_terminal() {
+    use jig_client::contract::LoginExit;
+    use temper_client_shell_tui::journey::Line;
+    let mut world = World::loan();
+    world.login_refused = true;
+    world.lend(b"work", false);
+    assert_eq!(world.login_spawns, 1);
+    assert_eq!(world.bytes.windows(ENTER.len()).filter(|part| *part == ENTER).count(), 2, "takes back at once");
+    assert!(world.loan_record().contains(&Line::Lent { number: 1, exit: LoginExit::NotStarted }));
+    world.end_loan_world();
+}
+
+#[test]
+fn unlend_or_the_runs_termination_signals_the_group_and_waits_for_the_login() {
+    use jig_client::contract::LoginExit;
+    use temper_client_shell_tui::journey::Line;
+    for termination in [false, true] {
+        let mut world = World::loan();
+        world.lend(b"work", false);
+        let lent = world.bytes.len();
+        if termination {
+            world.sim.deliver_service_signal(world.pid, world.signals, ServiceSignal::Terminate, None);
+            world.settle();
+        } else {
+            world.lend(b"work", true);
+            world.lend(b"work", true);
+        }
+        assert_eq!(
+            world.loan_signals,
+            [(io::kernel::Signal::Terminate, io::kernel::Target::Group)],
+            "one SIGTERM to the group"
+        );
+        assert_eq!(world.bytes.len(), lent, "waits before ENTER");
+        assert!(!world.run.terminated(), "termination cannot leave while login owns the terminal");
+        assert!(!world.run.is_empty());
+        world.finish_login(Exit::Signal(15));
+        assert!(world.bytes.get(lent..).expect("back").starts_with(ENTER));
+        let lines = world.loan_record();
+        assert!(lines.contains(&Line::Lent { number: 1, exit: LoginExit::Killed { signal: 15 } }));
+        if termination {
+            assert!(world.run.terminated());
+            world.box_child().close();
+            world.draining = true;
+            world.settle();
+            world.sim.assert_no_open_fds(world.pid);
+            world.sim.assert_quiescent(world.pid);
+            assert_eq!(world.files.open_handles(), 0);
+        } else {
+            world.end_loan_world();
+        }
+    }
+}
+
+#[test]
+fn the_box_ending_while_lent_leaves_the_login_to_its_end() {
+    use jig_client::contract::LoginExit;
+    use temper_client_shell_tui::journey::Line;
+    let mut world = World::loan();
+    world.lend(b"work", false);
+    let lent = world.bytes.len();
+    world.box_child().close();
+    world.settle();
+    assert!(!world.login.as_ref().expect("login").finished);
+    assert_eq!(world.bytes.len(), lent);
+    assert!(world.loan_signals.is_empty());
+    world.finish_login(Exit::Code(0));
+    assert!(world.bytes.get(lent..).expect("back").starts_with(ENTER));
+    assert!(world.loan_record().contains(&Line::Lent { number: 1, exit: LoginExit::Exited { code: 0 } }));
+    world.end_loan_world();
 }
 
 const HANDED_LINK: &[u8] =
