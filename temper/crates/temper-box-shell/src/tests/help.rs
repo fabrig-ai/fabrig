@@ -99,14 +99,39 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
     let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
-    for required in [
-        "`KillMode=control-group`",
-        "`TimeoutStopSec=240s`",
-        "186-second stop bound",
-        "54-second margin",
-        "Raising the worker's bound raises this timeout too",
-    ] {
-        assert!(text.contains(required), "step 5 must explain {required}");
+    let init: serde_json::Value = serde_json::from_slice(&super::configuration::init_document()).expect("init JSON");
+    let profile = jig_protocol_config::profile(match init["engine"]["limits"]["profile"].as_str().unwrap() {
+        "small" => jig_protocol_config::Profile::Small,
+        "standard" => jig_protocol_config::Profile::Standard,
+        other => panic!("unknown profile {other}"),
+    });
+    let timeout = profile.core.fleet.grace;
+    for worker in init["workers"].as_array().expect("init workers") {
+        let bytes = serde_json::to_vec(worker).expect("worker JSON");
+        let document = jig_protocol_config::document(
+            &bytes,
+            &jig_protocol_config::DocumentLimits { bytes: 65_536, tokens: 4096, depth: 16 },
+        )
+        .expect("worker document");
+        let worker = jig_protocol_config::worker(&document, 0, &jig_protocol_config::Directories::working())
+            .expect("init worker");
+        let bound =
+            jig_protocol_config::stop_bound(&worker.graces, worker.limits.link.ping, worker.limits.link.silence)
+                .expect("stop bound");
+        assert!(bound < timeout, "the unit must outlast the worker's stop bound");
+        let seconds = |duration: skein_lib::Duration| {
+            assert_eq!(duration.as_millis() % 1_000, 0, "whole seconds in the unit's explanation");
+            duration.as_millis() / 1_000
+        };
+        for required in [
+            "`KillMode=control-group`".to_owned(),
+            format!("`TimeoutStopSec={}s`", seconds(timeout)),
+            format!("{}-second stop bound", seconds(bound)),
+            format!("{}-second margin", seconds(timeout) - seconds(bound)),
+            "Raising the worker's bound raises this timeout too".to_owned(),
+        ] {
+            assert!(text.contains(&required), "step 5 must explain {required}");
+        }
     }
 }
 

@@ -696,7 +696,7 @@ impl StartStore {
     pub fn apply(&mut self, writes: &[engine::Write]) {
         for write in writes {
             match write {
-                engine::Write::DropTranscript { .. } => {}
+                engine::Write::Opening(_) | engine::Write::DropTranscript { .. } => {}
                 engine::Write::Wires => self.wires = self.wires.checked_add(1).unwrap(),
                 engine::Write::Save(row) => {
                     self.rows.insert(row.key(), row.clone());
