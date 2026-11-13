@@ -418,7 +418,7 @@ fn the_claude_card_says_this_machine() {
     skein_ui_text::render(terminal.tree(), b"temper", None, &mut print);
     let text = String::from_utf8_lossy(print.text.as_slice());
     for sentence in [
-        "Your Claude subscription, through Claude Code on this machine, with a config of its own, apart from your own Claude Code.",
+        "Your Claude subscription, through a Claude Code temper keeps apart from your own.",
         "One command in a terminal, on this machine",
     ] {
         let paragraph = nodes

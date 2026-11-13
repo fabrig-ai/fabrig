@@ -384,9 +384,8 @@ pub(crate) fn switcher(
         let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
         if parts.team {
             let label = words.say(crate::words::Word::TeamFor, &[skein_ui::phrases::Hole::Name(name.clone())]);
-            action(
+            switcher_phone_link(
                 builder,
-                Role::Link,
                 &label,
                 PageAct::Go { address: Address::Team { project, role: None } },
                 if let Address::Team { project: at, .. } = root.pages().address() { *at == project } else { false },
@@ -394,12 +393,9 @@ pub(crate) fn switcher(
             );
         }
         let label = words.say(crate::words::Word::RailHowFor, &[skein_ui::phrases::Hole::Name(name)]);
-        crate::link(builder, &label, bindings.insert(PageAct::Go { address: Address::Settings { project } }));
-        builder.text(Run::Plain, &label);
-        builder.close();
-        action(
+        switcher_phone_link(builder, &label, PageAct::Go { address: Address::Settings { project } }, false, bindings);
+        switcher_phone_link(
             builder,
-            Role::Link,
             &words.say(crate::words::Word::RailDeployment, &[]),
             PageAct::Go { address: Address::Accounts },
             false,
@@ -409,6 +405,15 @@ pub(crate) fn switcher(
         builder.close();
         builder.close();
     }
+}
+fn switcher_phone_link(builder: &mut Builder, label: &[u8], act: PageAct, current: bool, bindings: &mut Bindings) {
+    crate::link(builder, label, bindings.insert(act));
+    builder.style(crate::look::PROJECTS_PHONE);
+    builder.text(Run::Plain, label);
+    if current {
+        builder.state(skein_ui::State::Current);
+    }
+    builder.close();
 }
 fn all_projects(
     b: &mut Builder,

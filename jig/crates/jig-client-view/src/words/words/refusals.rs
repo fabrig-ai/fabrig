@@ -79,6 +79,9 @@ impl Words {
             | Refusal::Unknown
             | Refusal::NoEscalationHolder
             | Refusal::ProgramNameReserved
+            | Refusal::NoTerminal
+            | Refusal::LoginUnderWay
+            | Refusal::NotLending
             | Refusal::NotOffered
             | Refusal::KeyConflict => self.text(b, JigPhrase::Word(Word::refusal(refusal)), &[]),
             Refusal::Llm { model, .. } => {

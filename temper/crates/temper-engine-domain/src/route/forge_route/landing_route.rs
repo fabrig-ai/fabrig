@@ -340,7 +340,7 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
             StepEnd::Wait
         }
         landing::Decision::Prepare { .. } => {
-            if let Some(delegate) = prepare_delegate(domain, env, task) {
+            if let Some(delegate) = prepare_delegate(domain, task) {
                 domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
                     task,
                     step,
@@ -472,35 +472,23 @@ fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Prepara
     }
     landing::Preparation::Idle
 }
-fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::prepare::PrepareRequest> {
+fn prepare_request(domain: &Domain, task: u64) -> Option<super::prepare::PrepareRequest> {
     let row = domain.forge.landing(task)?;
     let member = row.landing.members.first()?;
     let change = domain.forge.change(member.change)?;
     let repository = domain.forge.repository(change.repository)?;
     let head = member.head?;
-    let mut message = List::with_capacity(env.limits.tasks.spec_bytes);
-    append(&mut message, b"Merge pull request '");
-    append(&mut message, &change.title);
-    append(&mut message, b"' (#");
-    append(&mut message, skein_lib::Decimal::of(member.pull).as_bytes());
-    append(&mut message, b") from ");
-    append(&mut message, &change.branch);
-    append(&mut message, b" into ");
-    append(&mut message, &row.landing.branch);
-    append(&mut message, b"\n\nLanded by landing ");
-    append(&mut message, skein_lib::Decimal::of(task).as_bytes());
-    append(&mut message, b" for change ");
-    append(&mut message, skein_lib::Decimal::of(member.change).as_bytes());
-    append(&mut message, b".");
-    let mut squash = List::with_capacity(env.limits.tasks.spec_bytes);
-    append(&mut squash, &change.title);
-    append(&mut squash, b"\n\nTemper-Change: ");
-    append(&mut squash, skein_lib::Decimal::of(member.change).as_bytes());
-    append(&mut squash, b"\nTemper-Pull: ");
-    append(&mut squash, skein_lib::Decimal::of(member.pull).as_bytes());
-    append(&mut squash, b"\nTemper-Head: ");
-    append(&mut squash, &super::commit_text(&head));
     let main = row.landing.branch == repository.settings.default_branch;
+    let text = forge::member_message::Member {
+        title: &change.title,
+        words: &change.report,
+        change: member.change,
+        pull: member.pull,
+        head,
+        goal: change.goal,
+    };
+    let message = forge::member_message::commit_message(&text, main);
+    let squash = forge::member_message::commit_message(&text, true);
     let combine = match domain.config.landings.get(&row.landing.project) {
         Some(config) => {
             if main {
@@ -526,13 +514,13 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<supe
             number: member.change,
             branch: change.branch.clone(),
             head,
-            message: message.into_boxed(),
-            squash: squash.into_boxed(),
+            message,
+            squash,
         },
     })
 }
-fn prepare_delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::super::Delegate> {
-    let request = prepare_request(domain, env, task)?;
+fn prepare_delegate(domain: &Domain, task: u64) -> Option<super::super::Delegate> {
+    let request = prepare_request(domain, task)?;
     let bound = domain.config.prepare_kind?;
     let context = domain.core.tasks.delegation(task)?;
     let mut authority = context.authority;
@@ -567,7 +555,7 @@ fn prepare_delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<sup
     })
 }
 pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::RunWorkspace> {
-    let request = prepare_request(domain, env, task)?;
+    let request = prepare_request(domain, task)?;
     let row = domain.forge.landing(task)?;
     let member = row.landing.members.first()?;
     let provider =

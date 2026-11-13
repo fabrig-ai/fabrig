@@ -69,3 +69,13 @@ Inherited from main at the goal's start, 2026-11-13, from goals 1983, 1984,
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs
 - lint temper-client-domain clippy::assert_is_empty temper/crates/temper-client-domain/src/tests/pages/talk.rs
 - lint temper-client-tui clippy::semicolon_if_nothing_returned temper/crates/temper-client-tui/src/view/foot/lists.rs
+
+Failures on the goal branch that no live change of goal 2176 owns; delivery
+checks count them as inherited (`tools/pre-pr/design.md`, section 5).
+
+Inherited from main at the goal's start (4d06c93e26), 2026-11-13: the lists the goals
+merged into main brought, each key once. Each is dropped once fixed.
+
+- lint temper-client-domain clippy::too_many_lines temper/crates/temper-client-domain/src/pages/task.rs
+
+- test temper-box::suite box_front::front_refuses_without_a_first_link_before_starting_steps

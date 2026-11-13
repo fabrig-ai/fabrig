@@ -79,11 +79,8 @@ fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
 }
 fn temper_and_end(root: &d::Domain) {
     for view in [f::page_view(root), f::browser_page_view(root)] {
-        assert_eq!(f::text(view.tree()).as_ref(), b"temperLivePat");
-        super::frame::assert_top_end(
-            &view,
-            &[(Role::Region, None), (Role::Status, Some(b"Pat")), (Role::Button, Some(b"Sign out"))],
-        );
+        assert_eq!(f::text(view.tree()).as_ref(), b"temperLive");
+        super::frame::assert_top_end(&view, &[(Role::Region, None)]);
         let main = view.tree().nodes().iter().find(|node| node.role == Role::Main).unwrap();
         assert_eq!(main.size, 1, "the main has no children");
         assert!(f::find(view.tree(), Role::Link, b"temper").is_some());
@@ -114,7 +111,7 @@ fn an_answer_showing_the_welcome_draws_its_frame_and_heading() {
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         node(view.tree(), Role::Heading { level: 1 }, "Welcome to temper");
         node(view.tree(), Role::List, "Steps");
-        assert!(String::from_utf8_lossy(&f::text(view.tree())).contains("temper box"));
+        assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("temper box"));
     }
 }
 fn choice_cards(tree: &skein_ui::Tree) -> Vec<&[u8]> {
@@ -503,7 +500,7 @@ fn press(root: &d::Domain, role: Role, name: &str) -> d::Action {
     crate::act(&mut view, id, Act::Press).expect("bound control")
 }
 #[test]
-fn the_welcome_frame_is_the_brand_the_box_line_the_steps_and_the_end() {
+fn the_welcome_frame_is_the_brand_the_steps_and_the_link_alone() {
     let root = f::welcome_root(Step::Welcome, true);
     let mut view = f::page_view(&root);
     let brand = f::find(view.tree(), Role::Link, b"temper").unwrap();
@@ -518,39 +515,21 @@ fn the_welcome_frame_is_the_brand_the_box_line_the_steps_and_the_end() {
             .as_slice()
             .contains(&crate::look::WELCOME_INTRO)
     );
-    super::frame::assert_top_end(
-        &view,
-        &[(Role::Region, None), (Role::Status, Some(b"Pat")), (Role::Button, Some(b"Sign out"))],
-    );
+    super::frame::assert_top_end(&view, &[(Role::Region, None)]);
     let banner = tree.nodes().iter().position(|n| n.role == Role::Banner).unwrap();
     assert_eq!(tree.nodes()[banner].styles.as_slice(), [crate::look::TOP]);
     let brand = &tree.nodes()[banner + 1];
     assert_eq!(brand.name.as_deref(), Some(b"temper".as_slice()));
     let banner = &tree.nodes()[banner..banner + usize::try_from(tree.nodes()[banner].size).unwrap()];
     let mut child = 1;
-    for (role, style) in [
-        (Role::Link, crate::look::BRAND),
-        (Role::Slot, crate::look::WELCOME_BOX_LINE),
-        (Role::List, crate::look::FLOW_STEPS),
-        (Role::Slot, crate::look::TOP_END),
-    ] {
+    for (role, style) in
+        [(Role::Link, crate::look::BRAND), (Role::List, crate::look::FLOW_STEPS), (Role::Slot, crate::look::TOP_END)]
+    {
         assert_eq!(banner[child].role, role);
         assert!(banner[child].styles.as_slice().contains(&style));
         child += usize::try_from(banner[child].size).unwrap();
     }
     assert_eq!(child, banner.len(), "the end finishes the banner");
-    let line = banner.iter().position(|n| n.styles.as_slice().contains(&crate::look::WELCOME_BOX_LINE)).unwrap();
-    let runs: Vec<_> = banner[line + 1].text.iter().map(|r| (r.run, r.text.as_ref())).collect();
-    assert_eq!(
-        runs,
-        [
-            (skein_ui::Run::Strong, b"temper box".as_slice()),
-            (skein_ui::Run::Plain, " · on this machine, to try it · more later, from Settings · ".as_bytes()),
-        ]
-    );
-    let server = banner.iter().find(|n| n.role == Role::Link && n.external.is_some()).unwrap();
-    assert_eq!(server.name.as_deref(), Some("Run temper on a server ↗".as_bytes()));
-    assert!(server.external.as_deref().is_some_and(|a| a.ends_with(b"/docs/help/server.md")));
     assert!(banner.iter().any(|n| n.role == Role::List && n.name.as_deref() == Some(b"Steps".as_slice())));
     for role in [Role::Disclosure, Role::Navigation] {
         assert!(!tree.nodes().iter().any(|node| node.role == role));
@@ -558,6 +537,71 @@ fn the_welcome_frame_is_the_brand_the_box_line_the_steps_and_the_end() {
     assert!(f::find(tree, Role::Region, b"Playground").is_none());
     assert!(!String::from_utf8_lossy(&f::text(tree)).contains("No model yet"));
     assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Region).count(), 3);
+}
+#[test]
+fn every_welcome_step_keeps_the_person_and_sign_out_alert_out_of_the_bar() {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
+    {
+        let mut root = f::welcome_root(step, true);
+        f::root_event(&mut root, d::Event::Client { event: jig_client::Event::SignOutLost });
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            super::frame::assert_top_end(&view, &[(Role::Region, None)]);
+            assert!(f::find(view.tree(), Role::Button, b"Sign out").is_none());
+            assert!(f::find(view.tree(), Role::Alert, b"Sign out did not reach the engine.").is_none());
+            let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+            skein_ui_text::render(view.tree(), b"temper", None, &mut print);
+            assert!(!String::from_utf8_lossy(print.text.as_slice()).contains("Sign out"));
+        }
+    }
+}
+#[test]
+fn the_box_paragraph_follows_the_cards_note_only_on_the_welcome_step() {
+    for offered in [true, false] {
+        let root = if offered {
+            f::welcome_root(Step::WelcomeAsked, true)
+        } else {
+            f::forge_root_accounts(
+                Address::Welcome { step: Step::WelcomeAsked },
+                forge::rows(w::Connection::Connecting, w::Offer::Offered),
+            )
+            .0
+        };
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let tree = view.tree();
+            let line = tree.nodes().iter().find(|n| styled(tree, n.id, crate::look::WELCOME_BOX_NOTE)).unwrap();
+            assert_eq!(line.role, Role::Paragraph);
+            let main = tree.nodes().iter().find(|n| n.role == Role::Main).unwrap();
+            assert_eq!(forge::parent(tree, line.id), Some(main.id));
+            let before = if offered { crate::look::WELCOME_AFTER } else { crate::look::WELCOME_CHOICES };
+            let previous = tree.nodes().iter().find(|n| styled(tree, n.id, before)).unwrap();
+            let start = tree.nodes().iter().position(|n| n.id == previous.id).unwrap();
+            assert_eq!(tree.nodes()[start + usize::try_from(previous.size).unwrap()].id, line.id);
+            let start = tree.nodes().iter().position(|n| n.id == line.id).unwrap();
+            let runs: Vec<_> = tree.nodes()[start + 1].text.iter().map(|r| (r.run, r.text.as_ref())).collect();
+            assert_eq!(
+                runs,
+                [
+                    (skein_ui::Run::Strong, b"temper box".as_slice()),
+                    (skein_ui::Run::Plain, " · on this machine, to try it · more later, from Settings · ".as_bytes()),
+                ]
+            );
+            let server = &tree.nodes()[start + 2];
+            assert_eq!(server.name.as_deref(), Some("Run temper on a server ↗".as_bytes()));
+            assert!(server.external.as_deref().is_some_and(|a| a.ends_with(b"/docs/help/server.md")));
+            let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+            skein_ui_text::render(tree, b"temper", None, &mut print);
+            let printed = String::from_utf8_lossy(print.text.as_slice());
+            let preceding = if offered { "playground then steps aside." } else { "Go on setting up" };
+            assert!(printed.find(preceding).unwrap() < printed.find("temper box").unwrap());
+            assert!(printed.contains("Run temper on a server"));
+        }
+    }
+    for step in [Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
+        let root = f::welcome_root(step, true);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("temper box"));
+        }
+    }
 }
 #[test]
 fn an_empty_store_offers_both_cards() {
@@ -824,7 +868,7 @@ fn the_model_step_offers_the_accounts_ways() {
     node(view.tree(), Role::Paragraph, "temper’s agents run on a plan you sign in to.");
     node(view.tree(), Role::Heading { level: 2 }, "ChatGPT");
     node(view.tree(), Role::Paragraph, "Your ChatGPT plan: sign in, and temper’s agents use its included usage.");
-    node(view.tree(), Role::Paragraph, "Sign in, in a new tab · about a minute");
+    node(view.tree(), Role::Paragraph, "Sign in, in a new tab");
     let sign_in = node(view.tree(), Role::Button, "Continue with ChatGPT");
     assert!(styled(view.tree(), sign_in, crate::look::FLOW_PRIMARY));
     assert!(f::find(view.tree(), Role::Button, "This browser isn't on temper's computer ›".as_bytes()).is_none());
@@ -839,28 +883,89 @@ fn the_model_step_offers_the_accounts_ways() {
 }
 #[test]
 fn the_model_step_offers_each_plan_and_no_key() {
-    let mut root = super::connect_model::plans_root();
-    f::root_event(
-        &mut root,
-        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: None } }) },
-    );
-    let view = f::page_view(&root);
-    let tree = view.tree();
-    let cards: Vec<_> = tree
-        .nodes()
-        .iter()
-        .filter(|n| n.role == Role::Heading { level: 2 })
-        .map(|n| n.name.as_deref().unwrap())
-        .collect();
-    assert_eq!(cards, [b"ChatGPT".as_slice(), b"Claude"]);
-    node(tree, Role::Paragraph, "Sign in, in a new tab · about a minute");
-    node(tree, Role::Paragraph, "One command in a terminal, on this machine");
-    let chatgpt = node(tree, Role::Button, "Continue with ChatGPT");
-    let claude = node(tree, Role::Link, "Use your Claude subscription");
-    assert!(styled(tree, chatgpt, crate::look::FLOW_PRIMARY));
-    assert!(styled(tree, claude, crate::look::FLOW_SECONDARY));
-    assert!(!String::from_utf8_lossy(&f::text(tree)).contains("key"));
-    assert!(!tree.nodes().iter().any(|n| n.name.as_deref().is_some_and(|name| name.ends_with(b"API key"))));
+    for lendable in [false, true] {
+        let (mut root, _) =
+            super::connect_model::terminal_root(true, super::connect_model::terminal_document(lendable));
+        super::connect_model::assert_terminal_cards(&root, true, lendable);
+        let view = f::page_view(&root);
+        assert!(!String::from_utf8_lossy(&f::text(view.tree())).contains("key"));
+        if lendable {
+            let action = press(&root, Role::Button, "Sign in to Claude Code");
+            f::root_event(&mut root, d::Event::Act { action });
+            let pending = root.pages().connect_model().unwrap().request.pending.as_ref().unwrap();
+            assert_eq!(
+                pending.ask,
+                jig_client::contract::Ask::AccountChange {
+                    holder: jig_client::contract::AskAccountHolder::Own,
+                    change: jig_client::contract::AccountChange::LoginProgram {
+                        provider: 18,
+                        name: b"claude-pat".as_slice().into()
+                    },
+                }
+            );
+        }
+    }
+}
+#[test]
+fn model_keeps_the_terminal_login_note_across_documents_and_reopening() {
+    super::connect_model::terminal_note_states(true);
+}
+#[test]
+fn model_terminal_login_endings_and_refusals_put_the_cards_back() {
+    super::connect_model::terminal_ending_rows(true);
+}
+#[test]
+fn a_signed_in_terminal_login_stays_usable_until_continue() {
+    use jig_client::contract as c;
+    for email in [None, Some(b"pat@example.com".as_slice())] {
+        let mut doc = super::accounts::card_document(b"anthropic", b"claude-pat", c::AccountKind::Program);
+        let row = doc.accounts.get_mut(0).unwrap();
+        row.provider = Some(18);
+        row.facts = super::accounts::email_facts(email);
+        row.sources.get_mut(0).unwrap().number = 43;
+        doc.cut = false;
+        doc.settled = true;
+        doc.signing.clear();
+        doc.lent_end = Some(c::AccountLentEnd { number: 91, end: c::LoginEnd::SignedIn { source: 43 } });
+        let (mut root, _) = super::connect_model::terminal_root(true, doc);
+        let expected = if email.is_some() {
+            "Claude subscription · through Claude Code, signed in · pat@example.com"
+        } else {
+            "Claude subscription · through Claude Code, signed in"
+        };
+        assert_eq!(
+            crate::pages::accounts::first_usable_short(&root, &f::words()).unwrap().as_ref(),
+            expected.as_bytes()
+        );
+        for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
+            let tree = view.tree();
+            node(tree, Role::Status, expected);
+            let next = node(tree, Role::Link, "Continue");
+            assert!(styled(tree, next, crate::look::FLOW_PRIMARY));
+            assert!(f::find(tree, Role::Region, b"Claude").is_none());
+            assert!(
+                f::find(tree, Role::Paragraph, "temper’s agents run on a plan you sign in to.".as_bytes()).is_none()
+            );
+            if browser {
+                assert!(tree.nodes().iter().enumerate().any(|(i, n)| {
+                    n.styles.as_slice().contains(&crate::look::FLOW_MUTED)
+                        && super::inbox::subtree(tree, i)
+                            .iter()
+                            .flat_map(|n| n.text.iter().flat_map(|r| r.text.iter().copied()))
+                            .collect::<Vec<_>>()
+                            .starts_with(b"through Claude Code, signed in")
+                }));
+            } else {
+                assert!(terminal_print(&view).contains("✓ Claude subscription · through Claude Code, signed in"));
+            }
+            assert_eq!(
+                crate::act(&mut view, next, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Ready } }))
+            );
+        }
+        f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Ready }) });
+        assert_eq!(root.pages().address(), &Address::Welcome { step: Step::Ready });
+    }
 }
 #[test]
 fn each_later_step_offers_the_playground_only_for_an_empty_store() {
@@ -2547,14 +2652,14 @@ fn ready_names_a_programs_login_and_a_keys_billing() {
             b"claude-owner".as_slice(),
             K::Program,
             None,
-            "Claude subscription · claude-owner, signed in on this machine",
+            "Claude subscription · through Claude Code, signed in",
         ),
         (
             b"anthropic",
             b"claude-owner",
             K::Program,
             Some(b"alice@example.com".as_slice()),
-            "Claude subscription · alice@example.com, signed in on this machine",
+            "Claude subscription · through Claude Code, signed in · alice@example.com",
         ),
         (b"openai", b"", K::Key, None, "OpenAI API key · billed to the key’s organization"),
         (b"openai", b"", K::SignIn, None, "ChatGPT plan"),

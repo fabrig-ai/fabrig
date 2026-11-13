@@ -34,6 +34,7 @@ ask-chat
 ask-chat-accepted
 ask-chat-document
 ask-chat-document-split
+ask-chat-draft-empty
 ask-chat-proposal
 ask-chat-proposal-deployment
 ask-chat-proposal-two-projects
@@ -392,6 +393,11 @@ welcome-go-on
 welcome-model-away
 welcome-model-choose
 welcome-model-claude
+welcome-model-claude-no-terminal
+welcome-model-claude-not-finished
+welcome-model-claude-signed-in
+welcome-model-claude-signing-in
+welcome-model-claude-terminal
 welcome-model-connected
 welcome-model-declined
 welcome-model-forge-done

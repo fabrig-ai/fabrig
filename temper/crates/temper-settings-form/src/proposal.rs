@@ -1,7 +1,7 @@
 //! Compact proposal reads beside revisions (temper/docs/design/domain/agent/ask-temper.md, 1).
 use crate::{Limits, Text, render, view, wire};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Reader};
 
 #[cfg(test)]

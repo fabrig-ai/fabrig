@@ -255,6 +255,8 @@ pub const STARTER_WAYS: Style = Style { owner: owner(), token: 251 };
 pub const PROJECTS_MENU: Style = Style { owner: owner(), token: 190 };
 /// The rail switcher's actions.
 pub const PROJECTS_ACTS: Style = Style { owner: owner(), token: 191 };
+/// The switcher's phone-only links (client/view.md, 3).
+pub const PROJECTS_PHONE: Style = Style { owner: owner(), token: 196 };
 /// A switcher row's repository words.
 pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
 /// The additional repository count.
@@ -629,8 +631,8 @@ pub const PROJECT_RENAME: Style = Style { owner: owner(), token: 161 };
 pub const PROJECT_NEW: Style = Style { owner: owner(), token: 162 };
 /// The open project's row while it is renamed (temper/docs/design/client/view.md, 3).
 pub const PROJECT_RENAME_FORM: Style = Style { owner: owner(), token: 163 };
-/// The welcome's temper box line, in its top bar (temper/docs/design/client/pages/README.md).
-pub const WELCOME_BOX_LINE: Style = Style { owner: owner(), token: 164 };
+/// The Welcome step's temper box paragraph under its cards (client/pages/welcome.md, 1).
+pub const WELCOME_BOX_NOTE: Style = Style { owner: owner(), token: 766 };
 /// The welcome's sheet for Forgejo on this machine, a modal dialog over the
 /// Forge step (temper/docs/design/client/pages/README.md).
 pub const WELCOME_SHEET: Style = Style { owner: owner(), token: 165 };
@@ -885,7 +887,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-project-rename",
         b"temper-project-new",
         b"temper-project-rename-form",
-        b"temper-welcome-box-line",
+        b"temper-reserved-164",
         b"temper-welcome-sheet",
         b"temper-welcome-sheet-head",
         b"temper-welcome-start",
@@ -917,7 +919,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-projects-more",
         b"temper-projects-row",
         b"temper-repository-link",
-        b"temper-reserved-196",
+        b"temper-projects-phone",
         b"temper-reserved-197",
         b"temper-reserved-198",
         b"temper-reserved-199",
@@ -1154,7 +1156,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-start-over",
         b"temper-doc-flash",
         b"temper-doc-empty",
-        b"temper-add-draft",
+        b"temper-reserved-433",
         b"temper-home-facts",
         b"temper-home-byline",
         b"temper-chat-goal",
@@ -1318,7 +1320,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-terminal-hint",
         b"temper-terminal-head",
         b"temper-terminal-note",
-        b"temper-to-terminal",
+        b"temper-reserved-597",
         b"temper-terminal-dismiss",
         b"temper-terminal-choices",
         b"temper-terminal-card",
@@ -1488,6 +1490,12 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-areas",
         b"temper-team-routing",
         b"temper-team-talk",
+        b"temper-welcome-box-note",
+        b"temper-status-line",
+        b"temper-status-star",
+        b"temper-status-working",
+        b"temper-doc-acts",
+        b"temper-doc-write-up",
         b"temper-tell",
         b"temper-tell-page",
         b"temper-tell-top",
@@ -1630,9 +1638,6 @@ pub const DOC_FLASH: Style = Style { owner: owner(), token: 431 };
 
 /// The unwritten document (client/pages/README.md).
 pub const DOC_EMPTY: Style = Style { owner: owner(), token: 432 };
-/// The bar's draft action (client/pages/README.md).
-pub const ADD_DRAFT: Style = Style { owner: owner(), token: 433 };
-
 /// Home status (temper/docs/design/client/pages/README.md).
 pub const HOME_FACTS: Style = Style { owner: owner(), token: 434 };
 /// Home brief attribution (temper/docs/design/client/pages/README.md).
@@ -1834,7 +1839,6 @@ pub const TERMINAL_LINE: Style = Style { owner: owner(), token: 593 };
 pub const TERMINAL_HINT: Style = Style { owner: owner(), token: 594 };
 pub const TERMINAL_HEAD: Style = Style { owner: owner(), token: 595 };
 pub const TERMINAL_NOTE: Style = Style { owner: owner(), token: 596 };
-pub const TO_TERMINAL: Style = Style { owner: owner(), token: 597 };
 pub const TERMINAL_DISMISS: Style = Style { owner: owner(), token: 598 };
 pub const TERMINAL_CHOICES: Style = Style { owner: owner(), token: 599 };
 
@@ -2018,17 +2022,23 @@ pub const TEAM_AREAS: Style = Style { owner: owner(), token: 763 };
 pub const TEAM_ROUTING: Style = Style { owner: owner(), token: 764 };
 pub const TEAM_TALK: Style = Style { owner: owner(), token: 765 };
 
+/// A chat's stable status and empty pane (client/web/look.md, A chat's status line and A chat's document).
+pub const STATUS_LINE: Style = Style { owner: owner(), token: 767 };
+pub const STATUS_STAR: Style = Style { owner: owner(), token: 768 };
+pub const STATUS_WORKING: Style = Style { owner: owner(), token: 769 };
+pub const DOC_ACTS: Style = Style { owner: owner(), token: 770 };
+pub const DOC_WRITE_UP: Style = Style { owner: owner(), token: 771 };
 /// Tell temper (client/pages/needs-you.md, 1).
-pub const TELL: Style = Style { owner: owner(), token: 766 };
-pub const TELL_PAGE: Style = Style { owner: owner(), token: 767 };
-pub const TELL_TOP: Style = Style { owner: owner(), token: 768 };
-pub const TELL_HEAD: Style = Style { owner: owner(), token: 769 };
-pub const TELL_CARD: Style = Style { owner: owner(), token: 770 };
-pub const TELL_FIELD: Style = Style { owner: owner(), token: 771 };
-pub const TELL_META: Style = Style { owner: owner(), token: 772 };
-pub const TELL_ACTS: Style = Style { owner: owner(), token: 773 };
-pub const TELL_LINK: Style = Style { owner: owner(), token: 774 };
-pub const TELL_CONTEXT: Style = Style { owner: owner(), token: 775 };
+pub const TELL: Style = Style { owner: owner(), token: 772 };
+pub const TELL_PAGE: Style = Style { owner: owner(), token: 773 };
+pub const TELL_TOP: Style = Style { owner: owner(), token: 774 };
+pub const TELL_HEAD: Style = Style { owner: owner(), token: 775 };
+pub const TELL_CARD: Style = Style { owner: owner(), token: 776 };
+pub const TELL_FIELD: Style = Style { owner: owner(), token: 777 };
+pub const TELL_META: Style = Style { owner: owner(), token: 778 };
+pub const TELL_ACTS: Style = Style { owner: owner(), token: 779 };
+pub const TELL_LINK: Style = Style { owner: owner(), token: 780 };
+pub const TELL_CONTEXT: Style = Style { owner: owner(), token: 781 };
 
 #[cfg(test)]
 mod tests {

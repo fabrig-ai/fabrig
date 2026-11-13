@@ -79,6 +79,7 @@ impl<'a> Part<'a> {
             | Delivery::Chips(_)
             | Delivery::Settings(_)
             | Delivery::Deployment(_)
+            | Delivery::Terminal(_)
             | Delivery::Accounts(_) => None,
         }
     }

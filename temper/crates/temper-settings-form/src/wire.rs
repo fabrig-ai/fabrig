@@ -1,7 +1,7 @@
 //! Structural adapters between neutral forms and the shared client wire.
 use crate::{Limits, view as c};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Reader, Wall, Writer, bytes};
 pub fn restore_revisions_page(value: &w::RevisionsPage, limits: &Limits) -> Result<c::RevisionsPage, w::Problem> {
     let mut rows = List::with_capacity(value.rows().len());

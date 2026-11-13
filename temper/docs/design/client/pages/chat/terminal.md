@@ -30,11 +30,17 @@
     `night` is on and removes it otherwise, from the record before the first
     page is drawn and in the step a press turns it; the terminal shells draw no
     night.
-  - *Entered:* the button ">_", named "Terminal, full screen", in a
-    browser's bar after the mode group or "+ Draft" and before "Start goal…" or
-    "Start over", on every chat, `NewChat` and `Ask`, on a phone too:
-    `terminal::Act::Enter`, which sets `terminal` and asks the shell for full
-    screen in the same step (skein's `ui/web/README.md`, 9, *Full screen*). The press
+  - *Entered:* for now, by nothing on the page: no bar draws ">_" ("Terminal,
+    full screen"), on any chat, `NewChat` or `Ask`, on a phone either, now
+    that temper has its own TUI (`../../tui/README.md`); the button needs
+    care, and comes back later (the look request `no-terminal-button`,
+    2026-11-12). On a chat the bar's other parts move into its place; on
+    `Ask` the bar's right is empty. The look's code stays whole: a browser
+    whose kept look says terminal still opens in it, and *Left* (below)
+    still leaves it, so that no one is stranded; this request does not
+    decide the look's future. `terminal::Act::Enter`, which the button gave
+    and no control gives now, stays: it sets `terminal` and asks the shell for full
+    screen in the same step (skein's `ui/web/README.md`, 9, *Full screen*), and
     draws the terminal in that step, before the browser answers: every terminal
     act, and a list's closing on any event, moves the pages' shown count, as
     each change the view draws does (`../../README.md`, section 3). Full screen refused, the
@@ -57,7 +63,11 @@
     phone the star and the title alone: the project, its "/" and the number go.
     "Draft" is a button pressed while the document shows: `Act::Mode` to Split,
     or back to Chat, its shortcut `Ctrl+\`; with no document, where
-    `chat_offers_draft` and the chat hasn't ended, "+ Draft", `Act::AddDraft`;
+    `chat_offers_draft` and the chat hasn't ended, "+ Draft", `Act::AddDraft`,
+    the write-up the browser's pane asks with "Write it up from this chat"
+    (`document.md`, 1): the browser's bar no longer draws "+ Draft" (the look
+    request `chat-bar`), and this look, kept as it is, does not decide that
+    (*Entered*, above);
     otherwise none. Nothing else of the bar draws: its status, Pause or Resume,
     Close, Start over, "Start goal…", the mode group and the spend are commands
     and the quiet line's.
@@ -170,8 +180,9 @@
   with menus and disclosures open and every state their messages name
   (`../../web/look-requests.md`, sections 4 and 5). Include both themes
   and fonts, the draft and its figure, questions, compact cards and
-  closed chats. Check that pressing `>_` draws the terminal before any
-  further input, including when full screen is refused, and that Exit
+  closed chats. Check that applying `terminal::Act::Enter`, which no page
+  control gives now, draws the terminal before any further input, including
+  when full screen is refused, and that Exit
   and closing a list redraw at once with no command words in the box.
   Real keys check Chromium's short and long Escape,
   Exit, desktop shortcuts, Firefox and Safari's one-Escape fallback,

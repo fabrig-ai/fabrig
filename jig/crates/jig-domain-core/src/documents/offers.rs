@@ -148,6 +148,7 @@ pub(super) fn subject(
         | Subject::Tree { .. }
         | Subject::Chips { .. }
         | Subject::Inbox { .. }
+        | Subject::Terminal { .. }
         | Subject::Accounts { .. }
         | Subject::Query { .. }
         | Subject::Run { .. }
@@ -220,6 +221,7 @@ fn effect(core: &Core, limits: &Limits, act: Act, subject: &Subject) -> Option<a
         | Subject::Tree { .. }
         | Subject::Chips { .. }
         | Subject::Inbox { .. }
+        | Subject::Terminal { .. }
         | Subject::Accounts { .. }
         | Subject::Query { .. }
         | Subject::Run { .. }

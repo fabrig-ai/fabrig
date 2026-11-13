@@ -803,6 +803,11 @@ fn csv_chat_hears_its_result(turn_text: u32) {
     }
     activity.rows = rows;
     let mut chat = change();
+    chat.acts = List::from_boxed(Box::new([c::Offered {
+        act: c::ActKind::Message,
+        admission: c::Admission::Allowed,
+        effect: None,
+    }]));
     chat.chip.task = CHAT;
     chat.requester = c::Requester::Person(fixtures::chat::PARTY);
     chat.waits_on = c::WaitsOn::News;
@@ -877,6 +882,11 @@ fn the_csv_chat_stops_waiting_when_its_card_lands_before_the_chat_document() {
     receiving.client.domain.long_text = 512;
     receiving.client.domain.turn_text = 2048;
     let mut chat = change();
+    chat.acts = List::from_boxed(Box::new([c::Offered {
+        act: c::ActKind::Message,
+        admission: c::Admission::Allowed,
+        effect: None,
+    }]));
     chat.chip.task = CHAT;
     chat.requester = c::Requester::Person(fixtures::chat::PARTY);
     chat.waits_on = c::WaitsOn::Delegates;

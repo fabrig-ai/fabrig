@@ -1,6 +1,6 @@
 # landing: status
 
-2026-11-11. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-13. Where temper's code lags or departs from [landing.md](landing.md).
 
 Section 13.1 has no known gap in what a branch's path reads: the
 project's `by`, and each repository's gates and tiers with the branch

@@ -1,5 +1,8 @@
 use skein_lib::Duration;
 
+/// Open terminal watches per party (terminal-login.md, 2).
+pub const TERMINALS: u32 = 4;
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub accounts: u32,

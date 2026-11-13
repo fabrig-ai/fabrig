@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_engine_clients_world::fixtures::{self, Peer};
@@ -31,7 +31,7 @@ fn request() -> Box<[u8]> {
     ask.encode(&mut out).expect("ask bytes");
     let record = w::Keyed::new(
         &limits,
-        w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 20, request: out.finish(), value: None },
+        w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 21, request: out.finish(), value: None },
     )
     .expect("keyed request");
     let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
@@ -68,7 +68,7 @@ fn a_native_request_waits_for_the_released_reply_and_takes_its_task() {
         panic!("final answer");
     };
     assert_eq!(answer.owner(), &w::Owner::Jig);
-    assert_eq!(answer.version(), 20);
+    assert_eq!(answer.version(), 21);
     let outcome = w::Outcome::Document(
         w::OutcomeDocument::new(
             &limits,
@@ -145,7 +145,7 @@ fn keyed(key: [u8; 16], ask: &w::Ask) -> Box<[u8]> {
     ask.encode(&mut out).expect("ask bytes");
     let keyed = w::Keyed::new(
         &limits,
-        w::KeyedParts { key, owner: w::Owner::Jig, version: 20, request: out.finish(), value: None },
+        w::KeyedParts { key, owner: w::Owner::Jig, version: 21, request: out.finish(), value: None },
     )
     .expect("keyed");
     let mut out = Writer::new(skein_lib::length::usize_of(keyed.measure()));
@@ -356,7 +356,7 @@ fn a_carried_value_is_kept_before_the_application_sees_its_request() {
     use jig_protocol_engine_clients::{Event, FromApplication, Served, ToApplication};
     let mut settings = fixtures::settings();
     settings.served = skein_lib::List::with_capacity(2);
-    settings.served.push(Served { family: None, first: 20, last: 20 }).expect("jig");
+    settings.served.push(Served { family: None, first: 21, last: 21 }).expect("jig");
     settings.served.push(Served { family: Some(1), first: 1, last: 1 }).expect("family");
     let mut peer = Peer::started(&settings);
     let bearer = fixtures::signed_in(&mut peer);
@@ -445,4 +445,88 @@ fn settings_proposals_and_running_choices_reach_the_core() {
         peer.answer_request(reply_to, people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown)));
         assert!(peer.answered(socket).is_some(), "the released answer closes this exchange");
     }
+}
+
+fn assert_login_routed(
+    change: w::AccountChange,
+    expected: &people::AccountChange,
+    refusal: people::Refusal,
+    wire_refusal: w::Refusal,
+) {
+    let limits = fixtures::limits().wire;
+    let ask = w::Ask::AccountChange(
+        w::AskAccountChange::new(&limits, w::AskAccountChangeParts { holder: w::AskAccountHolder::Own, change })
+            .expect("literal login form"),
+    );
+    let mut peer = Peer::started(&fixtures::settings());
+    let bearer = fixtures::signed_in(&mut peer);
+    let socket = peer.post(b"/jig/v1/request", keyed([83; 16], &ask), Some(&bearer));
+    let core::Event::People(people::Event::Ask {
+        reply_to,
+        ask: people::Ask::AccountChange { holder: people::AccountHolder::Own, change },
+        ..
+    }) = peer.take_core().expect("login reaches core")
+    else {
+        panic!("account change")
+    };
+    assert_eq!(&change, expected);
+    assert!(peer.answered(socket).is_none(), "waits for the core decision");
+    peer.answer_request(reply_to, people::Reply::Outcome(people::Outcome::Refused(refusal)));
+    let answer =
+        w::KeyedAnswer::decode(&limits, &mut skein_lib::Reader::new(peer.answered(socket).expect("core refusal")))
+            .expect("literal login form");
+    let w::KeyedAnswer::FinalAnswer(answer) = answer else { panic!("final answer") };
+    assert_eq!(answer.owner(), &w::Owner::Jig);
+    assert_eq!(answer.version(), 21);
+    assert_eq!(
+        w::Final::decode(&limits, &mut skein_lib::Reader::new(answer.record())),
+        Ok(w::Final::Refused(
+            w::Refused::new(&limits, w::RefusedParts { refusal: wire_refusal, at: None }).expect("literal login form")
+        ))
+    );
+}
+#[test]
+fn login_program_reaches_the_core() {
+    let change = w::AccountChange::LoginProgram(
+        w::AccountChangeLoginProgram::new(
+            &fixtures::limits().wire,
+            w::AccountChangeLoginProgramParts { provider: 2, name: b"work".as_slice().into() },
+        )
+        .expect("literal login form"),
+    );
+    assert_login_routed(
+        change,
+        &people::AccountChange::LoginProgram { provider: 2, name: b"work".as_slice().into() },
+        people::Refusal::NoTerminal,
+        w::Refusal::NoTerminal,
+    );
+}
+#[test]
+fn cancel_login_reaches_the_core() {
+    let change = w::AccountChange::CancelLogin(
+        w::AccountChangeCancelLogin::new(&fixtures::limits().wire, w::AccountChangeCancelLoginParts { number: 1 })
+            .expect("literal login form"),
+    );
+    assert_login_routed(
+        change,
+        &people::AccountChange::CancelLogin { number: 1 },
+        people::Refusal::NotLending,
+        w::Refusal::NotLending,
+    );
+}
+#[test]
+fn login_ended_reaches_the_core() {
+    let change = w::AccountChange::LoginEnded(
+        w::AccountChangeLoginEnded::new(
+            &fixtures::limits().wire,
+            w::AccountChangeLoginEndedParts { number: 1, exit: w::LoginExit::NotStarted },
+        )
+        .expect("literal login form"),
+    );
+    assert_login_routed(
+        change,
+        &people::AccountChange::LoginEnded { number: 1, exit: people::LoginExit::NotStarted },
+        people::Refusal::NotLending,
+        w::Refusal::NotLending,
+    );
 }

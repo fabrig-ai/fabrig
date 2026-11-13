@@ -130,7 +130,16 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
                 &view.forge_sign_in,
             );
         } else {
-            crate::outside::top(&mut builder, root, &view.forge_words, &mut view.pages);
+            let welcome = if let temper_client_domain::Address::Welcome { .. } = root.pages().address() {
+                root.authorization().is_none()
+                    && root.approval().is_none()
+                    && !(crate::sign_in::offered(root, &view.forge_words, &view.sign_in)
+                        && view.sign_in.origin.is_some())
+                    && crate::frame::unavailable(root).is_none()
+            } else {
+                false
+            };
+            crate::outside::top(&mut builder, root, &view.forge_words, &mut view.pages, welcome);
         }
         match root.pages().address() {
             temper_client_domain::Address::Welcome { .. } => {}
@@ -498,7 +507,9 @@ pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
         Action::Forge(temper_client_domain::forge::Act::Go {
             address: temper_client_domain::forge::Address::Adopt { project },
         }) => Some(temper_client_domain::address::print(&temper_client_domain::Address::Adopt { project })),
-        Action::Approve(_) | Action::Pages(_) | Action::Forge(_) | Action::Copy { .. } => None,
+        Action::Approve(_) | Action::Pages(_) | Action::Forge(_) | Action::Copy { .. } | Action::LoginEnded { .. } => {
+            None
+        }
     }
 }
 /// A page act carried by the browser shell rather than the domain (client/view.md, 1).

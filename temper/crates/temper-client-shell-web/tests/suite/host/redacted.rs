@@ -274,27 +274,8 @@ fn a_reshaped_value_is_stale_never_kept() {
 #[test]
 fn a_committed_journey_redacted_replays() {
     let welcome = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-playground/recording");
-    let mut chat = lines(include_bytes!("../../../../../docs/design/client/web/journeys/chat-draft/recording"))
-        .expect("chat lines");
-    // The full chat replay takes over 300 ms; keep the turn of its second open.
-    let open = chat
-        .iter()
-        .enumerate()
-        .filter(|(_, line)| matches!(line, Line::Open { .. }))
-        .nth(1)
-        .expect("chat's second open")
-        .0;
-    let deadline = chat
-        .iter()
-        .enumerate()
-        .skip(open + 1)
-        .find(|(_, line)| matches!(line, Line::Deadline(_)))
-        .expect("second open's deadline")
-        .0;
-    chat.truncate(deadline + 1);
-    chat.push(Line::End(None));
-    assert_eq!(chat.iter().filter(|line| matches!(line, Line::Open { .. })).count(), 2);
-    for recording in [welcome.as_slice(), &written(&chat)] {
+    let setup = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-set-up/recording");
+    for recording in [welcome.as_slice(), setup.as_slice()] {
         let result = redacted(recording);
         assert!(
             scan::lines(&lines(&result.recording).expect("committed lines"), &result.originals)

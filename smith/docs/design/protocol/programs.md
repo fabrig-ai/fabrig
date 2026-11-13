@@ -355,6 +355,10 @@ open is section 9.
   over allow rules, the permission mode and a hook's allow, so every
   call of a built-in tool reaches the permission prompt, and smith's
   policy (5.4), before it runs.
+- **No way of signing in restricted:** the settings never set
+  `forceLoginMethod` or `forceLoginOrgUUID`, so Claude Code's own ways
+  of signing in, and its own choices among them, stay its own (jig's
+  `domain/providers.md`, 3.2).
 - **The agent's own MCP server** serves the run's tools: each host tool
   the charter declares, `finish`, and `deliver`, `save` and `wait` when
   granted (domain/run.md, 5.1), `remove` with modify, and the prompt tool. It is

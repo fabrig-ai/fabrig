@@ -368,6 +368,9 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         | Refusal::Unknown
         | Refusal::NameTaken
         | Refusal::ProgramNameReserved
+        | Refusal::NoTerminal
+        | Refusal::LoginUnderWay
+        | Refusal::NotLending
         | Refusal::NotOffered
         | Refusal::KeyConflict
         | Refusal::Llm { .. } => {}
@@ -404,6 +407,9 @@ fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         | Refusal::Ended { .. }
         | Refusal::Unknown
         | Refusal::ProgramNameReserved
+        | Refusal::NoTerminal
+        | Refusal::LoginUnderWay
+        | Refusal::NotLending
         | Refusal::NotOffered
         | Refusal::KeyConflict
         | Refusal::LiveTasks { .. }

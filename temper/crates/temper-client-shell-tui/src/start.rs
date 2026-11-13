@@ -189,7 +189,7 @@ pub fn run(name: &str, argument: Option<&[u8]>, environment: &[EnvironmentEntry]
 
 struct BoxStart {
     executable: Box<[u8]>,
-    cache: Box<[u8]>,
+    directories: directories::Directories,
     arguments: Box<[Box<[u8]>]>,
     link: Option<PathBuf>,
     log: Box<[u8]>,
@@ -201,7 +201,7 @@ impl BoxStart {
             .map_err(|number| Refused::Directory(format!("cannot open working directory: errno {number}")))?;
         Ok(Front {
             executable: self.executable,
-            cache: self.cache,
+            directories: self.directories,
             arguments: self.arguments,
             directory,
             log: self.log,
@@ -222,23 +222,22 @@ impl BoxStart {
 #[must_use]
 pub fn run_box(
     executable: &[u8],
-    cache: &[u8],
+    directories: &directories::Directories,
     arguments: &[Box<[u8]>],
-    data: &[u8],
     environment: &[EnvironmentEntry],
     working: &[u8],
     clock: &Clock,
 ) -> u8 {
     let front = BoxStart {
         executable: executable.into(),
-        cache: cache.into(),
+        directories: directories.clone(),
         arguments: arguments.into(),
         link: link_file::path(
-            data,
+            &directories.data,
             temper_shell::environment::XDG_RUNTIME_DIR.value(environment),
             cfg!(target_os = "linux"),
         ),
-        log: path(data).join("box/logs/box.log").as_os_str().as_bytes().into(),
+        log: path(&directories.data).join("box/logs/box.log").as_os_str().as_bytes().into(),
     };
     match start(None, environment, working, clock, Some(front)) {
         Ok(code) => code,
@@ -249,6 +248,7 @@ pub fn run_box(
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "startup transfers kept modes into the run and restores them on every exit")]
 fn start(
     argument: Option<&[u8]>,
     environment: &[EnvironmentEntry],
@@ -326,18 +326,26 @@ fn start(
             }),
         };
         let seed = skein_shell::seed().expect("kernel seed");
-        let mut run = local_run(settings, root, user, seed, signals);
-        let mut kernel = Kernel::open(Config { operations: run.operations() }).expect("TUI kernel");
-        let exit = if in_front {
-            drive_front(&mut kernel, clock, &mut run)
-        } else {
-            skein_shell::drive(&mut kernel, clock, &mut run)
-        };
-        Ok((run, exit, seed))
+        let run = local_run(settings, root, user, seed, signals);
+        let kernel = Kernel::open(Config { operations: run.operations() }).expect("TUI kernel");
+        Ok((run, kernel, seed, in_front))
     })();
+    let (run, mut kernel, seed, in_front) = match result {
+        Ok(started) => started,
+        Err(why) => {
+            skein_fail_stop::before_report(None);
+            kept.restore().expect("restore terminal modes");
+            return Err(why);
+        }
+    };
+    let mut run = run.with_kept(kept);
+    let exit = if in_front {
+        drive_front(&mut kernel, clock, &mut run)
+    } else {
+        skein_shell::drive(&mut kernel, clock, &mut run)
+    };
     skein_fail_stop::before_report(None);
-    kept.restore().expect("restore terminal modes");
-    let (run, exit, seed) = result?;
+    run.restore_terminal();
     if run.refused() {
         return Err(Refused::Directory(format!("{}: cannot open its files", directory.display())));
     }

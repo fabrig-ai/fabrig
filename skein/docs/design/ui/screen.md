@@ -516,6 +516,32 @@ completions to it, as the text shell's terminal (text.md, section 3).
   h`), the cursor shown (`ESC [ ? 25 h`) and the alternate screen left
   (`ESC [ ? 1049 l`); then it is closed (`Terminal::closed`) and writes
   nothing more.
+- **Lent to a child** (`Terminal::lend`, `Terminal::lent`,
+  `Terminal::resume`): an application hands the person's terminal to a
+  program of its own for a while, as a shell runs a job or git an
+  editor, and takes it back once the program ends.
+  - *`lend`* starts no new frame, finishes the write it began, and
+    takes back its read in flight, so that no read of the input is
+    outstanding: a read that completes meanwhile is decoded, its keys
+    the host's as any. It then writes `LEAVE`. Lending while closing,
+    closed or lent does nothing.
+  - *`lent`* is true once all of that is done: from then the terminal
+    neither reads nor writes, and keeps only the newest frame the host
+    gives. The input's and the output's descriptors are as the terminal
+    found them at adoption, blocking where it made them non-blocking, so
+    that a child given them (../runtime/io/processes.md, section 1,
+    `Inherit`) reads and writes them as any program does. The host
+    starts its child only once `lent` is true, after setting the kept
+    modes back (`Kept::set_kept`, ../runtime/shell.md, 6.3).
+  - *`resume`,* once the child has ended and the host has taken the
+    foreground back and set its modes raw again (`Kept::set_raw`),
+    makes the descriptors as adoption made them, writes `ENTER` again,
+    without asking the background again, asks the input's window size
+    as at a resize, since the window's signal went to the child's group
+    meanwhile, draws the next frame whole and reads again. Resuming a
+    terminal not lent does nothing.
+  - *Closing while lent* writes nothing more, `LEAVE` being written, and
+    closes at once.
 - **Its startup** is the host's binary's, with skein-shell's parts
   (../runtime/shell.md, 6.3): the input set raw with the interrupt keys passed
   through as bytes (`Keys::Pass`), so that Ctrl+C is a key and Ctrl+Z

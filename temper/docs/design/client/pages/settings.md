@@ -578,7 +578,9 @@ Ask temper is reached from the rail and tab bar (`../view.md`, 3), and from this
   place across documents while it stands, else the current one again;
   the card closed by another tab or a change of the shown path. Ask
   temper's page draws them as `ask-temper.md`, 1, *Ask temper's page*, says, and How work
-  runs as *The page* does, above.
+  runs as *The page* does, above. Ask's row also holds "How does temper
+  work?" before the way's act, alone where the way has none; How work
+  runs never offers that button (`ask-temper.md`, 1).
 - **The terminal:** the switches as checks, the selects as selects, a disabled
   one marked so; What reaches you's columns one after another, each its chip's
   words, its lines and its small line; What follows a landing's boxes one

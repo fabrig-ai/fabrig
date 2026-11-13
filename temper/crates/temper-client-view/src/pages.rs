@@ -14,6 +14,7 @@ pub(crate) mod chat;
 pub(crate) mod chat_line;
 pub(crate) mod chat_sheet;
 pub mod chats;
+mod claude_login;
 pub(crate) mod connect_model;
 mod decided;
 pub(crate) mod document;

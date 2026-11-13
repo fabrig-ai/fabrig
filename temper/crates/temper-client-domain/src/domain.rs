@@ -19,6 +19,7 @@ pub struct Domain {
     pub(crate) approval_revision: u64,
     pub(crate) asked: Option<crate::asked::State>,
     pub(crate) signed_out: bool,
+    pub(crate) terminal: crate::pages::accounts::terminal_login::Terminal,
 }
 #[must_use]
 pub fn new(limits: &Limits, seed: u64) -> Domain {
@@ -54,9 +55,15 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
         approval_revision: 0,
         asked: None,
         signed_out: false,
+        terminal: crate::pages::accounts::terminal_login::Terminal::new(),
     }
 }
 impl Domain {
+    /// The offered terminal's current login (client/tui/box.md, Lending its terminal).
+    #[must_use]
+    pub fn terminal_login(&self) -> Option<&jig_client::contract::TerminalLogin> {
+        self.terminal.login(&self.client)
+    }
     /// The approval page (client/pages/README.md, The approval page).
     #[must_use]
     pub const fn approval(&self) -> Option<&crate::approve::Page> {

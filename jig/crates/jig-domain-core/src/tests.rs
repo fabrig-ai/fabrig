@@ -2369,7 +2369,7 @@ fn an_unkeyed_watch_on_each_subject_makes_its_first_document_as_a_held_output() 
 fn watch_admission_checks_each_subjects_project_or_owner() {
     for (label, subject, _) in watch_subjects() {
         match subject {
-            Watched::Frame | Watched::Inbox | Watched::Accounts => continue,
+            Watched::Frame | Watched::Inbox | Watched::Accounts | Watched::Terminal { .. } => continue,
             Watched::Task { .. }
             | Watched::Tree { .. }
             | Watched::Chips { .. }

@@ -93,6 +93,8 @@ pub enum Word {
     ReachUnder,
 
     WaysLede,
+    AskHow,
+    AskHowHint,
     HowChange,
     HowOwn,
     HowOwnLine,
@@ -224,6 +226,9 @@ pub enum Word {
     ChatGoalLink,
     PlusDraft,
     DraftEmpty,
+    DraftWriteUp,
+    DraftNotYet,
+    DraftSendResumes,
     DraftWriting,
     DraftWords,
     ChatWrites,
@@ -1793,6 +1798,13 @@ pub enum Word {
     WelcomeBoxServer,
     WelcomeModelSignInTime,
     WelcomeModelProgramTime,
+    WelcomeClaudeLogin,
+    WelcomeClaudeTerminal,
+    WelcomeClaudeWaiting,
+    WelcomeClaudeApprove,
+    WelcomeClaudeDisclosure,
+    WelcomeClaudeHelp,
+    WelcomeClaudeNotFinished,
     WelcomeKeyField,
     WelcomeKeyFacts,
     WelcomePasteOpen,
@@ -2065,7 +2077,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2636;
+const PHRASES: u32 = 2647;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2092,10 +2104,10 @@ const PHRASES: u32 = 2636;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4810;
+const SEGMENTS: u32 = 4820;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 62425;
-const ALL: [Word; 1927] = [
+const ENGLISH_BYTES: u32 = 63000;
+const ALL: [Word; 1939] = [
     Word::TellTitle,
     Word::TellHint,
     Word::TellHeadline,
@@ -2175,6 +2187,8 @@ const ALL: [Word; 1927] = [
     Word::ReachPathSet,
     Word::ReachUnder,
     Word::WaysLede,
+    Word::AskHow,
+    Word::AskHowHint,
     Word::HowChange,
     Word::HowOwn,
     Word::HowOwnLine,
@@ -2303,6 +2317,9 @@ const ALL: [Word; 1927] = [
     Word::ChatGoalLink,
     Word::PlusDraft,
     Word::DraftEmpty,
+    Word::DraftWriteUp,
+    Word::DraftNotYet,
+    Word::DraftSendResumes,
     Word::DraftWriting,
     Word::DraftWords,
     Word::ChatWrites,
@@ -3828,6 +3845,13 @@ const ALL: [Word; 1927] = [
     Word::WelcomeBoxServer,
     Word::WelcomeModelSignInTime,
     Word::WelcomeModelProgramTime,
+    Word::WelcomeClaudeLogin,
+    Word::WelcomeClaudeTerminal,
+    Word::WelcomeClaudeWaiting,
+    Word::WelcomeClaudeApprove,
+    Word::WelcomeClaudeDisclosure,
+    Word::WelcomeClaudeHelp,
+    Word::WelcomeClaudeNotFinished,
     Word::WelcomeKeyField,
     Word::WelcomeKeyFacts,
     Word::WelcomePasteOpen,
@@ -4170,6 +4194,8 @@ impl Word {
             Self::Pause => 3532,
             Self::Resume => 3533,
             Self::WaysLede => 4302,
+            Self::AskHow => 9025,
+            Self::AskHowHint => 9026,
             Self::HowChange => 4900,
             Self::HowOwn => 4901,
             Self::HowOwnLine => 4902,
@@ -5523,6 +5549,9 @@ impl Word {
             Self::ToolSeparator => 1041,
             Self::PlusDraft => 3680,
             Self::DraftEmpty => 3681,
+            Self::DraftWriteUp => 9027,
+            Self::DraftNotYet => 9028,
+            Self::DraftSendResumes => 9029,
             Self::DraftWriting => 3682,
             Self::DraftWords => 3683,
             Self::ChatWrites => 3684,
@@ -5838,6 +5867,13 @@ impl Word {
             Self::WelcomeBoxServer => 3028,
             Self::WelcomeModelSignInTime => 3029,
             Self::WelcomeModelProgramTime => 3030,
+            Self::WelcomeClaudeLogin => 9030,
+            Self::WelcomeClaudeTerminal => 9031,
+            Self::WelcomeClaudeWaiting => 9032,
+            Self::WelcomeClaudeApprove => 9033,
+            Self::WelcomeClaudeDisclosure => 9034,
+            Self::WelcomeClaudeHelp => 9035,
+            Self::WelcomeClaudeNotFinished => 9036,
             Self::WelcomeKeyField => 3363,
             Self::WelcomeKeyFacts => 3364,
             Self::WelcomePasteOpen => 3366,
@@ -6662,7 +6698,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),
         Word::Pause => (&[b"Pause"], &[]),
         Word::Resume => (&[b"Resume"], &[]),
-        Word::WaysLede => (&[b"Pick a way for ", b", or ask temper to build your own."], &[Name]),
+        Word::WaysLede => (&[b"Choose how work runs, or describe how you work below."], &[]),
+        Word::AskHow => (&[b"How does temper work?"], &[]),
+        Word::AskHowHint => (&[b"Sends: ", temper_client_domain::pages::chat::document::HOW_TEMPER_WORKS], &[]),
         Word::HowChange => (&[b"Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it."], &[]),
         Word::HowOwn => (&[b"A way of its own"], &[]),
         Word::HowOwnLine => (&[b"", b" runs settings of its own, drawn below."], &[Name]),
@@ -6930,7 +6968,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBoxName => (&[b"temper box"], &[]),
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
         Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
-        Word::WelcomeModelSignInTime => (&[b"Sign in, in a new tab \xc2\xb7 about a minute"], &[]),
+        Word::WelcomeModelSignInTime => (&[b"Sign in, in a new tab"], &[]),
         Word::WelcomeKeyField => (&[b"Key, pasted once"], &[]),
         Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once ", b" refuses a run."], &[Name]),
         Word::WelcomePasteOpen => (&[b"Open ", b"\xe2\x80\x99s sign-in \xe2\x80\xba"], &[Name]),
@@ -6973,7 +7011,14 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeFinishing => (&[b"Finishing your sign-in\xe2\x80\xa6"], &[]),
         Word::WelcomeModelProgramTime => (&[b"One command in a terminal, on this machine"], &[]),
         Word::WelcomeForgeStillSettingUp => (&[b"Forgejo is still setting up; this page moves on by itself."], &[]),
-        Word::WelcomeProgramAccount => (&[b"", b", signed in on this machine"], &[Name]),
+        Word::WelcomeProgramAccount => (&[b"through Claude Code, signed in"], &[]),
+        Word::WelcomeClaudeLogin => (&[b"Sign in to Claude Code"], &[]),
+        Word::WelcomeClaudeTerminal => (&[b"Signs in from the terminal where temper runs"], &[]),
+        Word::WelcomeClaudeWaiting => (&[b"Claude Code is signing in, in the terminal where temper runs"], &[]),
+        Word::WelcomeClaudeApprove => (&[b"Approve it on Anthropic\xe2\x80\x99s page, in the tab Claude Code opened. This page moves on by itself."], &[]),
+        Word::WelcomeClaudeDisclosure => (&[b"No tab opened, or a code to paste?"], &[]),
+        Word::WelcomeClaudeHelp => (&[b"Claude Code\xe2\x80\x99s sign-in is in the terminal where temper runs. If no tab opened, press c there to copy its link. If Anthropic\xe2\x80\x99s page shows a code, paste it there."], &[]),
+        Word::WelcomeClaudeNotFinished => (&[b"Claude Code\xe2\x80\x99s sign-in didn\xe2\x80\x99t finish."], &[]),
         Word::WelcomeKeyAccount => (&[b"billed to the key\xe2\x80\x99s organization"], &[]),
         Word::WelcomeForgeDoneDetail => (&[b"connected as ", b""], &[Name]),
         Word::WelcomeForgeDoneRepository => (&[b"", b" made"], &[Name]),
@@ -7286,7 +7331,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
             (&[b"Your ", b" plan: sign in, and temper\xe2\x80\x99s agents use its included usage."], &[Name])
         }
         Word::WelcomeModelSubscription => (
-            &[b"Your ", b" subscription, through Claude Code on this machine, with a config of its own, apart from your own Claude Code."],
+            &[b"Your ", b" subscription, through a Claude Code temper keeps apart from your own."],
             &[Name],
         ),
         Word::BrandChats => (&[b"temper chats"], &[]),
@@ -7638,6 +7683,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WorkRepeated => (&[b"", b" \xc3\x97", b""], &[Name, Number]),
         Word::ToolSeparator => (&[b" \xc2\xb7 "], &[]),
         Word::PlusDraft => (&[b"+ Draft"], &[]),
+        Word::DraftWriteUp => (&[b"Write it up from this chat"], &[]),
+        Word::DraftNotYet => (&[b"T", b" \xc2\xb7 no draft yet"], &[Number]),
+        Word::DraftSendResumes => (&[b"Sending resumes this chat. \xc2\xb7 Ctrl+\\ switches the draft"], &[]),
         Word::DraftEmpty => (&[b"The draft appears here as you write it together."], &[]),
         Word::DraftWriting => (&[b"writing"], &[]),
         Word::DraftWords => (&[b"What should this draft hold?"], &[]),
