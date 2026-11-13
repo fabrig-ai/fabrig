@@ -4,19 +4,7 @@ use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
 use skein_lib::{Duration, Env, List, Map, Queue, Token, Wall};
 use temper_engine_domain_forge_change::Status;
-use temper_engine_domain_forge_closer::{Closer, Step};
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct CloserRow {
-    pub task: u64,
-    pub goal: u64,
-    pub closer: Closer,
-    pub making: Option<Step>,
-    pub close_changes: Box<[u64]>,
-    pub landing_changes: Box<[u64]>,
-    pub done: bool,
-    pub relay: temper_engine_domain_forge_closer::relay::Relay,
-}
+pub use temper_engine_domain_forge_vocabulary::closer::*;
 
 #[derive(Hash, Debug)]
 pub(crate) struct State {

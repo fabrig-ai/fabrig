@@ -10,7 +10,7 @@ publish.workspace = true
 [dependencies]
 temper-protocol-reaches.workspace = true
 skein-lib.workspace = true
-temper-engine-domain-forge.workspace = true
+temper-engine-domain-forge-vocabulary.workspace = true
 temper-engine-domain-forge-change.workspace = true
 
 [lints]

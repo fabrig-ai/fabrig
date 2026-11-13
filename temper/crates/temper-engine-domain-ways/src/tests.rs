@@ -4,10 +4,10 @@ mod derivation;
 mod invariants;
 use super::*;
 use alloc::boxed::Box;
-use temper_engine_domain_forge::settings::{
+use temper_engine_domain_forge_vocabulary::settings::{
     Held, LandingRule, ProjectWays, RuleApproval, RuleGate, TemplateGoal, Value,
 };
-use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness};
+use temper_engine_domain_forge_vocabulary::{GateLast, GatePattern, JudgeFreshness};
 use temper_protocol_reaches::{Classes, Way};
 
 const PROJECT: u32 = 9;
@@ -76,7 +76,7 @@ fn stock_ways() -> [StockWay; 3] {
             ways: Some(Laid { drafts: true, goals: true, way: 4 }),
             classes: Some(Classes::stock(Way::DraftFirst)),
             delegation: true,
-            triager: Some(temper_engine_domain_forge::settings::AreaOwner::Charter(14)),
+            triager: Some(temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter(14)),
             roles: Box::default(),
         },
     ]
@@ -153,8 +153,8 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (
                     15,
                     1,
-                    Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager {
-                        owner: temper_engine_domain_forge::settings::AreaOwner::Charter(14),
+                    Edit::Set(Value::ProjectTriager(temper_engine_domain_forge_vocabulary::settings::ProjectTriager {
+                        owner: temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter(14),
                     })),
                 ),
             ]),
@@ -172,8 +172,8 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (
                     15,
                     1,
-                    Edit::Set(Value::ProjectTriager(temper_engine_domain_forge::settings::ProjectTriager {
-                        owner: temper_engine_domain_forge::settings::AreaOwner::Charter(14),
+                    Edit::Set(Value::ProjectTriager(temper_engine_domain_forge_vocabulary::settings::ProjectTriager {
+                        owner: temper_engine_domain_forge_vocabulary::settings::AreaOwner::Charter(14),
                     })),
                 ),
             ]),

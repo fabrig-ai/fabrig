@@ -2,7 +2,7 @@
 use super::{FITS, names, w};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 
 pub(super) fn encode(row: &d::LandingLog) -> w::LandingLog {
     let mut landings = List::with_capacity(u32::try_from(row.landings.len()).expect(FITS));

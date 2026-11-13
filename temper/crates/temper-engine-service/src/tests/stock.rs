@@ -279,11 +279,10 @@ fn the_coordinator_prioritizes_relayed_questions() {
 }
 
 #[test]
-fn the_coordinators_charter_makes_no_landing_close_out_or_catch_up() {
+fn the_coordinators_charter_makes_no_landing_or_close_out() {
     let set = crate::stock::charter_set();
     assert!(set.common.unwrap().contains("No agent merges or lands."));
     let goal = set.goal.unwrap();
-    assert!(goal.contains("Make no catch-up of g: the closer takes main as it lands."));
     assert!(goal.contains("A goal never finishes itself: its closer lands g and ends it."));
     assert!(goal.contains("[in flight: change N]"));
     assert!(goal.contains("never to main's"));

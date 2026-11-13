@@ -2,7 +2,7 @@
 use super::{Inputs, scopes::Coverage};
 use alloc::boxed::Box;
 use skein_lib::List;
-use temper_engine_domain_forge::{GateLast, settings::Held};
+use temper_engine_domain_forge_vocabulary::{GateLast, settings::Held};
 
 #[derive(Debug)]
 pub(super) struct Gate {
