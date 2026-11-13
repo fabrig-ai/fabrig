@@ -5,7 +5,7 @@ use jig_protocol_accounts::table::{self, Table};
 use jig_protocol_engine_workers::{GrantValue, Scheme};
 use skein_lib::{List, Map, Secret, Time};
 
-pub(crate) use temper_service_core::values::{grant_bytes, token_credential_bytes};
+pub use temper_service_core::values::{grant_bytes, token_credential_bytes};
 
 /// A configured key can exceed the OAuth token bound. The worker has no
 /// provider declarations and reserves the key ceiling unconditionally.
@@ -49,7 +49,8 @@ impl Identities {
             .expect("kept forge identity capacity");
         1
     }
-    pub(crate) fn forget(&mut self, number: u32) {
+    /// Forget the credential generations when the component removes an identity.
+    pub fn forget(&mut self, number: u32) {
         self.entries.remove(&number);
     }
     /// Either of the two newest generations, or none for an older one.
@@ -70,7 +71,9 @@ impl Identities {
         let entry = self.entries.get(&number)?;
         Some((entry.generation, &entry.newest))
     }
-    pub(crate) fn numbers(&self) -> List<u32> {
+    /// Identity numbers the component supplies to its root at start.
+    #[must_use]
+    pub fn numbers(&self) -> List<u32> {
         let mut numbers = List::with_capacity(self.entries.len());
         for (number, _) in &self.entries {
             numbers.push(*number).expect("identity count");
@@ -135,7 +138,8 @@ fn identity_grant(value: Option<&Secret>) -> Option<GrantValue> {
     Some(GrantValue::Application { secret: value.clone() })
 }
 impl Values {
-    pub(crate) fn fill(&mut self, settings: &crate::settings::Engine) {
+    /// Reserve identity and token tables from the component's checked settings.
+    pub fn fill(&mut self, settings: &crate::settings::Engine) {
         self.tokens = crate::forge::tokens::Tokens::new(settings);
         self.identities = Identities::with_capacity(settings.limits.forge.forges);
     }

@@ -89,7 +89,6 @@ pub struct Seeds {
 }
 
 /// One setup fixture entry and its handover (protocol/setup/playground.md).
-#[cfg(test)]
 #[derive(Clone, Debug)]
 pub struct Setup {
     pub entry: temper_forge_setup::setup::Entry,

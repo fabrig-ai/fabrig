@@ -38,6 +38,7 @@ pub(crate) mod push;
 /// Simultaneous push sends reserved by the composing process.
 pub use push::PUSHES_IN_FLIGHT;
 pub mod translation;
+pub use translation::moved_bytes;
 pub(crate) const PLAYGROUND_STARTS: u32 = 8;
 
 #[expect(missing_debug_implementations, reason = "clients hold pending OAuth secrets")]
@@ -918,10 +919,6 @@ fn application(
         public.push(kind).expect("three public kinds");
     }
     config::clients::Application { link, served, public, moved_bytes: moved_bytes(&config.limits) }
-}
-
-pub(crate) fn moved_bytes(limits: &config::Limits) -> u64 {
-    jig_protocol_accounts::moved::bound(&limits.driver.client.document)
 }
 
 /// The public kinds use the same ceilings as `family::panel`'s generated codec

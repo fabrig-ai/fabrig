@@ -20,7 +20,7 @@ pub struct Routes {
     families: families::Bounds,
     page_failure: Option<store::restore::Failure>,
     row_failure: Option<UnreadableRow>,
-    pub(crate) patch_context: store::patches::Context,
+    patch_context: store::patches::Context,
     application_patch_context: families::patches::Context,
 }
 #[derive(Debug)]
@@ -35,6 +35,11 @@ pub(super) struct Flight {
     pub(super) cursor: Option<store::Cursor>,
 }
 impl Routes {
+    /// Patch context whose executor kinds the component supplies before restore.
+    pub fn patch_context(&mut self) -> &mut store::patches::Context {
+        &mut self.patch_context
+    }
+
     /// Size the continuation table from the root's admitted loads.
     #[must_use]
     pub fn new(table: u32, limits: &engine::Limits, families: families::Bounds) -> Routes {
@@ -53,12 +58,12 @@ impl Routes {
     }
     /// The store's typed cause for the refused startup page.
     #[must_use]
-    pub(crate) fn page_failure(&self) -> Option<&store::restore::Failure> {
+    pub fn page_failure(&self) -> Option<&store::restore::Failure> {
         self.page_failure.as_ref()
     }
     /// The application row refused before the root heard it.
     #[must_use]
-    pub(crate) fn row_failure(&self) -> Option<&UnreadableRow> {
+    pub fn row_failure(&self) -> Option<&UnreadableRow> {
         self.row_failure.as_ref()
     }
     /// Whether every routed load has had its terminal.
@@ -556,7 +561,7 @@ fn dispatch(
 }
 
 /// Read stored adoption settings for this landing alone; a later record inherits no input.
-pub(crate) fn site(routes: &mut Routes, component: &mut store::Store, mut event: store::Event, into: &mut Queue<Up>) {
+pub fn site(routes: &mut Routes, component: &mut store::Store, mut event: store::Event, into: &mut Queue<Up>) {
     routes.application_patch_context = families::patches::Context::default();
     if let store::Event::Site { of: store::Owner::Application, site, at, patcher, .. } = &mut event
         && *site == skein_codec::patch::Site::new(5, 0)
