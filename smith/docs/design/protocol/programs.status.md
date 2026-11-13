@@ -47,6 +47,8 @@ fake status supplies it; this does not establish a real-login render check.
 ## Gaps and departures
 
 
+- **Not yet:** 5.6, *Any other error the `result` reports*: every such error is *invalid* whatever its status, and its status is kept nowhere: the failure's report is empty (`smith-protocol-program/src/backend/conversation.rs`, `result_failure`; `backend.rs`, `fail`) [in flight: change 31].
+
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine/executors.md`,

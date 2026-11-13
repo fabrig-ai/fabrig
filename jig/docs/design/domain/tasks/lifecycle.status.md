@@ -1,7 +1,8 @@
 # lifecycle: status
 
-2026-11-12. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
+2026-11-13. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
 
+- **Not yet:** 6: a model provider's outage is the run's own failure, spending the run's tries, and a hold for a model failure names nothing [in flight: change 32].
 
 - **Not yet:** 2 and 9: a standing task: no `NothingAwaited` notice, a finish parked, its `standing` ending (`standing.md`, section 2).
 - **Not yet:** 6: a standing task's tries per session (`standing.md`, 5.1).
