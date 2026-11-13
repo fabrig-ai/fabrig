@@ -22,10 +22,7 @@ mod delivery_store;
 mod fixture;
 pub mod format;
 
-#[rustfmt::skip]
-// The schema compiler writes this module to generated/local_store_v1.rs.
-#[path = "generated/local_store_v1.rs"]
-pub mod local_store_v1;
+pub use smith_local_protocol_codec::local_store_v1;
 mod git;
 mod git_child;
 mod markers;

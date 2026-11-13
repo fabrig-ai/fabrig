@@ -9,9 +9,7 @@ mod patch_set;
 pub mod patches;
 pub use patch_set::JIG_PATCH_SET;
 
-#[rustfmt::skip]
-#[path = "generated/v1.rs"]
-pub mod v1;
+pub use jig_protocol_accounts_codec::v1;
 pub mod finishes;
 pub mod installation;
 pub mod keys;

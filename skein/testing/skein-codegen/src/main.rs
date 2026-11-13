@@ -119,13 +119,16 @@ fn landed(owner: &Path, base: Option<&str>) -> Result<Landed, Box<dyn core::erro
         Some(reference) => reference.to_owned(),
         None => String::from_utf8(git(owner, &["merge-base", "HEAD", "origin/main"])?)?.trim().to_owned(),
     };
-    let paths = git(owner, &["ls-tree", "-r", "--name-only", "-z", &reference, "--", "patches", "schema/kept"])?;
+    let paths = git(
+        owner,
+        &["ls-tree", "-r", "--name-only", "-z", &reference, "--", "patches", "schema/kept", "schema/wires"],
+    )?;
     let mut files = BTreeMap::new();
     for bytes in paths.split(|byte| *byte == 0).filter(|path| !path.is_empty()) {
         let name = core::str::from_utf8(bytes)?;
         let path = PathBuf::from(name);
         if path.components().any(|part| !matches!(part, Component::Normal(_)))
-            || !(path.starts_with("patches") || path.starts_with("schema/kept"))
+            || !(path.starts_with("patches") || path.starts_with("schema/kept") || path == Path::new("schema/wires"))
         {
             return Err(format!("git returned a path outside the crate: {name}").into());
         }
@@ -142,7 +145,7 @@ fn generate_files(schema_path: &Path, out_dir: &Path) -> Result<(), Box<dyn core
     std::fs::create_dir_all(out_dir)?;
     let output = generate(&schema);
     let path = out_dir.join(format!("v{}.rs", schema.version));
-    std::fs::write(path, output.rust)?;
+    std::fs::write(path, output.records)?;
     let schema_directory = schema_path.parent().ok_or("schema has no parent directory")?;
     let crate_directory = schema_directory.parent().ok_or("schema directory has no parent")?;
     let golden_directory = crate_directory.join("golden").join(format!("v{}", schema.version));
@@ -161,6 +164,26 @@ mod tests {
 
     fn read(args: &[&str]) -> Result<Arguments, &'static str> {
         arguments(&args.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn schema_generation_writes_records_without_tests() {
+        let scratch = skein_scratch::Scratch::new("codegen-records");
+        let schema_directory = scratch.path().join("schema");
+        std::fs::create_dir(&schema_directory).expect("schema directory");
+        let schema_path = schema_directory.join("sample-v1.schema");
+        let source = "family sample 1\nrecord Note { body: text 8 }";
+        std::fs::write(&schema_path, source).expect("schema fixture");
+        let out = scratch.path().join("src/generated");
+        super::generate_files(&schema_path, &out).expect("generate files");
+        let output = skein_codegen::generate(&skein_codegen::parse(source).expect("valid schema"));
+        assert_eq!(std::fs::read_to_string(out.join("v1.rs")).expect("written records"), output.records);
+        for golden in output.goldens {
+            assert_eq!(
+                std::fs::read(scratch.path().join("golden/v1").join(golden.name)).expect("written golden"),
+                golden.bytes
+            );
+        }
     }
 
     #[test]

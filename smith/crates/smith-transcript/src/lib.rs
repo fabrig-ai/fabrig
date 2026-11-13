@@ -10,13 +10,11 @@ extern crate alloc;
 
 #[rustfmt::skip]
 mod generated {
-    /// Archived version-6 codec, without supplied system context.
-    pub mod v6;
     /// Current bounded transcript codec, written from transcript-v7.schema.
     pub mod v7;
 }
 
-pub use generated::{v6, v7};
+pub use generated::v7;
 
 pub use v7::{
     Affinity, AffinityParts, AfterFailedWrite, AfterFailedWriteParts, AllowedCalls, AllowedCallsParts, Ambiguous,
@@ -34,11 +32,6 @@ pub use v7::{
     TurnParts, UnknownJobProblem, UnknownJobProblemParts, Usage, UsageParts, WorkingPath, WorkingPathParts, Written,
     WrittenParts,
 };
-
-impl v6::Turn {
-    /// The wire format version this archived codec writes and reads.
-    pub const FORMAT_VERSION: u64 = 6;
-}
 
 impl Turn {
     /// The wire format version this codec writes and reads.
@@ -86,6 +79,9 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = 7;
 
+    /// The lowest version this build speaks.
+    pub const FLOOR: u16 = crate::patches::kept::smith_transcript::FLOOR;
+
     #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
     const TEXT: &str = include_str!("../schema/transcript-v7.schema");
 
@@ -101,13 +97,15 @@ pub mod wire {
 
     #[cfg(test)]
     mod tests {
-        use super::{FAMILY, TEXT, VERSION, layout};
+        use super::{FAMILY, FLOOR, TEXT, VERSION, layout};
 
         #[test]
         fn identity_tracks_schema() {
             let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
+            assert_eq!(FLOOR, crate::patches::kept::smith_transcript::FLOOR);
+            assert_eq!(FLOOR, VERSION);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 
             let changed = TEXT.replacen("input: option u64", "input: option u32", 1);

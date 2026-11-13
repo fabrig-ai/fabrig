@@ -8,7 +8,7 @@ use smith_domain::run;
 /// Decode one charter and resolve all LLM endpoint names before admission.
 pub fn decode_charter(
     bytes: &[u8],
-    limits: &wire::v4::Limits,
+    limits: &wire::v5::Limits,
     endpoints: &Endpoints,
 ) -> Result<run::Charter, run::Invalid> {
     if bytes.len() < 2 {
@@ -80,6 +80,7 @@ fn translate_charter(charter: &wire::Charter, endpoints: &Endpoints) -> Result<r
         brief: run::Brief { sections: sections.into_boxed() },
         conventions,
         grants: run::charter::Grants {
+            contract: tools.contract(),
             wait: tools.wait(),
             deliver,
             save: tools.save(),

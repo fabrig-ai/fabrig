@@ -526,7 +526,7 @@ impl World {
         let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
         world.settle();
         world.send_start(Box::from(
-            &include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
+            &include_bytes!("../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..],
         ));
         world.settle();
         world
@@ -1250,7 +1250,7 @@ pub fn typed_charter(bytes: &[u8]) -> smith_host_domain::Charter {
     let value = smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &test_endpoints())
         .unwrap_or_else(|_| {
             smith_protocol_translate::decode_charter(
-                include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin"),
+                include_bytes!("../../../crates/smith-charter/golden/v5/record_charter_smallest.bin"),
                 &smith_charter::CEILINGS,
                 &test_endpoints(),
             )
@@ -1303,7 +1303,7 @@ mod read_tests {
         world.host_holds_reads();
         world.settle();
         world.send_start(Box::from(
-            &include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
+            &include_bytes!("../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..],
         ));
         world.settle();
         for control in [Control::Ping, Control::Unsupported { kind: 0x010f }] {

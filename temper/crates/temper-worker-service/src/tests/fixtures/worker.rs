@@ -69,6 +69,7 @@ pub fn worker() -> crate::Worker {
         &worker_limits(),
         &worker_files(),
         crate::WorkerRuntime {
+            wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: pinned_agent(&worker_settings().jig.agent),

@@ -637,6 +637,7 @@ pub enum StoreInput {
 /// `domain/hosts/README.md`, 2, and `domain/hosts/hub.md`, 4).
 #[derive(Hash, Debug)]
 pub enum Link {
+    Mismatch,
     Hello {
         worker: u32,
         hello: jig_domain_link::Hello,
@@ -728,7 +729,7 @@ pub enum Fact {
 
 #[derive(Hash, Debug)]
 pub enum WorkerInput {
-    /// An authenticated opening, kept independently of the worker's hello (protocol/wires.md, 9.1).
+    /// An authenticated opening, kept independently of the worker's hello (protocol/wires.md, 10.1).
     Opened { worker: Box<str>, statement: crate::WorkerStatement },
     /// A worker channel's hello, record or loss.
     Link { channel: Token, link: Link },

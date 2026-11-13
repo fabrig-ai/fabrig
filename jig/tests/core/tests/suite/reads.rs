@@ -889,6 +889,7 @@ fn a_task_answering_for_its_person_is_refused_by_name() {
         run: skein_lib::Token::new(director),
         attempt: skein_lib::Token::new(key.attempt),
         call: jig_domain_fleet::Call {
+            contract: 1,
             name: encoded.finish(),
             tool: b"message".as_slice().into(),
             input: input.into_bytes().into(),

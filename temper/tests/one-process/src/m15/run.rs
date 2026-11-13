@@ -207,6 +207,7 @@ impl skein_world::Referee<Proc> for Judge {
             && other.iter().any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished))
         {
             checkpoint(service, &self.store.borrow());
+            crate::across_versions::tasks(&self.store.borrow());
             let Proc::Other(HarnessProcess::Calls(caller)) = &mut other[0] else { unreachable!() };
             caller.closed = true;
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);

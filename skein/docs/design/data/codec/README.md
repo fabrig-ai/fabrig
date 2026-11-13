@@ -63,7 +63,9 @@ records kept in files or stores.
   And, as step code, what reads schemas and records at run time:
   - `schema`: the parser and the layout checks (section 7);
   - `value`: generic values (section 8);
-  - `patch`: patches and the machine that runs them (`patches.md`).
+  - `patch`: patches and the machine that runs them (`patches.md`);
+  - `bridge`: a wire's reverses, its floor, and the bridge that
+    translates a record between the versions it speaks (`bridges.md`).
 - **`skein-codegen`** is the generator, and the tooling of upgrades: the
   diff (`diff.md`) and the command (`command.md`). Ordinary Rust, not
   step code. It reads schemas through `skein-codec`'s parser and adds
@@ -80,6 +82,15 @@ records kept in files or stores.
   code compiles beside the domains rather than after them, and only a
   change of schema recompiles it (temper's `draft/crate-graph.md`, 4.1).
   An owner's patches may name its domain's types, so they stay with it.
+- **A codec crate is named for its owner,** `<owner>-codec`, in a
+  directory beside the owner's that takes the owner's directory name
+  with `-codec` (`skein/crates/skein-oauth-codec`,
+  `skein/examples/ui/view-codec`); an owner whose families are split by
+  size names each crate for its family instead (jig's store,
+  `jig-protocol-store-people`). Each generated module keeps its name at
+  the codec crate's root (`v3`, `cursor_v1`), and the owner names it
+  where it named it before: a public module is re-exported at the
+  owner's same path, which callers keep, and either path names it.
 - **An owner with no domain to translate is its own codec crate,**
   holding schemas, code, golden bytes and drift test together: smith's
   `smith-charter`, `smith-channel` and `smith-transcript`, and the
@@ -89,9 +100,11 @@ records kept in files or stores.
   crate with no other family (`tools/crates/design.md`, 3.1), so that a
   change to one family recompiles it alone and the families compile side
   by side. An owner's smaller families may share one codec crate.
-- **The packages that still hold generated record code beside other
-  dependencies** are the codec check's exceptions, each until its crate's
-  milestone (`tools/crates/design.md`, 3.2).
+- **No package holds generated record code beside other workspace
+  dependencies,** and the codec check keeps it so, with no exception
+  (`tools/crates/design.md`, 3.2). skein's two owners, `skein-oauth` and
+  `skein-ui-example-view`, keep theirs in `skein-oauth-codec` and
+  `skein-ui-example-view-codec`.
 
 ## 3. The schema
 
@@ -207,6 +220,12 @@ For each family:
   than its ceiling, so no value past a ceiling exists or decodes, whatever
   limits they are given, and a call costs what its value holds, not the
   family's size.
+- **Its limits by name.** `LIMIT_NAMES: [&str; N]`, each limit's field
+  name in the struct's order, and `Limits::values(&self) -> [u32; N]`,
+  their values in the same order, so that a kept version's bounds can be
+  computed at run time with these limits (7.3, `most_bytes_within`). A
+  limit's name is the rule's `schema::limit_name` gives (7.3), the one
+  the generator names the field by.
 - **Its problems.** An enumeration of the family's fields, and a problem
   that names one of them with `skein-codec`'s reason.
 
@@ -248,12 +267,35 @@ For each record and enumeration:
   without checking them again: a bound costs the types it reaches,
   not their number times the family's limits.
 
-`generate(schema)` writes a module for one schema version. It emits
-`encoded_bound` and `decoded_bound`, their `_within` forms and numbered
-helpers, and uses `List::price`. The CLI's generation invocation takes
-`<schema> <out-dir>`; any extra argument is a usage error. The bound names
-and `worst_case_bytes`/`worst_case_heap` (and their `_within` forms) stay
+`generate(schema)` writes one schema version as two modules, the
+records' and their tests', and its golden bytes (section 6). The
+records' module emits `encoded_bound` and `decoded_bound`, their
+`_within` forms and numbered helpers, and uses `List::price`. The CLI's
+generation invocation takes `<schema> <out-dir>`, and writes the
+records' module and the golden bytes; any extra argument is a usage
+error. The tests' module is the drift test's to write, since it alone
+knows the records' public path (section 6). The bound names and
+`worst_case_bytes`/`worst_case_heap` (and their `_within` forms) stay
 reserved for fields.
+
+```rust
+pub struct Output {
+    pub records: String,      // the records' module: src/generated/<file>.rs
+    pub tests: Tests,         // their golden and bound tests, apart (section 6)
+    pub goldens: Vec<Golden>,
+}
+pub struct Tests { /* the tests' module but for the records' path */ }
+impl Tests {
+    // tests/generated/<file>.rs's text, naming the records by `records`,
+    // their module's public path: "temper_protocol_store_codec::v20"
+    pub fn text(&self, records: &str) -> String;
+}
+pub fn generate(schema: &Schema) -> Output;
+// tests/generated/main.rs's text: a module for each name, in name order
+pub fn tests_main(modules: &[&str]) -> String;
+```
+
+`Output` and `Tests` derive `Clone`, `Debug` and equality.
 
 ## 5. Versions
 
@@ -321,12 +363,46 @@ reserved for fields.
   1,024 golden values or 64 bounds, and names every case that fails. A
   test process costs more to start than one case costs to check
   (../../../foundation/testing-strategy.md, section 8).
+- **The tests are a module of their own,** apart from the records'
+  (temper's `draft/gate-compile.md`, 3.2). The records' module holds no
+  test module, so a crate's own tests never compile its generated code
+  a second time. The tests' module names the records by their module's
+  public path, which whoever writes it gives (section 4's `Tests::text`),
+  and uses the items the crate's users see alone: the constructors and
+  their parts, the limits and ceilings, the paths, measuring, encoding
+  and decoding. Its first line says it is generated, as the records'
+  does.
+- **One test target holds them:** the crate holding a family's records'
+  module, its codec crate or an owner that is its own (section 2), has
+  one integration test target for its generated tests,
+  `tests/generated/main.rs`, Cargo's test `generated`. It holds a
+  module for each records' module of the crate,
+  `tests/generated/<file>.rs`, named as the records' file is, whatever
+  the library names its module: `src/generated/v20.rs`'s tests are
+  `tests/generated/v20.rs`. Records' files outside `src/generated/`,
+  as skein's codec fixtures', name theirs for their module in the
+  library: `src/every/v2.rs`, the module `every_v2`, has
+  `tests/generated/every_v2.rs`. `main.rs` is `tests_main`'s text,
+  written with them, each module left out of formatting. A crate's
+  hand-written tests that use its public items alone may be modules of
+  the same target, `main.rs` naming them beside the generated ones.
+- **No test target of a library that holds no other tests:** a crate
+  whose library holds no tests once its generated tests are apart sets
+  `[lib] test = false`, so a test build compiles the library once, as a
+  dependency. A crate whose remaining library tests need private items
+  keeps them, as the wires and smith's charter, channel and transcript
+  do, and as an owner's patch module's golden tests do (`command.md`,
+  7). The generated tests are integration tests by exception to
+  `../../../foundation/testing-strategy.md`, 2.1: they check the
+  generator's output through the crate's public items, from outside.
 - **Drift:** a test runs the generator on the schema and compares the
-  result with the committed code and golden bytes. On a difference it
-  fails, saying how to write them again, which the same test does when an
-  environment variable asks it to. The test is the owner's: it reads the
-  schema and the golden bytes in the owner, and the code in the family's
-  codec crate (section 2), and writes each where it reads it.
+  result with the committed code, tests and golden bytes, and each
+  crate's `tests/generated/main.rs` with `tests_main`'s text for its
+  modules. On a difference it fails, saying how to write them again,
+  which the same test does when an environment variable asks it to.
+  The test is the owner's: it reads the schema and the golden bytes in
+  the owner, and the code and its tests in the family's codec crate
+  (section 2), and writes each where it reads it.
 - **One family to a golden directory:** a crate that holds several
   families gives each version of each a directory of its own, as skein's
   fixtures do with `golden/<family>-v<N>`, and a directory holds that
@@ -471,6 +547,7 @@ impl Schema {
     pub fn find(&self, name: &[u8]) -> Option<DeclIx>;
     pub fn fewest_bytes(&self, at: TypeIx) -> u32;
     pub fn most_bytes(&self, at: DeclIx) -> u32;  // the encoded worst case
+    pub fn most_bytes_within(&self, at: DeclIx, names: &[&str], values: &[u32]) -> Option<u64>;
 }
 
 pub struct SchemaError { pub line: u32, pub at: Span, pub wrong: Wrong }
@@ -491,6 +568,22 @@ message from it and the text. A type's fewest bytes are the generator's
 a length or a count, 1 for an `option`, a record's fields' sum (2 more
 if `versioned`), and an enumeration's 1 more than its smallest
 variant's.
+
+- **A kept version's bounds under a side's limits:**
+  `most_bytes_within(at, names, values)` is the most bytes `at` encodes
+  to, as `most_bytes` computes it, with each bound of the text replaced
+  by the value of the limit of the same name, when `names` holds it and
+  the value is no larger than the bound, and the text's own bound
+  otherwise. Names follow the generator's rule (section 4, *Its limits
+  by name*): the record's name in snake case, an underscore and the
+  field's, `_some` for an option's value and `_item` for a list's item,
+  level by level. The rule lives in `skein-codec` beside the parser,
+  and the generator names its limits by it, so the two never differ.
+  `None` when `names` and `values` differ in length or the sum
+  overflows. So a channel that speaks an older version states and checks
+  its terms from that version's kept text with its current limits
+  (jig's `protocol/channel/wires.md`): an appended field, absent
+  there, counts nothing.
 
 ## 8. Generic values
 

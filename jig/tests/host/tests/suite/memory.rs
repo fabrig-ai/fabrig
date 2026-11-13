@@ -72,6 +72,14 @@ impl Measured {
     }
 
     fn step(&mut self, event: Event) -> Vec<Asked> {
+        if let Event::Agent(FromAgent::Started { owner, .. }) = &event {
+            step(
+                &mut self.domain,
+                &self.env,
+                Event::Agent(FromAgent::Decoded { owner: *owner, contract: 1 }),
+                &mut self.out,
+            );
+        }
         step(&mut self.domain, &self.env, event, &mut self.out);
         self.drain()
     }

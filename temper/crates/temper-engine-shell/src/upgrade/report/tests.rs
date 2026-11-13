@@ -150,13 +150,14 @@ fn worker_refusals_keep_the_openings_wire_and_limits_words() {
         write!(hex, "{byte:02x}").expect("string write");
     }
     let mut layout = opening("w2");
-    layout
+    *layout
         .wires
         .iter_mut()
         .find(|wire| wire.name.as_ref() == "smith-charter")
         .expect("charter")
         .layouts
-        .fill([0xcd; 32]);
+        .last_mut()
+        .expect("current layout") = [0xcd; 32];
     let mut disjoint = opening("w2");
     disjoint.wires.iter_mut().find(|wire| wire.name.as_ref() == "smith-charter").expect("charter").lowest =
         version.checked_add(1).expect("test version");
@@ -181,7 +182,7 @@ fn worker_refusals_keep_the_openings_wire_and_limits_words() {
                 "wires: wire smith-charter: the engine speaks {}..{version}, the worker {}..{}",
                 charter.lowest,
                 version + 1,
-                version + 1
+                version + u16::try_from(charter.layouts.len()).expect("range")
             ),
         ),
         (

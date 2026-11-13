@@ -154,6 +154,7 @@ impl Domain {
                 draining: false,
                 shutting_down: false,
                 mismatched: false,
+                untranslated: List::uncapped(),
                 hosts: skein_lib::Set::with_capacity(limits.engine_slots),
                 workstreams: Map::with_capacity(0),
                 uses: 0,
@@ -229,7 +230,7 @@ impl Domain {
     /// The kind placement would choose now for this charter; None without an eligible free slot.
     #[must_use]
     pub fn free_kind(&self, kinds: crate::Kinds, workstream: u64, version: crate::Version) -> Option<HostKind> {
-        let id = channel::choose(self, workstream, kinds, version)?;
+        let id = channel::choose(self, Token::new(workstream), workstream, kinds, version)?;
         Some(self.channels.get(id).expect("chosen channel is connected").kind)
     }
 
@@ -526,6 +527,11 @@ impl Domain {
 #[expect(clippy::too_many_lines, reason = "the fleet routes the complete event vocabulary in one step")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Mismatch { channel } => {
+            if let Some(&id) = domain.tokens.get(&channel) {
+                channel::mismatch(domain, id);
+            }
+        }
         Event::Draining { channel } => channel::draining(domain, channel),
         Event::Needs(needs) => {
             crate::needs::replace(domain, &env.limits, needs);

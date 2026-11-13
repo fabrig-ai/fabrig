@@ -275,7 +275,10 @@ record Entry    { account: u64  account_login: text  token: secret }
   new generation into the identities' table, as one secret held by
   number and generation, the two newest kept (credentials.md, section
   4); `jig-protocol-engine-workers` fills it in as a grant's `value`,
-  through the routing.
+  through the routing, translating it down to the channel's agreed
+  `temper-worker-wire` version at each send by temper's bridge
+  (`wires.md`, 6), so the table holds the engine's current version
+  alone.
 - **On the worker:** `jig-protocol-worker-link` takes the value out with
   its table, the application's, its number and generation; the routing
   decodes it and keeps it in the worker's identities' table, at most the

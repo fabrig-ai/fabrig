@@ -1838,6 +1838,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
         },
 
         grants: Grants {
+            contract: 1,
             save: false,
             wait: true,
             deliver: if matches!(settings.job, Job::MidReport | Job::MidChange | Job::MarkerReport) {

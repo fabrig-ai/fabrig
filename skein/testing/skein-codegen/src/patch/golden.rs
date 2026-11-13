@@ -54,8 +54,13 @@ pub(crate) fn run_goldens<C: Default>(
     let patch = read_patch(source, number).map_err(|error| Error::Golden(vec![format!("patch {number}: {error}")]))?;
     for block in &patch.blocks {
         let label = format!("patch {number}, {}", block.family);
-        if let Err(error) = family(krate, number, source, &patch, block, written, write, &mut failures) {
+        if let Err(error) = family(krate, number, source, &patch, block, written, write, false, &mut failures) {
             failures.push(format!("{label}: {error}"));
+        }
+        if super::run::needs_reverse(krate, block).is_some()
+            && let Err(error) = family(krate, number, source, &patch, block, written, write, true, &mut failures)
+        {
+            failures.push(format!("{label}/down: {error}"));
         }
     }
     if failures.is_empty() { Ok(()) } else { Err(Error::Golden(failures)) }
@@ -89,7 +94,7 @@ fn capacity(old: &str, new: &str, source: &str, largest: usize, nodes: u32) -> R
         .checked_mul(8)
         .and_then(|nodes| nodes.checked_add(1024))
         .ok_or("golden nodes exceed the patcher's capacity")?;
-    Ok(Capacity { versions: 2, patches: 1, text, bytes: room, nodes: nodes.max(room) })
+    Ok(Capacity { versions: 2, patches: 2, text, bytes: room, nodes: nodes.max(room) })
 }
 
 // Golden lists hold at most one item and golden options can be present.
@@ -258,6 +263,7 @@ fn family<C: Default>(
     block: &Block,
     written: Written<C>,
     write: bool,
+    down: bool,
     failures: &mut Vec<String>,
 ) -> Result<(), String> {
     let old = kept(krate, block, block.from)?;
@@ -265,21 +271,36 @@ fn family<C: Default>(
     let old_schema = crate::parse(old).map_err(|error| error.to_string())?;
     let new_schema = crate::parse(new).map_err(|error| error.to_string())?;
     let nodes = golden_nodes(&old_schema)?.max(golden_nodes(&new_schema)?);
-    let mut goldens = crate::emit_tests::goldens(&old_schema);
+    let mut goldens = crate::emit_tests::goldens(if down { &new_schema } else { &old_schema });
     let largest = goldens
         .iter()
         .map(|(_, golden)| golden.bytes.len())
-        .chain(crate::emit_tests::goldens(&new_schema).iter().map(|(_, golden)| golden.bytes.len()))
+        .chain(
+            crate::emit_tests::goldens(if down { &old_schema } else { &new_schema })
+                .iter()
+                .map(|(_, golden)| golden.bytes.len()),
+        )
         .max()
         .unwrap_or(0);
     let capacity = capacity(old, new, source, largest, nodes)?;
     let mut patcher = Patcher::new(capacity);
     patcher.keep(old.as_bytes()).map_err(|error| format!("keep {}: {error:?}", block.from))?;
     patcher.keep(new.as_bytes()).map_err(|error| format!("keep {}: {error:?}", block.to))?;
-    let plan = patcher
+    let forward = patcher
         .plan(source.as_bytes())
         .map_err(|error| format!("line {}: {:?}", error.line, error.wrong))?
         .ok_or("no block planned")?;
+    let plan = if down {
+        patcher
+            .reverse(source.as_bytes())
+            .map_err(|error| format!("line {}: {:?}", error.line, error.wrong))?
+            .ok_or("no reverse planned")?
+    } else {
+        forward
+    };
+    let target_version = patcher.versions(plan).to;
+    let directory = krate.root.join(golden_path(number)).join(&block.family);
+    let directory = if down { directory.join("down") } else { directory };
     open_goldens(&patcher, plan, &mut goldens, capacity.nodes)?;
     let mut decoded = Value::with_room(capacity.nodes);
     let mut results = BTreeMap::new();
@@ -288,11 +309,26 @@ fn family<C: Default>(
         let Some(new_root) = patcher.counterpart(plan, root) else {
             continue;
         };
-        match run(&mut patcher, plan, root, golden.bytes.into_boxed_slice(), written) {
+        let label = if down {
+            format!("{}/{}", directory.display(), golden.name)
+        } else {
+            format!("patch {number}, {}/{}", block.family, golden.name)
+        };
+        let original = if down { Some(golden.bytes.clone()) } else { None };
+        let result = run(&mut patcher, plan, root, golden.bytes.into_boxed_slice(), written).and_then(|bytes| {
+            if let Some(original) = original {
+                let round_trip = run(&mut patcher, forward, new_root, bytes.clone().into_boxed_slice(), written)?;
+                if round_trip != original {
+                    return Err(Halt::Altered);
+                }
+            }
+            Ok(bytes)
+        });
+        match result {
             Ok(bytes) => {
                 expected.insert(golden.name.clone());
                 match decoded.decode(
-                    patcher.schema(block.to).expect("kept new text"),
+                    patcher.schema(target_version).expect("kept target text"),
                     new_root,
                     bytes.clone().into_boxed_slice(),
                 ) {
@@ -300,10 +336,14 @@ fn family<C: Default>(
                         results.insert(golden.name, bytes);
                     }
                     Err(error) => {
-                        failures
-                            .push(format!("patch {number}, {}/{}: new value: {error:?}", block.family, golden.name));
+                        failures.push(format!("{label}: new value: {error:?}"));
                     }
                 }
+            }
+            Err(Halt::Unheld(location)) if down => {
+                let name = format!("{}.refused", golden.name);
+                expected.insert(name.clone());
+                results.insert(name, format!("unheld {location:?}\n").into_bytes());
             }
             Err(Halt::Refused(refusal)) => {
                 let name = format!("{}.refused", golden.name);
@@ -311,28 +351,17 @@ fn family<C: Default>(
                 if let Some(reason) = patch.refusals().nth(usize::try_from(refusal.index()).expect("refusal index")) {
                     results.insert(name, format!("refuses {reason}\n").into_bytes());
                 } else {
-                    failures.push(format!(
-                        "patch {number}, {}/{}: unknown refusal {}",
-                        block.family,
-                        golden.name,
-                        refusal.index()
-                    ));
+                    failures.push(format!("{label}: unknown refusal {}", refusal.index()));
                 }
             }
             Err(error) => {
                 // A failed run keeps its old result for review in write mode.
                 expected.insert(golden.name.clone());
                 expected.insert(format!("{}.refused", golden.name));
-                failures.push(format!(
-                    "patch {number}, {}/{}: {}",
-                    block.family,
-                    golden.name,
-                    halt(error, patch, capacity)
-                ));
+                failures.push(format!("{label}: {}", halt(error, patch, capacity)));
             }
         }
     }
-    let directory = krate.root.join(golden_path(number)).join(&block.family);
     compare(&directory, &results, &expected, write, failures);
     Ok(())
 }
@@ -367,7 +396,7 @@ fn halt(error: Halt, patch: &PatchText, capacity: Capacity) -> String {
             let target = patch
                 .sites()
                 .nth(usize::try_from(site.index()).expect("site index"))
-                .map_or("unknown", |(_, target, _)| target);
+                .map_or("unknown", |(_, target, _, _)| target);
             format!("patch {} site {} (written {target})", site.patch(), site.index())
         }
         Halt::Room | Halt::Decode(skein_codec::value::Refusal::Room) => {
@@ -379,6 +408,8 @@ fn halt(error: Halt, patch: &PatchText, capacity: Capacity) -> String {
         | Halt::Misread(_)
         | Halt::Misbuilt(_)
         | Halt::Built(_)
+        | Halt::Unheld(_)
+        | Halt::Altered
         | Halt::Order => format!("{error:?}"),
     }
 }

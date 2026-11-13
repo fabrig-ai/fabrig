@@ -67,6 +67,11 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
     `tests/boundary/tests/features.rs`'s module doc: external entries carry every
     context's feature union, platform entries stay on their platforms, and
     `.cargo/config.toml` enables Cargo's workspace feature unification.
+15. **The generated-tests check:** `tools/tiers/one-process default -p fabrig-boundary`,
+    part of item 4's focused suite. Rule: `tools/crates/design.md`, 3.4, and
+    `tests/boundary/tests/generated_tests.rs`'s module doc: generated records hold
+    no test code, their tests have a separate target and file per record file,
+    and their libraries build no test target, with shrinking exceptions.
 
 ## The gate's lists
 

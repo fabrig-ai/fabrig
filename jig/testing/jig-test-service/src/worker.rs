@@ -102,10 +102,11 @@ impl Worker {
         let link_limits = crate::limits::worker_link(&config);
         let link = link::Component::new(
             &link_limits,
+            jig_protocol_worker_wire::spoken(),
             link::Credential {
                 name: config.name,
                 secret: config::secret(secret.into()),
-                wires: List::with_capacity(0),
+                application: jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
             },
             seed,
         )
@@ -365,7 +366,10 @@ impl Worker {
                     }
                 }
                 link::Request::Closed => self.closed = true,
-                link::Request::Refused { .. } | link::Request::Fact { .. } => {}
+                link::Request::Refused { .. }
+                | link::Request::Fact { .. }
+                | link::Request::CannotSendWhole { .. }
+                | link::Request::Untranslated { .. } => {}
             }
         }
         self.values.expire(now);
@@ -1061,6 +1065,24 @@ mod admission_tests {
                 intake: Intake::with_capacity(WIRE_BYTES),
                 read: stream::Read::Nothing,
             };
+            let mut wires = List::with_capacity(4);
+            for spoken in &wire::spoken() {
+                wires
+                    .push(
+                        wire::AgreedWire::new(
+                            &codec,
+                            wire::AgreedWireParts { name: spoken.name.as_bytes().into(), version: spoken.highest() },
+                        )
+                        .expect("agreed wire"),
+                    )
+                    .expect("four wires");
+            }
+            let record = wire::v13::Agreed::new(&codec, wire::v13::AgreedParts { wires }).expect("statement");
+            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
+            record.encode(&mut body).expect("statement body");
+            let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("statement frame");
+            frame.put(&body.finish()).expect("measured body");
+            peer.channel.play(frame.finish().expect("measured frame"));
             layer.socket = Some(SOCKET);
             layer.link_down(Time::ZERO, link::Event::Dialled { connection: Token::new(layer.prefix) });
             peer.pump(layer);
