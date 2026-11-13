@@ -8,8 +8,8 @@ use temper_worker_domain::{Event, host, tooling, wire};
 
 const REMOTE: &[u8] = b"org/jobs";
 const BRANCH: &[u8] = b"temper/7/l81";
-const MERGE: &[u8] = b"Merge pull request 'feature' (#12) from topic into main\n\nLanded by landing 81 for change 12.";
-const SQUASH: &[u8] = b"feature\n\nTemper-Change: 12\nTemper-Pull: 12\nTemper-Head: ";
+const MERGE: &[u8] = b"feature\n\nAdds the feature.\n\nChange: 12\nPull-request: 12\nHead: ";
+const SQUASH: &[u8] = b"feature\n\nAdds the feature.\n\nChange: 12\nPull-request: 12\nHead: ";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Case {
@@ -63,8 +63,9 @@ pub fn run(seed: u64, case: Case) -> Report {
     let squash =
         !matches!(case, Case::Merge | Case::ContainedMerge | Case::ConflictMerge | Case::Existing | Case::TwoMembers);
     let by_squash = squash && case != Case::Upstream;
-    let squash_message = [SQUASH, temper_fake_id(head).as_slice()].concat();
-    world.title = if by_squash { squash_message.clone().into() } else { MERGE.into() };
+    let merge_message = [MERGE, temper_fake_id(head).as_slice(), b"\nGoal: 7"].concat();
+    let squash_message = [SQUASH, temper_fake_id(head).as_slice(), b"\nGoal: 7"].concat();
+    world.title = if by_squash { squash_message.clone().into() } else { merge_message.clone().into() };
     if case == Case::Existing {
         world.forge.create_branch(REMOTE, BRANCH, base).expect("existing landing");
     }
@@ -72,7 +73,7 @@ pub fn run(seed: u64, case: Case) -> Report {
     let member = format!(
         "{{\"number\":12,\"branch\":\"topic\",\"head\":\"{}\",\"message\":\"{}\",\"squash\":\"{}\"}}",
         id(head),
-        escaped(MERGE),
+        escaped(&merge_message),
         escaped(&squash_message)
     );
     let members = if case == Case::TwoMembers { format!("{member},{member}") } else { member };
@@ -141,7 +142,10 @@ pub fn run(seed: u64, case: Case) -> Report {
             assert_ne!(candidate, base, "even an empty squash commits");
             assert_eq!(world.forge.parent(candidate), Some(base));
             assert_eq!(world.forge.merge_parent(candidate), if by_squash { None } else { Some(head) });
-            assert_eq!(world.forge.message(candidate), if by_squash { squash_message.as_slice() } else { MERGE });
+            assert_eq!(
+                world.forge.message(candidate),
+                if by_squash { squash_message.as_slice() } else { merge_message.as_slice() }
+            );
             let mut expected = world.forge.tree(base);
             if !matches!(case, Case::EmptySquash | Case::ContainedMerge) {
                 expected.insert(b"feature".to_vec(), b"head\n".to_vec());

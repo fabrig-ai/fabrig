@@ -310,11 +310,24 @@ The default, for a project with no prepare command:
   `../protocol/tooling.md`, 4 gives:
   - **merge:** the head merged, no fast-forward, the base as the first
     parent and the head as the second, committed with the member's
-    merge message, its title and change;
+    merge message: its title, its description's first paragraph, and
+    its change, pull request and head as trailers, with its goal's for
+    a train into its repository's main;
   - **squash:** the same merge, its tree committed as one commit whose
     only parent is the base, with the member's squash message: its
-    title, then its change, pull request and head as trailers. A squash
-    whose tree is the base's is still a commit.
+    title, its description's first paragraph, then its change, pull
+    request, head and goal as trailers (`../draft/squash-in.md`,
+    section 3). A squash whose tree is the base's is still a commit.
+- **Authored and committed** by the repository's git identity
+  (`../protocol/credentials.md`, 4), both ways: the identity the
+  deployment's agents' commits carry, and temper's own.
+- **A goal's branch reads one commit per change,** its title and
+  trailers naming the change's task, pull request, head and goal, and a
+  merge for each catch-up or resolution of main
+  (`../draft/squash-in.md`, sections 2 and 6); a goal's landing into
+  main is a merge titled with the goal's title, its trailers the goal's
+  landing change's and the goal's, which `../testing/qa/landings.md`, 4
+  reads.
 - **Why merge or squash** is `../draft/merge-queue.md`, 5.3: a goal's
   branch goes on after it lands, and merges onto main; a change into a
   goal's branch ends when it lands, and squashes. A squash meets the
@@ -332,8 +345,9 @@ The default, for a project with no prepare command:
   job has ended. Its tip is the round's candidate when it contains the
   base and either contains the member's head, merged, or is a squash of
   it: its one commit above the base (skein's `Read::Commits`) has the
-  base as its only parent and names the member's head in its
-  `Temper-Head` trailer. The round keeps which. With none, the job's
+  base as its only parent and names the member's head in its `Head`
+  trailer, a line of its message's last paragraph. The round keeps
+  which. With none, the job's
   result names the conflict: the member leaves (4.3), and its change
   resolves (section 3).
 - **A job's own failure** (a preparation that fails, a push refused, a
