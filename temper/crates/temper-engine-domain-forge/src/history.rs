@@ -92,6 +92,7 @@ impl Domain {
             paused: None,
             held: None,
             landing_held: None,
+            delivered: None,
         });
         changed.last = number;
         row.history = Some(changed);

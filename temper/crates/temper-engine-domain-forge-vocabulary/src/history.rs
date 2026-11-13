@@ -69,6 +69,7 @@ pub struct ChangeHistory {
     pub paused: Option<u64>,
     pub held: Option<u64>,
     pub landing_held: Option<u64>,
+    pub delivered: Option<Commit>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Project {

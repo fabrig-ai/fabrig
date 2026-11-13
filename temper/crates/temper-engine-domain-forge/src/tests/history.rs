@@ -65,8 +65,15 @@ fn events_save_all_indexes_and_move_last_in_the_callers_decision() {
         removing: false,
     };
     let mut row = fixtures::opening_row();
-    row.history =
-        Some(ChangeHistory { last: 1, ready: None, queued: None, paused: None, held: None, landing_held: None });
+    row.history = Some(ChangeHistory {
+        last: 1,
+        ready: None,
+        queued: None,
+        paused: None,
+        held: None,
+        landing_held: None,
+        delivered: None,
+    });
     let mut saves = skein_lib::List::with_capacity(5);
     for request in first {
         if matches!(request, Request::Save { .. } | Request::Erase { .. }) {
@@ -140,6 +147,7 @@ fn restored_history_keeps_intervals_numbers_and_only_the_newest_hour_marks() {
         paused: Some(4),
         held: Some(5),
         landing_held: Some(6),
+        delivered: None,
     };
     let mut change_row = fixtures::opening_row();
     change_row.history = Some(intervals);

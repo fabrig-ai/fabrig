@@ -3523,6 +3523,8 @@ pub enum Path {
     ChangeHistoryHeld,
     /// The `landing_held` field of `ChangeHistory`.
     ChangeHistoryLandingHeld,
+    /// The `delivered` field of `ChangeHistory`.
+    ChangeHistoryDelivered,
     /// Bytes after `ChangeHistory`.
     ChangeHistoryTail,
     /// The `hour` field of `HistoryMark`.
@@ -21355,6 +21357,8 @@ pub struct ChangeHistoryParts {
     pub held: Option<u64>,
     /// The `landing_held` field.
     pub landing_held: Option<u64>,
+    /// The `delivered` field.
+    pub delivered: Option<[u8; 32]>,
 }
 
 /// `ChangeHistory` in this codec family.
@@ -21366,13 +21370,14 @@ pub struct ChangeHistory {
     paused: Option<u64>,
     held: Option<u64>,
     landing_held: Option<u64>,
+    delivered: Option<[u8; 32]>,
 }
 
 impl ChangeHistory {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: ChangeHistoryParts) -> Result<Self, Problem> {
-        let ChangeHistoryParts { last, ready, queued, paused, held, landing_held } = parts;
-        let value = Self { last, ready, queued, paused, held, landing_held };
+        let ChangeHistoryParts { last, ready, queued, paused, held, landing_held, delivered } = parts;
+        let value = Self { last, ready, queued, paused, held, landing_held, delivered };
         Ok(value)
     }
 
@@ -21400,9 +21405,13 @@ impl ChangeHistory {
     #[must_use]
     pub fn landing_held(&self) -> &Option<u64> { &self.landing_held }
 
+    /// Reads the `delivered` field.
+    #[must_use]
+    pub fn delivered(&self) -> &Option<[u8; 32]> { &self.delivered }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeHistoryParts { ChangeHistoryParts { last: self.last, ready: self.ready, queued: self.queued, paused: self.paused, held: self.held, landing_held: self.landing_held } }
+    pub fn into_parts(self) -> ChangeHistoryParts { ChangeHistoryParts { last: self.last, ready: self.ready, queued: self.queued, paused: self.paused, held: self.held, landing_held: self.landing_held, delivered: self.delivered } }
 
 }
 
@@ -42469,6 +42478,11 @@ impl ChangeHistory {
         if field_landing_held.is_some() {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         }
+        let field_delivered = &self.delivered;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_delivered.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -42516,6 +42530,14 @@ impl ChangeHistory {
             }
             None => writer.put(&[0_u8])?,
         }
+        let field_delivered = &self.delivered;
+        match field_delivered {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -42533,7 +42555,8 @@ impl ChangeHistory {
         let decoded_paused = match reader.u8().ok_or(Problem { path: Path::ChangeHistoryPaused, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeHistoryPaused, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeHistoryPaused, reason: skein_codec::Reason::Tag }) };
         let decoded_held = match reader.u8().ok_or(Problem { path: Path::ChangeHistoryHeld, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeHistoryHeld, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeHistoryHeld, reason: skein_codec::Reason::Tag }) };
         let decoded_landing_held = match reader.u8().ok_or(Problem { path: Path::ChangeHistoryLandingHeld, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeHistoryLandingHeld, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeHistoryLandingHeld, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { last: decoded_last, ready: decoded_ready, queued: decoded_queued, paused: decoded_paused, held: decoded_held, landing_held: decoded_landing_held })
+        let decoded_delivered = match reader.u8().ok_or(Problem { path: Path::ChangeHistoryDelivered, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::ChangeHistoryDelivered, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ChangeHistoryDelivered, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { last: decoded_last, ready: decoded_ready, queued: decoded_queued, paused: decoded_paused, held: decoded_held, landing_held: decoded_landing_held, delivered: decoded_delivered })
     }
 }
 
@@ -57963,6 +57986,7 @@ impl ChangeHistory {
         size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
         size.checked_add(0)
     }
 
@@ -57978,6 +58002,7 @@ impl ChangeHistory {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }

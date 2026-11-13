@@ -509,7 +509,7 @@ fn a_transcript_read_landing_after_a_message_ended_its_preparation_is_dropped() 
 #[test]
 fn an_answer_pushing_more_heads_than_a_task_may_hold_fails_its_run_as_invalid() {
     let (mut driver, run) = Driver::chat();
-    let pushed = (0..5).map(|tag| temper_engine_domain_forge::Pushed { tag, commit: [7; 32] }).collect();
+    let pushed = (0..5).map(|tag| temper_engine_domain_forge::Pushed { tag, commit: [7; 32], checked: true }).collect();
     let parts = engine::Parts { saved: None, pushed, preparation: None };
     let end = tasks::End::Finished {
         result: tasks::TaskResult::Report { words: b"done".as_slice().into() },

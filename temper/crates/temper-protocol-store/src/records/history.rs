@@ -253,13 +253,14 @@ pub(super) fn encode_change_history(value: &d::ChangeHistory) -> w::ChangeHistor
             paused: value.paused,
             held: value.held,
             landing_held: value.landing_held,
+            delivered: value.delivered,
         },
     )
     .expect(FITS)
 }
 pub(super) fn decode_change_history(value: w::ChangeHistory) -> d::ChangeHistory {
-    let w::ChangeHistoryParts { last, ready, queued, paused, held, landing_held } = value.into_parts();
-    d::ChangeHistory { last, ready, queued, paused, held, landing_held }
+    let w::ChangeHistoryParts { last, ready, queued, paused, held, landing_held, delivered } = value.into_parts();
+    d::ChangeHistory { last, ready, queued, paused, held, landing_held, delivered }
 }
 pub(super) fn encode_in_landing(value: &d::InLanding) -> w::HistoryInLanding {
     w::HistoryInLanding::new(

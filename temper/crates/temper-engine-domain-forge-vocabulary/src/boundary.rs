@@ -822,6 +822,7 @@ pub enum ReleaseEnding {
 pub struct Pushed {
     pub tag: u64,
     pub commit: skein_forge::api::Commit,
+    pub checked: bool,
 }
 /// A goal's design-writing attempt, retained with its hold (domain/forge/branches.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1897,11 +1898,11 @@ pub enum Event {
         designs: Box<[Name]>,
         holders: Box<[u64]>,
     },
-    /// Release slots and confirm any pushed heads.
+    /// Release slots and confirm each branch, head and checked-delivery flag.
     Answered {
         task: u64,
         attempt: u64,
-        pushed: Box<[(Name, skein_forge::api::Commit)]>,
+        pushed: Box<[(Name, skein_forge::api::Commit, bool)]>,
     },
     /// Read a lost writer's resource afresh before making its slot available.
     Lost {

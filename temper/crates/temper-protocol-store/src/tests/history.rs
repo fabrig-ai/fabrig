@@ -160,22 +160,7 @@ fn history_records_round_trip_every_kind_and_interval() {
     }
     check(Stored::HistoryLanding(LandingIndex { project: 3, landing: 29, number: 7, change: 9 }));
     check(Stored::HistoryLast(Last { project: 3, number: 7, change: 9, at: Wall::from_nanos(31) }));
-    let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
-    for history in [
-        None,
-        Some(ChangeHistory { last: 7, ready: None, queued: None, paused: None, held: None, landing_held: None }),
-        Some(ChangeHistory {
-            last: 29,
-            ready: Some(2),
-            queued: Some(3),
-            paused: Some(4),
-            held: Some(5),
-            landing_held: Some(6),
-        }),
-    ] {
-        change.history = history;
-        check(Stored::Change(Box::new(change.clone())));
-    }
+    check_change_history_rows();
     assert_eq!(v21::CEILINGS.history_project_marks, MARKS);
     assert_eq!(v21::CEILINGS.history_hold_reason, REASON_BYTES);
     assert_eq!(
@@ -205,6 +190,34 @@ fn the_v20_change_patch_adds_no_backdated_history() {
     );
     assert_eq!(crate::STORE_VERSION, 21);
     assert_eq!(crate::patches::PATCHES.len(), 10);
+}
+
+fn check_change_history_rows() {
+    let mut change = fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
+    for history in [
+        None,
+        Some(ChangeHistory {
+            last: 7,
+            ready: None,
+            queued: None,
+            paused: None,
+            held: None,
+            landing_held: None,
+            delivered: None,
+        }),
+        Some(ChangeHistory {
+            last: 29,
+            ready: Some(2),
+            queued: Some(3),
+            paused: Some(4),
+            held: Some(5),
+            landing_held: Some(6),
+            delivered: Some([9; 32]),
+        }),
+    ] {
+        change.history = history;
+        check(Stored::Change(Box::new(change.clone())));
+    }
 }
 
 fn marks() -> Box<[Mark]> {

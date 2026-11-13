@@ -174,7 +174,7 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 43649675 bytes, past its bound of 4580852 bytes\n",
+            b"engine.limits.store: the store's map value, 43649708 bytes, past its bound of 4580852 bytes\n",
         );
     }
 }

@@ -430,7 +430,7 @@ record FollowQuestion { change: u64 number: u64 words: bytes 1048576 person: opt
 record FollowRow { project: u32 follow: u32 source: Repository branch: bytes 1024 heard: option fixed 32 task: option u64 stopped: option bytes 8192 queue: list 256 FollowEntry skips: list 256 FollowSkip parity: option FollowParity questions: list 1024 FollowQuestion pending: option FollowAct }
 record FollowCheckProgress { follow: u32 source: fixed 32 head: fixed 32 definition: bytes 1024 key: option fixed 32 flight: option TierFlight page: u32 faults: u32 held: option bytes 512 }
 # Landing history (temper/docs/design/domain/landing-history.md, 2 and 4).
-record ChangeHistory { last: u64 ready: option u64 queued: option u64 paused: option u64 held: option u64 landing_held: option u64 }
+record ChangeHistory { last: u64 ready: option u64 queued: option u64 paused: option u64 held: option u64 landing_held: option u64 delivered: option fixed 32 }
 record HistoryMark { hour: u64 first: u64 }
 record HistoryProject { project: u32 next: u64 kept: u64 whole_since: option u64 marks: list 2048 HistoryMark sweeping: option u64 removing: bool }
 record HistoryInLanding { task: u64 round: u16 unit: u16 }

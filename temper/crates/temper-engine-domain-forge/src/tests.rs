@@ -444,11 +444,11 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
             holders: Box::new([7]),
         },
     );
-    let reported = [Pushed { tag: tag(name.forge, name.repository), commit: [2; 32] }];
-    assert_eq!(d.reported_heads(&LIMITS, 9, 1, &reported).as_ref(), &[(name.clone(), [2; 32])]);
+    let reported = [Pushed { tag: tag(name.forge, name.repository), commit: [2; 32], checked: true }];
+    assert_eq!(d.reported_heads(&LIMITS, 9, 1, &reported).as_ref(), &[(name.clone(), [2; 32], true)]);
     assert!(d.reported_heads(&LIMITS, 9, 2, &reported).is_empty(), "another attempt cannot report this writer");
     assert!(d.reported_heads(&LIMITS, 8, 1, &reported).is_empty(), "the holder cannot report its child's writer");
-    assert!(d.reported_heads(&LIMITS, 9, 1, &[Pushed { tag: 99, commit: [2; 32] }]).is_empty());
+    assert!(d.reported_heads(&LIMITS, 9, 1, &[Pushed { tag: 99, commit: [2; 32], checked: true }]).is_empty());
     assert_eq!(
         outputs(
             &mut d,
@@ -463,7 +463,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
         .as_ref(),
         &[Request::Taken { task: 10, resource: name.clone(), by: 9 }]
     );
-    outputs(&mut d, Event::Answered { task: 9, attempt: 1, pushed: Box::new([(name.clone(), [2; 32])]) });
+    outputs(&mut d, Event::Answered { task: 9, attempt: 1, pushed: Box::new([(name.clone(), [2; 32], true)]) });
     let claimed = outputs(
         &mut d,
         Event::Claim {
@@ -2912,11 +2912,20 @@ fn pushed_heads_match_their_own_forge_only() {
         let mut expected = branch();
         expected.forge = forge;
         assert_eq!(
-            d.reported_heads(&LIMITS, 9, 1, &[Pushed { tag: tag(forge, REPO.repository), commit: [2; 32] }]).as_ref(),
-            &[(expected, [2; 32])]
+            d.reported_heads(
+                &LIMITS,
+                9,
+                1,
+                &[Pushed { tag: tag(forge, REPO.repository), commit: [2; 32], checked: true }]
+            )
+            .as_ref(),
+            &[(expected, [2; 32], true)]
         );
     }
-    assert!(d.reported_heads(&LIMITS, 9, 1, &[Pushed { tag: 0x0001_0001_0000_0002, commit: [2; 32] }]).is_empty());
+    assert!(
+        d.reported_heads(&LIMITS, 9, 1, &[Pushed { tag: 0x0001_0001_0000_0002, commit: [2; 32], checked: true }])
+            .is_empty()
+    );
 }
 
 #[test]
