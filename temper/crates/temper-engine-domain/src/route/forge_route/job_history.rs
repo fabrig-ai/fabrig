@@ -21,52 +21,44 @@ pub(crate) fn claimed(domain: &mut Domain, task: u64, attempt: u64, kind: u32) {
     }));
 }
 
-pub(super) fn ended(domain: &Domain, context: &tasks::RunContext, word: &tasks::Word, job: Job) -> Option<JobStep> {
-    let tasks::Party::Task(task) = word.from else { return None };
-    let child = domain.core.tasks.task(task)?;
-    let kind = match job { Job::Prepare => forge::PREPARE_KIND, Job::Merge => forge::MERGE_KIND };
-    if child.executor != (tasks::Executor::Job { kind }) {
-        return None;
-    }
-    let outcome = if super::close::failed(domain, task, &word.kind) {
-        JobOutcome::Failed
-    } else if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Cancelled) {
-        JobOutcome::Lost
-    } else if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job) {
-        match job {
-            Job::Prepare => {
-                let members = domain.forge.landing(context.task)?.landing.members.len();
-                let outcomes = forge::preparation::outcomes(&word.words, u32::try_from(members).ok()?);
-                match outcomes {
-                    Some(outcomes) => {
-                        let mut conflict = false;
-                        for outcome in outcomes {
-                            conflict |= outcome.outcome != super::landing::Outcome::Combined;
-                        }
-                        if conflict { JobOutcome::Conflict } else { JobOutcome::Done }
-                    }
-                    None => JobOutcome::Failed,
-                }
-            }
-            Job::Merge => {
-                if has_left(&word.words) { JobOutcome::Conflict } else { JobOutcome::Done }
-            }
-        }
-    } else {
-        return None;
+pub(crate) fn saved(domain: &mut Domain, record: &jig_domain_core::Record) {
+    let jig_domain_core::Record::Tasks(tasks::Stored::Ended(child)) = record else { return };
+    let tasks::Party::Task(owner) = child.requester else { return };
+    let job = match child.executor {
+        tasks::Executor::Job { kind } if kind == forge::PREPARE_KIND => Job::Prepare,
+        tasks::Executor::Job { kind } if kind == forge::MERGE_KIND => Job::Merge,
+        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => return,
     };
-    let head = if job == Job::Merge && outcome == JobOutcome::Done {
-        let row = domain.forge.change(context.task)?;
-        match row.delegate {
-            Some((_, super::forge_change::Delegate::Merge { from, .. })) if row.change.last_head != from => row.change.last_head,
-            Some(_) | None => None,
+    let outcome = match &child.phase {
+        tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Job { bytes })) => {
+            match job {
+                Job::Prepare => {
+                    let Some(row) = domain.forge.landing(owner) else { return };
+                    match forge::preparation::outcomes(bytes, u32::try_from(row.landing.members.len()).expect("bounded members")) {
+                        Some(outcomes) => {
+                            let mut conflict = false;
+                            for outcome in outcomes { conflict |= outcome.outcome != super::landing::Outcome::Combined; }
+                            if conflict { JobOutcome::Conflict } else { JobOutcome::Done }
+                        }
+                        None => JobOutcome::Failed,
+                    }
+                }
+                Job::Merge => if has_left(bytes) { JobOutcome::Conflict } else { JobOutcome::Done },
+            }
         }
-    } else { None };
-    Some(JobStep { task, attempt: u32::try_from(child.attempt).expect("job attempt fits history"), job, outcome: Some(outcome), head })
+        tasks::Phase::Ended(tasks::Ending::Cancelled { .. }) => JobOutcome::Lost,
+        tasks::Phase::Ended(tasks::Ending::Failed { .. } | tasks::Ending::Done(_)) => JobOutcome::Failed,
+        tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => return,
+    };
+    domain.work.push(Work::Forge(forge::Event::JobHistory { task: owner, job: JobStep {
+        task: child.number, attempt: u32::try_from(child.attempt).expect("job attempt fits history"), job, outcome: Some(outcome), head: None,
+    } }));
 }
 fn has_left(bytes: &[u8]) -> bool {
     let Ok(length) = u32::try_from(bytes.len()) else { return false };
     let limits = skein_json::tokenizer::Limits { depth: 8, string: length, number: 20, chunk: 256, length };
     let Ok(document) = skein_json::parse(bytes, &limits, &skein_json::document::Limits { tokens: length, text: length }) else { return false };
-    document.member(0, b"left").is_some()
+    let Some(left) = document.member(0, b"left") else { return false };
+    let Some(end) = document.value_end(left) else { return false };
+    end.saturating_sub(left) > 2
 }

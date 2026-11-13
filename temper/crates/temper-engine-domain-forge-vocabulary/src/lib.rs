@@ -742,6 +742,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(Ending::Failed { line }) => bytes(line),
                 Some(Ending::Landed | Ending::NoChange | Ending::Cancelled) | None => 0,
             })?
+            .checked_add(history::job_bytes(row.job.as_ref())?)?
             .checked_add(bytes(&row.branch))?
             .checked_add(bytes(&row.base))?
             .checked_add(bytes(&row.title))?

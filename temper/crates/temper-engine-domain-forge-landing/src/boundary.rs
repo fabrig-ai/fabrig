@@ -107,6 +107,8 @@ pub struct GateProof {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent per-member effect and judgement receipts")]
 pub struct Member {
+    /// Last formed round; absent on rows upgraded from before landing history.
+    pub round: Option<u16>,
     pub change: u64,
     pub repository: Repository,
     pub pull: u64,

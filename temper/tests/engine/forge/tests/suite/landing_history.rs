@@ -16,7 +16,7 @@ fn events(world: &World, change: u64) -> Vec<h::Event> {
     let indexed: Vec<_> = world.landing_history(LANDING).into_iter().filter(relevant).filter(|e| e.change == change).collect();
     assert_eq!(events, indexed, "both history indexes tell the same steps");
     for (index, event) in events.iter().enumerate() {
-        assert!(!events[..index].iter().any(|old| old.what == event.what && old.operation == event.operation && old.attempt == event.attempt), "repeated event: {event:?}");
+        assert!(!events[..index].iter().any(|old| std::mem::discriminant(&old.what) == std::mem::discriminant(&event.what) && old.operation == event.operation && old.attempt == event.attempt), "repeated event: {event:?}");
     }
     events
 }
@@ -25,7 +25,7 @@ fn batch(count: u64) -> World {
 }
 fn batch_workflow(count: u64, workflow: Option<skein_fake_forge_domain::api::Workflow>) -> World {
     let mut world = landings::turn_in(World::batch_turn(11, workflow));
-    world.batch(u16::try_from(count).unwrap());
+    world.batch(u16::try_from(count).expect("small batch"));
     for task in 51..51 + count {
         let branch = format!("temper/c{task}");
         world.produce_file(branch.as_bytes(), format!("file{task}").as_bytes(), b"member");
@@ -57,7 +57,7 @@ fn proving(world: &mut World) {
     panic!("not proving");
 }
 fn count_formed(events: &[h::Event], round: u16) -> usize {
-    events.iter().filter(|e| matches!(e.what, h::What::Formed { .. }) && e.landing.unwrap().round == round).count()
+    events.iter().filter(|e| matches!(e.what, h::What::Formed { .. }) && e.landing.expect("landing event").round == round).count()
 }
 
 #[test]
@@ -154,7 +154,7 @@ fn stale_turn_ends_the_old_round_before_forming_the_next() {
     for change in 51..54 {
         let got = events(&world, change);
         let stale = got.iter().position(|e| e.what == h::What::RoundEnded { cause: h::RoundCause::Stale }).unwrap();
-        let formed = got.iter().position(|e| matches!(e.what, h::What::Formed { .. }) && e.landing.unwrap().round == 2).unwrap();
+        let formed = got.iter().position(|e| matches!(e.what, h::What::Formed { .. }) && e.landing.expect("landing event").round == 2).unwrap();
         assert!(stale < formed);
         assert_eq!(got[stale].attempt, 1);
     }
@@ -274,4 +274,50 @@ fn recovery_of_partial_preparation_and_each_phase_never_repeats_history() {
     for change in 51..54 {
         assert_eq!(events(&world, change).iter().filter(|e| matches!(e.what, h::What::Job { .. })).count(), 1);
     }
+}
+
+#[test]
+fn a_cut_ends_only_its_suffix_and_later_rounds_exclude_the_turned_prefix() {
+    let mut world = super::landing_batches::red_batch(52);
+    landings::drive_landing(&mut world, LANDING);
+    let first = events(&world, 51);
+    assert_eq!(first.iter().filter(|e| matches!(e.what, h::What::RoundEnded { .. })).map(|e| e.what.clone()).collect::<Vec<_>>(), vec![h::What::RoundEnded { cause: h::RoundCause::Turned }]);
+    assert_eq!(count_formed(&first, 2), 0);
+    assert!(!first.iter().any(|e| matches!(e.what, h::What::LandingEnded { .. })));
+    let third = events(&world, 53);
+    assert!(third.iter().any(|e| e.what == h::What::RoundEnded { cause: h::RoundCause::Cut } && e.attempt == 1));
+    let formed = third.iter().find(|e| matches!(e.what, h::What::Formed { .. }) && e.attempt == 2).expect("suffix round");
+    let h::What::Formed { members, place } = &formed.what else { unreachable!() };
+    assert_eq!((*place, members.iter().map(|m| m.change).collect::<Vec<_>>()), (1, vec![53]));
+    assert!(third.iter().any(|e| e.what == h::What::LandingEnded { outcome: h::LandingOutcome::Done }));
+}
+
+#[test]
+fn a_stored_job_end_survives_restart_before_readback_and_retry_closes_loss() {
+    let mut world = batch(3);
+    prepare(&mut world);
+    job(&mut world, 701, 1);
+    // A new durable claim ends the previous uncertain attempt before starting the next.
+    job(&mut world, 701, 2);
+    world.prepare_landing(LANDING, false);
+    let ended = h::JobStep { task: 701, attempt: 2, job: h::Job::Prepare, outcome: Some(h::JobOutcome::Done), head: None };
+    world.event(top::Event::JobHistory { task: LANDING, job: ended });
+    world.run_for(1);
+    assert!(!world.landing(LANDING).job.as_ref().unwrap().written);
+    world.restart();
+    landings::step_landing_raw(&mut world, LANDING, 150);
+    for change in 51..54 {
+        let got = events(&world, change);
+        let jobs: Vec<_> = got.iter().filter(|e| matches!(e.what, h::What::Job { .. } | h::What::JobEnded { .. })).collect();
+        assert_eq!(jobs.len(), 4);
+        assert_eq!((jobs[1].what.clone(), jobs[1].attempt), (h::What::JobEnded { job: h::Job::Prepare, outcome: h::JobOutcome::Lost }, 1));
+        assert_eq!((jobs[2].what.clone(), jobs[2].attempt), (h::What::Job { job: h::Job::Prepare, task: 701 }, 2));
+        assert_eq!(jobs[3].head, world.landing(LANDING).landing.members[usize::try_from(change - 51).unwrap()].candidate);
+    }
+    let before = world.landing_history(LANDING);
+    world.restart();
+    world.event(top::Event::JobHistory { task: LANDING, job: ended });
+    world.run_for(1);
+    landings::step_landing_raw(&mut world, LANDING, 151);
+    assert_eq!(world.landing_history(LANDING), before);
 }

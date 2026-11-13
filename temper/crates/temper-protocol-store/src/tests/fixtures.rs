@@ -876,6 +876,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         Change, Delegate, EffectResult, Freshness, Gate, GateKind, GateReport, Hold, Status,
     };
     top::ChangeRow {
+        job: None,
         signed: Box::new([]),
         task: 1,
         repository: REPO,

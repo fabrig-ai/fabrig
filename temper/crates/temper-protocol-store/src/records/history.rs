@@ -834,3 +834,21 @@ fn decode_what(value: w::HistoryWhat) -> d::What {
         }
     }
 }
+
+pub(super) fn encode_job_record(job: Option<&d::JobRecord>) -> Option<w::HistoryJobRecord> {
+    let job = job?;
+    let mut members = List::with_capacity(u32::try_from(job.members.len()).expect(FITS));
+    for member in &job.members { members.push(*member).expect(FITS); }
+    Some(w::HistoryJobRecord::new(&w::CEILINGS, w::HistoryJobRecordParts {
+        task: job.step.task, attempt: job.step.attempt, job: encode_job(job.step.job),
+        outcome: match job.step.outcome { Some(outcome) => Some(encode_job_outcome(outcome)), None => None },
+        round: job.round, members, head: job.head, written: job.written,
+    }).expect(FITS))
+}
+pub(super) fn decode_job_record(job: Option<w::HistoryJobRecord>) -> Option<d::JobRecord> {
+    let w::HistoryJobRecordParts { task, attempt, job, outcome, round, members, head, written } = job?.into_parts();
+    Some(d::JobRecord {
+        step: d::JobStep { task, attempt, job: decode_job(job), outcome: match outcome { Some(outcome) => Some(decode_job_outcome(outcome)), None => None }, head: None },
+        round, members: members.into_boxed(), head, written,
+    })
+}

@@ -149,6 +149,9 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
                 count(row.landing.members.len()),
                 u64::from(l.landing_members),
             )?;
+            if let Some(job) = &row.job {
+                field(K::Landing, RestoreSet::LandingMembers, count(job.members.len()), u64::from(l.landing_members))?;
+            }
             field(K::Landing, RestoreSet::LandingAsks, count(row.asks.len()), u64::from(l.landing_members))?;
             field(K::Landing, RestoreSet::LandingEntries, count(row.entries.len()), u64::from(l.entries))?;
             for member in &row.landing.members {

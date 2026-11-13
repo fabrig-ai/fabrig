@@ -26,6 +26,7 @@ fn landing_of_one() -> Landing {
         stale_proofs: 0,
         branch: Box::from(b"main".as_slice()),
         members: Box::new([Member {
+            round: None,
             unit: 0,
             branch: Box::from(b"temper/1/l61".as_slice()),
             combined: None,

@@ -838,6 +838,7 @@ mod tests {
         use temper_engine_domain_forge as forge;
         use temper_engine_domain_forge_change as change;
         forge::ChangeRow {
+            job: None,
             signed: Box::new([]),
             task: 7,
             repository: skein_forge::api::Repository { forge: 3, repository: 1 },

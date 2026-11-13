@@ -286,6 +286,7 @@ fn landing_fixture() -> Domain {
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        job: None,
         landing: policy::Landing {
             last_left: None,
             round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
@@ -546,6 +547,7 @@ fn a_single_landing_resumes_ancestry_and_merges_its_members_pull_with_coherent_e
 fn merge_landing_row(single: bool) -> LandingRow {
     let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
     row.landing.members = Box::new([policy::Member {
+        round: None,
         unit: 0,
         branch: Box::from(b"temper/1/l61".as_slice()),
         combined: None,
@@ -676,6 +678,7 @@ fn turn_fixture() -> Domain {
         change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
     let mut row = landing_row(61, policy::Phase::Turn { at: env().wall });
     row.landing.members = Box::new([policy::Member {
+        round: None,
         unit: 0,
         branch: Box::from(b"temper/1/l61".as_slice()),
         combined: None,
@@ -1009,6 +1012,7 @@ fn member_landing(d: &mut Domain) {
 fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
     let mut row = landing_row(61, policy::Phase::Proving);
     row.landing.members = Box::new([policy::Member {
+        round: None,
         unit: 0,
         branch: Box::from(b"temper/1/l61".as_slice()),
         combined: None,

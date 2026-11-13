@@ -399,7 +399,7 @@ pub(crate) fn workflow(red: bool) -> raw::Workflow {
         cue: red.then(|| raw::Cue::File { path: b"file".as_slice().into(), green: b"fixed".as_slice().into() }),
     }
 }
-fn red_batch(breaking: u64) -> World {
+pub(crate) fn red_batch(breaking: u64) -> World {
     red_batch_workflow(breaking, workflow(true))
 }
 fn red_batch_workflow(breaking: u64, workflow: raw::Workflow) -> World {

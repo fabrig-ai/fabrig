@@ -2529,6 +2529,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         drop_settled_change(domain, env, &mut out);
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
+                job: None,
                 signed: Box::new([]),
                 task,
                 repository: provider,
@@ -2664,9 +2665,6 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext) {
     let task = context.task;
     for word in &context.inbox {
         let tasks::Party::Task(child) = word.from else { continue };
-        if let Some(job) = job_history::ended(domain, context, word, forge::history::Job::Merge) {
-            domain.work.push(Work::Forge(forge::Event::JobHistory { task, job }));
-        }
         let closing = domain.forge.change(task).expect("registered change").delegate
             == Some((child, forge_change::Delegate::Close));
         let held = closing && close::failed(domain, child, &word.kind);

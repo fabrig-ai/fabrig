@@ -73,6 +73,7 @@ fn judged(d: &Domain, requirement: u16, evidence: &ChangeEvidence, reviewers: &[
 
 fn landing(d: &mut Domain) {
     let member = policy::Member {
+        round: None,
         unit: 0,
         branch: Box::from(b"temper/1/l61".as_slice()),
         combined: None,
@@ -96,6 +97,7 @@ fn landing(d: &mut Domain) {
         .insert(
             61,
             LandingRow {
+                job: None,
                 landing: policy::Landing {
                     last_left: None,
                     round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),

@@ -130,6 +130,7 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
         }
     }
     Some(landing::Member {
+        round: None,
         unit: 0,
         branch: Box::new([]),
         combined: None,
@@ -161,15 +162,6 @@ pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
         }
     }
     false
-}
-
-fn prepare_ended(domain: &Domain, context: &tasks::RunContext) -> Option<forge::history::JobStep> {
-    for word in &context.inbox {
-        if let Some(job) = super::job_history::ended(domain, context, word, forge::history::Job::Prepare) {
-            return Some(job);
-        }
-    }
-    None
 }
 
 #[cfg(test)]
@@ -273,6 +265,7 @@ fn create_landing(
     }
     domain.work.push(Work::Forge(forge::Event::Landing {
         row: forge::LandingRow {
+            job: None,
             landing: landing::Landing {
                 last_left: None,
                 round: landing::Round::new(own_branch.clone()),
@@ -336,7 +329,7 @@ pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context
         task,
         entry,
         heard: forge::LandingHeard {
-            job: prepare_ended(domain, context),
+            job: None,
             outcomes: prepare_outcomes(context, env.limits.forge.landing_members),
             dependencies: graph,
             held: held.into_boxed(),

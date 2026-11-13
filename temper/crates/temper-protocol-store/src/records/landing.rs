@@ -127,7 +127,7 @@ fn encode_member(member: &d::Member) -> w::LandingMember {
     w::LandingMember::new(
         &w::CEILINGS,
         w::LandingMemberParts {
-            unit: member.unit,
+            round: member.round,            unit: member.unit,
             branch: member.branch.clone(),
             combined: encode_combine(member.combined),
             skein_bools: [member.recorded, member.told, member.judging, member.leave_told],
@@ -153,7 +153,7 @@ fn encode_member(member: &d::Member) -> w::LandingMember {
 }
 fn decode_member(member: w::LandingMember) -> d::Member {
     let w::LandingMemberParts {
-        change,
+        round,        change,
         repository,
         pull,
         head,
@@ -174,7 +174,7 @@ fn decode_member(member: w::LandingMember) -> d::Member {
         proofs.push(decode_proof(gate)).expect(FITS);
     }
     d::Member {
-        unit,
+        round,        unit,
         branch,
         combined: decode_combine(combined),
         recorded,
@@ -407,10 +407,10 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
             )
             .expect(FITS);
     }
-    w::LandingRow::new(&w::CEILINGS, w::LandingRowParts { landing, asks, entries }).expect(FITS)
+    w::LandingRow::new(&w::CEILINGS, w::LandingRowParts { landing, asks, entries, job: super::history::encode_job_record(row.job.as_ref()) }).expect(FITS)
 }
 pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
-    let w::LandingRowParts { landing, asks, entries } = row.into_parts();
+    let w::LandingRowParts { landing, asks, entries, job } = row.into_parts();
     let w::LandingStateParts { task, project, phase, members, preparation, stale_proofs, branch, round, own_hold, last_left } =
         landing.into_parts();
     let mut decoded_members = List::with_capacity(members.len());
@@ -434,6 +434,7 @@ pub(super) fn decode(row: w::LandingRow) -> top::LandingRow {
             .expect(FITS);
     }
     top::LandingRow {
+        job: super::history::decode_job_record(job),
         landing: d::Landing {
             last_left,
             task,

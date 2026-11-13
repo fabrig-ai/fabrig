@@ -108,6 +108,7 @@ pub use forming::{Selection, WaitingUnit, select_units};
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod landing;
 mod landing_history;
+mod job_history;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod landing_log;
 pub mod preparation;

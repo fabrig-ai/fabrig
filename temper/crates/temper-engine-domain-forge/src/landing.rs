@@ -709,7 +709,7 @@ fn proof_key(proof: policy::Proof) -> Option<policy::Key> {
         | policy::Proof::Failed { key } => Some(key),
     }
 }
-fn save(d: &mut Domain, row: LandingRow, out: &mut Queue<Request>) {
+pub(crate) fn save(d: &mut Domain, row: LandingRow, out: &mut Queue<Request>) {
     let project = row.landing.project;
     let task = row.landing.task;
     let was_turn = match d.landing.rows.get(&task) {
@@ -841,16 +841,24 @@ fn pending_for(d: &Domain, task: u64) -> Option<Token> {
     }
     existing
 }
+pub(crate) fn job_woken(d: &mut Domain, task: u64) {
+    if let Some(token) = pending_for(d, task) {
+        d.landing.pending.get_mut(&token).expect("pending landing gather").woken = true;
+    }
+}
 pub(crate) fn step(
     d: &mut Domain,
     env: &Env<Limits>,
     task: u64,
     entry: u64,
-    heard: LandingHeard,
+    mut heard: LandingHeard,
     out: &mut Queue<Request>,
 ) {
     if d.stopping {
         return;
+    }
+    if let Some(job) = heard.job.take() {
+        crate::job_history::heard(d, env.wall, task, job, out);
     }
     if let Some(row) = d.landing.rows.get(&task)
         && row.landing.phase == policy::Phase::Cancelled
@@ -2115,11 +2123,16 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         },
         env.wall,
     );
-    if let Some(job) = p.heard.job.take() {
-        crate::landing_history::prepared_job(d, env.wall, &row, &p.facts, job, out);
-    }
+    crate::job_history::prepared(d, env.wall, &mut row, &p.facts, out);
     let prior = row.clone();
     row.landing = stepped.landing;
+    if row.landing.preparation != prior.landing.preparation {
+        for (member, old) in row.landing.members.iter_mut().zip(&prior.landing.members) {
+            if member.left.is_none() && old.landed.is_none() {
+                member.round = Some(row.landing.preparation);
+            }
+        }
+    }
     if !row.landing.round.branch.is_empty() {
         for (member, old) in row.landing.members.iter().zip(&prior.landing.members) {
             if member.candidate == old.candidate {

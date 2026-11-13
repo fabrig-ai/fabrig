@@ -1332,14 +1332,19 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                 Some(c::Ask::Repair { gate: 0, candidate: [1; 32], below: None }),
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
+                    job: Some(forge::history::JobRecord {
+                        step: forge::history::JobStep { task: 71, attempt: 2, job: forge::history::Job::Prepare, outcome: Some(forge::history::JobOutcome::Done), head: None },
+                        round: 1, members: Box::new([0]), head: None, written: false,
+                    }),
                     landing: l::Landing {
-                        last_left: None,
+                        last_left: Some(0),
                         round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                         task: 61,
                         project: 5,
                         phase: phase.clone(),
                         members: Box::new([l::Member {
+                            round: Some(1),
                             unit: 0,
                             branch: Box::from(b"temper/1/l61".as_slice()),
                             combined: None,
@@ -2679,5 +2684,21 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
         let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
         row.encode(&mut bytes).unwrap();
         assert_eq!(records::decode(&bytes.finish(), &bounds), Err(crate::Undecodable::Malformed));
+    }
+}
+
+#[test]
+fn a_pending_merge_job_end_and_its_readback_marker_round_trip() {
+    use forge::history as h;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for written in [false, true] {
+        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: true });
+        row.job = Some(h::JobRecord {
+            step: h::JobStep { task: 81, attempt: 2, job: h::Job::Merge, outcome: Some(h::JobOutcome::Done), head: None },
+            round: 0, members: Box::new([]), head: Some([3; 32]), written,
+        });
+        let record = forge::Stored::Change(Box::new(row));
+        let key = crate::keys::encode(&forge::stored_key(&record), u32::MAX).expect("key");
+        assert_eq!(records::row(&key, &records::encode(&record), &bounds), Ok(record));
     }
 }
