@@ -107,6 +107,8 @@ from the engine's own answers, is where the look is tuned.
 | `needs-tell` | `needs-list` with words written in "Or tell it something else" and Send shown |
 | `needs-approval-first` | Needs you with an approval's card open, "Review on GitHub ↗" first, its size under its context as `pair/needs.html`'s second card draws it, "+142 -18 in 4 files" |
 | `night-needs` | `needs-list` by night |
+| `tell-area` | a project's Needs you, its `findings` document holding two areas, the page left a standing role's talk whose role holds the second: Tell temper at its foot, words written, "About PROJECT · the page you were on, ROLE", "Goes to ROLE, AREA's owner" and "File it" enabled (`../pages/needs-you.md`, 1, *Tell temper*; the whole story's `needs.html`, its foot) |
+| `tell-page` | the same project's `Tell` page, the page left its Team, its triager a standing role: "Something off?", the lede, "About PROJECT · the page you were on, Team", "Goes to ROLE, PROJECT's triager, who hands it to its area's owner", "File it" and "It's a question: ask temper instead" (`phone-tell.html` at a phone's width) |
 | `home-try-stopped` | a failed trial below Home's intro: "WHO didn’t answer when tried" and Try again; no change to its counts |
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
 | `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |

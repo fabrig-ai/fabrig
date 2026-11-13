@@ -313,9 +313,12 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   - *`/tell`* (`../../../draft/surfaces.md`, 9 and 11.4), pressed or sent
     alone, leaves "/tell " in the box for the words; sent with words,
     `/tell WORDS` files them as Tell temper does, the root's `Act::Tell {
-    project, words }` (`../../pages/needs-you.md`, 1, *Tell temper*), in the
+    project, words, about }` (`../../pages/needs-you.md`, 1, *Tell temper*), in the
     screen's project, the launchpad's or the chat's or talk's task's, and
-    the box is cleared. Filed, the notice "Filed as finding N on
+    the box is cleared. Its `about` is the screen: its address, with the
+    chat's or talk's task's title where the screen is one, so that a word
+    told in a standing role's talk goes to the area the role holds
+    (*Where it goes*, there). Filed, the notice "Filed as finding N on
     PROJECT." (`tell::State::Filed`); refused, the box holds "/tell WORDS"
     again and the refusal is drawn under it in the view's words
     (`shared::finding_refusal`); lost, the same with "temper couldn't

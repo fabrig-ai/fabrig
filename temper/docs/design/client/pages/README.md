@@ -327,9 +327,7 @@ keeps (`../../protocol/configuration/README.md`, section 2).
   token to replace, and a person task asking an act rather than a choice,
   which stays among the cards meanwhile; Only you in the terminal's inbox
   (`../tui/pages/README.md`); a need's goal, role and asker on its from
-  line; Tell temper at Needs you's foot, as *Tell temper* has it, once the engine files a
-  person's word as a finding and a setting names the project's triager
-  (`../../domain/findings.md`, sections 4 and 6); one brief across projects written per person,
+  line; one brief across projects written per person,
   `../../draft/surfaces.md`, 15's open question; and more than 16 projects
   read. Each joins *A page's parts* with the read that gives it. Default:
   none is drawn until it is built, the brief is one a project, joined, and
