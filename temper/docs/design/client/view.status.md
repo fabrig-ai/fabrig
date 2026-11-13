@@ -4,8 +4,6 @@
 
 
 - **Not yet:** 6: the *dated* form, `TimeForm::Dated` [in flight: change 784].
-- **Not yet:** 1: on `Welcome`, the top bar's right as the link region alone, no person or "Sign out", and temper box's line out of the bar [in flight: change 1991].
-- **Not yet:** 3: *Projects in the rail*: "Team for PROJECT", "How work runs for PROJECT" and "Deployment" on a phone alone [in flight: change 1993].
 - **Departs:** 1: at 760 px and under, `temper.css` hides the accounts' and the
   playground's banners on every chat's page and `NewChat`
   (`#app:has(> .temper-session) > .temper-accounts`), where the section draws
