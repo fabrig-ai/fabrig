@@ -104,6 +104,7 @@ impl Driver {
                         self.immediate.push_back(Event::Decoded {
                             agent,
                             start: protocol::decode(run, *start, &self.env.limits.agent),
+                            endpoints: Box::new([]),
                         });
                     }
                     Request::Encode { owner, value } => {

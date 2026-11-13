@@ -294,7 +294,7 @@ fn earlier_host_answers_take_the_same_agents_reply_bound() {
                 tool: Box::from(&b"recall"[..]),
                 reply: agent::SavedReply::Host { error, body: body.clone() },
             }]);
-            let rows = h.run(Event::Decoded { agent: owner, start: Ok(Box::new(start)) });
+            let rows = h.run(Event::Decoded { agent: owner, start: Ok(Box::new(start)), endpoints: Box::new([]) });
             let [call] = sent_start(&rows).answered.as_ref() else { panic!("one earlier answer") };
             assert_eq!(call.tool.as_ref(), b"recall");
             assert_eq!(call.name, agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 });
