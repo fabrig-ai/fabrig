@@ -1,4 +1,4 @@
-//! Client version constants follow their headers (temper/docs/design/protocol/wires.md, 8).
+//! Client version constants follow their headers (jig/docs/design/protocol/README.md, 7).
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the committed schemas are version test inputs")]

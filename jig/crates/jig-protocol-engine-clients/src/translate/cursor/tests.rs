@@ -1,4 +1,4 @@
-//! Cursor versions follow their header and generated codec (temper/docs/design/protocol/wires.md, 8).
+//! Cursor versions follow their header and generated codec (jig/docs/design/protocol/README.md, 7).
 
 use super::{CURSOR_VERSION, decode, encode, encode_tree};
 use jig_domain_core_vocabulary::{documents, reads};

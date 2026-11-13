@@ -46,7 +46,7 @@ pub fn decode_transcript(
     for _ in 0..count {
         let length = reader.u32().ok_or(record::Refusal::Malformed)?;
         let body = reader.bytes(length).ok_or(record::Refusal::Malformed)?;
-        if body.get(..2) != Some(&[0, 7][..]) {
+        if body.get(..2) != Some(wire::wire::VERSION.to_be_bytes().as_slice()) {
             return Err(record::Refusal::Version);
         }
         let place = match previous {
@@ -130,7 +130,7 @@ fn saved_endpoint(endpoints: &Endpoints, name: &[u8]) -> Option<llm::Endpoint> {
 }
 
 fn saved_turn(bytes: &[u8], number: Option<u32>, limits: &wire::v7::Limits) -> Result<wire::Turn, record::Refusal> {
-    if bytes.get(..2) != Some(&[0, 7][..]) {
+    if bytes.get(..2) != Some(wire::wire::VERSION.to_be_bytes().as_slice()) {
         return Err(record::Refusal::Version);
     }
     let Ok(source) = wire::Turn::decode(limits, &mut Reader::new(bytes)) else {
