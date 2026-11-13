@@ -122,8 +122,13 @@ impl Worker {
         if bytes.len() > usize::try_from(config.limits.link.secret).expect("secret bound") {
             return Err(problem(b"secret", What::Bound));
         }
-        let link = link::Component::new(&prepared.link, worker_settings::credential(settings, secret), seed)
-            .or(Err(problem(b"limits", What::Bound)))?;
+        let link = link::Component::new(
+            &prepared.link,
+            jig_protocol_worker_wire::spoken(),
+            worker_settings::credential(settings, secret),
+            seed,
+        )
+        .or(Err(problem(b"limits", What::Bound)))?;
         let slots = config.slots;
         let git = crate::worker_git::Git::new(settings, limits, &runtime.path, runtime.root, seed)?;
         let operations = worker_settings::operations(git.component.limits()).ok_or(problem(b"limits", What::Bound))?;
@@ -608,6 +613,7 @@ impl Worker {
                     | link::Loss::Full
                     | link::Loss::Busy
                     | link::Loss::Fault
+                    | link::Loss::EngineStatesNoWires
                     | link::Loss::Unreachable => None,
                 };
                 if let Some(reason) = reason

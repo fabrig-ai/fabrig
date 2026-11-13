@@ -20,8 +20,13 @@ impl World {
     #[must_use]
     pub fn new(limits: &Limits, workers: &[Worker], seed: u64) -> Self {
         Self {
-            component: Component::new(limits, workers.to_vec().into_boxed_slice(), crate::fixtures::application())
-                .expect("valid engine"),
+            component: Component::new(
+                limits,
+                workers.to_vec().into_boxed_slice(),
+                jig_protocol_worker_wire::spoken(),
+                crate::fixtures::application(),
+            )
+            .expect("valid engine"),
             nets: BTreeMap::new(),
             out: Queue::uncapped(),
             root: Vec::new(),

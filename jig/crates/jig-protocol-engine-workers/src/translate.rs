@@ -79,7 +79,7 @@ pub(crate) enum Up {
     Limited(wire::Limited),
     AccountRefused(wire::AccountRefused),
 }
-pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v11::Limits) -> Option<Up> {
+pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v12::Limits) -> Option<Up> {
     let mut found = None;
     for rule in wire::KINDS {
         if rule.kind == kind {
@@ -142,6 +142,7 @@ pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v11::Limits) -> Opti
         | wire::Kind::TurnKept
         | wire::Kind::TurnBusy
         | wire::Kind::Acknowledge
+        | wire::Kind::Wires
         | wire::Kind::Cancel
         | wire::Kind::Grant => None,
     }
@@ -585,7 +586,7 @@ pub(crate) fn down(
     down: host::LinkDown,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v11::Limits,
+    limits: &wire::v12::Limits,
 ) -> Option<Down> {
     match down {
         host::LinkDown::ReadList { read, endpoint, grant } => {
@@ -675,7 +676,7 @@ fn job_record(
     job: host::JobAssignment,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v11::Limits,
+    limits: &wire::v12::Limits,
 ) -> Option<wire::Job> {
     let workspace = match job.workspace {
         Some(workspace) => Some(
@@ -711,7 +712,7 @@ fn assignment_record(
     assignment: host::Assignment,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v11::Limits,
+    limits: &wire::v12::Limits,
 ) -> Option<wire::Assignment> {
     let run = assignment.assignment;
     let workspace = match run.workspace {
@@ -806,7 +807,7 @@ fn transcript(turns: &[Box<[u8]>], bound: u32) -> Option<Box<[u8]>> {
 fn grant_record(
     grant: jig_domain_link::Grant,
     value: crate::GrantValue,
-    limits: &wire::v11::Limits,
+    limits: &wire::v12::Limits,
 ) -> Option<wire::Grant> {
     let value = match grant.form {
         Form::Program(form) => match value {
@@ -854,7 +855,7 @@ const fn grant_scheme(scheme: Scheme) -> crate::Scheme {
         Scheme::Key => crate::Scheme::Key,
     }
 }
-fn settled(answer: host::SettledAnswer, limits: &wire::v11::Limits) -> Option<wire::SettledAnswer> {
+fn settled(answer: host::SettledAnswer, limits: &wire::v12::Limits) -> Option<wire::SettledAnswer> {
     match answer {
         host::SettledAnswer::Host { error, body } => {
             Some(wire::SettledAnswer::Host(wire::HostAnswer::new(limits, wire::HostAnswerParts { error, body }).ok()?))
@@ -874,7 +875,7 @@ fn settled(answer: host::SettledAnswer, limits: &wire::v11::Limits) -> Option<wi
     }
 }
 
-pub(crate) fn turn_busy(run: Token, attempt: Token, turn: u32, limits: &wire::v11::Limits) -> Down {
+pub(crate) fn turn_busy(run: Token, attempt: Token, turn: u32, limits: &wire::v12::Limits) -> Down {
     Down::TurnBusy(
         wire::TurnBusy::new(limits, wire::TurnBusyParts { task: run.raw(), attempt: attempt.raw(), number: turn })
             .expect("fixed turn busy fields fit"),

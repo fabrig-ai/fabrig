@@ -2,7 +2,7 @@ use super::fixtures::SIZES_ONE_SLOT;
 use crate::{
     self as wire,
     sizes::{self, Sizes},
-    v11,
+    v12,
 };
 use skein_lib::{List, Reader, Writer};
 
@@ -12,7 +12,8 @@ const EMAIL_BYTES: usize = 255;
 #[test]
 fn source_caps_are_measured_without_run_slots() {
     let sizes = Sizes { slots: 0, ..SIZES_ONE_SLOT };
-    assert_eq!(sizes::engine_cap(&sizes), Some(sizes::Cap { bytes: 337, frames: 6 }));
+    // Source commands and a read list (337), plus the host-wide statement (620).
+    assert_eq!(sizes::engine_cap(&sizes), Some(sizes::Cap { bytes: 957, frames: 7 }));
 }
 #[test]
 fn source_record_bodies_are_measured() {
@@ -120,5 +121,5 @@ fn whole_source_lists_enforce_bounds_through_round_trip() {
             assert_eq!(wire::Sources::decode(&limits, &mut Reader::new(&writer.finish())), Ok(sources));
         }
     }
-    v11::check_limits(&limits).expect("source limits");
+    v12::check_limits(&limits).expect("source limits");
 }

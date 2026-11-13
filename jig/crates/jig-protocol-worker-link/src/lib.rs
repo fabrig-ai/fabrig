@@ -11,6 +11,7 @@ mod grace;
 mod limits;
 mod relays;
 mod translate;
+mod wires;
 pub use boundary::{Event, GrantValue, Loss, Request, Scheme};
 pub use component::{Component, Credential, Unusable};
 pub use limits::{Limits, channel_limits, valid};

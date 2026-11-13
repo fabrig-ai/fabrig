@@ -1,4 +1,4 @@
-family jig-worker-wire 11
+family jig-worker-wire 12
 
 # The worker's credential (protocol/channel/README.md, 4.1).
 record Wire { name: text 32 lowest: u16 layouts: list 16 fixed 32 }
@@ -48,6 +48,7 @@ record Call {
     writes: bool
     input: bytes 1048576
     deadline: duration
+    contract: u16
 }
 enum StartCause { other, grants, transcript }
 record InvalidStart { why: bytes 4096 cause: StartCause }
@@ -192,6 +193,10 @@ record ListRead { read: u64 outcome: ListOutcome }
 # A shutting worker leaves placement (jig/docs/design/protocol/channel/records.md, 1).
 record Draining {}
 
+# The engine states the agreed wires (protocol/channel/bridges.md, 3).
+record AgreedWire { name: text 32 version: u16 }
+record Agreed { wires: list 16 AgreedWire }
+
 # The channel's kinds (protocol/channel/wires.md, 4).
 enum FromWorker {
     hello: Hello, turn: Turn, call: Call, answer: Answer, fact: Fact,
@@ -202,5 +207,5 @@ enum FromWorker {
 enum FromEngine {
     assignment: Assignment, message: Inbound, relayed: Relayed, turn_kept: TurnKept,
     turn_busy: TurnBusy, acknowledge: Acknowledge, cancel: Cancel, grant: Granted,
-    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList
+    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList, wires: Agreed
 }

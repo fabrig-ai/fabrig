@@ -396,6 +396,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::SignedOut => "signed-out",
                 Kind::Job => "job",
                 Kind::JobAnswer => "job-answer",
+                Kind::Wires => "wires",
             };
             let bound = match unsent.bound {
                 Bound::Room(room) => format!("past the room of {room} bytes"),
