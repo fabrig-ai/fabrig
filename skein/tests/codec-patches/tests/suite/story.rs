@@ -60,12 +60,17 @@ mod tests {
     fn author(root: &Path, path: &str, step: &str, name: &str) {
         put(root, Path::new(path), &fs::read(input(step, name)).expect("author's input"));
     }
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "reads SKEIN_PATCH_WRITE to regenerate the command's module fixtures"
+    )]
     fn text(root: &Path, path: &str, step: &str, name: &str) {
-        assert_eq!(
-            fs::read_to_string(root.join(path)).expect("command's text"),
-            fs::read_to_string(input(step, name)).expect("expected text"),
-            "{step}: {path}"
-        );
+        let actual = fs::read_to_string(root.join(path)).expect("command's text");
+        let write = std::env::var_os("SKEIN_PATCH_WRITE").is_some_and(|value| value == "1");
+        if path == "patches/mod.rs" && write {
+            fs::write(input(step, name), &actual).expect("regenerate the command's module fixture");
+        }
+        assert_eq!(actual, fs::read_to_string(input(step, name)).expect("expected text"), "{step}: {path}");
     }
     fn files(root: &Path, directory: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
         let mut result = BTreeMap::new();

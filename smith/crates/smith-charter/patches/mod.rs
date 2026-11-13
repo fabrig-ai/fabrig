@@ -10,6 +10,9 @@ pub const PATCHES: &[&str] = &[];
 
 pub mod kept {
     pub mod smith_charter {
+        use skein_codec::bridge::{Bridge, BridgeError};
+        use skein_codec::patch::Capacity;
+
         pub const TEXTS: &[&str] = &[r"family smith-charter 4
 
 # Section bounds cover host brief text; admission also applies Limits.run_bytes.
@@ -93,6 +96,11 @@ versioned record RunResult {
     items: list 256 Item
 }
 "];
+        pub const FLOOR: u16 = 4;
+
+        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {
+            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)
+        }
         pub mod v4 {
             pub mod section {
                 use skein_codec::schema::FieldIx;
@@ -252,6 +260,10 @@ pub mod refusal {}
 
 pub fn written(site: Site, _old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {
     Err(Halt::NoSite(site))
+}
+
+pub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {
+    written(site, old, new, at, &mut Context::default())
 }
 
 #[cfg(test)]

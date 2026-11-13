@@ -10,6 +10,9 @@ pub const PATCHES: &[&str] = &[];
 
 pub mod kept {
     pub mod smith_channel {
+        use skein_codec::bridge::{Bridge, BridgeError};
+        use skein_codec::patch::Capacity;
+
         pub const TEXTS: &[&str] = &[r"family smith-channel 7
 
 # The receiving host/agent additionally checks aggregate ownership and counts
@@ -212,6 +215,11 @@ enum LiveKind { text, reasoning, input }
 record LiveCall { id: text 256 tool: text 64 }
 record Live { turn: u32 retry: u32 kind: LiveKind offset: u64 bytes: bytes 4096 call: option LiveCall }
 "];
+        pub const FLOOR: u16 = 7;
+
+        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {
+            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)
+        }
         pub mod v7 {
             pub mod call_name {
                 use skein_codec::schema::FieldIx;
@@ -867,6 +875,10 @@ pub mod refusal {}
 
 pub fn written(site: Site, _old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {
     Err(Halt::NoSite(site))
+}
+
+pub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {
+    written(site, old, new, at, &mut Context::default())
 }
 
 #[cfg(test)]
