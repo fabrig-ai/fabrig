@@ -2,7 +2,6 @@
 
 2026-11-12. Where skein's code lags or departs from [channel.md](channel.md).
 
-- **Not yet:** 5.2 and 8.3: the machine's *version* refusal names both ranges in its text, and the owner's terminal for a refusal by this side carries the text it sent [in flight: change 1754].
 
 - **Departs:** 8.3: four cells of `skein-channel/src/machine.rs` break "its
   owner hears closed once, with why" or "closing stops now", because the

@@ -2,7 +2,6 @@
 
 2026-11-12. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4.1: the credential states the wires in place of the payload version, *wires* refuses a worker whose wires differ, terms are the agreed version's, and the channel's version moves with its layout [in flight: change 1754].
 
 - **Not yet:** 10: the application's parts' ceilings: a run's saved work is at most 65,536 bytes (`worker-wire-v9.schema`, `Work`), not 16 MiB.
 
