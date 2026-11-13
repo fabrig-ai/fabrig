@@ -40,6 +40,8 @@ enum Life {
 pub struct Component {
     limits: Limits,
     credential: wire::Credential,
+    schema: channel::Schema,
+    wires: List<wire::Spoken>,
     phase: Phase,
     backoff: Backoff,
     events: Queue<channel::Event>,
@@ -54,13 +56,21 @@ pub struct Component {
     pending_logins: Option<channel::Frame>,
 }
 impl Component {
-    pub fn new(limits: &Limits, credential: Credential, seed: u64) -> Result<Self, Unusable> {
+    pub fn new(limits: &Limits, jig: List<wire::Spoken>, credential: Credential, seed: u64) -> Result<Self, Unusable> {
         if !limits::valid(limits) {
             return Err(Unusable::Limits);
         }
         let bodies = sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
+        let schema = wire::schema_for(&bodies, &jig).ok_or(Unusable::Limits)?;
+        let mut spoken_wires = List::uncapped();
+        for spoken in &jig {
+            spoken_wires.push(spoken.clone()).expect("uncapped wires");
+        }
+        for spoken in &credential.wires {
+            spoken_wires.push(spoken.clone()).or(Err(Unusable::Credential))?;
+        }
         let mut wires = List::with_capacity(bodies.credential_wires);
-        for spoken in &wire::spoken() {
+        for spoken in &jig {
             let wire = wire::Wire::new(
                 &bodies,
                 wire::WireParts {
@@ -93,6 +103,8 @@ impl Component {
         Ok(Self {
             limits: *limits,
             credential,
+            schema,
+            wires: spoken_wires,
             phase: Phase::Idle { at: Time::ZERO },
             backoff,
             events: Queue::uncapped(),
@@ -269,12 +281,19 @@ impl Component {
                 return;
             }
         }
-        let bodies = sizes::limits(&self.limits.sizes).expect("constructor checked sizes");
-        let schema = wire::schema(&bodies).expect("constructor checked schema");
+        let schema = self.schema.clone();
         let channel = limits::channel_limits(&self.limits).expect("constructor checked channel limits");
         let machine = Machine::new(schema, Role::Initiator, channel).expect("constructor checked channel");
         self.phase = Phase::Opening {
-            connection: Connection { token, machine, ping: None, silence: None, stall: None },
+            connection: Connection {
+                token,
+                machine,
+                ping: None,
+                silence: None,
+                stall: None,
+                wires: None,
+                stated: false,
+            },
             until: now.saturating_add(self.limits.handshake),
         };
         if self.life != Life::Active {
@@ -509,32 +528,7 @@ impl Component {
             | channel::Event::Sent { .. } => {}
         }
         match event {
-            channel::Event::Ready { version, terms } => {
-                let bodies = sizes::limits(&self.limits.sizes).expect("checked sizes");
-                let schema = wire::schema(&bodies).expect("checked schema");
-                if let Some(kind) = wire::terms_gap(&schema, version, Role::Initiator, &terms) {
-                    self.command(channel::Request::Refuse {
-                        reason: REFUSED_LIMITS,
-                        text: bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes()),
-                    });
-                    let started = self.begin_loss(now, Loss::Closed(Closed::RefusedHere(REFUSED_LIMITS)), out);
-                    assert!(started, "terms are checked during opening");
-                } else {
-                    let phase = mem::replace(&mut self.phase, Phase::Connecting);
-                    self.phase = match phase {
-                        Phase::Opening { connection, .. } => Phase::Open { connection, proved: None, hello: false },
-                        other @ (Phase::Idle { .. }
-                        | Phase::Connecting
-                        | Phase::Open { .. }
-                        | Phase::Closing { .. }) => other,
-                    };
-                    if let Some(connection) = self.phase.connection() {
-                        connection.live(now, &self.limits);
-                    }
-                    out.push(Request::Ready);
-                    self.command(channel::Request::Read);
-                }
-            }
+            channel::Event::Ready { version, terms } => self.ready(now, version, &terms, out),
             channel::Event::Refused { reason, text } => {
                 out.push(Request::Refused { reason, text });
                 self.lose(now, Loss::Closed(Closed::RefusedPeer(reason)), out);
@@ -586,8 +580,72 @@ impl Component {
             channel::Event::Sent { .. } => {}
         }
     }
+    fn ready(&mut self, now: Time, version: u16, terms: &List<channel::Term>, out: &mut Queue<Request>) {
+        if let Some(kind) = wire::terms_gap(&self.schema, version, Role::Initiator, terms) {
+            self.command(channel::Request::Refuse {
+                reason: REFUSED_LIMITS,
+                text: bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes()),
+            });
+            let started = self.begin_loss(now, Loss::Closed(Closed::RefusedHere(REFUSED_LIMITS)), out);
+            assert!(started, "terms are checked during opening");
+        } else {
+            let singleton = crate::wires::singletons(&self.wires);
+            let statement =
+                self.schema.version(version).expect("agreed version").kind(wire::Kind::Wires.number()).is_some();
+            if !statement && singleton.is_none() {
+                self.lose(now, Loss::EngineStatesNoWires, out);
+                return;
+            }
+            let ready = singleton.is_some();
+            if let Some(connection) = self.phase.connection() {
+                connection.wires = singleton;
+            }
+            let phase = mem::replace(&mut self.phase, Phase::Connecting);
+            self.phase = match phase {
+                Phase::Opening { connection, .. } => Phase::Open { connection, proved: None, hello: false },
+                other @ (Phase::Idle { .. } | Phase::Connecting | Phase::Open { .. } | Phase::Closing { .. }) => other,
+            };
+            if let Some(connection) = self.phase.connection() {
+                connection.live(now, &self.limits);
+            }
+            if ready {
+                out.push(Request::Ready);
+            }
+            self.command(channel::Request::Read);
+        }
+    }
     fn body(&mut self, now: Time, kind: u16, body: &[u8], out: &mut Queue<Request>) {
         let limits = sizes::limits(&self.limits.sizes).expect("checked sizes");
+        if kind == wire::Kind::Wires.number() {
+            let record = wire::v12::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
+            let agreed = match record {
+                Ok(record) => crate::wires::statement(&self.wires, &record),
+                Err(_) => None,
+            };
+            let Some(agreed) = agreed else {
+                self.lose(now, Loss::Fault, out);
+                return;
+            };
+            let Some(connection) = self.phase.connection() else { return };
+            if connection.stated {
+                self.lose(now, Loss::Fault, out);
+                return;
+            }
+            let ready = connection.wires.is_none();
+            connection.wires = Some(agreed);
+            connection.stated = true;
+            if ready {
+                out.push(Request::Ready);
+            }
+            self.command(channel::Request::Read);
+            return;
+        }
+        if let Some(connection) = self.phase.connection()
+            && connection.wires.is_none()
+        {
+            self.lose(now, Loss::Fault, out);
+            return;
+        }
         if kind == 0x0184 {
             let record = wire::TurnBusy::decode(&limits, &mut skein_lib::Reader::new(body));
             match record {

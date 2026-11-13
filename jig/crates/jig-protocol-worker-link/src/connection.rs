@@ -9,6 +9,8 @@ pub(crate) struct Connection {
     pub(crate) ping: Option<Time>,
     pub(crate) silence: Option<Time>,
     pub(crate) stall: Option<Time>,
+    pub(crate) wires: Option<skein_lib::List<jig_protocol_worker_wire::Agreed>>,
+    pub(crate) stated: bool,
 }
 #[derive(Debug)]
 pub(crate) enum Phase {

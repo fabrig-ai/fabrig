@@ -5,7 +5,7 @@ use skein_channel::{Direction, Role, Term};
 use skein_lib::{Duration, List, Reader};
 
 // Hello151 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
-const HELLO_MAX: u32 = 151 + 4 + crate::v11::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
+const HELLO_MAX: u32 = 151 + 4 + crate::v12::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
 fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
@@ -17,7 +17,7 @@ fn hello_terms(largest: u32) -> List<Term> {
     // a refusal's code and reason each take a length and sixteen bytes.
     for (kind, largest) in [
         (0x0101, 96),
-        (0x0102, 101),
+        (0x0102, 103),
         (0x0103, 145),
         (0x0104, 398),
         (0x0105, 28),
@@ -35,7 +35,7 @@ fn hello_terms(largest: u32) -> List<Term> {
 }
 
 fn down_terms() -> List<Term> {
-    let mut terms = List::with_capacity(13);
+    let mut terms = List::with_capacity(14);
     // Independently summed from field widths and the fixture limits.
     for (kind, largest) in [
         (0x0180, 567),
@@ -51,6 +51,7 @@ fn down_terms() -> List<Term> {
         (0x018a, 36),
         (0x018b, 229),
         (0x018c, 70),
+        (0x018d, 612),
     ] {
         terms.push(Term { kind, largest }).expect("one term per down kind");
     }
@@ -173,8 +174,8 @@ fn a_hello_past_the_endpoint_ceiling_is_refused_at_its_bound() {
         (at_cap, Ok(ENDPOINT_CAP)),
         (
             past_cap,
-            Err(crate::v11::Problem {
-                path: crate::v11::Path::BoundsProgramEndpoints,
+            Err(crate::v12::Problem {
+                path: crate::v12::Path::BoundsProgramEndpoints,
                 reason: skein_codec::Reason::Bound,
             }),
         ),
@@ -214,7 +215,7 @@ fn the_schema_lists_the_hello_from_the_initiator() {
     let schema = hello_schema();
     let version = schema.version(crate::VERSION).expect("one version");
     assert_eq!(schema.magic, *b"jigw");
-    assert_eq!(version.kinds.len(), 26);
+    assert_eq!(version.kinds.len(), 27);
     assert_eq!(
         version.kind(0x0100),
         Some(skein_channel::Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: HELLO_MAX })
@@ -353,7 +354,7 @@ pub(super) fn through_bytes<T>(
     value: &T,
     measure: fn(&T) -> u32,
     encode: fn(&T, &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>,
-    decode: fn(&crate::v11::Limits, &mut Reader<'_>) -> Result<T, crate::v11::Problem>,
+    decode: fn(&crate::v12::Limits, &mut Reader<'_>) -> Result<T, crate::v12::Problem>,
 ) -> T {
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(measure(value)));
     encode(value, &mut writer).expect("measured room");
@@ -576,7 +577,7 @@ fn an_assignment_past_its_grant_bound_is_refused() {
 fn the_schema_lists_every_down_kind_from_the_responder() {
     let schema = hello_schema();
     let version = schema.version(crate::VERSION).expect("one version");
-    assert_eq!(version.kinds.len(), 26);
+    assert_eq!(version.kinds.len(), 27);
     for term in &down_terms() {
         assert_eq!(
             version.kind(term.kind),

@@ -38,7 +38,7 @@ pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v11::Limits,
+    pub(crate) codec: wire::v12::Limits,
     pub(crate) connections: Map<Token, Connection>,
     schema: skein_channel::Schema,
     next_channel: u64,
@@ -53,12 +53,17 @@ impl core::fmt::Debug for Component {
     }
 }
 impl Component {
-    pub fn new(limits: &Limits, workers: Box<[Worker]>, application: List<wire::Spoken>) -> Result<Self, Unusable> {
+    pub fn new(
+        limits: &Limits,
+        workers: Box<[Worker]>,
+        jig: List<wire::Spoken>,
+        application: List<wire::Spoken>,
+    ) -> Result<Self, Unusable> {
         if !crate::valid(limits) {
             return Err(Unusable::Limits);
         }
         let codec = wire::sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
-        let schema = crate::limits::schema(limits).ok_or(Unusable::Limits)?;
+        let schema = wire::schema_for(&codec, &jig).ok_or(Unusable::Limits)?;
         if workers.len() > skein_lib::length::usize_of(limits.names) {
             return Err(Unusable::Workers);
         }
@@ -73,7 +78,7 @@ impl Component {
             }
         }
         let mut wires = List::uncapped();
-        for wire in &wire::spoken() {
+        for wire in &jig {
             wires.push(wire.clone()).expect("uncapped wire list");
         }
         for wire in &application {
@@ -457,6 +462,32 @@ impl Component {
                     let text = bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes());
                     self.refuse(now, connection, state, 2, text, out);
                 } else {
+                    if self.schema.version(version).expect("agreed version").kind(wire::Kind::Wires.number()).is_some()
+                    {
+                        let mut wires = List::with_capacity(self.codec.agreed_wires);
+                        for agreed in &state.wires {
+                            let record = wire::AgreedWire::new(
+                                &self.codec,
+                                wire::AgreedWireParts {
+                                    name: bytes::copy_of(agreed.name.as_bytes()),
+                                    version: agreed.version,
+                                },
+                            )
+                            .expect("agreed wire fits credential limits");
+                            wires.push(record).expect("agreed wires fit credential limits");
+                        }
+                        let record = wire::v12::Agreed::new(&self.codec, wire::v12::AgreedParts { wires })
+                            .expect("agreed wires fit credential limits");
+                        let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
+                        record.encode(&mut body).expect("measured statement");
+                        let mut frame = skein_channel::frame_writer(wire::Kind::Wires.number(), record.measure())
+                            .expect("bounded statement");
+                        frame.put(&body.finish()).expect("measured statement");
+                        let frame = frame.finish().expect("measured statement");
+                        self.sending =
+                            Some(Sending { kind: wire::Kind::Wires, bytes: frame.wire_len(), reply: Reply::Drop });
+                        state.down(ChannelRequest::Send { token: state.channel, frame }, connection, out);
+                    }
                     out.push(Request::Opened {
                         worker: state.worker.expect("authenticated worker"),
                         wires: state.wires.clone(),
