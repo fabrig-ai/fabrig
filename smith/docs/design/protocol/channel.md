@@ -71,11 +71,12 @@ of domain/host.md, section 2.
   of kinds, and the records of that version's schema. Each half speaks
   one version, its build's, and offers only that one: this channel is
   per-build (README.md, section 8).
-  The current version is 7 (`channel-v7.schema`), which added the drain
-  (section 3). From 2026-11-12 the version moves with every change to its
-  layout (the owner, 2026-11-12), as a new kind always moved it, and the
+  The current version is 8 (`channel-v8.schema`), which added a model
+  failure's status to its report (section 4). From 2026-11-12 the version
+  moves with every change to its layout (the owner, 2026-11-12), as a new
+  kind always moved it, and the
   previous version's schema and goldens stay in the tree unchanged, as
-  its kept text. Version 6 is kept text, not a negotiated version.
+  its kept text. Version 7 is kept text, not a negotiated version.
 - **The host and agent stay on one build.** A consumer that spawns agents
   pins their program and configuration for its lifetime, and never
   adopts a previous host process's agents. In temper, the worker pins

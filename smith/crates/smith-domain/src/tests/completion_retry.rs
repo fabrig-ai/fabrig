@@ -297,7 +297,12 @@ fn a_limited_account_ends_the_run_with_its_reset() {
 
 #[test]
 fn a_refused_account_ends_the_run_with_its_code() {
-    let report = crate::llm::Report { code: bytes(b"not-eligible"), request: bytes(b"request"), field: Box::default() };
+    let report = crate::llm::Report {
+        status: None,
+        code: bytes(b"not-eligible"),
+        request: bytes(b"request"),
+        field: Box::default(),
+    };
     let terminal = account_failure(Failure::Refused, report, Time::ZERO, Time::ZERO, Some(0)).0;
     assert_eq!(
         terminal,
@@ -307,8 +312,12 @@ fn a_refused_account_ends_the_run_with_its_code() {
 
 #[test]
 fn an_unsupported_request_ends_the_run_naming_its_field() {
-    let report =
-        crate::llm::Report { code: bytes(b"unsupported"), request: bytes(b"request"), field: bytes(b"temperature") };
+    let report = crate::llm::Report {
+        status: None,
+        code: bytes(b"unsupported"),
+        request: bytes(b"request"),
+        field: bytes(b"temperature"),
+    };
     let terminal = account_failure(Failure::Unsupported, report, Time::ZERO, Time::ZERO, Some(0)).0;
     assert_eq!(
         terminal,
@@ -318,6 +327,7 @@ fn an_unsupported_request_ends_the_run_naming_its_field() {
             model: 0,
             attempts: 1,
             report: run::Report {
+                status: None,
                 code: bytes(b"unsupported"),
                 request: bytes(b"request"),
                 field: bytes(b"temperature")
@@ -342,11 +352,45 @@ fn an_unaccounted_llms_account_failure_names_no_account() {
                     evidence: run::CompletionEvidence::Response { status: Some(403) },
                     model: 0,
                     attempts: 1,
-                    report: run::Report { code: Box::default(), request: Box::default(), field: Box::default() },
+                    report: run::Report {
+                        status: None,
+                        code: Box::default(),
+                        request: Box::default(),
+                        field: Box::default()
+                    },
                 })),
                 0
             ),
             "{failure:?}"
+        );
+    }
+}
+
+#[test]
+fn a_program_failure_report_keeps_its_status_in_the_runs_fault() {
+    for status in [Some(403), None] {
+        let report =
+            crate::llm::Report { status, code: bytes(b"code"), request: bytes(b"request"), field: bytes(b"field") };
+        let end = session::End::Failed {
+            failure: Failure::Unavailable,
+            evidence: Evidence::Unsent,
+            attempts: 3,
+            detail: bytes(b"program result"),
+        };
+        assert_eq!(
+            crate::translate::end(end, 2, Some(0), None, report),
+            run::End::Fault(run::Fault::Completion {
+                failure: run::CompletionFailure::Unavailable,
+                evidence: run::CompletionEvidence::Unsent,
+                model: 2,
+                attempts: 3,
+                report: run::Report {
+                    status,
+                    code: bytes(b"code"),
+                    request: bytes(b"request"),
+                    field: bytes(b"field")
+                },
+            })
         );
     }
 }
