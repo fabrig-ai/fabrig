@@ -841,6 +841,17 @@ impl Protocol {
 }
 fn key(row: &top::Stored) -> top::Key {
     match row {
+        top::Stored::HistoryProject(row) => top::Key::HistoryProject { project: row.project },
+        top::Stored::HistoryEvent(row) => top::Key::HistoryEvent { project: row.project, number: row.number },
+        top::Stored::HistoryChange(row) => {
+            top::Key::HistoryChange { project: row.project, change: row.change, number: row.number }
+        }
+        top::Stored::HistoryLanding(row) => {
+            top::Key::HistoryLanding { project: row.project, landing: row.landing, number: row.number }
+        }
+        top::Stored::HistoryLast(row) => {
+            top::Key::HistoryLast { project: row.project, number: row.number, change: row.change }
+        }
         top::Stored::Landing(row) => top::Key::Landing(row.landing.task),
         top::Stored::Receipt { key, .. } => top::Key::Receipt(key.clone()),
         top::Stored::Call { key, .. } => top::Key::Call(*key),

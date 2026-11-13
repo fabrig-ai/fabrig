@@ -234,6 +234,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }))
 }

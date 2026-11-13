@@ -174,7 +174,12 @@ impl Reconciliation {
             // Landing history outlives tasks (domain/forge/README.md, 5.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
-            Stored::Forge(_)
+            Stored::HistoryProject(_)
+            | Stored::HistoryEvent(_)
+            | Stored::HistoryChange(_)
+            | Stored::HistoryLanding(_)
+            | Stored::HistoryLast(_)
+            | Stored::Forge(_)
             | Stored::ForgeNumber { .. }
             | Stored::Playground(_)
             | Stored::Landed { .. }
@@ -299,6 +304,7 @@ impl Domain {
             | RecordKind::Writer
             | RecordKind::Making
             | RecordKind::Binding
+            | RecordKind::HistoryProject
             | RecordKind::ProjectFacts
             | RecordKind::Device
             | RecordKind::LandedDraft
