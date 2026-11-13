@@ -196,6 +196,35 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   runs no CI: a change's delivery checks are all it meets before it lands
   there. The landing's CI into main, the project's full gate, is the
   guard (`../../protocol/configuration/reference.md`).
+- **A change's commits are its maker's** (`../../draft/squash-in.md`,
+  2, 3 and 5). A producer commits on its own branch as it works, each
+  `deliver` and `save` a commit there, as many as it likes, worded as it
+  likes, work in progress among them; none of them reaches its base but
+  through the change's tree, and it never pushes to its base or
+  rewrites it. The change lands as one commit, a squash into a goal's
+  branch or temper's merge into main (`../landing.md`, 5.2), whose
+  message is the change's title, its description's first paragraph and
+  its trailers (`../../protocol/tooling.md`, 4): so the coding
+  charter's words have it write its `finish`'s `title` and its report's
+  first paragraph for the history (`../../protocol/configuration/stock.md`'s
+  charter 2 row). A goal's design delivery is a commit on its branch
+  as delivered, never squashed (`../forge/branches.md`, 3): so the
+  goal's agent's words have it write each delivery's title and body
+  for the history too, and deliver at any point, even while its closer
+  lands the branch, which then lands the new head
+  (`../forge/branches.md`, 2 and 3).
+- **Main into a goal's branch only for a change that needs it**
+  (`../../draft/squash-in.md`, 4 and 5; `../forge/branches.md`, 1).
+  The goal's agent's words have it ask for main's tip, a catch-up
+  (`../forge/README.md`, section 6, made with the `change` tool's
+  `merge`, `tools.md`, 1), only for a change of the goal whose work
+  rests on what main gained since the goal's branch was made, that
+  change naming the catch-up in its `after`; never to keep the branch
+  current, and never as a coding change whose only work is the
+  catch-up. The designer's words put the catch-up before the changes
+  that need it; the coordinator's take it as the prerequisite a
+  change's question needs (`../../protocol/configuration/stock.md`'s
+  charter 5 row).
 - **No security boundary:** an agent can change what a check runs
   (smith's `domain/run.md`, 8.1); the landing's CI and its authority's
   requirements guard what lands on main.
