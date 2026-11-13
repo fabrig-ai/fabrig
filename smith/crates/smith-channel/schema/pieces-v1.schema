@@ -1,0 +1,22 @@
+family smith-pieces 1
+
+record CallName { activation: u64 completion: u32 position: u32 }
+record Receipt { directory: u32 text: bytes 512 }
+record Delivered { receipts: list 64 Receipt }
+record Marker { directory: u32 path: text 4096 }
+record DeliveryRefusal { marker: option Marker explanation: text 512 }
+enum DeliveryReason {
+    unreachable, refused_by_target, timed_out, broken, too_large,
+    missing, busy, unavailable, cancelled, unknown
+}
+record DeliveryFailure {
+    directory: u32
+    reason: DeliveryReason
+    diagnostic: bytes 512
+    dropped: u64
+}
+enum Delivery {
+    delivered: Delivered, nothing, refused: DeliveryRefusal,
+    failed: DeliveryFailure, stale
+}
+record DeliveryReply { value: Delivery }

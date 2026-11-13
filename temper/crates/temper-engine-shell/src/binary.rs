@@ -216,7 +216,7 @@ mod tests {
         assert_eq!(wires.len(), 6);
         for (wire, name) in wires.iter().zip([
             "jig-worker-wire",
-            "smith-channel",
+            "smith-pieces",
             "smith-charter",
             "smith-transcript",
             "temper-worker-wire",

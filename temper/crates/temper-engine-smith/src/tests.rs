@@ -107,6 +107,24 @@ fn assignment() -> engine::Assignment {
 }
 
 #[test]
+fn charters_carry_the_engines_host_tools_contract() {
+    let assignment = assignment();
+    assert_eq!(crate::charter(&assignment).grants.contract, crate::wire::VERSION);
+    let smith::Event::Start(started) = start(
+        &assignment,
+        None,
+        None,
+        ReplyTo::new(Token::new(50)),
+        Token::new(23),
+        smith::Window { turns: 1, bytes: 100_000 },
+        &smith_agent_world::LIMITS.run,
+    ) else {
+        panic!("start conversion produces Smith Start");
+    };
+    assert_eq!(started.charter.grants.contract, crate::wire::VERSION);
+}
+
+#[test]
 fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     let window = smith::Window { turns: 1, bytes: 100_000 };
     let smith::Event::Start(smith::Start { activation, charter, grants, transcript, window: started_window, .. }) =

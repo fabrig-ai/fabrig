@@ -41,7 +41,11 @@ pub fn spoken() -> List<Spoken> {
     let mut wires = List::with_capacity(4);
     for wire in [
         Spoken::current(crate::wire::FAMILY, crate::wire::VERSION, crate::wire::layout()),
-        Spoken::current(smith_channel::wire::FAMILY, smith_channel::wire::VERSION, smith_channel::wire::layout()),
+        Spoken::current(
+            smith_channel::pieces::wire::FAMILY,
+            smith_channel::pieces::wire::VERSION,
+            smith_channel::pieces::wire::layout(),
+        ),
         Spoken::current(smith_charter::wire::FAMILY, smith_charter::wire::VERSION, smith_charter::wire::layout()),
         Spoken::current(
             smith_transcript::wire::FAMILY,
@@ -57,6 +61,19 @@ pub fn spoken() -> List<Spoken> {
 #[cfg(test)]
 mod tests {
     use super::Spoken;
+
+    #[test]
+    fn the_opening_states_jigs_wires_then_smiths_kept_families() {
+        let wires = super::spoken();
+        assert_eq!(wires.len(), 4);
+        for (wire, name) in wires.iter().zip(["jig-worker-wire", "smith-pieces", "smith-charter", "smith-transcript"]) {
+            assert_eq!(wire.name, name);
+        }
+        let pieces = wires.get(1).expect("the kept pieces follow jig's wire");
+        assert_eq!(pieces.lowest, smith_channel::pieces::wire::VERSION);
+        assert_eq!(pieces.highest(), smith_channel::pieces::wire::VERSION);
+        assert_eq!(pieces.layout(pieces.lowest), Some(smith_channel::pieces::wire::layout()));
+    }
 
     #[test]
     fn a_spoken_range_names_each_versions_layout() {

@@ -5,7 +5,7 @@ use skein_channel::SchemaError;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     pub bodies: smith_channel::Limits,
-    pub charter: smith_charter::v4::Limits,
+    pub charter: smith_charter::v5::Limits,
     pub transcript: smith_transcript::v7::Limits,
     /// Maximum configured endpoint names retained by this component.
     pub endpoints: u32,
