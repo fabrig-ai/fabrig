@@ -34,9 +34,11 @@ mod writer;
 mod fuzzy {
     mod branch_patterns;
     mod gate_keys;
+    mod history;
     mod landing_batches;
     mod member_message;
     mod pull_cutoff;
+    mod queue_history;
     mod rules_by_path;
     mod simulation;
 }
