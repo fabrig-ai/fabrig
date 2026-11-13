@@ -3730,7 +3730,10 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
         wake_after_turn(d, &saved, owned);
         save_change(d, out, saved);
         if ended {
-            emit(out, Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None });
+            emit(
+                out,
+                Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None },
+            );
         }
     }
 }
@@ -4836,11 +4839,7 @@ fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
 }
 
 fn waits_for_dependencies(row: &ChangeRow, pending: &PendingStep) -> bool {
-    if let change::State::Producing { .. } = row.change.state {
-        !pending.pending.is_empty()
-    } else {
-        false
-    }
+    if let change::State::Producing { .. } = row.change.state { !pending.pending.is_empty() } else { false }
 }
 
 /// Missing bases and uncertain reads count a stall except while producing waits for dependencies.

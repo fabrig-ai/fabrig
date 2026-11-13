@@ -13,14 +13,14 @@ const MAIN_PATH: &[u8] = b"main";
 const MAIN_WORK: &[u8] = b"main work";
 
 fn goal_world(command: bool, kind: bool, control: bool) -> (World, engine::Assignment, Box<[u8]>, u64) {
-    goal_world_with_limits(command, kind, control, StoryLimits::default())
+    goal_world_with_limits(command, kind, control, &StoryLimits::default())
 }
 
 pub(super) fn goal_world_with_limits(
     command: bool,
     kind: bool,
     control: bool,
-    limits: StoryLimits,
+    limits: &StoryLimits,
 ) -> (World, engine::Assignment, Box<[u8]>, u64) {
     let mut world = World::configured_limits(
         true,
@@ -29,7 +29,7 @@ pub(super) fn goal_world_with_limits(
         STEPS,
         Gate::default(),
         None,
-        StoryLimits { merge_kind: true, merge_authority: kind, ..limits },
+        StoryLimits { merge_kind: true, merge_authority: kind, ..*limits },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
         sets: Box::new([]),
