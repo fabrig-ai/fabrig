@@ -502,6 +502,7 @@ pub(super) fn root_at_with_classes(
         | temper_client_domain::Address::Ask { .. }
         | temper_client_domain::Address::Adopt { .. }
         | temper_client_domain::Address::Chat { .. }
+        | temper_client_domain::Address::Talk { .. }
         | temper_client_domain::Address::Task { .. }
         | temper_client_domain::Address::ConnectModel { .. } => false,
     };

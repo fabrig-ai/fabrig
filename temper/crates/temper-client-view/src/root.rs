@@ -152,6 +152,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Chats { .. }
             | temper_client_domain::Address::NewChat { .. }
             | temper_client_domain::Address::Chat { .. }
+            | temper_client_domain::Address::Talk { .. }
             | temper_client_domain::Address::Task { .. }
             | temper_client_domain::Address::AllHome
             | temper_client_domain::Address::Inbox { .. }
@@ -189,6 +190,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Limits
             | temper_client_domain::Address::Accounts
             | temper_client_domain::Address::Chat { .. }
+            | temper_client_domain::Address::Talk { .. }
             | temper_client_domain::Address::Task { .. }
             | temper_client_domain::Address::AllHome
             | temper_client_domain::Address::Inbox { .. }
@@ -365,7 +367,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &view.forge_sign_in,
             &mut view.forge,
         );
-    } else if let temper_client_domain::Address::Chat { .. } = root.pages().address() {
+    } else if let temper_client_domain::Address::Chat { .. } | temper_client_domain::Address::Talk { .. } =
+        root.pages().address()
+    {
         crate::pages::chat::main(
             &mut builder,
             root,
@@ -427,6 +431,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::frame::tabbar(&mut builder, root, &view.forge_words, &mut view.pages, project, times.now);
     }
     crate::frame::toast(&mut builder, root, &view.forge_words, &mut view.pages, &mut times);
+    if let Some(open) = root.pages().hand_area() {
+        crate::pages::team::hand_sheet(&mut builder, root, open, &view.forge_words, &mut view.pages);
+    }
     if let Some(start) = root.pages().start() {
         crate::pages::start_goal::sheet(&mut builder, root, start, &view.forge_words, &mut view.pages);
     }

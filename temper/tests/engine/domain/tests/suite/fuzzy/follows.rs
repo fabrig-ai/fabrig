@@ -1,6 +1,6 @@
 //! Seeded, sharded whole-engine follows (forge/follows.md, 11).
 //! A shard reruns its named seeds exactly; the failure trace names the seed and step.
-use crate::forge_routes::follow_changes::proof;
+use crate::forge_routes::follow_changes::{proof, role};
 use jig_domain_tasks as tasks;
 use skein_forge::api::Commit;
 use skein_lib::Rng;
@@ -33,9 +33,10 @@ enum Step {
     Skip(u64),
     Check(bool),
     Restart,
+    Owner(bool),
 }
 fn drawn(random: &mut Rng) -> Step {
-    match random.below(10) {
+    match random.below(12) {
         0 | 1 => Step::Landing(Files::Inside),
         2 => Step::Landing(Files::Outside),
         3 => Step::Landing(Files::Unknown),
@@ -44,7 +45,9 @@ fn drawn(random: &mut Rng) -> Step {
         6 => Step::Merge(random.next_u64()),
         7 => Step::Skip(random.next_u64()),
         8 => Step::Check(random.below(2) == 0),
-        _ => Step::Restart,
+        9 => Step::Restart,
+        10 => Step::Owner(true),
+        _ => Step::Owner(false),
     }
 }
 struct Driver {
@@ -52,10 +55,23 @@ struct Driver {
     referee: Referee,
     red: BTreeSet<u64>,
     key: u8,
+    role: u64,
+    task_owner: bool,
+    owner_edits: u8,
 }
 impl Driver {
     fn new() -> Self {
-        Self { world: proof::fixture(), referee: Referee::default(), red: BTreeSet::new(), key: 200 }
+        let mut world = proof::fixture();
+        let role = role::standing(&mut world, 150, 300);
+        Self {
+            world,
+            referee: Referee::default(),
+            red: BTreeSet::new(),
+            key: 200,
+            role,
+            task_owner: false,
+            owner_edits: 0,
+        }
     }
     fn act(&mut self, act: FollowAct) {
         self.key = self.key.checked_add(1).expect("bounded script keys");
@@ -133,6 +149,24 @@ impl Driver {
                 }
             }
             Step::Check(red) => self.check(red),
+            Step::Owner(task_owner) => {
+                // Repeated remakes count against the role's lifetime tree bound, not a fresh allowance.
+                if task_owner == self.task_owner || self.owner_edits == 4 {
+                    return;
+                }
+                self.key += 1;
+                proof::session(&mut self.world);
+                role::idle(&mut self.world, self.role);
+                let owner = if task_owner {
+                    forge::settings::FollowOwner::Task(self.role)
+                } else {
+                    forge::settings::FollowOwner::Person(1)
+                };
+                role::owner(&mut self.world, owner, self.key);
+                role::idle(&mut self.world, self.role);
+                self.task_owner = task_owner;
+                self.owner_edits += 1;
+            }
             Step::Restart => {
                 self.world.drain_cut();
                 self.world.restart_same();
@@ -197,6 +231,8 @@ fn run_replayed(seed: u64) {
         Step::Landing(Files::Outside),
         Step::Hold(0),
         Step::Merge(0),
+        Step::Owner(true),
+        Step::Owner(false),
         Step::Start(0),
         Step::Check(true),
         Step::Restart,

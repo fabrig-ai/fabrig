@@ -380,6 +380,7 @@ fn chat_views() -> crate::view::chat::Chat {
         })
         .collect();
     Chat {
+        head: None,
         pane: None,
         to_end: 1,
         entries: Box::new([Entry::Viewed(pieces)]),

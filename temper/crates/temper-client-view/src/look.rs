@@ -632,7 +632,7 @@ pub const PROJECT_NEW: Style = Style { owner: owner(), token: 162 };
 /// The open project's row while it is renamed (temper/docs/design/client/view.md, 3).
 pub const PROJECT_RENAME_FORM: Style = Style { owner: owner(), token: 163 };
 /// The Welcome step's temper box paragraph under its cards (client/pages/welcome.md, 1).
-pub const WELCOME_BOX_NOTE: Style = Style { owner: owner(), token: 762 };
+pub const WELCOME_BOX_NOTE: Style = Style { owner: owner(), token: 766 };
 /// The welcome's sheet for Forgejo on this machine, a modal dialog over the
 /// Forge step (temper/docs/design/client/pages/README.md).
 pub const WELCOME_SHEET: Style = Style { owner: owner(), token: 165 };
@@ -1486,6 +1486,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-session-time",
         b"temper-team-session-cost",
         b"temper-team-session-closing",
+        b"temper-team-report",
+        b"temper-team-areas",
+        b"temper-team-routing",
+        b"temper-team-talk",
         b"temper-welcome-box-note",
         b"temper-status-line",
         b"temper-status-star",
@@ -2002,13 +2006,18 @@ pub const TEAM_SESSION: Style = Style { owner: owner(), token: 758 };
 pub const TEAM_SESSION_TIME: Style = Style { owner: owner(), token: 759 };
 pub const TEAM_SESSION_COST: Style = Style { owner: owner(), token: 760 };
 pub const TEAM_SESSION_CLOSING: Style = Style { owner: owner(), token: 761 };
+pub const TEAM_REPORT: Style = Style { owner: owner(), token: 762 };
+/// Areas and their routing holder (client/pages/team.md, 1).
+pub const TEAM_AREAS: Style = Style { owner: owner(), token: 763 };
+pub const TEAM_ROUTING: Style = Style { owner: owner(), token: 764 };
+pub const TEAM_TALK: Style = Style { owner: owner(), token: 765 };
 
 /// A chat's stable status and empty pane (client/web/look.md, A chat's status line and A chat's document).
-pub const STATUS_LINE: Style = Style { owner: owner(), token: 763 };
-pub const STATUS_STAR: Style = Style { owner: owner(), token: 764 };
-pub const STATUS_WORKING: Style = Style { owner: owner(), token: 765 };
-pub const DOC_ACTS: Style = Style { owner: owner(), token: 766 };
-pub const DOC_WRITE_UP: Style = Style { owner: owner(), token: 767 };
+pub const STATUS_LINE: Style = Style { owner: owner(), token: 767 };
+pub const STATUS_STAR: Style = Style { owner: owner(), token: 768 };
+pub const STATUS_WORKING: Style = Style { owner: owner(), token: 769 };
+pub const DOC_ACTS: Style = Style { owner: owner(), token: 770 };
+pub const DOC_WRITE_UP: Style = Style { owner: owner(), token: 771 };
 
 #[cfg(test)]
 mod tests {

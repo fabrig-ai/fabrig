@@ -95,7 +95,10 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   filing, naming the project's areas.
 - **Filed with none:** the triager's, state `new`. A red of no goal's
   (`after-landing.md`, section 7) and a person's word through Tell
-  temper (`../draft/whole-story.md`, section 2) are filed so.
+  temper (`../draft/whole-story.md`, section 2) are filed so, but for a
+  red whose landing brought a follow change, filed with the area its
+  follow's owner owns where it owns one (`forge/follows.md`, section
+  6).
 - **Handed on:** the act `hand` names an area of the project and why,
   in a line of 1 to 200 bytes. It sets the finding's area, keeps it
   `new`, and its new owner hears it with the why. The triager hands on

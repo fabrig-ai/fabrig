@@ -579,6 +579,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
+            CallPayload::Follow { refusal, .. } => Some(match refusal {
+                Some(words) => skein_lib::len_u64(words.len()),
+                None => 0,
+            }),
             CallPayload::Finding(reply) => {
                 u64::try_from(size_of_val(reply.as_ref())).ok()?.checked_add(findings::reply_bytes(reply)?)
             }

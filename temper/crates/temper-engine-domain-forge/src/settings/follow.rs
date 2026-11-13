@@ -119,6 +119,9 @@ pub fn follow_record(value: &Follow) -> Option<w::Follow> {
         FollowOwner::Person(person) => {
             w::FollowOwner::Person(w::FollowPerson::new(limits, w::FollowPersonParts { person }).ok()?)
         }
+        FollowOwner::Task(task) => {
+            w::FollowOwner::Task(w::FollowOwnerTask::new(limits, w::FollowOwnerTaskParts { task }).ok()?)
+        }
     };
     let start = match value.start {
         FollowStart::Owner => w::FollowStart::Owner,
@@ -167,6 +170,7 @@ pub fn follow_from(value: w::Follow) -> Follow {
         target: FollowTarget { repository: repository_from(target.repository), branch: target.branch },
         owner: match owner {
             w::FollowOwner::Person(person) => FollowOwner::Person(person.person()),
+            w::FollowOwner::Task(task) => FollowOwner::Task(task.task()),
         },
         start: match start {
             w::FollowStart::Owner => FollowStart::Owner,

@@ -102,7 +102,9 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   (`../draft/standing-roles.md`, section 8); an agent task of the
   project, through its `finding` tool (`agent/tools.md`), outside its
   task; the root, for a red of no goal's (after-landing.md, section 7):
-  kind `red`, severity `high`, no area, its title `Red after landing on
+  kind `red`, severity `high`, no area (or, for a landing that brought
+  a follow change, its follow's owner's area, `forge/follows.md`,
+  section 6), its title `Red after landing on
   BRANCH: tier NAME` and its body the red's news words (after-landing.md,
   section 7), once per landing the verdict reddens; the QA procedure,
   from its tester's report (section 8); and verdicts, a flake

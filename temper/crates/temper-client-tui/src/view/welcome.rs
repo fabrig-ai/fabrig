@@ -45,6 +45,7 @@ pub(crate) fn shown(root: &Domain, tui: &Tui) -> bool {
     match root.pages().address() {
         Address::Chat { .. } => return false,
         Address::Home { .. }
+        | Address::Talk { .. }
         | Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }

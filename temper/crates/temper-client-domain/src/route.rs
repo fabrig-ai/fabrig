@@ -56,6 +56,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
             }
             Action::Pages(crate::pages::Act::Playground) => playground(root, env, out),
             Action::Pages(crate::pages::Act::Suggest { cue }) => suggest(root, env, cue, out),
+            Action::Pages(crate::pages::Act::HandArea(act)) => crate::pages::team::hand::act(root, env, act, out),
             Action::Pages(crate::pages::Act::StopAsking(act)) => crate::pages::stop_asking::act(root, env, act, out),
             Action::Pages(crate::pages::Act::Away(act)) => crate::pages::away::act(root, env, act, out),
             Action::Pages(act) => pages(root, env, crate::pages::Event::Act { act }, out),
@@ -229,6 +230,7 @@ pub(crate) fn route_forge(
                     | Address::ConnectModel { .. }
                     | Address::Welcome { .. }
                     | Address::Chat { .. }
+                    | Address::Talk { .. }
                     | Address::Task { .. }
                     | Address::Home { .. }
                     | Address::Changes { .. }
@@ -334,6 +336,9 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told,
 fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
     use jig_client::Told;
     crate::sign_in_tab::told(root, &told, out);
+    if crate::pages::team::hand::told(root, env, &told, out) {
+        return;
+    }
     if crate::pages::stop_asking::told(root, env, &told) {
         return;
     }
@@ -558,6 +563,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Told
         | Address::Remembered

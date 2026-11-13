@@ -47,7 +47,7 @@ smith-fake-claude.workspace = true
 smith-agent-world.workspace = true
 skein-scratch.workspace = true
 smith-hosts-world = { path = "tests/hosts" }
-toml = "0.9"
+toml.workspace = true
 smith-events.workspace = true
 smith-events-fixtures.workspace = true
 smith-bench = { path = "benchmarks" }
@@ -55,7 +55,7 @@ skein-world.workspace = true
 skein-lib.workspace = true
 skein-oauth.workspace = true
 skein-llm.workspace = true
-serde_json = "1.0"
+serde_json.workspace = true
 
 smith-real-world.workspace = true
 skein-fake-llm-domain.workspace = true

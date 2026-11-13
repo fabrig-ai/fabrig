@@ -1,4 +1,6 @@
 //! The launchpad's states and hand-written frames (temper/docs/design/client/tui/pages/launchpad.md and temper/docs/design/client/tui/theme.md).
+#[path = "launchpad/team.rs"]
+pub(super) mod team;
 use super::{fixtures as f, goldens};
 use crate::{
     Local, Scheme, Told, Tui, look,
@@ -21,8 +23,8 @@ const OLDER_CHAT: u64 = 11;
 const FAILURES: u32 = 25;
 // The longest state includes the header, rows, Start and notes.
 const LINES: u32 = 16;
-// Six review frames; six needs are one past the design's five-line bound.
-const FRAMES: u32 = 6;
+// Nine review frames; six needs are one past the design's five-line bound.
+const FRAMES: u32 = 9;
 const SIX_NEEDS: u32 = 6;
 // Two hours after the landing, at 09:42; a brief is written at 07:42.
 const MINUTE: u64 = 60_000_000_000;
@@ -148,8 +150,7 @@ fn home_rows(
 ) -> Domain {
     home_projects(brief, chats, goals, needs, playground, address, lede, false)
 }
-#[expect(clippy::too_many_arguments, reason = "the fixture supplies independent public reads for two projects")]
-#[expect(clippy::too_many_lines, reason = "the fixture supplies Home's independent public reads and brief")]
+#[expect(clippy::too_many_arguments, reason = "Home's independent reads")]
 fn home_projects(
     brief: Option<bool>,
     chats: &[c::TaskLine],
@@ -159,6 +160,21 @@ fn home_projects(
     address: Address,
     lede: &[u8],
     across: bool,
+) -> Domain {
+    home_team(brief, chats, goals, needs, playground, address, lede, across, None)
+}
+#[expect(clippy::too_many_arguments, reason = "the fixture supplies independent public reads for two projects")]
+#[expect(clippy::too_many_lines, reason = "the fixture supplies Home's independent public reads and brief")]
+fn home_team(
+    brief: Option<bool>,
+    chats: &[c::TaskLine],
+    goals: &[c::TaskLine],
+    needs: bool,
+    playground: Option<(Option<u32>, w::PlaygroundState)>,
+    address: Address,
+    lede: &[u8],
+    across: bool,
+    team: Option<team::Fixture<'_>>,
 ) -> Domain {
     let chat = address == (Address::Chat { task: CHAT });
     let mut playground = playground;
@@ -194,6 +210,39 @@ fn home_projects(
                 }
                 Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) }
             }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) }
+                if query.label == Some(3) =>
+            {
+                let Some(team) = &team else { continue };
+                let Some(roles) = team.roles else { continue };
+                Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(team::roles(roles)))) }
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Project { .. }) }
+                if team.is_some() =>
+            {
+                Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(Box::new(
+                        team::project(),
+                    )))),
+                }
+            }
+            jig_client::Down::Open { watch, subject }
+                if team.is_some()
+                    && Some(&subject) == d::forge::findings::watch(PROJECT, &f::limits().forge).as_ref() =>
+            {
+                Up::FamilyDelivered { watch, record: family(wire::findings(&team::findings(team.as_ref().unwrap()))) }
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Notes { scope, .. }) }
+                if team.is_some() =>
+            {
+                Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(team::now(
+                        scope,
+                    ))))),
+                }
+            }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { query, .. }) } => {
                 let mut rows = List::with_capacity(u32::try_from(chats.len().max(goals.len())).unwrap());
                 for row in if query.tracked == Some(true) { goals } else { chats } {
@@ -223,7 +272,7 @@ fn home_projects(
                 }
                 let mut document = inbox();
                 if needs {
-                    document.needs = entries();
+                    document.needs = if team.is_some() { team::entries() } else { entries() };
                     if across {
                         for (index, entry) in document.needs.iter_mut().enumerate() {
                             if !chat || index == 1 {
@@ -316,7 +365,7 @@ fn home_projects(
                     result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
                         c::InboxPage {
                             rows: if needs && group == c::InboxReadGroup::Needs {
-                                let mut entries = entries();
+                                let mut entries = if team.is_some() { team::entries() } else { entries() };
                                 if across {
                                     for entry in entries.iter_mut() {
                                         entry.project = Some(OTHER_PROJECT);
@@ -863,6 +912,27 @@ fn the_launchpads_are_their_goldens() {
             true,
             include_bytes!("golden/launchpad-none-80x24-dark.txt").as_slice(),
         ),
+        (
+            "launchpad-team-80x24-dark",
+            Scheme::Dark,
+            FULL,
+            false,
+            include_bytes!("golden/launchpad-team-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "launchpad-team-80x24-light",
+            Scheme::Light,
+            FULL,
+            false,
+            include_bytes!("golden/launchpad-team-80x24-light.txt").as_slice(),
+        ),
+        (
+            "launchpad-team-110x32-dark",
+            Scheme::Dark,
+            Size { columns: 110, rows: 32 },
+            false,
+            include_bytes!("golden/launchpad-team-110x32-dark.txt").as_slice(),
+        ),
     ];
     let mut goal = goal(7, BRIEF_AT, PARTY, false);
     goal.waits_on = c::WaitsOn::Nothing;
@@ -881,6 +951,7 @@ fn the_launchpads_are_their_goldens() {
         LEDE.as_bytes(),
         true,
     );
+    let team_root = team::root(team::Fixture { roles: Some(&[b"Prover", b"Triager"]), areas: true, you: true });
     let (none, _) = f::live(Some(f::me(&[])));
     let mut views = List::with_capacity(FRAMES);
     for (name, _, size, empty, _) in rows {
@@ -888,8 +959,19 @@ fn the_launchpads_are_their_goldens() {
         if name == "launchpad-brief-80x24-dark" {
             tui.step(Told::Brief);
         }
-        let mut part = launchpad::read(if empty { &none } else { &root }, &tui, &f::words(), NOW);
-        if !empty {
+        let mut part = launchpad::read(
+            if empty {
+                &none
+            } else if name.starts_with("launchpad-team-") {
+                &team_root
+            } else {
+                &root
+            },
+            &tui,
+            &f::words(),
+            NOW,
+        );
+        if !empty && !name.starts_with("launchpad-team-") {
             part.needs = Box::new([launchpad::NeedRow {
                 since: Some(Wall::from_nanos(562 * MINUTE)),
                 mark: NeedMark::Question,
@@ -926,7 +1008,7 @@ fn the_launchpads_are_their_goldens() {
             }
         }
         let count = u32::try_from(part.needs.len()).unwrap();
-        if !empty {
+        if !empty && !name.starts_with("launchpad-team-") {
             let mut facts = d::pages::all_home::facts(&root, NOW);
             facts.needs = d::pages::home::Needs::Count { count, cut: false };
             part.lines.get_mut(0).unwrap().words =
@@ -1365,13 +1447,17 @@ fn the_launchpad_surface_follows_the_displayed_facts() {
         Some(E::Open { address: Box::from(*b"http://127.0.0.1:8367/tasks/9") })
     );
     for (name, page, expected) in [
-        ("brief and need", SurfacePage::Home { brief: true, needs: true }, Own::ALL.as_slice()),
+        (
+            "brief and need",
+            SurfacePage::Home { brief: true, needs: true },
+            &[Own::Draft, Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Tell, Own::Theme][..],
+        ),
         (
             "neither",
             SurfacePage::Home { brief: false, needs: false },
-            &[Own::Draft, Own::Change, Own::Ask, Own::Open, Own::Theme][..],
+            &[Own::Draft, Own::Change, Own::Ask, Own::Open, Own::Tell, Own::Theme][..],
         ),
-        ("chat", SurfacePage::Chat, &[Own::Open, Own::Theme][..]),
+        ("chat", SurfacePage::Chat, &[Own::Open, Own::Tell, Own::Theme][..]),
         ("no project", SurfacePage::NoProject, &[Own::Theme][..]),
         ("signed out", SurfacePage::SignedOut, &[Own::Theme][..]),
     ] {

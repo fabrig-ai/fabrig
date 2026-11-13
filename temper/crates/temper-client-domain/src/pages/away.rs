@@ -183,6 +183,7 @@ fn overturn(root: &mut Domain, env: &Env<Limits>, project: u32, number: u32, out
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }

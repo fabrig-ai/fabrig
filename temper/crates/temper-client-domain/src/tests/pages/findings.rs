@@ -142,6 +142,58 @@ fn ids(root: &Domain) -> Box<[Id]> {
     ids.into_boxed()
 }
 #[test]
+fn team_areas_read_the_findings_document_and_its_triager() {
+    use pages::team::{self, HeldArea, HeldAreas, Holder};
+    let (mut root, _, watches) = setup(1);
+    assert_eq!(team::areas(&root, 1), None, "unread is not empty");
+    let task = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 40 }).unwrap());
+    let person = w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 2 }).unwrap());
+    let mut parts = document(1, Box::new([]), false).into_parts();
+    parts.areas = List::with_capacity(3);
+    for (name, holder) in [(b"tests".as_slice(), Some(task)), (b"core", Some(person)), (b"docs", None)] {
+        parts
+            .areas
+            .push(
+                w::AreaRow::new(
+                    &w::CEILINGS,
+                    w::AreaRowParts {
+                        name: name.into(),
+                        words: name.into(),
+                        owner: w::AreaOwner::Task(
+                            w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 40 }).unwrap(),
+                        ),
+                        holder,
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    parts.triager = Some(w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 41 }).unwrap()));
+    parts.holder = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 41 }).unwrap());
+    deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts.clone()).unwrap());
+    assert_eq!(
+        team::areas(&root, 1),
+        Some(HeldAreas {
+            rows: Box::new([
+                HeldArea { name: b"tests".as_slice().into(), holder: Some(Holder::Task(40)) },
+                HeldArea { name: b"core".as_slice().into(), holder: Some(Holder::Party(2)) },
+                HeldArea { name: b"docs".as_slice().into(), holder: None },
+            ]),
+            triager: Some(Holder::Task(41)),
+        })
+    );
+    assert_eq!(team::areas(&root, 2), None, "documents belong to their project");
+    parts.triager = None;
+    deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts.clone()).unwrap());
+    assert_eq!(team::areas(&root, 1).unwrap().triager, None, "no configured triager, despite fallback holder");
+    parts.triager = Some(w::AreaOwner::Role(w::AreaRole::new(&w::CEILINGS, w::AreaRoleParts { number: 3 }).unwrap()));
+    parts.holder = w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 3 }).unwrap());
+    deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts).unwrap());
+    assert_eq!(team::areas(&root, 1).unwrap().triager, Some(Holder::Role(3)));
+}
+
+#[test]
 fn findings_watch_first_projects_count_and_leave_on_the_next_document() {
     let (mut root, _, watches) = setup(5);
     assert_eq!(watches.len(), 4);

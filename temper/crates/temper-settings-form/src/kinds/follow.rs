@@ -78,12 +78,21 @@ pub(super) fn read(d: &Decoder<'_>, at: u32) -> Result<w::Follow, Error> {
         Ok(value) => value,
         Err(why) => return Err(why.at(b"target")),
     };
-    let owner = d.object(field(&fields, b"owner")?, &[b"person"])?;
-    let person = d.number(field(&owner, b"person")?)?;
-    let owner = w::FollowOwner::Person(
-        w::FollowPerson::new(&d.kinds, w::FollowPersonParts { person })
-            .or(Err(error(b"owner", b"wire value bound")))?,
-    );
+    let owner = d.object(field(&fields, b"owner")?, &[b"person", b"task"])?;
+    if owner.len() != 1 {
+        return Err(error(b"owner", b"one variant required"));
+    }
+    let owner = if let Some(at) = optional(&owner, b"person") {
+        w::FollowOwner::Person(
+            w::FollowPerson::new(&d.kinds, w::FollowPersonParts { person: d.number(at)? })
+                .or(Err(error(b"owner", b"wire value bound")))?,
+        )
+    } else {
+        w::FollowOwner::Task(
+            w::FollowOwnerTask::new(&d.kinds, w::FollowOwnerTaskParts { task: d.number(field(&owner, b"task")?)? })
+                .or(Err(error(b"owner", b"wire value bound")))?,
+        )
+    };
     let start = match text(d, &fields, b"start", false)?.as_ref() {
         b"" | b"owner" => w::FollowStart::Owner,
         b"code" => w::FollowStart::Code,
@@ -125,9 +134,15 @@ pub(super) fn render(value: &w::Follow, out: &mut Encoder) {
     out.object_end();
     out.key(b"owner");
     out.object_start();
-    out.key(b"person");
     match value.owner() {
-        w::FollowOwner::Person(person) => out.unsigned(person.person()),
+        w::FollowOwner::Person(person) => {
+            out.key(b"person");
+            out.unsigned(person.person());
+        }
+        w::FollowOwner::Task(task) => {
+            out.key(b"task");
+            out.unsigned(task.task());
+        }
     }
     out.object_end();
     out.key(b"start");

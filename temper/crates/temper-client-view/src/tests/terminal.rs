@@ -18,6 +18,51 @@ use temper_client_domain::{
     self as d, Action, Address, Event,
     pages::{Act, chat::document::Mode, terminal},
 };
+#[test]
+fn a_talk_uses_chat_layout_without_chat_commands_request_draft_or_picker() {
+    use terminal::Command as C;
+    let source = command_root(0);
+    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+    let mut offers = skein_lib::List::with_capacity(task.acts.len() + 1);
+    for offer in &task.acts {
+        offers.push(offer.clone()).unwrap();
+    }
+    offers.push(c::Offered { act: c::ActKind::Talk, admission: c::Admission::Allowed, effect: None }).unwrap();
+    task.acts = offers;
+    task.spec.specification.words =
+        c::DocumentText::complete(c::Text::new(b"Role rules, not a request".as_slice().into(), 64).unwrap());
+    let (mut root, _, watch) =
+        f::root_at(Address::Talk { project: f::PROJECT, task: f::chat::TASK }, &f::domain_limits());
+    f::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))),
+                },
+            },
+        },
+    );
+    let task = root.pages().chat().unwrap().task(root.client()).unwrap();
+    for command in [C::Pause, C::Close, C::StartOver, C::Model, C::Effort, C::Draft, C::Goal] {
+        assert!(!crate::shared::offered(&root, Some(task), command), "{command:?}");
+    }
+    let view = view(&root, Shell::Browser);
+    assert!(styled(view.tree(), look::SESSION));
+    assert!(f::find(view.tree(), Role::TextArea, b"Message").is_some());
+    assert!(!styled(view.tree(), look::MODEL));
+    assert!(!styled(view.tree(), look::DOC));
+    for name in [b"Pause".as_slice(), b"Close", b"Start over", b"+ Draft"] {
+        assert!(f::find(view.tree(), Role::Button, name).is_none(), "{name:?}");
+    }
+    for node in view.tree().nodes() {
+        for run in &node.text {
+            assert_ne!(run.text.as_ref(), b"Role rules, not a request");
+        }
+    }
+}
+
 fn act(root: &mut d::Domain, act: Act) {
     f::root_event(root, Event::Act { action: Action::Pages(act) });
 }

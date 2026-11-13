@@ -2,8 +2,7 @@
 
 The TUI's first screen once signed in, or while it signs in from the
 engine's link: the root at `Home { project }` (`../README.md`, 3, *Its
-pages*), drawn from `../../../draft/surfaces.md`, 11.1, less its team lines
-and `/talk`. Its mockup is `../whole-story/launchpad.html`, with
+pages*), drawn from `../../../draft/surfaces.md`, 11.1. Its mockup is `../whole-story/launchpad.html`, with
 `../whole-story/pair/` and `../whole-story/team/` beside it, whose words,
 parts and order bind and whose figures don't. It shares its foot, the
 box and the quiet line or a list, with a chat, and its commands are the
@@ -44,8 +43,8 @@ Illustrative, a person in two projects, Hello and shop:
 
 - **Its parts, in order:** the header (3); then the sections
   (`tui-spaced`, a blank row between two, and one between the header's
-  frame and the first): Where you left off (4), Needs you (5) and Start
-  (7); then the notes (7); then the foot (`README.md`, *The foot*).
+  frame and the first): Where you left off (4), Needs you (5), Team on
+  PROJECT (7) and Start (7); then the notes (7); then the foot (`README.md`, *The foot*).
 - **Where it departs from its mockups,** each for a reason: the brief is
   one a project, joined, not one across projects written per person
   (`../../../draft/surfaces.md`, 15, its default; `../../pages/home.md`, 1, *Home on All
@@ -60,9 +59,13 @@ Illustrative, a person in two projects, Hello and shop:
   it asked, "asked 20 min ago", and not who, since no read names the
   asker (8); the quiet line names the link's state, "● Live", as the
   Pair mockup does; the sections keep the at-scale mockup's order, Where
-  you left off before Needs you; "Landed this week" (Pair's) and "Team
-  on PROJECT" are not drawn, the first not in
-  `../../../draft/surfaces.md`, 11.1, the second T3's.
+  you left off before Needs you; "Landed this week" (Pair's) is not
+  drawn, not being in `../../../draft/surfaces.md`, 11.1; Team on
+  PROJECT's columns are its rows' names, the areas each holds and its
+  line, where the mockup words an area as a phrase ("tests and proof"),
+  since an area's name is a label's (`../../../domain/areas.md`, 2), and its
+  rows are at most four (7); and Where you left off lists no talk with a
+  role, which no read lists (4).
 
 ## 2. Its reads, across the person's projects
 
@@ -99,9 +102,9 @@ Illustrative, a person in two projects, Hello and shop:
   - *the decided documents* that a need's reason reads
     (`../../pages/needs-you.md`, 1, *Why it reached you*): the shared
     *Decided for you* store's, within its four projects (`../../pages/home.md`,
-    1, *Decided for you*), taken as the distinct projects of the open
-    needs in their order, then `me`'s order, to four; so the projects of
-    the first needs walked have theirs.
+    1, *Decided for you*), taken as the launchpad's projects, the root's
+    project first (*the team's reads*, below); so the projects of the
+    first needs walked have theirs.
   - *the left-off reads,* `pages::launchpad::LeftOff`: two watches of
     jig's `Tasks` with no project, which jig answers with the person's
     own tasks across the projects they are in: the person's chats,
@@ -113,6 +116,16 @@ Illustrative, a person in two projects, Hello and shop:
     `shapes::CHAT` and `shapes::GOAL`), which every project shares: the
     stock's chat, Ask temper and drafting templates carry the chat's
     label.
+  - *the team's reads,* for Team on PROJECT (7), of the root's project
+    alone: Team's roles' watch and the project's document, which every
+    project page reads (`../../pages/team.md`, 1, *Its reads*); each listed
+    role's Now, read as Team reads them, which Team alone read before;
+    and the project's findings document, for its areas and triager
+    (`../../pages/talk.md`, 3), Needs you's for the project: the projects
+    whose findings and decided documents the launchpad reads are the
+    root's project first, then the open needs' distinct projects in their
+    order, then `me`'s order, to four, so a walk's need of a fourth
+    project beside them says no reason.
 
   Leaving Home leaves them all, as leaving `AllHome` does.
 - **What crosses to the TUI,** the domain's public surface:
@@ -122,7 +135,10 @@ Illustrative, a person in two projects, Hello and shop:
   Option<&c::Tasks>` and `LeftOff::goals(&self, client: &Client) ->
   Option<&c::Tasks>`, each `None` until its watch has delivered;
   `all_home::facts`, `intro` and `brief` as above; and, for the quiet
-  line's count, `Session::count_across` (`README.md`, *The quiet line*).
+  line's count, `Session::count_across` (`README.md`, *The quiet line*);
+  for Team on PROJECT (7), `team::shown_at(root, project, wall)`'s
+  `roles`, each with its Now, and its reader's `Person` with what waits
+  on them, and `team::areas(root, project)`.
 - **The view's words across projects,** in `temper_client_view::shared`,
   which the AllHome page's builder calls too, so that the two say them
   alike: `shared::all_home_headline(w: &Words, facts: &all_home::Facts,
@@ -208,8 +224,10 @@ stand two columns in:
 
 Left out with no such conversation, and while neither read has
 answered. A chat that writes a draft and is no design session says ", a
-chat"; a talk with a role says what it is when it is the TUI's
-(`../../../draft/surfaces.md`, 11.3).
+chat". A talk with a role (`../../../draft/surfaces.md`, 11.1 and 11.3) is
+not listed: no read lists the talks a person has open (`../../pages/talk.md`,
+4), and `/talk NAME` opens a role, and its open talk with it
+(`README.md`, 2, *`/talk`*).
 
 - *Up and Down,* while the box is empty and no list stands under it,
   move a selection through these rows, and the box keeps the focus:
@@ -305,6 +323,32 @@ is its own.
   template (`../../../draft/ask-temper.md`, section 9), so with no project
   there is no one to ask. In front of a box the welcome stands in its
   place (`../box.md`).
+- **Team on PROJECT** (`../../../draft/surfaces.md`, 11.1: "each role, its
+  area and its Now in a line"), after Needs you, while the launchpad has
+  a project with a live standing role, or an area its person holds: the
+  term "Team on PROJECT" (`tui-head`), PROJECT the root's project's name,
+  and under it a row each, an unnumbered item whose mark is a space, as
+  Where you left off's (4), at most four:
+  - *its rows,* the project's live standing roles in Team's order
+    (`team::shown_at`'s `roles`, `../../pages/team.md`, 1, *Standing roles*),
+    then, while the person holds an area of the project, theirs, which
+    keeps its place where the roles fill the rest;
+  - *its name:* a role's name (`tui-name`), or "You" on the person's,
+    padded with spaces to the longest of the section's names and three
+    more;
+  - *its areas:* the names of the areas it holds (`team::areas`;
+    `../../pages/talk.md`, 3), in the areas' order, joined by ", ", then
+    "triage" where it is the project's triager (`tui-hint`), padded to the
+    longest of the section's and three more; a column left out where no
+    row holds one;
+  - *its line* (`tui-hint`): a role's, its Now's first line, as Team's row
+    reads it; the person's, what waits on them in the project, as Team's
+    person line says it, "Two questions wait on you." (the view's
+    `shared::person_line`, `../../pages/team.md`, 1, *A person's line*);
+    none while unread.
+
+  The row's words are cut at a word with "…" at the row's end. Left out
+  while the roles' watch has not answered, and with no row.
 - **Start,** the next section, while the launchpad has a project: the
   term "Start" (`tui-head`) and a row each for the TUI's commands that
   start work, its name (`tui-name`) padded with spaces to the longer and
@@ -312,8 +356,8 @@ is its own.
   that ends in a draft and a goal", while the project offers drafts
   (`pages::drafts_offered(root, project)`, `../../pages/README.md`, *A chat's
   document*); "/change", "one change, run as PROJECT's way says";
-  "/ask", "Ask temper". `/talk` joins it when the TUI has it
-  (`../../../draft/surfaces.md`, 11.3).
+  "/talk", "a role, about its area", while the project has a live
+  standing role (`README.md`, 2, *`/talk`*); "/ask", "Ask temper".
 - **The box keeps the keys:** the box is the only node of the launchpad
   a person acts on, so the keys stay in it (`README.md`, *The box*), but
   Up, Down, Enter and Esc on the left-off rows and `n` while it is empty

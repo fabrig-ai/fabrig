@@ -96,6 +96,7 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
             let act = match root.pages().address() {
                 Address::NewChat { .. } => Act::Go { address: Address::NewChat { draft: true } },
                 Address::Chat { .. }
+                | Address::Talk { .. }
                 | Address::Ask { .. }
                 | Address::AllHome
                 | Address::Inbox { .. }

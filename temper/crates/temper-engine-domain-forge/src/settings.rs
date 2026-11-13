@@ -195,6 +195,7 @@ pub struct FollowTarget {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FollowOwner {
     Person(u64),
+    Task(u64),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

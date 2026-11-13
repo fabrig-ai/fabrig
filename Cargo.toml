@@ -49,6 +49,7 @@ members = [
     "skein/crates/skein-sim",
     "skein/crates/skein-sim-world",
     "skein/crates/skein-tls",
+    "skein/crates/skein-rustls-std",
     "skein/crates/skein-ui",
     "skein/crates/skein-ui-bundle",
     "skein/crates/skein-ui-text",
@@ -427,8 +428,8 @@ rust-version = "1.95"
 publish = false
 
 [workspace.dependencies]
-aho-corasick = { version = "1.1.5", default-features = false, features = ["std"] }
-syn = { version = "2", features = ["full", "visit"] }
+aho-corasick = { version = "1.1.5", default-features = false, features = ["std", "perf-literal"] }
+syn = { version = "2", features = ["full", "visit", "extra-traits", "visit-mut"] }
 skein-fork = { path = "skein/testing/skein-fork" }
 skein-rows = { path = "skein/testing/skein-rows" }
 flate2 = { version = "=1.1.5", default-features = false, features = ["rust_backend"] }
@@ -476,6 +477,7 @@ skein-fake-push = { path = "skein/crates/skein-fake-push" }
 skein-push = { path = "skein/crates/skein-push" }
 skein-fake-oauth = { path = "skein/crates/skein-fake-oauth" }
 skein-tls = { path = "skein/crates/skein-tls" }
+skein-rustls-std = { path = "skein/crates/skein-rustls-std" }
 skein-shell = { path = "skein/crates/skein-shell" }
 skein-fail-stop = { path = "skein/crates/skein-fail-stop" }
 skein-sim = { path = "skein/crates/skein-sim" }
@@ -505,11 +507,10 @@ wasm-bindgen-cli-support = { version = "=0.2.126" }
 io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
-# rustls, pinned, without std and with ring for its cryptography (skein/docs/design/net/tls.md, 4):
-# its std, whose clock wasm32-unknown-unknown lacks, is native only, asked for by each crate
-# that uses it.
+# rustls, pinned, without std and with ring for its cryptography (skein/docs/design/net/tls.md, 4).
+# Named in wasm32-unknown-unknown tables alone (skein/docs/foundation/cli.md, 3).
 rustls = { version = "=0.23.41", default-features = false, features = ["ring", "tls12"] }
-# rustls for native crates needing std; the plain entry stays without it for wasm32.
+# rustls with std, named in native tables alone (skein/docs/foundation/cli.md, 3).
 rustls-std = { package = "rustls", version = "=0.23.41", default-features = false, features = ["ring", "tls12", "std"] }
 rustls-pki-types = { version = "1.15", features = ["web"] }
 smith-transcript-patches = { path = "smith/tests/transcript-patches" }
@@ -570,7 +571,12 @@ smith-tools-world = { path = "smith/tests/tools" }
 jig-test-patches = { path = "jig/testing/jig-test-patches" }
 jig-test-patches-jig = { path = "jig/testing/jig-test-patches-jig" }
 jig-test-patches-smith = { path = "jig/testing/jig-test-patches-smith" }
-serde = { version = "1", features = ["derive"] }
+base64 = { version = "0.22" }
+regex = { version = "1" }
+serde_path_to_error = { version = "0.1" }
+tempfile = { version = "3" }
+toml = { version = "0.9" }
+serde = { version = "1", features = ["derive", "alloc"] }
 serde_json = { version = "1", features = ["raw_value", "float_roundtrip"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }
 jig-client-shell-web = { path = "jig/crates/jig-client-shell-web" }

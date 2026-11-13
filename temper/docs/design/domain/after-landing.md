@@ -382,7 +382,10 @@ those IDs is known to be still failing; each is new (2026-11-04).
   is a red of no goal's, which the root files as a finding of its
   project in the decision that keeps the verdict, once per landing it
   reddens (`findings.md`, section 4), with no area, so that the project's
-  triager holds it and hands it on (`areas.md`, section 5). Past the
+  triager holds it and hands it on (`areas.md`, section 5); a landing
+  that brought a follow change has it filed with its follow's owner's
+  area instead, where the owner owns one (`forge/follows.md`, section
+  6). Past the
   project's findings' bound it is not filed, never holding the tier, so
   that no repository's verification stops for want of a triage.
 

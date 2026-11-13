@@ -152,7 +152,7 @@ pub(crate) struct Flight {
 pub(crate) enum FlightRender {
     Plain,
     TaskRead,
-    FindingRead,
+    ProjectRead,
     ForgeRead,
     Settings {
         see: Option<Box<super::see::SeeFlight>>,
@@ -170,7 +170,7 @@ pub(crate) enum FlightRender {
 impl FlightRender {
     fn is_core_read(&self) -> bool {
         match self {
-            Self::TaskRead | Self::FindingRead | Self::Settings { .. } => true,
+            Self::TaskRead | Self::ProjectRead | Self::Settings { .. } => true,
             Self::Plain
             | Self::ForgeRead
             | Self::Amended(_)
@@ -211,7 +211,8 @@ impl DocumentFlight {
                 Some(family) => DocumentOutcome::Refused(DocumentRefusal::Denied { family, answer, findings }),
                 None => return CallAnswer::ToolDenied { answer, findings },
             },
-            answer @ (CallAnswer::Finding(_)
+            answer @ (CallAnswer::Follow(_)
+            | CallAnswer::Finding(_)
             | CallAnswer::Decided { .. }
             | CallAnswer::TaskRead(_)
             | CallAnswer::SettingsRefused(_)
@@ -313,49 +314,50 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
     let Some(to) = admit(domain, to, key, &body.tool) else { return };
     let mut job = None;
     let mut page = None;
-    let render =
-        if let crate::Tool::Finding(crate::FindingCall::List { .. } | crate::FindingCall::Show { .. }) = &body.tool {
-            FlightRender::FindingRead
-        } else if let crate::Tool::ReadTask { .. } = &body.tool {
-            FlightRender::TaskRead
-        } else if let crate::Tool::ReadForge { read, .. } | crate::Tool::ReadNamed { read, .. } = &body.tool {
-            job = super::diagnostics::job_attempt(read);
-            if let skein_forge::api::Read::Reviews { page: at, skip, .. }
-            | skein_forge::api::Read::Remarks { page: at, skip, .. }
-            | skein_forge::api::Read::PullFiles { page: at, skip, .. } = read
-            {
-                page = Some((*at, *skip));
-            }
-            FlightRender::ForgeRead
-        } else if let crate::Tool::Settings { from, read } = &body.tool {
-            let requested = match read {
-                jig_domain_core::SettingsRead::Revision { number } => Some(u64::from(*number)),
-                jig_domain_core::SettingsRead::Inventory
-                | jig_domain_core::SettingsRead::Setting { .. }
-                | jig_domain_core::SettingsRead::Revisions { .. } => None,
-            };
-            let asked = match read {
-                jig_domain_core::SettingsRead::Setting { setting, revision } => Some((*setting, *revision)),
-                jig_domain_core::SettingsRead::Inventory
-                | jig_domain_core::SettingsRead::Revision { .. }
-                | jig_domain_core::SettingsRead::Revisions { .. } => None,
-            };
-            FlightRender::Settings { see: None, from: *from, requested, asked }
-        } else if let crate::Tool::Document { action, body } = &body.tool {
-            FlightRender::Document(Box::new(DocumentFlight {
-                action: *action,
-                heading: super::document::heading(*action, body),
-                checked: None,
-            }))
-        } else if let crate::Tool::Change { changes } = &body.tool {
-            change_choice(domain, key.task, changes)
-        } else if let crate::Tool::Delegate { batch } = &body.tool {
-            person_roles(domain, key.task, batch)
-        } else if let crate::Tool::Amend { amendment, .. } = &body.tool {
-            FlightRender::Amended(crate::Changed::amendment(amendment))
-        } else {
-            FlightRender::Plain
+    let render = if let crate::Tool::Finding(crate::FindingCall::List { .. } | crate::FindingCall::Show { .. })
+    | crate::Tool::Follow(crate::FollowCall::List | crate::FollowCall::Show { .. }) = &body.tool
+    {
+        FlightRender::ProjectRead
+    } else if let crate::Tool::ReadTask { .. } = &body.tool {
+        FlightRender::TaskRead
+    } else if let crate::Tool::ReadForge { read, .. } | crate::Tool::ReadNamed { read, .. } = &body.tool {
+        job = super::diagnostics::job_attempt(read);
+        if let skein_forge::api::Read::Reviews { page: at, skip, .. }
+        | skein_forge::api::Read::Remarks { page: at, skip, .. }
+        | skein_forge::api::Read::PullFiles { page: at, skip, .. } = read
+        {
+            page = Some((*at, *skip));
+        }
+        FlightRender::ForgeRead
+    } else if let crate::Tool::Settings { from, read } = &body.tool {
+        let requested = match read {
+            jig_domain_core::SettingsRead::Revision { number } => Some(u64::from(*number)),
+            jig_domain_core::SettingsRead::Inventory
+            | jig_domain_core::SettingsRead::Setting { .. }
+            | jig_domain_core::SettingsRead::Revisions { .. } => None,
         };
+        let asked = match read {
+            jig_domain_core::SettingsRead::Setting { setting, revision } => Some((*setting, *revision)),
+            jig_domain_core::SettingsRead::Inventory
+            | jig_domain_core::SettingsRead::Revision { .. }
+            | jig_domain_core::SettingsRead::Revisions { .. } => None,
+        };
+        FlightRender::Settings { see: None, from: *from, requested, asked }
+    } else if let crate::Tool::Document { action, body } = &body.tool {
+        FlightRender::Document(Box::new(DocumentFlight {
+            action: *action,
+            heading: super::document::heading(*action, body),
+            checked: None,
+        }))
+    } else if let crate::Tool::Change { changes } = &body.tool {
+        change_choice(domain, key.task, changes)
+    } else if let crate::Tool::Delegate { batch } = &body.tool {
+        person_roles(domain, key.task, batch)
+    } else if let crate::Tool::Amend { amendment, .. } = &body.tool {
+        FlightRender::Amended(crate::Changed::amendment(amendment))
+    } else {
+        FlightRender::Plain
+    };
     let flight = domain.call_renders.get_mut(&right).expect("current typed flight");
     flight.render = render;
     flight.job = job;
@@ -552,7 +554,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
         }
         FlightRender::Plain
         | FlightRender::TaskRead
-        | FlightRender::FindingRead
+        | FlightRender::ProjectRead
         | FlightRender::ForgeRead
         | FlightRender::Settings { .. }
         | FlightRender::PersonRoles(_) => answer,
@@ -623,7 +625,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
             }
             FlightRender::Plain
             | FlightRender::TaskRead
-            | FlightRender::FindingRead
+            | FlightRender::ProjectRead
             | FlightRender::Settings { .. }
             | FlightRender::Amended(_)
             | FlightRender::Change(_)
