@@ -1101,15 +1101,33 @@ fn a_choice_pressed_while_the_inbox_reads_again_is_held_and_sent() {
             question.words = c::DocumentText::complete(f::text(b"Which?\nChoice: Use the first"));
         }
         refresh_page(&mut root, handle, question);
-        choose(&mut root.pages, 0, FIRST);
-        act(&mut root.pages, 0, Act::Undo { object: FIRST });
+        let choose = Act::Choose { object: FIRST, words: Box::from(CHOICE) };
+        root_act(&mut root, 0, choose.clone());
+        root_act(&mut root, 0, Act::Undo { object: FIRST });
         fixtures::inbox_entries(&mut root, watch, refresh_rows());
-        assert!(choose(&mut root.pages, 0, FIRST).is_empty());
+        let out = root_act(&mut root, 0, choose);
+        assert!(out.is_empty(), "{out:?}");
         assert!(root.pages().needs().held(FIRST), "choice during refresh at {filter:?}");
-        assert!(fire(&mut root.pages, BEFORE_HOLD).is_empty());
-        assert_eq!(sent(&mut fire(&mut root.pages, HOLD_DUE)).1, expected(FIRST, CHOICE, fixtures::PROJECT));
-        assert!(fire(&mut root.pages, SECOND_HOLD).is_empty());
+        assert!(root_fire(&mut root, BEFORE_HOLD).is_empty());
+        assert_eq!(sent(&mut root_fire(&mut root, HOLD_DUE)).1, expected(FIRST, CHOICE, fixtures::PROJECT));
+        assert!(root_fire(&mut root, SECOND_HOLD).is_empty());
     }
+}
+// Filtered Needs you holds Tell's naming reads on the same client that opened them.
+fn root_act(root: &mut crate::Domain, millis: u64, act: Act) -> Queue<Request> {
+    let mut env = fixtures::env(&fixtures::limits());
+    env.now = Time::ZERO.saturating_add(Duration::from_millis(millis));
+    env.wall = Wall::from_nanos(Duration::from_millis(millis).as_nanos());
+    let mut out = Queue::uncapped();
+    pages::step(&mut root.pages, &env, &root.client, pages::Event::Act { act: pages::Act::Needs(act) }, &mut out);
+    out
+}
+fn root_fire(root: &mut crate::Domain, millis: u64) -> Queue<Request> {
+    let mut env = fixtures::env(&fixtures::limits());
+    env.now = Time::ZERO.saturating_add(Duration::from_millis(millis));
+    let mut out = Queue::uncapped();
+    pages::fire(&mut root.pages, &env, &root.client, &mut out);
+    out
 }
 fn refresh_rows() -> List<c::InboxEntry> {
     let mut rows = List::with_capacity(1);

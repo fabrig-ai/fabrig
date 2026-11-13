@@ -1,6 +1,6 @@
 # gallery: status
 
-2026-11-12. Where the tree's code lags or departs from [gallery.md](gallery.md).
+2026-11-13. Where the tree's code lags or departs from [gallery.md](gallery.md).
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
@@ -33,7 +33,8 @@
   record, and Team's role's card's two, `team-role` and
   `night-team-role`, which goal 713 added, with none on record, and
   `team-hand` and `role-talk`, which goal 1983 adds, with none on
-  record.
+  record; `tell-area` and `tell-page` add to it too, with no CPU figure
+  on record.
 
 Section 2 holds what reaches a person, by plan `ui-reaches`: those five
 states and

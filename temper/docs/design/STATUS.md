@@ -1,6 +1,6 @@
 # Status
 
-2026-11-12. The first milestone stands in the code. The wires between
+2026-11-13. The first milestone stands in the code. The wires between
 the engine, its workers, their agents and the clients move their
 versions with their layouts, stated and checked at the channel's
 opening, each build's floor its current until bridges
@@ -19,6 +19,13 @@ person's areas, a card's "owns AREA", "Talk to it", "Give the area back"
 and weekly report, and "+ Hand an area to a role"; a role's page talks
 with it. A line's sign-offs wait on a read of what another person can
 still sign (`client/pages/team.status.md`; `draft/surfaces.status.md`, 6).
+P5b, goal 2173, draws Tell temper at a project's Needs you's foot, on the
+phone's `Tell` page and under Ask temper's composer, saying "About" and
+"Goes to" before "File it": a word told on a standing role's page, card or
+talk is filed with the area the role holds, any other with none and the
+page in its body, for the triager to hand on; the terminal's `/tell` sends
+its screen. What became of a word in the brief waits for a design
+(`client/pages/needs-you.status.md`; `draft/surfaces.status.md`, 9).
 
 Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
@@ -344,6 +351,7 @@ Drafts:
 - [`draft/bench-without-sqlite.md`](draft/bench-without-sqlite.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
+- [`draft/change-stall-after.md`](draft/change-stall-after.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)

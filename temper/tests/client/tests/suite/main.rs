@@ -60,6 +60,7 @@ mod fuzzy {
     mod public_address;
     mod rail_and_work;
     mod team;
+    mod tell;
 }
 
 mod accounts_edges;

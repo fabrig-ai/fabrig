@@ -81,7 +81,7 @@ pub(crate) fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -
                     }
                     Address::Chat { .. }
                     | Address::Talk { .. }
-                    | Address::Ask { .. }
+                    | Address::Ask { .. } | Address::Tell { .. }
                     | Address::AllHome
                     | Address::Inbox { .. }
                     | Address::Chats { .. }

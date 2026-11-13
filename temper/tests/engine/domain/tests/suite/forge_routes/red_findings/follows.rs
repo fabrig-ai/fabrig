@@ -307,7 +307,7 @@ fn a_follow_red_is_the_standing_roles_first_area_and_news_without_a_run() {
             .words
             .starts_with(b"Finding 2/1 is yours: Red after landing on main: tier fuzz\nred, high, area port\n")
     );
-    assert_eq!(super::news(&world, triager), [] as [&jig_domain_tasks::Word; 0]);
+    assert_eq!(super::news(&world, triager), [] as [&tasks::Word; 0]);
     world.close();
 }
 #[test]
@@ -328,7 +328,7 @@ fn a_persons_follow_red_lists_under_mine_with_their_area() {
     assert_eq!(document.rows.len(), 1);
     assert_eq!(document.rows[0].holder, Holder::Party(1));
     assert_eq!(document.rows[0].area.as_deref(), Some(b"port".as_slice()));
-    assert_eq!(news(&world, triager), [] as [&jig_domain_tasks::Word; 0]);
+    assert_eq!(news(&world, triager), [] as [&tasks::Word; 0]);
     world.close();
 }
 #[test]
@@ -356,7 +356,7 @@ fn a_forgotten_follow_change_leaves_its_red_with_the_triager() {
     until(&mut world, "root restored while the tier runs", |world| world.root.ready());
     judged(&mut world, commit, None, Holder::Task(triager));
     assert_eq!(news(&world, triager).len(), 1);
-    assert_eq!(news(&world, role.task), [] as [&jig_domain_tasks::Word; 0]);
+    assert_eq!(news(&world, role.task), [] as [&tasks::Word; 0]);
     world.close();
 }
 #[test]

@@ -1,6 +1,6 @@
 # view: status
 
-2026-11-12. Where the tree's code lags or departs from [view.md](view.md).
+2026-11-13. Where the tree's code lags or departs from [view.md](view.md).
 
 
 

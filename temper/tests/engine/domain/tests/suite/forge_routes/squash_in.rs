@@ -194,7 +194,7 @@ fn a_contained_catch_up_ends_without_a_landing_under_turn() {
     assert!(landing(&world, task).is_none());
     assert!(change_row(&world, task).delegate.is_none());
     assert!(change_row(&world, task).pull.is_none());
-    assert_eq!(world.jobs, [] as [host::JobAssignment; 0]);
+    assert_eq!(world.jobs, []);
     assert_eq!(world.assigned.len(), 1);
     assert_eq!(world.merges, 0);
     assert_eq!(branch_tip(&mut world, &branch), head);

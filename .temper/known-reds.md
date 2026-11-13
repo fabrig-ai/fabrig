@@ -1,13 +1,18 @@
 # Known reds
 
-Failures on the goal branch that no live change of goal 2172 owns; delivery
+Failures on the goal branch that no live change of goal 2173 owns; delivery
+checks count them as inherited (`tools/pre-pr/design.md`, section 5).
+Inherited from main at the goal's start, 2026-11-13, from goals 1983, 1984,
+1985, 1987, 1988 and 2105, each entry once. Each is dropped once fixed.
+
+Failures on the goal branch that no live change of goal 2234 owns; delivery
 checks count them as inherited (`tools/pre-pr/design.md`, section 5).
 
 Inherited from main at goal 2172's start, 2026-11-13: the entries of goals
 1983, 1985, 1987, 1988 and 2105 that main carried, each once. Each is dropped
 once fixed.
 
-Inherited from main at goal 2176's start (4d06c93e26), 2026-11-13: the lists the goals
+Inherited from main, 2026-11-13: the lists the goals
 merged into main brought, each key once. Each is dropped once fixed.
 
 - lint jig-protocol-store clippy::manual_let_else jig/crates/jig-protocol-store/patches/p0001.rs
@@ -36,7 +41,6 @@ merged into main brought, each key once. Each is dropped once fixed.
 - lint jig-protocol-store clippy::needless_borrow jig/crates/jig-protocol-store/src/tests/policy_patch.rs
 
 
-- lint temper-service clippy::assigning_clones temper/crates/temper-service/src/engine.rs
 
 - test smith-bench::suite pipeline::grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
 - test smith-bench::suite runner::a_recorded_answer_is_observed_before_the_tree_settles
@@ -88,3 +92,9 @@ Inherited from goal 1705 at this merge, 2026-11-13:
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/boundary.rs
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs
+
+Failures on the goal branch that no live change of goal 2176 owns; delivery
+checks count them as inherited (`tools/pre-pr/design.md`, section 5).
+
+- lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
+- lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs

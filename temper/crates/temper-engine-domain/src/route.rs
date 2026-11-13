@@ -351,6 +351,25 @@ fn keep_produced_title(domain: &mut Domain, record: &core::Record) {
     }
 }
 
+// A done end refreshes the change before its queued Met activation can step it
+// (temper/docs/design/domain/forge/change/repairs.md).
+fn dependencies_met(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, record: &core::Record) {
+    let core::Record::Tasks(tasks::Stored::Ended(ended)) = record else { return };
+    let tasks::Phase::Ended(tasks::Ending::Done(_)) = ended.phase else { return };
+    for live in domain.core.tasks.view_tasks() {
+        let Some(row) = domain.core.tasks.task(live.number) else { continue };
+        if let tasks::Phase::Held { why: tasks::Hold::Dependency(_), .. } = row.phase {
+            continue;
+        }
+        if row.dependencies.contains(&ended.number)
+            && row.waiting_on.is_empty()
+            && domain.forge.change(live.number).is_some()
+        {
+            forge_event(domain, env, decision, forge::Event::DependenciesMet { task: live.number });
+        }
+    }
+}
+
 /// Route one core batch: writes join the decision, asks and outputs go to their owners.
 pub(crate) fn route_core_requests(
     domain: &mut Domain,
@@ -367,6 +386,7 @@ pub(crate) fn route_core_requests(
                 trials::saved(domain, env, &record);
                 ways::saved(domain, &record);
                 keep_produced_title(domain, &record);
+                dependencies_met(domain, env, decision, &record);
                 forge_route::close_saved(domain, &record);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);
