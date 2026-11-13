@@ -41,6 +41,7 @@ pub use workflows::{WORKFLOW_BYTES, WORKFLOWS};
 mod ci;
 mod closer;
 mod commit;
+pub mod member_message;
 mod connect;
 pub use closer::CloserRow;
 mod status;
