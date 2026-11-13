@@ -476,6 +476,7 @@ fn measure_worker() {
         &crate::limits::worker(&own),
         &files,
         crate::WorkerRuntime {
+            wires: None,
             root: skein_io::kernel::Fd::new(9),
             path: b"/worker".as_slice().into(),
             agent: fixtures::pinned_agent(&worker.jig.agent),

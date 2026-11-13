@@ -501,6 +501,7 @@ fn every_worker_call_entrance_classes_read_only_calls_as_new() {
             run: FIRST,
             attempt: FIRST,
             call: fleet::Call {
+                contract: 1,
                 name: Box::new([]),
                 tool: b"logs".as_slice().into(),
                 writes: false,

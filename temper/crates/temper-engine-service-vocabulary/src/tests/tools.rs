@@ -13,6 +13,7 @@ fn call(activation: u64, tool: &[u8], input: &[u8]) -> jig_domain_fleet::Call {
     let mut writer = Writer::new(16);
     name.encode(&mut writer).unwrap();
     jig_domain_fleet::Call {
+        contract: 1,
         name: writer.finish(),
         tool: tool.into(),
         input: input.into(),
@@ -39,7 +40,6 @@ fn a_call_of_another_activation_is_answered_an_error() {
     assert_eq!(to, TO);
     assert_eq!(answer, core::SettledAnswer::Host { error: true, body: b"malformed host call".as_slice().into() });
 }
-
 #[test]
 fn the_largest_smith_call_name_fits_the_documentation_allowance() {
     let name = smith_channel::CallName::new(

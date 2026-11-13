@@ -11,6 +11,7 @@ pub(super) fn meets_bound(driver: &mut Driver, run: &engine::Assignment, bound: 
             detail: Box::new([]),
             failure: host::Failure::Run(host::RunFailure::Exceeded(host::Exceeded { bound, value: 2048 })),
             work: host::Work { left: None, saved: None },
+            model: None,
         },
     };
     driver.send(protocol::up(

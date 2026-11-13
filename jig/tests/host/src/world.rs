@@ -642,7 +642,7 @@ impl World {
                     }
                     host::Finish::Ended { .. } => Word::Ended,
                     host::Finish::Parked => Word::Parked,
-                    host::Finish::Failed { failure } => Word::Failed(*failure),
+                    host::Finish::Failed { failure, .. } => Word::Failed(*failure),
                 };
                 Taken::Finished { owner: *owner, word }
             }
@@ -673,7 +673,8 @@ impl World {
                 | LinkDown::TurnKept { .. },
             )
             | Event::Agent(
-                FromAgent::Piece { .. }
+                FromAgent::Decoded { .. }
+                | FromAgent::Piece { .. }
                 | FromAgent::Activity { .. }
                 | FromAgent::Unauthorized { .. }
                 | FromAgent::Limited { .. }

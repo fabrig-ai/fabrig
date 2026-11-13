@@ -5,7 +5,7 @@ use skein_channel::SchemaError;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     pub bodies: smith_channel::Limits,
-    pub charter: smith_charter::v4::Limits,
+    pub charter: smith_charter::v5::Limits,
     pub transcript: smith_transcript::v7::Limits,
     /// Maximum configured endpoint names retained by this component.
     pub endpoints: u32,
@@ -32,7 +32,7 @@ pub enum Error {
     /// The service sent a record before or after its permitted channel phase.
     Order,
     /// A host record does not fit the configured channel body limits.
-    Body(smith_channel::v7::Problem),
+    Body(smith_channel::v8::Problem),
     /// The measured frame could not be written.
     Frame(skein_channel::FrameError),
     /// A measured body could not be written into its allocation.
@@ -43,8 +43,8 @@ pub enum Error {
     Value,
 }
 
-impl From<smith_channel::v7::Problem> for Error {
-    fn from(problem: smith_channel::v7::Problem) -> Error {
+impl From<smith_channel::v8::Problem> for Error {
+    fn from(problem: smith_channel::v8::Problem) -> Error {
         Error::Body(problem)
     }
 }

@@ -33,6 +33,6 @@ fn two_seeds_draw_different_spans() {
 fn an_oversized_credential_is_refused_before_dialling() {
     let mut credential = fixtures::credential();
     credential.name = b"a-name-beyond-sixteen-bytes".as_slice().into();
-    let result = crate::Component::new(&fixtures::LIMITS, credential, 1);
+    let result = crate::Component::new(&fixtures::LIMITS, jig_protocol_worker_wire::spoken(), credential, 1);
     assert_eq!(result.expect_err("too large"), crate::Unusable::Credential);
 }

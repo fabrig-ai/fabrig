@@ -9,7 +9,6 @@ publish.workspace = true
 
 [dependencies]
 smith-protocol-program.workspace = true
-skein-shell.workspace = true
 
 skein-lib.workspace = true
 skein-channel.workspace = true
@@ -27,6 +26,9 @@ smith-protocol-llm.workspace = true
 smith-protocol-machine.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+skein-shell.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true

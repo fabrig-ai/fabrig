@@ -500,6 +500,8 @@ pub enum CompletionPhase {
 /// Bounded provider evidence, kept outside history and content-free facts (smith/docs/design/domain/session.md, section 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Report {
+    /// HTTP status reported apart from transport evidence, such as a program result's status.
+    pub status: Option<u16>,
     pub code: Box<[u8]>,
     pub request: Box<[u8]>,
     pub field: Box<[u8]>,
@@ -512,7 +514,7 @@ impl Report {
     /// No provider evidence was supplied.
     #[must_use]
     pub fn none() -> Self {
-        Self { code: Box::default(), request: Box::default(), field: Box::default() }
+        Self { status: None, code: Box::default(), request: Box::default(), field: Box::default() }
     }
 }
 
@@ -534,7 +536,7 @@ pub enum Failure {
     /// requested Cancel. This failure is nonretryable and keeps transport evidence.
     Cancelled,
 
-    /// The provider is overloaded (HTTP 529, 503). Transient.
+    /// The provider or program reports overload (HTTP 529; direct backends also 503). Transient.
     Overloaded,
     /// The provider limits our rate (HTTP 429) and asks us to wait
     /// `retry_after`, zero if it did not say. Transient.
@@ -543,7 +545,7 @@ pub enum Failure {
         retry_after: Duration,
     },
     /// The provider could not be reached, or failed (a connection error,
-    /// HTTP 500). Transient.
+    /// HTTP 500), or the program reports an edge 403 or another 5xx. Transient.
     Unavailable,
     /// A phase deadline ended the call; only the whole phase ends the session's time without retry.
     TimedOut { phase: CompletionPhase },
@@ -552,7 +554,7 @@ pub enum Failure {
     /// The provider rejected the call as malformed or unsupported (HTTP 400,
     /// 404, 422).
     Invalid,
-    /// The provider refused our credentials (HTTP 401, 403).
+    /// The provider refused our credentials (HTTP 401 or its own authentication error).
     Unauthorized,
     /// The program source is signed out; a new grant cannot repair it.
     SignedOut,

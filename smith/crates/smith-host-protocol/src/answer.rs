@@ -9,7 +9,7 @@ use smith_host_domain::channel as host;
 
 use crate::Error;
 
-pub(crate) fn decode_answer(record: &wire::Answer, limits: &smith_charter::v4::Limits) -> Result<host::Answer, Error> {
+pub(crate) fn decode_answer(record: &wire::Answer, limits: &smith_charter::v5::Limits) -> Result<host::Answer, Error> {
     let result = match record.result() {
         wire::RunResult::Refused(refused) => {
             let refusal = match refused.reason() {
@@ -140,6 +140,7 @@ fn model_fault(record: &wire::ModelFaultValue) -> Result<host::ModelFault, Error
                 model: record.model(),
                 attempts: record.attempts(),
                 report: host::Report {
+                    status: *record.status(),
                     code: record.code().into(),
                     request: record.request_id().into(),
                     field: record.field().into(),

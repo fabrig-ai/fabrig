@@ -9,6 +9,48 @@ use super::{
 
 use core::fmt::Write;
 
+#[test]
+fn named_limits_lower_only_matching_bounds_level_by_level() {
+    let schema = parse(b"family f 1 record R { a: text 64 b: list 4 text 16 }").expect("bounded family");
+    let at = schema.find(b"R").expect("record exists");
+    let cases: &[(&[&str], &[u32], Option<u64>)] = &[
+        (&[], &[], Some(u64::from(schema.most_bytes(at)))),
+        (&["r_a"], &[8], Some(4 + 8 + 4 + 4 * (4 + 16))),
+        (&["r_a", "r_b_item"], &[8, 2], Some(4 + 8 + 4 + 4 * (4 + 2))),
+        (&["r_b"], &[1], Some(4 + 64 + 4 + (4 + 16))),
+        (&["r_a", "r_b_item"], &[65, 17], Some(u64::from(schema.most_bytes(at)))),
+        (&["absent"], &[0], Some(u64::from(schema.most_bytes(at)))),
+        (&["r_a", "r_b"], &[8], None),
+        (&["r_a"], &[8, 2], None),
+    ];
+    for &(names, values, expected) in cases {
+        assert_eq!(schema.most_bytes_within(at, names, values), expected, "{names:?}: {values:?}");
+    }
+    let nested = parse(b"family f 1 record HTTPValue { x: option list 3 option bytes 32 y: secret 64 } enum E { none value: HTTPValue } versioned record Top { e: E }").expect("nested family");
+    let at = nested.find(b"Top").expect("record exists");
+    assert_eq!(
+        nested.most_bytes_within(
+            at,
+            &["h_t_t_p_value_x_some", "h_t_t_p_value_x_some_item_some", "h_t_t_p_value_y"],
+            &[2, 8, 4]
+        ),
+        Some(2 + 1 + 1 + 4 + 2 * (1 + 4 + 8) + 4 + 4)
+    );
+}
+
+#[test]
+fn named_bound_arithmetic_refuses_overflow() {
+    let mut schema = parse(b"family f 1 record R { a: list 1 list 1 u8 }").expect("small checked family");
+    // Parsing refuses overflowing ceilings. Alter its private table to exercise
+    // the run-time bound's independent overflow check.
+    for at in 0..schema.types.len() {
+        if let Type::List { item, .. } = schema.ty(TypeIx::new(at)) {
+            *schema.types.get_mut(at).expect("existing type") = Type::List { bound: u32::MAX, item };
+        }
+    }
+    assert_eq!(schema.most_bytes_within(DeclIx::new(0), &[], &[]), None);
+}
+
 type RefusalCase = (&'static [u8], u32, Span, Wrong, &'static [u8]);
 
 fn refusal(source: &[u8], line: u32, at: Span, wrong: Wrong) {

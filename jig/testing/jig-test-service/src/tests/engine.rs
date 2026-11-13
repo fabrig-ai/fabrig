@@ -813,10 +813,10 @@ fn a_program_grant_needs_no_table_entry() {
 
 #[test]
 fn program_names_share_the_wire_and_domain_bounds() {
-    use jig_protocol_worker_wire::v11;
+    use jig_protocol_worker_wire::v13;
     // Schema source names and grant names both admit exactly 32 bytes.
-    let bound = skein_lib::length::usize_of(v11::CEILINGS.program_value_name);
-    assert_eq!(v11::CEILINGS.program_value_name, v11::CEILINGS.program_source_name);
+    let bound = skein_lib::length::usize_of(v13::CEILINGS.program_value_name);
+    assert_eq!(v13::CEILINGS.program_value_name, v13::CEILINGS.program_source_name);
     let past = bound.checked_add(1).expect("small name bound");
     let name = [b'a'; 33]; // The schema's 32-byte name plus one byte.
     for (length, admitted) in [(bound, true), (past, false)] {
@@ -1011,6 +1011,7 @@ fn pass_call(task: u64, attempt: u64, name: &[u8]) -> jig_test_domain::Event {
     jig_test_domain::Event::Link {
         channel: PASS_CHANNEL,
         link: jig_test_domain::link::Event::Up(jig_domain_host::LinkUp::Call {
+            contract: 1,
             run: skein_lib::Token::new(task),
             attempt: skein_lib::Token::new(attempt),
             call: name.into(),

@@ -86,5 +86,5 @@ pub fn valid(limits: &Limits) -> bool {
     }
     limits.workers.checked_add(limits.opening).is_some()
         && skein_channel::valid(&schema, Role::Responder, &channel)
-        && wire::v11::decoded_bound(&codec).is_some()
+        && wire::v13::decoded_bound(&codec).is_some()
 }

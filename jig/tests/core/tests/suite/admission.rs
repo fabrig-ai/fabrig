@@ -147,7 +147,17 @@ fn a_workers_call_waits_at_the_watermark() {
     let event = root::try_step(&mut driver.domain, &env, call(task, attempt)).expect_err("a call is new work");
     let root::Event::Link {
         channel,
-        link: root::link::Event::Up(host::LinkUp::Call { run, attempt: retained, call, tool, writes, input, deadline }),
+        link:
+            root::link::Event::Up(host::LinkUp::Call {
+                contract: 1,
+                run,
+                attempt: retained,
+                call,
+                tool,
+                writes,
+                input,
+                deadline,
+            }),
     } = &event
     else {
         panic!("the worker's call returns unchanged")
@@ -329,6 +339,7 @@ fn call(task: u64, attempt: u64) -> root::Event {
     root::Event::Link {
         channel: WORKER,
         link: root::link::Event::Up(host::LinkUp::Call {
+            contract: 1,
             run: Token::new(task),
             attempt: Token::new(attempt),
             call: b"held call".as_slice().into(),

@@ -38,6 +38,9 @@ pub(crate) enum LineKind {
     Rename,
     Site,
     Refusal,
+    DownValue,
+    DownSite,
+    Breaking,
 }
 
 /// Unresolved statement: names are spans, types and values token ranges.
@@ -435,6 +438,7 @@ pub(crate) fn marked(text: &[u8], range: Span, mark: &[u8]) -> bool {
     false
 }
 
+#[expect(clippy::too_many_lines, reason = "text-order numbering and block grammar (data/codec/bridges.md, 3)")]
 pub(crate) fn parse(text: &[u8]) -> Result<Parsed, PatchError> {
     let Ok(length) = u32::try_from(text.len()) else {
         return Err(error(1, Span { start: 0, end: 0 }, PatchWrong::Long));
@@ -490,13 +494,30 @@ pub(crate) fn parse(text: &[u8]) -> Result<Parsed, PatchError> {
         reader.end(text)?;
         let start = parsed.lines.len();
         let mut site = None;
+        let mut breaking = false;
+        let mut down = false;
         for _ in 0..count {
             if reader.peek(text)?.is_none() || reader.is(text, b"family")? {
                 break;
             }
             let mut line = read_line(&mut reader, text)?;
             match line.kind {
-                LineKind::Site => {
+                LineKind::DownSite | LineKind::DownValue => {
+                    if breaking {
+                        return Err(line.error(PatchWrong::Twice));
+                    }
+                    down = true;
+                }
+                LineKind::Breaking => {
+                    if down || breaking {
+                        return Err(line.error(PatchWrong::Twice));
+                    }
+                    breaking = true;
+                }
+                LineKind::Site | LineKind::Refusal | LineKind::Operation(_) | LineKind::Rename => {}
+            }
+            match line.kind {
+                LineKind::Site | LineKind::DownSite => {
                     line.index = sites;
                     site = Some(sites);
                     sites = add(sites, 1);
@@ -513,7 +534,7 @@ pub(crate) fn parse(text: &[u8]) -> Result<Parsed, PatchError> {
                         }
                     }
                 }
-                LineKind::Operation(_) | LineKind::Rename => {
+                LineKind::Operation(_) | LineKind::Rename | LineKind::DownValue | LineKind::Breaking => {
                     site = None;
                 }
             }
@@ -530,8 +551,8 @@ pub(crate) fn parse(text: &[u8]) -> Result<Parsed, PatchError> {
 
 fn part_allowed(kind: LineKind) -> bool {
     match kind {
-        LineKind::Rename | LineKind::Site => true,
-        LineKind::Refusal => false,
+        LineKind::Rename | LineKind::Site | LineKind::DownSite | LineKind::DownValue => true,
+        LineKind::Refusal | LineKind::Breaking => false,
         LineKind::Operation(op) => match op {
             Op::Add | Op::Drop | Op::Widen | Op::Wrap | Op::Retype | Op::Payload => true,
             Op::Reshape | Op::Versioned | Op::Unversioned | Op::Order => false,
@@ -540,9 +561,19 @@ fn part_allowed(kind: LineKind) -> bool {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "the statement grammar lists every operation and direction")]
 fn read_line(reader: &mut Reader, text: &[u8]) -> Result<Line, PatchError> {
     let token = reader.take(text, Expected::Line)?;
     let kind = match spelled(text, token.at) {
+        b"down" => {
+            if reader.is(text, b"written")? {
+                reader.take(text, Expected::Name)?;
+                LineKind::DownSite
+            } else {
+                LineKind::DownValue
+            }
+        }
+        b"breaking" => LineKind::Breaking,
         b"add" => LineKind::Operation(Op::Add),
         b"drop" => LineKind::Operation(Op::Drop),
         b"reshape" => LineKind::Operation(Op::Reshape),
@@ -558,7 +589,15 @@ fn read_line(reader: &mut Reader, text: &[u8]) -> Result<Line, PatchError> {
         b"refuses" => LineKind::Refusal,
         _ => return Err(token.error(PatchWrong::Expected(Expected::Line))),
     };
-    let declaration = reader.name(text, Expected::Name)?.at;
+    let declaration = if kind == LineKind::Breaking {
+        let reason = reader.take(text, Expected::Text)?;
+        if reason.kind != Kind::Text {
+            return Err(reason.error(PatchWrong::Expected(Expected::Text)));
+        }
+        reason.at
+    } else {
+        reader.name(text, Expected::Name)?.at
+    };
     let empty = Range { start: reader.at, end: reader.at };
     let mut line = Line {
         token,
@@ -587,7 +626,13 @@ fn read_line(reader: &mut Reader, text: &[u8]) -> Result<Line, PatchError> {
             }
             line.other = token.at;
         }
-        LineKind::Site => {}
+        LineKind::Site | LineKind::DownSite | LineKind::Breaking => {}
+        LineKind::DownValue => {
+            if line.part.is_none() {
+                return Err(line.error(PatchWrong::Expected(Expected::Name)));
+            }
+            line.value = reader.value(text)?;
+        }
         LineKind::Operation(op) => match op {
             Op::Add => {
                 if line.part.is_some() {

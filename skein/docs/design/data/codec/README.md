@@ -63,7 +63,9 @@ records kept in files or stores.
   And, as step code, what reads schemas and records at run time:
   - `schema`: the parser and the layout checks (section 7);
   - `value`: generic values (section 8);
-  - `patch`: patches and the machine that runs them (`patches.md`).
+  - `patch`: patches and the machine that runs them (`patches.md`);
+  - `bridge`: a wire's reverses, its floor, and the bridge that
+    translates a record between the versions it speaks (`bridges.md`).
 - **`skein-codegen`** is the generator, and the tooling of upgrades: the
   diff (`diff.md`) and the command (`command.md`). Ordinary Rust, not
   step code. It reads schemas through `skein-codec`'s parser and adds
@@ -80,6 +82,15 @@ records kept in files or stores.
   code compiles beside the domains rather than after them, and only a
   change of schema recompiles it (temper's `draft/crate-graph.md`, 4.1).
   An owner's patches may name its domain's types, so they stay with it.
+- **A codec crate is named for its owner,** `<owner>-codec`, in a
+  directory beside the owner's that takes the owner's directory name
+  with `-codec` (`skein/crates/skein-oauth-codec`,
+  `skein/examples/ui/view-codec`); an owner whose families are split by
+  size names each crate for its family instead (jig's store,
+  `jig-protocol-store-people`). Each generated module keeps its name at
+  the codec crate's root (`v3`, `cursor_v1`), and the owner names it
+  where it named it before: a public module is re-exported at the
+  owner's same path, which callers keep, and either path names it.
 - **An owner with no domain to translate is its own codec crate,**
   holding schemas, code, golden bytes and drift test together: smith's
   `smith-charter`, `smith-channel` and `smith-transcript`, and the
@@ -89,9 +100,11 @@ records kept in files or stores.
   crate with no other family (`tools/crates/design.md`, 3.1), so that a
   change to one family recompiles it alone and the families compile side
   by side. An owner's smaller families may share one codec crate.
-- **The packages that still hold generated record code beside other
-  dependencies** are the codec check's exceptions, each until its crate's
-  milestone (`tools/crates/design.md`, 3.2).
+- **No package holds generated record code beside other workspace
+  dependencies,** and the codec check keeps it so, with no exception
+  (`tools/crates/design.md`, 3.2). skein's two owners, `skein-oauth` and
+  `skein-ui-example-view`, keep theirs in `skein-oauth-codec` and
+  `skein-ui-example-view-codec`.
 
 ## 3. The schema
 
@@ -207,6 +220,12 @@ For each family:
   than its ceiling, so no value past a ceiling exists or decodes, whatever
   limits they are given, and a call costs what its value holds, not the
   family's size.
+- **Its limits by name.** `LIMIT_NAMES: [&str; N]`, each limit's field
+  name in the struct's order, and `Limits::values(&self) -> [u32; N]`,
+  their values in the same order, so that a kept version's bounds can be
+  computed at run time with these limits (7.3, `most_bytes_within`). A
+  limit's name is the rule's `schema::limit_name` gives (7.3), the one
+  the generator names the field by.
 - **Its problems.** An enumeration of the family's fields, and a problem
   that names one of them with `skein-codec`'s reason.
 
@@ -528,6 +547,7 @@ impl Schema {
     pub fn find(&self, name: &[u8]) -> Option<DeclIx>;
     pub fn fewest_bytes(&self, at: TypeIx) -> u32;
     pub fn most_bytes(&self, at: DeclIx) -> u32;  // the encoded worst case
+    pub fn most_bytes_within(&self, at: DeclIx, names: &[&str], values: &[u32]) -> Option<u64>;
 }
 
 pub struct SchemaError { pub line: u32, pub at: Span, pub wrong: Wrong }
@@ -548,6 +568,22 @@ message from it and the text. A type's fewest bytes are the generator's
 a length or a count, 1 for an `option`, a record's fields' sum (2 more
 if `versioned`), and an enumeration's 1 more than its smallest
 variant's.
+
+- **A kept version's bounds under a side's limits:**
+  `most_bytes_within(at, names, values)` is the most bytes `at` encodes
+  to, as `most_bytes` computes it, with each bound of the text replaced
+  by the value of the limit of the same name, when `names` holds it and
+  the value is no larger than the bound, and the text's own bound
+  otherwise. Names follow the generator's rule (section 4, *Its limits
+  by name*): the record's name in snake case, an underscore and the
+  field's, `_some` for an option's value and `_item` for a list's item,
+  level by level. The rule lives in `skein-codec` beside the parser,
+  and the generator names its limits by it, so the two never differ.
+  `None` when `names` and `values` differ in length or the sum
+  overflows. So a channel that speaks an older version states and checks
+  its terms from that version's kept text with its current limits
+  (jig's `protocol/channel/wires.md`): an appended field, absent
+  there, counts nothing.
 
 ## 8. Generic values
 

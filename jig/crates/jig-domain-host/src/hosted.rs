@@ -30,6 +30,8 @@ pub(crate) struct Hosted {
     /// The engine's names for the run and for the attempt hosted.
     pub(crate) run: Token,
     pub(crate) attempt: Token,
+    /// Handed back by start decoding; kept across link loss and adoption.
+    contract: Option<u16>,
     grants: Box<[Grant]>,
     refreshed: bool,
     /// A live run asked to stop at its turn's end (domain/hosts/hub.md, 7).
@@ -126,7 +128,7 @@ enum RunEnding {
     Parked,
     /// It failed: as it said, or its agent broke the rules saying it, or
     /// exited without a word.
-    Failed { failure: Failure, detail: Box<[u8]> },
+    Failed { failure: Failure, detail: Box<[u8]>, model: Option<crate::ModelFailure> },
     /// The host stopped it, for `failure`: a cancel, or a fault of its
     /// agent. What the run says before its agent has gone still wins.
     Stopped { failure: Failure, detail: Box<[u8]> },
@@ -223,6 +225,7 @@ fn assign_runtime(
     let held = Queue::with_capacity(env.limits.held);
     let entry = Hosted {
         job: None,
+        contract: None,
         run,
         attempt,
         grants,
@@ -516,7 +519,7 @@ pub(crate) fn unprepared(
         State::Preparing { held, .. } => {
             crate::refusals::ending(held, &mut entry.refusals);
             let detail = tail(detail, &env.limits);
-            let ending = RunEnding::Failed { failure: Failure::Unprepared(failure), detail };
+            let ending = RunEnding::Failed { failure: Failure::Unprepared(failure), detail, model: None };
             answer(entry, facts, ending, None, out)
         }
         // Cancelled first: the prepare's failure is not the answer's.
@@ -534,6 +537,11 @@ pub(crate) fn unprepared(
     };
     drain_stopping(domain, env, id, out);
     conclude(domain, id, out);
+}
+
+pub(crate) fn decoded(domain: &mut Hub, owner: Token, contract: u16) {
+    let entry = domain.hosted.get_mut(Id::<Hosted>::from_token(owner)).expect("a start is hosted until settled");
+    assert!(entry.contract.replace(contract).is_none(), "a start is decoded once");
 }
 
 pub(crate) fn started(domain: &mut Hub, env: &Env<Limits>, owner: Token, agent: Token, out: &mut Queue<Request>) {
@@ -766,7 +774,7 @@ pub(crate) fn gone(domain: &mut Hub, env: &Env<Limits>, owner: Token, detail: Bo
         State::Starting { workspace, held, fault } => {
             crate::refusals::ending(held, &mut entry.refusals);
             let failure = Failure::Agent(fault.unwrap_or(AgentFailure::Unstarted));
-            let ending = RunEnding::Failed { failure, detail };
+            let ending = RunEnding::Failed { failure, detail, model: None };
             release(entry, facts, workspace, ending, None, out)
         }
         State::Unwanted { workspace, reason } => {
@@ -775,7 +783,7 @@ pub(crate) fn gone(domain: &mut Hub, env: &Env<Limits>, owner: Token, detail: Bo
         }
         // It exited without saying how its run finishes.
         State::Active { workspace, agent } | State::Waiting { workspace, agent } => {
-            let ending = RunEnding::Failed { failure: Failure::Agent(AgentFailure::Exited), detail };
+            let ending = RunEnding::Failed { failure: Failure::Agent(AgentFailure::Exited), detail, model: None };
             leave(entry.run, entry.attempt, &entry.relays, calls, out);
             State::Stopping { workspace, agent, ending, gone: true }
         }
@@ -1046,9 +1054,13 @@ fn answer(
             facts.push(Fact::Parked { run, attempt });
             Ending::Parked { work }
         }
-        RunEnding::Failed { failure, detail } | RunEnding::Stopped { failure, detail } => {
+        RunEnding::Stopped { failure, detail } => {
             facts.push(Fact::Failed { run, attempt, failure });
-            Ending::Failed { failure, detail, work }
+            Ending::Failed { failure, detail, work, model: None }
+        }
+        RunEnding::Failed { failure, detail, model } => {
+            facts.push(Fact::Failed { run, attempt, failure });
+            Ending::Failed { failure, detail, work, model }
         }
     };
     let answer = crate::RunAnswer {
@@ -1159,6 +1171,7 @@ fn serve(
             out.push(Request::Up(LinkUp::Call {
                 run: entry.run,
                 attempt: entry.attempt,
+                contract: entry.contract.expect("routing decodes a start before calls"),
                 call,
                 tool,
                 writes,
@@ -1222,22 +1235,27 @@ fn leave(run: Token, attempt: Token, relays: &Set<Id<Call>>, calls: &mut Slab<Ca
 /// How the run ends, as it says it finishes; a cancel it reports is
 /// `cancelled`. Saying more than the limits allow breaks the rules.
 fn said(finish: Finish, cancelled: Failure, limits: &Limits) -> RunEnding {
-    let rules = RunEnding::Failed { failure: Failure::Agent(AgentFailure::Rules), detail: Box::new([]) };
+    let rules = RunEnding::Failed { failure: Failure::Agent(AgentFailure::Rules), detail: Box::new([]), model: None };
     match finish {
         Finish::Ended { outcome } if len(&outcome) > limits.outcome_bytes => rules,
         Finish::Ended { outcome } => RunEnding::Ended { outcome },
         Finish::Parked => RunEnding::Parked,
-        Finish::Failed { failure: RunFailure::Cancelled } => {
-            RunEnding::Failed { failure: cancelled, detail: Box::new([]) }
+        Finish::Failed { failure: RunFailure::Cancelled, model: _ } => {
+            RunEnding::Failed { failure: cancelled, detail: Box::new([]), model: None }
         }
-        Finish::Failed { failure } => RunEnding::Failed { failure: Failure::Run(failure), detail: Box::new([]) },
+        Finish::Failed { failure: RunFailure::Model, model } => {
+            RunEnding::Failed { failure: Failure::Run(RunFailure::Model), detail: Box::new([]), model }
+        }
+        Finish::Failed { failure, model: _ } => {
+            RunEnding::Failed { failure: Failure::Run(failure), detail: Box::new([]), model: None }
+        }
     }
 }
 
 /// A failure's ending gains the detail its agent left as it went.
 fn explained(ending: RunEnding, detail: Box<[u8]>) -> RunEnding {
     match ending {
-        RunEnding::Failed { failure, detail: _ } => RunEnding::Failed { failure, detail },
+        RunEnding::Failed { failure, detail: _, model } => RunEnding::Failed { failure, detail, model },
         RunEnding::Stopped { failure, detail: _ } => RunEnding::Stopped { failure, detail },
         ending @ (RunEnding::Ended { .. } | RunEnding::Parked) => ending,
     }
@@ -1423,6 +1441,7 @@ impl Hosted {
     pub(crate) fn job(run: Token, attempt: Token, job: crate::jobs::Job) -> Self {
         Self {
             job: Some(Box::new(job)),
+            contract: None,
             run,
             attempt,
             answer: None,

@@ -87,8 +87,12 @@ fn an_agent_that_fails_before_its_run_is_admitted_ends_a_cancelled_start() {
     h.run(Event::Link(host::LinkDown::Cancel { run: RUN, attempt: ATTEMPT }));
     let rows = h.gone();
     let cancelled = host::Failure::Cancelled(host::Reason::Engine);
-    let ending =
-        host::Ending::Failed { failure: cancelled, detail: Box::new([]), work: host::Work { left: None, saved: None } };
+    let ending = host::Ending::Failed {
+        failure: cancelled,
+        detail: Box::new([]),
+        work: host::Work { left: None, saved: None },
+        model: None,
+    };
     assert!(answered(&rows, &ending), "{rows:?}");
 }
 
@@ -138,6 +142,7 @@ fn acknowledged_answers_free_their_workspace_items() {
         failure: unprepared,
         detail: b"store: Unreachable".as_slice().into(),
         work: host::Work { left: None, saved: None },
+        model: None,
     };
     for run in 1..=4 {
         assert!(answered(&h.run(assignment_of(run, &[b"app"], 0)), &ending), "run {run} is hosted, not refused");
@@ -243,7 +248,8 @@ fn a_terminal_authentication_failure_does_not_synthesize_an_account_notice() {
         &host::Ending::Failed {
             failure: host::Failure::Run(host::RunFailure::Model),
             detail: Box::default(),
-            work: host::Work { left: None, saved: None }
+            work: host::Work { left: None, saved: None },
+            model: None
         }
     ));
     no_notices(&ended);
@@ -288,7 +294,7 @@ fn earlier_host_answers_take_the_same_agents_reply_bound() {
                 tool: Box::from(&b"recall"[..]),
                 reply: agent::SavedReply::Host { error, body: body.clone() },
             }]);
-            let rows = h.run(Event::Decoded { agent: owner, start: Ok(Box::new(start)) });
+            let rows = h.run(Event::Decoded { agent: owner, start: Ok(Box::new(start)), endpoints: Box::new([]) });
             let [call] = sent_start(&rows).answered.as_ref() else { panic!("one earlier answer") };
             assert_eq!(call.tool.as_ref(), b"recall");
             assert_eq!(call.name, agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 });
@@ -335,6 +341,7 @@ fn model_failure_detail_survives_answer_and_empty_reap() {
                     failure: host::Failure::Run(host::RunFailure::Model),
                     detail: expected.into(),
                     work: host::Work { left: None, saved: None },
+                    model: None,
                 }
             ),
             "delayed={delayed}: {rows:?}"
@@ -448,6 +455,7 @@ fn cancellation_during_refused_start_cleanup_keeps_its_outcome() {
             failure: host::Failure::Cancelled(host::Reason::Engine),
             detail: b"invalid start\nup diagnostic tail".as_slice().into(),
             work: host::Work { left: None, saved: None },
+            model: None,
         };
         let rows = if delayed { &released } else { &reaped };
         assert!(answered(rows, &expected), "delayed={delayed}: {before:?} {rows:?}");

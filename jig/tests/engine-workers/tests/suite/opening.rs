@@ -60,7 +60,7 @@ mod opening {
         assert_eq!(wires.len(), statement.len());
         for (agreed, stated) in wires.iter().zip(&statement) {
             assert_eq!(agreed.name.as_bytes(), stated.name());
-            assert_eq!(agreed.version, stated.lowest());
+            assert_eq!(agreed.version, stated.lowest() + u16::try_from(stated.layouts().len() - 1).expect("range"));
         }
         assert!(world.root().is_empty(), "the domain has heard no hello");
     }
@@ -75,7 +75,12 @@ mod opening {
         let first = wires.swap_remove(0).expect("first wire");
         wires.push(first).expect("wire slot");
         let mut schema = fixtures::schema();
-        let table = &mut schema.versions.get_mut(0).expect("channel version").kinds;
+        let table = &mut schema
+            .versions
+            .iter_mut()
+            .find(|version| version.version == jig_protocol_worker_wire::VERSION)
+            .expect("current channel version")
+            .kinds;
         let first = table.iter().position(|kind| kind.direction == Direction::FromResponder).expect("sending kind");
         let kind = table.swap_remove(u32::try_from(first).expect("kind index")).expect("sending kind");
         table.push(kind).expect("kind slot");
@@ -91,11 +96,12 @@ mod opening {
                 .push(Stated {
                     name: core::str::from_utf8(wire.name()).expect("wire name").into(),
                     lowest: wire.lowest(),
-                    layouts: wire.layouts().clone(),
+                    layouts: List::from_boxed(wire.layouts().clone().into_boxed()),
                 })
                 .expect("wire slot");
         }
-        let expected = Statement { wires: stated, output: fixtures::LIMITS.room, terms };
+        let expected =
+            Statement { wires: stated, output: fixtures::LIMITS.room, terms: List::from_boxed(terms.into_boxed()) };
         let connection = world.connect(stating_with_schema(wires, schema));
         world.run();
         assert!(world.ready(connection));
@@ -218,6 +224,7 @@ mod opening {
     fn another_version_is_refused_by_skein_as_version() {
         let mut schema = fixtures::schema();
         let other = 9; // The previous channel is refused before reading its credential.
+        schema.versions.truncate(1);
         schema.versions.get_mut(0).expect("one version").version = other;
         let mut world = world();
         let peer = skein_fake_channel::ScriptedPeer::new(
@@ -230,17 +237,17 @@ mod opening {
         .expect("old worker");
         let connection = world.connect(peer);
         world.run();
-        assert_eq!(world.refusal(connection), Some((1, b"speaks 11..11, offered 9..9".as_slice().into())));
+        assert_eq!(world.refusal(connection), Some((1, b"speaks 12..13, offered 9..9".as_slice().into())));
         let [jig_protocol_engine_workers::Request::Refused { worker: None, reason: 1, text }] = world.openings() else {
             panic!("precredential refusal")
         };
-        assert_eq!(text.as_ref(), b"speaks 11..11, offered 9..9");
+        assert_eq!(text.as_ref(), b"speaks 12..13, offered 9..9");
         assert!(world.root().is_empty());
     }
     #[test]
     fn terms_below_the_largest_assignment_are_refused_as_limits() {
         let mut schema = fixtures::schema();
-        let kinds = &mut schema.versions.get_mut(0).expect("one version").kinds;
+        let kinds = &mut schema.versions.get_mut(1).expect("current version").kinds;
         for index in 0..kinds.len() {
             let kind = kinds.get_mut(index).expect("kind slot");
             if kind.kind == 0x0180 {

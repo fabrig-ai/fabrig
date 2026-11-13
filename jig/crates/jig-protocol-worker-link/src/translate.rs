@@ -12,7 +12,7 @@ use jig_protocol_worker_wire::{self as wire, Part};
 use skein_channel::{Frame, frame_writer};
 use skein_lib::{List, Queue, Reader, Time, Token, Writer, bytes};
 
-pub(crate) fn hello(hello: Hello, limits: &wire::v11::Limits) -> Option<Frame> {
+pub(crate) fn hello(hello: Hello, limits: &wire::v13::Limits) -> Option<Frame> {
     let bounds = hello.bounds;
     if !valid_program_endpoints(&bounds.program_endpoints) {
         return None;
@@ -80,7 +80,8 @@ pub(crate) fn hello(hello: Hello, limits: &wire::v11::Limits) -> Option<Frame> {
     frame(0x0100, body.finish())
 }
 
-pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v11::Limits) -> Option<Frame> {
+#[expect(clippy::too_many_lines, reason = "one encoding arm per upward host record, including the call's contract")]
+pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v13::Limits) -> Option<Frame> {
     match up {
         host::LinkUp::Draining => {
             let record = wire::Draining::new(limits, wire::DrainingParts {}).ok()?;
@@ -149,10 +150,19 @@ pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v11::Limits) -
             record.encode(&mut body).ok()?;
             frame(0x0101, body.finish())
         }
-        host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } => {
+        host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
             let record = wire::Call::new(
                 limits,
-                wire::CallParts { task: run.raw(), attempt: attempt.raw(), name: call, tool, writes, input, deadline },
+                wire::CallParts {
+                    task: run.raw(),
+                    attempt: attempt.raw(),
+                    name: call,
+                    tool,
+                    writes,
+                    input,
+                    deadline,
+                    contract,
+                },
             )
             .ok()?;
             let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
@@ -184,7 +194,7 @@ fn job_answer_frame(
     attempt: Token,
     answer: host::JobEnding,
     parts: &[Part],
-    limits: &wire::v11::Limits,
+    limits: &wire::v13::Limits,
 ) -> Option<Frame> {
     let record = wire::JobAnswer::new(
         limits,
@@ -195,7 +205,7 @@ fn job_answer_frame(
     record.encode(&mut body).ok()?;
     frame(wire::Kind::JobAnswer.number(), body.finish())
 }
-fn piece_record(piece: host::Piece, limits: &wire::v11::Limits) -> Option<wire::Piece> {
+fn piece_record(piece: host::Piece, limits: &wire::v13::Limits) -> Option<wire::Piece> {
     let kind = match piece.kind {
         host::LiveKind::Text => wire::LiveKind::Text,
         host::LiveKind::Reasoning => wire::LiveKind::Reasoning,
@@ -209,7 +219,7 @@ fn piece_record(piece: host::Piece, limits: &wire::v11::Limits) -> Option<wire::
     )
     .ok()
 }
-fn fact_frame(run: Token, attempt: Token, value: wire::FactValue, limits: &wire::v11::Limits) -> Option<Frame> {
+fn fact_frame(run: Token, attempt: Token, value: wire::FactValue, limits: &wire::v13::Limits) -> Option<Frame> {
     let record = wire::Fact::new(limits, wire::FactParts { task: run.raw(), attempt: attempt.raw(), value }).ok()?;
     let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
     record.encode(&mut body).ok()?;
@@ -232,14 +242,14 @@ fn part(token: Option<Token>, parts: &[Part]) -> Result<Option<Box<[u8]>>, ()> {
 fn name(token: Option<Token>) -> Option<u64> {
     Some(token?.raw())
 }
-fn work(work: host::Work, parts: &[Part], limits: &wire::v11::Limits) -> Option<wire::Work> {
+fn work(work: host::Work, parts: &[Part], limits: &wire::v13::Limits) -> Option<wire::Work> {
     wire::Work::new(
         limits,
         wire::WorkParts { left: part(work.left, parts).ok()?, saved: part(work.saved, parts).ok()? },
     )
     .ok()
 }
-fn refused(items: Box<[host::Refused]>, limits: &wire::v11::Limits) -> Option<List<wire::Refused>> {
+fn refused(items: Box<[host::Refused]>, limits: &wire::v13::Limits) -> Option<List<wire::Refused>> {
     let mut list = List::with_capacity(limits.turn_refused);
     for item in items {
         let reason = match item.reason {
@@ -253,10 +263,11 @@ fn refused(items: Box<[host::Refused]>, limits: &wire::v11::Limits) -> Option<Li
     }
     Some(list)
 }
-fn ending(ending: host::Ending, parts: &[Part], limits: &wire::v11::Limits) -> Option<wire::Ending> {
+fn ending(ending: host::Ending, parts: &[Part], limits: &wire::v13::Limits) -> Option<wire::Ending> {
     Some(match ending {
         host::Ending::Refused(refusal) => {
             let value = match refusal {
+                host::Refusal::Untranslated(_) => return None,
                 host::Refusal::Busy => wire::Refusal::Busy,
                 host::Refusal::Version(value) => wire::Refusal::Version(
                     wire::Mismatch::new(
@@ -287,17 +298,50 @@ fn ending(ending: host::Ending, parts: &[Part], limits: &wire::v11::Limits) -> O
             let work = work(kept, parts, limits)?;
             wire::Ending::Parked(wire::Parked::new(limits, wire::ParkedParts { work }).ok()?)
         }
-        host::Ending::Failed { failure: failed, detail, work: kept } => {
+        host::Ending::Failed { failure: failed, detail, work: kept, model } => {
             let work = work(kept, parts, limits)?;
             let failure = failure(failed, parts, limits)?;
-            wire::Ending::Failed(wire::Failed::new(limits, wire::FailedParts { failure, detail, work }).ok()?)
+            let model = match model {
+                Some(model) => Some(model_failure(model, limits)?),
+                None => None,
+            };
+            wire::Ending::Failed(wire::Failed::new(limits, wire::FailedParts { failure, detail, work, model }).ok()?)
         }
     })
 }
-fn job_ending(ending: host::JobEnding, parts: &[Part], limits: &wire::v11::Limits) -> Option<wire::JobEnding> {
+fn model_failure(value: host::ModelFailure, limits: &wire::v13::Limits) -> Option<wire::ModelFailure> {
+    let kind = match value.kind {
+        host::ModelFailureKind::Unavailable => wire::ModelFailureKind::Unavailable,
+        host::ModelFailureKind::Overloaded => wire::ModelFailureKind::Overloaded,
+        host::ModelFailureKind::RateLimited => wire::ModelFailureKind::RateLimited,
+        host::ModelFailureKind::Exhausted => wire::ModelFailureKind::Exhausted,
+        host::ModelFailureKind::TimedOut => wire::ModelFailureKind::TimedOut,
+        host::ModelFailureKind::ContextTooLong => wire::ModelFailureKind::ContextTooLong,
+        host::ModelFailureKind::Invalid => wire::ModelFailureKind::Invalid,
+        host::ModelFailureKind::Refused => wire::ModelFailureKind::Refused,
+        host::ModelFailureKind::Unsupported => wire::ModelFailureKind::Unsupported,
+        host::ModelFailureKind::Unauthorized => wire::ModelFailureKind::Unauthorized,
+        host::ModelFailureKind::Protocol => wire::ModelFailureKind::Protocol,
+        host::ModelFailureKind::Cancelled => wire::ModelFailureKind::Cancelled,
+        host::ModelFailureKind::Limit => wire::ModelFailureKind::Limit,
+    };
+    let evidence = match value.evidence {
+        host::ModelEvidence::Unsent => wire::ModelEvidence::Unsent,
+        host::ModelEvidence::Unknown => wire::ModelEvidence::Unknown,
+        host::ModelEvidence::Response => wire::ModelEvidence::Response,
+    };
+    wire::ModelFailure::new(
+        limits,
+        wire::ModelFailureParts { endpoint: value.endpoint, model: value.model, kind, evidence, status: value.status },
+    )
+    .ok()
+}
+
+fn job_ending(ending: host::JobEnding, parts: &[Part], limits: &wire::v13::Limits) -> Option<wire::JobEnding> {
     Some(match ending {
         host::JobEnding::Refused(refusal) => {
             let value = match refusal {
+                host::JobRefusal::Untranslated(_) => return None,
                 host::JobRefusal::Busy => wire::JobRefusal::Busy,
                 host::JobRefusal::Invalid(invalid) => {
                     let value = match invalid {
@@ -332,7 +376,7 @@ fn job_ending(ending: host::JobEnding, parts: &[Part], limits: &wire::v11::Limit
         ),
     })
 }
-fn job_failure(value: host::JobFailure, parts: &[Part], limits: &wire::v11::Limits) -> Option<wire::JobFailure> {
+fn job_failure(value: host::JobFailure, parts: &[Part], limits: &wire::v13::Limits) -> Option<wire::JobFailure> {
     Some(match value {
         host::JobFailure::Unprepared(value) => {
             let value = match value {
@@ -366,7 +410,7 @@ fn job_failure(value: host::JobFailure, parts: &[Part], limits: &wire::v11::Limi
         ),
     })
 }
-fn failure(failure: host::Failure, parts: &[Part], limits: &wire::v11::Limits) -> Option<wire::Failure> {
+fn failure(failure: host::Failure, parts: &[Part], limits: &wire::v13::Limits) -> Option<wire::Failure> {
     Some(match failure {
         host::Failure::Unprepared(preparation) => {
             let value = match preparation {
@@ -392,7 +436,7 @@ fn failure(failure: host::Failure, parts: &[Part], limits: &wire::v11::Limits) -
         }
     })
 }
-fn activity(activity: host::AgentActivity, limits: &wire::v11::Limits) -> Option<wire::FactValue> {
+fn activity(activity: host::AgentActivity, limits: &wire::v13::Limits) -> Option<wire::FactValue> {
     Some(match activity {
         host::AgentActivity::Phase(value) => {
             let value = phase(value);
@@ -419,7 +463,7 @@ fn phase(value: Phase) -> wire::Phase {
         Phase::Ending => wire::Phase::Ending,
     }
 }
-fn invalid_value(value: host::Invalid, limits: &wire::v11::Limits) -> Option<wire::Invalid> {
+fn invalid_value(value: host::Invalid, limits: &wire::v13::Limits) -> Option<wire::Invalid> {
     Some(match value {
         host::Invalid::Start { why, cause } => wire::Invalid::Start(
             wire::InvalidStart::new(
@@ -441,7 +485,7 @@ fn invalid_value(value: host::Invalid, limits: &wire::v11::Limits) -> Option<wir
         host::Invalid::Messages => wire::Invalid::Messages,
     })
 }
-fn run_failure(value: host::RunFailure, limits: &wire::v11::Limits) -> Option<wire::RunFailure> {
+fn run_failure(value: host::RunFailure, limits: &wire::v13::Limits) -> Option<wire::RunFailure> {
     Some(match value {
         host::RunFailure::Exceeded(value) => wire::RunFailure::Exceeded(
             wire::Exceeded::new(
@@ -519,7 +563,7 @@ fn count_kind(value: CountKind) -> wire::CountKind {
 pub(crate) fn down(
     kind: u16,
     body: &[u8],
-    limits: &wire::v11::Limits,
+    limits: &wire::v13::Limits,
     now: Time,
     parts: &mut Queue<Part>,
     next: &mut u64,
@@ -633,7 +677,8 @@ pub(crate) fn down(
         | wire::Kind::Fact
         | wire::Kind::Unauthorized
         | wire::Kind::Limited
-        | wire::Kind::AccountRefused => return None,
+        | wire::Kind::AccountRefused
+        | wire::Kind::Wires => return None,
     };
     Some(down)
 }
@@ -803,7 +848,7 @@ fn assignment(
     })
 }
 
-fn login_state(state: LoginState, limits: &wire::v11::Limits) -> Option<wire::LoginState> {
+fn login_state(state: LoginState, limits: &wire::v13::Limits) -> Option<wire::LoginState> {
     Some(match state {
         LoginState::Usable => wire::LoginState::Usable,
         LoginState::NotSignedIn => wire::LoginState::NotSignedIn,
@@ -814,7 +859,7 @@ fn login_state(state: LoginState, limits: &wire::v11::Limits) -> Option<wire::Lo
         LoginState::Failed { reason, detail } => wire::LoginState::Failed(source_failed(reason, detail, limits)?),
     })
 }
-fn source_failed(reason: SourceFailure, detail: Box<[u8]>, limits: &wire::v11::Limits) -> Option<wire::SourceFailed> {
+fn source_failed(reason: SourceFailure, detail: Box<[u8]>, limits: &wire::v13::Limits) -> Option<wire::SourceFailed> {
     let reason = match reason {
         SourceFailure::Missing => wire::SourceFailure::Missing,
         SourceFailure::Deadline => wire::SourceFailure::Deadline,
@@ -827,7 +872,7 @@ fn source_failed(reason: SourceFailure, detail: Box<[u8]>, limits: &wire::v11::L
     wire::SourceFailed::new(limits, wire::SourceFailedParts { reason, detail }).ok()
 }
 
-fn logins_frame(logins: Box<[Login]>, limits: &wire::v11::Limits) -> Option<Frame> {
+fn logins_frame(logins: Box<[Login]>, limits: &wire::v13::Limits) -> Option<Frame> {
     let mut rows = List::<wire::Login>::with_capacity(limits.logins_logins);
     for login in logins {
         for row in &rows {
@@ -853,7 +898,7 @@ fn logins_frame(logins: Box<[Login]>, limits: &wire::v11::Limits) -> Option<Fram
     record.encode(&mut body).ok()?;
     frame(wire::Kind::Logins.number(), body.finish())
 }
-fn signed_out_frame(name: SourceName, result: SignOutResult, limits: &wire::v11::Limits) -> Option<Frame> {
+fn signed_out_frame(name: SourceName, result: SignOutResult, limits: &wire::v13::Limits) -> Option<Frame> {
     let result = match result {
         SignOutResult::SignedOut => wire::SignOutResult::SignedOut,
         SignOutResult::Failed { reason, detail } => wire::SignOutResult::Failed(source_failed(reason, detail, limits)?),
@@ -865,7 +910,7 @@ fn signed_out_frame(name: SourceName, result: SignOutResult, limits: &wire::v11:
     frame(wire::Kind::SignedOut.number(), body.finish())
 }
 
-fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wire::v11::Limits) -> Option<Frame> {
+fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wire::v13::Limits) -> Option<Frame> {
     use jig_domain_link::{ListFailure, ListOutcome};
     let outcome = match outcome {
         ListOutcome::Listed(rows) => {
@@ -910,4 +955,25 @@ fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wi
     let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
     record.encode(&mut body).ok()?;
     frame(wire::Kind::ListRead.number(), body.finish())
+}
+
+/// Byte bridges surround this component's current-value/domain translation (bridges.md, 5).
+pub(crate) fn send(
+    machine: &mut wire::translation::Translation,
+    frame: Frame,
+    version: u16,
+    agreed: &[wire::Agreed],
+    limits: &wire::v13::Limits,
+) -> Result<Frame, wire::translation::Untranslated> {
+    machine.send(frame, version, agreed, limits)
+}
+pub(crate) fn receive(
+    machine: &mut wire::translation::Translation,
+    kind: u16,
+    body: &[u8],
+    version: u16,
+    agreed: &[wire::Agreed],
+    limits: &wire::v13::Limits,
+) -> Result<Frame, wire::translation::Untranslated> {
+    machine.receive(kind, body, version, agreed, limits)
 }

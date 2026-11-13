@@ -47,7 +47,7 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
             turn_queue_bytes: 2048,
             piece_bytes: 4096,
         },
-        charter: smith_charter::v4::CEILINGS,
+        charter: smith_charter::v5::CEILINGS,
         endpoints: 1,
         release: 128,
         watermark: crate::default_watermark(commits, 128),
@@ -420,8 +420,12 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
     seen.into_boxed()
 }
 
-#[expect(clippy::too_many_lines, reason = "the held sign-in field extends the existing complete chat fixture")]
 fn started_chat() -> (Domain, Env<Limits>, Token) {
+    started_chat_with_contract(1)
+}
+
+#[expect(clippy::too_many_lines, reason = "the complete chat fixture starts a run in the engine's hub")]
+fn started_chat_with_contract(contract: u16) -> (Domain, Env<Limits>, Token) {
     use jig_domain_people as people;
     let (mut domain, env) = fixture();
     step(&mut domain, &env, Event::Restart { pending: false });
@@ -521,6 +525,7 @@ fn started_chat() -> (Domain, Env<Limits>, Token) {
         }
     }
     let owner = started.expect("the assigned hub run asked its agent to start");
+    step(&mut domain, &env, Event::Agent(host::FromAgent::Decoded { owner, contract }));
     step(&mut domain, &env, Event::Agent(host::FromAgent::Started { owner, agent: owner }));
     settle(&mut domain, &env);
     (domain, env, owner)

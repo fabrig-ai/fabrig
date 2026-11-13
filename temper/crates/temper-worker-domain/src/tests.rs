@@ -10,6 +10,7 @@ mod jobs;
 mod lifecycle;
 mod limits;
 mod live;
+mod model_failures;
 mod orders;
 mod stopping;
 

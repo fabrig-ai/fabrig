@@ -92,6 +92,7 @@ impl LinkPeer {
                     name: settings.jig.name.clone(),
                     digest: io::digest::digest(fixtures::worker_files().contents(b"worker-secret").unwrap()),
                 }]),
+                jig_protocol_worker_wire::spoken(),
                 {
                     let mut wires = List::with_capacity(1);
                     wires
@@ -101,7 +102,7 @@ impl LinkPeer {
                             temper_protocol_worker_wire::wire::layout(),
                         ))
                         .unwrap();
-                    wires
+                    jig_protocol_worker_wire::Application::opaque(wires)
                 },
             )
             .unwrap(),
@@ -688,8 +689,8 @@ fn assigned_agent_with(worker: &mut crate::Worker, agent: &crate::settings::Agen
     let mut spawned = None;
     while let Some(request) = out.pop() {
         if let root::Request::Decode { agent: owner, run, start } = request {
-            let start = crate::worker_route::decode(run, *start, agent);
-            root::step(&mut worker.root, &worker.env, root::Event::Decoded { agent: owner, start }, &mut out);
+            let event = crate::worker_route::decoded(owner, run, *start, agent);
+            root::step(&mut worker.root, &worker.env, event, &mut out);
         } else {
             if let root::Request::Process(ref process) = request
                 && let smith_host_domain::process::Request::Spawn { owner, .. } = process.as_ref()
