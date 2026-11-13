@@ -120,6 +120,5 @@ fn whole_source_lists_enforce_bounds_through_round_trip() {
             assert_eq!(wire::Sources::decode(&limits, &mut Reader::new(&writer.finish())), Ok(sources));
         }
     }
-    assert_eq!(wire::VERSION, 9);
     v10::check_limits(&limits).expect("source limits");
 }

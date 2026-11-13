@@ -202,7 +202,7 @@ fn talk_opens_by_prefix_and_its_list_lowers_on_escape_or_typing() {
         typed(&mut host, words);
         give(&mut host, Event::Send);
         assert_eq!(host.root.pages().address(), &Address::Talk { project: 3, task: ROLE });
-        assert!(host.words().is_empty());
+        assert_eq!(host.words(), []);
     }
     let mut host = roles_host();
     typed(&mut host, b"/talk zed");
@@ -288,7 +288,7 @@ fn a_roles_choices_send_talk_words_and_accept_confirms_the_proposal_in_place() {
     typed(&mut host, b"1");
     let duties = give(&mut host, Event::Send);
     assert!(sent_ask(&duties).iter().any(|(_, ask)| matches!(ask, w::Ask::Talk(talk) if talk.project() == 3 && talk.task() == ROLE && talk.words() == b"Yes, add it")));
-    assert!(host.words().is_empty());
+    assert_eq!(host.words(), []);
     let mut host = talk_fixture(true, true, false, true);
     assert!(text(&mut host).contains("1. Accept it"));
     let object = jig_client::contract::ObjectKey::Proposal(jig_client::contract::ProposalKey {
