@@ -246,7 +246,7 @@ impl Deployment {
             return output(0, "");
         }
         if let Some(arguments) = line.strip_prefix(&format!("{} ", self.description.engine.ctl)) {
-            let arguments = shell_words(arguments).join(" ");
+            let arguments = shell_words(arguments.strip_suffix(" </dev/null").unwrap_or(arguments)).join(" ");
             return match self.ctl.get_mut(&arguments) {
                 Some(answers) if answers.len() > 1 => answers.pop_front().expect("more than one answer"),
                 Some(answers) => answers.front().cloned().expect("ctl answer exists"),

@@ -5,10 +5,29 @@ use crate::{
     record::{Before, Journal},
 };
 
-pub fn before(_description: &Description, _hosts: &mut dyn Hosts) -> Result<Before, String> {
-    Ok(Before::default())
+#[doc(hidden)]
+pub mod judgement;
+mod reads;
+
+pub fn before(description: &Description, hosts: &mut dyn Hosts) -> Result<Before, String> {
+    let read = reads::snapshot(description, hosts);
+    match read.unread.first() {
+        Some(why) => Err(why.clone()),
+        None => Ok(read.snapshot),
+    }
 }
-pub fn judge(_description: &Description, journal: &mut Journal, hosts: &mut dyn Hosts) -> bool {
-    let _ = journal.line(hosts.now(), "temper-redeploy referee: not built");
-    false
+
+pub fn judge(description: &Description, journal: &mut Journal, hosts: &mut dyn Hosts) -> bool {
+    let mut read = reads::snapshot(description, hosts);
+    let tasks: Vec<_> = judgement::tasks(&journal.record.before, &read.snapshot).into_keys().collect();
+    for task in tasks {
+        reads::activity(description, hosts, task, journal.record.began, &mut read);
+    }
+    let judged = judgement::evaluate(description, &journal.record, &read);
+    for line in judged.lines {
+        if journal.line(hosts.now(), &format!("temper-redeploy referee: {line}")).is_err() {
+            return false;
+        }
+    }
+    judged.failures == 0
 }
