@@ -13,6 +13,23 @@ use skein_io::{self as io};
 use skein_lib::{List, Map, Queue, Reader, Time, Token};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
+/// Temper's roots and bridge, with its spoken entry from the engine's table
+/// (temper/docs/design/protocol/wires.md, 4 and 10).
+pub fn application(
+    limits: &wire::Limits,
+) -> Result<jig_protocol_worker_wire::Application, skein_codec::bridge::BridgeError> {
+    let mut application = temper_protocol_worker_wire::application(limits)?;
+    let mut wires = List::with_capacity(1);
+    for wire in crate::wires().into_boxed() {
+        if wire.name == temper_protocol_worker_wire::wire::FAMILY {
+            wires.push(wire).expect("one application wire");
+        }
+    }
+    assert!(wires.len() == 1, "the table names temper's worker wire once");
+    application.spoken = wires;
+    Ok(application)
+}
+
 #[derive(Debug)]
 pub struct Workers {
     pub(crate) host: kit::host::Workers,
@@ -36,20 +53,8 @@ impl Workers {
             listeners: crate::tokens::prefix(Token::new(crate::tokens::WORKER_LISTENERS)),
             connections: crate::tokens::prefix(Token::new(crate::tokens::WORKER_CONNECTIONS)),
         };
-        let mut wires = List::with_capacity(1);
-        for wire in crate::wires().into_boxed() {
-            if wire.name == temper_protocol_worker_wire::wire::FAMILY {
-                wires.push(wire).expect("one application wire");
-            }
-        }
-        assert!(wires.len() == 1, "the table names temper's worker wire once");
-        let host = kit::host::Workers::new(
-            config,
-            files,
-            tokens,
-            jig_protocol_worker_wire::Application::opaque(wires),
-            limits,
-        )?;
+        let application = application(&encoding.limits).or(Err(kit::host::invalid(What::Bound)))?;
+        let host = kit::host::Workers::new(config, files, tokens, application, limits)?;
         let mut table = crate::forges::Forges::with_capacity(forge_limit);
         for forge in forges {
             assert!(table.insert(forge), "unique fixture forges");

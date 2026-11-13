@@ -153,6 +153,9 @@ fn author(text: &[u8]) -> bool {
     true
 }
 
+mod application;
+pub use application::{application, spoken};
+
 #[cfg(test)]
 mod tests;
 
@@ -163,6 +166,9 @@ pub mod wire {
 
     /// The version named by the current schema's header.
     pub const VERSION: u16 = 5;
+
+    /// The oldest version this build speaks.
+    pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;
 
     #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
     const TEXT: &str = include_str!("../schema/worker-wire-v1.schema");
@@ -179,13 +185,14 @@ pub mod wire {
 
     #[cfg(test)]
     mod tests {
-        use super::{FAMILY, TEXT, VERSION, layout};
+        use super::{FAMILY, FLOOR, TEXT, VERSION, layout};
 
         #[test]
         fn identity_tracks_schema() {
             let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
+            assert_eq!(FLOOR, crate::patches::kept::temper_worker_wire::FLOOR);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 
             let changed = TEXT.replacen("tag: u64", "tag: u32", 1);

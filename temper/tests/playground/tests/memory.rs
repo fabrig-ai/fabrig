@@ -10,18 +10,20 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 const SEED: u64 = 7;
 const STARTUP_STEPS: u64 = 10_000;
 
-// The 2026-11-12 table in temper/docs/development/playground-memory.md,
-// each figure plus a quarter. Bounds follow process names, not admission order.
-const SERVICE_FIRST_STEP_HELD: i64 = 206_908 + 206_908 / 4;
-const SERVICE_FIRST_STEP_PEAK: i64 = 340_891 + 340_891 / 4;
+// The service's 2026-11-13 table in temper/docs/development/playground-memory.md,
+// each figure plus a quarter, rounded up to two significant digits.
+// Other bounds keep the 2026-11-12 figures plus a quarter.
+// Bounds follow process names, not admission order.
+const SERVICE_FIRST_STEP_HELD: i64 = 340_000;
+const SERVICE_FIRST_STEP_PEAK: i64 = 530_000;
 const LLM_FIRST_STEP_HELD: i64 = 27_449 + 27_449 / 4;
 const LLM_FIRST_STEP_PEAK: i64 = 27_449 + 27_449 / 4;
 const FORGE_FIRST_STEP_HELD: i64 = 30_130 + 30_130 / 4;
 const FORGE_FIRST_STEP_PEAK: i64 = 30_130 + 30_130 / 4;
 const VISITOR_FIRST_STEP_HELD: i64 = 1_054 + 1_054 / 4;
 const VISITOR_FIRST_STEP_PEAK: i64 = 1_068 + 1_068 / 4;
-const SERVICE_START_HELD: i64 = 438_969 + 438_969 / 4;
-const SERVICE_START_PEAK: i64 = 565_289 + 565_289 / 4;
+const SERVICE_START_HELD: i64 = 600_000;
+const SERVICE_START_PEAK: i64 = 760_000;
 const LLM_START_HELD: i64 = 28_185 + 28_185 / 4;
 const LLM_START_PEAK: i64 = 28_185 + 28_185 / 4;
 const FORGE_START_HELD: i64 = 30_871 + 30_871 / 4;
