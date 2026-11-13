@@ -516,6 +516,7 @@ fn landing_config(engine: &settings::Engine) -> Map<u32, domain::ProjectLanding>
 
 /// What the root's construction asserts, refused before it is made, each
 /// naming the configuration that breaks it (domain/root.md, 5).
+#[expect(clippy::too_many_lines, reason = "root admission checks each landing bound before construction")]
 pub fn root(
     mut core: jig_domain_core::Config,
     engine: &settings::Engine,

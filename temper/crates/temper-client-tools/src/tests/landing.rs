@@ -635,6 +635,11 @@ fn ended_landings_show_round_evidence_and_outcomes_in_text_and_json() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "the test formats text and JSON expectations for each batch member"
+)]
 fn a_stack_shows_each_head_prefix_and_outcome_in_order_in_text_and_json() {
     let mut parts = panel(w::LandingPhase::Proving).into_parts();
     let template = parts.members.get(0).unwrap().clone().into_parts();

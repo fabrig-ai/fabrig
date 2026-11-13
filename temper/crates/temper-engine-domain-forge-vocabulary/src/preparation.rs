@@ -9,4 +9,3 @@ pub struct Prepared {
     pub outcome: Outcome,
     pub files: Box<[u8]>,
 }
-

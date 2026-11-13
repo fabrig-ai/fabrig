@@ -113,7 +113,7 @@ fn the_reference_landing_member_parses() {
 fn project_batch_defaults_and_bounds_name_its_member() {
     const DOCUMENT: config::DocumentLimits = config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 };
     for (member, cap, expected, reason) in [
-        ("", 2, Some(1), ""),
+        ("", 2_u32, Some(1), ""),
         (",\"batch\":2", 2, Some(2), ""),
         (",\"batch\":0", 2, None, ""),
         (",\"batch\":3", 2, None, "forge.landing_members"),
@@ -135,13 +135,13 @@ fn project_batch_defaults_and_bounds_name_its_member() {
         let jig = fixtures::engine().jig;
         let mut problems = Problems::empty();
         let members = application::parse(&document, at, &jig, &config::Directories::working(), &mut problems);
-        let words = String::from_utf8(lines(&problems).into_vec()).unwrap();
+        let words = lines(&problems);
         if let Some(batch) = expected {
-            assert_eq!(words, "");
+            assert_eq!(words.as_ref(), b"");
             assert_eq!(members.unwrap().landings.get(&1).unwrap().batch, batch);
         } else {
-            assert!(words.contains("application.landing.projects[0].batch"), "{words}");
-            assert!(words.contains(reason), "{words}");
+            assert!(skein_lib::bytes::find(&words, b"application.landing.projects[0].batch").is_some(), "{words:?}");
+            assert!(skein_lib::bytes::find(&words, reason.as_bytes()).is_some(), "{words:?}");
         }
     }
 }

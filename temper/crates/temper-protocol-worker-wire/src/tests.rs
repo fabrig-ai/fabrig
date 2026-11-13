@@ -167,14 +167,16 @@ fn largest_parts_are_the_generated_encoded_bounds() {
     assert_eq!(u64::from(sizes.saved), v1::Saved::encoded_bound(&limits).expect("saved"));
     assert_eq!(u64::from(sizes.resource), v1::Preparation::encoded_bound(&limits).expect("preparation"));
     assert_eq!(u64::from(sizes.grant), v1::Identity::encoded_bound(&limits).expect("identity"));
+    // Merged adds a list length and 64 full ids in place of Merge's base id.
     // Five prefix branches fit the channel's 1 MiB Items ceiling; six do not.
     let largest = v1::Items::encoded_bound(&v1::CEILINGS).expect("ceiling bound");
-    assert_eq!(largest, 987_716);
+    // At ceilings: 64 * 15,433-byte repositories, a four-byte list length and the two-byte version.
+    assert_eq!(largest, 987_718);
     assert!(largest <= 1_048_576);
     let one_more =
         largest + u64::from(v1::CEILINGS.items_repositories) * (4 + u64::from(v1::CEILINGS.prefixes_branches_item));
     assert!(one_more > 1_048_576);
-    assert_eq!(sizes, crate::Largest { items: 12790, left: 84, saved: 1084, resource: 41, grant: 233 });
+    assert_eq!(sizes, crate::Largest { items: 12792, left: 84, saved: 1084, resource: 41, grant: 233 });
 }
 
 #[test]

@@ -1,4 +1,4 @@
-family temper-worker-wire 5
+family temper-worker-wire 6
 
 # Down: the workspace items (protocol/channel.md, 4). Names, branches and
 # the save branch take Bounds.name_bytes; the remote Bounds.remote_bytes;

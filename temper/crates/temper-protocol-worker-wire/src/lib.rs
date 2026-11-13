@@ -164,7 +164,7 @@ pub mod wire {
     pub const FAMILY: &str = "temper-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = 5;
+    pub const VERSION: u16 = 6;
 
     #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
     const TEXT: &str = include_str!("../schema/worker-wire-v1.schema");

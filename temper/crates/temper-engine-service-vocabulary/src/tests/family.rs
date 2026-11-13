@@ -1656,12 +1656,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_seventeen() {
+fn embedded_client_refusals_keep_their_bytes_at_client_eighteen() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v21::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 17);
+    assert_eq!(wire::CLIENT_VERSION, 18);
 }
 
 #[test]
@@ -4914,7 +4914,8 @@ fn a_batch_panel_keeps_its_members_when_round_diagnostics_pass_the_wire_bound() 
         value.members = Box::new([member.clone(), member]);
         value.members[1].change = 52;
         let bound = usize::try_from(w::CEILINGS.landing_round_failure).unwrap();
-        value.round.failure = vec![b'x'; bound + extra].into_boxed_slice();
+        value.round.failure = skein_lib::bytes::zeroed(bound + extra);
+        value.round.failure.fill(b'x');
         let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS);
         assert!(bytes.is_some(), "diagnostic extra {extra} does not erase the landing");
         let bytes = bytes.unwrap();
