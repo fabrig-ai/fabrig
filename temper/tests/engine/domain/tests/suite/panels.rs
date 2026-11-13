@@ -688,7 +688,7 @@ fn a_service_is_refused_device_registration_at_its_own_admission() {
     );
 }
 
-fn history_driver() -> Driver {
+fn history_driver() -> (Driver, [u64; 2]) {
     use temper_client_protocol_wire as wire;
     let mut writer = temper_engine_forge_world::World::new(902);
     writer.adopt();
@@ -717,24 +717,24 @@ fn history_driver() -> Driver {
         }
     }).collect();
     let mut driver = driver();
+    let member = driver.session();
+    let (_, outsider) = panel_sign_in(&mut driver, OTHER_IDENTITY);
     driver.store.seed(rows.into_boxed_slice(), Box::new([root::Key::Forge(forge::Key::Change(CHANGE))]));
-    let mut driver = restarted_panels(&mut driver);
-    driver.sign_in(); driver.settle(); driver.delivered.clear();
+    let driver = restarted_panels(&mut driver);
     assert!(!driver.store.rows.contains_key(&root::Key::Forge(forge::Key::Change(CHANGE))));
-    driver
+    (driver, [member, outsider])
 }
 #[test]
 fn history_is_project_private_survives_change_eviction_and_adds_nothing_public() {
     use forge::history::{Of, Query, Reply};
     use temper_client_protocol_wire as wire;
-    let mut driver = history_driver();
+    let (mut driver, [member, outsider]) = history_driver();
     let query = Query { project: 1, of: Of::Change(CHANGE), since: None, until: None, after: None };
-    let member = driver.session();
-    let (_, outsider) = panel_sign_in(&mut driver, OTHER_IDENTITY);
     for (sign_in, project, key, admitted) in [(outsider, 1, 801, false), (member, 2, 802, false), (member, 1, 803, true)] {
         let reply = ReplyTo::new(Token::new(key)); let before = driver.loads.len();
         driver.send(root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope: ApplicationScope::Project(project), query: root::ForgeRead::History(query) }));
         driver.settle();
+        let reply = ReplyTo::new(Token::new(key));
         let answer = driver.delivered.iter().find(|delivery| match delivery {
             root::Delivery::Read { reply: got, .. } | root::Delivery::ForgeRead { reply: got, .. } => *got == reply,
             _ => false,
