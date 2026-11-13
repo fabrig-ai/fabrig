@@ -249,7 +249,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-work-separated` | text between two calls ends one run and starts another |
 | `chat-work-empty` | before the first word or call, the three dots |
 | `chat-work-reading` | earlier messages loading and Latest over the foot while away from the end |
-| `chat-working` | a live chat at work: its three dots |
+| `chat-working` | a live chat at work: its three dots and "✦ Working" above the composer |
 | `agent-work` | an agent's page, its last run running with a call under way, and Latest over the foot while away from the end |
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
@@ -268,7 +268,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-draft-chat` | a chat with a document, in Chat: its group and tool line |
 | `chat-draft-split` | the same chat in Split: the strip, the pane and a tinted section |
 | `chat-draft-draft` | the same chat in Draft: the composer at the foot on white |
-| `chat-draft-empty` | "+ Draft" pressed and nothing written: the empty pane |
+| `chat-draft-empty` | Split chosen, nothing written: the empty pane and Write it up from this chat |
 | `chat-new-draft` | `NewChat { draft: true }`: the empty pane in Split |
 | `chat-start-goal` | a chat's sheet to start a goal, open |
 | `chat-terminal` | the `chat-draft` chat with `terminal::Act::Enter` applied, not through a page control: the terminal, dark, DejaVu Sans Mono (the request's page 02) |
@@ -285,6 +285,7 @@ from the engine's own answers, is where the look is tuned.
 | `chats-drafts` | the Chats page under Drafts: "writes away-mode.md" |
 | `ask-chat-document` | an Ask temper chat in Chat, its document written |
 | `ask-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
+| `ask-chat-draft-empty` | an Ask temper chat in Split with no document: "TN · no draft yet", Write it up from this chat, and Start over in the bar |
 | `rail-new-menu` | the rail's "+ New draft or change" with its menu open: Draft, Change and Ask temper |
 | `rail-person-menu` | the rail's person with its menu open |
 | `rail-new-change` | a project offering no drafts, as at Pair: the rail's "+ New change", a link, no menu |
@@ -477,7 +478,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-closing-work` | a run, two delegates with opposite fates, and two proposals: what closing changes |
 | `chat-closing-failed` | the same close refused: the sheet keeps its choices and says why |
 | `chat-closed` | the requester closed it: one end line at 21:05, with a quiet bar |
-| `chat-paused` | a chat its person paused: "Paused", Resume and Close, and the composer's hint "Sending resumes this chat." |
+| `chat-paused` | a chat its person paused: "✦ Paused" above the composer, Resume and Close in the bar, and the hint "Sending resumes this chat." |
 | `chat-closing-start-over` | an Ask temper chat's Start over confirmation |
 | `task-closing` | an agent's task Close confirmation, with a task below it |
 | `task-paused` | an agent's task its person paused: "Paused", Resume and Close, and no own held card |

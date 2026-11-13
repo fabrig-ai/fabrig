@@ -4441,7 +4441,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
     }
     if then == Then::Working {
         let (phase, _) = owner(&mut t.chip);
-        *phase = c::ChipPhase::Active(c::RunStage::Due);
+        *phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
         t.waits_on = c::WaitsOn::Nothing;
     }
     if then == Then::DelegatedGoal && task == 2 {

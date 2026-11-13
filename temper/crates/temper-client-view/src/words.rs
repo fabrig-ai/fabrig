@@ -200,6 +200,9 @@ pub enum Word {
     ChatGoalLink,
     PlusDraft,
     DraftEmpty,
+    DraftWriteUp,
+    DraftNotYet,
+    DraftSendResumes,
     DraftWriting,
     DraftWords,
     ChatWrites,
@@ -1965,7 +1968,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2536;
+const PHRASES: u32 = 2539;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1992,10 +1995,10 @@ const PHRASES: u32 = 2536;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4619;
+const SEGMENTS: u32 = 4624;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 59957;
-const ALL: [Word; 1828] = [
+const ENGLISH_BYTES: u32 = 60055;
+const ALL: [Word; 1831] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2180,6 +2183,9 @@ const ALL: [Word; 1828] = [
     Word::ChatGoalLink,
     Word::PlusDraft,
     Word::DraftEmpty,
+    Word::DraftWriteUp,
+    Word::DraftNotYet,
+    Word::DraftSendResumes,
     Word::DraftWriting,
     Word::DraftWords,
     Word::ChatWrites,
@@ -5258,6 +5264,9 @@ impl Word {
             Self::ToolSeparator => 1041,
             Self::PlusDraft => 3680,
             Self::DraftEmpty => 3681,
+            Self::DraftWriteUp => 9027,
+            Self::DraftNotYet => 9028,
+            Self::DraftSendResumes => 9029,
             Self::DraftWriting => 3682,
             Self::DraftWords => 3683,
             Self::ChatWrites => 3684,
@@ -7304,6 +7313,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WorkRepeated => (&[b"", b" \xc3\x97", b""], &[Name, Number]),
         Word::ToolSeparator => (&[b" \xc2\xb7 "], &[]),
         Word::PlusDraft => (&[b"+ Draft"], &[]),
+        Word::DraftWriteUp => (&[b"Write it up from this chat"], &[]),
+        Word::DraftNotYet => (&[b"T", b" \xc2\xb7 no draft yet"], &[Number]),
+        Word::DraftSendResumes => (&[b"Sending resumes this chat. \xc2\xb7 Ctrl+\\ switches the draft"], &[]),
         Word::DraftEmpty => (&[b"The draft appears here as you write it together."], &[]),
         Word::DraftWriting => (&[b"writing"], &[]),
         Word::DraftWords => (&[b"What should this draft hold?"], &[]),

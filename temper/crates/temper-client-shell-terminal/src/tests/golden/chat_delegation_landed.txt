@@ -23,8 +23,9 @@ demo:
 Where:
   [16] Chats
   [17] Chats
-[18] + Draft
-* waiting on your words
+[18] Chat (pressed)
+[19] Split
+[20] Draft
 0 spent · of 1
 Conversation:
   demo · playground/widget on Playground forge
@@ -46,7 +47,7 @@ Conversation:
       - Pull request opened (completed)
       - CI passed (completed)
       - Landed (completed)
-    [19] Task 2 ↗
+    [21] Task 2 ↗
   wait:
     `wait`
   Temper
@@ -55,7 +56,8 @@ Conversation:
   wait:
     `wait`
   Message:
-    [20] Message: (empty) (enter sends)
+    * ✦ waiting on your words
+    [22] Message: (empty) (enter sends)
     [-] Send (disabled)
-    Enter sends · Shift+Enter for a new line
+    Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft
     the default model

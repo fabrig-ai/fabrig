@@ -2093,6 +2093,7 @@ fn opening_rename_takes_focus_from_a_shown_document_section() {
                 task,
                 &words,
                 &mut crate::words::Times::new(fixtures::NOW),
+                &mut bindings,
             );
             builder.close();
             let tree = builder.finish();

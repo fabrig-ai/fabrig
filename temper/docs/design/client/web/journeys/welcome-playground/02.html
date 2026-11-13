@@ -171,8 +171,14 @@
 ></h1
 ></nav
 ><div class="temper-session-right"
-><button type="button" class="temper-add-draft"
->+ Draft</button
+><div role="group" aria-label="The draft" class="temper-seg"
+><button type="button" aria-pressed="true"
+>Chat</button
+><button type="button" class="temper-seg-split" aria-keyshortcuts="Control+\"
+>Split</button
+><button type="button"
+>Draft</button
+></div
 ></div
 ></div
 ><section aria-label="Conversation" class="temper-convo"
@@ -218,9 +224,9 @@
 >Send</button
 ></div
 ><div class="temper-foot-row"
-><p aria-label="Enter sends · Shift+Enter for a new line" class="temper-session-hint"
+><p aria-label="Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft" class="temper-session-hint"
 ><span
->Enter sends · Shift+Enter for a new line</span
+>Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft</span
 ></p
 ><details data-folds-away="" class="temper-model"
 ><summary

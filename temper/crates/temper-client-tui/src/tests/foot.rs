@@ -1251,7 +1251,7 @@ fn reply_states() {
     for (case, typed, drawn, numbered) in [
         ("choices", b"".as_slice(), true, true),
         ("plain chat", b"", false, false),
-        ("writing draft", b"", true, true),
+        ("writing draft", b"", false, false),
         ("document", b"", true, true),
         ("no choices", b"", false, false),
         ("walk", b"", false, false),
@@ -1274,7 +1274,7 @@ fn reply_states() {
             tui.step(Told::ReplyAside { turn: REPLY_TURN });
         }
         if case == "writing draft" {
-            act(&mut root, d::pages::Act::AddDraft);
+            super::chat::chat_event(&mut root, Event::Act { action: d::Action::Pages(d::pages::Act::AddDraft) });
             assert!(root.pages().chat().unwrap().writing);
         }
         if case == "document" {

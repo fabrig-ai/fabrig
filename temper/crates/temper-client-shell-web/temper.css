@@ -1666,9 +1666,13 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-session .temper-session-right > .temper-chat-goal:hover { border-color: var(--gf-control-hover-line); }
 #app > .temper-session .temper-session-right > .temper-chat-goal.temper-goal-primary { border-color: var(--gf-primary); background: var(--gf-primary); color: var(--gf-primary-ink); font-weight: 500; }
 #app > .temper-session .temper-session-right > .temper-chat-goal.temper-goal-primary:hover { background: var(--gf-primary-hover); }
-#app > .temper-session .temper-session-right > button.temper-add-draft { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13.5px; text-decoration: none; text-align: left; }
-#app > .temper-session .temper-session-right > button.temper-add-draft:hover { border-color: var(--gf-control-hover-line); background: var(--gf-surface); color: var(--gf-ink); }
 #app > .temper-session .temper-doc-empty { color: var(--gf-muted); }
+#app > .temper-session .temper-status-line { display: flex; align-items: baseline; gap: 8px; box-sizing: border-box; width: 100%; max-width: 720px; margin: 0 auto 8px; padding-left: 6px; font-size: 13px; line-height: 1.5; color: var(--gf-muted); }
+#app > .temper-session .temper-status-line > .temper-status-star { color: var(--gf-faint); }
+#app > .temper-session .temper-status-line.temper-status-working > .temper-status-star { color: var(--gf-ink-2); animation: chat-typing 1.4s infinite ease-in-out; }
+#app > .temper-session .temper-doc .temper-doc-acts { margin-top: 16px; }
+#app > .temper-session .temper-doc .temper-doc-write-up { display: inline-flex; align-items: center; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 13.5px/1.6 var(--gf-sans); cursor: pointer; }
+#app > .temper-session .temper-doc .temper-doc-write-up:hover { border-color: var(--gf-control-hover-line); }
 
 #app > .temper-session .temper-doc-sec { border-radius: 8px; transition: background .8s; }
 #app > .temper-session .temper-doc-flash { border-radius: 8px; animation: flash 1.8s ease-out; }
@@ -1830,7 +1834,6 @@ a.temper-repository-link:hover { text-decoration: underline; }
   #app > .temper-session .temper-session-right > p.temper-chats-tag > :first-child { display: none; }
 }
 #app > .temper-session .temper-session-right > [role=status] { padding: 0; border: 0; border-radius: 0; background: transparent; font-size: 12px; font-weight: 400; color: var(--gf-faint); text-transform: lowercase; }
-#app > .temper-session .temper-session-right > .temper-state-needs { color: var(--gf-signal); }
 #app > .temper-session .temper-session-right > button:not(.temper-start-over) { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 13.5px/1.6 var(--gf-sans); text-align: left; }
 #app > .temper-session .temper-session-right > button:not(.temper-start-over):hover { background: var(--gf-hover); color: var(--gf-ink); }
 #app > .temper-session :is(.temper-thread, .temper-thread-inner) > .temper-meta-line.temper-context { padding: 0; border: 0; background: none; }
@@ -2120,7 +2123,7 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal .temper-terminal-line button:hover { color: var(--ink); }
 #app > .temper-terminal .temper-terminal-line .temper-terminal-hint { white-space: nowrap; }
 @keyframes temper-terminal-pulse { 50% { opacity: .35; } }
-@media (prefers-reduced-motion: reduce) { #app > .temper-terminal .temper-terminal-run::before { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #app > .temper-terminal .temper-terminal-run::before, #app > .temper-session .temper-status-line.temper-status-working > .temper-status-star { animation: none; } }
 /* The view retains the speaker and time nodes and the composer's form. */
 #app > .temper-terminal .temper-thread :is(.temper-who, .temper-day, .temper-typing) { display: none; }
 #app > .temper-terminal .temper-message { display: block; align-self: flex-start; max-width: 100%; color: var(--ink); }

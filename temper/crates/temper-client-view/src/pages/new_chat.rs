@@ -81,11 +81,21 @@ pub(crate) fn main(
             super::session::Heading::Words(&w.say(Word::NewChat, &[])),
         );
         super::session::right(b);
-        if !draft
-            && let Some(project) = project
+        if let Some(project) = project
             && temper_client_domain::pages::drafts_offered(root, project)
         {
-            super::document::add(b, w, bindings, Act::Go { address: Address::NewChat { draft: true } });
+            super::document::modes(
+                b,
+                Word::DraftGroup,
+                if draft {
+                    temper_client_domain::pages::chat::document::Mode::Split
+                } else {
+                    temper_client_domain::pages::chat::document::Mode::Chat
+                },
+                w,
+                bindings,
+                true,
+            );
         }
         b.close();
         b.close();
@@ -153,7 +163,8 @@ pub(crate) fn main(
     composer(b, root, w, bindings, text_limit);
     b.close();
     if draft {
-        super::document::empty(b, w);
+        let path = w.say(Word::DraftFile, &[Hole::Name(temper_client_domain::pages::chat::document::slug(b""))]);
+        super::document::empty(b, w, &path, &path, true, None);
     }
     b.close();
 }
@@ -201,7 +212,15 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
         b.close();
         super::terminal::under(b, root, None, w, bindings, super::terminal::Hint::Commands);
     } else {
-        super::session::foot_row(b, root, None, w, bindings, Word::ChatSendHint);
+        let hint = if match root.pages().project() {
+            Some(project) => temper_client_domain::pages::drafts_offered(root, project),
+            None => false,
+        } {
+            Word::DraftSendHint
+        } else {
+            Word::ChatSendHint
+        };
+        super::session::foot_row(b, root, None, w, bindings, hint);
     }
     if let Some(me) = root.pages().me(root.client()) {
         super::session::over(

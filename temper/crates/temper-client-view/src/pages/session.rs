@@ -125,7 +125,7 @@ pub(crate) fn foot_row(
     b.style(look::FOOT_ROW);
     b.open(Role::Paragraph);
     b.style(look::SESSION_HINT);
-    if hint == Word::ChatSendResumes {
+    if hint == Word::ChatSendResumes || hint == Word::DraftSendResumes {
         b.style(look::HINT);
     }
     let words = w.say(hint, &[]);

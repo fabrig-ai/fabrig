@@ -335,7 +335,11 @@
   the session, `.temper-doc`, `.temper-doc-inner`, `.temper-doc-path`,
   `.temper-doc-sec`, `.temper-doc-changed`, `.temper-doc-note`, `.temper-seg`, and
   the rail's strip with `.temper-rail-unfold` and `files/menu.svg`. What those
-  name is drawn; a flow takes the tokens' look below. The sheet to start a goal
+  name is drawn; a flow takes the tokens' look below. The view group stands after
+  the document's act, Pause or Resume, and Close, before the hidden spend, on a
+  chat with a document or a live offer and on `NewChat` while drafts are offered.
+  Choosing Split or Draft without a document opens the empty pane, sending
+  nothing; its button alone asks the write-up. The sheet to start a goal
   is the mock's `dialog.sheet`, `.option`, `.field` and `.text`, and `Ctrl+\` steps
   through the modes. The empty pane's acts, `.temper-doc-acts`, stand 16 px under
   its words, and "Write it up from this chat", `.temper-doc-write-up`, has the

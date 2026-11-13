@@ -173,15 +173,8 @@ fn the_terminal_says_where_it_is_and_what_runs() {
             .tree()
             .nodes()
             .iter()
-            .find(|n| {
-                n.role == Role::Status
-                    && n.styles.as_slice().iter().any(|s| {
-                        [look::STATUS_QUIET, look::STATUS_ACTIVE, look::STATUS_WAITING, look::STATUS_YOURS].contains(s)
-                    })
-            })
-            .unwrap()
-            .name
-            .clone();
+            .find(|n| n.styles.as_slice().contains(&look::STATUS_LINE))
+            .and_then(|node| node.name.clone());
         act(&mut root, Act::Terminal(terminal::Act::Enter));
         let mut view = view(&root, Shell::Browser);
         let tree = view.tree();
@@ -267,7 +260,7 @@ fn a_writing_run_says_working_before_the_first_answer() {
     watch_delivery(&mut root, run_watch, c::Delivery::RunState(Box::new(run.clone())));
     assert!(root.pages().chat().unwrap().thread.lines().is_empty());
     let browser = view(&root, Shell::Browser);
-    assert!(f::find(browser.tree(), Role::Status, b"Writing").is_some(), "the chat bar keeps Writing");
+    assert!(f::find(browser.tree(), Role::Status, b"Working").is_some(), "the status line says Working");
     act(&mut root, Act::Terminal(terminal::Act::Enter));
     assert_working_line(&root, Some(b"Working"));
     run.writing = Some(reply_text(b"Hello"));

@@ -1156,7 +1156,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-start-over",
         b"temper-doc-flash",
         b"temper-doc-empty",
-        b"temper-add-draft",
+        b"temper-reserved-433",
         b"temper-home-facts",
         b"temper-home-byline",
         b"temper-chat-goal",
@@ -1487,6 +1487,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-session-cost",
         b"temper-team-session-closing",
         b"temper-welcome-box-note",
+        b"temper-status-line",
+        b"temper-status-star",
+        b"temper-status-working",
+        b"temper-doc-acts",
+        b"temper-doc-write-up",
     ],
     regions: &[b"temper-link"],
 };
@@ -1619,9 +1624,6 @@ pub const DOC_FLASH: Style = Style { owner: owner(), token: 431 };
 
 /// The unwritten document (client/pages/README.md).
 pub const DOC_EMPTY: Style = Style { owner: owner(), token: 432 };
-/// The bar's draft action (client/pages/README.md).
-pub const ADD_DRAFT: Style = Style { owner: owner(), token: 433 };
-
 /// Home status (temper/docs/design/client/pages/README.md).
 pub const HOME_FACTS: Style = Style { owner: owner(), token: 434 };
 /// Home brief attribution (temper/docs/design/client/pages/README.md).
@@ -2000,6 +2002,13 @@ pub const TEAM_SESSION: Style = Style { owner: owner(), token: 758 };
 pub const TEAM_SESSION_TIME: Style = Style { owner: owner(), token: 759 };
 pub const TEAM_SESSION_COST: Style = Style { owner: owner(), token: 760 };
 pub const TEAM_SESSION_CLOSING: Style = Style { owner: owner(), token: 761 };
+
+/// A chat's stable status and empty pane (client/web/look.md, A chat's status line and A chat's document).
+pub const STATUS_LINE: Style = Style { owner: owner(), token: 763 };
+pub const STATUS_STAR: Style = Style { owner: owner(), token: 764 };
+pub const STATUS_WORKING: Style = Style { owner: owner(), token: 765 };
+pub const DOC_ACTS: Style = Style { owner: owner(), token: 766 };
+pub const DOC_WRITE_UP: Style = Style { owner: owner(), token: 767 };
 
 #[cfg(test)]
 mod tests {

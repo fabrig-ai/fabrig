@@ -2335,7 +2335,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
                     let Some(document) = client.document(me_handle()) else { return };
                     let Some(me) = document.latest else { return };
                     let Latest::Jig(Delivery::Me(me)) = me else { return };
-                    if chat.draft.is_none() || !chats::asking(me, task.project, &task.chip.executor) {
+                    if !chats::asking(me, task.project, &task.chip.executor) {
                         return;
                     }
                 }

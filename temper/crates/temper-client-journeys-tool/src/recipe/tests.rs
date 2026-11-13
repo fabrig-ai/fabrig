@@ -111,8 +111,8 @@ fn committed_qa_recipes_read_chain_and_end_on_their_own_checks() {
         "recipe list reads every committed setup: {listed:?}"
     );
 
-    let chain = Chain::read(&setups, "chat-draft").expect("chat-draft chain");
-    assert_eq!(chain.names().collect::<Vec<_>>(), ["welcome", "project-landing", "chat-draft"]);
+    let chain = Chain::read(&setups, "project-landing").expect("project-landing chain");
+    assert_eq!(chain.names().collect::<Vec<_>>(), ["welcome", "project-landing"]);
     let welcome = chain.recipes.first().expect("welcome");
     assert!(welcome.steps.is_empty(), "welcome is already reached on a fresh box");
 

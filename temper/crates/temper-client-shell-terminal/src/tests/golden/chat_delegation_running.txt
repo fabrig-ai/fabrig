@@ -22,8 +22,9 @@ demo:
 Where:
   [15] Chats
   [16] Chats
-[17] + Draft
-* waiting on 1 delegate
+[17] Chat (pressed)
+[18] Split
+[19] Draft
 0 spent · of 1
 Conversation:
   Today · Thursday 1 January
@@ -42,11 +43,12 @@ Conversation:
       - Pull request opened
       - CI passed
       - Landed
-    [18] Task 2 ↗
+    [20] Task 2 ↗
   wait:
     `wait`
   Message:
-    [19] Message: (empty) (enter sends)
+    * ✦ waiting on 1 delegate
+    [21] Message: (empty) (enter sends)
     [-] Send (disabled)
-    Enter sends · Shift+Enter for a new line
+    Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft
     the default model

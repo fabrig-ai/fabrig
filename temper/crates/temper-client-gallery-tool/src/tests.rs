@@ -1627,7 +1627,7 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Resume" },
             Part::Named { role: Role::Button, name: "Close" },
             Part::Named { role: Role::Status, name: "Paused" },
-            Part::Text { text: "Sending resumes this chat." },
+            Part::Text { text: "Sending resumes this chat. · Ctrl+\\ switches the draft" },
             Part::Absent { role: Role::Button, name: "Pause" },
             Part::Absent { role: Role::Status, name: "Applied" },
         ],
@@ -1637,7 +1637,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "T6 · Why is tally sum slow on big files?",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Closed at 21:05" },
-            Part::Named { role: Role::Status, name: "Closed" },
+            Part::NoStyle { style: temper_client_view::look::STATUS_LINE },
             Part::Absent { role: Role::TextArea, name: "Message" },
         ],
     },
@@ -1925,9 +1925,21 @@ static HOLDS: [Holds; samples::N] = [
         name: "chat-draft-empty",
         heading: "T1 · Away mode, draft",
         parts: &[
-            Part::Named { role: Role::Region, name: "untitled.md" },
+            Part::Named { role: Role::Region, name: "Draft" },
             Part::Named { role: Role::Paragraph, name: "The draft appears here as you write it together." },
             Part::Absent { role: Role::Button, name: "+ Draft" },
+            Part::Named { role: Role::Button, name: "Write it up from this chat" },
+        ],
+    },
+    Holds {
+        name: "ask-chat-draft-empty",
+        heading: "T10 · Ask temper",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Draft" },
+            Part::Text { text: "T10 · no draft yet" },
+            Part::Named { role: Role::Button, name: "Write it up from this chat" },
+            Part::Named { role: Role::Button, name: "Start over" },
+            Part::Named { role: Role::Group, name: "The draft" },
         ],
     },
     Holds {
@@ -4543,7 +4555,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "chat-solo-T1",
         heading: "T1 · Make tally sum stream its input",
         parts: &[
-            Part::Named { role: Role::Status, name: "Closed" },
+            Part::NoStyle { style: temper_client_view::look::STATUS_LINE },
             Part::Absent { role: Role::TextArea, name: "Message" },
             Part::Absent { role: Role::Button, name: "Send" },
             Part::Absent { role: Role::Disclosure, name: "Model" },
@@ -4599,7 +4611,14 @@ static HOLDS: [Holds; samples::N] = [
         heading: "Ask temper",
         parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
     },
-    Holds { name: "chat-working", heading: "T6", parts: &[Part::Named { role: Role::Slot, name: "Writing" }] },
+    Holds {
+        name: "chat-working",
+        heading: "T6",
+        parts: &[
+            Part::Named { role: Role::Slot, name: "Writing" },
+            Part::Named { role: Role::Status, name: "Working" },
+        ],
+    },
     Holds {
         name: "chat-solo-T6",
         heading: "T6 · Why is tally sum slow on big files?",
