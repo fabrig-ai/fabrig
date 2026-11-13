@@ -5878,7 +5878,8 @@ dependencies = [
  "skein-ui-screen",
  "temper-client-domain",
  "temper-client-protocol-wire",
- "temper-client-view",
+ "temper-client-view-parts",
+ "temper-client-view-words",
  "temper-protocol-reaches",
  "temper-test-env",
 ]

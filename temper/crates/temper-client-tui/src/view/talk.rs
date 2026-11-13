@@ -14,7 +14,7 @@ use temper_client_domain::{
     Domain,
     pages::{chat::Talking, team},
 };
-use temper_client_view::words::{TimeForm, Word as Shared};
+use temper_client_view_words::words::{TimeForm, Word as Shared};
 
 #[derive(Debug)]
 pub(crate) struct Head {

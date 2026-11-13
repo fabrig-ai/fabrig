@@ -14,7 +14,8 @@ skein-lib.workspace = true
 jig-client.workspace = true
 temper-client-domain.workspace = true
 temper-client-protocol-wire.workspace = true
-temper-client-view.workspace = true
+temper-client-view-words.workspace = true
+temper-client-view-parts.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true

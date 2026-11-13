@@ -15,10 +15,8 @@ use temper_client_domain::{
     Address, Domain,
     pages::{all_home, chats, home, team},
 };
-use temper_client_view::{
-    shared::{self, NeedMark},
-    words::{TimeForm, Word as Shared},
-};
+use temper_client_view_parts::shared::{self, NeedMark};
+use temper_client_view_words::words::{TimeForm, Word as Shared};
 
 #[derive(Debug)]
 pub(crate) struct Launchpad {

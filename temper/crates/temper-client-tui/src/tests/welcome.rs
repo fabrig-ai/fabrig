@@ -325,7 +325,8 @@ fn the_welcome_says_each_state() {
             Expect::Before | Expect::After { .. } => {
                 want.push(Box::from(b"temperbox".as_slice())).unwrap();
                 if root.client().link().state == jig_client::Link::OutOfDate {
-                    want.push(f::words().view().say(temper_client_view::words::Word::OutOfDateMain, &[])).unwrap();
+                    want.push(f::words().view().say(temper_client_view_words::words::Word::OutOfDateMain, &[]))
+                        .unwrap();
                 } else {
                     want.push(Box::from("temper box · on this machine, to try it".as_bytes())).unwrap();
                 }
