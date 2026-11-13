@@ -11,8 +11,7 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Id, Lifecycle, List, Map, Queue, Slab, Time, Token, earliest};
 mod calls;
 pub(crate) mod entry;
-#[cfg(any(test, feature = "seam"))]
-pub(crate) mod seam;
+mod seam;
 use entry::{Base, Dialect, ForgeEntry, GitHubForge};
 mod github;
 mod github_calls;

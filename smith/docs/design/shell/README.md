@@ -263,8 +263,9 @@ closure:
   resolved and checked, and read from its file; `trace`, the trace's
   settings it names; `program`, a program's directory, source and
   sign-in (../protocol/programs.md), on Unix; `host_limits`, the profile
-  crate's, re-exported; and, under its `fixture` feature, the standard
-  product document. The three items of `config` the shell reads beyond
+  crate's, re-exported. Its fixture, the standard product document, is
+  `smith-agent-document-fixtures`' for the shell's tests, and a
+  `#[cfg(test)]` copy for its own (../testing.md, 7). The three items of `config` the shell reads beyond
   a document's readers, the effective header, the profile's refusal
   words and a decoded document's list endpoints, are public, each with
   its line of prose. It names neither `smith-agent-service`,
@@ -293,13 +294,16 @@ closure:
   a member of the repository's one workspace (`AGENTS.md`, section 1).
   Its binaries:
   - `src/main.rs`, the binary `smith` (`default-run`);
-  - `src/bin/smith-agent.rs`, the binary `smith-agent`;
-  - `tests/end-to-end/fake-claude.rs`, the binary `fake-claude`, only
-    with the `end-to-end` feature, for the end-to-end tests.
+  - `src/bin/smith-agent.rs`, the binary `smith-agent`.
+
+  It has no features (skein/docs/foundation/cli.md, 3). The fake program
+  the end-to-end tests run is `smith-fake-claude`'s binary, found beside
+  `smith`, and the package takes that crate as a dev-dependency alone
+  (../testing.md, 2.3).
 - **Nothing is discovered.** `autobins`, `autotests`, `autobenches` and
   `autoexamples` are off, and every target is declared: the binaries
-  above, and the tests `end_to_end` (`tests/end-to-end/end_to_end.rs`,
-  with the `end-to-end` feature), `live` (`tests/end-to-end/live.rs`) and
+  above, and the tests `end_to_end` (`tests/end-to-end/end_to_end.rs`),
+  `live` (`tests/end-to-end/live.rs`) and
   `live_configuration` (`tests/end-to-end/live_configuration.rs`).
 
   The end-to-end and live tests are the package's own targets, because

@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::translate::pages;
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core::reads;
+use jig_domain_core_vocabulary::reads;
 
 fn activity(read: &reads::Page, limits: &w::Limits) -> Result<w::ReadValue, w::Problem> {
     pages::page(
@@ -12,6 +12,150 @@ fn activity(read: &reads::Page, limits: &w::Limits) -> Result<w::ReadValue, w::P
         limits,
     )
 }
+#[test]
+fn a_heard_job_result_does_not_refuse_the_activity_read() {
+    use jig_client_domain::contract as c;
+    use jig_domain_tasks as t;
+    use skein_lib::{List, Reader, Wall};
+    for bytes in [b"".as_slice(), b"job bytes", &[0, 255, 7]] {
+        let mut exchange = fixtures::read_exchange();
+        let limits = exchange.env.limits.wire;
+        let read =
+            w::Read::Activity(w::ReadActivity::new(&limits, w::ReadActivityParts { task: 7, before: None }).unwrap());
+        let (owner, reply, _) = exchange.read(&read);
+        let word = t::Word {
+            number: 19,
+            from: t::Party::Task(11),
+            kind: t::MessageKind::Result(t::ResultKind::Job),
+            words: bytes.into(),
+            at: Wall::from_nanos(23),
+            hits: 2,
+            eligible: true,
+        };
+        let mut rows = List::with_capacity(3);
+        for (position, line) in [
+            (3, t::Line::RunBegan { attempt: 13, why: t::Why::Made, resumed: false }),
+            (2, t::Line::Heard(word)),
+            (
+                1,
+                t::Line::Words {
+                    message: 17,
+                    by: t::Party::Person(5),
+                    kind: t::MessageKind::Words,
+                    words: Box::from(b"hello".as_slice()),
+                },
+            ),
+        ] {
+            rows.push(reads::PageRow::Activity {
+                line: t::ActivityLine { task: 7, position, at: Wall::from_nanos(29), line },
+                turn: None,
+            })
+            .unwrap();
+        }
+        exchange.release_read(reply, reads::Answer::Page(Box::new(fixtures::page(rows))));
+        let w::ReadAnswer::Value(answer) = exchange.read_answer(owner) else {
+            panic!("served activity, not malformed")
+        };
+        let w::ReadValue::Activity(page) = w::ReadValue::decode(&limits, &mut Reader::new(answer.record())).unwrap()
+        else {
+            panic!("activity")
+        };
+        let mut pieces = Reader::new(page.rows());
+        let mut wire_rows = List::with_capacity(3);
+        while let Some(piece) = skein_codec::piece::split(&mut pieces).unwrap() {
+            wire_rows.push(w::DecodedActivityLine::decode(&limits, &mut Reader::new(&piece)).unwrap()).unwrap();
+        }
+        assert_eq!(wire_rows.len(), 3);
+        let w::Activity::Heard(heard) = wire_rows.get(1).unwrap().source().line() else { panic!("heard") };
+        let w::MessageKind::Result(result) = heard.value().kind() else { panic!("result") };
+        assert_eq!(result.value(), &w::WordResult::Job);
+        assert_eq!(heard.value().words(), b"");
+        let client = jig_client_domain::Limits { rows: 3, ..*fixtures::client_limits().client() };
+        let client = jig_client_protocol_link::Limits::new(client, 4).unwrap();
+        let page = jig_client_protocol_link::translate::pages::activity_page(page, &client).unwrap();
+        assert_eq!(page.rows.len(), 3);
+        assert!(page.cut);
+        for (row, (position, line)) in page.rows.iter().zip([
+            (3, c::Activity::RunBegan { attempt: 13, why: c::RunWhy::Made, resumed: false }),
+            (
+                2,
+                c::Activity::Heard(c::Word {
+                    number: 19,
+                    from: c::Requester::Task(11),
+                    kind: c::MessageKind::Result(c::WordResult::Job),
+                    words: c::Text::new(Box::new([]), 0).unwrap(),
+                    at: Wall::from_nanos(23),
+                    hits: 2,
+                    eligible: true,
+                }),
+            ),
+            (
+                1,
+                c::Activity::Words {
+                    message: 17,
+                    by: c::Requester::Person(5),
+                    kind: c::MessageKind::Words,
+                    words: c::Text::new(Box::from(b"hello".as_slice()), 5).unwrap(),
+                },
+            ),
+        ]) {
+            assert_eq!(*row.source, c::ActivityLine { task: 7, position, at: Wall::from_nanos(29), line });
+            assert!(row.decoded.is_none());
+        }
+    }
+}
+
+#[test]
+fn job_results_cross_word_lines_and_question_answers_without_bytes() {
+    use jig_domain_tasks as t;
+    use skein_lib::{Reader, Wall, Writer};
+    let limits = fixtures::wire_limits();
+    for bytes in [b"".as_slice(), b"job bytes", &[0, 255, 7]] {
+        let word = t::Word {
+            number: 19,
+            from: t::Party::Task(11),
+            kind: t::MessageKind::Result(t::ResultKind::Job),
+            words: bytes.into(),
+            at: Wall::from_nanos(23),
+            hits: 2,
+            eligible: true,
+        };
+        for line in [
+            t::Line::Words { message: 19, by: word.from, kind: word.kind.clone(), words: word.words.clone() },
+            t::Line::Heard(word.clone()),
+            t::Line::Notified { recipient: t::Party::Task(7), word },
+        ] {
+            let source = t::ActivityLine { task: 7, position: 2, at: Wall::from_nanos(29), line };
+            let answer = crate::translate::objects::question_answer::answer(&source, &limits).unwrap();
+            assert_eq!(crate::translate::activity::line(&source, &limits).unwrap(), answer);
+            let mut out = Writer::new(usize::try_from(answer.measure()).unwrap());
+            answer.encode(&mut out).unwrap();
+            let decoded = w::ActivityLine::decode(&limits, &mut Reader::new(&out.finish())).unwrap();
+            assert_eq!(decoded, answer);
+            let (kind, words) = match decoded.line() {
+                w::Activity::Words(row) => (row.kind(), row.words()),
+                w::Activity::Heard(row) => (row.value().kind(), row.value().words()),
+                w::Activity::Notified(row) => (row.word().kind(), row.word().words()),
+                other @ (w::Activity::RunBegan(_)
+                | w::Activity::RunEnded(_)
+                | w::Activity::Turn(_)
+                | w::Activity::Decided(_)
+                | w::Activity::Milestone(_)
+                | w::Activity::Kept(_)
+                | w::Activity::Stood(_)
+                | w::Activity::SessionEnded(_)
+                | w::Activity::TalkOpened(_)
+                | w::Activity::TalkEnded(_)
+                | w::Activity::NowWritten(_)) => panic!("word carrier: {other:?}"),
+            };
+            let w::MessageKind::Result(result) = kind else { panic!("result") };
+            assert_eq!(result.value(), &w::WordResult::Job);
+            assert_eq!(words, b"");
+            assert_eq!((decoded.task(), decoded.position(), decoded.at()), (7, 2, 29));
+        }
+    }
+}
+
 #[test]
 fn an_activity_page_carries_each_turn_s_bytes() {
     let limits = fixtures::wire_limits();

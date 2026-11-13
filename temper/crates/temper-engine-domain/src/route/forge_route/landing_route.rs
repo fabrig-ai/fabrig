@@ -20,18 +20,20 @@ fn changes(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u64]> {
     domain.forge.joined_changes(repository.project, task, graph.as_slice())
 }
 
-/// Joined dependencies and dependencies between live cross-repository landings
-/// permit readiness; the latter keep only the dependent landing's turn.
-/// Jig still orders the change tasks' successful results (domain/landing.md, 4.1).
+/// Joined dependencies permit the forming decision to refuse the whole unit.
+/// Jig still orders successful task results (domain/landing.md, 4.1).
 pub(super) fn kept(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
     let Some(row) = domain.core.tasks.task(task) else { return false };
     if row.waiting_on.is_empty() {
         return false;
     }
     let joined = changes(domain, env, task);
-    let fits = joined.len() <= usize::try_from(env.limits.forge.landing_members).expect("member bound");
+    let formed = match domain.forge.change(task) {
+        Some(change) => change.change.landing.is_some(),
+        None => false,
+    };
     for dependency in &row.waiting_on {
-        if (fits && joined.contains(dependency)) || landing_dependency(domain, task, *dependency) {
+        if joined.contains(dependency) || formed {
             continue;
         }
         return true;
@@ -86,33 +88,6 @@ pub(super) fn pending(
     pending.into_boxed()
 }
 
-fn landing_dependency(domain: &Domain, task: u64, dependency: u64) -> bool {
-    let Some(change) = domain.forge.change(task) else { return false };
-    let Some(upstream) = domain.forge.change(dependency) else { return false };
-    if change.repository == upstream.repository {
-        return false;
-    }
-    let Some(landing) = change.change.landing else { return false };
-    let Some(other) = upstream.change.landing else { return false };
-    if landing == other {
-        return true;
-    }
-    let Some(row) = domain.forge.landing(landing) else { return false };
-    let Some(other) = domain.forge.landing(other) else { return false };
-    if row.landing.project != other.landing.project {
-        return false;
-    }
-    match other.landing.phase {
-        landing::Phase::Landed | landing::Phase::Cancelled => false,
-        landing::Phase::Waiting
-        | landing::Phase::Preparing
-        | landing::Phase::Proving
-        | landing::Phase::Proved { .. }
-        | landing::Phase::Turn { .. }
-        | landing::Phase::Held { .. } => true,
-    }
-}
-
 pub(super) fn landed_step_due(domain: &Domain, task: u64) -> bool {
     let Some(change) = domain.forge.change(task) else { return false };
     if let forge_change::State::Ready { .. } = change.change.state
@@ -134,7 +109,9 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
     let mut gates = List::with_capacity(env.limits.forge.gates);
     if let Some(config) = domain.config.landings.get(&project) {
         for repository in &config.repositories {
-            if repository.repository == row.repository {
+            if repository.repository == row.repository
+                && domain.forge.repository(row.repository)?.settings.default_branch == row.base
+            {
                 for _ in &repository.gates {
                     gates
                         .push(landing::GateProof {
@@ -148,6 +125,7 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
         }
     }
     Some(landing::Member {
+        left: None,
         change: task,
         repository: landing::Repository { forge: row.repository.forge, repository: row.repository.repository },
         // A producing member has no pull yet; the top fills it before reading.
@@ -161,65 +139,54 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
     })
 }
 
-/// A creation or amendment joins its closure before its next change step.
-pub(super) fn join_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
-    let joined = changes(domain, env, task);
-    let mut targets = List::with_capacity(env.limits.forge.landings);
-    for change in &joined {
-        if let Some(row) = domain.forge.change(*change)
-            && let Some(landing) = row.change.landing
-            && !targets.as_slice().contains(&landing)
-        {
-            targets.push(landing).expect("bounded landing closure");
+/// Judge every derived train at quiescence, after readiness, ending, priority and
+/// restart work has settled. One queued decision is committed before judging again
+/// so neither a train nor the live-row bound can be reserved twice (landing.md, 9).
+pub(crate) fn form_landings(domain: &mut Domain, env: &Env<Limits>) -> bool {
+    for (repository, branch) in domain.forge.waiting_trains() {
+        if form_train(domain, env, repository, &branch) {
+            return true;
         }
     }
-    let Some(target) = targets.as_slice().first().copied() else { return };
-    if targets.len() > 1 {
-        for landing in &targets {
-            domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: *landing }));
-        }
-    }
-    let mut after = List::with_capacity(env.limits.forge.landing_members);
-    for change in &joined {
-        let unjoined = match domain.forge.change(*change) {
-            Some(row) => row.change.landing.is_none(),
-            None => false,
-        };
-        if unjoined && let Some(member) = member(domain, env, *change) {
-            domain.work.push(Work::Forge(forge::Event::JoinLanding {
-                task: target,
-                member,
-                after: Box::from(after.as_slice()),
-            }));
-        }
-        if after.push(*change).is_err() {
-            return;
-        }
-    }
-    domain.work.push(Work::Forge(forge::Event::OrderLanding { task: target, changes: joined }));
+    false
 }
 
+#[cfg(test)]
 pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     let Some(change) = domain.forge.change(task) else { return };
-    if change.change.way != forge_change::Way::Turn || kept(domain, env, task) {
-        return;
-    }
-    let Some(repository) = domain.forge.repository(change.repository) else { return };
-    let project = repository.project;
-    let joined = changes(domain, env, task);
-    for task in &joined {
-        let joined = match domain.forge.change(*task) {
-            Some(row) => row.change.landing.is_some(),
-            None => false,
+    let repository = change.repository;
+    let branch = change.base.clone();
+    form_train(domain, env, repository, &branch);
+}
+
+fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+    let mut excluded = List::with_capacity(env.limits.forge.changes);
+    for candidate in domain.forge.waiting_changes(repository, branch) {
+        let Some(task) = domain.core.tasks.task(candidate.task) else { continue };
+        let held = match task.phase {
+            tasks::Phase::Active(_) | tasks::Phase::Waiting => false,
+            tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
         };
-        if joined {
-            join_landing(domain, env, *task);
-            return;
+        if held || kept(domain, env, candidate.task) || super::change_delegate_live(domain, candidate.task) {
+            excluded.push(candidate.task).expect("bounded changes");
         }
     }
-    if domain.forge.landing_admits(project, &joined).is_err() {
-        return;
+    let Some(task) = domain.forge.first_waiting(repository, branch, excluded.as_slice(), env.wall) else {
+        return false;
+    };
+    let change = domain.forge.change(task).expect("waiting change");
+    let project = domain.forge.repository(change.repository).expect("train repository").project;
+    let joined = changes(domain, env, task);
+    if joined.len() > 1 {
+        let words = domain.forge.unit_words(&joined);
+        super::holds::hold(domain, task, &words);
+        return domain.core.tasks.task(task).is_some();
     }
+    create_landing(domain, env, task, project, branch)
+}
+
+fn create_landing(domain: &mut Domain, env: &Env<Limits>, task: u64, project: u32, branch: &[u8]) -> bool {
+    let change = domain.forge.change(task).expect("waiting change");
     let mut words = List::with_capacity(env.limits.tasks.spec_bytes.saturating_sub(32));
     append(&mut words, b"Land ");
     let room = skein_lib::usize_of(words.capacity().saturating_sub(words.len()));
@@ -227,21 +194,34 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     append(&mut words, &title);
     let mut members = List::with_capacity(env.limits.forge.landing_members);
     let mut asks = List::with_capacity(env.limits.forge.landing_members);
-    for task in &joined {
-        let Some(member) = member(domain, env, *task) else { return };
-        members.push(member).expect("admitted closure");
-        asks.push(None).expect("admitted closure");
-    }
-    let Some(seed) = domain.core.procedure_seed(project) else { return };
+    let Some(member) = member(domain, env, task) else { return false };
+    members.push(member).expect("one admitted member");
+    asks.push(None).expect("one admitted member");
+    let Some(seed) = domain.core.procedure_seed(project) else { return false };
     let number = seed.number();
+    let provider = domain.forge.change(task).expect("member").repository;
+    let Some(repository) = domain.forge.repository(provider) else { return false };
+    let Some(own_branch) = super::tree_branch(repository, number, b'l', number, None, env.limits.forge.name_bytes)
+    else {
+        return false;
+    };
+    let Some(what) = super::branch_what(&own_branch, env.limits.forge.name_bytes) else { return false };
+    let name = forge::Name { forge: provider.forge, repository: provider.repository, what };
+    let Some(holding) = super::write_holding(domain.config.forge_connector, &name, &env.limits.tasks) else {
+        return false;
+    };
+    super::report_resource(domain, env, project, &name);
     domain.work.push(Work::Forge(forge::Event::Landing {
         row: forge::LandingRow {
             landing: landing::Landing {
+                round: landing::Round::new(own_branch.clone()),
+
                 task: number,
                 project,
                 phase: landing::Phase::Waiting,
                 preparation: 0,
                 stale_proofs: 0,
+                branch: Box::from(branch),
                 members: members.into_boxed(),
             },
             asks: asks.into_boxed(),
@@ -262,55 +242,38 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
             inputs: Box::new([]),
         },
         contract: tasks::Contract::Report { words: env.limits.tasks.result_bytes },
-        holdings: Box::new([]),
+        holdings: Box::new([holding]),
     }));
-}
-
-// Dependencies joining two existing landings order their turns, not their proofs.
-fn kept_landings(domain: &Domain, env: &Env<Limits>, project: u32) -> Box<[u64]> {
-    let mut kept = List::with_capacity(env.limits.forge.landings);
-    for repository in domain.forge.writable_repositories(project) {
-        for task in domain.forge.changes_for(repository.provider, env.limits.forge.changes) {
-            let Some(change) = domain.forge.change(task) else { continue };
-            let Some(landing) = change.change.landing else { continue };
-            let Some(row) = domain.core.tasks.task(task) else { continue };
-            for dependency in &row.waiting_on {
-                let Some(upstream) = domain.forge.change(*dependency) else { continue };
-                let Some(other) = upstream.change.landing else { continue };
-                if other == landing {
-                    continue;
-                }
-                let Some(other) = domain.forge.landing(other) else { continue };
-                match other.landing.phase {
-                    landing::Phase::Landed | landing::Phase::Cancelled => continue,
-                    landing::Phase::Waiting
-                    | landing::Phase::Preparing
-                    | landing::Phase::Proving
-                    | landing::Phase::Proved { .. }
-                    | landing::Phase::Turn { .. }
-                    | landing::Phase::Held { .. } => {}
-                }
-                if !kept.as_slice().contains(&landing) {
-                    kept.push(landing).expect("bounded landings");
-                }
-            }
-        }
-    }
-    kept.into_boxed()
+    domain.work.push(Work::Forge(forge::Event::Hold { entry: 0, task: number, resource: name, from: None }));
+    true
 }
 
 #[expect(clippy::match_like_matches_macro, reason = "the foundation requires explicit matching")]
 pub(crate) fn start_landing_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
     let task = context.task;
     let Some(row) = domain.forge.landing(task) else { return };
-    let kept = kept_landings(domain, env, row.landing.project);
     let released = if let landing::Phase::Held { .. } = row.landing.phase { true } else { false };
+    let mut held = List::with_capacity(env.limits.forge.landing_members);
+    for member in &row.landing.members {
+        if let Some(task) = domain.core.tasks.task(member.change)
+            && let tasks::Phase::Held { .. } = task.phase
+        {
+            held.push(member.change).expect("bounded members");
+        }
+    }
     let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
     domain.forge.offered_landing(task);
     domain.work.push(Work::Forge(forge::Event::StepLanding {
         task,
         entry,
-        heard: forge::LandingHeard { released, cancelled: false, kept },
+        heard: forge::LandingHeard {
+            held: held.into_boxed(),
+            failure: prepare_failure(context),
+            preparation: preparation(domain, context),
+            released,
+            cancelled: false,
+            kept: Box::new([]),
+        },
     }));
 }
 
@@ -376,39 +339,22 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
             }));
             StepEnd::Wait
         }
-        landing::Decision::Hold(landing::Hold::Faults { member, gate }) => {
-            let row = domain.forge.landing(task).expect("landing");
-            let member = row.landing.members.get(usize::from(member)).expect("member");
-            let provider = skein_forge::api::Repository {
-                forge: member.repository.forge,
-                repository: member.repository.repository,
-            };
-            let mut words = List::with_capacity(env.limits.tasks.message_bytes);
-            append(&mut words, b"gate ");
-            if let Some(config) = domain.config.landings.get(&row.landing.project) {
-                for repository in &config.repositories {
-                    if repository.repository == provider
-                        && let Some(check) = repository.gates.get(usize::from(gate))
-                    {
-                        append(&mut words, &check.name);
-                    }
-                }
+        landing::Decision::Prepare { .. } => {
+            if let Some(delegate) = prepare_delegate(domain, env, task) {
+                domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
+                    task,
+                    step,
+                    connector,
+                    code,
+                    decision: ProcedureStep { batch: Box::new([delegate]), ..ProcedureStep::new(StepEnd::Wait) },
+                }));
+                return;
             }
-            append(&mut words, b" of ");
-            if let Some(repository) = domain.forge.repository(provider) {
-                append(&mut words, &repository.owner);
-                append(&mut words, b"/");
-                append(&mut words, &repository.name);
-            }
-            append(&mut words, b" failed on its runner past its retries");
-            let decision = ProcedureStep {
-                messages: Box::new([jig_domain_core::StepMessage {
-                    target: task,
-                    kind: tasks::MessageKind::Words,
-                    words: words.into_boxed(),
-                }]),
-                ..ProcedureStep::new(StepEnd::Hold(tasks::Hold::Procedure))
-            };
+            StepEnd::Hold(tasks::Hold::Procedure)
+        }
+        landing::Decision::Hold(_) => {
+            let words = domain.forge.landing_hold_words(task).unwrap_or(Box::from(b"prepare job: failed".as_slice()));
+            let decision = super::holds::decision(domain, env, task, words);
             domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep {
                 task,
                 step,
@@ -419,7 +365,14 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
             return;
         }
         landing::Decision::None
-        | landing::Decision::Prepare { .. }
+        | landing::Decision::Open
+        | landing::Decision::Close
+        | landing::Decision::Delete
+        | landing::Decision::Record { .. }
+        | landing::Decision::Landed { .. }
+        | landing::Decision::Leave { .. }
+        | landing::Decision::Judge { .. }
+        | landing::Decision::Resolve { .. }
         | landing::Decision::Key { .. }
         | landing::Decision::Dispatch { .. }
         | landing::Decision::Retry { .. }
@@ -470,7 +423,16 @@ fn landing_result_words(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u
             append(&mut words, &repository.name);
         }
         append(&mut words, b" ");
-        let commit = member.landed.expect("finished member landed");
+        let Some(commit) = member.landed else {
+            append(&mut words, b"change ");
+            append(&mut words, skein_lib::Decimal::of(member.change).as_bytes());
+            append(&mut words, b" left: ");
+            if let Some(why) = domain.forge.landing_leave_words(task, 0) {
+                append(&mut words, &why);
+            }
+            append(&mut words, b"\n");
+            continue;
+        };
         let width = if commit[20..] == [0; 12] { 20 } else { 32 };
         for byte in commit.get(..width).expect("commit width") {
             append(&mut words, &forge::hex(*byte));
@@ -478,4 +440,204 @@ fn landing_result_words(domain: &Domain, env: &Env<Limits>, task: u64) -> Box<[u
         append(&mut words, b"\n");
     }
     words.into_boxed()
+}
+
+fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Preparation {
+    for word in &context.inbox {
+        if let tasks::Party::Task(child) = word.from {
+            if super::close::failed(domain, child, &word.kind) {
+                return landing::Preparation::Failed;
+            }
+            if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job)
+                && skein_lib::bytes::find(&word.words, b"\"conflict\"").is_some()
+            {
+                return landing::Preparation::Conflict;
+            }
+        }
+    }
+    if let Some(task) = domain.core.tasks.task(context.task) {
+        for child in &task.delegates {
+            if let Some(child) = domain.core.tasks.task(*child)
+                && child.executor == (tasks::Executor::Job { kind: forge::PREPARE_KIND })
+            {
+                match child.phase {
+                    tasks::Phase::Held { .. } => return landing::Preparation::Failed,
+                    tasks::Phase::Active(_) | tasks::Phase::Waiting | tasks::Phase::Closing(_) => {
+                        return landing::Preparation::Running;
+                    }
+                    tasks::Phase::Ended(_) => {}
+                }
+            }
+        }
+    }
+    landing::Preparation::Idle
+}
+fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::prepare::PrepareRequest> {
+    let row = domain.forge.landing(task)?;
+    let member = row.landing.members.first()?;
+    let change = domain.forge.change(member.change)?;
+    let repository = domain.forge.repository(change.repository)?;
+    let head = member.head?;
+    let mut message = List::with_capacity(env.limits.tasks.spec_bytes);
+    append(&mut message, b"Merge pull request '");
+    append(&mut message, &change.title);
+    append(&mut message, b"' (#");
+    append(&mut message, skein_lib::Decimal::of(member.pull).as_bytes());
+    append(&mut message, b") from ");
+    append(&mut message, &change.branch);
+    append(&mut message, b" into ");
+    append(&mut message, &row.landing.branch);
+    append(&mut message, b"\n\nLanded by landing ");
+    append(&mut message, skein_lib::Decimal::of(task).as_bytes());
+    append(&mut message, b" for change ");
+    append(&mut message, skein_lib::Decimal::of(member.change).as_bytes());
+    append(&mut message, b".");
+    let mut squash = List::with_capacity(env.limits.tasks.spec_bytes);
+    append(&mut squash, &change.title);
+    append(&mut squash, b"\n\nTemper-Change: ");
+    append(&mut squash, skein_lib::Decimal::of(member.change).as_bytes());
+    append(&mut squash, b"\nTemper-Pull: ");
+    append(&mut squash, skein_lib::Decimal::of(member.pull).as_bytes());
+    append(&mut squash, b"\nTemper-Head: ");
+    append(&mut squash, &super::commit_text(&head));
+    let main = row.landing.branch == repository.settings.default_branch;
+    let combine = match domain.config.landings.get(&row.landing.project) {
+        Some(config) => {
+            if main {
+                config.combine_main
+            } else {
+                config.combine_other
+            }
+        }
+        None => {
+            if main {
+                landing::Combine::Merge
+            } else {
+                landing::Combine::Squash
+            }
+        }
+    };
+    Some(super::prepare::PrepareRequest {
+        repository: repository.name.clone(),
+        main: member.base?,
+        combine,
+        train_upstream: row.landing.round.upstream,
+        member: super::prepare::PrepareMember {
+            number: member.change,
+            branch: change.branch.clone(),
+            head,
+            message: message.into_boxed(),
+            squash: squash.into_boxed(),
+        },
+    })
+}
+fn prepare_delegate(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::super::Delegate> {
+    let request = prepare_request(domain, env, task)?;
+    let bound = domain.config.prepare_kind?;
+    let context = domain.core.tasks.delegation(task)?;
+    let mut authority = context.authority;
+    authority.tools.0 = 0;
+    authority.budget.spend = 0;
+    authority.delegation.kinds = Box::new([]);
+    authority.delegation.tasks = 0;
+    authority.delegation.depth = 0;
+    Some(super::super::Delegate {
+        executor: tasks::Executor::Job { kind: forge::PREPARE_KIND },
+        spec: tasks::Spec {
+            job: Some(Box::new(tasks::JobSpec {
+                bytes: super::prepare::spec(&request, bound.spec)?,
+                deadline: bound.deadline,
+            })),
+            asks: false,
+            words: Box::new([]),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
+        contract: tasks::Contract::Job { bytes: bound.result },
+        authority,
+        deadline: tasks::Deadline::Named,
+        tracked: None,
+        label: 0,
+        flags: tasks::Flags::PLAIN,
+        budget: jig_domain_people::Budget::Named,
+        symbolic_grants: Box::new([]),
+        dependencies: Box::new([]),
+        wake: Some(tasks::WakePolicy::DEFAULT),
+        llm: None,
+    })
+}
+pub(super) fn prepare_workspace(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<super::RunWorkspace> {
+    let request = prepare_request(domain, env, task)?;
+    let row = domain.forge.landing(task)?;
+    let member = row.landing.members.first()?;
+    let provider =
+        skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
+    let root = domain.core.tasks.root(task)?;
+    let workspace = super::prepare::items(&domain.forge, provider, root, task, &request, env.limits.forge.name_bytes)?;
+    let repository = domain.forge.repository(provider)?;
+    let what = super::branch_what(&row.landing.round.branch, env.limits.forge.name_bytes)?;
+    let name = forge::Name { forge: provider.forge, repository: provider.repository, what };
+    Some(super::RunWorkspace {
+        workspace,
+        workstream: task,
+        writes: Box::new([authority::Write {
+            held: authority::Writer::Ancestor,
+            effect: authority::Effect {
+                connector: domain.config.forge_connector,
+                kind: 2,
+                name: resource_name(repository, &name.what, env.limits.authority.segments)?,
+                state: [0; 32],
+                price: None,
+                access: effect_access(repository, &name.what, 2),
+                additional: Box::new([]),
+                guards: Box::new([]),
+            },
+        }]),
+        names: Box::new([name]),
+        designs: Box::new([]),
+        own_holds: Box::new([]),
+    })
+}
+fn prepare_failure(context: &tasks::RunContext) -> Box<[u8]> {
+    for word in &context.inbox {
+        if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job)
+            && let Some(files) = conflict_files(&word.words)
+        {
+            return files;
+        }
+        if let tasks::MessageKind::Escalation { .. } = word.kind {
+            return word.words.clone();
+        }
+    }
+    Box::from(b"job failed past its tries".as_slice())
+}
+
+pub(super) fn tell(domain: &mut Domain, env: &Env<Limits>, task: u64, step: forge::LandingNews) {
+    let Some((change, words)) = domain.forge.landing_news_words(task, step) else { return };
+    let Some(row) = domain.forge.change(change) else { return };
+    let Some(goal) = row.goal else { return };
+    let words = forge::text::fit(&words, skein_lib::usize_of(env.limits.tasks.message_bytes), b"...");
+    if let Some(event) = domain.core.connector_news(goal, 0, tasks::NewsClass::Kept, words, env.wall) {
+        domain.work.push(Work::Tasks(event));
+    }
+}
+
+fn conflict_files(bytes: &[u8]) -> Option<Box<[u8]>> {
+    let length = u32::try_from(bytes.len()).ok()?;
+    let limits = skein_json::tokenizer::Limits { depth: 8, string: length, number: 20, chunk: 256, length };
+    let document =
+        skein_json::parse(bytes, &limits, &skein_json::document::Limits { tokens: length, text: length }).ok()?;
+    let conflict = document.member(0, b"conflict")?;
+    let files = document.member(conflict, b"files")?;
+    let mut words = List::with_capacity(8192);
+    for at in files.checked_add(1)?..document.value_end(files)? {
+        let token = document.token(at)?;
+        if token.kind == skein_json::Kind::String {
+            if !words.is_empty() {
+                append(&mut words, b", ");
+            }
+            append(&mut words, document.text(token)?);
+        }
+    }
+    Some(words.into_boxed())
 }

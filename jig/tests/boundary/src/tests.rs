@@ -219,7 +219,7 @@ fn engine_clients_link_only_their_boundary_wire_and_foundation() {
             "jig-client-protocol-wire",
             "jig-domain-accounts",
             "jig-domain-authority",
-            "jig-domain-core",
+            "jig-domain-core-vocabulary",
             "jig-domain-fleet",
             "jig-domain-link",
             "jig-domain-notes",

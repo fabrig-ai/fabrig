@@ -28,7 +28,7 @@ fn a_seed_replays_to_the_same_state_digests_through_assert_replays() {
         let digests: StateDigests = outcome.state_digests();
         (outcome.trace.iter().map(|entry| format!("{entry:?}")).collect::<Vec<_>>(), digests)
     };
-    assert!(!skein_world::domain::assert_replays(11, 12, run).is_empty());
+    assert_ne!(skein_world::domain::assert_replays(11, 12, run).len(), 0);
 }
 
 #[test]

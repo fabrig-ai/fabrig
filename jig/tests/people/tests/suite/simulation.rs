@@ -590,7 +590,7 @@ fn an_uncertain_effect_released_without_making_it_again_tells_its_executor() {
     let ask = Ask::Release { project: PROJECT, task: STOPPED_CHAT, revision: 1, again: Some(false) };
     let call = world.request(SIGN_IN, [4; 16], ask.clone());
     assert!(world.reply(call).is_none());
-    assert!(world.executor_outcomes.is_empty());
+    assert_eq!(world.executor_outcomes.len(), 0);
     world.commit_all();
     assert_eq!(world.reply(call), Some(Reply::Outcome(Outcome::Released { task: STOPPED_CHAT })));
     assert_eq!(world.executor_outcomes, [(9, false)]);

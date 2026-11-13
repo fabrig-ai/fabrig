@@ -75,7 +75,7 @@ pub fn snapshot(path: &Path) -> Vec<Entry> {
 /// Tiny bounds, including capacity for the current marker and interrupted residue.
 #[must_use]
 pub fn limits() -> StoreLimits {
-    smith_local_protocol::fixture::STORE
+    smith_local_protocol_fixtures::STORE
 }
 
 /// The fixture's single main endpoint: number 2, dialect 1, without an address.

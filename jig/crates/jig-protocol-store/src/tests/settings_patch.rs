@@ -1,7 +1,7 @@
 //! A retained catalogue is read only at the binary's levels (protocol/store/opening.md, 2).
 use super::fixtures;
 use crate::{Event, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, codec, format, keys, patches};
-use jig_domain_core::{self as core, settings as s};
+use jig_domain_core_vocabulary::{self as core, settings as s};
 use skein_codec::patch::{Capacity, Patcher, Step};
 use skein_lib::{Queue, Token, Wall};
 
@@ -112,7 +112,9 @@ fn patched() -> Box<[u8]> {
 #[test]
 fn u1_patches_a_v1_model_then_open_restores_its_catalogue() {
     let bytes = patched();
-    let mut store = store(&bytes, 2);
+    // Planted at the binary's jig level, the store opens current and reads its catalogue.
+    let level = u32::try_from(patches::PATCHES.len()).expect("jig's level fits u32");
+    let mut store = store(&bytes, level);
     let events = open(&mut store);
     let [Event::Opened { .. }] = events.as_ref() else {
         panic!("{events:?}");

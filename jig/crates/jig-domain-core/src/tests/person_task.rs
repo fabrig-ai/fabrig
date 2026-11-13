@@ -236,7 +236,7 @@ fn a_live_person_task_is_absent_from_chats_inbox_results_and_me_projects() {
     };
     assert!(me.projects.is_empty());
     assert_eq!(me.updates, Count::Known(0));
-    assert!(core.people.cached_results(PERSON).unwrap_or(&[]).is_empty());
+    assert_eq!((core.people.cached_results(PERSON).unwrap_or(&[])).len(), 0);
     assert!(core.people.cached_updates(&env.limits.people, PERSON).unwrap().is_empty());
 }
 

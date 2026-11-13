@@ -519,7 +519,7 @@ fn producer_refusal_world() -> (temper_engine_domain_world::forge_routes::World,
             })
             .collect(),
     };
-    let mut defaults = temper_service::stock::with_models(llm.models.clone(), 384);
+    let mut defaults = temper_engine_service::stock::with_models(llm.models.clone(), 384);
     let mut designer = defaults.charters[1].clone();
     designer.number = 7;
     defaults.charters = [defaults.charters.as_ref(), &[designer]].concat().into();
@@ -1092,7 +1092,7 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
             })
             .collect(),
     };
-    let mut defaults = temper_service::stock::with_models(llm.models.clone(), 10_660);
+    let mut defaults = temper_engine_service::stock::with_models(llm.models.clone(), 10_660);
     let mut charters = defaults.charters.to_vec();
     for item in reference_person_settings() {
         match item.edit {

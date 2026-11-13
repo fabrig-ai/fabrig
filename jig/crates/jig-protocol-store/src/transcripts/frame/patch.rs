@@ -4,7 +4,7 @@ use crate::patching::walk::held_root;
 use crate::transcripts::patches::{Machine, Machines};
 use crate::{Owner, codec};
 use alloc::boxed::Box;
-use jig_domain_core::TurnRecord;
+use jig_domain_core_vocabulary::TurnRecord;
 use skein_codec::{
     patch::{Halt, PlanIx, Site, Step},
     schema::DeclIx,

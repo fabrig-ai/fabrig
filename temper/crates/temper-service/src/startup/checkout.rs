@@ -61,14 +61,13 @@ pub(super) fn capacity(
     problems: &mut Problems,
 ) {
     let checkout = &own.checkout;
-    #[cfg(feature = "worker")]
+    
     let stdout = match temper_worker_protocol_git::limits::largest_output(&crate::worker_settings::checkout(*checkout))
     {
         Some(needs) => short(u64::from(own.git_component.stdout_bytes), u64::from(needs)),
         None => None, // The payload ceiling check names the checkout field.
     };
-    #[cfg(not(feature = "worker"))]
-    let stdout = None;
+    
     let paths = u64::from(checkout.conflicts).checked_mul(u64::from(checkout.path_bytes).saturating_add(1));
     let stdout_of: &'static [u8] = match stdout {
         Some((_, needs)) if paths == Some(u64::from(needs)) => b"checkout.conflicts * (checkout.path_bytes + 1)",
@@ -76,18 +75,13 @@ pub(super) fn capacity(
     };
     // These are the conflict and path rules of temper-worker-domain::unfit;
     // the remaining worker rules still run at their own construction phase.
-    #[cfg(feature = "worker")]
+    
     let (agent_conflicts, agent_paths) = match agent {
         Some(agent) => (
             short(u64::from(agent.host_limits.conflicts), u64::from(checkout.conflicts)),
             short(u64::from(agent.host_limits.path_bytes), u64::from(checkout.path_bytes)),
         ),
         None => (None, None),
-    };
-    #[cfg(not(feature = "worker"))]
-    let (agent_conflicts, agent_paths) = {
-        let _: Option<&settings::Agent> = agent;
-        (None, None)
     };
     let payload = payload(checkout);
     let saved = match payload::Saved::encoded_bound(&payload) {

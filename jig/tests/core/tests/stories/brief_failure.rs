@@ -76,11 +76,19 @@ fn a_brief_that_cannot_be_read_counts_to_a_hold_naming_it() {
 fn no_room_for_a_brief_pauses_past_any_allowance_and_then_runs() {
     let (mut world, task) = failing_brief(capacity(), 925);
     let retries = world.env().limits.core.tasks.retries;
-    let allowance = [retries.transient, retries.permanent, retries.run, retries.agent, retries.lost, retries.invalid]
-        .iter()
-        .map(|retry| retry.retries)
-        .max()
-        .expect("failure classes");
+    let allowance = [
+        retries.transient,
+        retries.permanent,
+        retries.run,
+        retries.agent,
+        retries.lost,
+        retries.invalid,
+        retries.infrastructure,
+    ]
+    .iter()
+    .map(|retry| retry.retries)
+    .max()
+    .expect("failure classes");
     for count in 1..=allowance + 2 {
         logged(&mut world, task, capacity());
         assert_eq!(
@@ -120,18 +128,18 @@ fn a_release_counts_again_and_runs() {
 }
 
 #[test]
-fn a_late_section_counts_as_transient() {
+fn a_late_section_counts_as_infrastructure() {
     let failure = GatherFailure {
-        fate: GatherFate::Transient,
+        fate: GatherFate::Infrastructure,
         section: b"context",
         words: Box::from(b"not gathered by its deadline".as_slice()),
     };
     let (mut world, task) = failing_brief(failure.clone(), 927);
-    let allowance = world.env().limits.core.tasks.retries.transient.retries;
+    let allowance = world.env().limits.core.tasks.retries.infrastructure.retries;
     assert_eq!(
         live_row(&world, task).retry_notice,
         Some(tasks::RetryNotice::Failed {
-            class: tasks::Class::Transient,
+            class: tasks::Class::Infrastructure,
             count: 1,
             allowance,
             reason: Some(failure.reason()),
@@ -139,9 +147,11 @@ fn a_late_section_counts_as_transient() {
     );
     logged(&mut world, task, failure);
     assert_eq!(live_row(&world, task).tries.permanent, 0);
+    assert_eq!(live_row(&world, task).tries.transient, 0);
+    assert_eq!(live_row(&world, task).tries.infrastructure, 1);
     assert!(!world.assignments.iter().any(|(number, _)| *number == task));
     world.domain.script_brief_failure(None);
-    world.advance(Duration::from_secs(2));
+    world.advance(Duration::from_secs(10));
     let run = running(&world, task);
     finish(&mut world, run, b"late section arrived");
     world.close();

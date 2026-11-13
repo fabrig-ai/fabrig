@@ -1511,6 +1511,8 @@ pub enum Word {
     SignInLinkUnknown,
     OutOfDateMain,
     OutOfDateHow,
+    Reload,
+    ForgeOutOfDateBrowser,
     InboxNeedsEmpty,
     InboxUpdatesEmpty,
     Kind,
@@ -1963,7 +1965,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2511;
+const PHRASES: u32 = 2536;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1990,10 +1992,10 @@ const PHRASES: u32 = 2511;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4568;
+const SEGMENTS: u32 = 4619;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 59573;
-const ALL: [Word; 1826] = [
+const ENGLISH_BYTES: u32 = 59957;
+const ALL: [Word; 1828] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -3452,6 +3454,8 @@ const ALL: [Word; 1826] = [
     Word::SignInLinkUnknown,
     Word::OutOfDateMain,
     Word::OutOfDateHow,
+    Word::Reload,
+    Word::ForgeOutOfDateBrowser,
     Word::InboxNeedsEmpty,
     Word::InboxUpdatesEmpty,
     Word::Kind,
@@ -3967,8 +3971,8 @@ impl Word {
             Self::Pause => 3532,
             Self::Resume => 3533,
             Self::WaysLede => 4302,
-            Self::AskHow => 9023,
-            Self::AskHowHint => 9024,
+            Self::AskHow => 9025,
+            Self::AskHowHint => 9026,
             Self::HowChange => 4900,
             Self::HowOwn => 4901,
             Self::HowOwnLine => 4902,
@@ -5126,6 +5130,8 @@ impl Word {
             Self::SignInLinkUnknown => 1919,
             Self::OutOfDateMain => 183,
             Self::OutOfDateHow => 184,
+            Self::Reload => 9023,
+            Self::ForgeOutOfDateBrowser => 9024,
             Self::BylineTask => 1505,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
@@ -6126,7 +6132,6 @@ impl Words {
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {
         self.book.say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
     }
-    #[expect(clippy::manual_is_multiple_of, reason = "keep the UTC midnight remainder test explicit")]
     pub(crate) fn deadline(&self, at: skein_lib::Wall) -> Box<[u8]> {
         let word = if at.as_secs() % 86_400 == 0 { Word::BudgetDeadlineDate } else { Word::BudgetDeadlineMoment };
         self.say(word, &[Hole::Wall(at)])
@@ -7997,7 +8002,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SignInLinkUsed => (&[b"This link was already used. A fresh one is in your terminal."], &[]),
         Word::SignInLinkExpired => (&[b"This link has expired. A fresh one is in your terminal."], &[]),
         Word::SignInLinkUnknown => (&[b"This link isn't from this temper. Use the one its terminal printed."], &[]),
-        Word::OutOfDateHow => (&[b"Run the temper the engine runs."], &[]),
+        Word::OutOfDateHow => match shell {
+            Shell::Terminal => (&[b"Run the temper the engine runs."], &[]),
+            Shell::Browser => (&[b"This page doesn't match temper's engine. Reload it to continue."], &[]),
+        },
+        Word::Reload => (&[b"Reload"], &[]),
+        Word::ForgeOutOfDateBrowser => (&[b"This page is out of date for adopting repositories: reload it."], &[]),
         Word::OutOfDateMain => (&[b"This temper is out of date: run the temper the engine runs."], &[]),
         Word::Connecting => (&[b"Connecting"], &[]),
         Word::Behind => (&[b"Behind"], &[]),
@@ -8115,23 +8125,6 @@ fn chat_clock(at: skein_lib::Wall) -> [u8; 12] {
         b'0' + minute % 10,
         b'Z',
     ]
-}
-#[cfg(test)]
-mod clock_tests {
-    #[test]
-    fn the_chat_clock_keeps_day_month_and_leap_boundaries() {
-        for (seconds, expected) in [
-            (0, b"01-01 00:00Z"),
-            (86_399, b"01-01 23:59Z"),
-            (86_400, b"01-02 00:00Z"),
-            (2_678_399, b"01-31 23:59Z"),
-            (2_678_400, b"02-01 00:00Z"),
-            (1_709_251_199, b"02-29 23:59Z"),
-            (1_709_251_200, b"03-01 00:00Z"),
-        ] {
-            assert_eq!(&super::chat_clock(skein_lib::Wall::from_nanos(seconds * 1_000_000_000)), expected);
-        }
-    }
 }
 
 /// Client times (client/view.md, 6) and Home's last-look span (3.5).
@@ -8435,4 +8428,22 @@ pub(crate) fn grouped(value: u64) -> Box<[u8]> {
         number.put(core::slice::from_ref(digit)).expect("grouped length counted");
     }
     number.finish()
+}
+
+#[cfg(test)]
+mod clock_tests {
+    #[test]
+    fn the_chat_clock_keeps_day_month_and_leap_boundaries() {
+        for (seconds, expected) in [
+            (0, b"01-01 00:00Z"),
+            (86_399, b"01-01 23:59Z"),
+            (86_400, b"01-02 00:00Z"),
+            (2_678_399, b"01-31 23:59Z"),
+            (2_678_400, b"02-01 00:00Z"),
+            (1_709_251_199, b"02-29 23:59Z"),
+            (1_709_251_200, b"03-01 00:00Z"),
+        ] {
+            assert_eq!(&super::chat_clock(skein_lib::Wall::from_nanos(seconds * 1_000_000_000)), expected);
+        }
+    }
 }

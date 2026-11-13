@@ -147,6 +147,7 @@ pub enum JigPhrase {
     FailureAgent,
     /// Result broke its contract.
     FailureInvalid,
+    FailureInfrastructure,
 
     /// Loading navigation.
     LoadingNavigation,
@@ -1725,6 +1726,7 @@ impl JigPhrase {
             Self::FailureRun => 505,
             Self::FailureAgent => 506,
             Self::FailureInvalid => 507,
+            Self::FailureInfrastructure => 7994,
             Self::RecurringKey => 800,
             Self::RecurringSkip => 801,
             Self::RecurringWait => 802,
@@ -1816,6 +1818,7 @@ impl JigPhrase {
             | Self::FailureRun
             | Self::FailureAgent
             | Self::FailureInvalid
+            | Self::FailureInfrastructure
             | Self::PanelPart
             | Self::ResultPart
             | Self::HoldPart
@@ -2430,7 +2433,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 652] = [
+pub const ALL: [JigPhrase; 653] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::SettingProjectPolicy,
@@ -3077,6 +3080,7 @@ pub const ALL: [JigPhrase; 652] = [
     JigPhrase::FailureRun,
     JigPhrase::FailureAgent,
     JigPhrase::FailureInvalid,
+    JigPhrase::FailureInfrastructure,
     JigPhrase::RecurringKey,
     JigPhrase::RecurringSkip,
     JigPhrase::RecurringWait,

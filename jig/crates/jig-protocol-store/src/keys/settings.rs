@@ -1,5 +1,5 @@
 //! The core's live settings (tag 8) and revision-ordered history (tag 9).
-use jig_domain_core::settings::{Key, Setting};
+use jig_domain_core_vocabulary::settings::{Key, Setting};
 use jig_domain_people::Proposer;
 use skein_kv::{KeyReader, KeyWriter};
 pub(super) fn write(writer: &mut KeyWriter, key: &Key) {

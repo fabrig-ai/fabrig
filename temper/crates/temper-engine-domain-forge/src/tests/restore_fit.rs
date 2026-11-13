@@ -53,12 +53,15 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
             landing: policy::Landing {
+                round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
                 task: n,
                 project: 5,
                 phase: policy::Phase::Waiting,
                 members: Box::new([]),
                 preparation: 0,
                 stale_proofs: 0,
+                branch: Box::from(b"main".as_slice()),
             },
             asks: Box::new([]),
             entries: Box::new([]),
@@ -71,6 +74,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
                 key: [0; 32],
             },
             receipt: Receipt {
+                logs: Box::new([]),
                 failures: None,
                 passed: true,
                 run: ReceiptRun { id: n, number: n, url: Box::new([]) },
@@ -682,6 +686,7 @@ fn independent_timer_room_is_checked_before_insertion() {
 
 fn landing(members: u32, gates: u32) -> LandingRow {
     let member = policy::Member {
+        left: None,
         change: 1,
         repository: policy::Repository { forge: 1, repository: 2 },
         pull: 1,
@@ -698,12 +703,15 @@ fn landing(members: u32, gates: u32) -> LandingRow {
     };
     LandingRow {
         landing: policy::Landing {
+            round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
+
             task: 1,
             project: 5,
             phase: policy::Phase::Waiting,
             members: vec![member; usize::try_from(members).unwrap()].into_boxed_slice(),
             preparation: 0,
             stale_proofs: 0,
+            branch: Box::from(b"main".as_slice()),
         },
         asks: Box::new([]),
         entries: Box::new([]),
@@ -812,6 +820,7 @@ fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
     }
     if let Stored::Landing(row) = &mut record {
         row.landing.members = Box::new([policy::Member {
+            left: None,
             change: u64::from(number),
             repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
             pull: 1,

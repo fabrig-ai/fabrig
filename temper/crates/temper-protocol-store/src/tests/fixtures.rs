@@ -256,12 +256,12 @@ pub fn key(random: &mut Rng) -> top::Key {
         },
     }
 }
-pub fn core_keys() -> [jig_domain_core::Key; 4] {
+pub fn core_keys() -> [jig_domain_core_vocabulary::Key; 4] {
     [
-        jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment),
-        jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Live(1)),
-        jig_domain_core::Key::People(jig_domain_people::Key::Person(1)),
-        jig_domain_core::Key::Notes(jig_domain_notes::Key::Entry { name: 1 }),
+        jig_domain_core_vocabulary::Key::Core(jig_domain_core_vocabulary::CoreKey::Deployment),
+        jig_domain_core_vocabulary::Key::Tasks(jig_domain_tasks::Key::Live(1)),
+        jig_domain_core_vocabulary::Key::People(jig_domain_people::Key::Person(1)),
+        jig_domain_core_vocabulary::Key::Notes(jig_domain_notes::Key::Entry { name: 1 }),
     ]
 }
 pub fn within(interval: &skein_kv::Range, tagged: &[u8]) -> bool {
@@ -659,7 +659,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v15::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v16::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -717,13 +717,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
-pub fn encoded_row(row: &crate::v15::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v16::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v15::Row {
-    use crate::v15 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v16::Row {
+    use crate::v16 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
             .expect("piece ceiling"),
@@ -1087,6 +1087,7 @@ pub fn tier_row() -> top::TierRow {
         flight: Some(tier_flight()),
         held: Some(temper_engine_domain_forge_landing::Fault::Cancelled),
         result: Some(top::Receipt {
+            logs: Box::new([b'l'; 8192]),
             passed: false,
             failures: Some(failures.clone()),
             candidate: [4; 32],

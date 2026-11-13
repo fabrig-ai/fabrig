@@ -1,6 +1,6 @@
 //! Page-carried immutable activity and opaque turns (protocol/client/wire.md, 1).
 use super::{chips, objects::question_answer, w};
-use jig_domain_core::reads;
+use jig_domain_core_vocabulary::reads;
 use jig_domain_tasks as t;
 use skein_lib::bytes;
 
@@ -124,7 +124,12 @@ fn invalid_reason(class: t::Class, reason: Option<t::InvalidResult>) -> Option<w
             Some(t::InvalidResult::Followups) => w::InvalidReason::Followups,
             None => w::InvalidReason::UnreadableResult,
         }),
-        t::Class::Transient | t::Class::Permanent | t::Class::Run | t::Class::Agent | t::Class::Lost => None,
+        t::Class::Transient
+        | t::Class::Infrastructure
+        | t::Class::Permanent
+        | t::Class::Run
+        | t::Class::Agent
+        | t::Class::Lost => None,
     }
 }
 
@@ -195,7 +200,7 @@ pub fn page_turn(
 
 /// The same immutable archive serves a page and a single-turn read.
 pub fn archive(
-    record: &jig_domain_core::TurnRecord,
+    record: &jig_domain_core_vocabulary::TurnRecord,
     private: Option<&crate::Private>,
     limits: &w::Limits,
 ) -> Result<w::ArchivedTurn, w::Problem> {

@@ -2,7 +2,7 @@
 use crate::patching::{machines, phase::Pending, plan};
 use crate::{Event, Family, Older, OpenRefusal, Phase, Store, codec, format, keys, restore};
 use alloc::boxed::Box;
-use jig_domain_core::{CoreKey, CoreRecord, Key, Record};
+use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Key, Record};
 use skein_lib::{Queue, Token};
 
 #[expect(clippy::too_many_lines, reason = "the ordered open checks include the rehearsal's pre-plan walk")]

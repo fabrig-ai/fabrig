@@ -20,7 +20,7 @@ fn scripted_task_ending_refusals_keep_whole_facts_after_keyed_durability_and_rep
     let mut engine = Engine::new(setup, 1).expect("valid script");
     send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
     send(&mut engine, 1, REQUESTER_OTHER_SIGN_IN, 1, 2, ask.clone());
-    assert!(engine.poll(Time::from_nanos(9_999_999)).is_empty());
+    assert_eq!(engine.poll(Time::from_nanos(9_999_999)).len(), 0);
     let answers = engine.poll(Time::from_nanos(10_000_001));
     assert_eq!(answers.len(), 2);
     assert_eq!(final_answer(&answers[0]), &expected);

@@ -462,6 +462,7 @@ mod activity_tests {
     use jig_domain_tasks as tasks;
 
     #[test]
+    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn activity_referee_rejects_changed_or_erased_lines() {
         for erased in [false, true] {
             let configuration = crate::world::fixture(507, false).0;

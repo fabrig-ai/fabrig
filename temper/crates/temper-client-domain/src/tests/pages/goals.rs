@@ -594,7 +594,7 @@ fn a_filter_is_a_move_that_keeps_the_reads() {
         assert!(released, "goal read released");
     }
     assert!(pages.goals().unwrap().live.number > previous[3].number, "another project gets new handles");
-    assert!(pages.goals().unwrap().ended().is_empty());
+    assert_eq!((pages.goals().unwrap().ended()).len(), 0);
 }
 
 fn fact_limits() -> crate::Limits {

@@ -1,6 +1,6 @@
 //! Translate the core's hub outputs (jig/docs/design/domain/root.md, 5).
 use crate::{Event, Link};
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_host as host;
 use skein_lib::Token;
 /// Connected channels receive the hub's vocabulary; other outputs stay with the root.

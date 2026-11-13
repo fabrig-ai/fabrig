@@ -511,9 +511,14 @@ fn host<R: Referee<Proc>>(
         },
         crate::terminal::roots,
     );
+    if agents != 0 {
+        host_agent(world, path, agents);
+    }
+}
+fn host_agent<R: Referee<Proc>>(world: &mut World<Proc, R>, path: &std::path::Path, agents: u32) {
+    use std::os::unix::ffi::OsStrExt;
     let configuration = smith_agent_shell::config::read(&path.join("agent.json")).expect("agent operation bound");
     if let Some(program) = configuration.program.as_ref() {
-        use std::os::unix::ffi::OsStrExt;
         world.host_startup(
             crate::claude::program(program.path.as_os_str().as_bytes()),
             |spawn| {
@@ -529,7 +534,7 @@ fn host<R: Referee<Proc>>(
     }
     world.host_roots(
         HostedProgram {
-            program: fixtures::AGENT.into(),
+            program: fixtures::pinned_agent_program(path).as_os_str().as_bytes().into(),
             make: agent::agent,
             instances: agents,
             operations: smith_agent_service::program_operations(&configuration.service).expect("agent program routes")
@@ -1235,7 +1240,7 @@ fn cluster_roots<R: Referee<Proc>>(
             forge.map(|(fixture, _, _)| fixture),
         ))))
     });
-    host(world, &engine.path().join("data"), steps, false, u32::try_from(workers.len()).expect("worker count"));
+    host(world, &engine.path().join("data"), steps, false, 0);
     for (name, scratch) in workers.iter().zip(worker_scratch) {
         world.spawn_signals(|signals| {
             Proc::new(Kind::Service(Box::new(ServiceHost::cluster(
@@ -1245,6 +1250,7 @@ fn cluster_roots<R: Referee<Proc>>(
                 forge.map(|(fixture, _, _)| fixture),
             ))))
         });
+        host_agent(world, &scratch.path().join("data"), 1);
     }
     let mut git = crate::git::program();
     git.instances = u32::try_from(workers.len()).expect("worker git count");

@@ -137,7 +137,7 @@ fn a_check_with_no_user_item_kept_writes_the_id_as_eight_bytes() {
     world.pause_writes();
     world.run_plan(1, Plan::Check { forge: 1 });
     world.settle();
-    assert!(world.heard().is_empty());
+    assert_eq!((world.heard()).len(), 0);
     assert!(world.file(Item::User).is_none());
     assert_eq!(
         world.needs(),
@@ -171,7 +171,7 @@ fn the_host_takes_over_the_handed_token_and_deletes_the_older_ones() {
     world.pause_writes();
     world.run_plan(1, Plan::TakeOver { forge: 1, admin_token: fixtures::secret(fixtures::TAKEN) });
     world.settle();
-    assert!(world.heard().is_empty());
+    assert_eq!((world.heard()).len(), 0);
     assert_eq!(world.file(Item::AdminToken).expect("old token").expose(), fixtures::ADMIN);
     assert_eq!(world.needs(), &[Need::Write { item: Item::AdminToken, bytes: fixtures::secret(fixtures::TAKEN) }]);
     assert_eq!(world.tally().routes.get(&Route::DeleteToken), None);
@@ -375,7 +375,7 @@ fn the_host_admits_a_reachable_beside_a_writing_run_refuses_a_second_and_ends_bo
     assert_eq!(world.pending_reads(), &[(Token::new(1), Item::AdminToken), (Token::new(2), Item::AdminToken)]);
     assert_eq!(world.needs(), &[ADMIN_READ; 2]);
     assert_eq!(world.heard(), &[busy(3)]);
-    assert!(world.connects().is_empty());
+    assert_eq!((world.connects()).len(), 0);
     world.read_pending(2);
     world.settle();
     assert_eq!(world.heard().len(), 2);

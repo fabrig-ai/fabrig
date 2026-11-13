@@ -4,7 +4,7 @@ use super::fixtures as f;
 use crate::{Event, Message, Request, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core::{
+use jig_domain_core_vocabulary::{
     self as core,
     settings::{CatalogueModel, ModelSource},
 };

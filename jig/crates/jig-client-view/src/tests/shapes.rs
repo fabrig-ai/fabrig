@@ -15,7 +15,7 @@ const SPAN: Duration = Duration::from_secs(5);
 #[test]
 fn a_chat_without_creating_sends_nothing() {
     let mut fixture = unoffered_chat();
-    assert!(drive(&mut fixture, Event::Act { action: Act::BeginConversation { project: PROJECT } }).is_empty());
+    assert_eq!(drive(&mut fixture, Event::Act { action: Act::BeginConversation { project: PROJECT } }).len(), 0);
 }
 #[test]
 fn a_chat_without_creating_shows_the_refusal() {

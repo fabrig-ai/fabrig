@@ -355,7 +355,7 @@ fn hosted_git_stages_files_and_commits_the_requested_parents_without_moving_head
     let result = disk.run(&scenario, &command, &message);
     assert_eq!(result.exit, 0);
     assert_eq!(result.stdout, b"1d0b14e4db018fed000000000000000300000000\n");
-    assert!(result.stderr.is_empty());
+    assert_eq!(result.stderr.len(), 0);
     let forge = scenario.transport.forge.borrow();
     let object = forge.domain.object(3).expect("new commit");
     assert_eq!((object.parent, object.merge_parent), (Some(1), Some(2)));
@@ -473,7 +473,7 @@ fn hosted_git_refuses_a_second_merge_until_a_checkout_clears_the_first() {
         assert_eq!(disk.read(&scenario.at, b".git/MERGE_HEAD"), head.to_le_bytes());
         let refused = disk.run(&scenario, &Command::Merge { theirs: commit(second) }, b"");
         assert_eq!(refused.exit, 128);
-        assert!(refused.stdout.is_empty());
+        assert_eq!(refused.stdout.len(), 0);
         assert_eq!(
             refused.stderr,
             b"fatal: You have not concluded your merge (MERGE_HEAD exists).\nPlease, commit your changes before you merge.\n"
@@ -521,8 +521,8 @@ fn hosted_clone_creates_only_the_destination_without_checking_out_files() {
     let command = Command::Store { remote: scenario.remote.clone().into(), directory: b"copy".as_slice().into() };
     let result = disk.run(&scenario, &command, b"");
     assert_eq!(result.exit, 0);
-    assert!(result.stdout.is_empty());
-    assert!(result.stderr.is_empty());
+    assert_eq!(result.stdout.len(), 0);
+    assert_eq!(result.stderr.len(), 0);
     assert_eq!(disk.read(&scenario.at, b"copy/objects/1"), b"");
     assert_eq!(disk.read(&scenario.at, b"copy/remote"), scenario.remote);
     assert_eq!(disk.read(&scenario.at, b"conflict.txt"), b"base\n");
@@ -637,7 +637,7 @@ fn hosted_git_fires_past_an_older_due_read_and_keeps_its_reply_once() {
         b"",
     );
     assert_eq!(result.exit, 0, "{:?}", result.stderr);
-    assert!(result.stderr.is_empty());
+    assert_eq!(result.stderr.len(), 0);
     let mut forge = scenario.transport.forge.borrow_mut();
     assert!(forge.now > Time::ZERO, "git's call follows the older read");
     assert_eq!(forge.pending.len(), PENDING_READ_REPLIES, "only the older read's reply remains");

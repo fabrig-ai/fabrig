@@ -222,6 +222,18 @@ impl Process {
         Ok(())
     }
 
+    /// Ask the run to stop at its current turn boundary.
+    pub fn send_drain(
+        &mut self,
+        token: Token,
+        above: &mut Queue<ProcessEvent>,
+        below: &mut Queue<IoRequest>,
+    ) -> Result<(), Error> {
+        self.channel.send_drain(token, &mut self.channel_events, &mut self.channel_below)?;
+        self.drain_channel(above, below);
+        Ok(())
+    }
+
     /// Forward one channel lower request to its pipe.
     pub fn channel_down(&mut self, request: Lower, below: &mut Queue<IoRequest>) {
         let input = self.input.expect("spawned channel has standard input");

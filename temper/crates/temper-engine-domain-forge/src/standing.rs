@@ -208,7 +208,21 @@ impl Domain {
                 Criterion::Ci | Criterion::UpToDate | Criterion::Gate { .. } => {}
             }
         }
-        judge::sign_offs(&approvals.into_boxed(), head, &row.change.clean, reviewers)
+        let mut clean = List::uncapped();
+        for commit in &row.change.clean {
+            clean.push(*commit).expect("admitted clean history");
+        }
+        if let Some(landing) = self.landing.rows.get(&task) {
+            for member in &landing.landing.members {
+                if member.candidate == Some(head) {
+                    if let Some(commit) = member.head {
+                        clean.push(commit).expect("admitted landing member");
+                    }
+                    break;
+                }
+            }
+        }
+        judge::sign_offs(&approvals.into_boxed(), head, clean.as_slice(), reviewers)
     }
 
     fn landing_criteria(

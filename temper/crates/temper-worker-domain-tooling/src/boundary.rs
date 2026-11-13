@@ -34,6 +34,12 @@ pub enum Event {
         deadline: Duration,
         directory: Box<[u8]>,
     },
+    /// The root completed temper's own prepare without a process (temper/docs/design/domain/worker/jobs.md).
+    Prepared {
+        owner: Token,
+        result: Box<[u8]>,
+        code: u8,
+    },
     Stop {
         owner: Token,
     },

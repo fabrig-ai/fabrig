@@ -2,7 +2,7 @@
 use super::{Failure, Spent, empty, joins};
 use crate::{Below, Event, Get, Row, Store, TranscriptRead, gets, transcripts::read};
 use alloc::boxed::Box;
-use jig_domain_core::{self as core, reads};
+use jig_domain_core_vocabulary::{self as core, reads};
 use jig_domain_people::Proposer;
 use jig_domain_tasks as tasks;
 use skein_lib::{Queue, Token, length::len_u64};

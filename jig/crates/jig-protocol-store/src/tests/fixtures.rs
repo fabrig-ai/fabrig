@@ -1,6 +1,6 @@
 //! Shared keys favor number boundaries and common prefixes (protocol/store/README.md, 4.1).
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 
 pub const KEY_LIMIT: u32 = 1024;
@@ -107,6 +107,7 @@ pub const TASKS_LIMITS: jig_domain_tasks::Limits = jig_domain_tasks::Limits {
         agent: TASK_RETRY,
         lost: TASK_RETRY,
         invalid: TASK_RETRY,
+        infrastructure: TASK_RETRY,
     },
     facts: 2,
     room_refusals: 2,
@@ -415,11 +416,11 @@ pub fn model_names(names: &[&[u8]]) -> Box<[Box<[u8]>]> {
     result.into_boxed()
 }
 
-pub fn configured_model_names(names: &[&[u8]]) -> Box<[jig_domain_core::settings::ModelName]> {
+pub fn configured_model_names(names: &[&[u8]]) -> Box<[jig_domain_core_vocabulary::settings::ModelName]> {
     let mut result = skein_lib::List::with_capacity(u64::BITS);
     for name in names {
         result
-            .push(jig_domain_core::settings::ModelName { name: Box::from(*name), efforts: Box::new([]) })
+            .push(jig_domain_core_vocabulary::settings::ModelName { name: Box::from(*name), efforts: Box::new([]) })
             .expect("at most one name per model bit");
     }
     result.into_boxed()
@@ -622,7 +623,7 @@ pub fn people_asks() -> Box<[people::Ask]> {
 }
 
 pub const CORE_LIMITS: core::Limits = core::Limits {
-    public: jig_domain_core::PublicIndexLimits::OFF,
+    public: jig_domain_core_vocabulary::PublicIndexLimits::OFF,
     routes: 20_783,
     settings: core::settings::Limits {
         revisions: 4,

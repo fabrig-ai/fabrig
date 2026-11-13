@@ -24,6 +24,7 @@ pub struct Domain {
     pub(crate) due: List<u64>,
     started: bool,
     pub(crate) link: crate::Link,
+    pub(crate) unreadable: bool,
     pub(crate) streams_full: Option<crate::StreamsFull>,
     pub(crate) table: RequestTable<crate::Key, crate::Held>,
     pub(crate) requests: Map<crate::Key, crate::requests::PendingRequest>,
@@ -58,6 +59,7 @@ impl Domain {
             due: List::with_capacity(limits.watches),
             started: false,
             link: crate::Link::SignedOut,
+            unreadable: false,
             streams_full: None,
             table: RequestTable::new(&limits.requests, seed),
             requests: Map::with_capacity(limits.requests.requests),
@@ -289,6 +291,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::Up::SignedOut => domain.signed_out(out),
             crate::Up::NotKept { key } => domain.not_kept(key, out),
             crate::Up::FamilyServed { family, versions } => domain.family_served(family, versions, out),
+            crate::Up::Unreadable => {
+                domain.unreadable = true;
+                domain.set_link(crate::Link::OutOfDate, out);
+            }
             crate::Up::Served { served, versions } => {
                 domain.jig_versions = versions;
                 if !served {

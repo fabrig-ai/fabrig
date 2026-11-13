@@ -665,7 +665,9 @@ public  temper-worker help [NAME | pages | --search WORDS...]
 - **Its `serve`** is the box's `temper-box serve` on a worker alone: the
   worker's part read and checked, its agent's document read by
   `smith-agent-document`, its root, program sources and the launcher's
-  links made (setup/owned.md, 6), its link dialled, and its loop, ending and
+  links made (setup/owned.md, 6), its agent's program and document
+  pinned in its root (`../domain/worker/README.md`, section 5), its link
+  dialled, and its loop, ending and
   exit its worker's (`cluster.md`, 1). It takes no `--box`, and has no bundle, no
   fakes and no store.
 - **Its `program-login`** is the box's on a worker alone (`cluster.md`, 1;

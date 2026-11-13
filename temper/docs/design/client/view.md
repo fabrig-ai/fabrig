@@ -140,9 +140,17 @@
     as unknown (jig's `protocol/client/sign-in.md`). A page reached with
     no link keeps the shell's words;
   - *out of date,* the engine serving no version of jig's records that
-    this client speaks: "Run the temper the engine runs." under "Out of
-    date". What is pending stays in the small store (jig's
-    `client/domain/client/watches.md`, 2).
+    this client speaks, or having sent one this client can't read (jig's
+    `client/domain/client/watches.md`, 2, `unreadable`): under "Out of
+    date", in the shell's words, which the view takes at construction:
+    the terminal's "Run the temper the engine runs."; the browser's
+    "This page doesn't match temper's engine. Reload it to continue.",
+    then the column's one act, "Reload", filled, which loads the page
+    again at its address, and with it the engine's bundle
+    (`web/README.md`, 2.2). Both causes take the same words: a page from
+    the engine's own bundle reads its engine's records, so either way the
+    tab holds a page its engine has replaced. What is pending stays in
+    the small store (jig's `client/domain/client/watches.md`, 2).
 
   Both are phrases of temper's phrasebook: `jig-client`'s `words` has
   none for the link's states, and temper arranges none of jig's

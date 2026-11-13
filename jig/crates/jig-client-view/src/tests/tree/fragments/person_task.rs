@@ -279,21 +279,25 @@ fn person_owner_selected_words_and_all_view_storage_dimensions_refuse_one_under_
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn person_owner_selected_words_and_nodes_refuse_one_under_whole_requirements() {
     person_storage_dimension(Some(0));
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn person_owner_selected_words_and_depth_refuse_one_under_whole_requirements() {
     person_storage_dimension(Some(1));
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn person_owner_selected_words_and_per_node_text_refuse_one_under_whole_requirements() {
     person_storage_dimension(Some(2));
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn person_owner_selected_words_and_total_text_refuse_one_under_whole_requirements() {
     person_storage_dimension(Some(3));
 }

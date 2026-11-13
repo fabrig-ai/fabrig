@@ -44,7 +44,7 @@ fn each_closed_policy_edit_is_one_durable_keyed_request_and_replays_without_spli
         let mut engine = Engine::new(setup, position as u64 + 300).expect("valid script");
         send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
         send(&mut engine, 1, REQUESTER_OTHER_SIGN_IN, 1, 2, ask.clone());
-        assert!(engine.commits().is_empty());
+        assert_eq!((engine.commits()).len(), 0);
         let answers = engine.poll(Time::from_nanos(10_000_001));
         assert_eq!(answers.len(), 2);
         assert_eq!(

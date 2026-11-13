@@ -142,7 +142,8 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
                 name: b"focused".as_slice().into(),
                 workflow: b"checks.yml".as_slice().into(),
                 ignored: Box::new([]),
-                blocking: true
+                blocking: true,
+                base: false,
             }]),
             tiers: Box::new([forge::Tier {
                 name: b"fuzzy".as_slice().into(),
@@ -155,6 +156,7 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
                 description: b"the slow suites".as_slice().into(),
             }]),
         }]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         forge::AfterLanding {
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 1,
@@ -813,7 +815,7 @@ fn draft_first_requires_the_closer_and_close_job_in_both_delegations() {
         for ceiling in [true, false] {
             let mut policy = complete.clone();
             let mut kept = List::with_capacity(u32::try_from(required.len()).unwrap());
-            for executor in required.iter() {
+            for executor in &required {
                 if *executor != missing {
                     kept.push(*executor).unwrap();
                 }

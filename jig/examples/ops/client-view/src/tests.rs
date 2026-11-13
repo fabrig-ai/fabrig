@@ -671,7 +671,7 @@ fn moving_an_environment_end_names_the_end_revision_and_waits_for_the_final_enve
         .unwrap()
         .id;
     let action = crate::decode(&mut view, button, skein_ui::Act::Press).unwrap();
-    assert!(drive(&mut root, Event::Act { action }).is_empty());
+    assert_eq!(drive(&mut root, Event::Act { action }).len(), 0);
     let mut out = Queue::uncapped();
     support::take(&mut root, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() }, &mut out);
     let Some(Request::Save { record: root::store::Record::Unlinked(_) }) = out.pop() else {

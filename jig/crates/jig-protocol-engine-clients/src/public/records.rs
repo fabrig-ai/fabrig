@@ -2,7 +2,7 @@
 use super::{Names, PublicKind};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::{self as wire, public_v1 as w};
-use jig_domain_core as c;
+use jig_domain_core_vocabulary as c;
 use skein_lib::{List, Writer};
 
 pub(super) fn encode(

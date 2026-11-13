@@ -54,10 +54,9 @@ fn toast_at(tree: &skein_ui::Tree) -> Option<usize> {
 fn act(root: &mut d::Domain, act: pages::Act) {
     f::root_event(root, Event::Act { action: d::Action::Pages(act) });
 }
-#[expect(clippy::too_many_lines, reason = "the fixture delivers and answers a way act")]
 fn way_answer(kept: bool) -> d::Domain {
     use jig_client::{Down, UnlinkedRequest, Up};
-    use temper_client_protocol_wire::{self as wire, v1 as w};
+    use temper_client_protocol_wire as wire;
     let mut root = f::root_with_ways(Address::Home { project: f::PROJECT }, None);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: f::domain_limits() };
     let mut out = Queue::uncapped();
@@ -72,45 +71,7 @@ fn way_answer(kept: bool) -> d::Domain {
             watch = Some(*token);
         }
     }
-    let path = w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops: List::with_capacity(0) },
-    )
-    .unwrap();
-    let way = w::StockWay::new(
-        &w::CEILINGS,
-        w::StockWayParts {
-            headline: b"".as_slice().into(),
-            name: b"A way".as_slice().into(),
-            line: b"A line".as_slice().into(),
-            path: path.clone(),
-            items: List::from_boxed(Box::new([w::ProposalItem::new(
-                &w::CEILINGS,
-                w::ProposalItemParts { kind: 2, scope: f::PROJECT, number: 4, edit: w::SettingEdit::Removed },
-            )
-            .unwrap()])),
-            delegation: false,
-            roles: List::with_capacity(0),
-        },
-    )
-    .unwrap();
-    let panel = w::WaysPanel::new(
-        &w::CEILINGS,
-        w::WaysPanelParts {
-            rules: w::PathRules::new(
-                &w::CEILINGS,
-                w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
-            )
-            .unwrap(),
-            words: None,
-            project: f::PROJECT,
-            ways: List::from_boxed(Box::new([way])),
-            current: if kept { Some(0) } else { None },
-            own: path,
-            may_change: true,
-        },
-    )
-    .unwrap();
+    let panel = ways_panel(kept);
     f::root_event(
         &mut root,
         Event::Client {
@@ -461,4 +422,47 @@ fn stop_answer(which: u8) -> d::Domain {
         &mut out,
     );
     root
+}
+
+fn ways_panel(kept: bool) -> temper_client_protocol_wire::v1::WaysPanel {
+    use temper_client_protocol_wire::v1 as w;
+    let path = w::BranchPath::new(
+        &w::CEILINGS,
+        w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops: List::with_capacity(0) },
+    )
+    .unwrap();
+    let way = w::StockWay::new(
+        &w::CEILINGS,
+        w::StockWayParts {
+            headline: b"".as_slice().into(),
+            name: b"A way".as_slice().into(),
+            line: b"A line".as_slice().into(),
+            path: path.clone(),
+            items: List::from_boxed(Box::new([w::ProposalItem::new(
+                &w::CEILINGS,
+                w::ProposalItemParts { kind: 2, scope: f::PROJECT, number: 4, edit: w::SettingEdit::Removed },
+            )
+            .unwrap()])),
+            delegation: false,
+            roles: List::with_capacity(0),
+        },
+    )
+    .unwrap();
+    w::WaysPanel::new(
+        &w::CEILINGS,
+        w::WaysPanelParts {
+            rules: w::PathRules::new(
+                &w::CEILINGS,
+                w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
+            )
+            .unwrap(),
+            words: None,
+            project: f::PROJECT,
+            ways: List::from_boxed(Box::new([way])),
+            current: if kept { Some(0) } else { None },
+            own: path,
+            may_change: true,
+        },
+    )
+    .unwrap()
 }

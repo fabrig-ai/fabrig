@@ -27,7 +27,7 @@ pub struct Limits {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    if limits.accounts == 0
+    !(limits.accounts == 0
         || limits.accounts.checked_mul(limits.sources).is_none()
         || limits.holder_accounts == 0
         || limits.holder_accounts > limits.accounts
@@ -39,9 +39,5 @@ pub fn valid(limits: &Limits) -> bool {
         || limits.retry == Duration::ZERO
         || limits.move_deadline == Duration::ZERO
         || limits.backoff_base == Duration::ZERO
-        || limits.backoff_max < limits.backoff_base
-    {
-        return false;
-    }
-    true
+        || limits.backoff_max < limits.backoff_base)
 }

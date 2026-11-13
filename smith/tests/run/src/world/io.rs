@@ -61,6 +61,7 @@ impl Io {
             | run::Event::Turn { .. }
             | run::Event::Start { .. }
             | run::Event::Cancel { .. }
+            | run::Event::Drain { .. }
             | run::Event::JobsCancelled { .. }
             | run::Event::Started { .. }
             | run::Event::Yielded { .. }

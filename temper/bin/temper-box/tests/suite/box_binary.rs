@@ -145,7 +145,7 @@ fn temper_box_fetches_from_its_site_and_execs_after_an_interrupted_download() {
             support::WITHIN,
         );
         assert_eq!(output.status.code(), Some(1));
-        assert!(output.stdout.is_empty());
+        assert_eq!((output.stdout).len(), 0);
         assert_eq!(
             String::from_utf8(output.stderr).expect("refusal"),
             format!(

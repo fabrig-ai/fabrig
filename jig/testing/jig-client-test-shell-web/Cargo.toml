@@ -22,7 +22,7 @@ skein-lib.workspace = true
 skein-ui.workspace = true
 skein-ui-web.workspace = true
 wasm-bindgen.workspace = true
-web-sys = { workspace = true, features = ["Window", "Document", "Location", "HtmlElement"] }
+web-sys = { workspace = true }
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"

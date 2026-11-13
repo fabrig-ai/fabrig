@@ -34,7 +34,10 @@ fn git(root: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
 }
 
 fn base(root: &Path) -> String {
-    let args = if git(root, &["rev-parse", "--verify", "origin/main^{commit}"]).is_ok() {
+    // During a landing merge, the incoming target already owns its kept patches.
+    let args = if git(root, &["rev-parse", "--verify", "MERGE_HEAD^{commit}"]).is_ok() {
+        vec!["rev-parse", "MERGE_HEAD"]
+    } else if git(root, &["rev-parse", "--verify", "origin/main^{commit}"]).is_ok() {
         vec!["merge-base", "HEAD", "origin/main"]
     } else {
         vec!["rev-parse", "HEAD"]
@@ -63,6 +66,7 @@ fn landed(owner: &Path, base: &str) -> Result<Landed, String> {
 }
 
 #[test]
+#[ignore = "65 s on w1, a third of the focused suite: skipped while the focused suite is made faster; run it by hand (the user, 2026-11-12)"]
 fn stored_changes_have_patches() {
     let root = paths::workspace();
     let base = base(&root);

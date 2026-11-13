@@ -299,7 +299,7 @@ fn bodyless_answers_and_minted_tokens_stay_in_their_lanes() {
     assert!(String::from_utf8_lossy(&wire).contains("Host: github.com\r\n"));
     assert!(String::from_utf8_lossy(&wire).contains("Authorization: Basic GIT_SECRET\r\n"));
     relay.quiesce(); // A connected client must not delay shutdown or make a refusal.
-    assert!(relay.refused().is_empty());
+    assert_eq!((relay.refused()).len(), 0);
     assert_eq!(relay.count(), 5);
     let journal = fs::read_to_string(scratch.path().join("relay.jsonl")).expect("journal");
     for secret in ["MEMORY_ONLY", "APP_SECRET", "PERSON_SECRET", "GIT_SECRET"] {
@@ -337,7 +337,7 @@ fn a_closing_client_hears_the_relay_end_its_connection() {
     halved.shutdown(std::net::Shutdown::Write).expect("half-close");
     assert_eq!(halved.read(&mut [0; 1]).expect("the relay ends a half-closed connection"), 0);
     stub.join().expect("stub joined");
-    assert!(relay.refused().is_empty());
+    assert_eq!((relay.refused()).len(), 0);
     drop(relay);
     scratch.remove();
 }

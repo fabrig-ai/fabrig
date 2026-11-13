@@ -134,7 +134,7 @@ fn a_move_out_withdraws_the_source_and_answers_with_the_moves_number() {
     world.now = Time::from_nanos(5_000_000_000);
     withdrawn(&mut world, number);
     assert_eq!(world.domain.next_deadline(), Some(world.now.saturating_add(LIMITS.move_deadline)));
-    assert!(world.step(Event::Withdrawn { source: 6, readable: true }).is_empty());
+    assert_eq!(world.step(Event::Withdrawn { source: 6, readable: true }).len(), 0);
     assert!(world.facts().iter().any(|fact| fact.source == 6 && fact.state == State::Moving && !fact.usable));
 }
 
@@ -188,12 +188,12 @@ fn a_move_with_no_written_by_its_deadline_comes_back_refreshed_once() {
     let mut world = started(&rows(false));
     let number = start_out(&mut world);
     withdrawn(&mut world, number);
-    assert!(world.fire_at(59).is_empty());
+    assert_eq!(world.fire_at(59).len(), 0);
     assert!(!world.domain.is_due(world.now));
     assert_eq!(world.fire_at(60), comes_back(6));
     moving_fact(&world, 6);
     assert_eq!(world.domain.next_deadline(), None);
-    assert!(world.fire_at(61).is_empty());
+    assert_eq!(world.fire_at(61).len(), 0);
     assert_eq!(
         world.step(grant(6, 2)),
         vec![
@@ -250,7 +250,7 @@ fn an_unreadable_record_is_refused_not_signed_in_and_comes_back() {
     assert_eq!(world.step(Event::Withdrawn { source: 6, readable: false }), expected);
     moving_fact(&world, 6);
     assert_eq!(world.domain.next_deadline(), None);
-    assert!(world.step(Event::Withdrawn { source: 6, readable: false }).is_empty());
+    assert_eq!(world.step(Event::Withdrawn { source: 6, readable: false }).len(), 0);
 }
 
 #[test]
@@ -364,7 +364,7 @@ fn a_move_in_makes_an_account_refreshed_once_before_it_is_usable() {
         ]
     );
     moving_fact(&world, source);
-    assert!(world.step(Event::Adopted { source, kept: true }).is_empty());
+    assert_eq!(world.step(Event::Adopted { source, kept: true }).len(), 0);
     world.step(grant(source, 2));
     assert!(world.domain.usable(1));
     assert_eq!(world.domain.grant(1, world.now).expect("new generation").generation, 2);
@@ -402,7 +402,7 @@ fn a_move_in_is_refused_for_another_holders_subject_held() {
         [vec![Request::Signing(Signing::Forget { source })], refused(2, Refusal::Held { provider: PROVIDER })].concat()
     );
     assert_eq!(world.domain.accounts(), 1);
-    assert!(world.step(Event::Adopted { source, kept: true }).is_empty());
+    assert_eq!(world.step(Event::Adopted { source, kept: true }).len(), 0);
 }
 
 #[test]
@@ -424,8 +424,8 @@ fn a_move_in_not_ours_is_refused() {
     let source = start_in(&mut world, ALICE);
     assert_eq!(world.step(Event::NotOurs { source }), refused(2, Refusal::NotOurs));
     assert_eq!(world.domain.accounts(), 0);
-    assert!(world.step(Event::NotOurs { source }).is_empty());
-    assert!(world.step(Event::Adopted { source, kept: true }).is_empty());
+    assert_eq!(world.step(Event::NotOurs { source }).len(), 0);
+    assert_eq!(world.step(Event::Adopted { source, kept: true }).len(), 0);
 }
 
 #[test]
@@ -487,7 +487,7 @@ fn close_refuses_a_withdrawing_move_and_keeps_the_hold() {
         {
             assert_eq!(world.step(change(3, BOB, change_)), refused(3, Refusal::Closing));
         }
-        assert!(world.step(Event::Withdrawn { source: 6, readable: true }).is_empty());
+        assert_eq!(world.step(Event::Withdrawn { source: 6, readable: true }).len(), 0);
         assert_eq!(world.step(Event::Component(FromComponent::Closed)), vec![Request::Closed]);
         restart(&store, 6);
     }

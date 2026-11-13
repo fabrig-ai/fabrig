@@ -68,7 +68,7 @@ fn stale_worker_listings_cancel_only_after_either_start_opens() {
         }
         assert!(!core.start_opened());
         assert!(!core.start_opened());
-        assert!(listing(&mut core, &env, 0).is_empty());
+        assert_eq!(listing(&mut core, &env, 0).len(), 0);
         {
             assert!(matches!(core.start_done(&env, Phase::Open, &mut Queue::uncapped()), Action::Idle));
         }

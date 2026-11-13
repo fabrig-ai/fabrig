@@ -1,6 +1,6 @@
 //! Stateless projection of the core's durable rows for every application adapter.
 use crate::referee as r;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use std::collections::BTreeMap;

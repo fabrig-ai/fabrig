@@ -16,7 +16,7 @@ fn entropy_names_have_separate_domains() {
     let names = Names::new(&Secret::new(Box::new([7; 32])));
     let repeated = Names::new(&Secret::new(Box::new([7; 32])));
     assert!(names.mcp.expose() == repeated.mcp.expose());
-    assert!(names.run == repeated.run);
+    assert_eq!(names.run, repeated.run);
     assert!(names.mcp.expose() != names.run);
 }
 

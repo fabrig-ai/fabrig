@@ -13,13 +13,13 @@ fn process_engine(case: &str) -> jig_protocol_config::Engine {
     let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
     let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
     // Forge::Unreached omits Forgejo's overrides; include its whole-authority bounds here.
-    value["engine"]["limits"]["overrides"]["authority.grants"] = 14.into();
-    value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 14.into();
+    value["engine"]["limits"]["overrides"]["authority.grants"] = 15.into();
+    value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 15.into();
     // The standing charters, closer procedure and close job are delegation targets.
     value["engine"]["limits"]["overrides"]["authority.executors"] = 21.into();
     // The standing charters, closer procedure and close job are delegation targets.
     value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 21.into();
-    value["engine"]["limits"]["overrides"]["notes.scopes"] = 17.into();
+    value["engine"]["limits"]["overrides"]["notes.scopes"] = 18.into();
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &DOCUMENT).expect("engine document");
     // Parsing a fixture without a deployment; only its limits are used.
@@ -36,6 +36,29 @@ fn the_browsers_client_bounds_are_the_terminals() {
         temper_client_shell_terminal::limits::native().client,
         "the browser receives what the terminal does (client/README.md, 2)"
     );
+}
+
+#[test]
+fn the_native_forge_fixture_fits_its_store() {
+    let scratch = support::Scratch::startup("native-forge-store");
+    support::configuration(
+        scratch.path(),
+        &support::Forge::Throwaway {
+            forgejo: std::path::Path::new("/fixture/forgejo"),
+            api: "127.0.0.1:3000".parse().expect("fixture forge"),
+            git: "http://127.0.0.1:3000/".into(),
+        },
+    );
+    let document = std::fs::read(scratch.path().join("temper.json")).expect("deployment");
+    let agent = temper_worker_shell::agent::read(&scratch.path().join("agent.json")).expect("fixture agent");
+    let store = temper_service::startup::store_limits(
+        &document,
+        &jig_protocol_config::Directories::working(),
+        Some(&agent.declaration()),
+    )
+    .unwrap_or_else(|why| panic!("fixture store: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why))));
+    eprintln!("native forge map value: {} bytes", store.store.store.value);
+    scratch.remove();
 }
 
 #[test]

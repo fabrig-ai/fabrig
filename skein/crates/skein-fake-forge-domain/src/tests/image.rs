@@ -484,3 +484,39 @@ fn generated_ci_text_is_retained_even_when_incoming_bodies_have_no_room() {
     let again = restored(&other);
     same_read(&other, &again, Read::Checks { commit: head });
 }
+
+#[test]
+fn late_branch_creation_and_recorded_merge_survive_an_image() {
+    use crate::api::{ManualMerges, MergeHow};
+    for record in [false, true] {
+        let mut h = Harness::new(calm());
+        let head = h.commit(FIRST, &[(b"README", b"work")]);
+        h.push(ENGINE, b"work", head).unwrap();
+        let Answer::Created(number) = h.open(b"work").unwrap() else { panic!("pull") };
+        let op = if record {
+            crate::manual_merges(
+                &mut h.domain,
+                REPOSITORY,
+                ManualMerges { allow_manual_merge: true, autodetect_manual_merge: false },
+            );
+            write(Write::Merge { number, head, how: MergeHow::Recorded { commit: FIRST } })
+        } else {
+            Op::Git(Git::PushNew { branch: copy_of(b"landing"), commit: head })
+        };
+        h.settle();
+        h.env.limits.landing = 1000;
+        h.env.limits.land_min = Duration::from_secs(3);
+        h.env.limits.land_max = Duration::from_secs(3);
+        assert_eq!(h.call(ENGINE, op), Err(Error::Timeout));
+        let mut other = restored(&h);
+        other.until(Time::from_nanos(Duration::from_secs(3).as_nanos()));
+        if record {
+            assert_eq!(other.pull(number).merged, Some(FIRST));
+            assert_eq!(other.branch(MAIN), Some(FIRST));
+        } else {
+            assert_eq!(other.branch(b"landing"), Some(head));
+        }
+        other.settle();
+        assert!(other.answered.is_empty(), "restoration retains no reply right");
+    }
+}

@@ -202,9 +202,9 @@ fn pricing_rounds_the_combined_completion_and_rejects_overflow() {
     spec.prices = record::Prices { input: u64::MAX, cached: 0, cache_write: None, output: 0, unit: 1 };
     world.open(spec);
     world.complete(said(b"done"), llm::Stop::EndTurn, llm::Usage { input_tokens: Some(2), ..llm::Usage::ZERO });
-    assert_eq!(world.spend, []);
-    assert_eq!(world.own_spend, []);
-    assert!(world.turns.is_empty());
+    assert_eq!((world.spend).len(), 0);
+    assert_eq!((world.own_spend).len(), 0);
+    assert_eq!(world.turns.len(), 0);
     assert_eq!(world.end, Some(session::End::PriceOverflow));
     world.close();
 }
@@ -301,7 +301,7 @@ fn an_answer_name_outside_the_last_turn_is_malformed() {
     let mut resumed = Scripted::new(31);
     resumed.open(opened);
     assert_eq!(resumed.end, Some(session::End::TranscriptRefused { reason: record::Refusal::Malformed }));
-    assert!(resumed.prompts.is_empty());
+    assert_eq!(resumed.prompts.len(), 0);
 }
 
 #[test]
@@ -355,7 +355,7 @@ fn closing_a_resting_batch_keeps_its_result_and_marks_only_unstarted_calls() {
     world.complete(blocks.into(), llm::Stop::ToolUse, recorded::USAGE);
     world.domain.reclaim();
     assert!(world.domain.is_ready(), "the tools' entrance refusal defers the next batch");
-    assert!(world.delegated.is_empty());
+    assert_eq!(world.delegated.len(), 0);
     world.close();
     let results = &world.turns[0].messages[2].content;
     assert!(matches!(
@@ -658,7 +658,7 @@ fn full_history_batch_credit_keeps_maximum_late_results() {
     assert_eq!(world.delegated.len(), 2);
     world.step(session::Event::Close { session: world.session.expect("admitted") });
     assert!(world.end.is_none());
-    for byte in [b'a', b'b'] {
+    for byte in *b"ab" {
         let owner = world.delegated[0];
         world.step(session::Event::Answered {
             owner,
@@ -1276,7 +1276,7 @@ fn a_saved_window_starts_at_its_recorded_place_and_keeps_its_affinity() {
         endpoint: Some(llm::Endpoint(7)),
         dialect: 23,
         sequence: 19,
-        ..smith_domain::session::fixture::turn(
+        ..smith_domain_session_fixtures::turn(
             bytes(b"model"),
             record::Kind::Window(Box::new(record::Opener {
                 system: None,

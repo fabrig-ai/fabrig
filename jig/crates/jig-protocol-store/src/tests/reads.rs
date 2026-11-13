@@ -2,7 +2,7 @@
 use super::fixtures::{self, ALICE, CHILD, GOAL, GRANDCHILD};
 use crate::{Arrived, Below, Event, Io, Request, Store};
 use alloc::boxed::Box;
-use jig_domain_core::{self as core, reads};
+use jig_domain_core_vocabulary::{self as core, reads};
 use jig_domain_tasks as tasks;
 use skein_io::file;
 use skein_lib::{Queue, Token};

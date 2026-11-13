@@ -201,6 +201,38 @@ fn a_retargeted_merge_fails_before_any_write() {
     assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Failed(Error::Stale))]);
 }
 #[test]
+fn recorded_merge_recovery_matches_the_merge_commit_not_just_the_head() {
+    for merged in [Some([0xc1; 32]), None, Some([4; 32])] {
+        let mut h = Harness::new();
+        h.make(
+            1,
+            Write::Merge { number: 9, head: [1; 32], how: api::MergeHow::Recorded { commit: [0xc1; 32] } },
+            Condition::Merge { base: Box::from(b"main".as_slice()) },
+        );
+        h.clock();
+        let check = h.one();
+        h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
+        let write = h.one();
+        h.answer(write, Err(Error::Timeout));
+        let find = h.one();
+        assert_eq!(find.op, Op::Read(Read::Pull { number: 9, ci: false }));
+        let mut current = pull([1; 32]);
+        current.merged = merged;
+        current.state = if merged.is_some() { api::State::Closed } else { api::State::Open };
+        h.answer(find, Ok(Answer::Pull(current)));
+        let expected = match merged {
+            Some(commit) if commit == [0xc1; 32] => Outcome::Made { made: Made::Merged(commit), found: true },
+            Some(_) => Outcome::Failed(Error::Stale),
+            None => Outcome::Uncertain,
+        };
+        assert_eq!(h.outcomes.last(), Some(&(1, expected)));
+        assert_eq!(h.writes, 1);
+        assert!(h.send().is_none());
+        assert_eq!(h.store.contains_key(&1), merged.is_none());
+    }
+}
+
+#[test]
 fn update_recovery_proves_the_requested_base_is_an_ancestor() {
     let listed = api::CommitMessage { id: [2; 32], parents: Box::new([]), message: Box::new([]) };
     for (answer, proved) in [

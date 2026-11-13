@@ -12,4 +12,5 @@ Task activity:
   Agent failures: 4
   Lost failures: 5
   Invalid failures: 4294967295
+  Infrastructure failures: 0
   Resumed

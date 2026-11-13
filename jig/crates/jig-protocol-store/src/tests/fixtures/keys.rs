@@ -1,8 +1,8 @@
 //! Shared key generators and interval membership fixtures.
 use crate::keys::Own;
 use alloc::boxed::Box;
-use jig_domain_core::settings::{Key as SettingKey, Setting};
-use jig_domain_core::{self as core, CoreKey, ProjectionKey};
+use jig_domain_core_vocabulary::settings::{Key as SettingKey, Setting};
+use jig_domain_core_vocabulary::{self as core, CoreKey, ProjectionKey};
 use jig_domain_people::{self as people, Proposer};
 use skein_lib::Rng;
 pub fn number(rng: &mut Rng) -> u64 {

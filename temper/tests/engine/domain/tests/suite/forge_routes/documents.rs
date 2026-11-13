@@ -193,7 +193,7 @@ fn settings_world() -> (World, u64) {
             .collect(),
     };
     let limits = temper_engine_domain_world::forge_routes::box_limits();
-    let defaults = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
+    let defaults = temper_engine_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     let mut world = World::configured_stock_limits(&defaults, &model, &limits);
     let head = push_document(&mut world, b"README.md", WHOLE);
     world.adopt();

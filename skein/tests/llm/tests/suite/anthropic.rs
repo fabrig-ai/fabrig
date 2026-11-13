@@ -329,7 +329,7 @@ fn next_demands_one_event_and_duplicate_next_is_inert() {
             break;
         }
     }
-    assert!(world.seen.is_empty());
+    assert_eq!(world.seen.len(), 0);
     assert_eq!(world.machine.waiting(), client::Waiting::Next);
     world.request(client::Request::Next);
     world.request(client::Request::Next);

@@ -144,6 +144,8 @@ pub enum Event {
     /// From the host: end the run `run` as cancelled. A run that has already
     /// answered, or decided how it ends, ignores it.
     Cancel { run: Token },
+    /// From the host: finish the current main turn, then end as cancelled.
+    Drain { run: Token },
     /// The conversation was admitted, and `peer` names it from now on.
     Started { conversation: Token, peer: Token },
     /// The addressed session has settled every job cancelled for a writer.

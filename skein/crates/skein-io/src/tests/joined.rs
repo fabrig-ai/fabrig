@@ -318,12 +318,12 @@ fn a_close_with_nothing_to_flush_is_closed_next_pass() {
 fn a_joined_end_submits_nothing_at_any_entry_point() {
     let (mut rig, connector, socket) = bound();
     send(&mut rig, connector, b"hello");
-    assert!(rig.next().subs.is_empty());
+    assert_eq!(rig.next().subs.len(), 0);
     rig.down(Request::Abort { entity: connector }).nothing();
-    assert!(rig.next().subs.is_empty());
-    assert!(rig.next().subs.is_empty());
+    assert_eq!(rig.next().subs.len(), 0);
+    assert_eq!(rig.next().subs.len(), 0);
     rig.down(Request::Abort { entity: socket }).nothing();
-    assert!(rig.next().subs.is_empty());
+    assert_eq!(rig.next().subs.len(), 0);
 }
 
 #[test]

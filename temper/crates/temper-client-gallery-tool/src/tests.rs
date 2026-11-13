@@ -4788,7 +4788,13 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "out-of-date",
         heading: "Out of date",
-        parts: &[Part::Named { role: Role::Paragraph, name: "Run the temper the engine runs." }],
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "This page doesn't match temper's engine. Reload it to continue.",
+            },
+            Part::Named { role: Role::Button, name: "Reload" },
+        ],
     },
     Holds {
         name: "chats-empty",

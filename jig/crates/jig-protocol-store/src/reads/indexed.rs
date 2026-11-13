@@ -2,7 +2,7 @@
 use super::{Failure, Spent, empty, joins, paged};
 use crate::{Cursor, Store, intervals, pages};
 use alloc::boxed::Box;
-use jig_domain_core::{self as core, documents, reads};
+use jig_domain_core_vocabulary::{self as core, documents, reads};
 use jig_domain_tasks as tasks;
 use skein_kv::Range;
 use skein_lib::{List, length::len_u64};

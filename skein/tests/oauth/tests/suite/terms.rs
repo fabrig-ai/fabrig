@@ -14,7 +14,7 @@ fn the_redirects_issued_client_id_reaches_the_record() {
     let mut issuer = issuer_with(true, Some(issued(&[b"client-1"])));
     let saved = signed_in(&mut issuer, issuing_registration(), success(b"access", Some(b"refresh"), 0));
     assert_eq!(saved.issued_client_id.as_deref(), Some(b"client-1".as_slice()));
-    assert!(issuer.carried().is_empty());
+    assert_eq!((issuer.carried()).len(), 0);
 }
 #[test]
 fn signing_in_again_keeps_a_newly_issued_client_id() {

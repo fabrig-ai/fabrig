@@ -238,7 +238,7 @@ impl Forgejo {
             panic!("one check context")
         };
         assert_eq!(check["context"], "check");
-        assert_eq!(check["state"], "failure");
+        assert_eq!(check["status"], "failure");
     }
 
     fn make_failed_pull(&self) {
@@ -300,7 +300,7 @@ struct Kept {
 }
 fn read(client: &Path, arguments: &[&str]) -> Value {
     let call = ctl::alone(client, Call::new(arguments).json());
-    answered(&call);
+    assert_eq!(call.exit, Some(Exit::Code(0)), "ctl {arguments:?}: {}", support::without_secrets(&call.stderr));
     ctl::json(&call)
 }
 fn kept(client: &Path, forgejo: &Forgejo) -> Kept {
@@ -309,9 +309,19 @@ fn kept(client: &Path, forgejo: &Forgejo) -> Kept {
     assert_eq!(forge["state"], "connected");
     assert_eq!(forge["mode"], "managed");
     let repository = read(client, &["forge", "repositories", "1"]);
-    let [row] = repository["rows"].as_array().expect("repository rows").as_slice() else { panic!("one repository") };
-    assert_eq!(row["owner"]["login"], "work");
-    assert_eq!(row["name"], "hello");
+    let names: Vec<_> = repository["rows"]
+        .as_array()
+        .expect("repository rows")
+        .iter()
+        .map(|row| {
+            format!(
+                "{}/{}",
+                row["owner"]["login"].as_str().expect("repository owner"),
+                row["name"].as_str().expect("repository name")
+            )
+        })
+        .collect();
+    assert_eq!(names, ["fake-person/widget", "acme/widget", "acme/gadget", "work/hello"]);
     let project = read(client, &["project", "show", "hello"]);
     let [adoption] = project["resources"].as_array().expect("adopted repositories").as_slice() else {
         panic!("one adopted repository")
@@ -328,7 +338,8 @@ fn kept(client: &Path, forgejo: &Forgejo) -> Kept {
     let conversation = read(client, &["chat", "show", "1"]);
     assert_eq!(conversation["activity"]["cut"], false);
     let api_repository = forgejo.get("");
-    assert_eq!(api_repository["full_name"], "work/hello");
+    assert_eq!(api_repository["owner"]["login"], "work");
+    assert_eq!(api_repository["name"], "hello");
     let pulls = forgejo.get("/pulls?state=all");
     let [pull] = pulls.as_array().expect("API pull requests").as_slice() else { panic!("one pull request") };
     let number = pull["number"].as_u64().expect("pull request number");
@@ -403,7 +414,28 @@ fn first_chat(programs: PathBuf, client: PathBuf) -> Vec<Step> {
             Call::new(&["account", "declare", "2", "claude_code", SOURCE, "--key", "newer-program"])
         })),
         Step::ProgramLogin(SOURCE),
-        Step::Run(Call::new(&["account", "verify", "1", "--source", "program", "--json"])),
+        Step::Run(Call::new(&["account", "list", "--json"])),
+        Step::Then(Box::new(|calls| {
+            let call = calls.last().expect("account list answered");
+            answered(call);
+            let accounts = ctl::json(call);
+            let programs: Vec<_> = accounts["accounts"]["party"]
+                .as_array()
+                .expect("person's accounts")
+                .iter()
+                .filter(|account| {
+                    account["provider"] == 2
+                        && account["sources"]
+                            .as_array()
+                            .expect("account sources")
+                            .iter()
+                            .any(|source| source["kind"] == "program" && source["name"] == SOURCE)
+                })
+                .collect();
+            let [account] = programs.as_slice() else { panic!("one declared program account") };
+            let number = account["number"].as_u64().expect("program account number").to_string();
+            Call::new(&["account", "verify", &number, "--source", "program", "--json"])
+        })),
         Step::Run(Call::new(&["account", "list", "--until", "usable", "--json"])),
         Step::Run(Call::new(&[
             "chat",
@@ -418,6 +450,8 @@ fn first_chat(programs: PathBuf, client: PathBuf) -> Vec<Step> {
             "--json",
         ])),
         Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
+        Step::Run(Call::new(&["task", "stop", "1", "--key", "keep-first-task", "--json"])),
+        Step::Run(Call::new(&["task", "show", "1", "--until", "held", "--json"])),
     ]
 }
 
@@ -472,7 +506,7 @@ fn a_stopped_fake_box_starts_with_new_files_at_the_same_paths() {
             (kept(root, &Forgejo::opening(binary.stderr(), root)), Guard::observing_test())
         },
     );
-    drained(&first, 9);
+    drained(&first, 12);
     let (before, observed) = first.checked.expect("initial chat and reads completed");
     assert!(observed.has_descendants(), "box tree observed before the stop");
     assert!(observed.all_exited(), "nothing left after the first termination");

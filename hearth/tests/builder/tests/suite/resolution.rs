@@ -59,5 +59,5 @@ fn resolve_with_its_key_recorded_runs_no_mmdebstrap() {
     let rendered = fixtures::resolve(&repository, &[b"test-min"], Form::Text, &fixtures::dead_proxy());
     assert!(fixtures::lines_starting(&rendered.stdout, &["packages "]).ends_with("resolution 21e9a02feb65 known\n"));
     assert_eq!(rendered.exit, Exit::Code(0));
-    assert!(fixtures::names(&repository.scratch().path().join("store/staging")).is_empty());
+    assert_eq!(fixtures::names(&repository.scratch().path().join("store/staging")).len(), 0);
 }

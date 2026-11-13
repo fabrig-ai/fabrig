@@ -238,7 +238,7 @@ impl Joint {
                     }
                 }
             }
-            while let Some(event) = self.worker.engine.pop() {
+            while let Some(event) = self.worker.engine_events().pop() {
                 match event {
                     temper_worker_domain::Event::Assign { assignment, items } => {
                         self.items.push(items.expect("workspace decodes")).unwrap();
@@ -263,7 +263,7 @@ impl Joint {
                     | temper_worker_domain::Event::Encoded { .. }
                     | temper_worker_domain::Event::Activity { .. }
                     | temper_worker_domain::Event::Done { .. }
-                    | temper_worker_domain::Event::Shutdown) => {
+                    | temper_worker_domain::Event::Shutdown { .. }) => {
                         panic!("unexpected worker root event; the link must stay up: {other:?}")
                     }
                 }
@@ -508,9 +508,10 @@ fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &s
 
 fn assert_charter(bytes: &[u8], assignment: &root::Assignment, workers: &Workers, extra: usize) {
     let charter =
-        smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &workers.encoding.endpoints).unwrap();
-    assert!(charter.owned_bytes().unwrap() <= workers.encoding.charter_bytes);
-    assert!(u64::try_from(bytes.len()).unwrap() <= workers.encoding.charter_bytes);
+        smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &workers.encoding().endpoints)
+            .unwrap();
+    assert!(charter.owned_bytes().unwrap() <= workers.encoding().charter_bytes);
+    assert!(u64::try_from(bytes.len()).unwrap() <= workers.encoding().charter_bytes);
     assert_eq!(charter.instructions, assignment.run.policy.instructions);
     if extra == 0 {
         assert_eq!(charter, temper_engine_smith::charter(assignment), "the whole charter fits");
@@ -555,13 +556,13 @@ fn assignment(settings: &settings::Engine, workers: &Workers, part: Part, extra:
             fill_instructions(&mut run, workers, extra);
         }
         Part::Window => window(&mut run, settings, extra),
-        Part::Tree => tree(&mut run, &workers.encoding.limits, extra),
+        Part::Tree => tree(&mut run, &workers.encoding().limits, extra),
         Part::Inbox => inbox(&mut run, settings, extra),
         Part::Calls => calls(&mut run, settings, extra),
         Part::All => {
             charter(&mut run, workers, extra);
             window(&mut run, settings, extra);
-            tree(&mut run, &workers.encoding.limits, extra);
+            tree(&mut run, &workers.encoding().limits, extra);
             inbox(&mut run, settings, extra);
             calls(&mut run, settings, extra);
         }
@@ -588,21 +589,21 @@ fn charter(run: &mut root::Assignment, workers: &Workers, extra: usize) {
     run.sections[1].body = root::BriefBody::Text(specification.finish());
     assert_eq!(
         charter_bytes(run, workers),
-        workers.encoding.charter_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()
+        workers.encoding().charter_bytes.checked_add(u64::try_from(extra).unwrap()).unwrap()
     );
 }
 
 fn charter_bytes(run: &root::Assignment, workers: &Workers) -> u64 {
     let charter = temper_engine_smith::charter(run);
     let bytes =
-        smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &workers.encoding.endpoints)
+        smith_protocol_translate::encode_charter(&charter, &smith_charter::CEILINGS, &workers.encoding().endpoints)
             .unwrap();
     charter.owned_bytes().unwrap().max(u64::try_from(bytes.len()).unwrap())
 }
 
 fn fill_instructions(run: &mut root::Assignment, workers: &Workers, extra: usize) {
     let fixed = charter_bytes(run, workers);
-    let room = usize::try_from(workers.encoding.charter_bytes.checked_sub(fixed).unwrap()).unwrap();
+    let room = usize::try_from(workers.encoding().charter_bytes.checked_sub(fixed).unwrap()).unwrap();
     run.run.policy.instructions = filled(room.checked_add(extra).unwrap());
 }
 fn window(run: &mut root::Assignment, settings: &settings::Engine, extra: usize) {

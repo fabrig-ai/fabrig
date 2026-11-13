@@ -114,11 +114,11 @@ fn try_run_and_leave_the_playground_through_its_banner() {
 #[test]
 fn a_running_playground_read_does_not_start_it_again() {
     let (mut front, mut root) = accounts::playground_fixture(f::SEED, true);
-    assert!(front.playground_starts.is_empty());
+    assert_eq!(front.playground_starts.len(), 0);
     go(&mut front, &mut root, f::chats_page());
     go(&mut front, &mut root, f::chats_page());
     assert!(has(&root, Role::Region, b"Playground"));
-    assert!(front.playground_starts.is_empty());
+    assert_eq!(front.playground_starts.len(), 0);
 }
 
 #[test]

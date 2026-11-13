@@ -10,7 +10,7 @@ fn untracking_a_goal_takes_its_tree_out() {
     assert_eq!(ready(&core).public_tasks().as_ref(), &[1, 2]);
     amend(&mut core, &limits, 1, Some(tasks::Tracking::Untracked), None);
     let project = ready(&core);
-    assert!(project.live().is_empty());
+    assert_eq!((project.live()).len(), 0);
     assert!(project.public_tasks().is_empty());
     for task in [1, 2] {
         assert_eq!(project.goal_of(task), None);
@@ -79,7 +79,7 @@ fn an_ended_goal_is_frozen_and_the_oldest_past_the_bound_leaves() {
     end(&mut core, &limits, 1);
     let frozen = snapshot(ready(&core));
     let project = ready(&core);
-    assert!(project.live().is_empty());
+    assert_eq!((project.live()).len(), 0);
     assert_eq!(project.ended().len(), 1);
     assert_eq!(project.ended()[0].line.task, 1);
     assert_eq!(project.ended()[0].tree[0].task, 2);
@@ -159,7 +159,7 @@ fn a_project_is_busy_until_its_entry_is_built() {
     }
     // The start script builds each restored public project in its Open phase.
     let _out = crate::tests::finish_started(&mut core, &environment(&limits), action);
-    assert!(ready(&core).live().is_empty());
+    assert_eq!((ready(&core).live()).len(), 0);
     assert!(ready(&core).ended().is_empty());
 }
 
@@ -172,7 +172,7 @@ fn an_ended_nested_goal_is_not_promoted_into_the_live_list() {
     end(&mut core, &limits, 2);
     assert_eq!(ready(&core).tree(1), Some(([2].as_slice(), 0)));
     amend(&mut core, &limits, 1, Some(tasks::Tracking::Untracked), None);
-    assert!(ready(&core).live().is_empty());
+    assert_eq!((ready(&core).live()).len(), 0);
     assert!(ready(&core).public_tasks().is_empty());
 }
 

@@ -42,9 +42,9 @@ pub(super) fn refused(seed: u64) {
         panic!("HTTP response evidence")
     };
     assert_eq!(response.status(), &Some(401));
-    assert!(!outcome.credentials.is_empty());
+    assert_ne!(outcome.credentials.len(), 0);
     assert!(outcome.credentials.iter().all(Option::is_none));
-    assert!(outcome.queries.is_empty());
+    assert_eq!(outcome.queries.len(), 0);
 }
 
 /// Replaces `process::a_person_s_sign_in_outlives_a_restart_is_refreshed_at_the_issuer_and_signs_out`.

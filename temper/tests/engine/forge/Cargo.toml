@@ -15,7 +15,6 @@ doctest = false
 temper-client-protocol-wire.workspace = true
 skein-forge.workspace = true
 jig-domain-people.workspace = true
-skein-world.workspace = true
 skein-lib.workspace = true
 temper-engine-domain-forge.workspace = true
 temper-protocol-reaches.workspace = true
@@ -26,6 +25,9 @@ temper-engine-domain-forge-change = { path = "../../../crates/temper-engine-doma
 skein-fake-forge-domain.workspace = true
 
 temper-engine-domain-forge-landing = { path = "../../../crates/temper-engine-domain-forge-landing" }
+
+[dev-dependencies]
+skein-world.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

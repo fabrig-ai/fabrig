@@ -186,7 +186,7 @@ fn failed_persistence_never_releases_held_exchanges_under_load() {
     world.event(Event::NotStored);
     world.stored();
     world.event(Event::NotStored);
-    assert!(world.sent.is_empty());
+    assert_eq!(world.sent.len(), 0);
     assert_eq!(world.loads, [(EXCHANGES, PENDING_WRITES)]);
     assert_eq!(world.terminals, terminals("not kept"));
     assert_eq!(world.link.in_flight(), OCCUPIED_READS);

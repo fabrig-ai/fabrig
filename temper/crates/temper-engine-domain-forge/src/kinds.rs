@@ -2,7 +2,7 @@
 //! (temper/docs/design/protocol/configuration/settings.md, 2;
 //! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/README.md, 9).
 use alloc::boxed::Box;
-use jig_domain_core::settings::application::{Restored, RestoredEdit};
+use jig_domain_core_vocabulary::settings::application::{Restored, RestoredEdit};
 use skein_lib::{Env, List, Map, Queue};
 
 use crate::settings::{self, Edit, SettingKey, SettingRow, SettingSlot, TemplateGoal, Value};

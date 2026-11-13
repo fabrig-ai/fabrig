@@ -141,7 +141,6 @@ pub const TABLE: Table = Table {
 };
 
 /// Capture once, answer the front, then run a command (temper/docs/design/testing/tools.md, 4.2).
-#[must_use]
 #[expect(
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-stage-one's arguments, once (skein/docs/foundation/cli.md, 6)"

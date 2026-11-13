@@ -314,7 +314,7 @@ fn remove_project_decodes_to_the_people_ask() {
             exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 20, f::encode_ask(&value))));
             exchange.authenticate();
             let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core request") };
-            let jig_domain_core::Event::People(p::Event::Ask { ask, key, sign_in, .. }) = *event else {
+            let jig_domain_core_vocabulary::Event::People(p::Event::Ask { ask, key, sign_in, .. }) = *event else {
                 panic!("people ask")
             };
             assert_eq!(ask, p::Ask::RemoveProject { project, grace });
@@ -338,7 +338,7 @@ fn set_visibility_reaches_the_people_child_as_sent() {
             exchange.send(crate::Message::Request(f::keyed(w::Owner::Jig, 20, f::encode_ask(&value))));
             exchange.authenticate();
             let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core request") };
-            let jig_domain_core::Event::People(p::Event::Ask { ask, key, sign_in, .. }) = *event else {
+            let jig_domain_core_vocabulary::Event::People(p::Event::Ask { ask, key, sign_in, .. }) = *event else {
                 panic!("people ask")
             };
             assert_eq!(ask, p::Ask::SetVisibility { project, public });

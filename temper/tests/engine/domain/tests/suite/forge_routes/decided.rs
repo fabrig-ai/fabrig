@@ -240,7 +240,7 @@ fn assert_answer(world: &World, answer: &engine::CallAnswer, expected: Option<Re
         }
     };
     assert_eq!(*answer, engine::CallAnswer::Decided { took, reach: expected });
-    let event = temper_service::render_for_task_page(
+    let event = temper_engine_service::render_for_task_page(
         ReplyTo::new(Token::new(1)),
         answer,
         b"decided",
@@ -550,7 +550,7 @@ fn a_changes_producer_and_repair_ask_their_requester() {
     let answer = world.scripted_call(&producer, CALL + 1, tool(Kind::Implementation));
     assert_eq!(last_how(&world), engine::AskHow::Message);
     assert_answer(&world, &answer, None, "no person is asked through you");
-    assert!(rows(&world).is_empty());
+    assert_eq!(rows(&world).len(), 0);
     let branch = super::questions::row(&world, change).branch.clone();
     let assigned = world.assigned.len();
     failed_ci_repair(&mut world, &producer, &branch, &[b"build"]);
@@ -559,7 +559,7 @@ fn a_changes_producer_and_repair_ask_their_requester() {
     let answer = world.scripted_call(&repair, CALL + 2, tool(Kind::Implementation));
     assert_eq!(last_how(&world), engine::AskHow::Message);
     assert_answer(&world, &answer, None, "no person is asked through you");
-    assert!(rows(&world).is_empty());
+    assert_eq!(rows(&world).len(), 0);
     world.close();
 }
 
@@ -673,7 +673,7 @@ fn an_advisor_is_beyond_authority() {
     let rendered =
         temper_engine_smith::answer_for_tool(&answer, b"decided", 1024, temper_engine_smith::ForgeReadBounds::STOCK);
     assert!(String::from_utf8_lossy(rendered.text()).contains("control"));
-    assert!(rows(&world).is_empty());
+    assert_eq!(rows(&world).len(), 0);
     world.close();
 }
 

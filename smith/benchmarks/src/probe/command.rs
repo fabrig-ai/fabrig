@@ -29,7 +29,7 @@ pub fn command(command: &str, arguments: &[String]) -> Result<Judgment, Fault> {
     };
     let mut options = std::collections::BTreeMap::new();
     let mut asked = Vec::new();
-    for pair in flags.chunks_exact(2) {
+    for pair in flags.as_chunks::<2>().0 {
         if command == "suite" && pair[0] == "--include" {
             asked.push(pair[1].clone());
             continue;

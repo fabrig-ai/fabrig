@@ -81,7 +81,7 @@ fn link_consequences_settle_before_the_next_entrance_under_load() {
     );
     assert_eq!(world.at("next"), &[Edge::Read(PROJECT)]);
     assert_eq!(world.at("next_done"), &[page(C, c::ReadNone::Unknown)]);
-    assert!(world.at("stale").is_empty());
+    assert_eq!(world.at("stale").len(), 0);
 }
 
 /// `deferred_reads_dispatched`: current deferred demands retain FIFO precedence

@@ -1,7 +1,7 @@
 //! Served template and creating facts (protocol/configuration.md, 3.1; client/domain/contract/documents.md, 1).
 use super::{objects, pieces, problem, task, w};
 use alloc::boxed::Box;
-use jig_domain_core::acts;
+use jig_domain_core_vocabulary::acts;
 use jig_domain_people as p;
 use skein_lib::{List, bytes};
 fn executor(value: p::TemplateExecutor, limits: &w::Limits) -> Result<w::TemplateExecutor, w::Problem> {
@@ -34,7 +34,7 @@ fn deadline(value: p::TemplateDeadline, limits: &w::Limits) -> Result<w::Templat
 }
 
 pub fn templates(
-    values: &List<jig_domain_core::Template>,
+    values: &List<jig_domain_core_vocabulary::Template>,
     models: &[crate::Model],
     limits: &w::Limits,
 ) -> Result<Box<[u8]>, w::Problem> {
@@ -127,7 +127,7 @@ pub fn overrides(
 }
 
 pub(super) fn template(
-    value: &jig_domain_core::Template,
+    value: &jig_domain_core_vocabulary::Template,
     models: &[crate::Model],
     limits: &w::Limits,
 ) -> Result<w::Template, w::Problem> {

@@ -2,7 +2,7 @@
 use super::{fixtures, model, policy, template};
 use crate::{Event, Request, Restore, Row, Store, Write, codec, keys};
 use jig_domain_authority::Models;
-use jig_domain_core::{self as core, settings as s};
+use jig_domain_core_vocabulary::{self as core, settings as s};
 use jig_domain_tasks::{MODELS, ModelEffort};
 use skein_lib::{List, Token};
 

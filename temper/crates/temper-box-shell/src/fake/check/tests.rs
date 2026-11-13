@@ -397,7 +397,7 @@ fn verb() {
                 let limits = temper_service::startup::store_limits(
                     bytes.as_ref().expect("seed document"),
                     &jig_directories(&directories),
-                    Some(&agent),
+                    Some(&agent.declaration()),
                 )
                 .expect("store limits");
                 seed(&check.store, &limits.store, format, rows);

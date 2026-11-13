@@ -2,7 +2,7 @@ use smith_bench::{Measure, ScopeKind, TokenRecord};
 
 fn retried_tokens(evidence: &str) -> Vec<TokenRecord> {
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 524_288;
         fixture_limits.content = 4096;
         fixture_limits.items = 512;

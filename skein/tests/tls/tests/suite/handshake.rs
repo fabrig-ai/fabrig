@@ -3,7 +3,7 @@
 //! longer than the records held, peers that are not TLS or give up, and the
 //! stream ending or failing before the handshake.
 
-use rustls::ContentType;
+use rustls_std::ContentType;
 use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Env, Time, Wall};
 use skein_tls::client::{self, Agreed, Certificate, Client, Error, Event, Limits, Request, Version, Waiting};
@@ -196,7 +196,7 @@ fn closes_before_and_during_the_handshake_send_nothing() {
     // The demand for the hello's room withdrawn, nothing sent.
     assert_eq!(running.down(Request::Close), vec![Event::Closed]);
     assert_eq!(running.wire.demand, None);
-    assert!(running.wire.sends.is_empty());
+    assert_eq!(running.wire.sends.len(), 0);
 }
 
 /// A client ready, whose server sent three bytes and `close_notify`, and

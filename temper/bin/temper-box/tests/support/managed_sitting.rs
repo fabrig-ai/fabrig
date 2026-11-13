@@ -137,7 +137,7 @@ fn finish_relay(relay: &mut Process, evidence: &Path) {
 }
 
 fn configure(root: &Path, api: SocketAddr, git: SocketAddr, upstream: SocketAddr, clients: SocketAddr) {
-    let fixtures = paths::package().join("tests/support/github");
+    let fixtures = paths::package().join("tests/fixtures/github");
     let mut template = fs::read_to_string(fixtures.join("engine.json")).expect("engine template");
     for (name, value) in [
         ("proc.forge.ready.address", api),

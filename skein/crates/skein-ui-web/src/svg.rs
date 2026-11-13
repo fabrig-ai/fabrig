@@ -115,9 +115,11 @@ fn mark_element(mark: Mark, data: &[u8]) -> Element {
         Mark::Polyline { .. } => {
             let mut e = Element::new("polyline");
             let points: Vec<_> = data
-                .chunks_exact(4)
-                .map(|point| {
-                    format!("{},{}", u16::from_le_bytes([point[0], point[1]]), u16::from_le_bytes([point[2], point[3]]))
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .map(|&[x_low, x_high, y_low, y_high]| {
+                    format!("{},{}", u16::from_le_bytes([x_low, x_high]), u16::from_le_bytes([y_low, y_high]))
                 })
                 .collect();
             e.set("points", &points.join(" "));
@@ -172,9 +174,9 @@ fn path(mut data: &[u8]) -> String {
         };
         let (coordinates, rest) = rest.split_at(points * 4);
         let mut text = char::from(command).to_string();
-        for point in coordinates.chunks_exact(4) {
+        for &[x_low, x_high, y_low, y_high] in coordinates.as_chunks::<4>().0 {
             use std::fmt::Write;
-            write!(text, " {} {}", u16::from_le_bytes([point[0], point[1]]), u16::from_le_bytes([point[2], point[3]]))
+            write!(text, " {} {}", u16::from_le_bytes([x_low, x_high]), u16::from_le_bytes([y_low, y_high]))
                 .expect("writing a string succeeds");
         }
         commands.push(text);

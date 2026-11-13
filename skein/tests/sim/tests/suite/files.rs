@@ -486,7 +486,7 @@ fn a_hung_append_asks_the_machine_nothing_and_is_stopped_by_cancel() {
     let file = world.append(pid, root, b"a.txt", 0o600);
     let target = world.submit(pid, Op::append(file, Box::from(&b"unwritten"[..]), 0).unwrap());
     assert_eq!(world.sim.calls_waiting(), 0);
-    assert!(world.reap(pid).is_empty());
+    assert_eq!(world.reap(pid).len(), 0);
     let cancel = world.submit(pid, Op::Cancel { target });
     let completed = world.reap(pid);
     assert_eq!(completed.len(), 2);

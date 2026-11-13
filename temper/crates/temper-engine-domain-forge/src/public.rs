@@ -132,7 +132,7 @@ impl Domain {
         }
         true
     }
-    fn newest_landing(&self, change: u64) -> Option<&policy::Landing> {
+    pub(crate) fn newest_landing(&self, change: u64) -> Option<&policy::Landing> {
         let mut newest: Option<&policy::Landing> = None;
         for (_, row) in &self.landing.rows {
             for member in &row.landing.members {

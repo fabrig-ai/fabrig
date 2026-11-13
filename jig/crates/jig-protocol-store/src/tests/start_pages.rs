@@ -2,7 +2,7 @@
 use super::fixtures::{self, ALICE, ENDED, LIVE};
 use crate::restore::{Cause, DecodeFailure, Failure, Item};
 use crate::{Cursor, Event, Family, Phase, Request, Restore, Row, SecretOwner, SecretValue, Store, Write, keys};
-use jig_domain_core::{Census, Key, ReadResults, Record, RestoreRange};
+use jig_domain_core_vocabulary::{Census, Key, ReadResults, Record, RestoreRange};
 use skein_lib::{List, Queue, Token, Wall, length::len_u64};
 
 const OWNER: Token = Token::new(5);

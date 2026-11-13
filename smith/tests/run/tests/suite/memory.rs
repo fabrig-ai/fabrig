@@ -73,7 +73,7 @@ const LIMITS: Limits = Limits {
     delivery_timeout: Duration::from_secs(60),
     check_timeout: Duration::from_secs(60),
     check_tail: 1024,
-    ..smith_domain_run::fixture::SMALL
+    ..smith_domain_run_fixtures::SMALL
 };
 
 /// A charter that holds exactly `held` bytes, as the run counts them: one of

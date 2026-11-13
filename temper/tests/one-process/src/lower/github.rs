@@ -311,8 +311,7 @@ impl skein_world::Referee<Proc> for Judge {
         );
         let installed = peer.github_layer().expect("GitHub").installations();
         let Proc::Other(HarnessProcess::Calls(caller)) = &other[0] else { unreachable!() };
-        for index in self.answers..caller.answers.len() {
-            let answer = &caller.answers[index];
+        for (index, answer) in caller.answers.iter().enumerate().skip(self.answers) {
             let refused = index == 3 || index == 8;
             assert!(
                 answer.exit == Exit::Code(if refused { 2 } else { 0 }),
