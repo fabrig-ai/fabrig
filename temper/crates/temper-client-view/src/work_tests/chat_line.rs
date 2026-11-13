@@ -1,4 +1,5 @@
 use super::{fixtures, fixtures::first_run as f};
+
 use crate::{
     look,
     pages::{
@@ -6,19 +7,27 @@ use crate::{
         chat_line::Run,
     },
 };
+
 use jig_client::{
     contract as c,
     thread::{Reading, Thread},
 };
+
 use skein_lib::{List, Token, Wall};
+
 use skein_ui::{Builder, Role, Tree};
+
 const CALLS: u32 = 16;
+
 const TEXT: u32 = 4096;
+
 const BYTES: u64 = 65536;
+
 fn call(number: u64, tool: &[u8], input: &[u8], outcome: Option<&[u8]>) -> c::Call {
     let c::Block::Call(call) = f::call(number, tool, input, outcome) else { panic!("call") };
     call
 }
+
 fn current() -> c::CurrentCall {
     c::CurrentCall {
         identity: c::CallIdentity { owner: Token::new(1), sequence: 1, retry: 0, id: f::text(b"current") },
@@ -28,6 +37,7 @@ fn current() -> c::CurrentCall {
         began: None,
     }
 }
+
 fn line(
     calls: &[c::Call],
     summaries: &[(u64, c::Text)],
@@ -37,6 +47,7 @@ fn line(
 ) -> Tree {
     line_with_words(calls, summaries, current, running, seconds, &fixtures::browser_words())
 }
+
 fn line_with_words(
     calls: &[c::Call],
     summaries: &[(u64, c::Text)],
@@ -62,6 +73,7 @@ fn line_with_words(
     run.flush(&mut b, current, running, words, false);
     b.finish()
 }
+
 fn disclosure(tree: &Tree) -> &skein_ui::Node {
     for node in tree.nodes() {
         if node.role == Role::Disclosure {
@@ -70,9 +82,11 @@ fn disclosure(tree: &Tree) -> &skein_ui::Node {
     }
     panic!("run disclosure")
 }
+
 fn thread(messages: &[(&[c::Message], u64)]) -> Thread {
     thread_after(messages, None)
 }
+
 fn thread_after(messages: &[(&[c::Message], u64)], before: Option<(c::Activity, u64)>) -> Thread {
     let mut thread = Thread::new(1, &jig_client::thread::Limits { lines: CALLS, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(Reading::Latest { known: 0 });
@@ -102,6 +116,7 @@ fn thread_after(messages: &[(&[c::Message], u64)], before: Option<(c::Activity, 
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
     thread
 }
+
 fn conversation(thread: &Thread, drawn: Drawn<'_>) -> Tree {
     let mut b = Builder::new(&fixtures::tree_limits());
     chat::conversation_with_times(
@@ -111,10 +126,11 @@ fn conversation(thread: &Thread, drawn: Drawn<'_>) -> Tree {
         (CALLS, TEXT),
         Speakers { person: None, requester: true },
         (drawn, Some(&mut crate::words::Times::new(Wall::EPOCH))),
-        &mut crate::frame::Bindings::new(128),
+        &mut crate::bindings::Bindings::new(128),
     );
     b.finish()
 }
+
 #[test]
 fn a_run_spans_turns_and_ends_at_a_text() {
     let calls = [f::message(c::Speaker::Assistant, &[f::call(1, b"read", b"{}", None)])];
@@ -140,6 +156,7 @@ fn a_run_spans_turns_and_ends_at_a_text() {
     }
     assert_eq!(turns, 3, "two runs and one answer, no calls-only turn shell");
 }
+
 #[test]
 fn read_docs_counts_topics_not_calls() {
     let tree = line(
@@ -155,6 +172,7 @@ fn read_docs_counts_topics_not_calls() {
     );
     assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Read 2 docs".as_slice()));
 }
+
 #[test]
 fn one_call_alone_says_what_it_touched() {
     for (tool, input, expected) in [
@@ -168,6 +186,7 @@ fn one_call_alone_says_what_it_touched() {
         );
     }
 }
+
 #[test]
 fn a_tool_outside_the_table_is_its_name() {
     assert_eq!(
@@ -183,6 +202,7 @@ fn a_tool_outside_the_table_is_its_name() {
         Some("read_file ×2".as_bytes())
     );
 }
+
 #[test]
 fn a_failed_call_is_said_on_the_line_and_its_row() {
     let mut failed = call(1, b"read_file", b"{}", Some(b"denied\nbody"));
@@ -202,20 +222,25 @@ fn a_failed_call_is_said_on_the_line_and_its_row() {
     let tree = line(&[failed], &[], None, false, 0);
     assert!(fixtures::find(&tree, Role::Paragraph, b"read_file: failed: ").is_some());
 }
+
 fn call_messages() -> [c::Message; 1] {
     [f::message(c::Speaker::Assistant, &[f::call(1, b"read", b"{}", None)])]
 }
+
 fn answer_messages() -> [c::Message; 1] {
     [f::message(c::Speaker::Assistant, &[c::Block::Text(f::text(b"answer"))])]
 }
+
 fn chat_tree(source: &Thread) -> Tree {
     conversation(source, Drawn::Chat { request: None, delegations: None })
 }
+
 #[test]
 fn a_run_of_one_turn_measures_from_the_line_before() {
     let tree = chat_tree(&thread(&[(&answer_messages(), 12), (&call_messages(), 41)]));
     assert_eq!(disclosure(&tree).description.as_deref(), Some(b"29 s".as_slice()));
 }
+
 #[test]
 fn a_run_after_words_measures_from_them() {
     let source = thread_after(
@@ -232,6 +257,7 @@ fn a_run_after_words_measures_from_them() {
     );
     assert_eq!(disclosure(&chat_tree(&source)).description.as_deref(), Some(b"29 s".as_slice()));
 }
+
 #[test]
 fn a_hidden_line_says_when_a_run_began() {
     let mut source = thread(&[(&answer_messages(), 12), (&call_messages(), 3641)]);
@@ -253,12 +279,14 @@ fn a_hidden_line_says_when_a_run_began() {
     source.lines.rows = rows;
     assert_eq!(disclosure(&chat_tree(&source)).description.as_deref(), Some(b"29 s".as_slice()));
 }
+
 #[test]
 fn a_run_across_turns_measures_from_the_line_before_its_first() {
     let calls = call_messages();
     let tree = chat_tree(&thread(&[(&answer_messages(), 5), (&calls, 10), (&calls, 20), (&calls, 30)]));
     assert_eq!(disclosure(&tree).description.as_deref(), Some(b"25 s".as_slice()));
 }
+
 #[test]
 fn a_run_at_the_windows_head_has_no_line_to_measure_from() {
     let calls = call_messages();
@@ -268,6 +296,7 @@ fn a_run_at_the_windows_head_has_no_line_to_measure_from() {
         Some(b"10 s".as_slice())
     );
 }
+
 #[test]
 fn a_turns_second_run_has_no_time() {
     let split = [f::message(
@@ -283,6 +312,7 @@ fn a_turns_second_run_has_no_time() {
     }
     assert_eq!(descriptions.as_slice(), [Some(b"29 s".as_slice()), None]);
 }
+
 #[test]
 fn a_run_under_a_second_has_no_time() {
     let mut source = thread(&[(&answer_messages(), 12), (&call_messages(), 12)]);
@@ -291,6 +321,7 @@ fn a_run_under_a_second_has_no_time() {
     last.decoded.as_mut().unwrap().at = last.source.at;
     assert_eq!(disclosure(&chat_tree(&source)).description, None);
 }
+
 #[test]
 fn a_running_run_says_the_call_under_way_and_takes_the_dots() {
     let tree = line(&[call(1, b"settings", b"{}", None)], &[], Some(&current()), true, 29);
@@ -310,12 +341,14 @@ fn a_running_run_says_the_call_under_way_and_takes_the_dots() {
         assert!(!node.styles.as_slice().contains(&look::TYPING));
     }
 }
+
 #[test]
 fn a_call_under_way_with_none_ended_is_a_line() {
     let tree = line(&[], &[], Some(&current()), true, 0);
     assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Checking template 2".as_slice()));
     assert!(fixtures::find(&tree, Role::Paragraph, b"settings template 2").is_some());
 }
+
 #[test]
 fn a_table_tools_row_holds_no_results_body() {
     let tree = line(&[call(1, b"read", b"{}", Some(b"summary\nsecret body"))], &[], None, false, 0);
@@ -323,6 +356,7 @@ fn a_table_tools_row_holds_no_results_body() {
     assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Read 1 file".as_slice()));
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"secret body").is_none());
 }
+
 #[test]
 fn an_agents_page_folds_results_into_rows() {
     let messages = [
@@ -338,6 +372,7 @@ fn an_agents_page_folds_results_into_rows() {
         assert!(!node.styles.as_slice().contains(&look::BY_TOOL));
     }
 }
+
 #[test]
 fn a_card_and_a_write_are_not_counted_and_end_a_run() {
     let object = c::ObjectKey::Proposal(fixtures::chat::PROPOSAL);
@@ -372,6 +407,7 @@ fn a_card_and_a_write_are_not_counted_and_end_a_run() {
     assert_eq!(names.as_slice(), &[b"Read 1 file".as_slice(), b"wait", b"Read 1 file"]);
     assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
 }
+
 #[test]
 fn the_terminal_prints_the_name_description_and_rows() {
     let tree = line_with_words(
@@ -388,6 +424,7 @@ fn the_terminal_prints_the_name_description_and_rows() {
     assert!(skein_lib::bytes::find(print.text.as_slice(), b"`read`: first").is_some());
     assert!(skein_lib::bytes::find(print.text.as_slice(), b"`read`: last").is_some());
 }
+
 #[test]
 fn rows_and_names_end_on_character_and_phrase_boundaries() {
     // The contract bounds a row at 160 bytes and a name at 256 (client/pages/README.md).
@@ -413,12 +450,14 @@ fn rows_and_names_end_on_character_and_phrase_boundaries() {
     let tree = line(&[call(1, &name.finish(), b"{}", None)], &[], None, false, 0);
     assert_eq!(disclosure(&tree).name.as_ref().unwrap().get(252..), Some("…".as_bytes()));
 }
+
 #[test]
 fn settings_and_minutes_keep_their_counted_words() {
     let tree = line(&[call(1, b"settings", b"{}", None), call(2, b"settings", b"{}", None)], &[], None, false, 240);
     assert_eq!(disclosure(&tree).name.as_deref(), Some("Checked settings 2×".as_bytes()));
     assert_eq!(disclosure(&tree).description.as_deref(), Some(b"4 min".as_slice()));
 }
+
 #[test]
 fn a_hidden_line_keeps_the_run_together() {
     let mut source = Thread::new(1, &jig_client::thread::Limits { lines: CALLS, bytes: BYTES, text: TEXT, live: TEXT });
@@ -443,12 +482,14 @@ fn a_hidden_line_keeps_the_run_together() {
     assert_eq!(disclosure(&tree).name.as_deref(), Some("Read 2 files".as_bytes()));
 }
 
+
 fn live(tool: &[u8], input: &[u8]) -> c::CurrentCall {
     let mut call = current();
     call.tool = f::text(tool);
     call.input = f::text(input);
     call
 }
+
 #[test]
 fn file_tools_count_what_they_touched() {
     for (tool, expected) in [
@@ -484,6 +525,7 @@ fn file_tools_count_what_they_touched() {
     let tree = line(&[call(1, b"read", b"{}", None), call(2, b"shell", b"{}", None)], &[], None, false, 0);
     assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Read 1 file, ran 1 command".as_slice()));
 }
+
 #[test]
 fn one_call_alone_says_its_argument() {
     for (tool, expected, counted) in [
@@ -510,6 +552,7 @@ fn one_call_alone_says_its_argument() {
         }
     }
 }
+
 #[test]
 fn a_call_under_way_says_its_present_form() {
     for (tool, expected) in [
@@ -533,6 +576,7 @@ fn a_call_under_way_says_its_present_form() {
     let tree = line(&[], &[], Some(&live(b"read", br#"{"path":"arg"}"#)), true, 0);
     assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Reading arg".as_slice()));
 }
+
 #[test]
 fn an_unreadable_call_under_way_is_its_name() {
     for tool in [
@@ -558,6 +602,7 @@ fn an_unreadable_call_under_way_is_its_name() {
         assert_eq!(disclosure(&tree).name.as_deref(), Some(tool.as_bytes()));
     }
 }
+
 #[test]
 fn a_cut_input_says_its_first_member() {
     let mut current = live(b"write", br#"{"path":"src/a.rs","content":"aaaa"#);
@@ -566,6 +611,7 @@ fn a_cut_input_says_its_first_member() {
     assert_eq!(disclosure(&tree).description.as_deref(), Some(b"writing src/a.rs".as_slice()));
     assert!(fixtures::find(&tree, Role::Paragraph, b"write src/a.rs").is_some());
 }
+
 #[test]
 fn a_command_is_its_first_line() {
     let input = br#"{"command":"cargo test\necho body"}"#;
@@ -575,6 +621,7 @@ fn a_command_is_its_first_line() {
     assert!(fixtures::find(&tree, Role::Paragraph, b"shell cargo test").is_some());
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"echo body").is_none());
 }
+
 #[test]
 fn the_terminal_writes_the_ellipsis() {
     let tree = line_with_words(
@@ -589,6 +636,7 @@ fn the_terminal_writes_the_ellipsis() {
     skein_ui_text::render(&tree, b"temper", None, &mut print);
     assert!(skein_lib::bytes::find(print.text.as_slice(), "Read 2 files: reading src/main.rs…".as_bytes()).is_some());
 }
+
 
 #[test]
 fn failed_settings_proposals_do_not_claim_a_change() {
@@ -634,6 +682,7 @@ fn failed_settings_proposals_do_not_claim_a_change() {
     }
 }
 
+
 #[test]
 fn proposing_settings_says_a_change_without_its_reason() {
     let input = br#"{"reason":"private reason","items":[]}"#;
@@ -650,7 +699,9 @@ fn proposing_settings_says_a_change_without_its_reason() {
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"private reason").is_none());
 }
 
+
 type SeeRow = (&'static [&'static [u8]], Option<&'static [u8]>, &'static [u8], Option<&'static [u8]>);
+
 #[test]
 fn see_says_its_addresses_first_word() {
     let rows: &[SeeRow] = &[

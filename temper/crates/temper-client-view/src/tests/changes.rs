@@ -1,18 +1,28 @@
 //! Every form of Changes' words and links (temper/docs/design/client/pages/README.md, temper/docs/design/client/view.md, 3, temper/docs/design/client/pages/task.md, 3).
 use super::fixtures as f;
+
 use crate::{
     look,
     pages::changes::{LandingFacts, landing_line, ordinal},
     words::Times,
 };
+
 use jig_client::{Down, Readable, Up, contract as c};
+
 use skein_lib::{List, Queue, Token, Wall};
+
 use skein_ui::Role;
+
 use temper_client_domain::{Address, Domain, Event, Place, Request};
+
 use temper_client_protocol_wire::{self as wire, v1 as w};
+
 const NOW: Wall = Wall::from_nanos(1_792_656_000_000_000_000);
+
 const SIX_MIN_AGO: u64 = 1_792_655_640_000_000_000;
+
 const FIRST: u64 = 9;
+
 
 fn queue(repository: &[u8], branch: &[u8], count: u32, red: bool) -> w::ChangesQueue {
     let mut changes = List::with_capacity(32);
@@ -49,6 +59,7 @@ fn queue(repository: &[u8], branch: &[u8], count: u32, red: bool) -> w::ChangesQ
     )
     .unwrap()
 }
+
 fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) -> w::ChangesPanel {
     let mut rows = List::with_capacity(32);
     for row in queues {
@@ -88,6 +99,7 @@ fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) ->
     )
     .unwrap()
 }
+
 fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
     temper_client_domain::step(
@@ -98,9 +110,11 @@ fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     );
     out
 }
+
 fn up(root: &mut Domain, up: Up) -> Queue<Request> {
     event(root, Event::Client { event: jig_client::Event::Up { up } })
 }
+
 fn opened() -> (Domain, Token) {
     let (mut root, _, _) = f::root_at(Address::Settings { project: f::PROJECT }, &f::domain_limits());
     let out = event(&mut root, Event::Went { place: Place::Address(Address::Changes { project: f::PROJECT }) });
@@ -116,6 +130,7 @@ fn opened() -> (Domain, Token) {
     }
     panic!("changes watch");
 }
+
 fn show(root: &mut Domain, watch: Token, panel: &w::ChangesPanel) -> Queue<Request> {
     up(
         root,
@@ -129,6 +144,7 @@ fn show(root: &mut Domain, watch: Token, panel: &w::ChangesPanel) -> Queue<Reque
         },
     )
 }
+
 fn view(root: &Domain, browser: bool) -> crate::View {
     let words = if browser { f::browser_words() } else { f::words() };
     let limits = crate::Limits::of(&f::domain_limits(), &words).unwrap();
@@ -136,12 +152,15 @@ fn view(root: &Domain, browser: bool) -> crate::View {
     crate::build(&mut view, root, NOW, &mut Queue::uncapped());
     view
 }
+
 fn main_words(root: &Domain) -> Box<[u8]> {
     f::main_text(view(root, true).tree())
 }
+
 fn contains(text: &[u8], words: &str) -> bool {
     skein_lib::bytes::find(text, words.as_bytes()).is_some()
 }
+
 fn assert_line(panel: &w::ChangesPanel, expected: &[(&str, bool)]) {
     let mut red = List::uncapped();
     for queue in panel.queues() {
@@ -156,6 +175,7 @@ fn assert_line(panel: &w::ChangesPanel, expected: &[(&str, bool)]) {
         assert_eq!(part.red, *red);
     }
 }
+
 fn has_style(tree: &skein_ui::Tree, style: skein_ui::Style) -> bool {
     for node in tree.nodes() {
         if node.styles.as_slice().contains(&style) {
@@ -164,6 +184,7 @@ fn has_style(tree: &skein_ui::Tree, style: skein_ui::Style) -> bool {
     }
     false
 }
+
 fn named<'a>(tree: &'a skein_ui::Tree, role: Role, name: &[u8]) -> &'a skein_ui::Node {
     for node in tree.nodes() {
         if node.role == role && node.name.as_deref() == Some(name) {
@@ -172,6 +193,7 @@ fn named<'a>(tree: &'a skein_ui::Tree, role: Role, name: &[u8]) -> &'a skein_ui:
     }
     panic!("named node");
 }
+
 #[test]
 fn headings_and_ledes_name_counts_and_the_one_branch_name_across_repositories() {
     for (count, heading) in [
@@ -235,6 +257,7 @@ fn headings_and_ledes_name_counts_and_the_one_branch_name_across_repositories() 
     );
     assert!(skein_lib::bytes::find(&main_words(&root), branch.as_slice()).is_some());
 }
+
 #[test]
 fn landing_lines_cover_queued_landed_empty_and_red_with_no_queue() {
     for (count, landed, expected) in [
@@ -253,6 +276,7 @@ fn landing_lines_cover_queued_landed_empty_and_red_with_no_queue() {
     let more = panel(&[queue(b"owner/repo", b"main", 1, false)], 11, false, b"main");
     assert_line(&more, &[("12 queued", false)]);
 }
+
 #[test]
 fn rows_link_to_tasks_show_arriving_origins_and_put_more_last_without_a_link() {
     let (mut root, watch) = opened();
@@ -327,24 +351,7 @@ fn rows_link_to_tasks_show_arriving_origins_and_put_more_last_without_a_link() {
             < skein_lib::bytes::find(&bytes, b"and 5 more").unwrap()
     );
 }
-#[test]
-fn ordinals_follow_english_endings_including_the_teens() {
-    for (number, expected) in [
-        (1, "1st"),
-        (2, "2nd"),
-        (3, "3rd"),
-        (4, "4th"),
-        (11, "11th"),
-        (12, "12th"),
-        (13, "13th"),
-        (21, "21st"),
-        (22, "22nd"),
-        (23, "23rd"),
-        (111, "111th"),
-    ] {
-        assert_eq!(&*ordinal(number, &f::words()), expected.as_bytes());
-    }
-}
+
 #[test]
 fn loading_ended_and_empty_keep_their_own_words_and_the_landed_rule() {
     let (mut root, watch) = opened();
@@ -369,6 +376,7 @@ fn loading_ended_and_empty_keep_their_own_words_and_the_landed_rule() {
         assert!(empty, "empty landed list retains its rule");
     }
 }
+
 #[test]
 fn work_is_current_for_changes_in_the_rail_and_tabbar() {
     let (mut root, watch) = opened();
@@ -401,6 +409,7 @@ fn work_is_current_for_changes_in_the_rail_and_tabbar() {
     }
     assert_eq!(crate::href(&mut view, changes.unwrap()).as_deref(), Some(b"/projects/1/work".as_slice()));
 }
+
 #[test]
 fn a_changes_task_bar_opens_with_its_projects_changes_breadcrumb() {
     let mut task = f::task::document();
@@ -424,6 +433,7 @@ fn a_changes_task_bar_opens_with_its_projects_changes_breadcrumb() {
     let id = first.id;
     assert_eq!(crate::href(&mut view, id).as_deref(), Some(b"/projects/7/changes".as_slice()));
 }
+
 
 #[test]
 fn a_searching_train_shows_probing_at_its_prefix() {
@@ -451,6 +461,7 @@ fn a_searching_train_shows_probing_at_its_prefix() {
     assert!(contains(&text, "Landing 61 · member 51 · round 2"));
     assert!(contains(&text, "probing at 3333333"));
 }
+
 
 #[test]
 fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {

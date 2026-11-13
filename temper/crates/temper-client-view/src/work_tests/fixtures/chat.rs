@@ -7,7 +7,7 @@ use skein_ui::Builder;
 
 pub fn chat_header() -> skein_ui::Tree {
     let mut b = Builder::new(&fixtures::tree_limits());
-    let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
+    let mut bindings = crate::bindings::Bindings::new(fixtures::tree_limits().bindings);
     crate::pages::chat::main(
         &mut b,
         &chat_root(),
@@ -37,7 +37,7 @@ fn drawn_tree(thread: &Thread, drawn: crate::pages::chat::Drawn<'_>) -> skein_ui
         (LINES, TEXT),
         crate::pages::chat::Speakers { person: None, requester: false },
         drawn,
-        &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
+        &mut crate::bindings::Bindings::new(fixtures::tree_limits().bindings),
     );
     b.finish()
 }
@@ -63,7 +63,7 @@ pub fn closing(grace: Option<skein_lib::Duration>) -> skein_ui::Tree {
         operations.as_slice(),
         crate::words::Word::WhatClosingDoes,
         &fixtures::words(),
-        &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
+        &mut crate::bindings::Bindings::new(fixtures::tree_limits().bindings),
     );
     b.finish()
 }
