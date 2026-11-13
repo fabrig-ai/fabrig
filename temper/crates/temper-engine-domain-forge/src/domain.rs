@@ -1479,10 +1479,17 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::ChangeEnding { task, ending } => {
             if let Some(row) = d.changes.get_mut(&task) {
+                let verified = row.ending.is_none() && ending == crate::Ending::Landed
+                    && matches_landed(&row.change.state);
                 let owned = row.change.owns_turn;
                 row.change.owns_turn = false;
                 row.ending = Some(ending);
-                let row = row.clone();
+                let mut row = row.clone();
+                if verified {
+                    let mut event = crate::change_history::step(d, &row, crate::history::What::After { verdict: crate::history::AfterVerdict::Verified });
+                    event.head = landed_commit(&row.change.state);
+                    crate::change_history::write(d, env.wall, &mut row, event, out);
+                }
                 wake_after_turn(d, &row, owned);
                 save_change(d, out, row);
             }
@@ -4409,6 +4416,9 @@ fn step_read(
                     let own = (pull.state == skein_forge::api::State::Open && pull.merged.is_none())
                         || row.pull == Some(pull.number)
                         || row.change.last_head == Some(pull.commit);
+                    if own {
+                        pull_changed(d, env, skein_forge_client::Resource { repository, what: skein_forge_client::What::Pull(pull.number) }, pull.clone(), out);
+                    }
                     pending.pull = if own { Some(pull) } else { None };
                 }
                 Err(skein_forge::api::Error::Missing) => pending.pull = None,
@@ -5836,7 +5846,7 @@ fn matches_updating(state: &change::State) -> bool {
     updating_base(state).is_some()
 }
 
-fn updating_base(state: &change::State) -> Option<skein_forge::api::Commit> {
+pub(crate) fn updating_base(state: &change::State) -> Option<skein_forge::api::Commit> {
     match state {
         change::State::Updating { base, .. } | change::State::Preparing { main: base, .. } => Some(*base),
         change::State::Producing { .. }
@@ -7671,6 +7681,15 @@ fn pull_changed(
         None => true,
     };
     if changed_pull {
+        let mut rows = List::with_capacity(env.limits.changes);
+        for (_, row) in &d.changes {
+            if row.repository == resource.repository && row.pull == Some(pull.number) {
+                rows.push(row.clone()).expect("retained changes");
+            }
+        }
+        for mut row in rows.into_boxed() {
+            crate::change_history::recorded(d, env.wall, &mut row, &pull, out);
+        }
         publish(d, topic, News::Changed { number: pull.number }, out);
     }
     let changed_ci = match &prior {

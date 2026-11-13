@@ -89,10 +89,8 @@ pub(crate) fn answered(d: &mut Domain, wall: Wall, row: &mut ChangeRow, child: u
 }
 
 pub(crate) fn recorded(d: &mut Domain, wall: Wall, row: &mut ChangeRow, pull: &Pull, out: &mut Queue<Request>) {
-    let state = match pull.state {
-        State::Merged => history::RecordedState::Merged,
-        State::Closed => history::RecordedState::Closed,
-        State::Open => return,
+    let state = if pull.merged.is_some() { history::RecordedState::Merged } else {
+        match pull.state { State::Closed => history::RecordedState::Closed, State::Open => return }
     };
     let mut event = step(d, row, history::What::Recorded { state });
     event.operation = history::Operation::Of(pull.number);
@@ -100,7 +98,18 @@ pub(crate) fn recorded(d: &mut Domain, wall: Wall, row: &mut ChangeRow, pull: &P
     write(d, wall, row, event, out);
 }
 
+pub(crate) fn conflict(d: &mut Domain, wall: Wall, row: &mut ChangeRow, out: &mut Queue<Request>) {
+    let mut event = step(d, row, history::What::Conflict { with: history::With::Branch, files: 0 });
+    event.head = row.change.last_head;
+    event.base = crate::domain::updating_base(&row.change.state);
+    write(d, wall, row, event, out);
+}
+
 pub(crate) fn advanced(d: &mut Domain, wall: Wall, row: &mut ChangeRow, prior: &change::Change, out: &mut Queue<Request>) {
+    if row.change.resolutions > prior.resolutions && row.effect != change::EffectResult::Conflict
+        && row.change.way == change::Way::Queue {
+        conflict(d, wall, row, out);
+    }
     if crate::domain::landed_commit(&prior.state).is_none()
         && let Some(head) = crate::domain::landed_commit(&row.change.state)
     {
@@ -113,7 +122,13 @@ pub(crate) fn advanced(d: &mut Domain, wall: Wall, row: &mut ChangeRow, prior: &
         change::State::Red { .. } => history::AfterVerdict::Red,
         change::State::Cleared { .. } => history::AfterVerdict::Cleared,
         change::State::Uncleared { .. } => history::AfterVerdict::Uncleared,
-        _ => return,
+        change::State::Producing { .. } | change::State::Opening { .. } | change::State::Recreating { .. }
+        | change::State::Reopening { .. } | change::State::Checking { .. } | change::State::Judging { .. }
+        | change::State::Gating { .. } | change::State::CancellingGates { .. } | change::State::Ready { .. }
+        | change::State::Preparing { .. } | change::State::Queued { .. } | change::State::First { .. }
+        | change::State::Updating { .. } | change::State::WaitingProducer { .. } | change::State::Resolving { .. }
+        | change::State::Repairing { .. } | change::State::Landing { .. } | change::State::Landed { .. }
+        | change::State::NoChange { .. } | change::State::Ended | change::State::Held { .. } => return,
     };
     let mut event = step(d, row, history::What::After { verdict });
     event.head = crate::domain::landed_commit(&row.change.state);
