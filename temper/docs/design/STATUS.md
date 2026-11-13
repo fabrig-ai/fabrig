@@ -1,6 +1,6 @@
 # Status
 
-2026-11-11. The first milestone stands in the code. Remaining work spans
+2026-11-12. The first milestone stands in the code. Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;
@@ -9,10 +9,12 @@ project's second person or its first standing role. P4b, goal 713, draws
 the project's standing roles, a row each, and a role's card: its head
 with Pause and Resume, its Now, its rules, what wakes it and its
 sessions this week, with two gallery states; a forge topic's words, a
-charter's kept words and a session's line wait for reads. Areas, owners,
-the triager as Who routes and a card's "Talk to it" are P4c's, and a
-line's sign-offs wait on sign-offs by path and kept sign-offs
-(`client/pages/team.status.md`; `draft/surfaces.status.md`, 6).
+charter's kept words and a session's line wait for reads. P4c, goal 1983,
+draws the project's areas and their owners, the triager as Who routes, a
+person's areas, a card's "owns AREA", "Talk to it", "Give the area back"
+and weekly report, and "+ Hand an area to a role"; a role's page talks
+with it. A line's sign-offs wait on a read of what another person can
+still sign (`client/pages/team.status.md`; `draft/surfaces.status.md`, 6).
 
 Landed
 drafts are the whole story's milestone P8, by goal 638: a project keeps
@@ -24,8 +26,8 @@ check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
 `draft/surfaces.status.md`, 5). A person talks with a standing role through
 `role talk`, with instructions for every case becoming rules by settings
 proposals. A role reports through its Now, a line per session and a weekly
-`report` note, with its Now in Home's brief's words; areas and routing are R2, goal 684, and Team's and the terminal's talk and report surfaces
-remain the pages' (`draft/standing-roles.status.md`).
+`report` note, with its Now in Home's brief's words; areas and routing are R2, goal 684; Team's talk and report are P4c's, goal 1983, and the
+terminal's T3's (`draft/standing-roles.status.md`).
 Being told is the whole story's milestone N3b, goal 492, built
 against fakes alone: a person's devices, jig's need's arrival, the
 root's pushes and the service's Web Push, `temper ctl push add`, and

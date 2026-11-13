@@ -5,12 +5,14 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[must_use]
 pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
+    watching(project, Some(w::FindingState::New), true, limits)
+}
+
+/// A findings subject with the caller's state and ownership filter.
+#[must_use]
+pub fn watching(project: u32, state: Option<w::FindingState>, mine: bool, limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let subject = w::FindingsSubject::new(
-        &bounds,
-        w::FindingsSubjectParts { project, state: Some(w::FindingState::New), mine: true },
-    )
-    .ok()?;
+    let subject = w::FindingsSubject::new(&bounds, w::FindingsSubjectParts { project, state, mine }).ok()?;
     let watching = w::Watching::new(&bounds, w::WatchingParts { watch: w::Watch::Findings(subject) }).ok()?;
     Some(Watchable::Family {
         scope: c::Scope::Project(project),

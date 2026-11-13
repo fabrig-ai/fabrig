@@ -3824,6 +3824,13 @@ name = "skein-rows"
 version = "0.0.0"
 
 [[package]]
+name = "skein-rustls-std"
+version = "0.0.0"
+dependencies = [
+ "rustls",
+]
+
+[[package]]
 name = "skein-scratch"
 version = "0.0.0"
 
@@ -3890,6 +3897,7 @@ dependencies = [
  "rustls-pki-types",
  "skein-lib",
  "skein-rows",
+ "skein-rustls-std",
 ]
 
 [[package]]

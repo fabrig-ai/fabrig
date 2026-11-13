@@ -418,6 +418,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::frame::tabbar(&mut builder, root, &view.forge_words, &mut view.pages, project, times.now);
     }
     crate::frame::toast(&mut builder, root, &view.forge_words, &mut view.pages, &mut times);
+    if let Some(open) = root.pages().hand_area() {
+        crate::pages::team::hand_sheet(&mut builder, root, open, &view.forge_words, &mut view.pages);
+    }
     if let Some(start) = root.pages().start() {
         crate::pages::start_goal::sheet(&mut builder, root, start, &view.forge_words, &mut view.pages);
     }

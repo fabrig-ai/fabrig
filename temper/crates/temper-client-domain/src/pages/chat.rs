@@ -1272,6 +1272,7 @@ impl Chat {
             | Act::Told(_)
             | Act::Remembered(_)
             | Act::Models(_)
+            | Act::HandArea(_)
             | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Finding(_)
@@ -1317,6 +1318,7 @@ impl Chat {
             | Act::DeleteProject { .. }
             | Act::StartOver
             | Act::DelegateFate { .. }
+            | Act::LeaveTalk
             | Act::Pause
             | Act::Amend
             | Act::AmendWords { .. }

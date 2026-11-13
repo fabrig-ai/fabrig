@@ -22,6 +22,7 @@ pub(crate) enum Kind {
     Began(u64),
     Ended { attempt: u64, spent: u64 },
     Stood { attempt: u64, words: Box<[u8]> },
+    NowWritten { attempt: u64, line: Box<[u8]> },
     Boundary,
     Other,
 }
@@ -30,15 +31,15 @@ pub(crate) struct Line {
     pub at: Wall,
     pub kind: Kind,
 }
-fn retain(line: &c::ActivityLine) -> Line {
+pub(crate) fn retain(line: &c::ActivityLine) -> Line {
     let kind = match &line.line {
         c::Activity::RunBegan { attempt, .. } => Kind::Began(*attempt),
         c::Activity::RunEnded { attempt, spent, .. } => Kind::Ended { attempt: *attempt, spent: *spent },
         c::Activity::Stood { attempt, words } => Kind::Stood { attempt: *attempt, words: words.bytes().into() },
+        c::Activity::NowWritten { attempt, line } => Kind::NowWritten { attempt: *attempt, line: line.bytes().into() },
         c::Activity::SessionEnded { .. } => Kind::Boundary,
         c::Activity::TalkOpened { .. }
         | c::Activity::TalkEnded { .. }
-        | c::Activity::NowWritten { .. }
         | c::Activity::Words { .. }
         | c::Activity::Heard(_)
         | c::Activity::Notified { .. }
@@ -58,6 +59,7 @@ pub(crate) fn group(lines: &Map<u64, Line>, start: bool, wall: Wall) -> skein_li
     let mut all = skein_lib::List::uncapped();
     let mut bounded = start;
     let mut session: Option<Session> = None;
+    let mut wrote_now = false;
     let mut live = Set::with_capacity(lines.len());
     for (_, line) in lines {
         match &line.kind {
@@ -65,6 +67,7 @@ pub(crate) fn group(lines: &Map<u64, Line>, start: bool, wall: Wall) -> skein_li
                 finish(&mut all, session.take(), bounded, live.is_empty(), wall);
                 live = Set::with_capacity(lines.len());
                 bounded = true;
+                wrote_now = false;
             }
             Kind::Began(attempt) => {
                 if session.is_none() {
@@ -81,8 +84,15 @@ pub(crate) fn group(lines: &Map<u64, Line>, start: bool, wall: Wall) -> skein_li
             }
             Kind::Stood { attempt, words } => {
                 let _: u64 = *attempt;
-                if let Some(session) = &mut session {
+                if !wrote_now && let Some(session) = &mut session {
                     session.words = one_line(words);
+                }
+            }
+            Kind::NowWritten { attempt, line } => {
+                let _: u64 = *attempt;
+                if let Some(session) = &mut session {
+                    session.words = one_line(line);
+                    wrote_now = true;
                 }
             }
             Kind::Other => {}
@@ -99,7 +109,7 @@ fn one_line(words: &[u8]) -> Option<Box<[u8]>> {
     if words.is_empty() {
         return None;
     }
-    let mut line = skein_lib::List::with_capacity(u32::try_from(words.len()).expect("Stood words fit text"));
+    let mut line = skein_lib::List::with_capacity(u32::try_from(words.len()).expect("activity words fit text"));
     let mut carriage_return = false;
     for byte in words {
         if *byte == b'\n' && carriage_return {
@@ -249,7 +259,7 @@ impl Reader {
                 Kind::Began(_) | Kind::Boundary => {
                     old |= line.at.as_nanos() < self.wall.as_nanos().saturating_sub(WEEK);
                 }
-                Kind::Ended { .. } | Kind::Stood { .. } | Kind::Other => {}
+                Kind::Ended { .. } | Kind::Stood { .. } | Kind::NowWritten { .. } | Kind::Other => {}
             }
             self.fresh.insert(row.source.position, line).expect("uncapped activity");
         }

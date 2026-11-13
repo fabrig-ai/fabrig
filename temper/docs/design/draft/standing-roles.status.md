@@ -1,6 +1,6 @@
 # standing-roles: status
 
-2026-11-11. Where the design lags or departs from [standing-roles.md](standing-roles.md).
+2026-11-12. Where the design lags or departs from [standing-roles.md](standing-roles.md).
 
 Sections 2, 3, 5 and 9, are carried by jig's
 `domain/tasks/standing.md` and `../domain/agent/standing.md`, milestone R1
@@ -16,17 +16,10 @@ milestone R2, but for the lags and departures below.
 - **Design lags:**
   - 5: no landing rule by path holds a standing role's change that touches
     paths a rule guards (`what-reaches-you.md`, 7).
-  - 6 and 7: the pages draw no talk and no report: Team's "Talk to it", a
-    session's line of what it did, read from its last `NowWritten`, and
-    its weekly report, and the terminal's `/talk`, are
-    `surfaces.status.md`'s, 6 and 11 (`whole-story.execution.md`, P4c and
-    T3); `../domain/agent/standing.md`, sections 7 and 8 carry the engine's
-    side and `temper ctl role talk`.
-  - 10: no page draws a project's standing roles with their areas, wakes
-    and budgets on How work runs, nor "Hand an area to a role" on Team:
-    `../client/pages/team.md` leaves its areas and that act to its later
-    parts (`whole-story.execution.md`, P3d and P4c); the `ways` subject
-    carries what each way brings (`../client/forge/records.md`).
+  - 6 and 7: the terminal draws no talk: its `/talk` is
+    `surfaces.status.md`'s, 11 (`whole-story.execution.md`, T3).
+  - 10: How work runs' Budgets name a standing role by its title, without
+    its area's words (`surfaces.status.md`, 7).
 - **Design departs:**
   - 4: the triager hands a finding to its area's owner by the act `hand`,
     which sets the finding's area on temper's record, its why kept, not

@@ -338,6 +338,7 @@ remembered-three
 repositories
 repositories-making
 repositories-none
+role-talk
 settings
 settings-all-hidden
 settings-changes-off
@@ -372,6 +373,7 @@ task-solo-T3
 task-solo-T9
 team
 team-alone
+team-hand
 team-role
 told-cannot
 told-not-set-up

@@ -11,6 +11,8 @@ publish.workspace = true
 skein-heap.workspace = true
 skein-lib.workspace = true
 skein-tls.workspace = true
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
 rustls-std = { workspace = true }
 
 [lib]

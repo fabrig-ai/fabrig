@@ -1,0 +1,6 @@
+# skein/docs/foundation/cli.md, 3: unify external crates across workspace members.
+[unstable]
+feature-unification = true
+
+[resolver]
+feature-unification = "workspace"
