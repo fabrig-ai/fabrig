@@ -3,6 +3,23 @@ use crate::{KINDS, Kind};
 use skein_channel::Direction;
 use skein_codec::schema::{Shape, VariantIx};
 
+#[test]
+fn terms_use_the_agreed_versions_own_table() {
+    use skein_channel::{Kind as ChannelKind, Role, Schema, Term, Version};
+    use skein_lib::List;
+    let mut versions = List::with_capacity(2);
+    for (version, largest) in [(7, 3), (8, 5)] {
+        let mut kinds = List::with_capacity(1);
+        kinds.push(ChannelKind { kind: 0x0123, direction: Direction::FromInitiator, largest }).expect("one kind");
+        versions.push(Version { version, kinds }).expect("two versions");
+    }
+    let schema = Schema { magic: crate::MAGIC, versions };
+    let mut terms = List::with_capacity(1);
+    terms.push(Term { kind: 0x0123, largest: 3 }).expect("one term");
+    assert_eq!(crate::terms_gap(&schema, 7, Role::Initiator, &terms), None);
+    assert_eq!(crate::terms_gap(&schema, 8, Role::Initiator, &terms), Some(0x0123));
+}
+
 fn record(kind: Kind) -> &'static [u8] {
     match kind {
         Kind::Hello => b"Hello",

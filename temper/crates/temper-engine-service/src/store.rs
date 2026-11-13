@@ -14,7 +14,7 @@ pub use unreadable::UnreadableRow;
 /// The wires this engine speaks to its workers (jig's protocol/store/records.md,
 /// 3; temper's protocol/README.md, 7).
 pub const WIRES: [protocol::Wire; 4] = [
-    protocol::Wire { name: "jig-channel", version: channel_version(jig_protocol_worker_wire::VERSION) },
+    protocol::Wire { name: "jig-channel", version: channel_version(jig_protocol_worker_wire::wire::VERSION) },
     protocol::Wire { name: "smith-charter", version: record_version(smith_charter::Charter::FORMAT_VERSION) },
     protocol::Wire { name: "smith-turn", version: record_version(smith_transcript::Turn::FORMAT_VERSION) },
     protocol::Wire { name: "temper-payload", version: temper_protocol_worker_wire::PAYLOAD_VERSION },

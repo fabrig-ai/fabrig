@@ -3,12 +3,13 @@ use crate::worker_settings;
 use fixtures::worker_peers::*;
 
 #[test]
-fn the_link_s_credential_names_temper_s_payload_version() {
+fn the_link_s_credential_names_temper_s_wire() {
     let settings = fixtures::worker_settings();
     let files = fixtures::worker_files();
     let secret = files.contents(&settings.jig.secret).unwrap();
     let credential = worker_settings::credential(&settings, secret);
-    assert_eq!(credential.payload, temper_protocol_worker_wire::PAYLOAD_VERSION);
+    assert_eq!(credential.wires.len(), 1);
+    assert_eq!(credential.wires.get(0), Some(&jig_protocol_worker_wire::Spoken::current(temper_protocol_worker_wire::wire::FAMILY, temper_protocol_worker_wire::wire::VERSION, temper_protocol_worker_wire::wire::layout())));
     assert_eq!(credential.secret.expose(), b"worker-secret-value");
     assert_eq!(credential.name.as_ref(), b"worker-a");
 }
@@ -865,6 +866,20 @@ fn linked_is_emitted_after_ready_at_each_opening() {
         })
     );
     assert!(stand.worker.notes().is_empty(), "one per opening");
+}
+
+#[test]
+fn each_opening_refusals_text_reaches_the_shell_note_before_later_dials() {
+    let mut stand = socket_stand();
+    let text: Box<[u8]> = b"wire smith-charter: the worker states none".as_slice().into();
+    for _ in 0..2 {
+        stand.worker.link(fixtures::NOW, link::Request::Refused { reason: 257, text: text.clone() });
+        stand.worker.link(fixtures::NOW, link::Request::Fact { why: link::Loss::Closed(skein_channel::Closed::RefusedPeer(257)) });
+        assert_eq!(stand.worker.notes().pop(), Some(crate::worker_alone::Note::OpeningRefused { reason: 257, text: text.clone() }));
+        assert!(stand.worker.notes().is_empty(), "the loss fact does not repeat the refusal");
+        stand.worker.link(fixtures::NOW, link::Request::Dial);
+        let Some(io::Request::Connect { .. }) = stand.worker.io().pop() else { panic!("redial reaches IO") };
+    }
 }
 
 #[test]

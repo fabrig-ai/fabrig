@@ -3,7 +3,12 @@ use jig_protocol_worker_link::{Credential, Limits};
 use skein_lib::{Duration, Secret};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const SECRET_A: &[u8] = b"secret-a";
-pub const PAYLOAD: u32 = 3;
+#[must_use]
+pub fn application() -> skein_lib::List<wire::Spoken> {
+    let mut wires = skein_lib::List::with_capacity(1);
+    wires.push(wire::Spoken::current("test-worker-wire", 3, [3; 32])).expect("application wire");
+    wires
+}
 pub const SEED_ONE: u64 = 1;
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
     program_sources: 2,
@@ -56,7 +61,7 @@ pub const LIMITS: Limits = Limits {
 };
 #[must_use]
 pub fn credential() -> Credential {
-    Credential { name: WORKER_A.into(), secret: Secret::new(SECRET_A.into()), payload: PAYLOAD }
+    Credential { name: WORKER_A.into(), secret: Secret::new(SECRET_A.into()), wires: application() }
 }
 
 #[must_use]

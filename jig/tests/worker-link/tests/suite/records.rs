@@ -27,6 +27,7 @@ fn assignment(world: &World) -> &host::Assignment {
             | Request::Lower { .. }
             | Request::Close { .. }
             | Request::Abort { .. }
+            | Request::Refused { .. }
             | Request::Fact { .. }
             | Request::Resend { .. }
             | Request::RelayCancelled { .. } => None,
@@ -48,6 +49,7 @@ fn down(world: &World) -> Vec<&host::LinkDown> {
             | Request::Lower { .. }
             | Request::Close { .. }
             | Request::Abort { .. }
+            | Request::Refused { .. }
             | Request::Fact { .. }
             | Request::Resend { .. }
             | Request::RelayCancelled { .. } => None,

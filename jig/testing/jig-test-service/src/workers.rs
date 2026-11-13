@@ -24,7 +24,7 @@ impl Workers {
             listeners: crate::tokens::WORKER_LISTENERS,
             connections: crate::tokens::WORKER_CONNECTIONS,
         };
-        let host = kit::host::Workers::new(config, files, tokens, 1, limits)?;
+        let host = kit::host::Workers::new(config, files, tokens, List::with_capacity(0), limits)?;
         let mut endpoints = List::with_capacity(u32::try_from(config.llm.endpoints.len()).expect("endpoint count"));
         for endpoint in &config.llm.endpoints {
             endpoints
@@ -120,7 +120,7 @@ impl Workers {
                 Some(kit::host::Output::Lost { channel }) => {
                     events.push(root::Event::Link { channel, link: root::link::Event::Lost });
                 }
-                Some(kit::host::Output::Unsent { .. } | kit::host::Output::Ended { .. }) | None => {}
+                Some(kit::host::Output::Opened { .. } | kit::host::Output::Refused { .. } | kit::host::Output::Unsent { .. } | kit::host::Output::Ended { .. }) | None => {}
             }
         }
     }

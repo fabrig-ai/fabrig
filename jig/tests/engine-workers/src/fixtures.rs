@@ -10,6 +10,25 @@ pub const SECRET_A: &[u8] = b"secret-a";
 pub const SECRET_B: &[u8] = b"secret-b";
 pub const PAYLOAD: u32 = 3;
 pub const OTHER_PAYLOAD: u32 = 4;
+
+#[must_use]
+pub fn application() -> skein_lib::List<jig_protocol_worker_wire::Spoken> {
+    let mut wires = skein_lib::List::with_capacity(1);
+    wires.push(jig_protocol_worker_wire::Spoken::current("test-worker-wire", 3, [3; 32])).expect("application wire");
+    wires
+}
+#[must_use]
+pub fn statement(version: u32) -> skein_lib::List<jig_protocol_worker_wire::Wire> {
+    use jig_protocol_worker_wire as wire;
+    let mut wires = skein_lib::List::with_capacity(16);
+    for spoken in &wire::spoken() {
+        wires.push(wire::Wire::new(&wire::CEILINGS, wire::WireParts { name: spoken.name.as_bytes().into(), lowest: spoken.lowest, layouts: spoken.layouts.clone() }).expect("wire")).expect("wire slot");
+    }
+    let current = wire::Spoken::current("test-worker-wire", u16::try_from(version).expect("fixture version"), [3; 32]);
+    wires.push(wire::Wire::new(&wire::CEILINGS, wire::WireParts { name: current.name.as_bytes().into(), lowest: current.lowest, layouts: current.layouts }).expect("wire")).expect("wire slot");
+    wires
+}
+
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
     program_sources: 2,
     piece: 16,
@@ -78,7 +97,7 @@ fn credential_with_output(name: &[u8], secret: &[u8], payload: u32, output: u32)
         jig_protocol_worker_wire::CredentialParts {
             name: Box::from(name),
             secret: Secret::new(Box::from(secret)),
-            payload,
+            wires: statement(payload),
             output,
         },
     )

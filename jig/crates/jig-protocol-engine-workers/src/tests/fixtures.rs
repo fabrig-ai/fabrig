@@ -16,7 +16,7 @@ pub fn application() -> skein_lib::List<jig_protocol_worker_wire::Spoken> {
 pub fn statement(version: u32) -> skein_lib::List<jig_protocol_worker_wire::Wire> {
     use jig_protocol_worker_wire as wire;
     let spoken = wire::spoken();
-    let mut wires = skein_lib::List::uncapped();
+    let mut wires = skein_lib::List::with_capacity(16);
     // Jig's current wires precede the fixture application's.
     for wire in &spoken {
         wires.push(wire::Wire::new(&wire::CEILINGS, wire::WireParts { name: Box::from(wire.name.as_bytes()), lowest: wire.lowest, layouts: wire.layouts.clone() }).expect("wire")).expect("uncapped");
@@ -83,13 +83,16 @@ pub fn component() -> Component {
     Component::new(&LIMITS, workers(), application()).expect("small component")
 }
 pub fn credential(name: &[u8], secret: &[u8], payload: u32) -> Box<[u8]> {
+    credential_with(name, secret, statement(payload))
+}
+pub fn credential_with(name: &[u8], secret: &[u8], wires: skein_lib::List<jig_protocol_worker_wire::Wire>) -> Box<[u8]> {
     let limits = jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec limits");
     let value = jig_protocol_worker_wire::Credential::new(
         &limits,
         jig_protocol_worker_wire::CredentialParts {
             name: Box::from(name),
             secret: Secret::new(Box::from(secret)),
-            wires: statement(payload),
+            wires,
             output: LIMITS.room,
         },
     )

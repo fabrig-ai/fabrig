@@ -420,7 +420,7 @@ impl Component {
                             for _ in 0..skein_channel::MAX_UP {
                                 let Some(event) = old.above.pop() else { break };
                                 match event {
-                                    ChannelEvent::Closed { why } => closed(older, &mut old, why, self.life, out),
+                                    ChannelEvent::Closed { why, text } => closed(older, &mut old, why, text, self.life, out),
                                     ChannelEvent::Opening { .. }
                                     | ChannelEvent::Ready { .. }
                                     | ChannelEvent::Body { .. }
@@ -458,7 +458,7 @@ impl Component {
                     state.down(ChannelRequest::Read, connection, out);
                 }
             }
-            ChannelEvent::Closed { why } => closed(connection, state, why, self.life, out),
+            ChannelEvent::Closed { why, text } => closed(connection, state, why, text, self.life, out),
             ChannelEvent::Body { kind, body } => self.body(now, connection, state, kind, &body, out),
             ChannelEvent::Ping | ChannelEvent::Unsupported { .. } => {
                 if state.phase == Phase::Open {
@@ -639,9 +639,14 @@ impl Component {
     }
 }
 
-fn closed(connection: Token, state: &mut Connection, why: Closed, life: Life, out: &mut Queue<Request>) {
+fn closed(connection: Token, state: &mut Connection, why: Closed, text: Box<[u8]>, life: Life, out: &mut Queue<Request>) {
     if state.terminal {
         return;
+    }
+    if let Closed::RefusedHere(reason) = why
+        && !state.heard && !state.refusal {
+        out.push(Request::Refused { worker: state.worker, reason, text });
+        state.refusal = true;
     }
     let loss = match why {
         Closed::RefusedHere(reason) => Loss::Refused { reason },

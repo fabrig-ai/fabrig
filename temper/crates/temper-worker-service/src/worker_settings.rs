@@ -182,13 +182,15 @@ fn programs_valid(programs: &[settings::Program]) -> bool {
     true
 }
 
-/// The application's payload version is part of every worker's opening.
+/// The application's wire is part of every worker's statement (protocol/wires.md, 4).
 #[must_use]
 pub fn credential(worker: &settings::Worker, secret: &[u8]) -> link::Credential {
+    let mut wires = skein_lib::List::with_capacity(1);
+    wires.push(jig_protocol_worker_wire::Spoken::current(payload::wire::FAMILY, payload::wire::VERSION, payload::wire::layout())).expect("one application wire");
     link::Credential {
         name: worker.jig.name.clone(),
         secret: config::secret(secret.into()),
-        payload: payload::PAYLOAD_VERSION,
+        wires,
     }
 }
 

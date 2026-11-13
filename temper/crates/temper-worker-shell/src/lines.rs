@@ -37,6 +37,7 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
         service::Note::Lost { worker, address, why } => {
             format!("lost {} {address} {}\n", String::from_utf8_lossy(&worker), worker_loss(why))
         }
+        service::Note::OpeningRefused { reason, text } => format!("{binary} worker: the engine refused the opening: {}: {}\n", opening_reason(reason), String::from_utf8_lossy(&text)),
         service::Note::Refused { worker, address, reason } => {
             let reason = refusal(reason);
             format!("refused {} {address} {reason}\n", String::from_utf8_lossy(&worker))
@@ -91,6 +92,15 @@ fn run_detail_line(mut line: String, detail: &[u8]) -> String {
     line.push('\n');
     line
 }
+fn opening_reason(code: u16) -> String {
+    match code {
+        1 => "version".into(),
+        2 => "limits".into(),
+        3 => "framing".into(),
+        code => refusal(temper_worker_service::Refusal::Peer(code)),
+    }
+}
+
 fn loss_refusal(code: u16) -> String {
     refusal(match code {
         2 => temper_worker_service::Refusal::Terms,
@@ -124,7 +134,7 @@ fn refusal(reason: temper_worker_service::Refusal) -> String {
         temper_worker_service::Refusal::Malformed => "malformed".into(),
         temper_worker_service::Refusal::Peer(code) => match Reason::from_code(code) {
             Some(Reason::Unauthorized) => "unauthorized".into(),
-            Some(Reason::Application) => "application".into(),
+            Some(Reason::Wires) => "wires".into(),
             Some(Reason::Busy) => "busy".into(),
             Some(Reason::Replaced) => "replaced".into(),
             Some(Reason::NotAdmitted) => "not-admitted".into(),

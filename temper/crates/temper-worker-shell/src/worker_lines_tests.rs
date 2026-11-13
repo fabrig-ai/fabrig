@@ -2,6 +2,17 @@ use super::{ending_with_binary as worker_ending_words, note_line as worker_note_
 use temper_worker_service::{Refusal, WorkerJobEnding, WorkerLoss, worker_alone as worker};
 
 const BINARY: &str = "temper-worker";
+
+#[test]
+fn opening_refusals_name_the_reason_and_the_engines_text() {
+    for (reason, text, expected) in [
+        (257, "wire smith-charter version 4: the engine's layout ab12000000000000, the worker's cd34000000000000", "temper-worker worker: the engine refused the opening: wires: wire smith-charter version 4: the engine's layout ab12000000000000, the worker's cd34000000000000\n"),
+        (1, "speaks 10..10, offered 9..9", "temper-worker worker: the engine refused the opening: version: speaks 10..10, offered 9..9\n"),
+    ] {
+        let note = worker::Note::OpeningRefused { reason, text: text.as_bytes().into() };
+        assert_eq!(worker_note_words(BINARY, note), expected);
+    }
+}
 fn directories() -> temper_shell::directories::Directories {
     let arguments = ["--config", "/c", "--data", "/d", "--cache", "/k"].map(|word| Box::from(word.as_bytes()));
     temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories").0
@@ -137,7 +148,7 @@ fn worker_loss_lines_name_each_cause_and_refusal_exactly() {
         (Loss::Closed(Closed::RefusedHere(2)), "lost worker-a [::1]:7100 refused terms\n"),
         (Loss::Closed(Closed::RefusedHere(3)), "lost worker-a [::1]:7100 refused malformed\n"),
         (Loss::Closed(Closed::RefusedHere(256)), "lost worker-a [::1]:7100 refused unauthorized\n"),
-        (Loss::Closed(Closed::RefusedHere(257)), "lost worker-a [::1]:7100 refused application\n"),
+        (Loss::Closed(Closed::RefusedHere(257)), "lost worker-a [::1]:7100 refused wires\n"),
         (Loss::Closed(Closed::RefusedHere(258)), "lost worker-a [::1]:7100 refused busy\n"),
         (Loss::Closed(Closed::RefusedHere(259)), "lost worker-a [::1]:7100 refused replaced\n"),
         (Loss::Closed(Closed::RefusedHere(260)), "lost worker-a [::1]:7100 refused not-admitted\n"),
@@ -146,7 +157,7 @@ fn worker_loss_lines_name_each_cause_and_refusal_exactly() {
         (Loss::Closed(Closed::RefusedPeer(2)), "lost worker-a [::1]:7100 refused-by-peer terms\n"),
         (Loss::Closed(Closed::RefusedPeer(3)), "lost worker-a [::1]:7100 refused-by-peer malformed\n"),
         (Loss::Closed(Closed::RefusedPeer(256)), "lost worker-a [::1]:7100 refused-by-peer unauthorized\n"),
-        (Loss::Closed(Closed::RefusedPeer(257)), "lost worker-a [::1]:7100 refused-by-peer application\n"),
+        (Loss::Closed(Closed::RefusedPeer(257)), "lost worker-a [::1]:7100 refused-by-peer wires\n"),
         (Loss::Closed(Closed::RefusedPeer(258)), "lost worker-a [::1]:7100 refused-by-peer busy\n"),
         (Loss::Closed(Closed::RefusedPeer(259)), "lost worker-a [::1]:7100 refused-by-peer replaced\n"),
         (Loss::Closed(Closed::RefusedPeer(260)), "lost worker-a [::1]:7100 refused-by-peer not-admitted\n"),

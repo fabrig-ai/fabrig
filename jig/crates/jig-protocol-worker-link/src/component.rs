@@ -22,7 +22,7 @@ use skein_lib::{Decimal, Duration, List, Queue, Secret, Time, Token, Writer, byt
 pub struct Credential {
     pub name: Box<[u8]>,
     pub secret: Secret,
-    pub payload: u32,
+    pub wires: List<wire::Spoken>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Unusable {
@@ -59,12 +59,25 @@ impl Component {
             return Err(Unusable::Limits);
         }
         let bodies = sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
+        let mut wires = List::with_capacity(bodies.credential_wires);
+        for spoken in &wire::spoken() {
+            let wire = wire::Wire::new(&bodies, wire::WireParts {
+                name: bytes::copy_of(spoken.name.as_bytes()), lowest: spoken.lowest, layouts: spoken.layouts.clone(),
+            }).or(Err(Unusable::Credential))?;
+            wires.push(wire).or(Err(Unusable::Credential))?;
+        }
+        for spoken in &credential.wires {
+            let wire = wire::Wire::new(&bodies, wire::WireParts {
+                name: bytes::copy_of(spoken.name.as_bytes()), lowest: spoken.lowest, layouts: spoken.layouts.clone(),
+            }).or(Err(Unusable::Credential))?;
+            wires.push(wire).or(Err(Unusable::Credential))?;
+        }
         let credential = wire::Credential::new(
             &bodies,
             wire::CredentialParts {
                 name: credential.name,
                 secret: credential.secret,
-                payload: credential.payload,
+                wires,
                 output: limits.room,
             },
         );
@@ -489,10 +502,10 @@ impl Component {
             | channel::Event::Sent { .. } => {}
         }
         match event {
-            channel::Event::Ready { terms, .. } => {
+            channel::Event::Ready { version, terms } => {
                 let bodies = sizes::limits(&self.limits.sizes).expect("checked sizes");
                 let schema = wire::schema(&bodies).expect("checked schema");
-                if let Some(kind) = wire::terms_gap(&schema, Role::Initiator, &terms) {
+                if let Some(kind) = wire::terms_gap(&schema, version, Role::Initiator, &terms) {
                     self.command(channel::Request::Refuse {
                         reason: REFUSED_LIMITS,
                         text: bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes()),
@@ -515,8 +528,11 @@ impl Component {
                     self.command(channel::Request::Read);
                 }
             }
-            channel::Event::Refused { reason, .. } => self.lose(now, Loss::Closed(Closed::RefusedPeer(reason)), out),
-            channel::Event::Closed { why } => {
+            channel::Event::Refused { reason, text } => {
+                out.push(Request::Refused { reason, text });
+                self.lose(now, Loss::Closed(Closed::RefusedPeer(reason)), out);
+            }
+            channel::Event::Closed { why, .. } => {
                 if self.life != Life::Active {
                     if let Some(connection) = self.phase.token() {
                         if self.life == Life::Aborting {

@@ -262,7 +262,7 @@ mod joined_story {
     }
     #[test]
     fn another_payload_version_worker_redials_after_application() {
-        refusal(Credential { payload: 4, ..fixtures::credential() }, 257);
+        refusal(Credential { wires: { let mut wires = fixtures::application(); wires.get_mut(0).expect("application wire").lowest = 4; wires }, ..fixtures::credential() }, 257);
     }
 }
 

@@ -112,7 +112,7 @@ fn a_job_answer_goes_up_and_again_after_a_redial() {
         world.down(Event::Up { up: answer(), parts: fixtures::work_parts() });
         world.down(Event::Up { up: fixtures::answer(), parts: fixtures::work_parts() });
         let records = world.records();
-        assert_eq!(records[channel].iter().map(|r| r.kind).collect::<Vec<_>>(), [0x0100, 0x0101, 0x018c, 0x0103]);
+        assert_eq!(records[channel].iter().map(|r| r.kind).collect::<Vec<_>>(), [0x0100, 0x0101, 0x010c, 0x0103]);
         let record =
             wire::JobAnswer::decode(&fixtures::codec(), &mut Reader::new(&records[channel][2].body)).expect("answer");
         assert_eq!((record.task(), record.attempt()), (8, 3));

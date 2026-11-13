@@ -73,12 +73,12 @@ fn worker_output(limits: &Value, turn: u64) -> u64 {
     });
     let overrides = &limits["overrides"];
     let inbox = overrides["tasks.run_inbox"].as_u64().unwrap_or(u64::from(defaults.core.tasks.run_inbox));
-    let bodies = v9::Limits {
+    let bodies = v10::Limits {
         turn_body: u32::try_from(turn).expect("turn body"),
         turn_refused: u32::try_from(inbox).expect("run inbox"),
-        ..v9::CEILINGS
+        ..v10::CEILINGS
     };
-    let frame = v9::Turn::encoded_bound(&bodies).expect("turn frame") + 8;
+    let frame = v10::Turn::encoded_bound(&bodies).expect("turn frame") + 8;
     let output = overrides["io.output"].as_u64().unwrap_or(u64::from(defaults.io.output));
     output.max(frame)
 }

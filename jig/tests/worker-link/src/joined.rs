@@ -215,7 +215,7 @@ impl Joined {
             digest: skein_io::digest::digest(fixtures::SECRET_A),
         }]);
         Self {
-            engine: engine::Component::new(&engine_limits, workers, fixtures::PAYLOAD).expect("engine limits"),
+            engine: engine::Component::new(&engine_limits, workers, fixtures::application()).expect("engine limits"),
             worker: Component::new(limits, credential, seed).expect("worker limits"),
             pipe: None,
             engine_root: Vec::new(),
@@ -334,6 +334,7 @@ impl Joined {
             | Request::Lost
             | Request::GracePassed
             | Request::Closed
+            | Request::Refused { .. }
             | Request::Fact { .. } => {
                 self.worker_root.push(request);
             }
@@ -384,7 +385,7 @@ impl Joined {
                 }
             }
             engine::Request::Ended { .. } => self.engine_ended.push(request),
-            engine::Request::Unsent { .. } | engine::Request::Lost { .. } | engine::Request::Closed => {
+            engine::Request::Opened { .. } | engine::Request::Refused { .. } | engine::Request::Unsent { .. } | engine::Request::Lost { .. } | engine::Request::Closed => {
                 self.engine_root.push(request);
             }
         }
@@ -470,6 +471,8 @@ impl Joined {
                 | engine::Request::Close { .. }
                 | engine::Request::Abort { .. }
                 | engine::Request::Up { .. }
+                | engine::Request::Opened { .. }
+                | engine::Request::Refused { .. }
                 | engine::Request::Unsent { .. }
                 | engine::Request::Ended { .. }
                 | engine::Request::Lost { .. }
