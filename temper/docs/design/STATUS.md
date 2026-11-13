@@ -389,6 +389,7 @@ Drafts:
 - [`draft/forge-identity.md`](draft/forge-identity.status.md)
 - [`draft/forge-polls-quiet.md`](draft/forge-polls-quiet.status.md)
 - [`draft/forge-reads-targeted.md`](draft/forge-reads-targeted.status.md)
+- [`draft/gate-compile.md`](draft/gate-compile.status.md)
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
