@@ -1908,9 +1908,13 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             if job.outcome.is_some() {
                 let mut reading = None;
                 for (owner, pending) in &d.steps {
-                    if pending.task == task { reading = Some(*owner); }
+                    if pending.task == task {
+                        reading = Some(*owner);
+                    }
                 }
-                if let Some(owner) = reading { d.steps.get_mut(&owner).expect("pending gather").woken = true; }
+                if let Some(owner) = reading {
+                    d.steps.get_mut(&owner).expect("pending gather").woken = true;
+                }
                 crate::landing::job_woken(d, task);
             }
             crate::job_history::heard(d, env.wall, task, job, out);

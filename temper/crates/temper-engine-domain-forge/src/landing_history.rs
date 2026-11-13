@@ -22,7 +22,10 @@ fn step(row: &LandingRow, member: &policy::Member, what: history::What) -> histo
 
 fn round(d: &mut Domain, wall: Wall, row: &LandingRow, cause: history::RoundCause, out: &mut Queue<Request>) {
     for member in &row.landing.members {
-        if member.base.is_none() || member.landed.is_some() || member.round.unwrap_or(row.landing.preparation) != row.landing.preparation {
+        if member.base.is_none()
+            || member.landed.is_some()
+            || member.round.unwrap_or(row.landing.preparation) != row.landing.preparation
+        {
             continue;
         }
         let mut event = step(row, member, history::What::RoundEnded { cause });
@@ -34,27 +37,35 @@ fn round(d: &mut Domain, wall: Wall, row: &LandingRow, cause: history::RoundCaus
 fn formed(d: &mut Domain, wall: Wall, row: &LandingRow, out: &mut Queue<Request>) {
     let mut members = List::uncapped();
     for member in &row.landing.members {
-        if member.left.is_none() && member.base.is_some() && member.round.unwrap_or(row.landing.preparation) == row.landing.preparation {
-            members.push(history::Member {
-                change: member.change,
-                unit: member.unit,
-                head: member.head.expect("round head"),
-            }).expect("admitted round members");
+        if member.left.is_none()
+            && member.base.is_some()
+            && member.round.unwrap_or(row.landing.preparation) == row.landing.preparation
+        {
+            members
+                .push(history::Member {
+                    change: member.change,
+                    unit: member.unit,
+                    head: member.head.expect("round head"),
+                })
+                .expect("admitted round members");
         }
     }
     let members = members.into_boxed();
     let mut place = 0_u16;
     for member in &row.landing.members {
-        if member.left.is_some() || member.base.is_none() || member.round.unwrap_or(row.landing.preparation) != row.landing.preparation {
+        if member.left.is_some()
+            || member.base.is_none()
+            || member.round.unwrap_or(row.landing.preparation) != row.landing.preparation
+        {
             continue;
         }
         place = place.checked_add(1).expect("bounded stack");
         if row.landing.preparation == 1 {
-            let mut event = step(row, member, history::What::Joined {
-                line: history::Line::Landing,
-                place: Some(u32::from(place)),
-                priority: None,
-            });
+            let mut event = step(
+                row,
+                member,
+                history::What::Joined { line: history::Line::Landing, place: Some(u32::from(place)), priority: None },
+            );
             event.head = member.head;
             d.write_event(wall, member.change, event, out);
         }
@@ -74,9 +85,14 @@ fn departed(d: &mut Domain, wall: Wall, before: &LandingRow, after: &LandingRow,
         let with = match cause {
             policy::Leave::Conflict => Some(history::With::Branch),
             policy::Leave::EarlierConflict => Some(history::With::Earlier),
-            policy::Leave::HeadMoved { .. } | policy::Leave::Cancelled | policy::Leave::Held
-            | policy::Leave::Refused { .. } | policy::Leave::Failed { .. } | policy::Leave::Blamed { .. }
-            | policy::Leave::Unit { .. } | policy::Leave::Dependency { .. } => None,
+            policy::Leave::HeadMoved { .. }
+            | policy::Leave::Cancelled
+            | policy::Leave::Held
+            | policy::Leave::Refused { .. }
+            | policy::Leave::Failed { .. }
+            | policy::Leave::Blamed { .. }
+            | policy::Leave::Unit { .. }
+            | policy::Leave::Dependency { .. } => None,
         };
         if let Some(with) = with {
             let mut event = step(before, old, history::What::Conflict { with, files: 0 });
@@ -85,10 +101,11 @@ fn departed(d: &mut Domain, wall: Wall, before: &LandingRow, after: &LandingRow,
             event.base = old.base;
             d.write_event(wall, member.change, event, out);
         }
-        let mut event = step(before, old, history::What::Departed {
-            line: history::Line::Landing,
-            cause: history::Departure::Landing(cause),
-        });
+        let mut event = step(
+            before,
+            old,
+            history::What::Departed { line: history::Line::Landing, cause: history::Departure::Landing(cause) },
+        );
         // Membership starts in the first round, even when it ends in a later one.
         event.attempt = 1;
         event.head = old.head;
@@ -105,11 +122,15 @@ fn held(d: &mut Domain, wall: Wall, row: &LandingRow, reason: &[u8], out: &mut Q
         if open.is_some() {
             continue;
         }
-        let mut event = step(row, member, history::What::Held {
-            on: history::On::Landing,
-            reason: Box::from(reason),
-            by: Some(history::By::Task(row.landing.task)),
-        });
+        let mut event = step(
+            row,
+            member,
+            history::What::Held {
+                on: history::On::Landing,
+                reason: Box::from(reason),
+                by: Some(history::By::Task(row.landing.task)),
+            },
+        );
         event.operation = history::Operation::Own;
         if let Some(number) = d.write_event(wall, member.change, event, out) {
             hold_start(d, member.change, Some(number), out);
@@ -128,11 +149,11 @@ fn hold_start(d: &mut Domain, change: u64, number: Option<u64>, out: &mut Queue<
 fn released(d: &mut Domain, wall: Wall, row: &LandingRow, reason: &[u8], out: &mut Queue<Request>) {
     for member in &row.landing.members {
         let Some(number) = landing_hold(d, member.change) else { continue };
-        let mut event = step(row, member, history::What::Released {
-            on: history::On::Landing,
-            reason: Box::from(reason),
-            by: None,
-        });
+        let mut event = step(
+            row,
+            member,
+            history::What::Released { on: history::On::Landing, reason: Box::from(reason), by: None },
+        );
         event.operation = history::Operation::Of(number);
         event.attempt = 0;
         d.write_event(wall, member.change, event, out);
@@ -149,18 +170,26 @@ fn ended(d: &mut Domain, wall: Wall, after: &LandingRow, outcome: history::Landi
         }
     }
     if !any && let Some(index) = after.landing.last_left {
-            let member = after.landing.members.get(usize::from(index)).expect("last leave");
-            d.write_event(wall, member.change, step(after, member, history::What::LandingEnded { outcome }), out);
+        let member = after.landing.members.get(usize::from(index)).expect("last leave");
+        d.write_event(wall, member.change, step(after, member, history::What::LandingEnded { outcome }), out);
     }
 }
 
-pub(crate) fn transition(d: &mut Domain, wall: Wall, before: &LandingRow, after: &LandingRow, out: &mut Queue<Request>) {
+pub(crate) fn transition(
+    d: &mut Domain,
+    wall: Wall,
+    before: &LandingRow,
+    after: &LandingRow,
+    out: &mut Queue<Request>,
+) {
     departed(d, wall, before, after, out);
     if after.landing.preparation != before.landing.preparation {
         formed(d, wall, after, out);
     }
-    if before.landing.round.ending.is_none() && let Some(ending) = after.landing.round.ending
-        && ending != policy::RoundEnd::Cut {
+    if before.landing.round.ending.is_none()
+        && let Some(ending) = after.landing.round.ending
+        && ending != policy::RoundEnd::Cut
+    {
         let cause = match ending {
             policy::RoundEnd::Stale => history::RoundCause::Stale,
             policy::RoundEnd::Leave | policy::RoundEnd::Conflict => history::RoundCause::Left,
@@ -170,8 +199,13 @@ pub(crate) fn transition(d: &mut Domain, wall: Wall, before: &LandingRow, after:
     }
     if before.landing.round.ending == Some(policy::RoundEnd::Cut) && after.landing.round.ending.is_none() {
         for (old, member) in before.landing.members.iter().zip(&after.landing.members) {
-            if old.base.is_some() && old.landed.is_none() && old.round.unwrap_or(before.landing.preparation) == before.landing.preparation && (old.candidate.is_some() && member.candidate.is_none()
-                || after.landing.preparation != before.landing.preparation || after.landing.phase == policy::Phase::Landed) {
+            if old.base.is_some()
+                && old.landed.is_none()
+                && old.round.unwrap_or(before.landing.preparation) == before.landing.preparation
+                && (old.candidate.is_some() && member.candidate.is_none()
+                    || after.landing.preparation != before.landing.preparation
+                    || after.landing.phase == policy::Phase::Landed)
+            {
                 let mut event = step(before, old, history::What::RoundEnded { cause: history::RoundCause::Cut });
                 event.base = old.base;
                 d.write_event(wall, old.change, event, out);
@@ -187,12 +221,27 @@ pub(crate) fn transition(d: &mut Domain, wall: Wall, before: &LandingRow, after:
     }
     if let policy::Phase::Held { .. } = after.landing.phase {
         let reason = d.landing_hold_reason(after).unwrap_or(Box::new([]));
-        held(d, wall, after, reason.get(..usize::try_from(history::REASON_BYTES).expect("reason bound")).unwrap_or(&reason), out);
+        held(
+            d,
+            wall,
+            after,
+            reason.get(..usize::try_from(history::REASON_BYTES).expect("reason bound")).unwrap_or(&reason),
+            out,
+        );
     } else if let policy::Phase::Held { .. } = before.landing.phase {
         let reason = d.landing_hold_reason(before).unwrap_or(Box::new([]));
-        released(d, wall, before, reason.get(..usize::try_from(history::REASON_BYTES).expect("reason bound")).unwrap_or(&reason), out);
+        released(
+            d,
+            wall,
+            before,
+            reason.get(..usize::try_from(history::REASON_BYTES).expect("reason bound")).unwrap_or(&reason),
+            out,
+        );
     }
-    if after.landing.phase == policy::Phase::Cancelled && before.landing.phase != policy::Phase::Cancelled && before.landing.phase != policy::Phase::Landed {
+    if after.landing.phase == policy::Phase::Cancelled
+        && before.landing.phase != policy::Phase::Cancelled
+        && before.landing.phase != policy::Phase::Landed
+    {
         if before.landing.round.ending.is_none() {
             round(d, wall, before, history::RoundCause::Cancelled, out);
         }
@@ -201,4 +250,3 @@ pub(crate) fn transition(d: &mut Domain, wall: Wall, before: &LandingRow, after:
         ended(d, wall, after, history::LandingOutcome::Done, out);
     }
 }
-

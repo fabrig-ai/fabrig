@@ -440,13 +440,22 @@ fn merge_job_history_pairs_the_claim_with_its_read_back_head() {
     let merged = push_merge(&mut world, task, head, base);
     finish_job(&mut world, &job, RESULT);
     landed(&mut world, task, merged);
-    let events: Vec<_> = world.store.rows.values().filter_map(|record| match record {
-        Record::Forge { row } => match row.as_ref() {
-            forge_top::Stored::HistoryEvent(event) if event.change == task && matches!(event.what, h::What::Job { .. } | h::What::JobEnded { .. }) => Some(event),
-            _ => None,
-        },
-        Record::Core(_) => None,
-    }).collect();
+    let events: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::HistoryEvent(event)
+                    if event.change == task && matches!(event.what, h::What::Job { .. } | h::What::JobEnded { .. }) =>
+                {
+                    Some(event)
+                }
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .collect();
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].what, h::What::Job { job: h::Job::Merge, task: job.run.raw() });
     assert_eq!((events[0].head, events[0].base), (Some(translate::commit(head)), Some(translate::commit(base))));

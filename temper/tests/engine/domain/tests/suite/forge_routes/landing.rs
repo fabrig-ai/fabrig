@@ -960,15 +960,27 @@ fn prepare_history_uses_the_stored_child_end_after_the_child_leaves_the_live_set
     let (mut world, change) = produced_turn_change(None);
     for _ in 0..600 {
         world.prepare_tick();
-        if task_row(&world, change).is_some_and(|row| matches!(row.phase, tasks::Phase::Ended(_))) { break; }
+        if task_row(&world, change).is_some_and(|row| matches!(row.phase, tasks::Phase::Ended(_))) {
+            break;
+        }
     }
-    let events: Vec<_> = world.store.rows.values().filter_map(|record| match record {
-        Record::Forge { row } => match row.as_ref() {
-            forge_top::Stored::HistoryEvent(event) if event.change == change && matches!(event.what, h::What::Job { .. } | h::What::JobEnded { .. }) => Some(event),
-            _ => None,
-        },
-        Record::Core(_) => None,
-    }).collect();
+    let events: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::HistoryEvent(event)
+                    if event.change == change
+                        && matches!(event.what, h::What::Job { .. } | h::What::JobEnded { .. }) =>
+                {
+                    Some(event)
+                }
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .collect();
     assert_eq!(events.len(), 2);
     let h::What::Job { job: h::Job::Prepare, task } = events[0].what else { panic!("prepare start") };
     let child = task_row(&world, task).expect("stored child");

@@ -1961,7 +1961,10 @@ pub enum Event {
         repair: u64,
     },
     /// A job attempt was claimed or its result consumed in the root decision.
-    JobHistory { task: u64, job: crate::history::JobStep },
+    JobHistory {
+        task: u64,
+        job: crate::history::JobStep,
+    },
     /// Remember a committed procedure child and its role in this change.
     Delegated {
         task: u64,

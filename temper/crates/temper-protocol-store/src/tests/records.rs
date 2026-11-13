@@ -1333,8 +1333,17 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
                     job: Some(forge::history::JobRecord {
-                        step: forge::history::JobStep { task: 71, attempt: 2, job: forge::history::Job::Prepare, outcome: Some(forge::history::JobOutcome::Done), head: None },
-                        round: 1, members: Box::new([0]), head: None, written: false,
+                        step: forge::history::JobStep {
+                            task: 71,
+                            attempt: 2,
+                            job: forge::history::Job::Prepare,
+                            outcome: Some(forge::history::JobOutcome::Done),
+                            head: None,
+                        },
+                        round: 1,
+                        members: Box::new([0]),
+                        head: None,
+                        written: false,
                     }),
                     landing: l::Landing {
                         last_left: Some(0),
@@ -2695,8 +2704,17 @@ fn a_pending_merge_job_end_and_its_readback_marker_round_trip() {
     for written in [false, true] {
         let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: true });
         row.job = Some(h::JobRecord {
-            step: h::JobStep { task: 81, attempt: 2, job: h::Job::Merge, outcome: Some(h::JobOutcome::Done), head: None },
-            round: 0, members: Box::new([]), head: Some([3; 32]), written,
+            step: h::JobStep {
+                task: 81,
+                attempt: 2,
+                job: h::Job::Merge,
+                outcome: Some(h::JobOutcome::Done),
+                head: None,
+            },
+            round: 0,
+            members: Box::new([]),
+            head: Some([3; 32]),
+            written,
         });
         let record = forge::Stored::Change(Box::new(row));
         let key = crate::keys::encode(&forge::stored_key(&record), u32::MAX).expect("key");

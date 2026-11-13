@@ -35,8 +35,8 @@ mod tier_route;
 pub(crate) use tier_route::start_tier_step;
 use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
 
-mod landing_route;
 pub(super) mod job_history;
+mod landing_route;
 pub(crate) use landing_route::form_landings;
 #[cfg(test)]
 use landing_route::start_landing;
