@@ -259,7 +259,7 @@ impl Operation {
                     | git::Op::Look { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
-            | git::Op::Point { .. }
+                    | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
@@ -391,7 +391,7 @@ impl Operation {
                         | git::Op::Make { .. }
                         | git::Op::Clone { .. }
                         | git::Op::Reds { .. }
-            | git::Op::Point { .. }
+                        | git::Op::Point { .. }
                         | git::Op::Fetch { .. }
                         | git::Op::Create { .. }
                         | git::Op::CheckOut { .. }

@@ -209,7 +209,11 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
         words(&mut out, &[b"-c", setting]);
     }
     match command {
-        Command::Reds(check) => { for argument in crate::reds::arguments(check) { out.push(argument).expect("check argv"); } }
+        Command::Reds(check) => {
+            for argument in crate::reds::arguments(check) {
+                out.push(argument).expect("check argv");
+            }
+        }
         Command::SnapshotHead => words(&mut out, &[b"log", b"-1", b"--format=%H %P", b"HEAD", b"--"]),
         Command::SnapshotMerge { .. } => words(&mut out, &[b"rev-parse", b"--verify", b"--quiet", b"MERGE_HEAD"]),
         Command::SnapshotFetch { remote, .. } => words(

@@ -12,10 +12,10 @@ pub mod invocation;
 pub mod limits;
 mod operation;
 pub mod output;
+pub mod reds;
 pub mod ring;
 pub mod sequence;
 mod snapshot;
-pub mod reds;
 #[cfg(test)]
 mod tests;
 

@@ -278,13 +278,19 @@ impl Domain {
     /// When the earliest agent, source-check or root stop alarm falls due.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        [self.agent.next_deadline(), self.host.next_deadline(), crate::stopping::next(self), crate::reds::next(self)].into_iter().flatten().min()
+        [self.agent.next_deadline(), self.host.next_deadline(), crate::stopping::next(self), crate::reds::next(self)]
+            .into_iter()
+            .flatten()
+            .min()
     }
 
     /// Whether an alarm is due at `now`. The loop calls [`fire`] while one is.
     #[must_use]
     pub fn is_due(&self, now: Time) -> bool {
-        self.agent.is_due(now) || host::sources_due(&self.host, now) || crate::stopping::due(self, now) || crate::reds::due(self, now)
+        self.agent.is_due(now)
+            || host::sources_due(&self.host, now)
+            || crate::stopping::due(self, now)
+            || crate::reds::due(self, now)
     }
 
     /// Whether the domain has work of its own: the host has runs to cancel,

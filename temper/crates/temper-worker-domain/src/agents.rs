@@ -112,7 +112,18 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
             };
             let old = domain
                 .agents
-                .insert(client, Bound { agent, admitted: false, check: None, check_number: 0, models, detail: Box::new([]), refused: None })
+                .insert(
+                    client,
+                    Bound {
+                        agent,
+                        admitted: false,
+                        check: None,
+                        check_number: 0,
+                        models,
+                        detail: Box::new([]),
+                        refused: None,
+                    },
+                )
                 .expect("smith bounds its agents");
             assert!(old.is_none(), "one agent per hosted run");
             if crate::stopping::cut(domain, client) {
@@ -149,9 +160,14 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
             host::Event::Agent(host::FromAgent::Yielded { owner: client })
         }
         smith::parent::Request::Long { client, operation, span } => {
-            if operation == smith::Operation::Checks { crate::reds::start(domain, env, client, out); }
-            host::Event::Agent(host::FromAgent::Activity { owner: client, activity: host::AgentActivity::Long { operation: translate::operation(operation), span } })
-        },
+            if operation == smith::Operation::Checks {
+                crate::reds::start(domain, env, client, out);
+            }
+            host::Event::Agent(host::FromAgent::Activity {
+                owner: client,
+                activity: host::AgentActivity::Long { operation: translate::operation(operation), span },
+            })
+        }
         smith::parent::Request::LongDone { client } => {
             crate::reds::end(domain, env, client);
             host::Event::Agent(host::FromAgent::Activity { owner: client, activity: host::AgentActivity::LongDone })

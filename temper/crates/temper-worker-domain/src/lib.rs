@@ -58,8 +58,8 @@ mod hand_out;
 mod jobs;
 mod limits;
 mod push;
-mod route;
 mod reds;
+mod route;
 mod smith_delivery;
 mod stopping;
 #[cfg(test)]
@@ -78,3 +78,7 @@ pub use jig_domain_host as host;
 pub use smith_host_domain as agent;
 pub use temper_worker_domain_checkout as checkout;
 pub use temper_worker_domain_tooling as tooling;
+
+#[cfg(test)]
+#[path = "tests/reds_fuzzy.rs"]
+mod fuzzy;

@@ -243,8 +243,13 @@ pub(crate) fn agent_step(domain: &mut Domain, env: &Env<Limits>, event: agent::I
 /// One of the host's requests: to the engine, or to a capability.
 fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
-        host::Request::Asked { run, attempt, number, answer } => { crate::reds::asked(domain, env, run, attempt, number, answer, out); }
-        host::Request::Up(up @ host::LinkUp::Ask { run, attempt, number, .. }) => { crate::reds::numbered(domain, run, attempt, number); out.push(Request::Link(up)); }
+        host::Request::Asked { run, attempt, number, answer } => {
+            crate::reds::asked(domain, env, run, attempt, number, answer, out);
+        }
+        host::Request::Up(up @ host::LinkUp::Ask { run, attempt, number, .. }) => {
+            crate::reds::numbered(domain, run, attempt, number);
+            out.push(Request::Link(up));
+        }
         host::Request::ReadList { read, endpoint, grant } => out.push(Request::ReadList { read, endpoint, grant }),
         host::Request::CancelRead { read } => out.push(Request::CancelRead { read }),
         host::Request::Source { owner, name, operation, deadline } => {

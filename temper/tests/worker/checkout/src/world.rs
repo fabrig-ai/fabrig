@@ -1157,6 +1157,7 @@ impl World {
                 Some(remote.to_vec())
             }
             Op::Store { .. }
+            | Op::Reds { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Make { .. }
@@ -1278,6 +1279,7 @@ impl World {
             Op::Store { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
+            | Op::Reds { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Create { .. }
@@ -1395,7 +1397,8 @@ impl World {
                 match op {
                     Kind::Make => told.makes += 1,
                     Kind::Clone => told.clones += 1,
-                    Kind::Point
+                    Kind::Reds
+                    | Kind::Point
                     | Kind::Store
                     | Kind::Fetch
                     | Kind::Create
@@ -1524,6 +1527,7 @@ fn describe_event(event: &Event) -> String {
         Event::Cut { hold } => format!("cut {}", hold.raw()),
         Event::Release { hold } => format!("release {}", hold.raw()),
         Event::PushUnchecked { hold } => format!("save unchecked {}", hold.raw()),
+        Event::Reds { hold, action } => format!("reds {} {action:?}", hold.raw()),
         Event::Done { owner, done } => format!("done {} {done:?}", owner.raw()),
     }
 }

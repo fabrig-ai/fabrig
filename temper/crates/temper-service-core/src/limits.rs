@@ -399,7 +399,9 @@ pub fn apply(limits: &mut Shared, name: &[u8], value: u64) -> Result<(), Refused
         b"checkout.path_bytes" => limits.checkout.path_bytes = u32::try_from(value).or(Err(Refused::Range))?,
         b"checkout.remote_timeout_ms" => limits.checkout.remote_timeout = duration(value)?,
         b"checkout.reds_read_ms" => {
-            if !(100..=60_000).contains(&value) { return Err(Refused::Range); }
+            if !(100..=60_000).contains(&value) {
+                return Err(Refused::Range);
+            }
             limits.checkout.reds_read_ms = u32::try_from(value).or(Err(Refused::Range))?;
         }
         b"checkout.local_timeout_ms" => limits.checkout.local_timeout = duration(value)?,

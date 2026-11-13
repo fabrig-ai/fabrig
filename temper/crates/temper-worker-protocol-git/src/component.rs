@@ -387,13 +387,15 @@ impl Component {
                 };
                 self.file_start(id, Task::alternates(at, *store, remote.clone()), out);
             }
-            Next::Reds { directory, content, marker } => self.file_start(id, Task::reds(directory, content, marker), out),
+            Next::Reds { directory, content, marker } => {
+                self.file_start(id, Task::reds(directory, content, marker), out);
+            }
             Next::Scan { files } => {
                 let op = self.slots.get(id).expect("live index").op.as_ref().expect("Commit op");
                 let at = match op {
                     git::Op::Commit { at, .. } => at,
                     git::Op::Reds { .. }
-            | git::Op::Point { .. }
+                    | git::Op::Point { .. }
                     | git::Op::Store { .. }
                     | git::Op::Make { .. }
                     | git::Op::Clone { .. }

@@ -127,7 +127,9 @@ fn count(result: Result<kernel::Done, Error>) -> Result<u32, Error> {
     }
 }
 impl Task {
-    pub fn reds(directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool) -> Task { Task { pending: Token::new(0), phase: Phase::Reds(reds::Files::new(directory, content, marker)) } }
+    pub fn reds(directory: Box<[u8]>, content: Option<Box<[u8]>>, marker: bool) -> Task {
+        Task { pending: Token::new(0), phase: Phase::Reds(reds::Files::new(directory, content, marker)) }
+    }
     pub fn layout() -> Task {
         Task { pending: Token::new(0), phase: Phase::Layout(Layout::Trash) }
     }

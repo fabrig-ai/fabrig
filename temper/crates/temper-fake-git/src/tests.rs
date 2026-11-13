@@ -79,7 +79,8 @@ fn spawn(command: &Command) -> k::Spawn {
         Command::SnapshotFetch { .. } | Command::Fetch { .. } => Some(temper_worker_domain_checkout::git::Kind::Fetch),
         Command::Create { .. } => Some(temper_worker_domain_checkout::git::Kind::Create),
         Command::Push { .. } | Command::IsAncestor { .. } => Some(temper_worker_domain_checkout::git::Kind::Push),
-        Command::SnapshotHead
+        Command::Reds(_)
+        | Command::SnapshotHead
         | Command::SnapshotMerge { .. }
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }

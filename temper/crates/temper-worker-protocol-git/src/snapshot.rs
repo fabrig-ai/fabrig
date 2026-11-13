@@ -14,7 +14,7 @@ pub(crate) fn enabled(op: &git::Op) -> bool {
         | git::Op::Look { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
-            | git::Op::Point { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
@@ -133,7 +133,7 @@ fn parameters(op: &git::Op) -> (&git::Commit, &Option<git::Commit>, &git::Snapsh
         | git::Op::Look { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
-            | git::Op::Point { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }

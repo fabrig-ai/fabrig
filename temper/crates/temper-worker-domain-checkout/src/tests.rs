@@ -133,7 +133,8 @@ impl Harness {
                 Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit: *commit },
                 Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
                 Op::Merge { .. } => Done::Merged,
-                Op::Store { .. }
+                Op::Reds { .. }
+                | Op::Store { .. }
                 | Op::Point { .. }
                 | Op::Make { .. }
                 | Op::Clone { .. }
@@ -318,7 +319,8 @@ fn workspace_of(op: &Op) -> Token {
     match op {
         Op::Store { .. } => panic!("a store has no workspace"),
         Op::Make { workspace, .. } => *workspace,
-        Op::Clone { at, .. }
+        Op::Reds { at, .. }
+        | Op::Clone { at, .. }
         | Op::Point { at, .. }
         | Op::Fetch { at, .. }
         | Op::Create { at, .. }
@@ -896,7 +898,8 @@ fn pin_ready(h: &mut Harness, client: u64, repo: Repository, tip: Commit) -> (To
             Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
             Op::Merge { .. } => Done::Merged,
             Op::Commit { .. } => Done::Committed { commit: commit(3) },
-            Op::Point { .. }
+            Op::Reds { .. }
+            | Op::Point { .. }
             | Op::Store { .. }
             | Op::Make { .. }
             | Op::Look { .. }
@@ -1077,7 +1080,8 @@ fn pin_count(ops: &List<Op>) -> usize {
                 assert!(fetched, "start before pin");
                 count = count.checked_add(1).expect("bounded prepare");
             }
-            Op::Make { .. }
+            Op::Reds { .. }
+            | Op::Make { .. }
             | Op::Store { .. }
             | Op::Look { .. }
             | Op::Clone { .. }
@@ -1194,7 +1198,8 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                     Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
                     Op::Brings { .. } => Done::Brings { brings: false },
                     Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
-                    other @ (Op::Point { .. }
+                    other @ (Op::Reds { .. }
+                    | Op::Point { .. }
                     | Op::Store { .. }
                     | Op::Make { .. }
                     | Op::Look { .. }
@@ -1896,7 +1901,8 @@ fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
         Op::Fetch { account, .. } | Op::Create { account, .. } | Op::Push { account, .. } => {
             assert_eq!(account, expected);
         }
-        Op::Point { .. }
+        Op::Reds { .. }
+        | Op::Point { .. }
         | Op::Store { .. }
         | Op::Clone { .. }
         | Op::Look { .. }
@@ -2789,7 +2795,9 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
             let done = match &op {
                 Op::Store { .. } => panic!("exactly one Store per remote"),
                 Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
-                Op::Make { .. } | Op::Point { .. } | Op::Clone { .. } | Op::CheckOut { .. } => Done::Succeeded,
+                Op::Reds { .. } | Op::Make { .. } | Op::Point { .. } | Op::Clone { .. } | Op::CheckOut { .. } => {
+                    Done::Succeeded
+                }
                 Op::Look { .. }
                 | Op::Create { .. }
                 | Op::IsAncestor { .. }
@@ -2952,3 +2960,6 @@ fn prepares_and_design_deliveries_authenticate_lazy_fetches_as_the_repository() 
         assert_eq!((identity, owner), (7, account));
     }
 }
+
+#[path = "tests/reds.rs"]
+mod reds;

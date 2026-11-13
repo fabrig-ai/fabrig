@@ -133,6 +133,22 @@ impl World {
         output
     }
 
+    fn reds(&self, directory: &[u8], content: Option<Box<[u8]>>, marker: bool) -> git::Done {
+        let directory = self.root.join(OsStr::from_bytes(directory));
+        fs::create_dir_all(&directory).expect("check directory");
+        let file = directory.join("reds");
+        if marker || content.is_none() {
+            let _ = fs::remove_file(&file);
+        }
+        if let Some(content) = content {
+            let name = if marker { "reds-wait" } else { "reds" };
+            let temporary = directory.join(format!("{name}.tmp"));
+            fs::write(&temporary, content).expect("check file");
+            fs::rename(temporary, directory.join(name)).expect("whole check file");
+        }
+        git::Done::Succeeded
+    }
+
     fn perform(&self, mut op: git::Op) -> git::Done {
         if let git::Op::Make { workspace, .. } = &op {
             fs::create_dir_all(self.root.join(format!("workspaces/{}", workspace.raw()))).expect("workspace");
@@ -155,6 +171,7 @@ impl World {
         }
         let at = match &op {
             git::Op::Clone { at, .. }
+            | git::Op::Reds { at, .. }
             | git::Op::Point { at, .. }
             | git::Op::Fetch { at, .. }
             | git::Op::Create { at, .. }
@@ -213,6 +230,7 @@ impl World {
                     *second = merging;
                     Next::Run(if merging.is_some() { invocation::Command::Unmerged } else { invocation::Command::Add })
                 }
+                Next::Reds { directory, content, marker } => return self.reds(&directory, content, marker),
                 Next::End(done) => return done,
                 Next::Alternates => {
                     let git::Op::Clone { store, remote, .. } = &op else { unreachable!() };

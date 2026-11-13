@@ -79,7 +79,9 @@ pub fn after(
     cut: u64,
     checkout: &checkout::Limits,
 ) -> Next {
-    if let Command::Reds(check) = ran { return crate::reds::after(op, check, code, stdout); }
+    if let Command::Reds(check) = ran {
+        return crate::reds::after(op, check, code, stdout);
+    }
     if let Some(next) = crate::snapshot::after(op, ran, code, stdout) {
         return next;
     }
@@ -332,7 +334,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
-            | git::Op::Point { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
@@ -353,7 +355,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
-            | git::Op::Point { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
@@ -374,7 +376,7 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
-            | git::Op::Point { .. }
+        | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::Look { .. }

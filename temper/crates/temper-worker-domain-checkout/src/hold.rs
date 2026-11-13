@@ -211,7 +211,9 @@ enum State {
 /// place in the spec.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum PrepareStep {
-    Reds { repository: u32 },
+    Reds {
+        repository: u32,
+    },
     Candidate {
         repository: u32,
         step: candidate::Step,
@@ -504,7 +506,11 @@ fn start(domain: &mut Domain, env: &Env<Limits>, hold: Token, to: To, message: M
         }
         State::Ready => begin(&hold.holding, id, to, message, env, out),
         State::Reds(mut running) => {
-            if running.push.is_none() { running.push = Some((to, message)); } else { answer(hold.holding.client, &to, Outcome::Refused { refusal: Refusal::Busy }, out); }
+            if running.push.is_none() {
+                running.push = Some((to, message));
+            } else {
+                answer(hold.holding.client, &to, Outcome::Refused { refusal: Refusal::Busy }, out);
+            }
             State::Reds(running)
         }
         busy @ (State::Queued { .. }
@@ -556,8 +562,11 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
     hold.state = match state {
         State::Preparing { step, asked } => State::Preparing { step, asked: cancelling(id, asked, now, out) },
         State::Reds(mut running) => {
-            running.asked = outranking(running.asked, now); running.clear = true; running.write = None;
-            out.push(Request::Cancel { owner: id.token() }); State::Reds(running)
+            running.asked = outranking(running.asked, now);
+            running.clear = true;
+            running.write = None;
+            out.push(Request::Cancel { owner: id.token() });
+            State::Reds(running)
         }
         State::Pushing { push, step, asked } => State::Pushing { push, step, asked: outranking(asked, now) },
         State::Queued { .. } => {
@@ -592,8 +601,13 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
 fn optional(state: &State) -> bool {
     match state {
         State::Reds(_) | State::Preparing { step: PrepareStep::Reds { .. }, .. } => true,
-        State::Queued { .. } | State::Preparing { .. } | State::Waiting { .. } | State::Ready
-        | State::Unprepared | State::Pushing { .. } | State::Closed => false,
+        State::Queued { .. }
+        | State::Preparing { .. }
+        | State::Waiting { .. }
+        | State::Ready
+        | State::Unprepared
+        | State::Pushing { .. }
+        | State::Closed => false,
     }
 }
 
@@ -623,7 +637,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
                     waiters = domain.cache.finished(borrowed(holding, repository).store, id, store_succeeded);
                 }
                 PrepareStep::Reds { .. }
-        | PrepareStep::Candidate { .. }
+                | PrepareStep::Candidate { .. }
                 | PrepareStep::Look { .. }
                 | PrepareStep::Make
                 | PrepareStep::Clone { .. }
@@ -703,7 +717,7 @@ fn addressed(holds: &Slab<Hold>, hold: Token) -> Option<Id<Hold>> {
         | State::Preparing { .. }
         | State::Waiting { .. }
         | State::Ready
-            | State::Reds(_)
+        | State::Reds(_)
         | State::Unprepared
         | State::Pushing { .. } => Some(id),
         State::Closed => None,
@@ -725,7 +739,12 @@ fn conclude(domain: &mut Domain, id: Id<Hold>, was_active: bool, out: &Queue<Req
 fn active(state: &State) -> bool {
     match state {
         State::Preparing { .. } | State::Waiting { .. } => true,
-        State::Queued { .. } | State::Ready | State::Reds(_) | State::Unprepared | State::Pushing { .. } | State::Closed => false,
+        State::Queued { .. }
+        | State::Ready
+        | State::Reds(_)
+        | State::Unprepared
+        | State::Pushing { .. }
+        | State::Closed => false,
     }
 }
 
@@ -860,7 +879,7 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
         | State::Preparing { .. }
         | State::Waiting { .. }
         | State::Ready
-            | State::Reds(_)
+        | State::Reds(_)
         | State::Unprepared
         | State::Pushing { .. } => {}
     }
@@ -876,7 +895,9 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
     reason = "the preparation transition table handles every terminal workspace outcome together"
 )]
 fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: Done, limits: &Limits) -> Next {
-    if let PrepareStep::Reds { repository } = step { return reds_prepare(holding, after(repository)); }
+    if let PrepareStep::Reds { repository } = step {
+        return reds_prepare(holding, after(repository));
+    }
     if let PrepareStep::Candidate { repository, step } = step {
         return candidate::after(holding, repository, step, done);
     }
@@ -1677,12 +1698,18 @@ fn conflicted_head_detail(holding: &Holding, repository: u32, head: Commit) -> B
 }
 
 fn after_merged(holding: &Holding, repository: u32, last: u32) -> Next {
-    if repository < last { Next::Step(PrepareStep::Fetch { repository: after(repository) }) } else { reds_prepare(holding, 0) }
+    if repository < last {
+        Next::Step(PrepareStep::Fetch { repository: after(repository) })
+    } else {
+        reds_prepare(holding, 0)
+    }
 }
 
 /// The named step and git's fault, outside the checkout's facts (domain/worker/jobs.md).
 fn preparation_detail(holding: &Holding, step: PrepareStep, done: &Done) -> Box<[u8]> {
-    if let PrepareStep::Reds { .. } = step { return Box::new([]); }
+    if let PrepareStep::Reds { .. } = step {
+        return Box::new([]);
+    }
     let (fault, output, conflicted) = match done {
         Done::Failed { fault } => (fault.name(), b"".as_slice(), false),
         Done::FailedWithOutput { fault, diagnostic } => (fault.name(), diagnostic.output(), false),
@@ -1819,7 +1846,12 @@ fn prepare_step(
 ) -> State {
     let workspace = holding.workspace.token();
     let op = match step {
-        PrepareStep::Reds { repository } => Op::Reds { at: place(workspace, nth(holding, repository)), action: crate::git::Reds::Prepare { wait_ms: env.limits.reds_read_ms.checked_add(1_000).expect("bounded wait") } },
+        PrepareStep::Reds { repository } => Op::Reds {
+            at: place(workspace, nth(holding, repository)),
+            action: crate::git::Reds::Prepare {
+                wait_ms: env.limits.reds_read_ms.checked_add(1_000).expect("bounded wait"),
+            },
+        },
         PrepareStep::Candidate { repository, step } => candidate::op(holding, repository, step),
         PrepareStep::Look { repository } => {
             let repository = nth(holding, repository);
@@ -2735,11 +2767,19 @@ fn stores_step(
 
 fn reds_prepare(holding: &Holding, from: u32) -> Next {
     for repository in from..count(holding.repositories.len()) {
-        if nth(holding, repository).push.is_some() { return Next::Step(PrepareStep::Reds { repository }); }
+        if nth(holding, repository).push.is_some() {
+            return Next::Step(PrepareStep::Reds { repository });
+        }
     }
     Next::Ready
 }
-pub(crate) fn reds(domain: &mut Domain, env: &Env<Limits>, token: Token, action: crate::git::Reds, out: &mut Queue<Request>) {
+pub(crate) fn reds(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    token: Token,
+    action: crate::git::Reds,
+    out: &mut Queue<Request>,
+) {
     let Some(id) = addressed(&domain.holds, token) else { return };
     let hold = domain.holds.get_mut(id).expect("addressed hold");
     let state = mem::replace(&mut hold.state, State::Closed);
