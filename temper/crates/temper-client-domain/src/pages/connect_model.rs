@@ -8,6 +8,8 @@ use alloc::boxed::Box;
 use jig_client::{Client, Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, RequestKey};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+mod login;
+pub use login::LoginState;
 /// A program’s "I’ve signed in" (temper/docs/design/client/pages/README.md, A way’s page).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProgramCheck {
@@ -39,6 +41,7 @@ pub struct ConnectModel {
     program_environment: Option<Box<[u8]>>,
     environment_read: Option<Handle>,
     environment_asked: bool,
+    login: login::Login,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
@@ -49,6 +52,8 @@ pub enum Act {
     ProgramName { value: Box<[u8]> },
     Submit { name: RequestKey },
     Cancel,
+    LoginProgram { name: RequestKey },
+    CancelLogin,
 }
 #[must_use]
 pub const fn open(address: &Address) -> bool {
@@ -81,6 +86,7 @@ pub const fn open(address: &Address) -> bool {
         | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Adopt { .. } => false,
     }
 }
@@ -159,6 +165,7 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Adopt { .. } => Address::ConnectModel { way },
     }
 }
@@ -193,6 +200,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Adopt { .. } => return None,
     };
     let me = accounts::current_me(client)?;
@@ -345,6 +353,10 @@ impl ConnectModel {
         serial: &mut u64,
         out: &mut Queue<Output>,
     ) {
+        if act == Act::CancelLogin {
+            self.cancel_login(client);
+            return;
+        }
         if let Some(p) = &self.request.pending
             && p.outcome.is_none()
         {
@@ -355,6 +367,8 @@ impl ConnectModel {
         }
         let Some(me) = accounts::current_me(client) else { return };
         match act {
+            Act::LoginProgram { name } => self.start_login(client, name, serial, out),
+            Act::CancelLogin => unreachable!("cancel is admitted while the login request is out"),
             Act::Holder { holder } => {
                 if holder == c::AskAccountHolder::Deployment && me.deployment_role != Some(c::HeldRole::Owner) {
                     return;
@@ -535,6 +549,11 @@ impl ConnectModel {
             return false;
         }
         let Told::Answered { outcome, .. } = told else { return true };
+        if let Some(pending) = &self.request.pending
+            && let c::Ask::AccountChange { change: c::AccountChange::LoginProgram { .. }, .. } = &pending.ask
+        {
+            self.login.answered(outcome);
+        }
         if self.check == ProgramCheck::Declaring {
             let source = if let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
                 c::Outcome::Document(c::DocumentOutcome::AccountProgramDeclared { source, .. }),
@@ -589,7 +608,10 @@ pub const fn creation(ask: &c::Ask) -> bool {
         return true;
     }
     if let c::Ask::AccountChange {
-        change: c::AccountChange::AddKey { join: None, .. } | c::AccountChange::DeclareProgram { join: None, .. },
+        change:
+            c::AccountChange::AddKey { join: None, .. }
+            | c::AccountChange::DeclareProgram { join: None, .. }
+            | c::AccountChange::LoginProgram { .. },
         ..
     } = ask
     {
@@ -627,14 +649,19 @@ impl Default for ConnectModel {
             program_environment: None,
             environment_read: None,
             environment_asked: false,
+            login: login::Login::new(),
         }
     }
 }
 
 /// A standalone way lands only after its own successful ending (client/pages/README.md).
 pub(crate) fn added(pages: &Pages, client: &Client) -> Option<accounts::Added> {
-    let way = way(pages, client)?;
     let page = pages.connect_model()?;
+    match page.login_state(client) {
+        LoginState::Usable { provider } => return Some(accounts::Added { provider, kind: WayKind::Program }),
+        LoginState::Idle | LoginState::Waiting { .. } | LoginState::NotFinished | LoginState::Refused { .. } => {}
+    }
+    let way = way(pages, client)?;
     let chosen = model_way(way);
     if chosen.kind == WayKind::SignIn {
         let added = accounts::signed_in(&page.request, client, Some(chosen.provider))?;

@@ -8,7 +8,7 @@ use skein_lib::Wall;
 pub fn deployment() -> core::Deployment {
     core::Deployment {
         id: [7; 16],
-        tasks: 11,
+        tasks: 12,
         people: 12,
         sign_ins: 13,
         messages: 14,

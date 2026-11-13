@@ -167,6 +167,7 @@ makes each call to a forge and hears its deliveries, is
 
 ```
 temper-engine-domain-forge              the connector's top: resources and holds, adoption, topics, judges, briefs, routing; the effects and their identities
+├── temper-engine-domain-forge-vocabulary  what crosses the top's edge: its events, requests and documents, records and keys, limits, settings, and the values its views show
 ├── skein-forge-client                  the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes and recovery (skein's forge-client.md)
 ├── skein-forge                         the vocabulary the top and the client share: calls, answers, errors, hints (skein's forge/README.md, section 3)
 ├── temper-engine-domain-forge-change   the change procedure and the landing queues: decisions over facts
@@ -195,6 +196,52 @@ temper-engine-domain-forge              the connector's top: resources and holds
   and the facts, a goal's state, or a tier's record and what its run
   reported, they say what is due. They keep nothing between calls; their
   states are the top's, committed in the store.
+
+The top's vocabulary is a crate of its own, below the top
+(`temper/docs/design/draft/crate-graph.md`, 5):
+
+- **It holds what crosses the top's edge:** every item a crate other
+  than the top names (the events, requests and documents of its
+  boundary with the root; the stored records and keys; the limits and
+  configuration; the settings; the values of its views, findings,
+  follows, panels, drafts and statuses; the effects' descriptions and
+  words), with every item that their definitions, their inherent
+  methods and their trait impls reach. None of it names `Domain`, its
+  state, or a type only `Domain` keeps. A file goes whole where the
+  rest of it reaches nothing but the vocabulary and itself, as
+  `boundary.rs`, `settings.rs` and `limits.rs` do. Otherwise its
+  vocabulary goes and the rest stays, so a view's values go and the
+  `Domain` methods that build them stay.
+- **`temper-engine-domain-forge` keeps `Domain`:** its state, its
+  construction, `step`, `resume`, `fire` and `writer`, every method and
+  function that reads or changes it, the helpers only they use, and the
+  step tests that drive it. `Domain` isn't cut, since 35 of the top's
+  files add methods to it (`temper/docs/design/draft/crate-graph.md`,
+  5.2). So the top stays over the size bound
+  (`tools/crates/design.md`, 3.1) until its state is grouped into owned
+  parts (`temper/docs/development/debt/D013-forge-one-object.md`).
+- **The two share one module tree:** an item keeps its module path, so
+  `temper_engine_domain_forge_vocabulary::settings::Value` is
+  `temper_engine_domain_forge::settings::Value`. Each of the top's
+  modules re-exports its namesake in the vocabulary whole, and the
+  top's root re-exports the vocabulary's root, so a caller builds
+  through the same paths in either crate. An item the top reaches
+  across the cut is public in the vocabulary.
+- **Each crate names the one it needs:** a library whose own code
+  needs only the vocabulary, and none of whose other normal
+  dependencies reach the top, depends on
+  `temper-engine-domain-forge-vocabulary`: the store's
+  (`temper-protocol-store`), `temper-engine-domain-ways` and
+  `temper-fake` among them. Its tests may still use the top. Every
+  other crate names `temper-engine-domain-forge`. So a change to how
+  the top decides recompiles the top and what names it, not the
+  store, and a build from scratch compiles the top beside the store.
+- **Its tests** are the step tests of its items that build without
+  `Domain`. A test file that mixes them with `Domain`'s stays with the
+  top whole, and the tests that drive `Domain` reach the items through
+  the top's re-exports.
+- **It has no features** (`skein/docs/foundation/cli.md`, 3): what the
+  top's tests need of it is plain public code.
 
 ## 4. Effects
 
@@ -478,11 +525,15 @@ instead (`../landing.md`, section 5).
   a resolution for what the job leaves.
 - **A catch-up** takes a base's commit into a branch that no update
   reaches, a goal's own (`branches.md`, 1): a change into that branch, made by the
-  goal's coordinator naming the commit (`../agent/tools.md`, 1), its producer
+  goal's coordinator naming the commit (`../agent/tools.md`, 1), main's
+  tip as it reads it, only for a change of the goal that needs what the
+  base gained (`../../draft/squash-in.md`, 4); its producer
   the merge job, which merges the commit into a branch made at the
   landing branch's tip (`change/README.md`, 2, step 1); its project must name a
-  `merge_job`. It lands as any change into the branch does, and nothing
-  makes one but its requester's call.
+  `merge_job`. It lands as any change into the branch does; under
+  `turn` its train merges it, never squashing it (`../landing.md`, 5.2),
+  so the goal's branch shows it as a merge of the base. Nothing makes
+  one but its requester's call.
 - **A semantic conflict** is CI failing on a change's head after a clean
   update. The name records that order, not proof that the base caused
   the failure. Its repair's brief carries the failed check and its output

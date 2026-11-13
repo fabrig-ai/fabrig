@@ -1,8 +1,8 @@
 use super::{FITS, names, w};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
-use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as d;
+use temper_engine_domain_forge_vocabulary as top;
 fn encode_status(value: d::Status) -> w::ChangeStatus {
     match value {
         d::Status::Unknown => w::ChangeStatus::Unknown,

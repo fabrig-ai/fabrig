@@ -1,6 +1,6 @@
 //! Arbitrary and mutated durable rows and keys (protocol/store.md, section 6).
 use skein_lib::Rng;
-use temper_engine_domain_forge as forge;
+use temper_engine_domain_forge_vocabulary as forge;
 use temper_protocol_store::{Bounds, keys, records};
 
 use crate::fixture;
@@ -481,7 +481,7 @@ fn verification_row(
             repaired: if rng.below(2) == 0 {
                 None
             } else {
-                Some(temper_engine_domain_forge::TierRepair { run: 2, tip: [8; 32], by: Some([9; 32]) })
+                Some(temper_engine_domain_forge_vocabulary::TierRepair { run: 2, tip: [8; 32], by: Some([9; 32]) })
             },
         }]),
     });

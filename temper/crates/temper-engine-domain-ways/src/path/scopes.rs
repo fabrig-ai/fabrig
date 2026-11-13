@@ -2,7 +2,7 @@
 use super::{Inputs, OVER};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
-use temper_engine_domain_forge::settings::LandingRule;
+use temper_engine_domain_forge_vocabulary::settings::LandingRule;
 use temper_protocol_reaches::PathSet;
 
 #[must_use]

@@ -2,7 +2,7 @@
 use crate::{Bounds, Undecodable, v18 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 mod answers;
 mod api;
 mod application;
@@ -225,7 +225,7 @@ pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
         landing_rule_approvals: forge.roles,
         landing_rule_sets: 6,
         rule_pattern_segments: forge.authority_segments.checked_mul(forge.name_bytes.checked_add(8)?)?,
-        effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,
+        effect_account_words: temper_engine_domain_forge_vocabulary::EFFECT_ACCOUNT_BYTES,
         answer_name_name: forge.client.answer_bytes,
         making_key_org: forge.name_bytes.min(1024),
         making_key_name: forge.name_bytes.min(1024),

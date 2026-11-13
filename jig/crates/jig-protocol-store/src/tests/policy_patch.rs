@@ -23,8 +23,8 @@ fn narrowed(executors: &[Executor]) -> jig_domain_people::PolicyValue {
     // The written conversion changes meaning; versions 14 and 15 have the same fields.
     *bytes.get_mut(1).expect("version prefix") = 14;
     let mut patcher = Patcher::new(Capacity {
-        versions: 3,
-        patches: 2,
+        versions: 4,
+        patches: 3,
         text: skein_codec::schema::MAX_TEXT,
         bytes: 131_072,
         nodes: 16_384,
@@ -33,7 +33,7 @@ fn narrowed(executors: &[Executor]) -> jig_domain_people::PolicyValue {
         patcher.keep(text.as_bytes()).expect("kept schema");
     }
     let mut context = patches::Context { executors: executors.into() };
-    for (version, patch) in [(14, 0), (15, 2)] {
+    for (version, patch) in [(14, 0), (15, 2), (16, 3)] {
         let root = patcher.schema(version).unwrap().find(b"Row").unwrap();
         let plan = patcher.plan(patches::PATCHES[patch].as_bytes()).unwrap().unwrap();
         patcher.start(plan, root, bytes).expect("retained row");

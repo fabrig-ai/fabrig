@@ -1,6 +1,6 @@
 //! Total translations of the core's client vocabulary (protocol/client/wire.md, 1).
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Writer};
 pub mod accounts;
 pub mod activity;

@@ -311,7 +311,7 @@ pub fn config(seed: u64) -> engine::Config {
     engine::Config {
         host_part: None,
         kinds_stock: engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
-        ways_stock: temper_engine_service::stock::ways(),
+        ways_stock: temper_engine_service_stock::stock::ways(),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
             deployment: [31; 16],

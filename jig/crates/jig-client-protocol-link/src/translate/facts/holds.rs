@@ -4,7 +4,7 @@ use super::{Child, active_run, document_text, part, party, prior_phase, take_clo
 use crate::Limits;
 use crate::translate::text_problem;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Map, Wall, bytes};
 
 pub(crate) fn hold_failure(value: &w::HoldFailure) -> c::HoldFailure {
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn retry_reasons_round_trip_through_wire_and_client_facts() {
-        const REASON_BYTES: usize = 128; // client-v20's retry reason bound (domain/engine/briefs.md, 1.1).
+        const REASON_BYTES: usize = 128; // client-v21's retry reason bound (domain/engine/briefs.md, 1.1).
         let limits = &w::CEILINGS;
         let reason = Some(bytes::copy_of(&[b'x'; REASON_BYTES]));
         let expected = Some(c::DocumentText::complete(

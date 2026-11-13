@@ -1,7 +1,7 @@
 //! Settings rows and their bounds (temper/docs/design/protocol/store.md, sections 2 to 4).
 use super::fixtures;
 use crate::{Undecodable, keys, records, v18 as w};
-use temper_engine_domain_forge::{self as forge, settings as d};
+use temper_engine_domain_forge_vocabulary::{self as forge, settings as d};
 
 fn rule() -> d::LandingRule {
     d::LandingRule {

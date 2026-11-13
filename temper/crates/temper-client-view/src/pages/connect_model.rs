@@ -159,7 +159,7 @@ pub(super) fn choice(
 fn cards(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, ways: &skein_lib::List<Way>) {
     let Some(me) = accounts::current_me(root.client()) else { return };
     let mut plans = skein_lib::List::with_capacity(ways.len());
-    for name in [b"openai".as_slice(), b"anthropic"] {
+    for name in [b"anthropic".as_slice(), b"openai"] {
         for offer in &me.providers {
             if offer.name.bytes() != name {
                 continue;
@@ -230,16 +230,22 @@ fn plan_card(
     }
     crate::cards::text(b, Role::Heading { level: 2 }, &heading);
     let name = [Hole::Name(crate::choice::shown(plan, w))];
+    let connected = model::connected(root, way);
+    let lendable = match root.pages().connect_model() {
+        Some(page) => page.lendable(root.client()),
+        None => false,
+    };
+    let terminal = model::model_way(way).kind == WayKind::Program && plan == b"Claude" && !connected && lendable;
     let (description, note) = match way {
-        Way::Program { .. } => {
-            (w.say(Word::WelcomeModelSubscription, &name), w.say(Word::WelcomeModelProgramTime, &[]))
-        }
+        Way::Program { .. } => (
+            w.say(Word::WelcomeModelSubscription, &name),
+            w.say(if terminal { Word::WelcomeClaudeTerminal } else { Word::WelcomeModelProgramTime }, &[]),
+        ),
         Way::SignIn { .. } | Way::Key { .. } => {
             (w.say(Word::WelcomeModelPlan, &name), w.say(Word::WelcomeModelSignInTime, &[]))
         }
     };
     crate::cards::text(b, Role::Paragraph, &description);
-    let connected = model::connected(root, way);
     b.open(Role::Paragraph);
     b.style(if welcome(root) { look::FLOW_MUTED } else { look::CONNECT_MUTED });
     if connected {
@@ -255,11 +261,23 @@ fn plan_card(
     b.close();
     b.open(Role::Slot);
     b.style(if welcome(root) { look::FLOW_ACTIONS } else { look::CONNECT_ACTS });
-    let label = if connected { say(w, W::AnotherPlan) } else { label(me, way, ways, w) };
-    let (role, meaning) = match way {
-        Way::SignIn { .. } => (Role::Button, Meaning::Model(Act::SignIn { name: root.pages().account_name(), way })),
-        Way::Key { .. } | Way::Program { .. } => {
-            (Role::Link, Meaning::Go(model::address(root.pages().address(), Some(model::model_way(way)))))
+    let label = if connected {
+        say(w, W::AnotherPlan)
+    } else if terminal {
+        w.say(Word::WelcomeClaudeLogin, &[])
+    } else {
+        label(me, way, ways, w)
+    };
+    let (role, meaning) = if terminal {
+        (Role::Button, Meaning::Model(Act::LoginProgram { name: root.pages().account_name() }))
+    } else {
+        match way {
+            Way::SignIn { .. } => {
+                (Role::Button, Meaning::Model(Act::SignIn { name: root.pages().account_name(), way }))
+            }
+            Way::Key { .. } | Way::Program { .. } => {
+                (Role::Link, Meaning::Go(model::address(root.pages().address(), Some(model::model_way(way)))))
+            }
         }
     };
     connect_control(b, root, bindings, &label, role, meaning, default == Some(way), false);
@@ -268,7 +286,7 @@ fn plan_card(
 }
 
 #[expect(clippy::too_many_arguments, reason = "the connection control keeps its role, meaning and state together")]
-fn connect_control(
+pub(super) fn connect_control(
     b: &mut Builder,
     root: &Domain,
     bindings: &mut Bindings,
@@ -417,7 +435,7 @@ pub(crate) fn main(
     b.name(&heading);
     b.text(Run::Plain, &heading);
     b.close();
-    if way.is_none() {
+    if way.is_none() && !super::claude_login::waiting(root) {
         b.open(Role::Paragraph);
         b.style(look::SETTINGS_LEDE);
         b.name(&say(w, W::ModelLead));
@@ -469,7 +487,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::Repositories { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
-        | Address::Ask { .. }
+        | Address::Ask { .. } | Address::Tell { .. }
         | Address::Adopt { .. } => false,
     }
 }
@@ -503,6 +521,7 @@ pub(super) fn choose_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &
     let Some(page) = root.pages().connect_model() else { return };
     let Some(me) = accounts::current_me(root.client()) else { return };
     let ways = accounts::ways(&me.providers, root.forge().playground_provider(), page.holder);
+    super::claude_login::ending(b, root, w, bindings, text_per_node);
     cards(b, root, w, bindings, &ways);
     if !welcome(root) {
         b.open(Role::Slot);
@@ -558,9 +577,15 @@ pub(super) fn choose_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &
             }
         }
     }
-    super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
+    if !super::claude_login::owns_request(page) {
+        super::accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
+    }
 }
 pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
+    if super::claude_login::waiting(root) {
+        super::claude_login::note(b, root, w, bindings);
+        return;
+    }
     let Some(page) = root.pages().connect_model() else { return };
     let Some(me) = accounts::current_me(root.client()) else { return };
     let playground = root.forge().playground_provider();

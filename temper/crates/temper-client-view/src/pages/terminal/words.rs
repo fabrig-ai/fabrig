@@ -6,7 +6,6 @@ use skein_ui::phrases::{Form, Phrase, PhraseId, PhraseShape, PluralClass, Segmen
 #[derive(Clone, Copy, Debug)]
 /// The terminal's phrases (temper/docs/design/client/pages/README.md, A chat's terminal).
 pub enum TerminalWord {
-    Enter,
     Star,
     Slash,
     Draft,
@@ -21,7 +20,6 @@ pub enum TerminalWord {
 impl TerminalWord {
     fn data(self) -> (u16, &'static [u8]) {
         match self {
-            Self::Enter => (5000, b"Terminal, full screen"),
             Self::Star => (5002, "✦".as_bytes()),
             Self::Slash => (5003, b"/"),
             Self::Draft => (5004, b"Draft"),
@@ -43,7 +41,6 @@ pub(crate) fn say(w: &Words, word: TerminalWord) -> Box<[u8]> {
 }
 pub(crate) fn extend(shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>) {
     for word in [
-        TerminalWord::Enter,
         TerminalWord::Star,
         TerminalWord::Slash,
         TerminalWord::Draft,

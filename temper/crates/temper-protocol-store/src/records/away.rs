@@ -2,7 +2,7 @@
 use super::{FITS, w};
 use crate::Undecodable;
 use skein_lib::{List, Reader, Wall, Writer};
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 
 fn wall(value: Option<u64>) -> Option<Wall> {
     match value {

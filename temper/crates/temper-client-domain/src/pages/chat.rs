@@ -50,6 +50,7 @@ pub struct Chat {
     decisions: List<(Handle, c::ProposalKey)>,
     pub draft: Option<Document>,
     pub writing: bool,
+    write_up: Option<Key>,
     pub wanted: bool,
     pub shown: Option<u32>,
     pub shown_count: u64,
@@ -143,6 +144,7 @@ impl Chat {
             decisions: List::with_capacity(limits.client.domain.reads),
             draft: None,
             writing: mode != Mode::Chat,
+            write_up: None,
             wanted: false,
             shown: None,
             shown_count: 0,
@@ -699,6 +701,12 @@ impl Chat {
             }
         }
         self.pending = kept;
+        if self.write_up == Some(key) {
+            self.write_up = None;
+            if !super::seen_answered(&outcome) {
+                self.writing = false;
+            }
+        }
         self.outcome = Some(outcome);
     }
     fn request_end(&mut self, out: &mut Queue<Request>) {
@@ -1278,9 +1286,19 @@ impl Chat {
                 if self.draft.is_some() || self.writing || task.result.is_some() || super::chats::ended(&task.chip) {
                     return;
                 }
-                self.writing = true;
-                self.mode = Mode::Split;
+                if self.sending(Sending::Message) {
+                    return;
+                }
+                if self.mode == Mode::Chat {
+                    self.mode = Mode::Split;
+                }
                 self.send(env, client, Sending::Message, Some(document::WRITE_THIS_UP), serial, out);
+                for (key, kind) in &self.pending {
+                    if *kind == Sending::Message {
+                        self.write_up = Some(*key);
+                        self.writing = true;
+                    }
+                }
             }
             Act::Send => {
                 self.send(env, client, Sending::Message, None, serial, out);
@@ -1306,6 +1324,7 @@ impl Chat {
             | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Finding(_)
+            | Act::TellWords { .. }
             | Act::Tell { .. }
             | Act::Choice(_)
             | Act::Accounts(_)
@@ -1326,6 +1345,7 @@ impl Chat {
             | Act::AskLine { .. }
             | Act::AskWith { .. }
             | Act::ChatWords { .. }
+            | Act::AskHow
             | Act::StartChat
             | Act::WayTab { .. }
             | Act::WayStop { .. }

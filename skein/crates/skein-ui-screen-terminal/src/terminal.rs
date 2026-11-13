@@ -34,10 +34,20 @@ pub enum Background {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Phase {
     Open,
+    Lending,
+    LendingLeave,
+    Lent,
     Closing,
     Leaving,
     Draining,
     Closed,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Withdrawal {
+    Unasked,
+    Waiting,
+    Quiet,
 }
 
 #[derive(Debug)]
@@ -70,6 +80,7 @@ pub struct Terminal {
     background: Background,
     background_deadline: Option<Time>,
     writable: bool,
+    withdrawal: Withdrawal,
     last: Frame,
     newest: Frame,
     whole: bool,
@@ -137,6 +148,7 @@ impl Terminal {
             background: if settings.background.is_some() { Background::Waiting } else { Background::Unanswered },
             background_deadline: None,
             writable: false,
+            withdrawal: Withdrawal::Unasked,
             last: Frame::new(settings.most),
             newest: Frame::new(settings.most),
             whole: true,
@@ -185,8 +197,9 @@ impl Terminal {
         self.window.size
     }
     pub fn draw(&mut self, frame: &Frame) {
-        if self.phase != Phase::Open {
-            return;
+        match self.phase {
+            Phase::Open | Phase::Lending | Phase::LendingLeave | Phase::Lent => {}
+            Phase::Closing | Phase::Leaving | Phase::Draining | Phase::Closed => return,
         }
         let size = frame.size();
         assert!(
@@ -207,16 +220,49 @@ impl Terminal {
     pub const fn ended(&self) -> bool {
         self.intake.ended
     }
-    pub fn close(&mut self) {
+    /// Stops drawing, takes back the read, and leaves the screen for a child.
+    pub fn lend(&mut self) {
         if self.phase == Phase::Open {
-            self.phase = Phase::Closing;
+            self.phase = Phase::Lending;
+            self.withdrawal = Withdrawal::Unasked;
+        }
+    }
+    #[must_use]
+    pub fn lent(&self) -> bool {
+        self.phase == Phase::Lent
+    }
+    /// Enters again, refreshes the window, and draws the next frame whole.
+    pub fn resume(&mut self) {
+        if self.phase == Phase::Lent {
+            self.phase = Phase::Open;
+            self.control(ENTER);
+            self.whole = true;
+            self.drawn = None;
+            self.window.again = true;
+        }
+    }
+    pub fn close(&mut self) {
+        match self.phase {
+            Phase::Open | Phase::Lending => self.phase = Phase::Closing,
+            Phase::LendingLeave => self.phase = Phase::Leaving,
+            Phase::Lent => {
+                self.drain(Time::ZERO);
+                self.phase = Phase::Closed;
+            }
+            Phase::Closing | Phase::Leaving | Phase::Draining | Phase::Closed => {}
         }
     }
     #[must_use]
     pub const fn closed(&self) -> bool {
         match self.phase {
             Phase::Closed => true,
-            Phase::Open | Phase::Closing | Phase::Leaving | Phase::Draining => false,
+            Phase::Open
+            | Phase::Lending
+            | Phase::LendingLeave
+            | Phase::Lent
+            | Phase::Closing
+            | Phase::Leaving
+            | Phase::Draining => false,
         }
     }
     fn draw_deadline(&self) -> Option<Time> {
@@ -251,9 +297,12 @@ impl Terminal {
                 && self.input.is_some()
                 && ((!self.intake.reading && !self.intake.ended && self.intake.keys.is_empty())
                     || (self.window.again && !self.window.pending)))
+            || (self.phase == Phase::Lending && self.withdrawal == Withdrawal::Unasked)
             || (self.writable
                 && (self.offset.is_some()
                     || self.phase == Phase::Closing
+                    || (self.phase == Phase::Lending && self.withdrawal == Withdrawal::Quiet && !self.window.pending)
+                    || self.phase == Phase::LendingLeave
                     || (self.phase == Phase::Leaving && !self.window.pending)))
             || match self.draw_deadline() {
                 Some(at) => now >= at,
@@ -291,6 +340,21 @@ impl Terminal {
         );
         self.events(now);
         self.answer_background(now);
+        if self.phase == Phase::Lending && self.withdrawal == Withdrawal::Unasked {
+            self.withdrawal = Withdrawal::Waiting;
+            if let Some(input) = self.input {
+                self.io.cancel_read(&Env { now, wall: Wall::EPOCH, limits: self.limits }, input, &mut self.raw);
+            } else {
+                self.withdrawal = Withdrawal::Quiet;
+            }
+        }
+        if self.phase == Phase::Lending
+            && let Some(input) = self.input
+            && self.io.read_cancelled(input)
+        {
+            self.withdrawal = Withdrawal::Quiet;
+            self.intake.reading = false;
+        }
         self.output(now);
         if self.phase == Phase::Open
             && let Some(input) = self.input
@@ -371,6 +435,14 @@ impl Terminal {
                     self.write_piece(now, 0);
                 }
             }
+            Phase::Lending => {
+                if self.withdrawal == Withdrawal::Quiet && !self.window.pending {
+                    self.control(LEAVE);
+                    self.phase = Phase::LendingLeave;
+                    self.write_piece(now, 0);
+                }
+            }
+            Phase::LendingLeave => self.phase = Phase::Lent,
             Phase::Closing => {
                 self.control(LEAVE);
                 self.phase = Phase::Leaving;
@@ -381,7 +453,7 @@ impl Terminal {
                     self.drain(now);
                 }
             }
-            Phase::Draining | Phase::Closed => {}
+            Phase::Lent | Phase::Draining | Phase::Closed => {}
         }
     }
     fn control(&mut self, bytes: &[u8]) {
@@ -429,7 +501,7 @@ impl Terminal {
                 Event::Stream { owner, up } => match up {
                     Up::Bytes(bytes) => {
                         self.intake.reading = false;
-                        if self.phase == Phase::Open {
+                        if self.phase == Phase::Open || self.phase == Phase::Lending {
                             self.intake.decoder.read(&bytes, &mut self.intake.keys);
                         }
                     }

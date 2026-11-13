@@ -236,7 +236,8 @@ fn release(world: &mut World, goal: &engine::Assignment, landing: u64) {
 #[expect(clippy::too_many_lines, reason = "one story follows the save, question, writer reread and resumed pull")]
 fn saving_repair_rebriefs(reported: bool) {
     // The pull's identity, saved content and CI reason share the resumed brief.
-    let small = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
+    let small =
+        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
     let mut world = world_with_brief(Some(small.root.brief));
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
     batch[0].authority.tools |= jig_domain_core::ToolFamilies::JIG.control.0;

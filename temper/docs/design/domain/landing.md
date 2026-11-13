@@ -352,11 +352,15 @@ The default, for a project with no prepare command:
   with the messages `../protocol/tooling.md`, 4 gives:
   - **merge:** the head merged, no fast-forward, the prefix below as
     the first parent and the head as the second, committed with the
-    member's merge message, its title and change;
+    member's merge message: its title, its description's first
+    paragraph, and its change, pull request and head as trailers,
+    with its goal's for a train into its repository's main;
   - **squash:** the same merge, its tree committed as one commit whose
     only parent is the prefix below, with the member's squash message:
-    its title, then its change, pull request and head as trailers. A
-    squash whose tree is the one below's is still a commit.
+    its title, its description's first paragraph, then its change,
+    pull request, head and goal as trailers (`../draft/squash-in.md`,
+    section 3). A squash whose tree is the one below's is still a
+    commit.
 - **A conflict:** a member whose merge onto the prefix below does not
   apply cleanly is skipped, and the job stacks the next member on the
   same prefix. The job tells which it meets by the member's head merged
@@ -367,6 +371,16 @@ The default, for a project with no prepare command:
   line, since once that member has landed its conflict, if any, is with
   the branch. A member stacked straight onto the base conflicts with
   the branch.
+- **Authored and committed** by the repository's git identity
+  (`../protocol/credentials.md`, 4), both ways: the identity the
+  deployment's agents' commits carry, and temper's own.
+- **A goal's branch reads one commit per change,** its title and
+  trailers naming the change's task, pull request, head and goal, and a
+  merge for each catch-up or resolution of main
+  (`../draft/squash-in.md`, sections 2 and 6); a goal's landing into
+  main is a merge titled with the goal's title, its trailers the goal's
+  landing change's and the goal's, which `../testing/qa/landings.md`, 4
+  reads.
 - **Why merge or squash** is `../draft/merge-queue.md`, 5.3: a goal's
   branch goes on after it lands, and merges onto main; a change into a
   goal's branch ends when it lands, and squashes. A squash meets the
@@ -383,8 +397,9 @@ The default, for a project with no prepare command:
 - **Its outcome:** the engine reads each member's branch afresh once
   the job has ended. Its tip is the member's prefix when its parents
   are the prefix below and the member's head, a merge, or the prefix
-  below alone with the member's head in its `Temper-Head` trailer, a
-  squash (skein's `Read::Commits`); the round keeps which. The prefix
+  below alone with the member's head in its `Head` trailer, a line of
+  its message's last paragraph, a squash (skein's `Read::Commits`); the
+  round keeps which. The prefix
   below is that of the nearest member below with one in the round, or
   the commit the round stacks from. A member the job's result names in
   a conflict leaves (4.3), saying which.

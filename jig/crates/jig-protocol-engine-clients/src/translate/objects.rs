@@ -125,6 +125,7 @@ pub fn document(
             | d::Document::Run(_)
             | d::Document::Tree(_)
             | d::Document::Lines(_)
+            | d::Document::Terminal { .. }
             | d::Document::Accounts(_)
             | d::Document::Note(_)
             | d::Document::Inbox(_) => {

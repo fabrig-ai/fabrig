@@ -134,7 +134,7 @@ pub enum Opening {
     Secret,
     Family,
     Version,
-    Application,
+    Wires,
     Terms,
     Garbage,
 }

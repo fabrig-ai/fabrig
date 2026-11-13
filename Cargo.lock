@@ -743,8 +743,12 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 name = "jig-accounts-world"
 version = "0.0.0"
 dependencies = [
+ "jig-core-kit",
  "jig-domain-accounts",
+ "jig-domain-core",
  "jig-domain-link",
+ "jig-domain-people",
+ "jig-test-domain",
  "skein-lib",
  "skein-world",
 ]
@@ -1513,6 +1517,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-test-records",
  "jig-core-kit",
+ "jig-domain-accounts",
  "jig-domain-core",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -2094,12 +2099,14 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "smith-channel",
+ "smith-charter",
  "smith-domain-run",
  "smith-host-domain",
  "smith-host-protocol",
  "smith-host-protocol-fixtures",
  "smith-protocol-channel",
  "smith-protocol-program",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -2120,7 +2127,12 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
+ "smith-channel",
+ "smith-charter",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -4394,7 +4406,9 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -4427,7 +4441,9 @@ name = "smith-charter"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -4495,6 +4511,7 @@ dependencies = [
  "skein-lib",
  "smith-domain-tools",
  "smith-domain-tools-fixtures",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -5876,7 +5893,8 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-world",
- "temper-engine-service",
+ "temper-engine-service-stock",
+ "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-protocol-reaches",
  "temper-settings-form",
@@ -5899,10 +5917,10 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "temper-client-protocol-wire",
- "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-records-forge",
@@ -6025,6 +6043,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
 ]
 
@@ -6066,6 +6085,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-engine-domain-forge-vocabulary"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core-vocabulary",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "skein-forge",
+ "skein-forge-client",
+ "skein-lib",
+ "temper-client-protocol-wire",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-closer",
+ "temper-engine-domain-forge-issues",
+ "temper-engine-domain-forge-landing",
+ "temper-engine-domain-forge-tiers",
+ "temper-protocol-reaches",
+]
+
+[[package]]
 name = "temper-engine-domain-trials"
 version = "0.0.0"
 dependencies = [
@@ -6077,8 +6115,8 @@ name = "temper-engine-domain-ways"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
- "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
 ]
 
@@ -6134,7 +6172,9 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-trials",
  "temper-engine-forge-world",
- "temper-engine-service",
+ "temper-engine-service-startup",
+ "temper-engine-service-stock",
+ "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-checkout",
@@ -6183,7 +6223,7 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-forge-world",
- "temper-engine-service",
+ "temper-engine-service-vocabulary",
  "temper-test-env",
 ]
 
@@ -6191,8 +6231,23 @@ dependencies = [
 name = "temper-engine-service"
 version = "0.0.0"
 dependencies = [
+ "jig-protocol-config",
+ "skein-forge-connection",
+ "skein-io",
+ "skein-lib",
+ "temper-engine-domain-forge",
+ "temper-engine-service-component",
+ "temper-engine-service-startup",
+ "temper-engine-service-stock",
+ "temper-engine-service-vocabulary",
+ "temper-forge-setup",
+]
+
+[[package]]
+name = "temper-engine-service-component"
+version = "0.0.0"
+dependencies = [
  "jig-client",
- "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-domain-accounts",
  "jig-domain-authority",
@@ -6201,7 +6256,6 @@ dependencies = [
  "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-link",
- "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
@@ -6212,11 +6266,7 @@ dependencies = [
  "jig-protocol-engine-clients-http",
  "jig-protocol-engine-workers",
  "jig-protocol-store",
- "jig-protocol-transcript",
- "jig-protocol-worker-agents",
- "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
- "serde_json",
  "skein-channel",
  "skein-codec",
  "skein-fake-forge-domain",
@@ -6240,51 +6290,172 @@ dependencies = [
  "skein-shell",
  "skein-tls",
  "skein-world",
- "smith-agent-service",
- "smith-agent-shell",
- "smith-agent-world",
  "smith-channel",
  "smith-charter",
- "smith-domain",
- "smith-domain-run",
- "smith-host-domain",
- "smith-host-protocol",
- "smith-local-service",
  "smith-protocol-channel",
- "smith-protocol-llm",
- "smith-protocol-program",
  "smith-protocol-translate",
- "smith-transcript",
- "temper-box-machine",
- "temper-charter-set",
  "temper-client-domain",
  "temper-client-protocol-wire",
  "temper-client-tools",
- "temper-docs",
  "temper-engine-domain",
  "temper-engine-domain-forge",
- "temper-engine-domain-forge-change",
- "temper-engine-domain-forge-issues",
- "temper-engine-domain-forge-tiers",
- "temper-engine-domain-trials",
- "temper-engine-domain-ways",
  "temper-engine-domain-world",
+ "temper-engine-service-startup",
+ "temper-engine-service-stock",
+ "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-forge-setup",
  "temper-init",
- "temper-protocol-brief",
- "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-records-forge",
  "temper-protocol-store",
  "temper-protocol-worker-wire",
  "temper-service-core",
- "temper-settings-form",
  "temper-test-env",
- "temper-worker-domain-checkout",
- "temper-worker-protocol-git",
- "temper-worker-protocol-git-world",
  "temper-worker-service-fixtures",
+]
+
+[[package]]
+name = "temper-engine-service-startup"
+version = "0.0.0"
+dependencies = [
+ "jig-client-protocol-wire",
+ "jig-domain-accounts",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-host",
+ "jig-domain-link",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-domain-views",
+ "jig-protocol-accounts",
+ "jig-protocol-config",
+ "jig-protocol-engine-clients",
+ "jig-protocol-store",
+ "jig-protocol-worker-wire",
+ "skein-codec",
+ "skein-forge",
+ "skein-forge-connection",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-push",
+ "skein-world",
+ "smith-agent-shell",
+ "smith-domain",
+ "smith-domain-run",
+ "smith-protocol-llm",
+ "smith-protocol-program",
+ "temper-client-protocol-wire",
+ "temper-client-tools",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-world",
+ "temper-engine-service-stock",
+ "temper-engine-service-vocabulary",
+ "temper-engine-smith",
+ "temper-forge-setup",
+ "temper-init",
+ "temper-protocol-store",
+ "temper-protocol-worker-wire",
+ "temper-service-core",
+ "temper-settings-form",
+ "temper-worker-service-fixtures",
+]
+
+[[package]]
+name = "temper-engine-service-stock"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-protocol-config",
+ "jig-protocol-store",
+ "skein-forge",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-world",
+ "temper-charter-set",
+ "temper-client-tools",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-ways",
+ "temper-engine-service-vocabulary",
+ "temper-engine-smith",
+ "temper-forge-setup",
+ "temper-init",
+ "temper-protocol-reaches",
+ "temper-settings-form",
+ "temper-worker-service-fixtures",
+]
+
+[[package]]
+name = "temper-engine-service-vocabulary"
+version = "0.0.0"
+dependencies = [
+ "jig-client",
+ "jig-client-protocol-wire",
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-brief",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-host",
+ "jig-domain-link",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-protocol-accounts",
+ "jig-protocol-charter",
+ "jig-protocol-config",
+ "jig-protocol-engine-clients",
+ "jig-protocol-engine-clients-http",
+ "jig-protocol-engine-workers",
+ "jig-protocol-store",
+ "jig-protocol-transcript",
+ "jig-protocol-worker-wire",
+ "skein-codec",
+ "skein-forge",
+ "skein-forge-client",
+ "skein-forge-connection",
+ "skein-http",
+ "skein-io",
+ "skein-kv",
+ "skein-lib",
+ "skein-oauth",
+ "skein-push",
+ "skein-tls",
+ "skein-world",
+ "smith-channel",
+ "smith-charter",
+ "smith-domain-run",
+ "smith-protocol-channel",
+ "smith-protocol-translate",
+ "smith-transcript",
+ "temper-box-machine",
+ "temper-client-domain",
+ "temper-client-protocol-wire",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-issues",
+ "temper-engine-domain-trials",
+ "temper-engine-domain-ways",
+ "temper-engine-service-stock",
+ "temper-engine-smith",
+ "temper-forge-setup",
+ "temper-protocol-brief",
+ "temper-protocol-reaches",
+ "temper-protocol-store",
+ "temper-protocol-worker-wire",
+ "temper-service-core",
 ]
 
 [[package]]
@@ -6350,6 +6521,7 @@ dependencies = [
  "skein-forge-client",
  "skein-json",
  "skein-lib",
+ "skein-scratch",
  "smith-agent-world",
  "smith-domain",
  "smith-domain-run",
@@ -6395,10 +6567,11 @@ dependencies = [
  "skein-shell",
  "smith-agent-world",
  "smith-domain-run",
- "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
- "temper-engine-service",
+ "temper-engine-domain-forge-vocabulary",
+ "temper-engine-service-startup",
+ "temper-engine-service-stock",
  "temper-forge-setup",
  "temper-init",
  "temper-protocol-store",
@@ -6547,7 +6720,8 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-shell",
- "temper-engine-service",
+ "temper-engine-service-stock",
+ "temper-engine-service-vocabulary",
  "temper-protocol-records",
  "temper-protocol-records-forge",
  "temper-protocol-store",
@@ -6848,6 +7022,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-store-codec",
@@ -6866,7 +7041,9 @@ name = "temper-protocol-worker-wire"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
+ "skein-codegen",
  "skein-lib",
+ "skein-scratch",
 ]
 
 [[package]]
@@ -7180,7 +7357,8 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-world",
  "temper-engine-forge-world",
- "temper-engine-service",
+ "temper-engine-service-stock",
+ "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake-checkout",
  "temper-protocol-worker-wire",
@@ -7275,7 +7453,7 @@ dependencies = [
  "smith-domain-run",
  "smith-domain-session",
  "smith-host-domain",
- "temper-engine-domain-forge",
+ "temper-engine-domain-forge-vocabulary",
  "temper-worker-domain-checkout",
  "temper-worker-domain-tooling",
 ]

@@ -10,9 +10,11 @@ extern crate alloc;
 use alloc::boxed::Box;
 
 #[rustfmt::skip]
-// The schema compiler writes this module to generated/v4.rs.
-#[path = "generated/v4.rs"]
-pub mod v4;
+mod generated {
+    pub mod v4;
+}
+
+pub use generated::v4;
 
 pub use v4::{
     Budget, BudgetParts, CEILINGS, ChangeRule, ChangeRuleParts, Charter, CharterParts, Contract, ContractParts,
@@ -24,8 +26,54 @@ pub use v4::{
 
 impl Charter {
     /// The wire format version this codec writes and reads.
-    pub const FORMAT_VERSION: u64 = 4;
+    pub const FORMAT_VERSION: u64 = {
+        let [high, low] = wire::VERSION.to_be_bytes();
+        u64::from_be_bytes([0, 0, 0, 0, 0, 0, high, low])
+    };
 }
 
 /// Provider effort name, bounded to 32 UTF-8 bytes by the charter codec.
 pub type Effort = Box<[u8]>;
+
+/// This crate's spoken family and layout (temper/docs/design/protocol/wires.md, 3.1).
+pub mod wire {
+    /// The family named by the current schema's header.
+    pub const FAMILY: &str = "smith-charter";
+
+    /// The version named by the current schema's header.
+    pub const VERSION: u16 = 4;
+
+    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
+    const TEXT: &str = include_str!("../schema/charter-v4.schema");
+
+    /// The current schema's family fingerprint.
+    #[must_use]
+    pub fn layout() -> [u8; 32] {
+        skein_codec::schema::parse(TEXT.as_bytes())
+            .expect("the embedded current schema is valid")
+            .fingerprints()
+            .family()
+            .digest()
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::{FAMILY, TEXT, VERSION, layout};
+
+        #[test]
+        fn identity_tracks_schema() {
+            let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
+            assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
+            assert_eq!(VERSION, schema.version());
+            assert_eq!(layout(), schema.fingerprints().family().digest());
+
+            let changed = TEXT.replacen("max: u32", "max: u64", 1);
+            assert_ne!(changed, TEXT, "the mutation changes a field's type");
+            let changed = skein_codec::schema::parse(changed.as_bytes()).expect("changed schema");
+            assert_ne!(layout(), changed.fingerprints().family().digest());
+        }
+    }
+}
+
+#[path = "../patches/mod.rs"]
+pub mod patches;

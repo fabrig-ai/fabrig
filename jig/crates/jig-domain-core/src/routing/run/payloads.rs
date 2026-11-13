@@ -86,6 +86,7 @@ pub(crate) fn route_answer_payload(
         | tasks::End::Failed(_)
         | tasks::End::FailedWithReason { .. }
         | tasks::End::Refused
+        | tasks::End::RefusedWithReason { .. }
         | tasks::End::Recheck => end,
     };
     proof.terminal =
@@ -127,6 +128,7 @@ fn past_batch_bytes(limits: &tasks::Limits, end: &tasks::End) -> bool {
         | tasks::End::Failed(_)
         | tasks::End::FailedWithReason { .. }
         | tasks::End::Refused
+        | tasks::End::RefusedWithReason { .. }
         | tasks::End::Recheck => None,
     };
     match batch {

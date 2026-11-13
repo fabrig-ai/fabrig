@@ -248,7 +248,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
         root: limits::Root {
             brief: temper_engine_domain::BriefLimits {
                 read_bytes: 131_584,
-                brief_bytes: 336_713,
+                brief_bytes: 335_752,
                 budgets: temper_engine_domain::BriefBudgets {
                     task: 131_584,
                     pull: 131_584,
@@ -260,7 +260,7 @@ fn the_standard_profile_holds_fabrig_scale_work() {
             journal: temper_engine_domain::JournalLimits {
                 // The deep task row's 22,467,664 bytes plus 21 eight-byte executors.
                 transcript_bytes: 22_467_832,
-                result_bytes: 336_713,
+                result_bytes: 335_752,
                 ..small.root.journal
             },
             loads: temper_engine_domain::loads::Limits {

@@ -13,6 +13,15 @@ const MAIN_PATH: &[u8] = b"main";
 const MAIN_WORK: &[u8] = b"main work";
 
 fn goal_world(command: bool, kind: bool, control: bool) -> (World, engine::Assignment, Box<[u8]>, u64) {
+    goal_world_with_limits(command, kind, control, &StoryLimits::default())
+}
+
+pub(super) fn goal_world_with_limits(
+    command: bool,
+    kind: bool,
+    control: bool,
+    limits: &StoryLimits,
+) -> (World, engine::Assignment, Box<[u8]>, u64) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -20,7 +29,7 @@ fn goal_world(command: bool, kind: bool, control: bool) -> (World, engine::Assig
         STEPS,
         Gate::default(),
         None,
-        StoryLimits { merge_kind: true, merge_authority: kind, ..StoryLimits::default() },
+        StoryLimits { merge_kind: true, merge_authority: kind, ..*limits },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
         sets: Box::new([]),
@@ -81,7 +90,7 @@ fn call(
     panic!("change was not answered")
 }
 
-fn catch_up(world: &mut World, goal: &engine::Assignment, commit: u64) -> u64 {
+pub(super) fn catch_up(world: &mut World, goal: &engine::Assignment, commit: u64) -> u64 {
     let text = forge_top::commit_text(&translate::commit(commit));
     let text = core::str::from_utf8(&text).expect("commit text");
     let input = format!(r#"{{"words":"Take main's changes","landing":"goal","merge":"{text}"}}"#);
@@ -99,7 +108,7 @@ fn catch_up(world: &mut World, goal: &engine::Assignment, commit: u64) -> u64 {
     task
 }
 
-fn next_job(world: &mut World, task: u64) -> host::JobAssignment {
+pub(super) fn next_job(world: &mut World, task: u64) -> host::JobAssignment {
     for _ in 0..STEPS {
         if !world.jobs.is_empty() {
             return world.jobs.remove(0);
@@ -109,8 +118,12 @@ fn next_job(world: &mut World, task: u64) -> host::JobAssignment {
     panic!("merge job not assigned: {:?}; errors {:?}", change_row(world, task), world.call_errors)
 }
 
-fn check_job(world: &World, task: u64, job: &host::JobAssignment, branch: &[u8], head: u64, base: u64) {
+pub(super) fn check_job(world: &World, task: u64, job: &host::JobAssignment, branch: &[u8], head: u64, base: u64) {
     assert_eq!(job.kind, JobKind(3));
+    assert_eq!(
+        change_row(world, task).delegate,
+        Some((job.run.raw(), change::Delegate::Merge { base: translate::commit(base), from: None }))
+    );
     assert_eq!(live_task(world, job.run.raw()).requester, tasks::Party::Task(task));
     assert_eq!(change_row(world, task).catch_up, Some(translate::commit(base)));
     assert_eq!(change_row(world, task).base.as_ref(), branch);
@@ -139,7 +152,7 @@ fn check_job(world: &World, task: u64, job: &host::JobAssignment, branch: &[u8],
     assert_eq!(item.push.as_deref(), Some(change_row(world, task).branch.as_ref()));
 }
 
-fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
+pub(super) fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
     let merged = fake::merge_commit(
         &mut world.fake,
         &world.fake_env.limits,
@@ -163,7 +176,7 @@ fn push_merge(world: &mut World, task: u64, head: u64, base: u64) -> u64 {
     merged
 }
 
-fn finish_job(world: &mut World, job: &host::JobAssignment, result: &[u8]) {
+pub(super) fn finish_job(world: &mut World, job: &host::JobAssignment, result: &[u8]) {
     let event = world.protocol.answer_job(
         CHANNEL,
         job.run.raw(),

@@ -691,6 +691,8 @@ pub enum End {
     /// Pre-execution refusal pause using the transient delay policy, without spending a failure
     /// try.
     Refused,
+    /// Pre-execution refusal with a bounded operator reason and no failure try.
+    RefusedWithReason { reason: Box<[u8]> },
     /// Its source or checked placement requires a fresh check; release the run without a try or timer.
     Recheck,
 }

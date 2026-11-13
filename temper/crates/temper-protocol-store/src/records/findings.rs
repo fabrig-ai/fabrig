@@ -2,7 +2,7 @@
 use super::{FITS, w};
 use crate::Undecodable;
 use skein_lib::Wall;
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 fn encode_holder(value: d::Holder) -> w::FindingHolder {
     match value {
         d::Holder::Task(number) => {

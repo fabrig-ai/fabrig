@@ -768,7 +768,7 @@ mod tests {
 fn a_persons_joint_inbox_is_the_components_document_for_the_same_core_state() {
     use crate::harness::Front;
     use jig_client::contract as c;
-    use jig_client_protocol_wire::v20 as w;
+    use jig_client_protocol_wire::v21 as w;
     use skein_lib::Writer;
     let now = Time::ZERO;
     let wall = super::fixture::clock(now);

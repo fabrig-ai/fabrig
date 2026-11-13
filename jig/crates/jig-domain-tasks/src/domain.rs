@@ -856,6 +856,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 | crate::End::Failed(_)
                 | crate::End::FailedWithReason { .. }
                 | crate::End::Refused
+                | crate::End::RefusedWithReason { .. }
                 | crate::End::Recheck => {
                     crate::run::activation(
                         domain,

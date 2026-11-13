@@ -223,7 +223,7 @@ fn a_resolved_charter_of_64_models_fits_run_bytes() {
     let standard = crate::profile(crate::Profile::Standard);
     assert_eq!(standard.core.settings.alternatives, 63);
     assert_eq!(crate::profile(crate::Profile::Small).core.settings.alternatives, 63);
-    assert_eq!(jig_client_protocol_wire::v20::CEILINGS.charter_alternatives, 63);
+    assert_eq!(jig_client_protocol_wire::v21::CEILINGS.charter_alternatives, 63);
     assert!(bytes <= u64::from(standard.core.run_bytes), "64-model resolved policy owns {bytes} bytes");
     assert!(
         bytes > u64::from(crate::profile(crate::Profile::Small).core.run_bytes),

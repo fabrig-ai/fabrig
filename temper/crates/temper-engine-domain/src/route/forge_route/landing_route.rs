@@ -558,6 +558,7 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<supe
         }
     }
     let base = base?;
+    let main = row.landing.branch == repository.settings.default_branch;
     let mut from = base;
     let mut members = List::with_capacity(env.limits.forge.landing_members);
     for (index, member) in row.landing.members.iter().enumerate() {
@@ -570,43 +571,30 @@ fn prepare_request(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<supe
         }
         let change = domain.forge.change(member.change)?;
         let head = member.head?;
-        let mut message = List::with_capacity(env.limits.tasks.spec_bytes);
-        append(&mut message, b"Merge pull request '");
-        append(&mut message, &change.title);
-        append(&mut message, b"' (#");
-        append(&mut message, skein_lib::Decimal::of(member.pull).as_bytes());
-        append(&mut message, b") from ");
-        append(&mut message, &change.branch);
-        append(&mut message, b" into ");
-        append(&mut message, &row.landing.branch);
-        append(&mut message, b"\n\nLanded by landing ");
-        append(&mut message, skein_lib::Decimal::of(task).as_bytes());
-        append(&mut message, b" for change ");
-        append(&mut message, skein_lib::Decimal::of(member.change).as_bytes());
-        append(&mut message, b".");
-        let mut squash = List::with_capacity(env.limits.tasks.spec_bytes);
-        append(&mut squash, &change.title);
-        append(&mut squash, b"\n\nTemper-Change: ");
-        append(&mut squash, skein_lib::Decimal::of(member.change).as_bytes());
-        append(&mut squash, b"\nTemper-Pull: ");
-        append(&mut squash, skein_lib::Decimal::of(member.pull).as_bytes());
-        append(&mut squash, b"\nTemper-Head: ");
-        append(&mut squash, &super::commit_text(&head));
+        let text = forge::member_message::Member {
+            title: &change.title,
+            words: &change.report,
+            change: member.change,
+            pull: member.pull,
+            head,
+            goal: change.goal,
+        };
+        let message = forge::member_message::commit_message(&text, main);
+        let squash = forge::member_message::commit_message(&text, true);
         members
             .push(super::prepare::PrepareMember {
                 number: u64::try_from(index).ok()?.checked_add(1)?,
                 branch: change.branch.clone(),
                 prefix: member.branch.clone(),
                 head,
-                message: message.into_boxed(),
-                squash: squash.into_boxed(),
+                message,
+                squash,
             })
             .ok()?;
     }
     if members.is_empty() {
         return None;
     }
-    let main = row.landing.branch == repository.settings.default_branch;
     let combine = match domain.config.landings.get(&row.landing.project) {
         Some(config) => {
             if main {

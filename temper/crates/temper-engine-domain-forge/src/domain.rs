@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, Env, List, Map, Queue, Set, Token};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_issues as issues;
+pub use temper_engine_domain_forge_vocabulary::domain::*;
 
 use crate::{
     BranchHead, ChangeRow, CiState, Class, Event, Hold, IssueRow, Key, Kinds, Limits, Name, News, PullState,
@@ -14,9 +15,6 @@ use crate::{
     Writer,
 };
 use crate::{adoption, brief, held, topics};
-
-/// The title for an empty explicit pull title (domain/forge/change/README.md, 1).
-pub const DEFAULT_CHANGE_TITLE: &[u8] = b"Update repository";
 
 mod admission;
 mod ci_news;
@@ -1898,6 +1896,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::DelegateResult { task, child, status, no_change, failed, cancelled, words } => {
             delegate_result(d, env, task, child, status, no_change, failed, cancelled, &words, out);
         }
+        Event::DependenciesMet { task } => dependencies_met(d, env, task, out),
         Event::RelayRefused { task, questions, words } => {
             if let Some(row) = d.changes.get_mut(&task) {
                 let before = crate::panel::ready(row);
@@ -3711,6 +3710,32 @@ fn delegate_result(
     }
 }
 
+/// The last done dependency refreshes producing before jig's Met steps it (change/repairs.md).
+fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let Some(row) = d.changes.get_mut(&task) else { return };
+    let owned = row.change.owns_turn;
+    let mut ended = false;
+    if let change::State::Held { was, why: change::Hold::Stalled } = &row.change.state
+        && **was == (change::State::Producing { requested: false })
+    {
+        row.change.state = (**was).clone();
+        row.change.owns_turn = false;
+        ended = true;
+    }
+    if let change::State::Producing { .. } = row.change.state {
+        row.change.since = env.wall;
+        let saved = row.clone();
+        wake_after_turn(d, &saved, owned);
+        save_change(d, out, saved);
+        if ended {
+            emit(
+                out,
+                Request::ChangeDecision { task, decision: change::Decision::EndHold, entry: None, evidence: None },
+            );
+        }
+    }
+}
+
 /// A delegate's cancellation account (temper/docs/design/domain/forge/change/repairs.md).
 fn cancelled_delegate_words(kind: change::Delegate, child: u64, words: &[u8]) -> Option<Box<[u8]>> {
     let name: &[u8] = match kind {
@@ -4811,7 +4836,11 @@ fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
     }
 }
 
-/// Missing bases and uncertain reads are forge waits, bounded by the unchanged step's stall.
+fn waits_for_dependencies(row: &ChangeRow, pending: &PendingStep) -> bool {
+    if let change::State::Producing { .. } = row.change.state { !pending.pending.is_empty() } else { false }
+}
+
+/// Missing bases and uncertain reads count a stall except while producing waits for dependencies.
 fn wait_for_forge(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -4827,13 +4856,16 @@ fn wait_for_forge(
         );
         return;
     }
-    if pending.heard.delegate_live {
+    let dependencies = waits_for_dependencies(&row, pending);
+    if pending.heard.delegate_live || dependencies {
         row.change.since = env.wall;
     }
     let until = skein_lib::Wall::from_nanos(
         row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
     );
-    let decision = if env.wall >= until {
+    let decision = if dependencies {
+        change::Decision::Wait { until: retry }
+    } else if env.wall >= until {
         row.change.owns_turn = false;
         row.change.state = change::State::Held { was: Box::new(row.change.state), why: change::Hold::Stalled };
         change::Decision::Hold(change::Hold::Stalled)
@@ -4869,7 +4901,7 @@ fn titled_change(
         && (producing || row.delegate_status == change::Status::Passed)
         && row.change.state == (change::State::Producing { requested: true })
     {
-        if agent_asking(&row) {
+        if agent_asking(&row) || waits_for_dependencies(&row, pending) {
             row.change.since = env.wall;
             d.changes.insert(task, row.clone()).expect("replaces change");
             save_change(d, out, row);
@@ -8460,25 +8492,6 @@ fn setup_repository(name: &[u8]) -> bool {
     temper_client_protocol_wire::source::repository(name)
 }
 
-/// Pack a repository's complete forge identity (domain/forge/adoption.md).
-#[must_use]
-pub const fn tag(forge: u16, repository: u32) -> u64 {
-    let [forge_high, forge_low] = forge.to_be_bytes();
-    let [one, two, three, four] = repository.to_be_bytes();
-    u64::from_be_bytes([0, 0, forge_high, forge_low, one, two, three, four])
-}
-
-/// Decode a repository tag, rejecting bits outside the forge identity's width.
-#[must_use]
-pub const fn untag(tag: u64) -> Option<(u16, u32)> {
-    let [high, low, forge_high, forge_low, one, two, three, four] = tag.to_be_bytes();
-    if high != 0 || low != 0 {
-        None
-    } else {
-        Some((u16::from_be_bytes([forge_high, forge_low]), u32::from_be_bytes([one, two, three, four])))
-    }
-}
-
 // One rule for a producer's failure and the box pipe closing (domain/forge/adoption.md, 1).
 fn failed_at(held: &crate::Connection, failed: Option<crate::FailedStep>) -> Option<crate::FailedStep> {
     match held {
@@ -8760,28 +8773,6 @@ impl Domain {
         }
         unreachable!("unmade link has a referencing retained row")
     }
-}
-
-pub(crate) fn branch_resource_name(repository: &Repository, branch: &[u8]) -> Option<Box<[Box<[u8]>]>> {
-    let mut segments = List::uncapped();
-    for segment in [b"forge".as_slice(), &repository.host, &repository.owner, &repository.name, b"branch"] {
-        if segment.is_empty() {
-            return None;
-        }
-        segments.push(Box::from(segment)).ok()?;
-    }
-    let mut start = 0;
-    for at in 0..=branch.len() {
-        if at == branch.len() || branch.get(at) == Some(&b'/') {
-            let part = branch.get(start..at)?;
-            if part.is_empty() {
-                return None;
-            }
-            segments.push(Box::from(part)).ok()?;
-            start = at.checked_add(1)?;
-        }
-    }
-    Some(segments.into_boxed())
 }
 
 #[cfg(test)]

@@ -1,0 +1,18 @@
+patch 1
+owner jig 4
+
+family jig-store-people 16 to 17
+add LoginExitExited
+add LoginExitKilled
+add LoginExit
+add AccountChangeLoginProgram
+add AccountChangeCancelLogin
+add AccountChangeLoginEnded
+add AccountChange.login_program
+add AccountChange.cancel_login
+add AccountChange.login_ended
+add Refusal.no_terminal
+add Refusal.login_under_way
+add Refusal.not_lending
+add OutcomeAccountLoginAsked
+add Outcome.account_login_asked

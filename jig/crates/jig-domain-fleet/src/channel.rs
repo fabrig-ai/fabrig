@@ -60,6 +60,8 @@ pub(crate) struct Channel {
     pub(crate) draining: bool,
     /// The shutdown mark: no slot leaving clears it before the channel is lost.
     pub(crate) shutting_down: bool,
+    /// A version refusal keeps placement off until this channel is lost.
+    pub(crate) mismatched: bool,
     /// The attempts it hosts or holds the answers of, each taking a slot.
     pub(crate) hosts: Set<Id<Attempt>>,
     /// The workstreams it holds workspaces for, by when each was last used,
@@ -246,6 +248,7 @@ pub(crate) fn hello(
         slots: slots.min(limits.slots),
         draining: false,
         shutting_down: false,
+        mismatched: false,
         hosts: Set::with_capacity(limits.slots),
         workstreams: Map::with_capacity(limits.workstreams),
         uses: 0,
@@ -330,7 +333,7 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
     crate::sources::lost(&mut entry.sources, channel, out);
     let worker = entry.worker;
     let slots = entry.slots;
-    let draining = entry.draining || entry.shutting_down;
+    let draining = entry.draining || entry.shutting_down || entry.mismatched;
     let hosts = mem::replace(&mut entry.hosts, Set::with_capacity(0));
     let until = env.now.saturating_add(env.limits.grace);
     for &attempt in &hosts {
@@ -347,6 +350,18 @@ pub(crate) fn draining(domain: &mut Domain, channel: Token) {
         return;
     };
     domain.channels.get_mut(id).expect("named channel").shutting_down = true;
+    exclude_waiting(domain, channel);
+}
+
+/// A wire mismatch lasts for this channel, while hosted attempts continue.
+pub(crate) fn mismatch(domain: &mut Domain, channel: Id<Channel>) {
+    let entry = domain.channels.get_mut(channel).expect("named channel");
+    entry.mismatched = true;
+    let token = entry.token;
+    exclude_waiting(domain, token);
+}
+
+fn exclude_waiting(domain: &mut Domain, channel: Token) {
     for (_, &id) in &domain.waiting {
         let entry = domain.attempts.get_mut(id).expect("queued attempt");
         if let Some(placement) = entry.placement
@@ -374,6 +389,7 @@ pub(crate) fn choose(domain: &Domain, workstream: u64, kinds: Kinds, version: cr
         if !channel.sources.clear()
             || channel.draining
             || channel.shutting_down
+            || channel.mismatched
             || free == 0
             || !kinds.allows(channel.kind)
             || !crate::needs::fits(&domain.needs, version, &channel.evidence, channel.kind)
@@ -410,6 +426,7 @@ pub(crate) fn probe(
             || free == 0
             || channel.draining
             || channel.shutting_down
+            || channel.mismatched
             || !kinds.allows(channel.kind)
             || !crate::needs::fits(&domain.needs, version, &channel.evidence, channel.kind)
             || excluded.contains(&channel.token)
@@ -437,6 +454,7 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
         || !kinds.allows(channel.kind)
         || channel.draining
         || channel.shutting_down
+        || channel.mismatched
         || channel.slots <= channel.hosts.len()
     {
         return None;
@@ -450,7 +468,7 @@ pub(crate) fn choose_job(domain: &Domain, workstream: u64, job: jig_domain_link:
     for (_, &id) in &domain.tokens {
         let channel = domain.channels.get(id).expect("connected channel");
         let free = channel.slots.saturating_sub(channel.hosts.len());
-        if free == 0 || channel.draining || channel.shutting_down {
+        if free == 0 || channel.draining || channel.shutting_down || channel.mismatched {
             continue;
         }
         let mut covers = false;

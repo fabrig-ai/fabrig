@@ -29,12 +29,14 @@ const EXCEPTIONS: &[Exception] = &[
         what: "jig-domain-core",
         until: "Core's state grouped into owned parts (jig/docs/development/debt/D003-core-one-object.md), then a split along them",
     },
-    Exception { what: "temper-engine-service", until: "G4" },
     Exception {
         what: "temper-client-domain",
         until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1)",
     },
-    Exception { what: "temper-engine-domain-forge", until: "G5" },
+    Exception {
+        what: "temper-engine-domain-forge",
+        until: "Domain's state grouped into owned parts (temper/docs/development/debt/D013-forge-one-object.md), then a split along them",
+    },
     Exception {
         what: "jig-protocol-store",
         until: "its split, not yet planned (temper/docs/design/draft/crate-graph.md, 5.1); G2 moves only generated record code",

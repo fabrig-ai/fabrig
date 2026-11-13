@@ -1880,3 +1880,25 @@ fn a_first_later_run_changes_provider_and_its_claim_keeps_the_account() {
     );
     assert_eq!(core.tasks.task(TASK).unwrap().kept_account, Some(3));
 }
+
+#[test]
+fn a_version_refusal_pauses_without_closing_the_window_or_counting_a_try() {
+    let (mut core, limits) = ready(false);
+    claim_open(&mut core, &limits, OPEN_ATTEMPT);
+    let before = core.tasks.task(OPEN_TASK).unwrap().tries;
+    core.proofs.get_mut(&OPEN_TASK).unwrap().window =
+        Some(CurrentWindow { attempt: OPEN_ATTEMPT, turn: 1, closed: false });
+    let reason: Box<[u8]> = b"version mismatch: smith-charter 5, the worker reads 4..4".as_slice().into();
+    let mut answer = invalid_start_answer(OPEN_ATTEMPT, &[]);
+    let Event::AnswerPayload { end, .. } = &mut answer else { panic!("answer fixture") };
+    *end = tasks::End::RefusedWithReason { reason: reason.clone() };
+    let _out = step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, answer);
+    let task = core.tasks.task(OPEN_TASK).unwrap();
+    assert_eq!(task.tries, before);
+    assert_eq!(task.retry_notice, Some(tasks::RetryNotice::Refused { count: 1, reason: Some(reason) }));
+    let tasks::Phase::Active(tasks::Active::BackingOff { .. }) = task.phase else { panic!("pause") };
+    assert_eq!(
+        core.proofs.get(&OPEN_TASK).unwrap().window,
+        Some(CurrentWindow { attempt: OPEN_ATTEMPT, turn: 1, closed: false })
+    );
+}

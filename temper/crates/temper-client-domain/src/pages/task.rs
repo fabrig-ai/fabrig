@@ -418,6 +418,10 @@ impl Task {
             | c::ChipExecutor::Role { .. } => None,
         }
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "composer dispatch lists every page act, including Ask how and role talks"
+    )]
     pub(crate) fn act(
         &mut self,
         env: &Env<Limits>,
@@ -486,6 +490,7 @@ impl Task {
             | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Finding(_)
+            | Act::TellWords { .. }
             | Act::Tell { .. }
             | Act::Choice(_)
             | Act::SignOut
@@ -494,6 +499,7 @@ impl Task {
             | Act::AskLine { .. }
             | Act::AskWith { .. }
             | Act::ChatWords { .. }
+            | Act::AskHow
             | Act::StartChat
             | Act::WayTab { .. }
             | Act::WayStop { .. }
@@ -633,6 +639,7 @@ impl Task {
             | Act::StopAsking(_)
             | Act::Needs(_)
             | Act::Finding(_)
+            | Act::TellWords { .. }
             | Act::Tell { .. }
             | Act::Choice(_)
             | Act::SignOut
@@ -641,6 +648,7 @@ impl Task {
             | Act::AskLine { .. }
             | Act::AskWith { .. }
             | Act::ChatWords { .. }
+            | Act::AskHow
             | Act::StartChat
             | Act::WayTab { .. }
             | Act::WayStop { .. }

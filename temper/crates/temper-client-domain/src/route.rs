@@ -14,6 +14,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
     }
     match event {
         Event::Push(report) => pages(root, env, crate::pages::Event::Push(report), out),
+        Event::Lends { terminal } => crate::pages::accounts::terminal_login::offer(root, env, terminal, out),
         Event::AskApproval => crate::asked::ask(root, env, out),
         Event::Launchpad => {
             let mut requests = Queue::uncapped();
@@ -42,6 +43,9 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         }
         Event::Went { place } => went(root, env, place, out),
         Event::Act { action } => match action {
+            Action::LoginEnded { number, exit } => {
+                crate::pages::accounts::terminal_login::ended(root, env, number, exit, out);
+            }
             Action::Approve(act) => crate::approve::act(root, act),
             Action::Copy { words } => root.copy.press(words, out),
             Action::Pages(crate::pages::Act::SignOut) => {
@@ -244,6 +248,7 @@ pub(crate) fn route_forge(
                     | Address::Work { .. }
                     | Address::Goals { .. }
                     | Address::Ask { .. }
+                    | Address::Tell { .. }
                     | Address::Adopt { .. } => continue,
                 };
                 out.push(Request::Show { address, replace: true });
@@ -573,6 +578,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::ConnectModel { .. }
         | Address::Forges
         | Address::ConnectForge { .. }
+        | Address::Tell { .. }
         | Address::Adopt { .. }
         | Address::Repositories { .. }
         | Address::Models { .. }
@@ -670,7 +676,7 @@ pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>
 }
 
 /// A connected host's pending login observation keeps the check out (temper/docs/design/domain/trial.md, 6.1).
-fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
+pub(crate) fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bool {
     if accounts.program_hosts.is_empty() {
         return true;
     }

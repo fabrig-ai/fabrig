@@ -112,8 +112,8 @@ pub enum Event {
     Drained,
     /// The write stream failed while input may continue.
     OutputFailed,
-    /// The one terminal, after lower rights settle.
-    Closed { why: Closed },
+    /// The one terminal, after lower rights settle, with the text sent or heard for a refusal.
+    Closed { why: Closed, text: Box<[u8]> },
 }
 
 // skein/docs/design/runtime/lib.md, 6 and skein/docs/design/net/channel.md, 3 and 5: bodies and credentials print lengths.
@@ -142,7 +142,7 @@ impl core::fmt::Debug for Event {
             Self::Unsent { token, why } => f.debug_struct("Unsent").field("token", token).field("why", why).finish(),
             Self::Drained => f.write_str("Drained"),
             Self::OutputFailed => f.write_str("OutputFailed"),
-            Self::Closed { why } => f.debug_struct("Closed").field("why", why).finish(),
+            Self::Closed { why, text } => f.debug_struct("Closed").field("why", why).field("text", text).finish(),
         }
     }
 }

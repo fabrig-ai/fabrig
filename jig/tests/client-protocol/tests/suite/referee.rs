@@ -1,4 +1,4 @@
-use jig_client_protocol_wire::v20 as wire;
+use jig_client_protocol_wire::v21 as wire;
 use jig_client_protocol_world::referee::{Broken, Rules};
 use skein_lib::{Reader, Token, Writer};
 

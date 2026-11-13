@@ -218,7 +218,7 @@ fn proposal_items(
     let items = match wire::items(wire.into_parts().items, &models(configured), &limits.settings) {
         Ok(items) => items,
         Err(why) => {
-            if why.field == jig_client_protocol_wire::v20::Path::TemplateLlm {
+            if why.field == jig_client_protocol_wire::v21::Path::TemplateLlm {
                 return Err(Problem::Range(b"items.template.llm"));
             }
             return Err(Problem::Range(b"items"));
@@ -571,6 +571,9 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         Refusal::SignInRedirect { .. }
         | Refusal::Stale { .. }
         | Refusal::Full { .. }
+        | Refusal::NoTerminal
+        | Refusal::LoginUnderWay
+        | Refusal::NotLending
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }
         | Refusal::LiveTasks { .. }

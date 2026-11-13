@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_domain_link::Grant;
 use jig_protocol_config::{self as config, Path, Problems, What};
-use jig_protocol_worker_wire::Part;
+use jig_protocol_worker_wire::{Agreed, Part, Spoken};
 use skein_channel::{Lower, LowerEvent};
 use skein_io as io;
 use skein_lib::{List, Map, Queue, Time, Token, stream};
@@ -26,6 +26,8 @@ pub enum Closing {
 /// What the channel hands its root, in the component's order; the owner routes each before the next.
 #[derive(Debug)]
 pub enum Output {
+    Opened { worker: Box<[u8]>, wires: List<Agreed> },
+    Refused { worker: Option<Box<[u8]>>, reason: u16, text: Box<[u8]> },
     Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
     Up { channel: Token, up: hub::LinkUp, parts: Box<[Part]> },
     Lost { channel: Token },
@@ -86,7 +88,7 @@ impl Workers {
         config: &config::Engine,
         files: &config::Files,
         tokens: Tokens,
-        payload: u32,
+        wires: List<Spoken>,
         limits: &Limits,
     ) -> Result<Self, Problems> {
         let mut workers = List::with_capacity(limits.names);
@@ -97,7 +99,7 @@ impl Workers {
             };
             workers.push(Worker { name: worker.name.clone(), digest }).or(Err(invalid(What::Bound)))?;
         }
-        let component = Component::new(limits, workers.into_boxed(), payload).or(Err(invalid(What::Bound)))?;
+        let component = Component::new(limits, workers.into_boxed(), wires).or(Err(invalid(What::Bound)))?;
         let count = u32::try_from(config.hosts.listener.len()).or(Err(invalid(What::Bound)))?;
         if count == 0 || count > config.limits.io.sockets {
             return Err(invalid(What::Bound));
@@ -243,6 +245,27 @@ impl Workers {
                         Lower::FinishWrite => io::Request::Stream { stream: *socket, down: stream::Down::Finish },
                     });
                 }
+            }
+            Request::Opened { worker, wires } => {
+                return Some(Output::Opened {
+                    worker: self
+                        .component
+                        .workers
+                        .get(skein_lib::usize_of(worker))
+                        .expect("configured worker")
+                        .name
+                        .clone(),
+                    wires,
+                });
+            }
+            Request::Refused { worker, reason, text } => {
+                let worker = match worker {
+                    Some(index) => Some(
+                        self.component.workers.get(skein_lib::usize_of(index)).expect("configured worker").name.clone(),
+                    ),
+                    None => None,
+                };
+                return Some(Output::Refused { worker, reason, text });
             }
             Request::Hello { channel, worker, hello } => return Some(Output::Hello { channel, worker, hello }),
             Request::Up { channel, up, parts } => return Some(Output::Up { channel, up, parts }),

@@ -19,6 +19,9 @@ pub enum Accepter {
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    NoTerminal,
+    LoginUnderWay,
+    NotLending,
     /// A revision below the history cutoff (jig/docs/design/domain/engine/settings.md, 10).
     Forgotten {
         oldest: u32,

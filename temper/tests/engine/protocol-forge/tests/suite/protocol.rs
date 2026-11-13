@@ -889,7 +889,7 @@ const PENDING_INSTALLATION_REQUESTS_PER_MINUTE: u64 =
 fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
     use skein_fake_forge_domain::api::Check;
     use skein_lib::Duration;
-    use temper_engine_service::limits::{Profile, profile};
+    use temper_engine_service_vocabulary::limits::{Profile, profile};
     let shipped = profile(Profile::Small).forge;
     let (mut world, pushed, verdict, head) = ci_poll::pending_github_change(1000);
     let deadline =

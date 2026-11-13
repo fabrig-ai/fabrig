@@ -301,6 +301,7 @@ fn the_row_carries_the_latest_fetched_line_until_the_next_step() {
         turns(&mut stand);
         stand.service.engine_component().setup_state(OWNED, Connection::NotSetUp);
         line(&mut stand, b"");
+        while stand.service.notes().pop().is_some() {}
         let bearer = box_sign_in(&mut stand);
         assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
         line(&mut stand, b"step 1 fetch\n");
@@ -353,7 +354,7 @@ fn box_sign_in(stand: &mut fixtures::system::SystemStand) -> Box<[u8]> {
     let body = peer::link_body(engine, &link);
     let mut sign_in = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(engine, true);
-    let jig_client_protocol_wire::v20::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else {
+    let jig_client_protocol_wire::v21::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else {
         panic!("deployment owner signed in")
     };
     peer::bearer(answer.token().as_ref().expect("native credential").expose())
@@ -366,7 +367,7 @@ fn box_setup(
     key: u8,
 ) -> temper_client_protocol_wire::v1::Outcome {
     use fixtures::http as peer;
-    use jig_client_protocol_wire::v20 as j;
+    use jig_client_protocol_wire::v21 as j;
     use skein_lib::{Reader, Writer};
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = stand.service.engine.as_mut().unwrap();

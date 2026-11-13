@@ -2,7 +2,7 @@
 use super::{FITS, names};
 use crate::{Bounds, Undecodable, v18 as w};
 use skein_lib::{Reader, Wall, Writer};
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 mod refusal;
 
 pub(super) fn encode(token: u64, until: Wall, outcome: &d::ApplicationOutcome) -> w::Application {

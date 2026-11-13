@@ -681,7 +681,7 @@ impl Joint {
         let configs = std::array::from_fn(|index| {
             let mut config = walking::config(seed);
             config.core.connectors = Box::new([fixtures::FORGE]);
-            config.core.kinds = temper_engine_service::stock::kinds(&engine_limits, config.core.connectors[0])
+            config.core.kinds = temper_engine_service_stock::stock::kinds(&engine_limits, config.core.connectors[0])
                 .into_vec()
                 .into_iter()
                 .filter(|kind| kind.number == 14 || kind.number == 15)
@@ -734,6 +734,10 @@ impl Joint {
 
     /// Replaces the fixture's client component, ending its setup clients first.
     pub(crate) fn offer_printed_link(&mut self, limits: client::Limits) {
+        self.offer_printed_link_with(limits, &walking::config(self.seed));
+    }
+
+    pub(crate) fn offer_printed_link_with(&mut self, limits: client::Limits, config: &engine::Config) {
         for who in self.transport.clients() {
             if let Some(sign_in) = self.transport.sign_in(who) {
                 self.component.sign_out(who, sign_in);
@@ -742,7 +746,7 @@ impl Joint {
             self.detach(who);
         }
         self.component = crate::component::Composition::with_printed_link(
-            &walking::config(self.seed),
+            config,
             limits.client.domain,
             jig_domain_people::Identity {
                 key: temper_engine_domain_forge::user_key(1, 7_u64),
@@ -1032,7 +1036,9 @@ impl Joint {
     /// The small profile carries a whole turn while an activity page can size it.
     #[must_use]
     pub fn with_large_turns(seed: u64, limits: &client::Limits) -> Self {
-        let profile = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small).root;
+        let profile =
+            temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small)
+                .root;
         Self::with_turn_bytes(seed, limits, profile.journal.transcript_bytes, profile.loads.read_bytes, None)
     }
     /// A committed turn past jig small's cap, with a configured whole-read allowance.
@@ -1417,7 +1423,7 @@ impl Joint {
             limits.brief.budgets.pull = 384;
             limits.brief.budgets.ci = 384;
             if settings {
-                config.core.kinds = temper_engine_service::stock::kinds(&limits, connector);
+                config.core.kinds = temper_engine_service_stock::stock::kinds(&limits, connector);
                 let owner = config.core.owners[0].clone();
                 config.core.owners =
                     Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);

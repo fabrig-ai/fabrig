@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::translate;
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();

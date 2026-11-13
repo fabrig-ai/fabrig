@@ -266,6 +266,10 @@ pub enum Refusal {
     NameTaken,
     /// The deployment does not offer this act.
     NotOffered,
+    /// No terminal is offered for a program login (domain/terminal-login.md, 5).
+    NoTerminal,
+    LoginUnderWay,
+    NotLending,
     /// The program source name remains reserved after its account is forgotten.
     ProgramNameReserved,
     /// The key names another ask.

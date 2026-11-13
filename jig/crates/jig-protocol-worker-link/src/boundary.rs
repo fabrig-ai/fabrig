@@ -34,6 +34,11 @@ pub enum Scheme {
 #[derive(Debug)]
 pub enum Request {
     Ready,
+    /// A peer's refusal, before loss and redial.
+    Refused {
+        reason: u16,
+        text: Box<[u8]>,
+    },
     RelayCancelled {
         run: Token,
         attempt: Token,

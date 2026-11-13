@@ -177,6 +177,7 @@ impl Bindings {
                     ) => PageAct::Choice(temper_client_domain::pages::choice::Act::Find { words: value }),
                     (PageAct::AskLine { .. }, skein_ui::Act::Input { value }) => PageAct::AskLine { words: value },
                     (PageAct::AskLine { words }, skein_ui::Act::Submit) => PageAct::AskWith { words: words.clone() },
+                    (PageAct::TellWords { .. }, skein_ui::Act::Input { value }) => PageAct::TellWords { words: value },
                     (PageAct::ChatWords { .. }, skein_ui::Act::Input { value }) => PageAct::ChatWords { words: value },
                     (PageAct::MessageWords { .. }, skein_ui::Act::Input { value }) => {
                         PageAct::MessageWords { words: value }
@@ -383,9 +384,8 @@ pub(crate) fn switcher(
         let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
         if parts.team {
             let label = words.say(crate::words::Word::TeamFor, &[skein_ui::phrases::Hole::Name(name.clone())]);
-            action(
+            switcher_phone_link(
                 builder,
-                Role::Link,
                 &label,
                 PageAct::Go { address: Address::Team { project, role: None } },
                 if let Address::Team { project: at, .. } = root.pages().address() { *at == project } else { false },
@@ -393,12 +393,9 @@ pub(crate) fn switcher(
             );
         }
         let label = words.say(crate::words::Word::RailHowFor, &[skein_ui::phrases::Hole::Name(name)]);
-        crate::link(builder, &label, bindings.insert(PageAct::Go { address: Address::Settings { project } }));
-        builder.text(Run::Plain, &label);
-        builder.close();
-        action(
+        switcher_phone_link(builder, &label, PageAct::Go { address: Address::Settings { project } }, false, bindings);
+        switcher_phone_link(
             builder,
-            Role::Link,
             &words.say(crate::words::Word::RailDeployment, &[]),
             PageAct::Go { address: Address::Accounts },
             false,
@@ -408,6 +405,15 @@ pub(crate) fn switcher(
         builder.close();
         builder.close();
     }
+}
+fn switcher_phone_link(builder: &mut Builder, label: &[u8], act: PageAct, current: bool, bindings: &mut Bindings) {
+    crate::link(builder, label, bindings.insert(act));
+    builder.style(crate::look::PROJECTS_PHONE);
+    builder.text(Run::Plain, label);
+    if current {
+        builder.state(skein_ui::State::Current);
+    }
+    builder.close();
 }
 fn all_projects(
     b: &mut Builder,
@@ -439,6 +445,7 @@ fn all_projects(
         | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Settings { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
@@ -898,6 +905,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::Repositories { .. }
         | Address::Adopt { .. } => (false, false, false, true),
         Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Team { .. }
         | Address::Accounts
         | Address::Forges
@@ -1010,7 +1018,9 @@ fn needs_link(
     b.close();
 }
 fn ask_current(root: &Domain, project: u32) -> bool {
-    root.pages().address() == &(Address::Ask { project }) || crate::pages::chat::asking(root)
+    root.pages().address() == &(Address::Ask { project })
+        || root.pages().address() == &(Address::Tell { project })
+        || crate::pages::chat::asking(root)
 }
 fn ask_link(
     b: &mut Builder,
@@ -1104,6 +1114,7 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Ask { .. }
+        | Address::Tell { .. }
         | Address::Settings { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
@@ -1233,6 +1244,7 @@ pub(crate) fn toast(
         Toasted::AreasGivenBack { revision } => {
             (w.say(Word::GiveToast, &[skein_ui::phrases::Hole::Number(u64::from(*revision))]), None)
         }
+        Toasted::TellFiled { project, goes } => (crate::pages::tell::filed(root, w, *project, goes.as_ref()), None),
         Toasted::AreasProposed => (w.say(Word::HandProposed, &[]), None),
         Toasted::StopApplied => (w.say(Word::StopAskingApplied, &[]), None),
         Toasted::StopProposed => (w.say(Word::StopAskingProposed, &[]), None),
@@ -1309,7 +1321,8 @@ pub(crate) fn toast(
                 );
             }
         }
-        Toasted::AreaHanded { .. }
+        Toasted::TellFiled { .. }
+        | Toasted::AreaHanded { .. }
         | Toasted::AreasGivenBack { .. }
         | Toasted::AreasProposed
         | Toasted::StopApplied

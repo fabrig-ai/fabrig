@@ -6,6 +6,7 @@ use skein_lib::Queue;
 mod acts;
 pub mod paste;
 pub mod request;
+pub(crate) mod terminal_login;
 pub use paste::{Paste, PasteState};
 mod ways;
 pub use acts::{Act, Broken, Operation, Pending};

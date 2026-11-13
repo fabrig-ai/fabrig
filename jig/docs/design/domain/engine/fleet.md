@@ -63,6 +63,11 @@ The fleet child domain knows the hosts and the runs they host:
   its channel. A
   worker that dials again is a new channel, placed on once its logins
   answer.
+- **A mismatched worker leaves placement too.** A channel that answered
+  an assignment refused for a version (`../../protocol/channel/wires.md`,
+  6) is marked mismatched: until it is lost, the fleet places nothing on
+  it, neither a run nor a job, as on a draining one, while what it hosts
+  goes on. The task refused claims again elsewhere, spending no try.
 - **Relaying:** messages and cancels down, tool calls up and their
   answers back, each call answered once; a call the fleet cannot pass up
   is answered at once, unserved, or busy while the engine stops

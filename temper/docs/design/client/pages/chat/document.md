@@ -16,15 +16,16 @@
   that line.
   - *Offered:* `pages::drafts_offered(root, project)` is that project's kind 7
     `drafts` (`../settings.md`, 2), true in the stock. It gates the Drafts filter, the Chats
-    lede's words, "Start goal…", the rail's "Goal" and "+ Draft" on a chat that is
-    no Ask temper chat. An Ask temper chat offers "+ Draft" whatever `drafts` says:
-    `pages::chat_offers_draft(root, task)`, which the bar and the domain's taking of
-    the act both read, is true on an Ask temper chat and otherwise `drafts_offered`.
+    lede's words, "Start goal…", the rail's "Goal", and the view group and "Write it
+    up from this chat" on a chat that is no Ask temper chat with no document. An Ask
+    temper chat offers a draft whatever `drafts` says:
+    `pages::chat_offers_draft(root, task)`, which the bar, the pane and the domain's taking of
+    the write-up all read, is true on an Ask temper chat and otherwise `drafts_offered`.
   - *A design session* (`../../../domain/agent/agents.md`, 4): a chat whose chip's executor
     is the charter of template 6 as `me` lists it, as an Ask temper chat is
     template 5's (`../home.md`, 1, *To begin*), `pages::chats::drafting(me, project, executor)`.
     It reads as any chat with a document, its bar's modes, its tool lines and
-    "Start goal…" with `../goal.md`, 3's ways, and is offered "+ Draft" as any chat is.
+    "Start goal…" with `../goal.md`, 3's ways, and is offered a draft as any chat is.
     Opened from a list or a link, it opens in Split rather than Chat, its document
     read as any chat's, until the person picks a mode on the page.
   - *Read live, with no new watch:* `Read::Notes { scope: NoteScope::Task {
@@ -37,7 +38,7 @@
     answer replaces the document, and a read refused or empty leaves it as it
     was.
   - *Its mode:* `Mode { Chat, Split, Draft }`, the page's state for that chat, kept
-    while the page is open; a chat opened again starts in Chat, unless `NewChat {
+    while the page is open, with or without a document; a chat opened again starts in Chat, unless `NewChat {
     draft }` opened it in Split or it is a design session (above). Nothing stores it; the terminal's look, which is
     another thing, is kept per browser (`terminal.md`, 1).
   - *The tool line:* a `note` call whose answer parses (`../../../domain/agent/agents.md`,
@@ -49,22 +50,29 @@
     already in Split or Draft, and moves the focus to the section holding that
     call's `first`, which brings it into view and flashes it (`.doc-sec.flash`,
     `@keyframes flash`).
-  - *The bar,* after the number, once a document exists: `.seg`, a group named "The
+  - *The bar* (`README.md`, 1, *A chat's bar*; the look request `chat-bar`,
+    2026-11-12): at its far right, `.seg`, a group named "The
     draft", "Chat", "Split" and "Draft", each its icon (`chat.svg`, `split.svg`,
-    `doc.svg`), the chosen `aria-pressed`. `Ctrl+\`, skein's primary key (⌘ on a Mac), steps through
+    `doc.svg`), the chosen `aria-pressed`, on every chat with a document, and on
+    one with none while `chat_offers_draft` and the chat hasn't ended: where
+    "+ Draft" stood, which no bar draws now. On `NewChat`, while
+    `drafts_offered`, the same group: Chat is `NewChat { draft: false }`, Split
+    and Draft `NewChat { draft: true }` (`README.md`, 2, *With a draft*). `Ask`,
+    before an Ask temper chat's first message, has nothing to write up and
+    draws none. `Ctrl+\`, skein's primary key (⌘ on a Mac), steps through
     those shown, the next mode's button carrying the shortcut. On
-    a phone, Chat and Draft alone; Split left on a wide screen shows as Draft. With
-    no document, while `chat_offers_draft` and the chat hasn't ended: `.btn.small`
-    "+ Draft", which follows the first message: `Ask`, before an Ask temper
-    chat's first message, has nothing to write up and draws none. `.btn.primary.small` "Start goal…" once the document has a section,
+    a phone, Chat and Draft alone; Split left on a wide screen shows as Draft.
+    Before the group, `.btn.primary.small` "Start goal…" once the document has a section,
     on a chat of a project with a home repository with no goal linked; with a
     linked goal, a link `.btn.small` "Goal TITLE →" to `Task { task }`. Not on an
-    Ask temper chat, which has "Start over": it asks "Start over?", "A new
+    Ask temper chat, which has "Start over" in their place, before Pause and
+    Close, on every Ask temper chat that hasn't ended, with or without a
+    document: it asks "Start over?", "A new
     Ask temper chat starts. This one stays in Chats." through `crate::confirm`
     (`../../README.md`, 3.6, *The sheet*), closes the chat with
     the chat's own close, which stays in Chats, Closed, its conversation and
     document kept, and opens `Ask { project }`. The composer's hint gains
-    " · Ctrl+\ switches the draft" while a document shows.
+    " · Ctrl+\ switches the draft" while the group shows.
   - *The layout,* one for both kinds of chat, from `configure-chat-draft`'s rules:
     `temper-mode-chat`, `-split` and `-draft` on the session. Chat: the
     conversation alone. Split: the conversation and the document in two halves, the
@@ -92,12 +100,26 @@
   - *The tint,* `.temper-doc-changed`: the section holding the newest `note` call's
     `first`, or for a first write the first `##` section; under it `.temper-doc-note`
     "Added by T4 3 min ago" or "Changed by T4 just now".
-  - *Empty,* "+ Draft" pressed and nothing written: `.doc-empty` "The draft appears
-    here as you write it together.", the path's left the mock's `untitled.md`, its
-    right "writing".
-  - *"+ Draft" on a chat:* goes to Split with the empty pane, and sends the chat
-    the message "Write this up as a draft beside us." The `.meta-line`, when the
-    thread is empty: "A chat that writes NAME. Say what it should hold."
+  - *Empty,* Split or Draft on a chat with no document: the pane, a region named
+    "Draft"; its path's left, on an Ask temper chat "TN · no draft yet", on another
+    chat the mock's `untitled.md`; its right empty, or "writing" once the write-up
+    is asked; `.temper-doc-empty` "The draft appears here as you write it
+    together."; under it `.temper-doc-acts` with "Write it up from this chat",
+    `.temper-doc-write-up`, while the chat hasn't ended and no write-up is asked.
+    `NewChat { draft: true }` draws the empty pane as before, its path
+    `untitled.md` and "writing", with no button: its first message asks the
+    write-up (`README.md`, 2, *With a draft*).
+  - *"Write it up from this chat"* (the look request `chat-bar`): sends the
+    chat the message "Write this up as a draft beside us.", the person's own,
+    shown in the chat as any other: one act, one request (`../../README.md`,
+    3.6). It is the domain's write-up act, `AddDraft`: the chat is writing,
+    the pane's right says so and the button goes, the mode it was pressed in
+    kept (from Chat, the terminal look's "+ Draft", it goes to Split,
+    `terminal.md`, 1, *The top line*); refused, nothing is writing, the button
+    stays and the composer says why, as for a message. On a chat only this
+    act sends those words: choosing a mode sends nothing. The `.meta-line`,
+    when the thread is empty: "A chat that writes NAME. Say what it should
+    hold."
 - **Starting a goal from a chat's document** (the greenfield mock's `startSheet` and
   `startGoal`): "Start goal…" opens the one sheet to start a goal (`../goal.md`, 3), given
   `docs/design/draft/NAME.md`, the chat and a snapshot of the document's body; its

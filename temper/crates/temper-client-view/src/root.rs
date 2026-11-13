@@ -130,7 +130,16 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
                 &view.forge_sign_in,
             );
         } else {
-            crate::outside::top(&mut builder, root, &view.forge_words, &mut view.pages);
+            let welcome = if let temper_client_domain::Address::Welcome { .. } = root.pages().address() {
+                root.authorization().is_none()
+                    && root.approval().is_none()
+                    && !(crate::sign_in::offered(root, &view.forge_words, &view.sign_in)
+                        && view.sign_in.origin.is_some())
+                    && crate::frame::unavailable(root).is_none()
+            } else {
+                false
+            };
+            crate::outside::top(&mut builder, root, &view.forge_words, &mut view.pages, welcome);
         }
         match root.pages().address() {
             temper_client_domain::Address::Welcome { .. } => {}
@@ -161,6 +170,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Work { .. }
             | temper_client_domain::Address::Goals { .. }
             | temper_client_domain::Address::Ask { .. }
+            | temper_client_domain::Address::Tell { .. }
             | temper_client_domain::Address::Adopt { .. } => {
                 if !reading && !no_project {
                     crate::choice::banner(&mut builder, root, &view.forge_words, &mut view.pages);
@@ -199,6 +209,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Work { .. }
             | temper_client_domain::Address::Goals { .. }
             | temper_client_domain::Address::Ask { .. }
+            | temper_client_domain::Address::Tell { .. }
             | temper_client_domain::Address::Adopt { .. } => {
                 // Outside Chats and NewChat the line shows only while the
                 // playground is leaving; while it runs, the frame's "Set up
@@ -370,6 +381,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             view.text,
             &mut times,
         );
+    } else if let temper_client_domain::Address::Tell { project } = root.pages().address() {
+        crate::pages::tell::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Task { .. } = root.pages().address() {
         view.task_main(&mut builder, root, &mut times);
     } else if let temper_client_domain::Address::ConnectModel { .. } = root.pages().address() {
@@ -494,7 +507,9 @@ pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
         Action::Forge(temper_client_domain::forge::Act::Go {
             address: temper_client_domain::forge::Address::Adopt { project },
         }) => Some(temper_client_domain::address::print(&temper_client_domain::Address::Adopt { project })),
-        Action::Approve(_) | Action::Pages(_) | Action::Forge(_) | Action::Copy { .. } => None,
+        Action::Approve(_) | Action::Pages(_) | Action::Forge(_) | Action::Copy { .. } | Action::LoginEnded { .. } => {
+            None
+        }
     }
 }
 /// A page act carried by the browser shell rather than the domain (client/view.md, 1).

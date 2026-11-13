@@ -114,13 +114,15 @@ fn the_terminal_draws_a_chats_pages_in_the_browser_alone() {
                     assert!(!styled(view.tree(), look::TOP));
                 }
                 assert_eq!(styled(view.tree(), look::TABBAR), shell == Shell::Browser && !terminal, "tabs");
-                assert_eq!(styled(view.tree(), look::TO_TERMINAL), eligible && shell == Shell::Browser && !terminal);
-                if let Some(id) = f::find(view.tree(), Role::Button, b"Terminal, full screen") {
-                    assert!(view.tree().find(id).unwrap().styles.as_slice().contains(&look::TO_TERMINAL));
-                    assert_eq!(
-                        crate::act(&mut view, id, skein_ui::Act::Press),
-                        Some(Action::Pages(Act::Terminal(terminal::Act::Enter)))
-                    );
+                assert!(f::find(view.tree(), Role::Button, b"Terminal, full screen").is_none());
+                if !terminal && address == (Address::Ask { project: f::PROJECT }) {
+                    let right = view
+                        .tree()
+                        .nodes()
+                        .iter()
+                        .find(|node| node.styles.as_slice().contains(&look::SESSION_RIGHT))
+                        .unwrap();
+                    assert_eq!(right.size, 1, "Ask's bar has no right-side content");
                 }
                 if terminal && address == (Address::NewChat { draft: true }) {
                     let id = f::find(view.tree(), Role::Button, b"Draft").unwrap();
@@ -216,15 +218,8 @@ fn the_terminal_says_where_it_is_and_what_runs() {
             .tree()
             .nodes()
             .iter()
-            .find(|n| {
-                n.role == Role::Status
-                    && n.styles.as_slice().iter().any(|s| {
-                        [look::STATUS_QUIET, look::STATUS_ACTIVE, look::STATUS_WAITING, look::STATUS_YOURS].contains(s)
-                    })
-            })
-            .unwrap()
-            .name
-            .clone();
+            .find(|n| n.styles.as_slice().contains(&look::STATUS_LINE))
+            .and_then(|node| node.name.clone());
         act(&mut root, Act::Terminal(terminal::Act::Enter));
         let mut view = view(&root, Shell::Browser);
         let tree = view.tree();
@@ -310,7 +305,7 @@ fn a_writing_run_says_working_before_the_first_answer() {
     watch_delivery(&mut root, run_watch, c::Delivery::RunState(Box::new(run.clone())));
     assert!(root.pages().chat().unwrap().thread.lines().is_empty());
     let browser = view(&root, Shell::Browser);
-    assert!(f::find(browser.tree(), Role::Status, b"Writing").is_some(), "the chat bar keeps Writing");
+    assert!(f::find(browser.tree(), Role::Status, b"Working").is_some(), "the status line says Working");
     act(&mut root, Act::Terminal(terminal::Act::Enter));
     assert_working_line(&root, Some(b"Working"));
     run.writing = Some(reply_text(b"Hello"));

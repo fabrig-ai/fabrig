@@ -184,8 +184,15 @@ pub fn versions() -> String {
     ] {
         writeln!(text, "family {family} {version}").expect("writing into a string");
     }
-    for wire in temper_engine_service::store::WIRES {
-        writeln!(text, "wire {} {}", wire.name, wire.version).expect("writing into a string");
+    for wire in &temper_engine_service::wires() {
+        writeln!(text, "wire {} {} {}", wire.name, wire.lowest, wire.highest()).expect("writing into a string");
+        for version in wire.lowest..=wire.highest() {
+            write!(text, "layout {} {version} ", wire.name).expect("writing into a string");
+            for byte in wire.layout(version).expect("every version has a layout") {
+                write!(text, "{byte:02x}").expect("writing into a string");
+            }
+            text.push('\n');
+        }
     }
     text
 }
@@ -200,6 +207,34 @@ fn recording(arguments: &[Box<[u8]>]) -> Option<bool> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn versions_print_each_wire_range_then_its_layout() {
+        let text = super::versions();
+        eprintln!("{text}");
+        let mut lines = text.lines().skip_while(|line| !line.starts_with("wire "));
+        let wires = temper_engine_service::wires();
+        assert_eq!(wires.len(), 6);
+        for (wire, name) in wires.iter().zip([
+            "jig-worker-wire",
+            "smith-channel",
+            "smith-charter",
+            "smith-transcript",
+            "temper-worker-wire",
+            "temper-host-tools",
+        ]) {
+            assert_eq!(wire.name, name);
+            assert_eq!(wire.lowest, wire.highest(), "each build's floor is its current version");
+            let version = wire.highest();
+            assert_eq!(lines.next(), Some(format!("wire {name} {version} {version}").as_str()));
+            let layout = lines.next().expect("one layout follows each current wire");
+            let fingerprint =
+                layout.strip_prefix(&format!("layout {name} {version} ")).expect("layout name and version");
+            assert_eq!(fingerprint.len(), 64);
+            assert!(fingerprint.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+        }
+        assert_eq!(lines.next(), None);
+    }
+
     #[test]
     fn engine_serve_accepts_record_once_only() {
         for (words, expected) in [

@@ -30,6 +30,8 @@ struct Pipes {
     now: Time,
     windows: usize,
     writes: Vec<usize>,
+    reads: usize,
+    quiet_leave: bool,
 }
 fn settings(most: Size) -> Settings {
     Settings { interval: INTERVAL, depth: Depth::True, most, paste: READ, background: None }
@@ -53,7 +55,19 @@ fn start_settings(buffer: u32, settings: Settings, window: bool, first: Time) ->
     }
     let mut terminal = Terminal::new(settings, SIZE).expect("settings fit");
     terminal.adopt(input, output).expect("terminal adopts once");
-    let mut p = Pipes { sim, pid, input, output, signal, terminal, now: Time::ZERO, windows: 0, writes: Vec::new() };
+    let mut p = Pipes {
+        sim,
+        pid,
+        input,
+        output,
+        signal,
+        terminal,
+        now: Time::ZERO,
+        windows: 0,
+        writes: Vec::new(),
+        reads: 0,
+        quiet_leave: false,
+    };
     p.drive(first);
     p
 }
@@ -62,11 +76,15 @@ impl Pipes {
         for s in self.terminal.submissions().iter() {
             assert!(Terminal::owns(s.op), "terminal submissions carry its namespace");
             match &s.kind {
+                Op::PipeRead { .. } => self.reads += 1,
                 Op::Window { fd } => {
                     assert_eq!(*fd, self.input);
                     self.windows += 1;
                 }
                 Op::PipeWrite { bytes, .. } => {
+                    if self.quiet_leave && bytes.as_ref() == LEAVE {
+                        assert_eq!(self.sim.in_flight(self.pid), 0, "LEAVE follows the settled input read");
+                    }
                     assert!(bytes.len() <= usize::try_from(OUTPUT).expect("room fits"));
                     self.writes.push(bytes.len());
                 }
@@ -438,4 +456,129 @@ fn operations_and_construction_refuse_invalid_settings() {
         assert_eq!(Terminal::operations(&settings), count, "{settings:?}");
         assert_eq!(Terminal::new(settings, size).is_some(), accepted, "{settings:?} {size:?}");
     }
+}
+
+#[test]
+fn lending_finishes_the_frame_withdraws_read_and_resumes_whole() {
+    let large = large_frame();
+    let mut expected = List::with_capacity(draw_bound(LARGE).expect("bound fits"));
+    draw(None, &large, Depth::True, &mut expected);
+    let mut p =
+        start_settings(OUTPUT / 2, Settings { background: Some(INTERVAL), ..settings(LARGE) }, true, Time::ZERO);
+    assert_eq!(p.collect(), [ENTER, ASK_BACKGROUND].concat());
+    p.feed(b"\x1b]11;rgb:12/34/56\x07");
+    let background = p.terminal.background();
+    p.terminal.draw(&large);
+    p.drive(Time::ZERO);
+    assert!(p.sim.in_flight(p.pid) > 0, "the frame is still being written");
+    p.quiet_leave = true;
+    p.terminal.lend();
+    assert!(!p.terminal.lent(), "the frame and LEAVE have not finished");
+    p.terminal.draw(&frame(LARGE, SIZE, 'B'));
+    assert_eq!(p.collect(), [expected.as_slice(), LEAVE].concat());
+    assert!(p.terminal.lent());
+    assert_eq!(p.sim.in_flight(p.pid), 0, "no input read is outstanding");
+    p.quiet_leave = false;
+    let reads = p.reads;
+    let writes = p.writes.len();
+    p.terminal.lend();
+    p.terminal.resized();
+    p.terminal.draw(&frame(LARGE, SIZE, 'B'));
+    let mut newest = large_frame();
+    assert!(newest.put(Position { row: 0, column: 0 }, Cell { glyph: 'C', paint: Paint::NONE }));
+    p.terminal.draw(&newest);
+    p.drive(SECOND);
+    assert_eq!((p.reads, p.writes.len()), (reads, writes), "lent neither reads nor writes");
+    assert!(!p.terminal.work_pending(SECOND));
+    assert_eq!(p.terminal.next_deadline(), None);
+    p.sim.set_window(p.pid, p.input, skein_io::kernel::Size { rows: 12, columns: 34 });
+    p.terminal.resume();
+    assert!(!p.terminal.lent());
+    p.drive(SECOND);
+    expected.clear();
+    draw(None, &newest, Depth::True, &mut expected);
+    assert!(p.collect() == [ENTER, expected.as_slice()].concat(), "no background query, newest frame whole");
+    assert_eq!(p.windows, 1);
+    assert_eq!(p.terminal.size(), Size { rows: 12, columns: 34 });
+    assert_eq!(p.terminal.background(), background);
+    assert!(p.reads > reads, "reading restarts");
+    p.feed(b"q");
+    assert_eq!(p.terminal.keys().pop(), Some(Key::Char('q')));
+    p.finish();
+}
+
+#[test]
+fn a_read_that_wins_lending_is_decoded_and_its_keys_wait() {
+    for already_completed in [false, true] {
+        let mut p = start(OUTPUT, SIZE);
+        p.drain();
+        if already_completed {
+            assert_eq!(p.sim.peer_feed(p.pid, p.input, b"a"), 1);
+        }
+        p.terminal.lend();
+        if !already_completed {
+            // The cancellation has been asked for, but not submitted yet.
+            p.terminal.iterate(Time::ZERO);
+            assert_eq!(p.sim.peer_feed(p.pid, p.input, b"a"), 1);
+        }
+        p.drive(Time::ZERO);
+        assert_eq!(p.collect(), LEAVE);
+        assert!(p.terminal.lent());
+        assert_eq!(p.sim.in_flight(p.pid), 0);
+        p.terminal.resume();
+        p.drive(SECOND);
+        assert_eq!(p.terminal.keys().pop(), Some(Key::Char('a')));
+        assert_eq!(p.terminal.keys().pop(), None);
+        p.finish();
+    }
+}
+
+#[test]
+fn lending_and_resuming_are_inert_outside_their_live_phases() {
+    let mut p = start(OUTPUT, SIZE);
+    p.drain();
+    p.terminal.resume();
+    p.drive(SECOND);
+    assert!(p.drain().is_empty(), "resume while open is inert");
+    assert_eq!(p.windows, 0);
+    p.terminal.lend();
+    p.terminal.resume();
+    assert_eq!(p.collect(), LEAVE, "resume while lending is inert");
+    assert!(p.terminal.lent());
+    p.terminal.close();
+    assert!(p.terminal.closed(), "closing while lent is immediate");
+    p.terminal.resume();
+    p.terminal.lend();
+    assert!(!p.terminal.lent());
+    assert!(p.collect().is_empty(), "close while lent adds no output");
+    p.finish();
+
+    let mut closing = start(1, SIZE);
+    closing.terminal.close();
+    closing.terminal.lend();
+    closing.terminal.resume();
+    assert_eq!(closing.collect(), [ENTER, LEAVE].concat());
+    assert!(closing.terminal.closed());
+    assert!(!closing.terminal.lent());
+    closing.terminal.lend();
+    closing.terminal.resume();
+    assert_eq!(closing.collect(), Vec::<u8>::new());
+    closing.finish();
+
+    // A window that answers Gone cannot supply the whole-frame flag for resume.
+    let mut gone = start_with_window(OUTPUT, SIZE, false);
+    let a = frame(SIZE, SIZE, 'A');
+    gone.terminal.draw(&a);
+    gone.drive(Time::ZERO);
+    gone.drain();
+    for _ in 0..2 {
+        gone.terminal.lend();
+        assert_eq!(gone.collect(), LEAVE);
+        assert!(gone.terminal.lent());
+        gone.terminal.draw(&a);
+        gone.terminal.resume();
+        gone.drive(SECOND);
+        assert_eq!(gone.drain(), [ENTER, WHOLE_A].concat(), "resume draws even an unchanged frame whole");
+    }
+    gone.finish();
 }

@@ -512,6 +512,7 @@
   | The Ask temper line | always, on a wide page, To begin gone |
   | Needs you's list | an open card waits; else its Done |
   | Needs you's Only you | the inbox has answered, and an item shows (`needs-you.md`, 1, **Only you**) |
+  | Needs you's Tell temper | on a wide page, Needs you's filter names a project and that project's `findings` document is read (`needs-you.md`, 1, **Tell temper**) |
 
   A part whose rule holds is drawn with what it holds, and none is drawn
   empty. Every open card is drawn exactly once on Needs you, and on Home
@@ -519,8 +520,8 @@
   follows its own facts, never the project's settings: an approval asked
   while the project's way had the person review stays open until it is
   done, whatever the way becomes. Home's owners' lines join this table
-  with the reads that give them (`../../draft/standing-roles.md`), as does Tell
-  temper (`../../draft/surfaces.md`, section 9). An Only you item is no
+  with the reads that give them (`../../draft/standing-roles.md`). Tell
+  temper is no card either: it counts nowhere a card does. An Only you item is no
   card: it is counted nowhere a card is. A need's why is its card's own
   line (`needs-you.md`, 1, *Why it reached you*), no part of the page's.
 - **Decided for you** (`../../draft/what-reaches-you.md`, section 6;

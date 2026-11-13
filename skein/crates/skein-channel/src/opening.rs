@@ -1,7 +1,35 @@
 //! Opening policy that is mechanical rather than the owner's decision
 //! (net/channel.md, sections 5.1–5.3). The machine checks magic, range, phase
 //! and terms; its owner alone judges credentials and acceptable limits.
-use skein_lib::List;
+use alloc::boxed::Box;
+use skein_lib::{Decimal, List, Writer};
+
+/// Version refusal, with this side's range before the peer's (net/channel.md, 5.2).
+pub(super) fn version_words(ours: (u16, u16), offered: (u16, u16)) -> Box<[u8]> {
+    let low = Decimal::of(u64::from(ours.0));
+    let high = Decimal::of(u64::from(ours.1));
+    let peer_low = Decimal::of(u64::from(offered.0));
+    let peer_high = Decimal::of(u64::from(offered.1));
+    let parts: [&[u8]; 8] = [
+        b"speaks ",
+        low.as_bytes(),
+        b"..",
+        high.as_bytes(),
+        b", offered ",
+        peer_low.as_bytes(),
+        b"..",
+        peer_high.as_bytes(),
+    ];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("four u16 ranges fit");
+    }
+    let mut out = Writer::new(length);
+    for part in parts {
+        out.put(part).expect("measured version refusal");
+    }
+    out.finish()
+}
 
 use super::{Direction, Limits, Role, Schema, Term};
 

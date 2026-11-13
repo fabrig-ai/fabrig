@@ -949,5 +949,7 @@ fn the_prepare_jobs_conflict_result_ends_the_round_and_asks_for_resolution() {
     assert!(!world.writes.iter().any(|write| matches!(write, api::Write::Merge { .. } | api::Write::Update { .. })));
 }
 
+#[path = "landing_messages.rs"]
+mod messages;
 #[path = "landing_news.rs"]
 mod news;

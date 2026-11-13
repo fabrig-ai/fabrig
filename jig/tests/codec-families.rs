@@ -31,8 +31,8 @@ pub const FAMILIES: &[Family] = &[
         name: "client",
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
-        schemas: &["schema/client-v20.schema", "schema/client-v20-part1.schema"],
-        generated: &["src/generated/v20.rs"],
+        schemas: &["schema/client-v21.schema", "schema/client-v21-part1.schema"],
+        generated: &["src/generated/v21.rs"],
         golden: "golden",
         fixtures: &["task_hold_placed_full.bin", "task_hold_placed_smallest.bin", "public"],
     },
@@ -85,8 +85,8 @@ pub const FAMILIES: &[Family] = &[
         name: "tasks",
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-tasks",
-        schemas: &["schema/tasks-v11.schema"],
-        generated: &["src/generated/tasks_v11.rs"],
+        schemas: &["schema/tasks-v12.schema"],
+        generated: &["src/generated/tasks_v12.rs"],
         golden: "golden/tasks",
         fixtures: &[],
     },
@@ -94,8 +94,8 @@ pub const FAMILIES: &[Family] = &[
         name: "people",
         root: "crates/jig-protocol-store",
         codec_root: "crates/jig-protocol-store-people",
-        schemas: &["schema/people-v16.schema"],
-        generated: &["src/generated/people_v16.rs"],
+        schemas: &["schema/people-v17.schema"],
+        generated: &["src/generated/people_v17.rs"],
         golden: "golden/people",
         fixtures: &[],
     },
@@ -148,8 +148,8 @@ pub const FAMILIES: &[Family] = &[
         name: "worker wire",
         root: "crates/jig-protocol-worker-wire",
         codec_root: "crates/jig-protocol-worker-wire",
-        schemas: &["schema/worker-wire-v9.schema"],
-        generated: &["src/generated/v9.rs"],
+        schemas: &["schema/worker-wire-v11.schema"],
+        generated: &["src/generated/v11.rs"],
         golden: "golden",
         fixtures: &[],
     },
@@ -237,6 +237,12 @@ pub fn check() {
             assert_eq!(entries(&tree.join(root).join("golden")), goldens, "store golden directories");
         }
     }
+    // Patch 1 keeps its v16 executor decoder after the live people family moves.
+    let kept_people = tree.join("crates/jig-protocol-store-people/src/generated");
+    inventories
+        .get_mut(&kept_people)
+        .expect("the live people codec has an inventory")
+        .insert(kept_people.join("people_v16.rs"));
     for (directory, expected) in inventories {
         assert_eq!(entries(&directory), expected, "{}: generated inventory", directory.display());
     }

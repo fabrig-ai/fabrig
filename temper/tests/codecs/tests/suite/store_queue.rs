@@ -2,7 +2,7 @@
 use crate::fixture;
 use skein_forge::api::{Answer, Repository, Write};
 use skein_forge_client::{Condition, Effect, Entry, Outcome};
-use temper_engine_domain_forge::{CallPayload, NamedCall, Stored};
+use temper_engine_domain_forge_vocabulary::{CallPayload, NamedCall, Stored};
 use temper_protocol_store::{STORE_VERSION, records};
 
 fn entry(queued: bool) -> Stored {
@@ -69,7 +69,7 @@ fn queued_effect_outcomes_and_merge_answers_round_trip_durably() {
 
 #[test]
 fn not_installed_call_and_application_reasons_round_trip_distinctly_at_v18() {
-    use temper_engine_domain_forge::{AdoptionRefusal, ApplicationOutcome};
+    use temper_engine_domain_forge_vocabulary::{AdoptionRefusal, ApplicationOutcome};
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");
     for value in [

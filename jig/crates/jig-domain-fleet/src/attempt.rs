@@ -720,6 +720,9 @@ pub(crate) fn answer(
         out.push(Request::Drop { payload });
         return;
     };
+    if answer == Answer::Version {
+        channel::mismatch(domain, from);
+    }
     let names = Names { run, attempt };
     let Some(&id) = domain.names.get(&(run, attempt)) else {
         // Acknowledged already, its acknowledgement lost with a channel; or
@@ -743,7 +746,7 @@ pub(crate) fn answer(
                 resent(payload, &mut domain.facts, out);
                 State::Adopted { to, until }
             }
-            Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid => {
+            Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid | Answer::Version => {
                 handed(to, answer, payload, on, names, &mut domain.facts, out)
             }
         },
@@ -753,7 +756,7 @@ pub(crate) fn answer(
                 let serial = next_serial(&mut domain.serial);
                 State::Waiting { claiming, serial }
             }
-            Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid => {
+            Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid | Answer::Version => {
                 handed(claiming.to, answer, payload, on, names, &mut domain.facts, out)
             }
         },
@@ -762,7 +765,7 @@ pub(crate) fn answer(
                 refused(payload, &mut domain.facts, out);
                 withdrawn(to, Withdrawal::Cancelled, names, out)
             }
-            Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid => {
+            Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid | Answer::Version => {
                 handed(to, answer, payload, on, names, &mut domain.facts, out)
             }
         },
@@ -793,7 +796,7 @@ pub(crate) fn answer(
     match answer {
         // After the attempt has left its slot, which would lift the busy mark.
         Answer::Busy => channel::drain(domain, from),
-        Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid => {}
+        Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid | Answer::Version => {}
     }
 }
 
@@ -1142,7 +1145,7 @@ fn handed(
     facts.push(Fact::Answered { answer });
     out.push(Request::Answered { to, run: names.run, attempt: names.attempt, answer, payload });
     match answer {
-        Answer::Invalid => State::Closed,
+        Answer::Invalid | Answer::Version => State::Closed,
         Answer::Ended | Answer::Parked | Answer::Failed { .. } => State::Handed { at },
         Answer::Busy => unreachable!("a busy refusal is placed again, not handed on"),
     }

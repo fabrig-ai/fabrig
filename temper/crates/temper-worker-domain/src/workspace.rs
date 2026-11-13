@@ -796,7 +796,7 @@ mod tests {
     fn a_workspace_keeps_two_forges_repositories_with_one_id() {
         let limits = fixtures::limits();
         let mut domain = Domain::new(&limits, Box::new([]));
-        let tags = [temper_engine_domain_forge::tag(1, 1), temper_engine_domain_forge::tag(3, 1)];
+        let tags = [temper_engine_domain_forge_vocabulary::tag(1, 1), temper_engine_domain_forge_vocabulary::tag(3, 1)];
         let mut items = fixtures::items(&[b"playground", b"work"]);
         for (repository, tag) in items.repositories.iter_mut().zip(tags) {
             repository.tag = tag;

@@ -77,7 +77,7 @@ fn chat_limits() -> d::Limits {
     limits.client.domain.turn_text = 2048;
     limits
 }
-fn chat_event(root: &mut Domain, event: Event) -> Queue<d::Request> {
+pub(super) fn chat_event(root: &mut Domain, event: Event) -> Queue<d::Request> {
     let mut out = Queue::uncapped();
     d::step(root, &Env { now: Time::ZERO, wall: f::NOW, limits: chat_limits() }, event, &mut out);
     out
@@ -643,6 +643,13 @@ pub(super) fn reply_root(case: &str) -> Domain {
         rows.push(said).unwrap();
     }
     let mut task = task();
+    if case == "writing draft" {
+        task.acts = List::from_boxed(Box::new([c::Offered {
+            act: c::ActKind::Message,
+            admission: c::Admission::Allowed,
+            effect: None,
+        }]));
+    }
     task.chip.title = c::DocumentText::complete(text(b"Move the cluster"));
     task.spec.specification.words = c::DocumentText::complete(text(b"Plan the cluster's move."));
     root(&Input {
@@ -1234,7 +1241,16 @@ fn pane_states() {
         ("writing half", false, true, Mode::Split, 80, Some(Mode::Split), Some(Mode::Draft)),
         ("writing all", false, true, Mode::Draft, 80, Some(Mode::Draft), Some(Mode::Chat)),
     ] {
+        let mut task = task();
+        if writing {
+            task.acts = List::from_boxed(Box::new([c::Offered {
+                act: c::ActKind::Message,
+                admission: c::Admission::Allowed,
+                effect: None,
+            }]));
+        }
         let mut root = root(&Input {
+            task: Some(Box::new(task)),
             draft,
             asking: writing,
             body: Some(BODY),

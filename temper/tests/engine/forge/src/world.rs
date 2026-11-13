@@ -1299,7 +1299,7 @@ impl World {
             let squash = squash && !brings;
             let message = if squash {
                 format!(
-                    "candidate\n\nTemper-Head: {}",
+                    "candidate\n\nHead: {}",
                     String::from_utf8(top::commit_text(&translate::commit(head)).into_vec()).expect("hex")
                 )
             } else {

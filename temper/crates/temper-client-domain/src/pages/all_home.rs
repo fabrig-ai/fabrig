@@ -323,6 +323,7 @@ fn reads(root: &Domain) -> Option<&AllHome> {
         | crate::Address::Models { .. }
         | crate::Address::Builders { .. }
         | crate::Address::Goals { .. }
+        | crate::Address::Tell { .. }
         | crate::Address::Adopt { .. } => None,
     }
 }

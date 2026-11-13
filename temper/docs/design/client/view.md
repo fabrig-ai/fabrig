@@ -35,10 +35,13 @@
     prints it (`line.md`, 4); the browser shows the region only while it says
     "Offline", so no "Signed out", "Connecting" or "Live" shows there.
     Until `me` is read, the top bar shows its mark alone, so that no
-    other frame shows before the first page. On `Welcome`, temper box's
-    line and the welcome's steps follow the mark once the deployment's
-    read answers; its right is as on every other page, before that read
-    too (`pages/welcome.md`, 1);
+    other frame shows before the first page. On `Welcome`, every step of
+    it, the welcome's steps follow the mark once the deployment's read
+    answers, and its right is the link region alone, before that read
+    too: no person's name, no "Sign out" and no sign-out alert, and the
+    browser draws the right only while it says "Offline" (the look request
+    `welcome-top`, 2026-11-12). temper box's line is the Welcome step's,
+    under its cards (`pages/welcome.md`, 1);
   - *while `me` is read,* the top bar alone, at every address but the
     sign-in page, the `Authorize` and approval places and the pages not
     about the work (below), which draw without `me`: no banner, an empty
@@ -395,8 +398,15 @@ lists them.
 chevron, its menu a panel under it: "All projects", while the rail's parts
 show it (*All projects,* below); each project, the open one first
 and pressed, then, after a hairline, "Rename PROJECT" where the
-rename is offered, the form "New project", "How work runs for PROJECT",
-to the open project's `Settings`, and "Deployment", to `Accounts`. Each project's row says, in small
+rename is offered, the form "New project", and, on a phone alone (760
+pixels and under), "Team for PROJECT" where Team shows (`pages/team.md`, 1),
+"How work runs for PROJECT", to the open project's `Settings`, and
+"Deployment", to `Accounts`. On a wider page the menu ends at "New
+project", since the rail draws all three ("Team" and "How work runs" in
+its navigation, "Deployment" at its foot; the look request
+`switcher-links`, 2026-11-12): the three stay in the tree, which the
+terminal prints, and the browser hides them by a look token of the
+view's on each, from 761 pixels. Each project's row says, in small
 type at its right, what it holds, from the `forges` watch's rows
 (`forge/records.md`), the playground's project from the playground's read (`forge/family.md`, 7): its
 one repository, "work/hello"; with several, its home then how many

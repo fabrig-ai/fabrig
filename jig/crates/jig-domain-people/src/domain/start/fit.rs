@@ -299,6 +299,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::AccountFinishing { .. }
         | Outcome::AccountMovedIn { .. }
         | Outcome::AccountReading { .. }
+        | Outcome::AccountLoginAsked { .. }
         | Outcome::AccountChanged
         | Outcome::SignedOut
         | Outcome::Again(_) => Ok(()),
@@ -315,6 +316,9 @@ fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
         | Refusal::SignInRedirect { .. }
         | Refusal::Forgotten { .. }
         | Refusal::Stale { .. }
+        | Refusal::NoTerminal
+        | Refusal::LoginUnderWay
+        | Refusal::NotLending
         | Refusal::NameTaken
         | Refusal::AccountMove { .. }
         | Refusal::Dependency { .. }
@@ -340,7 +344,7 @@ fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
 
 fn account_change(key: &Key, limits: &Limits, change: &crate::AccountChange) -> Result<(), RestoreCause> {
     match change {
-        crate::AccountChange::DeclareProgram { name, .. } => {
+        crate::AccountChange::DeclareProgram { name, .. } | crate::AccountChange::LoginProgram { name, .. } => {
             within(key, RestoreBound::ProgramNameBytes, name.len(), 32)
         }
         crate::AccountChange::SetUses { uses: Some(uses), .. } => {
@@ -351,6 +355,8 @@ fn account_change(key: &Key, limits: &Limits, change: &crate::AccountChange) -> 
         }
         crate::AccountChange::SetUses { uses: None, .. }
         | crate::AccountChange::ReadLists { .. }
+        | crate::AccountChange::CancelLogin { .. }
+        | crate::AccountChange::LoginEnded { .. }
         | crate::AccountChange::CheckProgram { .. }
         | crate::AccountChange::AddKey { .. }
         | crate::AccountChange::ReplaceKey { .. }

@@ -18,5 +18,6 @@ pub enum Note {
     WorkerJob { run: u64, attempt: u64, kind: u32, verb: Box<[u8]>, ending: crate::WorkerJobEnding, why: Box<[u8]> },
     Linked { worker: Box<[u8]>, address: Box<core::net::SocketAddr> },
     Lost { worker: Box<[u8]>, address: Box<core::net::SocketAddr>, why: crate::WorkerLoss },
+    OpeningRefused { reason: u16, text: Box<[u8]> },
     Refused { worker: Box<[u8]>, address: Box<core::net::SocketAddr>, reason: crate::Refusal },
 }

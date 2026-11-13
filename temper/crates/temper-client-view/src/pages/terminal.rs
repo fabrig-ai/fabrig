@@ -97,7 +97,7 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
                 Address::NewChat { .. } => Act::Go { address: Address::NewChat { draft: true } },
                 Address::Chat { .. }
                 | Address::Talk { .. }
-                | Address::Ask { .. }
+                | Address::Ask { .. } | Address::Tell { .. }
                 | Address::AllHome
                 | Address::Inbox { .. }
                 | Address::Chats { .. }
@@ -213,16 +213,6 @@ pub(crate) fn notes(b: &mut Builder, root: &Domain, _w: &Words) {
 }
 pub(crate) fn prompt(b: &mut Builder, w: &Words) {
     text(b, &say(w, T::Prompt), look::TERMINAL_STAR);
-}
-pub(crate) fn enter(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
-    if w.shell != Shell::Browser {
-        return;
-    }
-    b.open(Role::Button);
-    b.style(look::TO_TERMINAL);
-    b.name(&say(w, T::Enter));
-    b.bind(bindings.insert(Act::Terminal(terminal::Act::Enter)));
-    b.close();
 }
 pub(crate) fn chat_running(b: &mut Builder, root: &Domain, w: &Words) {
     running(b, crate::shared::running(root, w).as_deref());

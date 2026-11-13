@@ -250,7 +250,7 @@ impl Front<Ops> for Scripted {
                     client,
                     Event::Client {
                         event: jig_client::Event::Up {
-                            up: jig_client::Up::Served { served: self.engine.versions().contains(20), versions: None },
+                            up: jig_client::Up::Served { served: self.engine.versions().contains(21), versions: None },
                         },
                     },
                 )
@@ -475,6 +475,7 @@ fn run_position(subject: &jig_client_domain::contract::Subject) -> SubjectRun {
         | jig_client_domain::contract::Subject::Tasks { .. }
         | jig_client_domain::contract::Subject::Settings
         | jig_client_domain::contract::Subject::Deployment
+        | jig_client_domain::contract::Subject::Terminal { .. }
         | jig_client_domain::contract::Subject::Accounts => unreachable!("only run watches continue"),
     }
 }

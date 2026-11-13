@@ -72,6 +72,16 @@ fn every_class_the_stylesheet_selects_is_a_look_name() {
     assert!(!classes.is_empty(), "stylesheet selects look classes");
 }
 #[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary tests read the browser stylesheet as text")]
+fn the_switchers_phone_links_hide_only_on_wide_pages() {
+    assert_eq!(NAMES.style(PROJECTS_PHONE), Some(b"temper-projects-phone".as_slice()));
+    let css = include_str!("../../../temper-client-shell-web/temper.css");
+    assert!(css.contains(
+        "@media (min-width: 761px) {\n  #app > .temper-rail .temper-projects-acts > .temper-projects-phone { display: none; }\n}"
+    ));
+}
+
+#[test]
 fn model_line_styles_name_the_reason_and_acts() {
     for (style, name) in [
         (WELCOME_STATUS_WHY, b"temper-welcome-status-why".as_slice()),
@@ -211,7 +221,7 @@ const RAIL_NAMES: [(skein_ui::Style, &[u8]); 12] = [
 #[test]
 #[expect(clippy::too_many_lines, reason = "the table checks the closed vocabulary of view tokens")]
 fn each_style_or_region_is_named_under_temper() {
-    let named: [(skein_ui::Style, &[u8]); 110] = [
+    let named: [(skein_ui::Style, &[u8]); 109] = [
         (MODE_CHAT, b"temper-mode-chat"),
         (MODE_SPLIT, b"temper-mode-split"),
         (MODE_DRAFT, b"temper-mode-draft"),
@@ -223,7 +233,6 @@ fn each_style_or_region_is_named_under_temper() {
         (DOC_NOTE, b"temper-doc-note"),
         (DOC_FLASH, b"temper-doc-flash"),
         (DOC_EMPTY, b"temper-doc-empty"),
-        (ADD_DRAFT, b"temper-add-draft"),
         (DOC_MUTED, b"temper-doc-muted"),
         (SEG, b"temper-seg"),
         (SEG_SPLIT, b"temper-seg-split"),

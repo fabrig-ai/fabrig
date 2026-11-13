@@ -875,7 +875,9 @@ impl World {
                 let mut bound = protocol::merge_bound();
                 bound.spec = bound.spec.min(limits.tasks.spec_bytes);
                 bound.result = bound.result.min(limits.tasks.result_bytes);
-                config.core.jobs = Box::new([bound]);
+                let mut jobs = config.core.jobs.to_vec();
+                jobs.push(bound);
+                config.core.jobs = jobs.into_boxed_slice();
             }
             if merge_authority {
                 let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
@@ -911,7 +913,7 @@ impl World {
             }
             if standing_roles {
                 let model = walking::charter().policy.model;
-                let defaults = temper_engine_service::stock::with_models(
+                let defaults = temper_engine_service_stock::stock::with_models(
                     Box::new([jig_domain_core::settings::CatalogueModel {
                         number: 1,
                         model,
@@ -997,7 +999,7 @@ impl World {
                 limits.people.amendment_bytes = 2048;
             }
             if kinds && index == 1 {
-                config.core.kinds = temper_engine_service::stock::kinds(&limits, config.core.connectors[0]);
+                config.core.kinds = temper_engine_service_stock::stock::kinds(&limits, config.core.connectors[0]);
             }
             (config, limits)
         })
@@ -1339,7 +1341,7 @@ impl World {
             owner.identity = identity.clone();
         }
         self.restart_config.core.kinds =
-            temper_engine_service::stock::kinds(&self.env.limits, self.restart_config.core.connectors[0]);
+            temper_engine_service_stock::stock::kinds(&self.env.limits, self.restart_config.core.connectors[0]);
         let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
         bootstrap.core.kinds = Box::new([]);
         self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
@@ -1536,7 +1538,20 @@ impl World {
             let saved = &row.landing.members[position];
             let head = fake::commit_count(&saved.head.expect("member head")).expect("fake head");
             let files = forge_world::landings::stack_files(&self.fake, base, head, self.fake_env.limits.limits.commits);
-            let squash = request["combine"] == "squash";
+            let brings = row.landing.round.upstream.is_some_and(|upstream| {
+                let text = forge_top::commit_text(&upstream);
+                assert_eq!(request["train_upstream"], core::str::from_utf8(&text).expect("upstream text"));
+                let upstream = fake::commit_count(&upstream).expect("fake upstream");
+                let raw::Answer::Commits { commits } = self.external_at(
+                    if item.provider.repository == 2 { b"org/repo" } else { b"org/lib" },
+                    1,
+                    raw::Op::Read(raw::Read::Commits { before: base, after: upstream }),
+                ) else {
+                    panic!("upstream commits")
+                };
+                commits.iter().any(|commit| self.fake.is_ancestor(commit.id, head))
+            });
+            let squash = request["combine"] == "squash" && !brings;
             let message = member[if squash { "squash" } else { "message" }].as_str().expect("member message");
             let candidate = fake::commit_tree(
                 &mut self.fake,
@@ -3385,7 +3400,7 @@ pub fn failed_ci_with_delayed_brief() -> (World, u64, u64) {
 #[must_use]
 pub fn box_limits() -> engine::Limits {
     let (jig, temper) = box_profiles();
-    temper_engine_service::limits::engine(&jig, &temper).expect("coherent box limits")
+    temper_engine_service_vocabulary::limits::engine(&jig, &temper).expect("coherent box limits")
 }
 
 /// The store join allowance from the same init template projection as `box_limits`.
@@ -3394,14 +3409,16 @@ pub fn box_joins() -> u32 {
     box_profiles().0.store.joins
 }
 
-fn box_profiles() -> (jig_protocol_config::Limits, temper_engine_service::limits::Limits) {
+fn box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabulary::limits::Limits) {
     // A story reads the same template for its defaults, root limits and store joins.
-    static PROFILES: std::sync::OnceLock<(jig_protocol_config::Limits, temper_engine_service::limits::Limits)> =
-        std::sync::OnceLock::new();
+    static PROFILES: std::sync::OnceLock<(
+        jig_protocol_config::Limits,
+        temper_engine_service_vocabulary::limits::Limits,
+    )> = std::sync::OnceLock::new();
     *PROFILES.get_or_init(read_box_profiles)
 }
 
-fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service::limits::Limits) {
+fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabulary::limits::Limits) {
     use jig_protocol_config as config;
     let document = config::document(
         include_bytes!("../../../../crates/temper-init/template/temper.json"),
@@ -3421,13 +3438,14 @@ fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service::l
     let at = limits.member(&document, b"overrides").expect("application overrides");
     let mut overrides = config::read::Object::new(&document, at).expect("application overrides object");
     let end = config::read::after(&document, at).expect("application overrides end");
-    let mut temper = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Standard);
+    let mut temper =
+        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Standard);
     for index in at..end {
         let token = document.token(index).expect("application override token");
         let Some(name) = document.text(token) else { continue };
         let Some(value_at) = overrides.member(&document, name) else { continue };
         let value = config::read::integer(&document, value_at, u64::MAX).expect("numeric application override");
-        temper_engine_service::limits::apply(&mut temper, name, value)
+        temper_engine_service_vocabulary::limits::apply(&mut temper, name, value)
             .unwrap_or_else(|what| panic!("init application override {}: {what:?}", String::from_utf8_lossy(name)));
     }
     (parsed.limits, temper)

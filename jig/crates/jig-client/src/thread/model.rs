@@ -269,6 +269,7 @@ fn number(value: &DocumentOutcome, task: u64, place: u32) -> Option<u64> {
         | DocumentOutcome::Withdrawn { .. }
         | DocumentOutcome::RolesSet { .. }
         | DocumentOutcome::PolicyChanged { .. }
+        | DocumentOutcome::AccountLoginAsked { .. }
         | DocumentOutcome::AccountProgramDeclared { .. }
         | DocumentOutcome::AccountKeyKept { .. }
         | DocumentOutcome::AccountFinishing { .. }

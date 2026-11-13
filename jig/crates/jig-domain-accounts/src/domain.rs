@@ -147,6 +147,7 @@ pub struct Domain {
     pub(crate) sources: Map<u32, Source>,
     pub(crate) issued: Map<u32, crate::programs::Issued>,
     pub(crate) programs: Map<u32, crate::programs::Pending>,
+    pub(crate) lending: crate::lending::Lending,
     /// The number the counter gives next: accounts and sources alike, never twice.
     pub(crate) next: u32,
     /// The counter's number the store keeps; the start saves the counter when it has moved.
@@ -243,6 +244,7 @@ impl Domain {
             sources: Map::with_capacity(sources),
             issued: Map::with_capacity(limits.program_names),
             programs: Map::with_capacity(limits.program_names),
+            lending: crate::lending::Lending::new(),
             next: 0,
             kept: 0,
             providers,

@@ -7,7 +7,7 @@ use super::{
 };
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
-use temper_engine_domain_forge::{JudgeFreshness, settings::Held};
+use temper_engine_domain_forge_vocabulary::{JudgeFreshness, settings::Held};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PathRules {

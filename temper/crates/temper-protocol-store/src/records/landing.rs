@@ -2,9 +2,9 @@
 use super::{FITS, names, w};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
-use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_landing as d;
+use temper_engine_domain_forge_vocabulary as top;
 
 fn encode_place(phase: &d::Phase) -> w::LandingPlace {
     match phase {

@@ -167,12 +167,15 @@ own, never a change's:
   own: made by the goal's closer (2) where the goal is ended by one,
   and otherwise by the goal on its held branch (`change/README.md`, 1); and deleted as the
   goal closes once that change has landed it (`branches.md`); otherwise
-  kept as the goal closes. A goal its closer ends makes no catch-ups:
-  its landing takes the base at the front of the base's queue, as any
-  change does (`change/README.md`, 2), and a conflict goes to the merge job and a
-  resolution (`change/repairs.md`). A goal with no closer may still take the base's
-  landings that touch its area by catch-ups (`README.md`, section 6), which it makes
-  as it hears them (`README.md`, 5.3). A project's rule may require or forbid it.
+  kept as the goal closes. A goal takes the base only by a catch-up
+  (`README.md`, section 6) for one of its changes that needs what the
+  base gained since its branch was made, never to stay current
+  (`../../draft/squash-in.md`, 4): its landing takes the base at the
+  front of the base's queue, as any change does (`change/README.md`,
+  2), and a conflict goes to the merge job and a resolution
+  (`change/repairs.md`). A landing into the base that touches its open
+  work reaches it as news (`README.md`, 5.3), for it to judge whether a
+  change needs it. A project's rule may require or forbid a catch-up.
 
 ## 2. A goal's closer
 
@@ -385,8 +388,8 @@ section 6).
   step again, and a landing whose result is in while the goal's branch
   has moved past what it landed makes the land step again; then it
   reports.
-- **Never a catch-up:** the closer makes none, and nor does a goal it
-  ends (1).
+- **Never a catch-up:** the closer makes none; a goal it ends makes
+  one only for a change that needs it (1).
 - **Whether the base holds the goal's tip** is read afresh before a land
   step is made and before the closer reports: the goal branch's tip, or
   the merge a squash landing recorded for it, against the base's tip,

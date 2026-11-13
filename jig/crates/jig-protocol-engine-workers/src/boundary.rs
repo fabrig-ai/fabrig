@@ -5,7 +5,7 @@ use jig_domain_link::SourceName;
 use jig_protocol_worker_wire::Part;
 use skein_channel::{Lower, LowerEvent};
 use skein_io::digest::Digest;
-use skein_lib::{Secret, Token};
+use skein_lib::{List, Secret, Token};
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Worker {
     pub name: Box<[u8]>,
@@ -81,6 +81,17 @@ pub enum Bound {
     Channel(skein_channel::Unsent),
 }
 pub enum Request {
+    /// Opening accepted, with the agreed wire versions in statement order.
+    Opened {
+        worker: u32,
+        wires: List<jig_protocol_worker_wire::Agreed>,
+    },
+    /// A refusal sent at the opening, before a hello reaches the domain.
+    Refused {
+        worker: Option<u32>,
+        reason: u16,
+        text: Box<[u8]>,
+    },
     /// Once for each record the component did not send.
     Unsent {
         worker: u32,
@@ -171,6 +182,10 @@ impl core::fmt::Debug for Request {
                 .field("channel", channel)
                 .field("unsent", unsent)
                 .finish(),
+            Self::Opened { worker, wires } => f.debug_tuple("Opened").field(worker).field(wires).finish(),
+            Self::Refused { worker, reason, text } => {
+                f.debug_tuple("Refused").field(worker).field(reason).field(text).finish()
+            }
             Self::Closed => f.write_str("Closed"),
         }
     }

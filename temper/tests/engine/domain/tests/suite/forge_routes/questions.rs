@@ -120,9 +120,9 @@ pub(super) fn make_change(
 
 pub(super) fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
     for _ in 0..TICKS {
-        if let Some(run) =
-            world.assigned.iter().rev().find(|run| live_task(world, run.task).requester == tasks::Party::Task(change))
-        {
+        if let Some(run) = world.assigned.iter().rev().find(|run| {
+            world.root.tasks().task(run.task).is_some_and(|task| task.requester == tasks::Party::Task(change))
+        }) {
             return run.clone();
         }
         world.tick();

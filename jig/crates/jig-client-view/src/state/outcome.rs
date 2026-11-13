@@ -41,6 +41,7 @@ pub(crate) fn route(outcome: &Outcome) -> Route {
             | DocumentOutcome::Amended { .. }
             | DocumentOutcome::RolesSet { .. }
             | DocumentOutcome::PolicyChanged { .. }
+            | DocumentOutcome::AccountLoginAsked { .. }
             | DocumentOutcome::AccountProgramDeclared { .. }
             | DocumentOutcome::AccountKeyKept { .. }
             | DocumentOutcome::AccountFinishing { .. }

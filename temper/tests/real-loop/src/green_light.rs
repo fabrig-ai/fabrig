@@ -336,7 +336,7 @@ fn check_review(ran: &Ran) {
     assert!(heard_tool(reviewed, "fn write_csv"), "the reviewer read the produced source: {}", told(reviewed));
     assert!(!told(reviewed).contains("Error:"), "the source review succeeds");
     let brief = String::from_utf8_lossy(&reviewed.system);
-    assert!(brief.contains(include_str!("../../../crates/temper-engine-service/src/stock/review.txt")));
+    assert!(brief.contains(include_str!("../../../crates/temper-engine-service-stock/src/stock/review.txt")));
     let pull_at = brief.find("## Pull request").expect("review's pull section");
     let opened = ran
         .forge()

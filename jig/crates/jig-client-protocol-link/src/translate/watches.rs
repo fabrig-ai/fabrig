@@ -4,7 +4,7 @@ use crate::{Limits, Undecodable};
 use alloc::boxed::Box;
 use jig_client_domain::Watchable;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::{VERSION, v20 as w};
+use jig_client_protocol_wire::{VERSION, v21 as w};
 use skein_lib::{List, Reader, Writer, length::len_u64};
 
 pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::Problem> {
@@ -39,6 +39,9 @@ pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::
         }
         c::Subject::Deployment => w::Subject::Deployment,
         c::Subject::Accounts => w::Subject::Accounts,
+        c::Subject::Terminal { terminal } => {
+            w::Subject::Terminal(w::SubjectTerminal::new(limits, w::SubjectTerminalParts { terminal: *terminal })?)
+        }
     })
 }
 pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
@@ -90,6 +93,12 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
         Err(problem) => return Err(super::classify(problem)),
     };
     Ok(match value {
+        w::DeliveryValue::Terminal(value) => {
+            c::Delivery::Terminal(Box::new(match documents::terminal(value, limits) {
+                Ok(value) => value,
+                Err(problem) => return Err(super::classify(problem)),
+            }))
+        }
         w::DeliveryValue::Project(value) => c::Delivery::Project(Box::new(documents::project(value, limits)?)),
         w::DeliveryValue::Accounts(value) => {
             c::Delivery::Accounts(Box::new(match documents::accounts(value, limits) {

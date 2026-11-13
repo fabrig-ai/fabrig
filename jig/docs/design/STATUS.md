@@ -55,7 +55,7 @@ next start (`domain/engine/README.md`, `domain/connectors.md`). A run's fresh se
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks/proposals.md`;
 `domain/engine/settings.md`, 6). Derived run-wait refusals carry admitted hosts'
-bound shortfalls and required/offered figures through the v20 client
+bound shortfalls and required/offered figures through the v21 client
 wire, including a standing hello's figures and every charter-bound
 shortfall's charter (`domain/engine/fleet.md`;
 `client/domain/contract/documents.md`, 1; `protocol/client/wire.md`, section 1).
@@ -174,6 +174,9 @@ live names and another holder's reservation answer name taken
 section 3). Finer reasons for key and sign-in acts' not-offered answers
 remain deferred in those documents' open questions.
 
+A program's login in a lent terminal, its contract and the engine's
+offers, asks and ends, is being built (`domain/terminal-login.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`domain/README.md`](domain/README.status.md)
@@ -188,6 +191,7 @@ Design documents:
 - [`domain/testing.md`](domain/testing.status.md)
 - [`domain/accounts.md`](domain/accounts.status.md)
 - [`domain/providers.md`](domain/providers.status.md)
+- [`domain/terminal-login.md`](domain/terminal-login.status.md)
 - [`client/domain/README.md`](client/domain/README.status.md)
 - [`client/domain/client/README.md`](client/domain/client/README.status.md)
 - [`client/domain/contract/README.md`](client/domain/contract/README.status.md)
@@ -200,6 +204,7 @@ Design documents:
 - [`protocol/README.md`](protocol/README.status.md)
 - [`protocol/service.md`](protocol/service.status.md)
 - [`protocol/channel/README.md`](protocol/channel/README.status.md)
+- [`protocol/channel/wires.md`](protocol/channel/wires.status.md)
 - [`protocol/llm.md`](protocol/llm.status.md)
 - [`protocol/configuration.md`](protocol/configuration.status.md)
 - [`protocol/client/README.md`](protocol/client/README.status.md)

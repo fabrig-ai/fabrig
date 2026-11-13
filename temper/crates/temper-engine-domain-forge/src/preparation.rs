@@ -4,13 +4,7 @@ use skein_json::{Kind, document::Document};
 use skein_lib::List;
 use temper_engine_domain_forge_landing::Outcome;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Prepared {
-    /// Position in the landing, counted from zero.
-    pub member: u16,
-    pub outcome: Outcome,
-    pub files: Box<[u8]>,
-}
+pub use temper_engine_domain_forge_vocabulary::preparation::Prepared;
 
 #[must_use]
 pub fn outcomes(bytes: &[u8], members: u32) -> Option<Box<[Prepared]>> {

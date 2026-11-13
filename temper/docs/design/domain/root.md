@@ -52,6 +52,7 @@ and the agent agent/README.md. What is still open is listed in section 12.
 temper-engine-domain                       the root: the journal, routing, translation, putting outputs together
 ├── jig-domain-core                        jig's core and its children (jig's domain/engine/README.md, section 3)
 ├── temper-engine-domain-forge             the forge connector's top (forge/README.md, section 3)
+│   ├── temper-engine-domain-forge-vocabulary  what crosses the top's edge (forge/README.md, section 3)
 │   ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
 │   ├── temper-engine-domain-forge-change  the change procedure and the landing queues
 │   ├── temper-engine-domain-forge-landing the landing by turn (landing.md)

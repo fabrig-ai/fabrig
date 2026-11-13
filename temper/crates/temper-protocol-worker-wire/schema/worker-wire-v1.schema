@@ -1,4 +1,4 @@
-family temper-worker-wire 4
+family temper-worker-wire 5
 
 # Down: the workspace items (protocol/channel.md, 4). Names, branches and
 # the save branch take Bounds.name_bytes; the remote Bounds.remote_bytes;
@@ -12,7 +12,7 @@ record Writable { push: bytes 1024 expected: option fixed 32 landing: option byt
 record Prefixes { branches: list 5 bytes 1024 }
 enum Access { writable: Writable, read_only, prefixes: Prefixes }
 record Repository { tag: u64 name: bytes 1024 remote: bytes 1024 git: option bytes 4096 start: Start access: Access identity: u32 account: option u64 save: option bytes 1024 }
-record Items { repositories: list 64 Repository }
+versioned record Items { repositories: list 64 Repository }
 
 # A job's command path and bounded request file (temper/docs/design/protocol/tooling.md, 2 and 6).
 record JobSpec { command: bytes 4096 request: bytes 1048576 }

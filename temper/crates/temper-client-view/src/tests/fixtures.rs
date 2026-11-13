@@ -499,7 +499,7 @@ pub(super) fn root_at_with_classes(
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Work { .. }
         | temper_client_domain::Address::Goals { .. }
-        | temper_client_domain::Address::Ask { .. }
+        | temper_client_domain::Address::Ask { .. } | temper_client_domain::Address::Tell { .. }
         | temper_client_domain::Address::Adopt { .. }
         | temper_client_domain::Address::Chat { .. }
         | temper_client_domain::Address::Talk { .. }
@@ -807,6 +807,9 @@ fn empty_session(root: &mut temper_client_domain::Domain, read: Token, watch: To
                         readiness_cut: false,
                         program_hosts: List::with_capacity(0),
                         signing: List::with_capacity(0),
+                        lendable: false,
+                        lending: None,
+                        lent_end: None,
                         last_end: None,
                         usable: false,
                         settled: true,
@@ -1963,6 +1966,9 @@ fn playground_accounts(model: bool) -> c::Accounts {
         readiness_cut: false,
         accounts: rows,
         signing: List::with_capacity(0),
+        lendable: false,
+        lending: None,
+        lent_end: None,
         last_end: None,
         usable: true,
         settled: true,

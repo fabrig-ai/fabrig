@@ -25,9 +25,15 @@ const QUESTIONS: u32 = 3;
 
 #[expect(clippy::too_many_lines, reason = "one delivery loop serves Team's people and role-card reads")]
 pub(super) fn world(name: &str) -> Domain {
-    let role = name == "team-role";
+    let tell = name == "tell-area" || name == "tell-page";
+    let role = name == "team-role" || tell;
     let alone = name == "team-alone" || role;
-    let me = super::base_frame("Reader", "shop");
+    let mut me = super::base_frame("Reader", "shop");
+    if tell {
+        let member = me.projects.get_mut(0).expect("project");
+        let chat = member.templates.get(0).expect("chat").clone();
+        member.templates = List::from_boxed(Box::new([chat.clone(), super::asking_template(&chat)]));
+    }
     let reader = me.party.number;
     let (mut root, mut out) = started(Address::Team { project: PROJECT, role: if role { Some(52) } else { None } });
     while let Some(request) = out.pop() {
@@ -394,7 +400,7 @@ fn approvals(alone: bool) -> w::Approvals {
 }
 
 const NOW: &[u8] = b"- Finding 91, from the fuzz tier at 01:50: a commit is lost when a witness rejoins during a view change. Reproduced with seed 4417 in a deterministic test, tests/sim/rejoin.c.\n- The fix is the protocol core's: count a rejoining witness only once it holds the log suffix. Asked you; I start the change at your answer.\n- Triaged three findings this week: two to you, one kept, a flaky replica timeout, repaired and landed.\n- Next: the fuzz tier's next run, then my weekly report on Monday.";
-fn prover(reader: u64) -> c::Task {
+pub(super) fn prover(reader: u64) -> c::Task {
     let mut task = super::base_task(52, "Prover");
     task.project = PROJECT;
     task.label = 3;

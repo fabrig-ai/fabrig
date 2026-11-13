@@ -617,6 +617,8 @@ pub enum Request {
 /// ): what the fleet acts on. The rest is the payload's.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
+    /// Refused for a wire version: hand on, forget, and exclude this channel from placement.
+    Version,
     /// It ended with its outcome.
     Ended,
     /// It parked.
