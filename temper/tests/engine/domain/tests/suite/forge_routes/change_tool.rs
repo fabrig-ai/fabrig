@@ -967,7 +967,8 @@ fn a_chat_reads_the_job_attempt_printed_by_its_checks() {
 }
 
 fn pull_request_ci_world() -> World {
-    let small = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
+    let small =
+        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
     let mut world = World::configured_limits(
         true,
         true,
@@ -1123,7 +1124,7 @@ fn a_decoded_job_zero_read_reaches_the_fake_and_is_answered() {
         matches!(answer, engine::CallAnswer::ForgeRead(result) if result.as_ref() == &Err(skein_forge::api::Error::MissingJob))
     );
     assert_eq!(world.protocol.read_jobs.get(&name), Some(&pin));
-    let event = temper_engine_service::render_for_task(
+    let event = temper_engine_service_vocabulary::tools::render_for_task(
         to,
         answer,
         b"read_job",
@@ -1166,7 +1167,8 @@ fn a_chats_two_kib_change_lands_with_its_words_whole_in_the_producers_brief() {
     const WORD_BYTES: usize = 2048;
     let mut words = vec![b'x'; WORD_BYTES];
     words[..b"Export CSV\n".len()].copy_from_slice(b"Export CSV\n");
-    let small = temper_engine_service::limits::profile(temper_engine_service::limits::Profile::Small);
+    let small =
+        temper_engine_service_vocabulary::limits::profile(temper_engine_service_vocabulary::limits::Profile::Small);
     let mut world = World::configured_limits(
         true,
         true,

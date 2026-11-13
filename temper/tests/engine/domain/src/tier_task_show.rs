@@ -244,9 +244,9 @@ fn panel(world: &mut World, watch: skein_lib::Token, record: &client::Family) ->
         world.tick();
         if let Some(index) = world.panels.iter().position(|(token, _)| *token == engine_watch) {
             let panel = world.panels.remove(index).1;
-            let bytes = temper_engine_service::family::panel(
+            let bytes = temper_engine_service_vocabulary::family::panel(
                 panel,
-                &temper_engine_service::forges::Forges::with_capacity(0),
+                &temper_engine_service_vocabulary::forges::Forges::with_capacity(0),
                 &wire::v1::CEILINGS,
             )
             .expect("panel fits");
