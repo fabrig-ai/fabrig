@@ -10,6 +10,9 @@
   (`temper-worker-domain-tooling`). 2: the project's `prepare_timeout`
   bounds no command: a command's time is its job's deadline. 6:
   `conflict_files` is no limit, on `files`, `settled` or `left`.
+- **Not yet:** 4.1: the reference's merge job settles no known reds: it
+  leaves a conflicted `.temper/known-reds.md` to the resolution
+  (`tools/merge/merge.py`) [in flight: change 2437].
 - **Departs:** 2: every command's `PATH` is `/usr/local/bin:/usr/bin:/bin`, and 6:
   `tooling_file_bytes` and `tooling_log_bytes` are 1 MiB and 64 KiB, the
   small profile's constants with no override
