@@ -654,14 +654,14 @@ pub(crate) fn delegate_call(
         return;
     }
     if let Err(part) = domain.core.delegate_preflight(&env.limits.tasks, key, &batch, env.wall) {
-        domain.work.push(Work::Core(core::Event::NamedAnswer { to, key, part }));
+        domain.work.push(Work::Core(core::Event::NamedAnswer { to, key, part: *part }));
         return;
     }
     if !validated {
         let (project, ids) = match domain.core.delegate_inputs(&env.limits.tasks, key, &batch) {
             Ok(value) => value,
             Err(part) => {
-                domain.work.push(Work::Core(core::Event::NamedAnswer { to, key, part }));
+                domain.work.push(Work::Core(core::Event::NamedAnswer { to, key, part: *part }));
                 return;
             }
         };

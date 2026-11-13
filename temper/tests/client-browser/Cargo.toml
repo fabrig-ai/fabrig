@@ -28,9 +28,6 @@ skein-scratch.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-ui.workspace = true
-# A normal dependency, so that scripts/bundle.sh can build it: cargo 1.95
-# panics on `cargo build -p` of a dev-only package.
-skein-ui-bundle.workspace = true
 serde_json.workspace = true
 skein-tls-kit.workspace = true
 jig-channel-kit.workspace = true
