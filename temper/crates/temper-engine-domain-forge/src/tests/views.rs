@@ -126,6 +126,13 @@ fn row(task: u64, phase: policy::Phase) -> LandingRow {
             stale_proofs: 2,
             branch: Box::from(b"main".as_slice()),
             members: Box::new([policy::Member {
+                unit: 0,
+                branch: Box::from(b"temper/1/l61".as_slice()),
+                combined: None,
+                recorded: false,
+                told: false,
+                judging: false,
+                leave_told: false,
                 left: None,
                 change: fixtures::CHANGE,
                 repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },

@@ -797,6 +797,9 @@ fn fresh(gates: &[policy::Gate]) -> policy::MemberFacts {
             .expect("bounded gates");
     }
     policy::MemberFacts {
+        outcome: None,
+        dependencies: Box::new([]),
+        deleted: policy::Status::Unknown,
         ready: false,
         cancelled: false,
         head: [0; 32],
@@ -1804,6 +1807,10 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             }
         }
         fact.preparation = p.heard.preparation;
+        fact.deleted = result(d, p.task, position, 0, 8);
+        if p.heard.preparation == policy::Preparation::Conflict {
+            fact.outcome = Some(policy::Outcome::Conflict);
+        }
         fact.record = if member.landed.is_some() && fact.merged == member.landed {
             policy::Status::Passed
         } else {
@@ -1868,7 +1875,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         opened: p.opened,
         opening: result(d, p.task, 0, 0, 6),
         closed: result(d, p.task, 0, 0, 7),
-        deleted: result(d, p.task, 0, 0, 8),
+        preparation: p.heard.preparation,
     };
     let project = match d.landing.projects.get(&row.landing.project) {
         Some((_, _, _, _, _, settings)) => *settings,
@@ -1949,7 +1956,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     match decision {
         policy::Decision::Open
         | policy::Decision::Close
-        | policy::Decision::Delete
+        | policy::Decision::Delete { .. }
         | policy::Decision::Record { .. } => {
             let member = row.landing.members.first().expect("one member");
             if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
@@ -1992,11 +1999,14 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                     api::Write::Close { number: row.landing.round.pull.expect("round pull") },
                     skein_forge_client::Condition::None,
                 ),
-                policy::Decision::Delete => (
-                    Operation::Delete,
-                    api::Write::DeleteBranch { branch: row.landing.round.branch.clone() },
-                    skein_forge_client::Condition::None,
-                ),
+                policy::Decision::Delete { member: number } => {
+                    assert_eq!(number, 0, "the top executes one-member landings");
+                    (
+                        Operation::Delete,
+                        api::Write::DeleteBranch { branch: member.branch.clone() },
+                        skein_forge_client::Condition::None,
+                    )
+                }
                 policy::Decision::Record { prefix, .. } => (
                     Operation::Record,
                     api::Write::Merge {
@@ -2091,7 +2101,11 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 policy::Leave::Cancelled
                 | policy::Leave::Held
                 | policy::Leave::HeadMoved { .. }
-                | policy::Leave::Refused { .. } => None,
+                | policy::Leave::Refused { .. }
+                | policy::Leave::EarlierConflict
+                | policy::Leave::Unit { .. }
+                | policy::Leave::Dependency { .. }
+                | policy::Leave::Fallback { .. } => None,
             };
             *row.asks.get_mut(usize::from(member)).expect("ask") = ask;
             emit(out, Request::WakeProcedure { task: m.change });
@@ -2305,7 +2319,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         | policy::Decision::Open
         | policy::Decision::Record { .. }
         | policy::Decision::Close
-        | policy::Decision::Delete
+        | policy::Decision::Delete { .. }
         | policy::Decision::Resolve { .. }
         | policy::Decision::Judge { .. } => {
             if row.landing.phase == policy::Phase::Proving && prior.landing.phase != policy::Phase::Proving {
@@ -2905,7 +2919,7 @@ pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
         }
     }
     for member in &row.landing.members {
-        bytes = bytes.checked_add(
+        bytes = bytes.checked_add(skein_lib::len_u64(member.branch.len()))?.checked_add(
             skein_lib::len_u64(member.gates.len()).checked_mul(u64::try_from(size_of::<policy::GateProof>()).ok()?)?,
         )?;
     }
@@ -3226,6 +3240,22 @@ impl Domain {
         let m = row.landing.members.get(usize::from(member))?;
         Some(match m.left? {
             policy::Leave::Conflict => concat(&[b"conflict with the branch: ", &row.landing.round.failure]),
+            policy::Leave::EarlierConflict => {
+                concat(&[b"conflict with an earlier member: ", &row.landing.round.failure])
+            }
+            policy::Leave::Unit { change } => {
+                concat(&[b"change ", skein_lib::Decimal::of(change).as_bytes(), b" of its unit left"])
+            }
+            policy::Leave::Dependency { change } => {
+                concat(&[b"its dependency, change ", skein_lib::Decimal::of(change).as_bytes(), b", left"])
+            }
+            policy::Leave::Fallback { units, top } => concat(&[
+                b"red round of ",
+                skein_lib::Decimal::of(u64::from(units)).as_bytes(),
+                b" units at ",
+                &commit_hex(top),
+                b": landing one at a time",
+            ]),
             policy::Leave::HeadMoved { head } => concat(&[b"head moved to ", &commit_hex(head)]),
             policy::Leave::Cancelled => Box::from(b"cancelled".as_slice()),
             policy::Leave::Held => Box::from(b"held".as_slice()),

@@ -41,6 +41,10 @@ pub(super) fn combined(value: forge::LandingCombine) -> w::Combined {
 pub(super) fn left(value: forge::LandingLeave, limits: &w::Limits) -> Option<w::LandingLeave> {
     Some(match value {
         forge::LandingLeave::Conflict => w::LandingLeave::Conflict,
+        forge::LandingLeave::EarlierConflict
+        | forge::LandingLeave::Unit { .. }
+        | forge::LandingLeave::Dependency { .. }
+        | forge::LandingLeave::Fallback { .. } => return None,
         forge::LandingLeave::HeadMoved { head } => {
             w::LandingLeave::HeadMoved(w::MovedHead::new(limits, w::MovedHeadParts { head }).ok()?)
         }

@@ -127,6 +127,10 @@ fn encode_member(member: &d::Member) -> w::LandingMember {
     w::LandingMember::new(
         &w::CEILINGS,
         w::LandingMemberParts {
+            unit: member.unit,
+            branch: member.branch.clone(),
+            combined: encode_combine(member.combined),
+            skein_bools: [member.recorded, member.told, member.judging, member.leave_told],
             change: member.change,
             repository: names::encode_repository(skein_forge::api::Repository {
                 forge: member.repository.forge,
@@ -148,14 +152,35 @@ fn encode_member(member: &d::Member) -> w::LandingMember {
     .expect(FITS)
 }
 fn decode_member(member: w::LandingMember) -> d::Member {
-    let w::LandingMemberParts { change, repository, pull, head, base, candidate, gates, asked, landed, left } =
-        member.into_parts();
+    let w::LandingMemberParts {
+        change,
+        repository,
+        pull,
+        head,
+        base,
+        candidate,
+        gates,
+        asked,
+        landed,
+        left,
+        unit,
+        branch,
+        combined,
+        skein_bools: [recorded, told, judging, leave_told],
+    } = member.into_parts();
     let repository = names::decode_repository(repository);
     let mut proofs = List::with_capacity(gates.len());
     for gate in gates.into_boxed() {
         proofs.push(decode_proof(gate)).expect(FITS);
     }
     d::Member {
+        unit,
+        branch,
+        combined: decode_combine(combined),
+        recorded,
+        told,
+        judging,
+        leave_told,
         change,
         repository: d::Repository { forge: repository.forge, repository: repository.repository },
         pull,
@@ -233,6 +258,7 @@ fn encode_round(round: &d::Round) -> w::LandingRound {
     w::LandingRound::new(
         &w::CEILINGS,
         w::LandingRoundParts {
+            changed: round.changed,
             branch: round.branch.clone(),
             pull: round.pull,
             upstream: round.upstream,
@@ -256,9 +282,10 @@ fn encode_round(round: &d::Round) -> w::LandingRound {
     .expect(FITS)
 }
 fn decode_round(round: w::LandingRound) -> d::Round {
-    let w::LandingRoundParts { branch, pull, upstream, combined, recorded, told, ending, failure, judging } =
+    let w::LandingRoundParts { branch, pull, upstream, combined, recorded, told, ending, failure, judging, changed } =
         round.into_parts();
     d::Round {
+        changed,
         branch,
         pull,
         upstream,
@@ -482,6 +509,16 @@ pub(super) fn decode_receipt_value(receipt: w::Receipt) -> Result<top::Receipt, 
 fn encode_leave(why: d::Leave) -> w::LandingLeave {
     match why {
         d::Leave::Conflict => w::LandingLeave::Conflict,
+        d::Leave::EarlierConflict => w::LandingLeave::EarlierConflict,
+        d::Leave::Unit { change } => w::LandingLeave::Unit(
+            w::LandingLeftChange::new(&w::CEILINGS, w::LandingLeftChangeParts { change }).expect(FITS),
+        ),
+        d::Leave::Dependency { change } => w::LandingLeave::Dependency(
+            w::LandingLeftChange::new(&w::CEILINGS, w::LandingLeftChangeParts { change }).expect(FITS),
+        ),
+        d::Leave::Fallback { units, top } => w::LandingLeave::Fallback(
+            w::LandingFallback::new(&w::CEILINGS, w::LandingFallbackParts { units, top }).expect(FITS),
+        ),
         d::Leave::HeadMoved { head } => {
             w::LandingLeave::HeadMoved(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: head }).expect(FITS))
         }
@@ -498,10 +535,29 @@ fn encode_leave(why: d::Leave) -> w::LandingLeave {
 fn decode_leave(why: w::LandingLeave) -> d::Leave {
     match why {
         w::LandingLeave::Conflict => d::Leave::Conflict,
+        w::LandingLeave::EarlierConflict => d::Leave::EarlierConflict,
+        w::LandingLeave::Unit(value) => d::Leave::Unit { change: value.change() },
+        w::LandingLeave::Dependency(value) => d::Leave::Dependency { change: value.change() },
+        w::LandingLeave::Fallback(value) => d::Leave::Fallback { units: value.units(), top: *value.top() },
         w::LandingLeave::HeadMoved(value) => d::Leave::HeadMoved { head: *value.commit() },
         w::LandingLeave::Cancelled => d::Leave::Cancelled,
         w::LandingLeave::Held => d::Leave::Held,
         w::LandingLeave::Refused(value) => d::Leave::Refused { gate: value.gate() },
         w::LandingLeave::Failed(value) => d::Leave::Failed { gate: value.gate(), run: value.run() },
+    }
+}
+
+fn encode_combine(combined: Option<d::Combine>) -> Option<w::LandingCombine> {
+    match combined {
+        Some(d::Combine::Merge) => Some(w::LandingCombine::Merge),
+        Some(d::Combine::Squash) => Some(w::LandingCombine::Squash),
+        None => None,
+    }
+}
+fn decode_combine(combined: Option<w::LandingCombine>) -> Option<d::Combine> {
+    match combined {
+        Some(w::LandingCombine::Merge) => Some(d::Combine::Merge),
+        Some(w::LandingCombine::Squash) => Some(d::Combine::Squash),
+        None => None,
     }
 }
