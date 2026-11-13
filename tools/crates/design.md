@@ -264,25 +264,38 @@ dependency fails, as an exception does:
 | `jig-protocol-worker-wire` | `skein-channel` | it declares its channel's kinds and schema in skein-channel's vocabulary beside its records, and skein-channel depends on `skein-lib` alone |
 | `smith-channel` | `skein-channel` | the same, for smith's channel |
 
-Its exceptions when it lands, each a package, which excuses every finding of that package: the
-other crates of `temper/docs/design/draft/crate-graph.md`, 4.2, each until G3 of
-`temper/docs/design/draft/crate-graph.execution.md`, the codec crate its area plans for it:
+It has no exceptions. An exception, were one needed, is a package, excuses every finding of that
+package, names what removes it, and fails the check once it matches no finding, as an allowance
+does. Every package of `temper/docs/design/draft/crate-graph.md`, 4.2 keeps its generated record
+code in codec crates below it, named and placed as skein's `data/codec/README.md`, section 2 says.
+The two stores' are G2's (jig's `protocol/README.md`, section 5; temper's `protocol/store.md`,
+section 4). The other eight are G3's, one codec crate each, its owner's `-codec`:
 
-| Exception | Until |
-|---|---|
-| `jig-client-test-protocol-wire` | G3 |
-| `jig-test-store` | G3 |
-| `jig-protocol-engine-clients` | G3 |
-| `smith-local-protocol` | G3 |
-| `jig-client-view` | G3 |
-| `skein-ui-example-view` | G3 |
-| `skein-oauth` | G3 |
-| `jig-protocol-accounts` | G3 |
+| Owner | Its codec crate | Directory | Module |
+|---|---|---|---|
+| `jig-test-store` | `jig-test-store-codec` | `jig/testing/jig-test-store-codec` | `v2` |
+| `jig-protocol-engine-clients` | `jig-protocol-engine-clients-codec` | `jig/crates/jig-protocol-engine-clients-codec` | `cursor_v1` |
+| `jig-client-test-protocol-wire` | `jig-client-test-protocol-wire-codec` | `jig/testing/jig-client-test-protocol-wire-codec` | `v2` |
+| `jig-client-view` | `jig-client-view-codec` | `jig/crates/jig-client-view-codec` | `records_v1` |
+| `jig-protocol-accounts` | `jig-protocol-accounts-codec` | `jig/crates/jig-protocol-accounts-codec` | `v1` |
+| `smith-local-protocol` | `smith-local-protocol-codec` | `smith/crates/smith-local-protocol-codec` | `local_store_v1` |
+| `skein-oauth` | `skein-oauth-codec` | `skein/crates/skein-oauth-codec` | `v3` |
+| `skein-ui-example-view` | `skein-ui-example-view-codec` | `skein/examples/ui/view-codec` | `records` |
 
-The two store crates, `jig-protocol-store` and `temper-protocol-store`, are no exceptions: G2 moves
-their generated record code to their codec crates (jig's `protocol/README.md`, section 5;
-temper's `protocol/store.md`, section 4). The check reads section 2.2's classification of files as
-the size check does, so the two agree on what generated record code is.
+- **A codec crate** holds its family's generated file at the path it had in the owner,
+  `src/generated/<file>.rs`, as the module of the table at its root, and depends on `skein-lib`
+  and `skein-codec` alone. It is step code on the `step` lint profile, as G2's are, and builds
+  wherever its owner builds, `wasm32-unknown-unknown` among them for a client's.
+- **The owner keeps the rest** (skein's `data/codec/README.md`, section 2): its schemas, kept
+  texts and patches, its glue (`smith-local-protocol`'s `src/generated/layouts.rs`), its golden
+  bytes, its drift test and its translation. It depends on its codec crate and names the module
+  where it named it before: a public one is re-exported at the same path (`skein_oauth::v3`), so
+  callers keep their paths.
+- **The drift test** reads the schema and golden bytes in the owner and the code in the codec
+  crate, and writes each where it reads it (skein's `data/codec/README.md`, section 6).
+
+The check reads section 2.2's classification of files as the size check does, so the two agree on
+what generated record code is.
 
 ### 3.3 Features
 
@@ -495,8 +508,6 @@ repository whose commits carry fixed committer dates. `build` runs against a fak
   3.2's kits set it; the others aren't surveyed.
 - **Later: more contexts** for the features check (section 3.3), each a row of its table, if the
   repository builds for another platform.
-- **Later: the codec check's exceptions** (section 3.2), each removed by its crate's codec crate in
-  G3.
 - **Later: the client wires' public families,** each to a crate of its own, which removes the two
   wires' exceptions (section 3.1).
 - **Later: the libraries over the bound that no milestone splits:** `temper-client-view`,
