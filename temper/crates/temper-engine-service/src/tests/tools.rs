@@ -14,6 +14,7 @@ fn call(activation: u64, tool: &[u8], input: &[u8]) -> jig_domain_fleet::Call {
     let mut writer = Writer::new(16);
     name.encode(&mut writer).unwrap();
     jig_domain_fleet::Call {
+        contract: 1,
         name: writer.finish(),
         tool: tool.into(),
         input: input.into(),
@@ -31,6 +32,56 @@ fn a_call_is_decoded_into_the_roots_tool() {
         root::Call { completion: 2, position: 1, tool: root::Tool::Release { target: 5, revision: 1, again: None } }
     );
 }
+#[test]
+fn a_workers_call_carries_its_contract_to_application_decoding() {
+    let (mut service, run) = fixtures::claimed_chat();
+    let engine = service.engine.as_mut().expect("engine");
+    let call = call(run.attempt, b"release", br#"{"target":5,"revision":1}"#);
+    engine.step(root::Event::Worker(root::WorkerInput::Link {
+        channel: Token::new(7),
+        link: root::Link::Up {
+            parts: root::Parts::none(),
+            up: host::LinkUp::Call {
+                contract: 3,
+                run: Token::new(run.task),
+                attempt: Token::new(run.attempt),
+                call: call.name,
+                tool: call.tool,
+                input: call.input,
+                writes: true,
+                deadline: call.deadline,
+            },
+        },
+    }));
+    let mut decoded = false;
+    for _ in 0_u32..256 {
+        root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+        if engine.requests.is_empty() {
+            engine.step(root::Event::Resume);
+            root::release(&mut engine.domain, &engine.env, &mut engine.requests);
+        }
+        while let Some(request) = engine.requests.pop() {
+            if let root::Request::Worker(root::WorkerRequest::Host(host)) = &request
+                && let root::HostRequest::Decode { call, .. } = host.as_ref()
+            {
+                assert_eq!(call.contract, 3, "hub-link, fleet and core keep the charter's version");
+                assert!(!decoded, "one decode hand-out");
+                decoded = true;
+            }
+            crate::route::request(engine, request);
+        }
+        if decoded {
+            break;
+        }
+    }
+    assert!(decoded, "the live worker call reaches decode_configured");
+    let event = engine.events.pop().expect("decoder's answer");
+    let root::Event::Worker(root::WorkerInput::DecodedHostCall { body, .. }) = event else {
+        panic!("decoded: {event:?}")
+    };
+    assert_eq!(body.tool, root::Tool::Release { target: 5, revision: 1, again: None });
+}
+
 #[test]
 fn a_call_of_another_activation_is_answered_an_error() {
     let event = crate::tools::decode(TO, 3, 8, &call(7, b"release", br#"{"target":5,"revision":1}"#));
@@ -50,6 +101,7 @@ fn answered_at_decode(
         link: root::Link::Up {
             parts: root::Parts::none(),
             up: host::LinkUp::Call {
+                contract: call.contract,
                 run: Token::new(run.task),
                 attempt: Token::new(run.attempt),
                 call: call.name.clone(),
@@ -264,6 +316,7 @@ fn owned_capacity_refusal_preserves_the_opaque_address_without_a_tool_effect() {
             link: root::Link::Up {
                 parts: root::Parts::none(),
                 up: host::LinkUp::Call {
+                    contract: 1,
                     run: Token::new(run.task),
                     attempt: Token::new(run.attempt),
                     call: name.into(),

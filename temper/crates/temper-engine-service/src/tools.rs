@@ -10,12 +10,14 @@ use temper_engine_smith::{Decoded, ForgeReadBounds, Problem};
 
 #[cfg(test)]
 pub(crate) fn decode(to: ReplyTo, task: u64, attempt: u64, call: &fleet::Call) -> engine::Event {
-    decode_configured(to, task, attempt, call, &[], &[], &[])
+    decode_configured(to, task, attempt, call.contract, call, &[], &[], &[])
 }
+#[expect(clippy::too_many_arguments, reason = "the call's contract travels with its configured decoding context")]
 pub(crate) fn decode_configured(
     to: ReplyTo,
     _task: u64,
     attempt: u64,
+    _contract: u16,
     call: &fleet::Call,
     models: &[engine::Model],
     catalogue: &[core::settings::CatalogueModel],

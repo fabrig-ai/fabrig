@@ -150,7 +150,7 @@ pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v12::Limits) -
             record.encode(&mut body).ok()?;
             frame(0x0101, body.finish())
         }
-        host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } => {
+        host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
             let record = wire::Call::new(
                 limits,
                 wire::CallParts {
@@ -161,7 +161,7 @@ pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v12::Limits) -
                     writes,
                     input,
                     deadline,
-                    contract: 1,
+                    contract,
                 },
             )
             .ok()?;

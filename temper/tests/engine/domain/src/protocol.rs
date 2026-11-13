@@ -185,6 +185,7 @@ impl Protocol {
         up(
             channel,
             host::LinkUp::Call {
+                contract: 1,
                 run: Token::new(task),
                 attempt: Token::new(attempt),
                 call,
@@ -219,6 +220,7 @@ impl Protocol {
         up(
             channel,
             host::LinkUp::Call {
+                contract: 1,
                 run: Token::new(task),
                 attempt: Token::new(attempt),
                 call,

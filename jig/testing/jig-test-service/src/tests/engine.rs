@@ -1011,6 +1011,7 @@ fn pass_call(task: u64, attempt: u64, name: &[u8]) -> jig_test_domain::Event {
     jig_test_domain::Event::Link {
         channel: PASS_CHANNEL,
         link: jig_test_domain::link::Event::Up(jig_domain_host::LinkUp::Call {
+            contract: 1,
             run: skein_lib::Token::new(task),
             attempt: skein_lib::Token::new(attempt),
             call: name.into(),

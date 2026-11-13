@@ -369,13 +369,13 @@ impl Component {
     fn up(&mut self, up: host::LinkUp, parts: &[wire::Part], out: &mut Queue<Request>) {
         let limits = sizes::limits(&self.limits.sizes).expect("checked sizes");
         let up = match up {
-            host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } => {
+            host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
                 if input.len() > skein_lib::length::usize_of(limits.call_input) {
                     self.refuse_call(run, attempt, call, b"call too large", out);
                     return;
                 }
                 let name = bytes::copy_of(&call);
-                let up = host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline };
+                let up = host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline };
                 let Some(frame) = translate::up(up, parts, &limits) else {
                     self.dropped = self.dropped.saturating_add(1);
                     self.refuse_call(run, attempt, name, b"call refused", out);
