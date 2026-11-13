@@ -1318,6 +1318,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
     fn a_referee_failure_without_a_due_deadline_stays_a_plain_failure() {
         let start = Time::ZERO;
         for until in [None, Some(start.saturating_add(Duration::from_secs(1)))] {

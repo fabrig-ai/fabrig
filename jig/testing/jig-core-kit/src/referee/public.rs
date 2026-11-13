@@ -229,7 +229,7 @@ impl Referee {
     ) -> Result<(), Broken> {
         let public = self.members(admission.read.project, limits);
         if let Some(project) = admission.read.project
-            && !u32::try_from(project).ok().is_some_and(|p| self.project_public(p))
+            && !u32::try_from(project).is_ok_and(|p| self.project_public(p))
         {
             return Err(Broken::Private);
         }

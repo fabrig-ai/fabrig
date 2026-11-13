@@ -574,6 +574,7 @@ fn unstarted(domain: &Domain, task: u64) -> bool {
         | State::Recreating { .. }
         | State::Reopening { .. }
         | State::Checking { .. }
+        | State::Judging { .. }
         | State::Gating { .. }
         | State::CancellingGates { .. }
         | State::Ready { .. }

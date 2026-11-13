@@ -202,6 +202,7 @@ fn fixture() -> skein_scratch::Scratch {
         fs::set_permissions(root.join(format!(".git/bin/{name}")), fs::Permissions::from_mode(0o700))
             .expect("executable check");
     }
+    write(root, "tools/tiers/packages.toml", "[test-binaries]\n");
     write(root, "tools/tiers/one-process", PROGRAM);
     fs::set_permissions(root.join("tools/tiers/one-process"), fs::Permissions::from_mode(0o700))
         .expect("executable one-process");

@@ -471,6 +471,7 @@ fn encode_failure_class(value: d::application_core::FailureClass) -> w::FailureC
         d::application_core::FailureClass::Agent => w::FailureClass::Agent,
         d::application_core::FailureClass::Lost => w::FailureClass::Lost,
         d::application_core::FailureClass::Invalid => w::FailureClass::Invalid,
+        d::application_core::FailureClass::Infrastructure => w::FailureClass::Infrastructure,
     }
 }
 fn decode_failure_class(value: w::FailureClass) -> d::application_core::FailureClass {
@@ -481,5 +482,6 @@ fn decode_failure_class(value: w::FailureClass) -> d::application_core::FailureC
         w::FailureClass::Agent => d::application_core::FailureClass::Agent,
         w::FailureClass::Lost => d::application_core::FailureClass::Lost,
         w::FailureClass::Invalid => d::application_core::FailureClass::Invalid,
+        w::FailureClass::Infrastructure => d::application_core::FailureClass::Infrastructure,
     }
 }

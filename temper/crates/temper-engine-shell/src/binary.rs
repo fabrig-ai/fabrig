@@ -3,7 +3,7 @@ use crate::{ENGINE, forge, serve};
 use skein_io::kernel::Exit;
 use skein_shell::{Command, Reach, Reached, Table};
 use std::{os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
-use temper_service::startup::{Shape, nearest};
+use temper_engine_service::startup::{Shape, nearest};
 use temper_shell::{
     commands::Row,
     directories::{self, Directories, EnvironmentEntry},
@@ -30,7 +30,6 @@ fn capture() -> Capture {
     }
 }
 
-#[must_use]
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let captured = capture();
     match run(&captured, version, commit) {
@@ -85,7 +84,7 @@ fn dispatch(command: &Command, arguments: &[Box<[u8]>], captured: &Capture) -> R
             )
             .map_err(|why| refused(&why))?;
             refuse_document(command, &directories).map_err(|why| (1, why))?;
-            crate::upgrade::run(ENGINE.binary, &directories, &request, None).map_err(|why| (1, why))
+            crate::upgrade::run(ENGINE.binary, &directories, &request).map_err(|why| (1, why))
         }
         Reach::Words(["serve"]) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine serve: {why}\n")))?;
@@ -163,7 +162,7 @@ fn refuse_document(command: &Command, directories: &Directories) -> Result<(), S
 pub fn versions() -> String {
     use std::fmt::Write;
     let mut text = String::new();
-    let levels = jig_protocol_store::levels(&temper_service::store::PATCH_SETS);
+    let levels = jig_protocol_store::levels(&temper_engine_service::store::PATCH_SETS);
     for (owner, level) in
         [("skein", levels.skein), ("smith", levels.smith), ("jig", levels.jig), ("temper", levels.application)]
     {
@@ -185,7 +184,7 @@ pub fn versions() -> String {
     ] {
         writeln!(text, "family {family} {version}").expect("writing into a string");
     }
-    for wire in temper_service::store::WIRES {
+    for wire in temper_engine_service::store::WIRES {
         writeln!(text, "wire {} {}", wire.name, wire.version).expect("writing into a string");
     }
     text

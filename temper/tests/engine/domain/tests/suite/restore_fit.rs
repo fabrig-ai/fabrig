@@ -73,9 +73,9 @@ fn a_forge_fit_failure_names_its_step_and_releases_no_wires() {
         }));
         assert_eq!(driver.root.forge_fit_failure(), Some(&first));
         assert_eq!(driver.loads.len(), loads, "no continuation after the failed page");
-        assert!(driver.switches.is_empty());
-        assert!(driver.delivered.is_empty());
-        assert!(driver.host_requests.is_empty());
+        assert_eq!(driver.switches.len(), 0);
+        assert_eq!(driver.delivered.len(), 0);
+        assert_eq!(driver.host_requests.len(), 0);
         assert!(driver.immediate.is_empty(), "no connection/setup outputs: {:?}", driver.immediate);
         assert!(!driver.transactions.iter().flatten().any(|write| matches!(write, Write::Wires)));
         assert_eq!(driver.root.start_phase(), Some(jig_domain_core::start::Phase::RestoreConnector { connector: 0 }));

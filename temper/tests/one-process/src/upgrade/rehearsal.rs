@@ -53,7 +53,7 @@ impl Host for Tool {
     }
 }
 fn render(service: &temper_service::Service) -> (String, u8) {
-    temper_service_shell::upgrade::lines(
+    temper_engine_shell::upgrade::lines(
         "temper",
         service.upgrade_report().expect("tool report"),
         &temper_shell::directories::resolve(&[], &[(b"HOME".as_slice().into(), b"/home/test".as_slice().into())], b"/")

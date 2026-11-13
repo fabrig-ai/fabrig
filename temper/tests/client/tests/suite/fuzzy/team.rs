@@ -284,7 +284,15 @@ fn sweep(seed: u64) -> bool {
                 revision: 1,
                 before: c::PriorPhase::Waiting,
                 escalation: None,
-                tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+                tries: c::FailureTries {
+                    transient: 0,
+                    permanent: 0,
+                    run: 0,
+                    agent: 0,
+                    lost: 0,
+                    invalid: 0,
+                    infrastructure: 0,
+                },
                 hold_wait_since: None,
             }));
         }
@@ -420,23 +428,33 @@ fn random_owner(rng: &mut Rng) -> (w::AreaOwner, Option<w::Holder>) {
     let number = rng.between(1, 20);
     let (owner, holder) = match rng.below(4) {
         0 => (
-            w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap()),
-            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap()),
+            w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).expect("task in 1..=20")),
+            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("task in 1..=20")),
         ),
         1 => (
-            w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number }).unwrap()),
-            w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number }).unwrap()),
+            w::AreaOwner::Party(
+                w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number }).expect("party in 1..=20"),
+            ),
+            w::Holder::Party(
+                w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number }).expect("party in 1..=20"),
+            ),
         ),
         2 => {
-            let number = u32::try_from(number).unwrap();
+            let number = u32::try_from(number).expect("number in 1..=20");
             (
-                w::AreaOwner::Role(w::AreaRole::new(&w::CEILINGS, w::AreaRoleParts { number }).unwrap()),
-                w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number }).unwrap()),
+                w::AreaOwner::Role(
+                    w::AreaRole::new(&w::CEILINGS, w::AreaRoleParts { number }).expect("role in 1..=20"),
+                ),
+                w::Holder::Role(
+                    w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number }).expect("role in 1..=20"),
+                ),
             )
         }
         _ => (
-            w::AreaOwner::Charter(w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number: 15 }).unwrap()),
-            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap()),
+            w::AreaOwner::Charter(
+                w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number: 15 }).expect("charter 15"),
+            ),
+            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("task in 1..=20")),
         ),
     };
     let standing = matches!(owner, w::AreaOwner::Role(_)) || rng.chance(750);
@@ -455,14 +473,14 @@ fn random_areas(rng: &mut Rng) -> Option<team::Areas> {
             owner,
             holder,
         })
-        .unwrap();
+        .expect("sixteen areas");
     }
     let (owner, holder) = random_owner(rng);
     Some(team::Areas {
         rows,
         triager: if rng.chance(750) { Some(owner) } else { None },
         holder: holder.unwrap_or_else(|| {
-            w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).unwrap())
+            w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).expect("built-in role"))
         }),
     })
 }
@@ -510,7 +528,7 @@ fn check_areas(facts: &team::Facts, parts: &team::Parts) {
     for task in &listed {
         assert_eq!(
             u32::from(reached.contains_key(task))
-                + u32::try_from(parts.standing.iter().filter(|n| *n == task).count()).unwrap(),
+                + u32::try_from(parts.standing.iter().filter(|n| *n == task).count()).expect("few standing roles"),
             1,
             "each listed role reached by its first chip or its Standing row"
         );

@@ -434,6 +434,7 @@ fn no_observation_holds_a_token_or_an_id_token() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn without_records_serves_past_a_zero_cap() {
     for recording in [true, false] {
         let mut peer = make_with_cap(Transport::Plaintext, Some(terms()), 0);

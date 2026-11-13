@@ -32,7 +32,7 @@ skein-scratch.workspace = true
 temper-test-env.workspace = true
 jig-protocol-config.workspace = true
 skein-heap.workspace = true
-temper-service = { workspace = true, features = ["worker"] }
+temper-service.workspace = true
 skein-fake-forge-domain.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

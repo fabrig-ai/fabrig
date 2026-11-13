@@ -259,7 +259,7 @@ fn identity(world: &HostWorld, slug: &[u8]) {
     assert!(world.file(Item::Accepted).is_none());
     assert!(world.file(Item::WebhookSecret).is_none());
     assert_eq!(world.connects(), &[Duration::ZERO; 3], "conversion, App proof, bot lookup");
-    assert!(world.reads().is_empty());
+    assert_eq!((world.reads()).len(), 0);
 }
 
 #[test]
@@ -327,7 +327,7 @@ fn an_organisation_manifest_returns_through_its_own_state() {
     let url = core::str::from_utf8(url).expect("install URL").to_owned();
     let bytes = world.github_page(&request("GET", &url, b""));
     let (head, body) = response(&bytes, 302);
-    assert!(body.is_empty());
+    assert_eq!(body, "");
     assert_eq!(header(head, "Content-Type"), None);
     let location = header(head, "Location").expect("setup redirect");
     assert!(location.split_once('?').expect("setup query").0.as_bytes() == fixtures::github_given().setup_url.as_ref());
@@ -371,8 +371,8 @@ fn an_expired_or_restarted_conversion_state_sends_nothing() {
     for (mut world, callback, at) in [(expired, expiry_callback, life), (restarted, callback, Duration::ZERO)] {
         convert(&mut world, 2, &callback);
         assert_eq!(world.heard().last(), Some(&stop(2, Stage::State, Why::Unknown, at)));
-        assert!(world.connects().is_empty());
-        assert!(world.needs().is_empty());
+        assert_eq!((world.connects()).len(), 0);
+        assert_eq!((world.needs()).len(), 0);
         closed(&mut world);
     }
 }
@@ -387,7 +387,7 @@ fn a_conversion_refused_by_github_still_consumes_its_state() {
     convert(&mut world, 3, &callback);
     assert_eq!(world.heard().last(), Some(&stop(3, Stage::State, Why::Unknown, Duration::ZERO)));
     assert_eq!(world.connects(), &[Duration::ZERO]);
-    assert!(world.needs().is_empty());
+    assert_eq!((world.needs()).len(), 0);
     closed(&mut world);
 }
 
@@ -402,7 +402,7 @@ fn a_conversion_deadline_cannot_restore_its_state() {
     convert(&mut world, 3, &callback);
     assert_eq!(world.heard().last(), Some(&stop(3, Stage::State, Why::Unknown, deadline)));
     assert_eq!(world.connects(), &[Duration::ZERO]);
-    assert!(world.needs().is_empty());
+    assert_eq!((world.needs()).len(), 0);
     closed(&mut world);
 }
 
@@ -415,7 +415,7 @@ fn a_lost_conversion_reply_reports_the_code_as_spent() {
     let backoff = fixtures::github_given().limits.backoff;
     assert_eq!(world.heard().last(), Some(&stop(2, Stage::App, Why::Refused(404), backoff)));
     assert_eq!(world.connects(), &[Duration::ZERO, backoff]);
-    assert!(world.needs().is_empty());
+    assert_eq!((world.needs()).len(), 0);
     convert(&mut world, 3, &callback);
     assert_eq!(world.heard().last(), Some(&stop(3, Stage::State, Why::Unknown, backoff)));
     assert_eq!(world.connects().len(), 2);

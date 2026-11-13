@@ -1,7 +1,6 @@
 //! The shipped service and agent, killed and restarted over one durable store.
-#[expect(dead_code, reason = "only the live binary uses trace helpers")]
-mod support;
 use jig_client_protocol_kit::native::Script;
+use jig_test_kit as support;
 use smith_protocol_program::Status;
 use std::{
     ffi::OsString,
@@ -127,12 +126,6 @@ fn jig_test_serves_its_bundle_s_page_under_the_reference_policy() {
 fn a_binary_told_to_stop_with_a_sign_in_under_way_ends_at_once() {
     accounts::sigterm();
 }
-
-// Reuse the account sign-in world's browser source; it remains a private test helper.
-use jig_protocol_accounts_kit::fixtures;
-#[expect(dead_code, reason = "only the accounts world stops a browser at its redirect, to paste it")]
-#[path = "../../jig-protocol-accounts-kit/src/visitor.rs"]
-mod account_sign_in_visitor;
 
 #[path = "support/accounts.rs"]
 mod accounts;

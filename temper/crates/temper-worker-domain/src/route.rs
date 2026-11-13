@@ -73,12 +73,10 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
         Event::Lost => host_step(domain, env, host::Event::SourceLost),
         Event::GracePassed => {
             domain.past = true;
+            crate::stopping::contact(domain, env);
             host_step(domain, env, host::Event::CancelAll { reason: host::Reason::Contact });
         }
-        Event::Shutdown => {
-            domain.stopping = true;
-            host_step(domain, env, host::Event::CancelAll { reason: host::Reason::Shutdown });
-        }
+        Event::Shutdown { drain } => crate::stopping::shutdown(domain, env, drain),
         Event::Resend { run, attempt, turn } => {
             if let Some(turn) = domain.host.turn(run, attempt, turn) {
                 out.push(Request::Link(host::LinkUp::Turn { run, attempt, turn }));

@@ -94,7 +94,7 @@ fn the_wind_down_requests_one_interrupt() {
     assert_eq!(control_rooms(&below), 1);
     backend.line(&env(0), br#"{"type":"result","is_error":true,"subtype":"error_during_execution","terminal_reason":"aborted_streaming"}"#, &mut up, &mut below);
 
-    assert!(backend.stopping.intent() == stopping::Intent::Finishing);
+    assert_eq!(backend.stopping.intent(), stopping::Intent::Finishing);
     assert_eq!(backend.startup.phase(), State::Running);
     let note: serde_json::Value = serde_json::from_slice(backend.outgoing.as_ref().expect("finishing note")).unwrap();
     assert_eq!(

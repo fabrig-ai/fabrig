@@ -283,6 +283,11 @@ fn put_git(out: &mut Sink, git: &Git) {
             out.bytes(branch);
             out.u64(*commit);
         }
+        Git::PushNew { branch, commit } => {
+            out.u8(4);
+            out.bytes(branch);
+            out.u64(*commit);
+        }
     }
 }
 fn get_git(input: &mut Reader<'_>, limits: &Limits) -> Result<Git, Refusal> {
@@ -303,6 +308,7 @@ fn get_git(input: &mut Reader<'_>, limits: &Limits) -> Result<Git, Refusal> {
             expected: optional_u64(input)?,
         }),
         3 => Ok(Git::Create { branch: bytes(input, limits.name_bytes, "create branch")?, commit: u64(input)? }),
+        4 => Ok(Git::PushNew { branch: bytes(input, limits.name_bytes, "create branch")?, commit: u64(input)? }),
         _tag => Err(Refusal::Malformed("landing git")),
     }
 }

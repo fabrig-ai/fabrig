@@ -365,7 +365,7 @@ fn sha256(v: &[u8]) -> Option<[u8; 32]> {
         return None;
     }
     let mut out = [0; 32];
-    for (slot, pair) in out.iter_mut().zip(v.chunks_exact(2)) {
+    for (slot, pair) in out.iter_mut().zip(v.as_chunks::<2>().0) {
         let mut n = 0_u8;
         for b in pair {
             n = n.checked_mul(16)?.checked_add(skein_lib::bytes::hex_value(*b)?)?;

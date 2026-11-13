@@ -24,7 +24,7 @@ fn llms_sharing_an_account_share_its_grant() {
     let mut world = world(&settings, scripted_charter(&settings), &[0]);
     world.run(2000);
     assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
-    assert!(!world.prompts().is_empty());
+    assert_ne!((world.prompts()).len(), 0);
 }
 
 #[test]
@@ -38,7 +38,7 @@ fn an_llm_with_no_account_is_admitted_with_no_grant() {
     let mut world = world(&settings, charter, &[]);
     world.run(2000);
     assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
-    assert!(!world.prompts().is_empty());
+    assert_ne!((world.prompts()).len(), 0);
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn a_held_grant_serves_a_later_start() {
     world.hold_grant(0);
     world.run(2000);
     assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
-    assert!(!world.prompts().is_empty());
+    assert_ne!((world.prompts()).len(), 0);
 }
 
 use skein_fake_checkout::Checkout;
@@ -79,7 +79,7 @@ fn account_world(account: Option<u32>, held: Option<Grant>, failures: u32, failu
     let start = Event::Start(smith_domain::Start {
         window: Window { turns: u32::MAX, bytes: u64::MAX },
         grants: held.into_iter().collect(),
-        ..smith_domain::fixture::start(Token::new(1), charter)
+        ..smith_domain_fixtures::start(Token::new(1), charter)
     });
     let scripts = Box::new([Script {
         cue: b"@report".as_slice().into(),

@@ -21,7 +21,7 @@ fn check(located: &Located<'_>) -> Result<(Download, Fetch), (Name, Schema)> {
     let sha = required(entry, Name::Sha256)?;
     checked(sha, Format::Sha256, Name::Sha256)?;
     let mut bytes = [0; 32];
-    for (byte, pair) in bytes.iter_mut().zip(sha.chunks_exact(2)) {
+    for (byte, pair) in bytes.iter_mut().zip(sha.as_chunks::<2>().0) {
         let mut value = 0_u8;
         for digit in pair {
             value =

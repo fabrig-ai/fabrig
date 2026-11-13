@@ -30,12 +30,18 @@ pub struct Gate {
     /// Path prefixes of whole segments, never patterns.
     pub ignored: Box<[Box<[u8]>]>,
     pub blocking: bool,
+    /// Include the round’s base in the key and dispatch inputs.
+    pub base: bool,
 }
 
 /// The project's landing settings needed by the policy.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Project {
     pub gate_retries: u32,
+    pub gate_timeout: Duration,
+}
+impl Project {
+    pub const DEFAULT: Self = Self { gate_retries: 2, gate_timeout: Duration::from_millis(3_600_000) };
 }
 
 /// Whether a fact holds, as for a change.
@@ -64,6 +70,10 @@ pub enum Phase {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Hold {
     Faults { member: u16, gate: u16 },
+    Prepare,
+    Record { member: u16 },
+    Timeout { member: u16, gate: u16, run: u64 },
+    Turn,
 }
 
 /// One gate's proof at a member's candidate (domain/landing.md, 7).
@@ -109,6 +119,18 @@ pub struct Member {
     pub asked: Option<u16>,
     /// Main's commit once landed: the candidate.
     pub landed: Option<Commit>,
+    pub left: Option<Leave>,
+}
+
+/// Why a member leaves, retaining its first-ready time (domain/landing.md, 4.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Leave {
+    Conflict,
+    HeadMoved { head: Commit },
+    Cancelled,
+    Held,
+    Refused { gate: u64 },
+    Failed { gate: u16, run: u64 },
 }
 
 /// The top-owned landing task record (domain/landing.md, 12).
@@ -122,6 +144,57 @@ pub struct Landing {
     /// Candidates' preparation, counted from 1.
     pub preparation: u16,
     pub stale_proofs: u32,
+    /// The train's landing branch (domain/landing.md, 9, 12).
+    pub branch: Box<[u8]>,
+    pub round: Round,
+}
+
+/// A round's own branch, preparation and pull request (domain/landing.md, 5.1).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Round {
+    pub branch: Box<[u8]>,
+    pub pull: Option<u64>,
+    pub upstream: Option<Commit>,
+    pub combined: Option<Combine>,
+    pub recorded: bool,
+    pub told: bool,
+    pub ending: Option<RoundEnd>,
+    pub failure: Box<[u8]>,
+    pub judging: bool,
+}
+impl Round {
+    #[must_use]
+    pub fn new(branch: Box<[u8]>) -> Self {
+        Self {
+            branch,
+            pull: None,
+            upstream: None,
+            combined: None,
+            recorded: false,
+            told: false,
+            ending: None,
+            failure: Box::new([]),
+            judging: false,
+        }
+    }
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Combine {
+    Merge,
+    Squash,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum RoundEnd {
+    Stale,
+    Leave,
+    Conflict,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Preparation {
+    Idle,
+    Running,
+    Conflict,
+    Failed,
 }
 
 /// Current dispatch of this key. The top follows the current try, clearing
@@ -144,10 +217,13 @@ pub struct GateFacts {
     pub flight: Flight,
     /// Status of this landing's most recently requested posting effect.
     pub posting: Status,
+    pub expired: Option<u64>,
+    pub run: u64,
 }
 
 /// Fresh facts for one member, in the landing's member order.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent member observations")]
 pub struct MemberFacts {
     pub ready: bool,
     pub cancelled: bool,
@@ -161,6 +237,14 @@ pub struct MemberFacts {
     pub merge: Status,
     pub merged: Option<Commit>,
     pub gates: Box<[GateFacts]>,
+    /// The base already contains the head.
+    pub contained: Status,
+    pub candidate: Option<(Commit, Combine)>,
+    pub preparation: Preparation,
+    pub record: Status,
+    pub held: bool,
+    pub judgement: Status,
+    pub refused: Option<u64>,
 }
 
 /// The coherent snapshot supplied by the top.
@@ -168,8 +252,11 @@ pub struct MemberFacts {
 pub struct Facts {
     pub members: Box<[MemberFacts]>,
     pub turn_free: bool,
-    pub first: bool,
     pub released: bool,
+    pub opened: Option<u64>,
+    pub opening: Status,
+    pub closed: Status,
+    pub deleted: Status,
 }
 
 /// The candidate's gate status (domain/landing.md, 10).
@@ -197,6 +284,14 @@ pub enum Decision {
     Finish,
     Cancel,
     Hold(Hold),
+    Open,
+    Record { member: u16, prefix: Commit },
+    Landed { member: u16, prefix: Commit },
+    Close,
+    Delete,
+    Resolve { member: u16, base: Commit },
+    Leave { member: u16, why: Leave },
+    Judge { member: u16 },
 }
 
 /// State to commit atomically with the decision.

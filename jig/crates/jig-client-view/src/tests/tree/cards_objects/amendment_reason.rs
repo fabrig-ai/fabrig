@@ -18,7 +18,7 @@ fn rendered_amendment_reason_preserves_empty_opaque_bytes_and_only_selected_inst
             domain.confirmation().unwrap().missing,
             Some(crate::state::confirm::Missing::Words { field: Purpose::Reason })
         );
-        assert!(drive(&mut domain, Event::Act { action: Action::Confirm }).is_empty());
+        assert_eq!(drive(&mut domain, Event::Act { action: Action::Confirm }).len(), 0);
         drive(&mut domain, Event::Act { action: input(&tree, b"Your reason", bytes, &mut bindings) });
         let selected = domain.confirmation().unwrap().choices.change.clone().unwrap();
         assert_eq!(

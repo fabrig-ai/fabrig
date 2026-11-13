@@ -113,7 +113,7 @@ fn an_apply_measures_only_bound_lists_without_following_or_page_scrolling() {
     assert_eq!(&ops[1..], &[Op::Measure { node: LIST }, Op::Measure { node: NodeId(5) }]);
     ops.clear();
     page.apply(&[], &mut ops);
-    assert!(ops.is_empty());
+    assert_eq!(ops.len(), 0);
     for key in [b"PageUp".as_slice(), b"PageDown"] {
         assert_eq!(
             page.act(

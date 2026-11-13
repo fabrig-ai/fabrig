@@ -97,5 +97,5 @@ pub mod parity;
 
 pub mod validate;
 
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;
+#[cfg(test)]
+mod fixture;

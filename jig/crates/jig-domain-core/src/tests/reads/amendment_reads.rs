@@ -140,7 +140,7 @@ fn owner_cleanup_drops_all_waiting_amendments_and_late_answers() {
     let request = agent_read(&mut core, &limits);
     // Use the same owner cleanup as preparation and run departure.
     crate::routing::run::results::clear(&mut core, AMENDER);
-    assert!((core.result_read_flights() == 0));
+    assert_eq!(core.result_read_flights(), 0);
     assert!(!core.pending_calls.contains_key(&CALL));
     let out = watch_outputs(&mut core, &limits, Event::EndedTaskLoaded { request, row: None, busy: false });
     assert!(out.is_empty());

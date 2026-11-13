@@ -373,7 +373,7 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
                 result: jig_client::Readout::Jig(result.clone()),
             })
         }
-        Up::Served { .. } | Up::WatchEnded { .. } => observe::up_received(up),
+        Up::Unreadable | Up::Served { .. } | Up::WatchEnded { .. } => observe::up_received(up),
         Up::SignedOut => vec![Receipt::Parked],
         Up::SignedIn
         | Up::StreamsFull { .. }

@@ -8,6 +8,11 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-protocol-store-people.workspace = true
+jig-protocol-store-tasks.workspace = true
+jig-protocol-store-core.workspace = true
+jig-protocol-store-settings.workspace = true
+jig-protocol-store-families.workspace = true
 skein-oauth.workspace = true
 smith-transcript.workspace = true
 skein-lib.workspace = true

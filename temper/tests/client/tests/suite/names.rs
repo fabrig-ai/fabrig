@@ -22,6 +22,7 @@ fn client_crates_carry_the_client_prefix() {
             // The engine world and shared fixtures keep their test-kit names
             // (temper/docs/design/testing/README.md, 5).
             "temper-engine-domain-world",
+            "temper-box-kit",
             "temper-fixtures",
             "temper-test-env",
             "temper-one-process-world",

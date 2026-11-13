@@ -110,7 +110,7 @@ fn scripts(fixture: &Fixture, tail: bool) -> Box<[Script]> {
 
 fn bounds() -> Limits {
     let mut bounds =
-        smith_protocol_llm::fixture::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated());
+        smith_protocol_llm_fixtures::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated());
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
     bounds

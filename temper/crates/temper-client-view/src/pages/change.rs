@@ -92,6 +92,10 @@ pub(crate) fn start(b: &mut Builder, change: Change<'_>, words: &Words, bindings
         b.close();
     }
     b.close();
+    text(b, words, change.way(), &[]);
+    if let Some(task) = change.landing() {
+        text(b, words, W::InLanding, &[Hole::Number(task)]);
+    }
     b.open(Role::Slot);
     b.style(look::CHANGE);
     let line = change.line();

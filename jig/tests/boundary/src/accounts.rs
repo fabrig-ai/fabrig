@@ -44,5 +44,5 @@ fn accounts_fixture_checks_each_normal_dependency_form() {
     let source = "[package]\nname = \"jig-protocol-accounts\"\n[dependencies]\n\
                   jig-domain-accounts = { path = \"x\" }\n[dev-dependencies]\n\
                   jig-domain-core = { path = \"x\" }\n";
-    assert!(breaches(source).is_empty());
+    assert_eq!(breaches(source).len(), 0);
 }

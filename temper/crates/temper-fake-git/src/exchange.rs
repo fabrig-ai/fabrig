@@ -94,7 +94,7 @@ impl Exchange {
     }
 }
 fn can_fault(name: Name) -> bool {
-    matches!(name, Name::Clone | Name::Fetch | Name::Create | Name::Push)
+    matches!(name, Name::Clone | Name::Fetch | Name::Create | Name::Push | Name::PushNew)
 }
 fn fatal(mut message: String) -> Answer {
     message.insert_str(0, "fatal: ");

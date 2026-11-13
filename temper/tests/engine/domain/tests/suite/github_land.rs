@@ -211,7 +211,10 @@ fn slow_required_brief_reaches_shipped_gather_limit() {
     // The cited design does not prescribe fail vs hold vs retry at expiry.
     let mut brief = World::configured(true, true).env.limits.brief;
     brief.gather = GATHER;
-    let world = World::configured_brief(true, true, false, 0, Gate::default(), None, Some(brief));
+    // Keep the shipped infrastructure backoff so this deadline observation precedes its retry.
+    let retry = jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.retries.infrastructure;
+    let world = World::configured_brief(true, true, false, 0, Gate::default(), None, Some(brief))
+        .with_infrastructure_retry(retry);
     let (mut world, _requester, producer, branch) = change_world_in(world, Change::default());
     pushed(&mut world, &producer, &branch);
     // The public event queue is the scripted transport. Retain one required

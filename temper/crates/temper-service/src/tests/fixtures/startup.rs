@@ -4,7 +4,7 @@
     reason = "ordinary fixture code builds and edits configuration bytes"
 )]
 use crate::settings;
-use jig_domain_link::{Bounds, EndpointBound};
+use jig_domain_link::EndpointBound;
 use skein_lib::{List, Secret};
 
 pub const APPLICATION: &[u8] = br#"{
@@ -31,32 +31,7 @@ pub fn demo_application() -> Box<[u8]> {
         .into_bytes()
         .into_boxed_slice()
 }
-pub fn demo_document() -> Box<[u8]> {
-    core::str::from_utf8(&document())
-        .unwrap()
-        .replacen(
-            "\"engine\":{",
-            "\"engine\":{\"acts\":[{\"connector\":1,\"may\":[\"close\",\"add_key\",\"remove_account\",\"adopt\"]}],",
-            1,
-        )
-        .replace("\"setup\":[]", DEMO_SETUP)
-        .replace("\"demo\":null", DEMO)
-        .into_bytes()
-        .into_boxed_slice()
-}
-pub fn demo_service() -> crate::Service {
-    start(
-        &demo_document(),
-        &jig_protocol_config::Directories::working(),
-        &files(),
-        &startup_agent(),
-        &super::seeds(),
-        None,
-        worker_runtime(),
-        super::forge_runtime(),
-    )
-    .unwrap()
-}
+
 pub fn document() -> Box<[u8]> {
     let mut document = Vec::from(b"{\"engine\":".as_slice());
     let engine = core::str::from_utf8(super::ENGINE)
@@ -109,7 +84,11 @@ pub fn without(entries: List<(Box<[u8]>, Secret)>, name: &[u8]) -> List<(Box<[u8
     kept
 }
 pub fn worker_runtime() -> crate::WorkerRuntime {
-    crate::WorkerRuntime { root: skein_io::kernel::Fd::new(9), path: b"/worker".as_slice().into() }
+    crate::WorkerRuntime {
+        root: skein_io::kernel::Fd::new(9),
+        path: b"/worker".as_slice().into(),
+        agent: super::pinned_agent(&super::worker_settings().jig.agent),
+    }
 }
 pub fn startup_agent() -> settings::Agent {
     let mut agent = super::agent();
@@ -325,146 +304,6 @@ pub fn worker_alone_document() -> Box<[u8]> {
     let text = core::str::from_utf8(&input).unwrap();
     let (_, workers) = text.split_once(", \"workers\":").unwrap();
     [b"{\"workers\":".as_slice(), workers.as_bytes()].concat().into_boxed_slice()
-}
-
-/// The owned example's worker and application limits, in the worker-only shape.
-#[expect(clippy::disallowed_macros, reason = "the regression reads the shipped example as fixture data")]
-pub fn owned_worker_alone_document() -> Box<[u8]> {
-    let owned = include_bytes!("../../../../../docs/examples/owned.json");
-    let mut input = Vec::from(b"{\"workers\":".as_slice());
-    input.extend_from_slice(&owned[member_span(owned, b"workers")]);
-    input.extend_from_slice(b",\"application\":{\"workers\":");
-    input.extend_from_slice(&owned[member_span(owned, b"application.workers")]);
-    input.extend_from_slice(b",\"limits\":");
-    input.extend_from_slice(&owned[member_span(owned, b"application.limits")]);
-    input.extend_from_slice(b"}}");
-    let input = with(&input, b"workers[0].engine", br#"{"socket":"127.0.0.1:7100"}"#);
-    let input = with(&input, b"workers[0].name", br#""w1""#);
-    with(&input, b"workers[0].secret", br#""secrets/w1.secret""#)
-}
-
-/// The host/channel metadata from owned/agent.json's standard profile, with
-/// calm-world run bounds. The sans-io service has no shell/profile reader;
-/// the process regression reads the example's agent document.
-#[expect(clippy::too_many_lines, reason = "one typed snapshot of the example's agent metadata")]
-pub fn owned_worker_agent() -> settings::Agent {
-    let mut endpoints = List::with_capacity(3);
-    endpoints
-        .push(smith_protocol_channel::Endpoint { name: b"openai".as_slice().into(), number: 1, dialect: 3 })
-        .unwrap();
-    settings::Agent {
-        run_limits: smith_agent_world::LIMITS.run,
-        tool_payload: 4_098,
-        programs: Box::new([settings::Program {
-            adapter: settings::Adapter::ClaudeCode,
-            path: b"/usr/local/bin/claude".as_slice().into(),
-            directory: b"/home/me/temper/programs".as_slice().into(),
-        }]),
-        endpoints: smith_protocol_channel::Endpoints::new(endpoints),
-        limits: smith_host_protocol::Limits {
-            bodies: smith_channel::Limits {
-                directory_name: 256,
-                workspace_directories: 4,
-                host_reply_text: 4_098,
-                message_text: 4_098,
-                start_charter: 131_072,
-                start_transcript: 70_266_672,
-                start_answered: 16,
-                start_grants: 8,
-                start_messages: 8,
-                host_ask_input: 4_098,
-                field_text: 4_096,
-                turn_body: 1_589_621,
-                accepted_result: 8_192,
-                ..smith_channel::CEILINGS
-            },
-            charter: smith_charter::CEILINGS,
-            transcript: smith_transcript::v7::Limits {
-                replay_bytes: 93,
-                text_text: 400_421,
-                opaque_bytes: 262_151,
-                call_input: 26_148,
-                entry_name: 256,
-                hit_path: 256,
-                hit_text: 16_384,
-                read_content: 4_098,
-                found_hits: 17_584,
-                command_end_head: 16_384,
-                command_end_last: 49_152,
-                command_running_head: 16_384,
-                command_running_last: 49_152,
-                job_read_head: 16_384,
-                job_read_last: 49_152,
-                ambiguous_lines: 8,
-                working_path_path: 256,
-                other_path_directory: 256,
-                other_path_path: 256,
-                outside_path_path: 256,
-                said_text: 459_008,
-                allowed_calls_names: 132,
-                message_blocks: 4,
-                turn_messages: 4,
-                ..smith_transcript::CEILINGS
-            },
-            endpoints: 3,
-            channel: skein_channel::Limits {
-                chunk: 4096,
-                credential: 0,
-                skip: 72_105_650,
-                output_bytes: 72_105_658,
-                output_frames: 26,
-                kinds: 20,
-            },
-            start_bytes: 72_105_650,
-            calls: 1,
-        },
-        bounds: Bounds {
-            program_endpoints: Box::new([]),
-            endpoints: Box::new([EndpointBound { endpoint: 1, window: 1_048_576, output: 8192 }]),
-            turns: 16,
-            spend: 1_000_000_000,
-            time: skein_lib::Duration::from_secs(86_400),
-            waiting: skein_lib::Duration::from_secs(86_400),
-            checks: skein_lib::Duration::from_secs(60),
-            message_bytes: 4096,
-            inbox: 8,
-            unacknowledged: 8,
-            reply_bytes: None,
-        },
-        host_limits: smith_host_domain::Limits {
-            agents: 1,
-            directories: 4,
-            conflicts: 1024,
-            path_bytes: 4096,
-            name_bytes: 256,
-            accounts: 4,
-            charter_bytes: 65_536,
-            transcript_bytes: 34_989_934,
-            answered_bytes: 549_888,
-            message_bytes: 4098,
-            messages: 8,
-            calls: 1,
-            call_bytes: 4098,
-            answer_bytes: 34_304,
-            turns: 8,
-            turn_bytes: 34_989_934,
-            unacknowledged_bytes: 34_989_934,
-            fact_bytes: 17,
-            outcome_bytes: 4096,
-            detail_bytes: 1024,
-            spawn_timeout: skein_lib::Duration::from_secs(20),
-            no_progress: skein_lib::Duration::from_secs(35),
-            silence: skein_lib::Duration::from_secs(30),
-            long_span: skein_lib::Duration::from_secs(86_400),
-            long_open: 3,
-            wall_time: skein_lib::Duration::from_secs(86_400),
-            cancel_grace: skein_lib::Duration::from_secs(10),
-            exit_grace: skein_lib::Duration::from_secs(15),
-            teardown: skein_lib::Duration::from_secs(10),
-            kill_after: skein_lib::Duration::from_secs(2),
-            facts: 1024,
-        },
-    }
 }
 
 #[expect(clippy::too_many_arguments, reason = "the fixture supplies its own defaults at the startup boundary")]

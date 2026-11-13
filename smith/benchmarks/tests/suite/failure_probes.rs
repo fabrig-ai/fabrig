@@ -170,7 +170,7 @@ fn set_completion_failure(records: &mut [smith_events::Record], completion: &smi
 // predicate still enforces the independently derived native 1024-byte cap.
 fn observe_provider(records: &[smith_events::Record]) -> Observer {
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 2048;
         fixture_limits.content = 2048;
         fixture_limits.items = 16;

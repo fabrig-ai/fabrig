@@ -213,7 +213,7 @@ fn absent_kinds_have_no_entry_or_slot_and_optional_processes_are_omitted() {
     assert_eq!(steps.asked[0].steps.len(), 2);
     assert_eq!(steps.asked[0].steps[0].1.name(), b"prepare");
     assert_eq!(steps.asked[0].steps[1].1.name(), b"forgejo");
-    assert!(steps.asked[0].steps[1].1.listeners().is_empty());
+    assert_eq!((steps.asked[0].steps[1].1.listeners()).len(), 0);
     let entry = machine::entry(&machine, 42, BoxKind::Owned, &directories()).unwrap();
     assert_eq!(entry.directory.as_ref(), b"/data/forge-42");
     let Mode::Owned(entry_owned) = entry.mode else { panic!("owned") };

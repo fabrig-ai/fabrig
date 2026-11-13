@@ -1403,7 +1403,7 @@ mod tests {
         assert_eq!(session.driver.world.store.rows, rows);
         assert_eq!(session.observed(), vec![Observed::Reachable { live: false }]);
         assert!(session.business_poll(now, wall).expect("stopped root has no fabricated replies").is_empty());
-        assert!(session.observed().is_empty());
+        assert_eq!(session.observed().len(), 0);
         assert_eq!(session.next_due(), None);
         let retry = Token::new(32);
         session.send(ClientId(0), now, wall, request(retry)).expect("exact later attempt is parked");

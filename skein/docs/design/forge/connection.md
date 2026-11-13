@@ -1049,7 +1049,7 @@ The owner's domain owes:
   `304`s, and a job log's redirect followed to its configured origin
   alone, another origin said once per connect as a fact.
 - **By hand.** The machine world's `hand` steers the same component one exchange at a time: a connect completes when the test says, an answer is written when it says, in the literal bytes the test holds, whatever fault they carry. What plays the fake goes through `skein_fake_forge_github::inline` (../testing/fakes/github.md, 1.6); no second HTTP face stands in for it.
-- **The seam.** A machine-world test that reads the component's installation rows, jobs or connections does so through the crate's `seam` feature, which only that world turns on, as `tests/boundary/tests/skein_worlds.rs` holds. No service builds it, and the crate's own tests don't need it. The fixtures the crate's tests and the machine world's hand both read are the crate's fixtures module, built for either.
+- **The seam.** A machine-world test reads or seeds the component's installation rows, jobs or connections through the public module `seam` alone: its re-exports of the state's types, and its traits, implemented for `Component` and a connection, whose methods are the `test_` accesses. It is built always, since nothing else reaches the state from outside (../../foundation/cli.md, 3); no tracked source outside the crate and `skein/tests/forge/machine/` names `skein_forge_connection::seam`, as `tests/boundary/tests/skein_worlds.rs` holds. The crate's step tests read its `#[cfg(test)]` `fixtures`, and `hand` reads their copy, `skein-forge-connection-fixtures` (../testing/README.md, 6).
 - **Over TLS, boundary and every-byte sweeps in fuzzy.** Each fault runs
   its own world and a real handshake drawing the kernel's entropy
   (../../foundation/testing-strategy.md, 4.4); its flight belongs to its hello. Both sweeps
@@ -1128,5 +1128,6 @@ The owner's domain owes:
   names them.
 - **The forge kit's fixtures beside the crate's** (10):
   `skein_forge_kit::fixtures` keeps its own `limits`, `shared` and `settings`,
-  near-copies of the crate's `fixtures`, because temper's and other worlds read
-  the kit, and only the machine world may turn `seam` on. Default: the copy stays.
+  near-copies of `skein-forge-connection-fixtures`', because temper's and other
+  worlds read the kit, and its numbers are its own. Whether the kit takes the
+  fixtures crate's instead. Default: the copy stays.

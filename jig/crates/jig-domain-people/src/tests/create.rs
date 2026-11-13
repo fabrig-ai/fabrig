@@ -9,7 +9,7 @@ fn a_members_create_routes_once_to_the_core() {
     let rows = test.request(SIGN_IN, 1, ask.clone());
     let request = route(&rows);
     assert_eq!(rows.len(), 1);
-    assert!(test.request(SIGN_IN, 1, ask.clone()).is_empty());
+    assert_eq!(test.request(SIGN_IN, 1, ask.clone()).len(), 0);
     test.send(Event::Decided { request, outcome: Outcome::Created { first: PARTY, last: PARTY, given: None } });
     assert_eq!(
         reply(&test.request(SIGN_IN, 1, ask)),

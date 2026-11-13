@@ -1,6 +1,6 @@
 //! Person answer additions keep their question numbers across storage.
 use jig_domain_tasks as tasks;
-use jig_protocol_store::{codec, tasks_v10 as wire};
+use jig_protocol_store::{codec, tasks_v11 as wire};
 use skein_lib::{Reader, Writer};
 
 #[test]

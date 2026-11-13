@@ -485,7 +485,7 @@ mod tests {
         ));
         let observations = Front::<Test>::observed(&mut front);
         assert!(matches!(observations.first(), Some(Observed::Durable { at: Time::ZERO, .. })));
-        assert!(Front::<Test>::observed(&mut front).is_empty());
+        assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
         assert!(front.session.driver.transport.sign_in(ClientId(0)).is_some());
         Front::<Test>::fault(&mut front, Time::ZERO, FrontFault::SignedOut);
         let callbacks = Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO));
@@ -509,7 +509,7 @@ mod tests {
             );
         }
         assert_eq!(front.session.driver.world.store.rows, before);
-        assert!(Front::<Test>::observed(&mut front).is_empty());
+        assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
     }
 
     fn pressure_party() -> jig_fake_parties::Party {
@@ -624,7 +624,7 @@ mod tests {
         assert_eq!(front.session.driver.world.store.rows, rows);
         assert_eq!(front.session.driver.world.store.applied, applied);
         assert_eq!(front.session.driver.world.commits.len(), commits);
-        assert!(Front::<Test>::observed(&mut front).is_empty());
+        assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
         let later = Time::ZERO.saturating_add(delay);
         assert!(Front::<Test>::poll(&mut front, later, clock(later)).is_empty());
         assert!(!front.session.driver.world.store.loading());
@@ -686,7 +686,7 @@ mod tests {
         assert_eq!(front.session.driver.world.store.applied, applied);
         assert_eq!(front.session.driver.world.commits.len(), commits);
         assert!(front.session.driver.world.store.loading());
-        assert!(Front::<Test>::observed(&mut front).is_empty());
+        assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
         assert_eq!(front.session.driver.transport.sign_in(ClientId(0)), Some(session));
         let later = Time::ZERO.saturating_add(delay);
         assert!(Front::<Test>::poll(&mut front, later, clock(later)).is_empty(), "page release is not a final reply");
@@ -735,7 +735,7 @@ mod tests {
         ));
         assert_eq!(front.session.driver.transport.hello(), jig_client::Up::Served { served: false, versions: None });
         assert_eq!(front.session.driver.world.store.rows, rows);
-        assert!(Front::<Test>::observed(&mut front).is_empty());
+        assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
     }
 
     #[test]
@@ -751,7 +751,7 @@ mod tests {
         assert!(matches!(observed.first(), Some(Observed::Reachable { live: false })));
         assert_eq!(Front::<Test>::next_due(&front), Some(Time::ZERO.saturating_add(span)));
         assert!(Front::<Test>::poll(&mut front, Time::ZERO, clock(Time::ZERO)).is_empty());
-        assert!(Front::<Test>::observed(&mut front).is_empty());
+        assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
         let until = Time::ZERO.saturating_add(span);
         let callbacks = Front::<Test>::poll(&mut front, until, clock(until));
         assert!(matches!(
@@ -759,7 +759,7 @@ mod tests {
             [(ClientId(0), Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { .. } } })]
         ));
         assert!(matches!(Front::<Test>::observed(&mut front).first(), Some(Observed::Reachable { live: true })));
-        assert!(Front::<Test>::observed(&mut front).is_empty());
+        assert_eq!(Front::<Test>::observed(&mut front).len(), 0);
     }
 }
 

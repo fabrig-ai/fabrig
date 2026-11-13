@@ -268,7 +268,7 @@ fn assert_red(world: &World, goal: &engine::Assignment, branch: &[u8], tip: skei
     let log = &logs[0];
     let name = std::str::from_utf8(&log.name).expect("job name");
     let end = std::str::from_utf8(log.end.as_deref().expect("failed job log")).expect("job log");
-    assert!(!end.is_empty());
+    assert_ne!(end, "");
     assert!(words.contains(&format!("End of job {name}'s log:\n{end}")), "{words}");
 }
 

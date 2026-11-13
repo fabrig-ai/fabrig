@@ -53,7 +53,7 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
         if !active.contains(&model)
             && (!model.starts_with("openai/") || settings.values.contains_key("endpoints.openai.account"))
         {
-            let program = account(&settings, &model).ok().is_some_and(|name| {
+            let program = account(&settings, &model).is_ok_and(|name| {
                 settings
                     .values
                     .get(&format!("accounts.{}.source", super::name(&name)))

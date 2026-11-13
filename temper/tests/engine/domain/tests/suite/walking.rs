@@ -596,6 +596,7 @@ fn independent_referee_rejects_recommitted_terminal_and_unscripted_ack() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_replay_differing_in_its_root_store_or_counters_fails_its_compare() {
     use core::fmt::Debug;
     use core::hash::Hash;

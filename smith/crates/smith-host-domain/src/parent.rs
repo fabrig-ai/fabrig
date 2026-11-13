@@ -48,6 +48,8 @@ pub enum Event {
     },
     /// Parent politely stops once; no deadline reset.
     Stop { agent: Token },
+    /// From the parent: stop after the current turn, without a cancel grace.
+    Drain { agent: Token },
     /// Parent drops the run now, releasing held turns; Gone waits for all operation terminals.
     Drop { agent: Token },
 }

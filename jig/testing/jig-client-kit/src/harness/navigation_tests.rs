@@ -148,7 +148,7 @@ fn a_reload_still_discards_its_old_epoch_navigation_callback() {
     world.reload(client);
     let outcome = drain(&mut world);
     assert_eq!(outcome.dropped, 1);
-    assert!(world.front().went.is_empty());
+    assert_eq!(world.front().went.len(), 0);
     assert_eq!(world.clients[client.0].epoch, 1);
     assert_eq!(world.clients[client.0].history, [crate::stories::inbox(), settings]);
     assert_eq!(world.clients[client.0].at, 1);

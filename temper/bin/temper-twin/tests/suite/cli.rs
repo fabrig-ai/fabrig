@@ -36,7 +36,7 @@ fn a_conversion_refusal_exits_two_without_opening_the_output() {
     assert!(!out.exists());
     assert!(result.stderr.starts_with(b"read transcript:"));
     assert_eq!(String::from_utf8(result.stderr).expect("stderr").lines().count(), 1);
-    assert!(result.stdout.is_empty());
+    assert_eq!(result.stdout.len(), 0);
 }
 #[test]
 fn the_cli_reports_tasks_and_replacement_counts() {

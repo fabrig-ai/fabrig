@@ -90,7 +90,7 @@ fn the_binary_answers_its_table_and_refuses_unknown_commands() {
             }
             ["nope"] => {
                 assert_eq!(output.status.code(), Some(2));
-                assert!(stdout.is_empty());
+                assert_eq!(stdout, "");
                 assert_eq!(stderr, "temper-qa: no command nope; temper-qa --help says more\n");
                 continue;
             }

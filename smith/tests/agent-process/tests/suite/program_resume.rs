@@ -50,7 +50,7 @@ fn direct() -> World {
 fn a_conversation_is_carried_over_from_the_direct_backend() {
     let old = direct();
     let turns = program_world::from_frames(old.observed());
-    assert!(!turns.is_empty());
+    assert_ne!(turns.len(), 0);
     let run = program_world::run_with_window(&story(), &charter(), &turns);
     assert!(
         matches!(run.answer().expect("answer").result(), RunResult::Accepted(_)),
@@ -88,7 +88,7 @@ fn a_conversation_is_carried_over_to_the_direct_backend() {
     let old = program_world::run(Case::Turns, &story(), Some(b"claude.ai"), &charter(), &program(b"source"), None);
     assert!(matches!(old.answer().expect("answer").result(), RunResult::Accepted(_)));
     let turns = program_world::from_frames(&old.frames);
-    assert!(!turns.is_empty());
+    assert_ne!(turns.len(), 0);
     let mut world = World::new(7, &charter());
     world.restore(turns);
     world.script(Box::new([
@@ -116,7 +116,7 @@ fn a_compaction_runs_its_own_program() {
     for invocation in &print {
         assert!(invocation.arguments.iter().any(|flag| flag == "--system-prompt-file"));
         assert!(invocation.arguments.iter().any(|flag| flag == "--disable-slash-commands"));
-        assert!(argument(invocation, "--tools").is_empty());
+        assert_eq!(argument(invocation, "--tools"), "");
         assert!(invocation.directory.starts_with("/programs/.runs/"));
         assert!(invocation.directory.ends_with("/work"));
         assert!(!invocation.directory_has_entries);
@@ -128,7 +128,7 @@ fn a_compaction_runs_its_own_program() {
         })
         .collect();
     assert_ne!(ids[0], ids[1]);
-    assert!(run.run_directories.is_empty());
+    assert_eq!(run.run_directories.len(), 0);
     assert!(run.exits.iter().all(|exit| *exit == skein_io::kernel::Exit::Code(0)), "{:?}", run.exits);
 }
 
@@ -215,7 +215,7 @@ fn a_parked_run_resumes_its_session() {
     let text = run.received[0]["message"]["content"].as_str().expect("one tail message");
     assert!(text.contains("Begin"));
     assert!(text.contains("result of"));
-    assert!(run.run_directories.is_empty());
+    assert_eq!(run.run_directories.len(), 0);
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn a_gone_session_is_carried_over() {
             .iter()
             .any(|block| block["text"] == "portable summary")
     );
-    assert!(run.run_directories.is_empty());
+    assert_eq!(run.run_directories.len(), 0);
 }
 
 fn document_charter(instructions: &[u8], document: Option<&[u8]>) -> Box<[u8]> {

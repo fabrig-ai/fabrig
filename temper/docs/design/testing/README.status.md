@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-11. Where temper's code lags or departs from [README.md](README.md).
+2026-11-12. Where temper's code lags or departs from [README.md](README.md).
 
 `checks.md`, section 1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
@@ -133,7 +133,7 @@ that proof remains with the after-landing runs (11).
   whichever is more, and checks it at least the rung's, and its twin
   chooses the goal's turns from fresh inputs, so that a forge
   notification before the child's result waits for it
-  (`bin/temper-box/tests/support/forge_land/rung.rs`); the sitting
+  (`testing/temper-box-kit/src/forge_land/rung.rs`); the sitting
   connects a new forge, makes its project through ctl before Ready
   adopts and renders no `policies`
   (`bin/temper-box/tests/support/managed_sitting.rs`). The next
@@ -141,3 +141,4 @@ that proof remains with the after-landing runs (11).
 
 - **Not yet:** 2.8: temper's one story on macOS has not run green
   on the runner, so `../draft/macos.md`'s acceptance stands open.
+

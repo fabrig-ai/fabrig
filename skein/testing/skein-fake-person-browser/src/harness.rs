@@ -989,7 +989,7 @@ impl Runtime {
     fn origin_requests(&mut self, now: Time, wall: Wall) {
         for exchange in &mut self.exchanges {
             exchange.update(now, wall);
-            self.requests.extend(exchange.requests.drain(..));
+            self.requests.append(&mut exchange.requests);
         }
         for pages in &mut self.origins {
             pages.update_time(now, wall);
@@ -1150,7 +1150,7 @@ impl Runtime {
             self.origin_requests(now, wall);
         }
         for command in self.commands.iter_mut().flatten() {
-            self.requests.extend(command.requests.drain(..));
+            self.requests.append(&mut command.requests);
         }
         while self.io.takes() {
             let Some(request) = self.requests.pop_front() else { break };

@@ -293,14 +293,28 @@ store's load, its switch, its listeners again) passes within it and
 each run is adopted where it stands; a deployment whose engine takes
 longer to start raises it.
 
+- **The drain's bound** is jig's worker member `graces.drain_ms`: how
+  long a worker told to stop lets its runs end their turns before it
+  cancels them (`../../domain/worker/README.md`, section 2). It may be
+  absent, and is then 180,000, the draft's three minutes
+  (`../../draft/redeploys.md`, 6.1); `temper-box init` writes none.
 - **It is ordered under the engine's grace.** The stop bound a worker
-  states is its ping interval, its silence deadline, this grace, the
-  longer of `agent_stop_ms` and `delivery_ms`, then `save_ms`: 86
-  seconds with jig's link profile (5 and 15 seconds) and `temper-box init`'s
-  graces (60,000, 5,000, 1,000 and 1,000). It must stay below the
-  engine's `fleet.grace`, 120 seconds in both of jig's profiles, or the
-  hello is refused (jig's `domain/engine/fleet.md`); a deployment
-  that raises the one raises the other with it.
+  states is the longer of its ping interval, its silence deadline and
+  this grace together, and its drain's bound; then the longer of
+  `agent_stop_ms` and `delivery_ms`, then `save_ms`: 186 seconds with
+  jig's link profile (5 and 15 seconds), `temper-box init`'s graces
+  (60,000, 5,000, 1,000 and 1,000) and the drain's default, which
+  outlasts the 80 seconds of notice and grace. It is a deadline the
+  worker keeps (jig's `domain/hosts/hub.md`, 6), and it must stay below
+  the engine's `fleet.grace`, 240 seconds in both of jig's profiles,
+  derived from it (jig's `domain/engine/fleet.md`), or the hello is
+  refused; a deployment that raises the one raises the other with it.
+- **The service manager's stop timeout** sits above the stop bound: a
+  unit that kills the worker sooner is a crash, losing the workspace's
+  changes since its last save or delivery, and the attempt is lost
+  (`../../draft/redeploys.md`, 6.1). The worker's unit in `temper help
+  server` gives `TimeoutStopSec=` the stop bound and a margin, 240
+  seconds with these graces.
 - **A hello refused for a charter's reserve names the setting.** The
   fleet judges a worker's checks' timeout against each modifying
   charter's `reserve_time` in the store's settings (jig's
@@ -339,9 +353,14 @@ longer to start raises it.
   written, with no model list (../README.md, section 5). They are absolute
   because the worker spawns the agent with its arguments as written
   (jig's `protocol/configuration.md`, section 9).
-- **Read twice:** by `temper-box serve` at start, for smith's host limits,
-  the channel's limits and the agent's bounds, as jig's reference binary
-  reads it; and by each agent process as it starts.
+- **Read once, pinned:** by the worker's start, `temper-box serve` or
+  `temper-worker serve`, for smith's host limits, the channel's limits
+  and the agent's bounds, as jig's reference binary reads it; the start
+  then pins those same bytes, with the program, in its root
+  (`../../domain/worker/README.md`, section 5), and each agent process
+  reads the pinned copy as it starts. Editing the file, or replacing the
+  program, changes what the worker's next start pins, never a running
+  worker's agents.
 - **It holds no credential:** an agent's grants come over smith's
   channel (../credentials.md, section 3).
 - **A model's reasoning allowance,** its `reasoning_item` (smith's

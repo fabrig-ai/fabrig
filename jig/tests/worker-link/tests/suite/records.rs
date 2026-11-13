@@ -119,7 +119,7 @@ fn an_undecodable_assignment_is_refused_as_framing() {
     let mut world = world();
     world.play(fixtures::frame(0x0180, b"broken"));
     assert_eq!(world.refusals(), [(3, Box::new([]) as Box<[u8]>)]);
-    assert!(down(&world).is_empty());
+    assert_eq!(down(&world).len(), 0);
     assert!(world.values().is_empty());
 }
 #[test]

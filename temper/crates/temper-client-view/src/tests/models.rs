@@ -425,7 +425,7 @@ fn an_owner_has_the_switch_and_a_member_the_word() {
                     })))
                 );
             } else {
-                assert!(checks.is_empty());
+                assert_eq!(checks.len(), 0);
             }
             named(view.tree(), "On");
             named(view.tree(), "Off");
@@ -506,7 +506,7 @@ fn left_out_says_how_many() {
                 .collect::<Vec<_>>();
             let omitted: Vec<_> = text.iter().filter(|s| s.contains("more models")).map(String::as_str).collect();
             if count == 0 {
-                assert!(omitted.is_empty());
+                assert_eq!(omitted.len(), 0);
             } else {
                 assert_eq!(omitted.as_slice(), ["3 more models don't fit the catalogue."]);
             }

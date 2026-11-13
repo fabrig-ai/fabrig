@@ -270,6 +270,7 @@ struct Harness {
     source: Option<Vec<Item>>,
     sites: Vec<(crate::Owner, Box<[u8]>)>,
     site_answer: SiteAnswer,
+    site_pages: bool,
     site_commit_limit: Option<u32>,
     site_secret_commit_limit: Option<u32>,
     page_header: Option<u64>,
@@ -311,6 +312,7 @@ impl Harness {
             source: None,
             sites: Vec::new(),
             site_answer: SiteAnswer::Written,
+            site_pages: false,
             site_commit_limit: None,
             site_secret_commit_limit: None,
             page_header: None,
@@ -360,6 +362,9 @@ impl Harness {
                 }
                 if let Event::Site { owner, of, key, site, at, mut patcher } = event {
                     self.sites.push((of, key.clone()));
+                    if self.site_pages {
+                        Self::check_site_pages(store);
+                    }
                     if let Some(limit) = self.site_commit_limit {
                         store.limits.store.commit = limit;
                     }
@@ -431,6 +436,17 @@ impl Harness {
             crate::up(store, &env, io, &mut above, &mut below);
         }
         panic!("phase did not settle");
+    }
+    fn check_site_pages(store: &mut Store) {
+        let range = || skein_kv::Range { start: Box::from(b"l".as_slice()), end: Some(Box::from(b"m".as_slice())) };
+        let page = store.patch_page(range(), None, 1).expect("other rows at a written site");
+        assert_eq!(page.rows.len(), 1);
+        assert_eq!(page.rows[0].key, fixture_key(b'l', 0));
+        assert_eq!(page.rows[0].value, label(2), "the preceding range has passed patch one");
+        let page = store.patch_page(range(), page.next.as_ref(), 1).expect("exclusive cursor");
+        assert_eq!(page.rows[0].key, fixture_key(b'l', 1));
+        assert_eq!(page.rows[0].value, label(2));
+        assert!(page.next.is_none());
     }
     fn file(&mut self, driver: usize, request: file::Request, stage: Stage) -> Option<Arrived> {
         let mut events = Queue::with_capacity(128);
@@ -1080,6 +1096,7 @@ fn fixture_patches_walk_in_plan_order_answer_relative_keys_and_seal_three_rows()
     let mut disk = Harness::new(&fixture_baseline(None));
     let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
     disk.page_header = Some(FIXTURE_LAST);
+    disk.site_pages = true;
     let events = disk.open(&mut store);
     assert_eq!(
         patched(&events),
@@ -1093,6 +1110,16 @@ fn fixture_patches_walk_in_plan_order_answer_relative_keys_and_seal_three_rows()
     let expected_sites: Vec<_> = (0..SHELVES).map(|n| (crate::Owner::Application, fixture_key(b's', n))).collect();
     assert_eq!(disk.sites, expected_sites);
     assert_fixture_opened(&events, 4);
+    assert!(
+        store
+            .patch_page(
+                skein_kv::Range { start: Box::from(b"l".as_slice()), end: Some(Box::from(b"m".as_slice())) },
+                None,
+                1
+            )
+            .is_err(),
+        "context reads require an outstanding site"
+    );
     fixture_rows(&mut store, 2, 2);
     assert_sealed(&mut store, FIXTURE_LAST.checked_add(5).expect("last"));
     assert_eq!(disk.bytes(b"active").as_ref(), b"2\n");
@@ -1119,7 +1146,7 @@ fn patch_one_alone_rewrites_held_labels_but_keeps_shelves_at_version_one() {
     let events = disk.open(&mut store);
     assert_eq!(patched(&events), [(crate::Owner::Application, 1, crate::Counts { records: 7, commits: 2 })]);
     assert_fixture_opened(&events, 2);
-    assert!(disk.sites.is_empty());
+    assert_eq!(disk.sites.len(), 0);
     fixture_rows(&mut store, 1, 1);
 }
 #[test]
@@ -1565,7 +1592,7 @@ fn a_secret_file_with_group_bits_or_another_link_refuses_private() {
         let mut store = fixture_store(&disk, 8, fixtures::store_limits().store.commit, levels(2, 2));
         let events = disk.open(&mut store);
         assert_check(&events, &store, crate::Check::Private { name });
-        assert!(disk.check_entries.is_empty());
+        assert_eq!(disk.check_entries.len(), 0);
         assert_abandoned_at(disk, before.store_last);
     }
 }

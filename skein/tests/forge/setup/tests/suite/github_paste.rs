@@ -124,8 +124,8 @@ fn a_pasted_different_app_or_bot_changes_no_hook_or_item() {
         assert_eq!(failure.why, why);
         diagnostics(&world, &keys::pem(app_key()).expect("PEM"), app_key());
         assert_eq!(world.github_requests().len(), targets);
-        assert!(writes(&world, 0).is_empty());
-        assert!(mutations(&world, 0).is_empty());
+        assert_eq!(writes(&world, 0).len(), 0);
+        assert_eq!(mutations(&world, 0).len(), 0);
         for (item, value) in before {
             assert_eq!(world.file(item), value.as_ref());
         }
@@ -161,7 +161,7 @@ fn a_pasted_key_is_never_in_failure_or_trace() {
         let [Heard::Stop { failure, .. }] = world.heard() else { panic!("Stop") };
         assert_eq!(failure.why, why);
         diagnostics(&world, &pem, der);
-        assert!(writes(&world, 0).is_empty());
+        assert_eq!(writes(&world, 0).len(), 0);
         closed(&mut world);
     }
     // Success uses six signings including fake checks, and keeps DER only in AppKey.

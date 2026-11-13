@@ -45,7 +45,7 @@ pub(super) fn credential_free(invocation: &Observation) {
 
 fn configured_program() -> (Scratch, std::path::PathBuf) {
     let scratch = Scratch::new();
-    let executable = skein_scratch::paths::binary("fake-claude");
+    let executable = support::fake_claude();
     let settings = format!(
         "[programs]\nclaude_code='{}'\n[accounts.work]\nprovider='anthropic'\nsource='program'\n",
         executable.display()

@@ -1,7 +1,7 @@
 //! GitHub CI polling with the shipped paces, without delivery hints.
 use super::*;
 use skein_lib::Duration;
-use temper_service::limits::{Profile, profile};
+use temper_engine_service::limits::{Profile, profile};
 
 /// Open a change whose first CI verdict arrives ninety seconds after production.
 pub(super) fn pending_github_change(passes: u32) -> (Protocol, Wall, Wall, u64) {

@@ -36,7 +36,7 @@ fn settings_agent_config(allowed: bool) -> engine::Config {
             }
         }
     }
-    config.core.kinds = temper_service::stock::kinds(&walking::limits(), config.core.connectors[0]);
+    config.core.kinds = temper_engine_service::stock::kinds(&walking::limits(), config.core.connectors[0]);
     config.kinds_stock = engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 1);
     let mut stock = config.kinds_stock.into_vec();
     stock.push(temper_engine_domain_forge::settings::Stock {

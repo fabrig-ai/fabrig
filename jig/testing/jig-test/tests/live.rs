@@ -1,6 +1,5 @@
 //! Real accounts and model answers through the shipped service and native client.
-#[expect(dead_code, reason = "shared process support; live uses the account sign-in entries")]
-mod support;
+use jig_test_kit as support;
 use skein_shell::Clock;
 use std::{fs, os::unix::fs::PermissionsExt};
 
@@ -62,9 +61,3 @@ fn a_person_signs_in_to_chatgpt_and_a_real_model_answers() {
         std::panic::resume_unwind(failed);
     }
 }
-
-// Reuse the account sign-in world's browser source; it remains a private test helper.
-use jig_protocol_accounts_kit::fixtures;
-#[expect(dead_code, reason = "only the accounts process judge uses browser status diagnostics")]
-#[path = "../../jig-protocol-accounts-kit/src/visitor.rs"]
-mod account_sign_in_visitor;

@@ -78,7 +78,7 @@ fn revision_restore_sends_one_restore_and_prints_the_proposal_and_what_it_left_o
     let number = root.submit(&["revision", "restore", "4", "--key", "restore-4"]);
     let c::Ask::Restore { revision, reason } = f::act_ask(&root, number) else { panic!("restore") };
     assert_eq!(*revision, 4);
-    assert!(reason.bytes().is_empty());
+    assert_eq!((reason.bytes()).len(), 0);
 }
 
 #[test]

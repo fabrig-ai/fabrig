@@ -61,7 +61,11 @@ fn the_clients_listener_is_at_the_documents_address() {
         .listening()
         .iter()
         .filter_map(|note| {
-            if let temper_service::Note::Listening { listener: temper_service::Listening::Clients, addr } = note {
+            if let temper_service::Note::Engine(temper_service::EngineNote::Listening {
+                listener: temper_service::Listening::Clients,
+                addr,
+            }) = note
+            {
                 Some(*addr)
             } else {
                 None

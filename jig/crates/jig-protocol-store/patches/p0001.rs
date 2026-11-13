@@ -58,15 +58,15 @@ fn authority(old: &Old, new: &mut Build, at: Node, executors: &[Executor]) -> Re
     let mut length = 0_usize;
     for _ in 0..count {
         let item = piece::counted(&mut reader);
-        let Ok(value) = crate::people_v15::Executor::decode(&crate::people_v15::CEILINGS, &mut Reader::new(&item))
+        let Ok(value) = crate::people_v16::Executor::decode(&crate::people_v16::CEILINGS, &mut Reader::new(&item))
         else {
             return Err(Halt::Misread(kinds));
         };
         let value = match value {
-            crate::people_v15::Executor::Charter(value) => Executor::Charter(value.value()),
-            crate::people_v15::Executor::Procedure(value) => Executor::Procedure(value.value()),
-            crate::people_v15::Executor::Role(value) => Executor::Role(value.value()),
-            crate::people_v15::Executor::Job(value) => Executor::Job(value.kind()),
+            crate::people_v16::Executor::Charter(value) => Executor::Charter(value.value()),
+            crate::people_v16::Executor::Procedure(value) => Executor::Procedure(value.value()),
+            crate::people_v16::Executor::Role(value) => Executor::Role(value.value()),
+            crate::people_v16::Executor::Job(value) => Executor::Job(value.kind()),
         };
         if executors.contains(&value) {
             length = length.checked_add(4).ok_or(Halt::Misread(kinds))?;

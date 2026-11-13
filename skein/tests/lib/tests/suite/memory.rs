@@ -306,7 +306,7 @@ fn intake(capacity: u32) {
             let mut piece = [0_u8; 16];
             let len = usize_of(below(&mut rng, intake.room().min(16) + 1));
             for byte in &mut piece[..len] {
-                *byte = [b'a', b'\r', b'\n'][usize_of(below(&mut rng, 3))];
+                *byte = b"a\r\n"[usize_of(below(&mut rng, 3))];
             }
             assert!(append(&mut metered, &mut intake, &piece[..len]));
         } else {
@@ -707,19 +707,18 @@ fn request_table_memory<O: Item + Copy + std::fmt::Debug + PartialEq, T: Item + 
     let mut table = RequestTable::new(&limits, 0xB5_7A);
     metered.end(());
     for n in 0..capacity {
-        let key;
         metered.start();
-        if restored {
+        let key = if restored {
             let mut restored_key = [0xAA; 16];
             restored_key[..8].copy_from_slice(&u64::from(n).to_be_bytes());
             let record =
                 RequestRecord { key: restored_key, scope: 7, first_sent: Some(Wall::EPOCH), request: T::nth(n) };
             saved[usize_of(n)] = Some(record.clone());
             table.restore(O::nth(n), 2, record).expect("room for restored records");
-            key = restored_key;
+            restored_key
         } else {
-            key = table.ask(O::nth(n), 7, 2, T::nth(n)).expect("room to every limit").key;
-        }
+            table.ask(O::nth(n), 7, 2, T::nth(n)).expect("room to every limit").key
+        };
         metered.end(());
         keys.push(key);
     }

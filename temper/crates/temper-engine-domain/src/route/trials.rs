@@ -144,6 +144,7 @@ fn class(class: tasks::Class) -> trials::Class {
         tasks::Class::Agent => trials::Class::Agent,
         tasks::Class::Lost => trials::Class::Lost,
         tasks::Class::Invalid => trials::Class::Invalid,
+        tasks::Class::Infrastructure => trials::Class::Infrastructure,
     }
 }
 

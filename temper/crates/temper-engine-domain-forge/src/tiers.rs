@@ -56,7 +56,7 @@ struct Walk {
 
 pub(crate) fn configured_all(d: &Domain, repository: Repository) -> &[Tier] {
     let Some(adopted) = d.repositories.get(&repository) else { return &[] };
-    if let Some((_, repositories, _, _, _)) = d.landing.projects.get(&adopted.project) {
+    if let Some((_, repositories, _, _, _, _)) = d.landing.projects.get(&adopted.project) {
         for row in repositories {
             if row.repository == repository {
                 return &row.tiers;
@@ -468,6 +468,7 @@ fn tree_answer(
                     &tier.ignored,
                     walk.commit,
                     walk.trees.as_slice(),
+                    None,
                     &landing::KeyLimits { entries: env.limits.key_entries, path_bytes: env.limits.key_path_bytes },
                 );
             }
@@ -1742,7 +1743,9 @@ pub(crate) fn row_bytes(row: &TierRow) -> Option<u64> {
         )?;
     }
     if let Some(result) = &row.result {
-        held = held.checked_add(skein_lib::len_u64(result.run.url.len()))?;
+        held = held
+            .checked_add(skein_lib::len_u64(result.run.url.len()))?
+            .checked_add(skein_lib::len_u64(result.logs.len()))?;
         if let Some(failures) = &result.failures {
             held = held.checked_add(failures_bytes(failures)?)?;
         }
@@ -1813,6 +1816,7 @@ fn observation(
                 p::Outcome::Fault => unreachable!("completed observation"),
             };
             Some(crate::Receipt {
+                logs: Box::new([]),
                 passed: *outcome == p::Outcome::Passed,
                 failures: Some(failures),
                 candidate: candidate(row.record.run.as_ref().expect("followed run")).0,

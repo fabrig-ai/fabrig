@@ -81,6 +81,7 @@ struct Job {
 
 #[derive(Debug)]
 enum State {
+    Preparing,
     Writing { program: Box<[u8]>, deadline: Duration },
     Spawning,
     Running,
@@ -101,6 +102,7 @@ struct Run {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     let owner = match &event {
         Event::Run { owner, .. }
+        | Event::Prepared { owner, .. }
         | Event::Stop { owner }
         | Event::Written { owner, .. }
         | Event::Spawned { owner }
@@ -112,7 +114,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Run { owner, kind, spec, deadline, directory } => {
             start(domain, env, Run { owner, kind, spec, deadline, directory }, out);
         }
-        event @ (Event::Stop { .. }
+        event @ (Event::Prepared { .. }
+        | Event::Stop { .. }
         | Event::Written { .. }
         | Event::Spawned { .. }
         | Event::Exited { .. }
@@ -122,7 +125,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             advance(&mut job, env, event, out);
             let ended = match job.state {
                 State::Ending | State::Stopped => job.process_gone,
-                State::Writing { .. } | State::Spawning | State::Running | State::Reading { .. } => false,
+                State::Preparing | State::Writing { .. } | State::Spawning | State::Running | State::Reading { .. } => {
+                    false
+                }
             };
             if ended {
                 out.push(Request::Gone { owner, detail: job.tail });
@@ -157,12 +162,13 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
         refuse(run.owner, b"kind not entered", out);
         return;
     };
+    let own = run.kind == JobKind(1) && run.spec.command.is_empty();
     let limits = &env.limits;
     let why = if !within(&run.spec.request, limits.file_bytes) || !within(&run.spec.request, kind.bound.spec) {
         Some(b"request bound".as_slice())
     } else if run.deadline > kind.bound.deadline {
         Some(b"deadline bound".as_slice())
-    } else if !command_valid(&run.spec.command) || !within(&run.spec.command, limits.path_bytes) {
+    } else if !own && (!command_valid(&run.spec.command) || !within(&run.spec.command, limits.path_bytes)) {
         Some(b"command path".as_slice())
     } else if run.directory.is_empty() || run.directory.contains(&0) || !within(&run.directory, limits.path_bytes) {
         Some(b"directory path".as_slice())
@@ -171,6 +177,18 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
     };
     if let Some(why) = why {
         refuse(run.owner, why, out);
+        return;
+    }
+    if own {
+        let job = Job {
+            kind: kind.clone(),
+            directory: run.directory,
+            state: State::Preparing,
+            tail: Box::new([]),
+            process_gone: true,
+        };
+        domain.jobs.insert(run.owner, job).expect("admitted own job");
+        out.push(Request::Started { owner: run.owner });
         return;
     }
     let Some(program) = path(&run.directory, b"/", &run.spec.command, limits.path_bytes) else {
@@ -200,9 +218,29 @@ fn start(domain: &mut Domain, env: &Env<Limits>, run: Run, out: &mut Queue<Reque
 fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Run { .. } => unreachable!("Run is handled at admission"),
+        Event::Prepared { owner, result, code } => {
+            if !match job.state {
+                State::Preparing => true,
+                State::Writing { .. }
+                | State::Spawning
+                | State::Running
+                | State::Reading { .. }
+                | State::Ending
+                | State::Stopped => false,
+            } {
+                return;
+            }
+            let end = if (code == 0 || code == 3) && within(&result, job.kind.bound.result) {
+                End::Finished { result, deliver: code == 0 && job.kind.delivers }
+            } else {
+                End::Failed { detail: Box::from(b"own prepare result".as_slice()) }
+            };
+            job.state = State::Ending;
+            out.push(Request::Ended { owner, end });
+        }
         Event::Stop { owner } => {
             match job.state {
-                State::Writing { .. } => job.process_gone = true,
+                State::Preparing | State::Writing { .. } => job.process_gone = true,
                 State::Spawning | State::Running | State::Reading { .. } | State::Ending => {
                     out.push(Request::Kill { owner });
                 }
@@ -216,13 +254,18 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 job.state = State::Running;
                 out.push(Request::Started { owner });
             }
-            State::Writing { .. } | State::Running | State::Reading { .. } | State::Ending | State::Stopped => {}
+            State::Preparing
+            | State::Writing { .. }
+            | State::Running
+            | State::Reading { .. }
+            | State::Ending
+            | State::Stopped => {}
         },
         Event::Exited { owner, exit, tail } => {
             job.tail = bounded_tail(tail, env.limits.tail_bytes);
             match job.state {
                 State::Spawning | State::Running => exited_job(job, env, owner, exit, out),
-                State::Writing { .. } | State::Reading { .. } | State::Ending | State::Stopped => {}
+                State::Preparing | State::Writing { .. } | State::Reading { .. } | State::Ending | State::Stopped => {}
             }
         }
         Event::Read { owner, bytes } => match job.state {
@@ -239,11 +282,16 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 job.state = State::Ending;
                 out.push(Request::Ended { owner, end });
             }
-            State::Writing { .. } | State::Spawning | State::Running | State::Ending | State::Stopped => {}
+            State::Preparing
+            | State::Writing { .. }
+            | State::Spawning
+            | State::Running
+            | State::Ending
+            | State::Stopped => {}
         },
         Event::Gone { owner } => {
             match job.state {
-                State::Writing { .. } => return,
+                State::Preparing | State::Writing { .. } => return,
                 State::Spawning | State::Running => {
                     job.state = State::Ending;
                     out.push(Request::Ended {
@@ -286,7 +334,12 @@ fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, ou
             job.state = State::Spawning;
             out.push(request);
         }
-        State::Spawning | State::Running | State::Reading { .. } | State::Ending | State::Stopped => {}
+        State::Preparing
+        | State::Spawning
+        | State::Running
+        | State::Reading { .. }
+        | State::Ending
+        | State::Stopped => {}
     }
 }
 

@@ -58,9 +58,7 @@ impl CryptoRng {
             }
         }
         for ((bytes, word), initial) in self.block.as_chunks_mut::<4>().0.iter_mut().zip(words).zip(self.words) {
-            for (slot, byte) in bytes.iter_mut().zip(word.wrapping_add(initial).to_le_bytes()) {
-                *slot = byte;
-            }
+            *bytes = word.wrapping_add(initial).to_le_bytes();
         }
         let low = self.words.get_mut(12).expect("counter low word");
         *low = low.wrapping_add(1);

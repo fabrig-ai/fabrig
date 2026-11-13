@@ -118,23 +118,8 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
     Ok(c::Setting::Application { kind: if scope == 0 { 1 } else { 2 }, scope, number })
 }
 pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
-    if kind == 14 {
-        let record = match areas(d, at) {
-            Ok(record) => record,
-            Err(why) => return Err(why.at(b"project-areas")),
-        };
-        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
-        record.encode(&mut out).expect("measured record");
-        return Ok(out.finish());
-    }
-    if kind == 15 {
-        let fields = d.object(at, &[b"owner"])?;
-        let owner = area_owner(d, field(&fields, b"owner")?)?;
-        let record = w::ProjectTriager::new(&d.kinds, w::ProjectTriagerParts { owner })
-            .or(Err(error(b"project-triager", b"wire value bound")))?;
-        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
-        record.encode(&mut out).expect("measured record");
-        return Ok(out.finish());
+    if kind == 14 || kind == 15 {
+        return area_value(d, at, kind);
     }
     if kind == 13 {
         let record = match dependency(d, at) {
@@ -164,16 +149,14 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
         return Ok(out.finish());
     }
     if kind == 9 {
-        let line = match d.string(at) {
-            Ok(value) => value.into(),
-            Err(why) => return Err(why.at(b"charter-words")),
-        };
-        let record = w::CharterWords::new(&d.kinds, w::CharterWordsParts { line })
-            .or(Err(error(b"charter-words", b"wire value bound")))?;
+        let record = charter_words(d, at)?;
         let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
         record.encode(&mut out).expect("measured record");
         return Ok(out.finish());
     }
+    remaining_value(d, at, kind)
+}
+fn remaining_value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
     if kind == 10 {
         let record = match project_words(d, at) {
             Ok(value) => value,
@@ -236,6 +219,24 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
     record.encode(&mut out).expect("measured record");
     Ok(out.finish())
 }
+fn area_value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
+    if kind == 14 {
+        let record = match areas(d, at) {
+            Ok(record) => record,
+            Err(why) => return Err(why.at(b"project-areas")),
+        };
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
+    let fields = d.object(at, &[b"owner"])?;
+    let owner = area_owner(d, field(&fields, b"owner")?)?;
+    let record = w::ProjectTriager::new(&d.kinds, w::ProjectTriagerParts { owner })
+        .or(Err(error(b"project-triager", b"wire value bound")))?;
+    let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+    record.encode(&mut out).expect("measured record");
+    Ok(out.finish())
+}
 fn project_words(d: &Decoder<'_>, at: u32) -> Result<w::ProjectWords, Error> {
     let fields = d.object(at, &[b"headline", b"lede"])?;
     let headline = match d.string(field(&fields, b"headline")?) {
@@ -247,6 +248,13 @@ fn project_words(d: &Decoder<'_>, at: u32) -> Result<w::ProjectWords, Error> {
         Err(why) => return Err(why.at(b"lede")),
     };
     w::ProjectWords::new(&d.kinds, w::ProjectWordsParts { headline, lede }).or(Err(error(b"", b"wire value bound")))
+}
+fn charter_words(d: &Decoder<'_>, at: u32) -> Result<w::CharterWords, Error> {
+    let line = match d.string(at) {
+        Ok(value) => value.into(),
+        Err(why) => return Err(why.at(b"charter-words")),
+    };
+    w::CharterWords::new(&d.kinds, w::CharterWordsParts { line }).or(Err(error(b"charter-words", b"wire value bound")))
 }
 fn goal(d: &Decoder<'_>, at: u32) -> Result<w::TemplateGoal, Error> {
     let fields = d.object(at, &[b"design", b"close_out"])?;

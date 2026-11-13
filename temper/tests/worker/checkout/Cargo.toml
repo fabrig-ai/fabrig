@@ -12,8 +12,6 @@ test = false
 doctest = false
 
 [dependencies]
-skein-scratch.workspace = true
-skein-throwaway-forgejo.workspace = true
 temper-fake-git.workspace = true
 skein-io.workspace = true
 skein-fake-peers.workspace = true
@@ -26,6 +24,8 @@ temper-fake-checkout.workspace = true
 skein-fake-forge-domain.workspace = true
 
 [dev-dependencies]
+skein-throwaway-forgejo.workspace = true
+skein-scratch.workspace = true
 temper-test-env.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

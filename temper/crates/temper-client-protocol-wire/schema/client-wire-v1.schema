@@ -34,7 +34,7 @@ record Accept { forge: u16 installation: u64 }
 # A model's trial (temper/docs/design/domain/trial.md, 6).
 record TryAccount { account: u32 again: bool }
 enum TrialStep { starts, answers }
-enum TrialClass { transient, permanent, run, agent, lost, invalid, refused }
+enum TrialClass { transient, permanent, run, agent, lost, invalid, refused, infrastructure }
 record TrialEnded { class: TrialClass }
 enum TrialWhy { ended: TrialEnded, refused, waited }
 record TrialAnswered { seconds: u32 }
@@ -261,15 +261,30 @@ record Receipted { run: u64 number: u64 address: bytes 2048 }
 record Dispatched { attempt: u16 run: option u64 }
 enum Proof { unkeyed, keyed, dispatched: Dispatched, waiting, passed: Receipted, failed: Receipted }
 record GateProof { name: bytes 32 blocking: bool key: option fixed 32 proof: Proof faults: u32 }
-record Member { change: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 pull: option Pull base: option fixed 32 candidate: option fixed 32 landed: option fixed 32 gates: list 8 GateProof }
+enum Ci { unknown, pending, passed, failed }
+enum Way { queue, turn }
 record HeldFaults { member: u16 gate: u16 }
-enum LandingHold { faults: HeldFaults }
-versioned record LandingPanel { task: u64 project: u32 phase: LandingPhase hold: option LandingHold members: list 8 Member preparation: u16 stale_proofs: u32 turn: option u64 }
-record LandingLine { task: u64 phase: LandingPhase changes: list 8 u64 repositories: list 8 bytes 2048 landed: list 8 fixed 32 }
+record HeldTimeout { member: u16 gate: u16 run: u64 }
+record HeldRecord { member: u16 }
+enum LandingHold { faults: HeldFaults, prepare, record: HeldRecord, timeout: HeldTimeout, turn }
+enum Combined { merge, squash }
+record Train { forge: u16 repository: u32 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 }
+enum LandingStep { waiting, preparing, proving, proved, turn, landed, held, cancelled, judging, leaving, recording, telling }
+record LandingRound { number: u16 branch: bytes 1024 pull: option Pull combined: option Combined step: LandingStep upstream: option fixed 32 failure: bytes 512 }
+record FailedGate { gate: u16 run: u64 }
+record MovedHead { head: fixed 32 }
+record RefusedGate { gate: u64 }
+enum LandingLeave { conflict, head_moved: MovedHead, cancelled, held, refused: RefusedGate, failed: FailedGate }
+record PrefixGate { number: u64 blocking: bool verdict: Ci }
+record PrefixJudgement { prefix: fixed 32 verdict: Ci gates: list 64 PrefixGate }
+record TrainLanding { task: u64 member: u64 round: u16 step: LandingStep title: bytes 256 ready_since: u64 }
+record Member { change: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 pull: option Pull base: option fixed 32 candidate: option fixed 32 landed: option fixed 32 gates: list 8 GateProof head: option fixed 32 left: option LandingLeave judgement: option PrefixJudgement }
+versioned record LandingPanel { task: u64 project: u32 phase: LandingPhase hold: option LandingHold members: list 8 Member preparation: u16 stale_proofs: u32 turn: option u64 train: option Train round: option LandingRound }
+record LandingLine { task: u64 phase: LandingPhase changes: list 8 u64 repositories: list 8 bytes 2048 landed: list 8 fixed 32 train: option Train }
 versioned record LandingsPanel { project: u32 turn: option u64 landings: list 64 LandingLine }
 # A project's changes (temper/docs/design/client/forge/records.md).
 record ChangesQueued { task: u64 title: bytes 256 ready_since: u64 checks_since: option u64 }
-record ChangesQueue { repository: bytes 2048 branch: bytes 1024 red: bool changes: list 32 ChangesQueued }
+record ChangesQueue { repository: bytes 2048 branch: bytes 1024 red: bool changes: list 32 ChangesQueued way: Way in_flight: option TrainLanding }
 record ChangesSigned { party: u64 head: fixed 32 at: u64 }
 record ChangesLanded { signed: list 8 ChangesSigned task: u64 title: bytes 256 at: u64 commit: fixed 32 default_branch: bool }
 versioned record ChangesPanel { project: u32 landing: bytes 1024 queues: list 32 ChangesQueue more: u32 landed: list 32 ChangesLanded landed_more: u32 landed_default: list 32 ChangesLanded landed_default_more: u32 }
@@ -289,12 +304,10 @@ record Cleared { merge: fixed 32 tiers: list 32 bytes 8192 uncleared: bool }
 enum Step { producing, opening, recreating, reopening, checking, gating, queued: Queued, first, updating, resolving, repairing: Repairing, landing, landed: Landed, ended, ready: InLanding, preparing: InLanding, verifying: Verifying, red: Red, cleared: Cleared }
 record AuthorityHold { reason: bytes 512 }
 enum Hold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority: AuthorityHold, questions }
-enum Ci { unknown, pending, passed, failed }
 enum GateKind { review, approval, check }
 enum Verdict { none, pending, approved, changes }
 record Gate { number: u64 kind: GateKind blocks: bool verdict: Verdict }
 record Used { used: u32 limit: u32 }
-enum Way { queue, turn }
 enum Route { none, up }
 enum Stands { taken, asked, held }
 record Question { asker: u64 number: u64 line: bytes 256 stands: Stands }

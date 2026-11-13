@@ -16,7 +16,8 @@ skein-world.workspace = true
 skein-shell.workspace = true
 skein-scratch.workspace = true
 smith-domain.workspace = true
-smith-protocol-machine = { workspace = true, features = ["fixture"] }
+smith-protocol-machine.workspace = true
+smith-protocol-machine-fixtures.workspace = true
 
 [dev-dependencies]
 skein-fake-checkout.workspace = true

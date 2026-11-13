@@ -67,7 +67,7 @@ impl Visitor {
     }
     /// Hands over `url` to visit, once: a plain `http://` URL with a
     /// literal address.
-    pub(crate) fn hand(&mut self, url: &[u8]) {
+    pub fn hand(&mut self, url: &[u8]) {
         assert!(!self.handed, "one visit");
         self.handed = true;
         self.inbox.get_mut(..url.len()).expect("the URL fits the inbox").copy_from_slice(url);
@@ -80,7 +80,8 @@ impl Visitor {
     pub fn redirect(&self) -> Option<&[u8]> {
         self.account_redirect.as_deref()
     }
-    pub(crate) fn handed(&self) -> bool {
+    #[must_use]
+    pub fn handed(&self) -> bool {
         self.handed
     }
     fn visit(&mut self, url: &[u8]) {

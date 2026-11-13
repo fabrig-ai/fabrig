@@ -211,6 +211,7 @@ policy.
   process tree is terminated, then killed. Wall time ends the same polite
   way; a broken rule, no progress, or a channel hung up while the run is
   live terminate the tree at once.
+- **Drain, then cancel.** The parent may ask a run to stop at the end of its current turn, as a host does that stops for a while and means to resume it (run.md, section 9): the kit sends the drain down the channel once, and arms no grace for it, so the watchdog and the bound on wall time hold as ever, and the run answers when its turn ends. A stop that follows is the ordinary cancel, its grace counted from the stop; a drain asked after a stop, or twice, is ignored; one asked before the agent's start has gone down follows the start, in order. The inline agent takes a drain alike, as its run's (9.2).
 - **An answered agent exits on its own.** After its answer, the agent
   closes everything it owns and exits once each has settled; only io's
   close deadlines bound that, and they make its teardown bound
@@ -528,6 +529,7 @@ A child a host embeds, beside or instead of `smith-host-domain`:
   withdrawn, and the agent is gone once each has settled.
 - **A drop is the host's to ask for.** The local host's second interrupt
   asks for one (../protocol/host.md, 5.1).
+- **A drain** goes to the run as its drain (run.md, section 9), with no grace of its own; a stop that follows starts step 1.
 - **A panic is fail-stop** for the host's whole process, as for any
   domain. A host that keeps its transcripts durably resumes from them.
 

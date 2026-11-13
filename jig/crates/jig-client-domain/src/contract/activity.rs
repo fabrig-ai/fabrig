@@ -192,6 +192,8 @@ pub enum WordResult {
     },
     Failed,
     Cancelled,
+    /// A job delegate's result: empty words; its bytes are its procedure's (contract/documents.md, 7).
+    Job,
 }
 
 /// The facts supplied by a settings proposal's durable inbox outcome.

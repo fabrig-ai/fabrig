@@ -92,7 +92,8 @@
     `me`'s next delivery brings the link back, and with it the confirmed
     party's parked requests;
   - *out of date:* the engine serves no version of jig's that the client
-    speaks. It sends nothing, and keeps every request.
+    speaks; or it sent a record of jig's this build can't read
+    (`unreadable`, below). It sends nothing, and keeps every request.
 
   Beside its state, the link names the party confirmed, each declared
   owner whose version the last hello does not serve (below), and a
@@ -113,6 +114,23 @@
   It clears when that watch is answered, or is closed or ended. It carries
   no count, since a refusal names none, and tells no `Link(state)`: an
   application reads it when it has cause to, as at a deadline.
+  `unreadable` says the link is out of date because the engine sent a
+  record of jig's that this build can't read
+  (`../../../protocol/client/README.md`, section 6): a record on the
+  stream (the hello, a delivery, a run's text, a watch's end) whose
+  bytes, or whose translation, the link refuses as malformed or of
+  another version, or an answer to a watch's opening or closing whose
+  bytes don't decode. A record refused for a bound or for its order on
+  the stream is not one: it drops the stream, which opens again after
+  its backoff, offline meanwhile. The link drops the stream
+  as for any refused record, then the client is out of date and opens
+  nothing again: no stream, no watch, `me`'s included, and no request
+  sent, each kept. It holds for the client's life, since no later hello
+  comes to lift it; a reload or a restart is a new client. A link out of
+  date by the hello's ranges has it false. So an application can say which it is: a client of another
+  version, refused by name, or one that can't read what it was sent.
+  Each tells its person to reload or update; neither leaves the person
+  offline with no word.
 - **Judged from the stream alone,** whatever the application watches. A
   request that got no answer while the link is live is sent again after
   a backoff, and does not by itself make the client offline.

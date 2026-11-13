@@ -365,7 +365,7 @@ fn random_splits_demands_and_caps_meet_what_the_reference_meets() {
         let capacity = u32::try_from(rng.between(4, 24)).unwrap();
         let mut input = Vec::new();
         for _ in 0..rng.below(96) {
-            input.push(*[b'a', b'b', b'\r', b'\n'].get(usize::try_from(rng.below(4)).unwrap()).unwrap());
+            input.push(*b"ab\r\n".get(usize::try_from(rng.below(4)).unwrap()).unwrap());
         }
         let mut demands = Vec::new();
         for _ in 0..rng.between(1, 40) {

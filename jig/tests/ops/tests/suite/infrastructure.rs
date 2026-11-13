@@ -270,7 +270,7 @@ fn dropping_a_proposal_erases_its_payload_across_restart() {
         world.event(infra::Event::DescribeProposal { token, number: 9 }),
         vec![infra::Request::Refused { token }]
     );
-    assert!(world.production.observed().is_empty());
+    assert_eq!(world.production.observed(), []);
 }
 
 fn torn_down(chat: Option<u64>) -> InfrastructureWorld {
@@ -344,7 +344,7 @@ fn unsaved_close_answers_survive_until_the_next_start() {
     for outcome in [infra::CloseOutcome::NotOffered, infra::CloseOutcome::NoOwner, infra::CloseOutcome::Again] {
         let mut world = torn_down(Some(5));
         let (key, _, _) = asked_close(&world);
-        assert!(world.event(infra::Event::Closed { key, outcome }).is_empty());
+        assert_eq!(world.event(infra::Event::Closed { key, outcome }).len(), 0);
         assert!(!world.fire().iter().any(|request| matches!(request, infra::Request::Close { .. })));
         assert!(world.restart().contains(&infra::Request::Close { key, project: 1, chat: 5 }));
     }

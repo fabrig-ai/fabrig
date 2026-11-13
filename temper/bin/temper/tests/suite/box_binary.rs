@@ -36,7 +36,7 @@ fn the_client_finds_its_sibling_and_execs_it_with_unchanged_arguments_and_descri
     expected.extend_from_slice(box_file.as_os_str().as_bytes());
     expected.push(b'\n');
     assert_eq!(output.stdout, expected);
-    assert!(output.stderr.is_empty());
+    assert_eq!(output.stderr.len(), 0);
     let mut command = Command::new(&client);
     configure(&mut command);
     let raw = std::ffi::OsString::from_vec(b"bytes-\xff".to_vec());
