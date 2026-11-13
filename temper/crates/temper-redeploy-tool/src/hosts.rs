@@ -63,6 +63,17 @@ pub fn words(words: &[&str]) -> String {
     words.iter().map(|word| quote(word)).collect::<Vec<_>>().join(" ")
 }
 
+/// The engine's JSON ctl call, with each word quoted and stdin closed (redeploy.md, 7).
+pub fn ctl(description: &Description, arguments: &[&str], hosts: &mut dyn Hosts) -> Result<String, String> {
+    let line = format!("{} {} {} </dev/null", description.engine.ctl, words(arguments), quote("--json"));
+    let answer = hosts.run(Part::Engine, &line);
+    if answer.code == Some(0) {
+        Ok(answer.stdout)
+    } else {
+        Err(format!("ctl {}: exit {:?}: {}", arguments.join(" "), answer.code, answer.stderr.trim()))
+    }
+}
+
 pub type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 pub type Environment = [EnvironmentEntry];
 pub struct Processes {

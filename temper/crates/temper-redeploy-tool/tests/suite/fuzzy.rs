@@ -1,6 +1,9 @@
 //! A seeded byte-word reader independent of the quoter (redeploy.md, 2.2, 8).
 use temper_redeploy_tool::hosts::quote_bytes;
 
+mod openings;
+mod redeploy;
+
 fn read_word(text: &[u8]) -> Vec<u8> {
     let mut bytes = Vec::new();
     let mut cursor = 0;

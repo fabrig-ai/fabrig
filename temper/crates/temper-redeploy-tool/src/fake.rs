@@ -40,9 +40,13 @@ pub struct Deployment {
     pub workers: Vec<Machine>,
     pub at: u64,
     pub lines: Vec<Call>,
+    /// Commands submitted together, separately from the ordered line log.
+    pub batches: Vec<Vec<(Part, String)>>,
     pub log: Vec<(u64, String)>,
     pub check: Output,
     pub openings: Vec<Opening>,
+    /// Optional per-start openings, consumed before falling back to `openings`.
+    pub opening_rounds: BTreeMap<usize, VecDeque<Opening>>,
     pub documents: Vec<Output>,
     /// A response queue per ctl argument line; the final response repeats for polling.
     pub ctl: BTreeMap<String, VecDeque<Output>>,
@@ -110,12 +114,14 @@ impl Deployment {
             .collect();
         Self {
             openings: vec![Opening::default(); description.workers.len()],
+            opening_rounds: BTreeMap::new(),
             description,
             engine,
             workers,
             documents,
             at: 1_000_000_000,
             lines: Vec::new(),
+            batches: Vec::new(),
             log: Vec::new(),
             check: output(0, "temper-engine upgrade: workers may stay: yes\n"),
             ctl: BTreeMap::new(),
@@ -164,7 +170,12 @@ impl Deployment {
     fn schedule(&mut self, index: usize) {
         self.pending.retain(|(worker, _, _)| *worker != index);
         let name = &self.description.workers[index].name;
-        let (delay, line) = match &self.openings[index] {
+        let opening = self
+            .opening_rounds
+            .get_mut(&index)
+            .and_then(VecDeque::pop_front)
+            .unwrap_or_else(|| self.openings[index].clone());
+        let (delay, line) = match &opening {
             Opening::After { nanoseconds, wires } => {
                 (*nanoseconds, format!("temper-engine serve: worker {name} opened: {wires}"))
             }
@@ -228,7 +239,7 @@ impl Deployment {
             return output(0, "");
         }
         if let Some(values) = captures(swap, line) {
-            return self.copy(part, &values["from"], &values["to"], false);
+            return self.copy(part, &values["from"], &values["to"]);
         }
         if let Some(values) = captures(&self.description.engine.log, line) {
             let since = values["since"].parse::<u64>().expect("log since seconds") * 1_000_000_000;
@@ -246,7 +257,7 @@ impl Deployment {
             return output(0, "");
         }
         if let Some(arguments) = line.strip_prefix(&format!("{} ", self.description.engine.ctl)) {
-            let arguments = shell_words(arguments).join(" ");
+            let arguments = shell_words(arguments.strip_suffix(" </dev/null").unwrap_or(arguments)).join(" ");
             return match self.ctl.get_mut(&arguments) {
                 Some(answers) if answers.len() > 1 => answers.pop_front().expect("more than one answer"),
                 Some(answers) => answers.front().cloned().expect("ctl answer exists"),
@@ -290,7 +301,7 @@ impl Deployment {
         if let Some(index) = words.iter().position(|word| word == "cp") {
             let arguments: Vec<_> = words[index + 1..].iter().filter(|word| !word.starts_with('-')).collect();
             if let [from, to] = arguments.as_slice() {
-                return self.copy(part, from, to, true);
+                return self.copy(part, from, to);
             }
         }
         if words.first().is_some_and(|word| word == "mkdir") {
@@ -298,7 +309,7 @@ impl Deployment {
         }
         Output { code: Some(127), stdout: String::new(), stderr: format!("unrecognized fake line: {line}") }
     }
-    fn copy(&mut self, part: Part, from: &str, to: &str, preserve: bool) -> Output {
+    fn copy(&mut self, part: Part, from: &str, to: &str) -> Output {
         let (directory, _, _) = binaries(&self.description, part);
         let source_name = from.rsplit('/').next().expect("source name");
         let machine = self.machine(part);
@@ -316,7 +327,7 @@ impl Deployment {
         let machine = self.machine_mut(part);
         if installed {
             machine.installed.insert(name.into(), commit);
-        } else if !preserve || !machine.staged.contains_key(to) {
+        } else {
             machine.staged.insert(to.into(), commit);
         }
         output(0, "")
@@ -328,6 +339,7 @@ impl Hosts for Deployment {
         self.answer(part, line)
     }
     fn run_each(&mut self, lines: &[(Part, String)]) -> Vec<Output> {
+        self.batches.push(lines.to_vec());
         lines.iter().map(|(part, line)| self.run(*part, line)).collect()
     }
     fn now(&mut self) -> u64 {

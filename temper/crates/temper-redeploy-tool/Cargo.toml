@@ -19,10 +19,15 @@ path = "tests/suite/main.rs"
 skein-shell.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+time.workspace = true
 
 [dev-dependencies]
 skein-scratch.workspace = true
 temper-test-env.workspace = true
+temper-engine-shell.workspace = true
+temper-engine-service.workspace = true
+jig-protocol-worker-wire.workspace = true
+skein-lib.workspace = true
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"

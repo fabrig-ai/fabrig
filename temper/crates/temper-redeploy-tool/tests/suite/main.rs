@@ -4,7 +4,9 @@ mod description;
 mod fake;
 mod fuzzy;
 mod hosts;
+mod openings;
 mod record;
+mod redeploy;
 mod reference;
 mod stage;
 
