@@ -1,0 +1,41 @@
+[package]
+name = "temper-engine-service-stock"
+description = "Temper's engine stock"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jig-domain-authority.workspace = true
+jig-domain-core.workspace = true
+jig-domain-fleet.workspace = true
+jig-domain-people.workspace = true
+jig-domain-tasks.workspace = true
+jig-protocol-config.workspace = true
+skein-forge.workspace = true
+skein-lib.workspace = true
+temper-charter-set.workspace = true
+temper-engine-domain.workspace = true
+temper-engine-domain-forge.workspace = true
+temper-engine-domain-forge-change.workspace = true
+temper-engine-domain-forge-tiers.workspace = true
+temper-engine-domain-ways.workspace = true
+temper-engine-smith.workspace = true
+temper-protocol-reaches.workspace = true
+
+[dev-dependencies]
+skein-world.workspace = true
+jig-protocol-store.workspace = true
+settings-form.workspace = true
+skein-io.workspace = true
+skein-json.workspace = true
+temper-client-tools.workspace = true
+temper-engine-service-vocabulary.workspace = true
+temper-forge-setup.workspace = true
+temper-init.workspace = true
+temper-worker-service-fixtures.workspace = true
+
+[lints]
+workspace = true

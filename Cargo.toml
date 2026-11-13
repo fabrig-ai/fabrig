@@ -332,6 +332,11 @@ members = [
     "temper/crates/temper-client-tools",
     "temper/crates/temper-service",
     "temper/crates/temper-service-core",
+    "temper/crates/temper-engine-service",
+    "temper/crates/temper-engine-service-vocabulary",
+    "temper/crates/temper-engine-service-stock",
+    "temper/crates/temper-engine-service-startup",
+    "temper/crates/temper-engine-service-component",
     "temper/crates/temper-worker-service",
     "temper/testing/temper-worker-service-fixtures",
     "temper/tests/worker/protocol-git",
@@ -429,6 +434,7 @@ rust-version = "1.95"
 publish = false
 
 [workspace.dependencies]
+temper-engine-domain-world = { path = "temper/tests/engine/domain" }
 aho-corasick = { version = "1.1.5", default-features = false, features = ["std", "perf-literal"] }
 syn = { version = "2", features = ["full", "visit", "extra-traits", "visit-mut"] }
 skein-fork = { path = "skein/testing/skein-fork" }
@@ -706,6 +712,10 @@ temper-worker-service = { path = "temper/crates/temper-worker-service" }
 temper-service-core = { path = "temper/crates/temper-service-core" }
 temper-service = { path = "temper/crates/temper-service" }
 temper-engine-service = { path = "temper/crates/temper-engine-service" }
+temper-engine-service-vocabulary = { path = "temper/crates/temper-engine-service-vocabulary" }
+temper-engine-service-stock = { path = "temper/crates/temper-engine-service-stock" }
+temper-engine-service-startup = { path = "temper/crates/temper-engine-service-startup" }
+temper-engine-service-component = { path = "temper/crates/temper-engine-service-component" }
 temper-worker-protocol-git-world = { path = "temper/tests/worker/protocol-git" }
 temper-worker-protocol-git = { path = "temper/crates/temper-worker-protocol-git" }
 temper-client-protocol-wire = { path = "temper/crates/temper-client-protocol-wire" }
