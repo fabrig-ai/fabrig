@@ -1,5 +1,5 @@
 use skein_lib::Duration;
-use temper_engine_domain_forge as forge;
+use temper_engine_domain_forge_vocabulary as forge;
 pub const LIMITS: forge::Limits = forge::Limits {
     forges: 4,
     repositories: 2,
@@ -32,7 +32,7 @@ pub const LIMITS: forge::Limits = forge::Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
-    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
+    tiers: temper_engine_domain_forge_vocabulary::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
     findings_per_project: 256,
@@ -100,5 +100,5 @@ pub const LIMITS: forge::Limits = forge::Limits {
         clean_heads: 8,
     },
     queue_window: Duration::from_secs(30),
-    sitting: temper_engine_domain_forge::SITTING,
+    sitting: temper_engine_domain_forge_vocabulary::SITTING,
 };

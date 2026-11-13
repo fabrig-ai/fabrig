@@ -1,5 +1,5 @@
 use skein_forge::api::{self as api, Bypass};
-use temper_engine_domain_forge as forge;
+use temper_engine_domain_forge_vocabulary as forge;
 
 pub fn rule(flags: u8, bypass: Bypass) -> api::Protection {
     api::Protection {

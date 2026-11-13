@@ -1,7 +1,7 @@
 //! Family 42 keeps follow state and obeys configured decode bounds.
 use super::fixtures;
 use crate::{Undecodable, keys, records};
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 fn entry(state: d::FollowState) -> d::FollowEntry {
     d::FollowEntry {
         before: [1; 32],
