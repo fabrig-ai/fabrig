@@ -2,7 +2,6 @@
 
 2026-11-13. Where smith's code lags or departs from [run.md](run.md).
 
-- **Not yet:** 9: a model failure's report has no HTTP status [in flight: change 31].
 
 - **Not yet:** 8.1, *The checks' bound* and *Out of time, once more*: every check is given `check_timeout` (`smith-domain-run/src/land.rs`, `next`), the charter names no bound, and a check stopped at its deadline refuses its delivery at once, with no retry.
 

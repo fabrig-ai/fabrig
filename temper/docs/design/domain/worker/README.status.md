@@ -69,7 +69,6 @@ AGENT.json`, with the same program used for a model list
 them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
 
-- **Not yet:** 4.3, *A model call's failure is named*: the worker names no model call, so a held task names no run's failure, a model's included [in flight: change 33].
 - **Not yet:** 4.3: `temper help task` says an "invalid results" hold may mean an
   assignment was refused before any model turn (`temper/docs/help/task.md`),
   where such a start spends a permanent try, and a hold for it says
