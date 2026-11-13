@@ -188,7 +188,9 @@ fn history_records_round_trip_every_kind_and_interval() {
 fn the_v20_change_patch_adds_no_backdated_history() {
     let before = kept_golden(20, "record_change_row_full.bin");
     let bytes = patched(20, 9, b"ChangeRow", before.clone());
-    assert_eq!(bytes.as_ref(), [b"\0".as_slice(), before.as_ref(), b"\0".as_slice()].concat(), "no pending job or backdated history");
+    let (job, rest) = bytes.as_ref().split_first().unwrap();
+    assert_eq!(*job, 0, "no pending job");
+    assert_eq!(rest.split_last(), Some((&0, before.as_ref())), "no backdated history");
     let after = v21::ChangeRow::decode(&v21::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert!(after.history().is_none());
     assert!(after.job().is_none());
