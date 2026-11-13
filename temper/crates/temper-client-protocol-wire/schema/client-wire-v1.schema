@@ -1,4 +1,4 @@
-family temper-client-wire 20
+family temper-client-wire 21
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -234,7 +234,74 @@ record NotDrawn { words: text 512 }
 enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, rule: RuleView, roles: RolesView, not_drawn: NotDrawn }
 versioned record ViewAnswer { view: View }
 
-enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead, finding: FindingRead }
+# Landing history (temper/docs/design/domain/landing-history.md, 2 and 5.1).
+record HistoryRepository { forge: u16 repository: u32 }
+record HistoryNumber { number: u64 }
+record HistoryCommit { commit: fixed 32 }
+enum HistoryUpdateStyle { merge, rebase }
+record HistoryGateRefused { gate: u64 }
+record HistoryGateFailed { gate: u16 run: u64 }
+record HistoryLeftChange { change: u64 }
+record HistoryBlamed { gate: u16 run: u64 red: fixed 32 green: fixed 32 }
+enum HistoryLeave { conflict, head_moved: HistoryCommit, cancelled, held, refused: HistoryGateRefused, failed: HistoryGateFailed, earlier_conflict, unit: HistoryLeftChange, dependency: HistoryLeftChange, blamed: HistoryBlamed }
+record HistoryTask { task: u64 }
+enum HistoryOf { project, change: HistoryTask, landing: HistoryTask }
+record HistoryRead { project: u32 of: HistoryOf since: option u64 until: option u64 after: option fixed 17 }
+record HistoryInLanding { task: u64 round: u16 unit: u16 }
+enum HistoryUnready { held, head_moved, refused, dependency, approval, conflict, closed }
+enum HistoryLine { queue, landing, forge_queue }
+record HistoryJoined { line: HistoryLine place: option u32 priority: option u32 }
+record HistoryLandingDeparture { cause: HistoryLeave }
+enum HistoryDeparture { landing: HistoryLandingDeparture, unready, conflict, repair, ejected }
+record HistoryDeparted { line: HistoryLine cause: HistoryDeparture }
+record HistoryUpdate { style: HistoryUpdateStyle }
+enum HistoryUpdateOutcome { updated, conflict, failed }
+record HistoryUpdated { outcome: HistoryUpdateOutcome }
+enum HistoryJob { prepare, merge }
+record HistoryJobStarted { job: HistoryJob task: u64 }
+enum HistoryJobOutcome { done, conflict, failed, lost }
+record HistoryJobEnded { job: HistoryJob outcome: HistoryJobOutcome }
+enum HistoryWith { branch, earlier }
+record HistoryConflict { with: HistoryWith files: u32 }
+enum HistoryAsk { resolution, repair, judgement }
+record HistoryAsked { ask: HistoryAsk task: u64 gate: option u16 }
+enum HistoryDelegateOutcome { pushed, passed, refused, nothing, failed, cancelled }
+record HistoryAnswered { ask: HistoryAsk outcome: HistoryDelegateOutcome }
+record HistoryDelivered { checked: bool }
+enum HistoryPause { branch_red, tier_red }
+record HistoryPaused { why: HistoryPause }
+record HistoryMember { change: u64 unit: u16 head: fixed 32 }
+record HistoryFormed { members: list 64 HistoryMember place: u16 }
+enum HistoryRoundCause { turned, left, stale, cancelled, cut }
+record HistoryRoundEnded { cause: HistoryRoundCause }
+record HistoryGate { gate: u16 key: fixed 32 }
+enum HistoryGateVerdict { passed, failed, fault, timeout, superseded }
+record HistoryGateEnded { gate: u16 key: fixed 32 verdict: HistoryGateVerdict }
+record HistoryProof { gate: u16 run: u64 }
+record HistoryProved { proofs: list 64 HistoryProof }
+record HistorySearched { green: option fixed 32 red: fixed 32 blamed: u16 }
+record HistoryProbeEnded { green: bool }
+record HistoryTurn { members: u16 }
+enum HistoryRecordedState { merged, closed }
+record HistoryRecorded { state: HistoryRecordedState }
+enum HistoryEnding { no_change, cancelled, failed }
+record HistoryEnded { ending: HistoryEnding }
+enum HistoryLandingOutcome { done, cancelled, held }
+record HistoryLandingEnded { outcome: HistoryLandingOutcome }
+enum HistoryOn { change, landing }
+enum HistoryBy { party: HistoryNumber, task: HistoryNumber }
+record HistoryHold { on: HistoryOn reason: bytes 256 by: option HistoryBy }
+enum HistoryAfterVerdict { verified, red, cleared, uncleared }
+record HistoryAfter { verdict: HistoryAfterVerdict }
+record HistoryUnreadyStep { why: HistoryUnready }
+enum HistoryWhat { ready, unready: HistoryUnreadyStep, joined: HistoryJoined, departed: HistoryDeparted, selected, update: HistoryUpdate, updated: HistoryUpdated, job: HistoryJobStarted, job_ended: HistoryJobEnded, conflict: HistoryConflict, asked: HistoryAsked, answered: HistoryAnswered, pushed, delivered: HistoryDelivered, paused: HistoryPaused, resumed, formed: HistoryFormed, round_ended: HistoryRoundEnded, gate: HistoryGate, gate_ended: HistoryGateEnded, proved: HistoryProved, search, searched: HistorySearched, probe, probe_ended: HistoryProbeEnded, turn: HistoryTurn, landed, recorded: HistoryRecorded, ended: HistoryEnded, landing_ended: HistoryLandingEnded, held: HistoryHold, released: HistoryHold, after: HistoryAfter }
+record HistoryEvent { project: u32 number: u64 at: u64 source_at: option u64 change: u64 repository: HistoryRepository landing: option HistoryInLanding head: option fixed 32 base: option fixed 32 operation: u64 attempt: u32 what: HistoryWhat }
+record HistoryPage { events: list 32 HistoryEvent after: option fixed 17 upper: u64 whole_since: option u64 }
+record HistoryGone { from: u64 first: option u64 }
+enum HistoryReply { page: HistoryPage, gone: HistoryGone, busy }
+versioned record HistoryAnswer { result: HistoryReply }
+
+enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead, finding: FindingRead, history: HistoryRead }
 versioned record Reading { read: Read }
 
 # temper/docs/design/client/forge/records.md: no playground is no record.

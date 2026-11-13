@@ -463,6 +463,10 @@ pub(super) fn read(
     }
     if why.is_none() {
         match query {
+            crate::ForgeRead::History(query) => {
+                history_begin(domain, env, decision, reply, sign_in, query);
+                return;
+            }
             crate::ForgeRead::View { project, address } => {
                 super::ways::view::read(domain, env, decision, reply, sign_in, project, address);
                 return;
@@ -478,6 +482,7 @@ pub(super) fn read(
         Some(why) => crate::Delivery::Read { reply, answer: Answer::None(why) },
         None => {
             let answer = match query {
+                crate::ForgeRead::History(_) => unreachable!("history reads have their own answer"),
                 crate::ForgeRead::View { .. } => unreachable!("view reads have their own answer"),
                 crate::ForgeRead::Finding { project, number } => {
                     crate::ForgeReadAnswer::Finding(super::findings::read(domain, project, number))
@@ -516,6 +521,7 @@ fn read_refusal(
         Some(party) => {
             let permitted = match scope {
                 ApplicationScope::Deployment => match query {
+                    crate::ForgeRead::History(query) => domain.core.people.role(party, query.project).is_some(),
                     crate::ForgeRead::View { project, .. } | crate::ForgeRead::Finding { project, .. } => {
                         domain.core.people.role(party, *project).is_some()
                     }
@@ -528,6 +534,7 @@ fn read_refusal(
                 },
                 ApplicationScope::Project(project) => {
                     let own_kind = match query {
+                        crate::ForgeRead::History(query) => query.project == project,
                         crate::ForgeRead::View { project: requested, .. }
                         | crate::ForgeRead::Finding { project: requested, .. } => *requested == project,
                         crate::ForgeRead::Setting { kind, scope, .. }
@@ -727,4 +734,39 @@ fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, ow
         settings::AreaOwner::Role(number) => number < bounds.roles,
         settings::AreaOwner::Charter(number) => number > 0 && number <= bounds.charters,
     }
+}
+
+fn history_begin(
+    domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision,
+    reply: skein_lib::ReplyTo, sign_in: u64, query: temper_engine_domain_forge::history::Query,
+) {
+    let Some(read) = domain.next_history_read.checked_add(1) else {
+        super::emit(decision, &env.limits, crate::Delivery::Read {
+            reply, answer: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
+        });
+        return;
+    };
+    let token = reply.into_token();
+    if domain.history_reads.insert(read, (skein_lib::ReplyTo::new(token), sign_in, query)).is_err() {
+        super::emit(decision, &env.limits, crate::Delivery::Read {
+            reply: skein_lib::ReplyTo::new(token),
+            answer: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
+        });
+        return;
+    }
+    domain.next_history_read = read;
+    domain.work.push(Work::Forge(temper_engine_domain_forge::Event::ReadHistory { read, query }));
+}
+pub(super) fn history_answer(
+    domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision,
+    read: u64, answer: temper_engine_domain_forge::history::Reply,
+) {
+    let Some((reply, sign_in, query)) = domain.history_reads.remove(&read) else { return };
+    let why = read_refusal(domain, env, sign_in,
+        jig_domain_people::ApplicationScope::Project(query.project), &crate::ForgeRead::History(query));
+    let delivery = match why {
+        Some(why) => crate::Delivery::Read { reply, answer: jig_domain_core::reads::Answer::None(why) },
+        None => crate::Delivery::ForgeRead { reply, answer: crate::ForgeReadAnswer::History(answer) },
+    };
+    super::emit(decision, &env.limits, delivery);
 }
