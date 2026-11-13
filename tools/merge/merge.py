@@ -1,4 +1,4 @@
-"""Settle known generated conflicts (temper/docs/design/protocol/tooling.md, 4.1)."""
+"""Settle known conflicts (temper/docs/design/protocol/tooling.md, 4.1)."""
 import json
 import os
 from pathlib import Path
@@ -9,6 +9,10 @@ import sys
 
 BASELINES = {f'{tree}/scripts/old-forms.txt'
              for tree in ('skein', 'smith', 'jig', 'temper', 'hearth')}
+KNOWN_REDS = '.temper/known-reds.md'
+# Entry patterns and cap: tools/pre-pr/design.md, 5.
+RED_TEST = re.compile(r'- test (\S+) (.+)')
+RED_LINT = re.compile(r'- lint (\S+) (\S+) (.+)')
 ROW = re.compile(rb'(\S+)([ \t]+)([0-9]+)([ \t]*(?:\r?\n)?)')
 RECORDINGS = {
     'temper/tests/playground/tests/fixtures/story-a.log': (
@@ -19,9 +23,9 @@ RECORDINGS = {
 MARKER = re.compile(rb'^(?:<{7}|={7}|>{7}|\|{7})(?:[ \r\n]|$)', re.MULTILINE)
 
 
-def git(repository, *args):
+def git(repository, *args, stderr=None):
     return subprocess.run(['git', *args], cwd=repository, check=True,
-                          stdout=subprocess.PIPE).stdout
+                          stdout=subprocess.PIPE, stderr=stderr).stdout
 
 
 def unmerged(repository):
@@ -76,6 +80,72 @@ def settle(repository, path, stages):
         git(repository, 'add', '--', path)
     except (OSError, subprocess.CalledProcessError):
         target.write_bytes(previous)
+        return False
+    return True
+
+
+def known_red_key(line):
+    line = line.rstrip()
+    return line if RED_TEST.fullmatch(line) or RED_LINT.fullmatch(line) else None
+
+
+def merged_known_reds(merge_base: str, head: str, incoming: str) -> str:
+    """Merge entries, keeping incoming prose (temper/docs/design/protocol/tooling.md, 4.1)."""
+    merge_base_keys = {known_red_key(line) for line in merge_base.splitlines()} - {None}
+    head_keys = list(dict.fromkeys(key for line in head.splitlines()
+                                  if (key := known_red_key(line)) is not None))
+    incoming_lines = incoming.splitlines(keepends=True)
+    incoming_keys = {known_red_key(line) for line in incoming_lines} - {None}
+    removed = (merge_base_keys & incoming_keys) - set(head_keys)
+    added = [key + '\n' for key in head_keys
+             if key not in merge_base_keys and key not in incoming_keys]
+    insertion = max((index + 1 for index, line in enumerate(incoming_lines)
+                     if known_red_key(line) is not None), default=len(incoming_lines))
+    before = [line for line in incoming_lines[:insertion] if known_red_key(line) not in removed]
+    # splitlines recognises the delivery check's line endings, not only LF.
+    if added and before and before[-1].splitlines() == [before[-1]]:
+        before[-1] += '\n'
+    return ''.join(before + added + incoming_lines[insertion:])
+
+
+def known_reds(repository, path, stages):
+    """Settle or leave with one reason (temper/docs/design/protocol/tooling.md, 4.1)."""
+    target = repository / path
+    previous = None
+    try:
+        if 2 not in stages:
+            raise ValueError("missing on the head's side")
+        if 3 not in stages:
+            raise ValueError('missing on the incoming side')
+        sides = {}
+        for stage, side in ((1, 'merge base'), (2, 'head'), (3, 'incoming')):
+            if stage not in stages:
+                sides[stage] = ''
+                continue
+            mode, blob = stages[stage]
+            if mode not in (b'100644', b'100755'):
+                raise ValueError(f'{side} stage is not a regular file')
+            sides[stage] = git(repository, 'cat-file', 'blob', blob,
+                               stderr=subprocess.PIPE).decode('utf-8')
+        merged = merged_known_reds(sides[1], sides[2], sides[3])
+        entries = sum(known_red_key(line) is not None for line in merged.splitlines())
+        data = merged.encode('utf-8')
+        if entries > 64 or len(data) > 8192:
+            raise ValueError(f'the merged file holds {entries:,} entries, {len(data):,} bytes; '
+                             'the cap is 64 entries and 8,192 bytes')
+        if target.is_symlink() or not target.is_file():
+            raise ValueError('work tree file is not a regular file')
+        previous = target.read_bytes()
+        target.write_bytes(data)
+        git(repository, 'add', '--', path, stderr=subprocess.PIPE)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        reason = str(error)
+        if previous is not None:
+            try:
+                target.write_bytes(previous)
+            except OSError as restore_error:
+                reason += f'; restoring conflicted bytes failed: {restore_error}'
+        print(f'{path}: left: {reason}', file=sys.stderr)
         return False
     return True
 
@@ -154,6 +224,8 @@ def main():
     for path, stages in sorted(conflicts.items()):
         try:
             if path in BASELINES and settle(repository, path, stages):
+                settled.append(path)
+            elif path == KNOWN_REDS and known_reds(repository, path, stages):
                 settled.append(path)
             elif path in RECORDINGS and regenerate(repository, path, stages, conflicts):
                 settled.append(path)

@@ -203,7 +203,7 @@ fn talk_words_use_talk_permission_and_chat_words_still_use_message() {
             }
             assert!(sent);
         } else {
-            assert!(asks.is_empty());
+            assert_eq!(asks, Vec::<c::Ask>::new());
             assert_eq!(root.pages().chat().unwrap().words.as_ref(), b"Hello");
         }
     }
@@ -386,12 +386,12 @@ fn accepting_settings_on_a_talk_card_moves_runs_but_on_a_chat_stays() {
             made: None,
         }));
         answer(&mut root, read, c::ReadValue::Proposal(proposal));
-        assert!(
+        assert_eq!(
             sends(&act(
                 &mut root,
                 Act::Decide { object: c::ObjectKey::Proposal(key), revision: None, act: c::ActKind::Accept }
-            ))
-            .is_empty()
+            )),
+            Vec::<c::Ask>::new()
         );
         let out = act(&mut root, Act::Confirm);
         assert_eq!(

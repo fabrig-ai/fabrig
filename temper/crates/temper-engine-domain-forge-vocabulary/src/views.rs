@@ -23,7 +23,10 @@ pub fn landings_subject(project: u32, ended: bool) -> u64 {
     (1 << 62) | (u64::from(ended) << 32) | u64::from(project)
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "a change panel carries the bounded Copy landing repair context")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::large_enum_variant, reason = "a change panel carries the bounded Copy landing repair context")
+)]
 pub enum Document {
     Findings(crate::Findings),
     Change(Panel),
