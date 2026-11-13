@@ -92,7 +92,9 @@ fn a_members_goal_hears_joined_proving_and_left_and_the_result_names_why() {
             break;
         }
     }
-    let landing = landing_rows(&world).first().expect("proving landing").landing.task;
+    let proving_row = landing_rows(&world).into_iter().next().expect("proving landing");
+    let landing = proving_row.landing.task;
+    let proving_words = proving(proving_row, change);
     cancel_task(&mut world, change);
     for _ in 0..600 {
         world.tick();
@@ -104,7 +106,7 @@ fn a_members_goal_hears_joined_proving_and_left_and_the_result_names_why() {
     assert!(row.landing.members[0].landed.is_none());
     assert_eq!(
         news(&world, goal, landing),
-        [joined(landing, change), proving(row, change), format!("landing {landing}: change {change} left: cancelled")]
+        [joined(landing, change), proving_words, format!("landing {landing}: change {change} left: cancelled")]
     );
     let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) =
         &task_row(&world, landing).expect("ended landing").phase

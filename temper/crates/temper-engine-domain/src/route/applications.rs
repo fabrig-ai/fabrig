@@ -108,6 +108,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
 }
 
 #[expect(clippy::too_many_arguments, reason = "the core admission carries the party beside its request metadata")]
+#[expect(clippy::too_many_lines, reason = "each admitted application routes its typed request to its owner")]
 pub(super) fn admitted(
     domain: &mut Domain,
     request: Token,

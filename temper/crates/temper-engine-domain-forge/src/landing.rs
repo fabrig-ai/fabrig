@@ -2021,7 +2021,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                         api::Write::DeleteBranch { branch: member.branch.clone() },
                         skein_forge_client::Condition::None,
                     )
-                },
+                }
                 policy::Decision::Record { prefix, .. } => (
                     Operation::Record,
                     api::Write::Merge {
@@ -2934,11 +2934,9 @@ pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
         }
     }
     for member in &row.landing.members {
-        bytes = bytes
-            .checked_add(skein_lib::len_u64(member.branch.len()))?
-            .checked_add(
-                skein_lib::len_u64(member.gates.len()).checked_mul(u64::try_from(size_of::<policy::GateProof>()).ok()?)?,
-            )?;
+        bytes = bytes.checked_add(skein_lib::len_u64(member.branch.len()))?.checked_add(
+            skein_lib::len_u64(member.gates.len()).checked_mul(u64::try_from(size_of::<policy::GateProof>()).ok()?)?,
+        )?;
     }
     if let policy::Phase::Held { .. } = row.landing.phase {
         bytes = bytes.checked_add(u64::try_from(size_of::<policy::Phase>()).ok()?)?;
@@ -3257,10 +3255,22 @@ impl Domain {
         let m = row.landing.members.get(usize::from(member))?;
         Some(match m.left? {
             policy::Leave::Conflict => concat(&[b"conflict with the branch: ", &row.landing.round.failure]),
-            policy::Leave::EarlierConflict => concat(&[b"conflict with an earlier member: ", &row.landing.round.failure]),
-            policy::Leave::Unit { change } => concat(&[b"change ", skein_lib::Decimal::of(change).as_bytes(), b" of its unit left"]),
-            policy::Leave::Dependency { change } => concat(&[b"its dependency, change ", skein_lib::Decimal::of(change).as_bytes(), b", left"]),
-            policy::Leave::Fallback { units, top } => concat(&[b"red round of ", skein_lib::Decimal::of(u64::from(units)).as_bytes(), b" units at ", &commit_hex(top), b": landing one at a time"]),
+            policy::Leave::EarlierConflict => {
+                concat(&[b"conflict with an earlier member: ", &row.landing.round.failure])
+            }
+            policy::Leave::Unit { change } => {
+                concat(&[b"change ", skein_lib::Decimal::of(change).as_bytes(), b" of its unit left"])
+            }
+            policy::Leave::Dependency { change } => {
+                concat(&[b"its dependency, change ", skein_lib::Decimal::of(change).as_bytes(), b", left"])
+            }
+            policy::Leave::Fallback { units, top } => concat(&[
+                b"red round of ",
+                skein_lib::Decimal::of(u64::from(units)).as_bytes(),
+                b" units at ",
+                &commit_hex(top),
+                b": landing one at a time",
+            ]),
             policy::Leave::HeadMoved { head } => concat(&[b"head moved to ", &commit_hex(head)]),
             policy::Leave::Cancelled => Box::from(b"cancelled".as_slice()),
             policy::Leave::Held => Box::from(b"held".as_slice()),

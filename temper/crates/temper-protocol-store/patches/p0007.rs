@@ -13,9 +13,15 @@ pub fn landing_state_members(old: &Old, new: &mut Build, at: Node, _cx: &mut Con
         let member = old.next_item(&mut items).expect("counted members");
         new.open()?;
         for field in [
-            old::landing_member::CHANGE, old::landing_member::REPOSITORY, old::landing_member::PULL,
-            old::landing_member::HEAD, old::landing_member::BASE, old::landing_member::CANDIDATE,
-            old::landing_member::GATES, old::landing_member::ASKED, old::landing_member::LANDED,
+            old::landing_member::CHANGE,
+            old::landing_member::REPOSITORY,
+            old::landing_member::PULL,
+            old::landing_member::HEAD,
+            old::landing_member::BASE,
+            old::landing_member::CANDIDATE,
+            old::landing_member::GATES,
+            old::landing_member::ASKED,
+            old::landing_member::LANDED,
             old::landing_member::LEFT,
         ] {
             new.carry(old, old.field(member, field)?)?;

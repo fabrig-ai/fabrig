@@ -162,7 +162,7 @@ fn versions_are_the_engines_lines_and_refusals() {
         "level skein 0",
         "level smith 0",
         "level jig 3",
-        "level temper 6",
+        "level temper 7",
     ]));
     let refused = Command::new(skein_scratch::paths::binary("temper-box"))
         .args(["versions", "x"])
