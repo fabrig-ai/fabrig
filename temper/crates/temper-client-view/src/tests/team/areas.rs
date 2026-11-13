@@ -1,7 +1,7 @@
 //! Areas' words, who-acts chips and links (client/pages/team.md, 1).
+pub(super) use super::f::team::{MADE, facts, holder_task, owner_task};
 use super::*;
 use crate::{frame::Bindings, words::Times};
-use skein_lib::Wall;
 use skein_ui::{Node, State};
 use temper_client_domain::{
     Action, Address,
@@ -9,66 +9,13 @@ use temper_client_domain::{
 };
 use temper_client_protocol_wire::v1 as w;
 
-const MADE: Wall = Wall::from_nanos(1_793_577_600_000_000_000);
-fn holder_task(number: u64) -> w::Holder {
-    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap())
-}
 fn holder_party(number: u64) -> w::Holder {
     w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number }).unwrap())
 }
 fn holder_role(number: u32) -> w::Holder {
     w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number }).unwrap())
 }
-fn owner_task(number: u64) -> w::AreaOwner {
-    w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap())
-}
-pub(super) fn facts() -> Facts {
-    Facts {
-        member: true,
-        people: List::from_boxed(Box::new([
-            person(true, b"Alex", HeldRole::Owner, Some(Waits::default())),
-            person(false, b"Sam", HeldRole::Member, Some(Waits { questions: 1, ..Waits::default() })),
-        ])),
-        cut: false,
-        areas: Some(team::Areas {
-            rows: List::from_boxed(Box::new([team::Area {
-                name: b"tests".as_slice().into(),
-                words: b"Tests, fuzzing and the tiers".as_slice().into(),
-                owner: owner_task(52),
-                holder: Some(holder_task(52)),
-            }])),
-            triager: Some(owner_task(52)),
-            holder: holder_task(52),
-        }),
-        follows: List::with_capacity(0),
-        roles: List::from_boxed(Box::new([team::Role {
-            task: 52,
-            name: b"Prover".as_slice().into(),
-            now: Some(b"Reproduced the finding".as_slice().into()),
-            spent: 21,
-            budget: 40,
-        }])),
-        roles_cut: false,
-        selected: Some(52),
-        card: Some(Box::new(team::Card {
-            task: 52,
-            name: b"Prover".as_slice().into(),
-            made: Some(MADE),
-            requester: Some(team::StartedBy::You),
-            hold: None,
-            paused: false,
-            pause: true,
-            resume: false,
-            talk: true,
-            report: None,
-            now: None,
-            sessions: List::with_capacity(0),
-            rules: None,
-            wakes: List::with_capacity(0),
-            wakes_cut: false,
-        })),
-    }
-}
+
 fn subtree(nodes: &[Node], style: skein_ui::Style) -> &[Node] {
     let at = nodes.iter().position(|n| n.styles.as_slice().contains(&style)).unwrap();
     &nodes[at..at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap()]

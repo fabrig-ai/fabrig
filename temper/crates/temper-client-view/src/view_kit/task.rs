@@ -1,8 +1,9 @@
 use super::*;
 use jig_client::contract as c;
-const EXCHANGES: u32 = 8;
-const SPENT: u64 = 7;
-const BELOW: u64 = 2;
+use skein_lib::{Env, Queue, Time, Token};
+pub const EXCHANGES: u32 = 8;
+pub const SPENT: u64 = 7;
+pub const BELOW: u64 = 2;
 pub fn document() -> c::Task {
     use jig_client_protocol_wire::v21 as w;
     let mut record = jig_client_test_records::task_record().into_parts();
@@ -16,10 +17,10 @@ pub fn document() -> c::Task {
     task.budget.numbers.spent_below = BELOW;
     task
 }
-const TASK: u64 = 9;
-const EMPTY: u32 = 0;
-const NO_TIME: Time = Time::ZERO;
-const AT_EPOCH: Wall = Wall::EPOCH;
+pub const TASK: u64 = 9;
+pub const EMPTY: u32 = 0;
+pub const NO_TIME: Time = Time::ZERO;
+pub const AT_EPOCH: Wall = Wall::EPOCH;
 pub fn tree() -> c::Delivery {
     c::Delivery::Tree(Box::new(c::Tree {
         root: {
@@ -39,7 +40,7 @@ pub fn root(executor: c::ChipExecutor, priority: Option<u32>) -> temper_client_d
 pub fn held_root() -> temper_client_domain::Domain {
     root_with_hold(c::ChipExecutor::Agent { charter: 1 }, Some(1), true)
 }
-fn root_with_hold(executor: c::ChipExecutor, priority: Option<u32>, held: bool) -> temper_client_domain::Domain {
+pub fn root_with_hold(executor: c::ChipExecutor, priority: Option<u32>, held: bool) -> temper_client_domain::Domain {
     let mut document = document();
     document.chip.task = TASK;
     document.chip.executor = executor;
@@ -162,7 +163,7 @@ pub fn supplied_root_watching(document: c::Task, held: bool) -> (temper_client_d
 }
 
 pub const HOLD_REVISION: c::Revision = c::Revision { value: 7 };
-const ONE_OFFER: u32 = 1;
+pub const ONE_OFFER: u32 = 1;
 
 pub const RUN_ATTEMPT: u64 = 2;
 pub const RUN_SINCE: Wall = Wall::from_nanos(1_792_640_880_000_000_000);
@@ -229,7 +230,7 @@ pub fn agent_root_as(
     let number = document.chip.task;
     agent_root_for(document, tree, page, party, number)
 }
-fn agent_root_for(
+pub fn agent_root_for(
     document: c::Task,
     tree: Option<c::Delivery>,
     page: c::ActivityPage,
@@ -348,7 +349,7 @@ pub fn activity(conversation: bool) -> c::ActivityPage {
             .expect("call");
         let mut messages = List::with_capacity(1);
         messages.push(c::Message { speaker: c::Speaker::Assistant, blocks }).expect("message");
-        rows.push(crate::tests::documents::turn(
+        rows.push(temper_fixtures::client_documents::turn(
             1,
             RUN_SINCE,
             c::TurnName { attempt: RUN_ATTEMPT, number: 1 },

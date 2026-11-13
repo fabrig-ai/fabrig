@@ -32,3 +32,6 @@ pub use root::{ShellEvent, View, act, act_event, build, event, href, opening_tab
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod view_kit;
