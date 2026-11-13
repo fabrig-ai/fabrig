@@ -448,8 +448,7 @@ fn preparation(domain: &Domain, context: &tasks::RunContext) -> landing::Prepara
             if super::close::failed(domain, child, &word.kind) {
                 return landing::Preparation::Failed;
             }
-            if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job)
-                && skein_lib::bytes::find(&word.words, b"\"conflict\"").is_some()
+            if word.kind == tasks::MessageKind::Result(tasks::ResultKind::Job) && conflict_files(&word.words).is_some()
             {
                 return landing::Preparation::Conflict;
             }
@@ -627,17 +626,54 @@ fn conflict_files(bytes: &[u8]) -> Option<Box<[u8]>> {
     let limits = skein_json::tokenizer::Limits { depth: 8, string: length, number: 20, chunk: 256, length };
     let document =
         skein_json::parse(bytes, &limits, &skein_json::document::Limits { tokens: length, text: length }).ok()?;
-    let conflict = document.member(0, b"conflict")?;
-    let files = document.member(conflict, b"files")?;
+    let conflicts = document.member(0, b"conflicts")?;
+    if document.token(conflicts)?.kind != skein_json::Kind::ArrayStart {
+        return None;
+    }
+    let end = document.value_end(conflicts)?.checked_sub(1)?;
+    let mut cursor = conflicts.checked_add(1)?;
     let mut words = List::with_capacity(8192);
-    for at in files.checked_add(1)?..document.value_end(files)? {
-        let token = document.token(at)?;
-        if token.kind == skein_json::Kind::String {
+    for at in conflicts.checked_add(1)?..end {
+        if at != cursor {
+            continue;
+        }
+        let files = document.member(at, b"files")?;
+        if document.token(files)?.kind != skein_json::Kind::ArrayStart {
+            return None;
+        }
+        for file in files.checked_add(1)?..document.value_end(files)?.checked_sub(1)? {
+            let token = document.token(file)?;
+            if token.kind != skein_json::Kind::String {
+                return None;
+            }
             if !words.is_empty() {
                 append(&mut words, b", ");
             }
             append(&mut words, document.text(token)?);
         }
+        cursor = document.value_end(at)?;
     }
     Some(words.into_boxed())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::conflict_files;
+
+    #[test]
+    fn conflicts_array_presence_and_each_entries_files_are_read_as_json() {
+        let result = br#"{"combined":[{"member":1,"by":"merge"}],"conflicts":[{"member":2,"with":"branch","files":["code","docs/a,b"],"cut":false},{"member":4,"with":"member","files":["quoted\"name","line\nname"],"cut":true}]}"#;
+        assert_eq!(
+            conflict_files(result).expect("conflict files").as_ref(),
+            b"code, docs/a,b, quoted\"name, line\nname"
+        );
+        assert_eq!(conflict_files(br#"{"conflicts":[]}"#).expect("present array").as_ref(), b"");
+        assert_eq!(conflict_files(br#"{"combined":[{"member":1,"by":"merge"}]}"#), None);
+        assert_eq!(conflict_files(br#"{"message":"\"conflicts\""}"#), None);
+        assert_eq!(conflict_files(br#"{"conflicts":{"files":["code"]}}"#), None);
+        assert_eq!(conflict_files(br#"{"conflicts":[{"files":"code"}]}"#), None);
+        assert_eq!(conflict_files(br#"{"conflicts":[{"files":[7]}]}"#), None);
+        assert_eq!(conflict_files(br#"{"conflict":{"files":["code"]}}"#), None);
+        assert_eq!(conflict_files(b"{not JSON}"), None);
+    }
 }
