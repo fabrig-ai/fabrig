@@ -39,6 +39,7 @@ smith-domain-run.workspace = true
 smith-domain-session.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 smith-transcript.workspace = true
 temper-engine-domain-forge-landing.workspace = true
 smith-agent-world.workspace = true

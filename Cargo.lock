@@ -6237,6 +6237,7 @@ dependencies = [
  "skein-forge-client",
  "skein-json",
  "skein-lib",
+ "skein-scratch",
  "smith-agent-world",
  "smith-domain",
  "smith-domain-run",
