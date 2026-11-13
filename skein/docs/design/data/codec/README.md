@@ -267,12 +267,35 @@ For each record and enumeration:
   without checking them again: a bound costs the types it reaches,
   not their number times the family's limits.
 
-`generate(schema)` writes a module for one schema version. It emits
-`encoded_bound` and `decoded_bound`, their `_within` forms and numbered
-helpers, and uses `List::price`. The CLI's generation invocation takes
-`<schema> <out-dir>`; any extra argument is a usage error. The bound names
-and `worst_case_bytes`/`worst_case_heap` (and their `_within` forms) stay
+`generate(schema)` writes one schema version as two modules, the
+records' and their tests', and its golden bytes (section 6). The
+records' module emits `encoded_bound` and `decoded_bound`, their
+`_within` forms and numbered helpers, and uses `List::price`. The CLI's
+generation invocation takes `<schema> <out-dir>`, and writes the
+records' module and the golden bytes; any extra argument is a usage
+error. The tests' module is the drift test's to write, since it alone
+knows the records' public path (section 6). The bound names and
+`worst_case_bytes`/`worst_case_heap` (and their `_within` forms) stay
 reserved for fields.
+
+```rust
+pub struct Output {
+    pub records: String,      // the records' module: src/generated/<file>.rs
+    pub tests: Tests,         // their golden and bound tests, apart (section 6)
+    pub goldens: Vec<Golden>,
+}
+pub struct Tests { /* the tests' module but for the records' path */ }
+impl Tests {
+    // tests/generated/<file>.rs's text, naming the records by `records`,
+    // their module's public path: "temper_protocol_store_codec::v20"
+    pub fn text(&self, records: &str) -> String;
+}
+pub fn generate(schema: &Schema) -> Output;
+// tests/generated/main.rs's text: a module for each name, in name order
+pub fn tests_main(modules: &[&str]) -> String;
+```
+
+`Output` and `Tests` derive `Clone`, `Debug` and equality.
 
 ## 5. Versions
 
@@ -340,12 +363,46 @@ reserved for fields.
   1,024 golden values or 64 bounds, and names every case that fails. A
   test process costs more to start than one case costs to check
   (../../../foundation/testing-strategy.md, section 8).
+- **The tests are a module of their own,** apart from the records'
+  (temper's `draft/gate-compile.md`, 3.2). The records' module holds no
+  test module, so a crate's own tests never compile its generated code
+  a second time. The tests' module names the records by their module's
+  public path, which whoever writes it gives (section 4's `Tests::text`),
+  and uses the items the crate's users see alone: the constructors and
+  their parts, the limits and ceilings, the paths, measuring, encoding
+  and decoding. Its first line says it is generated, as the records'
+  does.
+- **One test target holds them:** the crate holding a family's records'
+  module, its codec crate or an owner that is its own (section 2), has
+  one integration test target for its generated tests,
+  `tests/generated/main.rs`, Cargo's test `generated`. It holds a
+  module for each records' module of the crate,
+  `tests/generated/<file>.rs`, named as the records' file is, whatever
+  the library names its module: `src/generated/v20.rs`'s tests are
+  `tests/generated/v20.rs`. Records' files outside `src/generated/`,
+  as skein's codec fixtures', name theirs for their module in the
+  library: `src/every/v2.rs`, the module `every_v2`, has
+  `tests/generated/every_v2.rs`. `main.rs` is `tests_main`'s text,
+  written with them, each module left out of formatting. A crate's
+  hand-written tests that use its public items alone may be modules of
+  the same target, `main.rs` naming them beside the generated ones.
+- **No test target of a library that holds no other tests:** a crate
+  whose library holds no tests once its generated tests are apart sets
+  `[lib] test = false`, so a test build compiles the library once, as a
+  dependency. A crate whose remaining library tests need private items
+  keeps them, as the wires and smith's charter, channel and transcript
+  do, and as an owner's patch module's golden tests do (`command.md`,
+  7). The generated tests are integration tests by exception to
+  `../../../foundation/testing-strategy.md`, 2.1: they check the
+  generator's output through the crate's public items, from outside.
 - **Drift:** a test runs the generator on the schema and compares the
-  result with the committed code and golden bytes. On a difference it
-  fails, saying how to write them again, which the same test does when an
-  environment variable asks it to. The test is the owner's: it reads the
-  schema and the golden bytes in the owner, and the code in the family's
-  codec crate (section 2), and writes each where it reads it.
+  result with the committed code, tests and golden bytes, and each
+  crate's `tests/generated/main.rs` with `tests_main`'s text for its
+  modules. On a difference it fails, saying how to write them again,
+  which the same test does when an environment variable asks it to.
+  The test is the owner's: it reads the schema and the golden bytes in
+  the owner, and the code and its tests in the family's codec crate
+  (section 2), and writes each where it reads it.
 - **One family to a golden directory:** a crate that holds several
   families gives each version of each a directory of its own, as skein's
   fixtures do with `golden/<family>-v<N>`, and a directory holds that

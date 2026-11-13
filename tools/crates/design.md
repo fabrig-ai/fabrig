@@ -33,6 +33,9 @@ execution file.
 - **The features check** reads three fixed contexts with `cargo metadata` and `cargo tree`: each
   root entry a member names there asks for every feature its crate resolves to, a platform's own
   entry is named on its platform alone, and Cargo's unification is set (section 3.3).
+- **The generated-tests check** finds generated record code that holds its own tests, a codec crate
+  without its `tests/generated` target, and a codec crate's library that builds a test target, so
+  that a test build compiles generated code once (section 3.4).
 - **The figure** is a tool, `tools/crates/crates.py`. It times the two shapes landings build, the
   libraries and the workspace with its tests, each from scratch. Then it scores the last seven days'
   landings against that build. It prints the longest chains, each landing's recompile and chain, and
@@ -418,6 +421,49 @@ Every other entry may be named in any context.
 (`temper/docs/design/client/web/README.md`, 2.6). Its own crate's step tests pin it on the nested
 commands they already read (`temper-client-bundle`'s `tests/steps.rs`), since the boundary suite
 can't call a build script's code.
+
+### 3.4 Generated tests
+
+`tests/boundary/tests/generated_tests.rs`, from `temper/docs/design/draft/gate-compile.md`, 3.2 and
+7, milestone C1 of its execution file. A codec crate's generated tests are a test target of their
+own, `tests/generated/`, so that a test build compiles its generated code once, and its library
+builds no test target when it holds no other tests (skein's `data/codec/README.md`, section 6). The
+check reads `cargo metadata` and the sources, as the other checks do, and builds nothing. For each
+package holding generated record code (section 2.2), its findings:
+
+- **A test module in generated record code:** a generated record file whose text holds `cfg(test)`
+  or `#[test]` outside comments and literals, read by section 2.1's scan. The finding names the
+  package and the file.
+- **Generated tests missing:** the package has no test target named `generated` whose `src_path` is
+  its `tests/generated/main.rs`, or a generated record file `src/generated/<file>.rs` has no
+  `tests/generated/<file>.rs` beside that root. The finding names the package and the missing target
+  or file.
+- **A library test target:** the package's library target has `test` true in `cargo metadata`
+  (section 2.4), as Cargo gives it unless the manifest's `[lib]` sets `test = false`. The finding
+  names the package. Its fix is `test = false`, once the library holds no other tests: a test that
+  uses public items alone moves to the `generated` target.
+- **A source the check can't read,** the metadata, a `src/generated/` or `tests/generated/`
+  directory or a generated file, fails the check and is never skipped.
+
+An exception names a package and either a file, which excuses that file's findings, or the library
+test target, which excuses that finding. Each says what removes it, and one that covers no finding
+fails the check. Its exceptions when it lands, read on the code as milestone C1 leaves it:
+
+- **The library test target of each codec crate whose library keeps tests that need private
+  items,** until its area moves them or they use public items alone: the wires
+  (`jig-client-protocol-wire`, `jig-protocol-worker-wire`, `temper-client-protocol-wire`,
+  `temper-protocol-worker-wire`), smith's `smith-charter`, `smith-channel` and `smith-transcript`,
+  and the owners whose patch module's golden tests are in their library (`temper-protocol-records`,
+  `skein-codec-tests`). The change that adds the check reads the list against the code as C1's
+  other changes leave it: a crate left with library tests is an exception with its reason, and one
+  whose library holds none is none.
+- **Each older version's generated record file,** which keeps its test module and has no tests'
+  module until milestone C2 of the same execution file removes it: of `temper-protocol-store-codec`,
+  `jig-protocol-store-people` and `smith-transcript`, and the wires' older versions
+  (`smith-channel`'s `v7`, `jig-protocol-worker-wire`'s `v12`), whichever the code still holds when
+  the check lands. A wire keeps no older version's code (`gate-compile.md`, 4), so C2's
+  one-version check removes the wires' files too. C2 removes these exceptions with the files, or
+  none is written if C2 has landed.
 
 ## 4. The figure
 
