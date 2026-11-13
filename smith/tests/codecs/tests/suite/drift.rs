@@ -11,7 +11,6 @@ fn charter_schema_matches_generated_code_and_all_goldens() {
 
 #[test]
 fn transcript_schema_matches_generated_code_and_all_goldens() {
-    assert_family("transcript", 6);
     assert_family("transcript", 7);
 }
 

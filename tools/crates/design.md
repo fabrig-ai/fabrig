@@ -5,7 +5,9 @@ Provisional, 2026-11-12. This document comes from `temper/docs/design/draft/crat
 check in the boundary suite bounds a library's size and a generated family's size, and another
 finds test code that two test binaries of one package compile, which moves to a library. A figure, run
 after landing, reads a timed build from scratch and the week's landings. Each later milestone adds
-its check of the draft's section 7 (features, codec crates) to section 3.
+its check of the draft's section 7 (features, codec crates) to section 3. The one-version check of
+section 3.2 comes from `temper/docs/design/draft/gate-compile.md`, 4.2 and 7, milestone C2 of its
+execution file.
 
 ## 1. In one page
 
@@ -26,6 +28,8 @@ its check of the draft's section 7 (features, codec crates) to section 3.
 - **The codec check** finds a package holding generated record code that depends on a workspace
   crate other than `skein-lib` and `skein-codec`, so that generated code compiles beside the domains
   (section 3.2).
+- **The one-version check** finds a package whose generated record code, or whose `schema/`, holds
+  two versions of one family, so that a build compiles one version's code (section 3.2).
 - **The features check** reads three fixed contexts with `cargo metadata` and `cargo tree`: each
   root entry a member names there asks for every feature its crate resolves to, a platform's own
   entry is named on its platform alone, and Cargo's unification is set (section 3.3).
@@ -300,6 +304,46 @@ section 4). The other eight are G3's, one codec crate each, its owner's `-codec`
 
 The check reads section 2.2's classification of files as the size check does, so the two agree on
 what generated record code is.
+
+#### One version's code
+
+`tests/boundary/tests/codecs.rs`, beside the codec check, from
+`temper/docs/design/draft/gate-compile.md`, 4.2 and 7 (milestone C2 of its execution file). A family
+a build stores, sends or embeds keeps its current version's text and generated code alone, an older
+version being its kept text (skein's `data/codec/README.md`, section 5, and `data/codec/command.md`,
+section 1). Each version a crate holds compiles in every build of it, and again at each of the
+family's version moves. The check reads every workspace member of `cargo metadata`, in its
+manifest's directory, and builds nothing. Its findings:
+
+- **Two versions of one family's generated record code:** section 2.2's files of one family in a
+  package's `src/generated/`, at two or more versions: `v17.rs` beside `v18.rs`, the package's own
+  family, or `people_v16.rs` beside `people_v17.rs`. The finding names the package, the family and
+  its versions.
+- **Two versions of one family's text:** the files directly under a package's `schema/`, its
+  current texts, at two or more versions of one family: `store-v17.schema` beside
+  `store-v18.schema`. A text's file is `<family>-v<N>.schema`, or `<family>-v<N>-<part>.schema` for
+  a family written across files, the family lowercase letters, digits and hyphens, read up to its
+  first `-v<N>` followed by `.schema` or `-`: `client-wire-v1.schema` is the family `client-wire`,
+  and `client-v21.schema` with `client-v21-part1.schema` is one text of `client`, at 21.
+  `schema/kept/` and the files there are kept texts, which the check doesn't read; `schema/wires` is
+  no text. The finding names the package, the family and its versions.
+- **A source the check can't read,** the metadata, a `src/generated/` or `schema/` directory, or a
+  `.schema` file under `schema/` whose name isn't a text's, fails the check and is never skipped.
+
+Fixtures are allowances, each a package, which excuse every finding of that package: their families
+belong to no build that stores, sends or embeds them, and their stories compare versions
+(skein's `data/codec/command.md`, section 1). An allowance that matches no finding fails, as the
+codec check's do:
+
+| Package | Reason |
+|---|---|
+| `skein-codec-tests` | skein's codec fixtures: its `every` texts compare the old and new generated decoders |
+| `skein-codec-patches` | skein's patch fixtures: its `label` and `shelf` families move as their stories need |
+| `jig-test-patches` | jig's patch fixtures: `fixture-label` and `fixture-shelf` at two versions |
+| `jig-test-patches-jig` | jig's patch fixtures over jig's own patches: `fixture-note` at two versions |
+
+It has no exceptions: milestone C2 brings `temper-protocol-store-codec`, `temper-protocol-store`,
+`jig-protocol-store-people`, `smith-transcript` and `smith-channel` to one version as it lands.
 
 ### 3.3 Features
 

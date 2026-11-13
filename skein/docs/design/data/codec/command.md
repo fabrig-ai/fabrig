@@ -32,7 +32,7 @@
 
 | Path | What | Whose |
 |---|---|---|
-| `schema/<family>-v<N>.schema` | the current texts: of each family, the greatest version there | the author's |
+| `schema/<family>-v<N>.schema` | the current text of each family, its one version there; a fixture's may hold several, its greatest the current (below) | the author's |
 | `schema/kept/<family>-v<N>.schema` | every kept version's text from the family's first (11) | the command's |
 | `schema/kept/<family>.renames` | the renames waiting for the family's next patch (4), `rename` lines | the command's |
 | `schema/wires` | the crate's families that cross a wire, one a line with its floor or `build`, each held to the wire rule (2) and its floor's rules (`bridges.md`, 4) | the author's |
@@ -59,11 +59,22 @@
   kept version and writes no patch. A family new to a crate past its
   baseline, or whose kept texts are all the branch's, is kept afresh in
   the same way, with no flag.
+- **A family a build stores, sends or embeds keeps one version's text
+  and code:** its `schema/` holds its current text alone, and its
+  generated record code is its current version's alone (`README.md`,
+  section 5). An older version is its kept text, and a reader of an
+  older record, a patch or a test, reads it as a generic value of that
+  text (`README.md`, section 8) or takes it from a patch's goldens. A
+  version move renames the current text to its new version (5), and the
+  new version's generated file, which the drift test writes, replaces
+  the old one. The boundary suite's one-version check holds both
+  (`tools/crates/design.md`, 3.2).
 - **Fixtures stand for families past their baseline:** `tests/codec`'s
   `every` texts and `tests/codec-patches`' families belong to no build
   that stores, sends or embeds them, and move their versions as their
-  stories need. `README.md`, section 5's rule binds the families a build stores,
-  sends or embeds.
+  stories need, their `schema/` holding several texts where a story
+  compares them, as jig's patch fixtures' do. `README.md`, section 5's
+  rule binds the families a build stores, sends or embeds.
 
 ## 2. A run
 
