@@ -1,6 +1,7 @@
 # codec: status
 
-2026-11-12. Where skein's code lags or departs from [README.md](README.md).
+2026-11-13. Where skein's code lags or departs from [README.md](README.md).
 
 
-- **Not yet:** 2: `skein-oauth` and `skein-ui-example-view` hold their generated record code beside code with other workspace dependencies; each gets its codec crate in G3 of `temper/docs/design/draft/crate-graph.execution.md`, and until then is an exception of the codec check (`tools/crates/design.md`, 3.2).
+- **Not yet:** 2: no `skein-oauth-codec`: `skein-oauth` holds its generated record code beside code with other workspace dependencies, an exception of the codec check (`tools/crates/design.md`, 3.2) [in flight: change 2384].
+- **Not yet:** 2: no `skein-ui-example-view-codec`: `skein-ui-example-view` holds its generated record code beside code with other workspace dependencies, an exception of the codec check (`tools/crates/design.md`, 3.2) [in flight: change 2385].

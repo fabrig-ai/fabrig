@@ -16,3 +16,9 @@
 - **Not yet:** 3.1: `tests/boundary/tests/sizes.rs` still excepts `temper-engine-service` until G4 [in flight: change 2280].
 - **Not yet:** 3.2: no `jig-test-store-codec`: `jig-test-store` holds its generated record code and is the codec check's exception [in flight: change 2376].
 - **Not yet:** 3.2: no `jig-protocol-engine-clients-codec`: `jig-protocol-engine-clients` holds its generated record code and is the codec check's exception [in flight: change 2377].
+- **Not yet:** 3.2: no `jig-client-test-protocol-wire-codec`: `jig-client-test-protocol-wire` holds its generated record code and is the codec check's exception [in flight: change 2380].
+- **Not yet:** 3.2: no `jig-client-view-codec`: `jig-client-view` holds its generated record code and is the codec check's exception [in flight: change 2381].
+- **Not yet:** 3.2: no `jig-protocol-accounts-codec`: `jig-protocol-accounts` holds its generated record code and is the codec check's exception [in flight: change 2382].
+- **Not yet:** 3.2: no `smith-local-protocol-codec`: `smith-local-protocol` holds its generated record code and is the codec check's exception [in flight: change 2383].
+- **Not yet:** 3.2: no `skein-oauth-codec`: `skein-oauth` holds its generated record code and is the codec check's exception [in flight: change 2384].
+- **Not yet:** 3.2: no `skein-ui-example-view-codec`: `skein-ui-example-view` holds its generated record code and is the codec check's exception [in flight: change 2385].
