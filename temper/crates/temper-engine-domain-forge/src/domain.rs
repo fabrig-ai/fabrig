@@ -607,6 +607,7 @@ impl Domain {
                 crate::CallPayload::Effect { .. }
                 | crate::CallPayload::Read(_)
                 | crate::CallPayload::Refused(_)
+                | crate::CallPayload::Follow { .. }
                 | crate::CallPayload::Finding(_)
                 | crate::CallPayload::Decided { .. } => {}
             }
@@ -625,6 +626,7 @@ impl Domain {
             crate::CallPayload::Effect { outcome: kept, .. } => *kept = Some(outcome),
             crate::CallPayload::Read(_)
             | crate::CallPayload::Refused(_)
+            | crate::CallPayload::Follow { .. }
             | crate::CallPayload::Finding(_)
             | crate::CallPayload::Decided { .. } => {
                 unreachable!("effect payload")

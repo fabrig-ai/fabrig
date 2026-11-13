@@ -3,6 +3,8 @@
 pub(crate) mod proof;
 #[path = "follow_changes/role.rs"]
 pub(crate) mod role;
+#[path = "follow_changes/tool.rs"]
+mod tool;
 use super::*;
 use forge_top::{FollowRow, FollowState, settings as s};
 use jig_domain_core::settings as cs;

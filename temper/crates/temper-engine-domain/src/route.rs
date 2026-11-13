@@ -18,6 +18,7 @@ mod decided;
 pub(crate) mod document;
 mod finding_tool;
 pub(crate) mod findings;
+mod follow_tool;
 mod goal;
 mod kinds;
 pub(crate) mod landing;
