@@ -13,12 +13,6 @@ pub use generated::v1;
 use alloc::boxed::Box;
 use skein_lib::{Secret, Writer};
 
-/// The application's channel payload version (protocol/channel.md, section 3).
-pub const PAYLOAD_VERSION: u32 = {
-    let [high, low] = wire::VERSION.to_be_bytes();
-    u32::from_be_bytes([0, 0, high, low])
-};
-
 /// Domain bounds shared by both sides of the channel (protocol/channel.md,
 /// section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

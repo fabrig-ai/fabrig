@@ -312,10 +312,13 @@ fn every_service_start_keeps_the_shells_wires() {
     let Some(skein_kv::Event::Got { value: Some(bytes), .. }) = above.pop() else { panic!("durable wires row") };
     let wires =
         protocol::component_v3::Wires::decode(&protocol::component_v3::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    assert_eq!(wires.wires().len(), u32::try_from(store::WIRES.len()).expect("four wires"));
-    for (kept, expected) in wires.wires().iter().zip(&store::WIRES) {
+    let spoken = crate::wires();
+    assert!(spoken.len() <= 16, "the store's wire count bound");
+    assert_eq!(wires.wires().len(), spoken.len());
+    for (kept, expected) in wires.wires().iter().zip(&spoken) {
+        assert!(expected.name.len() <= 32, "the store's wire name bound");
         assert_eq!(kept.name(), expected.name.as_bytes());
-        assert_eq!(kept.version(), expected.version);
+        assert_eq!(kept.version(), u32::from(expected.highest()));
     }
 }
 
