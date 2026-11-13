@@ -263,6 +263,7 @@ fn opening_row() -> ChangeRow {
         catch_up: None,
         close: None,
         merge_result: None,
+        history: None,
         follow_check: None,
     }
 }
