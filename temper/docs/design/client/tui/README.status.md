@@ -2,9 +2,6 @@
 
 2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3: the seam's `Duties.lend` and `unlend` and, in front,
-  `Report::Lent`, and the root given `Event::Lends` once in front
-  (`box.md`, *Lending its terminal*) [in flight: change 1942].
 
 Section 3 and `pages/README.md` keep the selected launchpad row while composing a
 slash command. Host tests cover typed `/open` for a chat, a goal and Home,
