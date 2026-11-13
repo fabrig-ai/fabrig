@@ -61,3 +61,4 @@ once fixed.
 - lint jig-client-protocol-kit clippy::items_after_statements jig/testing/jig-client-protocol-kit/src/front/observe.rs
 - lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
 - lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
+- lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
