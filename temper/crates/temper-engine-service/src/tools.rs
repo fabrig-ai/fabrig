@@ -8,11 +8,14 @@ use smith_domain_run as run;
 use temper_engine_domain as engine;
 use temper_engine_smith::{Decoded, ForgeReadBounds, Problem};
 
-#[cfg(test)]
-pub(crate) fn decode(to: ReplyTo, task: u64, attempt: u64, call: &fleet::Call) -> engine::Event {
+/// Decode a host call without configured models or repository identities.
+#[must_use]
+pub fn decode(to: ReplyTo, task: u64, attempt: u64, call: &fleet::Call) -> engine::Event {
     decode_configured(to, task, attempt, call, &[], &[], &[])
 }
-pub(crate) fn decode_configured(
+/// Decode a host call using the component's configured models and repository identities.
+#[must_use]
+pub fn decode_configured(
     to: ReplyTo,
     _task: u64,
     attempt: u64,
@@ -116,7 +119,9 @@ fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
         answer: core::SettledAnswer::Host { error: true, body },
     })
 }
-pub(crate) fn render(
+/// Render a typed answer as the component's bounded host-call terminal.
+#[must_use]
+pub fn render(
     to: ReplyTo,
     answer: &engine::CallAnswer,
     tool: &[u8],
@@ -178,11 +183,9 @@ fn rendered(to: ReplyTo, answer: smith_domain_run::HostAnswer) -> engine::Event 
         answer: core::SettledAnswer::Host { error, body },
     })
 }
-pub(crate) fn result(
-    payload: Token,
-    outcome: &[u8],
-    change: Option<temper_engine_smith::ChangeResource>,
-) -> engine::Event {
+/// Translate a declared task outcome into the component's result-read terminal.
+#[must_use]
+pub fn result(payload: Token, outcome: &[u8], change: Option<temper_engine_smith::ChangeResource>) -> engine::Event {
     let end = match smith_protocol_translate::decode_declared(outcome, &smith_charter::CEILINGS) {
         Ok(outcome) => {
             let spent = run::Spend {
@@ -204,7 +207,8 @@ pub(crate) fn result(
     engine::Event::Worker(engine::WorkerInput::ResultRead { payload, end })
 }
 /// The hub carries a settled workspace delivery as host text.
-pub(crate) fn settled(answer: core::SettledAnswer) -> host::Relayed {
+#[must_use]
+pub fn settled(answer: core::SettledAnswer) -> host::Relayed {
     match answer {
         core::SettledAnswer::Host { error, body } => host::Relayed::Answer { error, text: body },
         core::SettledAnswer::Delivery { outcome, evidence } => {

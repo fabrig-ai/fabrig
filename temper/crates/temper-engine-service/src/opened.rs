@@ -3,33 +3,6 @@ use crate::{Engine, store::Store};
 use alloc::boxed::Box;
 use skein_lib::{Queue, Time, Wall};
 use temper_engine_domain as root;
-impl Store {
-    /// Use an opened store and the facts its Open terminal gave, retaining checked routes and drivers.
-    #[must_use]
-    pub fn on_opened(mut self, component: jig_protocol_store::Store, installation: [u8; 16], pending: bool) -> Self {
-        self.host.component = component;
-        self.opened = true;
-        self.pending_generation = pending;
-        self.installation = installation;
-        self
-    }
-    pub fn exchange_component(&mut self, component: jig_protocol_store::Store) -> jig_protocol_store::Store {
-        core::mem::replace(&mut self.host.component, component)
-    }
-    pub fn ask(&mut self, request: jig_protocol_store::Request) {
-        self.host.ask(request);
-    }
-    pub fn events(&mut self) -> &mut Queue<jig_protocol_store::Event> {
-        &mut self.host.above
-    }
-    #[must_use]
-    pub fn mark_durable(&self) -> bool {
-        self.host.mark_durable()
-    }
-    pub fn submissions(&mut self) -> &mut Queue<skein_io::kernel::Submit> {
-        &mut self.submitted
-    }
-}
 impl Engine {
     /// Replace the store substrate before driving the component.
     pub fn replace_store(&mut self, store: Store) {
