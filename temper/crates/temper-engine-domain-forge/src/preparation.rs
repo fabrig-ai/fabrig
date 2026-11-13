@@ -201,6 +201,9 @@ mod tests {
         assert_eq!(conflicts[0].member, 1);
         assert_eq!(conflicts[0].outcome, Outcome::EarlierConflict);
         assert_eq!(conflicts[0].files.as_ref(), b"quoted\"path, comma,path");
+        let cleared = remember(&saved, b"", 3);
+        assert!(failure(&cleared).is_empty());
+        assert_eq!(outcomes(&cleared, 3).expect("kept conflict")[0].files, conflicts[0].files);
         assert!(outcomes(br#"{"conflicts":[]}"#, 3).is_none());
         assert!(outcomes(br#"{"combined":[{"member":4,"by":"merge"}]}"#, 3).is_none());
     }

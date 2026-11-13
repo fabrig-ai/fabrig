@@ -3024,8 +3024,10 @@ pub(crate) fn outcome(
                         d.landing.limits.landing_members,
                     )
                 }
-                skein_forge_client::Outcome::Made { .. }
-                | skein_forge_client::Outcome::Queued
+                skein_forge_client::Outcome::Made { .. } => {
+                    crate::preparation::remember(&row.landing.round.failure, b"", d.landing.limits.landing_members)
+                }
+                skein_forge_client::Outcome::Queued
                 | skein_forge_client::Outcome::Uncertain
                 | skein_forge_client::Outcome::Held
                 | skein_forge_client::Outcome::Withdrawn => row.landing.round.failure.clone(),

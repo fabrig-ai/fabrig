@@ -5408,12 +5408,7 @@ pub(crate) fn outputs(
                             .forge_effects
                             .insert(
                                 owner,
-                                EffectFlight::Landing {
-                                    description: Box::new(description),
-                                    entry,
-                                    task,
-                                    evidence,
-                                },
+                                EffectFlight::Landing { description: Box::new(description), entry, task, evidence },
                             )
                             .expect("bounded landing effect handoff");
                         domain.work.push(Work::Core(jig_domain_core::Event::EffectStart {

@@ -368,15 +368,25 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
         assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/1/l61".as_slice().into() }));
         fixtures::answer(&mut d, call, Ok(Answer::Commit(CANDIDATE)));
         let (call, op) = fixtures::next_call(&mut d);
-        assert_eq!(op, Op::Read(Read::Commits { before: CANDIDATE, after: fixtures::BASE, page: 1 }));
-        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        assert_eq!(op, Op::Read(Read::Commits { before: fixtures::BASE, after: CANDIDATE, page: 1 }));
+        fixtures::answer(
+            &mut d,
+            call,
+            Ok(Answer::Commits {
+                commits: Box::new([skein_forge::api::CommitMessage {
+                    id: CANDIDATE,
+                    parents: Box::new([fixtures::BASE, fixtures::HEAD]),
+                    message: Box::new([]),
+                }]),
+                more: false,
+            }),
+        );
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, Op::Read(Read::Commits { before: CANDIDATE, after: fixtures::HEAD, page: 1 }));
         let mut requests =
             fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: !complete }));
         if complete {
-            fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-            fixtures::answer_next(
+            requests = fixtures::answer_next(
                 &mut d,
                 Ok(Answer::Commits {
                     commits: Box::new([skein_forge::api::CommitMessage {
@@ -387,7 +397,6 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
                     more: false,
                 }),
             );
-            requests = fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
         }
         let mut decision = None;
         for request in requests {
@@ -552,6 +561,7 @@ fn merge_landing_row(single: bool) -> LandingRow {
     } else {
         row.landing.round.pull = Some(2);
         row.landing.round.combined = Some(policy::Combine::Merge);
+        row.landing.members[0].combined = Some(policy::Combine::Merge);
     }
     row
 }

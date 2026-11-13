@@ -789,6 +789,8 @@ fn a_squashed_landing_keeps_its_train_round_and_prefix_judgement_after_landing()
     row.landing.round.pull = Some(7);
     row.landing.round.combined = Some(policy::Combine::Squash);
     row.landing.round.judging = true;
+    row.landing.members[0].judging = true;
+    row.landing.members[0].combined = Some(policy::Combine::Squash);
     row.landing.members[0].candidate = Some([9; 32]);
     row.landing.members[0].landed = Some([9; 32]);
     let change = d.changes.get_mut(&fixtures::CHANGE).unwrap();
@@ -876,6 +878,7 @@ fn landing_steps_distinguish_prefix_judgement_leaving_and_recording() {
     let mut d = setup();
     let mut landing = row(61, policy::Phase::Proving);
     landing.landing.round.judging = true;
+    landing.landing.members[0].judging = true;
     outputs(&mut d, Event::Restore { record: Stored::Landing(landing) });
     d.changes.get_mut(&fixtures::CHANGE).unwrap().change.gates = Box::new([change::Gate {
         number: 3,
@@ -906,8 +909,10 @@ fn landing_steps_distinguish_prefix_judgement_leaving_and_recording() {
     landing.round.ending = None;
     landing.phase = policy::Phase::Turn { at: env().wall };
     landing.round.combined = Some(policy::Combine::Squash);
+    landing.members[0].combined = Some(policy::Combine::Squash);
     landing.members[0].landed = Some(fixtures::HEAD);
     assert_eq!(view(&d, 61).step, LandingStep::Recording);
     d.landing.rows.get_mut(&61).unwrap().landing.round.recorded = true;
+    d.landing.rows.get_mut(&61).unwrap().landing.members[0].recorded = true;
     assert_eq!(view(&d, 61).step, LandingStep::Telling);
 }

@@ -141,7 +141,7 @@ pub fn read_landing_step(world: &mut World, task: u64, entry: u64, heard: top::L
 }
 
 pub fn drive_landing(world: &mut World, task: u64) {
-    // Each bounded step gets two fresh root entries: landing then its member.
+    // Each bounded step reserves fresh entries for the landing and all its members.
     const STEPS: u64 = 120;
     for position in 0..STEPS {
         let entry = task * 1000 + position * 10;
@@ -341,14 +341,19 @@ pub fn stack_files(
     head: u64,
     bound: u32,
 ) -> Box<[skein_fake_forge_domain::api::File]> {
-    let mut common = head;
+    let mut pending = std::collections::BTreeSet::from([head]);
+    let mut common = None;
     for _ in 0..bound {
-        if forge.is_ancestor(common, below) {
+        let Some(commit) = pending.pop_last() else { break };
+        if forge.is_ancestor(commit, below) {
+            common = Some(commit);
             break;
         }
-        common = forge.object(common).expect("fetched head ancestry").parent.expect("common ancestor");
+        let object = forge.object(commit).expect("fetched head ancestry");
+        pending.extend(object.parent);
+        pending.extend(object.merge_parent);
     }
-    assert!(forge.is_ancestor(common, below));
+    let common = common.expect("a common ancestor within the fake's commit bound");
     let before = &forge.object(common).expect("merge base").tree;
     let after = &forge.object(head).expect("member head").tree;
     let mut tree: std::collections::BTreeMap<_, _> = forge
