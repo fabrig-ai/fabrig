@@ -7,10 +7,9 @@ batch of them up to the project's `batch`; each landing's members
 stacked by a merge job, a prefix per member on a branch the landing
 holds; gates proved by receipts kept by key, at the stack's top; and
 the landing's own pull request fast-forwarded into the branch, which
-lands its members by containment. It is the merge queue's first two
-milestones (`../draft/merge-queue.md`, its execution's M1 and M2): a
-red round of several units falls back to one unit at a time until the
-search by prefixes (its M3). It replaces, for such a project, the change's CI, its queue,
+lands its members by containment. It is the merge queue
+(`../draft/merge-queue.md`, its execution's M1 to M3); a red round of
+several units is narrowed by prefixes, `landing-search.md`. It replaces, for such a project, the change's CI, its queue,
 its updates and its merge in the repository's style
 (`forge/change/README.md`, 2 steps 3 and 5 to 7, `forge/queues.md` and
 `forge/README.md`, section 6). What follows a landing, its tiers and its
@@ -54,13 +53,14 @@ verdict, is `after-landing.md`. The forge's calls it makes are skein's
 - **Proof by dispatch** (section 7). Gate workflows run only when
   temper dispatches them, at the candidate, the top, on its branch. A
   real failure in a round of one unit is a repair under its changes,
-  which leave; in a round of several, its units leave and land one at
-  a time (7.3). A runner's fault is retried. Judgement gates hold at
+  which leave; in a round of several, a search by prefixes blames a
+  unit, which is repaired, and lands the green prefix below it (7.3). A runner's fault is retried. Judgement gates hold at
   each member's prefix (section 3).
 - **The turn** (section 8): the train's tip and each member's head read
   afresh, then the landing's own pull request merged fast-forward only
-  at the candidate. The branch then contains each member's head,
-  merged, or its squash commit: every member has landed, its landed
+  at the round's proved prefix: its candidate, or its search's green
+  prefix. The branch then contains each member's head in it,
+  merged, or its squash commit: each has landed, its landed
   commit its prefix, the one that brought it. No
   gate runs inside the turn, and the branch is never gated again: its
   commit is the gated one.
@@ -94,11 +94,11 @@ temper-engine-domain-forge              the top: landings' and receipts' states,
   | Decision | What the top does |
   |---|---|
   | prepare | delegates the round's prepare job (5.2) from the round's base or the last kept prefix, for the members from the first with no prefix |
-  | open | opens the round's pull request, the top's branch into the train's (section 10) |
-  | key | reads the trees a gate's key needs, at the candidate and, for a gate that reads the base, at the base (6.1) |
-  | dispatch, retry, post | a gate's run, its rerun, its status on the candidate (7.1, 7.4, section 10) |
+  | open | opens the round's pull request, the top's branch, or the green prefix's after a search, into the train's (section 10) |
+  | key | reads the trees a gate's key needs, at the candidate or a probed prefix and, for a gate that reads the base, at the base (6.1) |
+  | dispatch, retry, post | a gate's run, its rerun, its status on the candidate or a probed prefix (7.1, 7.4, section 10) |
   | judge | asks a member's change for its judgement gates at its prefix (section 3) |
-  | merge | merges the landing's pull request, fast-forward only, at the candidate (section 8) |
+  | merge | merges the landing's pull request, fast-forward only, at the round's proved prefix (section 8) |
   | record | records a squashed member's pull request merged at its prefix (section 8) |
   | landed | tells a member's change it landed, at its prefix (section 3) |
   | leave | records why a member left, with its unit, and asks its change for what follows: a resolution, a repair, or nothing (4.3) |
@@ -154,7 +154,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   at its head (`forge/change/repairs.md`), and the member leaves. A
   prefix rebuilt in a later round asks again.
 - **Repairing** (`forge/change/repairs.md`): a gate's real failure at the
-  candidate, given the failed run's output (7.3). The member leaves its
+  candidate, given the failed run's output (7.3), or at the red prefix
+  its landing's search blamed (`landing-search.md`, 7). The member leaves its
   landing; its new head makes the change ready again, and it waits for a
   later landing, first in line by its kept time.
 - **Resolving** (`forge/change/repairs.md`): a conflict with the branch the prepare job met, in
@@ -243,6 +244,9 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     order, where it has any;
   - `landing L: change C proving at PREFIX on BASE`, then `, under TOP`
     where its prefix is below the round's top;
+  - `landing L: change C probing at PREFIX, red at RED, on BASE`, to
+    each member with a prefix in the round, once per probe
+    (`landing-search.md`, section 8);
   - `landing L: change C landed at PREFIX`;
   - `landing L: change C left: WHY`, WHY as 4.3 names it;
   - `landing L: held: WHY`, WHY as the hold names it.
@@ -285,8 +289,9 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   - a judgement gate at its prefix says no (section 3): `gate NAME
     refused`, and its change repairs;
   - a test gate fails at the candidate in a round of one unit (7.3):
-    `gate NAME failed in RUN`, and its change repairs; in a round of
-    several units: `red round of N units at TOP: landing one at a time`;
+    `gate NAME failed in RUN`, and its change repairs; or its round's
+    search blames its unit: `gate NAME failed in RUN at RED, above
+    GREEN`, and its change repairs (`landing-search.md`, section 4);
   - another change of its unit left: `change C of its unit left`; or
     its dependency, another member, left: `its dependency, change C,
     left`.
@@ -294,7 +299,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   ready again it is first in line by that time. Leaving is never a
   repair by itself.
 - **The rest stay:** a member that leaves while the job stacks is
-  skipped by that job (5.2). One that leaves later ends the round (5.1):
+  skipped by that job (5.2). One that leaves later ends the round (5.1),
+  but for a unit its round's search blames (`landing-search.md`, 4):
   the members below it keep their prefixes and receipts, those above
   it are stacked again onto the last kept prefix, and the landing
   proves its new top. With no member left, the landing ends (4.2).
@@ -318,7 +324,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   each member's prefix to its branch, expecting the branch new; a member
   that conflicted, or left, has none in that round.
 - **A round ends** at its turn, when a member leaves after the job
-  stacked it (4.3), or when its base goes stale (section 8). Ended
+  stacked it (4.3), but for a unit its search blames, or when its base
+  goes stale (section 8). Ended
   unlanded, the landing closes the round's pull request and deletes the
   branches of its first changed member and of every member above it,
   its own effects (section 11), before anything else, so that the next
@@ -502,8 +509,9 @@ The default, for a project with no prepare command:
   trains into its main. A train into any other branch, a goal's, has
   no test gate: each delivery's own check stands for it, and its
   landing is proved by its judgement gates alone.
-- **For each of its train's test gates,** at the candidate alone, the
-  round's top: a key with
+- **For each of its train's test gates,** at the candidate, the
+  round's top, and at its search's probes, each blocking gate at a
+  probed prefix on that member's branch (`landing-search.md`, 3): a key with
   a passed receipt holds; one with a failed receipt fails (7.3); one in
   flight for another landing is waited for; otherwise the landing
   dispatches the gate's workflow on the top's branch, whose head is
@@ -527,7 +535,7 @@ The default, for a project with no prepare command:
   commit is not the candidate is a fault (7.4): the branch moved under
   it. A run an ended round dispatched is followed to its end for its
   key's receipt, and acts in a later round only through that receipt,
-  where its key is that round's (`../draft/merge-queue.md`, 7.3).
+  where its key is that round's (`landing-search.md`, section 6).
 - **Bounded:** a run in flight longer than the project's `gate_timeout`
   since its dispatch holds the landing (4.2).
 - **Its status:** `temper/gate/<name>` on the candidate, pending once
@@ -536,14 +544,15 @@ The default, for a project with no prepare command:
 ### 7.2 Proved
 
 - **When the round's blocking gates hold:** its test gates by receipt
-  at exactly its candidate, and each member's judgement gates by their
-  verdicts at its prefix (section 3). An advisory gate is dispatched,
+  at exactly its proved prefix, its candidate or the green prefix its
+  search held (`landing-search.md`, 5), and each of that prefix's
+  members' judgement gates by their verdicts at its own prefix (section 3). An advisory gate is dispatched,
   read and reported, and holds nothing.
 - **A landing whose keys all have passed receipts** (documentation,
   when every gate ignores it) is proved with no run.
 - **A train with no test gate** is proved by its judgement gates alone,
   and its repository's adoption says so for its main.
-- **One proof at a time per train,** since a train has one landing;
+- **One proof or probe at a time per train,** since a train has one landing;
   trains prove side by side, and a key in flight is dispatched once for
   all of them.
 
@@ -558,16 +567,11 @@ The default, for a project with no prepare command:
   members leave (4.3), and the landing ends with nothing landed. A
   repaired head waits for a later landing, whose keys that did not
   change hold by their receipts.
-- **A round of several units falls back,** until the search by
-  prefixes (`../draft/merge-queue.md`, 7.2, its execution's M3): every
-  member leaves, none repaired, each keeping its place (4.3), and the
-  landing ends with nothing landed. Each of their changes is marked to
-  land alone (section 12): a unit holding a marked change forms a
-  landing by itself, and ends a batch forming before it (section 9), so
-  the train's next landings take those units one at a time, a red among
-  them repaired as a round of one unit's. A change's mark goes once a
-  landing that took it alone has ended, or as the change ends; with no
-  marked change first in line, batching resumes.
+- **A round of several units is narrowed by prefixes**
+  (`landing-search.md`): the same gates at the unit boundaries below
+  the candidate find a green prefix and the red one a unit above it;
+  that unit's changes are repaired and leave, the green prefix lands in
+  the round's turn, and the units above it go on in the next round.
 
 ### 7.4 A fault of the runner
 
@@ -597,7 +601,9 @@ The default, for a project with no prepare command:
   outside the landing moved the branch. The round ends unlanded (5.1),
   the stale count grows, and the landing prepares again in a new round,
   every member stacked afresh, keeping its receipts.
-- **Then the branch fast-forwards to the candidate,** by the merge of
+- **Then the branch fast-forwards to the round's proved prefix,** its
+  candidate or, after a search, its green prefix, at which this
+  section's candidate reads (`landing-search.md`, 5), by the merge of
   the round's pull request, fast-forward only, at the candidate (skein's
   `Write::Merge { how: FastForwardOnly }`), made by the landing task
   and judged by the landing rules for every member in the stack (`forge/change/gates.md`, 2, where a rule by path compares the train’s branch tip read afresh
@@ -617,7 +623,8 @@ The default, for a project with no prepare command:
   change is told it landed, at its prefix. The merge is the landing
   task's effect, but each landed commit is its member change's: the
   change lands, and its goal hears its own change's landing, as under
-  `queue`.
+  `queue`. With members left in the landing, above a blamed unit, the
+  next round starts (5.1); with none, the landing ends.
 - **Its pull request reads merged:** a merged member's by the forge's
   detection (section 10), with nothing written. A squashed member's
   head is in no branch, so the landing records its pull request merged
@@ -675,9 +682,7 @@ The default, for a project with no prepare command:
   project's `batch` changes for a train into a repository's main, and
   one unit for a train into any other branch (13.1). The first unit is
   always taken, even past `batch`. The first unit that would pass it
-  beside those before it ends the batch and waits, first in line; so
-  does a unit holding a change marked to land alone (7.3), which forms
-  a landing by itself when it is first. A refused unit (4.1) is held
+  beside those before it ends the batch and waits, first in line. A refused unit (4.1) is held
   and passed over. Forming is judged when a change becomes ready, when
   a landing ends, when a change's priority moves, and at a restart, for
   each train they touch.
@@ -696,9 +701,11 @@ The default, for a project with no prepare command:
   `Land K changes: #N1, #N2, …` for a stack of K, the numbers in its
   order, as many as the title's bound holds whole; its body naming the
   round and its base, then a line per member in the stack's order: its
-  change, pull request, head and prefix. It is merged by the turn, or
-  closed as its round ends unlanded.
-- **Each gate as a commit status on the candidate,**
+  change, pull request, head and prefix, then, after a search, the
+  search's line (`landing-search.md`, 8). It is merged by the turn, or
+  closed as its round ends unlanded or its search cuts the stack.
+- **Each gate as a commit status on the candidate,** and on each prefix
+  a search probed,
   `temper/gate/<name>`: pending with its key's first 16 hexadecimal
   digits once dispatched; success or failure with the run as its link
   once its receipt is made; success with the receipt's run as its link
@@ -773,7 +780,8 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
   it combined the member, each gate's key and state at its prefix,
   whether its judgement was asked, its landed commit, whether its pull
   request's record is made and its change told, or why it left), its
-  round, counted from 1, the round's pull request, its stale rounds and
+  round, counted from 1, the round's pull request, its search's bounds
+  (`landing-search.md`, 9), its stale rounds and
   its faults per key, and, held, its cause. Why a member left is one of
   4.3's causes.
 - **Single landings outside a train:** an upgraded v15 landing keeps its
@@ -791,8 +799,7 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
   key: the verdict, the run, the candidate and the time.
 - **A change's state** grows its landing, its clean merges' heads, its
   way (`queue` or `turn`), its judgement at its prefix, its landing's
-  asks: judge, resolve, repair, landed, and its mark to land alone
-  (7.3).
+  asks: judge, resolve, repair, landed.
 - **Patched,** before the first release (`../protocol/store.md`,
   section 2): each new member at the end of its record, added by the
   store's patch (`../protocol/baseline.md`, 7), every existing row
@@ -883,7 +890,7 @@ Under `../client/ctl/tools.md`, 1's names (a group `landing`):
 
 | Tool | What it answers or does |
 |---|---|
-| `landing show LANDING` | a landing: its train, its round and its base, its pull request, its members in the stack's order, each with its unit, its branch, its head, its prefix and how it combined the member, its judgement, and, ended, its landed commit or why it left; each gate's key, receipt or run at the top; its step, its stale rounds and faults |
+| `landing show LANDING` | a landing: its train, its round and its base, its pull request, its members in the stack's order, each with its unit, its branch, its head, its prefix and how it combined the member, its judgement, and, ended, its landed commit or why it left; each gate's key, receipt or run at the top and at each probed prefix; its round's search (`landing-search.md`, 8); its step, its stale rounds and faults |
 | `landing list --project PROJECT [--ended]` | the project's landings, newest first, with their trains and phases; the live ones first |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time |
 
@@ -897,8 +904,8 @@ documents for another task or project remain errors.
 
 - **The changes view** (`forge/queues.md`'s subject `changes`), under
   `turn`: per train, its landing in flight, with its members in the
-  stack's order, its round and step, then the waiting changes in their
-  order, each marked to land alone where it is (7.3).
+  stack's order, its round and step, probing with its prefix while its
+  search probes, then the waiting changes in their order.
 - **A change's panel** (`forge/change/README.md`, 5) names its landing and its way.
 - **Acts** are jig's on the landing task: release and cancel, by the
   project's maintainers.
@@ -912,7 +919,8 @@ documents for another task or project remain errors.
   dispatch whose outcome was uncertain is found by its runs, as section 11 says.
 - **In each phase:** preparing, the job's delegate is jig's and lives
   on, and the members' branches are read before any new job (5.2);
-  proving, its runs are found again; the round's pull request, its
+  proving or probing, its runs are found again, and its search at its
+  stored bounds (`landing-search.md`, 6); the round's pull request, its
   opening uncertain, is found by its branches; judging, each change's
   state carries it; in its turn, its merge settles as `forge/README.md`'s merges
   settle, and each member found landed is landed, recorded once; a
@@ -941,9 +949,7 @@ forge's world holds:
   its changes;
 - **forming:** up to `batch` changes in order, the first unit taken past
   it, the first that would pass it waiting first in line; units whole;
-  sealed against a change ready later or a dependency given later; a
-  change marked to land alone forming by itself and ending a batch
-  before it;
+  sealed against a change ready later or a dependency given later;
 - **a batch** of three stacked by one job, a prefix per member on its
   branch, proved by one run at the top, landed by one fast-forward,
   every member's pull request merged and every change told its prefix;
@@ -956,9 +962,8 @@ forge's world holds:
   and a dependent with its dependency;
 - **conflicts told apart:** one with the branch resolved, one with an
   earlier member alone waiting first in line and landing next;
-- **a red round of several units** falls back: its units leave, none
-  repaired, and land one at a time, a red among them repaired; then
-  batching resumes;
+- **a red round of several units** narrowed by prefixes, as
+  `landing-search.md`, section 10 lists;
 - **the turn's merge** judged for every member in the stack;
 - **combining:** a merge train and a squash train over the same member
   give the same tree and keys; a squash commit's single parent, message

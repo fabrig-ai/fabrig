@@ -166,15 +166,29 @@ fn a_turn_landing_is_found_after_a_runner_cancellation_and_restarts() {
 /// temper/docs/design/testing/process-tier.md: a queue that lands green.
 #[test]
 fn a_batch_of_three_lands_by_one_fast_forward() {
+    batch_landing("batch-three", false);
+}
+
+/// temper/docs/design/testing/process-tier.md: a red narrowed.
+#[test]
+fn a_red_batch_is_narrowed_before_the_remaining_change_lands() {
+    batch_landing("batch-red-narrowed", true);
+}
+
+fn batch_landing(case: &str, narrowed: bool) {
     use support::{batch_landing, landing_by_turn, turn_restart};
-    let scratch = support::Scratch::new("batch-three");
+    let scratch = support::Scratch::new(case);
     let barrier = support::forgejo::JobBarrier::new(scratch.path());
     let forge = turn_restart::start(&scratch);
     let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
     forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
     support::configuration(scratch.path(), &forge.forge());
     batch_landing::configure(scratch.path(), forge.repository());
-    batch_landing::run(scratch.path(), &forge, &barrier);
+    if narrowed {
+        batch_landing::run_narrowed(scratch.path(), &forge, &barrier);
+    } else {
+        batch_landing::run(scratch.path(), &forge, &barrier);
+    }
     forge.stop();
     scratch.remove();
 }

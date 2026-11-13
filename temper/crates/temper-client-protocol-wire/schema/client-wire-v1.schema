@@ -1,4 +1,4 @@
-family temper-client-wire 18
+family temper-client-wire 20
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -269,21 +269,24 @@ record HeldRecord { member: u16 }
 enum LandingHold { faults: HeldFaults, prepare, record: HeldRecord, timeout: HeldTimeout, turn }
 enum Combined { merge, squash }
 record Train { forge: u16 repository: u32 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 }
-enum LandingStep { waiting, preparing, proving, proved, turn, landed, held, cancelled, judging, leaving, recording, telling }
-record LandingRound { number: u16 branch: bytes 1024 pull: option Pull combined: option Combined step: LandingStep upstream: option fixed 32 failure: bytes 512 }
+enum LandingStep { waiting, preparing, proving, proved, turn, landed, held, cancelled, judging, leaving, recording, telling, probing }
+record SearchBound { member: u16 prefix: fixed 32 }
+record LandingSearch { green: SearchBound red: SearchBound probe: option fixed 32 }
+record LandingRound { number: u16 branch: bytes 1024 pull: option Pull combined: option Combined step: LandingStep upstream: option fixed 32 failure: bytes 512 search: option LandingSearch }
 record FailedGate { gate: u16 run: u64 }
+record BlamedGate { gate: u16 run: u64 red: fixed 32 green: fixed 32 }
 record MovedHead { head: fixed 32 }
 record RefusedGate { gate: u64 }
-enum LandingLeave { conflict, head_moved: MovedHead, cancelled, held, refused: RefusedGate, failed: FailedGate }
+enum LandingLeave { conflict, head_moved: MovedHead, cancelled, held, refused: RefusedGate, failed: FailedGate, blamed: BlamedGate }
 record PrefixGate { number: u64 blocking: bool verdict: Ci }
 record PrefixJudgement { prefix: fixed 32 verdict: Ci gates: list 64 PrefixGate }
-record TrainLanding { task: u64 member: u64 round: u16 step: LandingStep title: bytes 256 ready_since: u64 }
+record TrainLanding { task: u64 member: u64 round: u16 step: LandingStep title: bytes 256 ready_since: u64 probe: option fixed 32 }
 record Member { change: u64 forge: u16 owner: bytes 1024 name: bytes 1024 branch: bytes 1024 landing: bytes 1024 pull: option Pull base: option fixed 32 candidate: option fixed 32 landed: option fixed 32 gates: list 8 GateProof head: option fixed 32 left: option LandingLeave judgement: option PrefixJudgement }
 versioned record LandingPanel { task: u64 project: u32 phase: LandingPhase hold: option LandingHold members: list 8 Member preparation: u16 stale_proofs: u32 turn: option u64 train: option Train round: option LandingRound }
 record LandingLine { task: u64 phase: LandingPhase changes: list 8 u64 repositories: list 8 bytes 2048 landed: list 8 fixed 32 train: option Train }
 versioned record LandingsPanel { project: u32 turn: option u64 landings: list 64 LandingLine }
 # A project's changes (temper/docs/design/client/forge/records.md).
-record ChangesQueued { task: u64 title: bytes 256 ready_since: u64 checks_since: option u64 alone: bool }
+record ChangesQueued { task: u64 title: bytes 256 ready_since: u64 checks_since: option u64 }
 record ChangesQueue { repository: bytes 2048 branch: bytes 1024 red: bool changes: list 32 ChangesQueued way: Way in_flight: option TrainLanding }
 record ChangesSigned { party: u64 head: fixed 32 at: u64 }
 record ChangesLanded { signed: list 8 ChangesSigned task: u64 title: bytes 256 at: u64 commit: fixed 32 default_branch: bool }

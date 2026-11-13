@@ -1,297 +1,261 @@
 journey 2
-seed 8561666389563626709
-clocks 441500000 1794557579680000000
+seed 17156380894409875119
+clocks 353000000 1794573187552999936
 primary control
-ways "" "http://127.0.0.1:43869"
+ways "" "http://127.0.0.1:40605"
 path "/welcome"
 secret "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-turn 500500000 1794557579739000064
+turn 420500000 1794573187620999936
 start
 exchange 1 33554432 POST "/jig/v1/sign-in/link" "\x00\x00\x00 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" "Content-Type" "application/octet-stream"
 deadline none
-turn 534199999 1794557579772999936
-heard answered 1 200 "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x18\xe7\xdb0\xee\xf9CW"
+turn 464000000 1794573187664000000
+heard answered 1 200 "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x18\xe7\xe9b\xed;2#"
 open 4096 "/jig/v1/stream"
-deadline 60534200000
-turn 543000000 1794557579782000128
+deadline 60464000001
+turn 476899999 1794573187676999936
 heard opened
-deadline 60534200000
-turn 555599999 1794557579795000064
-heard piece "data: AHh4eHh4eHh4eHh4eHh4eHgAAAACAAAAABUAAAAVAQABAAAAEgAAABIAAAACVAvkAA==\x0a\x0a"
+deadline 60464000001
+turn 491099999 1794573187692000000
+heard piece "data: AHh4eHh4eHh4eHh4eHh4eHgAAAACAAAAABUAAAAVAQABAAAAFAAAABQAAAACVAvkAA==\x0a\x0a"
 exchange 2 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x15\x00\x00\x00\x01\x00" "Content-Type" "application/octet-stream"
 exchange 3 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x15\x00\x00\x00\x01\x08" "Content-Type" "application/octet-stream"
 save "stream" "\x00\x15\x00\x02\x00\x00\x00\x10xxxxxxxxxxxxxxxx"
 writes 1
 carried 1
 written "stream"
-deadline 20555600000
-turn 565000000 1794557579804000000
+deadline 20491100000
+turn 501399999 1794573187702000128
 heard answered 3 200 "\x01"
-deadline 20555600000
-turn 565599999 1794557579804999936
-heard piece "data: AQAAAAAAAAADAAAAABUAAABUCgAAAAAAAAAAAAAAAAAAAAAAAQAAAAA7AAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAPAAAAAgAAAAAAAAAAAQEAAAAAEAAAAAMAAAAAAAAAAAEBAQEA\x0a\x0adata: AQAAAAAAAAACAAAAABUAAAEbAQAAAAAAAAABAAAAAARmcmVlAAAAAAVPd25lcgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATpSRTwAAAQAAAAC9AAAAQwAAAAEAAAAGb3BlbmFpAAEBAAAAAAAAAQEAAAAiaHR0cHM6Ly9jaGF0Z3B0LmNvbS9zZXR0aW5ncy91c2FnZQAAHv4AAABTAAAAAgAAAAlhbnRocm9waWMAAAAAAAABAAAAC2NsYXVkZV9jb2RlAAAAAQAAACBodHRwczovL2NsYXVkZS5haS9zZXR0aW5ncy91c2FnZQAAHv4AAAAbAAAAAwAAAARkZW1vAAABAAAAAAAAAAAAAB7+AAAAHv4AABAAAAAgAA==\x0a\x0a"
-exchange 4 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x03" "Content-Type" "application/octet-stream"
-exchange 5 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
+deadline 20491100000
+turn 502099999 1794573187702000128
+heard piece "data: AQAAAAAAAAADAAAAABUAAABUCgAAAAAAAAAAAAAAAAAAAAAAAQAAAAA7AAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAPAAAAAgAAAAAAAAAAAQEAAAAAEAAAAAMAAAAAAAAAAAEBAQEA\x0a\x0a"
+deadline 20502100000
+turn 508399999 1794573187708999936
+heard piece "data: AQAAAAAAAAACAAAAABUAAAEbAQAAAAAAAAABAAAAAARmcmVlAAAAAAVPd25lcgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATpSRTwAAAQAAAAC9AAAAQwAAAAEAAAAGb3BlbmFpAAEBAAAAAAAAAQEAAAAiaHR0cHM6Ly9jaGF0Z3B0LmNvbS9zZXR0aW5ncy91c2FnZQAAHv4AAABTAAAAAgAAAAlhbnRocm9waWMAAAAAAAABAAAAC2NsYXVkZV9jb2RlAAAAAQAAACBodHRwczovL2NsYXVkZS5haS9zZXR0aW5ncy91c2FnZQAAHv4AAAAbAAAAAwAAAARkZW1vAAABAAAAAAAAAAAAAB7+AAAAHv4AABAAAAAgAA==\x0a\x0a"
+exchange 4 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x03" "Content-Type" "application/octet-stream"
+exchange 5 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
 exchange 6 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x00\x15\x00\x00\x00\x01\x09" "Content-Type" "application/octet-stream"
-exchange 7 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x0a\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x01" "Content-Type" "application/octet-stream"
-exchange 8 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x0c\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x07" "Content-Type" "application/octet-stream"
-exchange 9 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x0e\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x04" "Content-Type" "application/octet-stream"
-exchange 10 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x10\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x09" "Content-Type" "application/octet-stream"
-deadline 20565600000
-turn 579299999 1794557579817999872
+exchange 7 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x0a\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x01" "Content-Type" "application/octet-stream"
+exchange 8 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x0c\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x07" "Content-Type" "application/octet-stream"
+exchange 9 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x0e\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x04" "Content-Type" "application/octet-stream"
+exchange 10 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x10\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x09" "Content-Type" "application/octet-stream"
+deadline 20508400000
+turn 516899999 1794573187716999936
 heard answered 2 200 "\x01"
-exchange 11 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x12\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x0a" "Content-Type" "application/octet-stream"
-deadline 20565600000
-turn 581899999 1794557579820999936
+exchange 11 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x12\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x02\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x0a" "Content-Type" "application/octet-stream"
+deadline 20508400000
+turn 518299999 1794573187719000064
 heard answered 5 200 "\x02\x00"
-deadline 20565600000
-turn 583899999 1794557579823000064
+deadline 20508400000
+turn 523199999 1794573187724000000
 heard answered 7 200 "\x01"
-deadline 20565600000
-turn 584899999 1794557579824000000
+deadline 20508400000
+turn 524599999 1794573187724999936
 heard answered 9 200 "\x01"
-deadline 20565600000
-turn 586099999 1794557579824999936
-heard piece "data: AQAAAAAAAAAOAQABAAAAEgAAAAYAEgAAAAA=\x0a\x0a"
-deadline 20586100000
-turn 588199999 1794557579827000064
-heard answered 11 200 "\x01"
-deadline 20586100000
-turn 589099999 1794557579828000000
+deadline 20508400000
+turn 525799999 1794573187726000128
 heard answered 6 200 "\x01"
-deadline 20586100000
-turn 589799999 1794557579828999936
+deadline 20508400000
+turn 526699999 1794573187727000064
+heard answered 11 200 "\x01"
+deadline 20508400000
+turn 527199999 1794573187728000000
+heard piece "data: AQAAAAAAAAAKAQABAAAAFAAAAAcAFAAAAAAB\x0a\x0adata: AQAAAAAAAAAOAQABAAAAFAAAAAYAFAAAAAA=\x0a\x0adata: AQAAAAAAAAAIAAAAABUAAANyCwAAAAEAAAArAAAAAAEAAAEAAAABAAAAAAACAAABAAAAAQAAAAAABAAAAQAAAAEAAAAAAAUAAAEAAAABAAAAAAAJAAABAAAAAQAAAAAACgAAAQAAAAEAAAAAAAsAAAEAAAABAAAAAAAMAAABAAAAAQAAAAAADQAAAQAAAAEAAAAAAA4AAAEAAAABAAAAAAAPAAABAAAAAQAAAAAAEAAAAQAAAAEAAQAAAAEBAAAABGNoYXQAAAEAAAABAAEAAAACAQAAAARnb2FsAAABAAAAAQABAAAABAEAAAAQZ29hbCBmb3IgYSBkcmFmdAAAAQAAAAEAAQAAAAUBAAAAA2FzawAAAQAAAAEAAQAAAAYBAAAADmRlc2lnbiBzZXNzaW9uAAABAAAAAQABAAAABwEAAAANc3RhbmRpbmcgcm9sZQAAAQAAAAEAAgAAAAEAAAEAAAABAAMAAAEAAAABAAYAAAABAAABAAAAAQAGAAAAAgAAAQAAAAEABgAAAAMAAAEAAAABAAYAAAAEAAABAAAAAQAGAAAABQAAAQAAAAEABgAAAAYAAAEAAAABAAYAAAAHAAABAAAAAQAGAAAACAAAAQAAAAEABAAAAAMAAAAAAAAAAQAAAAEAAAAABAAAAAEAAAACBAAAAAMAAAAAAAAAAgAAAAEAAAAABAAAAAEAAAAEBAAAAAkAAAAAAAAAAQAAAAEAAAAAKwAAAAAEAAAACQAAAAAAAAACAAAAAQAAAAA8AAAAAAQAAAAJAAAAAAAAAAQAAAABAAAAAEMAAAAABAAAAAkAAAAAAAAABQAAAAEAAAAASwAAAAAEAAAACQAAAAAAAAAJAAAAAQAAAABMAAAAAAQAAAAJAAAAAAAAAAoAAAABAAAAADkAAAAABAAAAAkAAAAAAAAACwAAAAEAAAAAOwAAAAAEAAAACQAAAAAAAAAMAAAAAQAAAABHAAAAAAQAAAAJAAAAAAAAAA0AAAABAAAAADoAAAAABAAAAAkAAAAAAAAADgAAAAEAAAAATAAAAAAEAAAACQAAAAAAAAAPAAAAAQAAAABPAAAAAAQAAAAJAAAAAAAAABAAAAABAAAAADIAAAAABAAAAAsAAAAAAAAABAAAAAEAAAAAAgAAAAAAAAABAAAAAQAAAAAY55rOToHOoAAAAAAAAAAAAAAA\x0a\x0adata: AQAAAAAAAAASAQABAAAAFAAAAAoAFAAAAAAAAAAA\x0a\x0adata: AQAAAAAAAAAQAQABAAAAFAAAAAYAFAAAAAA=\x0a\x0adata: AQAAAAAAAAAMAQABAAAAFAAAAAYAFAAAAAA=\x0a\x0a"
+deadline 20527200000
+turn 534099999 1794573187735000064
+heard answered 4 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\xea\x00\x14\x01\x01\x01\x00\x00\x00\xe0xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx program-login --config xxxxxxxxxxxxxxxxxxxxxxxxxxx/data/box/fake-backends/config --data xxxxxxxxxxxxxxxxxxxxxxxxxxx/data/box/fake-backends/data --cache xxxxxxxxxxxxxxxxxxxxxxxxxxx/cache\x00"
+deadline 20527200000
+turn 540000000 1794573187740999936
 heard answered 10 200 "\x01"
-deadline 20586100000
-turn 590299999 1794557579828999936
-heard piece "data: AQAAAAAAAAAKAQABAAAAEgAAAAcAEgAAAAAB\x0a\x0adata: AQAAAAAAAAAIAAAAABUAAANyCwAAAAEAAAArAAAAAAEAAAEAAAABAAAAAAACAAABAAAAAQAAAAAABAAAAQAAAAEAAAAAAAUAAAEAAAABAAAAAAAJAAABAAAAAQAAAAAACgAAAQAAAAEAAAAAAAsAAAEAAAABAAAAAAAMAAABAAAAAQAAAAAADQAAAQAAAAEAAAAAAA4AAAEAAAABAAAAAAAPAAABAAAAAQAAAAAAEAAAAQAAAAEAAQAAAAEBAAAABGNoYXQAAAEAAAABAAEAAAACAQAAAARnb2FsAAABAAAAAQABAAAABAEAAAAQZ29hbCBmb3IgYSBkcmFmdAAAAQAAAAEAAQAAAAUBAAAAA2FzawAAAQAAAAEAAQAAAAYBAAAADmRlc2lnbiBzZXNzaW9uAAABAAAAAQABAAAABwEAAAANc3RhbmRpbmcgcm9sZQAAAQAAAAEAAgAAAAEAAAEAAAABAAMAAAEAAAABAAYAAAABAAABAAAAAQAGAAAAAgAAAQAAAAEABgAAAAMAAAEAAAABAAYAAAAEAAABAAAAAQAGAAAABQAAAQAAAAEABgAAAAYAAAEAAAABAAYAAAAHAAABAAAAAQAGAAAACAAAAQAAAAEABAAAAAMAAAAAAAAAAQAAAAEAAAAABAAAAAEAAAACBAAAAAMAAAAAAAAAAgAAAAEAAAAABAAAAAEAAAAEBAAAAAkAAAAAAAAAAQAAAAEAAAAAKwAAAAAEAAAACQAAAAAAAAACAAAAAQAAAAA8AAAAAAQAAAAJAAAAAAAAAAQAAAABAAAAAEMAAAAABAAAAAkAAAAAAAAABQAAAAEAAAAASwAAAAAEAAAACQAAAAAAAAAJAAAAAQAAAABMAAAAAAQAAAAJAAAAAAAAAAoAAAABAAAAADkAAAAABAAAAAkAAAAAAAAACwAAAAEAAAAAOwAAAAAEAAAACQAAAAAAAAAMAAAAAQAAAABHAAAAAAQAAAAJAAAAAAAAAA0AAAABAAAAADoAAAAABAAAAAkAAAAAAAAADgAAAAEAAAAATAAAAAAEAAAACQAAAAAAAAAPAAAAAQAAAABPAAAAAAQAAAAJAAAAAAAAABAAAAABAAAAADIAAAAABAAAAAsAAAAAAAAABAAAAAEAAAAAAgAAAAAAAAABAAAAAQAAAAAY54ycUkT/vgAAAAAAAAAAAAAA\x0a\x0adata: AQAAAAAAAAASAQABAAAAEgAAAAoAEgAAAAAAAAAA\x0a\x0adata: AQAAAAAAAAAQAQABAAAAEgAAAAYAEgAAAAA=\x0a\x0adata: AQAAAAAAAAAMAQABAAAAEgAAAAYAEgAAAAA=\x0a\x0a"
-deadline 20590300000
-turn 596899999 1794557579836000000
-heard answered 4 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\xf2\x00\x12\x01\x01\x01\x00\x00\x00\xe8xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx program-login --config xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/data/box/fake-backends/config --data xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/data/box/fake-backends/data --cache xxxxxxxxxxxxxxxxxxxxxxxxxxxxx/cache\x00"
-deadline 20590300000
-turn 601799999 1794557579840999936
+deadline 20527200000
+turn 551899999 1794573187752000000
 heard answered 8 200 "\x01"
-deadline 20590300000
-turn 1608899999 1794557580848000000
+deadline 20527200000
+turn 1541399999 1794573188742000128
 mark
 act press "Act { action: Pages(Playground) }" "Try the playground"
-save "\xb5\x1a\x19\xb4\x0d\xa4l\xfb \xf8\xb8\xcfa\xb4*i" "\x00\x15\x00\x02\x00\x00\x00@\x00\x00\x00\x01\xd1A\xef\xab\xa1\x02\xa06\xb5\x1a\x19\xb4\x0d\xa4l\xfb \xf8\xb8\xcfa\xb4*i\x00\x00\x00\x00\x00\x00\x00\x01\x01\x18\xe7\x8c\x9c\x9fm\xec\x00\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x08\x01\x00\x00\x00\x03\x00\x12\x07"
+save "&\x9b\xceG\xec\xd2\x01\x84\x86\x04\xcf\xff\xec\xbcu\x94" "\x00\x15\x00\x02\x00\x00\x00@\x00\x00\x00\x01E26=T\xf6\x00\x92&\x9b\xceG\xec\xd2\x01\x84\x86\x04\xcf\xff\xec\xbcu\x94\x00\x00\x00\x00\x00\x00\x00\x01\x01\x18\xe7\x9a\xce\x9eh.\x00\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x08\x01\x00\x00\x00\x03\x00\x14\x07"
 writes 1
 show "/chats/new" push
 carried 1
-written "\xb5\x1a\x19\xb4\x0d\xa4l\xfb \xf8\xb8\xcfa\xb4*i"
-exchange 12 33554432 POST "/jig/v1/request" "\xb5\x1a\x19\xb4\x0d\xa4l\xfb \xf8\xb8\xcfa\xb4*i\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x08\x01\x00\x00\x00\x03\x00\x12\x07\x00" "Content-Type" "application/octet-stream"
-deadline 20590300000
-turn 1625699999 1794557580864999936
-heard piece "data: AQAAAAAAAAAKAQABAAAAEgAAADcAEgAAAAEAAQAAAA8xMjcuMC4wLjE6NDYwMDEAAwIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB\x0a\x0adata: AQAAAAAAAAAKAQABAAAAEgAAADUAEgAAAAEAAQAAAA8xMjcuMC4wLjE6NDYwMDEAAwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0adata: AQAAAAAAAAAKAQABAAAAEgAAADgAEgAAAAEAAQAAAA8xMjcuMC4wLjE6NDYwMDEAAwIBAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0adata: AQAAAAAAAAAKAQABAAAAEgAAADgAEgAAAAEAAQAAAA8xMjcuMC4wLjE6NDYwMDEAAwIBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0a"
-exchange 13 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21625700000
-turn 1632699999 1794557580872000000
-heard answered 13 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 14 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
+written "&\x9b\xceG\xec\xd2\x01\x84\x86\x04\xcf\xff\xec\xbcu\x94"
+exchange 12 33554432 POST "/jig/v1/request" "&\x9b\xceG\xec\xd2\x01\x84\x86\x04\xcf\xff\xec\xbcu\x94\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x08\x01\x00\x00\x00\x03\x00\x14\x07\x00" "Content-Type" "application/octet-stream"
+deadline 20527200000
+turn 1570000000 1794573188769999872
+heard piece "data: AQAAAAAAAAAKAQABAAAAFAAAADcAFAAAAAEAAQAAAA8xMjcuMC4wLjE6NDE1MTUAAwIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB\x0a\x0adata: AQAAAAAAAAAKAQABAAAAFAAAADUAFAAAAAEAAQAAAA8xMjcuMC4wLjE6NDE1MTUAAwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0adata: AQAAAAAAAAAKAQABAAAAFAAAADgAFAAAAAEAAQAAAA8xMjcuMC4wLjE6NDE1MTUAAwIBAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0adata: AQAAAAAAAAAKAQABAAAAFAAAADgAFAAAAAEAAQAAAA8xMjcuMC4wLjE6NDE1MTUAAwIBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0a"
+exchange 13 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21570000001
+turn 1577599999 1794573188777999872
+heard answered 13 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 14 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
 exchange 15 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00\x17\x00\x00\x00\x00\x15\x00\x00\x00\x01\x07" "Content-Type" "application/octet-stream"
-deadline 21625700000
-turn 1638500000 1794557580876999936
+deadline 21570000001
+turn 1581899999 1794573188782000128
+heard answered 14 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 16 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21570000001
+turn 1583500000 1794573188784000000
+heard piece "data: AQAAAAAAAAAXAAAAABUAAAHCCQAAAAAAAZQfAAAAABAAAAAAAAAzAAAALwEAAAAGd29ya2VyAAAAAAAAAAAAAAAAAAEAAAAABAAAAAAAAAAEAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAEAAAACAAAAAAAAAEgAAAAAAAAAAAAAAQAAAAAAAAAAU9GsEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATpSRTwAAAAAAAAAAAAAAAAAAAAAAAAEAAQAAAAC9AAAAQwAAAAEAAAAGb3BlbmFpAAEBAAAAAAAAAQEAAAAiaHR0cHM6Ly9jaGF0Z3B0LmNvbS9zZXR0aW5ncy91c2FnZQAAHv4AAABTAAAAAgAAAAlhbnRocm9waWMAAAAAAAABAAAAC2NsYXVkZV9jb2RlAAAAAQAAACBodHRwczovL2NsYXVkZS5haS9zZXR0aW5ncy91c2FnZQAAHv4AAAAbAAAAAwAAAARkZW1vAAABAAAAAAAAAAAAAB7+AAAAHv4AAAA7AAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAPAAAAAgAAAAAAAAAAAQEAAAAAEAAAAAMAAAAAAAAAAAEBAQEA\x0a\x0a"
+deadline 21583500001
+turn 1587500000 1794573188788000000
 heard answered 15 200 "\x01"
-deadline 21625700000
-turn 1640399999 1794557580879000064
-heard piece "data: AQAAAAAAAAAXAAAAABUAAAHCCQAAAAAAAZIKAAAAABAAAAAAAAAzAAAALwEAAAAGd29ya2VyAAAAAAAAAAAAAAAAAAEAAAAABAAAAAAAAAAEAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAEAAAACAAAAAAAAAEgAAAAAAAAAAAAAAQAAAAAAAAAAN+EdYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATpSRTwAAAAAAAAAAAAAAAAAAAAAAAAEAAQAAAAC9AAAAQwAAAAEAAAAGb3BlbmFpAAEBAAAAAAAAAQEAAAAiaHR0cHM6Ly9jaGF0Z3B0LmNvbS9zZXR0aW5ncy91c2FnZQAAHv4AAABTAAAAAgAAAAlhbnRocm9waWMAAAAAAAABAAAAC2NsYXVkZV9jb2RlAAAAAQAAACBodHRwczovL2NsYXVkZS5haS9zZXR0aW5ncy91c2FnZQAAHv4AAAAbAAAAAwAAAARkZW1vAAABAAAAAAAAAAAAAB7+AAAAHv4AAAA7AAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAPAAAAAgAAAAAAAAAAAQEAAAAAEAAAAAMAAAAAAAAAAAEBAQEA\x0a\x0a"
-deadline 21640400000
-turn 1644399999 1794557580883000064
-heard answered 14 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 16 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21640400000
-turn 1649199999 1794557580888000000
-heard answered 16 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 17 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21640400000
-turn 1653299999 1794557580892000000
-heard answered 17 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 18 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21640400000
-turn 1657199999 1794557580896000000
-heard answered 18 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 19 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21640400000
-turn 1660599999 1794557580900000000
-heard answered 19 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 20 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21640400000
-turn 1663899999 1794557580903000064
-heard answered 20 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 21 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21640400000
-turn 1666899999 1794557580905999872
-heard answered 21 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 22 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21640400000
-turn 1670099999 1794557580908999936
-heard answered 22 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 23 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21640400000
-turn 1673500000 1794557580912999936
-heard answered 23 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 24 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21640400000
-turn 1675500000 1794557580913999872
-heard piece "data: AQAAAAAAAAAKAQABAAAAEgAAADgAEgAAAAEAAQAAAA8xMjcuMC4wLjE6NDYwMDEAAwIBAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0a"
-deadline 21675500001
-turn 1676399999 1794557580915000064
-heard piece "data: AQAAAAAAAAAKAQABAAAAEgAAADUAEgAAAAEAAQAAAA8xMjcuMC4wLjE6NDYwMDEAAwQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0a"
-deadline 21676400000
-turn 1677799999 1794557580916999936
-heard answered 24 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 25 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1681299999 1794557580920000000
-heard answered 25 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 26 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1684599999 1794557580924000000
-heard answered 26 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 27 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1688000000 1794557580927000064
-heard answered 27 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 28 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1691599999 1794557580931000064
-heard answered 28 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 29 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1694899999 1794557580934000128
-heard answered 29 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 30 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1698399999 1794557580936999936
-heard answered 30 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 31 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1701699999 1794557580940999936
-heard answered 31 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 32 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1705000000 1794557580944000000
-heard answered 32 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 33 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1708399999 1794557580947000064
-heard answered 33 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 34 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1711500000 1794557580950000128
-heard answered 34 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 35 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1714599999 1794557580953999872
-heard answered 35 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 36 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1718199999 1794557580956999936
-heard answered 36 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 37 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21676400000
-turn 1720199999 1794557580959000064
-heard piece "data: AQAAAAAAAAAKAQABAAAAEgAAADUAEgAAAAEAAQAAAA8xMjcuMC4wLjE6NDYwMDEAAwQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0a"
-deadline 21720200000
-turn 1723000000 1794557580961999872
-heard answered 37 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 38 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21720200000
-turn 1726599999 1794557580966000128
-heard answered 38 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 39 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21720200000
-turn 1730000000 1794557580968999936
-heard answered 39 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 40 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21720200000
-turn 1733099999 1794557580972000000
-heard answered 40 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 41 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21720200000
-turn 1736299999 1794557580975000064
-heard answered 41 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 42 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21720200000
-turn 1739599999 1794557580979000064
-heard answered 42 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 43 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21720200000
-turn 1743199999 1794557580982000128
-heard answered 43 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 44 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21720200000
-turn 1746199999 1794557580984999936
-heard answered 44 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 45 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21720200000
-turn 1750699999 1794557580990000128
+deadline 21583500001
+turn 1590299999 1794573188791000064
+heard answered 16 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 17 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21583500001
+turn 1594099999 1794573188795000064
+heard answered 17 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 18 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21583500001
+turn 1597399999 1794573188798000128
+heard answered 18 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 19 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21583500001
+turn 1601899999 1794573188801999872
+heard piece "data: AQAAAAAAAAAKAQABAAAAFAAAADgAFAAAAAEAAQAAAA8xMjcuMC4wLjE6NDE1MTUAAwIBAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0a"
+deadline 21601900000
+turn 1604399999 1794573188804999936
+heard piece "data: AQAAAAAAAAAKAQABAAAAFAAAADUAFAAAAAEAAQAAAA8xMjcuMC4wLjE6NDE1MTUAAwQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0a"
+deadline 21604400000
+turn 1606099999 1794573188806000128
+heard answered 19 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 20 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21604400000
+turn 1610000000 1794573188809999872
+heard answered 20 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 21 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21604400000
+turn 1613199999 1794573188814000128
+heard answered 21 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 22 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21604400000
+turn 1616299999 1794573188816999936
+heard answered 22 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 23 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21604400000
+turn 1620199999 1794573188820999936
+heard answered 23 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 24 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21604400000
+turn 1623199999 1794573188824000000
+heard answered 24 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 25 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21604400000
+turn 1626399999 1794573188827000064
+heard answered 25 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 26 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21604400000
+turn 1629399999 1794573188830000128
+heard answered 26 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 27 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21604400000
+turn 1632599999 1794573188832999936
+heard answered 27 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 28 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21604400000
+turn 1636799999 1794573188836999936
+heard answered 28 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 29 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21604400000
+turn 1637599999 1794573188838000128
+heard piece "data: AQAAAAAAAAAKAQABAAAAFAAAADUAFAAAAAEAAQAAAA8xMjcuMC4wLjE6NDE1MTUAAwQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0a"
+deadline 21637600000
+turn 1640899999 1794573188840999936
+heard answered 29 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 30 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21637600000
+turn 1644699999 1794573188844999936
+heard answered 30 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 31 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21637600000
+turn 1648599999 1794573188848999936
+heard answered 31 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 32 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21637600000
+turn 1652599999 1794573188852999936
+heard answered 32 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 33 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21637600000
+turn 1656399999 1794573188856999936
+heard answered 33 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 34 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21637600000
+turn 1661199999 1794573188862000128
+heard answered 34 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 35 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21637600000
+turn 1664799999 1794573188864999936
+heard answered 35 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 36 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21637600000
+turn 1670799999 1794573188871000064
 heard piece "data: AQAAAAAAAAADAAAAABUAAABUCgAAAAAAAAAAAAAAAAAAAAAAAQAAAAA7AAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAPAAAAAgAAAAAAAAAAAQEAAAAAEAAAAAMAAAAAAAAAAAEBAQEA\x0a\x0a"
-deadline 21750700000
-turn 1754299999 1794557580992999936
-heard answered 45 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x83\x00\x12\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 46 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21750700000
-turn 1757699999 1794557580996999936
+deadline 21670800000
+turn 1673399999 1794573188873999872
+heard answered 36 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x83\x00\x14\x00\x01\x00\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 37 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21670800000
+turn 1676599999 1794573188876999936
 heard piece "data: AQAAAAAAAAACAAAAABUAAAEbAQAAAAAAAAABAAAAAARmcmVlAAAAAAVPd25lcgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATpSRTwAAAQAAAAC9AAAAQwAAAAEAAAAGb3BlbmFpAAEBAAAAAAAAAQEAAAAiaHR0cHM6Ly9jaGF0Z3B0LmNvbS9zZXR0aW5ncy91c2FnZQAAHv4AAABTAAAAAgAAAAlhbnRocm9waWMAAAAAAAABAAAAC2NsYXVkZV9jb2RlAAAAAQAAACBodHRwczovL2NsYXVkZS5haS9zZXR0aW5ncy91c2FnZQAAHv4AAAAbAAAAAwAAAARkZW1vAAABAAAAAAAAAAAAAB7+AAAAHv4AABAAAAAgAA==\x0a\x0a"
-deadline 21757700000
-turn 1759099999 1794557580998000128
+deadline 21676600000
+turn 1678000000 1794573188878000128
 heard piece "data: AQAAAAAAAAADAAAAABUAAABUCgAAAAAAAAAAAAAAAAAAAAAAAQAAAAA7AAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAPAAAAAgAAAAAAAAAAAQEAAAAAEAAAAAMAAAAAAAAAAAEBAQEA\x0a\x0a"
-deadline 21759100000
-turn 1760099999 1794557580999000064
-heard piece "data: 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\x0a\x0a"
-exchange 47 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x008\x00\x00\x00\x00\x15\x00\x00\x00\x05\x04\x00\x00\x00\x10" "Content-Type" "application/octet-stream"
-exchange 48 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00:\x00\x00\x00\x00\x15\x00\x00\x00\x17\x05\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x01\x01\x03\x00\x00\x00\x01" "Content-Type" "application/octet-stream"
-exchange 49 33554432 POST "/jig/v1/read" "\x00\x00\x00\x00\x15\x00\x00\x00\x16\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x02\x01\x04\x00\x01\x01\x04\x00\x00" "Content-Type" "application/octet-stream"
-exchange 50 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x00=\x00\x00\x00\x00\x15\x00\x00\x00\x1f\x05\x01\x00\x00\x00\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x10" "Content-Type" "application/octet-stream"
-exchange 51 33554432 POST "/jig/v1/read" "\x00\x00\x00\x00\x15\x00\x00\x00\x1e\x00\x01\x00\x00\x00\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04\x00\x00\x04\x00\x00" "Content-Type" "application/octet-stream"
-exchange 52 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x1d\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x0f\x00\x12\x01\x00\x00\x00\x07\x00\x00\x00\x01\x00\x00\x00\x01" "Content-Type" "application/octet-stream"
-deadline 21760100000
-turn 1796199999 1794557581035000064
-heard answered 46 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x87\x00\x12\x00\x01\x01\x00\x00\x00\x01\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-exchange 53 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x1d\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x0f\x00\x12\x01\x00\x00\x00\x08\x00\x00\x00\x01\x00\x00\x00\x01" "Content-Type" "application/octet-stream"
-deadline 21760100000
-turn 1800799999 1794557581040000000
-heard piece "data: AQAAAAAAAAADAAAAABUAAACDCgAAAAAAAAAAAAAAAAAAAAAAAQAAAABqAAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAPAAAAAgAAAAAAAAAAAQEAAAAAEAAAAAMAAAAAAAAAAAEBAQEAAAAMAAAAAQEAAAABAQEBAAAACwAAAAIBAAAAAQEAAAAADAAAAAMBAAAAAQABAQA=\x0a\x0adata: AQAAAAAAAAAKAQABAAAAEgAAAEcAEgAAAAEAAQAAAA8xMjcuMC4wLjE6NDYwMDEAAwUAAAAAAAAAAgAAAAZ0ZW1wZXIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0adata: AQAAAAAAAAAXAAAAABUAAAHCCQAAAAAAAZIKAAAAABAAAAAAAAAzAAAALwEAAAAGd29ya2VyAAAAAAAAAAAAAAAAAAEAAAAABAAAAAAAAAAEAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAEAAAACAAAAAAAAAEgAAAAAAAAAAAAAAQAAAAAAAAAAN+EdYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATpSRTwAAAAAAAAAAAAAAAAAAAAAAAAEAAQAAAAC9AAAAQwAAAAEAAAAGb3BlbmFpAAEBAAAAAAAAAQEAAAAiaHR0cHM6Ly9jaGF0Z3B0LmNvbS9zZXR0aW5ncy91c2FnZQAAHv4AAABTAAAAAgAAAAlhbnRocm9waWMAAAAAAAABAAAAC2NsYXVkZV9jb2RlAAAAAQAAACBodHRwczovL2NsYXVkZS5haS9zZXR0aW5ncy91c2FnZQAAHv4AAAAbAAAAAwAAAARkZW1vAAABAAAAAAAAAAAAAB7+AAAAHv4AAAA7AAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAPAAAAAgAAAAAAAAAAAQEAAAAAEAAAAAMAAAAAAAAAAAEBAQEA\x0a\x0adata: AQAAAAAAAAAXAAAAABUAAAJhCQAAAAAAAaY7AAAAABAAAAAAAAAzAAAALwEAAAAGd29ya2VyAAAAAAAAAAAAAAAAAAEAAAAABAAAAAAAAAAEAAEAAAAAAAAAAAAAAAAAAGAAAABcAAAAAAEAAAAAAQAAAAEBAAAAAQABAAAAAwAAAAAAAAAAABMAAAAPAAAAAAAAAAAAAQEBAAAAAQAAAAAAAAABAQEAAAAAAAAAAAAAAAABAAAABGRlbW8AAAAAAAAAAAAAAAAAgAAAAAEAAAACAAAAAAAAAEgAAAAAAAAAAAAAAQAAAAABAAAAAQAAAAAAAACAAAAAAAAAADfhHWAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE6UkU8AAAAAAAAAAAAAAAAAAAAAAAABAAEAAAAAvQAAAEMAAAABAAAABm9wZW5haQABAQAAAAAAAAEBAAAAImh0dHBzOi8vY2hhdGdwdC5jb20vc2V0dGluZ3MvdXNhZ2UAAB7+AAAAUwAAAAIAAAAJYW50aHJvcGljAAAAAAAAAQAAAAtjbGF1ZGVfY29kZQAAAAEAAAAgaHR0cHM6Ly9jbGF1ZGUuYWkvc2V0dGluZ3MvdXNhZ2UAAB7+AAAAGwAAAAMAAAAEZGVtbwAAAQAAAAAAAAAAAAAe/gAAAB7+AAAAagAAABAAAAABAAAAAAAAAAABAQEBAAAADwAAAAIAAAAAAAAAAAEBAAAAABAAAAADAAAAAAAAAAABAQEBAAAADAAAAAEBAAAAAQEBAQAAAAsAAAACAQAAAAEBAAAAAAwAAAADAQAAAAEAAQEA\x0a\x0adata: AQAAAAAAAAAKAQABAAAAEgAAAGMAEgAAAAEAAQAAAA8xMjcuMC4wLjE6NDYwMDEAAwUAAAAAAAAAAgAAAAZ0ZW1wZXIAAAAAAAAAAAAAAAAAAQAAAApwbGF5Z3JvdW5kAAAABndpZGdldAAAAAEAAAAAAAAAAAE=\x0a\x0adata: AQAAAAAAAAAXAAAAABUAAAJhCQAAAAAAAancAAAAABAAAAAAAAAzAAAALwEAAAAGd29ya2VyAAAAAAAAAAAAAAAAAAEAAAAABAAAAAAAAAAEAAEAAAAAAAAAAAAAAAAAAGAAAABcAAAAAAEAAAAAAQAAAAEBAAAAAQABAAAAAwAAAAAAAAAAABMAAAAPAAAAAAAAAAAAAQEBAAAAAQAAAAAAAAABAQEAAAAAAAAAAAAAAAABAAAABGRlbW8AAAAAAAAAAAAAAAAAgAAAAAEAAAACAAAAAAAAAEgAAAAAAAAAAAAAAQAAAAABAAAAAQAAAAAAAACAAAAAAAAAADfhHWAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE6UkU8AAAAAAAAAAAAAAAAAAAAAAAABAAEAAAAAvQAAAEMAAAABAAAABm9wZW5haQABAQAAAAAAAAEBAAAAImh0dHBzOi8vY2hhdGdwdC5jb20vc2V0dGluZ3MvdXNhZ2UAAB7+AAAAUwAAAAIAAAAJYW50aHJvcGljAAAAAAAAAQAAAAtjbGF1ZGVfY29kZQAAAAEAAAAgaHR0cHM6Ly9jbGF1ZGUuYWkvc2V0dGluZ3MvdXNhZ2UAAB7+AAAAGwAAAAMAAAAEZGVtbwAAAQAAAAAAAAAAAAAe/gAAAB7+AAAAagAAABAAAAABAAAAAAAAAAABAQEBAAAADwAAAAIAAAAAAAAAAAEBAAAAABAAAAADAAAAAAAAAAABAQEBAAAADAAAAAEBAAAAAQEBAQAAAAsAAAACAQAAAAEBAAAAAAwAAAADAQAAAAEAAQEA\x0a\x0adata: AQAAAAAAAAA9AAAAABUAAAAGBwAAAAAA\x0a\x0adata: AQAAAAAAAAA6AAAAABUAAAAGBwAAAAAA\x0a\x0adata: AQAAAAAAAAA4AAAAABUAAAApBgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQAAAAA=\x0a\x0a"
-deadline 21800800000
-turn 1814000000 1794557581052999936
-heard answered 12 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x03\x00\x12\x06"
-exchange 54 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-erase "\xb5\x1a\x19\xb4\x0d\xa4l\xfb \xf8\xb8\xcfa\xb4*i"
+deadline 21678000001
+turn 1679699999 1794573188880000000
+heard answered 37 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x87\x00\x14\x00\x01\x01\x00\x00\x00\x01\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x00\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 38 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21678000001
+turn 1681099999 1794573188881999872
+heard piece "data: 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\x0a\x0adata: AQAAAAAAAAADAAAAABUAAACDCgAAAAAAAAAAAAAAAAAAAAAAAQAAAABqAAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAPAAAAAgAAAAAAAAAAAQEAAAAAEAAAAAMAAAAAAAAAAAEBAQEAAAAMAAAAAQEAAAABAQEBAAAACwAAAAIBAAAAAQEAAAAADAAAAAMBAAAAAQABAQA=\x0a\x0a"
+exchange 39 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x000\x00\x00\x00\x00\x15\x00\x00\x00\x05\x04\x00\x00\x00\x10" "Content-Type" "application/octet-stream"
+exchange 40 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x002\x00\x00\x00\x00\x15\x00\x00\x00\x17\x05\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x01\x01\x03\x00\x00\x00\x01" "Content-Type" "application/octet-stream"
+exchange 41 33554432 POST "/jig/v1/read" "\x00\x00\x00\x00\x15\x00\x00\x00\x16\x00\x01\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x02\x01\x04\x00\x01\x01\x04\x00\x00" "Content-Type" "application/octet-stream"
+exchange 42 33554432 POST "/jig/v1/watch" "xxxxxxxxxxxxxxxx\x00\x00\x00\x00\x00\x00\x005\x00\x00\x00\x00\x15\x00\x00\x00\x1f\x05\x01\x00\x00\x00\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x02\x00\x00\x00\x10" "Content-Type" "application/octet-stream"
+exchange 43 33554432 POST "/jig/v1/read" "\x00\x00\x00\x00\x15\x00\x00\x00\x1e\x00\x01\x00\x00\x00\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04\x00\x00\x04\x00\x00" "Content-Type" "application/octet-stream"
+exchange 44 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x1d\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x0f\x00\x14\x01\x00\x00\x00\x07\x00\x00\x00\x01\x00\x00\x00\x01" "Content-Type" "application/octet-stream"
+deadline 21681100000
+turn 1722000000 1794573188923000064
+heard piece "data: AQAAAAAAAAAKAQABAAAAFAAAAEcAFAAAAAEAAQAAAA8xMjcuMC4wLjE6NDE1MTUAAwUAAAAAAAAAAgAAAAZ0ZW1wZXIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ==\x0a\x0adata: AQAAAAAAAAAXAAAAABUAAAHCCQAAAAAAAZQfAAAAABAAAAAAAAAzAAAALwEAAAAGd29ya2VyAAAAAAAAAAAAAAAAAAEAAAAABAAAAAAAAAAEAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAEAAAACAAAAAAAAAEgAAAAAAAAAAAAAAQAAAAAAAAAAU9GsEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATpSRTwAAAAAAAAAAAAAAAAAAAAAAAAEAAQAAAAC9AAAAQwAAAAEAAAAGb3BlbmFpAAEBAAAAAAAAAQEAAAAiaHR0cHM6Ly9jaGF0Z3B0LmNvbS9zZXR0aW5ncy91c2FnZQAAHv4AAABTAAAAAgAAAAlhbnRocm9waWMAAAAAAAABAAAAC2NsYXVkZV9jb2RlAAAAAQAAACBodHRwczovL2NsYXVkZS5haS9zZXR0aW5ncy91c2FnZQAAHv4AAAAbAAAAAwAAAARkZW1vAAABAAAAAAAAAAAAAB7+AAAAHv4AAAA7AAAAEAAAAAEAAAAAAAAAAAEBAQEAAAAPAAAAAgAAAAAAAAAAAQEAAAAAEAAAAAMAAAAAAAAAAAEBAQEA\x0a\x0adata: AQAAAAAAAAAKAQABAAAAFAAAAGMAFAAAAAEAAQAAAA8xMjcuMC4wLjE6NDE1MTUAAwUAAAAAAAAAAgAAAAZ0ZW1wZXIAAAAAAAAAAAAAAAAAAQAAAApwbGF5Z3JvdW5kAAAABndpZGdldAAAAAEAAAAAAAAAAAE=\x0a\x0adata: AQAAAAAAAAAXAAAAABUAAAJhCQAAAAAAAavxAAAAABAAAAAAAAAzAAAALwEAAAAGd29ya2VyAAAAAAAAAAAAAAAAAAEAAAAABAAAAAAAAAAEAAEAAAAAAAAAAAAAAAAAAGAAAABcAAAAAAEAAAAAAQAAAAEBAAAAAQABAAAAAwAAAAAAAAAAABMAAAAPAAAAAAAAAAAAAQEBAAAAAQAAAAAAAAABAQEAAAAAAAAAAAAAAAABAAAABGRlbW8AAAAAAAAAAAAAAAAAgAAAAAEAAAACAAAAAAAAAEgAAAAAAAAAAAAAAQAAAAABAAAAAQAAAAAAAACAAAAAAAAAAFPRrBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE6UkU8AAAAAAAAAAAAAAAAAAAAAAAABAAEAAAAAvQAAAEMAAAABAAAABm9wZW5haQABAQAAAAAAAAEBAAAAImh0dHBzOi8vY2hhdGdwdC5jb20vc2V0dGluZ3MvdXNhZ2UAAB7+AAAAUwAAAAIAAAAJYW50aHJvcGljAAAAAAAAAQAAAAtjbGF1ZGVfY29kZQAAAAEAAAAgaHR0cHM6Ly9jbGF1ZGUuYWkvc2V0dGluZ3MvdXNhZ2UAAB7+AAAAGwAAAAMAAAAEZGVtbwAAAQAAAAAAAAAAAAAe/gAAAB7+AAAAagAAABAAAAABAAAAAAAAAAABAQEBAAAADwAAAAIAAAAAAAAAAAEBAAAAABAAAAADAAAAAAAAAAABAQEBAAAADAAAAAEBAAAAAQEBAQAAAAsAAAACAQAAAAEBAAAAAAwAAAADAQAAAAEAAQEA\x0a\x0adata: AQAAAAAAAAA1AAAAABUAAAAGBwAAAAAA\x0a\x0adata: AQAAAAAAAAAyAAAAABUAAAAGBwAAAAAA\x0a\x0adata: AQAAAAAAAAAwAAAAABUAAAApBgAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAQAAAAA=\x0a\x0a"
+deadline 21722000001
+turn 1733599999 1794573188934000128
+heard answered 38 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x87\x00\x14\x00\x01\x01\x00\x00\x00\x01\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x01\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+exchange 45 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x1d\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x0f\x00\x14\x01\x00\x00\x00\x08\x00\x00\x00\x01\x00\x00\x00\x01" "Content-Type" "application/octet-stream"
+deadline 21722000001
+turn 1740199999 1794573188940999936
+heard answered 12 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x03\x00\x14\x06"
+exchange 46 33554432 POST "/jig/v1/read" "\x00\x00\x00\x00\x15\x00\x00\x00\x1e\x00\x01\x00\x00\x00\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04\x00\x00\x04\x00\x00" "Content-Type" "application/octet-stream"
+erase "&\x9b\xceG\xec\xd2\x01\x84\x86\x04\xcf\xff\xec\xbcu\x94"
 writes 1
 carried 1
-deadline 21800800000
-turn 1819599999 1794557581059000064
-heard answered 47 200 "\x01"
-exchange 55 33554432 POST "/jig/v1/read" "\x00\x00\x00\x00\x15\x00\x00\x00\x1e\x00\x01\x00\x00\x00\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x01\x00\x00\x00\x01\x01\x04\x00\x00\x04\x00\x00" "Content-Type" "application/octet-stream"
-deadline 21800800000
-turn 1821500000 1794557581060000000
-heard answered 48 200 "\x01"
-exchange 56 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x12\x00" "Content-Type" "application/octet-stream"
-deadline 21800800000
-turn 1822899999 1794557581062000128
-heard answered 49 200 "\x01\x00\x00\x00\x00\x15\x00\x00\x00\x0d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-deadline 21800800000
-turn 1826500000 1794557581064999936
-heard answered 50 200 "\x01"
-deadline 21800800000
-turn 1827599999 1794557581067000064
-heard answered 51 200 "\x01\x00\x00\x00\x00\x15\x00\x00\x00\x0d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-deadline 21800800000
-turn 1828599999 1794557581068000000
-heard answered 52 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x03\x00\x12\x00"
-deadline 21800800000
-turn 1832699999 1794557581072000000
-heard answered 53 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x03\x00\x12\x00"
-deadline 21800800000
-turn 1846000000 1794557581084999936
-heard answered 54 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x87\x00\x12\x00\x01\x01\x00\x00\x00\x01\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x01\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-deadline 21800800000
-turn 1847399999 1794557581086000128
-heard answered 55 200 "\x01\x00\x00\x00\x00\x15\x00\x00\x00\x0d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-deadline 21800800000
-turn 1850599999 1794557581089999872
-heard answered 56 200 "\x01\x01\x00\x01\x00\x00\x00\x12\x00\x00\x00\x87\x00\x12\x00\x01\x01\x00\x00\x00\x01\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x01\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
-deadline 21800800000
+deadline 21722000001
+turn 1746699999 1794573188947000064
+heard answered 39 200 "\x01"
+exchange 47 33554432 POST "/jig/v1/read" "\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x0d\x01\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x14\x00" "Content-Type" "application/octet-stream"
+deadline 21722000001
+turn 1748699999 1794573188948999936
+heard answered 40 200 "\x01"
+deadline 21722000001
+turn 1749799999 1794573188950000128
+heard answered 41 200 "\x01\x00\x00\x00\x00\x15\x00\x00\x00\x0d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+deadline 21722000001
+turn 1753500000 1794573188953999872
+heard answered 42 200 "\x01"
+deadline 21722000001
+turn 1754699999 1794573188955000064
+heard answered 43 200 "\x01\x00\x00\x00\x00\x15\x00\x00\x00\x0d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+deadline 21722000001
+turn 1755899999 1794573188956000000
+heard answered 44 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x03\x00\x14\x00"
+deadline 21722000001
+turn 1770699999 1794573188971000064
+heard answered 45 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x03\x00\x14\x00"
+deadline 21722000001
+turn 1780500000 1794573188980999936
+heard answered 46 200 "\x01\x00\x00\x00\x00\x15\x00\x00\x00\x0d\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
+deadline 21722000001
+turn 1784399999 1794573188984999936
+heard answered 47 200 "\x01\x01\x00\x01\x00\x00\x00\x14\x00\x00\x00\x87\x00\x14\x00\x01\x01\x00\x00\x00\x01\x00\x00\x00\x03\x00\x00\x00\x0aplayground\x00\x00\x00\x06widget\x01\x00\x00\x00\x03\x00\x00\x00\x18Add CSV export to widget\x00\x00\x00\x1aAdd a dark theme to widget\x00\x00\x00\x1fFix widget's empty search state"
+deadline 21722000001
 end

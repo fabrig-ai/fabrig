@@ -208,7 +208,7 @@ fn follow_question_relays_round_trip_and_older_rows_have_no_relay() {
     }
     let old = super::catch_up::kept_golden(16, "record_follow_question_full.bin");
     let bytes = super::catch_up::patched(16, 5, b"FollowQuestion", old);
-    let question = crate::v18::FollowQuestion::decode(&crate::v18::CEILINGS, &mut skein_lib::Reader::new(&bytes))
+    let question = crate::v20::FollowQuestion::decode(&crate::v20::CEILINGS, &mut skein_lib::Reader::new(&bytes))
         .expect("old question");
     assert_eq!(question.relayed(), &None);
     assert_eq!(question.number(), u64::MAX);
