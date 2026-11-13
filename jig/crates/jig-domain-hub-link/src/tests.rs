@@ -717,3 +717,35 @@ fn a_version_refusal_pauses_with_its_reason_and_keeps_history_usable() {
     assert_eq!(actual, end);
     assert!(!unusable_history);
 }
+
+#[test]
+fn untranslated_runs_and_jobs_keep_a_retry_reason_on_the_usual_answer_route() {
+    let mismatch = host::Mismatch { wire: b"smith-charter".as_slice().into(), version: 5, lowest: 4, highest: 4 };
+    let run = host::Ending::Refused(host::Refusal::Untranslated(mismatch.clone()));
+    let job = host::JobEnding::Refused(host::JobRefusal::Untranslated(mismatch.clone()));
+    let end = tasks::End::RefusedWithReason { reason: mismatch.reason() };
+    assert_eq!(payload::ending(&run), end);
+    assert_eq!(payload::job_end(&job), end);
+    assert!(!payload::unusable_history(&run));
+    for up in [
+        host::LinkUp::Answer {
+            run: RUN,
+            attempt: ATTEMPT,
+            answer: host::RunAnswer { turns: 0, spent: 0, read: None, refused: Box::new([]), ending: run },
+        },
+        host::LinkUp::JobAnswer { run: RUN, attempt: ATTEMPT, answer: job },
+    ] {
+        let mut link = link();
+        let mut out = Queue::uncapped();
+        step(&mut link, Time::ZERO, Event::Up { channel: CHANNEL, value: up }, &mut out);
+        let Request::Core(core::Event::Fleet(fleet::Event::Answer { answer, payload, .. })) = out.pop().unwrap() else {
+            panic!("fleet answer")
+        };
+        assert_eq!(answer, fleet::Answer::Untranslated);
+        step(&mut link, Time::ZERO, Event::AnswerPayload { run: RUN, attempt: ATTEMPT, payload }, &mut out);
+        let Request::Core(core::Event::AnswerPayload { end: actual, .. }) = out.pop().unwrap() else {
+            panic!("task terminal")
+        };
+        assert_eq!(actual, end);
+    }
+}

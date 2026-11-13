@@ -106,7 +106,13 @@ pub fn workers() -> Box<[Worker]> {
     ])
 }
 pub fn component() -> Component {
-    Component::new(&LIMITS, workers(), jig_protocol_worker_wire::spoken(), application()).expect("small component")
+    Component::new(
+        &LIMITS,
+        workers(),
+        jig_protocol_worker_wire::spoken(),
+        jig_protocol_worker_wire::Application::opaque(application()),
+    )
+    .expect("small component")
 }
 pub fn credential(name: &[u8], secret: &[u8], version: u32) -> Box<[u8]> {
     credential_with(name, secret, statement(version))

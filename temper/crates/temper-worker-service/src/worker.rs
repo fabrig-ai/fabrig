@@ -493,6 +493,12 @@ impl Worker {
     #[expect(clippy::too_many_lines, reason = "the worker link dispatch keeps every protocol request arm together")]
     pub fn link(&mut self, _now: Time, request: link::Request) {
         match request {
+            link::Request::CannotSendWhole { wire, version } => {
+                self.notes.push(crate::worker_alone::Note::CannotSendWhole { wire, version });
+            }
+            link::Request::Untranslated { kind, halt } => {
+                self.notes.push(crate::worker_alone::Note::Untranslated { kind, halt });
+            }
             link::Request::Ready => {
                 if let Connection::Socket(remote) = &mut self.connection {
                     remote.hello_pending = true;

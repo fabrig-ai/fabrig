@@ -12,4 +12,3 @@
    the settings-holder gap remains `settings.status.md`, 6.
    the ignored restore stories remain `settings.status.md`, 10.
 
-- **Not yet:** *A task its channel's versions cannot carry leaves that channel alone*: the *untranslated* refusal's exclusion [in flight: change 2313]

@@ -127,7 +127,7 @@ fn worker_names_are_bounded_independently_of_channels() {
         &limits,
         fixtures::workers(),
         jig_protocol_worker_wire::spoken(),
-        fixtures::application(),
+        jig_protocol_worker_wire::Application::opaque(fixtures::application()),
     );
     assert_eq!(result.err(), Some(crate::Unusable::Workers));
 }

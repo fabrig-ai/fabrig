@@ -399,6 +399,12 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::Wires => "wires",
             };
             let bound = match unsent.bound {
+                Bound::Translation { version, halt } => {
+                    return format!(
+                        "{binary} serve: cannot send {record} to worker {} at jig-worker-wire {version}: {halt:?}\n",
+                        worker_name(Some(&worker))
+                    );
+                }
                 Bound::Room(room) => format!("past the room of {room} bytes"),
                 Bound::Channel(why) => {
                     let reason = match why {
@@ -467,7 +473,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
 fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalDiagnostic) -> String {
     let temper_engine_service::RunRefusalDiagnostic { task, run, attempt, reason } = diagnostic;
     let (class, detail) = match &reason {
-        jig_domain_host::Refusal::Version(mismatch) => {
+        jig_domain_host::Refusal::Version(mismatch) | jig_domain_host::Refusal::Untranslated(mismatch) => {
             return run_detail_line(
                 format!("{binary} serve: task {task} run {run} attempt {attempt} refused: "),
                 &mismatch.reason(),
@@ -515,7 +521,8 @@ fn job_ending(ending: &temper_engine_service::JobDiagnosticEnding) -> (String, &
             (String::from("refused Invalid(Start)"), why)
         }
         JobDiagnosticEnding::Refused(
-            reason @ (JobRefusal::Busy
+            reason @ (JobRefusal::Untranslated(_)
+            | JobRefusal::Busy
             | JobRefusal::Invalid(
                 JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
             )),

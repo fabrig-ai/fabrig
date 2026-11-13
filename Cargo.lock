@@ -2096,6 +2096,7 @@ dependencies = [
  "jig-domain-host",
  "jig-domain-link",
  "jig-protocol-charter",
+ "skein-codec",
  "skein-io",
  "skein-lib",
  "smith-channel",
@@ -2503,10 +2504,13 @@ dependencies = [
  "jig-test-service",
  "skein-channel",
  "skein-codec",
+ "skein-codegen",
  "skein-fake-channel",
  "skein-io",
  "skein-lib",
  "skein-world",
+ "smith-charter",
+ "smith-transcript",
 ]
 
 [[package]]
@@ -7387,6 +7391,7 @@ dependencies = [
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "skein-channel",
+ "skein-codec",
  "skein-io",
  "skein-json",
  "skein-lib",

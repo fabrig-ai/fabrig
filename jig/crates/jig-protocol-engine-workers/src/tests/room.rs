@@ -55,14 +55,14 @@ fn the_room_holds_control_and_every_non_start_frame() {
                 &limits,
                 fixtures::workers(),
                 jig_protocol_worker_wire::spoken(),
-                fixtures::application(),
+                jig_protocol_worker_wire::Application::opaque(fixtures::application()),
             )
             .is_ok();
             let host = host::Workers::new(
                 &config,
                 &files,
                 host::Tokens { listeners: 1, connections: 2 },
-                fixtures::application(),
+                jig_protocol_worker_wire::Application::opaque(fixtures::application()),
                 &limits,
             );
             if (valid, component, host.is_ok()) != (accepted, accepted, accepted) {
@@ -100,9 +100,13 @@ fn a_resumed_start_is_fitted_to_the_engines_room() {
         sizes: sizes::Sizes { answer: 256, answered: 4, ..fixtures::SIZES },
         ..fixtures::LIMITS
     };
-    let mut component =
-        Component::new(&limits, fixtures::workers(), jig_protocol_worker_wire::spoken(), fixtures::application())
-            .expect("engine limits");
+    let mut component = Component::new(
+        &limits,
+        fixtures::workers(),
+        jig_protocol_worker_wire::spoken(),
+        jig_protocol_worker_wire::Application::opaque(fixtures::application()),
+    )
+    .expect("engine limits");
     let connection = Token::new(100);
     let channel = Token::new(1);
     component.down(Time::ZERO, Event::Accepted { connection }, &mut Queue::uncapped());
@@ -146,9 +150,13 @@ fn a_resumed_start_is_fitted_to_the_engines_room() {
 fn an_unencodable_job_is_answered_with_bounded_words() {
     for detail in [0, 16, 128] {
         let limits = Limits { sizes: sizes::Sizes { detail, ..fixtures::SIZES }, ..fixtures::LIMITS };
-        let mut component =
-            Component::new(&limits, fixtures::workers(), jig_protocol_worker_wire::spoken(), fixtures::application())
-                .expect("limits");
+        let mut component = Component::new(
+            &limits,
+            fixtures::workers(),
+            jig_protocol_worker_wire::spoken(),
+            jig_protocol_worker_wire::Application::opaque(fixtures::application()),
+        )
+        .expect("limits");
         let connection = Token::new(100);
         let channel = Token::new(1);
         component.down(Time::ZERO, Event::Accepted { connection }, &mut Queue::uncapped());
@@ -182,9 +190,13 @@ fn an_unencodable_job_is_answered_with_bounded_words() {
 fn a_channels_closed_entrance_answers_the_current_record_once() {
     for assignment in [true, false] {
         let limits = Limits { sizes: sizes::Sizes { detail: 128, ..fixtures::SIZES }, ..fixtures::LIMITS };
-        let mut component =
-            Component::new(&limits, fixtures::workers(), jig_protocol_worker_wire::spoken(), fixtures::application())
-                .expect("limits");
+        let mut component = Component::new(
+            &limits,
+            fixtures::workers(),
+            jig_protocol_worker_wire::spoken(),
+            jig_protocol_worker_wire::Application::opaque(fixtures::application()),
+        )
+        .expect("limits");
         let connection = Token::new(100);
         let channel = Token::new(1);
         component.down(Time::ZERO, Event::Accepted { connection }, &mut Queue::uncapped());

@@ -181,15 +181,15 @@ impl Joined {
     }
     #[must_use]
     pub fn with_credential(limits: &Limits, seed: u64, credential: Credential) -> Self {
-        Self::with_options(limits, seed, credential, None, None, None)
+        Self::with_options(limits, seed, credential, None, None, None, None)
     }
     #[must_use]
     pub fn with_engine_room(limits: &Limits, seed: u64, room: u32) -> Self {
-        Self::with_options(limits, seed, fixtures::credential(), Some(room), None, None)
+        Self::with_options(limits, seed, fixtures::credential(), Some(room), None, None, None)
     }
     #[must_use]
     pub fn with_limits(limits: &Limits, engine: engine::Limits, seed: u64) -> Self {
-        Self::with_options(limits, seed, fixtures::credential(), Some(engine.room), Some(engine), None)
+        Self::with_options(limits, seed, fixtures::credential(), Some(engine.room), Some(engine), None, None)
     }
     #[must_use]
     pub fn with_wires(
@@ -198,11 +198,28 @@ impl Joined {
         engine: skein_lib::List<jig_protocol_worker_wire::Spoken>,
         worker: skein_lib::List<jig_protocol_worker_wire::Spoken>,
     ) -> Self {
-        Self::with_options(limits, seed, fixtures::credential(), None, None, Some((engine, worker)))
+        Self::with_options(limits, seed, fixtures::credential(), None, None, Some((engine, worker)), None)
+    }
+    #[must_use]
+    pub fn worker_records(&self) -> Vec<u16> {
+        self.pipe.as_ref().expect("live pipe").frames[0].iter().copied().filter(|kind| *kind >= 0x0100).collect()
     }
     #[must_use]
     pub fn engine_records(&self) -> Vec<u16> {
         self.pipe.as_ref().expect("live pipe").frames[1].iter().copied().filter(|kind| *kind >= 0x0100).collect()
+    }
+    #[must_use]
+    pub fn with_applications(
+        limits: &Limits,
+        seed: u64,
+        engine: skein_lib::List<jig_protocol_worker_wire::Spoken>,
+        worker: skein_lib::List<jig_protocol_worker_wire::Spoken>,
+        application: jig_protocol_worker_wire::Application,
+        worker_application: jig_protocol_worker_wire::Application,
+    ) -> Self {
+        let mut credential = fixtures::credential();
+        credential.application = worker_application;
+        Self::with_options(limits, seed, credential, None, None, Some((engine, worker)), Some(application))
     }
     fn with_options(
         limits: &Limits,
@@ -214,6 +231,7 @@ impl Joined {
             skein_lib::List<jig_protocol_worker_wire::Spoken>,
             skein_lib::List<jig_protocol_worker_wire::Spoken>,
         )>,
+        application: Option<jig_protocol_worker_wire::Application>,
     ) -> Self {
         let engine_limits = engine.unwrap_or(engine::Limits {
             sizes: limits.sizes,
@@ -235,8 +253,13 @@ impl Joined {
         let (engine_wires, worker_wires) =
             wires.unwrap_or_else(|| (jig_protocol_worker_wire::spoken(), jig_protocol_worker_wire::spoken()));
         Self {
-            engine: engine::Component::new(&engine_limits, workers, engine_wires, fixtures::application())
-                .expect("engine limits"),
+            engine: engine::Component::new(
+                &engine_limits,
+                workers,
+                engine_wires,
+                application.unwrap_or_else(|| jig_protocol_worker_wire::Application::opaque(fixtures::application())),
+            )
+            .expect("engine limits"),
             worker: Component::new(limits, worker_wires, credential, seed).expect("worker limits"),
             pipe: None,
             engine_root: Vec::new(),
@@ -307,6 +330,14 @@ impl Joined {
         }
         self.worker_event(Event::Up { up, parts });
     }
+    pub fn engine_busy(&mut self) {
+        self.engine_event(engine::Event::TurnBusy {
+            channel: self.channel.expect("admitted hello"),
+            run: fixtures::RUN_SEVEN,
+            attempt: fixtures::ATTEMPT_TWO,
+            turn: 1,
+        });
+    }
     pub fn engine_down(&mut self, down: host::LinkDown, parts: Box<[Part]>, values: Box<[Option<engine::GrantValue>]>) {
         self.engine_event(engine::Event::Down { channel: self.channel.expect("admitted hello"), down, parts, values });
     }
@@ -357,7 +388,9 @@ impl Joined {
             | Request::GracePassed
             | Request::Closed
             | Request::Refused { .. }
-            | Request::Fact { .. } => {
+            | Request::Fact { .. }
+            | Request::CannotSendWhole { .. }
+            | Request::Untranslated { .. } => {
                 self.worker_root.push(request);
             }
         }

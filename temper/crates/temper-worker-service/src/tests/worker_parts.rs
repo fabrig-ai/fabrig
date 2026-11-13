@@ -427,7 +427,7 @@ fn charter_versions_are_not_malformed_charters() {
             host::Undecoded::Version(host::Mismatch {
                 wire: b"smith-charter".as_slice().into(),
                 version: current.checked_add(1).unwrap(),
-                lowest: current,
+                lowest: 4, // The first kept charter, not only the current one.
                 highest: current,
             })
         } else {

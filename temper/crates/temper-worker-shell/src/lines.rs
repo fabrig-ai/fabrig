@@ -37,6 +37,12 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
         service::Note::Lost { worker, address, why } => {
             format!("lost {} {address} {}\n", String::from_utf8_lossy(&worker), worker_loss(why))
         }
+        service::Note::CannotSendWhole { wire, version } => format!(
+            "{binary} worker: the engine speaks {wire} {version}, below what this worker sends whole: restart the engine first\n"
+        ),
+        service::Note::Untranslated { kind, halt } => {
+            format!("{binary} worker: cannot encode record {kind}: {halt:?}\n")
+        }
         service::Note::OpeningRefused { reason, text } => format!(
             "{binary} worker: the engine refused the opening: {}: {}\n",
             opening_reason(reason),
@@ -77,7 +83,8 @@ fn worker_job_ending(ending: &temper_worker_service::WorkerJobEnding) -> (String
             (String::from("refused Invalid(Start)"), why)
         }
         WorkerJobEnding::Refused(
-            reason @ (JobRefusal::Busy
+            reason @ (JobRefusal::Untranslated(_)
+            | JobRefusal::Busy
             | JobRefusal::Invalid(
                 JobInvalid::Kind | JobInvalid::Spec | JobInvalid::Deadline | JobInvalid::Grants,
             )),

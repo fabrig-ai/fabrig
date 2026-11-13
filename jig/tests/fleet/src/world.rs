@@ -1371,6 +1371,7 @@ fn describe(event: &Event) -> String {
         | Event::CheckProgram { .. }
         | Event::SignOutProgram { .. }
         | Event::Sources { .. }
+        | Event::Mismatch { .. }
         | Event::Draining { .. }
         | Event::Logins { .. }
         | Event::Check { .. }

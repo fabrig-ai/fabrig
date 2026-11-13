@@ -135,6 +135,10 @@ pub struct Call {
 /// parent -> fleet
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// A running record halted at the engine bridge.
+    Mismatch {
+        channel: Token,
+    },
     /// The worker of `channel` drains: nothing more is placed on it
     /// (domain/engine/fleet.md).
     Draining {
@@ -619,6 +623,8 @@ pub enum Request {
 /// ): what the fleet acts on. The rest is the payload's.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
+    /// Refused by the engine before sending; exclude only this task on this channel.
+    Untranslated,
     /// Refused for a wire version: hand on, forget, and exclude this channel from placement.
     Version,
     /// It ended with its outcome.

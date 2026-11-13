@@ -102,7 +102,7 @@ impl LinkPeer {
                             temper_protocol_worker_wire::wire::layout(),
                         ))
                         .unwrap();
-                    wires
+                    jig_protocol_worker_wire::Application::opaque(wires)
                 },
             )
             .unwrap(),

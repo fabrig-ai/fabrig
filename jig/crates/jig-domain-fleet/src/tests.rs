@@ -1523,3 +1523,80 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
         ]
     );
 }
+
+#[test]
+fn an_untranslated_task_avoids_only_its_channel_until_loss_for_runs_and_jobs() {
+    for job in [false, true] {
+        let mut h = Harness::new(LIMITS);
+        let bound = jig_domain_link::JobBound {
+            kind: jig_domain_link::JobKind(1),
+            spec: 16,
+            result: 16,
+            deadline: Duration::from_secs(3),
+        };
+        let hello = || Hello {
+            slots: 2,
+            stop_bound: Duration::ZERO,
+            bounds: fixtures::bounds(),
+            jobs: Box::new([bound]),
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        };
+        h.step(Event::Hello { worker: 1, channel: C1, hello: hello() });
+        let start = |attempt| {
+            if job {
+                Event::StartJob { reply_to: to(attempt), run: R1, attempt, workstream: 1, job: bound, adopt: false }
+            } else {
+                Event::Start {
+                    placement: None,
+                    version: crate::Version { charter: 1, revision: 1 },
+                    grants: Box::new([]),
+                    reply_to: to(attempt),
+                    run: R1,
+                    attempt,
+                    workstream: 1,
+                    kinds: Kinds::Workers,
+                    assignment: references(),
+                }
+            }
+        };
+        h.step(start(A1));
+        let placed_first = h.settle();
+        let first = if job { Request::AssignJob { channel: C1, run: R1, attempt: A1 } } else { assign(C1, R1, A1) };
+        assert_eq!(&*placed_first, &[first, placed(R1, A1)]);
+        assert_eq!(&*h.answer(C1, R1, A1, Answer::Untranslated, 1), &[answered(A1, R1, Answer::Untranslated, 1)]);
+        assert!(h.acknowledge(R1, A1).is_empty(), "local refusal never needs acknowledgement");
+        h.step(start(A2));
+        assert!(h.settle().is_empty(), "the task waits without another channel");
+        assert_eq!(h.place(R2, A3, 2), C1, "other runs still use this channel");
+        h.step(Event::Hello { worker: 2, channel: C2, hello: hello() });
+        let placed_other = h.settle();
+        let other = if job { Request::AssignJob { channel: C2, run: R1, attempt: A2 } } else { assign(C2, R1, A2) };
+        assert_eq!(&*placed_other, &[other, placed(R1, A2)]);
+        h.answer(C2, R1, A2, Answer::Untranslated, 2);
+        h.acknowledge(R1, A2);
+        h.step(start(Token::new(99)));
+        assert!(h.settle().is_empty());
+        h.step(Event::Lost { channel: C1 });
+        h.step(Event::Hello { worker: 1, channel: C3, hello: hello() });
+        let placed_fresh = h.settle();
+        let attempt = Token::new(99);
+        let fresh = if job { Request::AssignJob { channel: C3, run: R1, attempt } } else { assign(C3, R1, attempt) };
+        assert_eq!(&*placed_fresh, &[fresh, placed(R1, attempt)]);
+    }
+}
+
+#[test]
+fn a_running_record_mismatch_excludes_placement_while_its_hosted_run_finishes() {
+    let mut h = Harness::new(LIMITS);
+    h.hello(C1, 2, &[], &[]);
+    assert_eq!(h.place(R1, A1, 1), C1);
+    h.step(Event::Mismatch { channel: C1 });
+    h.start(R2, A2, 2);
+    assert!(h.settle().is_empty());
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    h.acknowledge(R1, A1);
+    assert!(h.settle().is_empty());
+    h.hello(C2, 2, &[], &[]);
+    assert_eq!(&*h.settle(), &[assign(C2, R2, A2), placed(R2, A2)]);
+}
