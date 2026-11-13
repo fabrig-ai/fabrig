@@ -732,7 +732,14 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
         row.landing.task = u64::from(task);
         row.asks = vec![None; usize::try_from(LIMITS.landing_members).unwrap()].into_boxed_slice();
         row.entries = vec![
-            LandingEntry { entry: 1, member: 0, gate: 0, operation: Operation::Pending };
+            LandingEntry {
+                preparation: None,
+                base: None,
+                entry: 1,
+                member: 0,
+                gate: 0,
+                operation: Operation::Pending
+            };
             usize::try_from(LIMITS.entries).unwrap()
         ]
         .into_boxed_slice();
@@ -745,8 +752,18 @@ fn landing_geometry_fits_before_reconstruction_and_index_conversion() {
         (LandingRow { asks: vec![None; 3].into_boxed_slice(), ..landing(2, 2) }, RestoreSet::LandingAsks, 3, 2),
         (
             LandingRow {
-                entries: vec![LandingEntry { entry: 1, member: 0, gate: 0, operation: Operation::Pending }; 9]
-                    .into_boxed_slice(),
+                entries: vec![
+                    LandingEntry {
+                        preparation: None,
+                        base: None,
+                        entry: 1,
+                        member: 0,
+                        gate: 0,
+                        operation: Operation::Pending
+                    };
+                    9
+                ]
+                .into_boxed_slice(),
                 ..landing(2, 2)
             },
             RestoreSet::LandingEntries,

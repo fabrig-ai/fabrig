@@ -15,3 +15,8 @@ pub mod v17;
 #[expect(clippy::similar_names, reason = "the generated fields head/held and ending/pending name distinct durable facts")]
 #[path = "generated/v18.rs"]
 pub mod v18;
+
+#[rustfmt::skip]
+#[expect(clippy::similar_names, reason = "generated head/held and ending/pending name distinct durable facts")]
+#[path = "generated/v19.rs"]
+pub mod v19;

@@ -38,7 +38,6 @@ pub struct ChangesQueued {
     pub title: Box<[u8]>,
     pub ready_since: Wall,
     pub checks_since: Option<Wall>,
-    pub alone: bool,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangesLanded {

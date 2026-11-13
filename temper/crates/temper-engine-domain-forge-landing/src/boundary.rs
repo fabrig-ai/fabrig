@@ -143,7 +143,7 @@ pub enum Leave {
     EarlierConflict,
     Unit { change: u64 },
     Dependency { change: u64 },
-    Fallback { units: u16, top: Commit },
+    Blamed { gate: u16, run: u64, red: Commit, green: Commit },
 }
 
 /// The top-owned landing task record (domain/landing.md, 12).
@@ -177,7 +177,15 @@ pub struct Round {
     pub failure: Box<[u8]>,
     /// First branch to delete when the round ends unlanded.
     pub changed: Option<u16>,
+    pub search: Option<Search>,
 }
+/// Observed unit boundaries, numbered by members from 1; 0 is the base.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Search {
+    pub green: u16,
+    pub red: u16,
+}
+
 impl Round {
     #[must_use]
     pub fn new(branch: Box<[u8]>) -> Self {
@@ -192,6 +200,7 @@ impl Round {
             ending: None,
             failure: Box::new([]),
             changed: None,
+            search: None,
         }
     }
 }
@@ -202,6 +211,7 @@ pub enum Combine {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RoundEnd {
+    Cut,
     Stale,
     Leave,
     Conflict,
