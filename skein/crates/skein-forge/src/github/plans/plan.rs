@@ -77,7 +77,7 @@ impl Plan {
             api::Op::Write(write) => match write {
                 api::Write::Dispatch { .. }
                 | api::Write::Rerun { .. }
-                | api::Write::Merge { how: api::MergeHow::FastForwardOnly, .. }
+                | api::Write::Merge { how: api::MergeHow::FastForwardOnly | api::MergeHow::Recorded { .. }, .. }
                 | api::Write::Update { style: api::UpdateStyle::Rebase, .. } => true,
                 api::Write::CreateIssue { .. }
                 | api::Write::OpenPull { .. }

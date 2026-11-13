@@ -10,6 +10,7 @@ use skein_world::{Deadline, Expired};
     clippy::disallowed_methods,
     reason = "skein's round: reads the child marker for the isolated starvation verdict test"
 )]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_starved_pass_ends_only_its_test_in_one_process() {
     use skein_world::{StarvedPass, pass_starved};
 
@@ -122,6 +123,7 @@ fn failed(deadline: &Deadline) -> skein_world::Figures {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn an_idle_unanswered_deadline_fails_with_its_figures() {
     let deadline = Deadline::arm("the idle answer", Duration::from_millis(20));
     std::thread::sleep(core::time::Duration::from_nanos(deadline.remaining().as_nanos()));

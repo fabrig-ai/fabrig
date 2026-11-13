@@ -6,7 +6,7 @@
 )]
 use super::fixtures::{self, ALICE, disk::Disk};
 use crate::{Event, KeptFamily, KeptMap, Owner, PatchSet, PatchSets, Request, Store, TranscriptRead, codec, keys};
-use jig_domain_core::{self as domain, reads};
+use jig_domain_core_vocabulary::{self as domain, reads};
 use jig_domain_tasks as tasks;
 use jig_test_patches_jig::{frames, patches as jig};
 use jig_test_patches_smith::patches as smith;

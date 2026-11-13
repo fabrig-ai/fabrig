@@ -104,6 +104,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             let counts = match failure.fate {
                 brief::GatherFate::Capacity => "capacity",
                 brief::GatherFate::Transient => "transient",
+                brief::GatherFate::Infrastructure => "infrastructure",
                 brief::GatherFate::Permanent => "permanent",
             };
             super::diagnostics::emit(domain, crate::Fact::BriefFailed { task, counts, reason: failure.reason() });

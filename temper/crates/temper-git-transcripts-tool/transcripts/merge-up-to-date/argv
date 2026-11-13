@@ -25,6 +25,8 @@ rerere.enabled=false
 merge.conflictStyle=merge
 -c
 submodule.recurse=false
+-c
+remote.origin.promisor=true
 merge
 --no-commit
 --no-ff

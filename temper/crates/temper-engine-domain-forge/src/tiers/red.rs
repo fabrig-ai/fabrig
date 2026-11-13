@@ -149,23 +149,25 @@ pub(super) fn landed(
     row: &TierRow,
     reds: &[(Commit, p::Failures)],
     logs: &[JobLog],
+    message_bytes: u32,
     out: &mut Queue<Request>,
 ) {
     let tier = super::configured(d, row).expect("configured tier");
     let branch = super::followed(d, row.repository, &tier).expect("landing tier branch");
     let topic = Topic::Landings { repository: row.repository, branch: branch.clone() };
     for (commit, failing) in reds {
-        let Some(verification) = d.verifications.get(&(row.repository, *commit)) else { continue };
+        let verification = d.verifications.get(&(row.repository, *commit));
         let result = row.result.as_ref().expect("kept final receipt");
-        let news = News::Red(RedNews {
+        let red = RedNews {
             tier: row.tier.clone(),
             run: row.record.run.as_ref().expect("judged range").number,
             url: if result.run.url.is_empty() { None } else { Some(result.run.url.clone()) },
             on: RedOn::Landing { commit: *commit, branch: branch.clone(), failing: failing.clone() },
             logs: Box::from(logs),
-        });
+        };
         let mut told = List::with_capacity(d.subscriptions.capacity());
         for (_, subscriber) in &d.subscriptions {
+            let Some(verification) = verification else { break };
             if told.as_slice().contains(&subscriber.task) || !receives(d, subscriber, verification, &topic) {
                 continue;
             }
@@ -174,11 +176,55 @@ pub(super) fn landed(
                 task: subscriber.task,
                 subscription: subscriber.number,
                 topic: subscriber.topic.clone(),
-                news: news.clone(),
+                news: News::Red(red.clone()),
                 class: Class::Wakes,
             });
         }
+        if told.is_empty() {
+            file(d, row, &red, message_bytes, out);
+        }
     }
+}
+
+fn file(d: &Domain, row: &TierRow, red: &RedNews, message_bytes: u32, out: &mut Queue<Request>) {
+    let Some(repository) = d.repositories.get(&row.repository) else { return };
+    let (commit, branch) = match &red.on {
+        RedOn::Landing { commit, branch, .. } => (commit, branch),
+        RedOn::Goal { .. } => unreachable!("landing red"),
+    };
+    let mut title = List::uncapped();
+    for part in [b"Red after landing on ".as_slice(), branch, b": tier ", &red.tier] {
+        for byte in part {
+            title.push(*byte).expect("bounded tier and branch names");
+        }
+    }
+    let title = title.into_boxed();
+    // The run and failing tests may change; the landing and tier identify the filing.
+    let mut landing = List::uncapped();
+    for part in [b" blames landing ".as_slice(), &crate::commit_text(commit), b" on "] {
+        for byte in part {
+            landing.push(*byte).expect("fixed landing marker");
+        }
+    }
+    for (_, finding) in d.findings(repository.project) {
+        if finding.kind == crate::FindingKind::Red
+            && finding.title == title
+            && skein_lib::bytes::find(&finding.body, landing.as_slice()).is_some()
+        {
+            return;
+        }
+    }
+    out.push(Request::FileRedFinding {
+        task: row.task.expect("tier task"),
+        finding: crate::FileFinding {
+            project: repository.project,
+            kind: crate::FindingKind::Red,
+            severity: crate::Severity::High,
+            area: None,
+            title,
+            body: crate::red_news_words(red, message_bytes.min(4096)),
+        },
+    });
 }
 
 fn receives(d: &Domain, subscriber: &Subscriber, verification: &Verification, topic: &Topic) -> bool {
@@ -197,7 +243,7 @@ fn receives(d: &Domain, subscriber: &Subscriber, verification: &Verification, to
                     return true;
                 }
             }
-            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } | Topic::Findings { .. } => {}
         }
     }
     false

@@ -2,7 +2,7 @@
 use crate::{Path, Problems, What, check, domain, read};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
-use jig_domain_core::Model;
+use jig_domain_core_vocabulary::Model;
 use jig_domain_people::PermissionRole;
 use skein_json::Document;
 use skein_lib::{Decimal, List, Wall, Writer};

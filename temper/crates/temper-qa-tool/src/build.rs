@@ -63,7 +63,7 @@ fn check_files(directory: &Path) -> Result<Vec<PathBuf>, Refusal> {
     for path in [
         "bin/temper-box",
         "bin/fake-claude",
-        "bin/temper-client",
+        "bin/temper",
         "bin/temper-client-journeys",
         "bundle/index.html",
         "bundle-record/index.html",

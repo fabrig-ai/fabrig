@@ -13,10 +13,14 @@ pub use temper_playground::documents::turn_bounds;
 pub const SECOND_KEY: &[u8] = b"real-loop-second-llm-key";
 pub const TOKEN: &[u8] = jig_channel_kit::fixtures::TOKEN;
 pub const SEED: u64 = jig_channel_kit::fixtures::SEED;
-pub const AGENT: &[u8] = b"/real-loop/temper-agent";
+pub const PINNED_AGENT_SUFFIX: &[u8] = b"/worker-root/agent/temper-agent";
+#[must_use]
+pub fn pinned_agent_program(directory: &Path) -> std::path::PathBuf {
+    directory.join("worker-root/agent/temper-agent")
+}
 #[must_use]
 pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde_json::Value, serde_json::Value) {
-    let program = std::str::from_utf8(AGENT).expect("agent program");
+    let program = directory.join("temper-agent");
     let agent = serde_json::json!({
         "profile":{"name":"standard","declared":{"memory":2_147_483_648_u64,"tool_payload":2048,"read_window":256,
             "conversations":1,"calls_per_response":1},
@@ -41,7 +45,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"]["program"] = program.into();
+    value["workers"][0]["agent"]["program"] = serde_json::json!(program);
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
     value["workers"][0]["agent"]["arguments"] = serde_json::json!(["internal", "agent", directory.join("agent.json")]);
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
@@ -93,6 +97,7 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
             private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose())?;
         }
     }
+    private(&directory.join("temper-agent"), b"hosted agent program")?;
     private(&directory.join("worker.secret"), b"worker-secret")?;
     private(&directory.join("fixture.key"), jig_channel_kit::fixtures::KEY)?;
     private(&directory.join("second.key"), SECOND_KEY)?;
@@ -356,13 +361,13 @@ fn stock_document(value: &mut serde_json::Value) {
         ("core.policy_bytes", 8192),
         ("core.run_bytes", 32_768),
         ("authority.grants", 16),
-        // The standing charter, closer procedure and close job are delegation targets.
-        ("authority.executors", 18),
-        // The standing charter, closer procedure and close job are delegation targets.
-        ("tasks.executor_kinds", 18),
+        // The standing charters, closer procedure and close job are delegation targets.
+        ("authority.executors", 21),
+        // The standing charters, closer procedure and close job are delegation targets.
+        ("tasks.executor_kinds", 21),
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.
-        ("tasks.charters", 10),
+        ("tasks.charters", 16),
         ("core.templates", 6),
     ] {
         let held = value["engine"]["limits"]["overrides"][name].as_u64().unwrap_or(0);

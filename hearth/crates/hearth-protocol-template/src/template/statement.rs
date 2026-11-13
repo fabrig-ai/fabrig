@@ -153,7 +153,7 @@ fn patch(out: &mut List<Instruction>, index: u32) {
 fn skip(text: &[u8], start: usize, end: usize) -> usize {
     let mut cursor = start;
     for &byte in text.get(start..end).expect("head range") {
-        if ![b' ', b'\t', b'\n'].contains(&byte) {
+        if !b" \t\n".contains(&byte) {
             break;
         }
         cursor = cursor.saturating_add(1);

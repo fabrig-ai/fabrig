@@ -44,7 +44,7 @@ fn hosting(world: &World) -> Hosting {
 fn lost_once_then_fresh(world: &mut World, task: u64, attempt: u64) {
     assert_eq!(
         fresh_windows::tries(world),
-        tasks::Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 1, invalid: 0 }
+        tasks::Tries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 1, invalid: 0, infrastructure: 0 }
     );
     assert_eq!(fixtures::live_row(world, task).refusals, 0);
     world.retry_due();
@@ -153,7 +153,7 @@ fn the_next_attempt_restarted_before_its_first_turn_is_adopted() {
     assert_eq!(fixtures::live_row(&world, task).phase, tasks::Phase::Active(tasks::Active::Running { attempt }));
     assert!(!fresh_windows::proof(&world).crossed);
     assert_eq!(fresh_windows::tries(&world).lost, 1);
-    assert!(world.cancellations.is_empty());
+    assert_eq!(world.cancellations.len(), 0);
     world.advance(GRACE);
     assert_eq!(fresh_windows::tries(&world).lost, 1);
     assert_eq!(world.assignments.last(), Some(&(task, attempt)));

@@ -30,7 +30,7 @@ fn protected_checks(queue: bool, approvals: u32, contexts: Box<[Box<[u8]>]>, che
     let mut h = f::Harness::with_checks(
         f::limits(),
         queue_config(),
-        config,
+        config.clone(),
         Some(a::Protection {
             linear: false,
             code_owners: false,
@@ -71,7 +71,7 @@ fn direct_merge_of_a_queue_branch_lists_the_queue_and_unmet_check_without_mergin
     let response = ask(&mut h, &token, &merge(number, head));
     let message = b"Repository rule violations found\n\nChanges must be made through the merge queue\n\nRequired status check \"required\" is expected.\n\n";
     f::refusal(&h, &response, 405, message);
-    assert!(h.domain.queue_entries(b"acme/widgets").unwrap().is_empty());
+    assert_eq!((h.domain.queue_entries(b"acme/widgets").unwrap()).len(), 0);
     let a::Answer::Pull(pull) = h.domain.inspect(&h.env.limits, b"acme/widgets", &a::Read::Pull { number }).unwrap()
     else {
         panic!("pull")
@@ -103,7 +103,7 @@ fn direct_queue_merge_lists_the_missing_approval_then_only_the_queue_after_appro
         405,
         b"Repository rule violations found\n\nChanges must be made through the merge queue\n\n",
     );
-    assert!(h.domain.queue_entries(b"acme/widgets").unwrap().is_empty());
+    assert_eq!((h.domain.queue_entries(b"acme/widgets").unwrap()).len(), 0);
     let a::Answer::Pull(pull) = h.domain.inspect(&h.env.limits, b"acme/widgets", &a::Read::Pull { number }).unwrap()
     else {
         panic!("pull")
@@ -142,7 +142,7 @@ fn ordinary_base_merges_by_rest_beside_a_queue_base() {
         panic!("ordinary base moved")
     };
     assert_eq!(sha, r::object(landed));
-    assert!(h.domain.queue_entries(b"acme/widgets").unwrap().is_empty());
+    assert_eq!((h.domain.queue_entries(b"acme/widgets").unwrap()).len(), 0);
 }
 
 #[test]
@@ -150,7 +150,7 @@ fn stale_head_is_refused_before_a_queue_requirement() {
     let (mut h, number, head, token) = scenario(true);
     let response = ask(&mut h, &token, &merge(number, head.checked_sub(1).unwrap()));
     f::refusal(&h, &response, 409, crate::texts::MERGE_STALE);
-    assert!(h.domain.queue_entries(b"acme/widgets").unwrap().is_empty());
+    assert_eq!((h.domain.queue_entries(b"acme/widgets").unwrap()).len(), 0);
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn queue_refusal_lists_approval_then_unmet_check_rules() {
         drive_merge(&mut h, &token, number, head, Admission::Answer, QUEUED),
         Err(skein_forge::api::Error::Refused)
     );
-    assert!(h.domain.queue_entries(b"acme/widgets").unwrap().is_empty());
+    assert_eq!((h.domain.queue_entries(b"acme/widgets").unwrap()).len(), 0);
 }
 
 // REST returns the sha directly; queue admission adds the node query and mutation.
@@ -275,7 +275,7 @@ fn merge_plan_observes_a_head_moved_between_the_pull_query_and_enqueue_as_stale(
         drive_merge(&mut h, &token, number, head, Admission::MoveHead, QUEUED),
         Err(skein_forge::api::Error::Stale)
     );
-    assert!(h.domain.queue_entries(b"acme/widgets").unwrap().is_empty());
+    assert_eq!((h.domain.queue_entries(b"acme/widgets").unwrap()).len(), 0);
 }
 
 #[test]
@@ -317,7 +317,7 @@ fn running_queue(green: bool) -> (f::Harness, u64, u64, Secret) {
     let mut h = f::Harness::with_checks(
         f::limits(),
         queue_config(),
-        config,
+        config.clone(),
         Some(a::Protection {
             linear: false,
             code_owners: false,
@@ -471,7 +471,7 @@ fn unapproved_enqueue_answers_the_recorded_graphql_text_without_an_entry() {
                 message: f::boxed(message),
             })
         );
-        assert!(h.domain.queue_entries(b"acme/widgets").unwrap().is_empty());
+        assert_eq!((h.domain.queue_entries(b"acme/widgets").unwrap()).len(), 0);
     }
 }
 
@@ -517,7 +517,7 @@ fn enqueue_requires_each_named_head_check_to_pass() {
                     drive_merge(&mut h, &token, number, head, Admission::Answer, QUEUED),
                     Err(skein_forge::api::Error::Protected)
                 );
-                assert!(h.domain.queue_entries(b"acme/widgets").unwrap().is_empty());
+                assert_eq!((h.domain.queue_entries(b"acme/widgets").unwrap()).len(), 0);
             }
         }
     }

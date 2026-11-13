@@ -52,6 +52,7 @@ impl World {
     fn new(seed: u64, case: Case, facts: u32) -> Self {
         let limits = Limits {
             workspaces: 1,
+            preparations: 1,
             repositories: 1,
             name_bytes: 64,
             message_bytes: 128,
@@ -840,7 +841,7 @@ pub fn conflicting_head() {
     assert_eq!(tree, expected, "next prepare resets partial merges and markers");
     assert_eq!(&*world.push(true, false), &[Landing::Unchanged]);
     assert_eq!(&*world.push(false, false), &[Landing::Unchanged]);
-    assert!(world.forge.moves().is_empty());
+    assert_eq!(world.forge.moves().len(), 0);
     release_heads(&mut world);
 }
 

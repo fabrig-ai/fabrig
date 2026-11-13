@@ -32,7 +32,7 @@ pub(super) fn read(value: &Value) -> Result<Option<demo::Demo>, crate::Refusal> 
     let bytes = serde_json::to_vec(value).unwrap();
     let d = config::document(&bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 }).unwrap();
     let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
-    let engine = temper_service::startup::engine(&d, member(&d, 0, b"engine"), &directories).unwrap();
+    let engine = temper_engine_service::startup::engine(&d, member(&d, 0, b"engine"), &directories).unwrap();
     let app = member(&d, 0, b"application");
     let mut ps = config::Problems::empty();
     let mut listeners: Vec<_> = [b"clients".as_slice(), b"webhooks"]
@@ -242,7 +242,7 @@ fn demo_acceptance() {
         let bytes = serde_json::to_vec(&value).unwrap();
         let document =
             config::document(&bytes, &config::DocumentLimits { bytes: 1 << 20, tokens: 1 << 20, depth: 32 }).unwrap();
-        let engine = temper_service::startup::engine(
+        let engine = temper_engine_service::startup::engine(
             &document,
             member(&document, 0, b"engine"),
             &config::Directories::working(),

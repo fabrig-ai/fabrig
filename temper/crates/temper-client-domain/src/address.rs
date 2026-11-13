@@ -29,6 +29,7 @@ pub enum Address {
     Work { project: u32, filter: WorkFilter },
     Members,
     Remembered,
+    Told,
     Limits,
 }
 /// The welcome's query names its step (client/web/README.md, 2.3).
@@ -103,6 +104,7 @@ pub enum Kind {
     Question,
     Held,
     PersonTask,
+    Finding,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Place {
@@ -142,6 +144,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Forges => (b"forges".as_slice(), None, b"".as_slice()),
         Address::ConnectModel { way } => return print_way(b"/accounts/connect", *way, b"?"),
         Address::Accounts => (b"accounts".as_slice(), None, b"".as_slice()),
+        Address::Told => (b"told".as_slice(), None, b"".as_slice()),
         Address::Remembered => (b"remembered".as_slice(), None, b"".as_slice()),
         Address::Members => (b"deployment/members".as_slice(), None, b"".as_slice()),
         Address::Limits => (b"deployment/limits".as_slice(), None, b"".as_slice()),
@@ -280,6 +283,7 @@ pub fn parse(path: &[u8]) -> Place {
         (b"accounts", b"", b"") => Address::Accounts,
         (b"home", b"", b"") => Address::AllHome,
         (b"deployment", b"members", b"") => Address::Members,
+        (b"told", b"", b"") => Address::Told,
         (b"remembered", b"", b"") => Address::Remembered,
         (b"deployment", b"limits", b"") => Address::Limits,
         (b"accounts", b"connect", b"") => Address::ConnectModel { way: parse_way(fields) },
@@ -452,6 +456,7 @@ fn print_filter(filter: Filter) -> Box<[u8]> {
         Some(Kind::Question) => b"question".as_slice(),
         Some(Kind::Held) => b"held".as_slice(),
         Some(Kind::PersonTask) => b"person-task".as_slice(),
+        Some(Kind::Finding) => b"finding".as_slice(),
         None => b"".as_slice(),
     };
     let fields = [
@@ -505,6 +510,7 @@ fn parse_filter(query: &[u8]) -> Filter {
                     b"question" => Some(Kind::Question),
                     b"held" => Some(Kind::Held),
                     b"person-task" => Some(Kind::PersonTask),
+                    b"finding" => Some(Kind::Finding),
                     _ => None,
                 };
             }
@@ -770,7 +776,7 @@ fn public_id(bytes: &[u8]) -> Option<u64> {
 fn public_digits(id: u64) -> [u8; 16] {
     const HEX: &[u8] = b"0123456789abcdef";
     let mut digits = [0; 16];
-    for (byte, pair) in id.to_be_bytes().iter().zip(digits.chunks_exact_mut(2)) {
+    for (byte, pair) in id.to_be_bytes().iter().zip(digits.as_chunks_mut::<2>().0.iter_mut()) {
         for (digit, nibble) in pair.iter_mut().zip([byte >> 4_u8, byte & 15_u8]) {
             *digit = *HEX.get(usize::from(nibble)).expect("nibble in hex alphabet");
         }

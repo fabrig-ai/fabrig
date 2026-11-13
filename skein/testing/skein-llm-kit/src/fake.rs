@@ -953,9 +953,9 @@ mod tests {
         assert_eq!(world.machine.waiting(), client::Waiting::Start);
         assert!(!world.machine.has_work());
         assert!(!world.server.has_work());
-        assert!(world.queries.is_empty());
-        assert!(world.requests.is_empty());
-        assert!(world.responses.is_empty());
+        assert_eq!(world.queries.len(), 0);
+        assert_eq!(world.requests.len(), 0);
+        assert_eq!(world.responses.len(), 0);
         assert!(world.seen.is_empty(), "installing time produces no events");
         assert_eq!(world.fake.calls(), 0);
         world.start();
@@ -965,7 +965,7 @@ mod tests {
         assert!(!world.requests.is_empty(), "the adopted Client sent real HTTP bytes");
         assert_eq!(world.fake.calls(), 1);
         assert_eq!(world.fake.next_deadline(), Some(DUE), "deadline uses the nonzero injected origin");
-        assert!(world.responses.is_empty());
+        assert_eq!(world.responses.len(), 0);
         assert_eq!(terminals(world), 0);
     }
 
@@ -1063,14 +1063,14 @@ mod tests {
             world.at(before, forward);
             check_times(&world, before, forward);
             assert!(!world.tick(true), "wall jump cannot make the monotonic timer due");
-            assert!(world.responses.is_empty());
+            assert_eq!(world.responses.len(), 0);
             assert_eq!(terminals(&world), 0);
             assert_eq!(world.fake.calls(), 1);
 
             world.at(DUE, Wall::EPOCH);
             check_times(&world, DUE, Wall::EPOCH);
             assert_eq!(world.fake.calls(), 1, "installing due time does not fire the timer");
-            assert!(world.responses.is_empty());
+            assert_eq!(world.responses.len(), 0);
             assert_eq!(terminals(&world), 0);
             world.run();
             assert_eq!(terminals(&world), 1);
@@ -1117,7 +1117,7 @@ mod tests {
             world.at(DUE, Wall::EPOCH);
             assert_eq!(world.fake.calls(), 1);
             assert_eq!(world.fake.next_deadline(), Some(DUE));
-            assert!(world.responses.is_empty());
+            assert_eq!(world.responses.len(), 0);
             assert_eq!(terminals(&world), 0);
             world.request(client::Request::Cancel);
             assert_eq!(terminals(&world), 0, "Cancel waits for actual lower settlement");

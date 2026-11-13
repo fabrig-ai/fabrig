@@ -263,7 +263,14 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   liveness deadlines.** A liveness deadline's patience is its time less
   the run's start. A referee can return its own starved verdict through
   `Referee::starved() -> Option<Starved>`. The loop drains the forced
-  cleanup before passing that verdict on. `Starved::pass()` writes the
+  cleanup before passing that verdict on. The same cleanup precedes a
+  failure of the loop's patience, the referee's expectations or the
+  teardown policy check: it ends the owned trees, cancels and drains the
+  shared kernel, then reaps retained leaders and closes the descriptors
+  their outstanding records kept open. The diagnostic and scheduler
+  figures describe the failure before cleanup. This order holds when
+  panics abort; cleanup never depends on unwinding after the report.
+  `Starved::pass()` writes the
   `skein-world: starved:` line to stderr, naming the wait with `, by <what>`,
   and ends the test as a starved pass: in a one-process run
   (`TIERS_ONE_PROCESS` set, by `tools/tiers/design.md`'s one-process
@@ -367,6 +374,7 @@ testing/skein-http-kit          the HTTP world's reference reader
 testing/skein-tls-kit           the TLS world's certificates, in-memory server, byte driver and step meter, over tests/tls/fixtures
 testing/skein-llm-kit           the LLM world's wire fixtures and its faces of skein's fake LLM
 testing/skein-forge-kit         the forge machine world's machine, peers, pipes and joint world, and its GitHub face
+testing/skein-forge-connection-fixtures the forge connection's fixtures for the machine world's hand, a copy of the crate's step tests' own (../forge/connection.md, 10; ../../foundation/cli.md, 3)
 testing/skein-codegen           the codec generator, run by a consumer's tests (codec.md)
 testing/skein-browser           the browser kit, a step machine: headless Chromium over the DevTools protocol on a pipe (browser.md)
 testing/skein-fake-person       the person: targets by role, name and text, steps, the tree face, the random person (../ui/README.md, 14.1)
@@ -631,11 +639,12 @@ What of this document is not built is in [`README.status.md`](README.status.md).
 - **A fixture a crate's unit tests and a world both read** (6). No `#[path]`
   crosses a package, and a kit would give a second copy of the crate's types,
   so the dialect world holds its own
-  (`skein/tests/forge/dialect/tests/common/admitted.rs`) beside the crate's. A
-  feature like forge-connection's `seam` (../forge/connection.md, 10) would join
-  them, for a second such feature on `skein-forge`, a shipping crate, and a wider
-  gate, against 55 lines of test data each side keeps as its own numbers.
-  Default: the copy stays.
+  (`skein/tests/forge/dialect/tests/common/admitted.rs`) beside the crate's. No
+  feature can join them (../../foundation/cli.md, 3): a fixtures crate,
+  `skein-forge-fixtures`, would hold the world's copy, as
+  `skein-forge-connection-fixtures` holds the machine world's
+  (../forge/connection.md, 10), for 55 lines of test data each side keeps as
+  its own numbers. Default: the copy stays.
 - **The echo's client host** (6): `ClientHost` in
   `skein/examples/echo/shell/tests/end_to_end.rs` repeats `Proc`'s `Host` arms.
   The test sits in the shell's package so that Cargo supplies its binary,

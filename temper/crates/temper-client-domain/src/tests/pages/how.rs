@@ -206,6 +206,7 @@ fn deliver_ways(root: &mut Domain, watch: Token, current: Option<u32>, rows: Lis
                 path: path.clone(),
                 items: List::with_capacity(0),
                 delegation: false,
+                roles: List::with_capacity(0),
             },
         )
         .unwrap(),

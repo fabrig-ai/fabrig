@@ -3,7 +3,7 @@ use crate::{address, path, prefixed, setup};
 use jig_protocol_config::{self as config, read};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
-use temper_service::{self as service, settings::Seeds};
+use temper_engine_service::{self as service, settings::Seeds};
 use temper_service_shell::{close, jig_directories, read_files_with_asked};
 use temper_shell::directories::{Directories, EnvironmentEntry, unread};
 mod accounts_runtime;
@@ -12,10 +12,6 @@ pub mod github_logs;
 mod google_runtime;
 pub mod printed;
 const CONFIG_BYTES: u32 = 1_048_576;
-/// Agent preflight supplied by the binary that holds a worker, for rehearsal only.
-pub trait WorkerHalf {
-    fn preflight(&self, named: &service::startup::Named) -> Result<service::settings::Agent, String>;
-}
 /// Words needed by program-login on this deployment (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn program_environment(
@@ -127,8 +123,9 @@ pub fn prepare_with_store(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
 ) -> Result<(service::Service, Box<[u8]>), String> {
-    prepare_given(binary, environment, working, directories, bytes, owned, &service::stock::Given::Stock)
+    prepare_given(binary, environment, working, directories, bytes, owned, &service::stock::Given::Stock, false)
 }
+#[expect(clippy::too_many_arguments, reason = "startup carries the command recording switch beside process facts")]
 fn prepare_given(
     binary: &str,
     environment: &[EnvironmentEntry],
@@ -137,6 +134,7 @@ fn prepare_given(
     bytes: &[u8],
     owned: &mut Vec<Fd>,
     given: &service::stock::Given,
+    record: bool,
 ) -> Result<(service::Service, Box<[u8]>), String> {
     if matches!(
         service::startup::nearest(bytes),
@@ -147,34 +145,35 @@ fn prepare_given(
     service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     let setup::Deployment { mut named, checked, .. } = setup::check_with(bytes, &jig_directories(directories), given)?;
-    if named.worker.is_some() {
-        return Err(format!("temper.json names a worker, and {binary} runs none"));
-    }
     let engine = settings(bytes, directories, given);
-    let Runtimes { roots, github } = runtimes(binary, &named)?;
+    let Runtimes { roots, github } = runtimes(binary, &named.machine)?;
     let user = skein_shell::effective_user();
-    let Inputs { files, google, bundle } = before_root(&mut named, user)?;
+    let Inputs { files, google, bundle } = before_root(
+        &mut named.files,
+        &mut named.asked_files,
+        named.sign_in.as_ref(),
+        named.bundle.as_deref(),
+        named.bundle_limits,
+        user,
+        record,
+    )?;
     let accounts = accounts(&engine)?;
     let seeds = seeds(None, None)?;
     let mut service = service::startup::with_setup_given(
         bytes,
         &jig_directories(directories),
         &files,
-        None,
         &seeds,
         Some(accounts),
-        None,
         List::with_capacity(0),
         Some(&checked),
-        None,
-        None,
         given,
         program_environment(directories, environment, working, &printed::running_word(environment)),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
-    adopt(&mut service, &named.deployment, bundle, user, owned)?;
+    adopt(service.engine_component(), &named.deployment, bundle, user, owned)?;
     Ok((service, named.deployment))
 }
 /// The kernel operations an engine alone keeps in flight at most, without retaining its descriptors.
@@ -211,8 +210,8 @@ pub fn prepare_in_with(
 ) -> Result<service::Service, String> {
     let bytes = directories.read().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
     let mut owned = Vec::new();
-    let result =
-        prepare_given(binary, environment, working, directories, &bytes, &mut owned, given).map(|(service, _)| service);
+    let result = prepare_given(binary, environment, working, directories, &bytes, &mut owned, given, false)
+        .map(|(service, _)| service);
     if result.is_err() {
         close(owned);
     }
@@ -229,7 +228,7 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
-    let result = prepare_given(binary, environment, working, directories, config, &mut owned, given)
+    let result = prepare_given(binary, environment, working, directories, config, &mut owned, given, false)
         .map(|(service, _)| service.operations());
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
@@ -239,6 +238,7 @@ pub fn run(
     environment: &[EnvironmentEntry],
     working: &[u8],
     directories: &Directories,
+    record: bool,
 ) -> Result<Exit, String> {
     temper_service_shell::run(
         binary,
@@ -247,8 +247,17 @@ pub fn run(
         crate::served::SERVED,
         |_| Ok(()),
         |bytes, owned, ()| {
-            prepare_with_store(binary, environment, working, directories, bytes, owned)
-                .map(|(service, store)| temper_service_shell::Prepared { service, store, adoption: () })
+            prepare_given(
+                binary,
+                environment,
+                working,
+                directories,
+                bytes,
+                owned,
+                &service::stock::Given::Stock,
+                record,
+            )
+            .map(|(service, store)| temper_service_shell::Prepared { service, store, adoption: () })
         },
         |_, _, ()| Ok(()),
     )
@@ -260,7 +269,7 @@ pub fn settings(bytes: &[u8], directories: &Directories, given: &service::stock:
     let document =
         config::document(bytes, &config::DocumentLimits { bytes: CONFIG_BYTES, tokens: CONFIG_BYTES, depth: 32 })
             .expect("named checked document");
-    temper_service::startup::engine_with(
+    temper_engine_service::startup::engine_with(
         &document,
         member(&document, 0, b"engine"),
         &jig_directories(directories),
@@ -273,9 +282,9 @@ pub struct Runtimes {
     pub roots: skein_tls::Config,
     pub github: service::ForgeRuntime,
 }
-pub fn runtimes(binary: &str, named: &service::startup::Named) -> Result<Runtimes, String> {
+pub fn runtimes(binary: &str, machine: &temper_forge_setup::machine::Machine) -> Result<Runtimes, String> {
     let roots = trust(None)?;
-    let github = github_runtime(binary, named.machine.github.as_ref(), &roots, address)?;
+    let github = github_runtime(binary, machine.github.as_ref(), &roots, address)?;
     Ok(Runtimes { roots, github })
 }
 /// Engine inputs checked after agent preflight and before the worker root.
@@ -284,22 +293,38 @@ pub struct Inputs {
     pub google: service::clients::fetch::Runtime,
     pub bundle: Option<service::clients::bundle::Bundle>,
 }
-pub fn before_root(named: &mut service::startup::Named, user: u32) -> Result<Inputs, String> {
-    let required = core::mem::take(&mut named.files);
-    let asked = core::mem::take(&mut named.asked_files);
+pub fn before_root(
+    required: &mut Box<[config::File]>,
+    asked: &mut Box<[config::File]>,
+    sign_in: Option<&service::startup::SignIn>,
+    configured_bundle: Option<&[u8]>,
+    bundle_limits: service::limits::Clients,
+    user: u32,
+    record: bool,
+) -> Result<Inputs, String> {
+    let required = core::mem::take(required);
+    let asked = core::mem::take(asked);
     let files = read_files_with_asked(required, asked, user)?;
-    let google = google_runtime::resolve(named.sign_in.as_ref())?;
-    let mut bundle = match named.bundle.as_deref() {
-        Some(configured) => Some(bundle::read(configured, named.bundle_limits)?),
-        None => bundle::own(named.bundle_limits)?,
+    let google = google_runtime::resolve(sign_in)?;
+    let mut bundle = match configured_bundle {
+        Some(configured) => Some(bundle::read(configured, bundle_limits)?),
+        None => bundle::own(bundle_limits)?,
     };
     if let Some(bundle) = &mut bundle {
-        bundle.fill_sign_in(named.sign_in.is_some()).ok_or_else(|| {
+        bundle.fill_sign_in(sign_in.is_some()).ok_or_else(|| {
             format!(
                 "application.clients.bundle: {}: the page has no </head> for its sign-in metadata",
-                named.bundle.as_deref().map_or("embedded".into(), |name| String::from_utf8_lossy(name))
+                configured_bundle.map_or("embedded".into(), |name| String::from_utf8_lossy(name))
             )
         })?;
+        if record {
+            bundle.fill_record().ok_or_else(|| {
+                format!(
+                    "application.clients.bundle: {}: the page has no </head> for its recording metadata",
+                    configured_bundle.map_or("embedded".into(), |name| String::from_utf8_lossy(name))
+                )
+            })?;
+        }
     }
     Ok(Inputs { files, google, bundle })
 }
@@ -318,7 +343,7 @@ pub fn seeds(link_secret: Option<Secret>, local_secret: Option<Secret>) -> Resul
 }
 /// Adopt the engine's store and page after the caller has configured its service.
 pub fn adopt(
-    service: &mut service::Service,
+    service: &mut service::Engine,
     deployment: &[u8],
     bundle: Option<service::clients::bundle::Bundle>,
     user: u32,

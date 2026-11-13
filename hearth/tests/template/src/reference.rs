@@ -68,7 +68,7 @@ impl Parser<'_> {
                 @ (b'.' | b'|' | b'[' | b']' | b'(' | b')' | b',' | b'+' | b'-' | b'~' | b'=' | b'!' | b'<' | b'>'),
             ) => {
                 self.at += 1;
-                if [b'=', b'!', b'<', b'>'].contains(&byte) {
+                if b"=!<>".contains(&byte) {
                     if self.text.get(self.at) == Some(&b'=') {
                         self.at += 1;
                     } else if byte == b'=' || byte == b'!' {

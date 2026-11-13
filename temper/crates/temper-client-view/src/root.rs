@@ -135,6 +135,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         match root.pages().address() {
             temper_client_domain::Address::Welcome { .. } => {}
             temper_client_domain::Address::ConnectModel { .. }
+            | temper_client_domain::Address::Told
             | temper_client_domain::Address::Remembered
             | temper_client_domain::Address::Members
             | temper_client_domain::Address::Limits
@@ -173,6 +174,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             }
             temper_client_domain::Address::Welcome { .. }
             | temper_client_domain::Address::ConnectModel { .. }
+            | temper_client_domain::Address::Told
             | temper_client_domain::Address::Remembered
             | temper_client_domain::Address::Members
             | temper_client_domain::Address::Limits
@@ -223,7 +225,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::sign_in::main(&mut builder, root, &view.forge_words, origin, &view.forge_sign_in);
     } else if let Some(heading) = crate::frame::unavailable(root) {
         crate::outside::column(&mut builder, &view.forge_words.say(heading, &[]), &[]);
-        crate::frame::unavailable_main(&mut builder, root, &view.forge_words);
+        crate::frame::unavailable_main(&mut builder, root, &view.forge_words, &mut view.pages);
         if let Some(page) = root.pages().task()
             && page.document(root.client()).is_none()
         {
@@ -235,6 +237,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         builder.state(skein_ui::State::Busy);
         builder.close();
     } else if no_project
+        && root.pages().address() != &temper_client_domain::Address::Told
         && root.pages().address() != &temper_client_domain::Address::Remembered
         && root.pages().address() != &temper_client_domain::Address::Members
         && root.pages().address() != &temper_client_domain::Address::Limits
@@ -329,6 +332,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::pages::models::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
     } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
         crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
+    } else if let temper_client_domain::Address::Told = root.pages().address() {
+        crate::pages::told::main(&mut builder, root, &view.forge_words, &mut view.pages, &mut times);
     } else if let temper_client_domain::Address::Remembered = root.pages().address() {
         crate::pages::remembered::main(&mut builder, root, &view.forge_words, &mut view.pages, &mut times);
     } else if let temper_client_domain::Address::Members = root.pages().address() {
@@ -485,6 +490,28 @@ pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
         Action::Approve(_) | Action::Pages(_) | Action::Forge(_) | Action::Copy { .. } => None,
     }
 }
+/// A page act carried by the browser shell rather than the domain (client/view.md, 1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ShellEvent {
+    Reload,
+}
+
+/// Decode a shell act in the current tree; only a press can reload (client/view.md, 1).
+#[must_use]
+pub fn shell_event(view: &View, node: NodeId, act: &Act) -> Option<ShellEvent> {
+    match act {
+        Act::Press => {
+            let bound = view.render.act(node, Act::Press)?;
+            if bound.binding.owner == crate::frame::owner() {
+                view.pages.shell_event(bound.binding.token)
+            } else {
+                None
+            }
+        }
+        Act::Input { .. } | Act::Submit | Act::Toggle | Act::Near { .. } | Act::Drawing { .. } => None,
+    }
+}
+
 /// Read the event an act gives, without changing the view (client/web/journeys.md, 3.3).
 /// Shell inputs can move a secret directly to the domain without a clonable action.
 #[must_use]

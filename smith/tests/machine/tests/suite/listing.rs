@@ -8,7 +8,7 @@ use smith_domain::{run, tools};
 use smith_protocol_machine::{Below, BelowEvent, Component, FromDomain, Limits, ToDomain};
 
 pub(super) fn limits() -> Limits {
-    Limits { entries: 8, ..smith_protocol_machine::fixture::SMALL }
+    Limits { entries: 8, ..smith_protocol_machine_fixtures::SMALL }
 }
 
 fn env() -> Env<Limits> {

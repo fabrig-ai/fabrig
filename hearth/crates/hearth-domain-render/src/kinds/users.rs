@@ -93,7 +93,7 @@ fn check(located: &Located<'_>) -> Result<UserKind, (Name, Schema)> {
     for name in [Name::Gecos, Name::Home, Name::Shell] {
         if let Some(value) = entry.text(name) {
             for byte in value {
-                if [b':', b'"', b'\\'].contains(byte) || byte.is_ascii_control() {
+                if b":\"\\".contains(byte) || byte.is_ascii_control() {
                     return Err((name, Schema::Malformed { format: Format::Key }));
                 }
             }

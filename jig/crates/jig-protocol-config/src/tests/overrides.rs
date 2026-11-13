@@ -357,7 +357,7 @@ fn the_tail_has_its_own_profile_budget_and_override() {
     assert_eq!(expected.core.brief_core_budgets.tail, 2048);
     expected.core.brief_core_budgets.tail = 90;
     assert_eq!(parse(br#"{"profile":"small","overrides":{"core.brief_core_budgets.tail":90}}"#), Ok(expected));
-    assert!(jig_domain_core::valid(&expected.core));
+    assert!(jig_domain_core_vocabulary::valid(&expected.core));
 }
 
 #[test]
@@ -368,7 +368,7 @@ fn a_standing_now_has_its_own_profile_budget_and_override() {
     let mut expected = small();
     expected.core.brief_core_budgets.now = 90;
     assert_eq!(parse(br#"{"profile":"small","overrides":{"core.brief_core_budgets.now":90}}"#), Ok(expected));
-    assert!(jig_domain_core::valid(&expected.core));
+    assert!(jig_domain_core_vocabulary::valid(&expected.core));
     refused(
         br#"{"profile":"small","overrides":{"core.brief_core_budgets.now":4294967296}}"#,
         b"core.brief_core_budgets.now",
@@ -448,9 +448,9 @@ fn pending_settings_proposals_are_positive_and_keep_the_profile_defaults() {
 fn the_journal_prices_each_pending_settings_withdrawal() {
     let mut limits = small().core;
     limits.settings.proposals = 1;
-    let one = jig_domain_core::settings::writes_bound(&limits).expect("write room");
+    let one = jig_domain_core_vocabulary::settings::writes_bound(&limits).expect("write room");
     limits.settings.proposals = 2;
-    let two = jig_domain_core::settings::writes_bound(&limits).expect("write room");
+    let two = jig_domain_core_vocabulary::settings::writes_bound(&limits).expect("write room");
     // Task withdrawal: set erase, terminal history, two activity rows and up to three live rows.
     assert_eq!(two - one, 7);
 }
@@ -690,7 +690,7 @@ fn batch_past_the_schema_keeps_its_binding_count() {
             bound: crate::CodecBound {
                 field: b"tasks-v9.TaskInterests.result_followups",
                 needed: 1025,
-                ceiling: jig_protocol_store::tasks_v10::CEILINGS.task_interests_result_followups,
+                ceiling: jig_protocol_store::tasks_v11::CEILINGS.task_interests_result_followups,
             },
         },
     );
@@ -723,4 +723,46 @@ fn zero_capacity_sides_keep_their_family_bound_problem() {
     ] {
         problem(bytes, &[b"limits", b"overrides", member], what);
     }
+}
+
+#[test]
+fn infrastructure_retry_members_can_each_be_overridden() {
+    let json = br#"{"profile":"small","overrides":{"tasks.retries.infrastructure.retries":7,"tasks.retries.infrastructure.base_ms":2000,"tasks.retries.infrastructure.max_ms":9000}}"#;
+    let mut expected = small();
+    expected.core.tasks.retries.infrastructure = jig_domain_tasks::Retry {
+        retries: 7,
+        base: skein_lib::Duration::from_millis(2000),
+        max: skein_lib::Duration::from_millis(9000),
+    };
+    assert_eq!(parse(json), Ok(expected));
+}
+
+#[test]
+fn client_queue_and_sign_in_exchange_overrides_are_checked() {
+    let limits = parse(
+        br#"{"profile":"standard","overrides":{"clients.queued_bytes":500000000,"clients.exchanges_per_client":8}}"#,
+    )
+    .expect("client overrides");
+    assert_eq!(limits.clients.queued_bytes, 500_000_000);
+    assert_eq!(limits.clients.exchanges_per_client, 8);
+    for (json, name) in [
+        (
+            br#"{"profile":"standard","overrides":{"clients.queued_bytes":127}}"#.as_slice(),
+            b"clients.queued_bytes".as_slice(),
+        ),
+        (br#"{"profile":"standard","overrides":{"clients.queued_bytes":0}}"#, b"clients.queued_bytes"),
+        (br#"{"profile":"standard","overrides":{"clients.queued_bytes":4294967296}}"#, b"clients.queued_bytes"),
+        (br#"{"profile":"standard","overrides":{"clients.exchanges_per_client":0}}"#, b"clients.exchanges_per_client"),
+        (
+            br#"{"profile":"standard","overrides":{"clients.exchanges_per_client":4294967296}}"#,
+            b"clients.exchanges_per_client",
+        ),
+    ] {
+        problem(json, &[b"limits", b"overrides", name], What::Override);
+    }
+    let limits =
+        parse(br#"{"profile":"standard","overrides":{"clients.queued_bytes":128,"clients.exchanges_per_client":1}}"#)
+            .expect("minimum overrides");
+    assert_eq!(limits.clients.queued_bytes, 128);
+    assert_eq!(limits.clients.exchanges_per_client, 1);
 }

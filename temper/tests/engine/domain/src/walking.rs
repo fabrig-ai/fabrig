@@ -84,6 +84,7 @@ pub fn limits() -> engine::Limits {
             agent: retry,
             lost: retry,
             invalid: retry,
+            infrastructure: retry,
         },
         facts: 2,
         room_refusals: 2,
@@ -310,7 +311,7 @@ pub fn config(seed: u64) -> engine::Config {
     engine::Config {
         host_part: None,
         kinds_stock: engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
-        ways_stock: temper_service::stock::ways(),
+        ways_stock: temper_engine_service::stock::ways(),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
             deployment: [31; 16],
@@ -374,7 +375,8 @@ pub fn config(seed: u64) -> engine::Config {
             connectors: Box::new([0]),
         },
         landings: skein_lib::Map::with_capacity(1),
-        forge: skein_forge_client::Config {
+        forge: temper_engine_domain_forge::Config {
+            push: None,
             namespace: Box::from(&b"root"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 1 }]),
         },
@@ -887,6 +889,7 @@ impl World {
     )]
     fn delivery(&mut self, delivery: Delivery) {
         match delivery {
+            Delivery::Push(_) => panic!("this story has no push devices"),
             Delivery::SourceSignedOut { .. } => panic!("this story issues no source sign-out"),
             Delivery::WebReply { reply: people::Reply::SignedIn { person, sign_in, .. }, .. } => {
                 self.referee.signed_in(&self.store.rows, person, sign_in).expect("durable sign-in");
@@ -998,6 +1001,7 @@ impl World {
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
             | Delivery::MoveStanding { .. }
+            | Delivery::FindingsOwned { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }

@@ -16,7 +16,7 @@ fn transcript_schema_matches_generated_code_and_all_goldens() {
 
 #[test]
 fn channel_schema_matches_generated_code_and_all_goldens() {
-    assert_family("channel", 6);
+    assert_family("channel", 7);
 }
 
 fn assert_family(family: &str, version: u16) {
@@ -36,7 +36,7 @@ use crate::support::events;
 #[test]
 fn event_records_and_every_listed_value_match_frozen_version_four_goldens() {
     let root = skein_scratch::paths::tree().join("crates/smith-events/golden/v4");
-    let limits = smith_events::Limits { items: 8, ..smith_events::fixture::SMALL };
+    let limits = smith_events::Limits { items: 8, ..smith_events_fixtures::SMALL };
     let samples = events::samples();
     assert_eq!(fs::read_dir(&root).expect("event goldens").count(), samples.len(), "every golden is covered");
     check_event_goldens(&root, &limits, &samples);

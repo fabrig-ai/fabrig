@@ -104,7 +104,7 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
     assert_eq!(
         engine.templates.as_ref(),
         &[
-            jig_domain_core::Template {
+            jig_domain_core_vocabulary::Template {
                 resources: Box::new([]),
                 number: CHAT,
                 name: Box::from(b"chat".as_slice()),
@@ -124,7 +124,7 @@ fn the_chat_and_goal_templates_parse_with_their_defaults() {
                 grace: Some(Duration::from_secs(5)),
                 llm: None,
             },
-            jig_domain_core::Template {
+            jig_domain_core_vocabulary::Template {
                 resources: Box::new([]),
                 number: GOAL,
                 name: Box::from(b"goal".as_slice()),
@@ -432,7 +432,7 @@ fn a_seeded_executor_override_keeps_a_compatible_choice() {
     );
     let engine = fixtures::engine(&document).expect("compatible override");
     let config = crate::core(&engine, [0; 16], 7);
-    let merged = jig_domain_core::settings::templates::merged(
+    let merged = jig_domain_core_vocabulary::settings::templates::merged(
         &config.defaults.templates,
         &config.seed_projects[0].policy.templates,
     );

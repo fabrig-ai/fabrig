@@ -1,7 +1,7 @@
 //! Keys' bytes against the order Rust derives (protocol/store/README.md, 4.1, 9).
 use super::fixtures;
 use crate::keys;
-use jig_domain_core::{CoreKey, Key};
+use jig_domain_core_vocabulary::{CoreKey, Key};
 use skein_lib::Rng;
 
 fn samples() -> core::ops::Range<u32> {
@@ -169,7 +169,7 @@ fn acted_keys_round_trip_after_the_ended_read_tag() {
 
 #[test]
 fn settings_subfamilies_and_history_follow_their_domain_order() {
-    use jig_domain_core::settings::{Key as SettingKey, Setting};
+    use jig_domain_core_vocabulary::settings::{Key as SettingKey, Setting};
     let settings = [
         SettingKey::Default(Setting::Charter(1)),
         SettingKey::Default(Setting::Charter(256)),

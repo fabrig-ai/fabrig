@@ -165,9 +165,12 @@ release's: no tag names it, and the workflow writes no checksum.
   schedule, no push, no pull request), at the commit it is started on.
   One run at a time; its only permission is `contents: read`, and it
   uses no secret and writes nothing to the repository.
-- **Its toolchain:** Rust at the workspace's `rust-version`, installed
-  as `macos.yml` installs it, with the `wasm32-unknown-unknown` target
-  the browser's bundle needs (`client/web/README.md`, 2.6). Its actions
+- **Its toolchain:** the one the repository's `rust-toolchain.toml`
+  pins (`skein/docs/foundation/programming-model.md`, 10.1), installed
+  as `macos.yml` installs it: rustup reads the file in the checkout,
+  and no version is written in the workflow. The file names the
+  `wasm32-unknown-unknown` target the browser's bundle needs
+  (`client/web/README.md`, 2.6). Its actions
   are pinned by full commit, the version in a comment, as `macos.yml`'s
   are.
 - **Its cache:** the registry may be restored by `macos.yml`'s keys,

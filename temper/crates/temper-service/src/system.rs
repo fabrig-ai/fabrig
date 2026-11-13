@@ -1,8 +1,5 @@
 //! One process, joined through io's workers channel (protocol/README.md, 6).
-use crate::{
-    AccountsRuntime, End, Stop, Worker, accounts, clients, engine, limits, route::box_link, settings, stop, store,
-    values, workers,
-};
+use crate::{AccountsRuntime, End, Worker, clients, settings, store};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, What};
 use skein_io::{
@@ -10,13 +7,15 @@ use skein_io::{
     kernel::{Complete, Fd, Submit},
 };
 use skein_lib::{List, Queue, Time, Token, Wall};
-pub(crate) const ACCOUNT_APPLICATION: &[u8] = b"temper";
 
 /// The engine root, its protocol children and the kernel queues.
 #[expect(missing_debug_implementations, reason = "the service owns account token records")]
 pub struct Service {
-    pub(crate) engine: Option<engine::Engine>,
+    pub(crate) engine: Option<Box<temper_engine_service::Engine>>,
     pub(crate) worker: Option<Worker>,
+    ending: Option<End>,
+    notes: Queue<crate::Note>,
+    listening: Queue<crate::Note>,
     pub(crate) process: temper_service_core::process::Process,
     box_pipe: Option<BoxPipe>,
     // Keep the generational handles even after claim: a failed restore must
@@ -58,24 +57,9 @@ impl Service {
     /// Payload-free closure and queue state at the shell's wait boundary.
     #[must_use]
     pub fn wait_state(&self) -> crate::diagnostics::Wait {
-        use crate::diagnostics::{Wait, WaitEngine, WaitOwner};
-        Wait {
+        crate::diagnostics::Wait {
             engine: match &self.engine {
-                Some(engine) => Some(WaitEngine {
-                    restart: engine.domain.start_phase(),
-                    mark_durable: engine.store.host.mark_durable(),
-                    store_closed: engine.store.closed(),
-                    clients: WaitOwner { closed: engine.clients.closed, io: engine.clients.io.len() },
-                    workers: WaitOwner { closed: engine.workers.host.closed(), io: engine.workers.host.io.len() },
-                    setup: WaitOwner { closed: engine.setup.closed, io: engine.setup.io.len() },
-                    setup_above: engine.setup.above.len(),
-                    forge: WaitOwner { closed: engine.forge.closed, io: engine.forge.io.len() },
-                    forge_above: engine.forge.above.len(),
-                    accounts: match &engine.accounts {
-                        Some(accounts) => Some(accounts::wait_state(accounts, engine.env.now)),
-                        None => None,
-                    },
-                }),
+                Some(engine) => Some(engine.wait_state()),
                 None => None,
             },
             worker_empty: match &self.worker {
@@ -109,7 +93,7 @@ impl Service {
     #[must_use]
     pub fn engine_domain(&self) -> Option<&temper_engine_domain::Domain> {
         match &self.engine {
-            Some(engine) => Some(&engine.domain),
+            Some(engine) => Some(engine.domain()),
             None => None,
         }
     }
@@ -128,7 +112,6 @@ impl Service {
         }
     }
 
-    #[cfg(feature = "worker")]
     pub fn configure_program_sources(
         &mut self,
         resources: crate::program_sources::Resources,
@@ -162,7 +145,7 @@ impl Service {
     }
     #[expect(clippy::too_many_arguments, reason = "startup keeps the checked settings and runtime facts together")]
     pub(crate) fn prepared(
-        mut settings: settings::Engine,
+        settings: settings::Engine,
         seeds: &settings::Seeds,
         accounts: Option<AccountsRuntime>,
         forges: skein_forge_connection::Settings,
@@ -171,111 +154,41 @@ impl Service {
         box_line_bytes: Option<u32>,
         program_login: Option<Box<[u8]>>,
     ) -> Result<Self, Problems> {
-        let mut limits =
-            limits::engine(&settings.jig.limits, &settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
-        limits.memory_bytes = settings.jig.memory;
-        limits.host_reply_bytes = settings.host_reply_bytes;
-        if !temper_engine_domain::valid(&limits) {
-            return Err(start_problem(b"memory_bytes", What::Bound));
-        }
-        let mut forge_settings = forges;
-        let shared = crate::forge::shared(&settings.limits, &settings.jig.limits.io);
-        settings.jig.limits.clients.wire.keyed_value_some =
-            limits::client_value_bytes(&settings.jig.limits, &settings.limits);
-        let store_limits = store::limits(&limits, &limits.forge, &settings.jig.limits.store)
-            .ok_or(start_problem(b"limits", What::Bound))?;
-        let worker_operations = match &worker {
-            Some(worker) => worker.operations(),
-            None => 0,
-        };
-        let operations =
-            startup_operations(&io_limits, worker_operations).ok_or(start_problem(b"limits", What::Bound))?;
-        let accounts = accounts_driver(&settings, seeds, accounts, &store_limits.secrets)?;
-        let mut values =
-            values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
-        values.fill(&settings);
-        let (forge_config, identities) = crate::forge::config(&settings, seeds.deployment);
-        let mut first_periods = List::with_capacity(limits.authority.projects);
-        for project in &settings.jig.projects {
-            first_periods
-                .push((project.number, project.policy.period_spend))
-                .or(Err(start_problem(b"projects", What::Bound)))?;
-        }
-        let mut clients = clients::Clients::new(
-            &settings.directories,
-            &settings.jig,
-            &settings.clients,
+        let links = settings.limits.sign_in.pending;
+        let notes = settings.limits.forge.forges;
+        let sockets = io_limits.sockets;
+        let operations = startup_operations(
+            &io_limits,
+            match &worker {
+                Some(worker) => worker.operations(),
+                None => 0,
+            },
+        )
+        .ok_or(start_problem(b"limits", What::Bound))?;
+        let engine = temper_engine_service::Engine::prepared(
+            settings,
             seeds,
-            &limits.journal,
-            settings.sign_in.as_ref(),
-            settings.machine.owned.as_ref(),
-            settings.files.entries.as_slice(),
+            accounts,
+            forges,
+            box_line_bytes,
+            if worker.is_some() { program_login } else { None },
         )?;
-        clients.program_environment.clone_from(&settings.program_environment);
-        clients.deployment = crate::family::Deployment {
-            program_login: if worker.is_some() { program_login } else { None },
-            welcome: settings.welcome,
-            owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),
-        };
-        if let Some(sign_in) = &settings.sign_in {
-            clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
-        }
-        clients.configure_forge_sign_in(&settings);
-        let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
-        let mut forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &[])
-            .expect("checked forge limits");
-        forge.log_origin_limit = settings.limits.forges.log_origins;
-        let notes = Queue::with_capacity(settings.limits.forge.forges);
-        let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
-        let mut core = core_config(&settings.jig, seeds);
-        core.kinds = crate::stock::kinds(&limits, *core.connectors.first().expect("checked forge connector"));
-        core.jobs = limits::jobs(&settings.jig.limits);
-        let config = temper_engine_domain::Config {
-            host_part: settings.host_part,
-            kinds_stock: settings.kinds_stock,
-            ways_stock: settings.ways_stock,
-            period_span: crate::stock::PERIOD_SPAN,
-            core,
-            landings: settings.landings,
-            forge: forge_config,
-            identities,
-            machine: Some(machine_config(&settings.machine)),
-            forges: Box::new([]),
-            under_box: box_line_bytes.is_some(),
-            playground: playground_config(settings.demo.as_ref(), settings.welcome, settings.limits.setup.deadline),
-        };
-        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
-        let demo = settings.demo;
-        let own = settings.limits;
-        let mut engine = engine::Engine::new(
-            config,
-            &limits,
-            store,
-            engine::Children { accounts, workers, clients, demo, forge, setup, notes, limits: own },
-            values,
-            first_periods,
-        )?;
-        if let Some(line_bytes) = box_line_bytes {
-            engine.box_link = box_link::Link::new(line_bytes, false);
-        }
         Ok(Self {
+            engine: Some(Box::new(engine)),
             worker,
-            engine: Some(engine),
+            ending: None,
+            notes: Queue::with_capacity(notes),
+            listening: Queue::with_capacity(3),
             process: temper_service_core::process::Process::new(io_limits, operations, operations),
             box_pipe: None,
-            held_listeners: List::with_capacity(io_limits.sockets),
+            held_listeners: List::with_capacity(sockets),
             listeners_closing: 0,
-            // The binary-facing channel holds one admitted pending sign-in population.
-            links: Queue::with_capacity(own.sign_in.pending),
-            local_links: Queue::with_capacity(own.sign_in.pending),
+            links: Queue::with_capacity(links),
+            local_links: Queue::with_capacity(links),
         })
     }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
-        let engine = self.engine.as_mut()?;
-        match engine.clients.playground_read() {
-            Some(read) => Some(read),
-            None => crate::setup::lifecycle::take_read(engine),
-        }
+        self.engine.as_mut().expect("composition engine").take_handover_read()
     }
     pub fn handover_read(
         &mut self,
@@ -283,70 +196,58 @@ impl Service {
         run: Token,
         answer: Result<Option<skein_lib::Secret>, crate::HandoverUnread>,
     ) {
-        if let Some(engine) = &mut self.engine {
-            if engine.clients.owns_playground_read(run) {
-                engine.clients.playground_read_answer(run, answer);
-            } else {
-                crate::setup::lifecycle::read(engine, forge, run, answer);
-            }
-        }
+        self.engine.as_mut().expect("composition engine").handover_read(forge, run, answer);
     }
     pub fn take_handover_removal(&mut self) -> Option<crate::HandoverRemoval> {
-        crate::setup::lifecycle::take_removal(self.engine.as_mut()?)
+        self.engine.as_mut().expect("composition engine").take_handover_removal()
     }
     pub fn handover_removed(&mut self, forge: u16, run: Token, result: Result<(), i32>) {
-        if let Some(engine) = &mut self.engine {
-            crate::setup::lifecycle::removed(engine, forge, run, result);
-        }
+        self.engine.as_mut().expect("composition engine").handover_removed(forge, run, result);
     }
     /// A manifest page can be reloaded until its own setup clock or capacity ends it.
     #[must_use]
     pub fn setup_page(&self, forge: u16, state: &[u8], now: Time) -> Option<&[u8]> {
-        self.engine.as_ref()?.setup.page(forge, state, now)
+        self.engine.as_ref().expect("composition engine").setup_page(forge, state, now)
     }
     /// Test seam: replace this service's patch sets before `adopt_store`
     /// (protocol/baseline.md, 4). Production keeps the binary's sets.
     pub fn patch_sets(&mut self, sets: jig_protocol_store::PatchSets) {
-        self.engine.as_mut().expect("engine patch sets").store.patch_sets(sets);
+        self.engine.as_mut().expect("engine patch sets").patch_sets(sets);
     }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
     pub fn rehearse_store(&mut self, directory: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
-        let engine = self.engine.as_mut().expect("rehearsal has an engine");
-        engine.domain.rehearse();
-        crate::upgrade::prepare(engine, true);
-        engine.store.host.adopt_mode(
-            directory,
-            user,
-            engine.store.installation,
-            jig_protocol_store::host::Adoption::Rehearse { scratch },
-        )
+        self.engine.as_mut().expect("rehearsal has an engine").rehearse_store(directory, scratch, user)
     }
     /// Ask jig to make the previous generation active, with the deployment stopped.
     pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
-        let engine = self.engine.as_mut().expect("going back has an engine");
-        crate::upgrade::prepare(engine, false);
-        engine.store.host.adopt_mode(
-            directory,
-            user,
-            engine.store.installation,
-            jig_protocol_store::host::Adoption::Back,
-        )
+        self.engine.as_mut().expect("going back has an engine").back_store(directory, user)
     }
     /// Retained through teardown for shells and worlds alike.
     #[must_use]
     pub fn upgrade_report(&self) -> Option<&crate::upgrade::Report> {
-        Some(&self.engine.as_ref()?.upgrade.as_ref()?.report)
+        self.engine.as_ref()?.upgrade_report()
+    }
+    /// Push hosts awaiting this send's resolution (domain/forge/attention.md, 7.3).
+    #[must_use]
+    #[expect(clippy::type_complexity, reason = "resolution pairs an exchange token with its host and port")]
+    pub fn unresolved_pushes(&self) -> Box<[(Token, Box<[u8]>, u16)]> {
+        match &self.engine {
+            Some(engine) => engine.unresolved_pushes(),
+            None => Box::new([]),
+        }
+    }
+    pub fn resolved_push(&mut self, token: Token, address: Option<core::net::SocketAddr>) {
+        if let Some(engine) = &mut self.engine {
+            engine.resolved_push(token, address);
+        }
     }
     /// Adopt the binary's deployment directory.
     pub fn adopt_store(&mut self, root: Fd, effective_user: u32) -> Result<(), Fd> {
-        match &mut self.engine {
-            Some(engine) => engine.store.adopt(root, effective_user),
-            None => Err(root),
-        }
+        self.engine.as_mut().expect("composition engine").adopt_store(root, effective_user)
     }
     /// Hold the bundle the binary read at start, served on the clients' listener.
     pub fn adopt_bundle(&mut self, bundle: clients::bundle::Bundle) {
-        self.engine.as_mut().expect("engine bundle").clients.adopt_bundle(bundle);
+        self.engine.as_mut().expect("composition engine").adopt_bundle(bundle);
     }
     /// Earliest deadline of the root and its children.
     #[must_use]
@@ -366,7 +267,7 @@ impl Service {
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
         (match &self.engine {
-            Some(engine) => engine.work_pending(now),
+            Some(engine) => engine.work_pending_with_notes(now, self.notes.len()),
             None => false,
         }) || self.worker_runs()
             && match &self.worker {
@@ -403,7 +304,7 @@ impl Service {
                     None => false,
                 },
             engine: match &self.engine {
-                Some(engine) => Some(engine.pending(now)),
+                Some(engine) => Some(engine.pending_with_notes(now, self.notes.len())),
                 None => None,
             },
             worker: match &self.worker {
@@ -416,39 +317,37 @@ impl Service {
     /// A first call drains; another aborts, keeping a failure's reason.
     pub fn shutdown(&mut self) {
         if let Some(engine) = &mut self.engine {
-            stop::shutdown(engine);
-            if engine.end.is_some()
+            engine.shutdown();
+            if engine.end().is_some()
                 && let Some(worker) = &mut self.worker
             {
                 worker.abort();
             }
         }
+        self.join_end();
     }
     /// How this service ended, once it has.
     #[must_use]
     pub fn end(&self) -> Option<&End> {
-        self.engine.as_ref().expect("joined service has an engine").end.as_ref()
+        self.ending.as_ref()
     }
     /// Sent forge entries left without their outcome when this stop reached its bound.
     #[must_use]
     pub fn unsettled(&self) -> &[temper_engine_domain::Unsettled] {
-        if let Some(engine) = &self.engine
-            && let Some(drain) = &engine.drain
-        {
-            drain.unsettled.as_slice()
-        } else {
-            &[]
+        match &self.engine {
+            Some(engine) => engine.unsettled(),
+            None => &[],
         }
     }
     fn worker_runs(&self) -> bool {
         match &self.engine {
             Some(engine) => {
-                engine.end.is_some()
+                engine.end().is_some()
                     || match &self.worker {
                         Some(worker) => worker.stopping(),
                         None => false,
                     }
-                    || engine.store.opened && engine.workers.host.opened() && engine.clients.opened()
+                    || engine.ready_for_worker()
             }
             None => true,
         }
@@ -481,7 +380,7 @@ impl Service {
         if self.process.env().limits.sockets.saturating_sub(self.process.io().sockets()) < 2 {
             return Err(BoxRefusal::Sockets { limit: self.process.env().limits.sockets });
         }
-        self.engine.as_mut().expect("box engine").box_link = box_link::Link::new(line_bytes, true);
+        self.engine.as_mut().expect("box engine").box_link(line_bytes, true);
         let requests = self.process.io_mut().adopt_write_pipe(requests, None).expect("two reserved pipe slots");
         let answers = self.process.io_mut().adopt_read_pipe(answers).expect("second reserved pipe slot");
         self.box_pipe = Some(BoxPipe {
@@ -516,15 +415,32 @@ impl Service {
     }
     /// Bound listeners, taken by the binary before other diagnostics.
     pub fn listening(&mut self) -> &mut Queue<crate::Note> {
-        &mut self.engine.as_mut().expect("joined service has an engine").listening
+        if let Some(engine) = &mut self.engine {
+            for _ in 0..self.listening.room() {
+                let Some(note) = engine.listening().pop() else { break };
+                self.listening.push(crate::Note::Engine(note));
+            }
+        }
+        if let Some(engine) = &mut self.engine {
+            engine.held_listening(self.listening.len());
+        }
+        &mut self.listening
     }
     /// Operator diagnostics, taken by the binary.
     pub fn notes(&mut self) -> &mut Queue<crate::Note> {
-        let engine = self.engine.as_mut().expect("joined service has an engine");
-        if let Some(worker) = &mut self.worker {
-            worker.drain_notes(&mut engine.notes);
+        if let Some(engine) = &mut self.engine {
+            for _ in 0..self.notes.room() {
+                let Some(note) = engine.notes().pop() else { break };
+                self.notes.push(crate::Note::Engine(note));
+            }
         }
-        &mut engine.notes
+        if let Some(worker) = &mut self.worker {
+            drain_worker_notes(worker, &mut self.notes);
+        }
+        if let Some(engine) = &mut self.engine {
+            engine.held_notes(self.notes.len());
+        }
+        &mut self.notes
     }
     /// Root, component and I/O deadlines on the injected clock.
     #[must_use]
@@ -545,76 +461,14 @@ impl Service {
                 None => true,
             }
             && match &self.engine {
-                Some(engine) => {
-                    engine.setup.closed
-                        && engine.setup.io.is_empty()
-                        && engine.setup.above.is_empty()
-                        && engine.forge.closed
-                        && engine.forge.io.is_empty()
-                        && engine.forge.above.is_empty()
-                        && engine.store.closed()
-                        && engine.workers.host.closed()
-                        && engine.workers.notes.is_empty()
-                        && engine.clients.closed
-                        && engine.clients.io.is_empty()
-                        && match &engine.accounts {
-                            Some(accounts) => accounts.idle(),
-                            None => true,
-                        }
-                }
+                Some(engine) => engine.is_empty(),
                 None => true,
             }
             && self.process.is_empty()
     }
     fn route_components(&mut self) {
         if let Some(engine) = &mut self.engine {
-            for _ in 0..engine.store.submitted.len() {
-                if self.process.room() == 0 {
-                    break;
-                }
-                self.process.raw_submissions().push(engine.store.submitted.pop().expect("store submissions"));
-            }
-            if engine.store.opened || engine.end.is_some() {
-                for _ in 0..engine.setup.io.len() {
-                    if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
-                        break;
-                    }
-                    let request = engine.setup.io.pop().expect("setup IO requests");
-                    self.process.down(crate::setup::tag(request));
-                }
-                for _ in 0..engine.forge.io.len() {
-                    if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
-                        break;
-                    }
-                    let request = engine.forge.io.pop().expect("forge io requests");
-                    self.process.down(crate::forge::tag(request));
-                }
-                for _ in 0..engine.clients.io.len() {
-                    if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
-                        break;
-                    }
-                    let request = engine.clients.io.pop().expect("client io requests");
-                    self.process.down(request);
-                }
-                for _ in 0..engine.workers.host.io.len() {
-                    if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
-                        break;
-                    }
-                    let request = engine.workers.host.io.pop().expect("worker io requests");
-                    self.process.down(request);
-                }
-            }
-            if (engine.store.opened || engine.end.is_some())
-                && let Some(accounts) = &mut engine.accounts
-            {
-                for _ in 0..accounts.io.len() {
-                    if self.process.room() < io::MAX_OUT_DOWN.submissions || !self.process.io().takes() {
-                        break;
-                    }
-                    let request = accounts::tag(accounts.io.pop().expect("account io requests"));
-                    self.process.down(request);
-                }
-            }
+            engine.route(&mut self.process);
         }
         if let Some(worker) = &mut self.worker {
             for _ in 0..worker.submitted().len() {
@@ -637,11 +491,10 @@ impl Service {
     pub fn fmt_roots(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mut roots = formatter.debug_list();
         if let Some(engine) = &self.engine {
-            roots.entry(&engine.domain);
+            roots.entry(engine.domain());
         }
-        #[cfg(feature = "worker")]
         if let Some(worker) = &self.worker {
-            roots.entry(&worker.root);
+            roots.entry(worker.domain());
         }
         roots.finish()
     }
@@ -655,7 +508,7 @@ impl Service {
     }
     fn complete(&mut self, complete: Complete) {
         if store::owns(complete.op) {
-            self.engine.as_mut().expect("engine store completion").store.complete(complete);
+            self.engine.as_mut().expect("engine store completion").complete(complete).expect("store owner");
         } else if crate::tokens::prefix(complete.op) == 3 || crate::tokens::prefix(complete.op) == 6 {
             self.worker
                 .as_mut()
@@ -667,41 +520,11 @@ impl Service {
         }
     }
 }
-/// Core settings with the application's private tools (domain/agent/ask-temper.md, 4).
-pub(crate) fn core_config(config: &jig_protocol_config::Engine, seeds: &settings::Seeds) -> jig_domain_core::Config {
-    let mut core = jig_protocol_config::core(config, seeds.deployment, seeds.seed);
-    let mut tools = List::with_capacity(1);
-    for tool in temper_engine_smith::PRIVATE_TOOLS {
-        tools.push(Box::from(tool)).expect("private tool names");
-    }
-    core.settings.private_tools = tools.into_boxed();
-    core
-}
 
 fn start_problem(member: &[u8], what: What) -> Problems {
     let mut problems = Problems::empty();
     problems.push(Path::root().member(b"engine").member(member), what);
     problems
-}
-/// The accounts' driver, when the engine configures an account; its records
-/// are kept in the secrets' store, at most `secret_bytes` each.
-fn accounts_driver(
-    settings: &settings::Engine,
-    seeds: &settings::Seeds,
-    runtime: Option<AccountsRuntime>,
-    secrets: &skein_kv::Limits,
-) -> Result<Option<accounts::Accounts>, Problems> {
-    if settings.jig.llm.providers.is_empty() {
-        return Ok(None);
-    }
-    Ok(Some(accounts::Accounts::new(
-        ACCOUNT_APPLICATION.into(),
-        &settings.jig,
-        &seeds.crypto,
-        &seeds.installation,
-        runtime,
-        secrets,
-    )?))
 }
 /// Drive store terminals, account events, one root input and released outputs.
 pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
@@ -713,11 +536,15 @@ pub use temper_service_core::{STAGES, Stage};
 
 /// Run one stage with the pass's times (protocol/README.md, 6.1).
 pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall) {
+    if let Some(engine) = &mut service.engine {
+        engine.held_notes(service.notes.len());
+        engine.held_listening(service.listening.len());
+    }
     match stage {
         Stage::Io => {
             service.process.clock(now, wall);
             if let Some(engine) = &mut service.engine {
-                engine::clock(engine, now, wall);
+                engine.clock(now, wall);
             }
             service.process.resume();
             if !service.process.io().is_ready() {
@@ -733,23 +560,19 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
         }
         Stage::Engine => {
             if let Some(engine) = &mut service.engine {
-                if let Some(drain) = &mut engine.drain
-                    && let Some(worker) = &service.worker
-                {
-                    drain.agents_ended = worker.agents_ended();
+                if let Some(worker) = &service.worker {
+                    engine.agents_ended(worker.agents_ended());
                 }
-                engine::iterate(engine, now, wall);
+                engine.iterate(now, wall);
             }
         }
         Stage::Worker => {
             let runs = service.worker_runs();
             if let Some(worker) = &mut service.worker {
                 if let Some(engine) = &service.engine {
-                    if engine.end.is_some() {
+                    if engine.end().is_some() {
                         worker.abort();
-                    } else if let Some(drain) = &engine.drain
-                        && drain.closing
-                    {
+                    } else if engine.draining() {
                         worker.stop();
                         if worker.agents_ended() {
                             worker.abort();
@@ -760,14 +583,10 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
                     worker.iterate(now, wall);
                 }
                 if let Some(engine) = &mut service.engine
-                    && let Some(problems) = worker.refused()
+                    && worker.refused().is_some()
+                    && !engine.stopping()
                 {
-                    if engine.drain.is_none() && engine.end.is_none() {
-                        stop::shutdown(engine);
-                    }
-                    if let Some(End::Drained) = engine.end {
-                        engine.end = Some(End::Stopped(Stop::Start(problems.clone())));
-                    }
+                    engine.shutdown();
                 }
             }
         }
@@ -778,27 +597,13 @@ pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall)
             }
             box_io(service);
             service.route_components();
-            if let Some(engine) = &mut service.engine
-                && engine.clients.starting.is_none()
-            {
-                for _ in 0..engine.clients.links.len() {
-                    if service.links.room() == 0 {
-                        break;
-                    }
-                    let link = engine.clients.links.pop().expect("printed sign-in links");
-                    service.links.push(link);
-                }
-                for _ in 0..engine.clients.local_links.len() {
-                    if service.local_links.room() == 0 {
-                        break;
-                    }
-                    let link = engine.clients.local_links.pop().expect("local sign-in links");
-                    service.local_links.push(link);
-                }
+            if let Some(engine) = &mut service.engine {
+                engine.take_links(&mut service.links, &mut service.local_links);
             }
             service.process.publish();
         }
     }
+    service.join_end();
 }
 fn close_sources(service: &mut Service) {
     if service.end().is_some() {
@@ -859,7 +664,6 @@ fn route_events(service: &mut Service) {
             | io::Event::Closed { owner } => Some(*owner),
             io::Event::Resized | io::Event::Shutdown { .. } => None,
         };
-        let error = if let io::Event::Failed { error, .. } = &event { Some(*error) } else { None };
         if owner == Some(Token::new(1)) {
             if let io::Event::Closed { .. } = event {
                 service.process.signals_closed();
@@ -882,68 +686,20 @@ fn route_events(service: &mut Service) {
         {
             worker.up(service.process.env().now, event);
         } else if let Some(engine) = &mut service.engine {
-            if let Some(owner) = owner
-                && crate::tokens::prefix(owner) == 11
-            {
-                engine.setup.up(event);
-            } else if let Some(owner) = owner
-                && crate::tokens::prefix(owner) == 5
-            {
-                engine.forge.up(event);
-            } else if let Some(owner) = owner
-                && clients::owns(owner)
-            {
-                if !engine.clients.up(event) && engine.end.is_none() {
-                    engine.end = Some(End::Stopped(Stop::Listener {
-                        listener: crate::Listening::Clients,
-                        address: Some(engine.clients.address),
-                        error,
-                    }));
-                }
-            } else if let Some(owner) = owner
-                && accounts::owns(owner)
-            {
-                if let Some(accounts) = &mut engine.accounts {
-                    accounts.up(accounts::untag(event));
-                }
-            } else if !engine.workers.up(service.process.env().now, event, &mut engine.events) && engine.end.is_none() {
-                let address = engine.workers.host.listener_address(owner);
-                engine.workers.notes.push(crate::Note::WorkerListenerFailed { address, error });
-                engine.end = Some(End::Stopped(Stop::Listener { listener: crate::Listening::Workers, address, error }));
-            }
-            engine.drain_worker_notes();
-            for (listener, addr) in [
-                (crate::Listening::Clients, engine.clients.listening.take()),
-                (crate::Listening::Workers, engine.workers.host.listening.take()),
-            ] {
-                if let Some(addr) = addr {
-                    engine
-                        .listening
-                        .try_push(crate::Note::Listening { listener, addr })
-                        .expect("one note per listener bind");
-                }
-            }
+            engine.up(service.process.env().now, event);
         }
     }
 }
 
-/// Kernel work in a worker-only process, independent of its domain's room.
-pub(crate) fn worker_alone_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
-    // Allow staged successors beside io's in-flight operations. Every io entry
-    // point emits at most MAX_OUT_DOWN.submissions; the worker adds git's
-    // operations and closes counted by worker_settings.
-    io::operations(io)?.checked_mul(io::MAX_OUT_DOWN.submissions)?.checked_add(worker_operations)
-}
 fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
-    // Shared io successors, worker file operations and the three store drivers own the kernel credit.
-    worker_alone_operations(io, worker_operations)?.checked_add(store::KERNEL_HANDOFF_ENTRIES)
+    temper_engine_service::system::startup_operations(io)?.checked_add(worker_operations)
 }
 
 fn box_notes_full(service: &Service) -> bool {
     let Some(engine) = &service.engine else { return false };
     let Some(pipe) = &service.box_pipe else { return false };
     pipe.state == BoxPipeState::Open
-        && engine.notes.room() == 0
+        && engine.notes_room() == 0
         && match service.process.next_event() {
             Some(event) => box_owner(event, pipe),
             None => false,
@@ -974,13 +730,12 @@ fn box_event(service: &mut Service, event: io::Event) {
         return;
     }
     let engine = service.engine.as_mut().expect("box engine");
-    let mut out = Queue::with_capacity(3);
     match event {
         io::Event::Stream { owner, up } => match up {
             Up::Bytes(bytes) => {
                 assert!(owner == pipe.answers, "box read owner");
                 pipe.reading = false;
-                engine.box_link.read(&bytes, &mut out);
+                engine.box_read(&bytes);
             }
             Up::Room => {
                 assert!(owner == pipe.requests, "box write owner");
@@ -988,12 +743,12 @@ fn box_event(service: &mut Service, event: io::Event) {
             }
             Up::End | Up::Failed(_) => {
                 pipe.state = BoxPipeState::Ended;
-                engine.box_link.closed(&mut out);
+                engine.box_closed();
             }
         },
         io::Event::Failed { .. } | io::Event::Closed { .. } => {
             pipe.state = BoxPipeState::Ended;
-            engine.box_link.closed(&mut out);
+            engine.box_closed();
         }
         io::Event::Listening { .. }
         | io::Event::Accepted { .. }
@@ -1007,7 +762,6 @@ fn box_event(service: &mut Service, event: io::Event) {
         | io::Event::Resized
         | io::Event::Shutdown { .. } => unreachable!("box pipe event"),
     }
-    box_link::drain(engine, &mut out);
 }
 fn box_io(service: &mut Service) {
     use skein_lib::stream::{Delimiter, Down, Read};
@@ -1023,12 +777,9 @@ fn box_io(service: &mut Service) {
         pipe.reading = true;
     }
     let engine = service.engine.as_mut().expect("box engine");
-    if engine.box_link.write.is_some()
-        && service.process.room() >= io::MAX_OUT_DOWN.submissions
-        && service.process.io().takes()
-    {
+    if engine.box_writing() && service.process.room() >= io::MAX_OUT_DOWN.submissions && service.process.io().takes() {
         if pipe.output == BoxOutput::Room {
-            let line = engine.box_link.write.take().expect("box line ready");
+            let line = engine.box_write().expect("box line ready");
             service.process.down(io::Request::Stream { stream: pipe.requests, down: Down::Send(line) });
             pipe.output = BoxOutput::Idle;
         } else if pipe.output == BoxOutput::Idle {
@@ -1045,122 +796,47 @@ fn box_io(service: &mut Service) {
 impl Service {
     /// Start-time endpoints only; the browser and the issuer never choose a socket.
     pub fn configure_google_endpoints(&mut self, runtime: clients::fetch::Runtime) {
-        if let Some(engine) = &mut self.engine {
-            engine.clients.google_endpoints(runtime.endpoints);
-        }
+        self.engine.as_mut().expect("composition engine").configure_google_endpoints(runtime);
     }
 }
 
-/// Whether the deployment can set up an owned forge (temper/docs/design/client/forge/records.md).
-pub(crate) const fn deployment_owned(document_owned: bool, under_box: bool) -> bool {
-    document_owned && under_box
-}
-
-pub(crate) fn playground_config(
-    demo: Option<&settings::Demo>,
-    welcome: bool,
-    deadline: skein_lib::Duration,
-) -> Option<temper_engine_domain_forge::PlaygroundConfig> {
-    if !welcome {
-        return None;
-    }
-    match demo {
-        Some(demo) => Some(temper_engine_domain_forge::PlaygroundConfig { provider: demo.provider, deadline }),
-        None => None,
+fn drain_worker_notes(worker: &mut Worker, sink: &mut Queue<crate::Note>) {
+    for _ in 0..sink.room() {
+        let Some(note) = worker.notes().pop() else { break };
+        sink.push(note.into());
     }
 }
 
-/// github.com's remotes' base (temper/docs/design/protocol/configuration/engine.md).
-pub(crate) const GITHUB_REMOTE: &[u8] = b"https://github.com";
-
-/// Machine places passed to the root (temper/docs/design/protocol/configuration/engine.md).
-pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
-    use temper_engine_domain_forge::{Address, Machine, Place};
-    let github = match &machine.github {
-        Some(github) => {
-            let (host, port) = match &github.api {
-                jig_protocol_config::Address::Host { name, port } => (name.clone(), *port),
-                jig_protocol_config::Address::Addr(skein_io::Addr::Ip(address)) => {
-                    (socket_host(*address), address.port())
-                }
-                jig_protocol_config::Address::Addr(skein_io::Addr::InProcess(_)) => {
-                    unreachable!("checked machine socket")
-                }
-            };
-            Place {
-                api: Address { tls: if github.tls { Some(host.clone()) } else { None }, host, port },
-                git: github.remote.clone(),
-                web: Some(github.web.clone()),
-            }
-        }
-        None => Place {
-            api: Address {
-                host: skein_lib::bytes::copy_of(b"api.github.com"),
-                port: 443,
-                tls: Some(skein_lib::bytes::copy_of(b"api.github.com")),
+impl Service {
+    fn join_end(&mut self) {
+        self.ending = match self.engine.as_ref().expect("composition engine").end() {
+            Some(temper_engine_service::End::Drained) => match &self.worker {
+                Some(worker) => match worker.refused() {
+                    Some(problems) => Some(End::Worker(crate::worker_alone::End::Stopped(
+                        crate::worker_alone::Stop::Start(problems.clone()),
+                    ))),
+                    None => Some(End::Engine(temper_engine_service::End::Drained)),
+                },
+                None => Some(End::Engine(temper_engine_service::End::Drained)),
             },
-            git: skein_lib::bytes::copy_of(GITHUB_REMOTE),
-            web: Some(skein_lib::bytes::copy_of(b"https://github.com")),
-        },
-    };
-    Machine {
-        owned_person: match &machine.owned {
-            Some(owned) => owned.person.login.clone(),
-            None => Box::new([]),
-        },
-        owned: match &machine.owned {
-            Some(owned) => Some(local_place(owned.listen, &owned.remote)),
+            Some(end) => Some(End::Engine(end.clone())),
             None => None,
-        },
-        fake: match &machine.fake {
-            Some(fake) => Some(local_place(fake.listen, &fake.remote)),
-            None => None,
-        },
-        github,
-        github_git_program: match &machine.github {
-            Some(github) => github.git.clone(),
-            None => None,
-        },
+        };
     }
 }
-#[expect(clippy::disallowed_macros, reason = "startup renders a checked IP address for the domain place")]
-pub(crate) fn socket_host(address: core::net::SocketAddr) -> Box<[u8]> {
-    alloc::format!("{}", address.ip()).into_bytes().into_boxed_slice()
-}
-fn local_place(address: core::net::SocketAddr, remote: &[u8]) -> temper_engine_domain_forge::Place {
-    temper_engine_domain_forge::Place {
-        api: temper_engine_domain_forge::Address { host: socket_host(address), port: address.port(), tls: None },
-        git: skein_lib::bytes::copy_of(remote),
-        web: None,
+
+impl Service {
+    pub fn engine_component(&mut self) -> &mut temper_engine_service::Engine {
+        self.engine.as_mut().expect("composition engine")
     }
 }
+pub use temper_engine_service::system::{machine_config, playground_config, socket_host};
 
 #[cfg(test)]
 mod box_tests {
     use super::BoxRefusal;
     use crate::tests::fixtures;
     use skein_io::kernel::Fd;
-
-    #[test]
-    fn machine_context_carries_only_the_owned_persons_login() {
-        let mut machine = fixtures::machine();
-        assert!(super::machine_config(&machine).owned_person.is_empty());
-        let temper_forge_setup::setup::Mode::Owned(owned) = fixtures::owned_setup(1).entry.mode else {
-            panic!("owned machine fixture")
-        };
-        machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
-            sign_in: None,
-            listen: owned.listen,
-            remote: b"http://forge.example".as_slice().into(),
-            person: owned.person,
-            public: owned.public,
-            fetch: owned.fetch,
-            forgejo: owned.forgejo,
-            runner: owned.runner,
-        });
-        assert_eq!(super::machine_config(&machine).owned_person.as_ref(), b"owner");
-    }
-
     #[test]
     fn box_adoption_names_each_refusal_and_keeps_both_descriptors() {
         for expected in

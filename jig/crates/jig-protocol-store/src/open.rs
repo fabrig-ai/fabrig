@@ -2,7 +2,7 @@
 use crate::patching::{machines, phase::Pending, plan};
 use crate::{Event, Family, Older, OpenRefusal, Phase, Store, codec, format, keys, restore};
 use alloc::boxed::Box;
-use jig_domain_core::{CoreKey, CoreRecord, Key, Record};
+use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Key, Record};
 use skein_lib::{Queue, Token};
 
 #[expect(clippy::too_many_lines, reason = "the ordered open checks include the rehearsal's pre-plan walk")]
@@ -266,11 +266,13 @@ fn ready(
                 return;
             }
         };
-    }
-    if let Err(failure) = codec::catalogue(store) {
-        store.open_failed(restore::OpenFailure::Data(failure));
-        corrupt(store, owner, above);
-        return;
+        // Serving codecs read the catalogue only after pending patches have
+        // brought the model rows to the binary's levels (protocol/store/opening.md, 2).
+        if let Err(failure) = codec::catalogue(store) {
+            store.open_failed(restore::OpenFailure::Data(failure));
+            corrupt(store, owner, above);
+            return;
+        }
     }
     store.phase = Phase::Ready { next, format_due };
     store.directory.owner = owner;

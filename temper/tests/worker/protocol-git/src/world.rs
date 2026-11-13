@@ -45,6 +45,7 @@ impl Outcome {
                         git::Done::Failed { fault } | git::Done::FailedWithOutput { fault, .. } => Some(*fault),
                         git::Done::Looked { .. }
                         | git::Done::Paths { .. }
+                        | git::Done::Brings { .. }
                         | git::Done::IsAncestor { .. }
                         | git::Done::Merged
                         | git::Done::Conflicted { .. }
@@ -76,7 +77,13 @@ fn deliver(component: &mut Component, below: &mut Below, now: Time, input: Input
 /// Run to the terminal, then shut down and settle every owned descriptor.
 #[must_use]
 pub fn run(scenario: &Scenario, seed: u64) -> Outcome {
+    run_on_tree(scenario, seed, BTreeMap::new())
+}
+/// Start a new component over an existing worker root, then run and shut it down.
+#[must_use]
+pub fn run_on_tree(scenario: &Scenario, seed: u64, tree: BTreeMap<Vec<u8>, Node>) -> Outcome {
     let mut below = Below::new(Script { invocations: [Invocation::captured("version")].into(), ..Script::default() });
+    below.tree.extend(tree);
     let mut component =
         Component::new(&fixtures::limits(), &fixtures::checkout(), fixtures::settings()).expect("valid limits");
     let mut draw = seed;

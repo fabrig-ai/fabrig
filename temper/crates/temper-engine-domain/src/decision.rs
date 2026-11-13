@@ -48,6 +48,8 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
+    /// A need's push, held behind its decision's commit (attention.md, 7.2).
+    Push(crate::Push),
     /// The project's ways (temper/docs/design/domain/forge/change/branch-path.md).
     Ways {
         watcher: Token,
@@ -72,6 +74,12 @@ pub enum Delivery {
     NotesLoad {
         owner: Token,
         range: jig_domain_notes::Range,
+    },
+    /// Tell a new finding holder only after the areas/triager save commits (domain/areas.md, 5).
+    FindingsOwned {
+        project: u32,
+        task: u64,
+        words: Box<[u8]>,
     },
     /// Move a leaver's standing roles only after the saved roster commits.
     MoveStanding {
@@ -465,7 +473,9 @@ impl Decision {
     pub fn deliver(&mut self, limits: &Limits, delivery: Delivery) -> Result<(), Delivery> {
         assert!(*limits == self.limits, "decision uses its configured limits");
         let within = match &delivery {
+            Delivery::Push(push) => push.payload.len() <= skein_push::PAYLOAD_BYTES,
             Delivery::Result { words, .. } => words.len() <= skein_lib::usize_of(limits.result_bytes),
+            Delivery::FindingsOwned { words, .. } => words.len() <= skein_lib::usize_of(limits.transcript_bytes),
             Delivery::Trials { rows, .. } => {
                 rows.len().saturating_mul(size_of::<temper_engine_domain_trials::Row>())
                     <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))

@@ -82,6 +82,8 @@ setup/README.md's (`setup/README.md`, section 5). What is open is listed in `cre
 | an installation's token | temper | a GitHub token, expiring within the hour | minted by the forge component with the App's key, one per accepted installation (section 5); by the setup host, for a page of the picker | the forge component; the forge's git identity; the setup host, while a page is read; never kept | that installation's API requests; git's, through the identity; the picker's page | minted again `renew_before` ahead of its expiry; a picker's page's, dropped with the page |
 | a worker's secret | jig | a shared secret | the worker's secret file; the engine's digest file | the worker; the engine, its digest | the link's opening | an operator replaces both |
 | a sign-in's secret | jig | a bearer token | the printed link, then the sign-in | `jig-client` in `temper-box open`, which keeps it in its directory; the engine, its digest | each of the client's exchanges and its stream | the sign-in ends or expires |
+| a deployment's VAPID key | temper | a P-256 private key, PKCS#8 PEM | the operator, a data path `application.push.key` names (configuration/engine.md) | the engine, read at start | each push's token, signed by skein's `sign_es256`; its public half the clients' (`../domain/forge/attention.md`, 7.3) | never: a new key leaves every device subscribed to the old one, each turned on again by its person |
+| a deployment's mail password | temper | a password, designed and not built (`../domain/forge/attention.md`, 7.4) | the operator, a data path `application.mail.password` names | the engine, read at start | the SMTP server's sign-in | the operator replaces it and restarts |
 | a Forgejo forge's webhooks' secret | temper | a shared secret, the `WebhookSecret` record; a GitHub forge has none | pasted at a connected Forgejo's connect; or drawn by the setup host and set on the hooks of a managed or owned Forgejo served the listener (setup/reconcile.md, 3), by the plan that makes them | jig's secrets' store; the forge component's webhooks' listener, on loopback; the forge's hooks, which sign each delivery with it | checking each delivery's signature (forge/README.md, section 4) | replaced from the client with the forge's tokens; reconcile sets a managed or owned Forgejo's hooks' secret to the record's |
 | a site admin's token | temper | a Forgejo token, the `AdminToken` record | pasted from the client at a managed connect; an owned Forgejo's handover file, taken once and removed (setup/README.md, section 5) | jig's secrets' store; the setup host, only while a plan runs | reconcile, access at an adoption, and the picker's reads on a managed or owned Forgejo (a `Reachable` plan) | erased by Forget, after which the forge is connected |
 
@@ -424,11 +426,13 @@ sources in its holder's order. temper configures the LLM providers
     sign-in, `claude auth login`, at the configured path. The
     environment is the caller's, so that the program's sign-in has the
     person's terminal and browser, with `CLAUDE_CONFIG_DIR` the source's
-    directory and the program's credential variables removed, as every
+    directory, `ANTHROPIC_CONFIG_DIR` its `anthropic` directory, and the
+    program's credential variables removed, as every
     command of a program source's is (smith's `protocol/programs.md`,
-    4.2): `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
-    `CLAUDE_CODE_OAUTH_TOKEN` and the cloud providers' variables, which
-    would win over the login (jig's `domain/providers.md`, 3.3). The
+    4.2): every other `ANTHROPIC_` variable (a key, a token, a named profile,
+    the federation variables), `CLAUDE_CODE_OAUTH_TOKEN` and the cloud
+    providers' variables, which would win over the login (jig's
+    `domain/providers.md`, 3.3). The
     forge's commands clear the environment before they exec (setup/owned.md,
     4); a sign-in cannot.
   - Its exit status is the program's. A failure before the exec exits

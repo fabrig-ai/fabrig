@@ -137,7 +137,7 @@ pub(crate) fn peer_with_ci(life: Duration) -> (Rc<RefCell<Forge>>, Peer) {
 }
 fn peer_options(life: Duration, ci: bool) -> (Rc<RefCell<Forge>>, Peer) {
     let wire = protocol();
-    let mut config = temper_worker_checkout_world::hosted::CONFIG;
+    let mut config = temper_worker_checkout_world::hosted::config();
     config.limits.files = 4;
     config.limits.content_bytes = 1024;
     config.limits.calls = wire.calls;
@@ -311,8 +311,7 @@ impl skein_world::Referee<Proc> for Judge {
         );
         let installed = peer.github_layer().expect("GitHub").installations();
         let Proc::Other(HarnessProcess::Calls(caller)) = &other[0] else { unreachable!() };
-        for index in self.answers..caller.answers.len() {
-            let answer = &caller.answers[index];
+        for (index, answer) in caller.answers.iter().enumerate().skip(self.answers) {
             let refused = index == 3 || index == 8;
             assert!(
                 answer.exit == Exit::Code(if refused { 2 } else { 0 }),

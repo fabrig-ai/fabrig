@@ -331,6 +331,7 @@ fn a_live_standing_role_alone_puts_team_in_the_rail() {
                 );
             }
             Request::Screen { .. }
+            | Request::Push(_)
             | Request::KeepLook { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }

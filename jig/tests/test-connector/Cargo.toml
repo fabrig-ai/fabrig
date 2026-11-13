@@ -17,6 +17,8 @@ skein-heap.workspace = true
 jig-test-connector.workspace = true
 jig-test-system.workspace = true
 skein-lib.workspace = true
+
+[dev-dependencies]
 sha2.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

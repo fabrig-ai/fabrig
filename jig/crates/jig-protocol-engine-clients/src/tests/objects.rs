@@ -1,9 +1,9 @@
 use super::fixtures;
 use crate::translate;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_client_test_records as records;
-use jig_domain_core::{documents as d, reads};
+use jig_domain_core_vocabulary::{documents as d, reads};
 use jig_domain_people as p;
 #[test]
 fn a_pending_proposal_becomes_its_owner_record() {

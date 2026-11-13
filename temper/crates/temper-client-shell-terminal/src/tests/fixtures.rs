@@ -317,6 +317,8 @@ fn populate_page(
                             w::ChangesQueue::new(
                                 &w::CEILINGS,
                                 w::ChangesQueueParts {
+                                    way: w::Way::Queue,
+                                    in_flight: None,
                                     repository: b"owner/repo".as_slice().into(),
                                     branch: b"main".as_slice().into(),
                                     red: false,
@@ -468,6 +470,7 @@ fn populate_page(
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Copy { .. }
+            | Request::Push(_)
             | Request::Fact { .. }
             | Request::Dropped { .. } => {}
         }

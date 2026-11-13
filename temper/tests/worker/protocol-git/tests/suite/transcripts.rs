@@ -130,6 +130,7 @@ fn mutated_outputs_parse_to_none_never_to_another_value() {
         let bytes = transcripts::read(case).stdout;
         let limits = temper_worker_domain_checkout::Limits {
             workspaces: 1,
+            preparations: 1,
             repositories: 1,
             name_bytes: 64,
             message_bytes: 64,

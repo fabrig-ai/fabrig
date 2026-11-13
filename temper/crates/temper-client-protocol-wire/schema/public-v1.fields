@@ -96,6 +96,34 @@ field PublicLandings turn type=option u16 tag=- default=-
 field PublicLandings landings type=list 64 PublicLandingLine tag=- default=-
 field PublicLandings queues type=list 64 PublicQueue tag=- default=-
 variant PublicLandingHold faults tag=0 payload=-
+variant PublicLandingHold prepare tag=1 payload=-
+variant PublicLandingHold record tag=2 payload=-
+variant PublicLandingHold timeout tag=3 payload=-
+variant PublicLandingHold turn tag=4 payload=-
+variant PublicCombined merge tag=0 payload=-
+variant PublicCombined squash tag=1 payload=-
+variant PublicLandingStep waiting tag=0 payload=-
+variant PublicLandingStep preparing tag=1 payload=-
+variant PublicLandingStep proving tag=2 payload=-
+variant PublicLandingStep proved tag=3 payload=-
+variant PublicLandingStep turn tag=4 payload=-
+variant PublicLandingStep landed tag=5 payload=-
+variant PublicLandingStep held tag=6 payload=-
+variant PublicLandingStep cancelled tag=7 payload=-
+variant PublicLandingStep judging tag=8 payload=-
+variant PublicLandingStep leaving tag=9 payload=-
+variant PublicLandingStep recording tag=10 payload=-
+variant PublicLandingStep telling tag=11 payload=-
+variant PublicLeave conflict tag=0 payload=-
+variant PublicLeave head_moved tag=1 payload=-
+variant PublicLeave cancelled tag=2 payload=-
+variant PublicLeave held tag=3 payload=-
+variant PublicLeave refused tag=4 payload=PublicGateNumber
+variant PublicLeave failed tag=5 payload=PublicGateNumber
+record PublicJudgement versioned=false
+field PublicJudgement prefix type=fixed 32 tag=- default=-
+field PublicJudgement verdict type=PublicCi tag=- default=-
+field PublicJudgement gates type=list 64 PublicGate tag=- default=-
 variant PublicProof unkeyed tag=0 payload=-
 variant PublicProof keyed tag=1 payload=-
 variant PublicProof dispatched tag=2 payload=-
@@ -107,12 +135,16 @@ field PublicGateProof number type=u64 tag=- default=-
 field PublicGateProof kind type=PublicGateKind tag=- default=-
 field PublicGateProof blocks type=bool tag=- default=-
 field PublicGateProof proof type=PublicProof tag=- default=-
+field PublicGateProof faults type=u32 tag=- default=-
 record PublicMember versioned=false
 field PublicMember task type=u16 tag=- default=-
 field PublicMember base type=option fixed 32 tag=- default=-
 field PublicMember candidate type=option fixed 32 tag=- default=-
 field PublicMember landed type=option fixed 32 tag=- default=-
 field PublicMember gates type=list 8 PublicGateProof tag=- default=-
+field PublicMember head type=option fixed 32 tag=- default=-
+field PublicMember left type=option PublicLeave tag=- default=-
+field PublicMember judgement type=option PublicJudgement tag=- default=-
 record PublicLanding versioned=true
 field PublicLanding phase type=PublicLandingPhase tag=- default=-
 field PublicLanding hold type=option PublicLandingHold tag=- default=-
@@ -120,3 +152,5 @@ field PublicLanding preparation type=u32 tag=- default=-
 field PublicLanding members type=list 8 PublicMember tag=- default=-
 field PublicLanding stale_proofs type=u32 tag=- default=-
 field PublicLanding holds_turn type=bool tag=- default=-
+field PublicLanding combined type=option PublicCombined tag=- default=-
+field PublicLanding step type=option PublicLandingStep tag=- default=-

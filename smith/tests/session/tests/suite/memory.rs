@@ -97,7 +97,7 @@ const LIMITS: Limits = Limits {
         tool_payload: 1 << 20,
         ..TOOLS
     },
-    ..smith_domain_session::fixture::SMALL
+    ..smith_domain_session_fixtures::SMALL
 };
 
 /// What a step asked for last, without the payload.
@@ -770,7 +770,7 @@ fn restored_tail_turn(messages: Box<[smith_domain_session::llm::Message]>) -> sm
     smith_domain_session::record::Turn {
         endpoint: Some(Endpoint(7)),
         dialect: 2,
-        ..smith_domain::session::fixture::turn(
+        ..smith_domain_session_fixtures::turn(
             b"model".as_slice().into(),
             smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
                 system: None,

@@ -274,6 +274,86 @@ const HOW_RULES_NOTE: Part = Part::Named {
 };
 static HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "told-not-set-up",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Not set up" },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Your devices" },
+        ],
+    },
+    Holds {
+        name: "told-off",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Off" },
+            Part::Named { role: Role::Button, name: "Turn on" },
+            Part::Text { text: "Firefox on Linux" },
+        ],
+    },
+    Holds {
+        name: "told-on",
+        heading: "Telling you",
+        parts: &[Part::Named { role: Role::Button, name: "Turn off" }, Part::Text { text: "Safari on iPhone" }],
+    },
+    Holds {
+        name: "told-cannot",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "This browser can't be pushed to." },
+            Part::Text { text: "Add temper to the Home Screen, then open it from there and turn this on." },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
+        name: "told-refused",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "You have 8 devices: remove one below first." },
+            Part::Named { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
+        name: "night-told-not-set-up",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Not set up" },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+            Part::Absent { role: Role::Heading { level: 2 }, name: "Your devices" },
+        ],
+    },
+    Holds {
+        name: "night-told-off",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "Off" },
+            Part::Named { role: Role::Button, name: "Turn on" },
+            Part::Text { text: "Firefox on Linux" },
+        ],
+    },
+    Holds {
+        name: "night-told-on",
+        heading: "Telling you",
+        parts: &[Part::Named { role: Role::Button, name: "Turn off" }, Part::Text { text: "Safari on iPhone" }],
+    },
+    Holds {
+        name: "night-told-cannot",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "This browser can't be pushed to." },
+            Part::Text { text: "Add temper to the Home Screen, then open it from there and turn this on." },
+            Part::Absent { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
+        name: "night-told-refused",
+        heading: "Telling you",
+        parts: &[
+            Part::Text { text: "You have 8 devices: remove one below first." },
+            Part::Named { role: Role::Button, name: "Turn on" },
+        ],
+    },
+    Holds {
         name: "remembered-none",
         heading: "What temper remembers about you",
         parts: &[
@@ -2219,6 +2299,31 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Open" },
             Part::Absent { role: Role::Button, name: "Later" },
         ],
+    },
+    Holds {
+        name: "needs-finding",
+        heading: "The phone card is clipped",
+        parts: &[Part::Named { role: Role::Button, name: "Hand on" }],
+    },
+    Holds {
+        name: "needs-finding-hand",
+        heading: "The phone card is clipped",
+        parts: &[Part::Named { role: Role::TextField, name: "Why hand it on" }],
+    },
+    Holds {
+        name: "needs-finding-route",
+        heading: "The phone card is clipped",
+        parts: &[Part::Named { role: Role::Disclosure, name: "Goal" }],
+    },
+    Holds {
+        name: "needs-finding-drop",
+        heading: "The phone card is clipped",
+        parts: &[Part::Named { role: Role::TextField, name: "Reason to drop" }],
+    },
+    Holds {
+        name: "needs-finding-refused",
+        heading: "The phone card is clipped",
+        parts: &[Part::Named { role: Role::Paragraph, name: "not a live goal of the project" }],
     },
     Holds {
         name: "needs-proposal",
@@ -4588,7 +4693,13 @@ static HOLDS: [Holds; samples::N] = [
     Holds {
         name: "out-of-date",
         heading: "Out of date",
-        parts: &[Part::Named { role: Role::Paragraph, name: "Run the temper the engine runs." }],
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "This page doesn't match temper's engine. Reload it to continue.",
+            },
+            Part::Named { role: Role::Button, name: "Reload" },
+        ],
     },
     Holds {
         name: "chats-empty",
@@ -5900,8 +6011,9 @@ fn the_person_menu_sample_opens_above_its_row() {
     assert!(!menu.contains("hidden"), "{menu}");
     assert!(person.contains("role=\"menuitem\">Accounts</div>"));
     assert!(person.contains("role=\"menuitem\">What temper remembers about you</div>"));
+    assert!(person.contains("role=\"menuitem\">Telling you</div>"));
     assert!(person.contains("role=\"menuitem\">Sign out</div>"));
-    assert_eq!(person.matches("role=\"menuitem\"").count(), 3);
+    assert_eq!(person.matches("role=\"menuitem\"").count(), 4);
     let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
     let panel = css
         .lines()
@@ -6108,5 +6220,81 @@ fn a_settings_cards_later_reply_follows_it() {
             }
         }
         assert_eq!(order, expected, "{name}");
+    }
+}
+
+#[test]
+fn finding_gallery_cards_keep_facts_forms_and_responsive_hooks() {
+    use temper_client_domain::{
+        Action,
+        pages::{
+            Act,
+            findings::{Act as F, Id},
+        },
+    };
+    use temper_client_view::look;
+    const ID: Id = Id { project: 1, number: 7 };
+    for sample in samples::samples().into_iter().filter(|sample| sample.name.starts_with("needs-finding")) {
+        let root = samples::domain(&sample);
+        assert_eq!(temper_client_domain::pages::parts::needs_facts(&root, worlds::now(samples::World::Solo)).open, 1);
+        let (mut view, _, _) = built_root(&sample, ViewInputs::new(), &root);
+        for (role, name) in [
+            (Role::Text, "Finding"),
+            (Role::Paragraph, "feedback · high · no area"),
+            (Role::Paragraph, "Handed on by task 55: “Your area owns the view”"),
+            (Role::Button, "Backlog"),
+        ] {
+            find(view.tree(), role, name, sample.name);
+        }
+        assert!(view.tree().nodes().iter().any(|node| {
+            node.name
+                .as_deref()
+                .is_some_and(|name| name.starts_with("fabrig › 1/7 The phone card is clipped".as_bytes()))
+        }));
+        // The browser's single tree carries both the laptop list and the phone's one-card bar.
+        for style in [look::ASK, look::ASK_CHOICES, look::NEEDS_BAR, look::NEEDS_HEAD] {
+            assert!(
+                view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&style)),
+                "{}: responsive hook {style:?}",
+                sample.name
+            );
+        }
+        let backlog = find(view.tree(), Role::Button, "Backlog", sample.name);
+        assert_eq!(
+            temper_client_view::act(&mut view, backlog, skein_ui::Act::Press),
+            Some(Action::Pages(Act::Finding(F::Backlog { id: ID })))
+        );
+        if sample.name == "needs-finding-hand" {
+            find(view.tree(), Role::Button, "view", sample.name);
+            let field = find(view.tree(), Role::TextField, "Why hand it on", sample.name);
+            assert_eq!(
+                temper_client_view::act(
+                    &mut view,
+                    field,
+                    skein_ui::Act::Input { value: b"The view owns this".as_slice().into() }
+                ),
+                Some(Action::Pages(Act::Finding(F::Why { id: ID, words: b"The view owns this".as_slice().into() })))
+            );
+        }
+        if sample.name == "needs-finding-drop" {
+            let field = find(view.tree(), Role::TextField, "Reason to drop", sample.name);
+            assert_eq!(
+                temper_client_view::act(
+                    &mut view,
+                    field,
+                    skein_ui::Act::Input { value: b"Duplicate".as_slice().into() }
+                ),
+                Some(Action::Pages(Act::Finding(F::Reason { id: ID, words: b"Duplicate".as_slice().into() })))
+            );
+        }
+        if sample.name == "needs-finding-route" {
+            assert!(
+                !root.pages().needs().findings().goals(ID).is_empty(),
+                "the live-goal menu has the project's goals"
+            );
+        }
+        if sample.name == "needs-finding-refused" {
+            find(view.tree(), Role::Paragraph, "not a live goal of the project", sample.name);
+        }
     }
 }

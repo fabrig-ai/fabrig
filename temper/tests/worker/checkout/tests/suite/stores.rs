@@ -13,7 +13,7 @@ fn plan(workstream: u32) -> Plan {
 }
 fn world(workspaces: u32) -> World {
     let mut world = World::new(Settings {
-        checkout: Limits { workspaces, ..LIMITS },
+        checkout: Limits { workspaces, preparations: workspaces, ..LIMITS },
         repositories: 1,
         workstreams: 2,
         ..Settings::calm(1)
@@ -116,4 +116,59 @@ fn a_clone_transfers_no_objects() {
     let clones: Vec<_> = world.transfers(first, b"r0").iter().filter(|transfer| transfer.kind == Kind::Clone).collect();
     assert_eq!(clones.len(), 1);
     assert!(clones[0].commits.is_empty(), "clone transferred {:?}", clones[0].commits);
+}
+
+#[test]
+fn concurrent_prepares_transfer_one_store_and_both_become_ready() {
+    let mut world = world(2);
+    let first = world.submit(world.now(), plan(0));
+    let second = world.submit(world.now(), plan(1));
+    world.run(ITERATIONS);
+    ready(&world, first);
+    ready(&world, second);
+    let stores = [first, second]
+        .into_iter()
+        .flat_map(|client| world.transfers(client, b"r0"))
+        .filter(|transfer| transfer.kind == Kind::Store)
+        .count();
+    assert_eq!(stores, 1, "only one client makes the shared store");
+}
+
+#[test]
+fn a_restart_keeps_history_and_fetches_only_the_new_commit() {
+    let mut world = world(2);
+    prepare(&mut world, 0);
+    world.restart();
+    let tip = advance(&mut world);
+    let next = prepare(&mut world, 1);
+    exact_tree(&world, next, tip);
+    assert_eq!(imported(&world, next), BTreeSet::from([tip]));
+    assert!(
+        world
+            .transfers(next, b"r0")
+            .iter()
+            .filter(|transfer| transfer.kind == Kind::Store)
+            .all(|transfer| transfer.commits.is_empty()),
+        "Store finds the preserved history"
+    );
+}
+
+#[test]
+fn a_restart_finds_the_second_remote_first_by_its_own_token() {
+    let mut world = World::new(Settings { repositories: 2, workstreams: 1, ..Settings::calm(1) });
+    world.set_repositories(0, &[0, 1]);
+    prepare(&mut world, 0);
+    world.restart();
+    world.set_repositories(0, &[1]);
+    world.advance_at(world.now(), 1, b"main");
+    world.run(ITERATIONS);
+    let tip = world.forge().branch(world.repository(1), b"main").expect("main");
+    let next = prepare(&mut world, 0);
+    let transfers = world.transfers(next, b"r1");
+    assert_ne!(transfers, []);
+    let brought: BTreeSet<_> = transfers.iter().flat_map(|transfer| transfer.commits.iter().copied()).collect();
+    assert_eq!(brought, BTreeSet::from([tip]), "reordering finds r1's history, not r0's store");
+    assert!(
+        transfers.iter().filter(|transfer| transfer.kind == Kind::Store).all(|transfer| transfer.commits.is_empty())
+    );
 }

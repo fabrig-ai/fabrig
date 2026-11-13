@@ -1,7 +1,7 @@
 //! Cursor versions follow their header and generated codec (temper/docs/design/protocol/wires.md, 8).
 
 use super::{CURSOR_VERSION, decode, encode, encode_tree};
-use jig_domain_core::{documents, reads};
+use jig_domain_core_vocabulary::{documents, reads};
 use skein_lib::{Reader, Writer};
 
 #[test]

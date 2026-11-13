@@ -839,8 +839,9 @@ open (`domain/README.md`, section 5), and the client's on its own
 - **Outside the layers,** a crate is named by its kind: the engine's test
   kits (`jig-test-domain`, and the rest), its worlds, the reference
   root's test application, `jig-test` and `jig-test-service`
-  (`protocol/service.md`, section 7), and `jig-boundary`, the check of
-  the crate graph.
+  (`protocol/service.md`, section 7), with the rig its stories share,
+  `jig-test-kit` (`domain/testing.md`, section 7), and `jig-boundary`,
+  the check of the crate graph.
 - **The UI kit's crates are skein's** (skein's `ui/README.md`, section 2): the
   tree, `skein-ui`, which `jig-client-view` builds on; the text shell,
   `skein-ui-text`; the browser parts, `skein-ui-web`; the bundler,

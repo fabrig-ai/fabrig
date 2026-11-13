@@ -2,8 +2,8 @@
 use super::fixtures as f;
 use crate::translate::{self, settings};
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
-use jig_domain_core::{documents as d, reads, settings as s};
+use jig_client_protocol_wire::v20 as w;
+use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use jig_domain_people as p;
 use skein_lib::{List, Reader, Wall, Writer};
 fn head() -> s::Head {
@@ -21,8 +21,8 @@ fn authority() -> jig_domain_authority::Authority {
         note_resources: Box::new([]),
     }
 }
-fn charter() -> jig_domain_core::Charter {
-    use jig_domain_core as core;
+fn charter() -> jig_domain_core_vocabulary::Charter {
+    use jig_domain_core_vocabulary as core;
     use skein_lib::Duration;
     core::Charter {
         parts: Box::new([]),
@@ -89,7 +89,7 @@ fn values() -> [s::Value; 4] {
     [
         s::Value::Charter(Box::new(charter())),
         s::Value::Template(Box::new(f::template())),
-        s::Value::Policy(Box::new(jig_domain_core::ConfiguredPolicy {
+        s::Value::Policy(Box::new(jig_domain_core_vocabulary::ConfiguredPolicy {
             policy: a::Policy {
                 escalation_role: Some(1),
                 ceiling: authority(),

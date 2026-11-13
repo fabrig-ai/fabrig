@@ -203,7 +203,7 @@ fn a_make_waits_for_first_period_room_without_spending_a_number() {
     };
     assert_eq!(header.projects, u64::from(SEED));
     assert_eq!(frame(&mut world, signed).projects.len(), 1);
-    assert!(world.project_made.is_empty());
+    assert_eq!(world.project_made.len(), 0);
 }
 #[test]
 fn a_refused_make_spends_no_project_number() {
@@ -272,7 +272,7 @@ fn the_root_hears_a_project_made_after_its_commit() {
     world.cut = Some(Cut::Durable(commit));
     world.send(event(signed, KEY, make("Tally", POLICY)));
     assert_eq!(world.reached_cut, Some(Cut::Durable(commit)));
-    assert!(world.project_made.is_empty());
+    assert_eq!(world.project_made.len(), 0);
     world.cut = None;
     world.drain();
     assert_eq!(world.project_made, [(commit, MADE)]);

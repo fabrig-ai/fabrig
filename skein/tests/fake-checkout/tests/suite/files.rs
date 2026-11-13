@@ -191,7 +191,7 @@ fn search_bounds_retained_paths_and_text_without_following_hidden_or_linked_desc
     assert_eq!(found.hits, vec![(b"a.rs".to_vec(), 1, b"ne".to_vec())]);
     assert_eq!(found.more, 2, "hidden files, linked alias and wrong suffix do not match");
     let zero = checkout.search(root, b"", b"needle", Some(b"*.rs"), (0, 99)).expect("zero cap");
-    assert!(zero.hits.is_empty());
+    assert_eq!(zero.hits.len(), 0);
     assert_eq!(zero.more, 3);
     let file = checkout.search(root, b"b.rs", b"needle", None, (1, 6)).expect("regular file");
     assert_eq!(file.hits, vec![(Vec::new(), 1, b"needle".to_vec())]);

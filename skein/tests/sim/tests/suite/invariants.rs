@@ -221,6 +221,7 @@ fn quiescence_with_a_descriptor_open() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn a_failure_names_the_seed_and_the_trace() {
     let result = std::panic::catch_unwind(|| {
         let mut world = World::new(77, skein_sim::Config::calm());

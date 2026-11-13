@@ -54,7 +54,7 @@ fn child_bill_that_does_not_fit_ends_without_a_turn() {
     });
     assert_eq!(world.end, Some(End::PriceOverflow));
     assert_eq!(world.spend, [16]);
-    assert!(world.turns.is_empty());
+    assert_eq!(world.turns.len(), 0);
     assert_eq!(world.terminal_usage, Some((1, USAGE)));
     world.close();
 }

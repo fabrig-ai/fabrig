@@ -46,7 +46,7 @@ pub fn levels(sets: &PatchSets) -> codec::component::Levels {
 /// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
-    pub core: jig_domain_core::Limits,
+    pub core: jig_domain_core_vocabulary::Limits,
     pub store: skein_kv::Limits,
     pub secrets: skein_kv::Limits,
     /// The clients component's carried values at once (protocol/store/secrets.md).
@@ -91,7 +91,7 @@ pub struct Store {
     codec_limits: codec::View,
     layouts: codec::component::Layouts,
     /// Today's catalogue, overlaid at open and replaced before each catalogue commit.
-    names: Box<[jig_domain_core::settings::ModelName]>,
+    names: Box<[jig_domain_core_vocabulary::settings::ModelName]>,
     stores: Stores,
     phase: Phase,
     directory: directory::Directory,
@@ -160,12 +160,40 @@ pub fn seed(drivers: [&mut skein_io::file_layer::FileIo; 3], seed: u64) -> Seede
 }
 
 impl Store {
+    /// Public application rows for a written site's context, at the copy's current
+    /// levels (protocol/store/opening.md, 3). No serving codec runs over these bytes.
+    pub fn patch_page(
+        &mut self,
+        range: skein_kv::Range,
+        after: Option<&Cursor>,
+        rows: u32,
+    ) -> Result<PatchPage, OpenRefusal> {
+        let directory::Opening::Patching(phase) = &self.directory.opening else { return Err(OpenRefusal::Failed) };
+        let patching::phase::Patching::Walking(walking) = &**phase else { return Err(OpenRefusal::Failed) };
+        if !walking.at_site() || rows == 0 || rows > self.limits.store.ops {
+            return Err(OpenRefusal::Failed);
+        }
+        let ranges = pages::application(&[range], self.limits.store.key).ok_or(OpenRefusal::Failed)?;
+        let page = match pages::reader::walk(self, &ranges, after, rows) {
+            Ok(page) => page,
+            Err(failure) => {
+                self.open_failed(restore::OpenFailure::Data(failure));
+                return Err(OpenRefusal::Failed);
+            }
+        };
+        let mut found = skein_lib::List::with_capacity(rows);
+        for row in page.rows {
+            let key = keys::of_application(&row.row.key).ok_or(OpenRefusal::Failed)?;
+            found.push(skein_kv::Row { key: Box::from(key), value: row.row.value }).expect("bounded patch page");
+        }
+        Ok(PatchPage { rows: found.into_boxed(), next: page.next })
+    }
     /// A component over open stores; `models` are the configuration's, in its order.
     #[must_use]
     pub fn over(
         limits: &Limits,
         application: sizes::Application,
-        models: &[jig_domain_core::Model],
+        models: &[jig_domain_core_vocabulary::Model],
         stores: Stores,
     ) -> Store {
         let codec_limits = checked_codec(limits).expect("the store's limits are valid");
@@ -194,7 +222,7 @@ impl Store {
     pub fn on_directory(
         limits: &Limits,
         application: sizes::Application,
-        models: &[jig_domain_core::Model],
+        models: &[jig_domain_core_vocabulary::Model],
         _seeded: Seeded,
     ) -> Store {
         let stores =
@@ -205,7 +233,7 @@ impl Store {
     }
 
     /// Today's models, before a commit that holds them (domain/engine/settings.md, 11).
-    pub fn catalogue(&mut self, names: Box<[jig_domain_core::settings::ModelName]>) {
+    pub fn catalogue(&mut self, names: Box<[jig_domain_core_vocabulary::settings::ModelName]>) {
         self.names = names;
     }
 
@@ -266,6 +294,13 @@ impl Store {
     }
 }
 
+/// A bounded page read while a patch is stopped at a written site (protocol/store/opening.md, 3).
+#[derive(Debug)]
+pub struct PatchPage {
+    pub rows: Box<[skein_kv::Row]>,
+    pub next: Option<Cursor>,
+}
+
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
@@ -305,12 +340,12 @@ fn frame_bound(codec: &codec::View) -> Option<u64> {
 // Bound for two decoded records, including their wire values and the census's joined task.
 fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
     core_v6::Row::decoded_bound(&codec.core)?
-        .checked_add(tasks_v10::Row::decoded_bound(&codec.tasks)?)?
-        .checked_add(people_v15::Row::decoded_bound(&codec.people)?)?
+        .checked_add(tasks_v11::Row::decoded_bound(&codec.tasks)?)?
+        .checked_add(people_v16::Row::decoded_bound(&codec.people)?)?
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
-        .checked_add(settings_v2::Revision::decoded_bound(&codec.settings)?)?
-        .checked_add(jig_domain_core::settings::revision_bound(&limits.core)?)?
+        .checked_add(settings_v3::Revision::decoded_bound(&codec.settings)?)?
+        .checked_add(jig_domain_core_vocabulary::settings::revision_bound(&limits.core)?)?
         .checked_add(u64::try_from(size_of::<jig_domain_tasks::TaskRecord>()).ok()?)?
         .checked_mul(2)
 }
@@ -413,22 +448,11 @@ fn memory_env(limits: skein_kv::Limits) -> Env<skein_kv::Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits }
 }
 
-#[rustfmt::skip]
-#[path = "generated/accounts_v2.rs"]
-pub mod accounts_v2;
-#[rustfmt::skip]
-#[path = "generated/notes_v1.rs"]
-pub mod notes_v1;
-#[rustfmt::skip]
-#[expect(clippy::similar_names, reason = "generated StoredActed retains its domain fields act and at")]
-#[path = "generated/people_v15.rs"]
-pub mod people_v15;
-#[rustfmt::skip]
-#[path = "generated/tasks_v10.rs"]
-pub mod tasks_v10;
-#[rustfmt::skip]
-#[path = "generated/core_v6.rs"]
-pub mod core_v6;
+pub use jig_protocol_store_core::core_v6;
+pub use jig_protocol_store_families::accounts_v2;
+pub use jig_protocol_store_families::notes_v1;
+pub use jig_protocol_store_people::people_v16;
+pub use jig_protocol_store_tasks::tasks_v11;
 pub mod keys;
 pub use boundary::{
     Arrived, BackRefusal, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io,
@@ -439,16 +463,10 @@ pub use boundary::{
 #[cfg(test)]
 mod tests;
 
-#[rustfmt::skip]
-#[path = "generated/settings_v2.rs"]
-pub mod settings_v2;
-#[rustfmt::skip]
-#[path = "generated/component_v3.rs"]
-pub mod component_v3;
+pub use jig_protocol_store_families::component_v3;
+pub use jig_protocol_store_settings::settings_v3;
 #[rustfmt::skip]
 #[path = "generated/layouts.rs"]
 mod layouts;
 
-#[rustfmt::skip]
-#[path = "generated/secrets_v1.rs"]
-pub mod secrets_v1;
+pub use jig_protocol_store_families::secrets_v1;

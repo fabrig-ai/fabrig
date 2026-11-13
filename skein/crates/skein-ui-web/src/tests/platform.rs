@@ -22,9 +22,9 @@ fn a_platform_without_tabs_refuses_and_does_nothing_else() {
 
     let mut platform = super::fixtures::FakePlatform::default();
     assert!(!platform.open_tab(b"Opening sign-in"));
-    assert!(platform.calls.is_empty());
+    assert_eq!(platform.calls.len(), 0);
     platform.point_tab(b"/sign-in");
-    assert!(platform.calls.is_empty());
+    assert_eq!(platform.calls.len(), 0);
     platform.close_tab();
-    assert!(platform.calls.is_empty());
+    assert_eq!(platform.calls.len(), 0);
 }

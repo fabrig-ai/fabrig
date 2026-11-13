@@ -457,8 +457,8 @@ fn an_openid_sign_in_without_refresh_keeps_its_identity() {
     assert_eq!((record.key, record.generation, record.expires_at), (7, 1, wall(34)));
     assert!(record.refresh_state().is_none());
     assert!(record.access_token.expose() == b"access");
-    assert!(record.subject.as_deref() == Some(b"user-42"));
+    assert_eq!(record.subject.as_deref(), Some(b"user-42".as_slice()));
     assert!(record.id_token.is_some() && record.id_token == response.id_token);
     let encoded = encode_record(&record, &limits().document).expect("encode");
-    assert!(decode_record(&encoded, &limits().document).expect("decode") == record);
+    assert_eq!(decode_record(&encoded, &limits().document).expect("decode"), record);
 }

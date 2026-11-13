@@ -537,16 +537,15 @@ pub fn decode_settings(bytes: &[u8]) -> Result<SettingsFile, GoldenError> {
     }
     Ok(SettingsFile { items })
 }
-/// Read the embedded reference settings profile.
+/// Read the golden's embedded settings profile from `golden/profile.json`.
 ///
 /// # Errors
 /// Returns an invalid settings envelope's path and reason.
 pub fn profile() -> Result<SettingsFile, GoldenError> {
-    decode_settings(include_bytes!("../../../docs/examples/reference/settings.json"))
+    decode_settings(include_bytes!("../golden/profile.json"))
 }
 
 /// Print the obligations, or the whole golden as JSON.
-#[must_use]
 pub fn main(args: &[String]) -> ExitCode {
     if !(args.is_empty() || args == ["--json"]) {
         return crate::cli::refuse(&crate::TABLE.refusal(&crate::cli::OBLIGATIONS, "invalid arguments"));

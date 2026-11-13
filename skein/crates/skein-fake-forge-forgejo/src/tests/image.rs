@@ -82,6 +82,32 @@ fn setup_image_restores_authentication_counters_and_hooks() {
 }
 
 #[test]
+fn setup_image_keeps_repositories_created_after_seeding() {
+    let mut source = f::Harness::creating();
+    for name in [b"org".as_slice(), b"work"] {
+        source.send(&Request::CreateOrg { person: boxed(b"kit"), name: boxed(name) });
+        assert_eq!(source.status(), 201);
+    }
+    let create = Request::CreateRepository { org: boxed(b"work"), name: boxed(b"kept"), private: true };
+    source.send(&create);
+    assert_eq!(source.status(), 201);
+    let Document::CreatedRepository(created) = source.decoded(&create).document else { panic!("created repository") };
+    let image = source.service.image();
+    let domain = source.domain.image().expect("settled domain");
+    let mut restored = f::setup_harness();
+    restored.domain =
+        skein_fake_forge_domain::Domain::from_image(&source.fake_env.limits, &domain).expect("domain image");
+    restored.service.restore(&image).expect("service image");
+    for request in [Request::RepositoryById { id: created.id }, Request::RepoSearch { page: f::PAGE }] {
+        source.send(&request);
+        restored.send(&request);
+        assert_eq!(source.status(), 200);
+        assert_eq!(restored.status(), 200);
+        assert_eq!(restored.body(), source.body(), "the created repository is still routed and listed");
+    }
+}
+
+#[test]
 fn setup_image_refuses_malformed_and_over_limit_without_replacing_state() {
     let mut target = f::setup_harness();
     let before = target.service.image();
@@ -91,7 +117,7 @@ fn setup_image_refuses_malformed_and_over_limit_without_replacing_state() {
     for bytes in [b"arbitrary".as_slice(), image.get(..image.len().checked_sub(1).expect("cut")).expect("prefix")] {
         let refusal = target.service.restore(bytes).expect_err("malformed image");
         match refusal {
-            Refusal::Malformed(what) => assert!(!what.is_empty()),
+            Refusal::Malformed(what) => assert_ne!(what, ""),
             Refusal::Limits(what) => panic!("malformed image diagnosed as limit: {what}"),
         }
         assert!(target.service.image() == before, "refusal is atomic");

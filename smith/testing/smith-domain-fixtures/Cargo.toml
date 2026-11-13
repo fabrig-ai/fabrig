@@ -1,0 +1,18 @@
+[package]
+license.workspace = true
+name = "smith-domain-fixtures"
+description = "Shared test fixtures for smith-domain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+skein-lib.workspace = true
+smith-domain.workspace = true
+smith-domain-run-fixtures.workspace = true
+smith-domain-session-fixtures.workspace = true
+smith-domain-tools-fixtures.workspace = true
+
+[lints]
+workspace = true

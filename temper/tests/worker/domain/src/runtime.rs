@@ -282,6 +282,7 @@ impl World {
                 assert_eq!((run, attempt, preparation), (RUN, ATTEMPT, None));
                 self.answered(&answer, &work);
             }
+            Request::Abandon => panic!("unexpected stop bound"),
             Request::Stop => self.stops += 1,
             Request::Process(request) => self.process(*request),
             Request::Decode { agent, run, start } => {
@@ -385,7 +386,7 @@ impl World {
                     | agent::Reply::TooLarge) => panic!("unexpected delivery result: {other:?}"),
                 }
             }
-            agent::Down::Acknowledge { .. } | agent::Down::Cancel => {}
+            agent::Down::Acknowledge { .. } | agent::Down::Cancel | agent::Down::Drain => {}
             agent::Down::Message { .. } | agent::Down::Grant { .. } => panic!("unscripted down record"),
         }
     }
@@ -412,12 +413,12 @@ impl World {
                 };
                 Done::Fetched { commit: Commit::new(commit) }
             }
-            Op::Look { .. } | Op::DiffPaths { .. } | Op::IsAncestor { .. } => {
+            Op::Brings { .. } | Op::Look { .. } | Op::DiffPaths { .. } | Op::IsAncestor { .. } => {
                 panic!("this fixture has no producer retry")
             }
             Op::Merge { theirs, .. } => {
                 assert_eq!(theirs.raw(), BASE);
-                Done::Conflicted { files: Box::new([Box::from(PATH)]) }
+                Done::Conflicted { files: Box::new([Box::from(PATH)]), cut: false }
             }
             Op::Commit { title, body, merging, .. } => {
                 self.stats.commits += 1;
@@ -430,7 +431,7 @@ impl World {
                 let parent = (self.settings.merging && self.stats.saves == 0).then_some(Commit::new(BASE));
                 assert_eq!(merging, parent);
                 if self.unresolved {
-                    Done::Conflicted { files: Box::new([Box::from(PATH)]) }
+                    Done::Conflicted { files: Box::new([Box::from(PATH)]), cut: false }
                 } else {
                     Done::Committed { commit: Commit::new(LANDED) }
                 }
@@ -609,12 +610,12 @@ impl World {
             for number in committed + 1..=count {
                 self.ack(number);
             }
-            self.send(Event::Shutdown);
+            self.send(Event::Shutdown { drain: true });
             assert_eq!(self.domain.abandoned(), 0);
             return;
         }
         let lacking = count - committed + u32::from(self.settings.close == Close::Unacknowledged);
-        self.send(Event::Shutdown);
+        self.send(Event::Shutdown { drain: true });
         assert_eq!(self.stops, u32::from(lacking == 0), "a worker keeps what the engine lacks while it may come back");
         if lacking > 0 {
             self.send(Event::Lost);
@@ -628,7 +629,7 @@ impl World {
     /// the grace, then opens before the run ends: the hello replays every
     /// turn the engine lacks, and nothing is given up.
     fn reopened(&mut self, count: u32, committed: u32) {
-        self.send(Event::Shutdown);
+        self.send(Event::Shutdown { drain: true });
         self.send(Event::Lost);
         self.send(Event::GracePassed);
         let copies = self.stats.copies;

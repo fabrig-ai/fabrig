@@ -46,6 +46,7 @@ this design.
 | the simulator | `skein-sim` | the simulated kernel and its faults; beside it, the conformance suite (`skein-conformance`) | [testing/simulator.md](testing/simulator.md) |
 | the fake LLM | `skein-fake-llm-domain`, `skein-fake-llm-protocol` | shared bounded scripts and independent byte peers; application worlds supply tools and policy | [testing/fakes/llm.md](testing/fakes/llm.md) |
 | the key-value store | `skein-kv` | ordered byte keys and values in memory, made durable by a commit log and snapshots on io's files | [data/kv.md](data/kv.md) |
+| the fake push service | `skein-fake-push` | for tests: a push service that checks a Web Push request's form, token and seal, records it and answers by a script; its peer in `skein-fake-peers` | [testing/fakes/push.md](testing/fakes/push.md) |
 | the fake checkout | `skein-fake-checkout` | for tests: deterministic files, scripted commands and local git mechanics; worlds own policy and delivery | [testing/fakes/checkout.md](testing/fakes/checkout.md) |
 | the counting allocator | `skein-heap` | for tests: the heap counted, and each scenario's peak checked under its ceiling | [testing/README.md](testing/README.md) |
 | the simulated world | `skein-sim-world`, `skein-fake-machine` | a service's processes hosted over the simulator and run a step at a time, as the harness and a playground run them; the minimal fake machine | [testing/world.md](testing/world.md) |
@@ -62,6 +63,7 @@ this design.
 | record patches | `skein-codec` | versioned patch files and upgrades of stored records | [data/codec/patches.md](data/codec/patches.md) |
 | the patch command | `skein-codegen` | keeping a crate's patches, generated files and drift check | [data/codec/command.md](data/codec/command.md) |
 | TLS | `skein-tls` | the TLS client, a stream over rustls's unbuffered connection, with ring | [net/tls.md](net/tls.md) |
+| Web Push | `skein-push` | a push message sealed for a browser's subscription and signed with the service's VAPID key, and its answer read | [net/push.md](net/push.md) |
 | the link | `skein-link` | one socket and its optional TLS, under a protocol layer's HTTP clients: the handshake, a body's upload, a bounded close that sends `close_notify` | [net/link.md](net/link.md) |
 | LLM | `skein-llm` | provider-neutral calls, streaming deltas, concrete replay and completions; subscription wire dialects | [llm/README.md](llm/README.md) |
 | LLM connections | `skein-llm-connection` | a protocol layer's component that runs LLM calls end to end: connecting, TLS, deadlines, reuse | [llm/connection.md](llm/connection.md) |
@@ -117,7 +119,9 @@ skein-fake-forge-forgejo lib, http, json, forge, fake-forge-domain, fake-forge-h
 skein-fake-forge-github lib, http, tls, json, forge, fake-forge-domain, fake-forge-http
 skein-fake-llm-domain lib
 skein-fake-llm-protocol lib, http, json, llm, fake-llm-domain
-skein-fake-peers lib, io, http, llm, oauth, shell, fake-llm-*, fake-oauth, fake-forge-*; rustls
+skein-push     lib, tls
+skein-fake-push lib, json, tls, http
+skein-fake-peers lib, io, http, llm, oauth, shell, fake-llm-*, fake-oauth, fake-forge-*, fake-push; rustls
 skein-fake-checkout nothing
 skein-throwaway-forgejo lib, io, http, json, shell, forge, fail-stop, world
 skein-browser  lib, json

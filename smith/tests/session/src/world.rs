@@ -52,7 +52,7 @@ pub const TOOLS: tools::Limits = tools::Limits {
     shell_tail: 256,
     search_hits: 16,
     search_bytes: 1024,
-    ..smith_domain_tools::fixture::SMALL
+    ..smith_domain_tools_fixtures::SMALL
 };
 
 /// Checked credit envelope around the original retained-payload pressure.
@@ -164,7 +164,7 @@ impl Settings {
                 backoff_max: Duration::from_secs(5),
                 parallel_tools: 4,
                 tools: TOOLS,
-                ..smith_domain_session::fixture::SMALL
+                ..smith_domain_session_fixtures::SMALL
             },
             provider: provider::Config {
                 calls: 16,

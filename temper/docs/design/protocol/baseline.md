@@ -206,6 +206,14 @@ store keeps its row until the first patch it meets writes the levels.
   golden store's line (6). A change every old value survives byte for
   byte needs none while its kept text is not frozen (skein's
   `data/codec/command.md`, 2, step 3).
+- **Patch 0005 carries v15 landing rows:** the stored adoption's
+  `settings.default_branch` supplies their target, and their new round
+  is `none` (`../domain/landing.md`, 12). The shell reads adoption rows
+  anew for each written site; a row with no members uses its project's
+  adoption rows only when they agree on the target. Missing or ambiguous
+  stored evidence refuses with `landing_branch_missing`, never a guessed
+  branch. Waiting, preparing, proving, proved, turn, landed, cancelled
+  and held rows are patch fixtures; in-flight entries and proofs survive.
 - **The gate's check is a focused test,** `fabrig-boundary`'s
   `tests/patches.rs`, which the gate runs for every change
   (`.config/gate/always.txt`): for each owner crate of 2's table, the
@@ -230,8 +238,10 @@ store keeps its row until the first patch it meets writes the levels.
 
 - **The fixture patch:** the real sets with temper's extended by one
   patch that changes no family, the one after temper's last (`patch 1`,
-  `owner temper 1 after jig 0` before the catch-up; `patch 2`, `owner
-  temper 2 after jig 1` after it, 9), `mark fresh-windows`, its set's `fresh` that word (skein's
+  `owner temper 1 after jig 0` before the catch-up; `patch 6`, `owner
+  temper 6 after jig 2` after the devices' patch 2, the closer question
+  relay's patch 3, R2's patch 4, the trains' patch 5 and the overlays' jig patch 2),
+  `mark fresh-windows`, its set's `fresh` that word (skein's
   `data/codec/patches.md`, 1: a patch may carry a mark and no block).
   A store made under the real sets is behind it, so a start under it
   plans, copies, patches (no record changed), closes every live window,
@@ -273,8 +283,9 @@ dev.fabrig.ai's, upgrades to it.
   reviewed; the golden test's assertions hold under them.
 - **What moves with them:** the binary's levels, jig 1 and temper 1, so
   `versions` prints `level jig 1` and `level temper 1`; the fixture patch
-  (8) is the one after temper's last, `patch 2`, `owner temper 2 after
-  jig 1`.
+  (8) follows the devices' patch 2, the closer question relay's patch 3
+  and R2's patch 4 at level 5, `owner temper 5 after jig 2`.
+
 - **Unchanged:** `BASELINE` (5), the baseline's versions and layouts, by
   which a store the baseline's build wrote reads as level 0 and is
   patched through both. A store a build of `main` after `bc23255eb7`

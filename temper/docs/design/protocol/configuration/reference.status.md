@@ -3,11 +3,6 @@
 2026-11-12. Where the tree's code lags or departs from [reference.md](reference.md).
 
 
-- **Not yet:** the whole document: the reference's charter 2 still tells the coder to run
-  shell lints and focused tests before delivery, and charter 5 still permits
-  asking for them (`docs/examples/reference/settings.json`), where the
-  delivery hook owns those checks. The charters' words are generated
-  elsewhere (`../../draft/delivery-checks.md`).
 - **Not yet:** the whole document: stage one's golden (`../../testing/README.md`, the
   reference's roles) names the deployment's two landing rules and not
   the case's project's rule 1, so a box Ask temper configures from the

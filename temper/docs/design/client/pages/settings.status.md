@@ -5,6 +5,7 @@
 
 - **Not yet:** 1: *Deleting a project*: How work runs has no "Delete project", so no sheet, no `RemoveProject` from `temper-client-domain` and no going to `AllHome` after [in flight: change 633].
 
+
 - **Departs:** 2: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui/README.md`, *A disclosure*); the
@@ -150,13 +151,13 @@ across fresh state directories and explicit configuration/cache paths.
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
-`../README.md`, section 2, and `../tui/README.md`, sections 1 and 2 have the clients' start, one for two binaries:
-`temper [ADDRESS]` and `temper-client [ADDRESS]` run
-`temper-client-shell-tui`'s `start` under their own names, both `ctl`s
-run `temper-client-shell-cli`'s, an argument's address or link is read
-by `temper-client-shell-terminal`'s `address`, and the link file and the
-private directories are `temper-shell`'s. The TUI's start has its table
-of refusals under both names.
+`../README.md`, section 2, and `../tui/README.md`, sections 1 and 2 have
+shared starts: `temper [ADDRESS]` runs `temper-client-shell-tui`'s `start`,
+given its captured environment and working directory; `temper ctl` and
+`temper-box ctl` run `temper-client-shell-cli`'s. An argument's address or
+link is read by `temper-client-shell-terminal`'s `address`, and the link
+file and private directories are `temper-shell`'s. The TUI's start has a
+table of refusals under its caller's name.
 
 - **Departs:** 2: a way the `ways` read gives with an empty
   `headline`, which no stock way has and a test world's may, heads How

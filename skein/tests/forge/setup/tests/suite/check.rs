@@ -17,7 +17,7 @@ fn two_tokens_of_one_user_are_accepted_and_the_user_is_kept() {
     assert_eq!(world.outcome(), Some(&Outcome::Identity { id, login: b"alice".as_slice().into() }));
     assert_eq!(world.file(Item::User).expect("user kept").expose(), &id.to_le_bytes());
     assert_eq!(world.requests(), &[Request::User, Request::User]);
-    assert!(fixtures::write_routes(&world, 0).is_empty());
+    assert_eq!(fixtures::write_routes(&world, 0).len(), 0);
 }
 
 #[test]

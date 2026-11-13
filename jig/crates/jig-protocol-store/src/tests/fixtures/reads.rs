@@ -1,7 +1,7 @@
 //! Small requester trees for party reads (protocol/store/loads.md, 3).
 use super::{core_rows, ended_task};
 use alloc::boxed::Box;
-use jig_domain_core::{self as core, Record};
+use jig_domain_core_vocabulary::{self as core, Record};
 use jig_domain_tasks as tasks;
 
 pub const GOAL: u64 = 31;

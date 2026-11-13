@@ -1,7 +1,7 @@
 //! Child pages and exclusive continuation (protocol/store/loads.md, 1).
 use super::fixtures::{self, PROJECT};
 use crate::{Cursor, Event, Load, Phase, Request, Row, Store, Write, keys};
-use jig_domain_core::Record;
+use jig_domain_core_vocabulary::Record;
 use jig_domain_notes as notes;
 use skein_lib::{List, Token};
 

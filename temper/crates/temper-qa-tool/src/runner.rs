@@ -366,6 +366,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         let Some(lock) = pass_files::free_lock(&directory)? else { return Ok(()) };
         pass_files::install(&self.home.builds.join(&start.build), &start.build, &directory)?;
         pass_files::write_setups(&mut self.git, &start.build, &pass_files::setups(&self.home, start.pass))?;
+        pass_files::prepare_files(&self.home, start.pass)?;
         *ledger = recorded;
         let command = self.agent_command(start.session, &configuration.agent.pass);
         let mut prepare = || -> Result<(), Refusal> {

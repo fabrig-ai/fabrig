@@ -1,6 +1,7 @@
 # live-tier: status
 
-2026-11-11. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
+2026-11-12. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
+
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
   the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
@@ -15,14 +16,14 @@
   stay for the next live walk, the second with `TEMPER_TEST_MANAGED_PERSON`
   set. That sitting's relay admits GraphQL's `VIEWER` alone
   (`bin/temper-box/tests/support/relay_managed.rs`) where the story's
-  admits `PULL` on the probe too (`bin/temper-box/tests/support/relay.rs`),
+  admits `PULL` on the probe too (`testing/temper-box-kit/src/relay.rs`),
   and an open pull on an organization's repository reads through `PULL`
   (`skein/crates/skein-forge/src/github/plans/reads/pulls.rs`); whether
   a live sitting's engine reads the pull it opens is unknown.
   the whole document: a live
   story ending at its task's first terminal failure. the whole document: the live GitHub
   story connects the probe App without `--read-only`, so its record's
-  `read_only` is false (`bin/temper-box/tests/support/live_github.rs`).
+  `read_only` is false (`testing/temper-box-kit/src/live_github.rs`).
   the whole document: the owned-forge
   landing pair has not passed in the after-landing tier: neither story
   has passed live on its own store. The focused settings proof above
@@ -65,7 +66,7 @@
   shaper renders the template's `acme` to the owner, so `acme` would
   prove nothing. The relay's own tests take `acme` and `alice`.
   the whole document: Offline startup admission: no shared helper clears goal projection
-  grants. `bin/temper-box/tests/support/live_github.rs`'s
+  grants. `testing/temper-box-kit/src/live_github.rs`'s
   `configure_engine` clears none, and `github_land.rs`'s, a separate
   function, removes the charters, templates, policies and rules for
   stock policy 1. No reason is recorded.

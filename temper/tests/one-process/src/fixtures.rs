@@ -79,6 +79,7 @@ pub(crate) fn world_document() -> serde_json::Value {
     // The native client admits eight exchanges beside its event stream.
     value["engine"]["limits"]["overrides"]["clients_http.calls"] = 9.into();
     value["engine"]["limits"]["overrides"]["clients.exchanges"] = 9.into();
+    crate::push::configure(&mut value);
     crate::lower::configure(&mut value);
     crate::lower::github::configure(&mut value);
     crate::m15::configure(&mut value);
@@ -91,6 +92,7 @@ pub(crate) fn world_document() -> serde_json::Value {
 }
 pub(crate) fn files() -> temper_service::settings::Files {
     let mut files = documents::files();
+    crate::push::files(&mut files);
     if crate::stories::held_change() && crate::stories::first_start() {
         files
             .entries

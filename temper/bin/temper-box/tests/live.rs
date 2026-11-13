@@ -1,6 +1,6 @@
 //! A person asks a real model to change a repository on the owned forge.
-pub mod support;
 use skein_lib::Duration;
+use temper_box_kit as support;
 #[test]
 #[ignore = "live: a person's fresh ChatGPT sign-in, through scripts/proof-live.sh"]
 fn a_real_model_answers_a_chat_and_pushes_a_small_change() {
@@ -30,7 +30,7 @@ fn a_real_model_answers_a_chat_and_pushes_a_small_change() {
 
 /// testing/live-tier.md: init's shipped chat chooses change on real Responses.
 #[test]
-#[ignore = "live: a held ChatGPT account, TEMPER_TEST_LIVE_ACCOUNT; the after-landing tier, or scripts/proof-live.sh forge-land"]
+#[ignore = "live: a held ChatGPT account, TEMPER_TEST_LIVE_ACCOUNT; scripts/proof-live.sh forge-land"]
 fn a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge() {
     let account = support::forge_land::live_account();
     owned_forge_landing(support::forge_land::LiveModel::ChatGpt { account: account.as_deref() });
@@ -51,6 +51,22 @@ fn a_person_asks_claude_code_to_land_a_change_on_the_owned_forge() {
         temper_test_env::value(&temper_test_env::LIVE_CLAUDE).expect("held Claude Code login"),
     );
     owned_forge_landing(support::forge_land::LiveModel::ClaudeCode { login: &login });
+}
+
+/// testing/live-tier.md: the direct backend on an Anthropic key, with no held record.
+#[test]
+#[ignore = "live: an Anthropic API key, TEMPER_TEST_LIVE_ANTHROPIC_KEY; the after-landing tier, or scripts/proof-live.sh forge-land-claude-key"]
+fn a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge() {
+    use support::forge_land::{LiveModel, anthropic_key};
+    let key = match anthropic_key(temper_test_env::value(&temper_test_env::LIVE_ANTHROPIC_KEY)) {
+        Ok(Some(key)) => key,
+        Ok(None) => {
+            support::live::notice("TEMPER_TEST_LIVE_ANTHROPIC_KEY is unset; forge-land-claude-key skips");
+            return;
+        }
+        Err(reason) => panic!("{reason}"),
+    };
+    owned_forge_landing(LiveModel::AnthropicKey { key: &key });
 }
 
 #[expect(clippy::too_many_lines, reason = "The guard spans both sittings and their landing assertions.")]

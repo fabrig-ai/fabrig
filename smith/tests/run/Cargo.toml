@@ -12,8 +12,9 @@ test = false
 doctest = false
 
 [dependencies]
+smith-domain-run-fixtures.workspace = true
 skein-lib.workspace = true
-smith-domain-run = { workspace = true, features = ["fixture"] }
+smith-domain-run.workspace = true
 skein-world.workspace = true
 
 [dev-dependencies]

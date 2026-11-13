@@ -398,6 +398,13 @@ fn text(
     out.put(b"\n");
 }
 fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
+    if let c::Outcome::Document(c::DocumentOutcome::ServiceMade { person: party })
+    | c::Outcome::Made { what: c::Made::Service { party } } = done
+    {
+        out.put(b"made: party ");
+        out.number(*party);
+        return;
+    }
     if let c::Outcome::Document(c::DocumentOutcome::Left { task }) = done {
         out.put(b"left: task ");
         out.number(*task);
@@ -786,6 +793,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::CHAT_CREATE_AT => &rows::CHAT_CREATE,
         rows::GOAL_START_AT => &rows::GOAL_START,
         rows::ROLE_START_AT => &rows::ROLE_START,
+        rows::NEED_ASK_AT => &rows::NEED_ASK,
         rows::ROLE_TALK_AT => &rows::ROLE_TALK,
         rows::MESSAGE_AT => &rows::MESSAGE,
         rows::CLOSE_AT => &rows::CLOSE,
@@ -807,6 +815,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::MOVE_TO_NEWEST_AT => &rows::MOVE_TO_NEWEST,
         rows::RESTORE_AT => &rows::RESTORE,
         rows::PROJECT_MAKE_AT => &rows::PROJECT_MAKE,
+        rows::PARTY_MAKE_AT => &rows::PARTY_MAKE,
         rows::PROJECT_FUND_AT => &rows::PROJECT_FUND,
         rows::PROJECT_AMEND_AT => &rows::PROJECT_AMEND,
         rows::PROJECT_DELETE_AT => &rows::PROJECT_DELETE,
@@ -1328,6 +1337,7 @@ fn owner_lack(lacking: &c::Lacking) -> bool {
 fn creation_word(tasks: &skein_lib::List<c::NewTask>) -> &'static [u8] {
     match tasks.get(0) {
         Some(task) if task.flags.ended_by == c::EndedBy::Standing => b"role",
+        Some(c::NewTask { executor: c::Executor::Person(_), .. }) => b"need",
         Some(task) if !task.flags.conversation => b"goal",
         Some(_) | None => b"chat",
     }

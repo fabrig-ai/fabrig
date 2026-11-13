@@ -2,7 +2,8 @@
 
 Provisional, 2026-10-19. What OpenAI's and Anthropic's terms and
 developer documentation allow an application on jig to do with a
-person's subscription or API account, as read on 2026-10-17: who may
+person's subscription or API account, as read on 2026-10-17 (Anthropic's
+pages again on 2026-11-12, where section 3 says so): who may
 sign in and through which flow, which endpoints a token may reach, what
 may be stored, lent or shared, and what a person must be shown. Sections
 2 and 3 state the LLM providers' rules; section 4 lists what is still to
@@ -228,7 +229,8 @@ legal and compliance page:
   authentication is intended exclusively for purchasers of Claude Free,
   Pro, Max, Team, and Enterprise subscription plans and is designed to
   support ordinary use of Claude Code and other native Anthropic
-  applications."
+  applications." Read again on 2026-11-12, the page's plan lists name
+  Ultra too: "Free, Pro, Max, Ultra, Team, and Enterprise".
 - **Products use API keys:** "Developers building products or services
   that interact with Claude's capabilities, including those using the
   Agent SDK, should use API key authentication through Claude Console
@@ -247,6 +249,21 @@ legal and compliance page:
   measures to enforce these restrictions and may do so without prior
   notice." Reports date the enforcement against third-party tools from
   2026-01-09, and the page's wording from 2026-02-19.
+- **The Agent SDK's note:** "Unless previously approved, Anthropic does
+  not allow third party developers to offer claude.ai login or rate
+  limits for their products, including agents built on the Claude Agent
+  SDK." (the Agent SDK overview, read 2026-11-12).
+- **The help center, for products and third-party tools:** "If you're
+  building a product, application, or tool for others, use API key
+  authentication through Claude Console or a supported cloud provider."
+  Before it, Anthropic "may at its discretion allow paid subscribers who
+  have enabled usage credits to use certain third-party tools", whose use
+  draws "from usage credits rather than subscription limits" (Log in to
+  your Claude account, read 2026-11-12).
+- **The Usage Policy,** effective 2026-11-12, forbids to "Resell, proxy,
+  or otherwise provide access to Claude through unauthorized means,
+  including services that route requests through consumer subscriptions
+  or misrepresent the product or client being used".
 
 ### 3.2 Claude Code in a product
 
@@ -265,8 +282,11 @@ legal and compliance page:
     plan credentials or cloud provider credential.
 - **Names:** a product may say in plain text that it runs Claude Code,
   but may not use the Claude Code or Anthropic names or logos in its
-  own product, feature or company name or logo, or suggest Anthropic's
-  endorsement.
+  own product, feature or company name or logo, nor use them "in a way
+  that suggests Anthropic built, endorses, or is partnered with your
+  product". "Any other use of Anthropic's names or logos is governed by
+  our Trademark Guidelines and requires our written permission." (read
+  2026-11-12).
 
 ### 3.3 Claude Code's sign-in, per machine
 
@@ -280,6 +300,7 @@ legal and compliance page:
   `third_party`. Read on 2026-11-07, signed in with a subscription, version
   2.1.312's answer also names `email`, `orgId`, `orgName` and
   `subscriptionType`; a reader takes a status that omits one as naming none.
+  From 2.1.268 it also names `configDirectory` (read 2026-11-12).
 - **Kept by Claude Code, on each machine:** the macOS Keychain, or
   `~/.claude/.credentials.json` (`0600`) on Linux, and the same file
   under `%USERPROFILE%` on Windows. `CLAUDE_CONFIG_DIR` names a
@@ -290,23 +311,30 @@ legal and compliance page:
   printed, never saved, set by the person as `CLAUDE_CODE_OAUTH_TOKEN`.
   An application that stored it or passed it on would hold a Claude.ai
   session token (3.1).
-- **Which credential wins:** a cloud provider's, then
-  `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_API_KEY`, an `apiKeyHelper`,
-  `CLAUDE_CODE_OAUTH_TOKEN`, Anthropic profiles, and last the
-  subscription login. In `-p`, `ANTHROPIC_API_KEY` "is always used when
-  present".
+- **Which credential wins:** a Claude apps gateway session, above the
+  whole list; a cloud provider's, then `ANTHROPIC_AUTH_TOKEN`,
+  `ANTHROPIC_API_KEY`, an `apiKeyHelper`, `CLAUDE_CODE_OAUTH_TOKEN`,
+  Anthropic profiles, and last the subscription login. In `-p`,
+  `ANTHROPIC_API_KEY` "is always used when present". The Anthropic
+  profiles, read on 2026-11-12, are a named profile, `ANTHROPIC_PROFILE`;
+  the federation variables, `ANTHROPIC_FEDERATION_RULE_ID` with
+  `ANTHROPIC_ORGANIZATION_ID`; and an active `oidc_federation` profile in
+  `~/.config/anthropic`, outside `CLAUDE_CONFIG_DIR`.
 
 ### 3.4 Usage and billing
 
 - **Ordinary, individual use:** "Advertised usage limits for Pro and Max
   plans assume ordinary, individual usage of Claude Code and the Agent
-  SDK."
+  SDK." Read again on 2026-11-12, the page's plan lists name Ultra
+  beside them (3.1).
 - **Programmatic use draws from the plan:** Anthropic's help center says
   "Claude Agent SDK, `claude -p`, and third-party app usage still draw
   from your subscription limits"; since 2026-10-07, Max and Team plans
   also include monthly API credits covering the Agent SDK, `claude -p`,
   the Claude API and Managed Agents. A separate credit for programmatic
-  use, announced for 2026-06-15, is paused.
+  use, announced for 2026-06-15, is paused. Third-party tools Anthropic
+  allows for subscribers with usage credits draw from those credits, not
+  from the plan's limits (3.1).
 
 ### 3.5 Scripted runs
 
@@ -326,6 +354,9 @@ legal and compliance page:
   estimate), `--session-id` and `--resume`, which also takes a
   transcript file's path. SIGTERM exits 143 with the turn unfinished;
   SIGINT ends the turn.
+- **Updates:** `DISABLE_UPDATES` blocks every update path, where
+  `DISABLE_AUTOUPDATER` stops only the background check (the advanced
+  setup page, read 2026-11-12).
 
 ## 4. Open questions
 
@@ -340,7 +371,11 @@ legal and compliance page:
   need Anthropic's Commercial Terms, given that developers building on
   the Agent SDK "should use API key authentication" (3.1). Anthropic's
   legal page offers a contact for questions about permitted
-  authentication methods.
+  authentication methods. Recorded since (3.1, 2026-11-12) and bearing on
+  it: the Agent SDK's "Unless previously approved" note, the help
+  center's "use API key authentication" for a product built for others,
+  and the Usage Policy's "services that route requests through consumer
+  subscriptions".
 - **Go plans:** the developer documentation names Plus and Pro, the
   help center Go, Plus and Pro (2.1).
 
@@ -369,6 +404,14 @@ results and the trackers below.
   [Conduct Atlas](https://conductatlas.com/platform/openai/terms-of-use-row/provision/CA-P-017119/account-credential-sharing-prohibited/).
 - OpenAI's Codex lead on
   [X, 2026-09-08](https://x.com/thsottiaux/status/2097131394199896166).
+- Anthropic, read again on 2026-11-12 for 3.1 to 3.5 and 4: the legal
+  and compliance and authentication pages below; Claude Code's
+  [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview)
+  and [advanced setup](https://code.claude.com/docs/en/setup); Anthropic's
+  [Usage Policy](https://www.anthropic.com/legal/aup) and
+  [Trademark Guidelines](https://www.anthropic.com/legal/trademark-guidelines);
+  the help center's [Log in to your Claude
+  account](https://support.claude.com/en/articles/13189465-logging-in-to-your-claude-account).
 - Anthropic: [Claude Code legal and compliance](https://code.claude.com/docs/en/legal-and-compliance);
   [authentication](https://code.claude.com/docs/en/authentication);
   [CLI reference](https://code.claude.com/docs/en/cli-reference);

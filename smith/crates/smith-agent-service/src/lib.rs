@@ -35,6 +35,3 @@ pub use service::{
     done, effects_valid, failure, io_valid, iterate, next_deadline, next_policy_deadline, program_operations,
     program_valid, valid, work_pending,
 };
-
-#[cfg(any(test, feature = "fixture"))]
-pub mod fixture;

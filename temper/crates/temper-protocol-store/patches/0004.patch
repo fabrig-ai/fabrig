@@ -1,0 +1,32 @@
+patch 1
+owner temper 4 after jig 1
+
+family temper-store 14 to 15
+add FindingsTopic
+add Topic.findings
+add FindingCount
+add FindingHolder
+add FindingHeld
+add FindingAreas
+add FindingWords
+add FindingRefusal
+add FindingRefused
+add FindingResult
+add FindingReply
+add CallPayload.finding
+add AreaTask
+add AreaParty
+add AreaRole
+add AreaCharter
+add AreaOwner
+add Area
+add ProjectAreas
+add ProjectTriager
+add SettingValue.areas
+add SettingValue.triager
+add FindingKind
+add Severity
+add FindingState
+add Filer
+add Finding
+add Value.finding

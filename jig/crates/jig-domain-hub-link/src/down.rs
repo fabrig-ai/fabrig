@@ -1,6 +1,6 @@
 //! Translate the core's hub outputs (jig/docs/design/domain/root.md, 5).
 use crate::{Event, Link};
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_host as host;
 use skein_lib::Token;
 /// Connected channels receive the hub's vocabulary; other outputs stay with the root.
@@ -68,6 +68,7 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         | core::Held::Relay { .. }
         | core::Held::PeopleReply { .. }
         | core::Held::CallAnswer { .. }
+        | core::Held::NeedArrived { .. }
         | core::Held::Result { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::TurnBusy { .. }

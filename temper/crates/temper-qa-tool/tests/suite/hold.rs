@@ -56,6 +56,7 @@ fn the_ledger_watch_ends_the_drive_and_releases_the_place() {
         assert!(!place.join("drive.sock").exists());
         lock.try_lock().expect("place free");
         let args = fs::read_to_string(place.join("arguments")).expect("drive arguments");
+        assert!(args.contains(&format!("--files {}", home.directory.join("passes/1/files").display())), "{args}");
         assert_eq!(args.contains("--ports 31001,31002,31003,31004,31005,31006,31007,31008,31009"), fixed, "{args}");
         assert_eq!(args.contains("--ports"), fixed, "{args}");
     }

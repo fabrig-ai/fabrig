@@ -2,12 +2,12 @@ use super::fixtures;
 use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge as forge;
 
-// TierRow dominates Row with eight goal branches, each holding sixteen 256-byte test ids.
-const APPLICATION_ROW_BYTES: u32 = 178_063;
+// The closer's optional question and deferred messages dominate Row at these limits.
+const APPLICATION_ROW_BYTES: u32 = 604_927;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
-    // The full tier row reaches its encoded bound, including all goals (tests/tiers.rs).
+    // The bound includes the closer's retained question, answer and deferred messages.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
         Some(jig_protocol_store::sizes::Application {
@@ -19,23 +19,23 @@ fn the_application_sizes_are_the_largest_key_and_row() {
 }
 #[test]
 fn the_change_bound_follows_the_tier_landings_ceilings() {
-    let ceilings = crate::v12::CEILINGS;
+    let ceilings = crate::v16::CEILINGS;
     let least = ceilings.tier_row_pending.min(ceilings.tier_run_landings).min(ceilings.tier_finding_blamed);
     let bound = crate::forge_changes_bound().expect("tier rows hold a landing");
     assert_eq!(crate::tier_landings_ceiling(), least);
     assert_eq!([ceilings.tier_row_pending, ceilings.tier_run_landings, ceilings.tier_finding_blamed], [759; 3]);
     assert_eq!(bound, 379);
     assert_eq!(bound, (least - 1) / 2);
-    assert_eq!(crate::v12::TierRow::encoded_bound(&ceilings), Some(4_291_165_782));
+    assert_eq!(crate::v16::TierRow::encoded_bound(&ceilings), Some(4_291_173_978));
     let mut forge = fixtures::LIMITS;
     forge.changes = bound;
     let limits = records::limits(&forge).unwrap();
     assert_eq!(limits.tier_row_pending, 2 * bound + 1);
     assert_eq!(limits.tier_run_landings, 2 * bound + 1);
     assert_eq!(limits.tier_finding_blamed, 2 * bound + 1);
-    crate::v12::check_limits(&limits).expect("the boundary fits all three ceilings");
+    crate::v16::check_limits(&limits).expect("the boundary fits all three ceilings");
     forge.changes = bound + 1;
-    assert!(crate::v12::check_limits(&records::limits(&forge).unwrap()).is_err());
+    assert!(crate::v16::check_limits(&records::limits(&forge).unwrap()).is_err());
 }
 
 #[test]
@@ -72,8 +72,8 @@ fn a_row_whose_key_disagrees_with_its_record_is_undecodable() {
     assert_eq!(records::row(&key, &[], &bounds), Err(Undecodable::Malformed), "malformed value");
 }
 #[test]
-fn the_store_version_is_eleven() {
-    assert_eq!(crate::STORE_VERSION, 12);
+fn the_store_version_is_sixteen() {
+    assert_eq!(crate::STORE_VERSION, 16);
 }
 
 #[test]
@@ -86,17 +86,17 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     const ISSUE_ROW_AFTER_HEAP_CEILING: u64 = 10_000;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let after = *bounds.limits();
-    let before = crate::v12::Limits { plan_item_text: fixtures::LIMITS.issue_policy.comment_bytes, ..after };
-    let old_view = crate::v12::GoalView::encoded_bound(&before).expect("old view size");
-    let new_view = crate::v12::GoalView::encoded_bound(&after).expect("new view size");
+    let before = crate::v16::Limits { plan_item_text: fixtures::LIMITS.issue_policy.comment_bytes, ..after };
+    let old_view = crate::v16::GoalView::encoded_bound(&before).expect("old view size");
+    let new_view = crate::v16::GoalView::encoded_bound(&after).expect("new view size");
     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
-    // The schema's fixed framing plus the measured view; TierRow dominates Row.
+    // The schema's fixed framing plus the measured view; the closer still dominates Row.
     assert_eq!(old_view, 5238);
     assert_eq!(new_view, 7286);
-    assert_eq!(crate::v12::IssueRow::encoded_bound(&before), Some(5657));
-    assert_eq!(crate::v12::IssueRow::encoded_bound(&after), Some(7705));
-    assert_eq!(crate::v12::IssueRow::decoded_bound(&before), Some(5888));
-    assert_eq!(crate::v12::IssueRow::decoded_bound(&after), Some(7936));
+    assert_eq!(crate::v16::IssueRow::encoded_bound(&before), Some(5657));
+    assert_eq!(crate::v16::IssueRow::encoded_bound(&after), Some(7705));
+    assert_eq!(crate::v16::IssueRow::decoded_bound(&before), Some(5888));
+    assert_eq!(crate::v16::IssueRow::decoded_bound(&after), Some(7936));
     for (name, limits, ceiling) in
         [("before", before, ISSUE_ROW_BEFORE_HEAP_CEILING), ("after", after, ISSUE_ROW_AFTER_HEAP_CEILING)]
     {
@@ -104,21 +104,21 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
         let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("row length"));
         row.encode(&mut writer).expect("measured room");
         let encoded = writer.finish();
-        assert_eq!(Some(skein_lib::len_u64(encoded.len())), crate::v12::IssueRow::encoded_bound(&limits));
+        assert_eq!(Some(skein_lib::len_u64(encoded.len())), crate::v16::IssueRow::encoded_bound(&limits));
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
         let decoded =
-            crate::v12::IssueRow::decode(&limits, &mut skein_lib::Reader::new(&encoded)).expect("full issue row");
+            crate::v16::IssueRow::decode(&limits, &mut skein_lib::Reader::new(&encoded)).expect("full issue row");
         let peak = meter.end().peak();
         assert!(peak <= ceiling, "{name}: {peak} bytes exceeds {ceiling}");
         assert_eq!(decoded, row);
     }
-    assert_eq!(crate::v12::Row::encoded_bound(&before), Some(u64::from(APPLICATION_ROW_BYTES)));
-    assert_eq!(crate::v12::Row::encoded_bound(&after), Some(u64::from(APPLICATION_ROW_BYTES)));
+    assert_eq!(crate::v16::Row::encoded_bound(&before), Some(u64::from(APPLICATION_ROW_BYTES)));
+    assert_eq!(crate::v16::Row::encoded_bound(&after), Some(u64::from(APPLICATION_ROW_BYTES)));
 }
 
-fn full_issue_row(limits: &crate::v12::Limits) -> crate::v12::IssueRow {
-    use crate::v12 as w;
+fn full_issue_row(limits: &crate::v16::Limits) -> crate::v16::IssueRow {
+    use crate::v16 as w;
     use skein_lib::{List, bytes};
     let key = w::MilestoneKey::Lifecycle(
         w::Lifecycle::new(limits, w::LifecycleParts { task: u64::MAX, position: u64::MAX }).expect("fixed key"),
@@ -201,7 +201,7 @@ fn full_issue_row(limits: &crate::v12::Limits) -> crate::v12::IssueRow {
 
 #[test]
 fn largest_forge_record_fits_the_application_ceiling() {
-    use crate::v12 as w;
+    use crate::v16 as w;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let limits = bounds.limits();
     let bytes = |length| skein_lib::bytes::zeroed(usize::try_from(length).expect("field length"));
@@ -257,4 +257,19 @@ fn largest_forge_record_fits_the_application_ceiling() {
     payload += u64::from(limits.copy_intent_addresses)
         * (u64::try_from(size_of::<Box<[u8]>>()).unwrap() + u64::from(limits.copy_intent_addresses_item));
     assert_eq!(forge::stored_bytes(&row), Some(payload));
+}
+
+#[test]
+fn a_full_finding_reaches_its_bound_without_growing_the_application_row() {
+    let row = forge::Stored::Finding(fixtures::finding());
+    let encoded = records::encode(&row);
+    let limits = records::limits(&fixtures::LIMITS).unwrap();
+    let bound = crate::v16::Finding::encoded_bound(&limits).unwrap();
+    assert_eq!(encoded.len(), usize::try_from(bound).unwrap() + 3, "Row version and Value tag frame the finding");
+    assert!(bound < u64::from(APPLICATION_ROW_BYTES));
+    let full = crate::v16::Row::decode(&limits, &mut skein_lib::Reader::new(&encoded)).unwrap();
+    let crate::v16::Value::Finding(finding) = full.into_parts().value else { panic!("finding value") };
+    let mut parts = finding.into_parts();
+    parts.body = Box::new([b'b'; 4097]);
+    crate::v16::Finding::new(&crate::v16::CEILINGS, parts).unwrap_err();
 }

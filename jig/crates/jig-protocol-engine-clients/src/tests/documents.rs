@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::translate;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use skein_lib::List;
 fn me_preserves_two_projects_in_its_wire_record() {
     let limits = fixtures::wire_limits();
@@ -65,7 +65,7 @@ fn me_overflow_reports_the_wire_bound_it_exceeds() {
 fn a_non_utf8_document_text_fails_translation() {
     let limits = fixtures::wire_limits();
     for bytes in [&[0xc3_u8][..], &[255_u8, b'/'][..]] {
-        let value = jig_domain_core::documents::Text { bytes: bytes.into(), cut: true };
+        let value = jig_domain_core_vocabulary::documents::Text { bytes: bytes.into(), cut: true };
         assert_eq!(
             translate::owner::text(&value, &limits),
             Err(w::Problem { path: w::Path::DocumentTextBytes, reason: skein_codec::Reason::Utf8 })
@@ -259,8 +259,8 @@ fn a_project_document_carries_its_policy_s_template_overrides() {
     );
 }
 
-fn frame_with_creating_bounds() -> jig_domain_core::documents::Frame {
-    use jig_domain_core::acts;
+fn frame_with_creating_bounds() -> jig_domain_core_vocabulary::documents::Frame {
+    use jig_domain_core_vocabulary::acts;
     let mut frame = fixtures::frame_two_projects();
     for index in 0..frame.projects.len() {
         let project = frame.projects.get_mut(index).unwrap();
@@ -303,7 +303,7 @@ fn creating_and_compound_capacity_refusals_keep_the_operations_kind() {
 #[test]
 fn added_dependencies_and_kept_waits_cross_both_client_translations() {
     use jig_client_domain::contract as c;
-    use jig_domain_core::documents as d;
+    use jig_domain_core_vocabulary::documents as d;
     use jig_domain_tasks as t;
     use skein_lib::{List, Reader, Wall, Writer};
     let limits = fixtures::wire_limits();
@@ -369,7 +369,7 @@ fn a_circle_hold_keeps_its_order_and_cut_through_the_client() {
 
 #[test]
 fn task_settings_revisions_cross_into_the_wire_document() {
-    use jig_domain_core::documents::TaskSettings;
+    use jig_domain_core_vocabulary::documents::TaskSettings;
     let limits = fixtures::wire_limits();
     let mut source = fixtures::task_with_hold();
     for settings in [
@@ -393,7 +393,7 @@ fn task_settings_revisions_cross_into_the_wire_document() {
 
 #[test]
 fn an_owner_is_offered_remove_project_and_a_member_is_not() {
-    use jig_domain_core::acts::{Act, Admission, Offered};
+    use jig_domain_core_vocabulary::acts::{Act, Admission, Offered};
     use skein_lib::{List, Reader};
     let limits = fixtures::wire_limits();
     // The protocol preserves the party-specific offers supplied by the core
@@ -475,7 +475,7 @@ fn me_names_no_public_identifier_until_the_names_are_held() {
 #[test]
 fn the_task_document_carries_its_talk_session_and_offered_acts() {
     use jig_client_domain::contract as c;
-    use jig_domain_core::acts;
+    use jig_domain_core_vocabulary::acts;
     use jig_domain_tasks as t;
     use skein_lib::{Reader, Wall, Writer};
     let limits = fixtures::wire_limits();

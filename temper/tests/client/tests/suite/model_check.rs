@@ -84,7 +84,7 @@ fn the_success_story() {
     front.fault(now, FrontFault::Slow { span: Duration::from_millis(1) });
     h::event(&mut front, &mut root, event);
     running(&root, 0, b"Trying: Signed in to your subscription");
-    assert!(root.person().forge().trials().is_empty());
+    assert_eq!(root.person().forge().trials(), []);
     front.fault(now, FrontFault::Slow { span: Duration::ZERO });
     h::settle(&mut front, &mut root);
     front.reply_in_pieces(&[b"Yes"]);
@@ -321,7 +321,7 @@ fn removing_the_account_cancels_it() {
     h::event(&mut front, &mut root, Temper::went(Address::Accounts));
     press(&mut front, &mut root, Role::Button, b"Remove account");
     press(&mut front, &mut root, Role::Button, b"Confirm");
-    assert!(root.person().forge().trials().is_empty());
+    assert_eq!(root.person().forge().trials(), []);
     assert!(front.engine.task(task).is_none(), "account removal cancels its trial");
     assert_eq!(front.assignments.len(), 1);
 }

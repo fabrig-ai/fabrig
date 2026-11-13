@@ -1,4 +1,4 @@
-//! Forge HTTP in the session's existing pump; only this adapter reads the header.
+//! Forge HTTP in the session's existing pump; only this adapter reads the token.
 use super::super::{Event, forge::RESPONSE_BYTES};
 use skein_http::{self as http, client};
 use skein_io as io;
@@ -12,6 +12,32 @@ const LIMITS: client::Limits = client::Limits { request: 16384, head: 16384, hea
 pub(in crate::drive) fn read_log(path: &Path) -> Result<Box<[u8]>, String> {
     fs::read(path).map(Vec::into_boxed_slice).map_err(|why| format!("{}: {why}", path.display()))
 }
+/// Read only regular files, stopping one byte beyond each admission bound.
+pub(in crate::drive) fn read_files(directory: &Path, paths: &[Box<[u8]>]) -> Result<Vec<Box<[u8]>>, String> {
+    use std::{io::Read, os::unix::ffi::OsStrExt};
+    paths
+        .iter()
+        .map(|path| {
+            let path = directory.join(std::ffi::OsStr::from_bytes(path));
+            let read = || -> Result<Box<[u8]>, String> {
+                if !fs::metadata(&path).map_err(|why| why.to_string())?.is_file() {
+                    return Err("expected a regular file".into());
+                }
+                let mut bytes = vec![];
+                fs::File::open(&path)
+                    .map_err(|why| why.to_string())?
+                    .take(65537)
+                    .read_to_end(&mut bytes)
+                    .map_err(|why| why.to_string())?;
+                if bytes.len() > 65536 {
+                    return Err("more than 64 KiB".into());
+                }
+                Ok(bytes.into())
+            };
+            read().map_err(|why| format!("{}: {why}", path.display()))
+        })
+        .collect()
+}
 pub(in crate::drive) struct Prepared {
     pub call: client::Call,
     pub address: SocketAddr,
@@ -20,7 +46,7 @@ pub(in crate::drive) struct Prepared {
 }
 pub(in crate::drive) fn prepare(
     api: &[u8],
-    header: &Path,
+    token_file: &Path,
     method: http::Method,
     path: &[u8],
     body: Box<[u8]>,
@@ -31,12 +57,11 @@ pub(in crate::drive) fn prepare(
         .and_then(|rest| rest.strip_suffix("/api/v1"))
         .ok_or("forge API needs http://ADDRESS/api/v1")?;
     let address = authority.parse().map_err(|_| "forge API needs an IP address and port")?;
-    let line = fs::read(header).map_err(|why| format!("{}: {why}", header.display()))?;
-    let line = line.strip_suffix(b"\n").unwrap_or(&line);
-    let token = line
-        .strip_prefix(b"Authorization: token ")
-        .filter(|value| !value.is_empty() && value.iter().all(u8::is_ascii_graphic))
-        .ok_or_else(|| format!("{}: expected one Authorization: token header line", header.display()))?;
+    let bytes = fs::read(token_file).map_err(|why| format!("{}: {why}", token_file.display()))?;
+    let token = bytes.strip_suffix(b"\n").unwrap_or(&bytes);
+    if token.is_empty() || !token.iter().all(u8::is_ascii_graphic) {
+        return Err(format!("{}: expected a token with one optional final newline", token_file.display()));
+    }
     let call = client::Call {
         method,
         target: [b"/api/v1".as_slice(), path].concat().into(),

@@ -5,6 +5,9 @@ use super::*;
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_closer as closer;
 
+#[path = "closer_questions.rs"]
+mod questions;
+
 const STEPS: u32 = 1000;
 const CHANNEL: Token = Token::new(7);
 
@@ -503,7 +506,7 @@ fn a_closer_without_a_close_job_skips_the_close_step() {
     let row = closer_row(&world, closer).expect("closer row");
     assert!(row.close_changes.is_empty());
     assert_eq!(row.landing_changes.len(), 1);
-    assert!(world.jobs.is_empty());
+    assert_eq!(world.jobs.len(), 0);
     for _ in 0..300 {
         world.tick();
     }

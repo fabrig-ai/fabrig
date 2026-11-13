@@ -155,15 +155,15 @@ pub(crate) fn brief_part(words: &BriefWords, parts: u32, bytes: u32) -> BriefRea
 
 /// Reviews and repairs share the pull identity (temper/docs/design/domain/forge/change/gates.md, 1 and temper/docs/design/domain/forge/change/repairs.md).
 fn pull_identity(domain: &Domain, row: &crate::ChangeRow, head: BriefCommit, bytes: u32) -> Option<BriefWords> {
-    let number = row.pull?;
+    let (number, branch, base, _) = row.review_target()?;
     let mut words = BriefWords::with_capacity(bytes, false);
     for part in [
         b"Pull request: #".as_slice(),
         decimal(number).as_ref(),
         b"\nBranch: ",
-        &row.branch,
+        branch,
         b"\nBase: ",
-        &row.base,
+        base,
         b"\nHead: ",
         &crate::commit_text(&head.0),
         b"\n",
@@ -200,10 +200,10 @@ pub(super) fn brief_pull(
     bytes: u32,
     out: &mut Queue<Request>,
 ) -> Option<BriefRead> {
-    let Some(row) = domain.change_for_pull(item.repository, item.number) else {
+    let Some(row) = domain.change_for_brief(item.repository, item.number) else {
         return Some(BriefRead::Failed(unnamed()));
     };
-    if row.change.last_head != Some(head.0) {
+    if brief_head(row) != Some(head.0) {
         return Some(moved_change(domain, owner, item, head, BriefStage::Pull, out));
     }
     if parts == 0 {
@@ -652,7 +652,7 @@ fn finish_at_cutoff(domain: &mut Domain, mut fetch: BriefFetch, out: &mut Queue<
 /// own push (temper/docs/design/domain/forge/change/repairs.md, pinned pull sections).
 fn own_writer(domain: &Domain, fetch: &BriefFetch) -> bool {
     let Some(task) = fetch.task else { return false };
-    let Some(row) = domain.change_for_pull(fetch.item.repository, fetch.item.number) else { return false };
+    let Some(row) = domain.change_for_brief(fetch.item.repository, fetch.item.number) else { return false };
     for (name, hold) in &domain.holds {
         if name.forge == row.repository.forge
             && name.repository == row.repository.repository
@@ -691,7 +691,7 @@ fn own_head(fetch: &mut BriefFetch, head: skein_forge::api::Commit) {
 }
 
 fn wake_change(domain: &mut Domain, item: BriefItem) {
-    if let Some(row) = domain.change_for_pull(item.repository, item.number) {
+    if let Some(row) = domain.change_for_brief(item.repository, item.number) {
         let task = row.task;
         domain.procedure_wakes.insert(task, true).expect("one pending wake per change");
     }
@@ -707,8 +707,8 @@ fn moved_change(
     stage: BriefStage,
     out: &mut Queue<Request>,
 ) -> BriefRead {
-    let heads = match domain.change_for_pull(item.repository, item.number) {
-        Some(row) => match row.change.last_head {
+    let heads = match domain.change_for_brief(item.repository, item.number) {
+        Some(row) => match brief_head(row) {
             Some(head) if head != pinned.0 => Some((pinned.0, head)),
             Some(_) | None => None,
         },
@@ -962,10 +962,10 @@ pub(super) fn brief_reviews(
     bytes: u32,
     out: &mut Queue<Request>,
 ) -> Option<BriefRead> {
-    let Some(row) = domain.change_for_pull(item.repository, item.number) else {
+    let Some(row) = domain.change_for_brief(item.repository, item.number) else {
         return Some(BriefRead::Failed(unnamed()));
     };
-    if row.change.last_head != Some(head.0) {
+    if brief_head(row) != Some(head.0) {
         return Some(moved_change(domain, owner, item, head, BriefStage::Reviews, out));
     }
     if parts == 0 {
@@ -977,7 +977,12 @@ pub(super) fn brief_reviews(
     let repository = row.repository;
     let mut words = BriefWords::with_capacity(bytes, false);
     for remark in &row.gate_remarks {
-        if reviewed.is_none() && remark.head == head.0 {
+        let prefix = if let change::State::Repairing { why: change::Repair::Gate(gate), .. } = row.change.state {
+            domain.landing_refused_at(row.task, gate)
+        } else {
+            None
+        };
+        if reviewed.is_none() && (remark.head == head.0 || prefix == Some(remark.head)) {
             append(&mut words, b"Gate remarks: ");
             append(&mut words, &remark.words);
             append(&mut words, b"\n");
@@ -1039,13 +1044,23 @@ pub(super) fn brief_ci(
     max_job_bytes: u32,
     out: &mut Queue<Request>,
 ) -> Option<BriefRead> {
-    let Some(row) = domain.change_for_pull(item.repository, item.number) else {
+    let Some(row) = domain.change_for_brief(item.repository, item.number) else {
         return Some(BriefRead::Failed(unnamed()));
     };
+    if let change::State::Repairing { why: change::Repair::LandingAt { gate, candidate }, .. } = row.change.state {
+        let words = domain.candidate_failure_words(row.task, gate, candidate)?;
+        let kept = crate::text::fit(&words, skein_lib::usize_of(bytes), b"...");
+        return Some(BriefRead::Got { left: skein_lib::len_u64(words.len().saturating_sub(kept.len())), bytes: kept });
+    }
+    if let change::State::Repairing { why: change::Repair::Landing { gate }, .. } = row.change.state {
+        let words = domain.landing_failure_words(row.task, gate)?;
+        let kept = crate::text::fit(&words, skein_lib::usize_of(bytes), b"...");
+        return Some(BriefRead::Got { left: skein_lib::len_u64(words.len().saturating_sub(kept.len())), bytes: kept });
+    }
     let change::State::Repairing { .. } = row.change.state else {
         return Some(moved_change(domain, owner, item, head, BriefStage::Checks, out));
     };
-    if row.change.last_head != Some(head.0) {
+    if brief_head(row) != Some(head.0) {
         return Some(moved_change(domain, owner, item, head, BriefStage::Checks, out));
     }
     if parts == 0 {
@@ -1118,7 +1133,7 @@ fn decimal(number: u64) -> Box<[u8]> {
 }
 
 fn completed_item(domain: &Domain, item: BriefItem) -> bool {
-    match domain.change_for_pull(item.repository, item.number) {
+    match domain.change_for_brief(item.repository, item.number) {
         Some(row) => row.terminal(),
         None => false,
     }
@@ -1255,7 +1270,7 @@ fn pull_mode(state: &change::State, clean: &[[u8; 32]]) -> PullMode {
     match state {
         change::State::Resolving { base, .. } => PullMode::Conflict(*base),
         change::State::Repairing { why: change::Repair::Semantic, .. } => PullMode::Semantic(clean.last().copied()),
-        change::State::Gating { .. } => PullMode::Review,
+        change::State::Judging { .. } | change::State::Gating { .. } => PullMode::Review,
         change::State::Producing { .. }
         | change::State::WaitingProducer { .. }
         | change::State::Opening { .. }
@@ -1300,4 +1315,9 @@ fn refused(
         BriefStage::Run => "run",
     };
     out.push(Request::BriefReadRefused { section, stage, reason, heads, error });
+}
+
+fn brief_head(row: &crate::ChangeRow) -> Option<skein_forge::api::Commit> {
+    let (_, _, _, head) = row.review_target()?;
+    Some(head)
 }

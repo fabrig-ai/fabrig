@@ -411,6 +411,7 @@ fn explicit_start_live_fit_failure_is_sticky_and_does_not_erase() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn explicit_start_phases_reject_repeated_late_and_mixed_calls() {
     for bad in 0_u8..9 {
         let env = env();
@@ -831,6 +832,7 @@ fn loading_ended_witness_preserves_missing_person_until_link() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn projection_phase_and_operational_doors_assert() {
     for bad in 0_u8..9 {
         let env = env();

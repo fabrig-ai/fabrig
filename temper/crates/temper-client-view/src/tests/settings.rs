@@ -277,7 +277,7 @@ fn start_goes_to_ask_and_go_on_to_the_open_chat() {
             .filter(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Ask temper"))
             .map(|n| n.id)
             .collect();
-        assert!(!links.is_empty());
+        assert_ne!(links.len(), 0);
         for start in links {
             assert_eq!(crate::href(&mut view, start).as_deref(), Some(b"/projects/1/ask".as_slice()));
             assert_eq!(
@@ -328,7 +328,7 @@ fn start_goes_to_ask_and_go_on_to_the_open_chat() {
             .filter(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Ask temper"))
             .map(|n| n.id)
             .collect();
-        assert!(!links.is_empty());
+        assert_ne!(links.len(), 0);
         for go in links {
             assert_eq!(crate::href(&mut view, go), Some(d::address::print(&Address::Chat { task })));
             assert_eq!(
@@ -1083,7 +1083,7 @@ fn each_flow_draws_its_path_in_the_browser_and_none_in_the_terminal() {
         assert_eq!(last.name.as_deref(), Some(here));
         assert_eq!(f::nodes_text(subtree(browser.tree(), last.id)).as_ref(), here);
         assert!(last.binding.is_none() && last.external.is_none());
-        assert!(path.iter().find(|n| n.styles.as_slice().contains(&look::BACK)).unwrap().role == Role::Link);
+        assert_eq!(path.iter().find(|n| n.styles.as_slice().contains(&look::BACK)).unwrap().role, Role::Link);
         for ((id, name), (label, to)) in links.into_iter().zip(expected) {
             assert_eq!(name.as_deref(), Some(label));
             assert_eq!(crate::href(&mut browser, id).as_deref(), Some(to));
@@ -1745,6 +1745,7 @@ fn dismissal_refusals_stay_in_the_repository_row() {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Push(_)
             | d::Request::Fact { .. } => None,
         })
         .unwrap();

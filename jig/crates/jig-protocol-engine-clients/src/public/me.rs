@@ -1,7 +1,7 @@
 //! Public project identifiers in me (jig/docs/design/domain/people/public-reading.md, 8).
 use super::{Box, Component, Env, Limits, Queue, Request, Token, Waiting, core, routes, w};
 use crate::translate;
-use jig_domain_core::documents::{Document, Frame};
+use jig_domain_core_vocabulary::documents::{Document, Frame};
 use skein_lib::Writer;
 pub(super) fn frame(document: &Document) -> Option<&Frame> {
     match document {
@@ -101,17 +101,7 @@ impl Component {
         watch.delivery_pending = true;
         let value =
             delivery(frame, watch.name, watch.version, &self.settings.models, self.public.names(), &env.limits.wire);
-        match value {
-            Ok(value) => {
-                if !stream.queue(
-                    crate::stream::packet(value, crate::stream::Taken::Delivery(watcher)),
-                    env.limits.queued_bytes,
-                ) {
-                    stream.phase = crate::stream::Phase::Closing;
-                }
-            }
-            Err(_) => stream.phase = crate::stream::Phase::Closing,
-        }
+        self.queue_packet(env, watcher, value, crate::stream::Taken::Delivery(watcher), out);
     }
 }
 fn read(

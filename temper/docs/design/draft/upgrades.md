@@ -150,7 +150,8 @@ store and the wires upgrade, heading to v0.1.0, and dev.fabrig.ai
 exercises both (the user, 2026-11-11 and 11-12). A change of a stored
 layout moves its family's version at its landing and brings its patch
 (`staged-upgrades.md`, section 3); a change of a wire's layout moves
-its version and brings its bridge (`redeploys.md`, section 3). Where
+its version and brings its bridge, or is declared per-build in the
+bridge inventory (`redeploys.md`, sections 3 and 4.2). Where
 this draft says the first release for the baseline, read that store.
 Before it, each encoding kept its version and changed in place
 (`../protocol/README.md`, section 7), so a store from a build before

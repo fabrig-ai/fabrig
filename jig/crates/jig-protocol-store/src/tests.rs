@@ -30,6 +30,7 @@ mod words;
 mod frame_memory;
 mod frame_patches;
 mod settings_layout;
+mod settings_patch;
 
 #[test]
 fn valid_refuses_each_unrepresentable_limit() {
@@ -41,7 +42,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "decoded codec",
             crate::Limits {
-                core: jig_domain_core::Limits {
+                core: jig_domain_core_vocabulary::Limits {
                     tasks: jig_domain_tasks::Limits { spec_bytes: u32::MAX, ..limits.core.tasks },
                     ..limits.core
                 },
@@ -59,7 +60,7 @@ fn valid_refuses_each_unrepresentable_limit() {
         (
             "question ranges",
             crate::Limits {
-                core: jig_domain_core::Limits {
+                core: jig_domain_core_vocabulary::Limits {
                     tasks: jig_domain_tasks::Limits { tasks: u32::MAX, inbox_messages: 2, ..limits.core.tasks },
                     ..limits.core
                 },
@@ -69,7 +70,10 @@ fn valid_refuses_each_unrepresentable_limit() {
         ),
         (
             "reader addition",
-            crate::Limits { core: jig_domain_core::Limits { load_slots: u32::MAX, ..limits.core }, ..limits },
+            crate::Limits {
+                core: jig_domain_core_vocabulary::Limits { load_slots: u32::MAX, ..limits.core },
+                ..limits
+            },
             false,
         ),
     ] {

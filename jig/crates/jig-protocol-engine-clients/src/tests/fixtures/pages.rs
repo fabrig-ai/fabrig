@@ -1,6 +1,6 @@
 //! Core page literals independent of the shared wire records.
 use super::inbox_document;
-use jig_domain_core::{documents as d, reads};
+use jig_domain_core_vocabulary::{documents as d, reads};
 use jig_domain_tasks as t;
 use skein_lib::{List, Wall};
 
@@ -21,7 +21,10 @@ pub fn activity_page() -> reads::Page {
     ])));
     page.next = Some(reads::Cursor::Store {
         scope: reads::Scope::Activity { task: 7 },
-        after: Some(reads::Position::Owner(jig_domain_core::Key::Tasks(t::Key::Activity { task: 7, position: 7 }))),
+        after: Some(reads::Position::Owner(jig_domain_core_vocabulary::Key::Tasks(t::Key::Activity {
+            task: 7,
+            position: 7,
+        }))),
     });
     page
 }
@@ -40,8 +43,8 @@ fn turn_record(
     read: Option<u64>,
     at: u64,
     transcript: &[u8],
-) -> jig_domain_core::TurnRecord {
-    jig_domain_core::TurnRecord {
+) -> jig_domain_core_vocabulary::TurnRecord {
+    jig_domain_core_vocabulary::TurnRecord {
         opens_window: false,
         task: 7,
         attempt,

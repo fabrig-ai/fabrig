@@ -92,7 +92,7 @@ pub(crate) fn reservation_count(limits: &Limits) -> Option<u32> {
 pub(crate) fn place(
     store: &mut Store,
     number: u64,
-    turn: &jig_domain_core::TurnRecord,
+    turn: &jig_domain_core_vocabulary::TurnRecord,
     length: u64,
     ops: &mut List<skein_kv::Op>,
 ) -> Option<u64> {

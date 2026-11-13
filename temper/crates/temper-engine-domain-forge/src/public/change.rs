@@ -115,7 +115,9 @@ impl Domain {
             c::State::Recreating { .. } => w::PublicStep::Recreating,
             c::State::Reopening { .. } => w::PublicStep::Reopening,
             c::State::Checking { .. } => w::PublicStep::Checking,
-            c::State::Gating { .. } | c::State::CancellingGates { .. } => w::PublicStep::Gating,
+            c::State::Judging { .. } | c::State::Gating { .. } | c::State::CancellingGates { .. } => {
+                w::PublicStep::Gating
+            }
             c::State::Queued { .. } => w::PublicStep::Queued,
             c::State::First { .. } => w::PublicStep::First,
             c::State::Ready { .. } => w::PublicStep::Ready,
@@ -130,7 +132,7 @@ impl Domain {
                     c::Repair::Gate(gate) => w::PublicRepair::Gate(
                         w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: *gate }).ok()?,
                     ),
-                    c::Repair::Landing { gate } => w::PublicRepair::Landing(
+                    c::Repair::LandingAt { gate, .. } | c::Repair::Landing { gate } => w::PublicRepair::Landing(
                         w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: u64::from(*gate) })
                             .ok()?,
                     ),

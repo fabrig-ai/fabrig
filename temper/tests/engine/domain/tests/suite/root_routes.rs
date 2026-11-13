@@ -1185,7 +1185,7 @@ fn a_duplicate_person_identity_refuses_naming_both_rows() {
     );
     assert!(driver.stopped);
     assert!(!driver.root.ready());
-    assert!(driver.transactions.is_empty());
+    assert_eq!(driver.transactions.len(), 0);
 }
 
 #[test]
@@ -2097,6 +2097,56 @@ fn a_proposal_reaches_its_covering_task_and_is_accepted() {
         row.inbox.iter().any(|word| word.kind == tasks::MessageKind::ProposalDecision { proposal, accepted: true })
     );
     driver.broken("jig-domain-core/src/acts/bounds.rs:163: ended task Read::Task has no delegation context");
+}
+
+#[test]
+fn an_amend_proposal_without_authority_keeps_the_targets_whole_authority() {
+    let (mut driver, root) = batch_fixture_with(3, 3);
+    let mut target = report_delegate(b"original plan", Box::new([]));
+    target.authority.budget.spend = 50;
+    target.authority.delegation.kinds = Box::new([tasks::AuthorityExecutor::Charter(1)]);
+    target.authority.delegation.tasks = 1;
+    target.authority.delegation.depth = 1;
+    let target = call_batch(&mut driver, &root, 904, Box::new([target]))[0];
+    let target_run = assigned_task(&driver, target);
+    let proposer = call_batch(&mut driver, &target_run, 905, Box::new([report_delegate(b"delegate", Box::new([]))]))[0];
+    let proposer_run = assigned_task(&driver, proposer);
+    let before = live(&driver, target).clone();
+    let amendment = task_amendment(Some(b"revised plan"), None, b"plan needs revision");
+    assert_eq!(live(&driver, proposer).requester, tasks::Party::Task(target));
+    tool_call(
+        &mut driver,
+        &proposer_run,
+        907,
+        engine::Tool::Propose {
+            action: engine::ProposedAction::Amend { task: target, revision: before.revisions.spec, amendment },
+            reason: b"please revise the plan".as_slice().into(),
+            as_holder: false,
+        },
+    );
+    let proposal = proposal_of(&driver, 907);
+    let rendered = temper_engine_smith::answer(driver.answered(907).expect("proposal answered"));
+    assert!(!rendered.error());
+    assert!(rendered.text().starts_with(b"Proposed as "));
+    assert!(proposal_waits_at(&driver, proposer, tasks::ProposalHolder::Task(root.task)));
+    assert_eq!(live(&driver, target).authority, before.authority);
+    assert_eq!(live(&driver, target).spec, before.spec);
+    tool_call(
+        &mut driver,
+        &root,
+        908,
+        engine::Tool::Decide { proposer, proposal, decision: engine::ProposalChoice::Accept },
+    );
+    assert_eq!(
+        driver.answered(908),
+        Some(&engine::CallAnswer::ProposalDecided { proposal, outcome: tasks::ProposalOutcome::Accepted })
+    );
+    let after = live(&driver, target);
+    assert_eq!(after.spec.words.as_ref(), b"revised plan");
+    assert_eq!(after.revisions.spec, before.revisions.spec + 1);
+    assert_eq!(after.authority, before.authority);
+    assert_eq!(after.funder, tasks::Funder::Task(root.task));
+    assert!(live(&driver, proposer).proposal.is_none());
 }
 
 #[test]
@@ -3198,8 +3248,8 @@ fn a_missing_current_proof_refuses_before_any_restored_closing_effect_or_result(
     assert!(!restarted.root.ready());
     assert_eq!(restarted.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
     assert_eq!(restarted.store.rows, before, "no closing consequence committed");
-    assert!(restarted.switches.is_empty());
-    assert!(restarted.delivered.is_empty());
+    assert_eq!(restarted.switches.len(), 0);
+    assert_eq!(restarted.delivered.len(), 0);
     restarted.store.seed(driver.store.rows.values().cloned().collect(), Box::new([]));
     restarted.reopen(config(91));
     restarted.pump();
@@ -3259,8 +3309,8 @@ fn root_restore_loads_linked_task_shapes_and_refuses_a_missing_charter() {
             assert!(restarted.stopped);
             assert!(!restarted.root.ready());
             assert_eq!(restarted.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
-            assert!(restarted.switches.is_empty());
-            assert!(restarted.delivered.is_empty());
+            assert_eq!(restarted.switches.len(), 0);
+            assert_eq!(restarted.delivered.len(), 0);
         } else {
             let hosting = protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active);
             restarted.send(protocol::hello(Token::new(7), Box::new([hosting])));
@@ -3566,7 +3616,7 @@ fn a_rejected_hold_stays_rejected_across_a_restart() {
         temper_engine_domain_world::store::with_start_mark(before),
         "rejection never reopens or reroutes beside the start mark"
     );
-    assert!(driver.delivered.is_empty());
+    assert_eq!(driver.delivered.len(), 0);
 }
 
 #[test]
@@ -5110,7 +5160,7 @@ fn restart_refuses_live_tasks_or_claims_past_lowered_limits_without_dropping_the
         assert!(restarted.stopped);
         assert_eq!(restarted.root.start_phase(), Some(step));
         assert_eq!(restarted.store.rows, expected);
-        assert!(restarted.delivered.is_empty());
+        assert_eq!(restarted.delivered.len(), 0);
         restarted.env.limits = driver.env.limits;
         restarted.reopen(sharing_config(91));
         restarted.pump();
@@ -5424,7 +5474,7 @@ fn restored_rejection_reaches_jigs_link_pass_after_temper_loads_it() {
     );
     assert!(driver.stopped);
     assert!(!driver.root.ready());
-    assert!(driver.transactions.is_empty());
+    assert_eq!(driver.transactions.len(), 0);
     assert_eq!(driver.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
     assert!(driver.loads.iter().any(|(_, range)| *range == engine::Range::Forge), "forge loaded before linking");
     assert!(driver.switches.is_empty(), "the keyed link refusal precedes the switch");

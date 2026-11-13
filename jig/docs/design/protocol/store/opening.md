@@ -271,7 +271,10 @@ generation `A` to `A + 1`:
    goes on over the copy, still open, as 1's step 7 goes on over an
    active generation (the run proofs' cuts, which cut the shared
    transcripts to the copy's committed lengths, `A`'s, since patching
-   writes no frame; the installation's identifier), and answers
+   writes no frame; the installation's identifier). The model catalogue
+   overlay (`records.md`) is read by the binary's serving codec here,
+   after all pending patches; the initial open that plans those patches
+   does not decode model settings through that codec. The open answers
    `Opened` with `pending`: a patched generation awaits its switch. The
    root's restart restores from it as from any store, and asks for the
    switch (`Request::Switch`) once its restores are whole
@@ -519,6 +522,17 @@ Event::Site {                              Request::Site {
 Event::Patched { owner: Token, of: Owner, patch: u32, counts: Counts }
 pub struct Counts { pub records: u64, pub commits: u64 }
 ```
+
+- **A site's other stored inputs:** while a written site is outstanding,
+  `Store::patch_page` reads a bounded page of public application rows from
+  the copy's map, with relative keys and an exclusive cursor. Its bytes
+  have the levels reached by the walk: a range preceding the site's
+  range has already passed this patch. The caller uses that kept layout,
+  checks the row's identity, and replaces its context before answering the
+  site. No secrets are read, no serving codec is selected by the component,
+  and no input is retained for a later record. Outside a written stop the
+  method refuses. It reads at most the store's admitted operations per
+  page and reports the same data failure as the patch's walk.
 
 - **The shell that answers** is the store's shell, the one that names
   the owners' crates and drives the store's open: the application's

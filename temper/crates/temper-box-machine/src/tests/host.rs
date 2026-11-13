@@ -34,12 +34,6 @@ fn first_link_harness(steps: &[Step], items: &[skein_fake_machine::Item]) -> Har
 }
 const LOCAL_URL: &[u8] = b"http://local/local";
 const LOCAL_SECRET: &[u8] = &[0x5c; 32];
-fn front_settings() -> crate::host::Front {
-    crate::host::Front {
-        arguments: Box::new([bytes::copy_of(b"never"), bytes::copy_of(b"tui")]),
-        link: skein_lib::Secret::new(bytes::copy_of(LOCAL_URL)),
-    }
-}
 fn front_harness(steps: &[Step], parent: Option<u32>) -> Harness {
     front_harness_buffer(steps, parent, 16_384)
 }
@@ -60,7 +54,7 @@ fn front_harness_buffer(steps: &[Step], parent: Option<u32>, buffer: u32) -> Har
                 secret: skein_lib::Secret::new(bytes::copy_of(FIRST_SECRET)),
                 local: Some(skein_lib::Secret::new(bytes::copy_of(LOCAL_SECRET))),
             }),
-            front: Some(front_settings()),
+            front: Some(skein_lib::Secret::new(bytes::copy_of(LOCAL_URL))),
             after_block: bytes::copy_of(AFTER_BLOCK),
         },
     )
@@ -87,18 +81,6 @@ fn front_signals(h: &Harness) -> List<(skein_io::kernel::Fd, skein_lib::Time)> {
     }
     signals
 }
-fn signals_for(h: &Harness, process: skein_io::kernel::Fd) -> List<(skein_io::kernel::Fd, skein_lib::Time)> {
-    let mut signals = List::with_capacity(128);
-    for signal in front_signals(h).into_boxed() {
-        if signal.0 == process {
-            signals.push(signal).unwrap();
-        }
-    }
-    signals
-}
-fn front_process(h: &Harness) -> skein_io::kernel::Fd {
-    *child_processes(h).get(0).unwrap()
-}
 fn process_closed_at(h: &Harness, process: skein_io::kernel::Fd) -> Option<skein_lib::Time> {
     for entry in h.sim.trace() {
         if entry.pid == h.pid
@@ -115,9 +97,6 @@ fn assert_front_settled(h: &Harness) {
     h.sim.assert_no_open_fds(h.pid);
     assert_eq!(h.machine.open_handles(), 0);
 }
-fn front_log(h: &mut Harness) -> Box<[u8]> {
-    named_log(h, b"tui.log")
-}
 fn named_log(h: &mut Harness, name: &[u8]) -> Box<[u8]> {
     let root = h.machine.reopen_root(0);
     let fd = h
@@ -131,89 +110,67 @@ fn named_log(h: &mut Harness, name: &[u8]) -> Box<[u8]> {
     words
 }
 #[test]
-fn the_front_starts_in_the_blocks_place_with_its_descriptors() {
-    use skein_io::kernel::{Pipe, Way};
-    for (parent, arguments) in [
-        (None, [b"never".as_slice(), b"tui"].as_slice()),
-        (
-            Some(4321),
-            [
-                b"internal".as_slice(),
-                b"forge-child",
-                b"--parent",
-                b"4321",
-                b"--signal",
-                b"terminate",
-                b"--",
-                b"process_fixture",
-                b"never",
-                b"tui",
-            ]
-            .as_slice(),
-        ),
-    ] {
-        let mut h = front_harness(&[long(b"serve", &[b"never"])], parent);
-        h.hold_spawn = Some(bytes::copy_of(b"tui"));
+fn the_front_writes_the_local_link_before_any_step() {
+    for parent in [None, Some(4321)] {
+        let mut h = front_harness_buffer(&[long(b"serve", &[b"never"])], parent, 8);
         h.run_until_idle();
-        assert_eq!(h.launches.len(), 1, "only the front is requested before its spawn completes");
-        let launch = h.launches.get(0).unwrap();
-        assert_eq!(launch.name.as_ref(), b"tui");
-        let mut args = List::with_capacity(u32::try_from(arguments.len()).unwrap());
-        for argument in arguments {
-            args.push(bytes::copy_of(argument)).unwrap();
-        }
-        assert_eq!(launch.args.as_ref(), args.as_slice());
-        assert_eq!(launch.environment.as_ref(), &[bytes::copy_of(b"HOME=/box"), bytes::copy_of(b"TOKEN=whole=value")]);
-        assert_eq!(
-            launch.pipes.as_ref(),
-            &[
-                Pipe { child: 1, way: Way::Out, parent: None },
-                Pipe { child: 2, way: Way::Out, parent: None },
-                Pipe { child: 3, way: Way::In, parent: None },
-                Pipe { child: 4, way: Way::In, parent: None },
-            ]
-        );
-        assert!(h.stdout().is_empty());
-        assert!(h.stderr().is_empty());
-        h.release_spawn();
-        h.run_until_idle();
-        let tui = h.child_index(b"tui");
-        assert!(h.read_fd(tui, 3, LINE_BYTES).as_ref() == LOCAL_URL, "fd 3 holds the local link");
-        assert!(h.read_fd(tui, 3, LINE_BYTES).is_empty(), "fd 3 ends after the local link");
-        let serve = h.child_index(b"serve");
-        let expected = crate::lines::joined(&[FIRST_SECRET, LOCAL_SECRET]);
-        assert!(h.read_stdin(serve, 64).as_ref() == expected.as_ref(), "serve receives both secrets in order");
-        assert!(h.read_stdin(serve, 64).is_empty());
-        assert_eq!(h.launches.len(), 2);
-        for launch in &h.launches {
-            assert_spawn_carries_no_link(launch);
-        }
-        let block = b"00:00:00Z Open this link in a browser on this machine.\n00:00:00Z It signs you in as this temper's owner, once, within 2 hours.\n00:00:00Z Opened after that, it prints a fresh one here.\n00:00:00Z In a terminal: temper http://local\n00:00:00Z Additional startup information.\n";
-        let logged = h.log();
-        let block_at = bytes::find(&logged, block).expect("the block's words are timed in box.log");
-        let serve_at = bytes::find(&logged, b"00:00:00Z Starting serve\n").unwrap();
-        assert!(block_at < serve_at);
-        assert!(h.stdout().is_empty());
-        assert!(h.stderr().is_empty());
-        for log in [logged, front_log(&mut h)] {
-            for hidden in [FIRST_URL, FIRST_SECRET, LOCAL_URL, LOCAL_SECRET] {
-                assert!(!Harness::contains(&log, hidden), "a log contains a sign-in");
+        assert!(h.launches.is_empty(), "a held local link holds every step");
+        let [_, link, _] = h.front_pipes.unwrap();
+        let mut url = List::uncapped();
+        for _ in 0..LOCAL_URL.len() {
+            for byte in h.sim.peer_drain(h.pid, link, 4096) {
+                url.push(byte).unwrap();
+            }
+            h.run_until_idle();
+            if h.sim.peer_eof(h.pid, link) {
+                break;
             }
         }
-        finish_child(&mut h, b"tui", 0);
+        assert_eq!(url.as_slice(), LOCAL_URL, "the local URL alone, without LF");
+        assert!(h.sim.peer_eof(h.pid, link), "the local link is closed");
+        assert_eq!(h.launches.len(), 1, "no front child");
+        let launch = h.launches.get(0).unwrap();
+        assert_eq!(launch.name.as_ref(), b"serve");
+        assert_spawn_carries_no_link(launch);
+        for pipe in &launch.pipes {
+            assert!(pipe.parent.is_none(), "no parent's descriptors passed");
+        }
+        let serve = h.child_index(b"serve");
+        let mut secret = List::uncapped();
+        for _ in 0_u32..8 {
+            for byte in &h.read_stdin(serve, 8) {
+                secret.push(*byte).unwrap();
+            }
+        }
+        assert_eq!(secret.as_slice(), crate::lines::joined(&[FIRST_SECRET, LOCAL_SECRET]).as_ref());
+        assert!(h.read_stdin(serve, 8).is_empty());
+        let logged = h.log();
+        let words = bytes::find(&logged, b"Open this link in a browser on this machine.\n").unwrap();
+        let start = bytes::find(&logged, b"Starting serve\n").unwrap();
+        assert!(words < start);
+        assert!(Harness::contains(&logged, b"Additional startup information.\n"));
+        for hidden in [FIRST_URL, LOCAL_URL, FIRST_SECRET, LOCAL_SECRET] {
+            assert!(!Harness::contains(&logged, hidden));
+        }
+        assert!(h.stdout().is_empty());
+        assert!(h.stderr().is_empty());
+        end_front(&mut h);
         assert_eq!(h.run_to_end(), Exit::Code(0));
         assert_front_settled(&h);
     }
 }
+fn end_front(h: &mut Harness) {
+    h.sim.peer_close(h.pid, h.front_pipes.unwrap()[0]);
+}
 fn front_bytes(h: &mut Harness, length: usize) -> Box<[u8]> {
-    let tui = h.child_index(b"tui");
+    let fd = h.front_pipes.unwrap()[2];
     let mut got = List::uncapped();
     for _ in 0..length {
         if usize::try_from(got.len()).unwrap() >= length {
             break;
         }
         let left = length.checked_sub(usize::try_from(got.len()).unwrap()).unwrap();
-        let chunk = h.read_fd(tui, 4, u32::try_from(left).unwrap());
+        let chunk = h.sim.peer_drain(h.pid, fd, left);
         for byte in &chunk {
             got.push(*byte).unwrap();
         }
@@ -246,34 +203,21 @@ fn the_front_is_told_the_link_first_then_each_box_log_line() {
     assert!(front_bytes(&mut h, expected.len()).as_ref() == expected, "the fresh link goes to the front");
     assert!(h.stdout().is_empty());
     assert!(h.stderr().is_empty());
-    for log in [h.log(), front_log(&mut h), named_log(&mut h, b"serve.log")] {
+    for log in [h.log(), named_log(&mut h, b"serve.log")] {
         for url in [FIRST_URL, b"http://next".as_slice()] {
             assert!(!Harness::contains(&log, url), "logs hold no printed link");
         }
     }
-    finish_child(&mut h, b"tui", 0);
+    end_front(&mut h);
     assert_eq!(h.run_to_end(), Exit::Code(0));
     assert_front_settled(&h);
 }
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "Each row exercises a terminal route while the front runs and after its end."
-)]
+#[expect(clippy::too_many_lines, reason = "Each row exercises a terminal route on the parent pipes.")]
 fn the_terminals_lines_go_to_box_log_and_the_front_while_it_runs() {
-    for row in [
-        "restart",
-        "unknown",
-        "pipe too long",
-        "link too long",
-        "step log",
-        "box log",
-        "give up",
-        "after front",
-        "after front echo",
-    ] {
+    for row in ["restart", "unknown", "pipe too long", "link too long", "step log", "box log", "give up"] {
         let mut h = front_harness(&[long(b"forgejo", &[b"never"]), long(b"serve", &[b"never"])], None);
-        if row == "step log" || row == "after front echo" {
+        if row == "step log" {
             h.refuse_log = Some(bytes::copy_of(b"forgejo.log"));
         }
         if row == "box log" {
@@ -330,15 +274,6 @@ fn the_terminals_lines_go_to_box_log_and_the_front_while_it_runs() {
                     assert_eq!(front_bytes(&mut h, expected.len()).as_ref(), expected);
                 }
             }
-            "after front" => {
-                h.hold_log_write = true;
-                let forge = h.child_index(b"forgejo");
-                h.write_child(forge, 2, b"boom\n");
-                h.run_until_idle();
-                assert!(h.held_log_write.is_some());
-                finish_child(&mut h, b"forgejo", 1);
-                h.run_until_idle();
-            }
             "pipe too long" | "link too long" => {
                 let message = if row == "pipe too long" {
                     h.ask(&[b'x'; 300]);
@@ -365,7 +300,7 @@ fn the_terminals_lines_go_to_box_log_and_the_front_while_it_runs() {
                     assert!(Harness::contains(&h.log(), b"00:00:00Z box: serve: unknown pipe line\n"));
                 }
             }
-            "step log" | "after front echo" => {
+            "step log" => {
                 assert!(Harness::contains(&h.log(), b"00:00:00Z box: cannot write /data/box/logs/forgejo.log"));
                 let forge = h.child_index(b"forgejo");
                 h.write_child(forge, 2, b"boom\n");
@@ -378,29 +313,10 @@ fn the_terminals_lines_go_to_box_log_and_the_front_while_it_runs() {
         }
         assert!(h.stdout().is_empty(), "{row}");
         assert!(h.stderr().is_empty(), "{row}");
-        finish_child(&mut h, b"tui", 0);
+        end_front(&mut h);
         h.run_until_idle();
-        if row == "after front" {
-            h.release_log_write();
-            h.run_until_idle();
-            let expected = b"00:00:00Z forgejo exited 1; restarting in 0.5 s\n00:00:00Z     forgejo: boom\n00:00:00Z     Log: /data/box/logs/forgejo.log\n";
-            assert_eq!(h.stderr().as_ref(), expected);
-            assert!(!Harness::contains(&h.log(), b"forgejo exited 1; restarting"));
-        }
-        if row == "after front echo" {
-            let forge = h.child_index(b"forgejo");
-            h.write_child(forge, 2, b"after\n");
-            h.run_until_idle();
-            assert_eq!(h.stderr().as_ref(), b"forgejo: after\n");
-            let serve = h.child_index(b"serve");
-            h.write_stdout(serve, b"http://after\n");
-            assert!(h.stdout().as_ref() == b"http://after\n", "fresh link returns to stdout");
-            assert_eq!(h.stderr().as_ref(), b"\n");
-        }
         assert_eq!(h.run_to_end(), Exit::Code(u8::from(row == "give up")), "{row}");
-        if row == "box log" {
-            assert_eq!(h.stderr().as_ref(), b"00:00:00Z tui exited 0\n00:00:00Z Stopping\n00:00:00Z Stopped\n");
-        }
+        assert!(h.stderr().is_empty());
         assert_front_settled(&h);
     }
 }
@@ -408,6 +324,11 @@ fn the_terminals_lines_go_to_box_log_and_the_front_while_it_runs() {
 fn a_front_that_reads_nothing_holds_256_lines() {
     let mut h = front_harness_buffer(&[long(b"serve", &[b"never"])], None, 8);
     h.run_until_idle();
+    let link = h.front_pipes.unwrap()[1];
+    for _ in 0..LOCAL_URL.len() {
+        h.sim.peer_drain(h.pid, link, 4096);
+        h.run_until_idle();
+    }
     for _ in 0_u32..300 {
         h.ask(b"bogus\n");
         h.run_until_idle();
@@ -424,167 +345,77 @@ fn a_front_that_reads_nothing_holds_256_lines() {
     h.sim.advance_to(h.sim.now().saturating_add(Duration::from_millis(500)));
     h.run_until_idle();
     assert_eq!(h.spawn_times(b"serve").len(), 2);
+    let serve = h.child_index(b"serve");
+    h.write_stdout(serve, b"http://dropped\n");
+    let mut received = List::uncapped();
+    for _ in 0_u32..4096 {
+        h.run_until_idle();
+        let chunk = h.sim.peer_drain(h.pid, h.front_pipes.unwrap()[2], 8192);
+        if chunk.is_empty() && crate::host::pressure::front_held(&h.service) == 0 {
+            break;
+        }
+        for byte in chunk {
+            received.push(byte).unwrap();
+        }
+    }
+    assert!(!Harness::contains(received.as_slice(), b"http://dropped"), "a line past 256 held is dropped");
     assert!(h.stdout().is_empty());
     assert!(h.stderr().is_empty());
-    finish_child(&mut h, b"tui", 0);
+    end_front(&mut h);
     assert_eq!(h.run_to_end(), Exit::Code(0));
     assert_front_settled(&h);
 }
 #[test]
-fn the_fronts_end_stops_the_box() {
-    use skein_shell::Host;
-    for (row, end, diagnostic, message, expected, terminal) in [
-        ("success", Some(Exit::Code(0)), b"".as_slice(), b"tui exited 0\n".as_slice(), 0, b"".as_slice()),
-        (
-            "failure",
-            Some(Exit::Code(3)),
-            b"boom\n",
-            b"tui exited 3\n",
-            1,
-            b"00:00:00Z tui exited 3\n00:00:00Z     tui: boom\n00:00:00Z     Log: /data/box/logs/tui.log\n",
-        ),
-        (
-            "signal",
-            Some(Exit::Signal(9)),
-            b"",
-            b"tui killed by signal 9\n",
-            1,
-            b"00:00:00Z tui killed by signal 9\n00:00:00Z     Log: /data/box/logs/tui.log\n",
-        ),
-        ("refused", None, b"", b"tui did not start\n", 1, b"00:00:00Z tui did not start\n"),
-        ("unwritable", Some(Exit::Code(3)), b"boom\nboom\nboom\nboom\nboom\nboom\nboom\nboom\nboom\nboom\n", b"tui exited 3\n", 1, b"00:00:00Z tui exited 3\n00:00:00Z     Log: /data/box/logs/tui.log\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\ntui: boom\n"),
-    ] {
-        let mut h = front_harness(
-            &[long(b"forgejo", &[b"never"]), long(b"runner", &[b"never"]), long(b"serve", &[b"never"])],
-            None,
-        );
-        if row == "unwritable" {
-            h.refuse_log = Some(bytes::copy_of(b"tui.log"));
-        }
-        h.hold_spawn = Some(bytes::copy_of(b"tui"));
-        h.run_until_idle();
-        assert!(!h.service.front_ended(), "{row}");
-        match end {
-            Some(exit) => {
-                h.release_spawn();
-                h.run_until_idle();
-                let tui = h.child_index(b"tui");
-                if !diagnostic.is_empty() {
-                    h.write_child(tui, 2, diagnostic);
-                }
-                let pid = h.hosted.get(tui).unwrap().pid;
-                h.sim.finish_service(pid, exit);
-            }
-            None => h.fail_spawn(),
-        }
-        h.run_until_idle();
-        assert!(h.service.front_ended(), "{row}");
-        assert!(h.service.exit().is_none() || end.is_none());
-        assert_eq!(h.run_to_end(), Exit::Code(expected), "{row}");
-        let logged = h.log();
-        let ended = bytes::find(&logged, message).expect("front's end logged");
-        let stopping = bytes::find(&logged, b"Stopping\n").expect("stop logged");
-        let stopped = bytes::find(&logged, b"Stopped\n").unwrap();
-        assert!(ended < stopping && stopping < stopped, "{row}");
-        if end.is_none() {
-            assert_eq!(h.launches.len(), 1, "a refused front starts no steps");
-        } else {
-            let signals = front_signals(&h);
-            // The front is no step: the remaining children stop last first.
-            let children = child_processes(&h);
-            assert_eq!(signals.len(), 6);
-            for (pair, child) in signals.as_slice().chunks_exact(2).zip(children.iter().skip(1).rev()) {
-                assert_eq!((pair[0].0, pair[1].0), (*child, *child));
-                assert!(pair[1].1.saturating_since(pair[0].1) >= Duration::from_secs(10));
-            }
-            let logged = if row == "unwritable" { Box::new([]) } else { front_log(&mut h) };
-            if !diagnostic.is_empty() && row != "unwritable" {
-                assert_eq!(logged.as_ref(), b"1970-01-01T00:00:00Z boom\n");
-            }
-        }
-        assert!(h.stdout().is_empty(), "{row}");
-        assert_eq!(h.stderr().as_ref(), terminal, "{row}");
-        assert_front_settled(&h);
-    }
+fn the_fronts_input_end_stops_and_drains_the_box() {
+    let mut h = front_harness(&[long(b"serve", &[b"never"])], None);
+    h.run_until_idle();
+    read_front_start(&mut h);
+    end_front(&mut h);
+    h.run_until_idle();
+    let child = *child_processes(&h).get(0).unwrap();
+    assert_eq!(front_signals(&h).len(), 1, "EOF is the first signal");
+    assert!(process_closed_at(&h, child).is_none(), "first stop drains the step");
+    finish_child(&mut h, b"serve", 0);
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    assert!(Harness::contains(&h.log(), b"Stopping\n00:00:00Z Stopped\n"));
+    assert_eq!(front_bytes(&mut h, 60).as_ref(), b"log 00:00:00Z Stopping\nlog 00:00:00Z Stopped\n");
+    assert!(h.stdout().is_empty());
+    assert!(h.stderr().is_empty());
+    assert_front_settled(&h);
 }
 #[test]
-fn a_stop_signals_the_front_first_and_waits_for_it() {
-    use skein_shell::Host;
-    for (row, exit_at_first, second_stop, expected) in
-        [("cooperative", true, false, 0), ("stubborn", false, false, 1), ("second stop", false, true, 1)]
-    {
-        let mut h = front_harness(&[long(b"serve", &[b"never"])], None);
-        h.run_until_idle();
-        let front = front_process(&h);
-        let start = h.sim.now();
-        h.terminate();
-        h.run_until_idle();
-        let signals = front_signals(&h);
-        assert_eq!(signals.get(0).unwrap().0, front, "{row}: front first");
-        assert!(!h.service.is_empty());
-        assert!(!h.service.front_ended());
-        if exit_at_first {
-            finish_child(&mut h, b"tui", 0);
-        }
-        if second_stop {
-            h.terminate();
-        }
-        assert_eq!(h.run_to_end(), Exit::Code(expected), "{row}");
-        let signals = signals_for(&h, front);
-        if !exit_at_first && !second_stop {
-            assert_eq!(signals.len(), 2);
-            assert_eq!(signals.get(1).unwrap().1.saturating_since(start), Duration::from_secs(10));
-            let closed = process_closed_at(&h, front).unwrap();
-            assert_eq!(closed.saturating_since(start), Duration::from_secs(20));
-        }
-        if second_stop {
-            assert_eq!(signals.len(), 1);
-            assert_eq!(process_closed_at(&h, front), Some(start));
-        }
-        let end = if expected == 0 { b"tui exited 0\n".as_slice() } else { b"tui killed by signal 9\n" };
-        assert!(Harness::contains(&h.log(), end));
-        assert_front_settled(&h);
-    }
+fn a_signal_after_the_fronts_input_end_closes_the_steps() {
+    let mut h = front_harness(&[long(b"serve", &[b"never"])], None);
+    h.run_until_idle();
+    end_front(&mut h);
+    h.run_until_idle();
+    let child = *child_processes(&h).get(0).unwrap();
+    let now = h.sim.now();
+    h.terminate();
+    assert_eq!(h.run_to_end(), Exit::Code(0));
+    assert_eq!(front_signals(&h).len(), 1);
+    assert_eq!(process_closed_at(&h, child), Some(now));
+    assert_front_settled(&h);
 }
 #[test]
-fn a_give_up_leaves_the_front_running_until_it_ends() {
-    use skein_shell::Host;
-    for terminate in [false, true] {
-        let mut h = front_harness(&[long(b"forgejo", &[b"exit", b"1"]), long(b"serve", &[b"never"])], None);
+fn a_give_up_writes_its_lines_and_exits_without_waiting_for_the_parent() {
+    for buffer in [8, 16_384] {
+        let mut h = front_harness_buffer(&[once(b"prepare", &[b"exit", b"1"])], None, buffer);
         h.run_until_idle();
-        for delay in [500, 1_000, 2_000, 4_000, 8_000] {
-            h.sim.advance_to(h.sim.now().saturating_add(Duration::from_millis(delay)));
+        let link = h.front_pipes.unwrap()[1];
+        for _ in 0..LOCAL_URL.len() {
+            h.sim.peer_drain(h.pid, link, 4096);
             h.run_until_idle();
         }
-        assert_eq!(h.spawn_times(b"forgejo").len(), 6);
-        assert!(Harness::contains(&h.log(), b"forgejo exited 1; giving up\n"));
-        assert!(h.stderr().is_empty());
-        for _ in 0_u32..2 {
-            h.sim.advance_to(h.sim.now().saturating_add(Duration::from_secs(10)));
-            h.run_until_idle();
-        }
-        let front = front_process(&h);
-        assert!(signals_for(&h, front).is_empty(), "give-up sends no signal to the front");
-        let tui = h.child_index(b"tui");
-        assert!(h.sim.service_running(h.hosted.get(tui).unwrap().pid));
-        assert!(!h.service.is_empty());
-        assert!(!h.service.front_ended());
-        for child in &h.hosted {
-            if child.name.as_ref() != b"tui" {
-                assert!(child.closed);
-            }
-        }
-        if terminate {
-            h.terminate();
-            h.run_until_idle();
-            assert_eq!(signals_for(&h, front).len(), 1);
-        }
-        finish_child(&mut h, b"tui", 0);
         assert_eq!(h.run_to_end(), Exit::Code(1));
-        let log = h.log();
-        assert!(Harness::contains(&log, b"tui exited 0\n"));
-        assert!(!Harness::contains(&log, b"Stopping\n"));
-        assert!(h.service.front_ended());
+        assert!(Harness::contains(&h.log(), b"prepare exited 1; giving up\n"));
+        if buffer == 16_384 {
+            let lines = h.sim.peer_drain(h.pid, h.front_pipes.unwrap()[2], 16_384);
+            assert!(Harness::contains(&lines, b"gave-up prepare\n"));
+            assert!(Harness::contains(&lines, b"log 00:00:00Z prepare exited 1; giving up\n"));
+        }
+        assert!(h.stdout().is_empty());
+        assert!(h.stderr().is_empty());
         assert_front_settled(&h);
     }
 }
@@ -1326,7 +1157,7 @@ fn records_are_probed_before_start_and_written_private_or_reported() {
             let root = harness.machine.reopen_root(0);
             let file = harness.machine.open(root, b"box/started/3", How::Read).unwrap();
             assert_eq!(harness.machine.stat(file).mode & 0o777, 0o600, "{name}: private record");
-            assert!(harness.machine.read(file, 0, 1).unwrap().is_empty());
+            assert_eq!(harness.machine.read(file, 0, 1).unwrap().len(), 0);
             harness.machine.close(file);
             harness.machine.close(root);
         }
@@ -2643,7 +2474,16 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
         let settings = Settings {
             word: b"temper".as_slice().into(),
             link_form: crate::terminal::LinkForm::Bare,
-            front: if with_front { Some(front_settings()) } else { None },
+            front: if with_front {
+                Some(crate::host::Front {
+                    input: Fd::new(5),
+                    link_output: Fd::new(6),
+                    lines: Fd::new(7),
+                    link: skein_lib::Secret::new(bytes::copy_of(LOCAL_URL)),
+                })
+            } else {
+                None
+            },
             first_link: Some(link),
             after_block: Box::new([]),
             log_lines: Box::new([]),
@@ -2667,11 +2507,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
             settings.root,
             settings.echo,
             settings.data,
-            if with_front {
-                "Some(Front { arguments: [[110, 101, 118, 101, 114], [116, 117, 105]], .. })"
-            } else {
-                "None"
-            },
+            if with_front { "Some(Front { input: Fd(5), .. })" } else { "None" },
             settings.word,
             settings.signals,
             settings.stdout,
@@ -2699,7 +2535,6 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
             assert!(debug.contains("environment_entries: 2"));
         }
         assert!(settings_debug == expected, "Settings Debug exposes only safe fields");
-        assert!(service_debug.contains(&expected));
     }
 }
 

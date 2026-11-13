@@ -167,7 +167,7 @@ fn an_inline_run_waits_parks_and_resumes_from_its_transcript() {
         world.seen[&CLIENT].answer
     );
     let turns = world.history[&Token::new(1)].clone();
-    assert!(!turns.is_empty());
+    assert_ne!(turns.len(), 0);
     let endpoint = turns[0].endpoint;
     let dialect = turns[0].dialect;
     let history = record::Transcript { version: record::VERSION, endpoint, dialect, turns: turns.into() };
@@ -253,7 +253,7 @@ fn an_inline_runs_facts_are_drained_every_pass() {
     assert!(world.agent.pop_fact(Token::new(1)).is_none(), "drained at this iteration");
     world.run();
     world.settled();
-    assert!(!world.content.is_empty());
+    assert_ne!(world.content.len(), 0);
     assert!(
         world
             .observations

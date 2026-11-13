@@ -1,7 +1,9 @@
 # Landing queues
 
-Under a project's queue; a project that lands by turn has none
-(`../landing.md`, sections 8 and 9).
+Under a project's queue. A project that lands by turn has no queue of
+its own: its trains take its waiting changes in this order
+(`../landing.md`, section 9), and its changes view shows each train
+(`../landing.md`, section 14).
 
 One per landing branch that has changes ready. A repository belongs to
 one project (another may read it as context), so its goals' priorities

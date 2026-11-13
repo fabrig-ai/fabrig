@@ -403,7 +403,7 @@ fn a_tui_in_front_signs_in_by_its_handed_link_and_ticks_the_browsers_sign_in() {
     assert_eq!(tui.reads, 1);
     assert_eq!(tui.sign_in_sends, 1);
     assert_eq!(tui.approval_asks, 0);
-    assert!(tui.opens.is_empty());
+    assert_eq!(tui.opens.len(), 0);
     let text = tui.text();
     // The 92-byte link wraps at the host's 80 columns.
     let unwrapped: String = text.lines().map(str::trim).collect();
@@ -494,7 +494,8 @@ fn a_tui_in_front_shows_the_boxs_state_and_its_log() {
     tui.boxed(&mut world, BoxLine::GaveUp { step: b"forgejo-3".as_slice().into() });
     tui.run(&mut world, fixtures::WITHIN);
     assert!(tui.text().contains("The box gave up: forgejo-3. /log shows why; Ctrl+C closes."));
-    assert!(!tui.closed, "the front stays open after the box gives up");
+    tui.stage(&mut world, temper_client_tui::BoxStage::Ended { end: temper_client_tui::BoxEnd::Exited { code: 1 } });
+    assert!(!tui.closed, "the front stays open after the box gives up and ends");
     tui.press(&mut world, vec![Key::Control(b'c')]);
     assert!(tui.closed, "Ctrl+C closes at once after give-up");
     assert!(!tui.text().contains("Stop the box?"), "nothing asks after give-up");
@@ -518,7 +519,7 @@ fn a_fresh_tui_signs_in_from_the_engines_link_with_no_key() {
     assert_eq!(tui.reads, 1);
     assert_eq!(tui.sign_in_sends, 1);
     assert_eq!(tui.approval_asks, 0);
-    assert!(tui.opens.is_empty());
+    assert_eq!(tui.opens.len(), 0);
     assert!(matches!(tui.notes.last(), Some(Note::Until(until)) if *until > world.front().engine.env.wall));
     assert!(
         world.front().local_link().is_some_and(|next| next != link),
@@ -633,7 +634,7 @@ fn an_expired_sign_in_is_renewed_from_the_file() {
     assert!(tui.status().ends_with("● Live"));
     assert_eq!(tui.reads, 1);
     assert_eq!(tui.approval_asks, 0);
-    assert!(tui.opens.is_empty());
+    assert_eq!(tui.opens.len(), 0);
     assert!(matches!(tui.notes.last(), Some(Note::Until(until)) if *until > world.front().engine.env.wall));
     assert!(world.front().local_link().is_some_and(|next| next != link), "renewal spends the file's local link");
     file_secret_is_in_no_frame(&tui, &link);

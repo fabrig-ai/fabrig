@@ -192,6 +192,7 @@ fn produced(state: &temper_engine_domain_forge_change::State) -> bool {
         | State::Reopening { .. }
         | State::Checking { .. }
         | State::Gating { .. }
+        | State::Judging { .. }
         | State::CancellingGates { .. }
         | State::Ready { .. }
         | State::Preparing { .. }

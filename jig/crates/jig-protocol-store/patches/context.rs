@@ -9,7 +9,9 @@ pub struct Context {
 }
 
 // Default by contract (data/codec/patches.md, 5), and empty: no live state. Written
-// out, since production clippy.toml refuses the derive.
+// out, since production clippy.toml refuses the derive and clippy reports a
+// derive's disallowed macro at the crate alone, where an expectation would
+// cover every item.
 impl Default for Context {
     fn default() -> Self {
         Self { executors: Box::new([]) }

@@ -128,7 +128,7 @@ fn an_alert_is_classified_for_each_subscriber_and_its_echo_is_dropped() {
             ]),
         }]
     );
-    assert!(world.event(obs::Event::System(obs::SystemEvent::Alert { alert, own: true })).is_empty());
+    assert_eq!(world.event(obs::Event::System(obs::SystemEvent::Alert { alert, own: true })).len(), 0);
 }
 
 #[test]
@@ -247,7 +247,7 @@ fn a_watch_keeps_its_last_batch_across_a_restart() {
         delegate: Box::new([])
     }));
     world.restart();
-    assert!(world.event(wake).is_empty());
+    assert_eq!(world.event(wake).len(), 0);
 }
 
 #[test]
@@ -277,7 +277,7 @@ fn a_watch_subscribes_to_its_services_and_cancellation_erases_its_interest() {
         subscribers: Box::from([obs::Classed { task: 8, subscription: 8, class: obs::Class::Wake },])
     }));
     world.event(obs::Event::StopWatch { task: 8 });
-    assert!(world.event(obs::Event::System(obs::SystemEvent::Alert { alert, own: false })).is_empty());
+    assert_eq!(world.event(obs::Event::System(obs::SystemEvent::Alert { alert, own: false })).len(), 0);
 }
 
 #[test]

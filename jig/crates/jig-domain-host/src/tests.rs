@@ -1061,6 +1061,7 @@ fn admission_classifies_calls_and_link_work_separately_from_completions() {
     assert!(!Event::Saved { owner: Token::new(1), at: None }.new_work());
 }
 
+mod drain;
 mod jobs;
 
 #[test]

@@ -1,40 +1,28 @@
-//! The binary hands its terminal to its signed-in front (temper/docs/design/protocol/setup/box.md, 6).
-#[expect(dead_code, reason = "the shared box fixture also supports pipe and sign-in stories")]
-#[expect(clippy::duplicate_mod, reason = "the front and listener stories include the shared box fixture")]
-#[path = "../fake_backends/box_link.rs"]
-mod box_link;
+//! The box as its parent's child (temper/docs/design/protocol/setup/box.md, 6).
 use crate::support::{self, patience::Patience};
-use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Signal, Size, Spawn, Submit, Target, Way};
+use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Queue, Token};
 use skein_shell::{Config, Kernel, Wait, keeper};
-use std::{collections::BTreeMap, fmt::Write, fs, os::unix::ffi::OsStrExt, path::Path};
+use std::{collections::BTreeMap, fs, os::unix::ffi::OsStrExt, path::Path};
+use temper_box_kit::box_link;
 
-// One read, one write and their cancellation records fit the terminal's ring.
-const OPERATIONS: u32 = 8;
-// As the journey terminal, drain a screen stream in 32 KiB reads.
-const READ_BYTES: usize = 32768;
-// A fresh welcome and its terminal controls fit within the box-link fixture's output bound.
+const OPERATIONS: u32 = 12;
 const OUTPUT_BYTES: usize = 262_144;
-
-struct Terminal {
+struct Pipes {
     kernel: Kernel,
     pidfd: Fd,
-    master: Fd,
-    reading: Option<Token>,
-    writing: Option<Token>,
-    ended: bool,
+    input: Option<Fd>,
+    outputs: [Fd; 4],
+    reading: [bool; 4],
+    ended: [bool; 4],
+    bytes: [Vec<u8>; 4],
     complete: Queue<Complete>,
     submits: Queue<Submit>,
-    serial: u64,
-    bytes: Vec<u8>,
 }
-impl Terminal {
-    fn start(root: &Path) -> Self {
+impl Pipes {
+    fn start(root: &Path, arguments: &[&str], closed: Option<u32>) -> Self {
         let mut command = box_link::command(root, "");
-        command.env("XDG_STATE_HOME", root.join("state"));
-        if temper_test_env::value(&temper_shell::environment::TERM).is_none() {
-            command.env("TERM", "xterm-256color");
-        }
+        command.args(arguments);
         let mut environment: BTreeMap<_, _> = temper_test_env::environment()
             .into_vec()
             .into_iter()
@@ -49,16 +37,15 @@ impl Terminal {
                 environment.remove(name);
             }
         }
-        // The shell waits until the master has its size before starting the box.
+        let script = closed.map_or_else(|| "exec \"$@\"".to_owned(), |fd| format!("exec {fd}>&-; exec \"$@\""));
         let mut arguments = vec![
             b"-c".as_slice().into(),
-            b"read -r ready; exec \"$@\"".as_slice().into(),
+            script.into_bytes().into(),
             b"box-front".as_slice().into(),
             command.get_program().as_bytes().into(),
         ];
         arguments.extend(command.get_args().map(|word| Box::from(word.as_bytes())));
-        let kernel = Kernel::open(Config { operations: OPERATIONS }).expect("terminal kernel");
-        let directory = skein_shell::open_root(root).expect("scratch root");
+        let root_fd = skein_shell::open_root(root).expect("scratch root");
         let mut spawn = Spawn {
             program: b"/bin/sh".as_slice().into(),
             args: arguments.into_boxed_slice(),
@@ -71,126 +58,85 @@ impl Terminal {
                     bytes.into_boxed_slice()
                 })
                 .collect(),
-            root: directory,
+            root: root_fd,
             dir: b".".as_slice().into(),
-            pipes: Box::new([Pipe { child: 2, way: Way::Null, parent: None }]),
+            pipes: (0..5)
+                .map(|child| Pipe { child, way: if child == 0 { Way::In } else { Way::Out }, parent: None })
+                .collect(),
         };
-        let started = keeper::start_binary(&mut spawn, true);
-        skein_shell::close_startup_fd(directory);
-        let (pidfd, master) = started.expect("start box on a pseudo-terminal in its own session");
-        let mut terminal = Self {
-            kernel,
+        let started = keeper::start_binary(&mut spawn, false);
+        skein_shell::close_startup_fd(root_fd);
+        let (pidfd, terminal) = started.expect("start box on its parent's pipes");
+        assert!(terminal.is_none());
+        Self {
+            kernel: Kernel::open(Config { operations: OPERATIONS }).expect("pipes kernel"),
             pidfd,
-            master: master.expect("pseudo-terminal master"),
-            reading: None,
-            writing: None,
-            ended: false,
+            input: spawn.pipes[0].parent,
+            outputs: std::array::from_fn(|index| spawn.pipes[index + 1].parent.expect("output pipe")),
+            reading: [false; 4],
+            ended: [false; 4],
+            bytes: std::array::from_fn(|_| Vec::new()),
             complete: Queue::with_capacity(OPERATIONS),
             submits: Queue::with_capacity(OPERATIONS),
-            serial: 0,
-            bytes: Vec::new(),
-        };
-        skein_shell::resize_terminal(terminal.master, Size { columns: 80, rows: 24 }).expect("80 by 24 terminal");
-        terminal.write(b'\n');
-        terminal
-    }
-    fn submit(&mut self, kind: Op) -> Token {
-        self.serial += 1;
-        let op = Token::new(self.serial);
-        self.submits.push(Submit { op, kind });
-        op
-    }
-    fn write(&mut self, byte: u8) {
-        assert!(self.writing.is_none(), "previous terminal byte completed");
-        self.writing = Some(self.submit(Op::PipeWrite { fd: self.master, bytes: vec![byte].into(), from: 0 }));
+        }
     }
     fn tick(&mut self) -> Option<Exit> {
         self.kernel.submit(&mut self.submits, Wait::No);
         self.kernel.reap(&mut self.complete);
         while let Some(done) = self.complete.pop() {
-            if self.reading == Some(done.op) {
-                self.reading = None;
-                let Op::PipeRead { buf, .. } = done.kind else { panic!("terminal read") };
-                match done.result {
-                    Ok(Done::Count(count)) if count > 0 => {
-                        self.bytes.extend_from_slice(&buf[..usize::try_from(count).expect("read count")]);
-                        assert!(self.bytes.len() <= OUTPUT_BYTES, "bounded fresh-box terminal output");
-                    }
-                    Ok(Done::Count(_)) | Err(_) => self.ended = true,
-                    other => panic!("terminal read count: {other:?}"),
-                }
-            } else if self.writing == Some(done.op) {
-                self.writing = None;
-                assert!(matches!(done.result, Ok(Done::Count(1))), "one terminal byte written");
-            } else {
-                panic!("unknown terminal completion");
-            }
+            let index = usize::try_from(done.op.raw() - 1).expect("read index");
+            self.reading[index] = false;
+            let Op::PipeRead { buf, .. } = done.kind else { panic!("pipe read") };
+            let Done::Count(count) = done.result.expect("parent's pipe read") else { panic!("read count") };
+            self.bytes[index].extend_from_slice(&buf[..usize::try_from(count).expect("count")]);
+            assert!(self.bytes[index].len() <= OUTPUT_BYTES, "bounded box output");
+            self.ended[index] = count == 0;
         }
-        if !self.ended && self.reading.is_none() {
-            self.reading = Some(self.submit(Op::PipeRead { fd: self.master, buf: vec![0; READ_BYTES].into() }));
+        for (index, fd) in self.outputs.iter().enumerate() {
+            if !self.reading[index] && !self.ended[index] {
+                self.submits.push(Submit {
+                    op: Token::new(u64::try_from(index + 1).expect("read token")),
+                    kind: Op::PipeRead { fd: *fd, buf: vec![0; 8192].into() },
+                });
+                self.reading[index] = true;
+            }
         }
         self.kernel.submit(&mut self.submits, Wait::No);
         keeper::poll_child(self.pidfd, false).expect("box exit observation")
     }
-    fn wait(&mut self, root: &Path, what: &'static str, ready: impl Fn(&Self) -> bool) {
+    fn wait(&mut self, what: &'static str, ready: impl Fn(&Self, Option<Exit>) -> bool) -> Option<Exit> {
         let mut patience = Patience::arm(what, support::WITHIN);
         patience.watch_process(keeper::child_id(self.pidfd).expect("box PID"));
         loop {
             let exit = self.tick();
-            assert!(exit.is_none(), "box exited before {what}: {exit:?}\n{}", log(root));
-            if ready(self) {
-                return;
-            }
-            if let Some(figures) = patience.failed() {
-                let progress = self.progress();
-                panic!("waiting for {what}: {figures}; {progress}\n{}", log(root));
-            }
-            std::thread::sleep(std::time::Duration::from_millis(1));
-        }
-    }
-    fn progress(&self) -> String {
-        let raw =
-            skein_shell::terminal_modes(self.master).is_ok_and(|modes| !modes.lines && !modes.echo && !modes.signals);
-        let connecting_seen = skein_lib::bytes::find(&self.bytes, b"Connecting").is_some();
-        let live_seen = skein_lib::bytes::find(&self.bytes, b"Live").is_some();
-        let mut progress = String::new();
-        write!(
-            &mut progress,
-            "raw={raw}, connecting_seen={connecting_seen}, live_seen={live_seen}, terminal bytes={}",
-            self.bytes.len()
-        )
-        .expect("progress text");
-        #[cfg(target_os = "linux")]
-        for pid in support::parent::Guard::observing_test().pids() {
-            let status = fs::read_to_string(format!("/proc/{pid}/status")).unwrap_or_default();
-            let state = status.lines().find(|line| line.starts_with("State:")).unwrap_or("state unavailable");
-            let wait = fs::read_to_string(format!("/proc/{pid}/wchan")).unwrap_or_default();
-            write!(&mut progress, "; process {pid}: {state}, wait={wait}").expect("progress text");
-        }
-        progress
-    }
-    fn stopped(&mut self, root: &Path) -> Exit {
-        let mut patience = Patience::arm("box stops with its front", support::WITHIN);
-        patience.watch_process(keeper::child_id(self.pidfd).expect("box PID"));
-        loop {
-            let exit = self.tick();
-            if let Some(exit) = exit
-                && self.ended
-            {
+            if ready(self, exit) {
                 return exit;
             }
+            assert!(exit.is_none() || !self.ended.iter().all(|ended| *ended), "box exited before {what}");
             if let Some(figures) = patience.failed() {
-                panic!("box did not stop: {figures}\n{}", log(root));
+                panic!("waiting for {what}: {figures}");
             }
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
     }
+    fn stop(&mut self) -> Exit {
+        if let Some(input) = self.input.take() {
+            keeper::close_keeper_fd(input);
+        }
+        self.wait("box exits", |pipes, exit| exit.is_some() && pipes.ended.iter().all(|ended| *ended))
+            .expect("box exit")
+    }
 }
-impl Drop for Terminal {
+impl Drop for Pipes {
     fn drop(&mut self) {
         let _signalled = keeper::signal_kept_child(self.pidfd, Signal::Kill, Target::Group);
-        for target in [self.reading.take(), self.writing.take()].into_iter().flatten() {
-            self.submit(Op::Cancel { target });
+        for (index, reading) in self.reading.iter().enumerate() {
+            if *reading {
+                self.submits.push(Submit {
+                    op: Token::new(u64::try_from(index + 10).expect("cancel token")),
+                    kind: Op::Cancel { target: Token::new(u64::try_from(index + 1).expect("read token")) },
+                });
+            }
         }
         self.kernel.submit(&mut self.submits, Wait::No);
         while self.kernel.in_flight() != 0 {
@@ -200,53 +146,71 @@ impl Drop for Terminal {
                 self.kernel.submit(&mut self.submits, Wait::Forever);
             }
         }
-        keeper::abandon_binary(Some(self.pidfd), &[self.pidfd, self.master]);
+        let mut fds = self.outputs.to_vec();
+        fds.extend(self.input.take());
+        fds.push(self.pidfd);
+        keeper::abandon_binary(Some(self.pidfd), &fds);
     }
-}
-
-fn log(root: &Path) -> String {
-    let mut text = String::new();
-    for name in ["box", "serve", "tui"] {
-        if let Ok(log) = fs::read_to_string(root.join(format!("data/box/logs/{name}.log"))) {
-            write!(&mut text, "{name}:\n{log}").expect("log text");
-        }
-    }
-    text
 }
 
 #[test]
-fn a_box_in_a_terminal_runs_its_tui_in_front_and_stops_with_it() {
+fn a_fresh_front_hands_a_local_sign_in_and_stops_at_its_input_end() {
     let scratch = support::Scratch::startup("box-front");
     let root = scratch.path();
-    let mut terminal = Terminal::start(root);
-    let path = box_link::link_path(root);
-    // Serve writes a fresh local link only after the handed link signed the front in.
-    terminal.wait(root, "front signs in", |_| fs::read(&path).is_ok_and(|bytes| bytes.ends_with(b"\n")));
-    terminal.wait(root, "front takes raw input", |terminal| {
-        terminal.writing.is_none()
-            && skein_shell::terminal_modes(terminal.master)
-                .is_ok_and(|modes| !modes.lines && !modes.echo && !modes.signals)
-    });
-    #[cfg(target_os = "linux")]
-    let observed = support::parent::Guard::observing_test();
-    terminal.write(0x03);
-    let exit = terminal.stopped(root);
-    assert_eq!(exit, Exit::Code(0), "box drains after its TUI quits\n{}", log(root));
-    let log = log(root);
-    let mut remaining = log.as_str();
-    for fact in ["tui exited 0", "Stopping", "Stopped"] {
-        remaining = remaining.split_once(fact).expect("ordered front exit and box stop").1;
-    }
+    let mut pipes = Pipes::start(root, &["--front"], None);
+    pipes.wait("local link's end", |pipes, _| pipes.ended[2]);
+    let local = pipes.bytes[2].clone();
+    assert!(!local.is_empty() && local.len() <= 4096 && !local.contains(&b'\n'), "fd 3 is the bare URL");
+    assert!(box_link::signs_in(root, "front-person", &local), "the local link signs in");
+    pipes.wait("printed link line", |pipes, _| pipes.bytes[3].contains(&b'\n'));
+    let first = pipes.bytes[3].split_inclusive(|byte| *byte == b'\n').next().expect("first line");
+    let printed =
+        first.strip_prefix(b"link ").and_then(|url| url.strip_suffix(b"\n")).expect("link URL is first").to_vec();
+    assert!(printed != local, "browser and local links differ");
+    assert_eq!(pipes.stop(), Exit::Code(0));
+    assert!(pipes.bytes[0].is_empty() && pipes.bytes[1].is_empty(), "nothing on the box's terminal");
     for entry in fs::read_dir(root.join("data/box/logs")).expect("box logs") {
-        let bytes = fs::read(entry.expect("log entry").path()).expect("log bytes");
-        assert!(skein_lib::bytes::find(&bytes, b"secret=").is_none(), "no link secret in a log");
+        let entry = entry.expect("log entry");
+        assert_ne!(entry.file_name(), "tui.log");
+        let bytes = fs::read(entry.path()).expect("log bytes");
+        for link in [&pipes.bytes[2], &printed] {
+            assert!(skein_lib::bytes::find(&bytes, link).is_none(), "logs hold neither link");
+        }
+        assert!(skein_lib::bytes::find(&bytes, b"secret=").is_none(), "no fresh link in a log");
     }
-    assert!(
-        skein_lib::bytes::find(&terminal.bytes, b"Open this link in a browser").is_none(),
-        "the box's printed block stays off the front's terminal"
-    );
-    #[cfg(target_os = "linux")]
-    assert!(observed.all_exited(), "no process outlived the fixture box");
-    drop(terminal);
+    drop(pipes);
     scratch.remove();
+}
+
+#[test]
+fn front_refuses_without_a_first_link_before_starting_steps() {
+    let scratch = support::Scratch::startup("box-front-no-link");
+    let initialized = box_link::command(scratch.path(), "init").arg("--box").output().expect("init box");
+    assert!(initialized.status.success());
+    let path = scratch.path().join("config/temper.json");
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("document");
+    document["engine"]["clients"]["link"] = false.into();
+    fs::write(&path, serde_json::to_vec(&document).expect("document bytes")).expect("disabled link");
+    let mut pipes = Pipes::start(scratch.path(), &["--front"], None);
+    assert_eq!(pipes.stop(), Exit::Code(1));
+    assert_eq!(pipes.bytes[1], b"temper-box: --front: no first sign-in link drawn\n");
+    assert!(pipes.bytes[0].is_empty() && pipes.bytes[2].is_empty() && pipes.bytes[3].is_empty());
+    assert!(!scratch.path().join("data/box/logs").exists(), "no host or steps started");
+    drop(pipes);
+    scratch.remove();
+}
+
+#[test]
+fn front_refuses_a_missing_parent_pipe_before_any_start() {
+    for closed in [3, 4] {
+        let scratch = support::Scratch::startup("box-front-missing");
+        let mut pipes = Pipes::start(scratch.path(), &["--front"], Some(closed));
+        assert_eq!(pipes.stop(), Exit::Code(2));
+        assert!(pipes.bytes[0].is_empty() && pipes.bytes[2].is_empty() && pipes.bytes[3].is_empty());
+        assert_eq!(pipes.bytes[1], b"temper-box --front: fd 3 and fd 4 are its parent's pipes\n");
+        assert!(!scratch.path().join("config").exists(), "no initialization before descriptor refusal");
+        drop(pipes);
+        scratch.remove();
+    }
 }

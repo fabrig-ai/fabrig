@@ -112,7 +112,7 @@ fn roles_fixture() -> Joint {
     let limits = fixtures::domain_limits();
     let mut bounds = temper_client_world::front::engine_limits();
     // The stock's kind 9 lines run up to charter 12 beside these six charters.
-    bounds.tasks.charters = 12;
+    bounds.tasks.charters = 16;
     let mut config = kinds::configuration(&bounds);
     let mut charters = config.core.defaults.charters.into_vec();
     for number in [9, 11, 12] {

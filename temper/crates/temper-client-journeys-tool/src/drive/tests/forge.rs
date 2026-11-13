@@ -8,36 +8,49 @@ use skein_lib::{
 use skein_scratch::Scratch;
 use std::{collections::VecDeque, fs, io::Write, os::unix::fs::OpenOptionsExt, path::Path};
 const TOKEN: &str = "fake-drive-write-value";
-const COMMIT: &str = r#"forge commit 1 playground/widget "msg" "a.txt" "x\x0a" "b.txt" "y""#;
-const LOG: &str = "1970-01-01T00:00:00Z Forgejo: api http://127.0.0.1:8001/api/v1\n1970-01-01T00:00:01Z Forgejo: api http://127.0.0.1:8002/api/v1\n";
+const COMMIT: &str = r#"forge commit forgejo playground/widget "msg" "a.txt" "b.txt""#;
+const LOG: &str = "1970-01-01T00:00:00Z box: fake forgejo http://127.0.0.1:8001\n1970-01-01T00:00:01Z box: fake forgejo http://127.0.0.1:8002\n";
 const SHA: &str = "1111111111111111111111111111111111111111";
-fn fixture() -> (Scratch, Machine) {
+pub(crate) fn fixture() -> (Scratch, Machine) {
     let scratch = Scratch::new("drive-forge-lines");
     let mut m = ready();
     m.plan.options.scratch = scratch.path().into();
-    fs::create_dir_all(scratch.path().join("data/box/logs")).expect("logs");
-    fs::create_dir_all(scratch.path().join("data/forge-1")).expect("forge");
-    fs::write(scratch.path().join("data/box/logs/forgejo-1.log"), LOG).expect("fake log");
+    fs::create_dir_all(scratch.path().join("session")).expect("session");
+    fs::create_dir_all(scratch.path().join("files")).expect("files");
+    m.plan.options.files = Some(scratch.path().join("files"));
+    fs::write(scratch.path().join("files/a.txt"), b"x\n").expect("a");
+    fs::write(scratch.path().join("files/b.txt"), b"y").expect("b");
+    let log = format!(
+        "1970-01-01T00:00:00Z box: Forgejo elsewhere admin token file /older/missing.token\n{LOG}1970-01-01T00:00:02Z box: Forgejo elsewhere admin token file {}\n",
+        token_file(scratch.path()).display()
+    );
+    fs::write(scratch.path().join("session/box.log"), log).expect("fake log");
     let mut file = fs::OpenOptions::new()
         .create_new(true)
         .write(true)
         .mode(0o600)
-        .open(header(scratch.path()))
-        .expect("fake header");
-    writeln!(file, "Authorization: token {TOKEN}").expect("fake header line");
+        .open(token_file(scratch.path()))
+        .expect("fake token file");
+    writeln!(file, "{TOKEN}").expect("fake token");
     (scratch, m)
 }
-fn header(root: &Path) -> std::path::PathBuf {
-    root.join("data/forge-1/person_write.header")
+fn token_file(root: &Path) -> std::path::PathBuf {
+    root.join("forgejo-admin.token")
 }
 fn at(seconds: u64) -> Time {
     Time::ZERO.saturating_add(Duration::from_secs(seconds))
 }
 fn logged(m: &mut Machine, actions: &[Action]) -> Vec<Action> {
-    let [Action::ReadForgeLog { path }] = actions else { panic!("{actions:?}") };
-    m.step(Event::ForgeLog(adapter::read_log(path)), Time::ZERO)
+    let [Action::ReadBoxLog { path }] = actions else { panic!("{actions:?}") };
+    assert!(path.ends_with("session/box.log"));
+    let actions = m.step(Event::BoxLog(adapter::read_log(path)), Time::ZERO);
+    if let [Action::ReadForgeFiles { directory, paths }] = actions.as_slice() {
+        m.step(Event::ForgeFiles(adapter::read_files(directory, paths)), Time::ZERO)
+    } else {
+        actions
+    }
 }
-fn begin(m: &mut Machine, source: &str) -> Vec<Action> {
+pub(crate) fn begin(m: &mut Machine, source: &str) -> Vec<Action> {
     let actions = line(m, source);
     logged(m, &actions)
 }
@@ -47,12 +60,12 @@ fn safe(actions: &[Action]) {
 }
 fn request(actions: &[Action], expected: &str) -> adapter::Prepared {
     safe(actions);
-    let [Action::ForgeRequest { api, header, method, path, body, until }] = actions else { panic!("{actions:?}") };
+    let [Action::ForgeRequest { api, token_file, method, path, body, until }] = actions else { panic!("{actions:?}") };
     assert_eq!(api.as_ref(), b"http://127.0.0.1:8002/api/v1");
     assert_eq!(path.as_ref(), expected.as_bytes());
-    assert!(header.ends_with("data/forge-1/person_write.header"));
+    assert!(token_file.ends_with("forgejo-admin.token"));
     assert!(*until == at(60) || *until == at(300));
-    let prepared = adapter::prepare(api, header, *method, path, body.clone()).expect("forge request");
+    let prepared = adapter::prepare(api, token_file, *method, path, body.clone()).expect("forge request");
     assert_eq!(prepared.address.port(), 8002);
     assert_eq!(prepared.call.target.as_ref(), format!("/api/v1{expected}").as_bytes());
     assert_eq!(
@@ -115,7 +128,14 @@ fn exchange(prepared: adapter::Prepared, status: u16, body: &[u8]) -> Event {
     }
     result.expect("forge response")
 }
-fn response(m: &mut Machine, actions: &[Action], path: &str, status: u16, body: &[u8], seconds: u64) -> Vec<Action> {
+pub(crate) fn response(
+    m: &mut Machine,
+    actions: &[Action],
+    path: &str,
+    status: u16,
+    body: &[u8],
+    seconds: u64,
+) -> Vec<Action> {
     let prepared = request(actions, path);
     let event = exchange(prepared, status, body);
     let actions = m.step(event, at(seconds));
@@ -149,7 +169,7 @@ fn forge_commit_plan_uses_newest_api_and_one_contents_commit() {
 #[test]
 fn forge_checks_poll_two_seconds_apart_on_logic_deadlines() {
     let (_scratch, mut m) = fixture();
-    let actions = begin(&mut m, "forge checks 1 playground/widget");
+    let actions = begin(&mut m, "forge checks forgejo playground/widget");
     let mut actions = response(&mut m, &actions, "/repos/playground/widget", 200, br#"{"default_branch":"main"}"#, 0);
     for seconds in [0, 2] {
         actions = response(
@@ -169,14 +189,14 @@ fn forge_checks_poll_two_seconds_apart_on_logic_deadlines() {
         response(&mut m, &actions, "/repos/playground/widget/commits/main/status", 200, &status("success"), 4);
     assert_eq!(answer(&actions).print(), format!("| {SHA}\n| gate success\n| lint success\nok\n"));
     assert!(
-        matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(_)] if kept.as_ref() == b"forge checks 1 playground/widget")
+        matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(_)] if kept.as_ref() == b"forge checks forgejo playground/widget")
     );
 }
 #[test]
 fn forge_failed_checks_and_pending_bound_name_the_last_statuses() {
     for (state, empty) in [("failure", false), ("error", false), ("pending", false), ("pending", true)] {
         let (_scratch, mut m) = fixture();
-        let actions = begin(&mut m, "forge checks 1 playground/widget");
+        let actions = begin(&mut m, "forge checks forgejo playground/widget");
         let actions = response(&mut m, &actions, "/repos/playground/widget", 200, br#"{"default_branch":"main"}"#, 0);
         let body = if empty {
             format!(r#"{{"state":"pending","sha":"{SHA}","statuses":[]}}"#).into_bytes()
@@ -204,22 +224,26 @@ fn forge_failed_checks_and_pending_bound_name_the_last_statuses() {
     }
 }
 #[test]
-fn forge_missing_log_api_header_and_default_branch_fail_only_the_line() {
-    for missing in ["log", "api", "header", "default_branch"] {
+fn forge_missing_log_values_token_and_files_fail_only_the_line() {
+    for missing in ["log", "api", "token", "admin", "files", "missing", "large", "default_branch"] {
         let (scratch, mut m) = fixture();
         match missing {
-            "log" => fs::remove_file(scratch.path().join("data/box/logs/forgejo-1.log")).expect("remove log"),
-            "api" => fs::write(scratch.path().join("data/box/logs/forgejo-1.log"), b"no api here\n").expect("log"),
-            "header" => fs::remove_file(header(scratch.path())).expect("remove fake header"),
+            "log" => fs::remove_file(scratch.path().join("session/box.log")).expect("remove log"),
+            "api" => fs::write(scratch.path().join("session/box.log"), b"no api here\n").expect("log"),
+            "token" => fs::remove_file(token_file(scratch.path())).expect("remove fake token"),
+            "admin" => fs::write(scratch.path().join("session/box.log"), LOG).expect("log without token path"),
+            "files" => m.plan.options.files = None,
+            "missing" => fs::remove_file(scratch.path().join("files/a.txt")).expect("remove a"),
+            "large" => fs::write(scratch.path().join("files/a.txt"), vec![b'x'; 65537]).expect("large a"),
             "default_branch" => {}
             _ => unreachable!(),
         }
         let mut actions = begin(&mut m, COMMIT);
-        if missing == "header" {
-            let [Action::ForgeRequest { api, header, method, path, body, .. }] = actions.as_slice() else {
+        if missing == "token" {
+            let [Action::ForgeRequest { api, token_file, method, path, body, .. }] = actions.as_slice() else {
                 panic!("request")
             };
-            let why = adapter::prepare(api, header, *method, path, body.clone()).err().expect("missing header");
+            let why = adapter::prepare(api, token_file, *method, path, body.clone()).err().expect("missing token");
             actions = m.step(Event::ForgeFailure(why), Time::ZERO);
         } else if missing == "default_branch" {
             actions = response(&mut m, &actions, "/repos/playground/widget", 200, b"{}", 0);
@@ -227,19 +251,26 @@ fn forge_missing_log_api_header_and_default_branch_fail_only_the_line() {
         safe(&actions);
         let why = answer(&actions).failed.as_deref().expect("failed line");
         let expected = match missing {
-            "header" => "data/forge-1/person_write.header",
-            "log" | "api" => "data/box/logs/forgejo-1.log",
+            "token" => "forgejo-admin.token",
+            "admin" => "box: Forgejo elsewhere admin token file",
+            "files" => "files directory",
+            "missing" | "large" => "a.txt",
+            "log" => "session/box.log",
+            "api" => "box: fake forgejo",
             _ => "default_branch",
         };
         assert!(why.contains(expected), "{why}");
+        if missing == "large" {
+            assert!(why.contains("64 KiB"), "{why}");
+        }
         assert!(m.ready());
         assert_eq!(answer(&line(&mut m, "")).print(), "ok\n");
     }
 }
 #[test]
-fn forge_escaped_credentials_are_redacted_and_headers_are_read_afresh() {
+fn forge_escaped_credentials_are_redacted_and_tokens_are_read_afresh() {
     let (scratch, mut m) = fixture();
-    let actions = begin(&mut m, "forge checks 1 playground/widget");
+    let actions = begin(&mut m, "forge checks forgejo playground/widget");
     let actions = response(&mut m, &actions, "/repos/playground/widget", 200, br#"{"default_branch":"main"}"#, 0);
     let prepared = request(&actions, "/repos/playground/widget/commits/main/status");
     let escaped = TOKEN.replacen('-', "\\u002d", 1);
@@ -250,15 +281,15 @@ fn forge_escaped_credentials_are_redacted_and_headers_are_read_afresh() {
     let actions = m.step(event, Time::ZERO);
     safe(&actions);
     assert!(answer(&actions).failed.is_some());
-    fs::write(header(scratch.path()), b"Authorization: token rotated-fake-value\n").expect("rotate fake header");
+    fs::write(token_file(scratch.path()), b"rotated-fake-value\n").expect("rotate fake token");
     let prepared = adapter::prepare(
         b"http://127.0.0.1:8002/api/v1",
-        &header(scratch.path()),
+        &token_file(scratch.path()),
         Method::Get,
         b"/repos/playground/widget",
         Box::new([]),
     )
-    .expect("reread header");
+    .expect("reread token");
     assert_eq!(
         prepared.call.headers.iter().find(|header| header.is(b"Authorization")).expect("header").value.as_ref(),
         b"token rotated-fake-value"
@@ -266,9 +297,9 @@ fn forge_escaped_credentials_are_redacted_and_headers_are_read_afresh() {
 }
 
 #[test]
-fn forge_refused_post_is_cut_and_the_header_never_leaves_io() {
+fn forge_refused_post_is_cut_and_the_token_never_leaves_io() {
     let (_scratch, mut m) = fixture();
-    let source = r#"forge commit 1 playground/widget "msg" "a.txt" "x""#;
+    let source = r#"forge commit forgejo playground/widget "msg" "a.txt""#;
     let actions = begin(&mut m, source);
     let actions = response(&mut m, &actions, "/repos/playground/widget", 200, br#"{"default_branch":"main"}"#, 0);
     let actions = response(&mut m, &actions, "/repos/playground/widget/contents/a.txt?ref=main", 404, b"", 0);
@@ -286,4 +317,85 @@ fn forge_refused_post_is_cut_and_the_header_never_leaves_io() {
     );
     assert!(m.ready());
     assert_eq!(answer(&line(&mut m, "")).print(), "ok\n");
+}
+
+#[test]
+fn ctl_box_values_resolve_newest_opening_lines_without_changing_kept_bytes() {
+    let (scratch, mut m) = fixture();
+    let source = "ctl forge connect forgejo-admin {forgejo.admin} --first work/hello --project Hello --api {forgejo.api} --git {forgejo.git} --git-program {git} --key qa-hello";
+    for restarted in [false, true] {
+        let mut log = "1970-01-01T00:00:00Z box: effective data /s/data/box/fake-backends/data\n1970-01-01T00:00:00Z box: fake forgejo http://127.0.0.1:4321\n1970-01-01T00:00:00Z box: Forgejo elsewhere admin token file /s/data/box/fake-backends/data/forgejo-admin.token\n".to_owned();
+        if restarted {
+            log.push_str("1970-01-01T00:00:01Z box: fake forgejo http://127.0.0.1:4322\n1970-01-01T00:00:02Z box: Forgejo elsewhere admin token file /new/admin.token\n1970-01-01T00:00:03Z box: effective data /new/data\n");
+        }
+        fs::write(scratch.path().join("session/box.log"), log).expect("opening lines");
+        let actions = begin(&mut m, source);
+        let [Action::Start { process: crate::drive::Process::Ctl, program }] = actions.as_slice() else {
+            panic!("{actions:?}")
+        };
+        let (token, api, git, binary) = if restarted {
+            ("/new/admin.token", "127.0.0.1:4322", "http://127.0.0.1:4322", "/new/data/demo/bin/git")
+        } else {
+            (
+                "/s/data/box/fake-backends/data/forgejo-admin.token",
+                "127.0.0.1:4321",
+                "http://127.0.0.1:4321",
+                "/s/data/box/fake-backends/data/demo/bin/git",
+            )
+        };
+        let expected: Vec<std::ffi::OsString> = [
+            "ctl",
+            &scratch.path().join("session/ctl").to_string_lossy(),
+            "forge",
+            "connect",
+            "forgejo-admin",
+            token,
+            "--first",
+            "work/hello",
+            "--project",
+            "Hello",
+            "--api",
+            api,
+            "--git",
+            git,
+            "--git-program",
+            binary,
+            "--key",
+            "qa-hello",
+        ]
+        .map(Into::into)
+        .into();
+        assert_eq!(program.args, expected);
+        assert_eq!(program.input, crate::drive::Input::Null);
+        let actions = m.step(super::exited(crate::drive::Process::Ctl, 0), Time::ZERO);
+        assert!(
+            matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(_)] if kept.as_ref() == source.as_bytes())
+        );
+    }
+}
+
+#[test]
+fn ctl_missing_box_value_fails_only_its_line_and_names_the_opening_line() {
+    let (scratch, mut m) = fixture();
+    for (name, expected) in [
+        ("{forgejo.api}", "box: fake forgejo"),
+        ("{forgejo.git}", "box: fake forgejo"),
+        ("{forgejo.admin}", "box: Forgejo elsewhere admin token file"),
+        ("{git}", "box: effective data"),
+    ] {
+        fs::write(scratch.path().join("session/box.log"), b"unrelated\n").expect("log");
+        let source = format!("ctl show {name}");
+        let actions = begin(&mut m, &source);
+        let why = answer(&actions).failed.as_deref().expect("missing opening line");
+        assert!(why.contains(expected), "{why}");
+        assert!(
+            matches!(actions.as_slice(), [Action::Keep(kept), Action::Answer(_)] if kept.as_ref() == source.as_bytes())
+        );
+        assert!(m.ready());
+        assert_eq!(answer(&line(&mut m, "")).print(), "ok\n");
+    }
+}
+
+pub(crate) fn select_files(machine: &mut Machine, directory: Option<std::path::PathBuf>) {
+    machine.plan.options.files = directory;
 }

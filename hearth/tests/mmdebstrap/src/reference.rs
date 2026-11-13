@@ -397,7 +397,7 @@ fn reference_stanza(
         return Err(StanzaError::Value(Field::Sha256));
     }
     let mut sha256 = [0_u8; 32];
-    for (pair, byte) in values[5].chunks_exact(2).zip(&mut sha256) {
+    for (pair, byte) in values[5].as_chunks::<2>().0.iter().zip(&mut sha256) {
         let text = std::str::from_utf8(pair).map_err(|_| StanzaError::Value(Field::Sha256))?;
         *byte = u8::from_str_radix(text, 16).map_err(|_| StanzaError::Value(Field::Sha256))?;
     }

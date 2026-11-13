@@ -328,8 +328,7 @@ pub fn hook_signature(body: &[u8]) -> [u8; 64] {
     let mut mac = skein_lib::sha256::Hmac::new(HOOK_SECRET);
     mac.update(body);
     let mut signature = [0; 64];
-    for (digits, byte) in signature.chunks_exact_mut(2).zip(mac.finish()) {
-        let [high, low] = digits else { unreachable!("hex pair") };
+    for ([high, low], byte) in signature.as_chunks_mut::<2>().0.iter_mut().zip(mac.finish()) {
         *high = skein_lib::bytes::hex_digit(byte / 16);
         *low = skein_lib::bytes::hex_digit(byte);
     }

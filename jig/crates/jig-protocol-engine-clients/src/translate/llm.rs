@@ -12,7 +12,7 @@ use skein_lib::{List, Reader, bytes};
 /// (jig/docs/design/domain/engine/settings.md, 11).
 #[must_use]
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub fn catalogue(models: &[jig_domain_core::settings::CatalogueModel]) -> Box<[Model]> {
+pub fn catalogue(models: &[jig_domain_core_vocabulary::settings::CatalogueModel]) -> Box<[Model]> {
     let mut highest = 0;
     for row in models {
         highest = highest.max(row.number);
@@ -23,7 +23,7 @@ pub fn catalogue(models: &[jig_domain_core::settings::CatalogueModel]) -> Box<[M
         rows.push(Model {
             new_until: None,
             number: 0,
-            source: jig_domain_core::settings::ModelSource::Stock,
+            source: jig_domain_core_vocabulary::settings::ModelSource::Stock,
             estimated: false,
             name: Box::default(),
             provider: None,
@@ -45,7 +45,7 @@ pub fn catalogue(models: &[jig_domain_core::settings::CatalogueModel]) -> Box<[M
         *slot = Model {
             new_until: match row.first_read {
                 Some(at) => Some(skein_lib::Wall::from_nanos(
-                    at.as_nanos().saturating_add(jig_domain_core::settings::catalogue::NEW_FOR.as_nanos()),
+                    at.as_nanos().saturating_add(jig_domain_core_vocabulary::settings::catalogue::NEW_FOR.as_nanos()),
                 )),
                 None => None,
             },
@@ -155,12 +155,12 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
         }
         let name = model.name.len();
         if !skein_codec::text_is_valid(&model.name)
-            || name > skein_lib::length::usize_of(jig_domain_core::MODEL_NAME_BYTES)
+            || name > skein_lib::length::usize_of(jig_domain_core_vocabulary::MODEL_NAME_BYTES)
             || name > skein_lib::length::usize_of(limits.model_set_names_names_item)
             || name > skein_lib::length::usize_of(limits.me_model_name)
             || name > skein_lib::length::usize_of(limits.model_effort_model)
             || name > skein_lib::length::usize_of(limits.refusal_llm_model)
-            || model.efforts.len() > skein_lib::length::usize_of(jig_domain_core::EFFORTS)
+            || model.efforts.len() > skein_lib::length::usize_of(jig_domain_core_vocabulary::EFFORTS)
             || model.efforts.len() > skein_lib::length::usize_of(limits.me_model_efforts)
             || model.prices.unit == 0
             || model.prices.input == 0
@@ -173,7 +173,7 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
         if let Some(description) = &model.description
             && (description.is_empty()
                 || !skein_codec::text_is_valid(description)
-                || description.len() > skein_lib::length::usize_of(jig_domain_core::MODEL_DESCRIPTION_BYTES)
+                || description.len() > skein_lib::length::usize_of(jig_domain_core_vocabulary::MODEL_DESCRIPTION_BYTES)
                 || description.len() > skein_lib::length::usize_of(limits.me_model_description_some))
         {
             return false;
@@ -207,7 +207,7 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
         for effort in &model.efforts {
             if effort.is_empty()
                 || !skein_codec::text_is_valid(effort)
-                || effort.len() > skein_lib::length::usize_of(jig_domain_core::EFFORT_BYTES)
+                || effort.len() > skein_lib::length::usize_of(jig_domain_core_vocabulary::EFFORT_BYTES)
                 || effort.len() > skein_lib::length::usize_of(limits.me_model_efforts_item)
                 || effort.len() > skein_lib::length::usize_of(limits.model_effort_effort_some)
             {
@@ -220,7 +220,7 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
 
 /// The core's offer, retaining configuration order and each model's candidate accounts.
 pub fn models(
-    offer: &[jig_domain_core::Offered],
+    offer: &[jig_domain_core_vocabulary::Offered],
     models: &[Model],
     limits: &w::Limits,
 ) -> Result<List<w::MeModel>, w::Problem> {
@@ -245,9 +245,9 @@ pub fn models(
                 },
                 number: model.number,
                 source: match model.source {
-                    jig_domain_core::settings::ModelSource::Stock => w::ModelSource::Stock,
-                    jig_domain_core::settings::ModelSource::List => w::ModelSource::List,
-                    jig_domain_core::settings::ModelSource::Person => w::ModelSource::Person,
+                    jig_domain_core_vocabulary::settings::ModelSource::Stock => w::ModelSource::Stock,
+                    jig_domain_core_vocabulary::settings::ModelSource::List => w::ModelSource::List,
+                    jig_domain_core_vocabulary::settings::ModelSource::Person => w::ModelSource::Person,
                 },
                 estimated: model.estimated,
                 name: bytes::copy_of(&model.name),
@@ -571,6 +571,20 @@ fn settings_items(bytes: &[u8], models: &[Model], limits: &w::Limits) -> Result<
                     for alternative in value.alternatives() {
                         if found.is_none() {
                             found = settings_model(alternative, models);
+                        }
+                    }
+                    found
+                }
+                w::SettingValue::Overlay(value) => {
+                    let mut found = None;
+                    if let Some(model) = value.model() {
+                        found = settings_model(model, models);
+                    }
+                    if let Some(alternatives) = value.alternatives() {
+                        for model in alternatives {
+                            if found.is_none() {
+                                found = settings_model(model, models);
+                            }
                         }
                     }
                     found

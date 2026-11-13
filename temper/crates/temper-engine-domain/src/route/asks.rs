@@ -35,7 +35,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::StepRefused { task, step, why } => {
-            if connector == domain.config.forge_connector && forge_route::closer_refused(domain, task, &why) {
+            if connector == domain.config.forge_connector && forge_route::closer_refused(domain, task, step, &why) {
                 return;
             }
             if connector == domain.config.forge_connector && forge_route::status_refused(domain, task, &why) {
@@ -153,7 +153,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::Application { request, token, owner, retention, role, person, .. } => {
-            super::applications::admitted(domain, request, token, owner, retention, role, person, env);
+            super::applications::admitted(domain, request, token, owner, retention, role, person, env, decision);
             None
         }
         core::Ask::ApplicationPartAnswered { request, outcome } => {
@@ -161,7 +161,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::Effect(ask) => {
-            forge_route::effect_ask(domain, env, connector, ask);
+            forge_route::effect_ask(domain, env, decision, connector, ask);
             None
         }
         core::Ask::Gather { section, budget } => Some(brief::GatherRequest::Gather { connector, section, budget }),
@@ -670,7 +670,7 @@ fn step_made(
     child: Option<u64>,
 ) {
     forge_route::follow_route::made(domain, task, step, child);
-    forge_route::closer_made(domain, task, child);
+    forge_route::closer_made(domain, task, step, child);
     if domain.forge.tier_task(task).is_some()
         && let Some(row) = domain.core.tasks.task(task)
     {

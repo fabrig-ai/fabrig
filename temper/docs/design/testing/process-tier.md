@@ -85,21 +85,29 @@
   other paths of a box's first run
   (`bin/temper-box/tests/suite/box_listeners.rs`).
 
-- **A box restarted with a newer build** (`../protocol/setup/box.md`, 1;
-  `../draft/landed-qa.md`, 10), one story on `temper box
-  --fake-backends` with its owned Forgejo: the box started from a `bin/`
-  of its own, holding copies of `temper-box` and `fake-claude` and a
-  bundle's directory; a repository adopted and a task made; the box
-  stopped, exit 0, nothing left; each file of `bin/` replaced by a new
-  copy, the bundle's page given a mark; the box started again on the same
+- **A box at its place restarted with a newer build**
+  (`../protocol/setup/box.md`, 1 and 5; `../draft/landed-qa.md`, 10 and
+  11), one story on `temper box --fake-backends` on its fake backends
+  alone, as a QA place runs it: the box started from a `bin/` of its
+  own, holding copies of `temper-box` and `fake-claude` and a bundle's
+  directory; its fake Forgejo elsewhere connected through ctl as its
+  admin, with `--first work/hello` and the box's fake git as its git
+  program, the values read from the box's opening lines as a drive
+  session's ctl lines take them (`../client/drive.md`, 3.4); on
+  `work/hello`, through the fake Forgejo's API as the person, a branch
+  whose head holds `.fake-forge/ci` reading `fail`, and a pull request
+  from it, whose head's `check` fails; a task made; the box stopped,
+  exit 0, nothing left; each file of `bin/` replaced by a new copy, the
+  bundle's page given a mark; the box started again on the same
   directories. ctl signs in with its new link and reads the forge, the
-  repository and the task as they were; every process of the box's tree,
-  read once the link is printed and again while a run started after the
-  restart is live, runs a file of the new `bin/`, by device and inode,
-  but the owned Forgejo and its runner, which run the files their
-  configuration names (box.md, 1), compared with those; none runs an old
-  or a deleted file; the served page holds the mark. It needs the
-  binaries' files and the processes, so it is this profile's.
+  repository, the project and the task as they were; the fake Forgejo's
+  API reads the repository, the pull request, its number and head, and
+  that head's failed `check` as they were; every process of the box's
+  tree, read once the link is printed and again while a run started
+  after the restart is live, runs a file of the new `bin/`, by device
+  and inode, none an old or a deleted file, and none a Forgejo or a
+  runner; the served page holds the mark. It needs the binaries' files
+  and the processes, so it is this profile's.
 
 - **The upgrade's commands,** through the real binary, whose patch sets
   are empty until the first release: `temper-box versions`' lines; `temper-box
@@ -215,7 +223,7 @@
   is tested with simulated clocks, not by sleeping through it here.
 
 - **Forgejo signing in through temper,** a test of its own at the end of
-  `bin/temper-box/tests/process.rs`, on `support/forgejo_sign_in.rs`
+  `bin/temper-box/tests/process.rs`, on `testing/temper-box-kit/src/forgejo_sign_in.rs`
   (../protocol/openid-provider.md, 8): an owned Forgejo prepared by temper's
   commands with no group's file (../protocol/setup/box.md, 4), with 9.4's
   settings in its `app.ini`, beside `temper-box serve` with jig's provider
@@ -262,7 +270,7 @@
   in jig's secrets' store, and the admin's token the preparation's
   handover, `admin_token`, which the setup host takes once
   (../protocol/setup/README.md, sections 3 and 5).
-- **A person's change on the owned forge, signed in with ChatGPT,** the offline proof of the live driver (`bin/temper-box/tests/support/forge_land.rs`): "A
+- **A person's change on the owned forge, signed in with ChatGPT,** the offline proof of the live driver (`testing/temper-box-kit/src/forge_land.rs`): "A
   Forgejo set up from the client" (above), its set-up, first repository
   and landing reused, carried on with ChatGPT's sign-in as above, a
   chat on the plan, and a restart from a fresh client. The module writes
@@ -302,7 +310,7 @@
   temper's fakes as processes, never on Forgejo:
   `bin/temper-box/tests/fixtures/cluster/`, the process tier's cluster
   fixture (../protocol/cluster.md, 5), read by
-  `bin/temper-box/tests/support/cluster.rs`, which starts the fake forge,
+  `testing/temper-box-kit/src/cluster.rs`, which starts the fake forge,
   the fake LLM, the engine alone and two workers alone as processes,
   each in a cgroup of its own, awaits their ready lines and stops them
   in reverse. Its stories: a task on each worker, on the box's binary
@@ -331,7 +339,7 @@
     the sitting's fake half as `scripts/proof-live-github-managed.sh fake`
     sets it up. That is the fake GitHub with the sitting's accounts and
     its two repositories, the sitting's relay in its fake mode, and the
-    engine alone on `tests/support/github/engine.json`. Ready, the web
+    engine alone on `tests/fixtures/github/engine.json`. Ready, the web
     client's domain, view and transport run natively, signs in by the
     printed link. Connect makes the App by its manifest and installs it
     on the one repository, and Ready adopts that repository. The

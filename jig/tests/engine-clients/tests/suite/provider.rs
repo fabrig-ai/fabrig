@@ -3,7 +3,7 @@
     reason = "the task requires real elapsed measurements; protocol deadlines use only the injected world clock"
 )]
 //! The application's page and endpoint routes around the real clients' component (protocol/client/openid.md).
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_engine_clients_world::fixtures;
@@ -207,6 +207,7 @@ impl World {
                 Request::Application(_)
                 | Request::Link { .. }
                 | Request::LocalLink { .. }
+                | Request::StreamFailed { .. }
                 | Request::LinkSignedIn
                 | Request::TakeMoved { .. }
                 | Request::MintRefused { .. }

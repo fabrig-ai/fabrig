@@ -11,9 +11,11 @@ publish.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
-skein-scratch.workspace = true
 skein-world.workspace = true
 libc.workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

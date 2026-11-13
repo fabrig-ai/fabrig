@@ -185,7 +185,7 @@ fn a_new_project_sends_make_project_on_policy_one() {
 fn an_empty_new_name_sends_nothing() {
     let mut f = fixture();
     act(&mut f, Act::Create);
-    assert!(f.pages.switcher().new_words().is_empty());
+    assert_eq!((f.pages.switcher().new_words()).len(), 0);
     assert!(f.out.is_empty());
 }
 #[test]
@@ -222,7 +222,7 @@ fn a_made_project_is_opened_on_its_home_page() {
             assert!(f.out.is_empty());
         }
         answer(&mut f, key, done(c::DocumentOutcome::ProjectMade { project: MADE }));
-        assert!(f.pages.switcher().new_words().is_empty());
+        assert_eq!((f.pages.switcher().new_words()).len(), 0);
         assert_eq!(f.pages.switcher().pending(), None);
         if !listed_first {
             assert_eq!(f.pages.project(), Some(fixtures::PROJECT));
@@ -235,7 +235,8 @@ fn a_made_project_is_opened_on_its_home_page() {
         while let Some(request) = f.out.pop() {
             match request {
                 Request::Show { .. } => panic!("the made project opens once"),
-                Request::Screen { .. }
+                Request::Push(_)
+                | Request::Screen { .. }
                 | Request::KeepLook { .. }
                 | Request::Client(_)
                 | Request::Replace { .. }

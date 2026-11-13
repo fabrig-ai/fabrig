@@ -245,7 +245,7 @@ fn a_reprint_keeps_a_journeys_readme() {
     let description = b"The journey's description.\n";
     fs::write(&readme, description).expect("write description");
     fs::write(directory.join("99.html"), "old page").expect("old page");
-    assert!(crate::reprint(&source, &out).expect("reprint").is_empty());
+    assert_eq!(crate::reprint(&source, &out).expect("reprint").len(), 0);
     assert_eq!(fs::read(readme).expect("description kept"), description);
     assert!(!directory.join("99.html").exists());
 }
@@ -782,7 +782,7 @@ fn tui_add_redacts_proves_and_reprints_byte_for_byte() {
                 | temper_client_shell_tui::journey::Line::End(Some(_))
         )));
     }
-    assert!(crate::tui::reprint(&tui, &out).expect("reprint").is_empty());
+    assert_eq!(crate::tui::reprint(&tui, &out).expect("reprint").len(), 0);
     let mut expected = tree_bytes(&tui);
     for name in ["pasted", "approval"] {
         expected.remove(&Path::new(name).join("recording"));

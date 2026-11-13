@@ -2,7 +2,6 @@
 //! Contract: smith/docs/design/domain/session.md, sections 3 and 6.
 
 use crate::{Budget, Limits};
-use alloc::boxed::Box;
 use skein_lib::Duration;
 use smith_domain_tools as tools;
 
@@ -26,7 +25,7 @@ pub const TOOLS: tools::Limits = tools::Limits {
     read_bytes: 4096,
     file_timeout: Duration::from_secs(60),
     shell_tail: 64,
-    ..smith_domain_tools::fixture::SMALL
+    ..smith_domain_tools_fixtures::SMALL
 };
 
 /// Two sessions with room for a small transcript and two parallel tools.
@@ -51,22 +50,3 @@ pub const SMALL: Limits = Limits {
     parallel_tools: 2,
     tools: TOOLS,
 };
-
-/// A first numbered concrete turn with no usage charge or jobs.
-/// The caller supplies its model, window kind and exact retained messages.
-#[must_use]
-pub fn turn(model: Box<[u8]>, kind: crate::record::Kind, messages: Box<[crate::llm::Message]>) -> crate::record::Turn {
-    crate::record::Turn {
-        model,
-        effort: None,
-        kind,
-        version: crate::record::VERSION,
-        endpoint: Some(crate::llm::Endpoint(0)),
-        dialect: 0,
-        sequence: 1,
-        usage: crate::llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages,
-    }
-}

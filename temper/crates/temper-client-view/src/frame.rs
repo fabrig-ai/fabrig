@@ -20,6 +20,7 @@ enum Act {
     Page(PageAct),
     Approve(temper_client_domain::approve::Act),
     Reading,
+    Reload,
 }
 #[derive(Debug)]
 pub(crate) struct Bindings {
@@ -58,6 +59,17 @@ impl Bindings {
     pub(crate) fn reading(&mut self) -> Binding {
         self.meaning(Act::Reading)
     }
+    pub(crate) fn shell_event(&self, token: Token) -> Option<crate::ShellEvent> {
+        for (key, meaning) in &self.entries {
+            if *key == token {
+                return match meaning {
+                    Act::Reload => Some(crate::ShellEvent::Reload),
+                    Act::Page(_) | Act::Approve(_) | Act::Reading => None,
+                };
+            }
+        }
+        None
+    }
     fn meaning(&mut self, act: Act) -> Binding {
         self.next = self.next.checked_add(1).expect("pages binding tokens fit");
         let token = Token::new(self.next);
@@ -82,6 +94,7 @@ impl Bindings {
                             | skein_ui::Act::Drawing { .. } => None,
                         };
                     }
+                    Act::Reload => return None,
                     Act::Approve(meaning) => return decode_approve(meaning, act),
                     Act::Page(meaning) => meaning,
                 };
@@ -93,6 +106,15 @@ impl Bindings {
                     return None;
                 }
                 let meaning = match (meaning, act) {
+                    (
+                        PageAct::Finding(temper_client_domain::pages::findings::Act::Why { id, .. }),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::Finding(temper_client_domain::pages::findings::Act::Why { id: *id, words: value }),
+                    (
+                        PageAct::Finding(temper_client_domain::pages::findings::Act::Reason { id, .. }),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::Finding(temper_client_domain::pages::findings::Act::Reason { id: *id, words: value }),
+
                     (
                         PageAct::Remembered(temper_client_domain::pages::remembered::Act::Words { .. }),
                         skein_ui::Act::Input { value },
@@ -234,7 +256,12 @@ pub(crate) fn unavailable(root: &Domain) -> Option<crate::words::Word> {
         jig_client::Link::Starting | jig_client::Link::Live | jig_client::Link::Offline => None,
     }
 }
-pub(crate) fn unavailable_main(builder: &mut Builder, root: &Domain, words: &crate::words::Words) {
+pub(crate) fn unavailable_main(
+    builder: &mut Builder,
+    root: &Domain,
+    words: &crate::words::Words,
+    bindings: &mut Bindings,
+) {
     use crate::words::Word;
     use jig_client::NotSignedIn;
     use skein_ui::phrases::Hole;
@@ -258,6 +285,16 @@ pub(crate) fn unavailable_main(builder: &mut Builder, root: &Domain, words: &cra
         }
     } else {
         crate::outside::words(builder, words, Word::OutOfDateHow, &[]);
+        if words.shell == crate::words::Shell::Browser {
+            builder.open(Role::Slot);
+            builder.style(crate::look::OUTSIDE_ACTS);
+            builder.open(Role::Button);
+            builder.style(crate::look::OUTSIDE_PRIMARY);
+            builder.name(&words.say(Word::Reload, &[]));
+            builder.bind(bindings.meaning(Act::Reload));
+            builder.close();
+            builder.close();
+        }
     }
 }
 pub(crate) fn switcher(
@@ -390,6 +427,7 @@ fn all_projects(
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -681,6 +719,7 @@ fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mu
             for (word, act) in [
                 (Word::SettingsAccountsTab, PageAct::Go { address: Address::Accounts }),
                 (Word::RememberedTitle, PageAct::Go { address: Address::Remembered }),
+                (Word::ToldTitle, PageAct::Go { address: Address::Told }),
                 (Word::SignOut, PageAct::SignOut),
             ] {
                 b.open(Role::MenuItem);
@@ -843,6 +882,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        | Address::Told
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -1030,7 +1070,8 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Limits
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. } => true,
-        Address::Remembered
+        Address::Told
+        | Address::Remembered
         | Address::Home { .. }
         | Address::Inbox { .. }
         | Address::Work { .. }

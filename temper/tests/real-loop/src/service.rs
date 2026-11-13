@@ -307,7 +307,13 @@ impl ServiceHost {
         if self.restartable && self.settled() && self.lives.len() == usize::from(self.state == LifeState::Second) {
             assert!(self.lives.len() < LIVES, "bounded service lives");
             self.lives.push(Life {
-                drained: self.end() == Some(&crate::End::Drained),
+                drained: matches!(
+                    self.end(),
+                    Some(
+                        crate::End::Engine(temper_service::EngineEnd::Drained)
+                            | crate::End::Worker(temper_service::worker_alone::End::Drained)
+                    )
+                ),
                 ran: self.runs.tasks[self.life_tasks..].to_vec(),
                 linked: self.linked() - self.life_links,
             });
@@ -346,13 +352,30 @@ impl ServiceHost {
     }
     fn finish_bootstrap(&mut self) {
         let Some(service) = &mut self.service else { return };
-        if !self.signals_adopted && service.end().is_some_and(|end| *end != crate::End::Drained) {
+        if !self.signals_adopted
+            && service.end().is_some_and(|end| {
+                !matches!(
+                    end,
+                    crate::End::Engine(temper_service::EngineEnd::Drained)
+                        | crate::End::Worker(temper_service::worker_alone::End::Drained)
+                )
+            })
+        {
             // A failed bootstrap will not reopen: close its retained signal
             // reader through the ended service's ordinary io lifecycle.
             service.adopt_signals(self.signals).expect("failed bootstrap signal pipe");
             self.signals_adopted = true;
         }
-        if !self.records_seeded && service.is_empty() && service.end() == Some(&crate::End::Drained) {
+        if !self.records_seeded
+            && service.is_empty()
+            && matches!(
+                service.end(),
+                Some(
+                    crate::End::Engine(temper_service::EngineEnd::Drained)
+                        | crate::End::Worker(temper_service::worker_alone::End::Drained)
+                )
+            )
+        {
             self.service = None;
             fixtures::seed(&self.path, self.forge_address.expect("forge peer address"), self.github);
             self.records_seeded = true;
@@ -534,6 +557,10 @@ impl Host for ServiceHost {
         }
         self.forward_submissions();
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the host turn keeps both halves' terminal matches beside restart and completion routing"
+    )]
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
         if self.state == LifeState::Restarting {
@@ -592,7 +619,7 @@ impl Host for ServiceHost {
             service.iterate(now, wall);
             record_tries(&mut self.tries, service);
             while let Some(note) = service.take_listening() {
-                if let temper_service::Note::Listening { listener, addr } = note {
+                if let temper_service::Note::Engine(temper_service::EngineNote::Listening { listener, addr }) = note {
                     if self.records_seeded && matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
                         retain_listener(&self.path, listener, addr);
                     }
@@ -611,11 +638,17 @@ impl Host for ServiceHost {
                         temper_service::Listening::Clients => {}
                     }
                 }
-                self.linked += usize::from(matches!(note, temper_service::Note::Linked { .. }));
+                self.linked += usize::from(matches!(
+                    note,
+                    temper_service::Note::Worker(temper_service::worker_alone::Note::Linked { .. })
+                ));
                 self.notes.push(note);
             }
             while let Some(note) = service.take_note() {
-                self.linked += usize::from(matches!(note, temper_service::Note::Linked { .. }));
+                self.linked += usize::from(matches!(
+                    note,
+                    temper_service::Note::Worker(temper_service::worker_alone::Note::Linked { .. })
+                ));
                 self.notes.push(note);
             }
             while let Some(link) = service.take_link() {

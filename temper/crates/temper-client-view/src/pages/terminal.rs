@@ -101,6 +101,7 @@ pub(crate) fn top(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bind
                 | Address::Inbox { .. }
                 | Address::Chats { .. }
                 // page-view: draw Remembered.
+                | Address::Told
                 | Address::Remembered
                 | Address::Members
                 | Address::Limits

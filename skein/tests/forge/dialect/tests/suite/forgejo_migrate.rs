@@ -45,7 +45,7 @@ fn a_whole_migration_decodes_as_created_repository_in_one_seven_and_whole_byte_c
         assert_eq!(&*repository.clone_url, b"http://127.0.0.1:3000/copies/whole.git");
         assert!(repository.ssh_url.starts_with(b"ssh://"));
         assert!(repository.ssh_url.ends_with(b"@localhost/copies/whole.git"));
-        assert!(decoded.rows.is_empty());
+        assert_eq!(decoded.rows.len(), 0);
     }
 }
 #[test]

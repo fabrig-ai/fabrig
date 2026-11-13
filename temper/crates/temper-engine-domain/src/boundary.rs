@@ -92,6 +92,8 @@ pub enum BriefBody {
 /// A checkout's authoritative forge start, prepared afresh by the worker.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeStart {
+    /// The frozen base of a prepare round (temper/docs/design/domain/worker/jobs.md).
+    Commit(skein_forge::api::Commit),
     Base(Box<[u8]>),
     Branch(Box<[u8]>),
     Saved(Box<[u8]>),
@@ -179,6 +181,8 @@ pub enum RememberAction {
 pub enum Tool {
     /// Ask whether a goal may decide while its person is away (domain/forge/attention.md, 5).
     Decided(forge::DecidedCall),
+    /// File, triage or read findings in the caller's project (domain/agent/tools.md).
+    Finding(FindingCall),
     /// Read related task specifications or proven descendant reports.
     ReadTask { task: u64, field: jig_domain_core::reads::TaskTextField, from: u64 },
     /// Read settings without retaining a named-call record.
@@ -268,6 +272,42 @@ pub enum Tool {
     RejectedNote(jig_domain_notes::Refusal),
     /// The engine records an unavailable answer for a route not yet installed.
     Unavailable,
+}
+
+/// Finding acts never take a project or actor from the agent (domain/areas.md, 7).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum FindingCall {
+    File {
+        kind: forge::FindingKind,
+        severity: forge::Severity,
+        area: Option<Box<[u8]>>,
+        title: Box<[u8]>,
+        body: Box<[u8]>,
+    },
+    Hand {
+        number: u32,
+        area: Box<[u8]>,
+        why: Box<[u8]>,
+    },
+    Triage {
+        number: u32,
+        act: forge::Triage,
+    },
+    List {
+        state: Option<forge::FindingState>,
+        mine: bool,
+    },
+    Show {
+        number: u32,
+    },
+}
+
+/// A snapshot for text rendering; writes retain this result under their call name.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum FindingToolAnswer {
+    Write(forge::FindingReply),
+    List(forge::Findings),
+    Show { project: u32, number: u32, finding: Option<forge::FindingAnswer> },
 }
 
 /// One change of a `change` call (domain/agent/tools.md, 1).
@@ -573,6 +613,8 @@ pub enum Fact {
         heads: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
         error: Option<skein_forge::api::Error>,
     },
+    /// A branch head did not fit (temper/docs/design/domain/forge/keeping-up.md, 1).
+    HeadRefused { task: Option<u64>, words: Box<[u8]> },
     /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).
     BriefFailed { task: u64, counts: &'static str, reason: Box<[u8]> },
     /// A decoded call refused at admission, before any tool runs.
@@ -612,6 +654,11 @@ pub enum Application {
     Looked { project: u32 },
     SetAway { project: u32, on: bool, until: Option<Wall> },
     Overturn { project: u32, number: u32 },
+    AddDevice(forge::AddDevice),
+    RemoveDevice { number: u32 },
+    FileFinding(forge::FileFinding),
+    HandFinding(forge::HandFinding),
+    TriageFinding(forge::TriageFinding),
 }
 /// The family's terminal answer (client/forge/records.md).
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
@@ -633,6 +680,10 @@ pub enum ApplicationAnswer {
     SetAway(forge::SetAwayAnswer),
     SetDraft(forge::SetDraftAnswer),
     Overturn(forge::OverturnAnswer),
+    Device(forge::DeviceAnswer),
+    FileFinding(forge::FileFindingAnswer),
+    HandFinding(forge::HandFindingAnswer),
+    TriageFinding(forge::TriageFindingAnswer),
 }
 /// The trial's terminal answer (temper/docs/design/domain/trial.md, 6).
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
@@ -648,6 +699,10 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    Finding {
+        project: u32,
+        number: u32,
+    },
     /// A view block, read in the project's scope (temper/docs/design/client/forge/records.md).
     View {
         project: u32,
@@ -674,6 +729,7 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    Finding(Option<forge::FindingAnswer>),
     View(Box<temper_engine_domain_ways::View>),
     ProgramEnvironment,
     Setting(Option<forge::settings::SizedValue>),
@@ -1160,6 +1216,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         delivery @ (Delivery::ProjectMade { .. }
         | Delivery::ProjectReleased { .. }
         | Delivery::MoveStanding { .. }
+        | Delivery::FindingsOwned { .. }
         | Delivery::PublicWait { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)
@@ -1175,7 +1232,8 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Assigned { .. }
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }) => Request::Worker(WorkerRequest::Deliver(delivery)),
-        delivery @ (Delivery::PlaygroundNote { .. }
+        delivery @ (Delivery::Push(_)
+        | Delivery::PlaygroundNote { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
         | Delivery::Trials { .. }

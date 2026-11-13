@@ -138,9 +138,9 @@ impl Step {
         &self.arguments
     }
 }
-fn serve(flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>) -> Step {
+fn serve(flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>, record: bool) -> Step {
     let mut arguments = List::with_capacity(
-        u32::try_from(flags.len()).expect("bounded flags").checked_add(3).expect("bounded arguments"),
+        u32::try_from(flags.len()).expect("bounded flags").checked_add(4).expect("bounded arguments"),
     );
     arguments.push(bytes::copy_of(b"internal")).expect("command");
     arguments.push(bytes::copy_of(b"serve")).expect("command");
@@ -148,6 +148,9 @@ fn serve(flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>) -> Step {
         arguments.push(flag.clone()).expect("flags counted");
     }
     arguments.push(bytes::copy_of(b"--box")).expect("box flag");
+    if record {
+        arguments.push(bytes::copy_of(b"--record")).expect("record flag");
+    }
     Step::new(bytes::copy_of(b"serve"), arguments.into_boxed(), Kind::Long).listening(listeners)
 }
 
@@ -161,8 +164,9 @@ pub fn kinds(
     flags: &[Box<[u8]>],
     listeners: Box<[core::net::SocketAddr]>,
     forgejo_listens: bool,
+    record: bool,
 ) -> Steps {
-    let mut result = Steps { always: Box::new([serve(flags, listeners)]), asked: Box::new([]) };
+    let mut result = Steps { always: Box::new([serve(flags, listeners, record)]), asked: Box::new([]) };
     if let Some(owned) = &machine.owned {
         let mut group = List::with_capacity(5);
         if owned.fetch.forgejo || owned.fetch.runner {

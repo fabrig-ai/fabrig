@@ -230,6 +230,7 @@ fn exact_limits(tree: &Tree, maximum: Limits) -> Limits {
     }
 }
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn ended_ended_view_exact_node_depth_text_binding_and_slot_storage_refuses_each_one_under_whole() {
     let w = words();
     let page = ended(
@@ -273,6 +274,7 @@ fn ended_ended_view_exact_node_depth_text_binding_and_slot_storage_refuses_each_
     );
 }
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn ended_funding_view_exact_geometry_and_reserved_empty_rows_remain_independent_of_scalar_values() {
     let mut goldens = Goldens::new("tree/fragments/ended_pages/ended_funding_view_exact");
     let w = words();

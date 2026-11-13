@@ -213,7 +213,7 @@ fn a_github_joint_renews_each_installations_token_before_it_expires() {
         assert!(*later > expires);
         assert!(world.env.wall < expires, "renewal completes before the old token expires");
     }
-    assert!(world.stopped.is_empty());
+    assert_eq!(world.stopped.len(), 0);
     assert_eq!(world.connected, 1);
 }
 
@@ -249,7 +249,7 @@ fn the_joints_request_lines_are_the_same_after_many_polls() {
     }
     assert_eq!(world.start_counts().written, 7);
     assert_eq!(world.start_counts().served, 7);
-    assert!(world.stopped.is_empty());
+    assert_eq!(world.stopped.len(), 0);
     assert_eq!(world.connected, 1);
 }
 

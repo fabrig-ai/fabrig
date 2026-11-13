@@ -106,7 +106,7 @@ fn an_accepted_init_uses_the_completion_head_deadline() {
     assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Head });
     assert_eq!(backend.startup.phase(), State::Running);
     assert!(backend.startup.switching(), "stops the expired invocation while retaining retry storage");
-    assert!(backend.stopping.action() == Some(stopping::Action::Close));
+    assert_eq!(backend.stopping.action(), Some(stopping::Action::Close));
     assert!(backend.current.owner().is_none());
 }
 #[test]

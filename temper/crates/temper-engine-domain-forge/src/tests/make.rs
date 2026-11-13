@@ -3,7 +3,7 @@
 #![expect(clippy::match_like_matches_macro, reason = "explicit test patterns follow the step subset")]
 use super::*;
 use core::num::NonZeroU64;
-use jig_domain_core::Carried;
+use jig_domain_core_vocabulary::Carried;
 use jig_domain_people::Role as PartyRole;
 
 const VALUE: Carried = Carried { number: 1_u64 << 63_u32, digest: [17; 32] };

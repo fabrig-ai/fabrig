@@ -2,7 +2,7 @@
 use crate::native::Received;
 use jig_client::{Message, Request as ClientRequest, contract as c};
 use jig_client_kit::harness::{Receipt, Sent};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v20 as w;
 use jig_client_test_domain::{Event, Request};
 use skein_lib::{Reader, RequestEnvelope, Token};
 
@@ -59,7 +59,8 @@ pub fn sent(request: &Request) -> Option<Sent> {
 pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
     let ClientRequest::Exchange { exchange, message: Message::Request(bytes), .. } = request else { return None };
     let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed bytes");
-    let mut sent = Sent { attempt: *exchange, key: *keyed.key(), card: None, revision: None, words: None };
+    let mut sent =
+        Sent { application: false, attempt: *exchange, key: *keyed.key(), card: None, revision: None, words: None };
     match keyed.owner() {
         w::Owner::Jig => {
             let ask = w::Ask::decode(&w::CEILINGS, &mut Reader::new(keyed.request())).expect("jig ask bytes");
@@ -149,6 +150,7 @@ pub fn client_sent(request: &ClientRequest) -> Option<Sent> {
         }
         w::Owner::Family(_) => {
             use jig_client_test_protocol_wire::v2 as family;
+            sent.application = true;
             let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request()))
                 .expect("family request envelope");
             let request = family::Request::decode(&family::CEILINGS, &mut Reader::new(envelope.record()))

@@ -9,14 +9,15 @@ process (1). Its table, its sets, its help and its exits are
 `../client/ctl/README.md` designs them:
 
 ```
-public         temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps]
+public         temper-box [--config DIR] [--data DIR] [--cache DIR] [--echo none|steps] [--record]
                temper-box init [DIRECTORIES]
-               temper-box serve [DIRECTORIES]
+               temper-box serve [DIRECTORIES] [--record]
                temper-box program-login [DIRECTORIES] NAME
                temper-box help [NAME | pages | --search WORDS...]
                temper-box versions
                temper-box upgrade --check DIRECTORY | --back
-internal       temper-box [DIRECTORIES] --fake-backends [--bundle DIR] [--no-tui]
+internal       temper-box [DIRECTORIES] --fake-backends [--bundle DIR] [--record]
+               temper-box [DIRECTORIES] [--fake-backends [--bundle DIR]] [--record] --front
                temper-box init [DIRECTORIES] --box
                temper-box forge fetch|prepare|sign-in|source|remove [DIRECTORIES] FORGE
                temper-box forge run [DIRECTORIES] FORGE forgejo|runner
@@ -25,9 +26,8 @@ internal       temper-box [DIRECTORIES] --fake-backends [--bundle DIR] [--no-tui
                temper-box ctl help [GROUP [VERB]]
                temper-box open DIRECTORY LINK_OR_ADDRESS
 spawned        temper-box internal agent AGENT.json
-               temper-box internal serve [DIRECTORIES] --box
+               temper-box internal serve [DIRECTORIES] --box [--record]
                temper-box internal forge-child --parent PID --signal kill|terminate -- PROGRAM ARGS...
-               temper-box internal tui --box ADDRESS
 test doubles   temper-box fake llm|forge|oauth|git ...
 ```
 
@@ -40,53 +40,51 @@ test doubles   temper-box fake llm|forge|oauth|git ...
 - **What temper spawns itself** is under `temper-box internal`, internal,
   absent from `temper-box --help` and from every page but `commands`; a
   person or an agent never runs it.
-- **The TUI on an engine** is the client's, `temper-client [ADDRESS]`
-  below; the box runs it in front of itself by `internal tui`, until the
-  client's `temper box` does (`../draft/cli.md`, section 5).
-- **The deployment's client, `temper-client`** (`bin/temper-client`, its
-  crate `crates/temper-client-shell`, `../cli/README.md`, 2;
-  `../draft/deployment-binaries.md`, section 4 and section 9's first item), a binary of its
-  own for a person's machine or an automation's. Its table holds three of
-  the client's `temper` rows, the same rows run by the same code (`components.md`):
+- **The TUI is the client's,** `temper`'s, below: on an engine,
+  `temper [ADDRESS]`, and in front of a box, `temper box`, which runs
+  `temper-box --front` as its child (`setup/box.md`, 6;
+  `../client/tui/box.md`). The box runs no TUI of its own.
+- **The client, `temper`** (`bin/temper`, its code
+  `crates/temper-client-shell`; `../draft/cli.md`, 4.1;
+  `../draft/deployment-binaries.md`, section 4 and section 9's first
+  item), a binary of its own for a person's machine or an automation's,
+  and the box's front. Its table, its sets, its help and its exits are
+  `../cli/README.md`'s (7.4):
 
   ```
-  documentation  temper-client help [NAME | --search WORDS...]
-  clients        temper-client [ADDRESS]
-                 temper-client ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
-                 temper-client ctl DIRECTORY --call FILE [--json]
-                 temper-client ctl help [GROUP [VERB]]
+  public         temper [ADDRESS]
+                 temper box [ARGUMENT...]
+                 temper help [NAME | pages | --search WORDS...]
+  internal       temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
+                 temper ctl DIRECTORY --call FILE [--json]
+                 temper ctl help [GROUP [VERB]]
+  spawned        temper internal fetch-box [--cache DIR]
   ```
 
-  - Its parser, `temper-client --help`, `temper-client COMMAND --help` and
-    its refusals derive from its table as `temper`'s do from its own,
-    each line naming `temper-client` where `temper`'s name `temper`. The
-    rows' own words, their lines, arguments and notes, are the client's and
-    name `temper`; so do `ctl`'s own help and its lines (`temper ctl: `),
-    which no binary changes.
-  - **`temper-client --version`** prints one line, `temper-client VERSION
-    (COMMIT)`, as `../release.md`, section 3, gives every binary's: VERSION
-    and COMMIT `temper-version`'s (1). It is a flag, as `--help` is, and
-    no row; `version` is no command of its.
-  - A first word that is no row of its table, no address and no flag is
-    refused as `temper`'s are, `temper-client: no command WORD;
-    temper-client --help lists them`, exit 1: `box`, `serve`, `open` and
-    `internal` among them.
+  - **`ctl` is one row both tables hold,** run by the same code
+    (`components.md`); its own help and its lines (`temper ctl: `) name
+    `temper`, whichever binary runs it.
+  - **`temper --version`** prints one line, `temper VERSION (COMMIT)`, as
+    `../release.md`, section 3, gives every binary's: VERSION and COMMIT
+    `temper-version`'s (1).
+  - **A first word that is no row of its table** is the bare form's
+    address, refused, exit 2, when it isn't one (`../cli/README.md`,
+    7.4): `serve`, `open` and `init` among them, which are the box's.
   - **It links** the client's crates but the web shell and the bundle,
-    jig's client crates, skein's, and `temper-shell` (`components.md`), which
-    every binary of temper's starts from; none of the engine's, the
-    worker's, smith's agent, the box or the forge's setup, its row in 4
-    holding it with its exceptions. Of the forges' records it links the
+    jig's client crates, skein's, `temper-shell` (`components.md`), which
+    every binary of temper's starts from, and the fetch of `temper-box`,
+    `temper-fetch` and `temper-fetch-shell` (`../client/box-binary.md`,
+    6); none of the engine's, the worker's, smith's agent, the box or the
+    forge's setup, its row in 4 holding it with its exceptions. Of the forges' records it links the
     codecs alone, `temper-protocol-records`; their reading at start is
     `temper-protocol-records-forge`'s, which it never links
     (`components.md`).
-  - **Its file** is the Cargo target `temper-client`. The name a
-    deployment's people run it by is the user's to choose
-    (`../draft/deployment-binaries.status.md`, Open), and the release job
-    names the published file by it.
-  - **Its story,** in the process tier: `temper-client ctl` signs in to a
+  - **Its file** is the Cargo target `temper`, the name the site serves
+    it by (`../draft/cli.md`, 5.3).
+  - **Its story,** in the process tier: `temper ctl` signs in to a
     `temper-engine serve` on an engine alone's document, with the link
-    it printed, and reads `me`, as `temper ctl` does
-    (`../draft/deployment-binaries.md`, section 10).
+    it printed, and reads `me` (`../draft/deployment-binaries.md`,
+    section 10).
 
 `DIRECTORIES` is `[--config DIR] [--data DIR] [--cache DIR]`, given
 anywhere among the command's arguments, each with its variable and its
@@ -107,6 +105,19 @@ default; the document is `temper.json` in the configuration directory
     notes, the lines of `cluster.md`, 3 (each TCP listener once bound, and a worker
     alone's link at each opening) and the reason of a failure. A worker
     alone prints no sign-in link.
+  - `--record`, off by default, a public switch its help names: the
+    page it serves records in every person's browser from its load,
+    with nothing added to its address, by the page's `temper-record`
+    meta (`sign-in.md`, 7; `../client/web/README.md`, 2.1 and 2.2), so
+    that a person can record a journey on the deployment and save it
+    with Alt+Shift+S (`../client/web/journeys.md`, 3.1). Its help line:
+    "Have every page served record a journey in its browser, saved by
+    Alt+Shift+S." A worker alone serves no page, and takes it
+    as it is, changing nothing. `temper-box` takes it on each of its
+    forms, the fake backends' and `--front` among them (so `temper box
+    --record` passes it), and gives it to its `internal serve --box`
+    step; the engine's `temper-engine serve` takes it as the box's
+    `serve` does (2).
   - `--box`, given by `temper-box` alone, as `temper-box internal serve
     --box`, adopts the box's pipe, the two fds after the listeners the
     box gives it (setup/box.md, 1). Given listeners, `LISTEN_FDS` of them
@@ -306,9 +317,8 @@ of each:
 - **Its own table,** commands as above, from which its reach, its
   `--help`, its `COMMAND --help` and its usage lines derive, rendered
   under its own name: `skein_shell::Table` for `temper-box`,
-  `temper-engine`, `temper-worker` and `temper-agent`
-  (`../cli/README.md`), `temper-shell`'s `commands` for the client until
-  its is built (`../draft/cli.execution.md`, C3). A command two binaries
+  `temper-engine`, `temper-worker`, `temper-agent` and the client's
+  `temper` (`../cli/README.md`). A command two binaries
   share, the same words run by the same code, is one constant both
   tables hold. `help`, the pages, is every binary's.
 - **`--version`** prints `NAME VERSION (COMMIT)` before any command is
@@ -348,7 +358,7 @@ client, with the owned forge's commands. Its table and sets are
 
 ```
 documentation  temper-engine help [NAME | pages | --search WORDS...]
-deployment     temper-engine serve [DIRECTORIES]
+deployment     temper-engine serve [DIRECTORIES] [--record]
                temper-engine versions
                temper-engine upgrade --check DIRECTORY | --back
                temper-engine forge fetch|prepare|sign-in|source|remove [DIRECTORIES] FORGE
@@ -535,7 +545,7 @@ internal  temper-agent AGENT.json
   `bin/temper-agent`, its `main.rs` installing fail-stop and calling
   `temper-agent-shell`'s `main` (`../cli/README.md`, 2).
 - **Its tests:** its crate's parser's table, a row per form and
-  per refusal, as `temper-client`'s; and one table in its package's suite, a row
+  per refusal, as `temper`'s; and one table in its package's suite, a row
   per mode, each running the built `temper-agent` with an empty
   environment and stdin closed and comparing its exit, stdout and
   stderr: `--version`, `--help` and `--list --help`; the refusals; the
@@ -582,11 +592,15 @@ hold, and its exceptions, each with its reason.
 
 | Package | Rules | Exceptions |
 |---|---|---|
-| `temper-client` | temper only `temper-client`, `temper-client-shell`, `temper-client-domain`, `temper-client-protocol-wire`, `temper-client-shell-cli`, `temper-client-shell-terminal`, `temper-client-shell-tui`, `temper-client-redaction`, `temper-client-tools`, `temper-client-tui`, `temper-client-view`, `temper-shell`, `temper-docs` and `temper-version`; jig only `jig-client`, `jig-client-domain`, `jig-client-protocol-http`, `jig-client-protocol-link`, `jig-client-protocol-wire`, `jig-client-shell-native` and `jig-client-view`; smith only none | `temper-settings-form`, `temper-protocol-records`, `temper-protocol-reaches`, `jig-protocol-transcript`, `smith-transcript` |
+| `temper` | temper only `temper`, `temper-client-shell`, `temper-client-domain`, `temper-client-protocol-wire`, `temper-client-shell-cli`, `temper-client-shell-terminal`, `temper-client-shell-tui`, `temper-client-redaction`, `temper-client-tools`, `temper-charter-set`, `temper-client-tui`, `temper-client-view`, `temper-shell`, `temper-docs`, `temper-version`, `temper-fetch` and `temper-fetch-shell`; jig only `jig-client`, `jig-client-domain`, `jig-client-protocol-http`, `jig-client-protocol-link`, `jig-client-protocol-wire`, `jig-client-shell-native` and `jig-client-view`; smith only none | `temper-settings-form`, `temper-protocol-records`, `temper-protocol-reaches`, `jig-protocol-transcript`, `smith-transcript` |
 | `temper-engine` | temper not `temper-worker-` and `temper-service`; jig not `jig-protocol-worker-agents` and `jig-protocol-worker-link`; smith not `smith-host-`, `smith-agent-`, `smith-local-`, `smith-inline-agent`, `smith-domain`, `smith-domain-`, `smith-protocol-channel`, `smith-protocol-events`, `smith-protocol-llm`, `smith-protocol-machine`, `smith-protocol-program` and `smith-events` | `smith-domain`, `smith-domain-run`, `smith-domain-session`, `smith-domain-tools` (2) |
 | `temper-worker` | temper not `temper-engine-`, `temper-box-`, `temper-fake`, `temper-fake-`, `temper-init`, `temper-client-bundle`, `temper-client-shell-web`, `temper-forge-setup`, `temper-forge-setup-shell`, `temper-protocol-records-forge`, `temper-agent-shell` and `temper-service`; smith not `smith-agent-shell`, `smith-agent-service`, `smith-local-` and `smith-inline-agent` | none (5) |
 | `temper-agent` | temper only `temper-agent`, `temper-agent-shell`, `temper-shell`, `temper-docs`, `temper-launcher`, `temper-fetch`, `temper-fetch-shell` and `temper-version`; jig only none | none |
 
+- **The client assembles charter overlays** (`../client/ctl/overlays.md`, 2)
+  through `temper-charter-set`, the sans-io file assembly shared with
+  startup. It depends on skein-lib alone, and carries no engine or
+  worker code into the client.
 - **The client's exceptions:** `temper-settings-form`, the settings
   form and its words, `no_std` and neither the client's nor the
   engine's, which ctl's tools (`temper-client-tools`) render and the
@@ -654,7 +668,9 @@ public  temper-worker help [NAME | pages | --search WORDS...]
 - **Its `serve`** is the box's `temper-box serve` on a worker alone: the
   worker's part read and checked, its agent's document read by
   `smith-agent-document`, its root, program sources and the launcher's
-  links made (setup/owned.md, 6), its link dialled, and its loop, ending and
+  links made (setup/owned.md, 6), its agent's program and document
+  pinned in its root (`../domain/worker/README.md`, section 5), its link
+  dialled, and its loop, ending and
   exit its worker's (`cluster.md`, 1). It takes no `--box`, and has no bundle, no
   fakes and no store.
 - **Its `program-login`** is the box's on a worker alone (`cluster.md`, 1;

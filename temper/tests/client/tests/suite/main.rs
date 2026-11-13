@@ -36,6 +36,7 @@ mod open_chat;
 mod playground;
 mod project_delete;
 mod project_fund;
+mod push;
 mod reading;
 mod recovery;
 mod remembered_page;
@@ -88,5 +89,6 @@ mod welcome_m4;
 mod reloads;
 
 mod person_task_tools;
+mod service_party;
 
 mod ways;

@@ -13,7 +13,7 @@ const UNCHANGED: Time = Time::from_nanos(2);
 
 fn call(state: &State, op: api::Op) -> api::Answer {
     let mut forge = state.handle.borrow_mut();
-    let mut env = skein_shell::Clock::new().now().with(forge.config);
+    let mut env = skein_shell::Clock::new().now().with(forge.config.clone());
     let mut out = Queue::uncapped();
     domain::step(
         &mut forge.domain,
@@ -83,7 +83,7 @@ fn deliveries_follow_peer_order_without_repeating_unchanged_history() {
     let mut records = vec![Observation::Connection { connection: Token::new(CALL), open: true }];
     let mut seen = Seen::default();
     seen.collect_deliveries(&records);
-    assert!(seen.deliveries().is_empty());
+    assert_eq!(seen.deliveries(), []);
     records.push(Observation::Delivery { post: None, outcome: Delivery::Written });
     seen.collect_deliveries(&records);
     seen.collect_deliveries(&records);

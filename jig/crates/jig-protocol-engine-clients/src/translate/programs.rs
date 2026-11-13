@@ -1,7 +1,7 @@
 //! Secret-free program facts (accounts.md, 3.4; client/domain/contract/documents.md, 1).
 use super::{pieces, w};
 use alloc::boxed::Box;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_link::{LoginState, SignOutResult, SourceFailure};
 use skein_lib::{List, Writer};
 fn failure(value: SourceFailure) -> w::ProgramFailure {

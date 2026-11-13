@@ -34,7 +34,7 @@ fn out_of_date_column(host: &mut Host) {
             .nodes()
             .iter()
             .flat_map(|node| &node.text)
-            .any(|run| { run.text.as_ref() == b"Run the temper the engine runs." })
+            .any(|run| { run.text.as_ref() == b"This page doesn't match temper's engine. Reload it to continue." })
     );
 }
 
@@ -63,9 +63,14 @@ fn an_unserved_forge_reloads_once_even_while_the_link_is_live() {
     refuse_forge(&mut reloaded);
     assert_eq!(reloaded.reload(Some(true)), Action::None);
     build(&mut reloaded);
-    assert!(reloaded.tree().nodes().iter().flat_map(|node| &node.text).any(|run| {
-        run.text.as_ref() == b"This temper is out of date for adopting repositories: run the temper the engine runs."
-    }));
+    assert!(
+        reloaded
+            .tree()
+            .nodes()
+            .iter()
+            .flat_map(|node| &node.text)
+            .any(|run| { run.text.as_ref() == b"This page is out of date for adopting repositories: reload it." })
+    );
 }
 
 #[test]

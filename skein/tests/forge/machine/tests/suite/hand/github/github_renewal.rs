@@ -1,6 +1,7 @@
 //! Renewal uses the reserved connection independently of ordinary GitHub calls.
 use super::github_installation_loss::{public_ready, requests};
 use skein_forge::github::request::Scope;
+use skein_forge_connection::seam::Access;
 use skein_forge_connection::{Event, Request, Stopped, seam::Tokens};
 use skein_forge_machine_world::hand::{
     self as fixtures, CONTENTS, CONTENTS_DUE, CONTENTS_EXPIRY, EXPIRES, FORGE, FULL, FULL_DUE, Harness, LATER, LIVE,

@@ -44,9 +44,11 @@ impl Row {
         self.refused_revision = None;
     }
     /// Eligibility survives expiry; a caller waits when this returns no value.
+    #[must_use]
     pub fn credential(&self, now: Time) -> Option<&Secret> {
         if self.accepted && !self.suspended && self.full.expiry > now { self.api.as_ref() } else { None }
     }
+    #[must_use]
     pub fn scope(&self) -> Option<Scope> {
         match self.state {
             Tokens::Minting { scope } => Some(scope),
@@ -83,12 +85,15 @@ pub struct Clock {
     pub next: Duration,
 }
 impl Clock {
+    #[must_use]
     pub fn empty() -> Self {
         Self { expiry: Time::ZERO, due: None, pending: false, next: Duration::ZERO }
     }
+    #[must_use]
     pub fn pending() -> Self {
         Self { pending: true, ..Self::empty() }
     }
+    #[must_use]
     pub fn minted(expires: Wall, next: Duration, env: &skein_lib::Env<crate::Limits>) -> Self {
         let (expiry, due) = token_times(expires, env.now, env.wall, env.limits.renew_before);
         let (due, next) = if due <= env.now {
@@ -173,6 +178,7 @@ pub struct Reading {
     pub overflowed: bool,
 }
 impl Reading {
+    #[must_use]
     pub fn new(cap: u32, generation: u64, next: Duration) -> Self {
         Self {
             page: 1,
@@ -378,6 +384,7 @@ pub struct GitHub {
     pub connected: bool,
 }
 impl GitHub {
+    #[must_use]
     pub fn new(cap: u32) -> Self {
         Self {
             said_origins: skein_lib::Queue::with_capacity(0),
@@ -490,6 +497,7 @@ impl GitHub {
         }
         self.invalidate();
     }
+    #[must_use]
     pub fn valid(&self, selected: Selected) -> bool {
         if selected.connect != self.connect {
             return false;
@@ -499,6 +507,7 @@ impl GitHub {
             None => false,
         }
     }
+    #[must_use]
     pub fn selected_valid(&self) -> bool {
         match self.selected {
             Some(selected) => !self.stale && self.valid(selected),
@@ -524,6 +533,7 @@ impl GitHub {
         self.read = Read::Reading(Reading::new(self.rows.capacity(), self.generation, next));
         self.reread = false;
     }
+    #[must_use]
     pub fn stale_read(&self) -> bool {
         match &self.read {
             Read::Reading(reading) => reading.stale || reading.generation != self.generation,
@@ -640,6 +650,7 @@ impl GitHub {
             Read::Idle | Read::Waiting { .. } => None,
         }
     }
+    #[must_use]
     pub fn deadline(&self) -> Option<Time> {
         let mut next = match self.read {
             Read::Waiting { until, .. } => Some(until),

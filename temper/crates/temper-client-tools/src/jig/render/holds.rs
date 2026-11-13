@@ -154,6 +154,7 @@ fn owner(reason: &c::HoldCategory, out: &mut Text) {
                 c::HoldFailure::Agent => b"agent failures",
                 c::HoldFailure::Lost => b"lost runs",
                 c::HoldFailure::Invalid => b"invalid results",
+                c::HoldFailure::Infrastructure => b"infrastructure failures",
             });
         }
         c::HoldCategory::Exceeded(_)

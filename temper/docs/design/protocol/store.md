@@ -137,6 +137,15 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   each with its task, pull request and title (at most 256 bytes) and its
   sign-offs, `signed`, at most 8, as the `Change` row keeps them, its
   trailers and its verdicts, erased with its repository; 31 `Finding`, 32
+  each with its task, pull request and title (at most 256 bytes), its
+  trailers and its verdicts, erased with its repository; 31 `Finding`,
+  keyed `Finding { project, number }`, a finding's record
+  (`../domain/findings.md`, section 2): its kind, severity, area, state,
+  title, body, filer, when, the last hand-off's why and hander, its goal,
+  a drop's reason, and the fields its issue and matching add, each an
+  option appended after these; written by the forge's finding requests
+  and the root's filing of a red, erased with its project, bounded by
+  `forge.findings_per_project` times `forge.judge_projects`; 32
   `Mark` and 33 `QaPass`. A
   receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
   section 2), and the `Change` family's `Landed` state means verifying,
@@ -178,6 +187,18 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   The `Change` family's row keeps a follow change's `follows`, its
   follow's number and the commits it follows (`../domain/forge/follows.md`,
   section 4), as it keeps `repairs`; family 20 keeps kind 12's values.
+- **A person's devices,** after the follows' family, byte 42:
+
+  | Byte | Family | Key | What a row holds | Bounded by |
+  |---|---|---|---|---|
+  | 43 | `Device` | `Device { party, number }`: the party, then the device's number | a browser's push subscription that the person turned push on with: `endpoint`, 1 to 1,024 bytes; `p256dh`, 65 bytes; `auth`, 16 bytes; `label`, 1 to 60 bytes; `at` (`../domain/forge/attention.md`, 7.1). Written by the party's `AddDevice`; erased by their `RemoveDevice`, by another party's `AddDevice` of the same endpoint, and by a push its service answers gone (`../domain/forge/attention.md`, 7.2); never with a project. A family of the forge connector's though it is people's, as `Binding` is | 8 times `bindings` |
+
+  Its record, `Device`, is the schema's `Value` variant after
+  `follow`. It moves `temper-store` and `STORE_VERSION` from 12 to 13
+  in temper patch 2 (`baseline.md`, 7). The patch adds the declaration
+  and variant without inventing a device for an older store; its
+  existing rows keep their values under the new version. Push and mail
+  delivery state stays in memory (`../domain/forge/attention.md`, 7).
 - **Loaded:** every family at the forge's restart step, and never
   otherwise. No party reads a row: what a party sees of them comes in
   the forge's documents (`../client/forge/family.md`).
@@ -187,8 +208,8 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   application writes, `Put { key, value }` and `Remove { key }`, in the
   same commit as jig's (jig's `protocol/store/README.md`, sections 3 and 5).
 - **A new variant** of `Stored` is a new family at the next byte, with
-  `STORE_VERSION` as section 4 has it: in place until the first
-  release.
+  `STORE_VERSION` as section 4 has it: from the baseline, a stored
+  layout change moves its version and brings its patch (`baseline.md`, 7).
 
 ## 3. Keys
 
@@ -205,7 +226,9 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
     number, 3 and an issue's;
   - `Topic` is its variant (0 `Landings`, 1 `Ci`, 2 `Pull`, 3
     `Participation`), then the repository, then the branch, the commit
-    or the number;
+    or the number; or 4 `Findings`, then the project
+    (`../domain/forge/README.md`, 5.1);
+  - `Finding` is the project, then the number;
   - `Making` is the forge, then the org and the name, each one byte
     string;
   - the client's key is its variant (0 `Live`, 1 `Repository`), then its
@@ -240,17 +263,45 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   domain's values are translated to and from the generated ones by small
   total functions, exhaustive both ways, so a domain change to a durable
   field breaks a translation's build.
+- **Its generated record code in a codec crate,**
+  `temper-protocol-store-codec`, which depends on skein-lib and
+  skein-codec alone (skein's `data/codec/README.md`, section 2), so that
+  it compiles beside the forge's domain crates rather than after them.
+  It holds the current version's code alone, `src/generated/v<N>.rs` as
+  the module `v<N>`, which `temper-protocol-store` re-exports at its root
+  under the same name. An older version's record is read as a generic
+  value of its kept text and patched (`baseline.md`), so no older
+  version's code is kept. `temper-protocol-store` keeps the schema, the
+  kept texts, the patches, the golden bytes and the translations. The
+  drift test, `temper-codecs-world`'s, reads the schema and golden bytes
+  there and the code in the codec crate.
 - **Collections** are pieces or counted lists by jig's rule (jig's
   `protocol/store/records.md`, 1). The schema's limits are made from the
   forge's limits, and checked against the schema's ceilings at start.
+- **Settings history room follows the effective core capacities.** Before
+  map admission, temper raises the profile's value ceiling to at least
+  jig's `sizes::settings_value` (jig's `protocol/store/records.md`, 4),
+  and its page ceiling to at least that value plus the profile's key
+  ceiling. This includes a whole set of edits, their replaced values and
+  the model-name table; stock at the small process deployment's capacities
+  needs 4,385,228 bytes. The figure is calculated at startup, never a
+  second fixed ceiling that stock growth must update. Checked map sizing
+  then derives the opening value, chunk and page from the effective
+  limits. The map budget, row count, queues and read slots retain their
+  configured bounds. Other records still face the resulting value ceiling.
 - **`STORE_VERSION`,** temper's store version: one number for all of
-  temper's families. Until the first release it stays at its current
-  value while its schema, generated code and one set of golden bytes
-  change in place. It moves at a release, by the rule temper's versions
-  share (`README.md`, section 7; skein's `data/codec/README.md`, section 5).
+  temper's families. From the baseline (`baseline.md`, 2), a changed
+  stored layout moves its version and brings its patch in that landing
+  (`baseline.md`, 7). U1's patch 1 moves 11 to 12; the devices' patch 2
+  moves 12 to 13; the closer question relay's patch 3 moves 13 to 14,
+  adding `Closer.relay` as none for every existing closer. R2's patch 4
+  moves 14 to 15 with areas, the triager, findings and their retained
+  answers and subscription topic added. Kept schemas and landed patches
+  stay unchanged.
+
   The routing gives it to jig's component, whose format row records it;
-  a store written with another refuses to open, saying so (jig's
-  `protocol/store/records.md`, 2 and 3).
+  opening patches an older supported store in a copy before restoring
+  it (jig's `protocol/store/opening.md`).
 - **A repository's tag** is its forge's number and its id, packed
   (`../domain/forge/adoption.md`): the tasks' resource parameters and
   saved resources jig keeps name the pair.
@@ -267,7 +318,8 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   (setup/playground.md).
 - **Bytes 17 and 19** are reserved: no family takes them, and a row
   under either is a tag the decoder does not know (section 3).
-- **A deployment made again** when a build changes temper's families:
+- **A deployment made again** for a store from before the baseline
+  (`baseline.md`, 5):
   remove each forge from the client, which erases its credentials and
   removes its box group and directory (forge/engine.md, 3); stop temper,
   move its store aside, the `store/` and `transcripts/` directories in
@@ -400,10 +452,9 @@ A listing's page of items says whether it was cut at the answer's bytes (skein's
   ```
 
   DIR is the deployment's directory, as the other refusals name it,
-  NAME the family's variant in section 2 and N its number. Before the
-  first release a stored format changes in place (section 4), so this
-  is how a newer build meets an older store's rows, and how QA knows a
-  copy to make again (`../draft/landed-qa.md`, 5). It is jig's row that
+  NAME the family's variant in section 2 and N its number. A store
+  from before the baseline has no supported patch path (`baseline.md`, 5),
+  so QA knows a copy to make again (`../draft/landed-qa.md`, 5). It is jig's row that
   does not decode, which stops the engine (jig's
   `protocol/store/loads.md`, 1), said by name.
 - **Nothing else is read:** no load, get or party's read of temper's

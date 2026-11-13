@@ -24,7 +24,7 @@ fn git_text_parses_parents_final_trailers_and_subjects_from_the_end() {
         ]
     );
     assert!(parse_commits("not-a-commit\n").is_err());
-    assert!(parse_commits("").expect("empty").is_empty());
+    assert_eq!(parse_commits("").expect("empty").len(), 0);
     let subject = "Merge pull request 'Title (x)' (#12) from temper5/g7 into main";
     let landing = parse_landing(subject, "main").expect("goal subject");
     assert_eq!((landing.goal, landing.pull, landing.title.as_str()), (7, Some(12), "Title (x)"));
@@ -68,7 +68,7 @@ fn watcher_sees_all_parents_once_across_rewinds_and_orders_two_landings() {
     let mut git = baseline();
     read(&mut git, &world);
     assert_eq!(world.ledger().head, Some(id(0)));
-    assert!(world.ledger().landings.is_empty());
+    assert_eq!(world.ledger().landings.len(), 0);
     git.commit(1, &[0], "goal's one-parent tip\n\nGoal: 7\n");
     git.merge(2, &[0, 1], 7);
     git.commit(3, &[0], "H1");
@@ -121,6 +121,10 @@ fn builds_learn_holds_only_when_the_observed_head_contains_them() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one serial triage session pins its inputs, fakes-only brief and environment"
+)]
 fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::Case, Agent::None]);
@@ -194,6 +198,10 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
         "A project ready for work. Two lines.",
         "temper-qa triage none WHY",
         "temper-qa triage case FILE",
+        "The fakes alone",
+        "the person's forge is the box's fake Forgejo",
+        "what only the box's own Forgejo or another real backend shows is no case",
+        "a landing that changes nothing else a person meets is no QA, its line saying so",
         "\"expect\"",
     ] {
         assert!(brief.contains(words), "{words}\n{brief}");
@@ -218,7 +226,7 @@ fn triage_is_serial_and_its_brief_and_environment_are_the_merges_inputs() {
         assert!(brief.contains(words), "{words}");
     }
     run.tick();
-    assert!(world.ledger().running_sessions().is_empty());
+    assert_eq!(world.ledger().running_sessions().len(), 0);
 }
 
 #[test]
@@ -278,7 +286,7 @@ fn empty_agents_twice_are_unanswered_but_bound_agents_are_stopped_at_the_deadlin
     run.tick();
     run.clock.time = 29;
     run.tick();
-    assert!(run.processes.signals.is_empty());
+    assert_eq!(run.processes.signals.len(), 0);
     run.clock.time = 30;
     run.tick();
     assert_eq!(run.processes.signals, [(1, Signal::Term)]);
@@ -402,7 +410,7 @@ fn waiting_cases_make_one_line_and_notify_gets_it_once_despite_its_exit() {
     run.tick();
     run.clock.time = 89;
     run.tick();
-    assert!(world.ledger().lines.is_empty());
+    assert_eq!(world.ledger().lines.len(), 0);
     run.clock.time = 90;
     run.tick();
     let ledger = world.ledger();
@@ -430,7 +438,7 @@ fn a_step_failing_for_an_hour_is_one_line_until_it_succeeds() {
     assert_eq!(world.ledger().head, None);
     run.clock.time = 3599;
     run.tick();
-    assert!(world.ledger().lines.is_empty());
+    assert_eq!(world.ledger().lines.len(), 0);
     run.clock.time = 3600;
     run.tick();
     assert_eq!(world.ledger().lines.len(), 1);
@@ -499,7 +507,7 @@ fn one_run_holds_the_home_and_restart_ends_every_running_session_lost_and_prunes
     assert!(ledger.sessions.iter().all(|session| session.exit == Some(Exit::Lost)));
     assert_eq!(ledger.landings[0].sessions, 2);
     assert!(ledger.landings[0].unanswered);
-    assert!(ledger.running_sessions().is_empty());
+    assert_eq!(ledger.running_sessions().len(), 0);
     for number in [1, 2] {
         assert!(!world.home.session_directory(number).join("tree").exists());
     }
@@ -715,7 +723,7 @@ fn failed_filing_retries_each_tick_and_reports_one_line_after_an_hour() {
             let ledger = world.ledger();
             assert_eq!(ledger.passes[0].requests[0].filed, None, "{body}");
             assert_eq!(ledger.passes[0].requests[0].goal, None);
-            assert!(ledger.findings[0].goals.is_empty());
+            assert_eq!(ledger.findings[0].goals.len(), 0);
             assert_eq!(ledger.lines.len(), lines);
         }
         assert_eq!(run.processes.bounded.len(), 4, "retry each tick");

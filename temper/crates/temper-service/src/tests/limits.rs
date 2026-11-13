@@ -71,6 +71,29 @@ fn the_change_tasks_override_sets_its_field_and_refuses_values_outside_its_bound
 }
 
 #[test]
+fn checkout_preparations_is_a_named_override_and_zero_refuses_start() {
+    for profile in [limits::Profile::Small, limits::Profile::Standard] {
+        let mut own = limits::profile(profile);
+        assert_eq!(own.checkout.preparations, 1);
+        assert_eq!(limits::apply(&mut own, b"checkout.preparations", 2), Ok(()));
+        assert_eq!(crate::worker_settings::checkout(own.checkout).preparations, 2);
+        let row = limits::find(b"checkout.preparations").expect("listed limit");
+        assert_eq!((row.value)(&own), 2);
+        assert_eq!(
+            row.line,
+            "Bounds workspace preparations active at once on a worker, runs' and jobs' alike; the rest wait in order of arrival."
+        );
+    }
+    let document =
+        fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"checkout.preparations":0}"#);
+    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    assert_eq!(
+        crate::startup::lines(&problems).as_ref(),
+        b"application.limits.overrides.checkout.preparations: 0; requires at least 1\n"
+    );
+}
+
+#[test]
 fn a_zero_change_tasks_override_refuses_the_start_naming_the_limit() {
     let document =
         fixtures::with(&fixtures::document(), b"application.limits.overrides", br#"{"forge.change_policy.tasks":0}"#);
@@ -90,7 +113,8 @@ fn forge_changes_past_the_tier_ceiling_refuses_both_startup_routes() {
         let directories = jig_protocol_config::Directories::working();
         let starting = crate::startup::named(&document, &directories).unwrap_err();
         let reading =
-            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+            crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+                .unwrap_err();
         for problems in [starting, reading] {
             assert_eq!(
                 crate::startup::lines(&problems).as_ref(),
@@ -109,11 +133,12 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     );
     let directories = jig_protocol_config::Directories::working();
     let starting = crate::startup::named(&document, &directories).unwrap_err();
-    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent())).unwrap_err();
+    let reading = crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+        .unwrap_err();
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 43649366 bytes, past its bound of 3419252 bytes\n",
+            b"engine.limits.store: the store's map value, 43649366 bytes, past its bound of 4580852 bytes\n",
         );
     }
 }
@@ -182,6 +207,10 @@ fn the_small_profile_passes_each_domains_validity() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let root = limits::engine(&jig, &settings.limits).expect("coherent root profile");
     assert!(temper_engine_domain::valid(&root));
+    assert_eq!(root.journal.transcript_bytes, root.forge.client.answer_bytes);
+    let mut short = settings.limits;
+    short.root.journal.transcript_bytes -= 1;
+    assert!(limits::engine(&jig, &short).is_none());
     assert_eq!(root.public_watermark, root.watermark / 2);
     let mut jig = jig;
     jig.clients.public.reads = 8;
@@ -229,8 +258,8 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 ..small.root.brief
             },
             journal: temper_engine_domain::JournalLimits {
-                // The closer and session each add 32 bytes; two executor places add 16.
-                transcript_bytes: 22_467_808,
+                // The deep task row's 22,467,664 bytes plus 21 eight-byte executors.
+                transcript_bytes: 22_467_832,
                 result_bytes: 336_713,
                 ..small.root.journal
             },
@@ -343,7 +372,7 @@ fn the_wire_admits_a_moved_file_and_temper_values_stay_at_their_bound() {
     let value = settings.limits.records.value_bytes;
     assert!(moved > u64::from(value));
     let service = fixtures::started();
-    let wire = service.engine.as_ref().unwrap().clients.env.limits.wire.keyed_value_some;
+    let wire = service.engine.as_ref().unwrap().client_wire().keyed_value_some;
     assert_eq!(u64::from(wire), moved);
 
     // The effective ceiling remains capped by jig even for a larger moved file.
@@ -686,15 +715,6 @@ fn effective_core_limits_preserve_the_configured_call_answer_budget() {
 }
 
 #[test]
-fn the_worker_takes_its_agents_host_reply_bound() {
-    let input = fixtures::owned_worker_alone_document();
-    let part = crate::startup::worker_part(&input, &jig_protocol_config::Directories::working()).unwrap();
-    let agent = fixtures::owned_worker_agent();
-    assert_eq!(agent.limits.bodies.host_reply_text, 4_098);
-    assert_eq!(crate::worker_settings::root_limits(&part.worker, &agent, &part.limits).reply_bytes, 4_098);
-}
-
-#[test]
 fn secrets_schema_fits_the_small_page_ceiling() {
     use temper_protocol_records::v1;
     // The row's u16 version, variant and u32 length precede the largest DER envelope.
@@ -703,7 +723,7 @@ fn secrets_schema_fits_the_small_page_ceiling() {
     const KEY_BYTES: u64 = 10;
     let (_, _, profile) = fixtures::store_limits();
     assert_eq!(v1::Stored::encoded_bound(&v1::CEILINGS), Some(APPLICATION_BYTES));
-    assert_eq!(profile.store.page.bytes, 3_421_331);
+    assert_eq!(profile.store.page.bytes, 4_582_931);
     assert!(APPLICATION_BYTES + KEY_BYTES < u64::from(profile.store.page.bytes));
 }
 
@@ -753,13 +773,14 @@ fn server_connections_carry_the_box_streams_and_four_calls() {
 fn the_watch_rooms_follow_the_streams() {
     let settings = fixtures::engine();
     let mut jig = settings.jig.limits;
-    for (streams, room) in [(2, 52), (8, 208)] {
+    for streams in [2, 8] {
+        let capacity = streams * temper_engine_domain::WATCHES_PER_STREAM;
         jig.clients.streams = streams;
         let root = limits::engine(&jig, &settings.limits).expect("admitted streams");
         assert_eq!(root.streams, streams);
         let views = temper_engine_domain::core_limits(&root).views;
-        assert_eq!(views.watchers, room);
-        assert_eq!(views.watchers_per_party, room);
+        assert_eq!(views.watchers, capacity);
+        assert_eq!(views.watchers_per_party, capacity);
     }
 }
 
@@ -769,7 +790,7 @@ fn a_room_past_what_the_views_hold_is_refused() {
     let document = engine_overrides(br#""clients.streams":126322568"#);
     let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(crate::startup::lines(&problems).as_ref(),
-        b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 26, with two slots per watch)\n");
+        b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 31, with two slots per watch)\n");
     let mut settings = fixtures::engine();
     settings.jig.limits.clients.streams = u32::MAX;
     assert!(limits::engine(&settings.jig.limits, &settings.limits).is_none());
@@ -935,4 +956,34 @@ fn follow_limits_have_their_profile_values_and_dotted_overrides() {
     }
     assert_eq!(small.forge.follows, 2);
     assert_eq!(standard.forge.follows, 8);
+}
+
+/// temper/docs/design/domain/worker/jobs.md.
+#[test]
+fn the_engine_declares_the_close_kind_where_its_tasks_child_holds_it() {
+    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let bound = limits::close_bound();
+    let merge = limits::merge_bound();
+    jig.core.tasks.spec_bytes = bound.spec;
+    jig.core.tasks.result_bytes = bound.result;
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
+    jig.core.tasks.spec_bytes = bound.spec - 1;
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge]);
+    jig.core.tasks.spec_bytes = bound.spec;
+    jig.core.tasks.result_bytes = bound.result - 1;
+    assert!(limits::jobs(&jig).is_empty());
+    jig.core.tasks.result_bytes = bound.result;
+    assert_eq!(limits::jobs(&jig).as_ref(), [merge, bound]);
+}
+
+/// temper/docs/design/domain/worker/jobs.md.
+#[test]
+fn the_engine_declares_prepare_only_with_its_tasks_child_room() {
+    let bound = limits::prepare_bound();
+    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    for (spec, result, admitted) in [(16_384, 4_096, true), (16_383, 4_096, false), (16_384, 4_095, false)] {
+        jig.core.tasks.spec_bytes = spec;
+        jig.core.tasks.result_bytes = result;
+        assert_eq!(limits::jobs(&jig).contains(&bound), admitted);
+    }
 }

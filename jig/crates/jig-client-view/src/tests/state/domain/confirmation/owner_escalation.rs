@@ -224,7 +224,7 @@ fn row(act: ActKind, reason: HoldCategory) -> Escalation {
             entry: 22,
             since: Wall::EPOCH,
         }),
-        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
+        tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6, infrastructure: 7 },
         hold_wait_since: None,
     };
     let mut details = crate::tests::state::domain::chip_facts::details();

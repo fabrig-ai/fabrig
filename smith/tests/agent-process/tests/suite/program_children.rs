@@ -212,7 +212,7 @@ fn a_program_main_reads_a_burst_past_its_room() {
             assert!(results.iter().any(|result| matches!(result.returned(), smith_transcript::Returned::Said(said) if !said.error() && skein_lib::bytes::find(said.text(), answer.as_bytes()).is_some())), "missing {answer}: {results:?}");
         }
         assert_eq!(results.iter().filter(|result| matches!(result.returned(), smith_transcript::Returned::Said(said) if said.error() && skein_lib::bytes::find(said.text(), b"refused reason=too-many").is_some())).count(), refused);
-        assert!(run.run_directories.is_empty());
+        assert_eq!(run.run_directories.len(), 0);
     }
 }
 
@@ -486,7 +486,7 @@ fn cancelled_child(step: Step) -> Run {
     assert_eq!(results.len(), 1, "the cancelled child call settles once");
     assert!(matches!(results[0].returned(), smith_transcript::Returned::Withdrawn));
     assert!(run.seen.contains(&Seen::Called { tool: "sub_agent".into(), error: true }));
-    assert!(run.run_directories.is_empty());
+    assert_eq!(run.run_directories.len(), 0);
     run
 }
 
@@ -602,7 +602,7 @@ fn chat_parked(run: &Run, children: usize) {
         .collect();
     assert_eq!(ends.len(), children);
     assert!(ends.iter().all(|end| *end == ConversationEnd::Closed));
-    assert!(run.run_directories.is_empty());
+    assert_eq!(run.run_directories.len(), 0);
 }
 
 fn print_calls(run: &Run) -> Vec<&smith_fake_claude::Observation> {

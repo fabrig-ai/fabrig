@@ -1,7 +1,6 @@
 #[path = "../support/listeners.rs"]
 pub mod listeners;
-#[path = "../support/mod.rs"]
-pub mod support;
+use temper_box_kit as support;
 
 mod agent_modes;
 mod box_front;
