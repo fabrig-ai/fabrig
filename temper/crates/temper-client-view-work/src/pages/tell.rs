@@ -15,7 +15,7 @@ use temper_client_domain::{
     },
 };
 
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
+pub fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::TELL_PAGE);
@@ -97,7 +97,8 @@ pub(crate) fn destination(root: &Domain, w: &Words, project: u32, goes: &Goes) -
         }
     }
 }
-pub(crate) fn filed(root: &Domain, w: &Words, project: u32, goes: Option<&Goes>) -> Box<[u8]> {
+#[must_use]
+pub fn filed(root: &Domain, w: &Words, project: u32, goes: Option<&Goes>) -> Box<[u8]> {
     let name = match goes {
         Some(Goes::Area { holder, .. } | Goes::Triager { holder, .. }) => holder_name(root, w, project, holder),
         Some(Goes::Owners { .. }) => w.say(Word::TellOwnersName, &[Hole::Name(project_name(root, w, project))]),

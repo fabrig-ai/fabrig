@@ -15,14 +15,7 @@ use temper_client_domain::{
     pages::{Act, accounts, choice, models},
 };
 
-pub(crate) fn main(
-    b: &mut Builder,
-    root: &Domain,
-    w: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-    times: &mut Times,
-) {
+pub fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
     settings::main(b);
     settings::open(b, root, w, bindings, project, Tab::Models);
     if !settings::missing(b, root, w, bindings, project)

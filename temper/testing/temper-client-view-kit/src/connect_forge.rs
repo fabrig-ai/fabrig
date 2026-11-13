@@ -8,6 +8,7 @@ pub const HERE: u16 = 3;
 
 pub const GITHUB: u16 = 2;
 
+#[must_use]
 pub fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection, offer: w::Offer) -> w::ForgeRow {
     w::ForgeRow::new(
         &w::CEILINGS,
@@ -35,6 +36,7 @@ pub fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection,
     .unwrap()
 }
 
+#[must_use]
 pub fn rows(connection: w::Connection, offer: w::Offer) -> List<w::ForgeRow> {
     let mut rows = List::with_capacity(2);
     rows.push(row(GITHUB, w::Kind::Github, w::Mode::Managed, w::Connection::NotConnected, w::Offer::NotOffered))
@@ -43,26 +45,18 @@ pub fn rows(connection: w::Connection, offer: w::Offer) -> List<w::ForgeRow> {
     rows
 }
 
+#[must_use]
 pub fn connected() -> w::Connection {
     w::Connection::Connected(
         w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"temper".as_slice().into() }).unwrap(),
     )
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    clippy::disallowed_types,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
+#[expect(clippy::must_use_candidate, reason = "fixture callers also use this helper to assert presence")]
 pub fn node(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> skein_ui::NodeId {
     f::find(tree, role, name).unwrap_or_else(|| panic!("missing {role:?}: {}", String::from_utf8_lossy(name)))
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    clippy::disallowed_types,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
 pub fn words_in_order(tree: &skein_ui::Tree, phrases: &[&str]) {
     let mut bytes = Vec::new();
     for (index, node) in tree.nodes().iter().enumerate() {
@@ -156,6 +150,7 @@ pub fn act(root: &mut d::Domain, act: d::forge::Act) -> skein_lib::Queue<d::Requ
     drive(root, d::Event::Act { action: d::Action::Forge(act) })
 }
 
+#[must_use]
 pub fn attempt(mut out: skein_lib::Queue<d::Request>) -> skein_lib::Token {
     while let Some(request) = out.pop() {
         if let d::Request::Unlinked {
@@ -172,6 +167,7 @@ pub fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: w::Outco
     f::root_event(root, answer_event(attempt, outcome));
 }
 
+#[must_use]
 pub fn answer_event(attempt: skein_lib::Token, outcome: w::Outcome) -> d::Event {
     d::Event::Client {
         event: jig_client::Event::Up {
@@ -191,6 +187,7 @@ pub fn answer_event(attempt: skein_lib::Token, outcome: w::Outcome) -> d::Event 
     }
 }
 
+#[must_use]
 pub fn first_rows(connection: w::Connection, state: w::FirstState) -> List<w::ForgeRow> {
     let first = w::FirstRepository::new(
         &w::CEILINGS,
@@ -254,10 +251,12 @@ pub fn deliver(root: &mut d::Domain, watch: skein_lib::Token, rows: List<w::Forg
     )
 }
 
+#[must_use]
 pub fn made() -> w::FirstState {
     w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 42 }).unwrap())
 }
 
+#[must_use]
 pub fn github_rows(accepted: bool) -> List<w::ForgeRow> {
     let mut row = row(
         GITHUB,
@@ -307,10 +306,7 @@ pub fn github_rows(accepted: bool) -> List<w::ForgeRow> {
     rows
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
+#[must_use]
 pub fn parent(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Option<skein_ui::NodeId> {
     let index = tree.nodes().iter().position(|n| n.id == id).unwrap();
     tree.nodes()[..index]
@@ -321,6 +317,7 @@ pub fn parent(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Option<skein_ui::N
         .map(|(_, n)| n.id)
 }
 
+#[must_use]
 pub fn failure_cases() -> [(List<w::ForgeRow>, Option<usize>, &'static str); 6] {
     let rows = |at| {
         first_rows(
@@ -378,11 +375,6 @@ pub fn failure_cases() -> [(List<w::ForgeRow>, Option<usize>, &'static str); 6] 
     ]
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    clippy::disallowed_types,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
 pub fn failed_progress(tree: &skein_ui::Tree, failed: Option<usize>, why: &str) {
     let list = node(tree, Role::List, b"Each step");
     let start = tree.nodes().iter().position(|n| n.id == list).unwrap();
@@ -414,10 +406,7 @@ pub fn failed_progress(tree: &skein_ui::Tree, failed: Option<usize>, why: &str) 
     );
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
+#[must_use]
 pub fn pinned_rows(connection: w::Connection, pins: bool, runner: bool) -> List<w::ForgeRow> {
     let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered).into_parts();
     if pins {

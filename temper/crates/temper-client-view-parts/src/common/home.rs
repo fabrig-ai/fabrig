@@ -7,14 +7,15 @@ use temper_client_domain::pages::{
     needs,
 };
 
-pub(crate) struct Intro {
-    pub(crate) kicker: Box<[u8]>,
-    pub(crate) headline: Box<[u8]>,
-    pub(crate) lede: Option<Box<[u8]>>,
-    pub(crate) byline: Option<Box<[u8]>>,
+#[derive(Debug)]
+pub struct Intro {
+    pub kicker: Box<[u8]>,
+    pub headline: Box<[u8]>,
+    pub lede: Option<Box<[u8]>>,
+    pub byline: Option<Box<[u8]>>,
 }
 
-pub(crate) fn kicker(w: &Words, previous: Option<u64>, times: &mut Times) -> Box<[u8]> {
+pub fn kicker(w: &Words, previous: Option<u64>, times: &mut Times) -> Box<[u8]> {
     // The kicker is this Home's day and time, not a project's creation time.
     let day = times.say(w, TimeForm::Weekday, times.now);
     let clock = times.say(w, TimeForm::Clock, times.now);
@@ -38,7 +39,8 @@ pub(crate) fn kicker(w: &Words, previous: Option<u64>, times: &mut Times) -> Box
     kicker
 }
 
-pub(crate) fn needs_sentence(w: &Words, needs: Needs, unknown: &[u8]) -> Box<[u8]> {
+#[must_use]
+pub fn needs_sentence(w: &Words, needs: Needs, unknown: &[u8]) -> Box<[u8]> {
     match needs {
         Needs::Unknown => unknown.into(),
         Needs::Count { count, cut: true } => w.say(Word::HomeNeedsCut, &[Hole::Number(u64::from(count))]),
@@ -54,7 +56,7 @@ pub(crate) fn needs_sentence(w: &Words, needs: Needs, unknown: &[u8]) -> Box<[u8
     }
 }
 
-pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intro {
+pub fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Times) -> Intro {
     let previous = match &facts.status {
         Status::Shown(status) => *status.previous(),
         Status::Unknown => None,
@@ -129,7 +131,8 @@ pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Tim
     Intro { kicker, headline, lede, byline }
 }
 
-pub(crate) fn number_word(count: u32) -> Option<Word> {
+#[must_use]
+pub fn number_word(count: u32) -> Option<Word> {
     match count {
         2 => Some(Word::HomeTwo),
         3 => Some(Word::HomeThree),
@@ -144,7 +147,8 @@ pub(crate) fn number_word(count: u32) -> Option<Word> {
 }
 
 /// Home's need words (temper/docs/design/client/pages/README.md, Home, Needs you).
-pub(crate) fn need_words(need: &needs::Need<'_>, w: &Words) -> (Box<[u8]>, Box<[u8]>, crate::shared::NeedKind) {
+#[must_use]
+pub fn need_words(need: &needs::Need<'_>, w: &Words) -> (Box<[u8]>, Box<[u8]>, crate::shared::NeedKind) {
     match need {
         needs::Need::Card(card) => {
             let asked = super::ask::read(card, w);

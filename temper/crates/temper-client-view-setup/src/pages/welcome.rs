@@ -1,4 +1,5 @@
 //! First-run pages (temper/docs/design/client/pages/README.md).
+use crate::cards::CardWords as _;
 use crate::{
     bindings::Bindings,
     look,
@@ -71,7 +72,7 @@ fn go(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, step: Ste
     control(b, w, bindings, word, Act::Go { address: Address::Welcome { step } });
 }
 /// The welcome's steps, in its frame's top bar (3.5).
-pub(crate) fn steps(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, current: Step) {
+pub fn steps(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, current: Step) {
     use temper_client_domain::pages::welcome;
     let marks = welcome::step_marks(current, welcome::forge_kept(root), welcome::model_counts(root) == Some(true));
     let [welcome, forge, model, ready] = marks;
@@ -119,7 +120,7 @@ fn setup_description(b: &mut Builder, w: &Words) {
 }
 
 #[expect(clippy::too_many_arguments, reason = "welcome composes the forge and accounts flows with their bindings")]
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,

@@ -5,6 +5,7 @@
     reason = "ordinary tests inspect semantic trees and bindings"
 )]
 use super::fixtures as f;
+use crate::cards::CardWords as _;
 use crate::{look, shared, words::Words};
 use jig_client::contract as c;
 use skein_lib::{List, Queue, Wall};
@@ -727,4 +728,6 @@ fn failure_words(rows: &mut List<Row>, w: &Words) {
     }
 }
 
-pub(super) use crate::parts_tests::shared::act;
+pub(crate) fn act(root: &mut d::Domain, act: Act) {
+    f::root_event(root, Event::Act { action: d::Action::Pages(act) });
+}

@@ -43,7 +43,7 @@ pub(super) fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut 
     }
     false
 }
-pub(crate) fn how_work_runs(
+pub fn how_work_runs(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
@@ -286,7 +286,7 @@ pub(super) fn away_until(
         b.close();
     }
 }
-pub(crate) fn repositories(
+pub fn repositories(
     b: &mut Builder,
     root: &Domain,
     w: &Words,

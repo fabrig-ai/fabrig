@@ -35,9 +35,11 @@ pub const PROPOSAL_NOW: skein_lib::Time = skein_lib::Time::ZERO;
 pub const PROPOSAL_OFFERS: u32 = 2;
 pub const EMPTY_BATCH: u32 = 0;
 
+#[must_use]
 pub fn provisional() -> Thread {
     provisional_with_text(b"Hello")
 }
+#[must_use]
 pub fn provisional_with_text(words: &[u8]) -> Thread {
     let mut thread =
         Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
@@ -58,13 +60,16 @@ pub fn provisional_with_text(words: &[u8]) -> Thread {
     );
     thread
 }
+#[must_use]
 pub fn chat_root() -> temper_client_domain::Domain {
     chat_offering(false)
 }
 /// `chat_root`'s, with the message act offered beside the close.
+#[must_use]
 pub fn messaging_root() -> temper_client_domain::Domain {
     chat_offering(true)
 }
+#[must_use]
 pub fn chat_offering(message: bool) -> temper_client_domain::Domain {
     use temper_client_domain::{Address, Event};
     let (mut root, me_watch, task_watch) = fixtures::root_at(Address::Chat { task: TASK }, &fixtures::domain_limits());
@@ -138,12 +143,15 @@ pub fn chat_offering(message: bool) -> temper_client_domain::Domain {
     }
     root
 }
+#[must_use]
 pub fn proposal_root() -> temper_client_domain::Domain {
     proposal_root_with_activity(None)
 }
+#[must_use]
 pub fn proposal_root_with_activity(activity: Option<c::ActivityPage>) -> temper_client_domain::Domain {
     proposal_root_with_document(activity, None)
 }
+#[must_use]
 pub fn proposal_root_with_document(
     activity: Option<c::ActivityPage>,
     document: Option<c::ReadValue>,
@@ -154,6 +162,7 @@ pub fn proposal_root_with_document(
     clippy::too_many_lines,
     reason = "one fixture delivers the task, delegate and proposal through their requests"
 )]
+#[must_use]
 pub fn proposal_in_layout(
     activity: Option<c::ActivityPage>,
     document: Option<c::ReadValue>,
@@ -276,6 +285,7 @@ pub fn proposal_in_layout(
     assert!(answered, "proposal read emitted");
     root
 }
+#[must_use]
 pub fn delegated_task() -> c::Task {
     let mut task = fixtures::task::document();
     task.chip.task = OTHER_DELEGATE;
@@ -284,6 +294,7 @@ pub fn delegated_task() -> c::Task {
     task.requester = c::Requester::Task(TASK);
     task
 }
+#[must_use]
 pub fn rejecting_chat() -> temper_client_domain::Domain {
     use temper_client_domain::{Action, Event, pages::Act};
     let mut root = proposal_root();

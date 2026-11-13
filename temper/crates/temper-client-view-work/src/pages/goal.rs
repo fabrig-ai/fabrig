@@ -1,5 +1,6 @@
 //! A goal's header, needs, report and side (temper/docs/design/client/pages/goal.md, 2, temper/docs/design/client/pages/task.md, 4, temper/docs/design/client/view.md, 6).
 use super::ask::{self, Kind};
+use crate::cards::CardWords as _;
 use crate::{
     bindings::Bindings,
     look,

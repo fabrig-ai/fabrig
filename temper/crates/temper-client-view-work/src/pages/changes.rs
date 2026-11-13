@@ -18,7 +18,7 @@ use temper_client_domain::{
 use temper_client_protocol_wire::v1 as w;
 
 #[derive(Debug)]
-pub(crate) struct LinePart {
+pub struct LinePart {
     pub words: Box<[u8]>,
     pub red: bool,
 }
@@ -54,14 +54,15 @@ fn branch_words(panel: &w::ChangesPanel, words: &Words, fallback: Word) -> Box<[
 }
 /// The facts shared by Home and Changes (client/pages/README.md).
 #[derive(Debug)]
-pub(crate) struct LandingFacts<'a> {
+pub struct LandingFacts<'a> {
     pub queued: u64,
     pub last: Option<Wall>,
     pub branch: Option<&'a [u8]>,
     pub red: &'a [&'a [u8]],
 }
 impl<'a> LandingFacts<'a> {
-    pub(crate) fn panel(panel: &'a w::ChangesPanel, red: &'a [&'a [u8]]) -> Self {
+    #[must_use]
+    pub fn panel(panel: &'a w::ChangesPanel, red: &'a [&'a [u8]]) -> Self {
         Self {
             queued: queued(panel),
             last: match panel.landed().get(0) {
@@ -74,7 +75,7 @@ impl<'a> LandingFacts<'a> {
     }
 }
 /// The landing's line for Home and Changes, with each signal part marked.
-pub(crate) fn landing_line(facts: &LandingFacts<'_>, words: &Words, times: &mut Times) -> Box<[LinePart]> {
+pub fn landing_line(facts: &LandingFacts<'_>, words: &Words, times: &mut Times) -> Box<[LinePart]> {
     let mut parts = List::uncapped();
     let branch = match facts.branch {
         Some(branch) => branch.into(),
@@ -164,14 +165,7 @@ pub(crate) fn ordinal(number: u64, words: &Words) -> Box<[u8]> {
     };
     words.say(word, &[Hole::Number(number)])
 }
-pub(crate) fn main(
-    b: &mut Builder,
-    root: &Domain,
-    words: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-    times: &mut Times,
-) {
+pub fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
     b.open(Role::Main);
     b.style(look::HOME);
     b.style(look::CHANGES);

@@ -16,7 +16,7 @@ use temper_client_domain::{
     },
 };
 
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
@@ -510,14 +510,14 @@ fn context(b: &mut Builder, root: &Domain, asked: &ask::Asked<'_>, w: &Words, ro
 }
 
 /// Needs you names the narrower rule; Home and the terminal inbox keep the short act.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum WhyForm {
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum WhyForm {
     Rule,
     Short,
 }
 
 #[expect(clippy::too_many_lines, reason = "the reason line keeps its two forms and opened offers together")]
-pub(crate) fn why_line(
+pub fn why_line(
     b: &mut Builder,
     root: &Domain,
     w: &Words,

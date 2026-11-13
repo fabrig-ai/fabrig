@@ -2,11 +2,17 @@
 #![expect(clippy::disallowed_methods, reason = "tests inspect semantic trees and decoded controls")]
 use super::{connect_model as model, fixtures as f};
 use crate::pages::model_check::{self, Answer, First, State};
+use crate::{accounts::Bindings, words::Words};
+use jig_client::contract as c;
+use skein_lib::Writer;
+use skein_lib::{List, Token};
 use skein_ui::Role;
+use skein_ui::{Builder, Tree};
 use temper_client_domain::{
     self as d, Address, Step,
     pages::{accounts::Way, connect_model::Act},
 };
+use temper_client_protocol_wire as wire;
 
 #[test]
 fn the_welcomes_host_check_precedes_the_trial() {
@@ -176,4 +182,162 @@ fn trial_failures_say_why_and_retry_the_account() {
     }
 }
 
-pub(super) use crate::setup_tests::model_check::{failed, fed, from_root, position, print, row, rows};
+fn bindings() -> Bindings {
+    let limits = f::limits();
+    Bindings::new(limits.client.domain.accounts, limits.row_uses, 1)
+}
+
+#[expect(clippy::disallowed_types, reason = "tests print the missing semantic node’s name")]
+pub(crate) fn position(tree: &Tree, role: Role, name: &[u8]) -> usize {
+    tree.nodes()
+        .iter()
+        .position(|n| n.role == role && n.name.as_deref() == Some(name))
+        .unwrap_or_else(|| panic!("missing {role:?}: {}", String::from_utf8_lossy(name)))
+}
+
+#[expect(clippy::disallowed_types, reason = "tests inspect the semantic tree’s printed form")]
+pub(crate) fn print(tree: &Tree) -> String {
+    let mut print = skein_ui_text::Print::new(&f::tree_limits()).unwrap();
+    skein_ui_text::render(tree, b"temper", None, &mut print);
+    String::from_utf8(print.text.as_slice().to_vec()).unwrap()
+}
+
+fn event(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {
+    let mut out = Queue::uncapped();
+    d::step(root, &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::limits() }, event, &mut out);
+    out
+}
+
+fn up(root: &mut d::Domain, up: jig_client::Up) -> Queue<d::Request> {
+    event(root, d::Event::Client { event: jig_client::Event::Up { up } })
+}
+
+fn opening(out: &Queue<d::Request>, subject: jig_client::Watchable) -> Token {
+    out.iter()
+        .find_map(|r| {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject: found } },
+            } = r
+            {
+                (*found == subject).then_some(*watch)
+            } else {
+                None
+            }
+        })
+        .expect("watch opened")
+}
+
+pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
+    let (offered, _) = f::welcome::model_with_forge(kind);
+    let me = d::pages::accounts::current_me(offered.client()).unwrap().clone();
+    let mut root = d::unlinked(&f::limits(), f::SEED);
+    let mut out =
+        event(&mut root, d::Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } });
+    let mut more = event(
+        &mut root,
+        d::Event::Start {
+            address: Address::Welcome { step: Step::Ready },
+            kept: List::with_capacity(0),
+            with: Some(jig_client::With::Transport),
+        },
+    );
+    while let Some(r) = more.pop() {
+        out.push(r);
+    }
+    let mut more = up(&mut root, jig_client::Up::Served { served: true, versions: None });
+    while let Some(r) = more.pop() {
+        out.push(r);
+    }
+    let me_watch = opening(&out, jig_client::Watchable::Jig(c::Subject::Me));
+    let accounts = opening(&out, jig_client::Watchable::Jig(c::Subject::Accounts));
+    let mut more = up(
+        &mut root,
+        jig_client::Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+    );
+    while let Some(r) = more.pop() {
+        out.push(r);
+    }
+    let trials = opening(&out, d::forge::trials::watch(&f::limits().forge).unwrap());
+    for request in &out {
+        if let d::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                },
+        } = request
+            && wire::decode_reading(&record.bytes, &v::CEILINGS).unwrap().read() == &v::Read::Deployment
+        {
+            f::deliver_deployment(&mut root, *read, true, true);
+        }
+    }
+    let forges = opening(&out, d::forge::forges::watch(&f::limits().forge).unwrap());
+    let forges_doc = v::Forges::new(
+        &v::CEILINGS,
+        v::ForgesParts {
+            forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
+            linked: false,
+        },
+    )
+    .unwrap();
+    up(
+        &mut root,
+        jig_client::Up::FamilyDelivered {
+            watch: forges,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::forges(&forges_doc),
+            },
+        },
+    );
+    let mut doc = f::accounts::card_document(
+        if kind == d::WayKind::Program { b"anthropic" } else { b"openai" },
+        b"owner",
+        match kind {
+            d::WayKind::Program => c::AccountKind::Program,
+            d::WayKind::SignIn => c::AccountKind::SignIn,
+            d::WayKind::Key => c::AccountKind::Key,
+        },
+    );
+    doc.cut = false;
+    doc.accounts.get_mut(0).unwrap().cut = false;
+    f::accounts::deliver(&mut root, accounts, doc);
+    assert!(d::pages::accounts::document(root.client()).is_some(), "accounts delivered");
+    event(&mut root, d::Event::Act { action: d::Action::Forge(d::forge::Act::TryAccount { account: 1, again: true }) });
+    (root, trials, accounts)
+}
+
+pub(crate) fn row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
+    v::TrialRow::new(&v::CEILINGS, v::TrialRowParts { account: 1, task: Some(91), took: None, step, state }).unwrap()
+}
+
+pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> Queue<d::Request> {
+    let doc = v::Trials::new(&v::CEILINGS, v::TrialsParts { rows: List::from_boxed(rows.into()) }).unwrap();
+    let mut writer = Writer::new(usize::try_from(doc.measure()).unwrap());
+    doc.encode(&mut writer).unwrap();
+    up(
+        root,
+        jig_client::Up::FamilyDelivered {
+            watch,
+            record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: writer.finish() },
+        },
+    )
+}
+
+pub(crate) fn failed(why: v::TrialWhy) -> v::TrialState {
+    v::TrialState::Failed(v::TrialFailed::new(&v::CEILINGS, v::TrialFailedParts { why }).unwrap())
+}
+
+pub(crate) fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
+    let mut b = Builder::new(&f::tree_limits());
+    let mut bindings = bindings();
+    model_check::line(
+        &mut b,
+        root,
+        w,
+        &mut bindings,
+        &model_check::trial(root, w).unwrap(),
+        model_check::Place::Welcome,
+    );
+    (b.finish(), bindings)
+}

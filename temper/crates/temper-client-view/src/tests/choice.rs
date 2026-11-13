@@ -11,6 +11,7 @@ pub(super) use super::fixtures::choice::{
 };
 use jig_client::contract as c;
 use skein_lib::List;
+use skein_lib::Token;
 use skein_ui::{Builder, Role};
 use temper_client_domain::{self as d, Address};
 
@@ -1038,7 +1039,113 @@ fn the_playground_model_uses_its_words_over_a_shown_name() {
 }
 
 use super::fixtures::choice::{accounts, line_facts};
-pub(super) use crate::parts_tests::choice::{
-    account_readiness, banner, edit, model_words, named_account, prefix_bytes, readiness, shown_bytes, task_root,
-    using_text, waiting_task,
-};
+pub(crate) fn banner(usable: Option<bool>) -> (d::Domain, Token) {
+    let (mut root, watch) = fixtures::account_root();
+    if let Some(usable) = usable {
+        delivered(
+            &mut root,
+            watch,
+            c::Delivery::Accounts(Box::new(c::Accounts {
+                program_hosts: List::with_capacity(0),
+                accounts: List::with_capacity(0),
+                signing: List::with_capacity(0),
+                lendable: false,
+                lending: None,
+                lent_end: None,
+                last_end: None,
+                usable,
+                settled: true,
+                cut: false,
+                readiness: List::with_capacity(0),
+                readiness_cut: false,
+            })),
+        );
+    }
+    fixtures::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::NewChat { draft: false }) });
+    (root, watch)
+}
+
+pub(crate) fn task_root() -> d::Domain {
+    account_readiness(None)
+}
+
+pub(crate) fn account_readiness(ready: Option<c::PayerReadiness>) -> d::Domain {
+    account_facts(ready, List::with_capacity(0))
+}
+
+fn account_facts(ready: Option<c::PayerReadiness>, accounts: List<c::AccountLine>) -> d::Domain {
+    line_facts(ready, accounts, Some(3), Some(7), None, true)
+}
+
+pub(crate) fn waiting_task(wait: Option<c::TaskRunWait>) -> c::Task {
+    let mut task = fixtures::task::document();
+    task.llm = None;
+    task.run_wait = wait;
+    task
+}
+
+pub(crate) fn model_words() -> crate::words::Words {
+    crate::words::Words::english(fixtures::FORGE, 128, crate::words::Shell::Terminal).unwrap()
+}
+
+pub(crate) fn shown_bytes() -> usize {
+    usize::try_from(crate::choice::MODEL_SHOWN).unwrap()
+}
+
+pub(crate) fn prefix_bytes() -> usize {
+    shown_bytes().checked_sub(CUT_MARK.len()).expect("display bound includes cut mark")
+}
+
+pub(crate) fn readiness(state: c::Readiness) -> c::PayerReadiness {
+    c::PayerReadiness { provider: 17, payer: c::AccountUse::Party(73), readiness: state, settled: Some(true) }
+}
+
+pub(crate) fn edit(root: &mut d::Domain, act: d::pages::choice::Act) {
+    fixtures::root_event(root, d::Event::Act { action: d::Action::Pages(d::pages::Act::Choice(act)) });
+}
+
+pub(crate) fn named_account() -> d::Domain {
+    one_account(3, false)
+}
+
+fn one_account(number: u32, plan: bool) -> d::Domain {
+    let mut accounts = List::with_capacity(1);
+    accounts
+        .push(c::AccountLine {
+            list: None,
+            facts: List::with_capacity(0),
+            number,
+            place: 1,
+            uses: None,
+            plan,
+            provider: None,
+            provider_name: None,
+            manage_usage: None,
+            display: c::DocumentText::complete(c::Text::new(Box::from(*b"Personal"), 32).unwrap()),
+            holder: c::AccountHolder::Party(73),
+            sources: List::with_capacity(0),
+            cut: false,
+        })
+        .unwrap();
+    account_facts(None, accounts)
+}
+
+pub(crate) fn using_text(root: &d::Domain) -> String {
+    let mut b = Builder::new(&fixtures::tree_limits());
+    crate::choice::using(
+        &mut b,
+        root,
+        root.pages().chat().and_then(|chat| chat.task(root.client())),
+        &fixtures::words(),
+    );
+    let text = String::from_utf8(fixtures::text(&b.finish()).into_vec()).unwrap();
+    let text = text.split(" · Manage usage").next().unwrap();
+    if text == "Using the default model" {
+        return text.to_owned();
+    }
+    if text.starts_with("Using your ") && text.contains("API key") {
+        text.strip_prefix("Using your ").unwrap().to_owned()
+    } else {
+        text.strip_prefix("Using ").unwrap_or(text).to_owned()
+    }
+}

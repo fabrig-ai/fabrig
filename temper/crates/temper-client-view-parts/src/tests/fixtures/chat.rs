@@ -1,9 +1,9 @@
 //! Chat closing confirmation render adapter.
 use super as fixtures;
-pub use crate::view_kit::chat::*;
 use jig_client::contract as c;
 use skein_lib::List;
 use skein_ui::Builder;
+pub use temper_client_view_kit::chat::*;
 pub fn closing(grace: Option<skein_lib::Duration>) -> skein_ui::Tree {
     let mut operations = List::with_capacity(CLOSE_OPERATIONS);
     let reason = c::Text::new(Box::from(*b"Chat closed"), TEXT).expect("reason");

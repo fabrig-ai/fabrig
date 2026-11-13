@@ -1,5 +1,5 @@
 //! Accounts bindings contain row targets and operation names, never a key value.
-pub(crate) use crate::words::accounts as words;
+pub use crate::words::accounts as words;
 use alloc::boxed::Box;
 use skein_lib::{List, Secret, Token};
 use skein_ui::{Act, Binding};
@@ -7,9 +7,9 @@ use temper_client_domain::{
     Action, Event,
     pages::{self, accounts::Act as AccountAct},
 };
-pub(crate) use words::owner;
+pub use words::owner;
 #[derive(Clone, Debug)]
-pub(crate) enum Meaning {
+pub enum Meaning {
     Copy { words: Box<[u8]> },
     Action(AccountAct),
     Model(pages::connect_model::Act),
@@ -20,7 +20,7 @@ pub(crate) enum Meaning {
     Program,
 }
 #[derive(Debug)]
-pub(crate) struct Bindings {
+pub struct Bindings {
     entries: List<(Token, Meaning)>,
     next: u64,
     revision: u64,
@@ -28,16 +28,20 @@ pub(crate) struct Bindings {
     row_uses: u32,
 }
 impl Bindings {
+    #[must_use]
     pub fn new(counts: jig_client::AccountCounts, row_uses: u32, providers: u32) -> Self {
         let capacity = binding_capacity(&counts, providers);
         Self { entries: List::with_capacity(capacity), next: 0, revision: 0, counts, row_uses }
     }
+    #[must_use]
     pub const fn counts(&self) -> jig_client::AccountCounts {
         self.counts
     }
+    #[must_use]
     pub const fn row_uses(&self) -> u32 {
         self.row_uses
     }
+    #[must_use]
     pub const fn revision(&self) -> u64 {
         self.revision
     }
@@ -50,6 +54,7 @@ impl Bindings {
         self.entries.push((token, meaning)).ok()?;
         Some(Binding { owner: owner(), token })
     }
+    #[must_use]
     pub fn decode(&self, token: Token, act: Act) -> Option<Event> {
         for (key, meaning) in &self.entries {
             if *key != token {

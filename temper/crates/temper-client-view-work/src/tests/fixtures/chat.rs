@@ -1,8 +1,8 @@
 //! Chat page render adapters.
 use super as fixtures;
-pub use crate::view_kit::chat::*;
 use jig_client::{contract as c, thread::Thread};
 use skein_ui::Builder;
+pub use temper_client_view_kit::chat::*;
 
 pub fn chat_header() -> skein_ui::Tree {
     let mut b = Builder::new(&fixtures::tree_limits());

@@ -4,6 +4,7 @@ use skein_lib::{Env, Queue, Time, Token};
 pub const EXCHANGES: u32 = 8;
 pub const SPENT: u64 = 7;
 pub const BELOW: u64 = 2;
+#[must_use]
 pub fn document() -> c::Task {
     use jig_client_protocol_wire::v21 as w;
     let mut record = jig_client_test_records::task_record().into_parts();
@@ -21,6 +22,7 @@ pub const TASK: u64 = 9;
 pub const EMPTY: u32 = 0;
 pub const NO_TIME: Time = Time::ZERO;
 pub const AT_EPOCH: Wall = Wall::EPOCH;
+#[must_use]
 pub fn tree() -> c::Delivery {
     c::Delivery::Tree(Box::new(c::Tree {
         root: {
@@ -34,12 +36,15 @@ pub fn tree() -> c::Delivery {
         next: None,
     }))
 }
+#[must_use]
 pub fn root(executor: c::ChipExecutor, priority: Option<u32>) -> temper_client_domain::Domain {
     root_with_hold(executor, priority, false)
 }
+#[must_use]
 pub fn held_root() -> temper_client_domain::Domain {
     root_with_hold(c::ChipExecutor::Agent { charter: 1 }, Some(1), true)
 }
+#[must_use]
 pub fn root_with_hold(executor: c::ChipExecutor, priority: Option<u32>, held: bool) -> temper_client_domain::Domain {
     let mut document = document();
     document.chip.task = TASK;
@@ -86,15 +91,18 @@ pub fn root_with_hold(executor: c::ChipExecutor, priority: Option<u32>, held: bo
     }
     supplied_root(document, held)
 }
+#[must_use]
 pub fn root_with(mut document: c::Task) -> temper_client_domain::Domain {
     document.chip.task = TASK;
     document.chip.executor = c::ChipExecutor::Agent { charter: 1 };
     document.priority = Some(1);
     supplied_root(document, false)
 }
+#[must_use]
 pub fn supplied_root(document: c::Task, held: bool) -> temper_client_domain::Domain {
     supplied_root_watching(document, held).0
 }
+#[must_use]
 pub fn supplied_root_watching(document: c::Task, held: bool) -> (temper_client_domain::Domain, Token) {
     use jig_client::{Event as E, Up};
     let limits = domain_limits();
@@ -167,6 +175,7 @@ pub const ONE_OFFER: u32 = 1;
 
 pub const RUN_ATTEMPT: u64 = 2;
 pub const RUN_SINCE: Wall = Wall::from_nanos(1_792_640_880_000_000_000);
+#[must_use]
 pub fn delegate() -> c::Task {
     let mut task = document();
     task.chip.task = TASK;
@@ -203,6 +212,7 @@ pub fn delegate() -> c::Task {
     });
     task
 }
+#[must_use]
 pub fn document_words(bytes: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(Box::from(bytes), 32).expect("document words"))
 }
@@ -211,9 +221,11 @@ pub fn phase(task: &mut c::Task, phase: c::ChipPhase) {
     let c::ChipPhaseFacts { phase: old, .. } = task.chip.details.as_mut();
     *old = phase;
 }
+#[must_use]
 pub fn agent_root(document: c::Task, tree: Option<c::Delivery>, conversation: bool) -> temper_client_domain::Domain {
     agent_root_with_page(document, tree, activity(conversation))
 }
+#[must_use]
 pub fn agent_root_with_page(
     document: c::Task,
     tree: Option<c::Delivery>,
@@ -221,6 +233,7 @@ pub fn agent_root_with_page(
 ) -> temper_client_domain::Domain {
     agent_root_for(document, tree, page, fixture_me(b"Shop").party.number, TASK)
 }
+#[must_use]
 pub fn agent_root_as(
     document: c::Task,
     tree: Option<c::Delivery>,
@@ -230,6 +243,7 @@ pub fn agent_root_as(
     let number = document.chip.task;
     agent_root_for(document, tree, page, party, number)
 }
+#[must_use]
 pub fn agent_root_for(
     document: c::Task,
     tree: Option<c::Delivery>,
@@ -325,6 +339,7 @@ pub fn agent_root_for(
     }
     root
 }
+#[must_use]
 pub fn activity(conversation: bool) -> c::ActivityPage {
     let mut rows = List::with_capacity(1);
     if conversation {
@@ -367,9 +382,11 @@ pub fn activity(conversation: bool) -> c::ActivityPage {
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
 
+#[must_use]
 pub fn added_dependency(number: u64, by: c::Requester, keeps: bool) -> c::Dependency {
     c::Dependency { number, pending: keeps, added: Some(c::DependencyAdded { at: RUN_SINCE, by }), keeps, status: None }
 }
+#[must_use]
 pub fn amended_dependency_facts() -> List<c::Dependency> {
     let added_by_viewer = added_dependency(17, c::Requester::Person(73), true);
     let added_by_task = added_dependency(23, c::Requester::Task(7), false);
@@ -382,6 +399,7 @@ pub fn amended_dependency_facts() -> List<c::Dependency> {
 }
 
 /// Supply the live tree before the document, then optionally answer its ended read.
+#[must_use]
 pub fn root_with_ended(
     document: c::Task,
     tree: c::Delivery,
@@ -391,6 +409,7 @@ pub fn root_with_ended(
 }
 
 /// Optionally deliver the tree before the document, then answer its ended read.
+#[must_use]
 pub fn root_with_optional_tree_and_ended(
     document: c::Task,
     tree: Option<c::Delivery>,
@@ -399,6 +418,7 @@ pub fn root_with_optional_tree_and_ended(
     root_with_ended_and_held(document, tree, page, None)
 }
 /// As above, also answering a held delegate's card read before the ended page.
+#[must_use]
 pub fn root_with_ended_and_held(
     document: c::Task,
     tree: Option<c::Delivery>,

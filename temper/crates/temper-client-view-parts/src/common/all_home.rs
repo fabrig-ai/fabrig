@@ -12,7 +12,8 @@ pub(crate) fn headline(w: &Words, facts: &all_home::Facts, times: &mut Times) ->
     headline_words(&landed, &needs)
 }
 
-pub(crate) fn headline_words(landed: &[u8], needs: &[u8]) -> Box<[u8]> {
+#[must_use]
+pub fn headline_words(landed: &[u8], needs: &[u8]) -> Box<[u8]> {
     if landed.is_empty() {
         needs.into()
     } else if needs.is_empty() {
@@ -22,7 +23,7 @@ pub(crate) fn headline_words(landed: &[u8], needs: &[u8]) -> Box<[u8]> {
     }
 }
 
-pub(crate) fn landed(w: &Words, landed: &all_home::Landed, times: &mut Times) -> Box<[u8]> {
+pub fn landed(w: &Words, landed: &all_home::Landed, times: &mut Times) -> Box<[u8]> {
     match landed {
         all_home::Landed::Nothing => Box::default(),
         all_home::Landed::Last { at } => {

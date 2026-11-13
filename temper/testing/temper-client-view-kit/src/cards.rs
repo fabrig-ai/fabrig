@@ -8,6 +8,7 @@ pub const LEFT: u64 = 120;
 
 pub const AFTER: u64 = 80;
 
+#[must_use]
 pub fn batch_proposal() -> c::ReadValue {
     let mut task = fixtures::task::document();
     task.authority.authority.spend = 6;

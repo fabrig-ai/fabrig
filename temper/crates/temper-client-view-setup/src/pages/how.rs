@@ -329,7 +329,7 @@ pub(crate) fn follows(b: &mut Builder, root: &Domain, w: &Words, project: u32) {
     draw_follows(b, w, &how::landed(root, project));
 }
 /// Shared boxes (client/pages/settings.md, 2, *What follows a landing*).
-pub(crate) fn draw_follows(b: &mut Builder, w: &Words, landed: &how::Landed) {
+pub fn draw_follows(b: &mut Builder, w: &Words, landed: &how::Landed) {
     if landed.follows.is_empty() && landed.tiers.is_none() {
         return;
     }

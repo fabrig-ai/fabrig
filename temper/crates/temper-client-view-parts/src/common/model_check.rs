@@ -5,34 +5,39 @@ use jig_client::contract as c;
 use skein_ui::phrases::Hole;
 use temper_client_domain::{Domain, forge::trials, pages::accounts::Way};
 
-pub(crate) enum First {
+#[derive(Debug)]
+pub enum First {
     Subscription,
     Plan,
     Key,
 }
 
-pub(crate) enum Answer {
+#[derive(Debug)]
+pub enum Answer {
     SignIn { way: Way },
 }
 
-pub(crate) enum State {
+#[derive(Debug)]
+pub enum State {
     Running { at: usize },
     Usable,
     Answered { seconds: u64 },
     Stopped { at: usize, why: Box<[u8]>, answer: Option<Answer> },
 }
 
-pub(crate) struct Trial {
-    pub(crate) account: Box<[u8]>,
-    pub(crate) account_number: Option<u32>,
-    pub(crate) who: Box<[u8]>,
-    pub(crate) detail: Option<Box<[u8]>>,
-    pub(crate) first: First,
-    pub(crate) state: State,
+#[derive(Debug)]
+pub struct Trial {
+    pub account: Box<[u8]>,
+    pub account_number: Option<u32>,
+    pub who: Box<[u8]>,
+    pub detail: Option<Box<[u8]>>,
+    pub first: First,
+    pub state: State,
 }
 
 /// A failed trial for Home (domain/trial.md, 6.3); its caller is wired by home-line.
-pub(crate) fn stopped(root: &Domain, w: &Words) -> Option<(Box<[u8]>, u32)> {
+#[must_use]
+pub fn stopped(root: &Domain, w: &Words) -> Option<(Box<[u8]>, u32)> {
     if root.forge().trial_asked().is_some() {
         return None;
     }
@@ -45,7 +50,8 @@ pub(crate) fn stopped(root: &Domain, w: &Words) -> Option<(Box<[u8]>, u32)> {
     None
 }
 
-pub(crate) fn identity_detail(account: &[u8], full: Option<Box<[u8]>>) -> Option<Box<[u8]>> {
+#[must_use]
+pub fn identity_detail(account: &[u8], full: Option<Box<[u8]>>) -> Option<Box<[u8]>> {
     let full = full?;
     let rest = full.strip_prefix(account)?.strip_prefix(" · ".as_bytes())?;
     Some(rest.into())
@@ -79,7 +85,8 @@ fn sign_in(row: &c::AccountLine, source: &c::AccountSource) -> Option<Answer> {
     }
 }
 
-pub(crate) fn row_trial(root: &Domain, w: &Words, row: &trials::Row) -> Trial {
+#[must_use]
+pub fn row_trial(root: &Domain, w: &Words, row: &trials::Row) -> Trial {
     let number = row.took.unwrap_or(row.account);
     let account = account_line(root, number);
     let source = match account {
@@ -159,6 +166,7 @@ fn failure(
     }
 }
 
-pub(crate) fn named(w: &Words, word: Word, name: &[u8]) -> Box<[u8]> {
+#[must_use]
+pub fn named(w: &Words, word: Word, name: &[u8]) -> Box<[u8]> {
     w.say(word, &[Hole::Name(skein_lib::bytes::copy_of(name))])
 }

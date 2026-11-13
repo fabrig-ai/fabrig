@@ -11,6 +11,7 @@ pub const HEAD: [u8; 32] = [
     0x78, 0x9a, 0xda, 0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
     0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
+#[must_use]
 pub fn line(goal: bool) -> j::PublicLine {
     let counts = j::PublicCounts::new(
         &j::CEILINGS,
@@ -39,9 +40,11 @@ pub fn line(goal: bool) -> j::PublicLine {
     )
     .expect("line")
 }
+#[must_use]
 pub fn card() -> Box<[u8]> {
     card_line(line(false))
 }
+#[must_use]
 pub fn card_line(own: j::PublicLine) -> Box<[u8]> {
     let card = j::PublicCard::new(
         &j::CEILINGS,
@@ -57,12 +60,15 @@ pub fn card_line(own: j::PublicLine) -> Box<[u8]> {
     card.encode(&mut writer).expect("card");
     writer.finish()
 }
+#[must_use]
 pub fn used() -> f::PublicUsed {
     f::PublicUsed::new(&f::CEILINGS, f::PublicUsedParts { used: 0, limit: 2 }).expect("counters")
 }
+#[must_use]
 pub fn change() -> Box<[u8]> {
     change_commits(Some(HEAD), None)
 }
+#[must_use]
 pub fn change_commits(head: Option<[u8; 32]>, merge: Option<[u8; 32]>) -> Box<[u8]> {
     let gate = f::PublicGate::new(
         &f::CEILINGS,
@@ -98,6 +104,7 @@ pub fn change_commits(head: Option<[u8; 32]>, merge: Option<[u8; 32]>) -> Box<[u
     change.encode(&mut writer).expect("change");
     application(writer.finish())
 }
+#[must_use]
 pub fn application(record: Box<[u8]>) -> Box<[u8]> {
     let app = j::PublicApplication::new(
         &j::CEILINGS,
@@ -108,9 +115,11 @@ pub fn application(record: Box<[u8]>) -> Box<[u8]> {
     app.encode(&mut writer).expect("application");
     writer.finish()
 }
+#[must_use]
 pub fn landings() -> Box<[u8]> {
     landings_with(true, true)
 }
+#[must_use]
 pub fn landings_with(queue_present: bool, landed: bool) -> Box<[u8]> {
     let queued =
         f::PublicQueued::new(&f::CEILINGS, f::PublicQueuedParts { task: 0, goal: 1, ready_since: 0 }).expect("queued");
@@ -140,6 +149,7 @@ pub fn landings_with(queue_present: bool, landed: bool) -> Box<[u8]> {
     application(writer.finish())
 }
 // A stock queue merge has no turn, preparation, candidates or gate proofs.
+#[must_use]
 pub fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
     let line = f::PublicLandingLine::new(
         &f::CEILINGS,
@@ -195,9 +205,11 @@ pub fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
     landing.encode(&mut writer).expect("landing");
     (list, application(writer.finish()))
 }
+#[must_use]
 pub fn landing() -> Box<[u8]> {
     landing_commits(None, None, Some(HEAD))
 }
+#[must_use]
 pub fn landing_commits(base: Option<[u8; 32]>, candidate: Option<[u8; 32]>, landed: Option<[u8; 32]>) -> Box<[u8]> {
     let gate = f::PublicGateProof::new(
         &f::CEILINGS,
@@ -243,6 +255,7 @@ pub fn landing_commits(base: Option<[u8; 32]>, candidate: Option<[u8; 32]>, land
     landing.encode(&mut writer).expect("landing");
     application(writer.finish())
 }
+#[must_use]
 pub fn searching_landing() -> Box<[u8]> {
     let member = f::PublicMember::new(
         &f::CEILINGS,
@@ -301,9 +314,11 @@ pub fn searching_landing() -> Box<[u8]> {
     landing.encode(&mut writer).unwrap();
     application(writer.finish())
 }
+#[must_use]
 pub fn projects() -> Box<[u8]> {
     projects_with(true)
 }
+#[must_use]
 pub fn projects_with(present: bool) -> Box<[u8]> {
     let project = j::PublicProject::new(
         &j::CEILINGS,
@@ -327,6 +342,7 @@ pub const PROJECT: u64 = 0x3f2a_9c01_7654_3210;
 
 pub const TASK: u64 = 0x9abc_def0_7654_3210;
 
+#[must_use]
 pub fn reader(page: Public) -> Reader {
     let limits = PublicLimits { jig: j::CEILINGS, forge: temper_client_protocol_wire::public_v1::CEILINGS };
     let mut reader = Reader::new(&limits);
@@ -338,6 +354,7 @@ pub fn answer(reader: &mut Reader, doc: Doc, heard: Heard) {
     reader.step(Time::ZERO, PublicEvent::Heard { doc, heard }, &mut Queue::uncapped());
 }
 
+#[must_use]
 pub fn board() -> Box<[u8]> {
     let line = line(true);
     let goal = j::PublicGoal::new(

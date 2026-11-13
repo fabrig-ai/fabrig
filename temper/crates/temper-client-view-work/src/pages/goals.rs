@@ -19,14 +19,7 @@ use temper_client_domain::{
     },
 };
 
-pub(crate) fn main(
-    b: &mut Builder,
-    root: &Domain,
-    words: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-    times: &mut Times,
-) {
+pub fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, project: u32, times: &mut Times) {
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::GOALS);

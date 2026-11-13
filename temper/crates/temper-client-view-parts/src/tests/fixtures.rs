@@ -1,4 +1,4 @@
-pub use crate::view_kit::*;
+pub use temper_client_view_kit::*;
 pub mod chat;
 use jig_client::contract::{ApplicationPart, Part, PartKey, PartKind};
 

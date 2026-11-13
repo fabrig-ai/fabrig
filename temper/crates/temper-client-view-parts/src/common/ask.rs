@@ -5,7 +5,8 @@ use jig_client::contract::{InboxGroup, ReadValue, Requester};
 use skein_ui::phrases::Hole;
 use temper_client_domain::pages::inbox::{Card, QuestionWords};
 
-pub(crate) enum Kind {
+#[derive(Debug)]
+pub enum Kind {
     Question,
     Proposal,
     Held,
@@ -13,7 +14,8 @@ pub(crate) enum Kind {
     PersonTask,
 }
 
-pub(crate) struct Asked<'a> {
+#[derive(Debug)]
+pub struct Asked<'a> {
     pub card: &'a Card,
     pub kind: Kind,
     pub title: Box<[u8]>,
@@ -23,11 +25,13 @@ pub(crate) struct Asked<'a> {
     pub cut: bool,
 }
 
-pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
+#[must_use]
+pub fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
     read_parts(card, w, true)
 }
 
-pub(crate) fn read_parts<'a>(card: &'a Card, w: &Words, whole: bool) -> Asked<'a> {
+#[must_use]
+pub fn read_parts<'a>(card: &'a Card, w: &Words, whole: bool) -> Asked<'a> {
     let mut kind = match card.group {
         InboxGroup::Questions => Kind::Question,
         InboxGroup::Proposals => Kind::Proposal,
@@ -147,7 +151,8 @@ fn title_for(card: &Card, w: &Words, numbered: Word) -> Box<[u8]> {
     }
 }
 
-pub(crate) fn need_kind(group: InboxGroup) -> Word {
+#[must_use]
+pub fn need_kind(group: InboxGroup) -> Word {
     match group {
         InboxGroup::Proposals => Word::HomeProposal,
         InboxGroup::Questions => Word::HomeQuestion,
@@ -158,7 +163,8 @@ pub(crate) fn need_kind(group: InboxGroup) -> Word {
     }
 }
 
-pub(crate) fn person_in_words(card: &Card) -> Option<&jig_client::contract::PersonTask> {
+#[must_use]
+pub fn person_in_words(card: &Card) -> Option<&jig_client::contract::PersonTask> {
     match card.page.as_ref()? {
         ReadValue::PersonTask(task) => {
             if temper_client_domain::question::in_words(task) {

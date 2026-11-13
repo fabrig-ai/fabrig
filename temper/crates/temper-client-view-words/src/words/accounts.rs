@@ -4,12 +4,14 @@ use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::phrases::{Form, Hole, HoleKind, HoleShape, Phrase, PhraseId, PhraseShape, PluralClass, Segment};
 /// Who an account is: the email its provider gave, else what it was named.
-pub(crate) const fn owner() -> skein_ui::Owner {
+#[must_use]
+pub const fn owner() -> skein_ui::Owner {
     // View-local owner, outside the u16 wire family/asker namespace.
     skein_ui::Owner { number: 65536 }
 }
 
-pub(crate) fn who<'a>(email: Option<&'a [u8]>, named: &'a [u8]) -> &'a [u8] {
+#[must_use]
+pub fn who<'a>(email: Option<&'a [u8]>, named: &'a [u8]) -> &'a [u8] {
     match email {
         Some(email) => email,
         None => named,
@@ -17,7 +19,7 @@ pub(crate) fn who<'a>(email: Option<&'a [u8]>, named: &'a [u8]) -> &'a [u8] {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Word {
+pub enum Word {
     UnusableOn,
     LimitedBy,
     ResetUntil,
@@ -443,21 +445,24 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::KeyConsoleDetails, "From the Claude Console, under API keys. What temper’s agents use is billed to the key’s organization.".as_bytes()),
 ];
 // Both names are borrowed; no configured name is replaced by a guessed brand.
-pub(crate) fn provider_words(name: &[u8]) -> (&[u8], &[u8]) {
+#[must_use]
+pub fn provider_words(name: &[u8]) -> (&[u8], &[u8]) {
     match name {
         b"openai" => (b"OpenAI", b"ChatGPT"),
         b"anthropic" => (b"Anthropic", b"Claude"),
         name => (name, name),
     }
 }
-pub(crate) fn key_description(brand: &[u8], words: &Words) -> Box<[u8]> {
+#[must_use]
+pub fn key_description(brand: &[u8], words: &Words) -> Box<[u8]> {
     if brand == b"Anthropic" {
         say(words, Word::KeyConsoleDetails, &[])
     } else {
         words.say(crate::words::Word::ModelKeyDescription, &[Hole::Name(crate::words::shown(brand, words))])
     }
 }
-pub(crate) fn join(parts: &[&[u8]]) -> Box<[u8]> {
+#[must_use]
+pub fn join(parts: &[&[u8]]) -> Box<[u8]> {
     let mut length = 0_usize;
     for part in parts {
         length = length.checked_add(part.len()).expect("admitted account words fit");
@@ -534,7 +539,8 @@ const ENDS: &[EndWords] = &[
 fn id(number: u16) -> PhraseId {
     PhraseId { owner: owner(), number }
 }
-pub(crate) fn say(words: &Words, word: Word, holes: &[Hole]) -> Box<[u8]> {
+#[must_use]
+pub fn say(words: &Words, word: Word, holes: &[Hole]) -> Box<[u8]> {
     let number = if word == Word::OwnCount {
         229
     } else if word == Word::ResetUntil {
@@ -692,11 +698,12 @@ fn literal_number(word: Word) -> u16 {
 
 /// The navigation reads only supplied own-account facts (client/view.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Mark {
+pub enum Mark {
     Needs,
     Limited,
 }
-pub(crate) fn mark(root: &temper_client_domain::Domain) -> Option<Mark> {
+#[must_use]
+pub fn mark(root: &temper_client_domain::Domain) -> Option<Mark> {
     use jig_client::contract::{AccountHolder, AccountState};
     let document = root.pages().accounts_document(root.client())?;
     let party = root.pages().me(root.client())?.party.number;

@@ -1,6 +1,7 @@
 //! Forge choices and unfinished setup (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md).
 //! `ConnectForge` and the welcome's shared forge body (client/forge/deployment.md).
 use super::bindings::{Bindings as ForgeBindings, Meaning};
+use crate::cards::CardWords as _;
 use crate::{
     bindings::Bindings,
     flow::{self, Control, Mark},
@@ -59,7 +60,8 @@ pub(crate) fn link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Wo
     };
     flow::control(b, action);
 }
-pub(crate) fn name(w: &Words, row: &Row, root: &Domain) -> Box<[u8]> {
+#[must_use]
+pub fn name(w: &Words, row: &Row, root: &Domain) -> Box<[u8]> {
     w.say(
         match connect::name(row, connect::playground(root.forge())) {
             Name::Here => Word::ForgeHere,
@@ -70,11 +72,12 @@ pub(crate) fn name(w: &Words, row: &Row, root: &Domain) -> Box<[u8]> {
         &[],
     )
 }
-pub(crate) fn personal(root: &Domain) -> Option<&Row> {
+#[must_use]
+pub fn personal(root: &Domain) -> Option<&Row> {
     connect::personal(root.forges(), connect::playground(root.forge()))
 }
 #[expect(clippy::too_many_arguments, reason = "the flow path takes its project beside the forge bindings")]
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
@@ -236,7 +239,7 @@ pub(crate) fn body(
     }
 }
 /// The welcome keeps GitHub's installation and Ready steps in its own flow.
-pub(crate) fn welcome(
+pub fn welcome(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
@@ -571,7 +574,7 @@ fn sheet_alerts(b: &mut Builder, w: &Words, draft: &forge::forges::Draft) {
         copies_alert(b, w, refused);
     }
 }
-pub(crate) fn copies_alert(b: &mut Builder, w: &Words, refused: &forge::making::CopiesRefused) {
+pub fn copies_alert(b: &mut Builder, w: &Words, refused: &forge::making::CopiesRefused) {
     use forge::making::CopiesRefused;
     let words = match refused {
         CopiesRefused::NoAddress => w.say(Word::WelcomeCopiesNone, &[]),
@@ -588,7 +591,7 @@ pub(crate) fn copies_alert(b: &mut Builder, w: &Words, refused: &forge::making::
     };
     crate::cards::text(b, Role::Alert, &words);
 }
-pub(crate) fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
+pub fn unfinished(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
     flow::card(b, &w.say(Word::ForgeNotFinished, &[]));
     if let Address::ConnectForge { .. } = root.pages().address() {
         b.style(look::CONNECT_PANEL);
@@ -1274,7 +1277,7 @@ pub(crate) fn setting_up(b: &mut Builder, root: &Domain, w: &Words, bindings: &m
     }
     b.close();
 }
-pub(crate) fn setup_ending(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBindings, row: &Row) {
+pub fn setup_ending(b: &mut Builder, root: &Domain, w: &Words, forge: &mut ForgeBindings, row: &Row) {
     if connect::failed(row) {
         setup_control(b, root, w, forge, row.number, Word::ForgeAgain);
     }
@@ -1383,7 +1386,7 @@ fn forge_done(w: &Words, row: &Row) -> Box<[u8]> {
     login
 }
 /// The welcome's Model step says what Forge did (client/pages/README.md).
-pub(crate) fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
+pub fn welcome_line(b: &mut Builder, root: &Domain, w: &Words, row: &Row) {
     let forge = name(w, row, root);
     let connection = forge::words::forge_connection(row);
     let detail = forge::words::forge_connection_bare(row);
@@ -1435,7 +1438,7 @@ fn busy(row: &Row) -> bool {
 }
 /// The forge's line (client/pages/README.md): one paragraph named by its words. The browser
 /// stacks its name and details by style; the terminal has neither, so says them on a line.
-pub(crate) fn stacked(b: &mut Builder, w: &Words, line: &[u8], forge: &[u8], details: &[&[u8]], mark: Mark) {
+pub fn stacked(b: &mut Builder, w: &Words, line: &[u8], forge: &[u8], details: &[&[u8]], mark: Mark) {
     b.open(Role::Paragraph);
     b.name(line);
     let done = match mark {

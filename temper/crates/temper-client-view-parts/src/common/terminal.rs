@@ -1,5 +1,5 @@
 //! Shared terminal items (temper/docs/design/client/view-crates.md, 3.3).
-pub(crate) mod commands;
+pub mod commands;
 use crate::{
     look,
     shared::{TerminalWord as T, say},
@@ -10,7 +10,8 @@ use jig_client::contract as c;
 use skein_ui::{Builder, Role, Run, Style};
 use temper_client_domain::{Domain, pages::terminal};
 
-pub(crate) fn shown(root: &Domain, w: &Words) -> bool {
+#[must_use]
+pub fn shown(root: &Domain, w: &Words) -> bool {
     w.shell == Shell::Browser && root.pages().look().terminal && terminal::draws(root.pages().address())
 }
 
@@ -58,7 +59,7 @@ pub(crate) fn kicker(b: &mut Builder, w: &Words) {
     text(b, &w.say(Word::Proposal, &[]), look::PROPOSAL_KICKER);
 }
 
-pub(crate) fn text(b: &mut Builder, words: &[u8], style: Style) {
+pub fn text(b: &mut Builder, words: &[u8], style: Style) {
     b.open(Role::Text);
     b.style(style);
     b.name(words);

@@ -16,7 +16,7 @@ use temper_client_domain::{
     },
 };
 
-pub(crate) fn card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindings) {
+pub fn card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindings) {
     let facts = delegation::facts(task);
     b.open(Role::Region);
     b.name(&words.say(Word::Task, &[Hole::Number(facts.task)]));
@@ -99,7 +99,7 @@ fn line_kind(b: &mut Builder, facts: delegation::Facts<'_>, words: &Words) {
     };
     text(b, Role::Paragraph, &words.say(word, &[]));
 }
-pub(crate) fn status(b: &mut Builder, state: State, words: &Words) {
+pub fn status(b: &mut Builder, state: State, words: &Words) {
     let token = status_token(state);
     let name = state_words(state, words);
     status_name(b, token, &name);
@@ -120,7 +120,7 @@ fn status_token(state: State) -> skein_ui::Style {
     }
 }
 
-pub(crate) fn said(b: &mut Builder, said: Said<'_>, words: &Words) {
+pub fn said(b: &mut Builder, said: Said<'_>, words: &Words) {
     match said {
         Said::Merge(commit) => {
             b.open(Role::Paragraph);
@@ -138,7 +138,7 @@ pub(crate) fn said(b: &mut Builder, said: Said<'_>, words: &Words) {
 }
 
 /// The browser's terminal needs one line; the task's page holds its details (client/pages/README.md).
-pub(crate) fn terminal_card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindings) {
+pub fn terminal_card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindings) {
     let facts = delegation::facts(task);
     b.open(Role::Region);
     b.style(look::TERMINAL_CARD);

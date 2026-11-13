@@ -81,7 +81,7 @@ impl Draw<'_> {
         }
         b.close();
     }
-    pub(super) fn change(&mut self, b: &mut Builder, _app: &PublicApplication, change: &f::PublicChange) {
+    pub fn change(&mut self, b: &mut Builder, _app: &PublicApplication, change: &f::PublicChange) {
         b.open(Role::Region);
         b.style(crate::look::PUBLIC_SECTION);
         b.open(Role::Paragraph);
@@ -229,7 +229,8 @@ fn landing_phase(phase: &f::PublicLandingPhase) -> W {
         f::PublicLandingPhase::Cancelled => W::EndedLine,
     }
 }
-pub(crate) fn short(hash: &[u8; 32]) -> [u8; 7] {
+#[must_use]
+pub fn short(hash: &[u8; 32]) -> [u8; 7] {
     let mut digits = [0; 7];
     for (position, digit) in digits.iter_mut().enumerate() {
         let byte = hash.get(position.checked_div(2).expect("nonzero divisor")).expect("short hash byte");

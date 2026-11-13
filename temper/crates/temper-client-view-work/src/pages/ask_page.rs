@@ -1,4 +1,5 @@
 //! Ask temper before its first words (temper/docs/design/client/pages/README.md).
+use crate::cards::CardWords as _;
 use crate::{
     bindings::Bindings,
     look,
@@ -9,7 +10,7 @@ use skein_ui::{Builder, Role, Run, State};
 use temper_client_domain::forge::stock_ways::{State as WaysState, StockWays};
 use temper_client_domain::{Domain, pages::Act};
 
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,

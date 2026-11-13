@@ -159,7 +159,8 @@ pub(crate) fn offered(root: &Domain, task: Option<&c::Task>, command: Command) -
 }
 
 /// A simple chat confirmation is a list; delegate decisions keep their sheet.
-pub(crate) fn confirms(root: &Domain) -> bool {
+#[must_use]
+pub fn confirms(root: &Domain) -> bool {
     let Some(open) = root.pages().confirmation() else { return false };
     let Some(chat) = root.pages().chat() else { return false };
     let Some(task) = chat.task(root.client()) else { return false };

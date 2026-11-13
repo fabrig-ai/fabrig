@@ -25,6 +25,7 @@ pub const EMPTY: u32 = 0;
 
 pub const ACTIVITY: u64 = 1;
 
+#[must_use]
 pub fn line() -> TaskLine {
     let budget = Budget {
         numbers: Numbers { budget: BUDGET, spent: SPENT, spent_below: BELOW, reserved: RESERVED },
@@ -89,6 +90,7 @@ pub fn line() -> TaskLine {
     }
 }
 
+#[must_use]
 pub fn row_status_styles(token: skein_ui::Style) -> Box<[skein_ui::Style]> {
     if token == crate::look::STATUS_YOURS || token == crate::look::STATUS_WAITING {
         Box::from([token, crate::look::STATE_NEEDS])
@@ -109,6 +111,7 @@ pub const HELD_STATUSES: [(HoldCategory, &[u8]); 3] = [
     (HoldCategory::Failures { class: HoldFailure::Run }, b"Held"),
 ];
 
+#[must_use]
 pub fn status_rows() -> [(TaskLine, skein_ui::Style); 11] {
     use crate::look;
     let mut rows = [
@@ -223,6 +226,7 @@ pub fn deliver_live(
     );
 }
 
+#[must_use]
 pub fn listed_root() -> Domain {
     let mut ended = line();
     ended.chip.task = 8;
@@ -230,6 +234,7 @@ pub fn listed_root() -> Domain {
     listed(&[line()], &[ended], false)
 }
 
+#[must_use]
 pub fn listed(live: &[TaskLine], closed: &[TaskLine], more: bool) -> Domain {
     use temper_client_domain::{Address, Event};
     let limits = fixtures::domain_limits();
@@ -300,6 +305,7 @@ pub fn listed(live: &[TaskLine], closed: &[TaskLine], more: bool) -> Domain {
     root
 }
 
+#[must_use]
 pub fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
     use temper_client_domain::{Address, Event};
     use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -370,6 +376,7 @@ pub fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
     root
 }
 
+#[must_use]
 pub fn no_project_root(welcome: Option<bool>) -> Domain {
     let template = fixtures::root_in_project(None);
     let mut me = template.pages().me(template.client()).unwrap().clone();

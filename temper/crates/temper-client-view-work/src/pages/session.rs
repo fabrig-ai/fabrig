@@ -8,13 +8,15 @@ use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::{Address, Domain, pages::Act};
 
 /// Where the session's path leads.
-pub(crate) enum Path {
+#[derive(Debug)]
+pub enum Path {
     Chats,
     Ask,
     Home,
 }
 /// A chat retains its numbered name while the browser shows its title.
-pub(crate) enum Heading<'a> {
+#[derive(Debug)]
+pub enum Heading<'a> {
     Words(&'a [u8]),
     /// A chat's: named `whole`, "TN · TITLE"; showing `short` in a browser and `numbered`,
     /// "TN · SHORT", in the terminal; with `hint`, the whole title, where it is cut.
@@ -26,7 +28,7 @@ pub(crate) enum Heading<'a> {
     },
 }
 /// Opens the bar and its path; the caller adds its right part and closes it.
-pub(crate) fn top(
+pub fn top(
     b: &mut Builder,
     root: &Domain,
     w: &Words,

@@ -16,7 +16,7 @@ use temper_client_domain::{
     clippy::too_many_lines,
     reason = "Home's need variants carry approval size and signer context beside their acts"
 )]
-pub(crate) fn cards(
+pub fn cards(
     b: &mut Builder,
     root: &Domain,
     needs: &[needs::Need<'_>],

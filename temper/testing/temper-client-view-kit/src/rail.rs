@@ -9,10 +9,6 @@ pub const GOAL_PRIORITY: u32 = 1;
 
 pub const TEXT_BYTES: u32 = 64;
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
 pub fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: Option<bool>) {
     let mut me = root.pages().me(root.client()).unwrap().clone();
     let mut flags = super::chats::line().flags;
@@ -102,10 +98,6 @@ pub fn deliver_document(root: &mut d::Domain, watch: Token, document: c::Deliver
     );
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
 pub fn with_people(root: &mut d::Domain, people: u32) {
     let address = root.pages().address().clone();
     f::root_event(root, Event::Went { place: d::Place::Address(Address::Forges) });

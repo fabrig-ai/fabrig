@@ -1,6 +1,7 @@
 use skein_lib::{List, Wall};
 use temper_client_domain::pages::team::{self, Facts};
 
+#[must_use]
 pub fn facts() -> Facts {
     Facts {
         member: true,

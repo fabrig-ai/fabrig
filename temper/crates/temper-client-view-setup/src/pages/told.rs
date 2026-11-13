@@ -15,7 +15,7 @@ use temper_client_domain::{
     },
 };
 
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, times: &mut Times) {
+pub fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, times: &mut Times) {
     settings::main(b);
     settings::open_alone(b, &w.say(Word::ToldTitle, &[]), &w.say(Word::ToldLede, &[]));
     if let Some(page) = root.pages().told() {

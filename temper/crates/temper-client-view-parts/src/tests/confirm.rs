@@ -148,7 +148,7 @@ fn releases_card_tree_stays_byte_identical() {
         std::fs::write(path, &actual).unwrap();
         return;
     }
-    assert_eq!(actual.as_bytes(), std::fs::read("src/parts_tests/release-card.txt").unwrap());
+    assert_eq!(actual.as_bytes(), std::fs::read("src/tests/release-card.txt").unwrap());
 }
 
 #[test]

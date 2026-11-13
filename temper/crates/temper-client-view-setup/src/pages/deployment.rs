@@ -50,7 +50,7 @@ fn role(w: &Words, held: c::HeldRole) -> Box<[u8]> {
     w.say(word, &[])
 }
 
-pub(crate) fn members(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+pub fn members(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     open(b, root, w, bindings, Tab::Members);
     if let Some(me) = root.pages().me(root.client()) {
         section(b, &w.say(Word::MembersDeployment, &[]));
@@ -115,7 +115,7 @@ fn project_members(b: &mut Builder, w: &Words, doc: &c::Project) {
     }
 }
 
-pub(crate) fn limits(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+pub fn limits(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     open(b, root, w, bindings, Tab::Limits);
     let read = match root.pages().builders() {
         Some(page) => page.read(root.client()),

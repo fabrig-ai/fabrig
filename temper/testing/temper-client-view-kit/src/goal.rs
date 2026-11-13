@@ -19,6 +19,7 @@ pub const NOW: Wall = Wall::from_nanos(720 * MINUTE);
 
 pub const DRAFT_WORDS: &[u8] = b"Build the draft.\nDraft: docs/design/draft/away-mode.md\nChat: T4";
 
+#[must_use]
 pub fn document() -> c::Task {
     let mut task = f::document();
     task.chip.task = TASK;
@@ -40,10 +41,12 @@ pub fn document() -> c::Task {
     task
 }
 
+#[must_use]
 pub fn text(value: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(value.into(), 1024).unwrap())
 }
 
+#[must_use]
 pub fn root(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool) -> Domain {
     root_with_side(task, done, total, note, needs, Side::empty())
 }
@@ -58,6 +61,7 @@ pub struct Side {
 }
 
 impl Side {
+    #[must_use]
     pub fn empty() -> Self {
         Self {
             activity: None,
@@ -75,6 +79,7 @@ impl Side {
 }
 
 #[expect(clippy::too_many_lines, reason = "one fixture settles the goal and its side reads together")]
+#[must_use]
 pub fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool, side: Side) -> Domain {
     let mut limits = fixtures::domain_limits();
     if let Some(whole) = &side.specification {
@@ -198,6 +203,7 @@ pub fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note
     root
 }
 
+#[must_use]
 pub fn read_value(
     what: c::Read,
     task: &c::Task,
@@ -309,6 +315,7 @@ pub fn read_value(
     }
 }
 
+#[must_use]
 pub fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
     let mut offers = List::uncapped();
     for act in kinds {
@@ -317,6 +324,7 @@ pub fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
     offers
 }
 
+#[must_use]
 pub fn question(task: u64, message: u64, words: &[u8]) -> c::ReadValue {
     let mut chip = document().chip;
     chip.task = task;
@@ -331,6 +339,7 @@ pub fn question(task: u64, message: u64, words: &[u8]) -> c::ReadValue {
     }))
 }
 
+#[must_use]
 pub fn paused_document() -> c::Task {
     let mut task = document();
     f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 1 });
@@ -371,6 +380,7 @@ pub fn press(root: &mut Domain, act: Act) -> Queue<Request> {
     out
 }
 
+#[must_use]
 pub fn with_goal_answer(act: Act, answer: c::Answer) -> Domain {
     let mut task = if act == Act::Resume { paused_document() } else { document() };
     task.acts = offers(&[c::ActKind::Stop, c::ActKind::Release]);
@@ -392,6 +402,7 @@ pub fn with_goal_answer(act: Act, answer: c::Answer) -> Domain {
     root
 }
 
+#[must_use]
 pub fn sent_attempt(mut out: Queue<Request>) -> skein_lib::Token {
     let mut attempt = None;
     while let Some(request) = out.pop() {

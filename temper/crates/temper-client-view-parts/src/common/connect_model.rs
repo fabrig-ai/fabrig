@@ -12,15 +12,18 @@ use temper_client_domain::{
     pages::{accounts::Way, connect_model as model},
 };
 
-pub(crate) fn say(w: &Words, word: W) -> Box<[u8]> {
+#[must_use]
+pub fn say(w: &Words, word: W) -> Box<[u8]> {
     words::say(w, word, &[])
 }
 
-pub(crate) fn named(w: &Words, word: W, name: &[u8]) -> Box<[u8]> {
+#[must_use]
+pub fn named(w: &Words, word: W, name: &[u8]) -> Box<[u8]> {
     words::say(w, word, &[Hole::Name(crate::words::shown(name, w))])
 }
 
-pub(crate) fn names(me: &c::Me, way: Way) -> (&[u8], &[u8]) {
+#[must_use]
+pub fn names(me: &c::Me, way: Way) -> (&[u8], &[u8]) {
     for offer in &me.providers {
         if offer.provider == way.provider() {
             return words::provider_words(offer.name.bytes());
@@ -29,7 +32,8 @@ pub(crate) fn names(me: &c::Me, way: Way) -> (&[u8], &[u8]) {
     (b"", b"")
 }
 
-pub(crate) fn label(me: &c::Me, way: Way, ways: &skein_lib::List<Way>, w: &Words) -> Box<[u8]> {
+#[must_use]
+pub fn label(me: &c::Me, way: Way, ways: &skein_lib::List<Way>, w: &Words) -> Box<[u8]> {
     let (brand, plan) = names(me, way);
     match way {
         Way::SignIn { plan: true, .. } => named(w, W::Continue, plan),
@@ -64,7 +68,8 @@ pub(crate) fn description(b: &mut Builder, words: &[u8]) {
 }
 
 /// The whole command for NAME (client/forge/records.md, *The printed command*).
-pub(crate) fn printed_command(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
+#[must_use]
+pub fn printed_command(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
     let (environment, answered) = match root.pages().connect_model() {
         Some(page) => (page.program_environment(), page.program_environment_answered()),
         None => (b"".as_slice(), false),
@@ -84,7 +89,8 @@ pub(crate) fn printed_command(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]
     }
 }
 
-pub(crate) fn command_prompt(root: &Domain, w: &Words) -> Box<[u8]> {
+#[must_use]
+pub fn command_prompt(root: &Domain, w: &Words) -> Box<[u8]> {
     let word = match root.forge().deployment() {
         Some(answer) if answer.program_login.is_some() => W::ProgramCommandHere,
         Some(_) | None => W::ProgramCommand,

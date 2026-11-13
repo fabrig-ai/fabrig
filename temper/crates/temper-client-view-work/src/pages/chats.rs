@@ -1,5 +1,5 @@
 //! The Chats page (temper/docs/design/client/pages/README.md and temper/docs/design/client/view.md, 1 and temper/docs/design/client/pages/welcome.md, 2).
-pub(crate) use crate::common::chats::{active, outcome_text, status_words, words_not_begun, working};
+pub use crate::common::chats::{active, outcome_text, status_words, words_not_begun, working};
 use crate::{
     bindings::Bindings,
     words::{TimeForm, Times, Word, Words},
@@ -15,7 +15,7 @@ fn text(b: &mut Builder, role: Role, value: &[u8]) {
     b.text(Run::Plain, value);
     b.close();
 }
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     words: &Words,
@@ -230,14 +230,7 @@ fn before(a: (skein_lib::Wall, u64), b: (skein_lib::Wall, u64)) -> bool {
     a.0 > b.0 || (a.0 == b.0 && a.1 < b.1)
 }
 
-pub(crate) fn row(
-    b: &mut Builder,
-    root: &Domain,
-    line: &TaskLine,
-    words: &Words,
-    bindings: &mut Bindings,
-    times: &mut Times,
-) {
+pub fn row(b: &mut Builder, root: &Domain, line: &TaskLine, words: &Words, bindings: &mut Bindings, times: &mut Times) {
     b.open(Role::Item);
     b.style(crate::look::CHATS_ROW);
     if line.ended_at.is_some() || ended(&line.chip) {

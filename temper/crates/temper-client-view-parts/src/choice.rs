@@ -1,7 +1,7 @@
 //! Supplied next-run choices and account waits (client/pages/README.md and client/pages/accounts.md, 2).
-pub(crate) mod picker;
-#[cfg(test)]
-pub(crate) use crate::words::MODEL_SHOWN;
+use crate::cards::CardWords as _;
+pub mod picker;
+pub use crate::words::MODEL_SHOWN;
 pub(crate) use crate::words::shown;
 use crate::{
     bindings::Bindings,
@@ -9,7 +9,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
-pub(crate) use picker::{closed_line, picker, ran_line};
+pub use picker::{closed_line, picker, ran_line};
 use skein_ui::{Builder, Role, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
@@ -47,7 +47,7 @@ fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], ac
 fn account_link(b: &mut Builder, bindings: &mut Bindings, name: &[u8]) {
     control(b, bindings, Role::Link, name, Act::Go { address: Address::Accounts }, false);
 }
-pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+pub fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     if root.approval().is_some()
         || crate::column::unavailable(root).is_some()
         || match root.pages().address() {
@@ -118,10 +118,11 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     b.close();
 }
 /// Composers use the playground or the supplied real-account readiness (temper/docs/design/client/forge/family.md, 7).
-pub(crate) fn can_send(root: &Domain) -> bool {
+#[must_use]
+pub fn can_send(root: &Domain) -> bool {
     root.forge().playground().is_some() || temper_client_domain::pages::welcome::model_usable(root) != Some(false)
 }
-pub(crate) fn composer(
+pub fn composer(
     b: &mut Builder,
     root: &Domain,
     task: Option<&c::Task>,
@@ -183,7 +184,7 @@ pub(crate) fn changeable(root: &Domain, task: Option<&c::Task>) -> bool {
         }
 }
 /// Feedback and the no-model offer stay above the composer (client/pages/accounts.md, 2).
-pub(crate) fn above_composer(
+pub fn above_composer(
     b: &mut Builder,
     root: &Domain,
     task: Option<&c::Task>,
@@ -248,7 +249,8 @@ fn choice_shown(root: &Domain, project: u32, name: &[u8], w: &Words) -> Box<[u8]
     shown(&w.model_name(name), w)
 }
 
-pub(crate) fn provider_shown(root: &Domain, number: Option<u32>, name: &[u8], w: &Words) -> Box<[u8]> {
+#[must_use]
+pub fn provider_shown(root: &Domain, number: Option<u32>, name: &[u8], w: &Words) -> Box<[u8]> {
     if number.is_some() && number == root.forge().playground_provider() {
         w.say(W::Playground, &[])
     } else {
@@ -383,7 +385,7 @@ struct UsingLine {
 fn selected_line(w: &Words, word: W, holes: &[Hole]) -> UsingLine {
     UsingLine { text: w.say(word, holes), usage: None }
 }
-pub(crate) fn using(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words) {
+pub fn using(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words) {
     let line = using_words(root, task, root.pages().choice().project(), w);
     b.open(Role::Paragraph);
     b.style(crate::look::ACCOUNT_LINE);
@@ -418,7 +420,8 @@ fn using_words(root: &Domain, task: Option<&c::Task>, project: Option<u32>, w: &
 }
 
 /// Ready uses the same model and effort words as a new chat's composer.
-pub(crate) fn new_chat_model(root: &Domain, w: &Words) -> Box<[u8]> {
+#[must_use]
+pub fn new_chat_model(root: &Domain, w: &Words) -> Box<[u8]> {
     closed_line(root, None, w)
 }
 
@@ -617,7 +620,7 @@ fn account_line(b: &mut Builder, root: &Domain, w: &Words, account: u32, labels:
     }
 }
 
-pub(crate) fn provider_line(
+pub fn provider_line(
     b: &mut Builder,
     root: &Domain,
     provider: &c::ProviderOffer,
@@ -697,14 +700,7 @@ fn editable(task: &c::Task) -> bool {
 fn host_wait(root: &Domain) -> W {
     if crate::forge::connect::owned(root) { W::WaitCapacityBox } else { W::WaitCapacity }
 }
-pub(crate) fn waiting(
-    b: &mut Builder,
-    root: &Domain,
-    task: &c::Task,
-    w: &Words,
-    bindings: &mut Bindings,
-    times: &mut Times,
-) {
+pub fn waiting(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindings: &mut Bindings, times: &mut Times) {
     match task.run_wait {
         None => {}
         Some(c::TaskRunWait::Credential) => {

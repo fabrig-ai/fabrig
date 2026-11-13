@@ -3,7 +3,8 @@ use crate::look;
 use alloc::boxed::Box;
 use jig_client::contract::{ObjectKey, Proposer, ReadValue};
 
-pub(crate) fn task_title(page: &ReadValue) -> Option<&[u8]> {
+#[must_use]
+pub fn task_title(page: &ReadValue) -> Option<&[u8]> {
     if let ReadValue::Question(question) = page {
         return Some(question.task.title.bytes());
     }
@@ -21,7 +22,8 @@ pub(crate) fn task_title(page: &ReadValue) -> Option<&[u8]> {
     None
 }
 
-pub(crate) fn source_task(object: ObjectKey) -> Option<u64> {
+#[must_use]
+pub fn source_task(object: ObjectKey) -> Option<u64> {
     match object {
         ObjectKey::Task(task)
         | ObjectKey::Escalation(task)
@@ -37,7 +39,8 @@ pub(crate) fn source_task(object: ObjectKey) -> Option<u64> {
 }
 
 /// The card's prose without its controls or decision facts (client/pages/README.md).
-pub(crate) fn card_words(page: &ReadValue) -> Box<[u8]> {
+#[must_use]
+pub fn card_words(page: &ReadValue) -> Box<[u8]> {
     let (title, spec) = match page {
         ReadValue::Question(question) => return question.words.bytes().into(),
         ReadValue::Escalation(held) => (held.task.chip.title.bytes(), &held.task.spec),
@@ -67,7 +70,8 @@ pub(crate) fn card_words(page: &ReadValue) -> Box<[u8]> {
     crate::accounts::words::join(&[title, if title.is_empty() || words.is_empty() { b"" } else { b" " }, words])
 }
 
-pub(crate) fn card_key(object: ObjectKey) -> skein_ui::Key {
+#[must_use]
+pub fn card_key(object: ObjectKey) -> skein_ui::Key {
     let (kind, a, b) = match object {
         ObjectKey::Task(task) => (0, task, 0),
         ObjectKey::Proposal(key) => match key.proposer {
@@ -84,7 +88,8 @@ pub(crate) fn card_key(object: ObjectKey) -> skein_ui::Key {
 }
 
 /// The card's wait; task-page decision facts carry no wait.
-pub(crate) fn waiting_since(page: &ReadValue) -> Option<skein_lib::Wall> {
+#[must_use]
+pub fn waiting_since(page: &ReadValue) -> Option<skein_lib::Wall> {
     match page {
         ReadValue::Proposal(proposal) => Some(proposal.waiting.since),
 

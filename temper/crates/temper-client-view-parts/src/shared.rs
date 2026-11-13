@@ -16,7 +16,7 @@ pub use cards::{DelegationLine, delegation_line, proposal_line};
 pub use lists::{Choice, Confirmation, chats, confirmation, efforts, list_head, models};
 pub use needs::{NeedAct, NeedMark, NeedPrompt, need_prompts};
 pub use question::{Question, QuestionChoice, question};
-pub(crate) use refusal::{Feedback, composer_refusals, live_tasks_words, outcome_feedback};
+pub use refusal::{Feedback, composer_refusals, live_tasks_words, outcome_feedback};
 pub use refusal::{outcome_refusal, refusal, start_goal_refusal};
 pub use words::{
     NeedKind, NeedLine, Run, RunLine, TerminalWord, all_home_headline, chat_state, closed_line, description, heading,
