@@ -2445,7 +2445,20 @@ fn outcome_facts(
                         let owned = row.change.owns_turn;
                         row.change.owns_turn = false;
                         row.change.state = change::State::Landed { merge: commit, since: env.wall };
-                        let saved = row.clone();
+                        let mut saved = row.clone();
+                        let mut turn = crate::change_history::step(d, &saved, crate::history::What::Turn { members: 1 });
+                        turn.operation = crate::history::Operation::Of(entry);
+                        turn.head = Some(commit);
+                        turn.base = match d.entries.get(&entry) {
+                            Some(entry) => match entry.entry.effect.condition { skein_forge_client::Condition::Merge { ref base } => {
+                                let resource = skein_forge_client::Resource { repository: saved.repository, what: skein_forge_client::What::Branch(base.clone()) };
+                                from_client(&resource, &env.limits).and_then(|name| d.branch_head(&name))
+                            }, _ => None }, None => None,
+                        };
+                        crate::change_history::write(d, env.wall, &mut saved, turn, out);
+                        let mut event = crate::change_history::step(d, &saved, crate::history::What::Landed);
+                        event.head = Some(commit);
+                        crate::change_history::write(d, env.wall, &mut saved, event, out);
                         wake_after_turn(d, &saved, owned);
                         save_change(d, out, saved);
                     }
@@ -3448,6 +3461,7 @@ fn delegated(
         emit(out, Request::Refused { task });
         return;
     };
+    if row.delegate == Some((child, kind)) { return; }
     match kind {
         change::Delegate::Repair(why) => {
             row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
@@ -3473,7 +3487,9 @@ fn delegated(
     row.producer_failure = None;
     row.effect_account = None;
     row.delegate_status = change::Status::Unknown;
-    let saved = row.clone();
+    let mut saved = row.clone();
+    crate::change_history::delegated(d, env.wall, &mut saved, child, kind, out);
+    d.changes.insert(task, saved.clone()).expect("retained change");
     save_change(d, out, saved);
 }
 
@@ -3636,7 +3652,7 @@ fn delegate_result(
     // Its terminal still releases the procedure's conflict wait.
     d.procedure_wakes.insert(task, true).expect("one pending wake per change");
     let Some((expected, kind)) = row.delegate else { return };
-    if expected != child {
+    if expected != child || row.delegate_status != change::Status::Unknown {
         return;
     }
     let owned = row.change.owns_turn;
@@ -3704,7 +3720,16 @@ fn delegate_result(
     if cancelled {
         row.producer_failure = cancelled_delegate_words(kind, child, words);
     }
-    let saved = row.clone();
+    let mut saved = row.clone();
+    let outcome = if cancelled { crate::history::Answer::Cancelled }
+        else if failed { crate::history::Answer::Failed }
+        else if no_change { crate::history::Answer::Nothing }
+        else if let change::Delegate::Gate { .. } = kind {
+            if status == change::Status::Passed { crate::history::Answer::Passed } else { crate::history::Answer::Refused }
+        } else if status == change::Status::Passed { crate::history::Answer::Pushed }
+        else { crate::history::Answer::Failed };
+    crate::change_history::answered(d, env.wall, &mut saved, child, kind, outcome, out);
+    d.changes.insert(task, saved.clone()).expect("retained change");
     wake_after_turn(d, &saved, owned);
     save_change(d, out, saved);
     if ended {
@@ -4090,7 +4115,7 @@ fn early_base(pending: &PendingStep) -> bool {
     !pending.pending.is_empty()
 }
 
-fn landed_commit(state: &change::State) -> Option<skein_forge::api::Commit> {
+pub(crate) fn landed_commit(state: &change::State) -> Option<skein_forge::api::Commit> {
     match state {
         change::State::Landed { merge, .. }
         | change::State::Red { merge, .. }
@@ -4158,7 +4183,9 @@ fn step_verified(
     };
     let facts = change_facts(d, env, &row, &pending, merge);
     let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+    let prior = row.change.clone();
     row.change = stepped.change;
+    crate::change_history::advanced(d, env.wall, &mut row, &prior, out);
     d.changes.insert(task, row.clone()).expect("replaces change");
     save_change(d, out, row);
     emit(out, Request::ChangeDecision { task, decision: stepped.decision, entry: None, evidence: None });
@@ -5106,6 +5133,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
             | change::Decision::Finish { .. }
             | change::Decision::Cancel
             | change::Decision::Hold(_)) => {
+                crate::change_history::advanced(d, env.wall, &mut row, &prior, out);
                 crate::landing::change_advanced(d, &mut row, &prior, decision, out);
                 d.changes.insert(row.task, row.clone()).expect("replaces change");
                 if landed_commit(&prior.state).is_none()
@@ -5570,6 +5598,13 @@ fn emit_change_effect(
     wake_after_turn(d, row, prior.owns_turn);
     save_queue_change(d, env, before, row.clone(), out);
     admission::update_writer(d, env, &entry, true);
+    if let skein_forge::api::Write::Update { style, .. } = entry.effect.write {
+        let mut event = crate::change_history::step(d, row, crate::history::What::Update { style });
+        event.head = pending.branch;
+        event.base = pending.base_tip;
+        event.operation = crate::history::Operation::Of(pending.entry);
+        crate::change_history::write(d, env.wall, row, event, out);
+    }
     keep_entry(d, entry, None, out);
     emit(
         out,
@@ -5708,7 +5743,23 @@ pub(crate) fn change_outcome(
     if pull_closed {
         row.drift = Some(change::Hold::PullClosed);
     }
-    let saved = row.clone();
+    let mut saved = row.clone();
+    if update {
+        let result = match outcome {
+            skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Updated(head), .. } => (crate::history::UpdateOutcome::Updated, Some(head)),
+            skein_forge_client::Outcome::Failed(skein_forge::api::Error::Conflict) => (crate::history::UpdateOutcome::Conflict, None),
+            _ => (crate::history::UpdateOutcome::Failed, None),
+        };
+        let mut event = crate::change_history::step(d, &saved, crate::history::What::Updated { outcome: result.0 });
+        event.operation = crate::history::Operation::Of(entry);
+        event.head = result.1;
+        event.base = updating_base(&saved.change.state);
+        crate::change_history::write(d, env.wall, &mut saved, event, out);
+        if result.0 == crate::history::UpdateOutcome::Conflict {
+            crate::change_history::conflict(d, env.wall, &mut saved, out);
+        }
+    }
+    d.changes.insert(task, saved.clone()).expect("retained change");
     save_change(d, out, saved.clone());
     if pull_closed {
         let branch = skein_forge_client::Resource {
