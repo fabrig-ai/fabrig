@@ -90,6 +90,8 @@ fn stock_profiles_make_both_links_and_fit_every_nonstart_frame() {
                 | Kind::Logins
                 | Kind::SignedOut
                 | Kind::JobAnswer
+                | Kind::Ask
+                | Kind::Asked
                 | Kind::Wires => false,
             };
             if start {

@@ -26,7 +26,8 @@ pub fn class(event: &Event) -> Class {
             | LinkDown::AssignJob { .. }
             | LinkDown::Assign { .. }
             | LinkDown::Message { .. } => Class::New,
-            LinkDown::Relayed { .. }
+            LinkDown::Asked { .. }
+            | LinkDown::Relayed { .. }
             | LinkDown::TurnKept { .. }
             | LinkDown::Acknowledge { .. }
             | LinkDown::Cancel { .. }
@@ -140,6 +141,7 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
             | LinkDown::Check { .. }
             | LinkDown::SignOut { .. }
             | LinkDown::Message { .. }
+            | LinkDown::Asked { .. }
             | LinkDown::Relayed { .. }
             | LinkDown::TurnKept { .. }
             | LinkDown::Acknowledge { .. }
@@ -164,6 +166,7 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
 fn named_assignment(link: &LinkDown) -> Option<(Token, Token)> {
     match link {
         LinkDown::Cancel { run, attempt }
+        | LinkDown::Asked { run, attempt, .. }
         | LinkDown::Relayed { run, attempt, .. }
         | LinkDown::TurnKept { run, attempt, .. }
         | LinkDown::Acknowledge { run, attempt }

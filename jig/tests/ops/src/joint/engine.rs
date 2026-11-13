@@ -348,6 +348,7 @@ impl Application for OpsApplication {
                 | core::Now::SettingsAnswer { .. }
                 | core::Now::PersonAnswer { .. }
                 | core::Now::SettledCallRefused { .. }
+                | core::Now::Ask { .. }
                 | core::Now::Call { .. }
                 | core::Now::RelayBusy { .. }
                 | core::Now::CallBusy { .. }

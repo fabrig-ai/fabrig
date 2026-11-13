@@ -63,6 +63,8 @@ pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
         infrastructure: crate::infrastructure_limits(),
         observability: crate::limits(),
         host: host::Limits {
+            application_ask_bytes: 64,
+            application_answer_bytes: 64,
             slots: 1,
             accounts: 1,
             program_sources: 12,

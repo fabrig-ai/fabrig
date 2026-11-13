@@ -160,6 +160,7 @@ impl Domain {
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
                         | host::LinkUp::Turn { .. }
+                        | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. },
                     )
                     | None => unreachable!("retained answer position"),

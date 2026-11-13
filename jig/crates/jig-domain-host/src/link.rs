@@ -5,6 +5,7 @@ use skein_lib::{Duration, Token};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkDown {
+    Asked { run: Token, attempt: Token, number: u64, answer: crate::AskAnswer },
     ReadList { read: u64, endpoint: u32, grant: Grant },
     Sources { sources: Box<[SourceName]> },
     Check { name: SourceName },
@@ -21,6 +22,12 @@ pub enum LinkDown {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkUp {
+    Ask {
+        run: Token,
+        attempt: Token,
+        number: u64,
+        bytes: Box<[u8]>,
+    },
     /// The host has started to shut down (domain/hosts/hub.md, 7).
     Draining,
     ListRead {
@@ -96,7 +103,7 @@ impl LinkUp {
     #[must_use]
     pub const fn new_work(&self) -> bool {
         match self {
-            Self::Call { .. } => true,
+            Self::Call { .. } | Self::Ask { .. } => true,
             Self::Draining
             | Self::ListRead { .. }
             | Self::JobAnswer { .. }
@@ -129,7 +136,7 @@ mod tests {
     use skein_lib::{Duration, Token};
 
     #[test]
-    fn only_calls_start_new_work() {
+    fn calls_and_asks_start_new_work() {
         let run = Token::new(1);
         let attempt = Token::new(2);
         for writes in [false, true] {
@@ -147,6 +154,7 @@ mod tests {
                 .new_work()
             );
         }
+        assert!(LinkUp::Ask { run, attempt, number: 1, bytes: Box::new([]) }.new_work());
         let work = Work { left: None, saved: None };
         for record in [
             LinkUp::Draining,

@@ -373,6 +373,12 @@ pub(crate) fn tag_fleet(
                 }
                 continue;
             }
+            fleet::Request::Ask { channel, run, attempt, number, bytes } => {
+                Request::Now(Box::new(Now::Ask { channel, run, attempt, number, bytes }))
+            }
+            fleet::Request::Asked { channel, run, attempt, number, answer } => {
+                Request::Now(Box::new(Now::Link(LinkNow::Asked { channel, run, attempt, number, answer })))
+            }
             fleet::Request::Relay { reply_to, .. } if core.stopping => {
                 Request::Now(Box::new(Now::CallBusy { to: reply_to }))
             }
@@ -807,6 +813,8 @@ pub(crate) fn route_fleet(
         | fleet::Event::ListRead { .. }
         | fleet::Event::Inbound { .. }
         | fleet::Event::Relay { .. }
+        | fleet::Event::Ask { .. }
+        | fleet::Event::Asked { .. }
         | fleet::Event::Relayed { .. }
         | fleet::Event::Grant { .. }
         | fleet::Event::Unauthorized { .. }
@@ -898,6 +906,8 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Answer { .. }
         | fleet::Event::Inbound { .. }
         | fleet::Event::Relay { .. }
+        | fleet::Event::Ask { .. }
+        | fleet::Event::Asked { .. }
         | fleet::Event::Relayed { .. }
         | fleet::Event::Grant { .. }
         | fleet::Event::Unauthorized { .. }

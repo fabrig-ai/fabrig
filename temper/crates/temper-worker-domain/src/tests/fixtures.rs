@@ -26,6 +26,8 @@ pub fn limits() -> Limits {
         },
         watermark: crate::WATERMARK,
         host: host::Limits {
+            application_ask_bytes: 0,
+            application_answer_bytes: 0,
             program_sources: 12,
             source_interval: Duration::from_secs(60),
             source_timeout: Duration::from_secs(10),

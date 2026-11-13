@@ -9,7 +9,8 @@ fn piece() -> Piece {
 fn assert_activity(record: LinkUp) {
     match record {
         LinkUp::Activity { .. } => {}
-        other @ (LinkUp::Draining
+        other @ (LinkUp::Ask { .. }
+        | LinkUp::Draining
         | LinkUp::Piece { .. }
         | LinkUp::ListRead { .. }
         | LinkUp::Logins { .. }
