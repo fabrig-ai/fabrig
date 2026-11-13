@@ -106,6 +106,9 @@ fn refused(value: &c::Refusal, words: &Words, answer: bool) -> Feedback {
         | c::Refusal::Ended { .. }
         | c::Refusal::Unknown
         | c::Refusal::ProgramNameReserved
+        | c::Refusal::NoTerminal
+        | c::Refusal::LoginUnderWay
+        | c::Refusal::NotLending
         | c::Refusal::NotOffered
         | c::Refusal::KeyConflict
         | c::Refusal::LiveTasks { .. }

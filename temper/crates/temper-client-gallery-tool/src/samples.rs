@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 434;
+pub const N: usize = 439;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -1111,6 +1111,11 @@ pub fn samples() -> [Sample; N] {
         forge_status_sample("welcome-forge-connected", 7, None),
         forge_status_sample("welcome-forge-github", 21, None),
         welcome_sample("welcome-model-choose", temper_client_domain::Step::Model { way: None }),
+        model_forge_sample("welcome-model-claude-terminal", 7),
+        model_forge_sample("welcome-model-claude-signing-in", 7),
+        model_forge_sample("welcome-model-claude-signed-in", 7),
+        model_forge_sample("welcome-model-claude-no-terminal", 7),
+        model_forge_sample("welcome-model-claude-not-finished", 7),
         model_forge_sample("welcome-model-forge-under-way", 6),
         model_forge_sample("welcome-model-forge-fetching", 24),
         model_forge_sample("welcome-model-forge-fetching-bytes", 25),
@@ -1454,6 +1459,10 @@ fn special_mockup(name: &str) -> Option<String> {
         "welcome-model-claude" => {
             return Some("welcome.html?at=model&way=claude".to_owned());
         }
+        "welcome-model-claude-terminal" => return Some("../web/claude-sign-in/01-model.html".to_owned()),
+        "welcome-model-claude-signing-in" => return Some("../web/claude-sign-in/02-signing-in.html".to_owned()),
+        "welcome-model-claude-signed-in" => return Some("../web/claude-sign-in/04-signed-in.html".to_owned()),
+        "welcome-model-claude-no-terminal" => return Some("../web/claude-sign-in/05-no-terminal.html".to_owned()),
         "welcome-model-key-details" => {
             return Some("welcome.html?world=first-run&step=0&at=model&way=key&bare".to_owned());
         }
@@ -1501,7 +1510,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         _ => {}
     }
 
-    if sample.name.starts_with("approve-") {
+    if sample.name.starts_with("approve-") || sample.name == "welcome-model-claude-not-finished" {
         return None;
     }
     if sample.name.starts_with("goal-") {
@@ -2092,6 +2101,10 @@ pub fn domain(sample: &Sample) -> Domain {
             &mut out,
         );
     }
+    if sample.name.starts_with("welcome-model-claude-") {
+        claude_login(&mut root, sample.name, accounts_watch.expect("Claude accounts watch"), &mut out);
+        return root;
+    }
     if sample.name.starts_with("welcome-model-")
         || sample.name == "welcome-ready-checking"
         || sample.name == "welcome-ready-not-yet"
@@ -2363,6 +2376,53 @@ fn account_editor(root: &mut Domain, sample: &Sample, out: &mut Queue<Request>) 
             );
         }
     }
+}
+// The terminal login frames share the connected Forgejo fixture (client/web/gallery.md, 2).
+fn claude_login(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>) {
+    let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("Claude accounts").clone();
+    doc.usable = false;
+    doc.accounts.clear();
+    doc.lendable = name != "welcome-model-claude-no-terminal";
+    if name == "welcome-model-claude-signing-in" {
+        doc.lending = Some(c::TerminalLogin {
+            number: 91,
+            provider: 19,
+            name: b"claude-sam".as_slice().into(),
+            cancelled: false,
+        });
+    } else if name == "welcome-model-claude-not-finished" {
+        doc.lent_end = Some(c::AccountLentEnd {
+            number: 91,
+            end: c::LoginEnd::NotFinished { exit: Some(c::LoginExit::Exited { code: 1 }) },
+        });
+    } else if name == "welcome-model-claude-signed-in" {
+        let reference = crate::worlds::accounts(World::Reference, Shown);
+        let mut account =
+            reference.accounts.iter().find(|row| row.provider == Some(17)).expect("Claude account").clone();
+        account.provider = Some(19);
+        let mut source = account.sources.get(0).expect("Claude source").clone();
+        source.name = Some(b"claude-sam".as_slice().into());
+        source.number = 43;
+        account.sources = skein_lib::List::from_boxed(Box::new([source]));
+        doc.accounts = skein_lib::List::from_boxed(Box::new([account]));
+        doc.usable = true;
+        doc.lent_end = Some(c::AccountLentEnd { number: 91, end: c::LoginEnd::SignedIn { source: 43 } });
+        doc.program_hosts = skein_lib::List::from_boxed(Box::new([c::ProgramHost {
+            name: b"this machine".as_slice().into(),
+            channel: 1,
+            connected: true,
+            awaiting_logins: false,
+            programs: skein_lib::List::from_boxed(Box::new([c::ProgramLogin {
+                name: b"claude-sam".as_slice().into(),
+                state: Some(c::ProgramState::Usable),
+                sign_out: None,
+                cleanup: false,
+                cut: false,
+            }])),
+            cut: false,
+        }]));
+    }
+    crate::driver::deliver(root, watch, c::Delivery::Accounts(Box::new(doc)), out);
 }
 fn claude(root: &mut Domain, name: &str, watch: Token, out: &mut Queue<Request>) {
     use temper_client_domain::pages::{accounts::Way, connect_model::Act as A};

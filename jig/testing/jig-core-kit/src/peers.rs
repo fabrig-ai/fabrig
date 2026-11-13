@@ -593,6 +593,9 @@ fn party_refusal(why: people::Refusal) -> parties::Refusal {
         people::Refusal::NotWaiting => parties::Refusal::NotWaiting,
         people::Refusal::NoFurther => parties::Refusal::NoFurther,
         people::Refusal::LiveTasks { .. }
+        | people::Refusal::NoTerminal
+        | people::Refusal::LoginUnderWay
+        | people::Refusal::NotLending
         | people::Refusal::SignInRedirect { .. }
         | people::Refusal::AccountMove { .. }
         | people::Refusal::ProgramNameReserved => {

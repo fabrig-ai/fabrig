@@ -194,6 +194,45 @@ impl Io {
         self.adopt_pipe(fd, Way::In, write_timeout)
     }
 
+    /// Withdraws a readable pipe's demand and cancels its read in flight,
+    /// without closing it (runtime/io/sockets.md, 3). Repeated withdrawal is
+    /// inert. Wait for [`Io::read_cancelled`] before demanding input again.
+    /// Submits at most one cancellation; sockets and non-readable pipes are inert.
+    pub fn cancel_read(&mut self, env: &Env<Limits>, stream: Token, subs: &mut Queue<Submit>) {
+        let id = Id::from_token(stream);
+        match self.entities.get_mut(id) {
+            Some(Entity::Pipe(pipe)) => pipe::cancel_read(pipe, id, env, &mut self.tables, subs),
+            Some(
+                Entity::Stream(_)
+                | Entity::Joined(_)
+                | Entity::Listener(_)
+                | Entity::Child(_)
+                | Entity::Signals(_)
+                | Entity::Named(_),
+            )
+            | None => {}
+        }
+    }
+
+    /// Whether [`Io::cancel_read`] has settled a readable pipe's read and its cancel.
+    /// Bytes that win the cancellation race meet the old demand first. The
+    /// next `Stream` demand clears this and starts reading again.
+    #[must_use]
+    pub fn read_cancelled(&self, stream: Token) -> bool {
+        match self.entities.get(Id::from_token(stream)) {
+            Some(Entity::Pipe(pipe)) => pipe.read_cancelled(),
+            Some(
+                Entity::Stream(_)
+                | Entity::Joined(_)
+                | Entity::Listener(_)
+                | Entity::Child(_)
+                | Entity::Signals(_)
+                | Entity::Named(_),
+            )
+            | None => false,
+        }
+    }
+
     /// Takes an output-only append file at startup. Each Append has the owner's
     /// `write_timeout`; Close instead flushes under io's close timeout (runtime/io/files.md, 1).
     /// A full slab returns the descriptor to its caller without closing it.

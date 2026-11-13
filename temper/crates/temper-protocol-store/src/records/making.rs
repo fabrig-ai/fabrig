@@ -2,7 +2,7 @@
 use super::FITS;
 use crate::v17 as w;
 use skein_lib::Wall;
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 
 #[expect(clippy::manual_map, reason = "explicit option arms keep store translations closure-free")]
 pub(super) fn encode(row: &d::RepositoryMaking) -> w::RepositoryMaking {

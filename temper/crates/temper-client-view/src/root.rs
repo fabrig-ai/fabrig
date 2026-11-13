@@ -503,7 +503,9 @@ pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
         Action::Forge(temper_client_domain::forge::Act::Go {
             address: temper_client_domain::forge::Address::Adopt { project },
         }) => Some(temper_client_domain::address::print(&temper_client_domain::Address::Adopt { project })),
-        Action::Approve(_) | Action::Pages(_) | Action::Forge(_) | Action::Copy { .. } => None,
+        Action::Approve(_) | Action::Pages(_) | Action::Forge(_) | Action::Copy { .. } | Action::LoginEnded { .. } => {
+            None
+        }
     }
 }
 /// A page act carried by the browser shell rather than the domain (client/view.md, 1).

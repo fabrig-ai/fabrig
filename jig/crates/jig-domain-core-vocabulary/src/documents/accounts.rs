@@ -48,7 +48,7 @@ pub struct LastEnd {
 /// Secret-free facts of the party's accounts, including configured provider terms.
 /// Per-host program facts are joined from the current fleet inventory. Uses name explicit payers,
 /// or leave the default; `usable` follows those uses for this party;
-/// `settled` currently counts only sign-ins the party asked for.
+/// `settled` counts the party's sign-ins and terminal login under way.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent aggregate and list loss facts")]
 pub struct Accounts {
@@ -56,6 +56,9 @@ pub struct Accounts {
     pub accounts: List<AccountLine>,
     pub signing: List<SignInLine>,
     pub last_end: Option<LastEnd>,
+    pub lendable: bool,
+    pub lending: Option<accounts::TerminalLogin>,
+    pub lent_end: Option<accounts::LentEnd>,
     pub usable: bool,
     pub settled: bool,
     pub cut: bool,
@@ -82,6 +85,7 @@ pub fn document_bound(limits: &DocumentLimits) -> Option<u64> {
         .checked_add(facts_bound()?)?;
     u64::try_from(size_of::<Accounts>())
         .ok()?
+        .checked_add(32)?
         .checked_add(super::programs::hosts_bound(limits)?)?
         .checked_add(List::<AccountLine>::price(limits.lines)?)?
         .checked_add(u64::from(limits.lines).checked_mul(account_heap)?)?

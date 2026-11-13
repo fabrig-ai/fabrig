@@ -27,7 +27,7 @@ use crate::net::{
 };
 use crate::trace::{self, Entry, Event, Fault, Summary};
 use files::{Asked, File};
-use processes::{Child, InheritedPipe, PipeEnd, WaitState};
+use processes::{Child, InheritedPipe, InheritedStream, PipeEnd, WaitState};
 
 /// A simulated process: a plain handle, from [`Sim::spawn_process`].
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -149,6 +149,7 @@ pub struct Sim {
     asked: BTreeMap<Ticket, Asked>,
     spawn_asked: BTreeMap<Ticket, (Pid, Token)>,
     next_child: u64,
+    inherited_streams: Vec<InheritedStream>,
     trace: Vec<Entry>,
 }
 
@@ -173,6 +174,7 @@ impl Sim {
             asked: BTreeMap::new(),
             spawn_asked: BTreeMap::new(),
             next_child: 0,
+            inherited_streams: Vec::new(),
             trace: Vec::new(),
         }
     }

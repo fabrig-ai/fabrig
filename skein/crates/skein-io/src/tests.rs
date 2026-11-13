@@ -220,6 +220,15 @@ impl Rig {
         out
     }
 
+    pub(crate) fn cancel_read(&mut self, stream: Token) -> Out {
+        let mut up = Queue::with_capacity(0);
+        let mut subs = Queue::with_capacity(1);
+        self.io.cancel_read(&self.env, stream, &mut subs);
+        let mut out = Out::new();
+        out.drain(&mut up, &mut subs);
+        out
+    }
+
     /// The completion of `submit`, handed back with `result`.
     pub(crate) fn complete(&mut self, submit: Submit, result: Result<Done, Error>) -> Out {
         assert!(!self.io.is_ready(), "the loop drains the ready list before it hands io completions");

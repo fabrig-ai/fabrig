@@ -108,6 +108,69 @@ fn the_front_views_are_their_goldens() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the lending golden table embeds its fixed frames")]
+fn the_welcome_back_notices_and_model_details_are_their_goldens() {
+    use crate::Notice;
+    let rows = [
+        (
+            "front-login-signed-in-80x24-dark",
+            Some(Notice::LoginSignedIn),
+            None,
+            include_bytes!("golden/front-login-signed-in-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "front-login-cancelled-80x24-dark",
+            Some(Notice::LoginCancelled),
+            None,
+            include_bytes!("golden/front-login-cancelled-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "front-login-not-finished-80x24-dark",
+            Some(Notice::LoginNotFinished),
+            None,
+            include_bytes!("golden/front-login-not-finished-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "front-model-program-80x24-dark",
+            None,
+            Some(c::AccountKind::Program),
+            include_bytes!("golden/front-model-program-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "front-model-plan-80x24-dark",
+            None,
+            Some(c::AccountKind::SignIn),
+            include_bytes!("golden/front-model-plan-80x24-dark.txt").as_slice(),
+        ),
+    ];
+    let mut views = List::with_capacity(5);
+    for (_, notice, kind, _) in &rows {
+        let root = super::welcome::lending_root(*kind);
+        let mut tui = front();
+        tui.step(Told::Notice { notice: notice.clone() });
+        let mut view = f::view();
+        f::build(&mut view, &tui, &root);
+        super::limits::fits(view.tree(), &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
+        views.push(view).unwrap();
+    }
+    let mut checks = List::with_capacity(5);
+    for ((name, _, _, want), view) in rows.iter().zip(&views) {
+        checks
+            .push(goldens::Golden {
+                name,
+                tree: view.tree(),
+                scheme: Scheme::Dark,
+                background: Some(crate::theme::palette(Scheme::Dark)[0].1),
+                size: FULL,
+                focus: skein_ui_screen::Focus::default(),
+                want,
+            })
+            .unwrap();
+    }
+    goldens::check(checks.as_slice());
+}
+
+#[test]
 fn the_front_tree_fits_its_limits() {
     let root = launchpad::home(None, &[working(9, b"csv-export", 1)]);
     let mut tui = front();

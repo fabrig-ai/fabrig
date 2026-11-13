@@ -6,7 +6,7 @@ use super::{
 };
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
-use temper_engine_domain_forge::{JudgeFreshness, settings::Held};
+use temper_engine_domain_forge_vocabulary::{JudgeFreshness, settings::Held};
 
 pub(super) fn count_words(count: u32) -> Box<[u8]> {
     match count {

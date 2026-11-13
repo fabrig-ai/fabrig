@@ -273,7 +273,7 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::StartChat, "Start a chat".as_bytes()),
     (Word::ProgramDescription, "temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there.".as_bytes()),
     (Word::Pasted, "Pasted here · at once".as_bytes()),
-    (Word::BrowserMinute, "Sign in, in a new tab · about a minute".as_bytes()),
+    (Word::BrowserMinute, "Sign in, in a new tab".as_bytes()),
     (Word::AllWays, b"Other ways"),
     (Word::ModelLead, "temper’s agents run on a plan you sign in to, or on an API key.".as_bytes()),
     (Word::OrKey, b"Or an API key"),

@@ -110,7 +110,7 @@ mod tests {
     fn document() -> c::Task {
         let mut parts = jig_client_test_records::task_record().into_parts();
         parts.chip = jig_client_test_records::owner_waiting_chip_record();
-        let record = jig_client_protocol_wire::v20::Task::new(&jig_client_protocol_wire::v20::CEILINGS, parts)
+        let record = jig_client_protocol_wire::v21::Task::new(&jig_client_protocol_wire::v21::CEILINGS, parts)
             .expect("checked task record");
         let limits = domain_limits();
         let link =

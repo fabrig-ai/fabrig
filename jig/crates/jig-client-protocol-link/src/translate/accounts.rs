@@ -190,6 +190,12 @@ pub(crate) fn accounts(value: w::Accounts, limits: &Limits) -> Result<c::Account
         program_hosts: super::super::programs::hosts(value.program_hosts(), limits, &mut room)?,
         accounts: account_line_piece(value.accounts(), limits, &mut room)?,
         signing: account_sign_in_piece(value.signing(), limits, &mut room)?,
+        lendable: value.lendable(),
+        lending: terminal_login(value.lending().as_ref(), &mut room)?,
+        lent_end: match value.lent_end() {
+            Some(row) => Some(c::AccountLentEnd { number: row.number(), end: login_end(row.end()) }),
+            None => None,
+        },
         last_end: match value.last_end() {
             Some(row) => Some(c::AccountLastEnd { source: row.source(), end: account_end(row.end()) }),
             None => None,
@@ -198,6 +204,48 @@ pub(crate) fn accounts(value: w::Accounts, limits: &Limits) -> Result<c::Account
         settled: value.settled(),
         cut: value.cut(),
     })
+}
+pub(crate) fn terminal(value: w::Terminal, limits: &Limits) -> Result<c::Terminal, w::Problem> {
+    let mut room = document_room(limits);
+    charge(&mut room, Some(u64::try_from(size_of::<c::Terminal>()).expect("a record's size fits u64")))?;
+    Ok(c::Terminal { login: terminal_login(value.login().as_ref(), &mut room)? })
+}
+/// The terminal's variable name shares the owning document's native byte budget.
+pub(crate) fn terminal_login(
+    value: Option<&w::TerminalLogin>,
+    room: &mut u64,
+) -> Result<Option<c::TerminalLogin>, w::Problem> {
+    let Some(value) = value else { return Ok(None) };
+    if !c::valid_program_name(value.name()) {
+        return Err(piece_problem(skein_codec::Reason::Malformed));
+    }
+    charge(room, Some(len_u64(value.name().len())))?;
+    Ok(Some(c::TerminalLogin {
+        number: value.number(),
+        provider: value.provider(),
+        name: skein_lib::bytes::copy_of(value.name()),
+        cancelled: value.cancelled(),
+    }))
+}
+pub(crate) fn login_exit(value: &w::LoginExit) -> c::LoginExit {
+    match value {
+        w::LoginExit::Exited(row) => c::LoginExit::Exited { code: row.code() },
+        w::LoginExit::Killed(row) => c::LoginExit::Killed { signal: row.signal() },
+        w::LoginExit::NotStarted => c::LoginExit::NotStarted,
+    }
+}
+pub(crate) fn login_end(value: &w::LoginEnd) -> c::LoginEnd {
+    match value {
+        w::LoginEnd::SignedIn(row) => c::LoginEnd::SignedIn { source: row.source() },
+        w::LoginEnd::NotFinished(row) => c::LoginEnd::NotFinished {
+            exit: match row.exit() {
+                Some(exit) => Some(login_exit(exit)),
+                None => None,
+            },
+        },
+        w::LoginEnd::Cancelled => c::LoginEnd::Cancelled,
+        w::LoginEnd::Refused(row) => c::LoginEnd::Refused { refusal: account_refusal(row.refusal()) },
+    }
 }
 /// The bytes a decoded account list may hold, with the record that holds it. The client bounds a
 /// document by its bytes and account counts (client/domain/client/README.md, 11), and its domain prices

@@ -2,7 +2,7 @@
 use super::{Bounds, FITS, Undecodable, names, w};
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 fn reason(bytes: &[u8]) -> w::FollowReason {
     w::FollowReason::new(&w::CEILINGS, w::FollowReasonParts { reason: Box::from(bytes) }).expect(FITS)
 }

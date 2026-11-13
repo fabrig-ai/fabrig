@@ -187,6 +187,12 @@ child, which it finds beside it, in its cache or downloads once
 (`client/box-binary.md`), and the box runs no TUI of its own
 (`cli/README.status.md`; `draft/cli.status.md`).
 
+Claude Code's sign-in through the terminal temper holds is being built:
+the TUI in front of a box lends its terminal to `temper-box
+program-login` on the welcome's "Sign in to Claude Code", and the page
+follows the login to its end (`client/tui/box.status.md`,
+`client/pages/welcome.status.md`; `draft/claude-sign-in.status.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -338,6 +344,7 @@ Drafts:
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/claude-api.md`](draft/claude-api.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
+- [`draft/claude-sign-in.md`](draft/claude-sign-in.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/crate-graph.md`](draft/crate-graph.status.md)
@@ -373,7 +380,7 @@ Drafts:
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
-- [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2's charters to come.
+- [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.
 - [`draft/standing-roles.md`](draft/standing-roles.status.md)
 - [`draft/stock-ways.md`](draft/stock-ways.status.md)
 - [`draft/surfaces.md`](draft/surfaces.status.md)

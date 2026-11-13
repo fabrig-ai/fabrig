@@ -1,7 +1,7 @@
 //! Wire asks into the people vocabulary (client/domain/contract/requests.md).
 use super::Untranslatable;
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_people as p;
 use skein_lib::{List, Reader, Wall, length::len_u64};
 #[derive(Debug)]
@@ -589,6 +589,19 @@ fn account_holder(value: &w::AskAccountHolder) -> p::AccountHolder {
 
 fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untranslatable> {
     Ok(match value {
+        // These receive typed interim refusals before core translation (domain/terminal-login.md, 5).
+        w::AccountChange::LoginProgram(row) => {
+            p::AccountChange::LoginProgram { provider: row.provider(), name: skein_lib::bytes::copy_of(row.name()) }
+        }
+        w::AccountChange::CancelLogin(row) => p::AccountChange::CancelLogin { number: row.number() },
+        w::AccountChange::LoginEnded(row) => p::AccountChange::LoginEnded {
+            number: row.number(),
+            exit: match row.exit() {
+                w::LoginExit::Exited(value) => p::LoginExit::Exited { code: value.code() },
+                w::LoginExit::Killed(value) => p::LoginExit::Killed { signal: value.signal() },
+                w::LoginExit::NotStarted => p::LoginExit::NotStarted,
+            },
+        },
         w::AccountChange::DeclareProgram(row) => {
             if jig_domain_link::SourceName::new(row.name()).is_none() {
                 return Err(Untranslatable { path: w::Path::AccountChangeDeclareProgramName });

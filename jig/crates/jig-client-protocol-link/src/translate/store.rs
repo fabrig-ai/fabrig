@@ -4,7 +4,7 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_domain::{Ask, Family};
-use jig_client_protocol_wire::{self as wire, v20 as w};
+use jig_client_protocol_wire::{self as wire, v21 as w};
 use skein_lib::{List, Reader, RequestRecord, Wall, Writer, bytes};
 
 pub(super) fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
@@ -287,6 +287,19 @@ fn account_change(value: &w::AccountChange) -> Result<c::AccountChange, w::Probl
                 join: *row.join(),
                 name: bytes::copy_of(row.name()),
             }
+        }
+        w::AccountChange::LoginProgram(row) => {
+            if !c::valid_program_name(row.name()) {
+                return Err(w::Problem {
+                    path: w::Path::AccountChangeLoginProgramName,
+                    reason: skein_codec::Reason::Malformed,
+                });
+            }
+            c::AccountChange::LoginProgram { provider: row.provider(), name: bytes::copy_of(row.name()) }
+        }
+        w::AccountChange::CancelLogin(row) => c::AccountChange::CancelLogin { number: row.number() },
+        w::AccountChange::LoginEnded(row) => {
+            c::AccountChange::LoginEnded { number: row.number(), exit: documents::login_exit(row.exit()) }
         }
         w::AccountChange::MoveOut(row) => c::AccountChange::MoveOut { account: row.account() },
         w::AccountChange::Written(row) => c::AccountChange::Written { number: row.number() },

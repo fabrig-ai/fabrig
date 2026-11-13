@@ -286,7 +286,10 @@ legal and compliance page:
   that suggests Anthropic built, endorses, or is partnered with your
   product". "Any other use of Anthropic's names or logos is governed by
   our Trademark Guidelines and requires our written permission." (read
-  2026-11-12).
+  2026-11-12). So an application names the provider and the plan in
+  plain text alone, shows no logo of Anthropic's or Claude's, and says
+  "Sign in to Claude Code" for signing in to the unmodified binary,
+  never as a feature of its own.
 
 ### 3.3 Claude Code's sign-in, per machine
 
@@ -416,7 +419,13 @@ results and the trackers below.
   [authentication](https://code.claude.com/docs/en/authentication);
   [CLI reference](https://code.claude.com/docs/en/cli-reference);
   [running Claude Code programmatically](https://code.claude.com/docs/en/headless);
-  [the Agent SDK with a Claude plan](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan).
+  [the Agent SDK with a Claude plan](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan);
+  read on 2026-11-12, beside the legal and compliance and authentication
+  pages again: [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview);
+  [advanced setup](https://code.claude.com/docs/en/setup);
+  [Usage Policy](https://www.anthropic.com/legal/aup);
+  [Trademark Guidelines](https://www.anthropic.com/legal/trademark-guidelines);
+  [Log in to your Claude account](https://support.claude.com/en/articles/13189465-logging-in-to-your-claude-account).
 - Reports: [The Register, 2026-02-20](https://www.theregister.com/software/2026/02/20/anthropic-clarifies-ban-on-third-party-tool-access-to-claude/5014546);
   [Zed, on Anthropic's billing change](https://zed.dev/blog/anthropic-subscription-changes).
 

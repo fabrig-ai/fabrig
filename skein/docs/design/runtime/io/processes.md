@@ -22,6 +22,16 @@
     spawn's file actions. io holds nothing for it and `Spawned` names no
     token for it; a child given null descriptors for 0, 1 and 2 reads
     nothing and says nothing to anyone, and writes to them never fail.
+  - An inherited descriptor is an entry whose way is `Inherit`: the
+    child's descriptor 0, 1 or 2 is the service's own descriptor of that
+    number, as the service has it, so that a front end lends the
+    person's terminal to a program of its own (`../shell.md`, 6.3, *The
+    terminal lent to a child*). The spawn's file actions leave it open
+    across the exec where they would open `/dev/null`. io holds nothing
+    for it and `Spawned` names no token for it. An `Inherit` entry at
+    any other child descriptor is refused before anything is made, as a
+    descriptor named twice is (3). The simulator gives the child the
+    parent's own descriptor at that number.
   - A requested pipe has a chosen child descriptor and direction. Its
     parent end is a one-way stream token in the `Spawned` event, in request
     order. Each pipe consumes one entity slot alongside the child.
@@ -185,7 +195,7 @@ pub struct Spawn {
 }
 pub enum Dir    { Beneath { root: Token, path: Box<[u8]> }, InView(Box<[u8]>) }
 pub struct Ids  { pub user: u32, pub group: u32, pub groups: Box<[u32]> }
-pub enum Way   { In, Out, Given(Token), Null }  // Given: a held listener (3.2) or an io root; Null: /dev/null
+pub enum Way   { In, Out, Given(Token), Null, Inherit }  // Given: a held listener (3.2) or an io root; Null: /dev/null; Inherit: the service's own 0, 1 or 2 (1)
 pub struct Contain {
     pub users: Box<[Map]>, pub groups: Box<[Map]>,  // the user namespace's maps
     pub pid: bool,                                  // a pid namespace of its own

@@ -11,8 +11,8 @@ use skein_fake_forge_forgejo::routes;
 use skein_forge::api::{Repository, Write};
 use skein_forge_client::{Condition, Effect, Entry, Writer};
 use skein_lib::{Duration, Wall};
-use temper_engine_domain_forge as d;
 use temper_engine_domain_forge_change as change;
+use temper_engine_domain_forge_vocabulary as d;
 use temper_protocol_store::{keys, records};
 
 type Row = (Box<[u8]>, Box<[u8]>);
@@ -77,7 +77,7 @@ pub const LIMITS: d::Limits = d::Limits {
     key_entries: 16,
     key_path_bytes: 1024,
     trees_in_flight: 2,
-    tiers: temper_engine_domain_forge::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
+    tiers: temper_engine_domain_forge_vocabulary::TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
     findings_per_project: 256,
@@ -119,7 +119,7 @@ pub const LIMITS: d::Limits = d::Limits {
         clean_heads: 8,
     },
     queue_window: Duration::from_secs(30),
-    sitting: temper_engine_domain_forge::SITTING,
+    sitting: temper_engine_domain_forge_vocabulary::SITTING,
 };
 
 fn repository(provider: Repository, prefix: &[u8], review: bool) -> d::Stored {

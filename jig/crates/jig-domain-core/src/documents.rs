@@ -117,6 +117,12 @@ pub fn make(
             }
             Ok(Document::Inbox(inbox_deployment::inbox(core, limits, party, window)?))
         }
+        Subject::Terminal { party: owner, terminal } => {
+            if *owner != party {
+                return Err(Missing::NotAllowed);
+            }
+            Ok(Document::Terminal { login: core.accounts.terminal_login(party, *terminal).cloned() })
+        }
         Subject::Accounts { party: owner } => {
             Ok(Document::Accounts(Box::new(accounts::make(core, limits, party, *owner, window)?)))
         }

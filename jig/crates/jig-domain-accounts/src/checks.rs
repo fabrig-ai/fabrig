@@ -15,6 +15,9 @@ pub enum SignIn {
 /// Why a sign-in or a new source is refused, naming what refuses it.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
+    NoTerminal,
+    LoginUnderWay,
+    NotLending,
     /// A finish refused while the sign-in may still wait (accounts.md, section 5).
     SignInRedirect {
         why: SignInRedirectWhy,

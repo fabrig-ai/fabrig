@@ -1,7 +1,7 @@
 //! Landed draft family 41 (temper/docs/design/protocol/store.md, 2).
 use super::{FITS, Undecodable, names, w};
 use skein_lib::Wall;
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 pub(super) fn encode(row: &d::LandedDraft) -> w::LandedDraft {
     w::LandedDraft::new(
         &w::CEILINGS,

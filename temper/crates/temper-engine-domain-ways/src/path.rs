@@ -150,7 +150,7 @@ pub enum Start {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Tier {
     pub name: Box<[u8]>,
-    pub follows: temper_engine_domain_forge::Follows,
+    pub follows: temper_engine_domain_forge_vocabulary::Follows,
     pub description: Box<[u8]>,
 }
 
@@ -192,7 +192,7 @@ pub struct Agent {
 pub struct Inputs {
     pub branch: Box<[u8]>, // the landing branch, as `main`
     pub repository: Option<Repository>,
-    pub rules: Box<[temper_engine_domain_forge::settings::Held]>, // every rule held for the project, items laid over
+    pub rules: Box<[temper_engine_domain_forge_vocabulary::settings::Held]>, // every rule held for the project, items laid over
     pub sets: Box<[temper_protocol_reaches::PathSet]>,
     pub start: Start,
     pub producer: u32, // kind 3 number 1

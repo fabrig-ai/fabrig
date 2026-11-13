@@ -52,7 +52,7 @@ fn header(value: &DocumentOutcome) -> P {
             }
         }
         DocumentOutcome::AccountFinishing { .. } => P::AccountFinishing,
-        DocumentOutcome::AccountChanged => P::AccountChanged,
+        DocumentOutcome::AccountLoginAsked { .. } | DocumentOutcome::AccountChanged => P::AccountChanged,
         DocumentOutcome::AccountRemoved { .. } => P::AccountRemoved,
         DocumentOutcome::AccountSignInStarted { .. } => P::AccountSignInStarted,
         DocumentOutcome::AccountSignedOut { .. } => P::AccountSignedOut,
@@ -116,6 +116,7 @@ fn escalation(
 fn details(b: &mut Builder, value: &DocumentOutcome, words: &Words) {
     match value {
         DocumentOutcome::AccountKeyKept { .. }
+        | DocumentOutcome::AccountLoginAsked { .. }
         | DocumentOutcome::AccountChanged
         | DocumentOutcome::AccountSignInStarted { .. }
         | DocumentOutcome::Lifted { .. } => {}

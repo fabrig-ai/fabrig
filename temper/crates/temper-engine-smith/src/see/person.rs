@@ -519,6 +519,7 @@ fn inbox_words(entry: &d::InboxEntry, words: &[SeeWords]) -> Option<Box<[u8]>> {
                 | d::Document::Project(_)
                 | d::Document::Note(_)
                 | d::Document::Inbox(_)
+                | d::Document::Terminal { .. }
                 | d::Document::Accounts(_)
                 | d::Document::Deployment(_)
                 | d::Document::Settings(_)
@@ -582,6 +583,7 @@ fn task_document(answer: &Answer) -> Option<&d::Task> {
             | d::Document::Project(_)
             | d::Document::Note(_)
             | d::Document::Inbox(_)
+            | d::Document::Terminal { .. }
             | d::Document::Accounts(_)
             | d::Document::Deployment(_)
             | d::Document::Settings(_) => None,

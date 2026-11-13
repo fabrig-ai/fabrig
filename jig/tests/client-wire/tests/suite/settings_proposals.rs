@@ -1,5 +1,5 @@
-//! Wire 20 settings proposals keep their committed records and tags.
-use jig_client_protocol_wire::v20 as w;
+//! Wire 21 settings proposals keep their committed records and tags.
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{Reader, Writer};
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table checks each new record and arm against generated goldens")]
