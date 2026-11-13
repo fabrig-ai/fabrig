@@ -127,6 +127,7 @@ fn worker_loss(why: temper_worker_service::WorkerLoss) -> String {
         Loss::Full => "full".into(),
         Loss::Busy => "busy".into(),
         Loss::Fault => "fault".into(),
+        Loss::EngineStatesNoWires => "the engine states no wires: restart the engine first".into(),
         Loss::Unreachable => "unreachable".into(),
     }
 }

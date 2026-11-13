@@ -13,4 +13,5 @@ mod lists;
 
 mod fit;
 
+mod bridges;
 mod kinds;

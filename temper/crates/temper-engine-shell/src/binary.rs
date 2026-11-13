@@ -213,24 +213,18 @@ mod tests {
         eprintln!("{text}");
         let mut lines = text.lines().skip_while(|line| !line.starts_with("wire "));
         let wires = temper_engine_service::wires();
-        assert_eq!(wires.len(), 6);
-        for (wire, name) in wires.iter().zip([
-            "jig-worker-wire",
-            "smith-pieces",
-            "smith-charter",
-            "smith-transcript",
-            "temper-worker-wire",
-            "temper-host-tools",
-        ]) {
-            assert_eq!(wire.name, name);
-            assert_eq!(wire.lowest, wire.highest(), "each build's floor is its current version");
-            let version = wire.highest();
-            assert_eq!(lines.next(), Some(format!("wire {name} {version} {version}").as_str()));
-            let layout = lines.next().expect("one layout follows each current wire");
-            let fingerprint =
-                layout.strip_prefix(&format!("layout {name} {version} ")).expect("layout name and version");
-            assert_eq!(fingerprint.len(), 64);
-            assert!(fingerprint.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+        for wire in &wires {
+            let name = wire.name;
+            let lowest = wire.lowest;
+            let highest = wire.highest();
+            assert_eq!(lines.next(), Some(format!("wire {name} {lowest} {highest}").as_str()));
+            for version in lowest..=highest {
+                let layout = lines.next().expect("one layout follows for each spoken version");
+                let fingerprint =
+                    layout.strip_prefix(&format!("layout {name} {version} ")).expect("layout name and version");
+                assert_eq!(fingerprint.len(), 64);
+                assert!(fingerprint.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+            }
         }
         assert_eq!(lines.next(), None);
     }

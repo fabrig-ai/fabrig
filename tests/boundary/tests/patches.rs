@@ -166,25 +166,25 @@ fn channel_kind_layout_changes_require_a_version_move() {
     use skein_codegen::diff::Version;
     let source = paths::workspace().join("jig/crates/jig-protocol-worker-wire");
     for (name, old, new) in [
-        ("appended", "job: Job, read_list: ReadList", "job: Job, read_list: ReadList, added: Cancel"),
+        ("appended", "read_list: ReadList, wires: Agreed", "read_list: ReadList, wires: Agreed, added: Cancel"),
         ("reordered", "assignment: Assignment, message: Inbound", "message: Inbound, assignment: Assignment"),
         ("other_direction", "    job_answer: JobAnswer\n}", "    job_answer: JobAnswer, assignment: Assignment\n}"),
     ] {
         let scratch = Scratch::new("boundary-channel-kinds");
         copy_directory(&source, scratch.path());
         let landed = Landed::read(scratch.path()).expect("scratch wire's baseline");
-        let path = scratch.path().join("schema/worker-wire-v11.schema");
+        let path = scratch.path().join("schema/worker-wire-v12.schema");
         let text = fs::read_to_string(&path).expect("current channel schema");
         let mut changed = text.replace(old, new);
         if name == "other_direction" {
             changed = changed.replace("    assignment: Assignment, message: Inbound", "    message: Inbound");
         }
         assert_ne!(changed, text, "{name} changes the kinds' layout");
-        assert!(changed.starts_with("family jig-worker-wire 11\n"), "{name} keeps the version unmoved");
+        assert!(changed.starts_with("family jig-worker-wire 12\n"), "{name} keeps the version unmoved");
         fs::write(&path, changed).expect("mutate channel kind without moving its version");
         let findings = patch::check(scratch.path(), &landed).expect("check mutated channel kinds");
         assert!(findings.iter().any(|finding| matches!(finding,
-            Finding::Version { family, verdict: Version::Unmoved, kept: 11, current: 11 } if family == "jig-worker-wire"
+            Finding::Version { family, verdict: Version::Unmoved, kept: 12, current: 12 } if family == "jig-worker-wire"
         )), "{name} must move the wire's version: {findings:?}");
     }
 }
