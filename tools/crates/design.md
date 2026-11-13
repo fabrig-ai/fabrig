@@ -5,7 +5,9 @@ Provisional, 2026-11-12. This document comes from `temper/docs/design/draft/crat
 check in the boundary suite bounds a library's size and a generated family's size, and another
 finds test code that two test binaries of one package compile, which moves to a library. A figure, run
 after landing, reads a timed build from scratch and the week's landings. Each later milestone adds
-its check of the draft's section 7 (features, codec crates) to section 3.
+its check of the draft's section 7 (features, codec crates) to section 3. The one-version check of
+section 3.2 comes from `temper/docs/design/draft/gate-compile.md`, 4.2 and 7, milestone C2 of its
+execution file.
 
 ## 1. In one page
 
@@ -26,9 +28,14 @@ its check of the draft's section 7 (features, codec crates) to section 3.
 - **The codec check** finds a package holding generated record code that depends on a workspace
   crate other than `skein-lib` and `skein-codec`, so that generated code compiles beside the domains
   (section 3.2).
+- **The one-version check** finds a package whose generated record code, or whose `schema/`, holds
+  two versions of one family, so that a build compiles one version's code (section 3.2).
 - **The features check** reads three fixed contexts with `cargo metadata` and `cargo tree`: each
   root entry a member names there asks for every feature its crate resolves to, a platform's own
   entry is named on its platform alone, and Cargo's unification is set (section 3.3).
+- **The generated-tests check** finds generated record code that holds its own tests, a codec crate
+  without its `tests/generated` target, and a codec crate's library that builds a test target, so
+  that a test build compiles generated code once (section 3.4).
 - **The figure** is a tool, `tools/crates/crates.py`. It times the two shapes landings build, the
   libraries and the workspace with its tests, each from scratch. Then it scores the last seven days'
   landings against that build. It prints the longest chains, each landing's recompile and chain, and
@@ -268,25 +275,78 @@ dependency fails, as an exception does:
 | `jig-protocol-worker-wire` | `smith-transcript` | jig's `protocol/channel/wires.md`, 2: `spoken()` states smith's transcript identity |
 | `temper-protocol-worker-wire` | `jig-protocol-worker-wire` | temper's `protocol/wires.md`, 6: `application()` builds jig's `Application`, `Spoken` and roots for temper's payloads |
 
-Its exceptions when it lands, each a package, which excuses every finding of that package: the
-other crates of `temper/docs/design/draft/crate-graph.md`, 4.2, each until G3 of
-`temper/docs/design/draft/crate-graph.execution.md`, the codec crate its area plans for it:
+It has no exceptions. An exception, were one needed, is a package, excuses every finding of that
+package, names what removes it, and fails the check once it matches no finding, as an allowance
+does. Every package of `temper/docs/design/draft/crate-graph.md`, 4.2 keeps its generated record
+code in codec crates below it, named and placed as skein's `data/codec/README.md`, section 2 says.
+The two stores' are G2's (jig's `protocol/README.md`, section 5; temper's `protocol/store.md`,
+section 4). The other eight are G3's, one codec crate each, its owner's `-codec`:
 
-| Exception | Until |
+| Owner | Its codec crate | Directory | Module |
+|---|---|---|---|
+| `jig-test-store` | `jig-test-store-codec` | `jig/testing/jig-test-store-codec` | `v2` |
+| `jig-protocol-engine-clients` | `jig-protocol-engine-clients-codec` | `jig/crates/jig-protocol-engine-clients-codec` | `cursor_v1` |
+| `jig-client-test-protocol-wire` | `jig-client-test-protocol-wire-codec` | `jig/testing/jig-client-test-protocol-wire-codec` | `v2` |
+| `jig-client-view` | `jig-client-view-codec` | `jig/crates/jig-client-view-codec` | `records_v1` |
+| `jig-protocol-accounts` | `jig-protocol-accounts-codec` | `jig/crates/jig-protocol-accounts-codec` | `v1` |
+| `smith-local-protocol` | `smith-local-protocol-codec` | `smith/crates/smith-local-protocol-codec` | `local_store_v1` |
+| `skein-oauth` | `skein-oauth-codec` | `skein/crates/skein-oauth-codec` | `v3` |
+| `skein-ui-example-view` | `skein-ui-example-view-codec` | `skein/examples/ui/view-codec` | `records` |
+
+- **A codec crate** holds its family's generated file at the path it had in the owner,
+  `src/generated/<file>.rs`, as the module of the table at its root, and depends on `skein-lib`
+  and `skein-codec` alone. It is step code on the `step` lint profile, as G2's are, and builds
+  wherever its owner builds, `wasm32-unknown-unknown` among them for a client's.
+- **The owner keeps the rest** (skein's `data/codec/README.md`, section 2): its schemas, kept
+  texts and patches, its glue (`smith-local-protocol`'s `src/generated/layouts.rs`), its golden
+  bytes, its drift test and its translation. It depends on its codec crate and names the module
+  where it named it before: a public one is re-exported at the same path (`skein_oauth::v3`), so
+  callers keep their paths.
+- **The drift test** reads the schema and golden bytes in the owner and the code in the codec
+  crate, and writes each where it reads it (skein's `data/codec/README.md`, section 6).
+
+The check reads section 2.2's classification of files as the size check does, so the two agree on
+what generated record code is.
+
+#### One version's code
+
+`tests/boundary/tests/codecs.rs`, beside the codec check, from
+`temper/docs/design/draft/gate-compile.md`, 4.2 and 7 (milestone C2 of its execution file). A family
+a build stores, sends or embeds keeps its current version's text and generated code alone, an older
+version being its kept text (skein's `data/codec/README.md`, section 5, and `data/codec/command.md`,
+section 1). Each version a crate holds compiles in every build of it, and again at each of the
+family's version moves. The check reads every workspace member of `cargo metadata`, in its
+manifest's directory, and builds nothing. Its findings:
+
+- **Two versions of one family's generated record code:** section 2.2's files of one family in a
+  package's `src/generated/`, at two or more versions: `v17.rs` beside `v18.rs`, the package's own
+  family, or `people_v16.rs` beside `people_v17.rs`. The finding names the package, the family and
+  its versions.
+- **Two versions of one family's text:** the files directly under a package's `schema/`, its
+  current texts, at two or more versions of one family: `store-v17.schema` beside
+  `store-v18.schema`. A text's file is `<family>-v<N>.schema`, or `<family>-v<N>-<part>.schema` for
+  a family written across files, the family lowercase letters, digits and hyphens, read up to its
+  first `-v<N>` followed by `.schema` or `-`: `client-wire-v1.schema` is the family `client-wire`,
+  and `client-v21.schema` with `client-v21-part1.schema` is one text of `client`, at 21.
+  `schema/kept/` and the files there are kept texts, which the check doesn't read; `schema/wires` is
+  no text. The finding names the package, the family and its versions.
+- **A source the check can't read,** the metadata, a `src/generated/` or `schema/` directory, or a
+  `.schema` file under `schema/` whose name isn't a text's, fails the check and is never skipped.
+
+Fixtures are allowances, each a package, which excuse every finding of that package: their families
+belong to no build that stores, sends or embeds them, and their stories compare versions
+(skein's `data/codec/command.md`, section 1). An allowance that matches no finding fails, as the
+codec check's do:
+
+| Package | Reason |
 |---|---|
-| `jig-client-test-protocol-wire` | G3 |
-| `jig-test-store` | G3 |
-| `jig-protocol-engine-clients` | G3 |
-| `smith-local-protocol` | G3 |
-| `jig-client-view` | G3 |
-| `skein-ui-example-view` | G3 |
-| `skein-oauth` | G3 |
-| `jig-protocol-accounts` | G3 |
+| `skein-codec-tests` | skein's codec fixtures: its `every` texts compare the old and new generated decoders |
+| `skein-codec-patches` | skein's patch fixtures: its `label` and `shelf` families move as their stories need |
+| `jig-test-patches` | jig's patch fixtures: `fixture-label` and `fixture-shelf` at two versions |
+| `jig-test-patches-jig` | jig's patch fixtures over jig's own patches: `fixture-note` at two versions |
 
-The two store crates, `jig-protocol-store` and `temper-protocol-store`, are no exceptions: G2 moves
-their generated record code to their codec crates (jig's `protocol/README.md`, section 5;
-temper's `protocol/store.md`, section 4). The check reads section 2.2's classification of files as
-the size check does, so the two agree on what generated record code is.
+It has no exceptions: milestone C2 brings `temper-protocol-store-codec`, `temper-protocol-store`,
+`jig-protocol-store-people`, `smith-transcript` and `smith-channel` to one version as it lands.
 
 ### 3.3 Features
 
@@ -361,6 +421,49 @@ Every other entry may be named in any context.
 (`temper/docs/design/client/web/README.md`, 2.6). Its own crate's step tests pin it on the nested
 commands they already read (`temper-client-bundle`'s `tests/steps.rs`), since the boundary suite
 can't call a build script's code.
+
+### 3.4 Generated tests
+
+`tests/boundary/tests/generated_tests.rs`, from `temper/docs/design/draft/gate-compile.md`, 3.2 and
+7, milestone C1 of its execution file. A codec crate's generated tests are a test target of their
+own, `tests/generated/`, so that a test build compiles its generated code once, and its library
+builds no test target when it holds no other tests (skein's `data/codec/README.md`, section 6). The
+check reads `cargo metadata` and the sources, as the other checks do, and builds nothing. For each
+package holding generated record code (section 2.2), its findings:
+
+- **A test module in generated record code:** a generated record file whose text holds `cfg(test)`
+  or `#[test]` outside comments and literals, read by section 2.1's scan. The finding names the
+  package and the file.
+- **Generated tests missing:** the package has no test target named `generated` whose `src_path` is
+  its `tests/generated/main.rs`, or a generated record file `src/generated/<file>.rs` has no
+  `tests/generated/<file>.rs` beside that root. The finding names the package and the missing target
+  or file.
+- **A library test target:** the package's library target has `test` true in `cargo metadata`
+  (section 2.4), as Cargo gives it unless the manifest's `[lib]` sets `test = false`. The finding
+  names the package. Its fix is `test = false`, once the library holds no other tests: a test that
+  uses public items alone moves to the `generated` target.
+- **A source the check can't read,** the metadata, a `src/generated/` or `tests/generated/`
+  directory or a generated file, fails the check and is never skipped.
+
+An exception names a package and either a file, which excuses that file's findings, or the library
+test target, which excuses that finding. Each says what removes it, and one that covers no finding
+fails the check. Its exceptions when it lands, read on the code as milestone C1 leaves it:
+
+- **The library test target of each codec crate whose library keeps tests that need private
+  items,** until its area moves them or they use public items alone: the wires
+  (`jig-client-protocol-wire`, `jig-protocol-worker-wire`, `temper-client-protocol-wire`,
+  `temper-protocol-worker-wire`), smith's `smith-charter`, `smith-channel` and `smith-transcript`,
+  and the owners whose patch module's golden tests are in their library (`temper-protocol-records`,
+  `skein-codec-tests`). The change that adds the check reads the list against the code as C1's
+  other changes leave it: a crate left with library tests is an exception with its reason, and one
+  whose library holds none is none.
+- **Each older version's generated record file,** which keeps its test module and has no tests'
+  module until milestone C2 of the same execution file removes it: of `temper-protocol-store-codec`,
+  `jig-protocol-store-people` and `smith-transcript`, and the wires' older versions
+  (`smith-channel`'s `v7`, `jig-protocol-worker-wire`'s `v12`), whichever the code still holds when
+  the check lands. A wire keeps no older version's code (`gate-compile.md`, 4), so C2's
+  one-version check removes the wires' files too. C2 removes these exceptions with the files, or
+  none is written if C2 has landed.
 
 ## 4. The figure
 
@@ -499,8 +602,6 @@ repository whose commits carry fixed committer dates. `build` runs against a fak
   3.2's kits set it; the others aren't surveyed.
 - **Later: more contexts** for the features check (section 3.3), each a row of its table, if the
   repository builds for another platform.
-- **Later: the codec check's exceptions** (section 3.2), each removed by its crate's codec crate in
-  G3.
 - **Later: the client wires' public families,** each to a crate of its own, which removes the two
   wires' exceptions (section 3.1).
 - **Later: the libraries over the bound that no milestone splits:** `temper-client-view`,

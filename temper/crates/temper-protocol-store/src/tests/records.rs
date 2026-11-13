@@ -823,8 +823,8 @@ fn application_limit_refusals(rows: &mut skein_lib::List<jig_domain_people::Refu
 fn application_refusal_lists(rows: &mut skein_lib::List<jig_domain_people::Refusal>) {
     use jig_domain_people as p;
     for (count, circle) in [
-        (jig_protocol_store::people_v16::CEILINGS.refusal_circle_tasks, true),
-        (jig_protocol_store::people_v16::CEILINGS.refusal_kept_pending, false),
+        (jig_protocol_store::people_v17::CEILINGS.refusal_circle_tasks, true),
+        (jig_protocol_store::people_v17::CEILINGS.refusal_kept_pending, false),
     ] {
         let mut tasks = skein_lib::List::with_capacity(count);
         for task in 0..count {
@@ -979,12 +979,52 @@ fn every_application_outcome_preserves_its_complete_record() {
     }
     // Settings judgement words cannot occur in a forge application refusal.
     let limits =
-        jig_protocol_store::people_v16::Limits { refusal_judged_why: 0, ..jig_protocol_store::people_v16::CEILINGS };
+        jig_protocol_store::people_v17::Limits { refusal_judged_why: 0, ..jig_protocol_store::people_v17::CEILINGS };
     assert!(
-        jig_protocol_store::people_v16::Refusal::encoded_bound(&limits).expect("bounded facts")
+        jig_protocol_store::people_v17::Refusal::encoded_bound(&limits).expect("bounded facts")
             <= u64::from(v20::CEILINGS.core_refused_refusal)
     );
 }
+#[test]
+fn an_application_refusal_written_by_people_sixteen_decodes_through_seventeen() {
+    // The v16 layout writes Unknown as tag 10, with no payload or version prefix.
+    let refusal = Box::from([10]);
+    let text = jig_protocol_store::patches::kept::jig_store_people::TEXTS.get(2).expect("kept people 16");
+    let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept people 16 text");
+    assert_eq!(schema.version(), 16);
+    let mut value = skein_codec::value::Value::with_room(1);
+    let root = value.decode(&schema, schema.find(b"Refusal").unwrap(), refusal).expect("v16 refusal");
+    let variant = schema.variant(value.tag(root).unwrap());
+    assert_eq!(schema.spelled(variant.name), b"unknown");
+    let refusal = value.take().into_exposed();
+    let value = v20::CoreRefused::new(&v20::CEILINGS, v20::CoreRefusedParts { refusal }).expect("small piece");
+    let stored = v20::Application::new(
+        &v20::CEILINGS,
+        v20::ApplicationParts { token: 9, until: 10, outcome: v20::ApplicationOutcome::CoreRefused(value) },
+    )
+    .expect("application");
+    let row = v20::Row::new(&v20::CEILINGS, v20::RowParts { value: v20::Value::Application(stored) }).expect("row");
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(
+        records::decode(&fixtures::encoded_row(&row), &bounds),
+        Ok(forge::Stored::Application {
+            token: 9,
+            until: skein_lib::Wall::from_nanos(10),
+            outcome: forge::ApplicationOutcome::CoreRefused(jig_domain_people::Refusal::Unknown),
+        })
+    );
+}
+
+#[test]
+fn appended_people_refusals_round_trip_in_application_answers() {
+    use jig_domain_people::Refusal;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    for refusal in [Refusal::NoTerminal, Refusal::LoginUnderWay, Refusal::NotLending] {
+        let row = application(forge::ApplicationOutcome::CoreRefused(refusal));
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+
 #[test]
 fn application_decoding_refuses_malformed_refusal_facts() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
@@ -1110,7 +1150,7 @@ fn embedded_people_refusals_changed_at_store_nine() {
     // The people v12 generated Unknown golden was [9]; v13 inserts NameTaken
     // before every existing refusal. All 38 existing Refusal goldens change.
     let mut after = skein_lib::Writer::new(1);
-    jig_protocol_store::people_v16::Refusal::Unknown.encode(&mut after).unwrap();
+    jig_protocol_store::people_v17::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[10]);
     assert_eq!(crate::STORE_VERSION, 20);
 }

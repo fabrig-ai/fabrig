@@ -12,7 +12,7 @@ pub use patch_set::PATCH_SET;
 use alloc::boxed::Box;
 pub mod keys;
 pub mod records;
-pub use temper_protocol_store_codec::{v16, v17, v18, v19, v20};
+pub use temper_protocol_store_codec::v20;
 #[cfg(test)]
 mod tests;
 

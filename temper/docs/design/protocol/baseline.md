@@ -72,8 +72,10 @@ this document says what temper's deployment fixes with them.
 - **smith-transcript's hand-written module goes:** its `src/patches.rs`,
   empty in the generated shape, is replaced by the generated
   `patches/mod.rs` under the same module name (smith's
-  `protocol/transcript.md`, section 12). Its archived `transcript-v6.schema`
-  stays a current reader's text and is never kept.
+  `protocol/transcript.md`, section 12). Its archived version 6, before
+  the baseline, is never kept: its text and generated code go, and
+  `decode_archived` reads its bytes by version 7's code (smith's
+  `protocol/transcript.md`, section 6).
 - **Each crate includes its module** (`#[path = "../patches/mod.rs"] pub
   mod patches;`) and takes skein-codegen in its tests for the module's
   generated `current` test.

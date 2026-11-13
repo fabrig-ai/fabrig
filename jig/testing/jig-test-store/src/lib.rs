@@ -8,9 +8,7 @@ use jig_test_connector as connector;
 pub mod keys;
 pub mod records;
 pub mod route;
-#[rustfmt::skip]
-#[path = "generated/v2.rs"]
-pub mod v2;
+pub use jig_test_store_codec::v2;
 /// The test application's durable format.
 pub const STORE_VERSION: u32 = 2;
 /// A record outside its format or configured bounds.

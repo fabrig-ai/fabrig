@@ -86,6 +86,13 @@ a full queue, a stale handle, a refusal at the entrance, a deadline that
 fires as it is cancelled. lib's containers are tested hardest, since
 every layer of every service stands on them.
 
+One exception: a crate's generated codec tests are an integration test
+target of their own, `tests/generated/`, outside its library
+(`../design/data/codec/README.md`, section 6). They check the
+generator's output through the items the crate's users see, so they
+test it from outside, and a crate whose library then holds no other
+tests compiles it once.
+
 ### 2.2 Domain worlds
 
 A domain world runs one domain in a loop, from a seed: a child domain

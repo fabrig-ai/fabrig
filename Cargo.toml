@@ -42,6 +42,7 @@ members = [
     "skein/crates/skein-llm",
     "skein/crates/skein-llm-connection",
     "skein/crates/skein-oauth",
+    "skein/crates/skein-oauth-codec",
     "skein/crates/skein-oauth-accounts",
     "skein/crates/skein-oauth-issuer",
     "skein/crates/skein-playground",
@@ -57,6 +58,7 @@ members = [
     "skein/crates/skein-ui-screen-terminal",
     "skein/crates/skein-ui-web",
     "skein/examples/ui/view",
+    "skein/examples/ui/view-codec",
     "skein/examples/ui/shell-web",
     "skein/examples/ui/server",
     "skein/tests/ui-web",
@@ -148,6 +150,7 @@ members = [
     "smith/crates/smith-local-domain",
     "smith/testing/smith-local-domain-fixtures",
     "smith/crates/smith-local-protocol",
+    "smith/crates/smith-local-protocol-codec",
     "smith/testing/smith-local-protocol-fixtures",
     "smith/crates/smith-local-service",
     "smith/testing/smith-local-service-fixtures",
@@ -191,6 +194,7 @@ members = [
     "jig/tests/client-protocol",
     "jig/testing/jig-client-test-records",
     "jig/crates/jig-protocol-engine-clients",
+    "jig/crates/jig-protocol-engine-clients-codec",
     "jig/crates/jig-protocol-engine-clients-http",
     "jig/tests/engine-clients",
     "jig/crates/jig-client-protocol-link",
@@ -201,18 +205,22 @@ members = [
     "jig/crates/jig-client",
     "jig/crates/jig-protocol-transcript",
     "jig/crates/jig-client-view",
+    "jig/crates/jig-client-view-codec",
     "jig/crates/jig-domain-core",
     "jig/crates/jig-domain-core-vocabulary",
     "jig/crates/jig-domain-accounts",
     "jig/crates/jig-protocol-accounts",
+    "jig/crates/jig-protocol-accounts-codec",
     "jig/testing/jig-test-connector",
     "jig/testing/jig-test-store",
+    "jig/testing/jig-test-store-codec",
     "jig/testing/jig-test-store-files",
     "jig/testing/jig-test-domain",
     "jig/testing/jig-test-profile",
     "jig/testing/jig-test-worker",
     "jig/testing/jig-test-service",
     "jig/testing/jig-client-test-protocol-wire",
+    "jig/testing/jig-client-test-protocol-wire-codec",
     "jig/testing/jig-client-test-domain",
     "jig/testing/jig-client-test-kit",
     "jig/testing/jig-test-connector-kit",
@@ -453,6 +461,7 @@ js-sys = { version = "=0.3.103" }
 web-sys = { version = "=0.3.103", features = ["Window", "Document", "Element", "Location", "HtmlElement", "HtmlSelectElement", "Event", "EventTarget", "History", "Node", "KeyboardEvent", "Blob", "BlobPropertyBag", "Url", "HtmlAnchorElement", "AddEventListenerOptions", "DedicatedWorkerGlobalScope", "WorkerGlobalScope", "MessageEvent", "Performance", "CssStyleDeclaration", "NodeList", "Text", "HtmlCollection", "HtmlInputElement", "HtmlOptionElement", "HtmlOptionsCollection", "HtmlTextAreaElement", "HtmlDialogElement", "MouseEvent", "WheelEvent", "InputEvent", "ResizeObserver", "ResizeObserverEntry", "DomRect", "DomRectReadOnly", "Request", "RequestInit", "RequestCredentials", "RequestCache", "RequestMode", "Response", "AbortController", "AbortSignal", "Headers", "Navigator", "Crypto", "ReadableStream", "ReadableStreamDefaultReader", "Storage", "PopStateEvent", "BeforeUnloadEvent", "ScrollRestoration", "ScrollIntoViewOptions", "ScrollLogicalPosition", "Worker", "WorkerOptions", "WorkerType", "ErrorEvent", "HtmlScriptElement", "HtmlLinkElement", "StyleSheetList", "StyleSheet", "CssStyleSheet", "HtmlHeadElement", "ServiceWorkerContainer", "ServiceWorkerRegistration", "PushManager", "PushSubscription", "PushSubscriptionOptionsInit", "PushEncryptionKeyName", "Notification", "NotificationPermission"] }
 skein-fake-person = { path = "skein/testing/skein-fake-person" }
 skein-ui-example-view = { path = "skein/examples/ui/view" }
+skein-ui-example-view-codec = { path = "skein/examples/ui/view-codec" }
 skein-ui-text = { path = "skein/crates/skein-ui-text" }
 skein-ui-screen = { path = "skein/crates/skein-ui-screen" }
 skein-ui-screen-terminal = { path = "skein/crates/skein-ui-screen-terminal" }
@@ -473,6 +482,7 @@ skein-json = { path = "skein/crates/skein-json" }
 skein-llm = { path = "skein/crates/skein-llm" }
 skein-llm-connection = { path = "skein/crates/skein-llm-connection" }
 skein-oauth = { path = "skein/crates/skein-oauth" }
+skein-oauth-codec = { path = "skein/crates/skein-oauth-codec" }
 skein-oauth-issuer = { path = "skein/crates/skein-oauth-issuer" }
 skein-oauth-accounts = { path = "skein/crates/skein-oauth-accounts" }
 skein-fake-forge-domain = { path = "skein/crates/skein-fake-forge-domain" }
@@ -566,6 +576,7 @@ smith-agent-service = { path = "smith/crates/smith-agent-service" }
 smith-agent-profile = { path = "smith/crates/smith-agent-profile" }
 smith-protocol-events = { path = "smith/crates/smith-protocol-events" }
 smith-local-protocol = { path = "smith/crates/smith-local-protocol" }
+smith-local-protocol-codec = { path = "smith/crates/smith-local-protocol-codec" }
 smith-local-protocol-fixtures = { path = "smith/testing/smith-local-protocol-fixtures" }
 smith-local-service = { path = "smith/crates/smith-local-service" }
 smith-local-service-fixtures = { path = "smith/testing/smith-local-service-fixtures" }
@@ -595,11 +606,14 @@ jig-client-protocol-link = { path = "jig/crates/jig-client-protocol-link" }
 jig-client-protocol-http = { path = "jig/crates/jig-client-protocol-http" }
 jig-test-service = { path = "jig/testing/jig-test-service" }
 jig-client-test-protocol-wire = { path = "jig/testing/jig-client-test-protocol-wire" }
+jig-client-test-protocol-wire-codec = { path = "jig/testing/jig-client-test-protocol-wire-codec" }
 jig-protocol-engine-clients-http = { path = "jig/crates/jig-protocol-engine-clients-http" }
 jig-protocol-engine-clients = { path = "jig/crates/jig-protocol-engine-clients" }
+jig-protocol-engine-clients-codec = { path = "jig/crates/jig-protocol-engine-clients-codec" }
 jig-test-worker = { path = "jig/testing/jig-test-worker" }
 jig-protocol-engine-workers = { path = "jig/crates/jig-protocol-engine-workers" }
 jig-protocol-accounts = { path = "jig/crates/jig-protocol-accounts" }
+jig-protocol-accounts-codec = { path = "jig/crates/jig-protocol-accounts-codec" }
 jig-protocol-worker-link = { path = "jig/crates/jig-protocol-worker-link" }
 jig-protocol-worker-agents = { path = "jig/crates/jig-protocol-worker-agents" }
 jig-protocol-worker-wire = { path = "jig/crates/jig-protocol-worker-wire" }
@@ -614,11 +628,13 @@ jig-protocol-store-families = { path = "jig/crates/jig-protocol-store-families" 
 jig-protocol-tools = { path = "jig/crates/jig-protocol-tools" }
 jig-protocol-transcript = { path = "jig/crates/jig-protocol-transcript" }
 jig-client-view = { path = "jig/crates/jig-client-view" }
+jig-client-view-codec = { path = "jig/crates/jig-client-view-codec" }
 jig-client-scripted-engine = { path = "jig/testing/jig-client-scripted-engine" }
 sha2 = { version = "=0.10.9", default-features = false }
 jig-domain-accounts = { path = "jig/crates/jig-domain-accounts" }
 jig-test-connector = { path = "jig/testing/jig-test-connector" }
 jig-test-store = { path = "jig/testing/jig-test-store" }
+jig-test-store-codec = { path = "jig/testing/jig-test-store-codec" }
 jig-test-store-files = { path = "jig/testing/jig-test-store-files" }
 jig-test-domain = { path = "jig/testing/jig-test-domain" }
 jig-test-profile = { path = "jig/testing/jig-test-profile" }
