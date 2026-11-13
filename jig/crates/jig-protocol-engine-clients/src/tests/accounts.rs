@@ -323,7 +323,7 @@ fn terminal_watches_are_served() {
     let subject = w::Subject::Terminal(
         w::SubjectTerminal::new(&fixtures::wire(), w::SubjectTerminalParts { terminal: 23 }).unwrap(),
     );
-    let Some(jig_domain_core::Event::Watch { subject: d::Watched::Terminal { terminal: 23 }, .. }) =
+    let Some(jig_domain_core_vocabulary::Event::Watch { subject: d::Watched::Terminal { terminal: 23 }, .. }) =
         watches::watch(skein_lib::Token::new(17), 23, subject, 2)
     else {
         unreachable!("terminal watch translated")
