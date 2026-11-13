@@ -421,8 +421,40 @@ command's refused arguments: 2, in its table's words.
 - **Its modules,** each section's: the description (2), the quoting and
   the templates (2.2), staging (3), the redeploy's steps (4), the record
   (5) and the referee (6), with `cli` composing a command: `run` reads
-  the description, stages, takes the referee's snapshot, redeploys,
-  then referees, writing the record throughout.
+  the description, stages, takes the referee's snapshot, sets `began`,
+  redeploys, then referees, writing the record throughout; `referee`
+  reads the description and the record and referees, writing nothing.
+- **What the modules hand each other** (crosses its builders):
+
+  ```rust
+  // description: section 2, its members as fields of the same names
+  pub struct Description { pub source: String, pub engine: Engine, pub workers: Vec<Worker> }
+  pub fn read(text: &str) -> Result<Description, String>;
+  // hosts: 2.2
+  pub fn quote(word: &str) -> String;
+  pub fn fill(template: &str, values: &[(&str, &str)]) -> String;
+  // record: section 5, its members as fields of the same names
+  pub struct Record { /* … */ pub before: Before, /* … */ }
+  pub struct Before { pub projects: Vec<u64>, pub cut: bool, pub tasks: Vec<TaskBefore> }
+  pub struct TaskBefore { pub task: u64, pub project: u64, pub label: u64, pub phase: String, pub held: Option<String> }
+  pub struct Journal { pub record: Record, /* its file, if any, and its output */ }
+  impl Journal {
+      pub fn line(&mut self, at: u64, line: &str) -> Result<(), String>;  // printed, kept in `lines`, the file written
+      pub fn save(&mut self) -> Result<(), String>;                       // the file written whole
+  }
+  // stage: section 3
+  pub fn stage(description: &Description, commit: &str, journal: &mut Journal, hosts: &mut dyn Hosts) -> Result<(), String>;
+  // redeploy: section 4, from 4.1's step 3
+  pub enum Mode { Engine, Workers, Together }
+  pub enum Outcome { Done, Refused, Failed }
+  pub fn redeploy(description: &Description, commit: &str, mode: Mode, journal: &mut Journal, hosts: &mut dyn Hosts) -> Outcome;
+  // referee: section 6
+  pub fn before(description: &Description, hosts: &mut dyn Hosts) -> Result<Before, String>;
+  pub fn judge(description: &Description, journal: &mut Journal, hosts: &mut dyn Hosts) -> bool;  // true on pass
+  ```
+
+  A `Journal` with no file, as `referee` alone runs it, keeps its lines
+  in memory.
 - **It reads no host but through `Hosts`,** writes no file but its
   record, and starts nothing on the operator's machine but `run`'s
   prefixes.
