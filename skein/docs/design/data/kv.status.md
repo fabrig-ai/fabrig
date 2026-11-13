@@ -1,6 +1,8 @@
 # kv: status
 
-2026-11-04. Where skein's code lags or departs from [kv.md](kv.md).
+2026-11-13. Where skein's code lags or departs from [kv.md](kv.md).
+
+- **Not yet:** 2.2: the census, counted as the map changes and at recovery, its writes since a snapshot's start, `Store::count` and `Store::census` [in flight: change 2661].
 
 - **Not yet:** 9: the model-map referee across simulated-disk commits,
   loads, snapshots and crash recovery, commits racing every snapshot

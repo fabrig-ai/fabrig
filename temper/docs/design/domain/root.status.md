@@ -2,6 +2,8 @@
 
 2026-11-13. Where temper's code lags or departs from [root.md](root.md).
 
+- **Not yet:** 3: the store's census, `StoreInput::Census`, handed to the core and kept while starting [in flight: change 2665].
+
 
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past

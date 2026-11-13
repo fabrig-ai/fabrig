@@ -1,6 +1,8 @@
 # store: status
 
-2026-11-11. Where jig's code lags or departs from [README.md](README.md).
+2026-11-13. Where jig's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 6.3: the census's rule given to the map's skein-kv stores, the keyspaces' names (`Store::keyspaces`), `Event::Census` after `Opened` and once a minute after a commit's answer [in flight: change 2665].
 
 - **Not yet:** 4.4: the people child keeps no deleted project's mark [in flight: change 629].
 
