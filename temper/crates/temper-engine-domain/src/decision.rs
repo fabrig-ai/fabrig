@@ -360,9 +360,11 @@ impl Decision {
         let within = match &write {
             Write::CopySettingsRevision(number) => *number != 0,
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(_))))
-            | Write::Erase(Key::Wires | Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment))) => {
-                false
-            }
+            | Write::Erase(
+                Key::Opening(_)
+                | Key::Wires
+                | Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment)),
+            ) => false,
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(row)))) => {
                 row.task != 0
                     && row.attempt != 0
@@ -374,6 +376,7 @@ impl Decision {
             }
             Write::DropTranscript { .. }
             | Write::Wires
+            | Write::Opening(_)
             | Write::Erase(
                 Key::Core(
                     jig_domain_core::Key::Core(

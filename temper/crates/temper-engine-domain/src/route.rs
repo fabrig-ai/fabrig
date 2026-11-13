@@ -316,6 +316,10 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             close(domain, env, decision, out);
             return;
         }
+        Event::Worker(crate::WorkerInput::Opened { worker, statement }) => {
+            domain.openings.push(crate::WorkerOpening { worker, statement, at: env.wall });
+            return;
+        }
         Event::Worker(crate::WorkerInput::Link { channel, link }) => {
             // Admission keeps room for the record's bytes; past it the
             // record is dropped and its host sends it again after a hello.

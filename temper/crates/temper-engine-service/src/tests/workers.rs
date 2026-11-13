@@ -6,6 +6,7 @@ use jig_domain_tasks as tasks;
 use jig_protocol_engine_workers::GrantValue;
 use skein_lib::Time;
 use skein_lib::Token;
+use temper_engine_domain as root;
 #[test]
 fn each_repositorys_grant_carries_its_identitys_value() {
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
@@ -1092,12 +1093,32 @@ fn opening_agreements_and_each_refusals_text_reach_shell_notes() {
         skein_lib::List::from_boxed(Box::new([jig_protocol_worker_wire::Agreed { name: "example-wire", version: 7 }]));
     let mut events = skein_lib::Queue::uncapped();
     let statement = jig_protocol_engine_workers::Statement {
-        wires: skein_lib::List::with_capacity(0),
-        output: 0,
-        terms: skein_lib::List::with_capacity(0),
+        wires: skein_lib::List::from_boxed(Box::new([jig_protocol_engine_workers::Stated {
+            name: "example-wire".into(),
+            lowest: 7,
+            layouts: skein_lib::List::from_boxed(Box::new([[5; 32]])),
+        }])),
+        output: 4096,
+        terms: skein_lib::List::from_boxed(Box::new([skein_channel::Term { kind: 12, largest: 34 }])),
     };
     workers.route(Output::Opened { worker: worker.clone(), wires: wires.clone(), statement }, &mut events);
     assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpened { worker: worker.clone(), wires }));
+    let Some(root::Event::Worker(root::WorkerInput::Opened { worker: name, statement })) = events.pop() else {
+        panic!("accepted opening reaches the root");
+    };
+    assert_eq!(name.as_ref(), "worker-a");
+    assert_eq!(
+        statement,
+        root::WorkerStatement {
+            wires: Box::new([root::OpenedWire {
+                name: "example-wire".into(),
+                lowest: 7,
+                layouts: Box::new([[5; 32]])
+            }]),
+            output: 4096,
+            terms: Box::new([root::OpenedTerm { kind: 12, largest: 34 }]),
+        }
+    );
     let text: Box<[u8]> = b"wire example-wire: the worker states none".as_slice().into();
     for _ in 0_u8..2 {
         workers.route(Output::Refused { worker: Some(worker.clone()), reason: 257, text: text.clone() }, &mut events);
