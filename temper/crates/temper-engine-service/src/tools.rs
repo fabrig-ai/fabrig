@@ -17,7 +17,7 @@ pub(crate) fn decode_configured(
     to: ReplyTo,
     _task: u64,
     attempt: u64,
-    _contract: u16,
+    contract: u16,
     call: &fleet::Call,
     models: &[engine::Model],
     catalogue: &[core::settings::CatalogueModel],
@@ -33,7 +33,7 @@ pub(crate) fn decode_configured(
         return invalid(to, Problem::Malformed);
     };
     let name = run::CallName { activation: name.activation, completion: name.completion, position: name.position };
-    match temper_engine_smith::call_in(name, &call.tool, &input, models, catalogue, repositories) {
+    match temper_engine_smith::call_for_contract(contract, name, &call.tool, &input, models, catalogue, repositories) {
         Ok(Decoded::Call(body)) => engine::Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }),
         Ok(Decoded::Answered(answer)) => {
             let (body, error) = answer.into_parts();
