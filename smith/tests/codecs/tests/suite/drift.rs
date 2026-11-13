@@ -6,7 +6,7 @@ use skein_codegen::{generate, parse};
 
 #[test]
 fn charter_schema_matches_generated_code_and_all_goldens() {
-    assert_family("charter", 4);
+    assert_family("charter", 5);
 }
 
 #[test]

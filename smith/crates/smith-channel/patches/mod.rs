@@ -869,6 +869,98 @@ record Live { turn: u32 retry: u32 kind: LiveKind offset: u64 bytes: bytes 4096 
             }
         }
     }
+    pub mod smith_pieces {
+        use skein_codec::bridge::{Bridge, BridgeError};
+        use skein_codec::patch::Capacity;
+
+        pub const TEXTS: &[&str] = &[r"family smith-pieces 1
+
+record CallName { activation: u64 completion: u32 position: u32 }
+record Receipt { directory: u32 text: bytes 512 }
+record Delivered { receipts: list 64 Receipt }
+record Marker { directory: u32 path: text 4096 }
+record DeliveryRefusal { marker: option Marker explanation: text 512 }
+enum DeliveryReason {
+    unreachable, refused_by_target, timed_out, broken, too_large,
+    missing, busy, unavailable, cancelled, unknown
+}
+record DeliveryFailure {
+    directory: u32
+    reason: DeliveryReason
+    diagnostic: bytes 512
+    dropped: u64
+}
+enum Delivery {
+    delivered: Delivered, nothing, refused: DeliveryRefusal,
+    failed: DeliveryFailure, stale
+}
+record DeliveryReply { value: Delivery }
+"];
+        pub const FLOOR: u16 = 1;
+
+        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {
+            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)
+        }
+        pub mod v1 {
+            pub mod call_name {
+                use skein_codec::schema::FieldIx;
+                pub const ACTIVATION: FieldIx = FieldIx::new(0);
+                pub const COMPLETION: FieldIx = FieldIx::new(1);
+                pub const POSITION: FieldIx = FieldIx::new(2);
+            }
+            pub mod receipt {
+                use skein_codec::schema::FieldIx;
+                pub const DIRECTORY: FieldIx = FieldIx::new(3);
+                pub const TEXT: FieldIx = FieldIx::new(4);
+            }
+            pub mod delivered {
+                use skein_codec::schema::FieldIx;
+                pub const RECEIPTS: FieldIx = FieldIx::new(5);
+            }
+            pub mod marker {
+                use skein_codec::schema::FieldIx;
+                pub const DIRECTORY: FieldIx = FieldIx::new(6);
+                pub const PATH: FieldIx = FieldIx::new(7);
+            }
+            pub mod delivery_refusal {
+                use skein_codec::schema::FieldIx;
+                pub const MARKER: FieldIx = FieldIx::new(8);
+                pub const EXPLANATION: FieldIx = FieldIx::new(9);
+            }
+            pub mod delivery_reason {
+                use skein_codec::schema::VariantIx;
+                pub const UNREACHABLE: VariantIx = VariantIx::new(0);
+                pub const REFUSED_BY_TARGET: VariantIx = VariantIx::new(1);
+                pub const TIMED_OUT: VariantIx = VariantIx::new(2);
+                pub const BROKEN: VariantIx = VariantIx::new(3);
+                pub const TOO_LARGE: VariantIx = VariantIx::new(4);
+                pub const MISSING: VariantIx = VariantIx::new(5);
+                pub const BUSY: VariantIx = VariantIx::new(6);
+                pub const UNAVAILABLE: VariantIx = VariantIx::new(7);
+                pub const CANCELLED: VariantIx = VariantIx::new(8);
+                pub const UNKNOWN: VariantIx = VariantIx::new(9);
+            }
+            pub mod delivery_failure {
+                use skein_codec::schema::FieldIx;
+                pub const DIRECTORY: FieldIx = FieldIx::new(10);
+                pub const REASON: FieldIx = FieldIx::new(11);
+                pub const DIAGNOSTIC: FieldIx = FieldIx::new(12);
+                pub const DROPPED: FieldIx = FieldIx::new(13);
+            }
+            pub mod delivery {
+                use skein_codec::schema::VariantIx;
+                pub const DELIVERED: VariantIx = VariantIx::new(10);
+                pub const NOTHING: VariantIx = VariantIx::new(11);
+                pub const REFUSED: VariantIx = VariantIx::new(12);
+                pub const FAILED: VariantIx = VariantIx::new(13);
+                pub const STALE: VariantIx = VariantIx::new(14);
+            }
+            pub mod delivery_reply {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(14);
+            }
+        }
+    }
 }
 
 pub mod refusal {}

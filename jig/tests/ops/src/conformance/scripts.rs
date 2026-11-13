@@ -543,7 +543,7 @@ pub(super) fn result(
     text: &[u8],
     fields: &[(&str, &str)],
 ) -> Box<[u8]> {
-    let limits = smith_charter::v4::CEILINGS;
+    let limits = smith_charter::v5::CEILINGS;
     let mut list = List::with_capacity(u32::try_from(fields.len()).expect("few fields"));
     for (name, value) in fields {
         list.push(

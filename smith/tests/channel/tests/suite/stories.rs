@@ -73,7 +73,7 @@ fn a_charter_in_an_unread_version_is_refused_as_invalid_with_no_turns() {
 fn a_malformed_charter_is_refused_with_its_own_reason() {
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
-    world.send_start(Box::from([0, 4]));
+    world.send_start(Box::from(smith_charter::wire::VERSION.to_be_bytes()));
     world.settle();
     assert!(world.observations().contains(&Observation::InvalidStart {
         why: smith_channel::InvalidStart::MalformedCharter,
@@ -100,9 +100,9 @@ fn the_agent_resolves_the_charters_endpoint_before_admission() {
         .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 17, dialect: 23 })
         .expect("one endpoint");
     let endpoints = smith_protocol_translate::Endpoints::new(entries);
-    let bytes = include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin");
+    let bytes = include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin");
     let charter =
-        smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints).expect("v4 charter");
+        smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints).expect("v5 charter");
     assert_eq!(charter.llm.endpoint.0, 17);
     assert_eq!(charter.llm.dialect, 23);
     assert_eq!(charter.llm.account, None);
@@ -118,7 +118,7 @@ fn the_agent_resolves_the_charters_endpoint_before_admission() {
 
 #[test]
 fn the_full_charter_keeps_contracts_tools_and_model_prices() {
-    let bytes = include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_full.bin");
+    let bytes = include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_full.bin");
     let wire = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(bytes))
         .expect("full charter");
     let mut entries = skein_lib::List::with_capacity(1 + wire.models().len());
@@ -340,7 +340,7 @@ fn the_start_keeps_workspace_paths_saved_answers_and_grant_values_below_the_doma
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
     world.send_start_with_context(
-        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..]),
+        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..]),
         smith_host_domain::SavedReply::Host { error: false, body: Box::from(*b"ok") },
     );
     world.settle();
@@ -363,7 +363,7 @@ fn a_saved_oversized_answer_reaches_the_agent_as_a_settled_decision() {
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
     world.send_start_with_context(
-        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..]),
+        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..]),
         smith_host_domain::SavedReply::TooLarge,
     );
     world.settle();
@@ -428,7 +428,7 @@ fn a_saved_turn_reaches_the_agent_as_concrete_history() {
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
     world.send_start_with_turns(
-        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..]),
+        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..]),
         Some(Box::from([saved_turn(1, 0)])),
     );
     world.settle();
@@ -440,7 +440,7 @@ fn a_saved_turn_from_another_dialect_fails_as_transcript() {
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
     world.send_start_with_turns(
-        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..]),
+        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..]),
         Some(Box::from([saved_turn(1, 99)])),
     );
     world.settle();
@@ -455,7 +455,7 @@ fn a_run_resumed_from_a_transcript_restores_the_calls_answered_after_its_last_tu
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
     world.send_start_with_context_and_turns(
-        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..]),
+        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..]),
         smith_host_domain::SavedReply::Host { error: true, body: Box::from(*b"retry") },
         Some(Box::from([saved_turn(1, 0)])),
     );
@@ -474,7 +474,7 @@ fn a_run_parked_resumed_and_parked_again_keeps_its_identity_and_numbers_turns_pe
     use smith_domain_session::record;
 
     let charter: Box<[u8]> =
-        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..]);
+        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..]);
     let first = parked_turn();
     let mut one = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     one.settle();
@@ -722,7 +722,7 @@ fn cancellation_records_and_end_each_wait_for_their_read() {
     world.host_holds_reads();
     world.settle();
     world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
+        &include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..],
     ));
     world.settle();
     world.agent_admits();
@@ -878,7 +878,7 @@ fn host_tools_answered_busy_are_asked_again_under_their_names() {
 #[test]
 fn a_host_tool_answered_as_the_channel_is_lost_is_asked_again_under_its_name() {
     let charter: Box<[u8]> =
-        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..]);
+        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..]);
     let name = smith_domain::run::CallName { activation: 1, completion: 1, position: 0 };
     let first_relay = smith_domain::run::RelayName { owner: skein_lib::Token::new(40), attempt: 1 };
     let mut first = World::new(CEILINGS, CEILINGS, StreamMode::Two);
@@ -1050,7 +1050,7 @@ mod charter_round_trip {
 
     #[test]
     fn complete_charter_policy_round_trips_without_local_contract_assumptions() {
-        let bytes = include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_full.bin");
+        let bytes = include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_full.bin");
         let wire =
             smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(bytes)).expect("full golden");
         let mut names = List::with_capacity(16);
@@ -1068,6 +1068,7 @@ mod charter_round_trip {
         let endpoints = Endpoints::new(names);
         let policy = smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &endpoints)
             .expect("typed full policy");
+        assert_eq!(policy.grants.contract, wire.tools().contract());
         let encoded = encode_charter(&policy, &smith_charter::CEILINGS, &endpoints).expect("full policy encodes");
         assert_eq!(
             smith_protocol_translate::decode_charter(&encoded, &smith_charter::CEILINGS, &endpoints),
@@ -1093,7 +1094,7 @@ fn facts_outside_observed_admission_are_counted_without_failing_the_channel() {
     assert!(!world.agent_sends_fact(&fact, skein_lib::Time::ZERO));
     assert_eq!(world.lost_facts(), 1);
     world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
+        &include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..],
     ));
     world.settle();
     assert!(!world.agent_sends_fact(&fact, skein_lib::Time::ZERO));
@@ -1156,7 +1157,7 @@ fn last_window_turns(world: &World) -> Box<[Box<[u8]>]> {
 fn a_host_resumes_from_its_last_window_turn_alone() {
     use smith_domain_session::{llm, record};
     let charter: Box<[u8]> =
-        include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin").as_slice().into();
+        include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin").as_slice().into();
     let mut turn = window_turn_fixture();
     let affinity = llm::Affinity { key: [0; 16], thread: 0 };
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
@@ -1294,7 +1295,7 @@ fn world_with_initial_grant() -> World {
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
     world.send_start_with_context(
-        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..]),
+        Box::from(&include_bytes!("../../../../crates/smith-charter/golden/v5/record_charter_smallest.bin")[..]),
         smith_host_domain::SavedReply::TooLarge,
     );
     world.settle();

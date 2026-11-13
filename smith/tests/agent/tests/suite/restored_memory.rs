@@ -143,6 +143,7 @@ fn charter(restoring: bool) -> run::Charter {
         },
 
         grants: run::charter::Grants {
+            contract: 1,
             wait: true,
             deliver: None,
             save: false,

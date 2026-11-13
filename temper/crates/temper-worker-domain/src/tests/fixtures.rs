@@ -211,6 +211,7 @@ pub fn charter() -> agent::Charter {
         brief: smith_domain_run::Brief { sections: Box::new([]) },
         conventions: None,
         grants: Grants {
+            contract: 1,
             wait: false,
             deliver: None,
             save: false,

@@ -47,7 +47,7 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
             turn_queue_bytes: 2048,
             piece_bytes: 4096,
         },
-        charter: smith_charter::v4::CEILINGS,
+        charter: smith_charter::v5::CEILINGS,
         endpoints: 1,
         release: 128,
         watermark: crate::default_watermark(commits, 128),
