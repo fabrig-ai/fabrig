@@ -2,12 +2,13 @@
 
 2026-11-13. Where the design lags or departs from [gate-compile.md](gate-compile.md).
 
-Section 4.2's rule for product families is designed: skein's `data/codec/README.md`, section 5, and `temper/docs/design/protocol/store.md`, section 4, keep a family's current version's generated code alone. The code departs: `temper-protocol-store-codec`, `jig-protocol-store-people` and `smith-transcript` hold older versions' code, which milestone C2 removes. Nothing else of this draft is designed or built yet.
+Section 4.2's rule for product families is designed: skein's `data/codec/README.md`, section 5, and `temper/docs/design/protocol/store.md`, section 4, keep a family's current version's generated code alone. The code departs: `temper-protocol-store-codec`, `jig-protocol-store-people` and `smith-transcript` hold older versions' code, which milestone C2 removes. Section 3 is designed in skein's `data/codec/README.md`, sections 4 and 6, and `data/codec/command.md`, section 1, with the exception in `skein/docs/foundation/testing-strategy.md`, 2.1; section 7's generated-tests check in `tools/crates/design.md`, 3.4 (milestone C1 of [the execution file](gate-compile.execution.md)). Nothing else of this draft is designed or built yet.
 
 - **Design lags:**
-  - 3.2: skein's `data/codec/README.md`, section 6, has each generated file carry its own golden and bound tests, and its `data/codec/command.md`, section 1, has the owner's drift test write the generated code alone. `skein/docs/foundation/testing-strategy.md`, 2.1, keeps step tests in the crate they test, and names no exception for a codec crate's generated tests.
   - 4.2: `data/codec/command.md`, section 1, lets `schema/` hold several texts of a family, its greatest the current.
   - 5: `tools/crates/design.md`, 3.1, names the five crates' splits as not yet planned.
-  - 7: `tests/boundary/` has neither check.
-- **Design departs:** none yet.
+  - 7: `tests/boundary/` has no one-version check.
+- **Design departs:**
+  - 3.2: `skein-codec-tests`, skein's codec fixtures, keeps its library tests beside those section 3.2 names: its patch module's golden tests are in its library, as `temper-protocol-records`' are (`tools/crates/design.md`, 3.4). C1's designer's reading of the code, 2026-11-13.
+  - 3.2, 4.1: the older versions' generated record files C2 removes keep their test modules until it does, and their crates' libraries build no test target, so those tests don't run meanwhile; the patches' goldens still check their layouts. The generated-tests check excepts each such file until C2 (`tools/crates/design.md`, 3.4). C1's designer's choice, 2026-11-13: C2 deletes the files, so moving their tests would only conflict with it.
 - **Open:** none.

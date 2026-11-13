@@ -41,6 +41,8 @@
 | `patches/context.rs` | the `Context`, written once, empty, deriving `Default` | the author's |
 | `patches/mod.rs` | generated from the kept texts and the patches alone (3) | the command's |
 | `patches/golden/NNNN/<family>/` | each old golden through the patch (3) | the command's or the golden test's, reviewed |
+| `tests/generated/<module>.rs` | the generated tests of the records' module `<module>`, in the crate holding it (`README.md`, section 6) | the drift test's |
+| `tests/generated/main.rs` | their test target's root, a module for each (`README.md`, section 6) | the drift test's |
 
 - **The owner's crate** includes `patches/mod.rs` as a module of its
   library (`#[path = "../patches/mod.rs"] pub mod patches;`), and
@@ -48,9 +50,9 @@
 - **A codec crate apart from its owner** (`README.md`, section 2) holds
   the family's generated record code alone. The command keeps the
   owner's files of the table above, and never reads or writes generated
-  code, wherever it sits. The owner's drift test (`README.md`, section
-  6), which names each family's codec crate, writes the code there when
-  asked.
+  code or its tests, wherever they sit. The owner's drift test
+  (`README.md`, section 6), which names each family's codec crate,
+  writes the code and its tests there when asked.
 - **A family's baseline is its owner's** (`README.md`, section 5). A crate with no
   kept text, landed or its own, is before its baseline, and a run there
   is refused unless given `--baseline`, which its owner passes once, at
