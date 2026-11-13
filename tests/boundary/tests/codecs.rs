@@ -50,7 +50,6 @@ struct Exception {
 
 const EXCEPTIONS: &[Exception] = &[
     Exception { what: "jig-client-test-protocol-wire", until: "G3" },
-    Exception { what: "jig-test-store", until: "G3" },
     Exception { what: "jig-protocol-engine-clients", until: "G3" },
     Exception { what: "smith-local-protocol", until: "G3" },
     Exception { what: "jig-client-view", until: "G3" },

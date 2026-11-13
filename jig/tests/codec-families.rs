@@ -147,7 +147,7 @@ pub const FAMILIES: &[Family] = &[
     Family {
         name: "test connector",
         root: "testing/jig-test-store",
-        codec_root: "testing/jig-test-store",
+        codec_root: "testing/jig-test-store-codec",
         schemas: &["schema/test-connector-v2.schema"],
         generated: &["src/generated/v2.rs"],
         golden: "golden",
