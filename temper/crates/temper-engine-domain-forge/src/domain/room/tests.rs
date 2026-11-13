@@ -189,6 +189,13 @@ fn drop_requires_a_full_table_and_no_landing_member_even_after_landing_ends() {
                     project: 5,
                     phase,
                     members: Box::new([landing::Member {
+                        unit: 0,
+                        branch: Box::from(b"temper/1/l61".as_slice()),
+                        combined: None,
+                        recorded: false,
+                        told: false,
+                        judging: false,
+                        leave_told: false,
                         left: None,
                         change: fixtures::CHANGE,
                         repository: landing::Repository { forge: 1, repository: 2 },

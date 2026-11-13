@@ -1,6 +1,6 @@
 # process-tier: status
 
-2026-11-12. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+2026-11-13. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
 
 
 - **Not yet:** the whole document: the hangup/rebind and Linux killed-box stories in

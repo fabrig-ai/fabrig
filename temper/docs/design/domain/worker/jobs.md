@@ -6,7 +6,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
 
 | Kind | What it runs | Its spec | Its result |
 |---|---|---|---|
-| 1, prepare | a landing's candidate for one repository (`../landing.md`, 5.2 and 5.3): temper's own merge train, or the project's prepare command | the repository, the round's base, the train's `combine` and its upstream's tip, its members' heads in order with their messages, the upstream candidates and the pins between them, the command and the home's revision | how each member was combined, merged or squashed, or the conflict's member and files; each gate's key, when the project's key command is named |
+| 1, prepare | a landing's stack for one repository (`../landing.md`, 5.2 and 5.3): temper's own merge train, or the project's prepare command | the repository, the round's base and the commit it stacks from, the train's `combine` and its upstream's tip, its members' heads in order with their messages and branches, the upstream candidates and the pins between them, the command and the home's revision | how each member was combined, merged or squashed, and each conflict's member, kind and files; each gate's key, when the project's key command is named |
 | 2, key | a gate's key at a candidate, by the project's key command (`../landing.md`, 6.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
 | 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`../forge/change/repairs.md`) | the command, the head and the base | the files settled, and those left |
 | 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`../forge/branches.md`, 2) | the command and the close request | the files settled |
@@ -41,11 +41,11 @@ smith's agent processes, and declares in its hello the kinds it runs:
   its environment free of credentials and of the worker's own, its
   wall time the job's deadline, its output files bounded; it reaches no
   forge, since the checkout fetched everything it reads.
-- **Then the delivery:** a prepare job's candidate is pushed to the
-  landing's branch the items name as writable, expecting it new
-  (`../../protocol/git.md`, 4.4, `Create`); a branch already there fails the
-  job as undelivered, and the landing reads the branch (`../landing.md`,
-  5.2). A key job delivers nothing. A delivering
+- **Then the delivery:** a prepare job's prefixes are pushed, each to
+  its member's branch in the landing, the branches the items name as
+  writable, expecting each new (`../../protocol/git.md`, 4.4,
+  `Create`); a branch already there fails the job as undelivered, and
+  the landing reads its branches (`../landing.md`, 5.2). A key job delivers nothing. A delivering
   kind other than prepare delivers, on exit 0, the head of the repository
   its items name as writable, as a fast-forward onto that branch through
   the checkout's push (`checkouts.md`), as a run's delivery is; a push refused
@@ -89,43 +89,60 @@ smith's agent processes, and declares in its hello the kinds it runs:
   of 10 minutes, the small profile's constants; the engine declares it
   only where its tasks limits hold those bounds, as kind 3's.
 - **The prepare kind,** kind 1, verb `prepare`, delivering, built as
-  temper's own merge train for a round of one member
-  (`../landing.md`, 5.2), the project's prepare command not yet. Its spec's
+  temper's own merge train for a round's stack (`../landing.md`, 5.2),
+  the project's prepare command not yet. Its spec's
   command is empty, which names temper's own: the job runs no process.
   Its request is `../../protocol/tooling.md`, 4's, read by the worker. Its
   checkout holds one repository, the train's, under its own name,
-  writable, prepared as a base with heads merged in (`checkouts.md`) but
-  from the round's base by its commit, not a branch's tip: the base
-  checked out, the member's head fetched by its commit and merged with no
-  fast-forward (`../../protocol/git.md`, 4.6), a head the base contains
-  still a merge, and, where the request names the train's upstream, its
-  tip fetched by its commit beside them. The merge is committed at once
+  writable to the prepare's branches alone, prepared as a base with
+  heads merged in (`checkouts.md`) but from the request's `from` by its
+  commit, not a branch's tip: that commit checked out, and each
+  member's head, in the request's order, fetched by its commit and
+  merged with no fast-forward onto the prefix below
+  (`../../protocol/git.md`, 4.6), a head the prefix contains still a
+  merge, and, where the request names the train's upstream, its tip
+  fetched by its commit beside them. Each merge is committed at once
   (`../../protocol/git.md`, 4.7) by the request's `combine`, the
-  repository's identity as its author:
+  repository's identity as its author, and is the prefix the next
+  member is merged onto:
   - **`merge`,** or **`squash` for a member that brings its upstream's
     commits** (`../landing.md`, 5.2), which `Brings` (`../../protocol/git.md`,
-    4.9) tells of the head, the base and the upstream's tip: two
-    parents, the base and the head, and the member's `message` from the
-    request as its message;
-  - **`squash`** otherwise: the same tree, one parent, the base, and the
-    member's `squash` message, committed even when the tree is the
-    base's (`always`).
+    4.9) tells of the head, the request's `main` and the upstream's tip:
+    two parents, the prefix below and the head, and the member's
+    `message` from the request as its message;
+  - **`squash`** otherwise: the same tree, one parent, the prefix
+    below, and the member's `squash` message, committed even when the
+    tree is the one below's (`always`).
 
   A head that does not merge cleanly is no failure, whatever `combine`
-  says: the job ends with exit 3's result, `{"conflict": {"member": N,
-  "with": "branch", "files": [PATH]}}`, the files as the merge names
-  them, cut to the result's bound and marked `"cut": true` when cut, and
-  nothing is pushed. A clean merge ends with exit 0's result,
-  `{"combined": [{"member": N, "by": "merge" | "squash"}]}`, and
-  delivers its commit to the writable branch, the landing's, expecting
-  it new (above). A request of more than one member is
-  refused as invalid until the merge queue's batches
-  (`../../draft/merge-queue.md`, 5.1). Its bounds, the engine's declaration
+  says: the merge is abandoned, the member skipped, and the next merged
+  onto the same prefix. The job first merges that head onto `main`, the
+  round's base, from a clean checkout of it, to tell the conflict
+  apart: `"with": "branch"` when that merge conflicts too, its files
+  that merge's, and `"with": "member"` when it is clean, its files the
+  stack's; a member whose prefix below is `main` itself is `"branch"`
+  with no second merge. Once every member is merged or skipped, the job
+  ends with exit 0's result where at least one member combined,
+  `{"combined": [{"member": N, "by": "merge" | "squash"}], "conflicts":
+  [{"member": N, "with": "branch" | "member", "files": [PATH], "cut":
+  BOOL}]}`, `conflicts` left out when none, and delivers each combined
+  member's prefix to its branch, in the request's order (above); and
+  with exit 3's, `{"conflicts": [...]}`, where none combined, pushing
+  nothing. The files are as the merge names them, each list cut so that
+  the result fits its bound and marked `"cut": true` when cut. A push
+  that finds its branch there fails the job as undelivered, the pushes
+  before it made. Its repository's item is writable by a form of its
+  own, at the end of the worker wire's `Access`: `Prefixes`, the
+  branches it may create, one per member of the request in its order,
+  and no other; each member's `prefix` in the request must be its
+  branch there, and a request whose branches differ in number or name
+  is refused as invalid. The engine's workspace for the job grants a
+  push on each of those branches, each held by the landing. Its bounds, the engine's declaration
   and the worker's alike: a spec of 16,384 bytes, a result of 4,096 and
   a deadline of 10 minutes, the small profile's constants; the engine
   declares it only where its tasks limits hold those bounds, as kind
-  3's. The engine learns the candidate from the branch, read afresh,
-  and the conflict from the result (`../landing.md`, 5.2).
+  3's. The engine learns the prefixes from the branches, read afresh,
+  and the conflicts from the result (`../landing.md`, 5.2).
 - **The spec is written by the engine's root** as it makes the job, in
   the worker wire's `JobSpec` record, since jig takes a job's spec as
   the application's bytes when the job is made (jig's

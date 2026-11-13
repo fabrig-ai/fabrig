@@ -108,3 +108,40 @@ fn the_reference_landing_member_parses() {
         }]
     );
 }
+
+#[test]
+fn project_batch_defaults_and_bounds_name_its_member() {
+    const DOCUMENT: config::DocumentLimits = config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 };
+    for (member, cap, expected, reason) in [
+        ("", 2_u32, Some(1), ""),
+        (",\"batch\":2", 2, Some(2), ""),
+        (",\"batch\":0", 2, None, ""),
+        (",\"batch\":3", 2, None, "forge.landing_members"),
+        (",\"batch\":3", 3, Some(3), ""),
+        (",\"batch\":65536", 2, None, "forge.landing_members"),
+    ] {
+        let input = fixtures::with(
+            &fixtures::document(),
+            b"application.landing",
+            format!("{{\"projects\":[{{\"project\":1{member}}}]}}").as_bytes(),
+        );
+        let input = fixtures::with(
+            &input,
+            b"application.limits.overrides",
+            format!("{{\"forge.landing_members\":{cap},\"forge.resources_per_task\":4}}").as_bytes(),
+        );
+        let document = config::document(&input, &DOCUMENT).unwrap();
+        let at = read::Object::new(&document, 0).unwrap().member(&document, b"application").unwrap();
+        let jig = fixtures::engine().jig;
+        let mut problems = Problems::empty();
+        let members = application::parse(&document, at, &jig, &config::Directories::working(), &mut problems);
+        let words = lines(&problems);
+        if let Some(batch) = expected {
+            assert_eq!(words.as_ref(), b"");
+            assert_eq!(members.unwrap().landings.get(&1).unwrap().batch, batch);
+        } else {
+            assert!(skein_lib::bytes::find(&words, b"application.landing.projects[0].batch").is_some(), "{words:?}");
+            assert!(skein_lib::bytes::find(&words, reason.as_bytes()).is_some(), "{words:?}");
+        }
+    }
+}

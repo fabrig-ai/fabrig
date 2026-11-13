@@ -659,7 +659,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v17::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v18::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -717,13 +717,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 4] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true, cut: false },
     ]
 }
-pub fn encoded_row(row: &crate::v17::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v18::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v17::Row {
-    use crate::v17 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v18::Row {
+    use crate::v18 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1, cut: false })
             .expect("piece ceiling"),
@@ -889,6 +889,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
             ready_since: Some(skein_lib::Wall::from_nanos(14)),
             owns_turn: true,
             last_head: Some([15; 32]),
+            alone: false,
         },
         pull: Some(16),
         pending: Some(17),

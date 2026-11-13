@@ -516,6 +516,7 @@ fn landing_config(engine: &settings::Engine) -> Map<u32, domain::ProjectLanding>
 
 /// What the root's construction asserts, refused before it is made, each
 /// naming the configuration that breaks it (domain/root.md, 5).
+#[expect(clippy::too_many_lines, reason = "root admission checks each landing bound before construction")]
 pub fn root(
     mut core: jig_domain_core::Config,
     engine: &settings::Engine,
@@ -524,7 +525,31 @@ pub fn root(
     limits: &domain::Limits,
     problems: &mut Problems,
 ) {
+    if limits.forge.landing_members > 5 {
+        problems.push(
+            own(b"forge.landing_members"),
+            What::Past { bytes: u64::from(limits.forge.landing_members), bound: 5 },
+        );
+    }
     let landings = landing_config(engine);
+    let mut turn = false;
+    for (_, project) in &landings {
+        turn |= project.by == domain::Way::Turn;
+    }
+    if turn {
+        if limits.authority.writes < limits.forge.landing_members {
+            against(problems, b"forge.landing_members", b"authority.writes");
+        }
+        if limits.forge.resources_per_task <= limits.forge.landing_members {
+            against(problems, b"forge.resources_per_task", b"forge.landing_members + 1");
+        }
+        if limits.forge.holds < limits.forge.landings.saturating_mul(limits.forge.landing_members) {
+            against(problems, b"forge.holds", b"forge.landings * forge.landing_members");
+        }
+        if limits.tasks.holdings < limits.forge.landing_members {
+            against(problems, b"forge.landing_members", b"tasks.holdings");
+        }
+    }
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
     core.kinds.clone_from(&engine.kinds);
     let config = domain::Config {

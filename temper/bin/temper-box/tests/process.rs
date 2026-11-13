@@ -163,6 +163,22 @@ fn a_turn_landing_is_found_after_a_runner_cancellation_and_restarts() {
     turn_landing_restarts("turn-retry-restarts", true);
 }
 
+/// temper/docs/design/testing/process-tier.md: a queue that lands green.
+#[test]
+fn a_batch_of_three_lands_by_one_fast_forward() {
+    use support::{batch_landing, landing_by_turn, turn_restart};
+    let scratch = support::Scratch::new("batch-three");
+    let barrier = support::forgejo::JobBarrier::new(scratch.path());
+    let forge = turn_restart::start(&scratch);
+    let workflow = barrier.gate_workflow(landing_by_turn::WORKFLOW);
+    forge.add_file(".forgejo/workflows/gate.yaml", workflow.as_bytes());
+    support::configuration(scratch.path(), &forge.forge());
+    batch_landing::configure(scratch.path(), forge.repository());
+    batch_landing::run(scratch.path(), &forge, &barrier);
+    forge.stop();
+    scratch.remove();
+}
+
 fn turn_landing_restarts(case: &str, retry: bool) {
     use support::{landing_by_turn, turn_restart};
     let clock = skein_shell::Clock::new();
@@ -184,7 +200,7 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     let member = &panel["members"][0];
     let candidate = member["candidate"].as_str().expect("candidate");
     let commit = &candidate[..40];
-    assert_ne!(proof.original, commit, "the forge rebased the change");
+    assert_ne!(proof.original, commit, "the merge train combined the change");
     assert_ne!(proof.moved, commit, "the candidate has not landed yet");
     assert_eq!(member["base"].as_str().map(|base| &base[..40]), Some(proof.moved.as_str()));
     assert!(member["gates"][0]["proof"].get("dispatched").is_some());
@@ -222,8 +238,9 @@ fn turn_landing_restarts(case: &str, retry: bool) {
     assert_eq!(pull["head"]["sha"], commit);
     assert_eq!(pull["merge_commit_sha"], commit);
     let parents = forge.repository_observation("acme", "widget", &format!("git/commits/{commit}"));
-    assert_eq!(parents["parents"].as_array().expect("parents").len(), 1);
+    assert_eq!(parents["parents"].as_array().expect("parents").len(), 2);
     assert_eq!(parents["parents"][0]["sha"], proof.moved);
+    assert_eq!(parents["parents"][1]["sha"], proof.original);
     let runs = forge.repository_observation("acme", "widget", &format!("actions/runs?head_sha={commit}&limit=100"));
     let runs: Vec<_> = runs["workflow_runs"]
         .as_array()

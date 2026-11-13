@@ -656,6 +656,7 @@ impl World {
             };
             let push = if writable { Some(base.clone().into()) } else { None };
             let spec = Repository {
+                prefixes: Box::new([]),
                 save: Some(saved.clone().into()),
                 git: None,
                 expected: None,
@@ -687,6 +688,7 @@ impl World {
             match self.rng.below(7) {
                 0 => key = Vec::new(),
                 1 => repositories.push(Repository {
+                    prefixes: Box::new([]),
                     save: Some(saved.clone().into()),
                     git: None,
                     expected: None,
@@ -988,7 +990,8 @@ impl World {
             let repo = &client.repos[index];
             let left = &client.left[index];
             match landing {
-                Landing::DesignMerged { .. }
+                Landing::Prefixes { .. }
+                | Landing::DesignMerged { .. }
                 | Landing::DesignConflict { .. }
                 | Landing::DesignCode { .. }
                 | Landing::DesignMoving

@@ -12,6 +12,7 @@ fn an_asking_chat_reads_the_forge() {
             PROJECT,
             engine::ProjectLanding {
                 gate_retries: 2,
+                batch: 1,
                 combine_main: engine::Combine::Merge,
                 combine_other: engine::Combine::Squash,
                 gate_timeout: skein_lib::Duration::from_millis(3_600_000),

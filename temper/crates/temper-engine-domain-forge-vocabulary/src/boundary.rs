@@ -1163,6 +1163,8 @@ pub enum Operation {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
+    pub outcomes: Box<[crate::preparation::Prepared]>,
+    pub dependencies: Box<[ChangeDependencies]>,
     pub held: Box<[u64]>,
     pub failure: Box<[u8]>,
     pub preparation: landing::Preparation,
@@ -1481,7 +1483,7 @@ pub struct Installation {
 }
 /// Pending task dependencies supplied by the root, never retained by the connector
 /// (jig's domain/tasks/lifecycle.md, 8; domain/landing.md, 4.1).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeDependencies {
     pub change: u64,
     pub pending: Box<[u64]>,
@@ -2242,13 +2244,14 @@ pub enum Request {
     },
     LandingNews {
         task: u64,
+        member: u16,
         step: LandingNews,
     },
     LandingDecision {
         task: u64,
         decision: landing::Decision,
         entry: Option<u64>,
-        evidence: Option<LandingEvidence>,
+        evidence: Option<Box<[LandingEvidence]>>,
     },
     /// The client finished sent entries or reached its bound; those without an outcome.
     Settled {

@@ -189,6 +189,7 @@ pub struct StoryLimits {
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
     pub landing_members: Option<u32>,
+    pub batch: Option<u16>,
     pub slots: Option<u32>,
     pub tasks: Option<u32>,
     pub authority_batch: Option<u32>,
@@ -389,6 +390,7 @@ impl World {
             turn,
             dispatch_passes: _,
             landing_members,
+            batch,
             slots,
             tasks,
             across,
@@ -424,7 +426,7 @@ impl World {
                 limits.people.requests = 6;
                 // Adoption stories ask in 128 bytes of words.
                 limits.people.words = 128;
-                limits.tasks.message_bytes = 128;
+                limits.tasks.message_bytes = if batch.unwrap_or(1) > 1 { 256 } else { 128 };
                 limits.call_records = 4;
                 limits.brief.gather = Duration::from_secs(5);
                 limits.brief.read_bytes = 512;
@@ -461,13 +463,14 @@ impl World {
                 limits.tasks.authority_bytes = 512;
                 limits.tasks.contract_choices = 3;
                 limits.tasks.inbox_messages = inbox_messages.unwrap_or(8);
-                limits.tasks.inbox_bytes = inbox_bytes.unwrap_or(1024);
+                limits.tasks.inbox_bytes =
+                    inbox_bytes.unwrap_or(limits.tasks.inbox_messages * limits.tasks.message_bytes);
                 limits.authority.executors = 5;
                 limits.authority.batch = authority_batch.unwrap_or(2);
                 limits.authority.grants = 11 + u32::from(workflow_dispatch);
                 limits.authority.segments = 8;
                 limits.authority.segment_bytes = 64;
-                limits.authority.writes = 2;
+                limits.authority.writes = 2.max(u32::from(batch.unwrap_or(1)));
                 limits.journal.writes += 64;
                 // The tasks child's whole route grew with jig's task families.
                 limits.journal.writes = 8192;
@@ -637,6 +640,7 @@ impl World {
                     limits.journal.run_bytes = 32768;
                     if let Some(slots) = landing_members {
                         limits.forge.landing_members = slots;
+                        limits.tasks.holdings = limits.tasks.holdings.max(slots);
                     }
                     let mut grants = List::with_capacity(15);
                     for grant in &rules.ceiling.grants {
@@ -691,6 +695,7 @@ impl World {
                             1,
                             engine::ProjectLanding {
                                 gate_retries: 2,
+                                batch: if landing_members == Some(0) { 1 } else { batch.unwrap_or(1) },
                                 combine_main: engine::Combine::Merge,
                                 combine_other: engine::Combine::Squash,
                                 gate_timeout: skein_lib::Duration::from_millis(3_600_000),
@@ -859,6 +864,7 @@ impl World {
                 limits.tasks.spec_bytes = spec_bytes;
             }
             if turn {
+                limits.tasks.spec_bytes = spec_bytes.unwrap_or(4096);
                 let mut bound = protocol::merge_bound();
                 bound.kind = jig_domain_link::JobKind(1);
                 bound.spec = bound.spec.min(limits.tasks.spec_bytes);
@@ -1030,6 +1036,7 @@ impl World {
             fake_config.limits.comments = limits.forge.issue_policy.milestones;
         }
         if turn {
+            fake_config.limits.branches = fake_config.limits.branches.max(2 * u32::from(timing.batch.unwrap_or(1)) + 2);
             fake_config.limits.workflows = 1;
             fake_config.limits.workflow_runs = 8;
         }
@@ -1148,6 +1155,10 @@ impl World {
             store_limits.authority.grants = limits.authority.grants;
             store_limits.authority.executors = limits.authority.executors;
             store_limits.tasks.result_bytes = limits.tasks.result_bytes;
+        }
+        if let Some(batch) = timing.batch {
+            store_limits.forge.landing_members = store_limits.forge.landing_members.max(u32::from(batch));
+            store_limits.tasks.holdings = store_limits.tasks.holdings.max(u32::from(batch));
         }
         store_limits.tasks.authority_grants = store_limits.tasks.authority_grants.max(limits.tasks.authority_grants);
         store_limits.authority.grants = store_limits.authority.grants.max(limits.authority.grants);
@@ -1501,12 +1512,6 @@ impl World {
                 Record::Core(_) => None,
             })
             .expect("job's landing");
-        let member = &row.landing.members[0];
-        let base = fake::commit_count(&member.base.expect("round base")).expect("fake base");
-        let head = fake::commit_count(&member.head.expect("member head")).expect("fake head");
-        assert_eq!(item.start, engine::ForgeStart::Commit(translate::commit(base)));
-        assert_eq!(item.push.as_deref(), Some(row.landing.round.branch.as_ref()));
-        assert!(item.save.is_none());
         let spec = temper_protocol_worker_wire::v1::JobSpec::decode(
             &temper_protocol_worker_wire::v1::CEILINGS,
             &mut skein_lib::Reader::new(&job.spec),
@@ -1514,65 +1519,67 @@ impl World {
         .expect("prepare spec");
         assert_eq!(spec.command(), b"");
         let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
-        let mut tree: BTreeMap<_, _> = self
-            .fake
-            .object(base)
-            .expect("base")
-            .tree
-            .iter()
-            .map(|(path, content)| (path.clone(), content.clone()))
-            .collect();
-        for (path, content) in &self.fake.object(head).expect("head").tree {
-            tree.insert(path.clone(), content.clone());
-        }
-        let files = tree.into_iter().map(|(path, content)| raw::File { path, content }).collect();
-        let brings = row.landing.round.upstream.is_some_and(|upstream| {
-            let text = forge_top::commit_text(&upstream);
-            assert_eq!(request["train_upstream"], core::str::from_utf8(&text).expect("upstream text"));
-            let upstream = fake::commit_count(&upstream).expect("fake upstream");
-            let raw::Answer::Commits { commits } = self.external_at(
-                if item.provider.repository == 2 { b"org/repo" } else { b"org/lib" },
-                1,
-                raw::Op::Read(raw::Read::Commits { before: base, after: upstream }),
-            ) else {
-                panic!("upstream commits")
-            };
-            commits.iter().any(|commit| self.fake.is_ancestor(commit.id, head))
-        });
-        let squash = request["combine"] == "squash" && !brings;
-        let message =
-            request["members"][0][if squash { "squash" } else { "message" }].as_str().expect("member message");
-        let candidate = fake::commit_tree(
-            &mut self.fake,
-            &self.fake_env.limits,
-            base,
-            if squash { None } else { Some(head) },
-            files,
-            message.as_bytes(),
-        )
-        .expect("prepared commit");
-        let repository = if item.provider.repository == 2 { b"org/repo".as_slice() } else { b"org/lib".as_slice() };
+        let engine::ForgeStart::Commit(from) = item.start else { panic!("immutable stack start") };
+        assert_eq!(request["from"], String::from_utf8(engine::commit_text(&from).into_vec()).expect("from hex"));
+        let mut base = fake::commit_count(&from).expect("fake base");
+        let members = request["members"].as_array().expect("stack members");
         assert_eq!(
-            self.external_at(
-                repository,
-                1,
-                raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate })
-            ),
-            raw::Answer::PushNew { existing: None }
+            item.prefixes.as_ref(),
+            members
+                .iter()
+                .map(|member| Box::<[u8]>::from(member["prefix"].as_str().expect("prefix branch").as_bytes()))
+                .collect::<Vec<_>>()
         );
-        let result = format!(
-            "{{\"combined\":[{{\"member\":{},\"by\":\"{}\"}}]}}",
-            member.change,
-            if squash { "squash" } else { "merge" }
-        );
+        assert!(item.push.is_none());
+        assert!(item.save.is_none());
+        let mut combined = Vec::new();
+        for member in members {
+            let position = usize::try_from(member["number"].as_u64().expect("member number")).expect("position") - 1;
+            let saved = &row.landing.members[position];
+            let head = fake::commit_count(&saved.head.expect("member head")).expect("fake head");
+            let files = forge_world::landings::stack_files(&self.fake, base, head, self.fake_env.limits.limits.commits);
+            let brings = row.landing.round.upstream.is_some_and(|upstream| {
+                let text = forge_top::commit_text(&upstream);
+                assert_eq!(request["train_upstream"], core::str::from_utf8(&text).expect("upstream text"));
+                let upstream = fake::commit_count(&upstream).expect("fake upstream");
+                let raw::Answer::Commits { commits } = self.external_at(
+                    if item.provider.repository == 2 { b"org/repo" } else { b"org/lib" },
+                    1,
+                    raw::Op::Read(raw::Read::Commits { before: base, after: upstream }),
+                ) else {
+                    panic!("upstream commits")
+                };
+                commits.iter().any(|commit| self.fake.is_ancestor(commit.id, head))
+            });
+            let squash = request["combine"] == "squash" && !brings;
+            let message = member[if squash { "squash" } else { "message" }].as_str().expect("member message");
+            let candidate = fake::commit_tree(
+                &mut self.fake,
+                &self.fake_env.limits,
+                base,
+                if squash { None } else { Some(head) },
+                files,
+                message.as_bytes(),
+            )
+            .expect("prepared commit");
+            let repository = if item.provider.repository == 2 { b"org/repo".as_slice() } else { b"org/lib".as_slice() };
+            assert_eq!(
+                self.external_at(
+                    repository,
+                    1,
+                    raw::Op::Git(raw::Git::PushNew { branch: saved.branch.clone(), commit: candidate })
+                ),
+                raw::Answer::PushNew { existing: None }
+            );
+            combined.push(serde_json::json!({"member": position + 1, "by": if squash { "squash" } else { "merge" }}));
+            base = candidate;
+        }
+        let result = serde_json::to_vec(&serde_json::json!({"combined": combined})).expect("result");
         let event = self.protocol.answer_job(
             Token::new(7),
             job.run.raw(),
             job.attempt.raw(),
-            host::JobEnding::Finished {
-                result: result.into_bytes().into(),
-                work: host::Work { left: None, saved: None },
-            },
+            host::JobEnding::Finished { result: result.into(), work: host::Work { left: None, saved: None } },
         );
         self.send(event);
     }
@@ -1597,6 +1604,7 @@ impl World {
                     1,
                     engine::ProjectLanding {
                         gate_retries: 2,
+                        batch: 1,
                         combine_main: engine::Combine::Merge,
                         combine_other: engine::Combine::Squash,
                         gate_timeout: skein_lib::Duration::from_millis(3_600_000),
@@ -1632,6 +1640,7 @@ impl World {
                     1,
                     engine::ProjectLanding {
                         gate_retries: 2,
+                        batch: 1,
                         combine_main: engine::Combine::Merge,
                         combine_other: engine::Combine::Squash,
                         gate_timeout: skein_lib::Duration::from_millis(3_600_000),
@@ -1684,6 +1693,7 @@ impl World {
         }
         let mut landing = self.restart_config.landings.get(&1).cloned().unwrap_or(engine::ProjectLanding {
             gate_retries: 2,
+            batch: 1,
             combine_main: engine::Combine::Merge,
             combine_other: engine::Combine::Squash,
             gate_timeout: skein_lib::Duration::from_millis(3_600_000),
@@ -1899,6 +1909,15 @@ impl World {
     }
 
     /// Restart with the same tier and project configuration, retaining only durable rows.
+    pub fn restart_with_batch(&mut self, batch: u16) {
+        self.env.limits.forge.landing_members = u32::from(batch);
+        self.env.limits.forge.resources_per_task = self.env.limits.forge.resources_per_task.max(u32::from(batch) + 1);
+        self.env.limits.forge.client.resources = self.env.limits.tasks.tasks * self.env.limits.forge.resources_per_task;
+        self.env.limits.authority.writes = self.env.limits.authority.writes.max(u32::from(batch));
+        self.env.limits.tasks.holdings = self.env.limits.tasks.holdings.max(u32::from(batch));
+        self.restart_config.landings.get_mut(&1).expect("landing configured").batch = batch;
+        self.restart_same();
+    }
     pub fn restart_same(&mut self) {
         self.restart_domain(crate::oracle::config::copy(&self.restart_config), true);
     }

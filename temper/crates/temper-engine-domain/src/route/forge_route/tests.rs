@@ -1234,6 +1234,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
             ready_since: None,
             owns_turn: false,
             last_head: None,
+            alone: false,
         },
         pull,
         pending: None,
@@ -2400,6 +2401,7 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
                 5,
                 crate::translate::ProjectLanding {
                     gate_retries: 2,
+                    batch: 1,
                     combine_main: crate::Combine::Merge,
                     combine_other: crate::Combine::Squash,
                     gate_timeout: skein_lib::Duration::from_millis(3_600_000),

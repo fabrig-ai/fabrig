@@ -1,20 +1,20 @@
 # merge-queue: status
 
-2026-11-11. Where the design lags or departs from [merge-queue.md](merge-queue.md).
+2026-11-13. Where the design lags or departs from [merge-queue.md](merge-queue.md).
 
-Nothing of this draft is designed or built yet: its execution file's milestones write the design as they run.
+Its execution's M1 and M2 are designed: `../domain/landing.md` and the documents it cites carry trains, batches of units stacked by the merge train's job, a branch per member, proof at the top, the landing's pull request fast-forwarded, and a red round of several units falling back. M3, the search by prefixes, is not designed.
 
 - **Design lags:**
-  - 3: `../domain/landing.md`, 7.2 runs proofs side by side, and 9 gives the turn to the first proved, with a reservation for a landing whose proof went stale; nothing holds a repository and branch for one landing; `../domain/forge/queues.md` orders only a project that lands by queue; a closure across repositories is not refused.
-  - 4: `../domain/landing.md`, 4.1 joins members only by `with` or a dependency and never merges two live landings, with no batch, unit or forming; 4.2 ends a landing only when every member landed or was cancelled, with no member leaving and no rounds.
-  - 5: `../domain/landing.md`, 5.2 prepares a member of its own by the forge's rebase of its branch, and 5.3 stacks by a rebase onto the member's branches; neither merges nor squashes onto branches the landing holds, nor reports prefixes. `../domain/worker/jobs.md` and `../protocol/tooling.md` deliver one candidate to one branch with one lease; no prefixes, per-member conflicts or partial pushes. `../domain/forge/branches.md` names one landing branch per repository, not one per round and member.
-  - 5.2: `../domain/landing.md`, 5.3 and `../domain/forge/change/repairs.md` resolve every conflict a prepare meets against main, with no conflict between members told apart.
-  - 6: `../domain/landing.md`, 3 and `../domain/forge/change/gates.md`, 1 and 2 judge a member's verdicts at its own candidate, not at a prefix on a landing's pull request; 6.1's key has no base; 13.2's adoption doesn't check that the forge's rules on main admit a landing's pull request.
-  - 7: `../domain/landing.md`, 7.3 repairs the failing member of a repository, with no search, no green prefix landed, no rounds and no fallback.
-  - 8: `../domain/landing.md`, 8 records no squashed member's pull request merged at its commit; it merges each member's own pull request at its candidate and checks only the bases; no landing pull request, no member landed by containment, no member heads read at the turn; 10 shows no round's pull request; 11's effects have no landing pull request or prefix branches per round; 15 recovers no round or partly pushed job.
-  - 9: `../domain/forge/change/README.md`, 3 holds a change whose head another identity moved, but nothing takes it out of a landing.
-  - 10: `../domain/landing.md`, 13.1 has no `batch` and no `combine`; 12 keeps no rounds, prefixes, outcomes, search or fallback, and its `landing_members` admission says nothing of units; the stock `landing_members` of 2 is a code default, with no sizing rule for batches in `../protocol/configuration/limits.md`.
-  - 11: `../domain/landing.md`, 13.1's gate definition doesn't say whether a gate reads the base, nor gives a dispatch the base.
-  - 12: `../testing/process-tier.md` has neither story: a queue that lands green, a red narrowed.
-- **Design departs:** none yet.
-- **Open:** none.
+  - 7.2: `../domain/landing.md`, 7.3 falls back on a red round of several units, the draft's own interim (7.2's last bullet): no probe at a unit boundary, no blamed unit repaired, no green prefix landed with the units above it going on in the next round.
+  - 7.3: `../domain/landing.md` keeps no search, so it has no search's identity, and a probe's late outcome is none of its; only a run's receipt by key outlives its round (7.1).
+  - 7.4: no blamed unit's brief naming the red prefix, the green one below it and the members that landed.
+  - 8: `../domain/landing.md`, 8 has no empty turn: a round lands its whole stack or nothing.
+  - 9: `../domain/landing.md`, 4.2 has no probing news, and 10 and 14 show no search on the round's pull request or in the changes view.
+  - 10: `../domain/landing.md`, 12 keeps no search's bounds, and `../protocol/configuration/limits.md` names no probe's bound.
+  - 12: `../testing/process-tier.md` has no story of a red narrowed.
+- **Design departs:**
+  - 5.1: a member's branch in the landing is named per landing and member, `temper/<root>/l<task>-<n>`, the first member's the landing's own (`../domain/landing.md`, 5.1), not per round: the landing holds every branch it writes from its making, its members being sealed, as its one branch was held before batches. A round that ends unlanded deletes the branches from its first changed member up and keeps those below, rather than making the next round's branches beside them. The goal's designer, 2026-11-13.
+  - 7.2's last bullet, 10: the fallback is a mark on each change that left the red round, to land alone (`../domain/landing.md`, 7.3 and 12), not a record on the landing: a landing's row may be retired once it ends, and the mark must last until its change has been through a landing alone. The landing's result still names each member that left and why. The goal's designer, 2026-11-13.
+  - 12: the queue's process story runs on the process tier's owned Forgejo and its runner (`../testing/process-tier.md`), not the fake forge: the fake forge serves no git over HTTP (skein's `testing/fakes/forge.md`), and the story needs the worker's merge train on real git. The goal's designer, 2026-11-13.
+- **Open:**
+  - 5.2's last bullet: whether the project's `merge_job` settles the conflicts it knows inside the prepare job, asked of the user 2026-11-13. Until it is answered, a conflict met while stacking goes to its change's resolution, where the merge job runs (`../domain/forge/change/repairs.md`).

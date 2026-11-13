@@ -18,6 +18,7 @@ impl World {
             None,
             config,
             None,
+            LIMITS.landing_members,
         );
         world.env.limits.follow_queue = queue;
         world.env.limits.client.calls = 4; // Two pinned comparisons leave room to poll the next source tip.
@@ -89,6 +90,7 @@ impl World {
             Some(workflow),
             repository_config(2),
             None,
+            LIMITS.landing_members,
         );
         world.adopt();
         forge::repository(

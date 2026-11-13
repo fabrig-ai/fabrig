@@ -65,6 +65,22 @@
   The plan-face landing remains separate as the offline proof of the
   shared live driver's model face (`live-tier.md`).
 
+- **A queue that lands green** (`../draft/merge-queue.md`, 12;
+  `../domain/landing.md`, 5 and 8), one story on the owned turn
+  landing's setup, which it shares with the runner cancellation story,
+  never a copy of it: a project landing by `turn` with `batch` 3, its
+  repository's gate a dispatch-only workflow on the owned runner; three
+  changes into main ready at once, made through the fake model as the
+  turn landing's change is, form one landing; temper's merge train
+  stacks them on a worker by real git, a branch per member in the
+  landing; one gate run at the top proves them, and one fast-forward of
+  the landing's pull request lands them; every member's pull request
+  reads merged, each change landed at its own prefix; a fourth change
+  ready while the batch proves waits, and lands in the next landing.
+  Its proof is the forge's state read through Forgejo's API and the
+  landings read through ctl. It needs the worker's merge train on real
+  git, the owned runner and a dispatched run, so it is this profile's.
+
 - **The playground and the set up, in and out,** each a story of its
   own (../protocol/setup/testing.md, 4): a first run into the playground and
   out by its reset, the store then read empty and the welcome at its

@@ -47,7 +47,7 @@ pub(crate) fn row_bytes(row: &LandingRow) -> Option<u64> {
         }
     }
     for member in &row.landing.members {
-        bytes = bytes.checked_add(
+        bytes = bytes.checked_add(skein_lib::len_u64(member.branch.len()))?.checked_add(
             skein_lib::len_u64(member.gates.len()).checked_mul(u64::try_from(size_of::<policy::GateProof>()).ok()?)?,
         )?;
     }

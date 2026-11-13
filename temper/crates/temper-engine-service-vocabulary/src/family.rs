@@ -1753,7 +1753,11 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                             },
                             step: landing_views::step(value.step),
                             upstream: value.round.upstream,
-                            failure: value.round.failure,
+                            failure: forge::text::fit(
+                                &value.round.failure,
+                                skein_lib::usize_of(limits.landing_round_failure),
+                                b"...",
+                            ),
                         },
                     )
                     .ok()?,
@@ -1946,6 +1950,7 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
                             task: row.task,
                             title: row.title,
                             ready_since: row.ready_since.as_nanos(),
+                            alone: row.alone,
                             checks_since: match row.checks_since {
                                 Some(at) => Some(at.as_nanos()),
                                 None => None,

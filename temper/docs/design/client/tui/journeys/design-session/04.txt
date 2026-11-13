@@ -16,7 +16,7 @@
                                         │ Recommendation: at the end of
                                         │ README.md so it closes the page.
                                         │
-────────────────────────────── Hello / Plan a farewell… T2 on 127.0.0.1:39569 ──
+────────────────────────────── Hello / Plan a farewell… T2 on 127.0.0.1:37811 ──
 ❯
 ────────────────────────────────────────────────────────────────────────────────
 ❯ 1. At the end of README.md   it closes the page

@@ -1656,12 +1656,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_seventeen() {
+fn embedded_client_refusals_keep_their_bytes_at_client_eighteen() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v21::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 17);
+    assert_eq!(wire::CLIENT_VERSION, 18);
 }
 
 #[test]
@@ -2890,12 +2890,14 @@ fn changes_document_encodes_and_decodes() {
                     task: 51,
                     title: Box::from(b"First".as_slice()),
                     ready_since: skein_lib::Wall::from_nanos(123),
+                    alone: false,
                     checks_since: Some(skein_lib::Wall::from_nanos(456)),
                 },
                 forge::ChangesQueued {
                     task: 52,
                     title: Box::from(b"Next".as_slice()),
                     ready_since: skein_lib::Wall::from_nanos(789),
+                    alone: false,
                     checks_since: None,
                 },
             ]),
@@ -3550,6 +3552,7 @@ fn the_worst_small_changes_document_fits_its_decision() {
                     task: u64::from(task),
                     title: Box::from([b't'; forge::LOGGED_TITLE_BYTES]),
                     ready_since: skein_lib::Wall::EPOCH,
+                    alone: false,
                     checks_since: Some(skein_lib::Wall::EPOCH),
                 }]),
             })
@@ -4901,4 +4904,25 @@ fn a_single_landing_panel_has_no_train_or_round() {
     assert!(panel.round().is_none());
     assert!(panel.train().is_none());
     assert_eq!(panel.members().len(), 1);
+}
+
+#[test]
+fn a_batch_panel_keeps_its_members_when_round_diagnostics_pass_the_wire_bound() {
+    for extra in [0, 1] {
+        let mut value = landing_view();
+        let member = value.members[0].clone();
+        value.members = Box::new([member.clone(), member]);
+        value.members[1].change = 52;
+        let bound = usize::try_from(w::CEILINGS.landing_round_failure).unwrap();
+        value.round.failure = skein_lib::bytes::zeroed(bound + extra);
+        value.round.failure.fill(b'x');
+        let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS);
+        assert!(bytes.is_some(), "diagnostic extra {extra} does not erase the landing");
+        let bytes = bytes.unwrap();
+        let panel = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(panel.members().len(), 2);
+        let failure = panel.round().as_ref().unwrap().failure();
+        assert_eq!(failure.len(), bound);
+        assert_eq!(failure.ends_with(b"..."), extra == 1);
+    }
 }

@@ -13,7 +13,7 @@ use skein_shell::{Clock, Host};
 use skein_world::{Referee, end_to_end::Streams, real};
 use std::{cell::Cell, fs, path::Path};
 
-const SETUP_CALLS: usize = super::NATIVE_SETUP_CALLS + 2;
+pub(super) const SETUP_CALLS: usize = super::NATIVE_SETUP_CALLS + 2;
 
 #[derive(Debug)]
 pub struct Reads {
@@ -47,10 +47,15 @@ pub fn start(scratch: &super::Scratch) -> Throwaway {
 
 /// Select turn landing for the seeded project, whose policy names stock policy 1.
 pub fn configure(root: &Path, repository: u64) {
+    configure_batch(root, repository, 1);
+}
+
+/// Share the owned turn setup while selecting the story's batch bound.
+pub(super) fn configure_batch(root: &Path, repository: u64, batch: u16) {
     let path = root.join("temper.json");
     let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     config["application"]["landing"]["projects"] = json!([{
-        "project":1,"by":"turn",
+        "project":1,"by":"turn","batch":batch,
         "gates":[{"forge":1,"repository":repository,
             "gates":[{"name":"gate","workflow":"gate.yaml","ignored":["docs"],"blocking":true}]}]
     }]);
@@ -87,7 +92,7 @@ fn held_review_scripts(forge: &Throwaway) -> Box<[skein_fake_llm_domain::api::Sc
 }
 
 /// Leave landing tasks a share of the seeded project's open period (domain/landing.md, 4.2).
-fn setup(root: &Path) -> Vec<ctl::Step> {
+pub(super) fn setup(root: &Path) -> Vec<ctl::Step> {
     let mut steps = native_settings_setup(root);
     steps.push(ctl::Step::Run(ctl::Call::new(&["project", "show", "1", "--json"]).in_directory("private")));
     steps.push(ctl::Step::Then(Box::new(|calls| {

@@ -344,6 +344,7 @@ pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
 
 pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_domain::ForgeRepository {
     temper_engine_domain::ForgeRepository {
+        prefixes: Box::new([]),
         delivers: false,
         save: Some(b"temper/7/s7".as_slice().into()),
         tag: temper_engine_domain_forge::tag(1, repository),

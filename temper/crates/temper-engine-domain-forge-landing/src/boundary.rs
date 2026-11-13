@@ -105,6 +105,7 @@ pub struct GateProof {
 
 /// One change into one repository (domain/landing.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent per-member effect and judgement receipts")]
 pub struct Member {
     pub change: u64,
     pub repository: Repository,
@@ -120,6 +121,14 @@ pub struct Member {
     /// Main's commit once landed: the candidate.
     pub landed: Option<Commit>,
     pub left: Option<Leave>,
+    pub unit: u16,
+    pub branch: Box<[u8]>,
+    pub combined: Option<Combine>,
+    pub recorded: bool,
+    pub told: bool,
+    pub judging: bool,
+    /// The leave decision has been emitted, including for cascaded leaves.
+    pub leave_told: bool,
 }
 
 /// Why a member leaves, retaining its first-ready time (domain/landing.md, 4.3).
@@ -131,6 +140,10 @@ pub enum Leave {
     Held,
     Refused { gate: u64 },
     Failed { gate: u16, run: u64 },
+    EarlierConflict,
+    Unit { change: u64 },
+    Dependency { change: u64 },
+    Fallback { units: u16, top: Commit },
 }
 
 /// The top-owned landing task record (domain/landing.md, 12).
@@ -155,12 +168,15 @@ pub struct Round {
     pub branch: Box<[u8]>,
     pub pull: Option<u64>,
     pub upstream: Option<Commit>,
+    /// One-member execution's projection, retained for the top's single-member views.
     pub combined: Option<Combine>,
     pub recorded: bool,
     pub told: bool,
+    pub judging: bool,
     pub ending: Option<RoundEnd>,
     pub failure: Box<[u8]>,
-    pub judging: bool,
+    /// First branch to delete when the round ends unlanded.
+    pub changed: Option<u16>,
 }
 impl Round {
     #[must_use]
@@ -172,9 +188,10 @@ impl Round {
             combined: None,
             recorded: false,
             told: false,
+            judging: false,
             ending: None,
             failure: Box::new([]),
-            judging: false,
+            changed: None,
         }
     }
 }
@@ -195,6 +212,14 @@ pub enum Preparation {
     Running,
     Conflict,
     Failed,
+}
+
+/// A prepare job's outcome for a member (domain/landing.md, 5.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Outcome {
+    Combined,
+    Conflict,
+    EarlierConflict,
 }
 
 /// Current dispatch of this key. The top follows the current try, clearing
@@ -245,6 +270,10 @@ pub struct MemberFacts {
     pub held: bool,
     pub judgement: Status,
     pub refused: Option<u64>,
+    pub outcome: Option<Outcome>,
+    /// Positions of other members this member depends on.
+    pub dependencies: Box<[u16]>,
+    pub deleted: Status,
 }
 
 /// The coherent snapshot supplied by the top.
@@ -256,7 +285,7 @@ pub struct Facts {
     pub opened: Option<u64>,
     pub opening: Status,
     pub closed: Status,
-    pub deleted: Status,
+    pub preparation: Preparation,
 }
 
 /// The candidate's gate status (domain/landing.md, 10).
@@ -271,27 +300,74 @@ pub enum Posting {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Decision {
     None,
-    Wait { until: Option<Wall> },
-    Prepare { member: u16, head: Commit, main: Commit },
-    Key { member: u16, gate: u16, candidate: Commit },
-    Dispatch { member: u16, gate: u16, key: Key, try_: u16 },
-    Retry { member: u16, gate: u16, key: Key, try_: u16 },
-    Post { member: u16, gate: u16, posting: Posting },
-    Repair { member: u16, gate: u16 },
+    Wait {
+        until: Option<Wall>,
+    },
+    /// Stack from `main`, the round's base or the last kept prefix, starting at `member`.
+    Prepare {
+        member: u16,
+        head: Commit,
+        main: Commit,
+    },
+    Key {
+        member: u16,
+        gate: u16,
+        candidate: Commit,
+    },
+    Dispatch {
+        member: u16,
+        gate: u16,
+        key: Key,
+        try_: u16,
+    },
+    Retry {
+        member: u16,
+        gate: u16,
+        key: Key,
+        try_: u16,
+    },
+    Post {
+        member: u16,
+        gate: u16,
+        posting: Posting,
+    },
+    Repair {
+        member: u16,
+        gate: u16,
+    },
     Proved,
-    Merge { member: u16, candidate: Commit },
+    Merge {
+        member: u16,
+        candidate: Commit,
+    },
     Stale,
     Finish,
     Cancel,
     Hold(Hold),
     Open,
-    Record { member: u16, prefix: Commit },
-    Landed { member: u16, prefix: Commit },
+    Record {
+        member: u16,
+        prefix: Commit,
+    },
+    Landed {
+        member: u16,
+        prefix: Commit,
+    },
     Close,
-    Delete,
-    Resolve { member: u16, base: Commit },
-    Leave { member: u16, why: Leave },
-    Judge { member: u16 },
+    Delete {
+        member: u16,
+    },
+    Resolve {
+        member: u16,
+        base: Commit,
+    },
+    Leave {
+        member: u16,
+        why: Leave,
+    },
+    Judge {
+        member: u16,
+    },
 }
 
 /// State to commit atomically with the decision.
