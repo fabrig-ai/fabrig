@@ -71,7 +71,7 @@ fn holder_name(root: &Domain, w: &Words, project: u32, holder: &team::Holder) ->
         return w.say(Word::TellYou, &[]);
     }
     let shown = team::shown_at(root, project, Wall::EPOCH);
-    super::team::named_holder(w, shown.facts(), holder)
+    crate::common::team::named_holder(w, shown.facts(), holder)
 }
 pub(crate) fn destination(root: &Domain, w: &Words, project: u32, goes: &Goes) -> Box<[u8]> {
     let name = project_name(root, w, project);

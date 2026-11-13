@@ -246,7 +246,7 @@ fn intro(
         text(b, Role::Paragraph, &lede, Some(look::HOME_LEDE));
     }
     if facts.to_begin() {
-        let (_, more) = super::accounts::home_accounts(root);
+        let (_, more) = crate::common::accounts::home_accounts(root);
         go(b, bindings, &w.say(more, &[]), Address::Accounts, None);
         b.close();
     }
@@ -257,7 +257,7 @@ fn intro(
     b.close();
 }
 fn stopped_try(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut crate::accounts::Bindings) {
-    if let Some((who, account)) = super::model_check::stopped(root, w) {
+    if let Some((who, account)) = crate::common::model_check::stopped(root, w) {
         text(b, Role::Paragraph, &w.say(Word::HomeTryStopped, &[Hole::Name(who)]), Some(look::HOME_BYLINE));
         if let Some(to) = bindings.insert(crate::accounts::Meaning::Try { account }) {
             crate::flow::control(b, crate::flow::Control::Button { name: &w.say(Word::WelcomeTryAgain, &[]), to });
@@ -265,9 +265,9 @@ fn stopped_try(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut crate::
     }
 }
 fn begin_lede(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
-    let (key, _) = super::accounts::home_accounts(root);
+    let (key, _) = crate::common::accounts::home_accounts(root);
     let mut lede = Box::default();
-    if let Some(account) = super::accounts::first_usable_kind(root, w) {
+    if let Some(account) = crate::common::accounts::first_usable_kind(root, w) {
         lede = if key { w.say(Word::HomeAgentsKey, &[]) } else { w.say(Word::HomeAgentsOn, &[Hole::Name(account)]) };
     }
     for row in &forge::listed::rows(root.forges(), forge::connect::playground(root.forge())) {

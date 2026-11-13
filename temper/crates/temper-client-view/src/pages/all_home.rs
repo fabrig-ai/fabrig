@@ -114,14 +114,14 @@ fn follows(b: &mut Builder, relations: &[all_home::Relation], w: &Words) {
                 w.say(Word::AllHomeFollowChip, &[Hole::Name(source.clone())]),
                 line.clone(),
                 stopped.as_ref(),
-                super::how::Who::Code,
+                crate::common::how::Who::Code,
             ),
             all_home::Relation::Dependency { name, dependency, .. } => (
                 name,
                 w.say(Word::AllHomeDependencyChip, &[Hole::Name(dependency.clone())]),
                 w.say(Word::AllHomeDependencyLine, &[]),
                 None,
-                super::how::Who::None,
+                crate::common::how::Who::None,
             ),
         };
         b.open(Role::Group);
@@ -129,7 +129,7 @@ fn follows(b: &mut Builder, relations: &[all_home::Relation], w: &Words) {
         b.name(&skein_lib::bytes::concat(&[name, b" ", &chip]));
         if w.shell == Shell::Terminal {
             b.open(Role::Paragraph);
-            super::how::chip(b, &chip, who);
+            crate::common::how::chip(b, &chip, who);
             b.text(Run::Plain, b" ");
             b.text(Run::Strong, name);
             b.text(Run::Plain, b" ");
@@ -140,7 +140,7 @@ fn follows(b: &mut Builder, relations: &[all_home::Relation], w: &Words) {
             }
             b.close();
         } else {
-            super::how::chip(b, &chip, who);
+            crate::common::how::chip(b, &chip, who);
             crate::cards::text(b, Role::Heading { level: 3 }, name);
             ask::text(b, Role::Paragraph, &line, look::HOW_REACH_NOTE);
             if let Some(stopped) = stopped {

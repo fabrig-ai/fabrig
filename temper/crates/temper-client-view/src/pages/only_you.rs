@@ -32,8 +32,12 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             Some(_) | None => b"",
         };
         let label = match item.kind {
-            c::AccountKind::SignIn => super::accounts::named(w, W::PlanSignIn, words::provider_words(provider).1),
-            c::AccountKind::Program => super::accounts::named(w, W::CodeLogin, source.name.as_deref().unwrap_or(b"")),
+            c::AccountKind::SignIn => {
+                crate::common::accounts::named(w, W::PlanSignIn, words::provider_words(provider).1)
+            }
+            c::AccountKind::Program => {
+                crate::common::accounts::named(w, W::CodeLogin, source.name.as_deref().unwrap_or(b""))
+            }
             c::AccountKind::Key | c::AccountKind::None => continue,
         };
         b.open(Role::Slot);

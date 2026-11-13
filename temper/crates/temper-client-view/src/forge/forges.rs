@@ -2,8 +2,8 @@
 use super::{bindings::Bindings as ForgeBindings, connect};
 use crate::{
     bindings::Bindings,
+    common::settings,
     flow, look,
-    pages::settings,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
