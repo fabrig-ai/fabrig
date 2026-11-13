@@ -106,13 +106,13 @@ pub(crate) fn main(
     if choice == Some(Choice::Elsewhere) || yours {
         elsewhere_path(b, root, w, bindings, project);
     } else {
-        crate::pages::settings::path(
+        crate::common::settings::path(
             b,
             root,
             w,
             bindings,
             project,
-            crate::pages::settings::FlowTab::Forges,
+            crate::common::settings::FlowTab::Forges,
             Word::PathAddForge,
         );
     }
@@ -145,14 +145,14 @@ pub(crate) fn main(
     b.close();
 }
 fn elsewhere_path(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: Option<u32>) {
-    crate::pages::settings::way_path(
+    crate::common::settings::way_path(
         b,
         root,
         w,
         bindings,
         project,
-        crate::pages::settings::FlowTab::Forges,
-        &crate::pages::settings::FlowWay {
+        crate::common::settings::FlowTab::Forges,
+        &crate::common::settings::FlowWay {
             choices: Word::PathAddForge,
             address: Place::Connect.address(None),
             name: &w.say(Word::ConnectManaged, &[]),

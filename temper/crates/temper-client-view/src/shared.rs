@@ -27,9 +27,9 @@ pub use words::{
 /// (temper/docs/design/client/tui/box.md, Model's detail).
 #[must_use]
 pub fn model_account(root: &temper_client_domain::Domain, w: &crate::words::Words) -> Option<(Box<[u8]>, bool)> {
-    let (row, source) = crate::pages::accounts::usable_account(root)?;
+    let (row, source) = crate::common::accounts::usable_account(root)?;
     Some((
-        crate::pages::accounts::account_words(root, w, row, source, false),
+        crate::common::accounts::account_words(root, w, row, source, false),
         source.kind == jig_client::contract::AccountKind::Program,
     ))
 }

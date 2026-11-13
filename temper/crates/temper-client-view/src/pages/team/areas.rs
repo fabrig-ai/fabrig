@@ -1,6 +1,7 @@
 //! Areas and Who routes (client/pages/team.md, 1).
 use super::super::how::{Who, chip};
 use super::paragraph;
+pub(crate) use crate::common::team::{named_holder, role, role_name};
 use crate::{
     bindings::Bindings,
     cards::text,
@@ -36,15 +37,6 @@ pub(super) fn names(words: &Words, names: &List<team::AreaName>, last: &[u8]) ->
     }
     joined
 }
-#[expect(clippy::manual_find, reason = "step code uses explicit loops, not closures")]
-fn role(facts: &team::Facts, task: u64) -> Option<&team::Role> {
-    for role in &facts.roles {
-        if role.task == task {
-            return Some(role);
-        }
-    }
-    None
-}
 pub(super) fn holder_name(words: &Words, facts: &team::Facts, holder: &w::Holder) -> Box<[u8]> {
     let holder = match holder {
         w::Holder::Task(task) => team::Holder::Task(task.number()),
@@ -52,39 +44,6 @@ pub(super) fn holder_name(words: &Words, facts: &team::Facts, holder: &w::Holder
         w::Holder::Role(role) => team::Holder::Role(role.number()),
     };
     named_holder(words, Some(facts), &holder)
-}
-pub(crate) fn named_holder(words: &Words, facts: Option<&team::Facts>, holder: &team::Holder) -> Box<[u8]> {
-    match holder {
-        team::Holder::Task(task) => {
-            if let Some(facts) = facts
-                && let Some(role) = role(facts, *task)
-            {
-                return role.name.clone();
-            }
-            words.say(Word::TeamTaskName, &[Hole::Number(*task)])
-        }
-        team::Holder::Party(party) => {
-            if let Some(facts) = facts {
-                for person in &facts.people {
-                    if person.party == *party {
-                        return if person.you { words.say(Word::TeamYou, &[]) } else { person.name.clone() };
-                    }
-                }
-            }
-            words.say(Word::MemberUnnamed, &[Hole::Number(*party)])
-        }
-        team::Holder::Role(role) => role_name(words, *role),
-    }
-}
-fn role_name(words: &Words, number: u32) -> Box<[u8]> {
-    let word = match number {
-        0 => Word::TeamRoleOwners,
-        1 => Word::TeamRoleMaintainers,
-        2 => Word::TeamRoleMembers,
-        3 => Word::TeamRoleObservers,
-        4.. => return words.say(Word::TeamRolePeople, &[Hole::Number(u64::from(number))]),
-    };
-    words.say(word, &[])
 }
 fn reader(facts: &team::Facts, party: u64) -> bool {
     for person in &facts.people {

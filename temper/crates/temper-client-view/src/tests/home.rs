@@ -2064,7 +2064,7 @@ fn home_more_accounts_reads_every_source_and_ignores_playground() {
     doc.accounts.get_mut(0).expect("playground row").provider = Some(playground);
     doc.accounts.get_mut(1).expect("real row").provider = Some(playground.checked_add(1).expect("provider"));
     super::accounts::deliver(&mut root, watch.expect("accounts watch"), doc);
-    assert_eq!(crate::pages::accounts::home_accounts(&root), (false, crate::words::Word::HomeAddChatGpt));
+    assert_eq!(crate::common::accounts::home_accounts(&root), (false, crate::words::Word::HomeAddChatGpt));
 }
 
 #[test]

@@ -100,7 +100,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
         let playground = root.forge().playground_provider();
         let ways = temper_client_domain::pages::accounts::ways(&me.providers, playground, c::AskAccountHolder::Own);
         for way in &ways {
-            let name = crate::pages::connect_model::label(me, *way, &ways, w);
+            let name = crate::common::connect_model::label(me, *way, &ways, w);
             control(
                 b,
                 bindings,
@@ -927,7 +927,7 @@ fn account_wait(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindi
                         && entry.kind == c::AccountKind::Program
                         && let Some(name) = &entry.name
                     {
-                        crate::pages::connect_model::command(b, root, w, name, false);
+                        crate::common::connect_model::command(b, root, w, name, false);
                     }
                 }
             }
@@ -965,7 +965,7 @@ fn account_wait(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindi
         R::Source(S::Later { until }) => source_wait(b, w, A::Later, until),
         R::Source(S::Unloaded { at, why }) => {
             b.open(Role::Paragraph);
-            crate::pages::accounts::unloaded(b, w, at, why);
+            crate::common::accounts::unloaded(b, w, at, why);
             b.close();
         }
         R::Source(S::Asking) => source_wait(b, w, A::Asking, None),
