@@ -19,11 +19,12 @@ use temper_client_domain::{
 mod tests;
 
 /// Whether the browser refused the press's tab (temper/docs/design/client/pages/README.md).
-pub(super) const fn tab_refused(page: &ConnectModel) -> bool {
+#[must_use]
+pub const fn tab_refused(page: &ConnectModel) -> bool {
     page.tab_refused()
 }
 
-pub(super) fn waiting(
+pub fn waiting(
     b: &mut Builder,
     root: &Domain,
     w: &Words,

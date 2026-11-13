@@ -28,7 +28,7 @@ use temper_client_domain::{
     clippy::too_many_arguments,
     reason = "Home draws page controls and a trial retry with their respective bindings"
 )]
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,

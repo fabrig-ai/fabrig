@@ -1,5 +1,6 @@
 //! Home: needs first, updates afterwards, and deciding controls (06.3).
-pub(crate) use crate::common::inbox::{card_key, card_words, source_task, task_title, waiting_since};
+use crate::cards::CardWords as _;
+pub use crate::common::inbox::{card_key, card_words, source_task, task_title, waiting_since};
 use crate::{
     bindings::Bindings,
     look,
@@ -31,7 +32,7 @@ fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], ac
     }
     b.close();
 }
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     words: &Words,

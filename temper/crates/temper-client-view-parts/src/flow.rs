@@ -5,7 +5,8 @@ use crate::{
 };
 use skein_ui::{Binding, Builder, Role, Run, State};
 
-pub(crate) enum Control<'a> {
+#[derive(Debug)]
+pub enum Control<'a> {
     External { name: &'a [u8], address: &'a [u8] },
     Link { name: &'a [u8], to: Binding },
     SecondaryLink { name: &'a [u8], to: Binding },
@@ -15,7 +16,8 @@ pub(crate) enum Control<'a> {
     PrimaryDisabled { name: &'a [u8] },
     Disabled { name: &'a [u8] },
 }
-pub(crate) enum Mark {
+#[derive(Debug)]
+pub enum Mark {
     Done,
     UnderWay,
     Failed,
@@ -23,7 +25,7 @@ pub(crate) enum Mark {
     ToCome,
 }
 /// A list whose lines say their state in words.
-pub(crate) fn progress(b: &mut Builder, w: &Words, name: &[u8], lines: &[(&[u8], Mark)]) {
+pub fn progress(b: &mut Builder, w: &Words, name: &[u8], lines: &[(&[u8], Mark)]) {
     b.open(Role::List);
     b.name(name);
     b.style(look::FLOW_PROGRESS);
@@ -62,7 +64,7 @@ pub(crate) fn card(b: &mut Builder, heading: &[u8]) {
     crate::cards::text(b, Role::Heading { level: 2 }, heading);
 }
 /// Open a choice card; its action group takes the remaining height.
-pub(crate) fn choice_card(b: &mut Builder, heading: &[u8]) {
+pub fn choice_card(b: &mut Builder, heading: &[u8]) {
     card(b, heading);
     b.style(look::FLOW_CHOICE);
 }
@@ -80,7 +82,7 @@ pub(crate) fn subtitle(b: &mut Builder, words: &[u8]) {
     b.close();
 }
 /// Draw the control in its given kind.
-pub(crate) fn control(b: &mut Builder, action: Control<'_>) {
+pub fn control(b: &mut Builder, action: Control<'_>) {
     let style = match action {
         Control::PrimaryLink { .. } | Control::PrimaryButton { .. } | Control::PrimaryDisabled { .. } => {
             look::FLOW_PRIMARY
@@ -130,7 +132,7 @@ fn control_in(b: &mut Builder, action: Control<'_>, style: skein_ui::Style) {
 
 /// A command and its Copy share the model panel's clipboard action and feedback
 /// (temper/docs/design/client/pages/README.md).
-pub(crate) fn command(
+pub fn command(
     b: &mut Builder,
     root: &temper_client_domain::Domain,
     w: &Words,

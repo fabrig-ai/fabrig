@@ -34,7 +34,7 @@ pub enum Meaning {
 }
 /// The row owning the settings' last request (client/pages/settings.md, 2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum WaysRow {
+pub enum WaysRow {
     Drafts,
     Goals,
     Changes,
@@ -47,12 +47,13 @@ struct Entry {
     row: Option<(u32, WaysRow)>,
 }
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "pages share the selected ways row while binding storage stays private")]
 pub struct Bindings {
     entries: List<Entry>,
     next: u64,
     connector: u16,
     checks: u32,
-    pub(crate) ways_row: Option<(u32, WaysRow)>,
+    pub ways_row: Option<(u32, WaysRow)>,
 }
 impl Bindings {
     #[must_use]
@@ -66,11 +67,11 @@ impl Bindings {
     pub fn insert(&mut self, meaning: Meaning) -> Binding {
         self.entry(meaning, None)
     }
-    pub(crate) fn insert_way(&mut self, act: forge::ways::Act, row: WaysRow) -> Binding {
+    pub fn insert_way(&mut self, act: forge::ways::Act, row: WaysRow) -> Binding {
         let forge::ways::Act::Set { project, .. } = act;
         self.entry(Meaning::Ways(act), Some((project, row)))
     }
-    pub(crate) fn remember(&mut self, token: Token) {
+    pub fn remember(&mut self, token: Token) {
         for entry in &self.entries {
             if entry.token == token {
                 if let Some(row) = entry.row {

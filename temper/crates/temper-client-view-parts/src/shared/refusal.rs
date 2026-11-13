@@ -1,4 +1,5 @@
 //! Send refusals (temper/docs/design/client/tui/pages/chat.md, 2; temper/docs/design/client/pages/README.md).
+use crate::cards::CardWords as _;
 use crate::{cards::P, words::Words};
 use alloc::boxed::Box;
 use jig_client::{Answered, Outcome, contract as c};
@@ -70,7 +71,7 @@ pub fn start_goal_refusal(root: &Domain, words: &Words) -> Option<Box<[u8]>> {
 
 /// A send's status and its explanatory paragraph (temper/docs/design/client/pages/README.md).
 #[derive(Debug)]
-pub(crate) struct Feedback {
+pub struct Feedback {
     pub head: Box<[u8]>,
     pub refused: bool,
     pub after: Option<Box<[u8]>>,
@@ -129,7 +130,8 @@ fn refused(value: &c::Refusal, words: &Words, answer: bool) -> Feedback {
     Feedback { head, refused: true, after }
 }
 /// Append the live roots as task names without changing jig's refusal phrase.
-pub(crate) fn live_tasks_words(mut head: Box<[u8]>, value: &c::Refusal) -> Box<[u8]> {
+#[must_use]
+pub fn live_tasks_words(mut head: Box<[u8]>, value: &c::Refusal) -> Box<[u8]> {
     if let c::Refusal::LiveTasks { tasks, more } = value {
         let mut first = true;
         for task in tasks {
@@ -146,7 +148,8 @@ pub(crate) fn live_tasks_words(mut head: Box<[u8]>, value: &c::Refusal) -> Box<[
 }
 
 /// A failed send in jig's words (temper/docs/design/client/pages/README.md).
-pub(crate) fn outcome_feedback(outcome: &Outcome, words: &Words, answer: bool) -> Option<Feedback> {
+#[must_use]
+pub fn outcome_feedback(outcome: &Outcome, words: &Words, answer: bool) -> Option<Feedback> {
     let head = match outcome {
         Outcome::Answered(Answered::Jig(c::Answer::Refused { refusal, .. })) => {
             return Some(refused(refusal, words, answer));
@@ -164,7 +167,8 @@ pub(crate) fn outcome_feedback(outcome: &Outcome, words: &Words, answer: bool) -
     Some(Feedback { head, refused: false, after: None })
 }
 /// Start and message feedback; question feedback stays beside its list (temper/docs/design/client/pages/README.md).
-pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
+#[must_use]
+pub fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
     let mut feedback = List::with_capacity(2);
     if let Some(chat) = root.pages().chat() {
         if chat.outcome_kind == Some(Sending::Message)

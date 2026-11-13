@@ -1,5 +1,6 @@
 //! A bound conversation reads at either edge; Latest returns to its end (client/pages/chat/conversation.md, 2).
-pub(crate) use crate::common::chat::asking;
+use crate::cards::CardWords as _;
+pub use crate::common::chat::asking;
 use crate::{
     bindings::Bindings,
     words::{Shell, TimeForm, Times, Word, Words},
@@ -29,7 +30,7 @@ fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], ac
     b.close();
 }
 #[expect(clippy::too_many_lines, reason = "the page branches between its browser bar and terminal frame")]
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     words: &Words,
@@ -193,7 +194,7 @@ fn conversation_head(b: &mut Builder, root: &Domain, words: &Words) {
     }
 }
 /// The read's status at the conversation's head (client/pages/chat/conversation.md, 2).
-pub(crate) fn older(b: &mut Builder, thread: &Thread, words: &Words) {
+pub fn older(b: &mut Builder, thread: &Thread, words: &Words) {
     use jig_client::thread::{Reading, window::End};
     let first_failed = thread.lines.rows.is_empty() && thread.read_failed == Some(End::Before);
     if thread.lines.edges.reaches(End::After) && !first_failed {
@@ -459,9 +460,10 @@ fn act_status(b: &mut Builder, root: &Domain, chat: &Chat, words: &Words) {
     }
 }
 /// The signed-in person and whether they requested this chat.
-pub(crate) struct Speakers {
-    pub(crate) person: Option<u64>,
-    pub(crate) requester: bool,
+#[derive(Debug)]
+pub struct Speakers {
+    pub person: Option<u64>,
+    pub requester: bool,
 }
 
 pub(crate) fn speakers(task: &c::Task, me: Option<&c::Me>) -> Speakers {
@@ -784,12 +786,12 @@ fn spend(b: &mut Builder, task: &c::Task, words: &Words) {
     );
 }
 /// The chat projects a request and assistant messages; an agent keeps every work line.
-pub(crate) enum Drawn<'a> {
+#[derive(Debug)]
+pub enum Drawn<'a> {
     ChatPage {
         request: Option<&'a c::SpecificationDocument>,
         root: &'a Domain,
     },
-    #[cfg(test)]
     Chat {
         request: Option<&'a c::SpecificationDocument>,
         delegations: Option<(&'a Chat, &'a jig_client::Client)>,
@@ -822,7 +824,6 @@ fn drawing(drawn: Drawn<'_>) -> Drawing<'_> {
             agent_run: false,
             current: None,
         },
-        #[cfg(test)]
         Drawn::Chat { request, delegations } => {
             let request = match request {
                 Some(request) => Some((request.specification.words.bytes(), !request.specification.words.cut)),
@@ -890,8 +891,7 @@ fn start_fact(
     b.close();
 }
 
-#[cfg(test)]
-pub(crate) fn conversation(
+pub fn conversation(
     b: &mut Builder,
     thread: &Thread,
     words: &Words,
@@ -903,7 +903,7 @@ pub(crate) fn conversation(
     conversation_with_times(b, thread, words, limits, speakers, (drawn, None), bindings);
 }
 
-pub(crate) fn conversation_with_times(
+pub fn conversation_with_times(
     b: &mut Builder,
     thread: &Thread,
     words: &Words,

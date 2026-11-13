@@ -1,4 +1,5 @@
 //! Other task pages and shared task parts (temper/docs/design/client/pages/goal.md, 2, and temper/docs/design/client/pages/task.md, 2–4).
+use crate::cards::CardWords as _;
 use crate::{
     bindings::Bindings,
     look,
@@ -27,7 +28,7 @@ fn region(b: &mut Builder, word: Word, words: &Words) {
     b.name(&words.say(word, &[]));
     text(b, Role::Heading { level: 2 }, &words.say(word, &[]));
 }
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     words: &Words,
@@ -110,7 +111,7 @@ pub(crate) fn main(
     crate::confirm::main(b, root, words, bindings, rows);
     b.close();
 }
-pub(crate) fn reading(b: &mut Builder, page: &task::Task, words: &Words) {
+pub fn reading(b: &mut Builder, page: &task::Task, words: &Words) {
     use task::{DocumentRead, ReadEnd};
     let word = match page.document_read {
         DocumentRead::Ended { why: ReadEnd::TooLinked { joins }, .. } => {
@@ -284,7 +285,7 @@ pub(crate) fn amendment(b: &mut Builder, root: &Domain, words: &Words, bindings:
     amendment_outcome(b, root, words, bindings);
     b.close();
 }
-pub(crate) fn header(
+pub fn header(
     b: &mut Builder,
     task: &c::Task,
     me: Option<&c::Me>,
@@ -615,7 +616,8 @@ fn folded(b: &mut Builder, counts: &[(c::Phase, u32)], held_below: u32, words: &
     }
     shown
 }
-pub(crate) struct Plan<'a> {
+#[derive(Debug)]
+pub struct Plan<'a> {
     pub word: Word,
     pub ended: Option<(&'a c::TaskPage, bool)>,
 }
@@ -663,7 +665,7 @@ fn owner_plan_row(b: &mut Builder, row: &c::TreeRow, root: &Domain, words: &Word
     dependencies(b, row.chip.task, &row.dependencies, facts, row.cut, root.pages().me(root.client()), words, bindings);
     controls(b, &row.chip, root, words, bindings, rows);
 }
-pub(crate) fn plan(
+pub fn plan(
     b: &mut Builder,
     tree: Option<&c::Delivery>,
     root: &Domain,

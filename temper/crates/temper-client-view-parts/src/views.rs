@@ -12,12 +12,13 @@ use temper_client_domain::{
 use temper_client_protocol_wire::v1 as w;
 
 #[expect(clippy::disallowed_methods, reason = "the protocol validated the text; the view splitter borrows it as str")]
-pub(crate) fn parts(bytes: &[u8]) -> List<Part<'_>> {
+#[must_use]
+pub fn parts(bytes: &[u8]) -> List<Part<'_>> {
     let text = core::str::from_utf8(bytes).expect("committed text is UTF-8");
     temper_client_domain::views::parts(text)
 }
 
-pub(crate) fn read(b: &mut Builder, bytes: &[u8], heading: u8, chat: Option<&Chat>, words: &Words) {
+pub fn read(b: &mut Builder, bytes: &[u8], heading: u8, chat: Option<&Chat>, words: &Words) {
     for part in &parts(bytes) {
         match part {
             Part::Text(text) => skein_ui::markdown::read(text.as_bytes(), heading, b),
@@ -32,7 +33,7 @@ pub(crate) fn read(b: &mut Builder, bytes: &[u8], heading: u8, chat: Option<&Cha
     }
 }
 
-pub(crate) fn block(b: &mut Builder, address: &[u8], shown: Option<&Shown>, words: &Words) {
+pub fn block(b: &mut Builder, address: &[u8], shown: Option<&Shown>, words: &Words) {
     match shown {
         Some(Shown::Asking) | None => {
             b.open(Role::Paragraph);
@@ -136,7 +137,7 @@ fn card(b: &mut Builder, card: &w::Card) {
     b.close();
 }
 
-pub(crate) fn facts(b: &mut Builder, card: &w::Card) {
+pub fn facts(b: &mut Builder, card: &w::Card) {
     b.open(Role::Group);
     for fact in card.facts() {
         b.open(Role::Slot);

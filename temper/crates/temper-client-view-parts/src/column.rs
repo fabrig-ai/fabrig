@@ -8,7 +8,7 @@ use temper_client_domain::Domain;
 
 /// Opens the column's main, `look::OUTSIDE`, then `extra` styles in order, and writes its
 /// level-1 heading, named and worded `heading`; the caller draws the rest and closes the main.
-pub(crate) fn column(b: &mut Builder, heading: &[u8], extra: &[Style]) {
+pub fn column(b: &mut Builder, heading: &[u8], extra: &[Style]) {
     b.open(Role::Main);
     b.style(look::OUTSIDE);
     for style in extra {
@@ -21,7 +21,7 @@ pub(crate) fn column(b: &mut Builder, heading: &[u8], extra: &[Style]) {
 }
 
 /// One paragraph of the column's words.
-pub(crate) fn words(b: &mut Builder, words: &Words, word: Word, holes: &[Hole]) {
+pub fn words(b: &mut Builder, words: &Words, word: Word, holes: &[Hole]) {
     b.open(Role::Paragraph);
     b.name(&words.say(word, holes));
     words.text(b, word, holes);
@@ -30,7 +30,7 @@ pub(crate) fn words(b: &mut Builder, words: &Words, word: Word, holes: &[Hole]) 
 
 /// The Welcome step's paragraph under the cards: what temper box is for,
 /// and where running temper on a server is told (client/pages/welcome.md, 1).
-pub(crate) fn box_line(builder: &mut Builder, words: &Words) {
+pub fn box_line(builder: &mut Builder, words: &Words) {
     let name = words.say(Word::WelcomeBoxName, &[]);
     let line = words.say(Word::WelcomeBoxLine, &[]);
     let server = words.say(Word::WelcomeBoxServer, &[]);
@@ -48,7 +48,8 @@ pub(crate) fn box_line(builder: &mut Builder, words: &Words) {
     builder.close();
 }
 
-pub(crate) fn unavailable(root: &Domain) -> Option<Word> {
+#[must_use]
+pub fn unavailable(root: &Domain) -> Option<Word> {
     match root.client().link().state {
         jig_client::Link::SignedOut => Some(Word::SignedOut),
         jig_client::Link::OutOfDate => Some(Word::OutOfDate),

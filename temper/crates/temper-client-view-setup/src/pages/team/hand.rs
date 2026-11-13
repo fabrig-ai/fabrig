@@ -15,7 +15,7 @@ use temper_client_domain::{
     },
 };
 
-pub(crate) fn sheet(b: &mut Builder, root: &Domain, open: &Open, w: &Words, bindings: &mut Bindings) {
+pub fn sheet(b: &mut Builder, root: &Domain, open: &Open, w: &Words, bindings: &mut Bindings) {
     let title = if let Some(give) = &open.give {
         if give.names.len() == 1 {
             w.say(Word::GiveTitle, &[Hole::Name(give.names.get(0).expect("one area").clone())])

@@ -1,4 +1,5 @@
 //! The page's deciding controls, their supplied facts, and its one confirmation.
+use crate::cards::CardWords as _;
 use crate::cards::P;
 use crate::{
     bindings::Bindings,
@@ -29,7 +30,7 @@ fn button(b: &mut Builder, bindings: &mut Bindings, words: &Words, word: Word, a
     b.bind(bindings.insert(act));
     b.close();
 }
-pub(crate) fn card(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings, rows: u32) {
+pub fn card(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings, rows: u32) {
     let Some(page) = &card.page else { return };
     if crate::common::terminal::shown(root, words) {
         crate::cards::proposal::terminal(b, root, card, words, bindings, rows);
@@ -49,7 +50,7 @@ pub(crate) fn card(b: &mut Builder, root: &Domain, card: &Card, words: &Words, b
 pub(crate) fn facts(b: &mut Builder, page: &ReadValue, words: &Words, rows: u32) {
     facts_at(b, page, words, rows, crate::cards::Place::Chat);
 }
-pub(crate) fn facts_at(b: &mut Builder, page: &ReadValue, words: &Words, rows: u32, place: crate::cards::Place) {
+pub fn facts_at(b: &mut Builder, page: &ReadValue, words: &Words, rows: u32, place: crate::cards::Place) {
     crate::cards::proposal_facts(b, page, words, rows, place);
     if !crate::cards::proposal_has_rows(page) {
         crate::cards::decision(b, words, Some(page), ActKind::Accept);
@@ -75,12 +76,12 @@ pub(crate) fn controls(b: &mut Builder, root: &Domain, card: &Card, words: &Word
         b.close();
     }
 }
-pub(crate) fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
+pub fn card_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
     controls_at(b, root, card, words, bindings, false);
 }
 
 /// Browser card acts share the terminal's admissions, reasons and outcomes (client/pages/README.md).
-pub(crate) fn needs_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
+pub fn needs_controls(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings) {
     controls_at(b, root, card, words, bindings, true);
 }
 fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &mut Bindings, needs: bool) {
@@ -170,7 +171,8 @@ fn controls_at(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindi
     }
 }
 
-pub(crate) fn showing(root: &Domain, object: jig_client::contract::ObjectKey) -> bool {
+#[must_use]
+pub fn showing(root: &Domain, object: jig_client::contract::ObjectKey) -> bool {
     match root.pages().confirmation() {
         Some(open) => open.object == object,
         None => false,
@@ -229,7 +231,7 @@ fn lead(b: &mut Builder, words: &Words, word: Word) {
     words.text(b, word, &[]);
     b.close();
 }
-pub(crate) fn delete_project(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
+pub fn delete_project(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
     let Some(open) = root.pages().deleting_project() else { return };
     let sheet = Sheet { title: Word::DeleteProjectTitle, keep: Word::KeepIt, does: Word::DeleteProject };
     let name = skein_ui::phrases::Hole::Name(open.name.clone());
@@ -241,7 +243,7 @@ pub(crate) fn delete_project(b: &mut Builder, root: &Domain, words: &Words, bind
     sheet_acts(b, bindings, words, &sheet);
     b.close();
 }
-pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, rows: u32) {
+pub fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, rows: u32) {
     let Some(open) = root.pages().confirmation() else { return };
     if open.act == ActKind::Cancel && root.pages().chat().is_some() {
         close(b, root, words, bindings);
@@ -332,7 +334,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
     }
 }
 
-pub(crate) fn progress_text(b: &mut Builder, words: &Words, progress: jig_client::Progress) {
+pub fn progress_text(b: &mut Builder, words: &Words, progress: jig_client::Progress) {
     crate::cards::progress(b, words, progress);
 }
 
@@ -366,7 +368,7 @@ fn run_live(task: &jig_client::contract::Task) -> bool {
         Some(RunStage::Idle | RunStage::Due | RunStage::Preparing | RunStage::BackingOff { .. }) | None => false,
     }
 }
-pub(crate) fn fates(
+pub fn fates(
     b: &mut Builder,
     task: &jig_client::contract::Task,
     operations: &[jig_client::contract::Operation],
@@ -521,7 +523,7 @@ fn proposal_object(object: jig_client::contract::ObjectKey) -> bool {
 }
 
 /// An answer returned to a card (temper/docs/design/client/pages/README.md).
-pub(crate) fn outcome_words(b: &mut Builder, words: &Words, outcome: &Outcome) {
+pub fn outcome_words(b: &mut Builder, words: &Words, outcome: &Outcome) {
     if let Outcome::Answered(Answered::Jig(Answer::Done(value))) = outcome {
         words.outcome(b, value);
     } else if let Some(line) = crate::shared::outcome_feedback(outcome, words, true) {
@@ -530,7 +532,8 @@ pub(crate) fn outcome_words(b: &mut Builder, words: &Words, outcome: &Outcome) {
 }
 
 /// Accept's two acts use the terminal's list; an uncertain effect keeps its sheet.
-pub(crate) fn terminal_confirms(root: &Domain) -> bool {
+#[must_use]
+pub fn terminal_confirms(root: &Domain) -> bool {
     let Some(open) = root.pages().confirmation() else { return false };
     if open.act != ActKind::Accept || root.pages().chat().is_none() {
         return false;
@@ -546,7 +549,7 @@ pub(crate) fn terminal_confirms(root: &Domain) -> bool {
     }
     false
 }
-pub(crate) fn terminal_list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) -> bool {
+pub fn terminal_list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) -> bool {
     if !terminal_confirms(root) || root.pages().confirmation().expect("Accept list").sent.is_some() {
         return false;
     }
@@ -575,7 +578,7 @@ pub(crate) fn terminal_list(b: &mut Builder, root: &Domain, words: &Words, bindi
 }
 
 /// Feedback keeps its status and explanatory paragraph (temper/docs/design/client/pages/README.md).
-pub(crate) fn feedback(b: &mut Builder, line: &crate::shared::Feedback) {
+pub fn feedback(b: &mut Builder, line: &crate::shared::Feedback) {
     b.open(Role::Status);
     if line.refused {
         b.style(crate::look::REFUSAL);

@@ -29,7 +29,7 @@ pub fn nodes_text(nodes: &[skein_ui::Node]) -> Box<[u8]> {
     writer.finish()
 }
 /// Type the number from the last terminal print, checking the complete control line.
-#[must_use]
+#[expect(clippy::must_use_candidate, reason = "fixture callers also use this helper to assert presence")]
 pub fn terminal_command(
     tree: &skein_ui::Tree,
     limits: &skein_ui::Limits,

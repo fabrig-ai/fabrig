@@ -1,5 +1,5 @@
 //! The standalone model connection flow and parts used by the welcome.
-pub(crate) use crate::common::connect_model::{command_prompt, label, named, names, printed_command, say};
+pub use crate::common::connect_model::{command_prompt, label, named, names, printed_command, say};
 use crate::{
     accounts::{
         Bindings, Meaning,
@@ -347,7 +347,7 @@ pub(super) fn ready(root: &Domain, way: Way) -> bool {
         false
     }
 }
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
@@ -689,7 +689,8 @@ fn key_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
     b.close();
 }
 /// The same command with the words saying where to run it.
-pub(crate) fn command_line(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
+#[must_use]
+pub fn command_line(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
     words::join(&[&command_prompt(root, w), &printed_command(root, w, name)])
 }
 pub(super) fn ready_body(

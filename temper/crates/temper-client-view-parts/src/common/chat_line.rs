@@ -29,7 +29,7 @@ impl<'a> Run<'a> {
     pub fn with_capacity(calls: u32) -> Self {
         Self { calls: List::with_capacity(calls), first: None, key: None, last: None }
     }
-    pub(crate) fn key(&mut self, key: Key) {
+    pub fn key(&mut self, key: Key) {
         self.key.get_or_insert(key);
     }
     /// Adds an ended call at its activity time (temper/docs/design/client/pages/README.md, its calls).
@@ -145,7 +145,7 @@ impl<'a> Run<'a> {
         })
     }
     /// Draws its turn and empties; nothing when empty and with nothing under way.
-    pub(crate) fn flush(
+    pub fn flush(
         &mut self,
         b: &mut Builder,
         current: Option<&c::CurrentCall>,

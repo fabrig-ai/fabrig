@@ -1,6 +1,6 @@
 //! Temper's cards read delivered objects and jig's public decision facts.
-pub(crate) mod delegation;
-pub(crate) mod proposal;
+pub mod delegation;
+pub mod proposal;
 use crate::words::Words;
 pub use crate::words::cards as words;
 use alloc::boxed::Box;
@@ -19,7 +19,8 @@ pub fn phrase(b: &mut Builder, words: &Words, word: P, holes: &[Hole]) {
 pub fn status(b: &mut Builder, words: &Words, word: P, holes: &[Hole]) {
     text(b, Role::Status, &words::say(words, word, holes));
 }
-pub(crate) fn refusal_words(words: &Words, value: &c::Refusal) -> Box<[u8]> {
+#[must_use]
+pub fn refusal_words(words: &Words, value: &c::Refusal) -> Box<[u8]> {
     let hole = match value {
         c::Refusal::Forgotten { .. } => unreachable!("a restore: restore-ctl"),
         c::Refusal::Judged { why, .. } => Some(Hole::Name(why.bytes().into())),
@@ -303,24 +304,33 @@ pub fn value_nodes(b: &mut Builder, result: &c::ResultValue, words: &Words) {
 pub fn name(value: &[u8]) -> Hole {
     Hole::Name(skein_lib::bytes::copy_of(value))
 }
-impl Words {
+/// Card phrases and drawing (temper/docs/design/client/view-crates.md, 2.4).
+pub trait CardWords {
     #[must_use]
-    pub fn say_card(&self, word: P, holes: &[Hole]) -> Box<[u8]> {
+    fn say_card(&self, word: P, holes: &[Hole]) -> Box<[u8]>;
+    fn card_text(&self, b: &mut Builder, word: P, holes: &[Hole]);
+    fn status(&self, b: &mut Builder, word: P, holes: &[Hole]);
+    fn refusal(&self, b: &mut Builder, value: &c::Refusal, text: u32);
+    fn outcome(&self, b: &mut Builder, value: &c::Outcome);
+    fn ending(&self, b: &mut Builder, value: &c::Ending);
+}
+impl CardWords for Words {
+    fn say_card(&self, word: P, holes: &[Hole]) -> Box<[u8]> {
         words::say(self, word, holes)
     }
-    pub fn card_text(&self, b: &mut Builder, word: P, holes: &[Hole]) {
+    fn card_text(&self, b: &mut Builder, word: P, holes: &[Hole]) {
         phrase(b, self, word, holes);
     }
-    pub fn status(&self, b: &mut Builder, word: P, holes: &[Hole]) {
+    fn status(&self, b: &mut Builder, word: P, holes: &[Hole]) {
         status(b, self, word, holes);
     }
-    pub fn refusal(&self, b: &mut Builder, value: &c::Refusal, _text: u32) {
+    fn refusal(&self, b: &mut Builder, value: &c::Refusal, _text: u32) {
         refusal(b, self, value);
     }
-    pub fn outcome(&self, b: &mut Builder, value: &c::Outcome) {
+    fn outcome(&self, b: &mut Builder, value: &c::Outcome) {
         outcome(b, self, value);
     }
-    pub fn ending(&self, b: &mut Builder, value: &c::Ending) {
+    fn ending(&self, b: &mut Builder, value: &c::Ending) {
         ending(b, value, self);
     }
 }
@@ -356,7 +366,7 @@ pub fn proposal_at(b: &mut Builder, page: &c::ReadValue, words: &Words, rows: u3
     proposal::reason(b, page);
     proposal::facts(b, page, words, rows, place);
 }
-pub(crate) fn proposal_reason(b: &mut Builder, page: &c::ReadValue) {
+pub fn proposal_reason(b: &mut Builder, page: &c::ReadValue) {
     proposal::reason(b, page);
 }
 pub(crate) fn proposal_facts(b: &mut Builder, page: &c::ReadValue, words: &Words, rows: u32, place: Place) {
@@ -372,6 +382,7 @@ pub(crate) fn hold_phrase(task: u64, value: &c::HoldCategory, words: &Words) -> 
     words.say_word(jig_client::words::Word::hold(value), number.as_slice())
 }
 
-pub(crate) fn proposal_has_rows(page: &c::ReadValue) -> bool {
+#[must_use]
+pub fn proposal_has_rows(page: &c::ReadValue) -> bool {
     proposal::has_rows(page)
 }

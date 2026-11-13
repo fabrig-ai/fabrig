@@ -5,11 +5,11 @@ use jig_client::contract::{ApplicationPart, Part, PartKey, PartKind};
 use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::forge::words::{self as shared, ResourceWord as Word};
 pub mod bindings;
-pub(crate) mod connect;
-pub(crate) mod forges;
+pub mod connect;
+pub mod forges;
 pub mod page;
-pub(crate) mod repository;
-pub(crate) mod sheet;
+pub mod repository;
+pub mod sheet;
 pub use crate::words::forge as words;
 fn path_text(builder: &mut Builder, path: &[Box<[u8]>], words: &Words) {
     let (word, holes) = shared::path(path, words.path_bytes());

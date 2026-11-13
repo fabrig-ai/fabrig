@@ -5,7 +5,8 @@ use skein_ui::phrases::Hole;
 use temper_client_domain::pages::team;
 
 #[expect(clippy::manual_find, reason = "step code uses explicit loops, not closures")]
-pub(crate) fn role(facts: &team::Facts, task: u64) -> Option<&team::Role> {
+#[must_use]
+pub fn role(facts: &team::Facts, task: u64) -> Option<&team::Role> {
     for role in &facts.roles {
         if role.task == task {
             return Some(role);
@@ -14,7 +15,8 @@ pub(crate) fn role(facts: &team::Facts, task: u64) -> Option<&team::Role> {
     None
 }
 
-pub(crate) fn named_holder(words: &Words, facts: Option<&team::Facts>, holder: &team::Holder) -> Box<[u8]> {
+#[must_use]
+pub fn named_holder(words: &Words, facts: Option<&team::Facts>, holder: &team::Holder) -> Box<[u8]> {
     match holder {
         team::Holder::Task(task) => {
             if let Some(facts) = facts
@@ -38,7 +40,8 @@ pub(crate) fn named_holder(words: &Words, facts: Option<&team::Facts>, holder: &
     }
 }
 
-pub(crate) fn role_name(words: &Words, number: u32) -> Box<[u8]> {
+#[must_use]
+pub fn role_name(words: &Words, number: u32) -> Box<[u8]> {
     let word = match number {
         0 => Word::TeamRoleOwners,
         1 => Word::TeamRoleMaintainers,

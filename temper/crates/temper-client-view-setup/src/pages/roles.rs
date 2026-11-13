@@ -12,7 +12,7 @@ use temper_client_domain::{
 };
 use temper_client_protocol_wire::v1 as w;
 
-pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, pages: &mut Bindings, project: u32) {
+pub fn main(b: &mut Builder, root: &Domain, words: &Words, pages: &mut Bindings, project: u32) {
     settings::main(b);
     settings::open(b, root, words, pages, project, Tab::HowWorkRuns);
     if !settings::missing(b, root, words, pages, project) {

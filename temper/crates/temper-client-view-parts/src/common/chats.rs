@@ -1,11 +1,12 @@
 //! Shared chats items (temper/docs/design/client/view-crates.md, 3.3).
+use crate::cards::CardWords as _;
 use crate::words::{Word, Words};
 use alloc::boxed::Box;
 use jig_client::contract::TaskLine;
 use skein_ui::{Builder, phrases::Hole};
 use temper_client_domain::{Domain, pages::chats::ended};
 
-pub(crate) fn outcome_text(b: &mut Builder, words: &Words, outcome: &jig_client::Outcome, text_limit: u32) {
+pub fn outcome_text(b: &mut Builder, words: &Words, outcome: &jig_client::Outcome, text_limit: u32) {
     use crate::cards::P;
     use jig_client::{Answered, Outcome};
     match outcome {
@@ -35,7 +36,8 @@ pub(crate) fn status_name(line: &TaskLine, me: &jig_client::contract::Me, words:
     status_words(&line.chip, (&line.waits_on, None, None), (line.project, line.requester), None, me, words).1
 }
 
-pub(crate) fn status_words(
+#[must_use]
+pub fn status_words(
     chip: &jig_client::contract::Chip,
     (waits_on, delegates, run_wait): (
         &jig_client::contract::WaitsOn,
@@ -127,7 +129,8 @@ pub(crate) fn status_words(
 }
 
 /// Active work follows the bar, including while words stream (client/pages/README.md).
-pub(crate) fn active(root: &Domain, words: &Words) -> bool {
+#[must_use]
+pub fn active(root: &Domain, words: &Words) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
     let Some(task) = chat.task(root.client()) else { return false };
     let Some(me) = root.pages().me(root.client()) else { return false };
@@ -146,12 +149,14 @@ pub(crate) fn active(root: &Domain, words: &Words) -> bool {
 }
 
 /// The conversation draws dots until the reply's words begin (client/pages/README.md).
-pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread::Thread) -> bool {
+#[must_use]
+pub fn working(root: &Domain, words: &Words, thread: &jig_client::thread::Thread) -> bool {
     active(root, words) && words_not_begun(thread)
 }
 
 /// A nonempty provisional line settles the work before it (client/pages/README.md and client/pages/task.md, 2).
-pub(crate) fn words_not_begun(thread: &jig_client::thread::Thread) -> bool {
+#[must_use]
+pub fn words_not_begun(thread: &jig_client::thread::Thread) -> bool {
     match thread.lines().into_boxed().last() {
         Some(jig_client::thread::Line::Provisional { text, .. }) => text.is_empty(),
         Some(

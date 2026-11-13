@@ -32,7 +32,8 @@ impl Ways {
         Self { google, origin: Some(Box::from(origin)) }
     }
 }
-pub(crate) fn offered(root: &temper_client_domain::Domain, words: &Words, ways: &Ways) -> bool {
+#[must_use]
+pub fn offered(root: &temper_client_domain::Domain, words: &Words, ways: &Ways) -> bool {
     words.shell == Shell::Browser
         && ways.google
         && ways.origin.is_some()
@@ -43,7 +44,8 @@ pub(crate) fn offered(root: &temper_client_domain::Domain, words: &Words, ways: 
 fn kept(byte: u8) -> bool {
     byte.is_ascii_alphanumeric() || b"-._~/".contains(&byte)
 }
-pub(crate) fn google(origin: &[u8], path: &[u8]) -> Box<[u8]> {
+#[must_use]
+pub fn google(origin: &[u8], path: &[u8]) -> Box<[u8]> {
     const PREFIX: &[u8] = b"/sign-in/google?then=";
     const HEX: &[u8; 16] = b"0123456789ABCDEF";
     let mut size = origin.len().checked_add(PREFIX.len()).expect("bounded URL");
@@ -67,13 +69,7 @@ pub(crate) fn google(origin: &[u8], path: &[u8]) -> Box<[u8]> {
     }
     out.finish()
 }
-pub(crate) fn main(
-    b: &mut Builder,
-    root: &temper_client_domain::Domain,
-    words: &Words,
-    origin: &[u8],
-    forges: &Forges,
-) {
+pub fn main(b: &mut Builder, root: &temper_client_domain::Domain, words: &Words, origin: &[u8], forges: &Forges) {
     front(b, root, words, Some(origin), forges, None);
 }
 fn front(
@@ -140,7 +136,7 @@ fn forge_name(forges: &Forges, query: &[u8], words: &Words) -> Box<[u8]> {
         None => words.say(Word::ForgeOther, &[]),
     }
 }
-pub(crate) fn authorize(
+pub fn authorize(
     b: &mut Builder,
     root: &temper_client_domain::Domain,
     state: temper_client_domain::authorize::State,

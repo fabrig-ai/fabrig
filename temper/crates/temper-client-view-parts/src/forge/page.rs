@@ -1,5 +1,6 @@
 //! Adoption outcomes shared by their callers (temper/docs/design/client/forge/family.md, 6).
 use super::words;
+use crate::cards::CardWords as _;
 use crate::words::Words;
 use alloc::boxed::Box;
 use skein_lib::Writer;

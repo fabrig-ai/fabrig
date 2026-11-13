@@ -52,7 +52,8 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
 }
 
 /// A template's name in the person's words (client/pages/README.md, client/pages/settings.md, 2).
-pub(crate) fn way_name(name: &[u8], words: &Words) -> Box<[u8]> {
+#[must_use]
+pub fn way_name(name: &[u8], words: &Words) -> Box<[u8]> {
     match name {
         b"goal" => words.say(Word::GoalTaskByTask, &[]),
         b"goal for a draft" => words.say(Word::GoalLandWhole, &[]),

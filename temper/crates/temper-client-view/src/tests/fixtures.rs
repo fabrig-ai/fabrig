@@ -1,7 +1,5 @@
-#[expect(unused_imports, reason = "the whole-view fixture facade also exposes the staged render adapters")]
-pub use crate::parts_tests::fixtures::{owner_part_text, part_text, part_tree};
-pub use temper_client_view_kit::*;
 use skein_lib::Queue;
+pub use temper_client_view_kit::*;
 
 pub fn built() -> crate::View {
     let domain = domain_limits();

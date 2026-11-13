@@ -1,6 +1,6 @@
 //! Setup pages (temper/docs/design/client/view-crates.md, 2.1).
-pub mod accounts;
 pub mod account_programs;
+pub mod accounts;
 pub mod builders;
 pub mod claude_login;
 pub mod connect_model;
@@ -17,4 +17,4 @@ pub mod told;
 pub mod welcome;
 pub mod welcome_copy;
 pub mod welcome_model;
-pub use temper_client_view_parts::common::{project_name, serves_pages, chat_line, ways};
+pub use temper_client_view_parts::common::{chat_line, project_name, serves_pages, ways};

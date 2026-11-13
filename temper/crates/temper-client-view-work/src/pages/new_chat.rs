@@ -1,4 +1,5 @@
 //! A new chat on the session layout (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7 and temper/docs/design/client/pages/welcome.md, 2).
+use crate::cards::CardWords as _;
 use crate::{
     bindings::Bindings,
     look,
@@ -25,7 +26,7 @@ pub(crate) fn ready_to_start(root: &Domain) -> bool {
 
 #[expect(clippy::too_many_arguments, reason = "new chat passes the Home fallback its trial retry bindings")]
 #[expect(clippy::too_many_lines, reason = "the page branches between its browser bar and terminal frame")]
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,

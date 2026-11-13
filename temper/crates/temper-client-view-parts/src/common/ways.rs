@@ -13,7 +13,7 @@ use temper_client_protocol_wire::v1 as wire;
 
 /// The tabs control "Ways of working", a tab a way, "now" on the current one, and
 /// the axis line under it.
-pub(crate) fn tabs(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Bindings, project: u32) {
+pub fn tabs(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Bindings, project: u32) {
     let tabs = ways.tabs();
     b.open(Role::Tabs);
     b.name(&w.say(Word::WaysTitle, &[]));
@@ -45,7 +45,7 @@ pub(crate) fn tabs(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut 
 }
 
 /// The path and its stop acts, with the open stop marked.
-pub(crate) fn drawing(
+pub fn drawing(
     b: &mut Builder,
     path: &wire::BranchPath,
     open: Option<u32>,
@@ -74,7 +74,7 @@ pub(crate) fn drawing(
 }
 
 /// Who acts and the dotted line's authority boundary.
-pub(crate) fn legend(b: &mut Builder, w: &Words) {
+pub fn legend(b: &mut Builder, w: &Words) {
     b.open(Role::Paragraph);
     b.name(&w.say(Word::WaysLegend, &[]));
     b.style(look::WAYS_LEGEND);
@@ -95,7 +95,7 @@ pub(crate) fn legend(b: &mut Builder, w: &Words) {
 
 /// The open stop's card: heading, `who`, "Open NAME ›" where the stop opens a
 /// charter, a gate or a rule, and its facts.
-pub(crate) fn card(b: &mut Builder, stop: &wire::Stop, w: &Words, bindings: &mut Bindings, project: u32) {
+pub fn card(b: &mut Builder, stop: &wire::Stop, w: &Words, bindings: &mut Bindings, project: u32) {
     let mut heading = copy_of(stop.words());
     if let Some(first) = heading.first_mut() {
         first.make_ascii_uppercase();
@@ -133,7 +133,7 @@ pub(crate) fn card(b: &mut Builder, stop: &wire::Stop, w: &Words, bindings: &mut
 }
 
 /// The shown way's act, "Use this" or "Keep it", where `ways.act(index)` gives one.
-pub(crate) fn act(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bindings: &mut Bindings, project: u32) {
+pub fn act(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bindings: &mut Bindings, project: u32) {
     if ways.act(index).is_some() {
         b.open(Role::Slot);
         b.style(look::WAYS_ACTS);
@@ -143,14 +143,7 @@ pub(crate) fn act(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bind
 }
 
 /// The way's button, within the calling page's acts row.
-pub(crate) fn act_button(
-    b: &mut Builder,
-    ways: &StockWays,
-    index: u32,
-    w: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-) {
+pub fn act_button(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bindings: &mut Bindings, project: u32) {
     if let Some(act) = ways.act(index) {
         let (word, act) = match act {
             WayAct::Use => (Word::WaysUse, Act::UseWay { project, way: index }),
@@ -168,7 +161,7 @@ pub(crate) fn act_button(
 }
 
 /// The refusal of the last act, where there is one.
-pub(crate) fn refused(b: &mut Builder, ways: &StockWays, w: &Words) {
+pub fn refused(b: &mut Builder, ways: &StockWays, w: &Words) {
     if let Some(refused) = ways.refused() {
         b.open(Role::Alert);
         b.style(look::WAYS_REFUSED);

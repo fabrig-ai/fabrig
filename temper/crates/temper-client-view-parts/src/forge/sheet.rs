@@ -18,7 +18,7 @@ use temper_client_domain::{
     pages,
 };
 
-pub(crate) fn draw(
+pub fn draw(
     b: &mut Builder,
     root: &Domain,
     w: &Words,

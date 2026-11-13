@@ -235,7 +235,7 @@ pub(super) fn refused(b: &mut Builder, w: &Words, refusal: c::AccountRefusal) {
     };
     run(b, w, word);
 }
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
@@ -712,7 +712,8 @@ fn source_account(root: &Domain, form: &accounts::Accounts, holder: c::AskAccoun
 /// Ready names the first usable account by its kind and who it is, a
 /// signed-in plan as "PLAN plan · WHO", with no holder: the model and
 /// its effort are chosen elsewhere (client/pages/README.md).
-pub(crate) fn first_usable_short(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
+#[must_use]
+pub fn first_usable_short(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     first_usable(root, w, true)
 }
 /// Ready names an own sign-in with the same provider words as its offered way.

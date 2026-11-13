@@ -1,7 +1,7 @@
 //! Team's page (temper/docs/design/client/pages/team.md, 1;
 //! temper/docs/design/client/web/look.md, Team's look).
 mod areas;
-pub(crate) use hand::sheet as hand_sheet;
+pub use hand::sheet as hand_sheet;
 mod hand;
 mod sessions;
 pub(crate) mod wakes;
@@ -19,14 +19,7 @@ use temper_client_domain::{
     pages::{Act, team},
 };
 
-pub(crate) fn main(
-    b: &mut Builder,
-    root: &Domain,
-    w: &Words,
-    project: u32,
-    bindings: &mut Bindings,
-    times: &mut Times,
-) {
+pub fn main(b: &mut Builder, root: &Domain, w: &Words, project: u32, bindings: &mut Bindings, times: &mut Times) {
     let name = match super::project_name(root.pages().me(root.client()), project) {
         Some(name) => name,
         None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),

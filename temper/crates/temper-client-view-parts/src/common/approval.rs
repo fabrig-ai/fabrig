@@ -8,7 +8,8 @@ use skein_lib::bytes::concat;
 use skein_ui::phrases::Hole;
 use temper_client_domain::forge::{approvals::Row, forges::Kind};
 
-pub(crate) fn address(row: &Row, sign_in: &Forges) -> Option<Box<[u8]>> {
+#[must_use]
+pub fn address(row: &Row, sign_in: &Forges) -> Option<Box<[u8]>> {
     let address = if row.kind == Kind::Forgejo
         && let Some(forge) = sign_in.number(row.forge)
     {
@@ -22,7 +23,8 @@ pub(crate) fn address(row: &Row, sign_in: &Forges) -> Option<Box<[u8]>> {
     if skein_ui::markdown::safe_url(&address) { Some(address) } else { None }
 }
 
-pub(crate) fn forge(row: &Row, w: &Words) -> Box<[u8]> {
+#[must_use]
+pub fn forge(row: &Row, w: &Words) -> Box<[u8]> {
     w.say(
         match row.kind {
             Kind::Forgejo => Word::ApprovalForgejo,
@@ -32,10 +34,12 @@ pub(crate) fn forge(row: &Row, w: &Words) -> Box<[u8]> {
     )
 }
 
-pub(crate) fn question(row: &Row, w: &Words) -> Box<[u8]> {
+#[must_use]
+pub fn question(row: &Row, w: &Words) -> Box<[u8]> {
     w.say(Word::ApprovalQuestion, &[Hole::Name(row.title.clone()), Hole::Name(forge(row, w))])
 }
 
-pub(crate) fn review_words(row: &Row, w: &Words) -> Box<[u8]> {
+#[must_use]
+pub fn review_words(row: &Row, w: &Words) -> Box<[u8]> {
     w.say(if row.sets.is_empty() { Word::ApprovalReview } else { Word::ApprovalSignOff }, &[Hole::Name(forge(row, w))])
 }

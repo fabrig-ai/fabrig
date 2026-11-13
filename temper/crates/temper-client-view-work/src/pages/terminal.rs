@@ -1,8 +1,8 @@
 //! A chat's pages as a terminal (temper/docs/design/client/pages/README.md, A chat's terminal;
 //! temper/docs/design/client/web/look.md, A chat's terminal).
-pub(crate) mod commands;
+pub mod commands;
 mod question;
-pub(crate) use crate::common::terminal::shown;
+pub use crate::common::terminal::shown;
 use crate::common::terminal::text;
 use crate::shared::{TerminalWord as T, say};
 use crate::{

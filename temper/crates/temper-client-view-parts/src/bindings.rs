@@ -21,15 +21,20 @@ enum Act {
     Reload,
 }
 #[derive(Debug)]
-pub(crate) struct Bindings {
-    pub(crate) remembered_field: Option<u64>,
-    pub(crate) remembered_return: Option<u64>,
-    pub(crate) model_times: crate::words::Times,
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "the frame shares its remembered fields while binding storage stays private"
+)]
+pub struct Bindings {
+    pub remembered_field: Option<u64>,
+    pub remembered_return: Option<u64>,
+    pub model_times: crate::words::Times,
     entries: List<(Token, Act)>,
     next: u64,
     submissions: bool,
 }
 impl Bindings {
+    #[must_use]
     pub fn new(capacity: u32) -> Self {
         Self {
             remembered_field: None,
@@ -45,19 +50,20 @@ impl Bindings {
         self.entries.clear();
         self.submissions = true;
     }
-    pub(crate) fn block_submissions(&mut self) {
+    pub fn block_submissions(&mut self) {
         self.submissions = false;
     }
-    pub(crate) fn insert(&mut self, act: PageAct) -> Binding {
+    pub fn insert(&mut self, act: PageAct) -> Binding {
         self.meaning(Act::Page(act))
     }
-    pub(crate) fn insert_approve(&mut self, act: temper_client_domain::approve::Act) -> Binding {
+    pub fn insert_approve(&mut self, act: temper_client_domain::approve::Act) -> Binding {
         self.meaning(Act::Approve(act))
     }
-    pub(crate) fn reading(&mut self) -> Binding {
+    pub fn reading(&mut self) -> Binding {
         self.meaning(Act::Reading)
     }
-    pub(crate) fn shell_event(&self, token: Token) -> Option<ShellEvent> {
+    #[must_use]
+    pub fn shell_event(&self, token: Token) -> Option<ShellEvent> {
         for (key, meaning) in &self.entries {
             if *key == token {
                 return match meaning {
@@ -68,7 +74,7 @@ impl Bindings {
         }
         None
     }
-    pub(crate) fn reload(&mut self) -> Binding {
+    pub fn reload(&mut self) -> Binding {
         self.meaning(Act::Reload)
     }
     fn meaning(&mut self, act: Act) -> Binding {
@@ -78,6 +84,7 @@ impl Bindings {
         Binding { owner: owner(), token }
     }
     #[expect(clippy::too_many_lines, reason = "the binding table keeps each field input beside its page act")]
+    #[must_use]
     pub fn decode(&self, token: Token, act: skein_ui::Act) -> Option<temper_client_domain::Action> {
         for (key, meaning) in &self.entries {
             if *key == token {
@@ -249,14 +256,14 @@ fn decode_approve(
 }
 
 /// Open a bound link with its address, leaving its contents to the caller.
-pub(crate) fn link(b: &mut Builder, name: &[u8], to: Binding) {
+pub fn link(b: &mut Builder, name: &[u8], to: Binding) {
     b.open(Role::Link);
     b.name(name);
     b.bind(to);
     b.link(to);
 }
 
-pub(crate) fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
+pub fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
     use temper_client_domain::forge::listed::{self, Dot};
     let dot = match listed::dot(root.forges(), temper_client_domain::forge::connect::playground(root.forge())) {
         Dot::None => None,
@@ -277,7 +284,7 @@ pub(crate) fn forge_mark(builder: &mut Builder, root: &Domain, words: &crate::wo
     }
 }
 
-pub(crate) fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
+pub fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::words::Words, separated: bool) {
     if let Some(mark) = crate::accounts::words::mark(root) {
         use crate::accounts::words::{Mark, Word};
         let (word, style) = match mark {
@@ -296,7 +303,8 @@ pub(crate) fn account_mark(builder: &mut Builder, root: &Domain, words: &crate::
     }
 }
 
-pub(crate) fn ask_address(root: &Domain, project: u32) -> Address {
+#[must_use]
+pub fn ask_address(root: &Domain, project: u32) -> Address {
     let task = match root.pages().chats() {
         Some(chats) => chats.open_asking(root.client(), root.pages().me(root.client()), project),
         None => None,

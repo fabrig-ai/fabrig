@@ -52,7 +52,7 @@ pub fn connected() -> w::Connection {
     )
 }
 
-#[must_use]
+#[expect(clippy::must_use_candidate, reason = "fixture callers also use this helper to assert presence")]
 pub fn node(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> skein_ui::NodeId {
     f::find(tree, role, name).unwrap_or_else(|| panic!("missing {role:?}: {}", String::from_utf8_lossy(name)))
 }

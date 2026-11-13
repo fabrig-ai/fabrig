@@ -9,7 +9,7 @@ use skein_ui::{Binding, Builder, Role, Run, State, Style, phrases::Hole};
 use temper_client_domain::{Address, Domain, pages::Act};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Tab {
+pub enum Tab {
     HowWorkRuns,
     Repositories,
     Forges,
@@ -22,13 +22,13 @@ pub(crate) enum Tab {
 
 /// A flow's return tab (temper/docs/design/client/pages/README.md, The flows' paths).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum FlowTab {
+pub enum FlowTab {
     Forges,
     Accounts,
 }
 
 /// A flow's path at its head (client/pages/README.md, The flows' paths): nothing with no project, or in the terminal.
-pub(crate) fn path(
+pub fn path(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
@@ -42,13 +42,14 @@ pub(crate) fn path(
 
 /// A way under a flow's choices (client/pages/README.md, The flows' paths): the back link
 /// and the trail go through the choices, and the way's name is last.
-pub(crate) struct FlowWay<'a> {
-    pub(crate) choices: Word,
-    pub(crate) address: Address,
-    pub(crate) name: &'a [u8],
+#[derive(Debug)]
+pub struct FlowWay<'a> {
+    pub choices: Word,
+    pub address: Address,
+    pub name: &'a [u8],
 }
 
-pub(crate) fn way_path(
+pub fn way_path(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
@@ -113,7 +114,7 @@ fn flow_path(
 
 /// Opens the tab's column; the caller draws its body and closes it (client/pages/README.md, Settings).
 #[expect(clippy::too_many_lines, reason = "one frame draws the closed set of project and deployment tabs")]
-pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, tab: Tab) {
+pub fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, tab: Tab) {
     b.open(Role::Slot);
     b.style(look::SETTINGS_COL);
     let deployment = deployment(tab);
@@ -237,7 +238,7 @@ fn deployment(tab: Tab) -> bool {
 }
 
 /// Opens the column without a project's kicker or tabs (client/pages/README.md, Settings).
-pub(crate) fn open_alone(b: &mut Builder, heading: &[u8], lede: &[u8]) {
+pub fn open_alone(b: &mut Builder, heading: &[u8], lede: &[u8]) {
     b.open(Role::Slot);
     b.style(look::SETTINGS_COL);
     b.open(Role::Slot);
@@ -248,7 +249,7 @@ pub(crate) fn open_alone(b: &mut Builder, heading: &[u8], lede: &[u8]) {
 }
 
 /// Opens the section and its head; the caller adds the act and closes both.
-pub(crate) fn section_head(b: &mut Builder, title: &[u8]) {
+pub fn section_head(b: &mut Builder, title: &[u8]) {
     b.open(Role::Slot);
     b.style(look::SETTINGS_SECTION);
     b.open(Role::Slot);
@@ -257,7 +258,7 @@ pub(crate) fn section_head(b: &mut Builder, title: &[u8]) {
 }
 
 /// Opens a quiet band; the caller adds its act and closes it.
-pub(crate) fn quiet_band(b: &mut Builder, tag: &[u8], words: &[u8]) {
+pub fn quiet_band(b: &mut Builder, tag: &[u8], words: &[u8]) {
     b.open(Role::Slot);
     b.style(look::SETTINGS_BAND);
     b.style(look::SETTINGS_QUIET_BAND);
@@ -269,7 +270,7 @@ pub(crate) fn quiet_band(b: &mut Builder, tag: &[u8], words: &[u8]) {
 }
 
 /// A link in the settings button's look, primary or small.
-pub(crate) fn button_to(b: &mut Builder, name: &[u8], to: Binding, primary: bool) {
+pub fn button_to(b: &mut Builder, name: &[u8], to: Binding, primary: bool) {
     crate::bindings::link(b, name, to);
     if primary {
         b.style(look::SETTINGS_PRIMARY);
@@ -281,14 +282,15 @@ pub(crate) fn button_to(b: &mut Builder, name: &[u8], to: Binding, primary: bool
     b.close();
 }
 
-pub(crate) fn project_name(root: &Domain, w: &Words, project: u32) -> Box<[u8]> {
+#[must_use]
+pub fn project_name(root: &Domain, w: &Words, project: u32) -> Box<[u8]> {
     match crate::common::project_name(root.pages().me(root.client()), project) {
         Some(name) => name,
         None => w.say(Word::Project, &[Hole::Number(u64::from(project))]),
     }
 }
 
-pub(crate) fn text(b: &mut Builder, role: Role, said: &[u8], style: Style) {
+pub fn text(b: &mut Builder, role: Role, said: &[u8], style: Style) {
     b.open(role);
     b.style(style);
     b.name(said);

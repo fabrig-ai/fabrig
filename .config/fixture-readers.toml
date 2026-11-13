@@ -654,6 +654,11 @@ package = "temper-client-tools"
 filter = "kind(lib)"
 
 # Shared view fixtures are compiled once in the kit.
+[[fixture.reader]]
+pair = "default"
+package = "temper-client-view-words"
+filter = "kind(lib)"
+
 [[fixture]]
 paths = ["temper/testing/temper-client-view-kit/src/*.rs"]
 [[fixture.reader]]

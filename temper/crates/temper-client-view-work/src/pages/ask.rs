@@ -1,5 +1,5 @@
 //! Shared card words and parts (temper/docs/design/client/pages/README.md).
-pub(crate) use crate::common::ask::{Asked, Kind, need_kind, read};
+pub use crate::common::ask::{Asked, Kind, need_kind, read};
 use crate::common::ask::{person_in_words, read_parts};
 use crate::{
     bindings::Bindings,
@@ -43,7 +43,8 @@ pub(crate) fn whole_parts(b: &mut Builder, asked: &Asked<'_>, w: &Words, binding
     }
 }
 
-pub(crate) fn card_kind(card: &Card) -> Word {
+#[must_use]
+pub fn card_kind(card: &Card) -> Word {
     if person_in_words(card).is_some() { Word::HomeQuestion } else { need_kind(card.group) }
 }
 pub(crate) fn need_when(card: &Card, w: &Words, times: &mut Times) -> Box<[u8]> {
@@ -72,7 +73,8 @@ fn when(card: &Card, kind: Word, w: &Words, times: &mut Times) -> Box<[u8]> {
         None => kind,
     }
 }
-pub(crate) fn answered_label(w: &Words, label: &needs::Label) -> Box<[u8]> {
+#[must_use]
+pub fn answered_label(w: &Words, label: &needs::Label) -> Box<[u8]> {
     match label {
         needs::Label::Choice(words) => words.clone(),
         needs::Label::Reply(words) => w.say(Word::AnsweredReply, &[Hole::Name(words.clone())]),

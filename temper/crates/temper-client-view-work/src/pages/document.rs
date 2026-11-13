@@ -81,7 +81,7 @@ pub(crate) fn modes(b: &mut Builder, name: Word, chosen: Mode, words: &Words, bi
     b.close();
 }
 
-pub(crate) fn pane(
+pub fn pane(
     b: &mut Builder,
     root: &Domain,
     chat: &Chat,

@@ -1,4 +1,5 @@
 //! The draft's start sheet (temper/docs/design/client/pages/goal.md, 3).
+use crate::cards::CardWords as _;
 use crate::{
     bindings::Bindings,
     look,
@@ -15,7 +16,7 @@ use temper_client_domain::{
     },
 };
 
-pub(crate) fn sheet(b: &mut Builder, root: &Domain, start: &StartGoal, words: &Words, bindings: &mut Bindings) {
+pub fn sheet(b: &mut Builder, root: &Domain, start: &StartGoal, words: &Words, bindings: &mut Bindings) {
     let title = match &start.given {
         Some(path) => words.say(Word::StartGoalFrom, &[Hole::Name(goal::file_of(path).into())]),
         None => words.say(Word::StartGoalTitle, &[]),

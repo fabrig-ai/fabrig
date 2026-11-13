@@ -1,5 +1,6 @@
 //! Kept forge rows and confirmed removal (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/forge/family.md, 7).
 use super::{bindings::Bindings as ForgeBindings, connect};
+use crate::cards::CardWords as _;
 use crate::{
     bindings::Bindings,
     common::settings,
@@ -18,7 +19,7 @@ use temper_client_domain::{
     pages::Act,
 };
 
-pub(crate) fn main(
+pub fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
@@ -459,7 +460,7 @@ fn owned(b: &mut Builder, w: &Words, row: &Row) {
 }
 
 /// Shared with the welcome's adopted Ready; the page facts opt a connected Forgejo in.
-pub(crate) fn open_link(
+pub fn open_link(
     b: &mut Builder,
     w: &Words,
     row: &Row,

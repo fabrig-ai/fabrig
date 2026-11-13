@@ -1,5 +1,5 @@
 //! Model’s line in the welcome’s pane (temper/docs/design/client/pages/README.md, *The try*; temper/docs/design/domain/trial.md, 6.1–6.4).
-pub(crate) use crate::common::model_check::{Answer, First, State, Trial, identity_detail, named, row_trial};
+pub use crate::common::model_check::{Answer, First, State, Trial, identity_detail, named, row_trial};
 use crate::{
     accounts::{Bindings, Meaning},
     flow::{self, Control, Mark},
@@ -19,7 +19,8 @@ use temper_client_domain::{
 };
 
 /// The host’s check, then the newest trial (temper/docs/design/domain/trial.md, 6.1).
-pub(crate) fn trial(root: &Domain, w: &Words) -> Option<Trial> {
+#[must_use]
+pub fn trial(root: &Domain, w: &Words) -> Option<Trial> {
     if let Some(page) = root.pages().connect_model() {
         let state = match page.check {
             ProgramCheck::Idle => None,
@@ -92,7 +93,8 @@ pub(crate) fn of_account(root: &Domain, w: &Words, account: u32) -> Option<Trial
     None
 }
 /// The page determines where the quiet sign-in link goes (domain/trial.md, 6.2).
-pub(crate) enum Place {
+#[derive(Debug)]
+pub enum Place {
     Welcome,
     Row,
 }
@@ -151,7 +153,7 @@ fn progress(b: &mut Builder, w: &Words, trial: &Trial) {
 }
 
 /// Model’s line. `model_counts` decides the heading and act, independently of this line.
-pub(crate) fn line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, trial: &Trial, place: Place) {
+pub fn line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, trial: &Trial, place: Place) {
     let mut details: List<Box<[u8]>> = List::with_capacity(2);
     let (name, mark) = match &trial.state {
         State::Running { at } => {

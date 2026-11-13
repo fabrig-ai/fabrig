@@ -1,5 +1,6 @@
 //! The sheet reached through the domain's acts (client/pages/goal.md, 3).
 use super::fixtures as f;
+use crate::cards::CardWords as _;
 
 use crate::{bindings::Bindings, look, words::Words};
 

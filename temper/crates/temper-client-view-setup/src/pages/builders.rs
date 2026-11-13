@@ -9,7 +9,7 @@ use jig_client::contract as c;
 use skein_ui::{Builder, Role, Style, phrases::Hole};
 use temper_client_domain::{Domain, pages::builders::Read};
 
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
+pub fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
     settings::main(b);
     settings::open(b, root, w, bindings, project, Tab::Builders);
     if !settings::missing(b, root, w, bindings, project) {

@@ -39,7 +39,6 @@ const ROWS: &[Row] = &[
                     "temper-client-view-parts",
                     "temper-client-view-work",
                     "temper-client-view-setup",
-
                     "temper-fetch",
                     "temper-fetch-shell",
                     "temper-shell",

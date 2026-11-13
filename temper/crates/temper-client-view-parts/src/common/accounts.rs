@@ -8,21 +8,24 @@ use jig_client::contract as c;
 use skein_ui::{Builder, Run, phrases::Hole};
 use temper_client_domain::{Domain, pages::accounts};
 
-pub(crate) fn run(b: &mut Builder, w: &Words, word: W) {
+pub fn run(b: &mut Builder, w: &Words, word: W) {
     b.run(Run::Plain, &words::say(w, word, &[]));
 }
 
-pub(crate) fn named(w: &Words, word: W, name: &[u8]) -> Box<[u8]> {
+#[must_use]
+pub fn named(w: &Words, word: W, name: &[u8]) -> Box<[u8]> {
     words::say(w, word, &[Hole::Name(crate::words::shown(name, w))])
 }
 
-pub(crate) fn provider_name(name: Option<&c::DocumentText>) -> Option<&[u8]> {
+#[must_use]
+pub fn provider_name(name: Option<&c::DocumentText>) -> Option<&[u8]> {
     let name = name?;
     if name.cut || name.bytes().is_empty() { None } else { Some(name.bytes()) }
 }
 
 #[expect(clippy::too_many_arguments, reason = "party and deployment rows share these borrowed facts")]
-pub(crate) fn heading(
+#[must_use]
+pub fn heading(
     w: &Words,
     number_value: u32,
     provider: Option<u32>,
@@ -98,7 +101,7 @@ pub(crate) fn heading(
     ])
 }
 
-pub(crate) fn unloaded(b: &mut Builder, w: &Words, at: c::AccountPlace, why: c::AccountUnread) {
+pub fn unloaded(b: &mut Builder, w: &Words, at: c::AccountPlace, why: c::AccountUnread) {
     run(b, w, W::Unloaded);
     run(
         b,
@@ -141,12 +144,14 @@ pub(crate) fn account_heading(root: &Domain, w: &Words, row: &c::AccountLine) ->
     )
 }
 
-pub(crate) fn first_usable_kind(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
+#[must_use]
+pub fn first_usable_kind(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     first_usable(root, w, false)
 }
 
 /// Home's first usable source and the kinds of accounts the person holds (3.5, More accounts).
-pub(crate) fn home_accounts(root: &Domain) -> (bool, crate::words::Word) {
+#[must_use]
+pub fn home_accounts(root: &Domain) -> (bool, crate::words::Word) {
     use crate::words::Word;
     let mut first_key = None;
     let mut chatgpt = false;
@@ -185,7 +190,8 @@ pub(crate) fn home_accounts(root: &Domain) -> (bool, crate::words::Word) {
     (first_key.unwrap_or(false), more)
 }
 
-pub(crate) fn first_usable(root: &Domain, w: &Words, with_display: bool) -> Option<Box<[u8]>> {
+#[must_use]
+pub fn first_usable(root: &Domain, w: &Words, with_display: bool) -> Option<Box<[u8]>> {
     let (row, source) = usable_account(root)?;
     Some(account_words(root, w, row, source, with_display))
 }
@@ -210,7 +216,8 @@ pub(crate) fn usable_account(root: &Domain) -> Option<(&c::AccountLine, &c::Acco
 }
 
 /// Account and identity words shared by Ready and a trial's selected account (domain/trial.md, 6.1).
-pub(crate) fn account_words(
+#[must_use]
+pub fn account_words(
     root: &Domain,
     w: &Words,
     row: &c::AccountLine,
@@ -247,7 +254,8 @@ pub(crate) fn account_words(
     words::join(&[&label, if detail.is_empty() { b"" } else { &separator }, &detail])
 }
 
-pub(crate) fn playground(root: &Domain, provider: Option<u32>) -> bool {
+#[must_use]
+pub fn playground(root: &Domain, provider: Option<u32>) -> bool {
     match root.forge().playground_provider() {
         Some(number) => provider == Some(number),
         None => false,

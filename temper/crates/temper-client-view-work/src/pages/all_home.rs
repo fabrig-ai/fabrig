@@ -13,7 +13,7 @@ use temper_client_domain::{
     pages::{all_home, home::Status, parts},
 };
 
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, times: &mut Times, rows: u32) {
+pub fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, times: &mut Times, rows: u32) {
     let facts = all_home::facts(root, times.now);
     if let Some(inbox) = root.pages().inbox()
         && inbox.filter == Filter::ALL
@@ -23,7 +23,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         draw(b, &facts, w, bindings, times);
     }
 }
-pub(crate) fn draw(b: &mut Builder, facts: &all_home::Facts, w: &Words, bindings: &mut Bindings, times: &mut Times) {
+pub fn draw(b: &mut Builder, facts: &all_home::Facts, w: &Words, bindings: &mut Bindings, times: &mut Times) {
     page(b, facts, None, w, bindings, times, 0);
 }
 fn page(

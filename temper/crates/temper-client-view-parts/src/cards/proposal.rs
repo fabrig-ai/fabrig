@@ -1,5 +1,6 @@
 //! The proposal's task specifications, executors and authority are delivered facts.
 use super::{P, phrase, specification, status, text};
+use crate::cards::CardWords as _;
 use crate::words::{Word, Words};
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -431,7 +432,7 @@ fn specification_facts(b: &mut Builder, document: &c::SpecificationDocument, wor
 
 /// One settings card in a conversation or Needs you (client/pages/settings.md, 2).
 /// Ended cards retain their original proposal's words and read their recorded decision.
-pub(crate) fn settings(
+pub fn settings(
     b: &mut Builder,
     root: &temper_client_domain::Domain,
     card: &temper_client_domain::pages::inbox::Card,
@@ -542,8 +543,10 @@ pub(crate) fn settings(
 }
 
 /// What a settings card draws, from a live proposal or its retained record (client/pages/settings.md, 2).
-pub(crate) struct SettingsFacts<'a> {
-    pub(crate) key: c::ProposalKey,
+#[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "a chat reads the proposal key while the card draws its other facts")]
+pub struct SettingsFacts<'a> {
+    pub key: c::ProposalKey,
     pub(crate) projects: &'a [u32],
     pub(crate) reason: &'a c::DocumentText,
     pub(crate) items: &'a [c::RevisionItemHead],
@@ -552,7 +555,8 @@ pub(crate) struct SettingsFacts<'a> {
     /// The live proposal, for its acts and who it waits for; none once it has ended.
     pub(crate) live: Option<&'a c::Proposal>,
 }
-pub(crate) fn settings_facts(card: &temper_client_domain::pages::inbox::Card) -> Option<SettingsFacts<'_>> {
+#[must_use]
+pub fn settings_facts(card: &temper_client_domain::pages::inbox::Card) -> Option<SettingsFacts<'_>> {
     let c::ObjectKey::Proposal(key) = card.object else { return None };
     if let Some(c::ReadValue::Proposal(proposal)) = &card.page
         && proposal.key == key
@@ -777,7 +781,7 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
     owned_approval(b, root, facts.key.number, words);
 }
 /// The boundary of an owned forge's approval (client/pages/settings.md, 2).
-pub(crate) fn owned_approval(b: &mut Builder, root: &temper_client_domain::Domain, number: u64, words: &Words) {
+pub fn owned_approval(b: &mut Builder, root: &temper_client_domain::Domain, number: u64, words: &Words) {
     if root.forge().owned_approval(number) {
         b.open(Role::Paragraph);
         b.style(crate::look::SETTINGS_PROPOSAL_ITEMS);
@@ -952,7 +956,8 @@ pub(crate) fn class_objects(
     }
     comma_join(objects.as_slice())
 }
-pub(crate) fn comma_join(objects: &[Box<[u8]>]) -> Box<[u8]> {
+#[must_use]
+pub fn comma_join(objects: &[Box<[u8]>]) -> Box<[u8]> {
     let mut length = 0_usize;
     for (index, object) in objects.iter().enumerate() {
         if index != 0 {

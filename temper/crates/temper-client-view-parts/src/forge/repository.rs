@@ -19,7 +19,7 @@ pub(crate) fn address(row: &Row, sign_in: &Forges, owner: &[u8], name: &[u8]) ->
     if skein_ui::markdown::safe_url(&address) { Some(address) } else { None }
 }
 /// Opens no node of its own: the link, or the words, in the node the caller holds open.
-pub(crate) fn name(b: &mut Builder, w: &Words, row: Option<&Row>, sign_in: &Forges, owner: &[u8], name: &[u8]) {
+pub fn name(b: &mut Builder, w: &Words, row: Option<&Row>, sign_in: &Forges, owner: &[u8], name: &[u8]) {
     if w.shell == Shell::Browser
         && let Some(row) = row
         && row.mode != Mode::Fake

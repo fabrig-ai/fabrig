@@ -96,7 +96,7 @@ fn provider_line(
 }
 
 /// The disclosure, fixed words, or nothing without a usable model.
-pub(crate) fn picker(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bindings: &mut Bindings) {
+pub fn picker(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bindings: &mut Bindings) {
     if let Some(chat) = root.pages().chat()
         && chat.talk().is_some()
     {
@@ -127,7 +127,8 @@ pub(crate) fn picker(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: 
 }
 
 /// The model and effort the next run takes (client/pages/README.md).
-pub(crate) fn closed_line(root: &Domain, task: Option<&c::Task>, w: &Words) -> Box<[u8]> {
+#[must_use]
+pub fn closed_line(root: &Domain, task: Option<&c::Task>, w: &Words) -> Box<[u8]> {
     let me = temper_client_domain::pages::accounts::current_me(root.client());
     let draft = root.pages().choice();
     let choice = match me {
@@ -213,7 +214,8 @@ fn shown_line(
 }
 /// What a page with no composer says it ran on (client/pages/README.md); none until its
 /// conversation is read to its end.
-pub(crate) fn ran_line(root: &Domain, task: &c::Task, thread: &Thread, w: &Words) -> Option<Box<[u8]>> {
+#[must_use]
+pub fn ran_line(root: &Domain, task: &c::Task, thread: &Thread, w: &Words) -> Option<Box<[u8]>> {
     if !thread.caught_up() {
         return None;
     }
@@ -394,7 +396,7 @@ fn heading(
     }
     b.close();
 }
-pub(crate) fn terminal_models(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+pub fn terminal_models(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     for choice in &crate::shared::models(root, None, w) {
         terminal_option(b, root, choice, true, bindings);
     }
@@ -513,7 +515,7 @@ fn row(
     b.close();
     b.close();
 }
-pub(crate) fn terminal_efforts(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+pub fn terminal_efforts(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     for choice in &crate::shared::efforts(root, None, w) {
         terminal_option(b, root, choice, false, bindings);
     }

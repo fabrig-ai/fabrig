@@ -7,10 +7,13 @@
     clippy::single_match_else,
     reason = "the shared test fixtures retain their setup and semantic inspection unchanged"
 )]
-#![cfg_attr(not(test), expect(clippy::wildcard_imports, reason = "the shared test fixtures retain their imports unchanged"))]
-use temper_client_view_words::{look, paths, words};
+#![cfg_attr(
+    not(test),
+    expect(clippy::wildcard_imports, reason = "the shared test fixtures retain their imports unchanged")
+)]
 use skein_lib::{Duration, List, RequestLimits, Wall};
 use temper_client_domain::{Limits, forge};
+use temper_client_view_words::{look, paths, words};
 pub use temper_fixtures::first_run;
 
 pub mod accounts;

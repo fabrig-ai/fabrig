@@ -85,7 +85,8 @@ fn title_space(byte: u8) -> bool {
 }
 
 /// The delivered chat's chip decides its path and current navigation entry (client/pages/README.md).
-pub(crate) fn asking(root: &Domain) -> bool {
+#[must_use]
+pub fn asking(root: &Domain) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
     if chat.talk().is_some() {
         return false;
