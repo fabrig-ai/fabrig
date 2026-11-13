@@ -26,6 +26,7 @@ pub mod follows;
 pub mod forge_user;
 pub mod gates;
 pub mod held;
+pub mod history;
 pub mod items;
 pub mod judge;
 pub mod landing;
@@ -300,6 +301,15 @@ pub fn effect_access(repository: &Repository, what: &What, kind: u16) -> Access 
 #[must_use]
 pub fn stored_key(row: &Stored) -> Key {
     match row {
+        Stored::HistoryProject(row) => Key::HistoryProject { project: row.project },
+        Stored::HistoryEvent(row) => Key::HistoryEvent { project: row.project, number: row.number },
+        Stored::HistoryChange(row) => {
+            Key::HistoryChange { project: row.project, change: row.change, number: row.number }
+        }
+        Stored::HistoryLanding(row) => {
+            Key::HistoryLanding { project: row.project, landing: row.landing, number: row.number }
+        }
+        Stored::HistoryLast(row) => Key::HistoryLast { project: row.project, number: row.number, change: row.change },
         Stored::Forge(row) => Key::Forge(row.number),
         Stored::ForgeNumber { .. } => Key::ForgeNumber,
         Stored::Playground(_) => Key::Playground,
@@ -385,6 +395,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
     }
     match record {
+        Stored::HistoryProject(row) => {
+            skein_lib::len_u64(row.marks.len()).checked_mul(u64::try_from(size_of::<history::Mark>()).ok()?)
+        }
+        Stored::HistoryEvent(row) => history::event_bytes(row),
         Stored::Making(row) => {
             let mut held = bytes(&row.key.org).checked_add(bytes(&row.key.name))?;
             match &row.from {
@@ -664,7 +678,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
         Stored::LandedDraft(row) => bytes(&row.path).checked_add(bytes(&row.branch))?.checked_add(bytes(&row.title)),
-        Stored::RefusedSetting(_)
+        Stored::HistoryChange(_)
+        | Stored::HistoryLanding(_)
+        | Stored::HistoryLast(_)
+        | Stored::RefusedSetting(_)
         | Stored::Away(_)
         | Stored::Looked(_)
         | Stored::Dismissed { .. }

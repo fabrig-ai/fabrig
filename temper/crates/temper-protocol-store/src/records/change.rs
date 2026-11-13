@@ -718,6 +718,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         catch_up,
         close,
         merge_result,
+        history,
         goal,
         ending,
         repair_tasks,
@@ -794,6 +795,10 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             catch_up: *catch_up,
             close: close.clone(),
             merge_result: merge_result.clone(),
+            history: match history {
+                Some(value) => Some(super::history::encode_change_history(value)),
+                None => None,
+            },
             goal: *goal,
             ending: encode_ending(ending.as_ref()),
             repair_tasks: encode_numbers(repair_tasks),
@@ -851,6 +856,7 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, s
         catch_up,
         close,
         merge_result,
+        history,
         goal,
         ending,
         repair_tasks,
@@ -920,6 +926,10 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, s
         catch_up,
         close,
         merge_result,
+        history: match history {
+            Some(value) => Some(super::history::decode_change_history(value)),
+            None => None,
+        },
         effect_account: match effect_account {
             Some(account) => {
                 let w::EffectAccountParts { entry, words } = account.into_parts();

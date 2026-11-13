@@ -45,6 +45,16 @@ pub const LANDED_DRAFT: u8 = 41;
 pub const FOLLOW: u8 = 42;
 /// A person's devices (temper/docs/design/protocol/store.md, 2).
 pub const DEVICE: u8 = 43;
+/// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
+pub const HISTORY_PROJECT: u8 = 127;
+/// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
+pub const HISTORY_EVENT: u8 = 128;
+/// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
+pub const HISTORY_CHANGE: u8 = 129;
+/// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
+pub const HISTORY_LANDING: u8 = 130;
+/// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
+pub const HISTORY_LAST: u8 = 131;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -109,7 +119,9 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
     // Writer is one family byte and an eight-byte forge number: 9 bytes.
     // Binding: family byte, two bytes per NUL, and byte-string terminator.
     let making = limits.name_bytes.min(1024).checked_mul(4)?.checked_add(13)?;
-    Some(name.max(topic).max(making).max(159).max(1 + 2 * 254 + 2))
+    // History index keys hold at most three eight-byte numbers plus the family.
+    let history = 25;
+    Some(name.max(topic).max(making).max(history).max(159).max(1 + 2 * 254 + 2))
 }
 
 /// Encode one relative key, or refuse it when it exceeds `limit`.
@@ -118,6 +130,21 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
 pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);
     match key {
+        forge::Key::HistoryProject { project } => {
+            writer.tag(HISTORY_PROJECT).u64(u64::from(*project));
+        }
+        forge::Key::HistoryEvent { project, number } => {
+            writer.tag(HISTORY_EVENT).u64(u64::from(*project)).u64(*number);
+        }
+        forge::Key::HistoryChange { project, change, number } => {
+            writer.tag(HISTORY_CHANGE).u64(u64::from(*project)).u64(*change).u64(*number);
+        }
+        forge::Key::HistoryLanding { project, landing, number } => {
+            writer.tag(HISTORY_LANDING).u64(u64::from(*project)).u64(*landing).u64(*number);
+        }
+        forge::Key::HistoryLast { project, number, change } => {
+            writer.tag(HISTORY_LAST).u64(u64::from(*project)).u64(*number).u64(*change);
+        }
         forge::Key::Setting(key) => {
             writer.tag(SETTING).u64(u64::from(key.kind)).u64(u64::from(key.scope)).u64(u64::from(key.number));
             match key.slot {
@@ -384,6 +411,25 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             name: read_branch(&mut reader, limits)?,
         }),
         PROJECT_FACTS => forge::Key::ProjectFacts { project: u32::try_from(reader.u64()?).ok()? },
+        HISTORY_PROJECT => forge::Key::HistoryProject { project: u32::try_from(reader.u64()?).ok()? },
+        HISTORY_EVENT => {
+            forge::Key::HistoryEvent { project: u32::try_from(reader.u64()?).ok()?, number: reader.u64()? }
+        }
+        HISTORY_CHANGE => forge::Key::HistoryChange {
+            project: u32::try_from(reader.u64()?).ok()?,
+            change: reader.u64()?,
+            number: reader.u64()?,
+        },
+        HISTORY_LANDING => forge::Key::HistoryLanding {
+            project: u32::try_from(reader.u64()?).ok()?,
+            landing: reader.u64()?,
+            number: reader.u64()?,
+        },
+        HISTORY_LAST => forge::Key::HistoryLast {
+            project: u32::try_from(reader.u64()?).ok()?,
+            number: reader.u64()?,
+            change: reader.u64()?,
+        },
         DEVICE => forge::Key::Device { party: reader.u64()?, number: u32::try_from(reader.u64()?).ok()? },
         LANDED_DRAFT => {
             let repository = read_repository(&mut reader)?;

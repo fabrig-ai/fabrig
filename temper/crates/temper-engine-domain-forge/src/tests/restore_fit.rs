@@ -231,6 +231,15 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             goal: None,
             reason: None,
         }),
+        RecordKind::HistoryProject => Stored::HistoryProject(crate::history::Project {
+            project: number,
+            next: 1,
+            kept: 0,
+            whole_since: None,
+            marks: Box::new([]),
+            sweeping: None,
+            removing: false,
+        }),
         RecordKind::Client => panic!("no own table"),
     }
 }
@@ -279,6 +288,7 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
     use RecordKind as K;
     for (kind, limit) in [
         (K::Making, LIMITS.makings),
+        (K::HistoryProject, LIMITS.judge_projects),
         (K::Landing, LIMITS.landings),
         (
             K::Receipt,

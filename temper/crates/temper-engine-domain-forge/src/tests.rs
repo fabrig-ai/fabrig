@@ -23,6 +23,7 @@ mod follow_check;
 mod goal_branch;
 mod goal_start;
 mod held_branch;
+mod history;
 mod kinds;
 #[path = "tests/landing.rs"]
 mod landing_routes;
