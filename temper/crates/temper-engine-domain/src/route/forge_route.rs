@@ -1902,6 +1902,7 @@ pub(crate) fn workspace_repository(
         forge::items::Start::Merged { branch, heads } => ForgeStart::Merged { branch, heads },
     };
     Some(ForgeRepository {
+        prefixes: Box::new([]),
         delivers: item.delivers && push.is_some(),
         save: if push.is_some() { Some(save) } else { None },
         tag: forge::tag(item.provider.forge, item.provider.repository),

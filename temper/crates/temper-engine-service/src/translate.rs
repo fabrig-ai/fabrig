@@ -66,13 +66,19 @@ fn repository_item(
     for segment in [base, b"/", &repository.owner, b"/", &repository.name, b".git"] {
         remote.put(segment).expect("measured remote");
     }
-    let access = match &repository.push {
+    let access = if !repository.prefixes.is_empty() {
+        let mut branches = skein_lib::List::with_capacity(u32::try_from(repository.prefixes.len()).expect("bounded prefixes"));
+        for branch in &repository.prefixes {
+            branches.push(v1::Branch::new(limits, v1::BranchParts { branch: branch.clone() })?).expect("measured branches");
+        }
+        v1::Access::Prefixes(v1::Prefixes::new(limits, v1::PrefixesParts { branches })?)
+    } else { match &repository.push {
         Some(push) => v1::Access::Writable(v1::Writable::new(
             limits,
             v1::WritableParts { push: push.clone(), expected: None, landing: repository.landing.clone() },
         )?),
         None => v1::Access::ReadOnly,
-    };
+    }};
     v1::Repository::new(
         limits,
         v1::RepositoryParts {
