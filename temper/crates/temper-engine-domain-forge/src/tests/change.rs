@@ -1467,6 +1467,119 @@ fn waiting_step(live: bool, released: bool) -> Event {
     }
 }
 
+fn dependency_step() -> Event {
+    use temper_engine_domain_forge_change as change;
+    let Event::StepChange { task, entry, heard, gates, queue_repair_active, merge_job, .. } =
+        waiting_step(false, false)
+    else {
+        panic!("change step")
+    };
+    Event::StepChange {
+        task,
+        entry,
+        heard,
+        gates,
+        queue_repair_active,
+        merge_job,
+        kept: true,
+        pending: Box::new([change::Pending { task: 11, kind: change::PendingKind::Other }]),
+    }
+}
+
+#[test]
+fn a_producer_title_wait_past_the_stall_waits_for_dependencies() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(change::State::Producing { requested: true }, change::Delegate::Produce);
+    outputs(&mut d, dependency_step());
+    fixtures::missing_pull_reads(&mut d);
+    let finished = fixtures::finish_missing(&mut d);
+    assert!(
+        finished.contains(&Request::ChangeDecision {
+            task: fixtures::CHANGE,
+            decision: change::Decision::Wait { until: None },
+            entry: None,
+            evidence: None,
+        }),
+        "{finished:?}"
+    );
+    let row = d.change(fixtures::CHANGE).expect("change");
+    assert_eq!(row.change.state, change::State::Producing { requested: true });
+    assert_eq!(row.change.since, env().wall);
+}
+
+#[test]
+fn unknown_catch_up_containment_keeps_its_retry_while_dependencies_are_pending() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(change::State::Producing { requested: false }, change::Delegate::Produce);
+    d.changes.get_mut(&fixtures::CHANGE).expect("change").catch_up = Some(fixtures::HEAD);
+    outputs(&mut d, dependency_step());
+    fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
+    fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
+    let finished =
+        fixtures::answer_next(&mut d, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: true }));
+    let retry = Wall::from_nanos(env().wall.as_nanos() + 1_000_000_000);
+    assert!(
+        finished.contains(&Request::ChangeDecision {
+            task: fixtures::CHANGE,
+            decision: change::Decision::Wait { until: Some(retry) },
+            entry: None,
+            evidence: None,
+        }),
+        "{finished:?}"
+    );
+    let row = d.change(fixtures::CHANGE).expect("change");
+    assert_eq!(row.change.state, change::State::Producing { requested: false });
+    assert_eq!(row.change.since, env().wall);
+}
+
+#[test]
+fn a_dependency_end_refreshes_producing_and_ends_only_its_unrequested_stall() {
+    use change::{Hold, State};
+    use temper_engine_domain_forge_change as change;
+    let unrequested = State::Producing { requested: false };
+    let requested = State::Producing { requested: true };
+    for (state, refresh, end) in [
+        (unrequested.clone(), true, false),
+        (requested.clone(), true, false),
+        (State::Held { was: Box::new(unrequested.clone()), why: Hold::Stalled }, true, true),
+        (State::Held { was: Box::new(requested), why: Hold::Stalled }, false, false),
+        (State::Held { was: Box::new(unrequested.clone()), why: Hold::Questions }, false, false),
+        (State::Held { was: Box::new(State::Checking { head: fixtures::HEAD }), why: Hold::Stalled }, false, false),
+        (State::Checking { head: fixtures::HEAD }, false, false),
+    ] {
+        let mut d = delegate_waiting(state.clone(), change::Delegate::Produce);
+        d.changes.get_mut(&fixtures::CHANGE).expect("change").change.owns_turn = end;
+        let before = d.change(fixtures::CHANGE).expect("change").clone();
+        let finished = outputs(&mut d, Event::DependenciesMet { task: fixtures::CHANGE });
+        let row = d.change(fixtures::CHANGE).expect("change");
+        assert_eq!(row.change.since, if refresh { env().wall } else { before.change.since }, "{state:?}");
+        assert_eq!(row.change.state, if end { unrequested.clone() } else { state });
+        assert!(!row.change.owns_turn);
+        assert_eq!(
+            finished.contains(&Request::ChangeDecision {
+                task: fixtures::CHANGE,
+                decision: change::Decision::EndHold,
+                entry: None,
+                evidence: None,
+            }),
+            end
+        );
+        let mut saved = false;
+        for request in &finished {
+            if let Request::Save { record: Stored::Change(_), .. } = request {
+                saved = true;
+            }
+            if let Request::ChangeDecision { decision: change::Decision::EndHold, .. } = request {
+                assert!(saved, "the restored row is saved before its task's release");
+            }
+        }
+        assert_eq!(saved, refresh);
+        if !refresh {
+            assert_eq!(*row, before);
+        }
+    }
+}
+
 #[test]
 fn a_live_producer_title_wait_rearms_the_stall() {
     use temper_engine_domain_forge_change as change;

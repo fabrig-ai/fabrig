@@ -316,7 +316,7 @@ fn ticks(world: &mut World) {
     }
 }
 
-fn active_without_producer(world: &World, task: u64) {
+pub(super) fn active_without_producer(world: &World, task: u64) {
     assert!(matches!(live_task(world, task).phase, tasks::Phase::Active(_)));
     assert_eq!(change_row(world, task).delegate, None, "{:?}", change_row(world, task));
 }
