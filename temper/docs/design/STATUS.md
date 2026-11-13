@@ -4,7 +4,13 @@
 the engine, its workers, their agents and the clients move their
 versions with their layouts, stated and checked at the channel's
 opening, each build's floor its current until bridges
-(`protocol/wires.md`; `draft/redeploys.md`, R1). Remaining work spans
+(`protocol/wires.md`; `draft/redeploys.md`, R1). The engine restarts
+alone, its workers keeping their runs: its stop settles placing
+nothing, the workers' grace covers a start that patches, with the
+engine's grace above their stop bound, and `upgrade --check` names
+each worker that may stay by the opening the engine kept of it
+(`protocol/wires.md`, 9; `domain/root.md`, 8.2; R5, goal 2288).
+Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
 code lags or departs from its design, and its design from its drafts;

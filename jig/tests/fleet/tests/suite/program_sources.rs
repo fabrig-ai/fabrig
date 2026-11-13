@@ -299,7 +299,7 @@ fn a_check_waits_until_its_source_list_has_been_sent() {
     world.step(Event::Sources { sources: Box::new([source(b"a"), source(b"b")]) });
     assert_eq!(world.step(Event::CheckProgram { name: source(b"b") }).len(), 0);
     world.inventory(&[b"a"]);
-    fleet::resume(&mut world.domain, &world.env, &mut world.out);
+    fleet::resume(&mut world.domain, &world.env, true, &mut world.out);
     let mut requests = Vec::new();
     while let Some(request) = world.out.pop() {
         requests.push(request);

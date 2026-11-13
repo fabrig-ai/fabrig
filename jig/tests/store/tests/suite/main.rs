@@ -17,6 +17,7 @@ mod installation;
 mod joins;
 mod layout_golden;
 mod mark_gate;
+mod openings;
 mod orphan_memory;
 mod pages;
 mod patching;

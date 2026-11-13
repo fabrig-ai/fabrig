@@ -411,6 +411,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         core::Event::Watch { watcher, .. } | core::Event::WatchRun { watcher, .. } => Some(*watcher),
         core::Event::SettingsCommit { .. }
         | core::Event::Fill { .. }
+        | core::Event::Settling
         | core::Event::Stopping
         | core::Event::Marked { .. }
         | core::Event::ReadLoaded { .. }

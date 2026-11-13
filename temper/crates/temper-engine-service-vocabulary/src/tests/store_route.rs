@@ -1111,3 +1111,42 @@ fn the_sweep_load_selects_only_people() {
     let store::Request::Restore { range: store::Restore::Jig(ranges), .. } = request else { panic!("startup sweep") };
     assert_eq!(ranges.as_ref(), [core::RestoreRange::People]);
 }
+
+#[test]
+fn an_opening_write_routes_every_statement_field_and_the_roots_wall_time() {
+    let opening = engine::WorkerOpening {
+        worker: "w1".into(),
+        statement: engine::WorkerStatement {
+            wires: Box::new([engine::OpenedWire {
+                name: "example-wire".into(),
+                lowest: 3,
+                layouts: Box::new([[4; 32], [5; 32]]),
+            }]),
+            output: 4096,
+            terms: Box::new([engine::OpenedTerm { kind: 12, largest: 34 }]),
+        },
+        at: skein_lib::Wall::from_nanos(123),
+    };
+    let request = route::down(
+        &mut fixtures::routes(),
+        engine::StoreRequest::Commit { number: 7, writes: Box::new([engine::Write::Opening(opening)]) },
+    )
+    .expect("opening translates");
+    let store::Request::Commit { number, writes } = request else { panic!("store commit") };
+    assert_eq!(number, 7);
+    let [store::Write::Opening(opening)] = writes.as_ref() else { panic!("one opening write") };
+    assert_eq!(
+        *opening,
+        store::WorkerOpening {
+            worker: "w1".into(),
+            wires: Box::new([store::OpenedWire {
+                name: "example-wire".into(),
+                lowest: 3,
+                layouts: Box::new([[4; 32], [5; 32]])
+            }]),
+            output: 4096,
+            terms: Box::new([store::OpenedTerm { kind: 12, largest: 34 }]),
+            at: skein_lib::Wall::from_nanos(123),
+        }
+    );
+}

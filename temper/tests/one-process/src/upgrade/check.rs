@@ -216,10 +216,10 @@ fn tree(disk: &mut Machine, root: Opened, prefix: &[u8], result: &mut Image) {
     }
 }
 
-pub fn rehearsal_then_start_and_back() {
+fn stopped_chat() -> Machine {
     let scenario = world::Story::ChatReadThenWait { words: b"Hello" };
     let settings = fixtures::calm(fixtures::SEED);
-    let (first, mut disk, _) = world::with_patch_sets(temper_engine_service::store::PATCH_SETS, || {
+    let (first, disk, _) = world::with_patch_sets(temper_engine_service::store::PATCH_SETS, || {
         world::run_phase(
             settings,
             scenario,
@@ -230,6 +230,26 @@ pub fn rehearsal_then_start_and_back() {
         )
     });
     assert!(first.drained);
+    disk
+}
+
+/// A worker's real accepted statement survives the stopped deployment and reaches the tool's verdict.
+pub fn opened_worker_rehearsal() {
+    let mut disk = stopped_chat();
+    let document = fixtures::document();
+    let before = image(&mut disk);
+    let (report, code, patches) = drive(&mut disk, &document, temper_engine_service::store::PATCH_SETS, Until::Check);
+    eprintln!("{report}");
+    assert_eq!(code, 0, "{report}");
+    assert!(patches.is_empty(), "an equal-level rehearsal patches nothing");
+    // fixtures::document names worker-a; the world starts at 2026-01-01 UTC.
+    assert!(report.contains("temper-box upgrade: worker worker-a may stay: opened 2026-01-01T00:00:00Z\n"), "{report}");
+    assert!(report.ends_with("temper-box upgrade: workers may stay: yes\n"), "{report}");
+    assert_eq!(image(&mut disk), before, "rehearsal leaves the stopped deployment unchanged");
+}
+
+pub fn rehearsal_then_start_and_back() {
+    let mut disk = stopped_chat();
     let document = fixtures::document();
     let original = image(&mut disk);
     let before = Maps::read(&mut disk);
@@ -239,7 +259,8 @@ pub fn rehearsal_then_start_and_back() {
     assert_eq!(patches, vec![(Owner::Application, patch, jig_protocol_store::Counts { records: 0, commits: 0 })]);
     assert!(report.contains(&format!("patched temper {patch}: 0 records in 0 commits")), "{report}");
     assert!(report.contains("patches and restores pass; what follows the switch is not rehearsed"), "{report}");
-    assert!(report.contains("workers may stay: no") && report.contains("requires fresh workers"), "{report}");
+    assert!(report.ends_with("temper-box upgrade: a pending patch requires fresh workers; stop the workers\ntemper-box upgrade: workers may stay: no\n"), "{report}");
+    assert!(!report.contains("may stay: opened"), "fresh patches end the worker judgement");
     assert_eq!(image(&mut disk), original, "rehearsal leaves every deployment byte unchanged");
     let (_, _, actual) = drive(&mut disk, &document, FIXTURE_SETS, Until::Switched);
     assert_eq!(actual, patches, "start patches as rehearsed");

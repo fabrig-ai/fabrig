@@ -1,10 +1,12 @@
 //! One report renderer for shells and worlds (protocol/binaries.md, upgrade).
-use jig_protocol_store::{BackRefusal, Event, KeptMap, KeptWire, Owner, Undecoded};
+use jig_protocol_store::{BackRefusal, Event, KeptMap, KeptWire, Owner, Undecoded, WorkerOpening};
 #[cfg(test)]
 #[path = "report/tests.rs"]
 mod decode_tests;
+use jig_protocol_engine_workers::{Stated, Statement, Unfit, judge};
+use skein_lib::{List, Wall};
 use std::fmt::Write;
-use temper_engine_service::upgrade::Report;
+use temper_engine_service::upgrade::{Report, Workers};
 use temper_shell::directories::Directories;
 
 #[must_use]
@@ -22,15 +24,17 @@ pub const fn owner(of: Owner) -> &'static str {
 pub fn lines(binary: &str, report: &Report, directories: &Directories, deployment: &[u8]) -> (String, u8) {
     let mut text = String::new();
     let mut kept = None;
+    let mut openings = &[][..];
     let mut rehearsal = false;
     let mut fresh = false;
     let mut passed = report.restored;
     for event in &report.events {
         match event {
-            Event::Rehearsing { wires, fresh: marked, .. } => {
+            Event::Rehearsing { wires, fresh: marked, openings: stated, .. } => {
                 rehearsal = true;
                 kept = wires.as_deref();
                 fresh = *marked;
+                openings = stated;
             }
             Event::Decoded { records, .. } => {
                 writeln!(text, "{binary} upgrade: decoded {records} records").expect("string write");
@@ -111,7 +115,7 @@ pub fn lines(binary: &str, report: &Report, directories: &Directories, deploymen
             .expect("string write");
     }
     if rehearsal || report.end.is_some() {
-        workers(&mut text, binary, kept, fresh);
+        workers(&mut text, binary, kept, fresh, openings, &report.workers);
     }
     (text, u8::from(!passed || !report.done))
 }
@@ -135,99 +139,156 @@ fn place(text: &mut String, at: &Undecoded) {
     }
 }
 
-fn workers(text: &mut String, binary: &str, kept: Option<&[KeptWire]>, fresh: bool) {
+// The table's worker-facing entries are precisely jig's four and temper's worker wire.
+fn worker_wire(name: &str) -> bool {
+    name == temper_protocol_worker_wire::wire::FAMILY
+        || jig_protocol_worker_wire::spoken().iter().any(|wire| wire.name == name)
+}
+
+fn workers(
+    text: &mut String,
+    binary: &str,
+    kept: Option<&[KeptWire]>,
+    fresh: bool,
+    openings: &[WorkerOpening],
+    configured: &Workers,
+) {
+    if fresh {
+        writeln!(text, "{binary} upgrade: a pending patch requires fresh workers; stop the workers")
+            .expect("string write");
+        writeln!(text, "{binary} upgrade: workers may stay: no").expect("string write");
+        return;
+    }
     let Some(kept) = kept else {
         writeln!(text, "{binary} upgrade: workers may stay: unknown; the copy keeps no wires").expect("string write");
         return;
     };
-    let wires = temper_engine_service::wires();
-    let equal = kept.len() == wires.as_slice().len()
-        && wires.iter().all(|wire| {
-            kept.iter().any(|old| old.name.as_ref() == wire.name && old.version == u32::from(wire.highest()))
-        });
-    writeln!(text, "{binary} upgrade: workers may stay: {}", if equal && !fresh { "yes" } else { "no" })
-        .expect("string write");
-    if fresh {
-        writeln!(text, "{binary} upgrade: a pending patch requires fresh workers; stop the workers")
-            .expect("string write");
+    let (spoken, mut allowed) = engine_wires(text, binary, kept);
+    for name in &configured.names {
+        let name = String::from_utf8_lossy(name);
+        let Some(opening) = openings.iter().find(|opening| opening.worker.as_ref() == name) else {
+            allowed = false;
+            writeln!(text, "{binary} upgrade: worker {name} unknown: no opening kept since the engine's last start")
+                .expect("string write");
+            continue;
+        };
+        match judge(&spoken, configured.room, &configured.schema, &statement(opening)) {
+            Ok(_) => writeln!(text, "{binary} upgrade: worker {name} may stay: opened {}", at(opening.at))
+                .expect("string write"),
+            Err(unfit) => {
+                allowed = false;
+                let (kind, words) = match unfit {
+                    Unfit::Wires(words) => ("wires", words),
+                    Unfit::Limits(words) => ("limits", words),
+                };
+                writeln!(
+                    text,
+                    "{binary} upgrade: worker {name} may not stay: {kind}: {}",
+                    String::from_utf8_lossy(&words)
+                )
+                .expect("string write");
+            }
+        }
     }
-    for wire in &wires {
+    writeln!(text, "{binary} upgrade: workers may stay: {}", if allowed { "yes" } else { "no" }).expect("string write");
+}
+
+fn engine_wires(text: &mut String, binary: &str, kept: &[KeptWire]) -> (List<jig_protocol_worker_wire::Spoken>, bool) {
+    let mut allowed = true;
+    let mut spoken = List::with_capacity(temper_engine_service::wires().len());
+    for wire in temper_engine_service::wires().into_boxed() {
+        if worker_wire(wire.name) {
+            spoken.push(wire).expect("table capacity");
+            continue;
+        }
         match kept.iter().find(|old| old.name.as_ref() == wire.name) {
-            Some(old) if old.version == u32::from(wire.highest()) => {}
-            Some(old) => writeln!(
-                text,
-                "{binary} upgrade: wire {} differs: kept {}, binary {}",
-                wire.name,
-                old.version,
-                wire.highest()
-            )
-            .expect("string write"),
+            Some(old) if (u32::from(wire.lowest)..=u32::from(wire.highest())).contains(&old.version) => {}
+            Some(old) => {
+                allowed = false;
+                writeln!(
+                    text,
+                    "{binary} upgrade: wire {}: kept {}, this binary speaks {}..{}",
+                    wire.name,
+                    old.version,
+                    wire.lowest,
+                    wire.highest()
+                )
+                .expect("string write");
+            }
             None => {
+                allowed = false;
                 writeln!(text, "{binary} upgrade: wire {} is not kept by the copy", wire.name).expect("string write");
             }
         }
     }
-    for old in kept.iter().filter(|old| !wires.iter().any(|wire| wire.name == old.name.as_ref())) {
-        writeln!(text, "{binary} upgrade: wire {} is not spoken by this binary", old.name).expect("string write");
+    (spoken, allowed)
+}
+
+fn statement(opening: &WorkerOpening) -> Statement {
+    Statement {
+        wires: List::from_boxed(
+            opening
+                .wires
+                .iter()
+                .map(|wire| Stated {
+                    name: wire.name.clone(),
+                    lowest: wire.lowest,
+                    layouts: List::from_boxed(wire.layouts.clone()),
+                })
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        ),
+        output: opening.output,
+        terms: List::from_boxed(
+            opening
+                .terms
+                .iter()
+                .map(|term| skein_channel::Term { kind: term.kind, largest: term.largest })
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        ),
     }
+}
+
+fn at(wall: Wall) -> String {
+    let date = wall.civil();
+    let seconds = wall.as_secs() % 86_400;
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        date.year,
+        date.month,
+        date.day,
+        seconds / 3600,
+        seconds / 60 % 60,
+        seconds % 60
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use skein_lib::{Duration, Queue, Token};
-    fn report(event: Event) -> Report {
+    pub(super) fn report(event: Event) -> Report {
         let mut events = Queue::uncapped();
         events.push(event);
-        Report { events, elapsed: Duration::from_secs(1), end: None, restored: false, done: true, open_failure: None }
+        Report {
+            workers: decode_tests::configured(&[]),
+            events,
+            elapsed: Duration::from_secs(1),
+            end: None,
+            restored: false,
+            done: true,
+            open_failure: None,
+        }
     }
     #[test]
-    fn report_words_cover_workers_back_and_patched_starts() {
+    fn report_words_cover_back_and_patched_starts() {
         let dirs = Directories {
             config: b"/config".as_slice().into(),
             data: b"/data".as_slice().into(),
             cache: b"/cache".as_slice().into(),
             origins: [skein_shell::Origin::Flag; 3],
         };
-        let wires = || {
-            temper_engine_service::wires()
-                .iter()
-                .map(|wire| KeptWire { name: wire.name.into(), version: u32::from(wire.highest()) })
-                .collect::<Vec<_>>()
-                .into_boxed_slice()
-        };
-        for (kept, fresh, words) in [
-            (Some(wires()), false, "workers may stay: yes"),
-            (Some(wires()), true, "workers may stay: no"),
-            (None, false, "workers may stay: unknown"),
-            (
-                Some(Box::new([
-                    KeptWire { name: "jig-channel".into(), version: 10 },
-                    KeptWire { name: "smith-charter".into(), version: 4 },
-                    KeptWire { name: "smith-turn".into(), version: 7 },
-                    KeptWire { name: "temper-payload".into(), version: 5 },
-                ]) as Box<[_]>),
-                false,
-                "wire jig-channel is not spoken by this binary",
-            ),
-            (
-                Some(Box::new([KeptWire { name: "jig-worker-wire".into(), version: 0 }]) as Box<[_]>),
-                false,
-                "wire jig-worker-wire differs: kept 0, binary",
-            ),
-        ] {
-            let mut report = report(Event::Rehearsing { owner: Token::new(1), wires: kept, fresh });
-            report.events.push(Event::Decoded { owner: Token::new(1), records: 17 });
-            report.restored = true;
-            let (text, code) = lines("temper-engine", &report, &dirs, b"/backup");
-            assert_eq!(code, 0, "{text}");
-            assert!(text.contains("decoded 17 records\n"), "{text}");
-            assert!(text.contains(words), "{text}");
-            if words.contains("jig-channel") {
-                assert!(text.contains("workers may stay: no"), "{text}");
-                assert!(text.contains("wire jig-worker-wire is not kept by the copy"), "{text}");
-            }
-        }
         for (why, remedy) in [
             (
                 BackRefusal::Committed { manifest: 1, last: 2 },

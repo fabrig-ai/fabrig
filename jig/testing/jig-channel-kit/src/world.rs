@@ -847,3 +847,30 @@ fn expected_answers(story: crate::stories::Story) -> usize {
         _ => 1,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skein_world::Referee as _;
+
+    #[test]
+    fn the_horizon_leaves_recovery_time_after_the_profiles_fleet_grace() {
+        let mut script = fixtures::one_chat(b"Hello");
+        script.story = crate::stories::Story::MidFrame;
+        let referee = make_referee(
+            &script,
+            false,
+            Rc::new(RefCell::new(Store::new())),
+            Rc::new(RefCell::new(Views::default())),
+            false,
+        );
+        let horizon = referee.next_deadline().expect("unsettled story deadline");
+        let grace = fixtures::store_limits().root.core.fleet.grace;
+        let redial = fixtures::worker_redial_ceiling();
+        assert!(
+            horizon > skein_lib::Time::ZERO.saturating_add(grace).saturating_add(redial),
+            "the horizon {horizon:?} leaves a margin after fleet grace {grace:?} and redial {redial:?}"
+        );
+        assert!(horizon >= skein_lib::Time::from_nanos(300_000_000_000), "300 s remains the floor");
+    }
+}

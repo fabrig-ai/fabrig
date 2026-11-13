@@ -21,7 +21,11 @@ fn layouts() -> String {
          \n\
          pub(crate) const LAYOUTS: Layouts = Layouts {\n",
     );
-    for family in families::FAMILIES.iter().filter(|family| family.root == "crates/jig-protocol-store") {
+    // Openings are a new family, absent from the component's fixed layouts row.
+    for family in families::FAMILIES
+        .iter()
+        .filter(|family| family.root == "crates/jig-protocol-store" && family.name != "openings")
+    {
         let field = family.name;
         let source = fs::read(
             skein_scratch::paths::tree().join(family.root).join(family.schemas.first().expect("store schema")),

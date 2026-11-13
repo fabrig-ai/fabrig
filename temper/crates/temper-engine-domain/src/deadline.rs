@@ -14,14 +14,14 @@ impl Domain {
         if self.core.stopping() {
             return next;
         }
-        if self.ready() {
+        if self.ready() && !self.core.settling() {
             next = earliest(next, wall_deadline(self.core.effect_deadline(), env.now, env.wall));
         }
         if self.ready() || self.settling.active() || crate::restart::connector_restarting(self) {
             next = earliest(next, self.forge.next_deadline());
             next = earliest(next, wall_deadline(self.forge.next_wall_deadline(), env.now, env.wall));
         }
-        if self.ready() {
+        if self.ready() && !self.core.settling() {
             next = earliest(next, wall_deadline(self.calendar.next_start(), env.now, env.wall));
             next = earliest(next, wall_deadline(self.trials.next_due(), env.now, env.wall));
         }

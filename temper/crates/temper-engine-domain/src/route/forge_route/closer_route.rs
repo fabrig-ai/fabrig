@@ -11,6 +11,9 @@ pub(crate) struct Pending {
 
 #[expect(clippy::too_many_lines, reason = "the procedure gathers its goal and submits one exhaustive step decision")]
 pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) {
+    if domain.core.settling() {
+        return;
+    }
     let task = context.task;
     let goal = match context.requester {
         tasks::Party::Task(goal) => goal,

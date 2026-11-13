@@ -2,6 +2,7 @@ mod debug;
 mod fixtures;
 mod opening;
 mod room;
+mod statement;
 mod translate;
 
 #[test]

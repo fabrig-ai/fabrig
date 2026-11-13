@@ -66,6 +66,9 @@ pub(super) fn history(before: &Maps, after: &Maps) {
                     expected.levels.application = expected.levels.application.map(|level| level + 1);
                     assert_eq!(after.format(), expected, "only the fixture owner level changes");
                     allowed.push("fixture owner level");
+                } else if matches!(own, Some(jig_protocol_store::keys::Own::Opening(_))) {
+                    assert!(old.is_some() && new.is_none(), "the start's wires clear the previous worker opening");
+                    allowed.push("wires cleared the previous worker opening");
                 } else {
                     panic!(
                         "unlisted history difference key {key:02x?}: {named:?}, {own:?}\nold {old:02x?}\nnew {new:02x?}"
