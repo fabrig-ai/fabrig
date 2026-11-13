@@ -32,6 +32,31 @@ pub const CEILINGS: Limits = Limits {
     record_setting_replaced_value: 65_536,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 10] = [
+    "segment_bytes",
+    "resource_path_segments",
+    "effect_resources",
+    "record_procedure_delegate_outcome_revisions",
+    "record_task_resources",
+    "record_made_resources",
+    "setting_set_value",
+    "record_setting_default_value",
+    "record_setting_change_value_some",
+    "record_setting_replaced_value",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 10] {
+        [
+            self.segment_bytes, self.resource_path_segments, self.effect_resources, self.record_procedure_delegate_outcome_revisions, self.record_task_resources, self.record_made_resources, self.setting_set_value, self.record_setting_default_value,
+            self.record_setting_change_value_some, self.record_setting_replaced_value,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {

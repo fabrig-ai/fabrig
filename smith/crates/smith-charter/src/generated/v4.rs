@@ -74,6 +74,54 @@ pub const CEILINGS: Limits = Limits {
     run_result_items: 256,
 };
 
+/// The limits' field names, in field order.
+pub const LIMIT_NAMES: [&str; 31] = [
+    "section_title",
+    "section_body",
+    "host_tool_name",
+    "host_tool_description",
+    "host_tool_input",
+    "field_rule_name",
+    "text_rule_fields",
+    "item_kind_kind",
+    "item_kind_fields",
+    "verdict_rule_label",
+    "verdict_rule_fields",
+    "verdict_rule_kinds",
+    "change_rule_fields",
+    "contract_verdicts",
+    "tools_host",
+    "conventions_guide",
+    "conventions_checks",
+    "llm_endpoint",
+    "llm_model",
+    "llm_effort_some",
+    "charter_instructions",
+    "charter_brief",
+    "charter_models",
+    "field_name",
+    "field_text",
+    "item_kind",
+    "item_fields",
+    "run_result_label_some",
+    "run_result_text",
+    "run_result_fields",
+    "run_result_items",
+];
+
+impl Limits {
+    /// The limits' values, in `LIMIT_NAMES` order.
+    #[must_use]
+    pub fn values(&self) -> [u32; 31] {
+        [
+            self.section_title, self.section_body, self.host_tool_name, self.host_tool_description, self.host_tool_input, self.field_rule_name, self.text_rule_fields, self.item_kind_kind,
+            self.item_kind_fields, self.verdict_rule_label, self.verdict_rule_fields, self.verdict_rule_kinds, self.change_rule_fields, self.contract_verdicts, self.tools_host, self.conventions_guide,
+            self.conventions_checks, self.llm_endpoint, self.llm_model, self.llm_effort_some, self.charter_instructions, self.charter_brief, self.charter_models, self.field_name,
+            self.field_text, self.item_kind, self.item_fields, self.run_result_label_some, self.run_result_text, self.run_result_fields, self.run_result_items,
+        ]
+    }
+}
+
 /// A field or tag that caused a codec problem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Path {
