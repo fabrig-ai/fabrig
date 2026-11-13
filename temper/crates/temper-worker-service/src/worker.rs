@@ -125,7 +125,8 @@ impl Worker {
         let link = link::Component::new(
             &prepared.link,
             jig_protocol_worker_wire::spoken(),
-            worker_settings::credential(settings, secret, &prepared.payload).or(Err(problem(b"limits", What::Bound)))?,
+            worker_settings::credential(settings, secret, &prepared.payload)
+                .or(Err(problem(b"limits", What::Bound)))?,
             seed,
         )
         .or(Err(problem(b"limits", What::Bound)))?;

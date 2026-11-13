@@ -45,7 +45,8 @@ pub fn wires() -> List<jig_protocol_worker_wire::Spoken> {
     wires.push(temper_protocol_worker_wire::spoken()).expect("six wire slots");
     let mut layouts = List::with_capacity(u32::from(temper_engine_smith::wire::VERSION));
     for (index, text) in temper_engine_smith::wire::TEXTS.iter().enumerate() {
-        let version = u16::try_from(index).expect("kept contract index fits u16").checked_add(1).expect("contract version");
+        let version =
+            u16::try_from(index).expect("kept contract index fits u16").checked_add(1).expect("contract version");
         if version >= temper_engine_smith::wire::FLOOR {
             layouts.push(skein_lib::sha256::digest(text.as_bytes())).expect("one layout per kept contract");
         }

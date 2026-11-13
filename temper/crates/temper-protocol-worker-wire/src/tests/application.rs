@@ -36,9 +36,15 @@ fn the_roots_name_the_declarations_temper_encodes() {
     landed.push(v1::Landed::new(&limits, v1::LandedParts { tag: 17, commit: [3; 32] }).unwrap()).unwrap();
     let left = v1::Left::new(&limits, v1::LeftParts { landed }).unwrap();
     let mut repositories = List::with_capacity(1);
-    repositories.push(v1::SavedRepository::new(&limits, v1::SavedRepositoryParts {
-        tag: 19, from_saved: true, landing: v1::Landing::Moved,
-    }).unwrap()).unwrap();
+    repositories
+        .push(
+            v1::SavedRepository::new(
+                &limits,
+                v1::SavedRepositoryParts { tag: 19, from_saved: true, landing: v1::Landing::Moved },
+            )
+            .unwrap(),
+        )
+        .unwrap();
     let saved = v1::Saved::new(&limits, v1::SavedParts { repositories }).unwrap();
     let preparation = v1::Preparation::Refused(v1::Tag::new(&limits, v1::TagParts { tag: 23 }).unwrap());
     let identity = crate::identity(&fixtures::identity(b"token"));

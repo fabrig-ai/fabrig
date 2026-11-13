@@ -15,7 +15,9 @@ use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
 /// Temper's roots and bridge, with its spoken entry from the engine's table
 /// (temper/docs/design/protocol/wires.md, 4 and 10).
-pub fn application(limits: &wire::Limits) -> Result<jig_protocol_worker_wire::Application, skein_codec::bridge::BridgeError> {
+pub fn application(
+    limits: &wire::Limits,
+) -> Result<jig_protocol_worker_wire::Application, skein_codec::bridge::BridgeError> {
     let mut application = temper_protocol_worker_wire::application(limits)?;
     let mut wires = List::with_capacity(1);
     for wire in crate::wires().into_boxed() {
