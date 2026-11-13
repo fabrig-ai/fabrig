@@ -1123,7 +1123,16 @@ dependencies = [
 name = "jig-client-test-protocol-wire"
 version = "0.0.0"
 dependencies = [
+ "jig-client-test-protocol-wire-codec",
  "jig-test-connector",
+ "skein-codec",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-client-test-protocol-wire-codec"
+version = "0.0.0"
+dependencies = [
  "skein-codec",
  "skein-lib",
 ]
