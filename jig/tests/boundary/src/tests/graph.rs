@@ -25,8 +25,9 @@ fn no_kit_crate_depends_on_an_application_crate_even_when_empty() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-const CORE_FAMILY: [&str; 9] = [
+const CORE_FAMILY: [&str; 10] = [
     "jig-domain-core",
+    "jig-domain-core-vocabulary",
     "jig-domain-accounts",
     "jig-domain-authority",
     "jig-domain-brief",
@@ -49,6 +50,11 @@ fn core_breaches(manifests: &[CrateManifest]) -> Vec<String> {
                     if manifest.name.as_deref() == Some("jig-domain-core") {
                         !["skein-lib", "jig-domain-link"].contains(&name.as_str())
                             && !CORE_FAMILY.contains(&name.as_str())
+                    } else if manifest.name.as_deref() == Some("jig-domain-core-vocabulary") {
+                        // Below the core, above its children (jig/docs/design/domain/engine/README.md, 3).
+                        !["skein-lib", "jig-domain-link"].contains(&name.as_str())
+                            && (!CORE_FAMILY.contains(&name.as_str())
+                                || ["jig-domain-core", "jig-domain-core-vocabulary"].contains(&name.as_str()))
                     } else {
                         !["skein-lib", "jig-domain-link"].contains(&name.as_str())
                     }
@@ -79,7 +85,7 @@ fn hosts_and_translation_use_only_their_core_vocabularies_even_when_empty() {
                     CORE_FAMILY.contains(&name.as_str())
                         // jig/docs/design/domain/hosts/charters.md: assignment translates the run charter and task contract.
                         && !(manifest.name.as_deref() == Some("jig-protocol-charter")
-                            && ["jig-domain-core", "jig-domain-tasks", "jig-domain-brief"].contains(&name.as_str()))
+                            && ["jig-domain-core-vocabulary", "jig-domain-tasks", "jig-domain-brief"].contains(&name.as_str()))
                 })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
                 .collect::<Vec<_>>()
@@ -823,6 +829,13 @@ fn accounts_cannot_depend_on_fleet() {
 }
 
 #[test]
+fn the_core_vocabulary_cannot_depend_on_the_core() {
+    let source = "[package]\nname = \"jig-domain-core-vocabulary\"\n[dependencies]\njig-domain-core.workspace = true\njig-domain-tasks.workspace = true\n";
+    let manifest = parse_manifest(PathBuf::from("vocabulary/Cargo.toml"), source);
+    assert_eq!(core_breaches(&[manifest]), ["vocabulary/Cargo.toml: jig-domain-core"]);
+}
+
+#[test]
 fn engine_hub_link_joins_only_core_host_and_link_vocabularies() {
     let crates: Vec<_> = manifests().into_iter().filter(|m| m.name.as_deref() == Some("jig-domain-hub-link")).collect();
     assert_eq!(crates.len(), 1, "one engine hub link");
@@ -830,7 +843,7 @@ fn engine_hub_link_joins_only_core_host_and_link_vocabularies() {
         assert!(
             [
                 "skein-lib",
-                "jig-domain-core",
+                "jig-domain-core-vocabulary",
                 "jig-domain-host",
                 "jig-domain-link",
                 "jig-domain-accounts",

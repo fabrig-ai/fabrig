@@ -8,7 +8,7 @@ fn settings_value_includes_the_generated_model_names_and_replaced_values() {
     let names = crate::settings_v3::ModelName::encoded_bound(&codec).unwrap() * u64::from(jig_domain_tasks::MODELS) + 4;
     assert_eq!(
         u64::from(crate::sizes::settings_value(&domain).unwrap()),
-        jig_domain_core::settings::revision_bound(&domain).unwrap() + 16 + names
+        jig_domain_core_vocabulary::settings::revision_bound(&domain).unwrap() + 16 + names
     );
 }
 

@@ -1,6 +1,6 @@
 //! The protocol routing's vocabulary (protocol/client/README.md, section 2 and protocol/client/sign-in.md).
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as people;
 use jig_domain_views as views;
 use skein_lib::{Duration, List, ReplyTo, Secret, Time, Token, Wall};
@@ -143,7 +143,7 @@ pub enum ToApplication {
         family: u16,
         version: u32,
         scope: people::ApplicationScope,
-        window: jig_domain_core::documents::Window,
+        window: jig_domain_core_vocabulary::documents::Window,
         record: Box<[u8]>,
     },
     Watch {
@@ -152,7 +152,7 @@ pub enum ToApplication {
         family: u16,
         version: u32,
         scope: people::ApplicationScope,
-        window: jig_domain_core::documents::Window,
+        window: jig_domain_core_vocabulary::documents::Window,
         record: Box<[u8]>,
     },
 }

@@ -33,7 +33,7 @@ skein-codegen.workspace = true
 skein-scratch.workspace = true
 skein-world.workspace = true
 temper-engine-domain.workspace = true
-jig-domain-core.workspace = true
+jig-domain-core-vocabulary.workspace = true
 jig-domain-notes.workspace = true
 
 [lints]

@@ -2,7 +2,7 @@
 //! jig/docs/design/domain/hosts/hub.md, 1 and 9).
 use crate::JobStart;
 use jig_domain_brief as brief;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_host as host;
 use skein_lib::{List, Time, Token};
 

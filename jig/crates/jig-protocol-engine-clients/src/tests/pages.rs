@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::translate::pages;
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core::reads;
+use jig_domain_core_vocabulary::reads;
 
 fn activity(read: &reads::Page, limits: &w::Limits) -> Result<w::ReadValue, w::Problem> {
     pages::page(

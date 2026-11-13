@@ -1,7 +1,7 @@
 //! Plain peer answers shared by application conformance adapters
 //! (`jig/docs/design/domain/testing.md`, 5).
 use jig_domain_accounts as accounts;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_link::{Form, Scheme};
 use jig_domain_notes as notes;
 use jig_protocol_tools as tools;

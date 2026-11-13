@@ -1,7 +1,7 @@
 use super::fixtures as f;
 use crate::translate::settings as translate;
 use jig_client_protocol_wire::v20 as w;
-use jig_domain_core::{documents as d, reads, settings as s};
+use jig_domain_core_vocabulary::{documents as d, reads, settings as s};
 use skein_lib::{List, Reader, Wall};
 
 fn head() -> s::Head {
@@ -85,7 +85,7 @@ fn inventory_reads_and_watch_deliveries_carry_the_same_facts() {
 #[test]
 fn settings_watch_subject_enters_the_core() {
     let event = crate::translate::watches::watch(skein_lib::Token::new(1), 2, w::Subject::Settings, 3).unwrap();
-    let jig_domain_core::Event::Watch { subject, .. } = event else { panic!("watch") };
+    let jig_domain_core_vocabulary::Event::Watch { subject, .. } = event else { panic!("watch") };
     assert_eq!(subject, d::Watched::Settings);
 }
 #[test]
@@ -153,16 +153,16 @@ fn authority() -> jig_domain_authority::Authority {
         note_resources: Box::new([]),
     }
 }
-fn charter() -> jig_domain_core::Charter {
-    use jig_domain_core as core;
+fn charter() -> jig_domain_core_vocabulary::Charter {
+    use jig_domain_core_vocabulary as core;
     use skein_lib::Duration;
     core::Charter {
         parts: Box::new([
-            jig_domain_core::CharterPart {
+            jig_domain_core_vocabulary::CharterPart {
                 on: jig_domain_tasks::Reasons::FIRST,
                 instructions: b"first part".as_slice().into(),
             },
-            jig_domain_core::CharterPart {
+            jig_domain_core_vocabulary::CharterPart {
                 on: jig_domain_tasks::Reasons::QUESTION.union(jig_domain_tasks::Reasons::NEWS),
                 instructions: b"later part".as_slice().into(),
             },
@@ -242,7 +242,7 @@ fn values() -> [s::Value; 4] {
             });
             template
         })),
-        s::Value::Policy(Box::new(jig_domain_core::ConfiguredPolicy {
+        s::Value::Policy(Box::new(jig_domain_core_vocabulary::ConfiguredPolicy {
             policy: a::Policy {
                 escalation_role: Some(1),
                 ceiling: authority(),

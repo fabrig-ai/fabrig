@@ -8,7 +8,7 @@ use skein_lib::List;
 /// its seed projects against them. The core checks the defaults themselves at each start.
 /// # Errors
 /// The document's problems against the defaults, at the document's paths.
-pub fn pass(engine: &mut Engine, defaults: jig_domain_core::settings::Defaults) -> Result<(), Problems> {
+pub fn pass(engine: &mut Engine, defaults: jig_domain_core_vocabulary::settings::Defaults) -> Result<(), Problems> {
     assert_eq!(engine.defaults, crate::Defaults::Passed, "pass requires passed defaults");
     engine.llm.models = defaults.models;
     engine.charters = defaults.charters;
@@ -64,8 +64,8 @@ pub(crate) fn empty_rules() -> authority::Rules {
 }
 
 pub(crate) struct Offers {
-    pub charters: Option<Box<[jig_domain_core::Charter]>>,
-    pub templates: Option<Box<[jig_domain_core::Template]>>,
+    pub charters: Option<Box<[jig_domain_core_vocabulary::Charter]>>,
+    pub templates: Option<Box<[jig_domain_core_vocabulary::Template]>>,
 }
 pub(crate) fn offers(
     document: &skein_json::Document,

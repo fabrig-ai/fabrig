@@ -2,7 +2,7 @@
 use super::fixtures::{self, Answer, LIVE};
 use crate::{Arrived, Below, Event, Io, Phase, Store};
 use alloc::boxed::Box;
-use jig_domain_core::{CoreKey, CoreRecord, Key, Record, TurnRecord};
+use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Key, Record, TurnRecord};
 use skein_io::{file, kernel::Error};
 use skein_lib::{Queue, Token, length::len_u64};
 fn submit(store: &mut Store, number: u64, turns: &[TurnRecord]) -> (Box<[Event]>, Below) {

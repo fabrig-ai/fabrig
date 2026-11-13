@@ -210,7 +210,8 @@ pub fn kept(name: &[u8], list: &jig_domain_accounts::ProviderList) -> bool {
     false
 }
 
-pub(crate) fn fits(value: &CatalogueModel, number: u32) -> bool {
+#[must_use]
+pub fn fits(value: &CatalogueModel, number: u32) -> bool {
     let model = &value.model;
     if number == 0
         || number > jig_domain_tasks::MODELS
@@ -254,7 +255,7 @@ pub(crate) fn fits(value: &CatalogueModel, number: u32) -> bool {
     }
 }
 
-pub(crate) fn shape(value: &CatalogueModel, number: u32, settings: &Settings) -> Result<(), Fault> {
+pub fn shape(value: &CatalogueModel, number: u32, settings: &Settings) -> Result<(), Fault> {
     if !fits(value, number) {
         return Err(Fault::Shape);
     }
@@ -273,7 +274,8 @@ pub(crate) fn shape(value: &CatalogueModel, number: u32, settings: &Settings) ->
     Err(Fault::Reference)
 }
 
-pub(crate) fn bound() -> Option<u64> {
+#[must_use]
+pub fn bound() -> Option<u64> {
     u64::try_from(size_of::<CatalogueModel>())
         .ok()?
         .checked_add(u64::from(crate::MODEL_NAME_BYTES).checked_mul(2)?)?
@@ -288,11 +290,13 @@ pub(crate) fn bound() -> Option<u64> {
 }
 
 /// The catalogue the current settings leave, one row per number up to the highest (17.11).
-pub(crate) fn table(current: &Current) -> Box<[Model]> {
+#[must_use]
+pub fn table(current: &Current) -> Box<[Model]> {
     rows(&entries(current))
 }
 
-pub(crate) fn rows(models: &[CatalogueModel]) -> Box<[Model]> {
+#[must_use]
+pub fn rows(models: &[CatalogueModel]) -> Box<[Model]> {
     let mut highest = 0;
     for model in models {
         highest = highest.max(model.number);
@@ -311,12 +315,14 @@ pub(crate) fn rows(models: &[CatalogueModel]) -> Box<[Model]> {
     rows.into_boxed()
 }
 
-pub(crate) fn entries(current: &Current) -> Box<[CatalogueModel]> {
+#[must_use]
+pub fn entries(current: &Current) -> Box<[CatalogueModel]> {
     overlay(current, false, &[])
 }
 
 /// Select models through the same default/change overlay as the settings check.
-pub(crate) fn overlay(current: &Current, defaults: bool, items: &[Item]) -> Box<[CatalogueModel]> {
+#[must_use]
+pub fn overlay(current: &Current, defaults: bool, items: &[Item]) -> Box<[CatalogueModel]> {
     let mut models = List::with_capacity(jig_domain_tasks::MODELS);
     for number in 1..=jig_domain_tasks::MODELS {
         let setting = Setting::Model(number);
@@ -343,7 +349,8 @@ pub(crate) fn overlay(current: &Current, defaults: bool, items: &[Item]) -> Box<
 }
 
 /// Worlds without numbered defaults take their initial rows as stock (17.7).
-pub(crate) fn defaults(settings: &Settings) -> Box<[CatalogueModel]> {
+#[must_use]
+pub fn defaults(settings: &Settings) -> Box<[CatalogueModel]> {
     let mut models = List::with_capacity(jig_domain_tasks::MODELS);
     for (at, model) in settings.models.iter().enumerate() {
         if model.is_hole() {
@@ -375,7 +382,7 @@ pub enum ModelAct {
 
 /// The highest number not held by any setting, withdrawn rows included.
 #[must_use]
-pub(crate) fn free_number(models: &[CatalogueModel]) -> Option<u32> {
+pub fn free_number(models: &[CatalogueModel]) -> Option<u32> {
     for number in (1..=jig_domain_tasks::MODELS).rev() {
         let mut held = false;
         for row in models {

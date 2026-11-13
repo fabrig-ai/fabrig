@@ -6,7 +6,7 @@ use crate::{
     public::{Names, Of},
 };
 use jig_client_protocol_wire::{self as wire, public_v1 as w};
-use jig_domain_core as c;
+use jig_domain_core_vocabulary as c;
 use skein_lib::{Env, List, Queue, Reader, ReplyTo, Rng, Secret, Time, Token, Wall, length::len_u64};
 #[path = "public/fixtures.rs"]
 mod fixtures;

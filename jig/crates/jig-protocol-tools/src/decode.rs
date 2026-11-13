@@ -1,6 +1,6 @@
 use crate::{Decoded, Limits, Problem, Why, json, nested, notes};
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_tasks as tasks;
 use skein_lib::Wall;
 

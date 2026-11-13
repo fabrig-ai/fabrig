@@ -5,7 +5,7 @@ use crate::{
     Making, Mode, Offer, Request, SetUpAnswer, SetUpFirst, SetUpRefusal,
 };
 use alloc::boxed::Box;
-use jig_domain_core::Carried;
+use jig_domain_core_vocabulary::Carried;
 use skein_lib::{Duration, Env, Queue, Token};
 
 /// The bot identity reserved from person sign-in (protocol/openid-provider.md, 9).

@@ -8,7 +8,7 @@ mod pieces;
 pub mod settings;
 pub mod tasks;
 use alloc::boxed::Box;
-use jig_domain_core as domain;
+use jig_domain_core_vocabulary as domain;
 
 /// Generated family bounds derived from the component's limits (protocol/store/README.md, 8).
 #[derive(Clone, Copy, Debug)]

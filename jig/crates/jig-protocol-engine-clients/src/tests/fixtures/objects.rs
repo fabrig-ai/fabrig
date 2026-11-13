@@ -1,7 +1,7 @@
 //! Independent core literals for the single-read proof.
 use super::{authority, chip, task_with_hold};
 use alloc::boxed::Box;
-use jig_domain_core::{documents as d, reads};
+use jig_domain_core_vocabulary::{documents as d, reads};
 use jig_domain_tasks as t;
 use skein_lib::{List, Wall};
 pub fn pending_proposal() -> d::Proposal {
@@ -54,7 +54,7 @@ pub fn decided_escalation(decision: jig_domain_people::EscalationDecision) -> re
     reads::Ended {
         value: reads::EndedValue::Escalation {
             task: Box::new(task_with_hold()),
-            decision: jig_domain_core::EscalationDecisionRecord {
+            decision: jig_domain_core_vocabulary::EscalationDecisionRecord {
                 project: 7,
                 requester: 73,
                 task: 7,
@@ -73,7 +73,7 @@ pub fn project_document() -> d::Project {
     d::Project {
         acts: List::with_capacity(0),
         number: 7,
-        name: jig_domain_core::documents::Text { bytes: Box::from(*b"Tally"), cut: false },
+        name: jig_domain_core_vocabulary::documents::Text { bytes: Box::from(*b"Tally"), cut: false },
         resources: List::with_capacity(0),
         policy: d::Policy {
             templates: List::with_capacity(0),
@@ -99,8 +99,8 @@ pub fn project_document() -> d::Project {
     }
 }
 
-pub fn template() -> jig_domain_core::Template {
-    jig_domain_core::Template {
+pub fn template() -> jig_domain_core_vocabulary::Template {
+    jig_domain_core_vocabulary::Template {
         resources: Box::new([]),
         number: 1,
         name: b"task".as_slice().into(),

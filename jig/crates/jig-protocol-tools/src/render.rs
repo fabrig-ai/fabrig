@@ -2,7 +2,7 @@
 use crate::{Problem, Rendered, Why};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
-use jig_domain_core::{self as core, CallPart};
+use jig_domain_core_vocabulary::{self as core, CallPart};
 use skein_lib::{Decimal, List, Writer};
 
 fn text(parts: &[&[u8]], error: bool) -> Rendered {

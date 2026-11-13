@@ -1,7 +1,7 @@
 //! A retained catalogue is read only at the binary's levels (protocol/store/opening.md, 2).
 use super::fixtures;
 use crate::{Event, KeptFamily, KeptMap, Keys, Owner, PatchSet, PatchSets, codec, format, keys, patches};
-use jig_domain_core::{self as core, settings as s};
+use jig_domain_core_vocabulary::{self as core, settings as s};
 use skein_codec::patch::{Capacity, Patcher, Step};
 use skein_lib::{Queue, Token, Wall};
 

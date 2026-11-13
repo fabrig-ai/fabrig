@@ -16,7 +16,7 @@ fn without_defaults(document: &[u8]) -> Box<[u8]> {
 fn seed_path() -> Path {
     Path::root().member(b"projects").child(Segment::Index(0))
 }
-fn given() -> jig_domain_core::settings::Defaults {
+fn given() -> jig_domain_core_vocabulary::settings::Defaults {
     crate::core(&fixtures::engine(&policies::override_document(2)).unwrap(), [3; 16], 11).defaults
 }
 

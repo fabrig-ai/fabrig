@@ -1,6 +1,6 @@
 //! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/README.md, 5 and 8).
 use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, people_v16, tasks_v11};
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 
 /// Decoded byte allowance for a two-row restart page (protocol/store/loads.md, 2).
 /// Application rows count untagged keys and values; jig rows and joined

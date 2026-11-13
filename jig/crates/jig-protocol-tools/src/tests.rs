@@ -1,6 +1,6 @@
 use crate::{Decoded, Problem, Why};
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_tasks::Cancel;
 mod fixtures;
 mod llm;

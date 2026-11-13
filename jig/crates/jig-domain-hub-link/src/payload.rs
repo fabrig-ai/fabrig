@@ -1,7 +1,7 @@
 //! Owned payloads and link metadata (jig/docs/design/domain/hosts/hub.md, 4–8).
 use crate::Link;
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_link::Phase;

@@ -18,7 +18,7 @@ skein-tls.workspace = true
 jig-client-protocol-wire.workspace = true
 jig-protocol-engine-clients.workspace = true
 jig-protocol-engine-clients-http.workspace = true
-jig-domain-core.workspace = true
+jig-domain-core-vocabulary.workspace = true
 jig-domain-host.workspace = true
 jig-domain-tasks.workspace = true
 jig-domain-people.workspace = true
@@ -37,5 +37,6 @@ skein-io.workspace = true
 workspace = true
 
 [dev-dependencies]
+jig-domain-core.workspace = true
 skein-scratch.workspace = true
 tempfile = "3"
