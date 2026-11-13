@@ -20,8 +20,29 @@ impl Draw<'_> {
         }
         if let Some(step) = landing.step() {
             b.open(Role::Paragraph);
-            self.forge_words(b, step_word(step), &[]);
+            if *step == f::PublicLandingStep::Probing
+                && let Some(search) = landing.search()
+                && let Some(prefix) = search.probe()
+            {
+                self.forge_words(b, W::ProbingAt, &[Hole::Name(super::forge::short(prefix).as_slice().into())]);
+            } else {
+                self.forge_words(b, step_word(step), &[]);
+            }
             b.close();
+        }
+        if let Some(search) = landing.search() {
+            for (word, bound) in [(W::SearchGreen, search.green()), (W::SearchRed, search.red())] {
+                b.open(Role::Paragraph);
+                self.forge_words(
+                    b,
+                    word,
+                    &[
+                        Hole::Number(u64::from(bound.member())),
+                        Hole::Name(super::forge::short(bound.prefix()).as_slice().into()),
+                    ],
+                );
+                b.close();
+            }
         }
     }
     pub(super) fn member_details(&mut self, b: &mut Builder, member: &f::PublicMember) {
@@ -55,6 +76,19 @@ impl Draw<'_> {
                 f::PublicLeave::Held => (W::LeftHeld, None),
                 f::PublicLeave::Refused(gate) => (W::LeftRefused, Some(gate.gate())),
                 f::PublicLeave::Failed(gate) => (W::LeftFailed, Some(gate.gate())),
+                f::PublicLeave::Blamed(gate) => {
+                    self.forge_words(
+                        b,
+                        W::LeftBlamed,
+                        &[
+                            Hole::Number(gate.gate()),
+                            Hole::Name(super::forge::short(gate.red()).as_slice().into()),
+                            Hole::Name(super::forge::short(gate.green()).as_slice().into()),
+                        ],
+                    );
+                    b.close();
+                    return;
+                }
             };
             match number {
                 Some(number) => self.forge_words(b, word, &[Hole::Number(number)]),
@@ -69,6 +103,7 @@ fn step_word(step: &f::PublicLandingStep) -> W {
         f::PublicLandingStep::Waiting => W::Waiting,
         f::PublicLandingStep::Preparing => W::HeldPreparing,
         f::PublicLandingStep::Proving => W::Checking,
+        f::PublicLandingStep::Probing => W::Probing,
         f::PublicLandingStep::Proved => W::Proved,
         f::PublicLandingStep::Turn => W::HeldLanding,
         f::PublicLandingStep::Landed => W::Landed,

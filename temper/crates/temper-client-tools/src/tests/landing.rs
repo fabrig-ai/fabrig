@@ -538,6 +538,85 @@ fn wrong_change_tasks_and_wrong_landing_projects_remain_document_errors() {
 }
 
 #[test]
+fn a_probing_landing_shows_its_prefix_and_numbered_search_bounds_in_text_and_json() {
+    let mut parts = panel(w::LandingPhase::Proving).into_parts();
+    parts.round = Some(
+        w::LandingRound::new(
+            &w::CEILINGS,
+            w::LandingRoundParts {
+                number: 1,
+                branch: b"temper/61/1".as_slice().into(),
+                pull: None,
+                combined: None,
+                step: w::LandingStep::Probing,
+                upstream: Some([0x22; 32]),
+                failure: Box::default(),
+                search: Some(
+                    w::LandingSearch::new(
+                        &w::CEILINGS,
+                        w::LandingSearchParts {
+                            green: w::SearchBound::new(
+                                &w::CEILINGS,
+                                w::SearchBoundParts { member: 0, prefix: [0x22; 32] },
+                            )
+                            .unwrap(),
+                            red: w::SearchBound::new(
+                                &w::CEILINGS,
+                                w::SearchBoundParts { member: 3, prefix: [0x33; 32] },
+                            )
+                            .unwrap(),
+                            probe: Some([0x11; 32]),
+                        },
+                    )
+                    .unwrap(),
+                ),
+            },
+        )
+        .unwrap(),
+    );
+    let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+    let text = read_panel(&panel, false);
+    assert_eq!(text.status, 0);
+    for words in ["step: probing at 11111111", "search: green member 0 at 22222222", "red member 3 at 33333333"] {
+        assert!(contains(&text.stdout, words), "{words}");
+    }
+    let json = read_panel(&panel, true);
+    assert_eq!(json.status, 0);
+    for words in [
+        "\"step\":\"probing\"",
+        "\"search\":{\"green\":{\"member\":0,\"prefix\":\"22222222",
+        "\"red\":{\"member\":3,\"prefix\":\"33333333",
+        "\"probe\":\"11111111",
+    ] {
+        assert!(contains(&json.stdout, words), "{words}");
+    }
+}
+
+#[test]
+fn an_ended_landing_shows_blame_with_both_prefixes_in_text_and_json() {
+    let mut parts = panel(w::LandingPhase::Landed).into_parts();
+    let mut member = parts.members.get(0).unwrap().clone().into_parts();
+    member.landed = None;
+    member.left = Some(w::LandingLeave::Blamed(
+        w::BlamedGate::new(&w::CEILINGS, w::BlamedGateParts { gate: 2, run: 7, red: [0x33; 32], green: [0x22; 32] })
+            .unwrap(),
+    ));
+    parts.members = List::from_boxed(Box::new([w::Member::new(&w::CEILINGS, member).unwrap()]));
+    let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+    let text = read_panel(&panel, false);
+    assert_eq!(text.status, 0);
+    for words in ["left: blamed by gate 2 in run 7", "red at 33333333", "green at 22222222"] {
+        assert!(contains(&text.stdout, words), "{words}");
+    }
+    let json = read_panel(&panel, true);
+    assert_eq!(json.status, 0);
+    for words in ["\"left\":{\"blamed\":{\"gate\":2,\"run\":7,\"red\":\"33333333", "\"green\":\"22222222"] {
+        assert!(contains(&json.stdout, words), "{words}");
+    }
+    assert!(!contains(&json.stdout, "\"failed\""));
+}
+
+#[test]
 fn ended_landings_show_round_evidence_and_outcomes_in_text_and_json() {
     let mut parts = panel(w::LandingPhase::Landed).into_parts();
     parts.train = Some(
@@ -557,6 +636,7 @@ fn ended_landings_show_round_evidence_and_outcomes_in_text_and_json() {
         w::LandingRound::new(
             &w::CEILINGS,
             w::LandingRoundParts {
+                search: None,
                 number: 2,
                 branch: b"temper/61/2".as_slice().into(),
                 pull: Some(

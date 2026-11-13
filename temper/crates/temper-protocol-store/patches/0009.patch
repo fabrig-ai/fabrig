@@ -1,0 +1,8 @@
+patch 1
+owner temper 9 after jig 5
+
+family temper-store 19 to 20
+add LandedBelow
+add LandingBelow
+add LandingRepairAt.below option LandingBelow none
+add LandingRepairAsk.below option LandingBelow none

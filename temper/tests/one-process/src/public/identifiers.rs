@@ -174,7 +174,7 @@ impl Walk {
                         2 => format!("/jig/v1/public/0/1/2/{:016x}", self.projects[1]),
                         3 => "/jig/v1/public/0/1/2/0000000000000000".to_owned(),
                         4 => format!("/jig/v1/public/0/1/3/{project:016x}/{:016x}", ids.delegates[0]),
-                        5 => format!("/jig/v1/public/2/1/1/{project:016x}/{:016x}", ids.change),
+                        5 => format!("/jig/v1/public/2/2/1/{project:016x}/{:016x}", ids.change),
                         _ => unreachable!(),
                     };
                     if row == 1 {

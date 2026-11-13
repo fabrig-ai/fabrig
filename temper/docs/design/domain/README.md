@@ -35,6 +35,9 @@ all. Then temper's:
 6. **landing.md:** a project that lands by turn: landings across
    repositories and goals, prepare, receipts by key, proof by dispatch,
    and the project's landing turn.
+   - `landing-search.md`: a red round of several units narrowed by
+     prefixes: probes at unit boundaries, the blamed unit repaired, the
+     green prefix landed and the units above it in the next round.
 7. **after-landing.md:** tiers on the newest main, verdicts by test,
    and a change that lives until its landing is cleared, by queue or by
    turn.

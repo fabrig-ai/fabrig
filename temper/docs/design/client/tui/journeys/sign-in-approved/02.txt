@@ -1,6 +1,6 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
 │ No project yet                                                               │
-│ Setting temper up makes your first project: open http://127.0.0.1:32961 in a │
+│ Setting temper up makes your first project: open http://127.0.0.1:38627 in a │
 │ browser.                                                                     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 

@@ -277,6 +277,16 @@ impl World {
         self.top.judge_landing(self.landing(task).landing.project, 5, 0, task, evidence.head?, evidence, &[])
     }
     #[must_use]
+    pub fn has_receipt_at(&self, candidate: skein_forge::api::Commit) -> bool {
+        self.stored
+            .iter()
+            .any(|(_, row)| matches!(row, top::Stored::Receipt { receipt, .. } if receipt.candidate == candidate))
+    }
+    #[must_use]
+    pub fn landing_news_words(&self, task: u64, member: u16, step: top::LandingNews) -> Option<(u64, Box<[u8]>)> {
+        self.top.landing_news_words(task, member, step)
+    }
+    #[must_use]
     pub fn landing_member_leave_words(&self, task: u64, member: u16) -> Option<Box<[u8]>> {
         self.top.landing_leave_words(task, member)
     }
@@ -1274,7 +1284,14 @@ impl World {
     }
     pub fn prepare_subset(&mut self, task: u64, squash: bool, positions: &[usize]) -> u64 {
         let row = self.landing(task).clone();
-        let mut base = row.landing.members.iter().find_map(|m| m.base).map(translate::number).expect("round base");
+        let mut base = row
+            .landing
+            .members
+            .iter()
+            .filter(|m| m.left.is_none() && m.landed.is_none())
+            .find_map(|m| m.base)
+            .map(translate::number)
+            .expect("round base");
         for (index, member) in row.landing.members.iter().enumerate() {
             if member.left.is_some() || member.landed.is_some() {
                 continue;
@@ -1325,7 +1342,12 @@ impl World {
                 raw::Op::Git(raw::Git::PushNew { branch: member.branch.clone(), commit: candidate }),
                 1,
             );
-            assert!(matches!(answer, raw::Answer::PushNew { existing: None }));
+            assert!(
+                matches!(answer, raw::Answer::PushNew { existing: None }),
+                "seed {}: prepare member {index} onto {base} in {:?}; answer {answer:?}",
+                self.seed,
+                row.landing
+            );
             base = candidate;
         }
         base
