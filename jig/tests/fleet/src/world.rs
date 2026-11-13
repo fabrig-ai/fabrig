@@ -913,6 +913,7 @@ impl World {
                     run: Token::new(run),
                     attempt: Token::new(attempt),
                     call: fleet::Call {
+                        contract: 1,
                         name: Box::from(call.to_be_bytes()),
                         tool: Box::new([]),
                         writes: false,

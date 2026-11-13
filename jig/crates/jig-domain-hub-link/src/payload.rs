@@ -100,7 +100,7 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
             });
             fleet::Event::Answer { channel, run, attempt, answer: kind, payload }
         }
-        host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } => {
+        host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
             domain
                 .host_calls
                 .insert(call.clone(), crate::HostCall { channel, run, attempt })
@@ -109,7 +109,7 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
                 channel,
                 run,
                 attempt,
-                call: fleet::Call { name: call, tool, writes, input, deadline },
+                call: fleet::Call { name: call, contract, tool, writes, input, deadline },
             }
         }
         host::LinkUp::Unauthorized { run, attempt, account, generation } => {

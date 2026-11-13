@@ -222,6 +222,7 @@ pub fn up_records() -> Vec<(host::LinkUp, Box<[Part]>)> {
         (turn(), Box::new([])),
         (
             host::LinkUp::Call {
+                contract: 1,
                 run: RUN_SEVEN,
                 attempt: ATTEMPT_TWO,
                 call: b"call".as_slice().into(),
@@ -428,6 +429,7 @@ pub fn encoded<F: FnOnce(&mut Writer) -> Result<(), skein_lib::Overflow>>(measur
 #[must_use]
 pub fn call(name: &[u8]) -> host::LinkUp {
     host::LinkUp::Call {
+        contract: 1,
         run: RUN_SEVEN,
         attempt: ATTEMPT_TWO,
         call: name.into(),

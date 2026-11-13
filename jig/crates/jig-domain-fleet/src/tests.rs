@@ -329,6 +329,7 @@ fn a_message_and_host_call_keep_their_fields_across_the_fleet() {
         &[Request::Inbound { channel: C1, run: R1, attempt: A1, message }]
     );
     let call = Call {
+        contract: 1,
         name: Box::from(&b"call-one"[..]),
         tool: Box::from(&b"inspect"[..]),
         writes: true,
@@ -1426,6 +1427,7 @@ fn message(name: Token) -> Message {
 }
 fn host_call(name: Token, body: Token) -> Call {
     Call {
+        contract: 1,
         name: Box::from(name.raw().to_be_bytes()),
         tool: Box::from(&b"tool"[..]),
         writes: false,

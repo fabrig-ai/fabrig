@@ -75,6 +75,7 @@ pub enum LinkUp {
         turn: Turn,
     },
     Call {
+        contract: u16,
         run: Token,
         attempt: Token,
         call: Box<[u8]>,
@@ -134,6 +135,7 @@ mod tests {
         for writes in [false, true] {
             assert!(
                 LinkUp::Call {
+                    contract: 1,
                     run,
                     attempt,
                     call: Box::new([]),

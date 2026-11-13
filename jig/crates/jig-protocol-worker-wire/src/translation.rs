@@ -20,9 +20,9 @@ pub struct Untranslated {
 /// Each component owns its bridges; none holds a payload between calls.
 #[derive(Debug)]
 pub struct Translation {
-    jig: Bridge,
-    charter: Bridge,
-    transcript: Bridge,
+    jig: Lazy,
+    charter: Lazy,
+    transcript: Lazy,
     application: List<Bridge>,
     roots: List<Root>,
 }
@@ -41,15 +41,9 @@ impl Translation {
             }
         }
         Ok(Self {
-            jig: crate::patches::kept::jig_worker_wire::bridge(capacity(
-                crate::patches::kept::jig_worker_wire::TEXTS,
-            )?)?,
-            charter: smith_charter::patches::kept::smith_charter::bridge(capacity(
-                smith_charter::patches::kept::smith_charter::TEXTS,
-            )?)?,
-            transcript: smith_transcript::patches::kept::smith_transcript::bridge(capacity(
-                smith_transcript::patches::kept::smith_transcript::TEXTS,
-            )?)?,
+            jig: Lazy::new(Family::Records),
+            charter: Lazy::new(Family::Charter),
+            transcript: Lazy::new(Family::Transcript),
             application: application.bridges,
             roots: application.roots,
         })
@@ -63,11 +57,14 @@ impl Translation {
         agreed: &[Agreed],
         limits: &wire::Limits,
     ) -> Result<Frame, Untranslated> {
+        if version == crate::VERSION && self.current_payloads(frame.kind(), agreed) {
+            return Ok(frame);
+        }
         let (base, root) = direction(frame.kind()).ok_or(order())?;
         let tagged = tagged(base, frame.kind(), frame.bytes().get(8..).ok_or(order())?).ok_or(order())?;
         let nested = self.nested(root, tagged, agreed, true, limits)?;
         let current = self.jig.current();
-        let translated = convert(&mut self.jig, current, version, root, nested)?;
+        let translated = self.jig.translate(current, version, root, nested)?;
         untagged(base, translated).ok_or(order())
     }
 
@@ -79,17 +76,20 @@ impl Translation {
         agreed: &[Agreed],
         limits: &wire::Limits,
     ) -> Result<Frame, Untranslated> {
+        if version == crate::VERSION && self.current_payloads(kind, agreed) {
+            return frame(kind, body).ok_or(order());
+        }
         let (base, root) = direction(kind).ok_or(order())?;
         let tagged = tagged(base, kind, body).ok_or(order())?;
         let current = self.jig.current();
-        let translated = convert(&mut self.jig, version, current, root, tagged)?;
+        let translated = self.jig.translate(version, current, root, tagged)?;
         let nested = self.nested(root, translated, agreed, false, limits)?;
         untagged(base, nested).ok_or(order())
     }
 
     /// Wires on which a range-stating worker cannot send whole to this engine (6.3).
     #[must_use]
-    pub fn incomplete(&self, agreed: &[Agreed]) -> List<Agreed> {
+    pub fn incomplete(&mut self, agreed: &[Agreed]) -> List<Agreed> {
         let mut refused = List::uncapped();
         for wire in agreed {
             let total = if wire.name.as_bytes() == self.jig.family() {
@@ -107,6 +107,34 @@ impl Translation {
             }
         }
         refused
+    }
+
+    #[cfg(test)]
+    pub(crate) fn planned(&self) -> u32 {
+        u32::from(self.jig.machine.is_some())
+            .checked_add(u32::from(self.charter.machine.is_some()))
+            .expect("three families")
+            .checked_add(u32::from(self.transcript.machine.is_some()))
+            .expect("three families")
+    }
+
+    fn current_payloads(&self, kind: u16, agreed: &[Agreed]) -> bool {
+        for wire in agreed {
+            if wire.name.as_bytes() == self.charter.family() && wire.version != self.charter.current() {
+                return false;
+            }
+            if wire.name.as_bytes() == self.transcript.family() && wire.version != self.transcript.current() {
+                return false;
+            }
+            for bridge in &self.application {
+                if wire.name.as_bytes() == bridge.family() && wire.version != bridge.current() {
+                    return false;
+                }
+            }
+        }
+        // A kept window's turns carry their own versions, even on a current link.
+        !(self.transcript.first() < self.transcript.current()
+            && (kind == crate::Kind::Turn.number() || kind == crate::Kind::Assignment.number()))
     }
 
     fn application_total(&self, wire: &Agreed) -> bool {
@@ -189,7 +217,7 @@ impl Translation {
                 return Ok(value);
             }
         }
-        convert(bridge, from, to, root, value)
+        bridge.translate(from, to, root, value)
     }
 
     fn window(&mut self, value: Box<[u8]>, agreed: &[Agreed], down: bool) -> Result<Box<[u8]>, Untranslated> {
@@ -237,6 +265,107 @@ impl Translation {
             Ok(writer.finish())
         }
     }
+}
+
+/// Generated static texts stay with their owner; parsed schemas and plans exist only
+/// after a nonidentity conversion or an older-version totality check needs them.
+#[derive(Clone, Copy, Debug)]
+enum Family {
+    Records,
+    Charter,
+    Transcript,
+}
+#[derive(Debug)]
+struct Lazy {
+    family: Family,
+    machine: Option<Bridge>,
+    first: u16,
+}
+impl Lazy {
+    fn new(family: Family) -> Self {
+        let texts = match family {
+            Family::Records => crate::patches::kept::jig_worker_wire::TEXTS,
+            Family::Charter => smith_charter::patches::kept::smith_charter::TEXTS,
+            Family::Transcript => smith_transcript::patches::kept::smith_transcript::TEXTS,
+        };
+        Self { family, machine: None, first: header_version(texts.first().expect("kept family")) }
+    }
+    fn family(&self) -> &'static [u8] {
+        match self.family {
+            Family::Records => crate::wire::FAMILY.as_bytes(),
+            Family::Charter => smith_charter::wire::FAMILY.as_bytes(),
+            Family::Transcript => smith_transcript::wire::FAMILY.as_bytes(),
+        }
+    }
+    const fn current(&self) -> u16 {
+        match self.family {
+            Family::Records => crate::VERSION,
+            Family::Charter => smith_charter::wire::VERSION,
+            Family::Transcript => smith_transcript::wire::VERSION,
+        }
+    }
+    const fn first(&self) -> u16 {
+        self.first
+    }
+    fn materialize(&mut self) -> Result<&mut Bridge, BridgeError> {
+        if self.machine.is_none() {
+            self.machine = Some(match self.family {
+                Family::Records => crate::patches::kept::jig_worker_wire::bridge(capacity(
+                    crate::patches::kept::jig_worker_wire::TEXTS,
+                )?)?,
+                Family::Charter => smith_charter::patches::kept::smith_charter::bridge(capacity(
+                    smith_charter::patches::kept::smith_charter::TEXTS,
+                )?)?,
+                Family::Transcript => smith_transcript::patches::kept::smith_transcript::bridge(capacity(
+                    smith_transcript::patches::kept::smith_transcript::TEXTS,
+                )?)?,
+            });
+        }
+        Ok(self.machine.as_mut().expect("materialized bridge"))
+    }
+    fn translate(&mut self, from: u16, to: u16, root: &[u8], value: Box<[u8]>) -> Result<Box<[u8]>, Untranslated> {
+        if from == to {
+            return Ok(value);
+        }
+        let family = self.family();
+        let current = self.current();
+        let bridge = self.materialize().or(Err(Untranslated {
+            wire: bytes::copy_of(family),
+            version: current,
+            halt: Halt::Room,
+        }))?;
+        convert(bridge, from, to, root, value)
+    }
+    fn total(&mut self, to: u16, root: &[u8]) -> Option<bool> {
+        // These roots are the built-in families' fixed sending roots.
+        if to == self.current() {
+            return Some(true);
+        }
+        self.materialize().ok()?.total(to, root)
+    }
+}
+fn header_version(text: &str) -> u16 {
+    let mut version = 0_u16;
+    for byte in text.as_bytes() {
+        if *byte == b'\n' {
+            break;
+        }
+        if *byte == b' ' {
+            version = 0;
+        } else if byte.is_ascii_digit() {
+            version = version
+                .checked_mul(10)
+                .expect("kept version fits")
+                .checked_add(u16::from(byte.checked_sub(b'0').expect("digit")))
+                .expect("kept version fits");
+        }
+    }
+    version
+}
+fn frame(kind: u16, body: &[u8]) -> Option<Frame> {
+    let mut frame = frame_writer(kind, u32::try_from(body.len()).ok()?).ok()?;
+    frame.put(body).ok()?;
+    frame.finish().ok()
 }
 
 fn versions(current: u16, agreed: u16, down: bool) -> (u16, u16) {

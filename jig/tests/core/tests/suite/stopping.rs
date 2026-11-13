@@ -51,6 +51,7 @@ fn a_call_after_the_stop_is_answered_busy() {
         run: Token::new(world.task()),
         attempt: Token::new(world.attempt()),
         call: fleet::Call {
+            contract: 1,
             name: b"call".as_slice().into(),
             tool: b"tool".as_slice().into(),
             writes: true,

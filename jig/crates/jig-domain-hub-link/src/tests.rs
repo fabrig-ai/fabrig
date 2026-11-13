@@ -223,6 +223,7 @@ fn a_relay_answer_keeps_its_opaque_name_and_consumes_its_payload() {
         Event::Up {
             channel: CHANNEL,
             value: host::LinkUp::Call {
+                contract: 1,
                 run: RUN,
                 attempt: ATTEMPT,
                 call: name.clone(),

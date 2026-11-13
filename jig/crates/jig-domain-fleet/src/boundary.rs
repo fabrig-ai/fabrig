@@ -120,6 +120,8 @@ pub struct Message {
 /// the parent decides it; its other fields are moved into the parent's request.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Call {
+    /// The charter's host tools contract, carried to decoding (domain/hosts/hub.md, 8).
+    pub contract: u16,
     /// The run's opaque call name, bounded by the fleet's call-name limit.
     pub name: Box<[u8]>,
     /// The host tool's name as declared in the charter.

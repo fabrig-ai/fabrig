@@ -355,11 +355,44 @@ fn construction_rejects_missing_bridges_and_declarations_and_total_checks_worker
     let mut missing = application();
     missing.roots.get_mut(0).unwrap().declaration = "Absent";
     Translation::new(missing).unwrap_err();
-    let machine = Translation::new(application()).unwrap();
+    let mut machine = Translation::new(application()).unwrap();
     let incomplete = machine.incomplete(&agreed(11, 4));
     assert_eq!(
         incomplete.as_slice(),
         &[Agreed { name: "jig-worker-wire", version: 11 }, Agreed { name: "application", version: 1 }]
     );
     assert!(opaque().incomplete(&agreed(12, 5)).is_empty());
+}
+
+#[test]
+fn current_links_keep_no_plans_and_only_an_older_family_materializes() {
+    let mut sender = opaque();
+    let mut receiver = opaque();
+    let call = wire::FromWorker::Call(
+        wire::Call::new(
+            &wire::CEILINGS,
+            wire::CallParts {
+                task: 7,
+                attempt: 2,
+                name: b"name".as_slice().into(),
+                tool: b"tool".as_slice().into(),
+                writes: false,
+                input: b"{}".as_slice().into(),
+                deadline: skein_lib::Duration::from_secs(1),
+                contract: 1,
+            },
+        )
+        .unwrap(),
+    );
+    let original = worker(&call);
+    let current = sender.send(original, 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+    let up = receiver.receive(current.kind(), body(&current), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+    assert_eq!(worker_value(&up), call);
+    assert_eq!((sender.planned(), receiver.planned()), (0, 0));
+    assert!(sender.incomplete(&agreed(12, 5)).is_empty());
+    assert_eq!(sender.planned(), 0);
+    let old = sender.send(worker(&call), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+    let up = receiver.receive(old.kind(), body(&old), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+    assert_eq!(worker_value(&up), call);
+    assert_eq!((sender.planned(), receiver.planned()), (1, 1));
 }

@@ -220,6 +220,8 @@ pub enum FromAgent {
     AccountRefused { owner: Token, account: u32, code: Box<[u8]>, reason: Box<[u8]> },
     /// Last word, with cumulative accounting.
     Finished { owner: Token, turns: u32, spent: u64, read: Option<Token>, finish: Finish },
+    /// Routing decoded the start's charter (domain/hosts/hub.md, 8).
+    Decoded { owner: Token, contract: u16 },
     /// The agent started, and `agent` names it from now on.
     Started { owner: Token, agent: Token },
     /// The agent refused its start, before any run began.
@@ -668,6 +670,7 @@ impl FromAgent {
             | FromAgent::Limited { .. }
             | FromAgent::AccountRefused { .. }
             | FromAgent::Finished { .. }
+            | FromAgent::Decoded { .. }
             | FromAgent::Started { .. }
             | FromAgent::StartRefused { .. }
             | FromAgent::StartBusy { .. }
