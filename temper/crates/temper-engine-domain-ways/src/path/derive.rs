@@ -8,8 +8,8 @@ use super::{
 };
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
-use temper_engine_domain_forge_vocabulary::{Follows, settings::Held};
 use temper_engine_domain_forge_change::Way;
+use temper_engine_domain_forge_vocabulary::{Follows, settings::Held};
 
 const CODER: &[u8] = b"the coding agent";
 const REPAIR: &[u8] = "an agent · repairs what a check or a review found, then goes back through them".as_bytes();

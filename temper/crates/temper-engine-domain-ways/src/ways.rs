@@ -122,9 +122,9 @@ pub fn items(way: &StockWay, project: u32, ways: Option<&ProjectWays>) -> Box<[I
                 kind: 15,
                 scope: project,
                 number: 1,
-                edit: Edit::Set(Value::ProjectTriager(temper_engine_domain_forge_vocabulary::settings::ProjectTriager {
-                    owner: *owner,
-                })),
+                edit: Edit::Set(Value::ProjectTriager(
+                    temper_engine_domain_forge_vocabulary::settings::ProjectTriager { owner: *owner },
+                )),
             })
             .expect("one triager item");
     }

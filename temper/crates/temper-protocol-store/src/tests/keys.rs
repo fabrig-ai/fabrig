@@ -313,7 +313,12 @@ fn landing_log_keys_use_family_thirty_and_repository_order() {
     assert_eq!(bytes, expected.finish().unwrap());
     assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key.clone()));
     assert!(Key::Verification { repository, commit: [255; 32] } < key);
-    assert!(key < Key::Dismissed { party: 0, what: temper_engine_domain_forge_vocabulary::PersonFact::ToBegin { project: 0 } });
+    assert!(
+        key < Key::Dismissed {
+            party: 0,
+            what: temper_engine_domain_forge_vocabulary::PersonFact::ToBegin { project: 0 }
+        }
+    );
 }
 
 #[test]
@@ -443,8 +448,10 @@ fn findings_keys_and_topic_use_the_reserved_bytes_and_order() {
         let bytes = keys::encode(&key, u32::MAX).unwrap();
         assert_eq!(bytes, writer.finish().unwrap());
         assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
-        let topic =
-            Key::Subscription { task: u64::MAX, topic: temper_engine_domain_forge_vocabulary::Topic::Findings { project } };
+        let topic = Key::Subscription {
+            task: u64::MAX,
+            topic: temper_engine_domain_forge_vocabulary::Topic::Findings { project },
+        };
         let encoded = keys::encode(&topic, u32::MAX).unwrap();
         assert_eq!(keys::decode(&encoded, &fixtures::LIMITS), Some(topic));
         for len in 0..bytes.len() {
