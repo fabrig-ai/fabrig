@@ -765,7 +765,14 @@ impl Host {
             && let Some(words) = self.words().strip_prefix(b"/tell ").filter(|words| !words.is_empty())
         {
             let words = words.into();
-            self.act(Act::Tell { project, words });
+            let title = self
+                .root
+                .pages()
+                .chat()
+                .and_then(|chat| chat.task(self.root.client()))
+                .map(|task| task.chip.title.bytes().into());
+            let about = Some(root::pages::tell::About { address: self.root.pages().address().clone(), title });
+            self.act(Act::Tell { project, words, about });
             self.composer_words(Box::default());
             self.tell(Told::Cleared);
             return;
