@@ -811,7 +811,7 @@ fields, each after one space, a word bare, bytes in double quotes.
 | `welcome-set-up` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Set up temper" pressed, then Forgejo's "Run on this machine" pressed on the Forge step, which opens Forgejo's sheet, then the sheet's "Run on this machine", an empty repository chosen, which makes the forge and sets it up (`../pages/README.md`) | `01.html` and `02.html`, the welcome, the second as it was when "Set up temper" was pressed, which leads to `03.html` and `04.html`, the Forge step's choices, the second as it was when "Run on this machine" was pressed, which leads to `05.html` and `06.html`, Forgejo's sheet, the second as it was when its "Run on this machine" was pressed, which leads to `07.html`, the Model step, the set up running on as it was when the recording ended; its `../README.md` says so |
 | `welcome-playground` | on a fresh `temper box --fake-backends` (3.5): the printed sign-in link opened, the welcome drawn, "Try the playground" pressed | `01.html`, the welcome as it was when "Try the playground" was pressed, which leads to `02.html`, `NewChat` in the Demo project, the playground started, its banner's one line above its main, as it was when the recording ended; its `../README.md` says so |
 | `project-landing` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2): Forgejo run on this machine with an empty `work/hello`, the ChatGPT plan signed in, Ready's offered "Hello" created and its repository adopted; once Home says "work/hello is in Hello", `/projects/1` reloaded, where the recording starts, and the settled Home saved | `01.html`, Home in Hello with the ChatGPT plan, Forgejo, "work/hello is in Hello" and To begin's one step left, "Tell temper how you work", the rail's "Home" and "Ask temper" alone, and the phone's "Home", "Ask" and "Settings" tabs; the recording holds no act; its `../README.md` says so |
-| `chat-draft` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2), `after project-landing`, up to `/projects/1/settings` reloaded, "Chats can write drafts" on as a fresh project has it; then a chat started, "+ Draft" pressed, two turns of the fake model writing and changing its document (`../../testing/real-loop.md`), Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../../domain/agent/agents.md`, 3; `../pages/README.md`) |
+| `chat-draft` | on a fresh `temper box --fake-backends` (3.5): its `setup` (8.2), `after project-landing`, up to `/projects/1/settings` reloaded, "Chats can write drafts" on as a fresh project has it; then a chat started, Split chosen and the empty pane's "Write it up from this chat" pressed (`../pages/chat/document.md`, 1), two turns of the fake model writing and changing its document (`../../testing/real-loop.md`), Chat, Split, Draft, then "Start goal…" and its goal's page, then its Draft link back to the chat; not recorded until temper/ui walks it anew (10) | a chat in Chat, Split and Draft, the sheet, the goal's page and the return to the chat (`../../domain/agent/agents.md`, 3; `../pages/README.md`) |
 
 A journey recorded on a real box says so in its walk here, as `real`,
 and in its `../README.md`; none is yet (3.5).
@@ -913,7 +913,38 @@ print draws the switch, unpressed, since no recording keeps a night look.
 temper/ui compares the three requests with main after landing
 (`look-requests.md`, 4).
 
+The requests of 2026-11-12, `welcome-top`, `forgejo-link`, `ask-opening`,
+`switcher-links`, `chat-path`, `no-terminal-button` and `chat-bar`, drew
+hand-made pages, a directory each, from the gallery and from recordings of a
+box built at `a9e804e340`: not journeys to reprint or land (section 7). Each
+landing removes its request's directory and its overlay rules, and the
+render check reads them from the request's own commit (`look-requests.md`,
+4). `welcome-set-up` and `welcome-playground` reprint with the welcome's bar
+of the brand, the steps and the link region alone and Welcome's box line
+under its cards; the prints that draw the rail reprint with the switcher's
+phone-only links' look token; `welcome-playground`'s `NewChat` reprints with
+its path naming no project, no ">_" and the view group in the bar. The
+states the messages name in words are the gallery's (`gallery.md`, 2).
+`chat-bar` removes "+ Draft", which `chat-draft`'s recorded walk pressed
+(`Pages(AddDraft)` in Chat), so its replay would go stale (4.2) and a plan
+walks no journey anew (`look-requests.md`, 3; the user, 2026-11-12):
+`chat-bar`'s landing removes `chat-draft`'s recording and prints, and
+temper/ui walks it anew after landing, as section 9's table has it
+(section 10).
+
 ## 10. Open questions
+
+- **The requests of 2026-11-12** (9): temper/ui compares each request's
+  pages, from its own commit with its overlay, with main after landing at
+  1440, 1000 and 420 px, with each disclosure and menu open, and the states
+  their messages name through the gallery (`look-requests.md`, 4): the
+  welcome's bar on every step and offline, Model's and Ready's Forgejo link,
+  Ask temper's opening on every tab, the switcher at 761 px and at 760, and
+  a chat's bar and status line at rest, working, waiting on delegates,
+  paused, held and ended, in Chat, Split and Draft with and without a
+  draft. Default: gallery states and reprinted journeys; print equality
+  establishes no rendered equality. Findings are filed back, and repairs
+  carry the request's trailer.
 
 - **The two-step Home and night requests** (9): temper/ui compares
   `ask-temper-start`, `to-begin-two-steps` and `night-mode` against main
@@ -930,14 +961,15 @@ temper/ui compares the three requests with main after landing
   establishes no rendered equality. Findings are filed back, and repairs
   carry the request's trailer.
 
-- **Renewing `chat-draft` after stock removal** (8, 9): temper/ui walks
-  it anew after landing, following the Draft link to the chat the goal
-  names, then adds the whole recording and its prints. Removing the
-  configuring chat changes task numbers, so the old walk's task 2 is
-  no longer the return target. Default: retain the replayable recording
-  until that renewal, including its old stock inventory; offering Ask
-  temper in its prints does not establish removal of template 3 and
-  charter 3 from its recorded answers.
+- **Renewing `chat-draft`** (8, 9): temper/ui walks it anew after
+  landing, by section 9's walk, choosing Split and pressing "Write it up
+  from this chat" where the old walk pressed "+ Draft", and following the
+  Draft link to the chat the goal names, then adds the whole recording and
+  its prints. Removing the configuring chat changed task numbers too, so
+  the old walk's task 2 is no longer the return target. Default:
+  `chat-bar`'s landing removes the old recording and prints, which no
+  longer replay (9); until the renewal no journey prints a chat's draft
+  flow, which the gallery's chat states and the view's tables cover.
 
 - **Ask temper's first-run prints** (9): temper/ui compares
   `project-landing`, `chat-draft` and `welcome-playground` with the

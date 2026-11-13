@@ -67,6 +67,8 @@ pub enum Word {
     ReachUnder,
 
     WaysLede,
+    AskHow,
+    AskHowHint,
     HowChange,
     HowOwn,
     HowOwnLine,
@@ -198,6 +200,9 @@ pub enum Word {
     ChatGoalLink,
     PlusDraft,
     DraftEmpty,
+    DraftWriteUp,
+    DraftNotYet,
+    DraftSendResumes,
     DraftWriting,
     DraftWords,
     ChatWrites,
@@ -2039,7 +2044,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2611;
+const PHRASES: u32 = 2615;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2066,10 +2071,10 @@ const PHRASES: u32 = 2611;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4761;
+const SEGMENTS: u32 = 4766;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 61835;
-const ALL: [Word; 1902] = [
+const ENGLISH_BYTES: u32 = 62026;
+const ALL: [Word; 1907] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -2124,6 +2129,8 @@ const ALL: [Word; 1902] = [
     Word::ReachPathSet,
     Word::ReachUnder,
     Word::WaysLede,
+    Word::AskHow,
+    Word::AskHowHint,
     Word::HowChange,
     Word::HowOwn,
     Word::HowOwnLine,
@@ -2252,6 +2259,9 @@ const ALL: [Word; 1902] = [
     Word::ChatGoalLink,
     Word::PlusDraft,
     Word::DraftEmpty,
+    Word::DraftWriteUp,
+    Word::DraftNotYet,
+    Word::DraftSendResumes,
     Word::DraftWriting,
     Word::DraftWords,
     Word::ChatWrites,
@@ -4119,6 +4129,8 @@ impl Word {
             Self::Pause => 3532,
             Self::Resume => 3533,
             Self::WaysLede => 4302,
+            Self::AskHow => 9025,
+            Self::AskHowHint => 9026,
             Self::HowChange => 4900,
             Self::HowOwn => 4901,
             Self::HowOwnLine => 4902,
@@ -5472,6 +5484,9 @@ impl Word {
             Self::ToolSeparator => 1041,
             Self::PlusDraft => 3680,
             Self::DraftEmpty => 3681,
+            Self::DraftWriteUp => 9027,
+            Self::DraftNotYet => 9028,
+            Self::DraftSendResumes => 9029,
             Self::DraftWriting => 3682,
             Self::DraftWords => 3683,
             Self::ChatWrites => 3684,
@@ -6586,7 +6601,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),
         Word::Pause => (&[b"Pause"], &[]),
         Word::Resume => (&[b"Resume"], &[]),
-        Word::WaysLede => (&[b"Pick a way for ", b", or ask temper to build your own."], &[Name]),
+        Word::WaysLede => (&[b"Choose how work runs, or describe how you work below."], &[]),
+        Word::AskHow => (&[b"How does temper work?"], &[]),
+        Word::AskHowHint => (&[b"Sends: ", temper_client_domain::pages::chat::document::HOW_TEMPER_WORKS], &[]),
         Word::HowChange => (&[b"Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it."], &[]),
         Word::HowOwn => (&[b"A way of its own"], &[]),
         Word::HowOwnLine => (&[b"", b" runs settings of its own, drawn below."], &[Name]),
@@ -7537,6 +7554,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WorkRepeated => (&[b"", b" \xc3\x97", b""], &[Name, Number]),
         Word::ToolSeparator => (&[b" \xc2\xb7 "], &[]),
         Word::PlusDraft => (&[b"+ Draft"], &[]),
+        Word::DraftWriteUp => (&[b"Write it up from this chat"], &[]),
+        Word::DraftNotYet => (&[b"T", b" \xc2\xb7 no draft yet"], &[Number]),
+        Word::DraftSendResumes => (&[b"Sending resumes this chat. \xc2\xb7 Ctrl+\\ switches the draft"], &[]),
         Word::DraftEmpty => (&[b"The draft appears here as you write it together."], &[]),
         Word::DraftWriting => (&[b"writing"], &[]),
         Word::DraftWords => (&[b"What should this draft hold?"], &[]),

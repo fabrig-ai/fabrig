@@ -1,6 +1,7 @@
 # look: status
 
-2026-11-11. Where the tree's code lags or departs from [look.md](look.md).
+2026-11-12. Where the tree's code lags or departs from [look.md](look.md).
+
 
 - **Departs:** the whole document: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and

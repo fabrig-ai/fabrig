@@ -2,7 +2,11 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
-/// The person's request to write beside the conversation.
+/// The person's fixed first message from Ask temper's opening (client/pages/ask-temper.md, 1).
+pub const HOW_TEMPER_WORKS: &[u8] =
+    b"Briefly, how does temper work, from my ask to main? And how do these three differ?";
+
+/// The instruction appended to a new draft chat.
 pub const WRITE_THIS_UP: &[u8] = b"Write this up as a draft beside us.";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

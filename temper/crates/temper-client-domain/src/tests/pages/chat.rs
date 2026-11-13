@@ -1727,7 +1727,7 @@ fn mode_and_show_section_are_page_state() {
     }
 }
 
-fn start_over_pages() -> (crate::pages::Pages, jig_client::Client) {
+fn start_over_pages(with_document: bool) -> (crate::pages::Pages, jig_client::Client) {
     let mut f = f::with_delegate();
     let mut me = fixtures::chats::me();
     let project = me.projects.get_mut(0).unwrap();
@@ -1759,8 +1759,14 @@ fn start_over_pages() -> (crate::pages::Pages, jig_client::Client) {
     );
     let handle = pages.chat().unwrap().document;
     chat_told(&mut pages, &f.client, Told::Changed { handle });
-    let handle = draft_handle(pages.chat().unwrap());
-    chat_told(&mut pages, &f.client, Told::Page { handle, page: notes_page(&[draft_note(1, 1, b"# How it works")]) });
+    if with_document {
+        let handle = draft_handle(pages.chat().unwrap());
+        chat_told(
+            &mut pages,
+            &f.client,
+            Told::Page { handle, page: notes_page(&[draft_note(1, 1, b"# How it works")]) },
+        );
+    }
     (pages, f.client)
 }
 fn start_over_act(pages: &mut crate::pages::Pages, client: &jig_client::Client, act: Act) -> Queue<Request> {
@@ -1770,7 +1776,7 @@ fn start_over_act(pages: &mut crate::pages::Pages, client: &jig_client::Client, 
 }
 #[test]
 fn start_over_asks_first() {
-    let (mut pages, client) = start_over_pages();
+    let (mut pages, client) = start_over_pages(false);
     let mut out = start_over_act(&mut pages, &client, Act::StartOver);
     assert!(fixtures::acts::sent(&mut out).is_empty());
     assert!(pages.confirmation().is_some());
@@ -1781,7 +1787,7 @@ fn start_over_asks_first() {
 }
 #[test]
 fn confirmed_it_closes_with_the_chats_own_close() {
-    let (mut pages, client) = start_over_pages();
+    let (mut pages, client) = start_over_pages(true);
     start_over_act(&mut pages, &client, Act::StartOver);
     let expected = pages.chat().unwrap().closing.clone().unwrap();
     let mut out = start_over_act(&mut pages, &client, Act::Confirm);
@@ -1808,7 +1814,7 @@ fn answer_start_over(
 }
 #[test]
 fn a_done_start_over_shows_ask() {
-    let (mut pages, client) = start_over_pages();
+    let (mut pages, client) = start_over_pages(true);
     start_over_act(&mut pages, &client, Act::StartOver);
     start_over_act(&mut pages, &client, Act::Confirm);
     let mut out = answer_start_over(&mut pages, &client, seen_answer());
@@ -1820,7 +1826,7 @@ fn a_done_start_over_shows_ask() {
 }
 #[test]
 fn a_failed_close_keeps_its_fates_and_restarting() {
-    let (mut pages, client) = start_over_pages();
+    let (mut pages, client) = start_over_pages(true);
     start_over_act(&mut pages, &client, Act::StartOver);
     let closing = pages.chat().unwrap().closing.clone();
     start_over_act(&mut pages, &client, Act::Confirm);
@@ -1839,7 +1845,7 @@ fn a_failed_close_keeps_its_fates_and_restarting() {
 }
 #[test]
 fn cancel_changes_nothing() {
-    let (mut pages, client) = start_over_pages();
+    let (mut pages, client) = start_over_pages(true);
     let draft = pages.chat().unwrap().draft.clone();
     start_over_act(&mut pages, &client, Act::StartOver);
     assert!(start_over_act(&mut pages, &client, Act::Cancel).is_empty());
@@ -2171,29 +2177,43 @@ fn draft_ready() -> f::Fixture {
     f
 }
 #[test]
-fn add_draft_sends_and_goes_to_split() {
-    let mut f = draft_ready();
-    f.chat.words = b"Unsent words".as_slice().into();
-    let mut serial = SERIAL;
-    for _ in 0_u32..2 {
-        f.chat.act(&fixtures::env(&draft_limits()), &f.client, Act::AddDraft, &mut serial, &mut f.out);
+fn add_draft_sends_once_and_keeps_the_chosen_pane() {
+    use crate::pages::chat::document::Mode;
+    for (chosen, expected) in [(Mode::Chat, Mode::Split), (Mode::Split, Mode::Split), (Mode::Draft, Mode::Draft)] {
+        let mut f = draft_ready();
+        f.chat.words = b"Unsent words".as_slice().into();
+        let mut serial = SERIAL;
+        f.chat.act(&fixtures::env(&draft_limits()), &f.client, Act::Mode { mode: chosen }, &mut serial, &mut f.out);
+        assert!(f.out.is_empty(), "choosing a pane sends nothing");
+        assert!(!f.chat.writing);
+        for _ in 0_u32..2 {
+            f.chat.act(&fixtures::env(&draft_limits()), &f.client, Act::AddDraft, &mut serial, &mut f.out);
+        }
+        assert_eq!(f.chat.mode, expected);
+        assert!(f.chat.writing);
+        assert_eq!(f.chat.words.as_ref(), b"Unsent words");
+        let sent = fixtures::acts::sent(&mut f.out);
+        let [c::Ask::Message { project, task, words }] = sent.as_ref() else { panic!("one draft message: {sent:?}") };
+        assert_eq!(
+            (*project, *task, words.bytes()),
+            (fixtures::PROJECT, f::TASK, b"Write this up as a draft beside us.".as_slice())
+        );
+        assert_eq!(f.chat.pending.len(), 1);
+        assert_eq!(f.chat.pending.get(0).unwrap().1, Sending::Message);
+        assert!(f.chat.thread.words.pending(f.chat.pending.get(0).unwrap().0));
     }
-    assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Split);
-    assert!(f.chat.writing);
-    assert_eq!(f.chat.words.as_ref(), b"Unsent words");
-    let sent = fixtures::acts::sent(&mut f.out);
-    let [c::Ask::Message { project, task, words }] = sent.as_ref() else { panic!("one draft message: {sent:?}") };
-    assert_eq!(
-        (*project, *task, words.bytes()),
-        (fixtures::PROJECT, f::TASK, crate::pages::chat::document::WRITE_THIS_UP)
-    );
-    assert_eq!(f.chat.pending.len(), 1);
-    assert_eq!(f.chat.pending.get(0).unwrap().1, Sending::Message);
-    assert!(f.chat.thread.words.pending(f.chat.pending.get(0).unwrap().0));
 }
 #[test]
 fn a_refused_add_keeps_the_pane_and_its_words() {
     let mut f = draft_ready();
+    f.chat.words = b"Unsent words".as_slice().into();
+    f.chat.act(
+        &fixtures::env(&draft_limits()),
+        &f.client,
+        Act::Mode { mode: crate::pages::chat::document::Mode::Draft },
+        &mut { SERIAL },
+        &mut f.out,
+    );
     f.chat.act(&fixtures::env(&draft_limits()), &f.client, Act::AddDraft, &mut { SERIAL }, &mut f.out);
     let key = f.chat.pending.get(0).unwrap().0;
     let refused = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
@@ -2201,8 +2221,9 @@ fn a_refused_add_keeps_the_pane_and_its_words() {
         at: None,
     }));
     f.chat.told(Time::ZERO, &f.client, Told::Answered { key, outcome: refused.clone() }, &mut f.out);
-    assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Split);
-    assert!(f.chat.writing);
+    assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Draft);
+    assert!(!f.chat.writing);
+    assert_eq!(f.chat.words.as_ref(), b"Unsent words");
     assert_eq!(f.chat.outcome, Some(refused));
     assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
     assert!(f.chat.pending.is_empty());

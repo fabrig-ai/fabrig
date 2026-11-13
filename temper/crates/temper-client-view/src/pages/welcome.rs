@@ -167,6 +167,7 @@ pub(crate) fn main(
                 if playground {
                     paragraph(b, w, Word::WelcomeAfter, look::WELCOME_AFTER);
                 }
+                crate::outside::box_line(b, w);
             }
         }
         Step::Forge { forge: forge_choice } => {

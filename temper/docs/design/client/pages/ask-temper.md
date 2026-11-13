@@ -8,8 +8,10 @@
   temper" and the tab bar's "Ask" do (`../view.md`, 3): the person's newest Ask temper
   chat open in the project, as `Chats` reads them, or else `Ask { project
   }` (1). A step says what the person does, and what it opens is
-  named "Ask temper". The chat starts with the person's own words, never
-  with canned ones. Neither Settings nor the Chats page makes the offer.
+  named "Ask temper". The chat starts with the person's own words, typed,
+  or the opening's "How does temper work?" pressed, its fixed words sent
+  as theirs (the look request `ask-opening`, 2026-11-12); temper never
+  starts it with words of its own. Neither Settings nor the Chats page makes the offer.
 - **Ask temper's page** (the mock's `chat.html?id=new&configure=1`, in
   the project's frame, out of Settings as the look request
   `ask-temper-place` places it; `../../draft/ask-temper.md`, section 9):
@@ -38,9 +40,11 @@
     the read's. Until the read answers, the ways' region holds nothing; if
     its watch ends, it says, muted, "The ways can't be read now.". In this
     order:
-    - *the lede,* in ink, "Pick a way for PROJECT, or ask temper to build
-      your own.", so that building one's own way with temper, in the
-      composer, reads as the other choice;
+    - *the lede,* in ink, "Choose how work runs, or describe how you work
+      below.", naming no project, so that describing one's own way to
+      temper, in the composer, reads as the other choice; "how work runs"
+      is the rail's and Settings' name for it, and no new noun (the look
+      request `ask-opening`, 2026-11-12);
     - *the ways,* a region named "Ways of working", 22 pixels under the
       lede: one control of tabs named "Ways of working", the full width
       in a lined frame, a tab for each way in the read's order, from
@@ -66,6 +70,19 @@
       is out. A refusal stands under the foot in jig's words with the
       forge's reason, as Settings says one under its row (`settings.md`, 2); an act
       answered says its toast (`settings.md`, 2).
+    - *"How does temper work?",* in the same row, before the way's act, on
+      every tab and whether or not the way has an act (the row then holds
+      it alone): a button in the row's outlined look
+      (`.temper-ways-acts > button`), its hint "Sends: Briefly, how does
+      temper work, from my ask to main? And how do these three differ?".
+      Pressed, it starts the chat as "Send" does (below), its first message
+      those fixed words, "Briefly, how does temper work, from my ask to
+      main? And how do these three differ?", the person's own message,
+      shown in the chat as any other; the composer's words are neither
+      sent nor changed. It is disabled while "Send" can't start a chat
+      (no template 5, or a start out), and goes with the opening once the
+      chat opens. On a phone the row's buttons wrap as "Keep it" does
+      (the look request `ask-opening`, 2026-11-12).
     - *a stop's card:* a stop pressed, in the drawing or as its line in
       the fallback, opens its card under the path, the drawing's caret
       at the stop (`chat/conversation.md`, 3); pressed again it closes, another stop moves
@@ -130,7 +147,10 @@
   do the rail and the tab bar offer it (`../view.md`, 3). While it is out, "Send" is
   disabled and the words stay; made, the chat's page opens: it is a chat
   like any other there; refused, jig's words stay under the composer, the
-  words kept. The chat names no repository. A way's act starts no chat:
+  words kept. "How does temper work?" is the same act with its fixed
+  words in place of the composer's: one request, the same template,
+  model and refusal, its refusal under the composer, the composer's own
+  words left as they were. The chat names no repository. A way's act starts no chat:
   it changes the settings at once (`settings.md`, 2).
 - **temper's own way,** the stock page `how-temper-builds-temper`
   (`../../protocol/documentation.md`, 2.2), has no way in from this page
@@ -143,7 +163,8 @@
   with the others, tagged "Ask temper". Its `Chat { task }`, opened from
   there, from its start, from the rail's "Ask temper" or from its
   proposal's review (`settings.md`, 2), has this layout: the same top bar, its path
-  "PROJECT / Ask temper /", "‹" on a phone a link named "Ask temper" to
+  "Ask temper /", naming no project, which the rail's switcher names
+  (`chat/README.md`, 1, *One layout for every chat*), "‹" on a phone a link named "Ask temper" to
   `Ask { project }`, its heading the chat's number and title as a chat's
   is, then its number and " · Ask temper", its status, its spend, Pause
   or Resume, and Close; the conversation as a chat's in place of the

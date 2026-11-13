@@ -162,17 +162,17 @@ from the engine's own answers, is where the look is tuned.
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `ask` | the solo world's Ask temper page before its first words: its heading, the form "Ask temper" and its empty text area |
-| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home, Ask temper, the hairline and How work runs alone, the phone's three tabs; the lede and the ways, Agents review current and shown with "Keep it", Send disabled while the words are empty |
-| `ask-ways-approve` | `ask-first-run` with "You approve" pressed: its line, its path with "you approve" and no review, and "Use this" |
+| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home, Ask temper, the hairline and How work runs alone, the phone's three tabs; the lede and the ways, Agents review current and shown, its row "How does temper work?" then "Keep it", Send disabled while the words are empty |
+| `ask-ways-approve` | `ask-first-run` with "You approve" pressed: its line, its path with "you approve" and no review, and the row "How does temper work?" then "Use this" |
 | `ask-ways-draft` | hand-made `ways` delivery over a repository with CI and tiers on goal branches and on main, "Draft first" shown: its two landings, the goal branch's bar dimmer, "verify" before main |
 | `ask-ways-card` | `ask-first-run` with the review's stop pressed: its card under the path, its caret at the stop, its model, what it can do and what it is asked to |
 | `ask-ways-card-person` | `ask-ways-approve` with "you approve" pressed: a person's card, the role and what they decide |
-| `ask-ways-yours` | hand-made `ways` delivery whose project runs no stock way: a fourth tab, "Yours", current and shown, its path, no act |
+| `ask-ways-yours` | hand-made `ways` delivery whose project runs no stock way: a fourth tab, "Yours", current and shown, its path, "How does temper work?" alone in the acts row |
 | `ask-ways-refused` | `ask-ways-approve` with "Use this" refused for too few approvers: the forge, the role, how many it asks and how many can, under the foot |
-| `ask-ways-member` | a member's page: the tabs and the paths, no act |
-| `ask-ways-kept` | after "Keep it": its toast naming the revision, Agents review current with no act, To begin's first step done |
+| `ask-ways-member` | a member's page: the tabs and the paths, "How does temper work?" alone in the acts row |
+| `ask-ways-kept` | after "Keep it": its toast naming the revision, Agents review current with "How does temper work?" alone in the acts row, To begin's first step done |
 | `ask-typing` | words entered; Send enabled; the rail and tabs as `ask-first-run`'s |
-| `ask-sending` | the Ask temper start out; Send disabled, words kept; the rail and tabs as `ask-first-run`'s |
+| `ask-sending` | the Ask temper start out; Send and "How does temper work?" disabled, words kept; the rail and tabs as `ask-first-run`'s |
 | `ask-refused` | the start refused; jig's words below the composer, the words kept; the rail and tabs as `ask-first-run`'s |
 | `ask-chat` | the solo world’s T10 as an Ask temper chat, conversation and proposal in its layout, its path through Ask temper |
 | `ask-chat-proposal` | `ask-chat` with a pending proposal of settings: its title, lines, items and "Accept" |
@@ -249,7 +249,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-work-separated` | text between two calls ends one run and starts another |
 | `chat-work-empty` | before the first word or call, the three dots |
 | `chat-work-reading` | earlier messages loading and Latest over the foot while away from the end |
-| `chat-working` | a live chat at work: its three dots |
+| `chat-working` | a live chat at work: its three dots and "✦ Working" above the composer |
 | `agent-work` | an agent's page, its last run running with a call under way, and Latest over the foot while away from the end |
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
@@ -268,10 +268,10 @@ from the engine's own answers, is where the look is tuned.
 | `chat-draft-chat` | a chat with a document, in Chat: its group and tool line |
 | `chat-draft-split` | the same chat in Split: the strip, the pane and a tinted section |
 | `chat-draft-draft` | the same chat in Draft: the composer at the foot on white |
-| `chat-draft-empty` | "+ Draft" pressed and nothing written: the empty pane |
+| `chat-draft-empty` | Split chosen, nothing written: the empty pane and Write it up from this chat |
 | `chat-new-draft` | `NewChat { draft: true }`: the empty pane in Split |
 | `chat-start-goal` | a chat's sheet to start a goal, open |
-| `chat-terminal` | the `chat-draft` chat with ">_" pressed: the terminal, dark, DejaVu Sans Mono (the request's page 02) |
+| `chat-terminal` | the `chat-draft` chat with `terminal::Act::Enter` applied, not through a page control: the terminal, dark, DejaVu Sans Mono (the request's page 02) |
 | `chat-terminal-draft` | the same with the draft beside it (page 03) |
 | `chat-terminal-commands` | the same with "/" in the box: the commands' list (page 04) |
 | `chat-terminal-model` | the same with `/model`'s list (page 05) |
@@ -285,10 +285,11 @@ from the engine's own answers, is where the look is tuned.
 | `chats-drafts` | the Chats page under Drafts: "writes away-mode.md" |
 | `ask-chat-document` | an Ask temper chat in Chat, its document written |
 | `ask-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
+| `ask-chat-draft-empty` | an Ask temper chat in Split with no document: "TN · no draft yet", Write it up from this chat, and Start over in the bar |
 | `rail-new-menu` | the rail's "+ New draft or change" with its menu open: Draft, Change and Ask temper |
 | `rail-person-menu` | the rail's person with its menu open |
 | `rail-new-change` | a project offering no drafts, as at Pair: the rail's "+ New change", a link, no menu |
-| `rail-all-projects` | a person in two projects, the switcher open: "All projects", "2 projects", first |
+| `rail-all-projects` | a person in two projects, the switcher open: "All projects", "2 projects", first; on a wide page its acts end at "Rename PROJECT" and "New project"; at 760 px and under "Team for PROJECT" where Team shows, "How work runs for PROJECT" and "Deployment" follow, in that order (`../view.md`, 3) |
 | `rail-across` | *Needs you* across projects, a need in each of two projects: the switcher names "All projects"; the rail's "Needs you 2", current, counting both, its Home to `AllHome`, and the phone's Home and "Needs 2" the same; its Work and How work runs the project last open (`../view.md`, 3, *All projects*) |
 | `work` | hand-made deliveries after the whole story's `work.html`: two live goals, one with a change checking and one landed on its card; a change of its own, queued; a chat with its change; two drafts, as `work.html`'s, a design session's being written and the witness catch-up, landed and ready, with "Start a goal: WAY", WAY its project's way as `../pages/work.md`, 1, *Ways*, names it, and "Another way"; four changes landed this week |
 | `work-pair` | hand-made deliveries after `pair/work.html`: chats and their changes alone, drafts not offered; no Drafts or Goals filter, the rail's "+ New change" |
@@ -365,8 +366,8 @@ from the engine's own answers, is where the look is tuned.
 | `task-solo-T3` | the solo world's goal T3, on `goal.html`'s page |
 | `accounts-solo` | the solo world's accounts |
 | `chats-first-run-1` | the first run's Chats at step 1: an empty list |
-| `welcome-first-run-0` | the first run's welcome: its two cards |
-| `welcome-go-on` | Welcome asked for with a real forge under way: Go on setting up, no playground |
+| `welcome-first-run-0` | the first run's welcome: its two cards, their note, then temper box's paragraph |
+| `welcome-go-on` | Welcome asked for with a real forge under way: Go on setting up, no playground or note, temper box's paragraph after the card |
 | `connect-forge-first-run-6` | the first run's `ConnectForge` at step 6: Forgejo here setting up, the box preparing |
 | `forges-first-run-7` | the first run's Forges at step 7: Forgejo here connected |
 | `welcome-forge-choose` | the welcome's Forge choices, before any forge is connected |
@@ -479,7 +480,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-closing-work` | a run, two delegates with opposite fates, and two proposals: what closing changes |
 | `chat-closing-failed` | the same close refused: the sheet keeps its choices and says why |
 | `chat-closed` | the requester closed it: one end line at 21:05, with a quiet bar |
-| `chat-paused` | a chat its person paused: "Paused", Resume and Close, and the composer's hint "Sending resumes this chat." |
+| `chat-paused` | a chat its person paused: "✦ Paused" above the composer, Resume and Close in the bar, and the hint "Sending resumes this chat." |
 | `chat-closing-start-over` | an Ask temper chat's Start over confirmation |
 | `task-closing` | an agent's task Close confirmation, with a task below it |
 | `task-paused` | an agent's task its person paused: "Paused", Resume and Close, and no own held card |
@@ -501,6 +502,14 @@ from the engine's own answers, is where the look is tuned.
 | `task-reference-T24` | the reference world's change T24, landed, its ended task T25 |
 | `task-reference-T12` | the reference world's goal T12, its tasks with its ended delegates T13, T14 and T24 folded |
 | `task-solo-T9` | the solo world's agent T9, its run's committed calls and words within the shipped window |
+
+All `welcome-*` states keep the welcome's bar: temper's mark, Steps and
+its link region alone, no person, Sign out or sign-out alert. Only the
+Welcome step draws temper box's paragraph, under the cards' note, or
+under the cards where there is no note (`../pages/welcome.md`, 1;
+`welcome-top`). On Model and Ready, "Open Forgejo ↗", when an address is
+known, is a quiet link at the forge text's 24 px indent, muted, 13.5 px
+(`forgejo-link`); with no address there is no link.
 
 ## 3. Its tests
 

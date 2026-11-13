@@ -10,9 +10,15 @@
   and tab bar go, but for the rail's night switch, at the chat's bar's right
   (`../../view.md`, 3), and the tab bar of Ask temper's page and of an Ask temper chat, the
   phone's Ask tab (`../ask-temper.md`, 1, *Ask temper's page*). A chat differs from an Ask temper chat only in its path: a
-  chat's path is "PROJECT / Chats /", "‹" on a phone a
-  link to `Chats`; an Ask temper chat's is "PROJECT / Ask temper /", "‹" on a
+  chat's path is "Chats /", "‹" on a phone a
+  link to `Chats`; an Ask temper chat's is "Ask temper /", "‹" on a
   phone a link to `Ask { project }`, the rail's "Ask temper" current.
+  The path names no project, which the rail's switcher names, in a
+  browser and in the terminal alike (the look request `chat-path`,
+  2026-11-12); `NewChat`'s is a chat's (2). Ask temper's page before its
+  first message keeps its own path, PROJECT (`../ask-temper.md`, 1), and
+  an agent's page its lineage (`../task.md`); the browser's terminal look
+  keeps "✦ PROJECT /", having no rail (`terminal.md`, 1, *The top line*).
 - **A chat's bar** holds its path, its level-1 heading named "TN · TITLE", the
   chat's task number and its title (a chat's first message, whole), and at its
   right, in this order:
@@ -21,24 +27,41 @@
      The model and effort are the composer's, and the account leaves the bar
      (`composer.md`, 1, *The work's account and model*). An Ask temper chat's is a chat's,
      then " · Ask temper", in the look of its tag in Chats.
-  2. *Its status,* quiet: 12 px, faint, in lower case by the look alone.
-     It is the colour of `.state-needs` while it waits for the person.
-     A run that can't start says so ("Waiting for an account"), that colour
-     too, and has no dots: the dots say a run is working, never that it
-     can't start (jig's `client/domain/client/helpers.md`, 1).
-     Every ended chat says "Closed", with no time: its end's line has the time
-     (`../../README.md`, 3.6, *Closed ends on one line*).
-     A chat the person paused says "Paused", quiet; one held for any other
-     reason says "Held", and its card says why (1, *A person's pause*).
+  2. *Its document's act:* "Start goal…" or its goal's link, once it has a
+     document; on an Ask temper chat "Start over" in their place, with or
+     without one (`document.md`, 1, *The bar*).
   3. *Pause or Resume, and Close,* while allowed, each quiet and small. The
      mock has neither; they are the only way to pause or end a chat.
-  4. *Its own spend,* "N spent · of B", in the view and hidden in the
+  4. *The view group,* "The draft": Chat, Split and Draft, at the bar's far
+     right, on every chat that has a document or offers one
+     (`document.md`, 1, *The bar*), so that it stands in one place through
+     the chat: at rest, working, and in each mode with or without a
+     document. Measured at 1366 px, it stays at 1119 to 1342 px.
+  5. *Its own spend,* "N spent · of B", in the view and hidden in the
      browser.
 
-  The bar's right part is a flex row.
-  After the number, once a chat has a document, its mode group; with none,
-  "+ Draft"; then "Start goal…" or its goal's link; on an Ask temper chat
-  "Start over" (`document.md`, 1).
+  The bar's right part is a flex row. It draws no status: the chat's status
+  is its status line, above the composer (*Its status line*, below), so that
+  no word of it moves the bar (the look request `chat-bar`, 2026-11-12).
+- **Its status line** (the look request `chat-bar`): a status, named its
+  words, at the head of the composer's form, above its text area, at the
+  composer's column, drawn whenever the composer is, so that nothing under
+  it moves: "✦", then the chat's status (*A chat's status*, below), with
+  "Writing" said "Working" as the terminal's running line says it
+  (`terminal.md`, 1, *The running line*). At rest "✦ waiting on your words",
+  the star faint and still. While the chat works, the status the browser
+  draws working dots for (`conversation.md`, 1, *While it works*), "✦ Working",
+  the star pulsing with the dots' animation and the line marked working.
+  "waiting on N delegates", "Waiting for you", "Waiting for an account",
+  "Paused", "Held", "Held: …" and "Cannot start yet" take the line in jig's
+  words, as the bar had them, the star still. It has no colour of its own:
+  `.state-needs` is gone with the bar's status. A chat that has ended draws
+  no composer and no line: its end's line says it, with its time
+  (`../../README.md`, 3.6, *Closed ends on one line*). `NewChat` and `Ask`,
+  before a chat exists, draw none. On a phone it keeps the composer's
+  width. The terminal shell prints it as a line before the composer; the
+  browser's terminal look keeps its own running line (`terminal.md`, 1).
+  Its look is `../../web/look.md`'s, *A chat's status line*.
 - **A chat's heading is short** (the request `chat-title`): it shows its
   title's short form, which a browser draws alone and the terminal after
   "TN · ". The short form is worked out in the view, in one function
@@ -64,7 +87,11 @@
 
   The path yields to the right part: the crumbs take `flex: 1 1 320px`, so
   the right part keeps the bar's row while the path has 320 px, and the
-  heading's ellipsis takes up the rest. Below that the row wraps, and a
+  heading's ellipsis takes up the rest. The trail inside them keeps one
+  line at its own width (`flex: none; white-space: nowrap`), so that it
+  is the heading that shrinks, never the trail that breaks: at 1366 and
+  1440 px, the rail open, the bar is one line (the look request
+  `chat-path`). Below about 1100 px the row wraps, and a
   phone keeps the heading above the controls.
 - **A person's pause** is a chat held by a placed hold of that person's own,
   mode Stop, over the chat's own subtree: the chip's hold names it, not lifted,
@@ -89,7 +116,7 @@
     lone `Message`.
   - An agent's task's Pause and Resume are these acts (`../task.md`, 4); a message to it
     resumes nothing (`../../README.md`, section 5).
-- **A chat's status,** in its bar and on its line of the Chats
+- **A chat's status,** on its status line and on its line of the Chats
   page, is jig's, narrowed as the mockups' "Where each value comes
   from" says: "waiting on 1 delegate", "waiting on N delegates" while
   it waits on its delegates, N its chip's live delegates, as a goal's
@@ -104,7 +131,7 @@
   is on the person, before its delegates, and it says "Waiting for
   you". A line of the chats page reads the same wake policy, from its
   chip's (`OwnerChipDetails`' `wake`), and says "waiting on your words"
-  as the bar does: a chat at rest after its reply, which only its
+  as the status line does: a chat at rest after its reply, which only its
   person's words or Close move on (jig's `domain/tasks/lifecycle.md`, 9). A
   chat whose host refuses its start says jig's "Cannot start yet", and
   the feedback above its composer says why (below); a line of the Chats page holds
@@ -113,8 +140,10 @@
   configured bound (jig's `Exceeded` hold) says jig's phrase for that
   hold, as its hold card does: "Held: the model's reasoning went past
   its configured allowance of 2048 bytes". A chat the person paused says
-  "Paused", on its bar and on its line on Chats and on Home (1, *A person's
+  "Paused", on its status line and on its line on Chats and on Home (1, *A person's
   pause*). Any other hold says jig's "Held", and the chat's page says why.
+  An ended chat's line on Chats says "Closed", with no time; its page draws
+  no status line, its end's line saying it.
 
 ## 2. A new chat
 
@@ -124,9 +153,9 @@
   watches, so that `Act::StartChat`, `Act::ChatWords` and `Act::Suggest`
   are the page's, as they are Ask temper's page's. On the layout every
   chat takes:
-  - *Its bar:* the path "PROJECT / Chats /", "‹" on a phone a link to
-    `Chats`, and the level-1 heading "New chat". No project yet, in the
-    playground's start, the path is "Chats /" alone.
+  - *Its bar:* the path "Chats /", naming no project (1, *One layout for
+    every chat*), "‹" on a phone a link to `Chats`, and the level-1
+    heading "New chat", in the playground's start too.
   - *In the thread,* centred, `.meta-line`: "Say what you want; the agent
     works in OWNER/NAME.", OWNER/NAME the project's home repository, read as
     Home reads it; or, with none, "Say what you want. PROJECT has no
@@ -143,9 +172,9 @@
   - *The playground's start* (`../../forge/family.md`, 7, `../welcome.md`, 2): its status, its failure and "Try
     again" and its context line draw above the `.meta-line`'s place, and its
     suggestions as `.starters` under it.
-  - *With a draft,* `NewChat { draft: true }`, `/chats/new?draft=1`: "+ Draft" in
-    the bar (`.btn.small`, while `drafts_offered`, `document.md`, 1)
-    moves there. The empty document in Split, `.meta-line` "A chat that writes a
+  - *With a draft,* `NewChat { draft: true }`, `/chats/new?draft=1`: Split or
+    Draft in the bar's view group (while `drafts_offered`, `document.md`, 1, *The
+    bar*) moves there, and Chat back to `draft: false`. The empty document in Split, `.meta-line` "A chat that writes a
     draft. Say what it should hold.", the placeholder "What should this draft
     hold?". The first message starts a design session from template 6 where `me`
     lists it among the project's templates (`../../../domain/agent/agents.md`, 4), and

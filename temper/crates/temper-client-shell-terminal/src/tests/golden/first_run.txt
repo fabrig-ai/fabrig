@@ -24,20 +24,21 @@ Playground:
   This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper
 Where:
   [16] Chats
-  [17] demo
-  [18] Chats
-[19] + Draft
+  [17] Chats
+[18] Chat (pressed)
+[19] Split
+[20] Draft
 Conversation:
   * Ready
   playground/widget
   Say what you want; the agent works in playground/widget.
   Suggested requests:
-    - [20] Add CSV export to widget
-    - [21] Add a dark theme to widget
-    - [22] Fix widget’s empty search state
+    - [21] Add CSV export to widget
+    - [22] Add a dark theme to widget
+    - [23] Fix widget’s empty search state
   What do you want done?
-    [23] What do you want done?: (empty) (enter sends)
+    [24] What do you want done?: (empty) (enter sends)
     [-] Send (disabled)
-    Enter sends · Shift+Enter for a new line
+    Enter sends · Shift+Enter for a new line · Ctrl+\ switches the draft
     Model: the default model
-      - [24] Scripted model
+      - [25] Scripted model

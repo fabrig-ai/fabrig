@@ -17,6 +17,7 @@ Failing on this goal's branch and no live change's; delivery checks pass them. E
 - test temper-playground-world::suite walk::story_a_kept_log_replays_natively
 - test temper-playground-world::suite walk::story_a_walks_from_the_welcome_to_the_csv_change_landed
 - test temper-real-loop-world::suite lock::two_acts_on_one_directory_take_its_lock_in_turn
+- test temper-box::suite box_front::front_refuses_without_a_first_link_before_starting_steps
 - test skein-conformance-real::suite deadline::an_idle_listener_wait_fails_with_its_figures
 - test temper-real-loop-world world::diagnostics::tests::forced_overdue_observes_real_tasks_operations_and_dispatch
 - test temper-box::suite box_listeners::a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up
@@ -39,37 +40,24 @@ Inherited from main, raised by change 1766 on 2026-11-12.
 - lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
 - lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
-- lint skein-lib clippy::chunks_exact_to_as_chunks skein/crates/skein-lib/src/crypto_rng.rs
 - lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
 - lint jig-protocol-config clippy::disallowed_methods jig/crates/jig-protocol-config/src/tests/seed_policy.rs
 - lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
-- lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
-- lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
-- lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
 
 Inherited by goal 1988 on 2026-11-12: the delivery toolchain nightly-2026-10-21 raises these lints on lines no G6 change touches.
 
 - lint jig-domain-fleet clippy::unneeded_wildcard_pattern jig/crates/jig-domain-fleet/src/attempt.rs
 - lint jig-domain-fleet clippy::needless_bool jig/crates/jig-domain-fleet/src/sources.rs
 - lint jig-domain-accounts clippy::needless_bool jig/crates/jig-domain-accounts/src/limits.rs
-- lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
-- lint temper-settings-form clippy::too_many_lines temper/crates/temper-settings-form/src/kinds.rs
-- lint temper-engine-domain clippy::too_many_lines temper/crates/temper-engine-domain/src/route/applications.rs
-- lint temper-engine-domain clippy::useless_conversion temper/crates/temper-engine-domain/src/route/kinds.rs
-- lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
 - lint jig-client-domain clippy::byte_char_slices jig/crates/jig-client-domain/src/contract/accounts.rs
 - lint temper-client-view clippy::disallowed_types temper/crates/temper-client-view/src/tests/task.rs
-- test temper-box::suite box_listeners::a_fresh_box_prints_its_block_and_nothing_else
 Inherited from main (merge 725c605915), found by change 2116 of goal 2105 on 2026-11-12.
 - lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/lib.rs
 - lint smith-protocol-program clippy::items_after_test_module smith/crates/smith-protocol-program/src/mcp.rs
 - lint fabrig-boundary clippy::assert_is_empty tests/boundary/tests/codecs.rs
 Inherited from main (commit 0e504506c7, merged by hand in 6d3aa97b7d), found by change 2117 of goal 2105 on 2026-11-12.
 
-- lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
-- lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
 - lint skein-http clippy::question_mark skein/crates/skein-http/src/server.rs
-- lint jig-client-domain clippy::byte_char_slices jig/crates/jig-client-domain/src/contract/accounts.rs
 - test temper-box::suite forge_land::setup_accepts_a_project_free_first_repository_row
 - test temper-box::suite forge_land::terminal_login_cleanup_excludes_a_restart_import
 - test temper-box::suite forge_land::a_held_login_returns_when_validation_panics_between_boxes
@@ -81,7 +69,6 @@ Inherited from main (commit 0e504506c7, merged by hand in 6d3aa97b7d), found by 
 
 Inherited from main at its merge into g by the closer, 2026-11-12.
 
-- lint jig-protocol-store clippy::disallowed_methods jig/crates/jig-protocol-store/src/lib.rs
 - lint jig-protocol-store clippy::too_many_lines jig/crates/jig-protocol-store/src/tests/phase.rs
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/landing.rs
 - lint temper-engine-domain-forge clippy::needless_borrow temper/crates/temper-engine-domain-forge/src/landing.rs
@@ -95,9 +82,6 @@ Failing on goal 1985's branch and owned by none of its live changes; delivery's 
 
 - lint jig-client-protocol-kit clippy::items_after_statements jig/testing/jig-client-protocol-kit/src/front/observe.rs
 - lint temper-engine-smith clippy::too_many_lines temper/crates/temper-engine-smith/src/settings.rs
-- lint skein-codec clippy::chunks_exact_to_as_chunks skein/crates/skein-codec/src/patch/plan.rs
-- lint jig-client-domain clippy::byte_char_slices jig/crates/jig-client-domain/src/contract/accounts.rs
-- lint temper-client-view clippy::too_many_lines temper/crates/temper-client-view/src/tests/toast.rs
-- lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/landing.rs
-- lint temper-engine-domain-forge unfulfilled_lint_expectations temper/crates/temper-engine-domain-forge/src/boundary.rs
 - lint temper-engine-domain-forge clippy::too_many_lines temper/crates/temper-engine-domain-forge/src/tests/landing.rs
+- lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
+- lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs

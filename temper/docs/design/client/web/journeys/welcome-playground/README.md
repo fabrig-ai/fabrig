@@ -3,6 +3,10 @@
 On a fresh `temper box --fake-backends`: the box's printed sign-in link
 opened, the welcome drawn under its top bar, "Try the playground" pressed.
 
+The welcome's bar holds temper's mark, Steps and the link region alone,
+no person or Sign out; temper box's paragraph follows the cards' note in
+main (`../../look-requests.md`, 3; `welcome-top`).
+
 - `01.html`: the welcome as it was when "Try the playground" was
   pressed. Its "Try the playground" leads to `02.html`.
 - `02.html`: `NewChat` in the Demo project, the playground started,
