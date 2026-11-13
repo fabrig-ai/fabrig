@@ -106,6 +106,8 @@ fn a_held_member_leaves_and_keeps_its_place_ahead_of_a_later_waiter() {
         task: LANDING,
         entry: 200,
         heard: top::LandingHeard {
+            outcomes: Box::new([]),
+            dependencies: Box::new([]),
             held: Box::new([CHANGE]),
             failure: Box::new([]),
             preparation: landing::Preparation::Idle,
@@ -197,6 +199,7 @@ fn a_real_failure_snapshots_each_failed_job_and_only_changed_keys_run_after_repa
     let mut next = landings::landing_row(world.change(CHANGE));
     next.landing.task = 62;
     next.landing.round = landing::Round::new(b"temper/1/l62".as_slice().into());
+    next.landing.members[0].branch.clone_from(&next.landing.round.branch);
     next.landing.members[0].gates =
         vec![landing::GateProof { proof: landing::Proof::Unkeyed, posted: landing::Posted::Nothing, faults: 0 }; 2]
             .into_boxed_slice();
@@ -281,6 +284,8 @@ fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_recei
                 task: LANDING,
                 entry: 300,
                 heard: top::LandingHeard {
+                    outcomes: Box::new([]),
+                    dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
                     preparation: landing::Preparation::Idle,
@@ -312,6 +317,8 @@ fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_recei
             task: LANDING,
             entry: 400,
             heard: top::LandingHeard {
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: landing::Preparation::Idle,
@@ -344,6 +351,7 @@ fn cancelling_the_landing_returns_its_member_ready_and_frees_the_train() {
     let mut row = landings::landing_row(world.change(CHANGE));
     row.landing.task = 62;
     row.landing.round = landing::Round::new(b"temper/1/l62".as_slice().into());
+    row.landing.members[0].branch.clone_from(&row.landing.round.branch);
     world.event(top::Event::Landing { row });
     assert_eq!(world.change(CHANGE).change.landing, Some(62));
 }

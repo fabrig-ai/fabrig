@@ -348,6 +348,8 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    outcomes: Box::new([]),
+                    dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
                     preparation: policy::Preparation::Idle,
@@ -366,15 +368,25 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
         assert_eq!(op, Op::Read(Read::Branch { branch: b"temper/1/l61".as_slice().into() }));
         fixtures::answer(&mut d, call, Ok(Answer::Commit(CANDIDATE)));
         let (call, op) = fixtures::next_call(&mut d);
-        assert_eq!(op, Op::Read(Read::Commits { before: CANDIDATE, after: fixtures::BASE, page: 1 }));
-        fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+        assert_eq!(op, Op::Read(Read::Commits { before: fixtures::BASE, after: CANDIDATE, page: 1 }));
+        fixtures::answer(
+            &mut d,
+            call,
+            Ok(Answer::Commits {
+                commits: Box::new([skein_forge::api::CommitMessage {
+                    id: CANDIDATE,
+                    parents: Box::new([fixtures::BASE, fixtures::HEAD]),
+                    message: Box::new([]),
+                }]),
+                more: false,
+            }),
+        );
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, Op::Read(Read::Commits { before: CANDIDATE, after: fixtures::HEAD, page: 1 }));
         let mut requests =
             fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: !complete }));
         if complete {
-            fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
-            fixtures::answer_next(
+            requests = fixtures::answer_next(
                 &mut d,
                 Ok(Answer::Commits {
                     commits: Box::new([skein_forge::api::CommitMessage {
@@ -385,7 +397,6 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
                     more: false,
                 }),
             );
-            requests = fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
         }
         let mut decision = None;
         for request in requests {
@@ -451,6 +462,8 @@ fn landing_shared_gather_row((same, other_repository): (bool, bool)) {
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
@@ -548,6 +561,7 @@ fn merge_landing_row(single: bool) -> LandingRow {
     } else {
         row.landing.round.pull = Some(2);
         row.landing.round.combined = Some(policy::Combine::Merge);
+        row.landing.members[0].combined = Some(policy::Combine::Merge);
     }
     row
 }
@@ -572,6 +586,8 @@ fn landing_merge_evidence(single: bool) {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    outcomes: Box::new([]),
+                    dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
                     preparation: policy::Preparation::Idle,
@@ -616,13 +632,13 @@ fn landing_merge_evidence(single: bool) {
             }
         );
         let evidence = evidence.expect("merge evidence");
-        assert_eq!(evidence.change, fixtures::CHANGE);
-        assert_eq!(evidence.facts.head, Some(fixtures::HEAD));
-        assert_eq!(evidence.facts.size, expected, "pull at {pull_head:?}");
-        assert_eq!(evidence.facts.base_tip, fixtures::BASE);
-        assert_eq!(evidence.facts.contains_base, change::Status::Passed);
-        assert_eq!(evidence.facts.ci, change::Status::Passed);
-        assert!(evidence.facts.reviews_complete);
+        assert_eq!(evidence.first().expect("single member").change, fixtures::CHANGE);
+        assert_eq!(evidence.first().expect("single member").facts.head, Some(fixtures::HEAD));
+        assert_eq!(evidence.first().expect("single member").facts.size, expected, "pull at {pull_head:?}");
+        assert_eq!(evidence.first().expect("single member").facts.base_tip, fixtures::BASE);
+        assert_eq!(evidence.first().expect("single member").facts.contains_base, change::Status::Passed);
+        assert_eq!(evidence.first().expect("single member").facts.ci, change::Status::Passed);
+        assert!(evidence.first().expect("single member").facts.reviews_complete);
         let (repository, _, described) = d.describe_landing_effect(61, 91).expect("saved merge description");
         assert_eq!(repository, REPO);
         assert_eq!(described.kind, 4);
@@ -707,6 +723,8 @@ fn turn_reviews(d: &mut Domain) -> Box<[Request]> {
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
@@ -730,7 +748,7 @@ fn turn_reviews(d: &mut Domain) -> Box<[Request]> {
     fixtures::answer(d, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }))
 }
 
-fn merge_evidence(requests: &[Request]) -> &LandingEvidence {
+fn merge_evidence(requests: &[Request]) -> &[LandingEvidence] {
     for request in requests {
         if let Request::LandingDecision {
             decision: policy::Decision::Merge { member: 0, candidate: fixtures::HEAD },
@@ -781,7 +799,7 @@ fn the_turn_reads_paths_only_for_a_branch_rule_naming_sets() {
             );
         }
         let evidence = merge_evidence(&requests);
-        assert_eq!(evidence.facts.touched.whole, compare);
+        assert_eq!(evidence.first().expect("single member").facts.touched.whole, compare);
         assert!(ready(&mut d).is_empty(), "no further reads before authorizing the merge");
     }
 }
@@ -832,12 +850,12 @@ fn the_turn_judges_path_approvals_from_its_complete_candidate_comparison() {
         };
         let requests = fixtures::answer(&mut d, call, answer);
         let evidence = merge_evidence(&requests);
-        assert_eq!(evidence.change, fixtures::CHANGE);
-        assert_eq!(evidence.facts.head, Some(fixtures::HEAD));
-        assert_eq!(evidence.facts.base_tip, fixtures::BASE);
-        assert_eq!(evidence.facts.touched.whole, whole);
+        assert_eq!(evidence.first().expect("single member").change, fixtures::CHANGE);
+        assert_eq!(evidence.first().expect("single member").facts.head, Some(fixtures::HEAD));
+        assert_eq!(evidence.first().expect("single member").facts.base_tip, fixtures::BASE);
+        assert_eq!(evidence.first().expect("single member").facts.touched.whole, whole);
         if !whole {
-            assert_eq!(evidence.facts.touched, Touched::UNKNOWN);
+            assert_eq!(evidence.first().expect("single member").facts.touched, Touched::UNKNOWN);
         }
         let reviewer_cases: [(Box<[Reviewer]>, JudgeVerdict); 3] = [
             (Box::new([]), if covered { JudgeVerdict::Wait } else { JudgeVerdict::Met }),
@@ -864,7 +882,15 @@ fn the_turn_judges_path_approvals_from_its_complete_candidate_comparison() {
         ];
         for (reviewers, expected) in reviewer_cases {
             assert_eq!(
-                d.judge_landing(5, 5, 0, 61, fixtures::HEAD, &evidence.facts, &reviewers),
+                d.judge_landing(
+                    5,
+                    5,
+                    0,
+                    61,
+                    fixtures::HEAD,
+                    &evidence.first().expect("single member").facts,
+                    &reviewers
+                ),
                 Some(expected),
                 "{path:?}, before {before:?}, after {after:?}, changed {changed}, refused {refused}"
             );
@@ -943,6 +969,8 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
@@ -1391,6 +1419,8 @@ fn filtered_tree_key_refusals_keep_the_bound_and_measured_usage() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    outcomes: Box::new([]),
+                    dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
                     preparation: temper_engine_domain_forge_landing::Preparation::Idle,
@@ -1608,6 +1638,8 @@ fn a_landing_uses_its_projects_gate_retry_setting() {
                 task: 61,
                 entry: 91,
                 heard: LandingHeard {
+                    outcomes: Box::new([]),
+                    dependencies: Box::new([]),
                     held: Box::new([]),
                     failure: Box::new([]),
                     preparation: temper_engine_domain_forge_landing::Preparation::Idle,

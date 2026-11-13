@@ -6014,6 +6014,7 @@ dependencies = [
  "skein-forge",
  "skein-forge-client",
  "skein-forge-setup",
+ "skein-json",
  "skein-lib",
  "skein-push",
  "skein-rows",

@@ -202,6 +202,25 @@ impl World {
             None,
         )
     }
+    #[must_use]
+    pub fn batch_turn(seed: u64, workflow: Option<raw::Workflow>) -> World {
+        let mut config = fake_config();
+        config.limits.files = 8;
+        Self::configured_repositories(
+            seed,
+            LIMITS.facts,
+            false,
+            Some(skein_forge_client::Writer { forge: REPO.forge, author: 1 }),
+            None,
+            false,
+            12,
+            true,
+            workflow,
+            config,
+            None,
+            4,
+        )
+    }
     pub fn project_landing(
         &mut self,
         project: u32,
@@ -252,6 +271,14 @@ impl World {
     #[must_use]
     pub fn first_waiting_change(&self) -> Option<u64> {
         self.top.first_waiting(REPO, b"main", &[], self.env.wall)
+    }
+    #[must_use]
+    pub fn judge_landing_evidence(&self, task: u64, evidence: &top::ChangeEvidence) -> Option<top::JudgeVerdict> {
+        self.top.judge_landing(self.landing(task).landing.project, 5, 0, task, evidence.head?, evidence, &[])
+    }
+    #[must_use]
+    pub fn landing_member_leave_words(&self, task: u64, member: u16) -> Option<Box<[u8]>> {
+        self.top.landing_leave_words(task, member)
     }
     #[must_use]
     pub fn landing_leave_words(&self, task: u64) -> Option<Box<[u8]>> {
@@ -370,6 +397,7 @@ impl World {
             None,
             fake_config(),
             Some(passes),
+            LIMITS.landing_members,
         );
         forge::set_failing(&mut world.forge, b"org/repo", b"build", fault);
         world
@@ -429,6 +457,7 @@ impl World {
             None,
             config,
             None,
+            LIMITS.landing_members,
         )
     }
 
@@ -517,12 +546,14 @@ impl World {
             tier,
             fake_config(),
             None,
+            LIMITS.landing_members,
         )
     }
     #[expect(
         clippy::too_many_arguments,
         reason = "the public world adds repository room to the shared scenario switches"
     )]
+    #[expect(clippy::too_many_lines, reason = "one shared fixture constructs its independent bounded neighbours")]
     fn configured_repositories(
         seed: u64,
         facts: u32,
@@ -535,12 +566,19 @@ impl World {
         tier: Option<raw::Workflow>,
         config: forge::Config,
         passes: Option<u32>,
+        members: u32,
     ) -> World {
         let tiered = tier.is_some();
         let limits = top::Limits {
             landings: if turn { 2 } else { LIMITS.landings },
+            landing_members: members,
             facts,
-            client: skein_forge_client::Limits { facts, ..CLIENT },
+            client: skein_forge_client::Limits {
+                facts,
+                op_bytes: if turn { 2048 } else { CLIENT.op_bytes },
+                rate: if members > LIMITS.landing_members { 1000 } else { CLIENT.rate },
+                ..CLIENT
+            },
             ..LIMITS
         };
         let config = scenario_config(config, branches, turn, tiered, protection.as_ref());
@@ -774,6 +812,7 @@ impl World {
             Some(workflow.clone()),
             repository_config(2),
             None,
+            LIMITS.landing_members,
         );
         forge::repository(
             &mut world.forge,
@@ -1230,59 +1269,66 @@ impl World {
     }
     /// The scripted worker delivers a clean prepare on a new landing branch.
     pub fn prepare_landing(&mut self, task: u64, squash: bool) -> u64 {
+        let positions: Vec<_> = (0..self.landing(task).landing.members.len()).collect();
+        self.prepare_subset(task, squash, &positions)
+    }
+    pub fn prepare_subset(&mut self, task: u64, squash: bool, positions: &[usize]) -> u64 {
         let row = self.landing(task).clone();
-        let member = &row.landing.members[0];
-        let base = translate::number(member.base.expect("round base"));
-        let head = translate::number(member.head.expect("round head"));
-        let mut tree: std::collections::BTreeMap<Box<[u8]>, Box<[u8]>> = self
-            .forge
-            .object(base)
-            .expect("base")
-            .tree
-            .iter()
-            .map(|(path, bytes)| (path.clone(), bytes.clone()))
-            .collect();
-        for (path, bytes) in &self.forge.object(head).expect("head").tree {
-            tree.insert(path.clone(), bytes.clone());
-        }
-        let files = tree.into_iter().map(|(path, content)| raw::File { path, content }).collect();
-        let brings = row.landing.round.upstream.is_some_and(|upstream| {
-            let raw::Answer::Commits { commits } =
-                self.inspect(&raw::Read::Commits { before: base, after: translate::number(upstream) })
-            else {
-                panic!("upstream commits")
+        let mut base = row.landing.members.iter().find_map(|m| m.base).map(translate::number).expect("round base");
+        for (index, member) in row.landing.members.iter().enumerate() {
+            if member.left.is_some() || member.landed.is_some() {
+                continue;
+            }
+            if let Some(prefix) = member.candidate {
+                base = translate::number(prefix);
+                continue;
+            }
+            if !positions.contains(&index) {
+                continue;
+            }
+            let head = translate::number(member.head.expect("round head"));
+            let files = crate::landings::stack_files(&self.forge, base, head, self.forge_env.limits.limits.commits);
+            let brings = row.landing.round.upstream.is_some_and(|upstream| {
+                let raw::Answer::Commits { commits } =
+                    self.inspect(&raw::Read::Commits { before: base, after: translate::number(upstream) })
+                else {
+                    panic!("upstream commits")
+                };
+                commits.iter().any(|commit| self.forge.is_ancestor(commit.id, head))
+            });
+            let squash = squash && !brings;
+            let message = if squash {
+                format!(
+                    "candidate\n\nTemper-Head: {}",
+                    String::from_utf8(top::commit_text(&translate::commit(head)).into_vec()).expect("hex")
+                )
+            } else {
+                "Prepared merge".to_owned()
             };
-            commits.iter().any(|commit| self.forge.is_ancestor(commit.id, head))
-        });
-        let squash = squash && !brings;
-        let message = if squash {
-            format!(
-                "candidate\n\nTemper-Head: {}",
-                String::from_utf8(top::commit_text(&translate::commit(head)).into_vec()).expect("hex")
+            let candidate = forge::commit_tree(
+                &mut self.forge,
+                &self.forge_env.limits,
+                base,
+                if squash { None } else { Some(head) },
+                files,
+                message.as_bytes(),
             )
-        } else {
-            "Prepared merge".to_owned()
-        };
-        let candidate = forge::commit_tree(
-            &mut self.forge,
-            &self.forge_env.limits,
-            base,
-            if squash { None } else { Some(head) },
-            files,
-            message.as_bytes(),
-        )
-        .expect("prepare commit");
-        let provider =
-            skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
-        let adopted = self.top.repository(provider).expect("train repository");
-        let repository = [&adopted.owner[..], b"/", &adopted.name[..]].concat();
-        let answer = self.external_repository(
-            &repository,
-            raw::Op::Git(raw::Git::PushNew { branch: row.landing.round.branch, commit: candidate }),
-            1,
-        );
-        assert!(matches!(answer, raw::Answer::PushNew { existing: None }));
-        candidate
+            .expect("prepare commit");
+            let provider = skein_forge::api::Repository {
+                forge: member.repository.forge,
+                repository: member.repository.repository,
+            };
+            let adopted = self.top.repository(provider).expect("train repository");
+            let repository = [&adopted.owner[..], b"/", &adopted.name[..]].concat();
+            let answer = self.external_repository(
+                &repository,
+                raw::Op::Git(raw::Git::PushNew { branch: member.branch.clone(), commit: candidate }),
+                1,
+            );
+            assert!(matches!(answer, raw::Answer::PushNew { existing: None }));
+            base = candidate;
+        }
+        base
     }
     #[must_use]
     pub fn branch(&self, branch: &[u8]) -> u64 {

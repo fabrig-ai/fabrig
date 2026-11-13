@@ -767,27 +767,11 @@ fn refusal_notes_resume_after_the_operator_sink_drains() {
 /// temper/docs/design/domain/worker/jobs.md: jobs receive the run path's repository records.
 #[test]
 fn a_jobs_forge_workspace_becomes_worker_items() {
-    let mut service = fixtures::started();
-    let engine = service.engine.as_mut().expect("engine");
-    engine.workers.forges = fixtures::forge_table(&fixtures::forges());
-    engine.workers.encoding = fixtures::encoding(&fixtures::engine());
     let mut repository = fixtures::repository(7, b"acme", b"shop");
     repository.start =
         temper_engine_domain::ForgeStart::Merge { branch: b"temper/change".as_slice().into(), base: [4; 32] };
     repository.push = Some(b"temper/change".as_slice().into());
-    let workspace = temper_engine_domain::ForgeWorkspace { repositories: Box::new([repository]) };
-    let job = job_assignment(true);
-    let event = crate::route::job_assignment(engine, Token::new(8), job, Some(&workspace)).expect("job encodes");
-    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::AssignJob { job }, parts, .. } = event else {
-        panic!("job assignment")
-    };
-    assert_eq!(parts.len(), 1);
-    assert_eq!(parts[0].token, job.workspace.unwrap().items);
-    let items = temper_protocol_worker_wire::v1::Items::decode(
-        &engine.workers.encoding.limits,
-        &mut skein_lib::Reader::new(&parts[0].bytes),
-    )
-    .expect("worker items");
+    let items = job_items(repository);
     assert_eq!(items.repositories().len(), 1);
     let item = items.repositories().get(0).unwrap();
     assert_eq!(item.remote(), b"https://forge.example/acme/shop.git");
@@ -798,6 +782,44 @@ fn a_jobs_forge_workspace_becomes_worker_items() {
     assert_eq!(start.base(), &[4; 32]);
     let temper_protocol_worker_wire::v1::Access::Writable(access) = item.access() else { panic!("writable") };
     assert_eq!(access.push(), b"temper/change");
+    assert!(item.save().is_none());
+}
+
+fn job_items(repository: temper_engine_domain::ForgeRepository) -> temper_protocol_worker_wire::v1::Items {
+    let mut service = fixtures::started();
+    let engine = service.engine.as_mut().expect("engine");
+    engine.workers.forges = fixtures::forge_table(&fixtures::forges());
+    engine.workers.encoding = fixtures::encoding(&fixtures::engine());
+    let workspace = temper_engine_domain::ForgeWorkspace { repositories: Box::new([repository]) };
+    let job = job_assignment(true);
+    let event = crate::route::job_assignment(engine, Token::new(8), job, Some(&workspace)).expect("job encodes");
+    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::AssignJob { job }, parts, .. } = event else {
+        panic!("job assignment")
+    };
+    assert_eq!(parts.len(), 1);
+    assert_eq!(parts[0].token, job.workspace.unwrap().items);
+    temper_protocol_worker_wire::v1::Items::decode(
+        &engine.workers.encoding.limits,
+        &mut skein_lib::Reader::new(&parts[0].bytes),
+    )
+    .expect("worker items")
+}
+#[test]
+fn a_prepare_jobs_items_allow_only_its_ordered_prefix_branches() {
+    let mut repository = fixtures::repository(7, b"acme", b"shop");
+    repository.start = temper_engine_domain::ForgeStart::Commit([4; 32]);
+    repository.prefixes = Box::new([
+        b"temper/61/l61".as_slice().into(),
+        b"temper/61/l61-2".as_slice().into(),
+        b"temper/61/l61-3".as_slice().into(),
+    ]);
+    let expected = repository.prefixes.clone();
+    let items = job_items(repository);
+    let item = items.repositories().get(0).expect("train repository");
+    let temper_protocol_worker_wire::v1::Access::Prefixes(prefixes) = item.access() else {
+        panic!("only prefix creations are writable")
+    };
+    assert_eq!(prefixes.branches().as_slice(), expected.as_ref());
     assert!(item.save().is_none());
 }
 

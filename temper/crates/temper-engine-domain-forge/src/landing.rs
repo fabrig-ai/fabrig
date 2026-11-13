@@ -87,6 +87,7 @@ enum Stage {
     Paths(u16),
     Collect,
     Round {
+        member: u16,
         stage: RoundRead,
         candidate: Option<api::Commit>,
     },
@@ -113,9 +114,8 @@ enum Stage {
 #[derive(Clone, Copy, Hash, Debug)]
 enum RoundRead {
     Branch,
-    Base,
+    Prefix(u32),
     Head,
-    Squash,
     Contained,
     Pull,
     Upstream,
@@ -1130,7 +1130,7 @@ fn advance(
                                 wait(d, p.task, env, p.repository, out);
                                 return;
                             };
-                            if Some(head) != member.candidate {
+                            if member.left.is_none() && member.landed.is_none() && Some(head) != member.candidate {
                                 wait(d, p.task, env, p.repository, out);
                                 return;
                             }
@@ -1233,7 +1233,8 @@ fn advance(
             }
             let member = row.landing.members.get(usize::from(index)).expect("member");
             let change = d.changes.get(&member.change).expect("member's change");
-            if let (Some(after), Some(repository)) = (member.candidate, d.repositories.get(&change.repository)) {
+            let after = path_candidate(&row, index);
+            if let Some((after, repository)) = after.zip(d.repositories.get(&change.repository)) {
                 for held in &d.landing_rules(repository.project) {
                     if !held.rule.sets.is_empty() && crate::covers_branch(&held.rule.pattern, repository, &change.base)
                     {
@@ -1248,12 +1249,11 @@ fn advance(
             next_member(d, env, owner, p, &row, index, out);
         }
         Stage::Paths(index) => {
-            let member = row.landing.members.get(usize::from(index)).expect("member");
             let fact = p.facts.get(usize::from(index)).expect("member fact");
             let paths = p.paths.get_mut(usize::from(index)).expect("member paths");
             if let Ok(api::Answer::Compare { before, after, files, changed, .. }) = answer {
                 paths.whole = before == fact.main
-                    && Some(after) == member.candidate
+                    && Some(after) == path_candidate(&row, index)
                     && skein_lib::len_u64(files.len()) == changed;
                 paths.files = files;
             }
@@ -1280,8 +1280,8 @@ fn advance(
             }
             failed_jobs(d, env, owner, p, key, run, next, log.into_boxed(), out);
         }
-        Stage::Round { stage, candidate } => {
-            round_read(d, env, owner, p, &row, stage, candidate, answer, out);
+        Stage::Round { member, stage, candidate } => {
+            round_read(d, env, owner, p, &row, member, stage, candidate, answer, out);
         }
         Stage::Run { key, pages } => {
             let writer = d.writers.get(&key.repository.forge).copied().unwrap_or(0);
@@ -1537,76 +1537,142 @@ fn gathered(
         collect(d, env, owner, p, out);
         return;
     }
-    // A validated immutable candidate is kept for the round. Only preparation
-    // and an uncertain opening need the landing branch or pull read again.
-    let member = row.landing.members.first().expect("one member");
-    if let Some(candidate) = member.candidate
-        && let Some(combined) = row.landing.round.combined
-    {
-        p.facts.first_mut().expect("one fact").candidate = Some((candidate, combined));
+    for (member, fact) in row.landing.members.iter().zip(p.facts.iter_mut()) {
+        if let Some((prefix, combined)) = member.candidate.zip(member.combined) {
+            fact.candidate = Some((prefix, combined));
+        }
     }
-    if row.landing.round.ending.is_some() || (member.candidate.is_some() && row.landing.round.pull.is_some()) {
-        p.stage = Stage::Collect;
+    if row.landing.round.ending.is_some() {
         collect(d, env, owner, p, out);
         return;
     }
-    if member.candidate.is_some() {
-        p.stage = Stage::Round { stage: RoundRead::Pull, candidate: member.candidate };
-        let repo = p.repository;
-        ask(
-            d,
-            env,
-            owner,
-            p,
-            repo,
-            api::Read::PullFor { head: row.landing.round.branch.clone(), base: row.landing.branch.clone() },
-            out,
-        );
+    if row.landing.phase != policy::Phase::Waiting && row.landing.phase != policy::Phase::Preparing {
+        round_pull(d, env, owner, p, row, out);
         return;
     }
-    let upstream = upstream_branch(d, row);
-    p.stage = Stage::Round {
-        stage: if upstream.is_some() { RoundRead::Upstream } else { RoundRead::Branch },
-        candidate: None,
-    };
-    let read = api::Read::Branch { branch: upstream.unwrap_or(row.landing.round.branch.clone()) };
-    let repo = p.repository;
-    ask(d, env, owner, p, repo, read, out);
+    if let Some(upstream) = upstream_branch(d, row) {
+        p.stage = Stage::Round { member: 0, stage: RoundRead::Upstream, candidate: None };
+        let repo = p.repository;
+        ask(d, env, owner, p, repo, api::Read::Branch { branch: upstream }, out);
+    } else {
+        round_member(d, env, owner, p, row, 0, out);
+    }
 }
-
+fn round_top(row: &LandingRow) -> Option<u16> {
+    let mut top = None;
+    for (index, member) in row.landing.members.iter().enumerate() {
+        if member.left.is_none() && member.landed.is_none() && member.candidate.is_some() {
+            top = Some(u16::try_from(index).expect("member position"));
+        }
+    }
+    top
+}
+fn round_member(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    mut p: Pending,
+    row: &LandingRow,
+    from: u16,
+    out: &mut Queue<Request>,
+) {
+    for (index, member) in row.landing.members.iter().enumerate().skip(usize::from(from)) {
+        if member.left.is_some() || member.landed.is_some() {
+            continue;
+        }
+        p.stage =
+            Stage::Round { member: u16::try_from(index).expect("member"), stage: RoundRead::Branch, candidate: None };
+        let repo = repository(member);
+        ask(d, env, owner, p, repo, api::Read::Branch { branch: member.branch.clone() }, out);
+        return;
+    }
+    round_pull(d, env, owner, p, row, out);
+}
+fn round_pull(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    mut p: Pending,
+    row: &LandingRow,
+    out: &mut Queue<Request>,
+) {
+    let Some(index) = round_top(row) else {
+        collect(d, env, owner, p, out);
+        return;
+    };
+    if row.landing.round.pull.is_some() {
+        collect(d, env, owner, p, out);
+        return;
+    }
+    let member = row.landing.members.get(usize::from(index)).expect("top");
+    p.stage = Stage::Round { member: index, stage: RoundRead::Pull, candidate: member.candidate };
+    let repo = repository(member);
+    ask(
+        d,
+        env,
+        owner,
+        p,
+        repo,
+        api::Read::PullFor { head: member.branch.clone(), base: row.landing.branch.clone() },
+        out,
+    );
+}
 #[expect(clippy::too_many_arguments, reason = "one stage of the coherent round read")]
-#[expect(clippy::too_many_lines, reason = "the bounded round read keeps each validation beside its next read")]
+#[expect(clippy::too_many_lines, reason = "the bounded prefix read keeps each validation beside its next read")]
 fn round_read(
     d: &mut Domain,
     env: &Env<Limits>,
     owner: Token,
     mut p: Pending,
     row: &LandingRow,
+    index: u16,
     stage: RoundRead,
-    candidate: Option<api::Commit>,
+    mut candidate: Option<api::Commit>,
     answer: Result<api::Answer, api::Error>,
     out: &mut Queue<Request>,
 ) {
-    let member = row.landing.members.first().expect("one member");
-    let fact = p.facts.first_mut().expect("one fact");
-    let base = member.base.unwrap_or(fact.main);
-    let head = member.head.unwrap_or(fact.head);
-    let mut candidate = candidate;
-    let read = match stage {
+    let member = row.landing.members.get(usize::from(index)).expect("member");
+    let fresh = p.facts.get(usize::from(index)).expect("member fact");
+    let base = member.base.unwrap_or(fresh.main);
+    let head = member.head.unwrap_or(fresh.head);
+    let mut below = base;
+    let outcomes = if p.heard.outcomes.is_empty() {
+        crate::preparation::outcomes(&row.landing.round.failure, d.landing.limits.landing_members)
+            .unwrap_or(Box::new([]))
+    } else {
+        p.heard.outcomes.clone()
+    };
+    let mut chain = true;
+    for (position, (prior, fact)) in row.landing.members.iter().zip(&p.facts).enumerate().take(usize::from(index)) {
+        if prior.left.is_some() || prior.landed.is_some() {
+            continue;
+        }
+        if let Some((prefix, _)) = fact.candidate {
+            below = prefix;
+            continue;
+        }
+        let mut skipped = false;
+        for outcome in &outcomes {
+            if usize::from(outcome.member) == position && outcome.outcome != policy::Outcome::Combined {
+                skipped = true;
+            }
+        }
+        chain &= skipped;
+    }
+    let fact = p.facts.get_mut(usize::from(index)).expect("member fact");
+    let (stage, read) = match stage {
         RoundRead::Upstream => {
             let Ok(api::Answer::Commit(tip)) = answer else {
                 wait(d, p.task, env, p.repository, out);
                 return;
             };
             p.upstream = Some(tip);
-            p.stage = Stage::Round { stage: RoundRead::Branch, candidate: None };
-            let repo = p.repository;
-            ask(d, env, owner, p, repo, api::Read::Branch { branch: row.landing.round.branch.clone() }, out);
+            round_member(d, env, owner, p, row, 0, out);
             return;
         }
         RoundRead::Branch => {
             candidate = match answer {
-                Ok(api::Answer::Commit(commit)) => Some(commit),
+                Ok(api::Answer::Commit(tip)) => Some(tip),
                 Err(api::Error::Missing) => None,
                 Ok(_) | Err(_) => {
                     wait(d, p.task, env, p.repository, out);
@@ -1614,67 +1680,55 @@ fn round_read(
                 }
             };
             match candidate {
-                Some(tip) => api::Read::Commits { before: tip, after: base, page: 1 },
-                None => {
-                    p.stage = Stage::Round { stage: RoundRead::Contained, candidate };
-                    let repo = p.repository;
-                    ask(d, env, owner, p, repo, api::Read::Commits { before: base, after: head, page: 1 }, out);
+                Some(tip) => (RoundRead::Prefix(1), api::Read::Commits { before: below, after: tip, page: 1 }),
+                None => (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 }),
+            }
+        }
+        RoundRead::Prefix(page) => {
+            let mut merge = false;
+            fact.candidate = None;
+            if let Some(tip) = candidate
+                && let Ok(api::Answer::Commits { commits, more }) = answer
+            {
+                let mut seen = false;
+                for commit in &commits {
+                    if commit.id == tip {
+                        seen = true;
+                    }
+                    if !chain || commit.id != tip || commit.parents.first() != Some(&below) {
+                        continue;
+                    }
+                    if commit.parents.as_ref() == [below] && squash_head(&commit.message, head) {
+                        fact.candidate = Some((tip, policy::Combine::Squash));
+                    } else {
+                        merge = true;
+                    }
+                }
+                if !seen && more && page < env.limits.client.rows {
+                    let page = page.checked_add(1).expect("bounded commit pages");
+                    p.stage = Stage::Round { member: index, stage: RoundRead::Prefix(page), candidate };
+                    let repo = repository(member);
+                    ask(d, env, owner, p, repo, api::Read::Commits { before: below, after: tip, page }, out);
                     return;
                 }
             }
+            if merge {
+                (RoundRead::Head, api::Read::Commits { before: candidate.expect("prefix"), after: head, page: 1 })
+            } else {
+                (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 })
+            }
         }
-        RoundRead::Base => {
+        RoundRead::Head => {
+            // Read::Commits may expose only a merge's first parent; containment checks its head.
             match crate::domain::ancestry_status(answer) {
-                change::Status::Passed => {}
-                change::Status::Failed => candidate = None,
+                change::Status::Passed => fact.candidate = Some((candidate.expect("prefix"), policy::Combine::Merge)),
+                change::Status::Failed => {}
                 change::Status::Unknown | change::Status::Pending => {
                     wait(d, p.task, env, p.repository, out);
                     return;
                 }
             }
-            match candidate {
-                Some(tip) => api::Read::Commits { before: tip, after: head, page: 1 },
-                None => api::Read::Commits { before: base, after: head, page: 1 },
-            }
-        }
-        RoundRead::Head => {
-            if let Some(tip) = candidate {
-                match crate::domain::ancestry_status(answer) {
-                    change::Status::Passed => fact.candidate = Some((tip, policy::Combine::Merge)),
-                    change::Status::Failed => {}
-                    change::Status::Unknown | change::Status::Pending => {
-                        wait(d, p.task, env, p.repository, out);
-                        return;
-                    }
-                }
-                api::Read::Commits { before: base, after: tip, page: 1 }
-            } else {
-                fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed {
-                    policy::Status::Passed
-                } else {
-                    policy::Status::Failed
-                };
-                p.stage = Stage::Round { stage: RoundRead::Pull, candidate };
-                let repo = p.repository;
-                let read =
-                    api::Read::PullFor { head: row.landing.round.branch.clone(), base: row.landing.branch.clone() };
-                ask(d, env, owner, p, repo, read, out);
-                return;
-            }
-        }
-        RoundRead::Squash => {
-            if fact.candidate.is_none()
-                && let Some(tip) = candidate
-                && let Ok(api::Answer::Commits { commits, more: false }) = answer
-                && commits.len() == 1
-                && let Some(commit) = commits.first()
-                && commit.id == tip
-                && commit.parents.as_ref() == [base]
-                && squash_head(&commit.message, head)
-            {
-                fact.candidate = Some((tip, policy::Combine::Squash));
-            }
-            api::Read::Commits { before: base, after: head, page: 1 }
+            (RoundRead::Contained, api::Read::Commits { before: base, after: head, page: 1 })
         }
         RoundRead::Contained => {
             fact.contained = if crate::domain::ancestry_status(answer) == change::Status::Passed {
@@ -1682,7 +1736,8 @@ fn round_read(
             } else {
                 policy::Status::Failed
             };
-            api::Read::PullFor { head: row.landing.round.branch.clone(), base: row.landing.branch.clone() }
+            round_member(d, env, owner, p, row, index.checked_add(1).expect("member bound"), out);
+            return;
         }
         RoundRead::Pull => {
             if let Ok(api::Answer::Pull(pull)) = answer
@@ -1691,22 +1746,118 @@ fn round_read(
             {
                 p.opened = Some(pull.number);
             }
-            p.stage = Stage::Collect;
             collect(d, env, owner, p, out);
             return;
         }
     };
-    let stage = match stage {
-        RoundRead::Branch => RoundRead::Base,
-        RoundRead::Base => RoundRead::Head,
-        RoundRead::Head => RoundRead::Squash,
-        RoundRead::Squash => RoundRead::Contained,
-        RoundRead::Contained => RoundRead::Pull,
-        RoundRead::Pull | RoundRead::Upstream => unreachable!("terminal stages return above"),
-    };
-    p.stage = Stage::Round { stage, candidate };
-    let repo = p.repository;
+    p.stage = Stage::Round { member: index, stage, candidate };
+    let repo = repository(member);
     ask(d, env, owner, p, repo, read, out);
+}
+fn path_candidate(row: &LandingRow, member: u16) -> Option<api::Commit> {
+    if row.landing.round.branch.is_empty() {
+        return row.landing.members.get(usize::from(member))?.candidate;
+    }
+    stack_candidate(row)
+}
+fn proof_member(row: &LandingRow, member: u16) -> u16 {
+    if row.landing.round.branch.is_empty() { member } else { round_effect_top(row) }
+}
+fn stack_candidate(row: &LandingRow) -> Option<api::Commit> {
+    let mut top = None;
+    for member in &row.landing.members {
+        if member.left.is_none() {
+            top = member.candidate.or(top);
+        }
+    }
+    top
+}
+fn round_effect_top(row: &LandingRow) -> u16 {
+    let mut top = 0;
+    for (index, member) in row.landing.members.iter().enumerate() {
+        if member.candidate.is_some() {
+            top = u16::try_from(index).expect("member");
+        }
+    }
+    top
+}
+fn round_closed(d: &Domain, row: &LandingRow) -> policy::Status {
+    result(d, row.landing.task, round_effect_top(row), 0, 7)
+}
+fn conflict_words(row: &LandingRow, member: u16) -> Box<[u8]> {
+    if let Some(outcomes) = crate::preparation::outcomes(
+        &row.landing.round.failure,
+        u32::try_from(row.landing.members.len()).expect("members"),
+    ) {
+        for outcome in outcomes {
+            if outcome.member == member {
+                return outcome.files;
+            }
+        }
+    }
+    row.landing.round.failure.clone()
+}
+fn round_words(d: &Domain, row: &LandingRow) -> (Box<[u8]>, Box<[u8]>) {
+    let mut count = 0_u64;
+    for member in &row.landing.members {
+        if member.left.is_none() && member.landed.is_none() {
+            count = count.saturating_add(1);
+        }
+    }
+    let mut title = List::with_capacity(d.landing.limits.issue_policy.title_bytes);
+    let body_bytes = u32::try_from(row.landing.members.len())
+        .expect("members")
+        .checked_mul(256)
+        .expect("bounded members")
+        .checked_add(128)
+        .expect("bounded round body");
+    let mut body = List::with_capacity(body_bytes);
+    append_words(&mut body, b"Round ");
+    append_words(&mut body, skein_lib::Decimal::of(u64::from(row.landing.preparation)).as_bytes());
+    append_words(&mut body, b", base ");
+    let top = row.landing.members.get(usize::from(round_top(row).expect("top"))).expect("member");
+    append_words(&mut body, &commit_hex(top.base.expect("round base")));
+    append_words(&mut body, b".\n");
+    if count > 1 {
+        append_words(&mut title, b"Land ");
+        append_words(&mut title, skein_lib::Decimal::of(count).as_bytes());
+        append_words(&mut title, b" changes: ");
+    }
+    let mut first = true;
+    for member in &row.landing.members {
+        if member.left.is_some() || member.landed.is_some() {
+            continue;
+        }
+        let pull = skein_lib::Decimal::of(member.pull);
+        if count == 1 {
+            append_words(&mut title, b"Land #");
+            append_words(&mut title, pull.as_bytes());
+            append_words(&mut title, b": ");
+            let change = d.change(member.change).expect("member change");
+            let room = skein_lib::usize_of(title.capacity().saturating_sub(title.len()));
+            append_words(&mut title, &crate::text::fit(&change.title, room, b"..."));
+        } else {
+            let number = concat(&[if first { b"#" } else { b", #" }, pull.as_bytes()]);
+            if number.len() <= skein_lib::usize_of(title.capacity().saturating_sub(title.len())) {
+                append_words(&mut title, &number);
+            }
+        }
+        first = false;
+        for part in [
+            b"Change ".as_slice(),
+            skein_lib::Decimal::of(member.change).as_bytes(),
+            b", pull request #",
+            pull.as_bytes(),
+            b", head ",
+            &commit_hex(member.head.expect("head")),
+            b", prefix ",
+            &commit_hex(member.candidate.expect("prefix")),
+            b".\n",
+        ] {
+            append_words(&mut body, part);
+        }
+    }
+    (title.into_boxed(), body.into_boxed())
 }
 fn upstream_branch(d: &Domain, row: &LandingRow) -> Option<Box<[u8]>> {
     if row.landing.members.first()?.base.is_some() {
@@ -1800,7 +1951,9 @@ fn result(d: &Domain, task: u64, member: u16, gate: u16, operation: u8) -> polic
 fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: &mut Queue<Request>) {
     let mut row = d.landing.rows.get(&p.task).expect("pending landing").clone();
     if p.heard.released {
-        d.landing.results.remove(&(p.task, 0, 0, 9));
+        for index in 0..row.landing.members.len() {
+            d.landing.results.remove(&(p.task, u16::try_from(index).expect("member"), 0, 9));
+        }
     }
     let unprepared = match row.landing.members.first() {
         Some(member) => member.base.is_none(),
@@ -1809,12 +1962,18 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     if unprepared {
         row.landing.round.upstream = p.upstream;
     }
-    if p.heard.preparation == policy::Preparation::Failed || p.heard.preparation == policy::Preparation::Conflict {
-        row.landing.round.failure.clone_from(&p.heard.failure);
+    if !p.heard.outcomes.is_empty()
+        || p.heard.preparation == policy::Preparation::Failed
+        || p.heard.preparation == policy::Preparation::Conflict
+    {
+        row.landing.round.failure =
+            crate::preparation::remember(&row.landing.round.failure, &p.heard.failure, env.limits.landing_members);
     }
     if continue_retry(d, &mut row, p.entry, out) {
         return;
     }
+    let outcomes = crate::preparation::outcomes(&row.landing.round.failure, env.limits.landing_members)
+        .unwrap_or(p.heard.outcomes.clone());
     for (index, (member, fact)) in row.landing.members.iter().zip(p.facts.iter_mut()).enumerate() {
         let position = u16::try_from(index).expect("member position");
         fact.merge = result(d, p.task, position, 0, 5);
@@ -1827,7 +1986,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 if !gate.blocking {
                     continue;
                 }
-                if !row.landing.round.judging
+                if !(if row.landing.round.branch.is_empty() { row.landing.round.judging } else { member.judging })
                     && (gate.kind == change::GateKind::Check || gate.freshness == change::Freshness::Exact)
                 {
                     fact.judgement = policy::Status::Pending;
@@ -1848,9 +2007,23 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         }
         fact.preparation = p.heard.preparation;
         fact.deleted = result(d, p.task, position, 0, 8);
-        if p.heard.preparation == policy::Preparation::Conflict {
-            fact.outcome = Some(policy::Outcome::Conflict);
+        for outcome in &outcomes {
+            if outcome.member == position {
+                fact.outcome = Some(outcome.outcome);
+            }
         }
+        let mut dependencies = List::with_capacity(env.limits.landing_members);
+        for dependency in &p.heard.dependencies {
+            if dependency.change != member.change {
+                continue;
+            }
+            for (index, prior) in row.landing.members.iter().enumerate() {
+                if dependency.pending.contains(&prior.change) {
+                    dependencies.push(u16::try_from(index).expect("member")).expect("bounded dependencies");
+                }
+            }
+        }
+        fact.dependencies = dependencies.into_boxed();
         fact.record = if member.landed.is_some() && fact.merged == member.landed {
             policy::Status::Passed
         } else {
@@ -1908,13 +2081,14 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             );
         }
     }
+    let top = round_top(&row).unwrap_or(0);
     let facts = policy::Facts {
         members: p.facts.clone(),
         turn_free: if row.landing.round.branch.is_empty() { single_turn(d, &row, &p.heard.kept) } else { true },
         released: p.heard.released,
         opened: p.opened,
-        opening: result(d, p.task, 0, 0, 6),
-        closed: result(d, p.task, 0, 0, 7),
+        opening: result(d, p.task, top, 0, 6),
+        closed: round_closed(d, &row),
         preparation: p.heard.preparation,
     };
     let project = match d.landing.projects.get(&row.landing.project) {
@@ -1936,17 +2110,19 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     );
     let prior = row.clone();
     row.landing = stepped.landing;
-    if !row.landing.round.branch.is_empty()
-        && let Some(member) = row.landing.members.first()
-        && member.candidate != prior.landing.members.first().expect("member").candidate
-        && let Some(candidate) = member.candidate
-    {
-        let resource = skein_forge_client::Resource {
-            repository: repository(member),
-            what: skein_forge_client::What::Branch(row.landing.round.branch.clone()),
-        };
-        if let Some(name) = super::domain::from_client(&resource, &env.limits) {
-            super::domain::record_written_head(d, env, resource, name, candidate, p.task, out);
+    if !row.landing.round.branch.is_empty() {
+        for (member, old) in row.landing.members.iter().zip(&prior.landing.members) {
+            if member.candidate == old.candidate {
+                continue;
+            }
+            let Some(candidate) = member.candidate else { continue };
+            let resource = skein_forge_client::Resource {
+                repository: repository(member),
+                what: skein_forge_client::What::Branch(member.branch.clone()),
+            };
+            if let Some(name) = super::domain::from_client(&resource, &env.limits) {
+                super::domain::record_written_head(d, env, resource, name, candidate, p.task, out);
+            }
         }
     }
     let decision = stepped.decision;
@@ -1958,37 +2134,72 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     if row.landing.members.len() != prior.landing.members.len() {
         remap_members(d, &mut row, &prior);
     }
-    let evidence = if let policy::Decision::Merge { member, candidate }
-    | policy::Decision::Record { member, prefix: candidate } = decision
-    {
-        let fact = p.facts.get(usize::from(member)).expect("fresh member facts");
-        let mut evidence = p.evidence.get(usize::from(member)).expect("member evidence").clone();
-        if evidence.facts.head != Some(candidate) {
-            evidence.facts.size = None;
-        }
-        evidence.facts.head = Some(candidate);
-        let paths = p.paths.get(usize::from(member)).expect("member paths");
-        let classes = d.project_classes(row.landing.project);
-        evidence.facts.touched = crate::touched(&classes, &paths.files, paths.whole);
-        evidence.facts.base_tip = fact.main;
-        evidence.facts.contains_base =
-            match if fact.candidate.is_some() { policy::Status::Passed } else { fact.contains_main } {
-                policy::Status::Unknown => change::Status::Unknown,
-                policy::Status::Pending => change::Status::Pending,
-                policy::Status::Passed => change::Status::Passed,
-                policy::Status::Failed => change::Status::Failed,
-            };
-        evidence.facts.ci = change::Status::Passed;
-        for gate in &fact.gates {
-            if gate.blocking && gate.receipt != policy::Status::Passed {
-                evidence.facts.ci = if gate.receipt == policy::Status::Failed {
-                    change::Status::Failed
-                } else {
-                    change::Status::Unknown
-                };
+    let merge = match decision {
+        policy::Decision::Merge { member, candidate } => Some((member, candidate, false)),
+        policy::Decision::Record { member, prefix } => Some((member, prefix, true)),
+        policy::Decision::None
+        | policy::Decision::Wait { .. }
+        | policy::Decision::Prepare { .. }
+        | policy::Decision::Open
+        | policy::Decision::Close
+        | policy::Decision::Delete { .. }
+        | policy::Decision::Landed { .. }
+        | policy::Decision::Leave { .. }
+        | policy::Decision::Judge { .. }
+        | policy::Decision::Resolve { .. }
+        | policy::Decision::Key { .. }
+        | policy::Decision::Dispatch { .. }
+        | policy::Decision::Retry { .. }
+        | policy::Decision::Post { .. }
+        | policy::Decision::Repair { .. }
+        | policy::Decision::Proved
+        | policy::Decision::Stale
+        | policy::Decision::Finish
+        | policy::Decision::Cancel
+        | policy::Decision::Hold(_) => None,
+    };
+    let evidence = if let Some((member, candidate, recording)) = merge {
+        let mut all = List::with_capacity(env.limits.landing_members);
+        for (index, m) in row.landing.members.iter().enumerate() {
+            let position = u16::try_from(index).expect("member");
+            if (recording || row.landing.round.branch.is_empty()) && position != member {
+                continue;
             }
+            if !recording && (m.left.is_some() || m.landed.is_some()) {
+                continue;
+            }
+            let candidate =
+                if row.landing.round.branch.is_empty() { candidate } else { m.candidate.expect("member prefix") };
+            let fact = p.facts.get(usize::from(position)).expect("fresh member facts");
+            let mut evidence = p.evidence.get(usize::from(position)).expect("member evidence").clone();
+            if evidence.facts.head != Some(candidate) {
+                evidence.facts.size = None;
+            }
+            evidence.facts.head = Some(candidate);
+            let paths = p.paths.get(usize::from(position)).expect("member paths");
+            let classes = d.project_classes(row.landing.project);
+            evidence.facts.touched = crate::touched(&classes, &paths.files, paths.whole);
+            evidence.facts.base_tip = fact.main;
+            evidence.facts.contains_base =
+                match if fact.candidate.is_some() { policy::Status::Passed } else { fact.contains_main } {
+                    policy::Status::Unknown => change::Status::Unknown,
+                    policy::Status::Pending => change::Status::Pending,
+                    policy::Status::Passed => change::Status::Passed,
+                    policy::Status::Failed => change::Status::Failed,
+                };
+            evidence.facts.ci = change::Status::Passed;
+            for gate in &p.facts.get(usize::from(proof_member(&row, position))).expect("top facts").gates {
+                if gate.blocking && gate.receipt != policy::Status::Passed {
+                    evidence.facts.ci = if gate.receipt == policy::Status::Failed {
+                        change::Status::Failed
+                    } else {
+                        change::Status::Unknown
+                    };
+                }
+            }
+            all.push(evidence).expect("bounded evidence");
         }
-        Some(evidence)
+        Some(all.into_boxed())
     } else {
         None
     };
@@ -1998,37 +2209,43 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
         | policy::Decision::Close
         | policy::Decision::Delete { .. }
         | policy::Decision::Record { .. } => {
-            let member = row.landing.members.first().expect("one member");
+            let position = match decision {
+                policy::Decision::Delete { member } | policy::Decision::Record { member, .. } => member,
+                policy::Decision::Open => round_top(&row).expect("round top"),
+                policy::Decision::Close => round_effect_top(&row),
+                policy::Decision::None
+                | policy::Decision::Wait { .. }
+                | policy::Decision::Prepare { .. }
+                | policy::Decision::Landed { .. }
+                | policy::Decision::Leave { .. }
+                | policy::Decision::Judge { .. }
+                | policy::Decision::Resolve { .. }
+                | policy::Decision::Key { .. }
+                | policy::Decision::Dispatch { .. }
+                | policy::Decision::Retry { .. }
+                | policy::Decision::Post { .. }
+                | policy::Decision::Repair { .. }
+                | policy::Decision::Proved
+                | policy::Decision::Merge { .. }
+                | policy::Decision::Stale
+                | policy::Decision::Finish
+                | policy::Decision::Cancel
+                | policy::Decision::Hold(_) => unreachable!("round write"),
+            };
+            let member = row.landing.members.get(usize::from(position)).expect("member");
             if d.entries.contains_key(&p.entry) || d.entries.len() == env.limits.entries {
                 refuse_entry(d, env, &p, &row, 0, out);
                 return;
             }
-            let change = d.changes.get(&member.change).expect("member change");
             let (op, write, condition) = match decision {
                 policy::Decision::Open => {
-                    let number = skein_lib::Decimal::of(member.pull);
-                    let change_number = skein_lib::Decimal::of(member.change);
-                    let round = skein_lib::Decimal::of(u64::from(row.landing.preparation));
-                    let title = concat(&[b"Land #", number.as_bytes(), b": ", &change.title]);
-                    let body = concat(&[
-                        b"Change ",
-                        change_number.as_bytes(),
-                        b", pull request #",
-                        number.as_bytes(),
-                        b", head ",
-                        &commit_hex(member.head.expect("round head")),
-                        b".\nRound ",
-                        round.as_bytes(),
-                        b", base ",
-                        &commit_hex(member.base.expect("round base")),
-                        b".\n",
-                    ]);
+                    let (title, body) = round_words(d, &row);
                     (
                         Operation::Open,
                         api::Write::OpenPull {
                             title,
                             body,
-                            head: row.landing.round.branch.clone(),
+                            head: member.branch.clone(),
                             base: row.landing.branch.clone(),
                         },
                         skein_forge_client::Condition::None,
@@ -2040,7 +2257,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                     skein_forge_client::Condition::None,
                 ),
                 policy::Decision::Delete { member: number } => {
-                    assert_eq!(number, 0, "the top executes one-member landings");
+                    assert_eq!(number, position, "deleted member");
                     (
                         Operation::Delete,
                         api::Write::DeleteBranch { branch: member.branch.clone() },
@@ -2075,7 +2292,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 | policy::Decision::Leave { .. }
                 | policy::Decision::Judge { .. } => unreachable!("round write"),
             };
-            keep(d, &mut row, p.entry, 0, 0, op, write, condition, out);
+            keep(d, &mut row, p.entry, position, 0, op, write, condition, out);
             committed = Some(p.entry);
         }
         policy::Decision::Landed { member, prefix } => {
@@ -2125,7 +2342,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 landing: p.task,
                 round: row.landing.preparation,
                 pull: row.landing.round.pull.expect("round pull"),
-                branch: row.landing.round.branch.clone(),
+                branch: m.branch.clone(),
                 base: row.landing.branch.clone(),
                 prefix: m.candidate.expect("prefix"),
             }));
@@ -2147,6 +2364,13 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
                 | policy::Leave::Dependency { .. }
                 | policy::Leave::Fallback { .. } => None,
             };
+            if fallback(why)
+                && let Some(change) = d.changes.get_mut(&m.change)
+            {
+                change.change.alone = true;
+                let saved = change.clone();
+                super::domain::save_change(d, out, saved);
+            }
             *row.asks.get_mut(usize::from(member)).expect("ask") = ask;
             emit(out, Request::WakeProcedure { task: m.change });
         }
@@ -2299,9 +2523,17 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             }
         }
         policy::Decision::Finish => {
-            for member in &row.landing.members {
+            for (index, member) in row.landing.members.iter().enumerate() {
+                if row.landing.members.len() == 1
+                    && let Some(change) = d.changes.get_mut(&member.change)
+                    && change.change.alone
+                {
+                    change.change.alone = false;
+                    let saved = change.clone();
+                    super::domain::save_change(d, out, saved);
+                }
                 if member.landed.is_none()
-                    && row.asks.first().cloned().flatten().is_none()
+                    && row.asks.get(index).cloned().flatten().is_none()
                     && let Some(change) = d.changes.get_mut(&member.change)
                 {
                     change.change.landing = None;
@@ -2338,6 +2570,11 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
     }
     if row.landing.preparation != prior.landing.preparation || decision == policy::Decision::Stale {
         reset_results(d, &row, &prior);
+        for index in 0..row.landing.members.len() {
+            let member = u16::try_from(index).expect("member");
+            d.landing.results.remove(&(p.task, member, 0, 6));
+            d.landing.results.remove(&(p.task, member, 0, 7));
+        }
     }
     let news = match decision {
         policy::Decision::Leave { .. } => Some(crate::LandingNews::Left),
@@ -2369,9 +2606,43 @@ fn decide(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pending, out: 
             }
         }
     };
+    let mut news_members = List::with_capacity(env.limits.landing_members);
+    match decision {
+        policy::Decision::Leave { member, .. } | policy::Decision::Landed { member, .. } => {
+            news_members.push(member).expect("one member");
+        }
+        policy::Decision::None
+        | policy::Decision::Wait { .. }
+        | policy::Decision::Prepare { .. }
+        | policy::Decision::Open
+        | policy::Decision::Close
+        | policy::Decision::Delete { .. }
+        | policy::Decision::Record { .. }
+        | policy::Decision::Judge { .. }
+        | policy::Decision::Resolve { .. }
+        | policy::Decision::Key { .. }
+        | policy::Decision::Dispatch { .. }
+        | policy::Decision::Retry { .. }
+        | policy::Decision::Post { .. }
+        | policy::Decision::Repair { .. }
+        | policy::Decision::Proved
+        | policy::Decision::Merge { .. }
+        | policy::Decision::Stale
+        | policy::Decision::Finish
+        | policy::Decision::Cancel
+        | policy::Decision::Hold(_) => {
+            for (index, m) in row.landing.members.iter().enumerate() {
+                if news == Some(crate::LandingNews::Held) || (m.left.is_none() && m.landed.is_none()) {
+                    news_members.push(u16::try_from(index).expect("member")).expect("bounded news");
+                }
+            }
+        }
+    }
     save(d, row, out);
     if let Some(step) = news {
-        emit(out, Request::LandingNews { task: p.task, member: 0, step });
+        for member in news_members.into_boxed() {
+            emit(out, Request::LandingNews { task: p.task, member, step });
+        }
     }
     let decision = if prior.landing.round.branch.is_empty()
         && let policy::Decision::Prepare { .. } = decision
@@ -2386,7 +2657,7 @@ fn dispatch_branch(d: &Domain, row: &LandingRow, member: &policy::Member) -> Box
     if row.landing.round.branch.is_empty() {
         d.changes.get(&member.change).expect("member change").branch.clone()
     } else {
-        row.landing.round.branch.clone()
+        member.branch.clone()
     }
 }
 fn single_turn(d: &Domain, row: &LandingRow, kept: &[u64]) -> bool {
@@ -2693,8 +2964,10 @@ pub(crate) fn outcome(
     if item.operation == Operation::Delete && status == policy::Status::Passed {
         let row = d.landing.rows.get(&task).expect("round deletion");
         let resource = skein_forge_client::Resource {
-            repository: repository(row.landing.members.first().expect("member")),
-            what: skein_forge_client::What::Branch(row.landing.round.branch.clone()),
+            repository: repository(row.landing.members.get(usize::from(item.member)).expect("member")),
+            what: skein_forge_client::What::Branch(
+                row.landing.members.get(usize::from(item.member)).expect("member").branch.clone(),
+            ),
         };
         if let Some(name) = super::domain::from_client(&resource, &d.landing.limits) {
             // The next round's new branch has no ancestry to the deleted candidate.
@@ -2745,13 +3018,19 @@ pub(crate) fn outcome(
         {
             row.landing.round.failure = match outcome {
                 skein_forge_client::Outcome::Failed(error) | skein_forge_client::Outcome::Raced { why: error, .. } => {
-                    crate::effect_words::error_words(error)
+                    crate::preparation::remember(
+                        &row.landing.round.failure,
+                        &crate::effect_words::error_words(error),
+                        d.landing.limits.landing_members,
+                    )
                 }
-                skein_forge_client::Outcome::Made { .. }
-                | skein_forge_client::Outcome::Queued
+                skein_forge_client::Outcome::Made { .. } => {
+                    crate::preparation::remember(&row.landing.round.failure, b"", d.landing.limits.landing_members)
+                }
+                skein_forge_client::Outcome::Queued
                 | skein_forge_client::Outcome::Uncertain
                 | skein_forge_client::Outcome::Held
-                | skein_forge_client::Outcome::Withdrawn => Box::new([]),
+                | skein_forge_client::Outcome::Withdrawn => row.landing.round.failure.clone(),
             };
         }
         save(d, row, out);
@@ -3093,6 +3372,8 @@ pub(crate) fn refresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
             task,
             0,
             LandingHeard {
+                outcomes: Box::new([]),
+                dependencies: Box::new([]),
                 held: Box::new([]),
                 failure: Box::new([]),
                 preparation: temper_engine_domain_forge_landing::Preparation::Idle,
@@ -3122,15 +3403,17 @@ pub(crate) fn judge(
             return Some(crate::JudgeVerdict::Wait);
         }
         if criterion == crate::Criterion::Ci {
+            let gate_position =
+                if row.landing.round.branch.is_empty() { u16::try_from(position).ok()? } else { round_effect_top(row) };
+            let gate_member = row.landing.members.get(usize::from(gate_position))?;
             for (number, configured) in d.train_gates(row, repo).iter().enumerate() {
                 if !configured.blocking {
                     continue;
                 }
-                let Some(key) = proof_key(member.gates.get(number).expect("gate proof").proof) else {
+                let Some(key) = proof_key(gate_member.gates.get(number).expect("gate proof").proof) else {
                     return Some(crate::JudgeVerdict::Wait);
                 };
-                let key =
-                    gate_key(row, u16::try_from(position).ok()?, u16::try_from(number).ok()?, &configured.name, key);
+                let key = gate_key(row, gate_position, u16::try_from(number).ok()?, &configured.name, key);
                 match d.landing.receipts.get(&key) {
                     Some(receipt) if receipt.passed => {}
                     Some(_) => return Some(crate::JudgeVerdict::Refuse),
@@ -3240,16 +3523,17 @@ impl Domain {
     #[must_use]
     pub fn landing_hold_words(&self, task: u64) -> Option<Box<[u8]>> {
         let row = self.landing.rows.get(&task)?;
+        let failure = crate::preparation::failure(&row.landing.round.failure);
         let policy::Phase::Held { why, .. } = row.landing.phase else { return None };
         match why {
-            policy::Hold::Prepare => Some(concat(&[b"prepare job: ", &row.landing.round.failure])),
+            policy::Hold::Prepare => Some(concat(&[b"prepare job: ", &failure])),
             policy::Hold::Record { member } => Some(concat(&[
                 b"turn: record of #",
                 skein_lib::Decimal::of(row.landing.members.get(usize::from(member))?.pull).as_bytes(),
                 b": ",
-                &row.landing.round.failure,
+                &failure,
             ])),
-            policy::Hold::Turn => Some(concat(&[b"turn: ", &row.landing.round.failure])),
+            policy::Hold::Turn => Some(concat(&[b"turn: ", &failure])),
             policy::Hold::Faults { member, gate } | policy::Hold::Timeout { member, gate, .. } => {
                 let m = row.landing.members.get(usize::from(member))?;
                 let repo = self.repository(repository(m))?;
@@ -3278,11 +3562,10 @@ impl Domain {
     pub fn landing_leave_words(&self, task: u64, member: u16) -> Option<Box<[u8]>> {
         let row = self.landing.rows.get(&task)?;
         let m = row.landing.members.get(usize::from(member))?;
+        let files = conflict_words(row, member);
         Some(match m.left? {
-            policy::Leave::Conflict => concat(&[b"conflict with the branch: ", &row.landing.round.failure]),
-            policy::Leave::EarlierConflict => {
-                concat(&[b"conflict with an earlier member: ", &row.landing.round.failure])
-            }
+            policy::Leave::Conflict => concat(&[b"conflict with the branch: ", &files]),
+            policy::Leave::EarlierConflict => concat(&[b"conflict with an earlier member: ", &files]),
             policy::Leave::Unit { change } => {
                 concat(&[b"change ", skein_lib::Decimal::of(change).as_bytes(), b" of its unit left"])
             }
@@ -3348,7 +3631,7 @@ impl Domain {
         for (_, row) in &self.landing.rows {
             for member in &row.landing.members {
                 if member.change == change && matches_failed(member.left, gate) {
-                    words = Some(row.landing.round.failure.clone());
+                    words = Some(crate::preparation::failure(&row.landing.round.failure));
                 }
             }
         }
@@ -3356,9 +3639,9 @@ impl Domain {
     }
     /// All five news lines are formed from the committed landing (domain/landing.md, 4.2).
     #[must_use]
-    pub fn landing_news_words(&self, task: u64, member: u16, step: crate::LandingNews) -> Option<(u64, Box<[u8]>)> {
+    pub fn landing_news_words(&self, task: u64, position: u16, step: crate::LandingNews) -> Option<(u64, Box<[u8]>)> {
         let row = self.landing.rows.get(&task)?;
-        let member = row.landing.members.get(usize::from(member))?;
+        let member = row.landing.members.get(usize::from(position))?;
         let mut words = List::with_capacity(16384);
         append_words(&mut words, b"landing ");
         append_words(&mut words, skein_lib::Decimal::of(task).as_bytes());
@@ -3398,6 +3681,12 @@ impl Domain {
                 {
                     append_words(&mut words, part);
                 }
+                if let Some(top) = stack_candidate(row)
+                    && Some(top) != member.candidate
+                {
+                    append_words(&mut words, b", under ");
+                    append_words(&mut words, &commit_hex(top));
+                }
             }
             crate::LandingNews::Landed => {
                 append_words(&mut words, b"landed at ");
@@ -3405,7 +3694,7 @@ impl Domain {
             }
             crate::LandingNews::Left => {
                 append_words(&mut words, b"left: ");
-                append_words(&mut words, &self.landing_leave_words(task, 0)?);
+                append_words(&mut words, &self.landing_leave_words(task, position)?);
             }
             crate::LandingNews::Held => {
                 append_words(&mut words, b"held: ");
@@ -3518,21 +3807,34 @@ pub(crate) fn closing(
     ending: crate::ReleaseEnding,
     out: &mut Queue<Request>,
 ) {
+    if let Some(change) = d.changes.get_mut(&task)
+        && change.change.alone
+    {
+        change.change.alone = false;
+        let saved = change.clone();
+        super::domain::save_change(d, out, saved);
+    }
     if ending != crate::ReleaseEnding::Cancelled {
         return;
     }
     if let Some(mut row) = d.landing.rows.get(&task).cloned() {
-        let tell_landed = !row.landing.round.told
-            && match row.landing.members.first() {
-                Some(member) => member.landed.is_some(),
-                None => false,
-            };
-        row.landing.round.told |= tell_landed;
+        let mut told = List::with_capacity(env.limits.landing_members);
+        for (index, member) in row.landing.members.iter_mut().enumerate() {
+            if member.landed.is_some() && !member.told {
+                member.told = true;
+                told.push(u16::try_from(index).expect("member")).expect("bounded news");
+            }
+        }
+        row.landing.round.told |= !told.is_empty();
+        let solo = row.landing.members.len() == 1;
         row.landing.phase = policy::Phase::Cancelled;
         d.landing.due.remove(&task);
         for member in &row.landing.members {
             if let Some(change) = d.changes.get_mut(&member.change) {
                 change.change.landing = None;
+                if solo {
+                    change.change.alone = false;
+                }
                 if let Some(merge) = member.landed {
                     change.change.state = change::State::Landed { merge, since: env.wall };
                 } else if let change::State::Judging { head, ready_since, .. } = change.change.state {
@@ -3551,8 +3853,8 @@ pub(crate) fn closing(
         }
         let project = row.landing.project;
         save(d, row, out);
-        if tell_landed {
-            emit(out, Request::LandingNews { task, member: 0, step: crate::LandingNews::Landed });
+        for member in told.into_boxed() {
+            emit(out, Request::LandingNews { task, member, step: crate::LandingNews::Landed });
         }
         wake_project_ready(d, project, out);
     } else if let Some(change) = d.changes.get(&task)
@@ -3675,7 +3977,7 @@ fn failed_jobs(
     append_words(&mut log, &words);
     let mut row = d.landing.rows.get(&p.task).expect("failed landing").clone();
     if next == 0 {
-        let member = row.landing.members.first().expect("member");
+        let member = row.landing.members.get(usize::from(round_effect_top(&row))).expect("top");
         let name = match &key.check {
             Check::Gate(name) | Check::Tier(name) => name,
         };
@@ -3718,8 +4020,9 @@ fn failed_jobs(
         ask(d, env, owner, p, key.repository, read, out);
         return;
     }
-    row.landing.round.failure = log.into_boxed();
-    let row_logs = row.landing.round.failure.clone();
+    let row_logs = log.into_boxed();
+    row.landing.round.failure =
+        crate::preparation::remember(&row.landing.round.failure, &row_logs, env.limits.landing_members);
     save(d, row, out);
     let receipt = Receipt {
         logs: row_logs,
@@ -3744,4 +4047,19 @@ fn failed_candidate(d: &Domain, row: &LandingRow, member: u16, gate: u16) -> api
         }
     }
     m.candidate.expect("candidate")
+}
+
+fn fallback(why: policy::Leave) -> bool {
+    match why {
+        policy::Leave::Fallback { .. } => true,
+        policy::Leave::Conflict
+        | policy::Leave::EarlierConflict
+        | policy::Leave::HeadMoved { .. }
+        | policy::Leave::Cancelled
+        | policy::Leave::Held
+        | policy::Leave::Refused { .. }
+        | policy::Leave::Failed { .. }
+        | policy::Leave::Unit { .. }
+        | policy::Leave::Dependency { .. } => false,
+    }
 }
