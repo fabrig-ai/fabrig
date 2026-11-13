@@ -1,0 +1,61 @@
+╭─ temper · vsr-rs · talking with Porter ───────────────────── 127.0.0.1:8367 ─╮
+│ Porter · a standing role · owns vsr-rs · this week 49 of 60                  │
+│ Its Now, 06:58: two landings behind; porting the witness catch-up check,…    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+❯ Fine. From now on, port likely() and unlikely() as plain conditions.
+
+✦ That's a rule for every port. Add it to my rules?
+  1. Yes, add it — it applies from my next run
+  2. Just for this port
+  3. Tell it something else
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+❯
+────────────────────────────────────────────────────────────────────────────────
+❯ 1. Yes, add it              it applies from my next run
+  2. Just for this port
+  3. Tell it something else
+--
+aaabbbbbbaaaccccccaaadddddddddddddccccccaaaaaaaaaaaaaaaaaaaaaaaddddddddddddddaaa
+a.ccccccddddddddddddddddddddddddddddddddddddddddddddddddddddd..................a
+a.ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd....a
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+................................................................................
+efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+................................................................................
+g...............................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+gg..............................................................................
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiijjjjjjjjjjjjjjjjjjjjjjj
+cccccccccccccccccccccccccccccc..................................................
+cccccccccccccccccccccccccccccc..................................................
+--
+a: fore #6A655C
+b: fore #E08A68 bold
+c: bold
+d: fore #9A9388
+e: fore #9A9388 back #2D2C2A
+f: back #2D2C2A
+g: fore #E08A68
+h: fore #E08A68 back #2D2C2A bold
+i: fore #E08A68 back #2D2C2A
+j: back #2D2C2A bold
+cursor 19 2

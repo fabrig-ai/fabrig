@@ -99,7 +99,14 @@ impl Standing {
     pub(super) fn count(&self) -> Option<u32> {
         if self.read { Some(self.rows.len()) } else { None }
     }
-    pub(super) fn configure(&mut self, project: u32, address: &Address, next: &mut u64, out: &mut Queue<Request>) {
+    pub(super) fn configure(
+        &mut self,
+        project: u32,
+        address: &Address,
+        launchpad: bool,
+        next: &mut u64,
+        out: &mut Queue<Request>,
+    ) {
         if self.watch.is_none() {
             let handle = new_handle(next);
             self.watch = Some(handle);
@@ -119,14 +126,23 @@ impl Standing {
                 subject: Watchable::Jig(c::Subject::Tasks { query, window: ROLES }),
             }));
         }
-        let Address::Team { role, .. } = address else {
+        let on_team = if let Address::Team { role, .. } = address {
+            self.selected = *role;
+            true
+        } else {
             self.close_card(out);
+            false
+        };
+        let mut on_launchpad = false;
+        if let Address::Home { .. } = address {
+            on_launchpad = launchpad;
+        }
+        if !on_team && !on_launchpad {
             for row in self.rows.iter_mut() {
                 close_now(row, out);
             }
             return;
-        };
-        self.selected = *role;
+        }
         // One Now read in flight; its handle is released at its answer, so sixteen
         // roles coexist with the eight other people’s watches within the client’s bounds.
         let mut reading = false;
@@ -152,6 +168,9 @@ impl Standing {
                     }),
                 }));
             }
+        }
+        if !on_team {
+            return;
         }
         let wanted = self.chosen();
         if wanted
@@ -518,6 +537,9 @@ fn latest(client: &Client, handle: Handle) -> Option<&Latest> {
         return None;
     }
     document.latest
+}
+pub(crate) fn now(page: &c::NotePage) -> Option<Now> {
+    note_body(page, b"now")
 }
 fn note_body(page: &c::NotePage, description: &[u8]) -> Option<Now> {
     let mut first: Option<&c::Note> = None;

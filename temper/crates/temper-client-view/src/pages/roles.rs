@@ -98,6 +98,7 @@ fn message(b: &mut Builder, address: &Address, words: &Words, reading: bool) {
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Goals { .. }

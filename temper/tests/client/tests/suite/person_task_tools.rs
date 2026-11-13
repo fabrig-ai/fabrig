@@ -477,9 +477,17 @@ fn role_now(ctl: &mut Ctl, run: &engine::Assignment, words: &str) {
     assert!(!failed, "{}", String::from_utf8_lossy(&answer));
 }
 fn role_turn(ctl: &mut Ctl, run: &engine::Assignment, words: &[u8]) {
-    scripted_role_turn(&mut ctl.front, run, words);
+    role_turn_in(&mut ctl.front, run, words);
 }
-fn scripted_role_turn(front: &mut Joint, run: &engine::Assignment, words: &[u8]) {
+pub(super) fn scripted_talk_reply(front: &mut Joint, task: u64, words: &[u8]) {
+    let run = front.assignments.last().expect("talk assigned to the scripted model").clone();
+    assert_eq!(run.task, task);
+    role_turn_in(front, &run, words);
+    let spent = front.engine.task(task).expect("standing role").run_spent;
+    front.engine.answer(WORKER, task, run.attempt, spent, tasks::End::Parked, engine::Parts::none());
+    front.engine.settle();
+}
+fn role_turn_in(front: &mut Joint, run: &engine::Assignment, words: &[u8]) {
     use temper_engine_domain_world::protocol;
     let task = front.engine.task(run.task).expect("role run");
     let number = task.turn + 1;
@@ -939,7 +947,7 @@ fn a_person_talks_on_the_roles_page_reads_its_run_reply_and_leaves() {
     assert_eq!(world.front().engine.task(task).unwrap().talk.as_ref().unwrap().party, fixtures::PARTY);
     let run = world.front().assignments.last().expect("talk wakes a run").clone();
     assert!(run.messages.iter().any(|message| message.words.as_ref() == WORDS));
-    scripted_role_turn(world.front(), &run, b"Add it to my rules?");
+    role_turn_in(world.front(), &run, b"Add it to my rules?");
     let spent = world.front().engine.task(task).unwrap().run_spent;
     world.front().engine.answer(WORKER, task, run.attempt, spent, tasks::End::Parked, engine::Parts::none());
     world.front().engine.settle();

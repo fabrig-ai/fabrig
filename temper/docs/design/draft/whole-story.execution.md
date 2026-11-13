@@ -96,7 +96,7 @@ or the nearest thing, and says so in that draft's status.
 | G1 | A goal across two projects' repositories | a draft of its own, not yet written (`whole-story.md`, 5.2) | its draft; F1 | temper/migration, its draft temper/draft/migration | later | low priority, not for v0.1.0 |
 | T1 | The launchpad as drawn, and views printed | `surfaces.md`, 11.1, 11.4, but its team lines, `/talk` and `/tell`; 11.5 | M0 | temper/tui | must | landed; its walk follows (`../client/README.md`, 5) |
 | T2 | A design session | `surfaces.md`, 11.2 | T1, P6 | temper/tui | must | landed; its walk follows (`../client/README.md`, section 5) |
-| T3 | Talking with a role, and the launchpad's team | `surfaces.md`, 11.1's team lines, 11.3, 11.4's `/talk` and `/tell` | T1, R2, R3 | temper/tui | nice | not started |
+| T3 | Talking with a role, and the launchpad's team | `surfaces.md`, 11.1's team lines, 11.3, 11.4's `/talk` and `/tell` | T1, R2, R3 | temper/tui | nice | landed; its journey and walk follow (`../client/README.md`, 5) |
 | E | The whole story on a box, a part for each step (section 4) | `whole-story.md`, 11 | each part, its step's milestones | each owner writes its part of the story | must | not started |
 | V1 | The pilot, vsr alone: adopted, its way Draft first, its checks as CI, a goal from a draft | `whole-story.md`, 5.2 | GitHub's rungs (`v0.1.0.md`, 2.2); a worker with vsr's C toolchain | temper/migration, with the user | must | not started |
 | V2 | The pilot: vsr's protocol core waiting for the person's sign-off | `whole-story.md`, 5.2 | V1, N2 | temper/migration, with the user | must | not started |
@@ -317,6 +317,7 @@ P2's and F2's that day, as goal 1243, P2's repair for What follows
 what, landed, and
 N3b's that day, as goal 492, its push, landed, and
 R3's, P4c's and T3's that day, as goal 1983, P4c, landed, and
+T3's that day, as goal 1984, T3, landed, and
 F1's that day, as goal 1985, a standing role as a follow's owner, landed. Plans
 
 land meanwhile, so read what a row waits on afresh before starting it.
@@ -355,7 +356,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | G1 | later | low priority (section 4). It needs its draft first, which holds open design: a goal branch per repository, two landings and one of them refused, whose rules and people govern the goal; and F1 |
 | T1 | landed; its walk follows | `tui-whole-t1` drew the launchpad and printed views; its repair, goal 761, reads the brief, Where you left off and Needs you across the person's projects, says why a walked need reached the person, when each need asked and a left-off row's day, and draws the blank row under the header (`../client/tui/pages/launchpad.md`); Stop asking in the terminal stays the web's (`surfaces.status.md`, 11); its walk follows landing (`../client/README.md`, 5) |
 | T2 | landed | goal 172: `../client/tui/pages/design-session.md`, 1, on skein's side region (`skein/docs/design/ui/screen.md`, 5.2); its walk follows landing |
-| T3 | ready | T1, R2 and R3 have landed |
+| T3 | landed; its journey and walk follow | goal 1984: `Talk { project, task }`, a role's chat page in its talk, its words sent as jig's `Talk` and leaving the page its `Leave`, a proposal of the talk accepted in place with running work moved (`../client/pages/talk.md`); the terminal's talk, its head, conversation, choices, leaving and quiet line (`../client/tui/pages/talk.md`), Team on PROJECT and `/talk` on the launchpad (`../client/tui/pages/launchpad.md`, 7), and `/tell` filing a person's word through the domain's Tell temper act (`../client/pages/needs-you.md`, 1, *Tell temper*); charter 13 asks its rule question as numbered choices (`../domain/agent/standing.md`, 7); Where you left off lists no talk, which no read lists, and the web's talk is P4c's (`surfaces.status.md`, 11.1 and 11.3); its journey, `role-talk`, and its walk follow landing (`../client/tui/journeys.md`, 9) |
 | E | part by part | each part, its step's milestones |
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |

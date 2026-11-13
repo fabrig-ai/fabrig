@@ -181,7 +181,12 @@ role does with what it hears, and the tools.
 - **What lasts goes where it belongs,** by charter 13's instructions
   (`../../protocol/configuration/stock.md`):
   - *an instruction for every case* ("from now on…") it asks to make a
-    rule ("Add it to my rules?"), and on yes proposes a change of its
+    rule ("Add it to my rules?"), its reply ending with the choices as a
+    numbered list, "1. Yes, add it", then one keeping it for the work at
+    hand, "2. Just for this port", worded for that work, and "3. Tell it
+    something else" last, so that a terminal offers them as a prompt
+    (`../../client/tui/pages/talk.md`, 1, *The role's choices*); on yes it
+    proposes a change of its
     charter's instructions with `propose_settings`, the rule added in
     its words, its reason naming the talk; it says in its reply that an
     owner of the deployment accepts it, and names the proposal;

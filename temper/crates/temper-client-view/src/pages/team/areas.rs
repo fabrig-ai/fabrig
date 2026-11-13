@@ -1,6 +1,6 @@
 //! Areas and Who routes (client/pages/team.md, 1).
 use super::super::how::{Who, chip};
-use super::{line, paragraph};
+use super::paragraph;
 use crate::{
     cards::text,
     frame::Bindings,
@@ -221,10 +221,9 @@ fn now(b: &mut Builder, words: &Words, facts: &team::Facts, row: &team::AreaPart
     if let Some(w::Holder::Party(party)) = &row.holder {
         for person in &facts.people {
             if person.party == party.number()
-                && let Some(waits) = person.waits
+                && let Some(line) = crate::shared::person_line(words, person)
             {
-                let whom = if person.you { words.say(Word::TeamWhomYou, &[]) } else { person.name.clone() };
-                said = Some(line(words, &waits, whom));
+                said = Some(line);
                 break;
             }
         }

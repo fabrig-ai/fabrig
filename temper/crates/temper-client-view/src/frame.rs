@@ -436,6 +436,7 @@ fn all_projects(
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Ask { .. }
         | Address::Settings { .. }
@@ -890,7 +891,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Task { .. } => (false, false, true, false),
-        Address::Chat { .. } => (false, false, !crate::pages::chat::asking(root), false),
+        Address::Chat { .. } | Address::Talk { .. } => (false, false, !crate::pages::chat::asking(root), false),
         Address::Settings { .. }
         | Address::Role { .. }
         | Address::Rule { .. }
@@ -1100,6 +1101,7 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Ask { .. }
         | Address::Settings { .. }

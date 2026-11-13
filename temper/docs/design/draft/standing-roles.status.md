@@ -16,8 +16,6 @@ milestone R2, but for the lags and departures below.
 - **Design lags:**
   - 5: no landing rule by path holds a standing role's change that touches
     paths a rule guards (`what-reaches-you.md`, 7).
-  - 6 and 7: the terminal draws no talk: its `/talk` is
-    `surfaces.status.md`'s, 11 (`whole-story.execution.md`, T3).
   - 10: How work runs' Budgets name a standing role by its title, without
     its area's words (`surfaces.status.md`, 7).
 - **Design departs:**

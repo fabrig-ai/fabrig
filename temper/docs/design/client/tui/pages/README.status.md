@@ -1,6 +1,6 @@
 # pages: status
 
-2026-11-11. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-12. Where the tree's code lags or departs from [README.md](README.md).
 
 - **Not yet:** 2, *`/quit`*: the commands reference's notes for bare
   `temper` (`temper-shell`'s `rows.rs`, printed into
@@ -26,4 +26,3 @@ Latest, cards at their calls and the remaining TUI controls stay in
 The read-once gap remains `../../../draft/chat-reading.status.md`, 3; parsed-block work is `../../README.md`, section 5's. Request differences remain explicit
 in `../../../draft/tui.status.md`; no rendered-equality result is supplied.
 
-- **Not yet:** 1, *The quiet line*: on the launchpad its count is the project's, `Session::count`, not the person's across projects [in flight: change 785].

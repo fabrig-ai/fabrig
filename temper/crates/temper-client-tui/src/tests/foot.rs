@@ -352,6 +352,7 @@ fn draw(part: foot::Foot) -> crate::View {
     let (root, _) = f::live(Some(f::me(&[b"Hello", b"Demo"])));
     let body = if part.rule.is_some() {
         view::Body::Chat(view::chat::Chat {
+            head: None,
             pane: None,
             to_end: 0,
             entries: Box::default(),
@@ -421,7 +422,7 @@ fn command_paints(frame: &skein_ui_screen::Frame, active: &[u8], theme: &skein_u
             }
         }
     }
-    assert_eq!(commands, 11);
+    assert_eq!(commands, 12);
 }
 #[expect(clippy::disallowed_methods, reason = "test assertions search the rendered tree")]
 fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
@@ -1368,6 +1369,7 @@ fn note_states() {
         "/new     Start a new chat",
         "/chats   Open another chat",
         "/open    Open this on the web",
+        "/tell    Tell temper what's off",
         "/theme   Auto, light or dark",
         "/help    Commands and keys",
         "/quit    Close temper",
@@ -1405,8 +1407,8 @@ fn note_states() {
             exit = Some(index);
         }
     }
-    assert_eq!(log, Some(10));
-    assert_eq!(exit, Some(11));
+    assert!(log.is_some());
+    assert_eq!(log.unwrap().checked_add(1), exit);
     assert!(notes.lines.iter().any(|line| line.as_ref() == b"Ctrl+C closes temper and stops the box"));
 }
 
@@ -2445,4 +2447,38 @@ fn a_walks_reason_stands_between_the_head_and_choices_but_not_on_a_sign_off() {
             }
         }
     }
+}
+
+#[test]
+fn tell_outcomes_stand_under_the_box_and_are_said_once() {
+    let root = super::launchpad::home_read(Some(false), &[], false, None);
+    let words = f::words();
+    for refusal in [
+        shared::finding_refusal(words.view(), &temper_client_protocol_wire::v1::FindingRefusal::NoFinding),
+        words.tell_lost(),
+        words.tell_long(1),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        let written = tui.box_written();
+        tui.step(Told::Tell { serial: 1, refusal: Some(refusal.clone()) });
+        assert!(tui.box_written() > written, "restored words replace the rendered box");
+        let part = foot::read(&root, &tui, &words, f::NOW);
+        assert_eq!(part.composer.as_ref().unwrap().refusal.as_deref(), Some(refusal.as_ref()));
+        assert!(has(draw(part).tree(), look::REFUSED, &refusal));
+        let revision = tui.revision();
+        tui.step(Told::Tell { serial: 1, refusal: Some(b"not twice".as_slice().into()) });
+        assert_eq!(tui.revision(), revision);
+        tui.step(Told::CommandWords { value: b"an edit".as_slice().into() });
+        assert_eq!(tui.tell_refusal(), Some(refusal.as_ref()), "typing leaves it standing");
+        tui.step(Told::Send);
+        assert_eq!(foot::read(&root, &tui, &words, f::NOW).composer.unwrap().refusal, None);
+        tui.step(Told::Tell { serial: 2, refusal: Some(refusal) });
+        tui.step(Told::Went);
+        assert_eq!(tui.tell_refusal(), None);
+    }
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Notice { notice: Some(crate::Notice::Filed { number: 12, project: b"Hello".as_slice().into() }) });
+    let part = foot::read(&root, &tui, &words, f::NOW);
+    assert_eq!(part.notice.as_deref(), Some(b"Filed as finding 12 on Hello.".as_slice()));
+    assert!(has(draw(part).tree(), look::SIGNAL, b"Filed as finding 12 on Hello."));
 }

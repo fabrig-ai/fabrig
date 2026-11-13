@@ -1,11 +1,13 @@
 # The TUI's pages
 
-Three screens, each a tree of the TUI's view, built from the root and
+Four screens, each a tree of the TUI's view, built from the root and
 the TUI's own state: signing in, while the link is signed out; once
 signed in, or while the TUI signs in from the engine's link (below), the
-launchpad, the root at `Home { project }`; and a chat, the root at
+launchpad, the root at `Home { project }`; a chat, the root at
 `Chat { task }` (`../README.md`, 3, *Its pages*), with its draft beside it where it
-has one (`design-session.md`, section 1). Signing in has a framed top, the
+has one (`design-session.md`, section 1); and a talk with a standing role,
+the root at `Talk { project, task }`, drawn as a chat under a head of its
+own (`talk.md`, section 1). Signing in has a framed top, the
 region `tui-top`, titled "temper", and a bottom row, the region
 `tui-bottom`, spread: what closes the TUI, and the link's state. The
 launchpad and a chat share their foot: the box, and under it the quiet
@@ -62,6 +64,8 @@ the foot and the commands (`../box.md`).
 - `launchpad.md`: the launchpad, its rows and walking what needs you.
 - `chat.md`: a chat's conversation and its question.
 - `design-session.md`: the draft pane, reply choices and starting a goal.
+- `talk.md`: talking with a standing role, its head, leaving and a
+  proposal accepted in place.
 
 ## 1. The foot
 
@@ -84,7 +88,8 @@ chat, the running line above them.
   then two spaces and the terminal's phrase, as `../../../draft/surfaces.md`,
   11.1 and its Pair mockup have it), "/ for commands" with no project, "Reply" on a chat, and on a chat
   that has ended "/new starts another chat", as the browser's terminal
-  keeps its box for commands there; none while a list stands under it.
+  keeps its box for commands there; on a talk its own (`talk.md`, section
+  1, *The box*); none while a list stands under it.
   - *With a project its words are the root's:* Home's composer's on the launchpad
     (`Act::ChatWords`) and the chat's on a chat (`Act::MessageWords`),
     so that what the domain reads of them, a command's beginning, a
@@ -150,11 +155,14 @@ chat, the running line above them.
     no project the project and its " · " too; in a design session, the
     project's name, " · ", "drafter" (`tui-hint`), " · " and the closed
     line, the link's state after them only while it is not Live (`design-session.md`, section 1, *The quiet line*);
+    on a talk, the project's name, " · " and the role's (`talk.md`,
+    section 1, *The quiet line*);
   - *at its right,* each left out when absent, " · " between two (`tui-faint`):
     in front of a box its state and "playground" (`../box.md`); "paused · a
     message resumes it" on a chat the person paused (`tui-hint`); on a
     chat whose draft can show, the pane's parts (`design-session.md`, section 1,
-    *The quiet line*); while
+    *The quiet line*); on a talk with the person's talk open, its length
+    and cost (`talk.md`, section 1); while
     something needs the person, "1 needs you", "3 need you", or "3+
     need you" where the read is cut (`tui-signal`): on the launchpad
     across the person's projects, as its Needs you and its walk are
@@ -181,8 +189,10 @@ chat, the running line above them.
   - *What:* `temper_client_tui::Notice`, one of an unknown command's,
     "Unknown command /WORDS · /help lists them", WORDS the box's words
     after "/" (section 2); "Still signing in" (*Typed before the
-    sign-in lands*); the theme taken's (section 2, *`/theme`*); and a goal
-    proposed's (`design-session.md`, section 1, *`/goal`*). Its words are
+    sign-in lands*); the theme taken's (section 2, *`/theme`*); a goal
+    proposed's (`design-session.md`, section 1, *`/goal`*); a talk left's
+    (`talk.md`, section 1, *Leaving*); a role not found's and a word filed's
+    (section 2, *`/talk`* and *`/tell`*). Its words are
     the TUI's own (`tui-signal`).
   - *Where:* the quiet line's right half, alone: the box's state,
     "playground", "paused · a message resumes it", the count and "n to
@@ -233,7 +243,9 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   chat has a document or writes one (`Chat::draft`, `Chat::writing`),
   so it shows or hides the draft and never adds one; and `/goal` only
   while the document has a section with a heading too (`design-session.md`, section 1, *`/goal`*); with no project `/theme`,
-  `/help` and `/quit`. Never the root's `/draft` on the launchpad, where
+  `/help` and `/quit`; on a talk `/new`, `/chats`, `/theme`, `/help` and
+  `/quit` alone, none of a chat's own (`talk.md`, section 1, *Its
+  commands*). Never the root's `/draft` on the launchpad, where
   the TUI's own `/draft` stands (below), nor `/font`,
   the browser's alone. On the launchpad `/model` and `/effort` change
   Home's composer's choice, which the chat its box starts takes
@@ -243,18 +255,21 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
 - **The TUI's own commands** (`../../../draft/surfaces.md`, 11.4), which the
   root's `Command` does not hold and which never reach the root as
   commands, as `/quit` and `/new` don't: offered on the launchpad with a
-  project, `/draft` while the project offers drafts (`launchpad.md`, 7, *Start*), `/change`
-  and `/ask` before the root's, and `/brief` while
-  the header holds a brief, `/needs` while Needs you stands and `/open`
-  after `/chats`; on a chat `/open` after `/chats`. So the launchpad's
-  order is `/draft`, `/change`, `/ask`, `/model`, `/effort`, `/new`, `/chats`,
-  `/brief`, `/needs`, `/open`, `/theme`, `/help`, `/quit`. `/theme` is
+  project, `/draft` while the project offers drafts (`launchpad.md`, 7, *Start*), `/change`,
+  `/talk` while the project has a live standing role (Team's roles'
+  watch, `../../pages/team.md`, 1, *Its reads*), and `/ask` before the
+  root's, and `/brief` while
+  the header holds a brief, `/needs` while Needs you stands, `/open`
+  after `/chats` and `/tell` after it; on a chat and on a talk `/open`
+  and `/tell` after `/chats`. So the launchpad's
+  order is `/draft`, `/change`, `/talk`, `/ask`, `/model`, `/effort`, `/new`, `/chats`,
+  `/brief`, `/needs`, `/open`, `/tell`, `/theme`, `/help`, `/quit`. `/theme` is
   the TUI's own wherever it is offered (*`/theme`*), in the place the
   root's held. Their words,
   the TUI's: "A design session that ends in a draft and a goal", "One
-  change, run as the project's way says", "Ask temper",
-  "The brief, whole", "Walk what needs you", "Open this on the web",
-  "Auto, light or dark".
+  change, run as the project's way says", "A role, about its area", "Ask
+  temper", "The brief, whole", "Walk what needs you", "Open this on the
+  web", "Tell temper what's off", "Auto, light or dark".
   - *`/draft`* on the launchpad, pressed or sent alone, leaves "/draft "
     in the box for the words; sent with words, `/draft WORDS` starts a
     design session as the browser's new chat with a draft does (`../../pages/README.md`, *A
@@ -287,6 +302,27 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     does; a number with no chat there gives the notice an unknown
     command gives. `/chats` alone opens the root's list, the project's
     chats, newest first.
+  - *`/talk`* (`../../../draft/surfaces.md`, 11.3), pressed or sent alone,
+    opens its list (*A command's list*); sent with words, `/talk WORDS`
+    opens the talk with the first of the project's live standing roles,
+    in Team's order, whose name begins with WORDS, ASCII letters' case
+    aside: the root to its `Talk { project, task }` (`talk.md`, section 1),
+    followed as a chat chosen from `/chats` is. With none, the notice
+    "No role on PROJECT is named WORDS · /talk lists them", and the box
+    keeps its words.
+  - *`/tell`* (`../../../draft/surfaces.md`, 9 and 11.4), pressed or sent
+    alone, leaves "/tell " in the box for the words; sent with words,
+    `/tell WORDS` files them as Tell temper does, the root's `Act::Tell {
+    project, words }` (`../../pages/needs-you.md`, 1, *Tell temper*), in the
+    screen's project, the launchpad's or the chat's or talk's task's, and
+    the box is cleared. Filed, the notice "Filed as finding N on
+    PROJECT." (`tell::State::Filed`); refused, the box holds "/tell WORDS"
+    again and the refusal is drawn under it in the view's words
+    (`shared::finding_refusal`); lost, the same with "temper couldn't
+    file that. Try again."; past the bound, the same with "Too long to
+    file: N bytes past 4,096.". Each outcome is said once, by its
+    `serial`. It files at once, with no "About" and "Goes to" before:
+    the words are typed to be filed, and a question is `/ask`'s.
 - **Their words:** each command's name and the browser terminal's words
   (`shared::description`), but the closing command's, and the TUI's own
   commands' (above).
@@ -296,7 +332,8 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   "Close temper", in front "Close temper and stop the box" (`../box.md`), and
   its question while work runs as `../box.md` asks it. `/exit` sent whole is
   the same command, never listed or completed, and its beginnings begin
-  no command of its own. The browser's terminal keeps `/exit`: the
+  no command of its own; but on a talk `/exit` sent whole leaves the
+  talk, as Esc does (`talk.md`, section 1, *Leaving*), and `/quit` closes. The browser's terminal keeps `/exit`: the
   view's `shared` words are unchanged, and the TUI names the command
   itself.
 - **The list:** the box's words beginning with "/" and holding no white
@@ -343,6 +380,13 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     (`shared::chats`), read when the list opens as the browser's is;
     taking one is `Act::Go` to its `Chat { task }`, followed as `../README.md`, 3
     says.
+  - `/talk`, the TUI's own: "Talk with a role on PROJECT"; the project's
+    live standing roles in Team's order, as its rows hold them
+    (`team::shown_at`'s `roles`, `../../pages/team.md`, 1), each its name and,
+    as its words, the areas it holds joined by ", " (`team::areas`), else
+    its Now's first line, else none (`tui-option`); taking one goes to its
+    `Talk { project, task }`, as `/talk WORDS` does. Its state is `Tui`'s,
+    as the theme's list's is.
   - `/close` and `/start-over`: the confirmation's question as the head
     and its two acts as choices, "Close" or "Start over" first, then
     "Keep it open" or "Keep this one" (`shared::confirmation`):
