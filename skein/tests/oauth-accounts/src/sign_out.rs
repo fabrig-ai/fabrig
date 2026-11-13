@@ -175,6 +175,7 @@ pub(crate) fn protocol_files(client: &mut world::Client, env: &Env<accounts::Lim
                 | file::Request::Cut { .. }
                 | file::Request::Sync { .. }
                 | file::Request::SyncDirectory { .. }
+                | file::Request::HardLink { .. }
                 | file::Request::Rename { .. }
                 | file::Request::Remove { .. }
                 | file::Request::List { .. }

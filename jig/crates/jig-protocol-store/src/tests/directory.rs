@@ -65,6 +65,7 @@ fn scripted(store: &mut Store, below: &mut Below) -> Box<[Event]> {
         | file::Request::ReadAt { .. }
         | file::Request::Cut { .. }
         | file::Request::Sync { .. }
+        | file::Request::HardLink { .. }
         | file::Request::Rename { .. }
         | file::Request::Remove { .. } => panic!("unexpected startup request for {owner:?}"),
     };
