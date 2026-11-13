@@ -383,6 +383,11 @@ welcome-go-on
 welcome-model-away
 welcome-model-choose
 welcome-model-claude
+welcome-model-claude-no-terminal
+welcome-model-claude-not-finished
+welcome-model-claude-signed-in
+welcome-model-claude-signing-in
+welcome-model-claude-terminal
 welcome-model-connected
 welcome-model-declined
 welcome-model-forge-done
