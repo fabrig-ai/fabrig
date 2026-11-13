@@ -10,6 +10,23 @@ use alloc::boxed::Box;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Undecodable;
 
+/// A run's application read (temper/docs/design/domain/forge/reds.md, 5.4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Ask {
+    Reds,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum Answer {
+    Reds { reds: Box<[Red]> },
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub struct Red {
+    pub key: Box<[u8]>,
+    pub head: Box<[u8]>,
+}
+
 /// An assignment's items do not decode (temper/docs/design/protocol/wires.md, 5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ItemsRefusal {

@@ -6266,6 +6266,7 @@ dependencies = [
  "jig-protocol-engine-clients-http",
  "jig-protocol-engine-workers",
  "jig-protocol-store",
+ "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
  "skein-channel",
  "skein-codec",
@@ -6312,6 +6313,8 @@ dependencies = [
  "temper-protocol-worker-wire",
  "temper-service-core",
  "temper-test-env",
+ "temper-worker-domain",
+ "temper-worker-service",
  "temper-worker-service-fixtures",
 ]
 
