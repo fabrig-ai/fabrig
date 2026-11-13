@@ -1,5 +1,6 @@
 //! Stateless application parts between the root and its channel (protocol/channel.md, 7).
 use crate::settings;
+use alloc::boxed::Box;
 use skein_lib::{List, Secret, Writer};
 use temper_engine_domain as engine;
 use temper_protocol_worker_wire::{self as wire, v1};
@@ -17,7 +18,40 @@ pub fn limits(own: &crate::limits::Limits) -> Option<v1::Limits> {
         entries: own.forges.installations,
         entry_token_bytes: own.forge_component.token_bytes,
         text_bytes: own.checkout.name_bytes.min(v1::CEILINGS.identity_name),
+        reds: own.forge.branch_reds,
+        red_key_bytes: own.forge.red_key_bytes,
     })
+}
+
+/// Decode the whole application ask before the root reads it.
+#[must_use]
+pub fn ask(bytes: &[u8], limits: &v1::Limits) -> Option<engine::wire::Ask> {
+    let mut reader = skein_lib::Reader::new(bytes);
+    let ask = v1::Ask::decode(limits, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    Some(match ask {
+        v1::Ask::Reds => engine::wire::Ask::Reds,
+    })
+}
+
+/// Encode the root's goal-local snapshot within the engine's bounds.
+pub fn answer(answer: engine::wire::Answer, limits: &v1::Limits) -> Result<Box<[u8]>, v1::Problem> {
+    let value = match answer {
+        engine::wire::Answer::Reds { reds } => {
+            let mut rows = List::with_capacity(limits.reds_reds);
+            for red in reds {
+                if !wire::red_head(&red.head) {
+                    return Err(problem(v1::Path::RedHead));
+                }
+                let row = v1::Red::new(limits, v1::RedParts { key: red.key, head: red.head })?;
+                rows.push(row).or(Err(problem(v1::Path::RedsReds)))?;
+            }
+            v1::Answer::Reds(v1::Reds::new(limits, v1::RedsParts { reds: rows })?)
+        }
+    };
+    Ok(wire::answer(&value))
 }
 
 /// A workspace's remotes and programs, made from each configured forge.

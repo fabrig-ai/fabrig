@@ -138,6 +138,7 @@ fn encode_payload(value: &top::CallPayload) -> w::CallPayload {
             w::CallFollow::new(&w::CEILINGS, w::CallFollowParts { follow: *follow, refusal: refusal.clone() })
                 .expect(FITS),
         ),
+        top::CallPayload::Red(reply) => w::CallPayload::Red(Box::new(super::reds::encode_reply(reply))),
         top::CallPayload::Finding(reply) => w::CallPayload::Finding(Box::new(super::findings::encode_reply(reply))),
         top::CallPayload::Decided { took, reach } => {
             let reach = match reach {
@@ -186,6 +187,7 @@ fn decode_payload(value: w::CallPayload, bounds: &Bounds) -> Result<top::CallPay
             let w::CallFollowParts { follow, refusal } = value.into_parts();
             top::CallPayload::Follow { follow, refusal }
         }
+        w::CallPayload::Red(reply) => top::CallPayload::Red(Box::new(super::reds::decode_reply(*reply, bounds)?)),
         w::CallPayload::Finding(reply) => top::CallPayload::Finding(Box::new(super::findings::decode_reply(*reply))),
         w::CallPayload::Decided(value) => {
             let w::CallDecidedParts { took, reach } = value.into_parts();

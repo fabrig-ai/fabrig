@@ -882,6 +882,9 @@ impl World {
                     )]);
                 }
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
+                ask @ engine::HostRequest::Ask { .. } => {
+                    return Err(Box::new(engine::Request::Worker(engine::WorkerRequest::Host(Box::new(ask)))));
+                }
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {
                 engine::HostDelivery::Render { to, answer, tool, key, job, page, ask, .. } => {

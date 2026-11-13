@@ -34,6 +34,7 @@ mod store;
 #[cfg(test)]
 mod tests;
 mod translate;
+pub mod wire;
 pub use decision::{
     Counters, Decision, Delivery, Journal, JournalOutput, Limits as JournalLimits, accept_routed, commit, committed,
     fresh, resume, uncommitted, valid as journal_valid,

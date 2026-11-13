@@ -108,7 +108,7 @@ pub use panel::{
 };
 pub use reconcile::{MissingLink, Need, RecordKind};
 pub use red::{JobLog, RedNews, RedOn, red_news_words};
-pub use reds::{RecordRed, Recorder, Red, RedRecorded, RedRefusal};
+pub use reds::{RecordRed, Recorder, Red, RedOutcome, RedRecorded, RedRefusal, RedReply};
 pub use refusal::{RefusalCause, bound_words};
 pub use restore::{RestoreFit, RestoreSet};
 pub use result::{ChangeResult, ResultText};
@@ -565,6 +565,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(words) => skein_lib::len_u64(words.len()),
                 None => 0,
             }),
+            CallPayload::Red(reply) => {
+                u64::try_from(size_of_val(reply.as_ref())).ok()?.checked_add(reds::reply_bytes(reply)?)
+            }
             CallPayload::Finding(reply) => {
                 u64::try_from(size_of_val(reply.as_ref())).ok()?.checked_add(findings::reply_bytes(reply)?)
             }

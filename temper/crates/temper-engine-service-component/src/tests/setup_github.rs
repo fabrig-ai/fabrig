@@ -21,8 +21,15 @@ const ADOPTION_SEGMENTS: u32 = 7;
 const LIVE: &[u8] = br#"[{"id":22,"account":{"id":122,"login":"account-fixture","type":"Organization"},"created_at":"1970-01-01T00:00:00Z","suspended_at":null}]"#;
 const MINT: &[u8] = br#"{"token":"artificial-installation-token","expires_at":"1970-01-01T01:00:00Z"}"#;
 
-fn owner_service() -> crate::Service {
-    let mut bootstrap = fixtures::ready();
+// Keep both complete service fixtures off the owner's HTTP story's stack.
+fn boxed_bootstrap() -> Box<crate::Service> {
+    Box::new(fixtures::ready())
+}
+fn boxed_owner(config: fixtures::ConfiguredEngine, store: crate::store::Store) -> Box<crate::Service> {
+    Box::new(local_service(config, store))
+}
+fn owner_service() -> Box<crate::Service> {
+    let mut bootstrap = boxed_bootstrap();
     let mut header = bootstrap.engine.as_ref().unwrap().domain.deployment();
     header.commits = header.commits.checked_add(1).unwrap();
     let mut store = bootstrap.engine.take().unwrap().store;
@@ -41,7 +48,7 @@ fn owner_service() -> crate::Service {
     let _committed = store.host.above.pop().unwrap();
     let mut config = github_config(STATES, LIFE, None);
     config.jig.limits.core.authority.segments = ADOPTION_SEGMENTS;
-    let mut service = local_service(config, store);
+    let mut service = boxed_owner(config, store);
     load_routing(&mut service);
     restore_local(&mut service);
     service.engine.as_mut().unwrap().step(root::Event::Party(root::PartyInput::SignedIn {
@@ -179,7 +186,7 @@ fn install(service: &mut crate::Service, key: u8) -> w::Outcome {
 }
 
 fn app_service() -> Box<crate::Service> {
-    let mut service = Box::new(owner_service());
+    let mut service = owner_service();
     app(&mut service);
     show_connected(&mut service);
     service
@@ -238,7 +245,7 @@ fn paste_success(service: &mut crate::Service, face: &mut Face) {
 
 fn http_owner() -> (Box<crate::Service>, Box<[u8]>) {
     use jig_client_protocol_wire::v21 as j;
-    let mut service = Box::new(owner_service());
+    let mut service = owner_service();
     let link = service.links().pop().unwrap();
     let engine = service.engine.as_mut().unwrap();
     let body = fixtures::http::link_body(engine, &link);

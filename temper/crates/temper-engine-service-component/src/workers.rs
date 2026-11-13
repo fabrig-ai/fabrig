@@ -391,13 +391,14 @@ fn preparation_part(
 pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
     let jig = &settings.jig.limits;
     let wire = crate::translate::limits(&settings.limits)?;
+    let largest = temper_protocol_worker_wire::largest(&wire)?;
     let core = jig.core;
     let hub = jig.hub;
     let link = jig.link;
     let ceilings = jig_protocol_worker_wire::CEILINGS;
     let sizes = jig_protocol_worker_wire::sizes::Sizes {
-        application_ask: hub.application_ask_bytes,
-        application_answer: hub.application_answer_bytes,
+        application_ask: largest.ask,
+        application_answer: largest.answer,
         program_sources: core.fleet.program_sources,
         piece: hub.piece_bytes,
         charter: u32::try_from(hub.charter_bytes).ok()?,
