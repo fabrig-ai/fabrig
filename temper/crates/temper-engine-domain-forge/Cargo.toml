@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-engine-domain-forge-vocabulary.workspace = true
 skein-push.workspace = true
 temper-engine-domain-forge-closer.workspace = true
 temper-protocol-reaches.workspace = true

@@ -393,6 +393,7 @@ pub(crate) fn acted(
         | people::Outcome::AccountKeyKept { .. }
         | people::Outcome::AccountProgramDeclared { .. }
         | people::Outcome::AccountReading { .. }
+        | people::Outcome::AccountLoginAsked { .. }
         | people::Outcome::AccountChanged
         | people::Outcome::AccountMovingOut { .. }
         | people::Outcome::Lifted { .. }

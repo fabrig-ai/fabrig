@@ -3,7 +3,7 @@ use super::{Bounds, FITS, Undecodable, w};
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::List;
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 
 fn encode_topic(value: &d::Topic) -> w::Topic {
     match value {

@@ -4,54 +4,9 @@ use crate::{ChangeRow, Domain, LandingRed, Limits};
 use alloc::boxed::Box;
 use core::cmp::Reverse;
 use skein_lib::{List, Map, Wall};
+pub use temper_engine_domain_forge_vocabulary::views::changes::*;
 
 const QUEUES: u32 = 32;
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ChangesView {
-    pub project: u32,
-    pub landing: Box<[u8]>,
-    pub queues: Box<[ChangesQueue]>,
-    pub more: u32,
-    pub landed: Box<[ChangesLanded]>,
-    pub landed_more: u32,
-    pub landed_default: Box<[ChangesLanded]>,
-    pub landed_default_more: u32,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ChangesQueue {
-    pub repository: Box<[u8]>,
-    pub branch: Box<[u8]>,
-    pub red: bool,
-    pub changes: Box<[ChangesQueued]>,
-    pub way: temper_engine_domain_forge_change::Way,
-    pub in_flight: Option<TrainLanding>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct TrainLanding {
-    pub task: u64,
-    pub member: u64,
-    pub round: u16,
-    pub step: super::LandingStep,
-    pub title: Box<[u8]>,
-    pub ready_since: Wall,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ChangesQueued {
-    pub task: u64,
-    pub title: Box<[u8]>,
-    pub ready_since: Wall,
-    pub checks_since: Option<Wall>,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ChangesLanded {
-    pub signed: Box<[crate::SignOff]>,
-    pub task: u64,
-    pub title: Box<[u8]>,
-    pub at: Wall,
-    pub commit: [u8; 32],
-    pub default_branch: bool,
-}
 
 impl Domain {
     pub(crate) fn changes_view(&self, project: u32, now: Wall, limits: &Limits) -> Option<ChangesView> {

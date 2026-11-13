@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::{Undecodable, application, keys, records};
-use temper_engine_domain_forge as forge;
+use temper_engine_domain_forge_vocabulary as forge;
 
 // The closer's optional question and deferred messages dominate Row at these limits.
 const APPLICATION_ROW_BYTES: u32 = 604_927;

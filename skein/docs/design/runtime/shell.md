@@ -375,6 +375,19 @@ the ring adapter's:
   interrupt reaches the service. A process with no controlling terminal
   can open none, and a terminal that is not the caller's controlling one
   refuses the foreground: each is the call's error. Linux and macOS alike.
+- **The terminal lent to a child.** A front end that hands the person's
+  terminal to a program of its own for a while (../ui/screen.md, section
+  8, *Lent to a child*) gives the child its own descriptors 0, 1 and 2
+  (`Way::Inherit`, io/processes.md, section 1), and the modes it found
+  rather than its raw ones: `Kept::set_kept(&self)` sets the kept modes
+  back on the kept descriptor without giving them up, and, once the
+  child has ended and the front end has taken the foreground back
+  (above), `Kept::set_raw(&self)` sets the modes raw again as startup
+  set them, with the same `Keys`, which `Kept` keeps beside the modes.
+  The child takes the foreground itself (above). Each is the call's
+  error where the kept descriptor is no longer a terminal; `on_abort`
+  and `restore` are unchanged, so a panic or an end while lent leaves
+  the terminal as it was found.
 
 Raw input and window sizing are asked for only at a terminal; a line
 pipe needs neither. A service may request hangup handling with or without

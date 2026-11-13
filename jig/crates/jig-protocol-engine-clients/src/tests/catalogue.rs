@@ -3,7 +3,7 @@
 use super::fixtures as f;
 use crate::{Event, Message, Request, translate};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_core_vocabulary::{
     self as core,
     settings::{CatalogueModel, ModelSource},
@@ -94,7 +94,7 @@ fn a_catalogue_replaces_the_models_a_request_names() {
                 w::KeyedParts {
                     key: [5; 16],
                     owner: w::Owner::Jig,
-                    version: 20,
+                    version: 21,
                     request: f::encode_ask(&create()),
                     value: None,
                 },

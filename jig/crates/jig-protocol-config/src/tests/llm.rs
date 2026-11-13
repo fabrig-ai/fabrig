@@ -473,7 +473,7 @@ fn model_shown_and_picker_reach_the_client_catalogue() {
         let wire = jig_protocol_engine_clients::translate::llm::models(
             &[jig_domain_core_vocabulary::Offered { model: 0, accounts: skein_lib::List::with_capacity(0) }],
             &models,
-            &jig_client_protocol_wire::v20::CEILINGS,
+            &jig_client_protocol_wire::v21::CEILINGS,
         )
         .unwrap();
         let model = wire.get(0).unwrap();

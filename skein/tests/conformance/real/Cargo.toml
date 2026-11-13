@@ -47,3 +47,7 @@ test = false
 [[bin]]
 name = "signal_sender_fixture"
 test = false
+
+[[bin]]
+name = "inherit_fixture"
+test = false

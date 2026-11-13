@@ -6,7 +6,7 @@ use crate::translate::settings::*;
 use crate::translate::too_large;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Writer};
 
 pub fn encode_revision_item_pieces(

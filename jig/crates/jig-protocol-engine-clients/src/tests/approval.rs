@@ -1,7 +1,7 @@
 //! Browser approvals, their refusals and durable takes (jig/docs/design/protocol/client/sign-in.md).
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings};
-use jig_client_protocol_wire::{ApprovalCode, v20 as w};
+use jig_client_protocol_wire::{ApprovalCode, v21 as w};
 use jig_domain_people as people;
 use skein_lib::{Duration, Reader, ReplyTo, Secret, Token, Wall, Writer, length::usize_of};
 

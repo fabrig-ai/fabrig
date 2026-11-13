@@ -40,7 +40,7 @@ fn client() -> Client {
     let mut c = new();
     c.step(Event::StartUnlinked { kept: List::with_capacity(0) });
     c.step(Event::Up {
-        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 20, last: 20 }) },
+        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 21, last: 21 }) },
     });
     c.step(Event::SignIn { with: With::Transport });
     c

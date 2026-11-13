@@ -89,7 +89,7 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
             .expect("bounded account lines");
     }
     let mut signing = List::with_capacity(limits.documents.lines);
-    let mut settled = true;
+    let mut settled = core.accounts.lending(party).is_none();
     for pending in &core.accounts.pending() {
         if pending.by != party {
             continue;
@@ -114,6 +114,9 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
         accounts,
         signing,
         last_end,
+        lendable: core.accounts.terminal_count(party) != 0,
+        lending: core.accounts.lending(party).cloned(),
+        lent_end: core.accounts.lent_end(party),
         usable: serves_work(core, party),
         settled,
         cut: cut || hosts_cut,

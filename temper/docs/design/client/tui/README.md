@@ -374,7 +374,9 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
 - **The seam's shape:** `Start` carries the start's facts, the
   terminal's background, whether the TUI is on a box and whether it is
   in front of one among them (`box.md`; the user's requests of 2026-11-08);
-  `Report` gains `Front` (`box.md`), and `Duties` gains no field. Following a
+  `Report` gains `Front` (`box.md`) and, in front, `Lent`, and `Duties`
+  gains `lend` and `unlend`, its one lent terminal's (`box.md`, *Lending
+  its terminal*); the root is given `Event::Lends` once in front. Following a
   `Show`, the look, `/theme`'s list and the theme taken, `/new`, `/quit`
   and the notice's time are
   the host's own steps on the root and the TUI's state, and closing is

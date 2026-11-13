@@ -210,9 +210,8 @@ pub(crate) fn run(arguments: &[Box<[u8]>], captured: &Capture) -> Result<u8, (u8
         let executable = captured.executable.as_ref().map_err(failure)?;
         return Ok(temper_client_shell_tui::start::run_box(
             executable.as_os_str().as_bytes(),
-            &resolved.directories.cache,
+            &resolved.directories,
             arguments,
-            &resolved.directories.data,
             &captured.environment,
             working.as_os_str().as_bytes(),
             &skein_shell::Clock::new(),

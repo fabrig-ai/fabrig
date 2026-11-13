@@ -1,6 +1,6 @@
 //! Durable forge and playground rows (temper/docs/design/protocol/store.md, 2).
 use super::{FITS, Undecodable, w};
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 
 pub(super) fn encode(row: &d::ForgeRecord) -> w::Forge {
     let d::ForgeRecord { number, kind, mode, state, place, git_program, read_only, bot, asked, first, person } = row;

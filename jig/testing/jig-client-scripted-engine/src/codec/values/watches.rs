@@ -26,6 +26,7 @@ pub(in crate::codec) fn wire_delivery_value(
         c::Delivery::Run(_) => return Err(problem()),
         c::Delivery::RunState(value) => w::DeliveryValue::RunState(wire_run_state(value, limits)?),
         c::Delivery::Deployment(value) => w::DeliveryValue::Deployment(wire_deployment(value, limits)?),
+        c::Delivery::Terminal(value) => w::DeliveryValue::Terminal(super::wire_terminal(value, limits)?),
         c::Delivery::Accounts(value) => w::DeliveryValue::Accounts(wire_accounts(value, limits)?),
     })
 }

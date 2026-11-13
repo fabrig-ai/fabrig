@@ -66,6 +66,7 @@ impl Judge {
             | Answer::ProgramDeclared { .. }
             | Answer::KeyKept { .. }
             | Answer::Reading { .. }
+            | Answer::LoginAsked { .. }
             | Answer::Done
             | Answer::Removed { .. }
             | Answer::Started { .. }

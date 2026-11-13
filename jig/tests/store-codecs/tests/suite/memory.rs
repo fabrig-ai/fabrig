@@ -1,6 +1,6 @@
 //! Full golden rows decode within their decoded bounds (skein's data/codec/README.md, 6).
 use jig_protocol_store::{
-    accounts_v2, component_v3, core_v6, notes_v1, people_v16, secrets_v1, settings_v3, tasks_v11,
+    accounts_v2, component_v3, core_v6, notes_v1, people_v17, secrets_v1, settings_v3, tasks_v11,
 };
 use skein_heap::Meter;
 use skein_lib::Reader;
@@ -43,9 +43,9 @@ fn a_full_core_row_decodes_within_its_decoded_bound() {
 }
 #[test]
 fn a_full_people_row_decodes_within_its_decoded_bound() {
-    let bound = people_v16::Row::decoded_bound(&people_v16::CEILINGS).expect("people heap bound");
+    let bound = people_v17::Row::decoded_bound(&people_v17::CEILINGS).expect("people heap bound");
     check("people", "row", bound, |golden| {
-        people_v16::Row::decode(&people_v16::CEILINGS, &mut Reader::new(golden)).expect("full row")
+        people_v17::Row::decode(&people_v17::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]

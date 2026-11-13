@@ -4,8 +4,8 @@ use crate::Undecodable;
 use alloc::boxed::Box;
 use skein_lib::List;
 use skein_lib::Time;
-use temper_engine_domain_forge as d;
 use temper_engine_domain_forge_tiers as p;
+use temper_engine_domain_forge_vocabulary as d;
 
 fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {
     let mut values = List::with_capacity(u32::try_from(tests.len()).expect(FITS));

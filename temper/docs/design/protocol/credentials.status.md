@@ -1,6 +1,7 @@
 # credentials: status
 
-2026-11-07. Where temper's code lags or departs from [credentials.md](credentials.md).
+2026-11-12. Where temper's code lags or departs from [credentials.md](credentials.md).
+
 
 - **Not yet:** 2: a deployment's mail password, designed and not built (`../domain/forge/attention.md`, 7.4).
 

@@ -152,7 +152,7 @@ client share the deployment's hello-refusal translations. A checks
 shortfall carries the failing charter number as `AgentShortfallChecks {
 charter }`, identifying its `reserve_time` member, and turns, time and
 waiting carry theirs as `AgentShortfallTurns`, `AgentShortfallTime` and
-`AgentShortfallWaiting { charter }`. The v20 schema takes these in
+`AgentShortfallWaiting { charter }`. The v21 schema takes these in
 place.
 `TaskWaitSource { state }` names a source's state. `TaskRunWaitRefused { value }` wraps the enum payload
 for the generator, an unversioned record that adds no tag or header

@@ -145,6 +145,7 @@ pub(crate) fn delivery(
         | Delivery::RunState(_)
         | Delivery::Settings(_)
         | Delivery::Deployment(_)
+        | Delivery::Terminal(_)
         | Delivery::Accounts(_) => {}
     }
 }

@@ -286,7 +286,7 @@ fn later_saves_extend_a_whole_recording() {
     assert!(prove(&second).is_ok());
 }
 
-// Jig's v20 SignedIn wire: answer tag, present token, length, token, party, expiry.
+// Jig's v21 SignedIn wire: answer tag, present token, length, token, party, expiry.
 // The credential's first eight bytes are its sign-in number, followed by 32 fake bytes.
 fn credential() -> Secret {
     let mut bytes = 7_u64.to_be_bytes().to_vec();
@@ -462,7 +462,7 @@ fn sent(walk: &mut Walk, kind: fn(&Sent) -> bool) -> Token {
 fn approved() -> Walk {
     let mut walk = Walk::new();
     let exchange = sent(&mut walk, |message| matches!(message, Sent::ApprovalAsk(_)));
-    // v20 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
+    // v21 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
     let mut asked = vec![0];
     asked.extend_from_slice(&32_u32.to_be_bytes());
     asked.extend_from_slice(&[7; 32]);
@@ -526,6 +526,8 @@ fn duties_keep_the_seams_order_and_fields() {
     let mut erased = skein_lib::List::with_capacity(RECORDS);
     erased.push(b"old".as_slice().into()).expect("one erased record");
     let duties = Duties {
+        lend: None,
+        unlend: false,
         stop: None,
         local: true,
         note: Some(temper_client_tui::Note::SignedOut),
@@ -706,7 +708,7 @@ fn local_records_are_refused_outside_their_places() {
 #[test]
 fn front_reports_replay_through_box_line_read() {
     use crate::host::tests::{delivery_report, home_subject, home_tasks, launchpad_me, watch};
-    use jig_client_protocol_wire::v20 as w;
+    use jig_client_protocol_wire::v21 as w;
     use temper_client_tui::{BoxEnd, BoxLine, BoxStage};
     let (mut walk, duties) = linked_walk_duties(true);
     let stages =
@@ -757,6 +759,33 @@ fn front_reports_replay_through_box_line_read() {
     }
     assert!(records.contains(&Line::Front), "front start fact");
     assert_eq!(records.iter().filter(|line| matches!(line, Line::BoxLine(_))).count(), 2);
+    same_frames(walk);
+}
+
+#[test]
+fn lending_reports_and_duties_replay_through_the_host() {
+    use crate::host::tests::{delivery_report, terminal_document, watch};
+    use jig_client::contract::LoginExit;
+    use jig_client_protocol_wire::v21 as w;
+    let (mut walk, duties) = linked_walk_duties(true);
+    let duties = walk.admit(duties);
+    let subject = w::Subject::Terminal(
+        w::SubjectTerminal::new(&w::CEILINGS, w::SubjectTerminalParts { terminal: skein_lib::Rng::new(7).next_u64() })
+            .unwrap(),
+    );
+    let terminal = watch(&duties, &subject);
+    let duties = walk.reports(vec![delivery_report(terminal, &terminal_document(Some((1, false))))]);
+    assert!(duties.iter().any(|duties| duties.lend.as_ref().is_some_and(|lend| lend.number == 1)));
+    walk.mark();
+    let duties = walk.reports(vec![delivery_report(terminal, &terminal_document(Some((1, true))))]);
+    assert!(duties.iter().any(|duties| duties.unlend));
+    let duties = walk.reports(vec![Report::Lent { number: 1, exit: LoginExit::Killed { signal: 15 } }]);
+    walk.admit(duties.into_iter().next().unwrap());
+    walk.mark();
+    let records = lines(&walk.save()).unwrap();
+    assert!(records.contains(&Line::Lend { number: 1, name: b"work".as_slice().into() }));
+    assert!(records.contains(&Line::Unlend));
+    assert!(records.contains(&Line::Lent { number: 1, exit: LoginExit::Killed { signal: 15 } }));
     same_frames(walk);
 }
 

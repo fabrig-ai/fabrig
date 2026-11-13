@@ -1,6 +1,6 @@
 //! The linked Ops root against scripted stream, transport and delayed storage.
 use jig_client::{Event as ClientEvent, Message, Streamed};
-use jig_client_protocol_wire::v20 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_client_view::address::Address as JigAddress;
 use jig_ops_client_domain::{self as root, Address, Event, Place, Request, infrastructure, observability};
 use jig_ops_world::{PARTY, PROJECT};

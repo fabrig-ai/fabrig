@@ -1,7 +1,7 @@
 //! Status families (temper/docs/design/protocol/store.md, 2).
 use super::{FITS, w};
 use skein_lib::Wall;
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 
 pub(super) fn encode_facts(row: &d::ProjectFacts) -> w::ProjectFacts {
     let brief = match &row.brief {
