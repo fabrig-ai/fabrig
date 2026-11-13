@@ -2,7 +2,7 @@
 use super::{Cursor, Event, HOUR_NS, HistoryRange, Of, Query, Reply};
 use crate::{Domain, Key, Request, Stored};
 use alloc::boxed::Box;
-use skein_lib::{List, Map, Queue, Wall};
+use skein_lib::{Env, List, Map, Queue, Wall};
 
 const READS: u32 = 8;
 const PAGE: u32 = 32;
@@ -17,6 +17,7 @@ pub(crate) struct State {
 #[derive(Clone, Copy, Hash, Debug)]
 pub(crate) enum Purpose {
     Read { read: u64 },
+    Sweep { project: u32, last: Option<super::Last> },
 }
 #[derive(Hash, Debug)]
 struct Read {
@@ -36,8 +37,8 @@ enum Phase {
     Numbers { next: Option<Key>, ended: bool, range: HistoryRange },
 }
 impl State {
-    pub(crate) fn new() -> Self {
-        Self { reads: Map::with_capacity(READS), loads: Map::with_capacity(READS), next: 0 }
+    pub(crate) fn new(projects: u32) -> Self {
+        Self { reads: Map::with_capacity(READS), loads: Map::with_capacity(READS.saturating_add(projects)), next: 0 }
     }
 }
 
@@ -113,13 +114,23 @@ fn sweeping(d: &Domain, query: &Query, change: Option<u64>) -> bool {
     change.is_some() && project.sweeping == change
 }
 fn issue(d: &mut Domain, read: u64, range: HistoryRange, after: Option<Key>, most: u32, out: &mut Queue<Request>) {
-    let Some(load) = d.history_reads.next.checked_add(1) else {
+    if !issue_for(d, Purpose::Read { read }, range, after, most, out) {
         busy(d, read, out);
-        return;
-    };
+    }
+}
+pub(super) fn issue_for(
+    d: &mut Domain,
+    purpose: Purpose,
+    range: HistoryRange,
+    after: Option<Key>,
+    most: u32,
+    out: &mut Queue<Request>,
+) -> bool {
+    let Some(load) = d.history_reads.next.checked_add(1) else { return false };
     d.history_reads.next = load;
-    d.history_reads.loads.insert(load, Purpose::Read { read }).expect("one load per admitted read");
+    d.history_reads.loads.insert(load, purpose).expect("one load per admitted read or project sweep");
     out.push(Request::LoadHistory { load, range, after, most });
+    true
 }
 fn range(query: &Query) -> HistoryRange {
     match query.of {
@@ -154,8 +165,10 @@ fn scan(d: &mut Domain, read: u64, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn unloaded(d: &mut Domain, load: u64, out: &mut Queue<Request>) {
-    let Some(Purpose::Read { read }) = d.history_reads.loads.remove(&load) else { return };
-    busy(d, read, out);
+    match d.history_reads.loads.remove(&load) {
+        Some(Purpose::Read { read }) => busy(d, read, out),
+        Some(Purpose::Sweep { .. }) | None => {}
+    }
 }
 fn busy(d: &mut Domain, read: u64, out: &mut Queue<Request>) {
     if d.history_reads.reads.remove(&read).is_some() {
@@ -167,8 +180,22 @@ fn busy(d: &mut Domain, read: u64, out: &mut Queue<Request>) {
     clippy::too_many_lines,
     reason = "one load terminal advances cursor, index and event phases under one row budget"
 )]
-pub(crate) fn loaded(d: &mut Domain, load: u64, rows: Box<[Stored]>, next: Option<Key>, out: &mut Queue<Request>) {
-    let Some(Purpose::Read { read }) = d.history_reads.loads.remove(&load) else { return };
+pub(crate) fn loaded(
+    d: &mut Domain,
+    env: &Env<crate::Limits>,
+    load: u64,
+    rows: Box<[Stored]>,
+    next: Option<Key>,
+    out: &mut Queue<Request>,
+) {
+    let read = match d.history_reads.loads.remove(&load) {
+        Some(Purpose::Read { read }) => read,
+        Some(Purpose::Sweep { project, last }) => {
+            super::sweep::loaded(d, env, project, last, rows, next, out);
+            return;
+        }
+        None => return,
+    };
     let Some(mut state) = d.history_reads.reads.remove(&read) else { return };
     let phase = core::mem::replace(&mut state.phase, Phase::Scan);
     if let Phase::Cursor = phase {

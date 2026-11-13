@@ -120,6 +120,8 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    history_days: 14,
+    history_events: 131_072,
     findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
@@ -238,13 +240,16 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         &mut d,
         Event::Landing {
             row: LandingRow {
+                job: None,
                 landing: policy::Landing {
+                    last_left: None,
                     round: temper_engine_domain_forge_landing::Round::new(Box::from(b"temper/1/l61".as_slice())),
 
                     task: 61,
                     project: 5,
                     phase: policy::Phase::Turn { at: env().wall },
                     members: Box::new([policy::Member {
+                        round: None,
                         unit: 0,
                         branch: Box::from(b"temper/1/l61".as_slice()),
                         combined: None,
@@ -278,6 +283,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
             task: 61,
             entry: 91,
             heard: LandingHeard {
+                job: None,
                 outcomes: Box::new([]),
                 dependencies: Box::new([]),
                 held: Box::new([]),

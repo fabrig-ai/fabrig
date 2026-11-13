@@ -97,6 +97,7 @@ impl Domain {
         row.history = Some(changed);
         self.changes.insert(change, row.clone()).expect("existing change row");
         crate::domain::save_change(self, out, row);
+        sweep::written(self, project, wall, out);
         Some(number)
     }
 }
@@ -106,3 +107,4 @@ fn save(out: &mut Queue<Request>, record: Stored) {
 }
 
 pub(crate) mod read;
+pub(crate) mod sweep;

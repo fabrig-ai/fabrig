@@ -145,6 +145,7 @@ fn released_moved_branch_clears_drift_and_tells_client_at_capacity() {
     });
     let mut row = change();
     row.drift = Some(change::Hold::BranchMoved);
+    d.changes.insert(row.task, row.clone()).unwrap();
     let mut out = Queue::uncapped();
     accept_released_branch(&mut d, &env, &mut row, TIP, &mut out);
     refused(&out, Some(TASK), BRANCH);

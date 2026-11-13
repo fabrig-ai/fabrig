@@ -682,6 +682,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
 )]
 pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     let top::ChangeRow {
+        job,
         signed,
         task,
         repository,
@@ -727,6 +728,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     w::ChangeRow::new(
         &w::CEILINGS,
         w::ChangeRowParts {
+            job: super::history::encode_job_record(job.as_ref()),
             signed: super::landing_log::encode_signed(signed),
             result: encode_result(result),
             task: *task,
@@ -820,6 +822,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
 #[expect(clippy::too_many_lines, reason = "the durable change account translates each row field in place")]
 pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, super::Undecodable> {
     let w::ChangeRowParts {
+        job,
         signed,
         task,
         repository,
@@ -863,6 +866,7 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> Result<top::ChangeRow, s
         resolution_tasks,
     } = value.into_parts();
     Ok(top::ChangeRow {
+        job: super::history::decode_job_record(job),
         signed: super::landing_log::decode_signed(signed),
         goal,
         ending: decode_ending(ending),

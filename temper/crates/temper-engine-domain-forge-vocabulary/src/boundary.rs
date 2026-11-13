@@ -985,6 +985,7 @@ pub struct FollowCheck {
 /// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    pub job: Option<crate::history::JobRecord>,
     pub signed: Box<[SignOff]>,
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
@@ -1140,6 +1141,7 @@ pub enum LandingRefusal {
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
+    pub job: Option<crate::history::JobRecord>,
     pub landing: landing::Landing,
     pub asks: Box<[Option<change::Ask>]>,
     pub entries: Box<[LandingEntry]>,
@@ -1154,6 +1156,14 @@ pub struct LandingEntry {
     pub member: u16,
     pub gate: u16,
     pub operation: Operation,
+    pub run: Option<LandingRun>,
+}
+/// Observation of a dispatch's current run (domain/landing-history.md, 3.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct LandingRun {
+    pub id: u64,
+    pub attempt: u32,
+    pub ended: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Operation {
@@ -1169,6 +1179,7 @@ pub enum Operation {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingHeard {
+    pub job: Option<crate::history::JobStep>,
     pub outcomes: Box<[crate::preparation::Prepared]>,
     pub dependencies: Box<[ChangeDependencies]>,
     pub held: Box<[u64]>,
@@ -1948,6 +1959,11 @@ pub enum Event {
     QueueRepairStarted {
         owner: u64,
         repair: u64,
+    },
+    /// A job attempt was claimed or its result consumed in the root decision.
+    JobHistory {
+        task: u64,
+        job: crate::history::JobStep,
     },
     /// Remember a committed procedure child and its role in this change.
     Delegated {

@@ -35,6 +35,7 @@ mod tier_route;
 pub(crate) use tier_route::start_tier_step;
 use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
 
+pub(super) mod job_history;
 mod landing_route;
 pub(crate) use landing_route::form_landings;
 #[cfg(test)]
@@ -2528,6 +2529,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         drop_settled_change(domain, env, &mut out);
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
+                job: None,
                 signed: Box::new([]),
                 task,
                 repository: provider,

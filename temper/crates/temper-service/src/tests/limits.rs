@@ -71,6 +71,42 @@ fn the_change_tasks_override_sets_its_field_and_refuses_values_outside_its_bound
 }
 
 #[test]
+fn history_limits_have_defaults_dotted_bounds_and_named_startup_refusals() {
+    for profile in [limits::Profile::Small, limits::Profile::Standard] {
+        let mut own = limits::profile(profile);
+        assert_eq!((own.forge.history_days, own.forge.history_events), (14, 131_072));
+        for days in [1, 3650] {
+            assert_eq!(limits::apply(&mut own, b"forge.history_days", days), Ok(()));
+            assert_eq!(u64::from(own.forge.history_days), days);
+        }
+        for events in [1, u64::MAX] {
+            assert_eq!(limits::apply(&mut own, b"forge.history_events", events), Ok(()));
+            assert_eq!(own.forge.history_events, events);
+        }
+        assert!(temper_engine_domain_forge::valid(&own.forge));
+        own.forge.history_days = 0;
+        assert!(!temper_engine_domain_forge::valid(&own.forge));
+        own.forge.history_days = 3651;
+        assert!(!temper_engine_domain_forge::valid(&own.forge));
+        own.forge.history_days = 14;
+        own.forge.history_events = 0;
+        assert!(!temper_engine_domain_forge::valid(&own.forge));
+    }
+    for overrides in
+        [br#"{"forge.history_days":0}"#.as_slice(), br#"{"forge.history_days":3651}"#, br#"{"forge.history_events":0}"#]
+    {
+        let document = fixtures::with(&fixtures::document(), b"application.limits.overrides", overrides);
+        let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+        let expected = if overrides == br#"{"forge.history_events":0}"# {
+            b"application.limits.overrides.forge.history_events: outside its type\n".as_slice()
+        } else {
+            b"application.limits.overrides.forge.history_days: outside its type\n".as_slice()
+        };
+        assert_eq!(crate::startup::lines(&problems).as_ref(), expected);
+    }
+}
+
+#[test]
 fn checkout_preparations_is_a_named_override_and_zero_refuses_start() {
     for profile in [limits::Profile::Small, limits::Profile::Standard] {
         let mut own = limits::profile(profile);
@@ -138,7 +174,7 @@ fn standard_changes_at_the_tier_bound_name_the_store_limit_to_raise() {
     for problems in [starting, reading] {
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),
-            b"engine.limits.store: the store's map value, 43649491 bytes, past its bound of 4580852 bytes\n",
+            b"engine.limits.store: the store's map value, 43649675 bytes, past its bound of 4580852 bytes\n",
         );
     }
 }

@@ -64,7 +64,7 @@ fn kinds() -> Box<[What]> {
             place: 2,
         },
         What::Gate { gate: 3, key: [9; 32] },
-        What::Proved { proofs: Box::new([Proof { gate: 3, run: 31 }, Proof { gate: 4, run: 32 }]) },
+        What::Proved { proofs: Box::new([Proof { gate: 3, run: Some(31) }, Proof { gate: 4, run: None }]) },
         What::Proved { proofs: Box::new([]) },
         What::Search,
         What::Searched { green: Some([2; 32]), red: [4; 32], blamed: 3 },
@@ -188,9 +188,12 @@ fn history_records_round_trip_every_kind_and_interval() {
 fn the_v20_change_patch_adds_no_backdated_history() {
     let before = kept_golden(20, "record_change_row_full.bin");
     let bytes = patched(20, 9, b"ChangeRow", before.clone());
-    assert_eq!(bytes.as_ref().split_last(), Some((&0, before.as_ref())), "the only change appends none");
+    let (job, rest) = bytes.as_ref().split_first().unwrap();
+    assert_eq!(*job, 0, "no pending job");
+    assert_eq!(rest.split_last(), Some((&0, before.as_ref())), "no backdated history");
     let after = v21::ChangeRow::decode(&v21::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert!(after.history().is_none());
+    assert!(after.job().is_none());
     let old = crate::v20::ChangeRow::decode(&crate::v20::CEILINGS, &mut Reader::new(&before)).unwrap();
     assert_eq!(after.task(), old.task());
     assert_eq!(after.repository().forge(), old.repository().forge());

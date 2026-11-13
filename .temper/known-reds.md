@@ -45,3 +45,15 @@ merged into main brought, each key once. Each is dropped once fixed.
 Confirmed outside the settled-stop change, from goal 2288's graces, 2026-11-13:
 
 - test jig-channel-world::suite channel::a_link_cut_mid_frame_redials_and_each_turn_reaches_the_engine_once
+
+Failing on goal 2474's branch at 50daec66, no live change's (seen by change
+2504, 2026-11-13; the conformance rules' finite-iteration bound in the
+HeldChange story):
+
+- test temper-one-process-world world::tests::a_restart_over_a_live_change_answers_a_person
+
+Failing on main 635e344f merged into goal 2474's branch, no live change's
+(seen by change 2605, 2026-11-13; the finite-iteration bound, the engine and
+worker due at one time with no IO; a repair follows the merge):
+
+- test temper-one-process-world::suite core_after_project::the_incident_s_whole_sequence_answers

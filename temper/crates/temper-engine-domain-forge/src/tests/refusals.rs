@@ -200,6 +200,7 @@ fn reviewing() -> Domain {
     let mut d = adopted_domain();
     let mut row = fixtures::opening_row();
     row.delegate = Some((52, change::Delegate::Gate { number: 1, head: fixtures::HEAD }));
+    row.delegate_status = change::Status::Pending;
     outputs(&mut d, Event::Change { row });
     d
 }

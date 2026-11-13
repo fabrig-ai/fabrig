@@ -953,3 +953,40 @@ fn the_prepare_jobs_conflict_result_ends_the_round_and_asks_for_resolution() {
 mod messages;
 #[path = "landing_news.rs"]
 mod news;
+
+#[test]
+fn prepare_history_uses_the_stored_child_end_after_the_child_leaves_the_live_set() {
+    use forge_top::history as h;
+    let (mut world, change) = produced_turn_change(None);
+    for _ in 0..600 {
+        world.prepare_tick();
+        if task_row(&world, change).is_some_and(|row| matches!(row.phase, tasks::Phase::Ended(_))) {
+            break;
+        }
+    }
+    let events: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::HistoryEvent(event)
+                    if event.change == change
+                        && matches!(event.what, h::What::Job { .. } | h::What::JobEnded { .. }) =>
+                {
+                    Some(event)
+                }
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .collect();
+    assert_eq!(events.len(), 2);
+    let h::What::Job { job: h::Job::Prepare, task } = events[0].what else { panic!("prepare start") };
+    let child = task_row(&world, task).expect("stored child");
+    assert!(world.root.tasks().task(task).is_none(), "the child is no longer live");
+    assert_eq!((events[0].operation, events[0].attempt), (task, u32::try_from(child.attempt).unwrap()));
+    assert_eq!(events[1].what, h::What::JobEnded { job: h::Job::Prepare, outcome: h::JobOutcome::Done });
+    assert_eq!((events[1].operation, events[1].attempt), (events[0].operation, events[0].attempt));
+    assert!(events[1].head.is_some());
+}
