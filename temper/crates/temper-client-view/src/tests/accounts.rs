@@ -4,6 +4,9 @@
     clippy::disallowed_macros,
     reason = "test assertions inspect semantic trees and diagnostic redaction"
 )]
+pub(super) use super::fixtures::accounts::{
+    PROVIDER, SOURCE, card_document, deliver, document, email_facts, sign_in_address, source,
+};
 use super::{connect_model::text, fixtures};
 use jig_client::contract as c;
 use skein_lib::{List, Token};
@@ -13,10 +16,6 @@ use temper_client_domain::{
     pages::accounts::{Act as A, Operation, Row},
 };
 use temper_client_protocol_wire::{self as wire, v1 as v};
-
-pub(super) use super::fixtures::accounts::{
-    PROVIDER, SOURCE, card_document, deliver, document, email_facts, sign_in_address, source,
-};
 
 const ADDRESS: &[u8] = b"https://issuer.example/visit";
 const TRIED_ACCOUNT: u32 = 1;
@@ -731,18 +730,7 @@ fn supplied_source_states_keep_their_words() {
         assert!(skein_lib::bytes::find(&shown, b"Limited until").is_none(), "no invented reset");
     }
 }
-#[test]
-fn move_refusals_keep_their_words() {
-    use c::{AccountEnd as E, AccountRefusal as R};
-    for (refusal, expected) in [
-        (R::NotSignedIn, b"Not signed in".as_slice()),
-        (R::NotOurs, b"Not this application's record"),
-        (R::Cancelled, b"The move was cancelled"),
-        (R::Moving, b"Moving to another deployment"),
-    ] {
-        assert_eq!(sign_in_end_words(document(0), E::Refused { refusal }), expected, "{refusal:?}");
-    }
-}
+
 #[test]
 fn a_supplied_reset_is_visible() {
     let (mut root, watch) = fixtures::account_root();
@@ -756,100 +744,7 @@ fn a_supplied_reset_is_visible() {
             .is_some()
     );
 }
-#[test]
-fn sign_in_ends_preserve_their_typed_details() {
-    use c::{AccountEnd as E, AccountFailure as F, AccountRefusal as R};
-    for (end, expected) in [
-        (E::Made { account: 29, declined: true }, b"You signed in without plan usage.".as_slice()),
-        (E::Renewed { account: 29, declined: false }, b"same account again; account 29"),
-        (E::Refused { refusal: R::NotKept { why: c::AccountKeyFailure::TooLong } }, b"The key is too long."),
-        (E::Refused { refusal: R::Limit { bound: c::AccountBound::Sources } }, b"Source limit reached."),
-        (E::Refused { refusal: R::Kind { kind: c::AccountKind::Program } }, b"Source kind refused: Program login"),
-        (E::Failed { failure: F::MissingScope { scope: 19 } }, b"Missing required scope 19"),
-        (E::Failed { failure: F::Later { after: Some(skein_lib::Duration::from_secs(5)) } }, b"Try again after 5"),
-    ] {
-        let mut doc = document(0);
-        doc.last_end = Some(c::AccountLastEnd { source: SOURCE, end });
-        assert!(skein_lib::bytes::find(&sign_in_end_words(doc, end), expected).is_some());
-    }
-}
-fn sign_in_end_words(mut doc: c::Accounts, end: c::AccountEnd) -> Vec<u8> {
-    doc.last_end = Some(c::AccountLastEnd { source: SOURCE, end });
-    let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
-    b.open(Role::Main);
-    crate::pages::accounts::end(&mut b, &fixtures::words(), &end, &doc.accounts);
-    b.close();
-    let tree = b.finish();
-    for (index, status) in tree.nodes().iter().enumerate() {
-        if status.role != Role::Status {
-            continue;
-        }
-        let node = tree.nodes().get(index.checked_add(1).unwrap()).unwrap();
-        let mut words = Vec::new();
-        for run in &node.text {
-            words.extend_from_slice(&run.text);
-        }
-        if words.starts_with(b"Signed in") || words.starts_with("That’s".as_bytes()) {
-            return words;
-        }
-    }
-    fixtures::text(&tree).into_vec()
-}
-#[test]
-fn a_completed_sign_in_names_the_plan_and_display() {
-    for (email, display) in [
-        (None, b"alice@example.com".as_slice()),
-        (Some(b"alice@example.com".as_slice()), b""),
-        (Some(b"alice@example.com".as_slice()), b"Different display"),
-    ] {
-        let mut doc = card_document(b"openai", display, c::AccountKind::SignIn);
-        doc.accounts.get_mut(0).unwrap().facts = email_facts(email);
-        assert_eq!(
-            sign_in_end_words(doc, c::AccountEnd::Made { account: 1, declined: false }),
-            b"Signed in to ChatGPT as alice@example.com"
-        );
-    }
-}
-#[test]
-fn a_renewed_sign_in_explains_how_to_add_another_account() {
-    for (email, display) in [
-        (None, b"alice@example.com".as_slice()),
-        (Some(b"alice@example.com".as_slice()), b""),
-        (Some(b"alice@example.com".as_slice()), b"Different display"),
-    ] {
-        let mut doc = card_document(b"openai", display, c::AccountKind::SignIn);
-        doc.accounts.get_mut(0).unwrap().facts = email_facts(email);
-        assert_eq!(sign_in_end_words(doc, c::AccountEnd::Renewed { account: 1, declined: false }), "That’s alice@example.com again. To add another account, sign out of ChatGPT in your browser first, then Continue with ChatGPT.".as_bytes());
-    }
-}
-#[test]
-fn a_sign_in_end_keeps_the_number_when_its_account_has_not_arrived() {
-    for (end, expected) in [
-        (c::AccountEnd::Made { account: 29, declined: false }, b"Signed in; account 29".as_slice()),
-        (c::AccountEnd::Renewed { account: 29, declined: false }, b"Signed in to the same account again; account 29"),
-    ] {
-        assert_eq!(sign_in_end_words(document(0), end), expected);
-    }
-}
-#[test]
-fn a_sign_in_end_without_a_display_names_the_plan_unless_renewed() {
-    for (end, expected) in [
-        (c::AccountEnd::Made { account: 1, declined: false }, b"Signed in to ChatGPT".as_slice()),
-        (c::AccountEnd::Renewed { account: 1, declined: false }, b"Signed in to the same account again; account 1"),
-    ] {
-        assert_eq!(sign_in_end_words(card_document(b"openai", b"", c::AccountKind::SignIn), end), expected);
-    }
-}
-#[test]
-fn a_named_sign_in_end_still_reports_declined_plan_usage() {
-    assert!(
-        sign_in_end_words(
-            card_document(b"openai", b"alice@example.com", c::AccountKind::SignIn),
-            c::AccountEnd::Made { account: 1, declined: true }
-        )
-        .ends_with(b"You signed in without plan usage.")
-    );
-}
+
 fn answer_account_operation(root: &mut d::Domain, operation: Operation, outcome: c::DocumentOutcome) {
     let limits = fixtures::limits();
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits };
@@ -1031,8 +926,6 @@ fn only_settled_account_statuses_have_the_done_style() {
         );
     }
 }
-#[cfg(target_pointer_width = "64")]
-use temper_fixtures::memory_literal;
 
 fn owner_root() -> (d::Domain, Token) {
     let (root, deployment, _) = owner_root_with_accounts();
@@ -1282,16 +1175,6 @@ fn each_source_row_offers_its_rank_control() {
     let mut view = bounded_view(fixtures::limits().client.domain.accounts);
     let tree = fixtures::build(&mut view, &root);
     assert_eq!(tree.nodes().iter().filter(|n| n.name.as_deref() == Some(b"Move source up")).count(), 16 * 8);
-}
-#[test]
-fn bindings_at_capacity_refuse_another_control() {
-    let counts = fixtures::limits().client.domain.accounts;
-    let mut bindings =
-        crate::accounts::Bindings::new(counts, fixtures::limits().row_uses, fixtures::limits().client.domain.rows);
-    for _ in 0..crate::accounts::binding_capacity(&counts, fixtures::limits().client.domain.rows) {
-        assert!(bindings.insert(crate::accounts::Meaning::Key).is_some());
-    }
-    assert!(bindings.insert(crate::accounts::Meaning::Key).is_none());
 }
 
 #[test]
@@ -1743,32 +1626,6 @@ fn only_deployment_rows_show_usage_facts_and_their_use_summary() {
         rows += 1;
     }
     assert_eq!(rows, 2);
-}
-
-#[test]
-fn english_phrase_declarations_match_the_vocabulary() {
-    let path = skein_scratch::paths::package().join("src/words.rs");
-    let source = std::fs::read_to_string(&path).unwrap();
-    let variants = source.split("pub enum Word {\n").nth(1).unwrap().split("\n}").next().unwrap();
-    let names: Vec<_> = variants.lines().map(str::trim).filter(|line| line.ends_with(',')).collect();
-    let mut all = format!("const ALL: [Word; {}] = [\n", names.len());
-    for name in names {
-        all.push_str("    Word::");
-        all.push_str(name);
-        all.push('\n');
-    }
-    all.push_str("];");
-    let start = source.find("const ALL: [Word;").unwrap();
-    let end = start + source[start..].find("\n];").unwrap() + 3;
-    if temper_test_env::rewrite() {
-        let updated = format!("{}{}{}", &source[..start], all, &source[end..]);
-        std::fs::write(&path, updated).unwrap();
-    } else {
-        assert_eq!(&source[start..end], all);
-    }
-    for (marker, expected, actual) in crate::words::english_declarations() {
-        memory_literal::check(&path, marker, expected, actual);
-    }
 }
 
 #[test]

@@ -659,6 +659,11 @@ paths = [
     "temper/crates/temper-client-view/src/tests/fixtures/*.rs",
     "temper/crates/temper-client-view/src/view_kit.rs",
     "temper/crates/temper-client-view/src/view_kit/*.rs",
+    "temper/crates/temper-client-view/src/words_tests/fixtures.rs",
+    "temper/crates/temper-client-view/src/parts_tests/fixtures.rs",
+    "temper/crates/temper-client-view/src/setup_tests/fixtures.rs",
+    "temper/crates/temper-client-view/src/work_tests/fixtures.rs",
+    "temper/crates/temper-client-view/src/parts_tests/release-card.txt",
 ]
 [[fixture.reader]]
 pair = "default"

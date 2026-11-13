@@ -3,13 +3,13 @@
     clippy::disallowed_types,
     clippy::disallowed_methods,
     clippy::disallowed_macros,
-    reason = "ordinary tests build table rows and inspect semantic subtrees"
+    reason = "ordinary tests construct table rows and inspect semantic subtrees"
 )]
 mod areas;
 mod hand;
 use super::fixtures as f;
 use crate::{look, pages::team::draw};
-use f::team::{READER, SAM, person};
+use f::team::person;
 use jig_client::contract::HeldRole;
 use skein_lib::List;
 use skein_ui::{Builder, Role, Run};
@@ -197,7 +197,7 @@ fn team_draws_what_it_shows() {
                 b"shop",
                 &row.shown,
                 7,
-                &mut crate::frame::Bindings::new(64),
+                &mut crate::bindings::Bindings::new(64),
                 &mut crate::words::Times::new(skein_lib::Wall::EPOCH),
             );
             let tree = b.finish();
@@ -303,7 +303,7 @@ fn team_draws_what_it_shows() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "both phrasebooks draw the row, head, controls and Now without empty parts")]
 fn team_draws_a_standing_roles_row_head_and_now() {
-    use crate::{frame::Bindings, words::Times};
+    use crate::{bindings::Bindings, words::Times};
     use skein_lib::Wall;
     use temper_client_domain::{
         Action, Address,
@@ -512,7 +512,7 @@ fn wake_rows_say_periods_task_states_topics_and_classes() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "both shells pin rules links, ordered wake chips and absent columns")]
 fn team_draws_rules_and_wakes_in_their_columns() {
-    use crate::{frame::Bindings, words::Times};
+    use crate::{bindings::Bindings, words::Times};
     use jig_client::contract as c;
     use skein_lib::{Duration, Wall};
     use temper_client_domain::{
@@ -691,7 +691,7 @@ fn team_draws_signoffs_after_waits_or_alone_and_never_at_zero() {
             b"shop",
             &shown,
             7,
-            &mut crate::frame::Bindings::new(f::tree_limits().bindings),
+            &mut crate::bindings::Bindings::new(f::tree_limits().bindings),
             &mut crate::words::Times::new(skein_lib::Wall::EPOCH),
         );
         let tree = b.finish();
@@ -707,12 +707,12 @@ fn team_draws_signoffs_after_waits_or_alone_and_never_at_zero() {
 
 #[test]
 fn team_draws_the_weekly_report_after_sessions_with_the_nows_body_rules() {
-    use crate::{frame::Bindings, words::Times};
+    use crate::{bindings::Bindings, words::Times};
     use skein_lib::Wall;
     use temper_client_domain::pages::team;
     let monday = Wall::from_nanos(1_793_599_200_000_000_000);
     for w in [f::browser_words(), f::words()] {
-        let mut facts = super::team_sessions::facts();
+        let mut facts = f::team_sessions::facts();
         facts.card.as_mut().unwrap().report = Some(team::Now {
             changed: Some(monday),
             body: b"Week.\n- Landed a fix.\nWaiting on you.".as_slice().into(),

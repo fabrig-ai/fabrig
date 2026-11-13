@@ -1,4 +1,4 @@
-#![allow(clippy::disallowed_types, clippy::disallowed_methods, reason = "test assertions inspect progress states")]
+#![expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "test assertions inspect progress states")]
 use super::fixtures as f;
 use crate::flow::{self, Mark};
 use skein_ui::{Builder, Role, State};

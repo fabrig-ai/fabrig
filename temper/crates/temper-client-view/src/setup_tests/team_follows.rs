@@ -1,7 +1,7 @@
 //! Follows occupy each owner's row and the card's left column (client/pages/team.md, 1).
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic subtrees")]
 use super::fixtures as f;
-use crate::{frame::Bindings, look, pages::team::draw, words::Times};
+use crate::{bindings::Bindings, look, pages::team::draw, words::Times};
 use skein_lib::{List, Wall};
 use skein_ui::{Builder, Node, Role, Run};
 use temper_client_domain::pages::team::{
@@ -29,7 +29,7 @@ fn position(nodes: &[Node], name: &[u8]) -> usize {
 
 #[test]
 fn follows_draw_under_now_after_signed_and_before_rules_in_both_shells() {
-    let mut facts = super::team_sessions::facts();
+    let mut facts = f::team_sessions::facts();
     facts.roles.get_mut(0).unwrap().now = Some(b"The row's Now".as_slice().into());
     let card = facts.card.as_mut().unwrap();
     card.now = Some(team::Now { body: b"The card's Now".as_slice().into(), changed: None, cut: false });
@@ -102,7 +102,7 @@ fn follows_draw_under_now_after_signed_and_before_rules_in_both_shells() {
 fn follows_card_draws_eight_entries_then_more_and_no_empty_part() {
     for words in [f::browser_words(), f::words()] {
         for count in [0, 8, 10] {
-            let mut facts = super::team_sessions::facts();
+            let mut facts = f::team_sessions::facts();
             facts.card = None;
             let lag = temper_client_domain::forge::follows::lag(u32::try_from(count).unwrap());
             let status = skein_lib::bytes::concat(&[&lag, b" \xc2\xb7 no check yet"]);

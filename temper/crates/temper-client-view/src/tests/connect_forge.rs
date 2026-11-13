@@ -1,14 +1,13 @@
 #![allow(clippy::disallowed_types, clippy::disallowed_methods, reason = "test assertions inspect the semantic tree")]
 use super::fixtures as f;
-use skein_lib::List;
-use skein_ui::{Act, Role, State};
-use temper_client_domain::{self as d, Address, Choice, Step, pages};
-use temper_client_protocol_wire::v1 as w;
-
 pub(super) use super::fixtures::connect_forge::{
     GITHUB, HERE, act, answer, answer_event, attempt, connected, deliver, drive, failed_progress, failure_cases,
     first_rows, github_rows, made, node, parent, pinned_rows, reread_deployment, row, rows, words_in_order,
 };
+use skein_lib::List;
+use skein_ui::{Act, Role, State};
+use temper_client_domain::{self as d, Address, Choice, Step, pages};
+use temper_client_protocol_wire::v1 as w;
 
 fn root(choice: Option<Choice>, connection: w::Connection, offer: w::Offer) -> d::Domain {
     f::forge_root(Address::ConnectForge { forge: choice }, rows(connection, offer))
@@ -1023,19 +1022,6 @@ fn failed_setup_keeps_all_steps_and_marks_only_its_failure() {
         let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(HERE)) } }, rows);
         let view = f::page_view(&root);
         failed_progress(view.tree(), failed, why);
-    }
-}
-
-#[test]
-fn setup_failure_words_keep_the_full_bounded_reason() {
-    let words = f::words();
-    let bound = usize::try_from(temper_client_protocol_wire::SET_UP_WHY_BYTES).unwrap();
-    for (bytes, reason) in [(b"x".repeat(bound), "x".repeat(bound)), ([0xff].repeat(bound), "�".repeat(bound))] {
-        let shown = d::forge::words::lossy(&bytes);
-        let text = words.say(crate::words::Word::ForgePrepareFailed, &[skein_ui::phrases::Hole::Name(shown)]);
-        let mut expected = String::from("Preparing failed: ");
-        expected.push_str(&reason);
-        assert_eq!(text.as_ref(), expected.as_bytes());
     }
 }
 

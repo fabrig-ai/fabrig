@@ -5,12 +5,11 @@
     reason = "ordinary tests inspect the semantic subtrees from both shells"
 )]
 use super::fixtures as f;
-use crate::{frame::Bindings, look, pages::team::draw, words::Times};
+pub(super) use super::fixtures::team_sessions::facts;
+use crate::{bindings::Bindings, look, pages::team::draw, words::Times};
 use skein_lib::Wall;
 use skein_ui::{Builder, Role};
 use temper_client_domain::pages::team::Shown;
-
-pub(super) use super::fixtures::team_sessions::facts;
 
 #[test]
 fn team_draws_sessions_and_their_closing_line_only_with_rows() {

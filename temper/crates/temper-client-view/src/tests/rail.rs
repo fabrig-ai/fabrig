@@ -6,13 +6,12 @@
     reason = "ordinary tests compare semantic subtrees and terminal text"
 )]
 use super::fixtures as f;
+pub(super) use super::fixtures::rail::{GOAL_PRIORITY, deliver_document, with_goal_fact, with_people};
 use crate::look;
 use jig_client::contract as c;
 use skein_lib::{Env, List, Queue, Time, Token};
 use skein_ui::{Act, Node, Role, State, Style, Tree};
 use temper_client_domain::{self as d, Address, ChatsFilter, Event, GoalsFilter, pages};
-
-pub(super) use super::fixtures::rail::{GOAL_PRIORITY, deliver_document, with_goal_fact, with_people};
 
 fn styled(tree: &Tree, style: Style) -> &[Node] {
     let at = tree.nodes().iter().position(|n| n.styles.as_slice().contains(&style)).expect("styled node");
@@ -940,21 +939,6 @@ fn kind_seven_changes_no_navigation_entry() {
                 assert_eq!(current_names(view.tree(), style), [b"Work".as_slice()]);
             }
         }
-    }
-}
-#[test]
-fn drafts_offered_reads_drafts() {
-    const OTHER_PROJECT: u32 = 17;
-    use d::forge::ways::Ways;
-    for (ways, offered) in [
-        (None, false),
-        (Some(Ways::STOCK), true),
-        (Some(Ways { drafts: false, ..Ways::STOCK }), false),
-        (Some(Ways { drafts: false, goals: true, ..Ways::STOCK }), false),
-    ] {
-        let root = f::root_with_ways(Address::Chats { filter: ChatsFilter::All }, ways);
-        assert_eq!(crate::pages::chats::drafts_offered(&root, f::PROJECT), offered);
-        assert!(!crate::pages::chats::drafts_offered(&root, OTHER_PROJECT));
     }
 }
 

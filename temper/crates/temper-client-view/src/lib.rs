@@ -35,3 +35,15 @@ mod tests;
 
 #[cfg(test)]
 mod view_kit;
+
+#[cfg(test)]
+mod words_tests;
+
+#[cfg(test)]
+mod parts_tests;
+
+#[cfg(test)]
+mod setup_tests;
+
+#[cfg(test)]
+mod work_tests;
