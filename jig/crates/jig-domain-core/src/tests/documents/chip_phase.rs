@@ -95,7 +95,7 @@ fn chip_live_observation_uses_receipt_time_and_drops_after_loss() {
         &mut out,
     );
     while out.pop().is_some() {}
-    fleet::resume(&mut core.fleet, &env, &mut out);
+    fleet::resume(&mut core.fleet, &env, true, &mut out);
     while out.pop().is_some() {}
     let mut row = core.tasks.task(2).unwrap().clone();
     row.phase = tasks::Phase::Active(tasks::Active::Running { attempt: 7 });
@@ -247,7 +247,7 @@ fn long_operation_work(operation: Operation) -> ChipWork {
         &mut out,
     );
     while out.pop().is_some() {}
-    fleet::resume(&mut core.fleet, &env, &mut out);
+    fleet::resume(&mut core.fleet, &env, true, &mut out);
     while out.pop().is_some() {}
     fleet::step(
         &mut core.fleet,

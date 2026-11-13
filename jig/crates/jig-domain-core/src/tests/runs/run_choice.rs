@@ -533,7 +533,7 @@ fn a_progress_count_leaves_due_task_watches_unmarked() {
         },
         &mut out,
     );
-    fleet::resume(&mut core.fleet, &env, &mut out);
+    fleet::resume(&mut core.fleet, &env, true, &mut out);
     fleet::step(
         &mut core.fleet,
         &env,

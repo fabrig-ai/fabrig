@@ -548,7 +548,7 @@ fn activate(
         Some(task) => task.phase == tasks::Phase::Active(tasks::Active::Due),
         None => false,
     };
-    if ready && due && domain.forge.design_workspace_waiting(context.task) {
+    if !domain.core.settling() && ready && due && domain.forge.design_workspace_waiting(context.task) {
         forge_event(domain, env, decision, forge::Event::GoalReleased { task: context.task });
     }
     let busy = domain.archive_reads.is_full() || !domain.loads.has_room();

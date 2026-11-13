@@ -340,7 +340,7 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
     for _ in 0..env.limits.routes {
         // A resumed preparation may be stale or need no notes operation.
         // Drain its continuations before waking the next waiter while notes is idle.
-        if work.is_empty() && !core.stopping {
+        if work.is_empty() && !core.stopping && !core.settling {
             effect::note::resume_brief(core, &mut work);
         }
         let Some(next) = work.pop() else { break };
@@ -445,7 +445,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
 
 fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Work>) -> Queue<Request> {
     match next {
-        Work::StartBrief { .. } | Work::BriefNotes { .. } | Work::PreparationFailed { .. } if core.stopping => {
+        Work::StartBrief { .. } | Work::BriefNotes { .. } | Work::PreparationFailed { .. } if core.stopping || core.settling => {
             stopping::empty()
         }
         Work::Event(event) => step_one(core, env, event, work),
@@ -495,6 +495,19 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             core.fill = bytes;
             stopping::empty()
         }
+        Event::Settling => {
+            core.settling = true;
+            stopping::empty()
+        }
+        Event::BriefAssembled { .. }
+        | Event::WorkspacePrepared { .. }
+        | Event::ClaimPrepared { .. }
+        | Event::ClaimRefused { .. }
+        | Event::TranscriptLoaded { .. }
+        | Event::ProcedureStep { .. }
+        | Event::ProcedureHoldings { .. }
+        | Event::StartRecurring { .. }
+        | Event::Period { .. } if core.settling => stopping::empty(),
         Event::Stopping => stopping::start(core, env),
         Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => {
@@ -726,7 +739,9 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
     }
     core.run_now = env.now;
     core.run_wall = env.wall;
-    if core.stopping && jig_domain_core_vocabulary::vocabulary::waits(timer) {
+    if (core.stopping && jig_domain_core_vocabulary::vocabulary::waits(timer))
+        || (core.settling && timer.new_work())
+    {
         return stopping::empty();
     }
     let oldest = core.current.oldest;

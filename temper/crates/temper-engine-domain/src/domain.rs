@@ -1149,7 +1149,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
             close(domain, env, decision, out);
             return;
         }
-        if !domain.core.fleet.is_ready() && !domain.core.finish_owed() {
+        if !domain.core.fleet.ready_to_resume(!domain.core.settling()) && !domain.core.finish_owed() {
             let due = match domain.next_deadline(env) {
                 Some(deadline) => deadline <= env.now,
                 None => false,
@@ -1214,6 +1214,7 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     route_into(domain, env, &mut decision);
     if domain.ready() {
         if !domain.core.stopping()
+            && !domain.core.settling()
             && let Some(next) = domain.trials.next_due()
             && next <= env.wall
         {
@@ -1221,16 +1222,19 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
             route_into(domain, env, &mut decision);
         }
         if !domain.core.stopping()
+            && !domain.core.settling()
             && let Some(next) = domain.calendar.next_start()
             && next <= env.wall
         {
             crate::route::calendar::route(domain, env, calendar::Event::Due, None);
             route_into(domain, env, &mut decision);
         }
-        let routed =
-            jig_domain_core::step(&mut domain.core, &environment_core(env), jig_domain_core::Event::EffectDeadline);
-        route_core_requests(domain, env, &mut decision, routed);
-        route_into(domain, env, &mut decision);
+        if !domain.core.settling() {
+            let routed =
+                jig_domain_core::step(&mut domain.core, &environment_core(env), jig_domain_core::Event::EffectDeadline);
+            route_core_requests(domain, env, &mut decision, routed);
+            route_into(domain, env, &mut decision);
+        }
     }
     close(domain, env, decision, out);
 }

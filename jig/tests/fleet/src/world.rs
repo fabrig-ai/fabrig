@@ -646,7 +646,7 @@ impl World {
             }
         }
         while self.domain.is_ready() {
-            fleet::resume(&mut self.domain, &self.stage.env, &mut self.stage.out);
+            fleet::resume(&mut self.domain, &self.stage.env, true, &mut self.stage.out);
         }
         while let Some(event) = self.stage.next_event() {
             self.log(format!("fleet <- {}", describe(&event)));

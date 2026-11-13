@@ -58,9 +58,11 @@ pub(crate) fn advance(engine: &mut Engine) {
     if !drain.requested {
         // Finish public restore and the mark before closing the core's children.
         // In particular, Switch must still see the accounts in Wanted.
-        if engine.domain.ready() && engine.events.room() > 0 {
+        if engine.domain.ready()
+            && root::try_step(&mut engine.domain, &engine.env, root::Event::Stop).is_ok()
+        {
             drain.requested = true;
-            engine.events.push(root::Event::Stop);
+            engine.drain_notes();
         }
         return;
     }

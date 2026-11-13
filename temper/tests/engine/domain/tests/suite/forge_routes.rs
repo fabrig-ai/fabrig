@@ -3887,9 +3887,8 @@ fn a_stop_commits_the_answer_of_a_forge_write_already_sent() {
 
 #[test]
 fn settling_places_no_run_and_answers_a_call_busy() {
-    let (mut world, assignment, _entry) = held_issue_write();
-    // Another task becomes due, with a slot available, immediately before Stop.
-    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    let (mut world, assignment, entry) = held_issue_write();
+    // The only slot remains occupied while a second task waits for it.
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(992)),
@@ -3920,8 +3919,20 @@ fn settling_places_no_run_and_answers_a_call_busy() {
     assert!(world.drained.is_none());
     assert_eq!(world.assigned.len(), assigned, "the due task gets no placement");
     assert_eq!(world.busy_calls, 1, "a run’s call is answered busy");
+    let commits = world.store.header().commits;
+    let event = world.protocol.answer(Token::new(7), assignment.task, assignment.attempt, 0,
+        tasks::End::Finished { result: tasks::TaskResult::Report { words: b"ended while settling".as_slice().into() }, cancel_delegates: false },
+        engine::Parts::none());
+    world.send(event);
+    for _ in 0..30 { world.tick(); }
+    assert!(world.store.header().commits > commits, "the hosted run's answer commits while the write is held");
+    assert!(world.store.rows.contains_key(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(assignment.task)))));
+    assert!(world.drained.is_none());
+    assert!(world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))), "the forge still owes its outcome");
+    assert_eq!(world.assigned.len(), assigned, "freeing the slot makes no assignment while settling");
     world.release_write_answers();
     drain_stop(&mut world);
+    assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Entry(entry))), "the forge outcome commits before the drain");
     world.restart(true, false);
     world.close();
 }

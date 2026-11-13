@@ -68,7 +68,7 @@ impl Fleet {
         let mut assigned = Vec::new();
         let mut out = Queue::uncapped();
         while self.domain.is_ready() {
-            fleet::resume(&mut self.domain, &self.env, &mut out);
+            fleet::resume(&mut self.domain, &self.env, true, &mut out);
             while let Some(request) = out.pop() {
                 if let Request::Assign { channel, .. } = request {
                     assigned.push(channel);

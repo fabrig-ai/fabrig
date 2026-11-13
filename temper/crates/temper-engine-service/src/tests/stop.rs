@@ -372,3 +372,17 @@ fn missing_forge_links_panic_before_startup_wires() {
     assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Link), "no adoption before link");
     assert!(!engine.domain.ready(), "no decisions before link");
 }
+
+
+#[test]
+fn a_ready_signal_routes_the_stop_before_a_later_resume() {
+    let mut service = fixtures::ready();
+    let engine = service.engine.as_mut().expect("ready engine");
+    let queued = engine.events.len();
+    crate::stop::shutdown(engine);
+    assert!(engine.drain.as_ref().expect("drain").requested, "the ready root takes Stop at the signal");
+    assert_eq!(engine.events.len(), queued, "Stop cannot wait behind an owner's Resume");
+    engine.events.push(temper_engine_domain::Event::Resume);
+    crate::engine::release(engine);
+    assert!(engine.drain.as_ref().expect("drain").closing, "the root settled and drained before the queued input");
+}

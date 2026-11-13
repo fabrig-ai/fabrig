@@ -124,7 +124,7 @@ impl World {
         let mut resumes = 0;
         while self.fleet.is_ready() {
             assert!(resumes < 32, "read placement must settle");
-            fleet::resume(&mut self.fleet, &self.env, &mut out);
+            fleet::resume(&mut self.fleet, &self.env, true, &mut out);
             resumes += 1;
         }
         self.fleet.reclaim();

@@ -8,6 +8,12 @@ use jig_domain_views as views;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 impl Core {
+    /// Whether placement and activation wait while commits keep flowing.
+    #[must_use]
+    pub fn settling(&self) -> bool {
+        self.settling
+    }
+
     /// Whether new work is refused while the service drains.
     #[must_use]
     pub fn stopping(&self) -> bool {
@@ -142,7 +148,8 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Queue<Request
             Err(answer(Some(Request::Held(Box::new(Held::Refuse { channel, hello: None })))))
         }
         Event::Fleet(event) => Ok(Event::Fleet(event)),
-        Event::Stopping
+        Event::Settling
+        | Event::Stopping
         | Event::Activate { .. }
         | Event::BriefAssembled { .. }
         | Event::WorkspacePrepared { .. }

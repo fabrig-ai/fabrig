@@ -148,3 +148,152 @@ fn a_second_stop_says_drained_no_second_time() {
     world.stop();
     assert_eq!(world.stop_deliveries.iter().filter(|held| matches!(held, core::Held::Drained)).count(), 1);
 }
+
+#[test]
+fn settling_commits_turns_and_answers_but_leaves_a_waiting_task_due() {
+    let mut world = World::new(Setup { seed: 171, ..Setup::default() });
+    let first = (world.task(), world.attempt());
+    let chat = jig_core_world::fixtures::chat(&world, 1, b"waiting for the slot".as_slice().into());
+    request(&mut world, 58, chat);
+    let waiting = world.store.rows.values().find_map(|record| match record {
+        root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) if row.number != first.0 => Some(row.number),
+        _ => None,
+    }).expect("second task");
+    assert_eq!(world.assignments.len(), 1, "the worker has one slot");
+    let commits = world.store.applied;
+    for _ in 0..2 {
+        world.send(root::Event::Core(core::Event::Settling));
+        assert!(world.domain.core().settling());
+        assert!(!world.domain.core().stopping());
+        assert_eq!(world.store.applied, commits, "settling is idempotent and writes nothing");
+    }
+    world.turn(1, 1, None, b"a turn while settling");
+    assert!(world.store.applied > commits);
+    assert!(world.busy_turns.is_empty());
+    assert!(world.stop_deliveries.iter().any(|held| matches!(held,
+        core::Held::AcknowledgeTurn { run, attempt, turn: 1, .. } if (run.raw(), attempt.raw()) == first
+    )));
+    let commits = world.store.applied;
+    jig_core_world::fixtures::finish_chat(&mut world, 1, b"finished while settling");
+    assert!(world.store.applied > commits, "the answer commits before it is acknowledged");
+    assert!(world.stop_deliveries.iter().any(|held| matches!(held,
+        core::Held::Acknowledge { run, attempt, .. } if (run.raw(), attempt.raw()) == first
+    )));
+    assert_eq!(world.assignments, [first], "the freed slot places no run");
+    assert_eq!(world.domain.core().tasks.task(waiting).expect("waiting task").phase, tasks::Phase::Active(tasks::Active::Due));
+    world.stop();
+    world.stop();
+    assert_eq!(world.stop_deliveries.iter().filter(|held| matches!(held, core::Held::Drained)).count(), 1);
+}
+
+#[test]
+fn settling_leaves_a_queued_job_unplaced_when_the_host_frees_its_slot() {
+    use jig_domain_link::{Hello, Hosting, JobBound, JobKind, Phase};
+    use jig_core_world::fixtures::{job, job_world, live_row};
+    let (mut world, procedure) = job_world(172, true);
+    let first = (world.task(), world.attempt());
+    world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
+        worker: 0,
+        channel: Token::new(7),
+        hello: Hello {
+            jobs: Box::new([JobBound { kind: JobKind(7), spec: 64, result: 32, deadline: Duration::from_secs(60) }]),
+            bounds: jig_test_profile::fixtures::bounds(),
+            stop_bound: Duration::from_millis(100),
+            slots: 1,
+            workstreams: Box::new([]),
+            hosting: Box::new([Hosting { run: Token::new(first.0), attempt: Token::new(first.1), phase: Phase::Active }]),
+        },
+    })));
+    let child = job(&world, 7, Box::new([0; 64]), Duration::from_secs(60));
+    let (step, connector, code, _) = world.procedure_inputs.last().expect("procedure started");
+    world.send(root::Event::Core(core::Event::ProcedureStep {
+        task: procedure, step: *step, connector: *connector, code: u32::from(*code),
+        decision: core::ProcedureStep { batch: Box::new([child]), ..core::ProcedureStep::new(core::StepEnd::Wait) },
+    }));
+    let task = live_row(&world, procedure).delegates[0];
+    let phase = live_row(&world, task).phase.clone();
+    assert!(world.jobs.is_empty(), "the job is queued behind the hosted run");
+    world.send(root::Event::Core(core::Event::Settling));
+    jig_core_world::fixtures::finish_chat(&mut world, 0, b"free the slot");
+    assert!(world.jobs.is_empty(), "settling assigns no queued job");
+    assert_eq!(live_row(&world, task).phase, phase, "no Placed follows the answer");
+    world.stop();
+    assert_eq!(world.stop_deliveries.iter().filter(|held| matches!(held, core::Held::Drained)).count(), 1);
+}
+
+#[test]
+fn settling_does_not_activate_a_backoff_that_passes() {
+    let mut world = World::new(Setup { seed: 173, ..Setup::default() });
+    world.end(tasks::End::Failed(tasks::Class::Transient), 0);
+    let task = world.task();
+    let phase = world.domain.core().tasks.task(task).expect("backing off").phase.clone();
+    assert!(matches!(phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
+    let deadline = world.domain.core().tasks.next_deadline().expect("backoff timer");
+    world.send(root::Event::Core(core::Event::Settling));
+    world.advance(Duration::from_secs(60));
+    world.send(root::Event::Timer(core::Timer::Tasks));
+    assert_eq!(world.assignments.len(), 1);
+    assert_eq!(world.domain.core().tasks.task(task).expect("still due for retry").phase, phase);
+    assert_eq!(world.domain.core().tasks.next_deadline(), Some(deadline));
+    let env = world.env();
+    assert_ne!(world.domain.core().due(env.now, env.wall), Some(core::Timer::Tasks), "the held timer is not rearmed");
+}
+
+#[test]
+fn settling_holds_a_procedure_wake_until_the_next_start() {
+    use jig_core_world::fixtures::{delegate, member};
+    let seed = 174;
+    let (configuration, limits) = jig_core_world::faults::plan_fixture(seed);
+    let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
+    world.hold_procedures = true;
+    let run = world.assignments[0];
+    let child = member(&world, tasks::Executor::Procedure { connector: 1, code: 1 }, b"waiting procedure");
+    let task = delegate(&mut world, run, 1, child);
+    let (step, connector, code, _) = world.procedure_inputs.last().expect("procedure started");
+    world.send(root::Event::Core(core::Event::ProcedureStep {
+        task, step: *step, connector: *connector, code: u32::from(*code),
+        decision: core::ProcedureStep::new(core::StepEnd::Wait),
+    }));
+    let steps = world.procedure_inputs.len();
+    world.send(root::Event::Core(core::Event::Settling));
+    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task })));
+    assert_eq!(world.procedure_inputs.len(), steps);
+    assert_eq!(world.domain.core().tasks.task(task).expect("due procedure").phase, tasks::Phase::Active(tasks::Active::Due));
+    assert!(world.domain.core_mut().take_due().is_none(), "a root cannot take held work");
+    world.restart(seed, false);
+    assert!(world.procedure_inputs.len() > steps, "the next start steps it afresh");
+}
+
+
+#[test]
+fn a_placement_decided_before_settling_is_still_delivered() {
+    use jig_core_world::world::Cut;
+    use jig_domain_link::{Hello, Hosting, Phase};
+    let mut world = World::new(Setup { seed: 175, ..Setup::default() });
+    world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
+        worker: 0, channel: Token::new(7), hello: Hello {
+            jobs: Box::new([]), bounds: jig_test_profile::fixtures::bounds(), stop_bound: Duration::from_millis(100),
+            slots: 2, workstreams: Box::new([]),
+            hosting: Box::new([Hosting { run: Token::new(world.task()), attempt: Token::new(world.attempt()), phase: Phase::Active }]),
+        },
+    })));
+    let assigned = world.assignments.len();
+    world.cut = Some(Cut::Submitted(world.store.applied + 1));
+    let chat = jig_core_world::fixtures::chat(&world, 1, b"placed before settling".as_slice().into());
+    request(&mut world, 59, chat);
+    let mut placed = false;
+    for _ in 0..16 {
+        if world.domain.core().tasks.view_tasks().iter().any(|task| {
+            task.number != world.task() && matches!(world.domain.core().tasks.task(task.number).expect("view task").phase, tasks::Phase::Active(tasks::Active::Running { .. }))
+        }) {
+            placed = true;
+            break;
+        }
+        world.cut = Some(Cut::Submitted(world.store.applied + 2));
+        world.drain();
+    }
+    assert!(placed, "cut at the new run's placement decision");
+    assert_eq!(world.assignments.len(), assigned, "the decision is not yet released");
+    world.send(root::Event::Core(core::Event::Settling));
+    assert_eq!(world.assignments.len(), assigned + 1, "a durable placement is delivered even while settling");
+}
