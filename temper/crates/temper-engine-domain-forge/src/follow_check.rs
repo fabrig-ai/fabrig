@@ -9,6 +9,8 @@ use skein_lib::{Decimal, Env, List, Queue, Writer};
 use temper_engine_domain_forge_change as c;
 use temper_engine_domain_forge_landing as key;
 use temper_engine_domain_forge_tiers as report;
+#[expect(unused_imports, reason = "the shared namesake holds only crate-scoped payload measurement")]
+pub use temper_engine_domain_forge_vocabulary::follow_check::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum ReadKind {
@@ -567,22 +569,6 @@ pub(crate) fn hinted(d: &Domain, hint: &api::Hint, out: &mut Queue<Request>) {
             }
         }
     }
-}
-
-pub(crate) fn stored_bytes(check: &FollowCheck) -> Option<u64> {
-    let mut bytes = skein_lib::len_u64(check.definition.len());
-    if let Some(words) = &check.held {
-        bytes = bytes.checked_add(skein_lib::len_u64(words.len()))?;
-    }
-    if let Some(flight) = &check.flight {
-        bytes = bytes.checked_add(
-            skein_lib::len_u64(flight.pending.len()).checked_mul(u64::try_from(size_of::<api::JobAttempt>()).ok()?)?,
-        )?;
-        if let Some(report) = &flight.report {
-            bytes = bytes.checked_add(skein_lib::len_u64(report.url.len()))?;
-        }
-    }
-    Some(bytes)
 }
 
 /// Only an asked gate without an exact-head verdict owns a workflow step.

@@ -18,39 +18,39 @@ pub struct BriefUnread {
     pub words: Box<[u8]>,
 }
 
-pub(crate) fn room() -> BriefUnread {
+pub fn room() -> BriefUnread {
     BriefUnread {
         fate: BriefFate::Capacity,
         words: Box::from(b"the connector has no room for another read".as_slice()),
     }
 }
-pub(crate) fn busy() -> BriefUnread {
+pub fn busy() -> BriefUnread {
     BriefUnread { fate: BriefFate::Capacity, words: Box::from(b"the forge client is busy".as_slice()) }
 }
-pub(crate) fn moved() -> BriefUnread {
+pub fn moved() -> BriefUnread {
     BriefUnread { fate: BriefFate::Capacity, words: Box::from(b"the change's head moved".as_slice()) }
 }
-pub(crate) fn moved_transient() -> BriefUnread {
+pub fn moved_transient() -> BriefUnread {
     BriefUnread { fate: BriefFate::Transient, words: Box::from(b"the change's head moved".as_slice()) }
 }
-pub(crate) fn unnamed() -> BriefUnread {
+pub fn unnamed() -> BriefUnread {
     BriefUnread {
         fate: BriefFate::Permanent,
         words: Box::from(b"the change cannot be named in its section".as_slice()),
     }
 }
-pub(crate) fn checks() -> BriefUnread {
+pub fn checks() -> BriefUnread {
     BriefUnread {
         fate: BriefFate::Permanent,
         words: Box::from(b"the failed checks do not fit their section".as_slice()),
     }
 }
-pub(crate) fn bounds() -> BriefUnread {
+pub fn bounds() -> BriefUnread {
     BriefUnread { fate: BriefFate::Permanent, words: Box::from(b"the connector cannot hold this section".as_slice()) }
 }
 
 /// Static reason words; a measured bound stays in the forge error, not the reason.
-pub(crate) fn reason_of(result: &Result<Answer, Error>) -> &'static str {
+pub fn reason_of(result: &Result<Answer, Error>) -> &'static str {
     refusal(result).1
 }
 
@@ -116,7 +116,7 @@ fn refusal(result: &Result<Answer, Error>) -> (BriefFate, &'static str) {
     }
 }
 
-pub(crate) fn unread_of(result: &Result<Answer, Error>) -> BriefUnread {
+pub fn unread_of(result: &Result<Answer, Error>) -> BriefUnread {
     let (fate, reason) = refusal(result);
     let words = if let Err(Error::TooLarge(excess)) = result {
         let mut words = skein_lib::List::uncapped();

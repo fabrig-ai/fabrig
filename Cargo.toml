@@ -372,6 +372,7 @@ members = [
     "temper/crates/temper-engine-domain-ways",
     "temper/crates/temper-engine-domain-forge-issues",
     "temper/crates/temper-engine-domain-forge",
+    "temper/crates/temper-engine-domain-forge-vocabulary",
     "temper/crates/temper-worker-domain",
     "temper/crates/temper-worker-domain-checkout",
     "temper/crates/temper-worker-domain-tooling",
@@ -727,6 +728,7 @@ temper-engine-domain-forge-tiers = { path = "temper/crates/temper-engine-domain-
 temper-engine-domain-ways = { path = "temper/crates/temper-engine-domain-ways" }
 temper-engine-domain-forge-issues = { path = "temper/crates/temper-engine-domain-forge-issues" }
 temper-engine-domain-forge = { path = "temper/crates/temper-engine-domain-forge" }
+temper-engine-domain-forge-vocabulary = { path = "temper/crates/temper-engine-domain-forge-vocabulary" }
 temper-worker-domain = { path = "temper/crates/temper-worker-domain" }
 temper-worker-domain-checkout = { path = "temper/crates/temper-worker-domain-checkout" }
 temper-worker-domain-tooling = { path = "temper/crates/temper-worker-domain-tooling" }
