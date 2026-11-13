@@ -47,6 +47,7 @@ pub const LIMITS: Limits = Limits {
     conflicts: 0,
     path_bytes: 0,
     remote_timeout: Duration::from_secs(60),
+    reds_read_ms: 5_000,
     local_timeout: Duration::from_secs(10),
     facts: 256,
 };

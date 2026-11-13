@@ -117,6 +117,8 @@
 mod candidate;
 mod design;
 
+mod reds;
+
 use alloc::boxed::Box;
 use core::mem;
 
@@ -195,6 +197,8 @@ enum State {
     Waiting { repository: u32, look: bool },
     /// Prepared, with nothing under way.
     Ready,
+    /// Best-effort check files before a deferred push or release.
+    Reds(reds::Running),
     /// Its prepare failed or was aborted: it may only be released.
     Unprepared,
     /// Pushing or saving: `step` is in flight.
@@ -207,6 +211,7 @@ enum State {
 /// place in the spec.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum PrepareStep {
+    Reds { repository: u32 },
     Candidate {
         repository: u32,
         step: candidate::Step,
@@ -457,6 +462,7 @@ fn admissions(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             State::Preparing { .. }
             | State::Waiting { .. }
             | State::Ready
+            | State::Reds(_)
             | State::Unprepared
             | State::Pushing { .. }
             | State::Closed => {
@@ -497,6 +503,10 @@ fn start(domain: &mut Domain, env: &Env<Limits>, hold: Token, to: To, message: M
             end_push(&hold.holding, push, Asked::Abort, out)
         }
         State::Ready => begin(&hold.holding, id, to, message, env, out),
+        State::Reds(mut running) => {
+            if running.push.is_none() { running.push = Some((to, message)); } else { answer(hold.holding.client, &to, Outcome::Refused { refusal: Refusal::Busy }, out); }
+            State::Reds(running)
+        }
         busy @ (State::Queued { .. }
         | State::Preparing { .. }
         | State::Waiting { .. }
@@ -545,6 +555,10 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
     let state = mem::replace(&mut hold.state, State::Closed);
     hold.state = match state {
         State::Preparing { step, asked } => State::Preparing { step, asked: cancelling(id, asked, now, out) },
+        State::Reds(mut running) => {
+            running.asked = outranking(running.asked, now); running.clear = true; running.write = None;
+            out.push(Request::Cancel { owner: id.token() }); State::Reds(running)
+        }
         State::Pushing { push, step, asked } => State::Pushing { push, step, asked: outranking(asked, now) },
         State::Queued { .. } => {
             crate::cache::unqueue(&mut domain.queued, id);
@@ -575,6 +589,14 @@ fn ask(domain: &mut Domain, env: &Env<Limits>, hold: Token, now: Asked, out: &mu
     admissions(domain, env, out);
 }
 
+fn optional(state: &State) -> bool {
+    match state {
+        State::Reds(_) | State::Preparing { step: PrepareStep::Reds { .. }, .. } => true,
+        State::Queued { .. } | State::Preparing { .. } | State::Waiting { .. } | State::Ready
+        | State::Unprepared | State::Pushing { .. } | State::Closed => false,
+    }
+}
+
 /// Terminal for an operation: what the hold does next.
 pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: Done, out: &mut Queue<Request>) {
     let mark = out.len();
@@ -583,7 +605,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
     let hold = domain.holds.get_mut(id).expect("a hold lives until its operation has ended");
     let told = ending(&done);
     domain.facts.push(Fact::Ended { client: hold.holding.client, done: told });
-    if damages(&done) {
+    if !optional(&hold.state) && damages(&done) {
         domain.cache.spoil(hold.holding.workspace);
     }
     let was_active = active(&hold.state);
@@ -600,7 +622,8 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
                 PrepareStep::Store { repository, .. } => {
                     waiters = domain.cache.finished(borrowed(holding, repository).store, id, store_succeeded);
                 }
-                PrepareStep::Candidate { .. }
+                PrepareStep::Reds { .. }
+        | PrepareStep::Candidate { .. }
                 | PrepareStep::Look { .. }
                 | PrepareStep::Make
                 | PrepareStep::Clone { .. }
@@ -626,6 +649,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             }
             prepare_next(holding, &mut domain.cache, id, next, detail, asked, env, out)
         }
+        State::Reds(running) => reds::done(holding, id, running, env, out),
         State::Pushing { mut push, step, asked } if hold.cut => {
             // Only a completed push proves a landing without further IO.
             if let PushStep::Push { repository }
@@ -657,6 +681,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             State::Queued { .. }
             | State::Preparing { .. }
             | State::Ready
+            | State::Reds(_)
             | State::Unprepared
             | State::Pushing { .. }
             | State::Closed => {
@@ -678,6 +703,7 @@ fn addressed(holds: &Slab<Hold>, hold: Token) -> Option<Id<Hold>> {
         | State::Preparing { .. }
         | State::Waiting { .. }
         | State::Ready
+            | State::Reds(_)
         | State::Unprepared
         | State::Pushing { .. } => Some(id),
         State::Closed => None,
@@ -699,7 +725,7 @@ fn conclude(domain: &mut Domain, id: Id<Hold>, was_active: bool, out: &Queue<Req
 fn active(state: &State) -> bool {
     match state {
         State::Preparing { .. } | State::Waiting { .. } => true,
-        State::Queued { .. } | State::Ready | State::Unprepared | State::Pushing { .. } | State::Closed => false,
+        State::Queued { .. } | State::Ready | State::Reds(_) | State::Unprepared | State::Pushing { .. } | State::Closed => false,
     }
 }
 
@@ -834,6 +860,7 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
         | State::Preparing { .. }
         | State::Waiting { .. }
         | State::Ready
+            | State::Reds(_)
         | State::Unprepared
         | State::Pushing { .. } => {}
     }
@@ -849,6 +876,7 @@ fn follow(holds: &mut Slab<Hold>, cache: &mut Cache, id: Id<Hold>) {
     reason = "the preparation transition table handles every terminal workspace outcome together"
 )]
 fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: Done, limits: &Limits) -> Next {
+    if let PrepareStep::Reds { repository } = step { return reds_prepare(holding, after(repository)); }
     if let PrepareStep::Candidate { repository, step } = step {
         return candidate::after(holding, repository, step, done);
     }
@@ -870,6 +898,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
     }
     let last = count(holding.repositories.len()).checked_sub(1).expect("a spec names a repository");
     match step {
+        PrepareStep::Reds { .. } => unreachable!("reds settled above"),
         PrepareStep::Candidate { .. } => unreachable!("candidate preparation was dispatched before the fetch memo"),
         PrepareStep::Store { repository, look } => match done {
             Done::Succeeded => Next::Stores { from: after(repository), look },
@@ -1116,7 +1145,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 if repository < last {
                     Next::Step(PrepareStep::Fetch { repository: after(repository) })
                 } else {
-                    Next::Ready
+                    reds_prepare(holding, 0)
                 }
             }
             Done::Failed { fault: _ } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
@@ -1205,7 +1234,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
                 None if nth(holding, repository).landing.is_some() => {
                     Next::Step(PrepareStep::CommitMerge { repository, theirs })
                 }
-                None => after_merged(repository, last),
+                None => after_merged(holding, repository, last),
             },
             Done::Conflicted { files, .. } => {
                 if head.is_some() {
@@ -1213,7 +1242,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
                 }
                 assert!(paths_fit(&files, limits), "terminal admission bounds retained paths");
                 holding.conflicts.push(Conflicts { repository, files }).expect("room for each repository's conflicts");
-                after_merged(repository, last)
+                after_merged(holding, repository, last)
             }
             Done::Failed { .. } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
             Done::Succeeded
@@ -1311,7 +1340,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Merged => unreachable!("explicit merge commit has its own terminals"),
         },
         PrepareStep::CheckOutMerged { repository } => match done {
-            Done::Succeeded => after_merged(repository, last),
+            Done::Succeeded => after_merged(holding, repository, last),
             Done::Failed { .. } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
             Done::Fetched { .. }
             | Done::Committed { .. }
@@ -1340,7 +1369,8 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("io ends a checkout with its own terminals"),
         },
-        PrepareStep::Candidate { .. }
+        PrepareStep::Reds { .. }
+        | PrepareStep::Candidate { .. }
         | PrepareStep::Store { .. }
         | PrepareStep::Look { .. }
         | PrepareStep::Make
@@ -1414,7 +1444,8 @@ fn remember_fetch(holding: &mut Holding, step: PrepareStep, commit: Commit) {
             Want::Branch { branch: copy_of(pin_branch(nth(holding, repository)).expect("writable landing")) },
         ),
         PrepareStep::FetchBase { repository, base, .. } => (repository, Want::Commit { commit: base }),
-        PrepareStep::Candidate { .. }
+        PrepareStep::Reds { .. }
+        | PrepareStep::Candidate { .. }
         | PrepareStep::Store { .. }
         | PrepareStep::Look { .. }
         | PrepareStep::Make
@@ -1589,7 +1620,7 @@ fn next_head(holding: &mut Holding, repository: u32, head: u32, last: u32) -> Ne
     } else {
         let tips = tips_mut(holding, repository);
         tips.start = tips.head;
-        after_merged(repository, last)
+        after_merged(holding, repository, last)
     }
 }
 
@@ -1645,12 +1676,13 @@ fn conflicted_head_detail(holding: &Holding, repository: u32, head: Commit) -> B
     text.finish()
 }
 
-fn after_merged(repository: u32, last: u32) -> Next {
-    if repository < last { Next::Step(PrepareStep::Fetch { repository: after(repository) }) } else { Next::Ready }
+fn after_merged(holding: &Holding, repository: u32, last: u32) -> Next {
+    if repository < last { Next::Step(PrepareStep::Fetch { repository: after(repository) }) } else { reds_prepare(holding, 0) }
 }
 
 /// The named step and git's fault, outside the checkout's facts (domain/worker/jobs.md).
 fn preparation_detail(holding: &Holding, step: PrepareStep, done: &Done) -> Box<[u8]> {
+    if let PrepareStep::Reds { .. } = step { return Box::new([]); }
     let (fault, output, conflicted) = match done {
         Done::Failed { fault } => (fault.name(), b"".as_slice(), false),
         Done::FailedWithOutput { fault, diagnostic } => (fault.name(), diagnostic.output(), false),
@@ -1682,6 +1714,7 @@ fn preparation_detail(holding: &Holding, step: PrepareStep, done: &Done) -> Box<
             candidate::Step::Brings => b"compare upstream",
             candidate::Step::Commit { .. } => b"commit candidate",
         },
+        PrepareStep::Reds { .. } => b"check reds files",
         PrepareStep::Store { .. } => b"store",
         PrepareStep::Look { .. } => b"look",
         PrepareStep::Make => b"make",
@@ -1786,6 +1819,7 @@ fn prepare_step(
 ) -> State {
     let workspace = holding.workspace.token();
     let op = match step {
+        PrepareStep::Reds { repository } => Op::Reds { at: place(workspace, nth(holding, repository)), action: crate::git::Reds::Prepare { wait_ms: env.limits.reds_read_ms.checked_add(1_000).expect("bounded wait") } },
         PrepareStep::Candidate { repository, step } => candidate::op(holding, repository, step),
         PrepareStep::Look { repository } => {
             let repository = nth(holding, repository);
@@ -2697,4 +2731,17 @@ fn stores_step(
     }
     let step = if look { PrepareStep::Look { repository: 0 } } else { PrepareStep::Make };
     prepare_step(holding, id, step, env, out)
+}
+
+fn reds_prepare(holding: &Holding, from: u32) -> Next {
+    for repository in from..count(holding.repositories.len()) {
+        if nth(holding, repository).push.is_some() { return Next::Step(PrepareStep::Reds { repository }); }
+    }
+    Next::Ready
+}
+pub(crate) fn reds(domain: &mut Domain, env: &Env<Limits>, token: Token, action: crate::git::Reds, out: &mut Queue<Request>) {
+    let Some(id) = addressed(&domain.holds, token) else { return };
+    let hold = domain.holds.get_mut(id).expect("addressed hold");
+    let state = mem::replace(&mut hold.state, State::Closed);
+    hold.state = reds::update(&hold.holding, id, state, action, env, out);
 }

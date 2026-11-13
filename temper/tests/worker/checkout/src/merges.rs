@@ -59,6 +59,7 @@ impl World {
             conflicts: 4,
             path_bytes: 128,
             remote_timeout: Duration::from_secs(10),
+            reds_read_ms: 5_000,
             local_timeout: Duration::from_secs(5),
             facts,
         };
