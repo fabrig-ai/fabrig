@@ -85,7 +85,7 @@ what the row's `head` and `base` hold.
 | `asked` | a resolution, a repair or a judgement is delegated to the change, its task heard | `ask`: `resolution`, `repair` or `judgement`; `task`; `gate`, the judgement's or a repair's gate number, where it has one | the head asked at; the base, for a resolution | the delegate's task, 0 |
 | `answered` | that delegate's result is heard | `ask`; `outcome`: `pushed`, `passed`, `refused`, `nothing`, `failed` or `cancelled` | the head it pushed, where it pushed one | the delegate's task, 0 |
 | `pushed` | a head reaches the change's branch, observed | none | the head | own |
-| `delivered` | temper accepts a head delivered to the change | `checked`: a checked delivery, or an unchecked save | the head | own |
+| `delivered` | temper accepts a head delivered to the change: at the answer of the attempt that delivered it, from its `Left` (`../protocol/channel.md`, 5), once for each repository's head new to the change | `checked`: a checked delivery, or an unchecked save, as its `Landed` says; a `Landed` from `temper-worker-wire` 6, which has no such field, reads as checked | the head | own |
 | `paused` | under `queue`, the change waits in a queue paused for its branch (`forge/queues.md`) | `why`: `branch_red` (CI failed on the branch's tip) or `tier_red` (a tier's red pauses it, `after-landing.md`, 7) | none; the branch's tip | own |
 | `resumed` | that queue goes on | none | none; the branch's tip | its `paused`'s |
 | `formed` | under `turn`, a landing forms, or a new round of it starts, with the change a member | `members`, in the stack's order, each its change, unit and head; `place`, the change's in it, from 1 | its head; the round's base | the landing's task, the round |
