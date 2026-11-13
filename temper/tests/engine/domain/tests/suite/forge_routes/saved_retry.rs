@@ -184,6 +184,7 @@ impl Workspace {
                 git: None,
                 start,
                 push: repository.push.clone(),
+                prefixes: Box::new([]),
                 expected: None,
                 landing: repository.landing.clone(),
                 identity: 0,
