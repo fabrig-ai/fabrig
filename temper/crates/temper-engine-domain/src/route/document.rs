@@ -81,6 +81,7 @@ pub(crate) fn call(
                 | Read::Transcript { .. }
                 | Read::InputCheck(_)
                 | Read::GoalWords(_)
+                | Read::History { .. }
                 | Read::Notes { .. }
                 | Read::SettingsNote { .. }
                 | Read::Remember(_),
