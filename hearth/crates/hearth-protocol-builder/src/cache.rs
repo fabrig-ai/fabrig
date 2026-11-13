@@ -161,7 +161,8 @@ impl Cache {
                     self.stage = Stage::Failed;
                 }
             }
-            file::Event::Renamed { .. }
+            file::Event::Linked { .. }
+            | file::Event::Renamed { .. }
             | file::Event::Removed { .. }
             | file::Event::Locked { .. }
             | file::Event::Busy { .. }

@@ -66,6 +66,7 @@ fn seen(request: &file::Request) -> Seen {
         | file::Request::Stat { .. }
         | file::Request::Cut { .. }
         | file::Request::List { .. }
+        | file::Request::HardLink { .. }
         | file::Request::ListPage { .. } => Seen::Other,
     }
 }

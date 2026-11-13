@@ -576,3 +576,33 @@ fn a_lock_goes_with_the_handles_of_a_cut_process() {
     assert_eq!(world.call(waiter, Op::Lock { fd: second }).result, Ok(Done::Nothing));
     close_all(&mut world, waiter, &[second]);
 }
+
+#[test]
+#[should_panic(expected = "an invalid record")]
+fn a_hard_link_with_an_invalid_source_fails_the_world() {
+    let (mut world, pid, root) = rooted();
+    world.submit(
+        pid,
+        Op::HardLink {
+            from_dir: root,
+            from: Box::from(b"a/b".as_slice()),
+            to_dir: root,
+            to: Box::from(b"b".as_slice()),
+        },
+    );
+}
+
+#[test]
+#[should_panic(expected = "an invalid record")]
+fn a_hard_link_with_an_overlong_target_fails_the_world() {
+    let (mut world, pid, root) = rooted();
+    world.submit(
+        pid,
+        Op::HardLink {
+            from_dir: root,
+            from: Box::from(b"a.txt".as_slice()),
+            to_dir: root,
+            to: vec![b'x'; 256].into_boxed_slice(),
+        },
+    );
+}

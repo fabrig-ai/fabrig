@@ -98,7 +98,8 @@ fn change(ask: &Ask) -> Option<Change> {
         Ask::Remove { .. } => Some(Change::Remove),
         Ask::Truncate { .. } => Some(Change::Truncate),
         Ask::MakeDirectory { .. } => Some(Change::Make),
-        Ask::Lock { .. }
+        Ask::HardLink { .. }
+        | Ask::Lock { .. }
         | Ask::Spawn { .. }
         | Ask::Open { .. }
         | Ask::Read { .. }
@@ -129,6 +130,7 @@ fn file_heap(event: &file::Event) -> u64 {
         | file::Event::Cut { .. }
         | file::Event::Synced { .. }
         | file::Event::Closed { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Removed { .. }
         | file::Event::Failed { .. }

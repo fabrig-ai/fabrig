@@ -188,6 +188,7 @@ fn done(event: file::Event) -> Done {
         | file::Event::Synced { .. }
         | file::Event::Closed { .. }
         | file::Event::Removed { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. } => Done::Finished,
         file::Event::Failed { error, .. } => Done::Failed { error },
         file::Event::Cancelled { .. } => unreachable!("the store never cancels a file request"),

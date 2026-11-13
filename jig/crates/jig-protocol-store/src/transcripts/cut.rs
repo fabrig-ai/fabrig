@@ -177,6 +177,7 @@ pub(crate) fn arrival(event: file::Event) -> Option<Arrival> {
         | file::Event::Stated { .. }
         | file::Event::Written { .. }
         | file::Event::Read { .. }
+        | file::Event::Linked { .. }
         | file::Event::Renamed { .. }
         | file::Event::Listed { .. }
         | file::Event::Cancelled { .. } => None,

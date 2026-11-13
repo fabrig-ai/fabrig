@@ -141,6 +141,7 @@ impl Store {
             | file::Event::Read { .. }
             | file::Event::Cut { .. }
             | file::Event::Synced { .. }
+            | file::Event::Linked { .. }
             | file::Event::Renamed { .. }
             | file::Event::Listed { .. }
             | file::Event::Removed { .. } => unreachable!("selection only creates, opens and retires directories"),
