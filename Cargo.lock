@@ -2094,12 +2094,14 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "smith-channel",
+ "smith-charter",
  "smith-domain-run",
  "smith-host-domain",
  "smith-host-protocol",
  "smith-host-protocol-fixtures",
  "smith-protocol-channel",
  "smith-protocol-program",
+ "smith-transcript",
 ]
 
 [[package]]

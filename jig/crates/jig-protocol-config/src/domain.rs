@@ -562,14 +562,14 @@ pub fn check_effective_limits(limits: &jig_domain_core_vocabulary::Limits) -> Re
 }
 
 fn batch_ceiling(limits: &jig_domain_core_vocabulary::Limits) -> Option<Problem> {
-    if limits.tasks.batch > jig_protocol_store::tasks_v11::CEILINGS.task_interests_result_followups {
+    if limits.tasks.batch > jig_protocol_store::tasks_v12::CEILINGS.task_interests_result_followups {
         return Some(Problem {
             path: codec_path(b"tasks.batch"),
             what: What::CodecCeiling {
                 bound: CodecBound {
                     field: b"tasks-v9.TaskInterests.result_followups",
                     needed: limits.tasks.batch,
-                    ceiling: jig_protocol_store::tasks_v11::CEILINGS.task_interests_result_followups,
+                    ceiling: jig_protocol_store::tasks_v12::CEILINGS.task_interests_result_followups,
                 },
             },
         });

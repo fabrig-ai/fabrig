@@ -49,16 +49,27 @@ pub fn items(
     assignment: &hub::Assignment,
     parts: &[jig_protocol_worker_wire::Part],
     limits: &temper_protocol_worker_wire::v1::Limits,
-) -> Result<translate::Assigned, temper_worker_domain::wire::Undecodable> {
+) -> Result<translate::Assigned, temper_worker_domain::wire::ItemsRefusal> {
     let Some(workspace) = &assignment.assignment.workspace else {
         return Ok(translate::workspace(None));
     };
-    let bytes = part(workspace.items, parts).ok_or(temper_worker_domain::wire::Undecodable)?;
+    let bytes = part(workspace.items, parts).ok_or(temper_worker_domain::wire::ItemsRefusal::Invalid)?;
+    let mut reader = Reader::new(bytes);
+    if let Some(version) = reader.u16()
+        && version != temper_protocol_worker_wire::wire::VERSION
+    {
+        return Err(temper_worker_domain::wire::ItemsRefusal::Version(hub::Mismatch {
+            wire: Box::from(temper_protocol_worker_wire::wire::FAMILY.as_bytes()),
+            version,
+            lowest: temper_protocol_worker_wire::wire::VERSION,
+            highest: temper_protocol_worker_wire::wire::VERSION,
+        }));
+    }
     let mut reader = Reader::new(bytes);
     let items = temper_protocol_worker_wire::v1::Items::decode(limits, &mut reader)
-        .or(Err(temper_worker_domain::wire::Undecodable))?;
+        .or(Err(temper_worker_domain::wire::ItemsRefusal::Invalid))?;
     if !reader.is_empty() {
-        return Err(temper_worker_domain::wire::Undecodable);
+        return Err(temper_worker_domain::wire::ItemsRefusal::Invalid);
     }
     Ok(translate::workspace(Some(&items)))
 }

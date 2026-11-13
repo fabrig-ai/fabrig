@@ -242,14 +242,19 @@ fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, start: Result<B
     }
     match start {
         Ok(start) => parent(domain, env, smith::parent::Event::Spawn { client: owner, start: *start }),
+        Err(host::Undecoded::Version(mismatch)) => {
+            hub(domain, env, HubEvent::Agent(FromAgent::StartVersion { owner, mismatch }));
+        }
         Err(invalid) => {
-            let cause = match invalid {
+            let cause = match &invalid {
+                host::Undecoded::Version(_) => unreachable!("version handled above"),
                 host::Undecoded::Transcript => host::StartCause::Transcript,
                 host::Undecoded::Charter | host::Undecoded::Evidence | host::Undecoded::CallName => {
                     host::StartCause::Other
                 }
             };
             let why: &[u8] = match invalid {
+                host::Undecoded::Version(_) => unreachable!("version handled above"),
                 host::Undecoded::Charter | host::Undecoded::Evidence => b"charter",
                 host::Undecoded::Transcript => b"transcript",
                 host::Undecoded::CallName => b"call name",

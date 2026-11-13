@@ -15,7 +15,7 @@ use jig_domain_core_vocabulary as domain;
 pub struct View {
     pub settings: crate::settings_v3::Limits,
     pub core: crate::core_v6::Limits,
-    pub tasks: crate::tasks_v11::Limits,
+    pub tasks: crate::tasks_v12::Limits,
     pub people: crate::people_v16::Limits,
     pub notes: crate::notes_v1::Limits,
 }

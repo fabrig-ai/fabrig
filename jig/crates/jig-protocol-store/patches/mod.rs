@@ -62,6 +62,13 @@ family jig-store-tasks 10 to 11
 add Class.infrastructure
 add Tries.infrastructure u32 0
 ",
+    r"patch 1
+owner jig 4
+
+family jig-store-tasks 11 to 12
+add EndRefusedWithReason
+add End.refused_with_reason
+",
 ];
 
 pub mod kept {
@@ -12162,6 +12169,433 @@ versioned record EndRecord { value: End }
 versioned record PhaseRecord { value: Phase }
 versioned record ChangeRecord { value: Change }
 ",
+            r"family jig-store-tasks 12
+
+record Number { value: u64 }
+record Person { person: u64 }
+record Project { project: u32 }
+enum Party { task: Number, person: Person, deployment: Project }
+enum Class { transient, permanent, run, agent, lost, invalid, infrastructure }
+record Tries { transient: u32 permanent: u32 run: u32 agent: u32 lost: u32 invalid: u32 infrastructure: u32 }
+enum Why { made, ready, message: Number, released, retry: Tries, narrowed, changed }
+record Role { role: u32 }
+enum PersonAddress { person: Person, role: Role }
+record Agent { charter: u32 }
+record Procedure { connector: u16 code: u32 }
+record PersonExecutor { address: PersonAddress }
+record JobExecutor { kind: u32 }
+enum Executor { agent: Agent, procedure: Procedure, person: PersonExecutor, job: JobExecutor }
+record NumericParameter { name: u32 value: u64 }
+record BytesParameter { name: u32 value: bytes 262144 }
+record ResourceParameter { name: u32 connector: u16 resource: u64 }
+enum Parameter { number: NumericParameter, bytes: BytesParameter, resource: ResourceParameter }
+record JobSpec { bytes: bytes 262144 deadline: duration }
+record JobContract { bytes: u32 }
+record JobResult { bytes: bytes 524288 }
+record Spec { words: bytes 262144 parameters: bytes 1048576 pieces Parameter inputs: list 64 Number asks: bool job: option JobSpec }
+enum PartKind { resource, pool, result, procedure, effect, outbox, hold }
+record PartSegment { bytes: bytes 4096 }
+record PartPath { segments: bytes 65536 pieces PartSegment }
+enum PartKey { path: PartPath, number: Number }
+record Part { connector: u16 kind: PartKind key: PartKey }
+record FieldRule { name: bytes 524288 max: u32 }
+record Verdict { code: u32 words: u32 followups: u32 fields: bytes 1048576 pieces FieldRule }
+record Approval { state: bytes 524288 part: Part }
+record Report { words: u32 }
+record Choices { choices: list 64 Verdict }
+record ChangeContract { connector: u16 kind: u16 words: u32 }
+enum Contract { approval: Approval, report: Report, verdict: Choices, change: ChangeContract, job: JobContract }
+record Tools { bits: u64 }
+record Models { bits: u64 all: bool }
+record ModelEffort { model: u8 effort: option u8 }
+record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
+record LlmChoice { main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater account: option u32 }
+record Scopes { bits: u8 }
+record AuthoritySegment { bytes: bytes 4096 }
+enum Last { exact: AuthoritySegment, open: AuthoritySegment }
+record Pattern { segments: list 64 AuthoritySegment last: Last }
+record Grant { connector: u16 kind: u16 pattern: Pattern }
+record ResourceScope { connector: u16 pattern: Pattern }
+record Charter { charter: u32 }
+record Code { code: u32 }
+record AuthorityJob { kind: u32 }
+enum AuthorityExecutor { charter: Charter, procedure: Code, role: Role, job: AuthorityJob }
+record Delegation { kinds: list 64 AuthorityExecutor tasks: u32 depth: u32 }
+record Budget { spend: u64 deadline: option u64 }
+record Authority {
+    tools: Tools
+    models: Models
+    grants: bytes 65536 pieces Grant
+    delegation: Delegation
+    budget: Budget
+    notes: Scopes
+    note_resources: bytes 65536 pieces ResourceScope
+}
+record Task { task: u64 }
+record Pool { project: u32 person: u64 period: u64 }
+record Recurring { project: u32 task: u64 period: u64 }
+record Period { project: u32 period: u64 }
+enum Funder { task: Task, pool: Pool, recurring: Recurring, period: Period }
+record Numbers { budget: u64 spent: u64 spent_below: u64 reserved: u64 }
+record PeriodTimes { began: u64 next: option u64 }
+record FundingRecord {
+    period: option PeriodTimes
+    funder: Funder
+    parent: option Funder
+    numbers: Numbers
+    made: u32
+    closed: bool
+}
+record Segment { bytes: bytes 4096 }
+record Name { connector: u16 path: bytes 65536 pieces Segment }
+record Run { task: u64 attempt: u64 }
+record Effect { entry: u64 }
+enum Writer { run: Run, effect: Effect }
+record WriterSlot { number: u64 resource: Name writer: Writer lost: bool }
+record PoolSlots { number: u64 pool: Name slots: u32 }
+record WriteHolding { resource: Name kind: u16 }
+record SlotHolding { pool: Name kind: u16 }
+enum Holding { write: WriteHolding, slot: SlotHolding }
+record WakeBatch { count: u32 age: duration }
+record WakePace { span: duration }
+enum WakeRule { never, immediate, batch: WakeBatch, paced: WakePace }
+enum ResultsWake { never, each, last_or_failure }
+record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
+enum RecurringOverlap { skip, wait }
+enum Retention { kept, forgotten_once_read }
+record Closer { connector: u16 code: u32 }
+enum EndedBy { result, requester, closer: Closer, standing }
+record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
+record DeadlineSpan { value: duration }
+enum Deadline { named, span: DeadlineSpan }
+record Member { deadline: Deadline
+    label: u32 flags: Flags
+    number: u64 project: u32 executor: Executor llm: option LlmChoice spec: Spec contract: Contract
+    authority: Authority numbers: Numbers funder: Funder
+    dependencies: list 64 Number holdings: list 64 Holding wake: WakePolicy tracked: option u32
+}
+record RecurringTemplate { key: u32 batch: bytes 67108864 pieces Member overlap: RecurringOverlap }
+record Creation { member: Member recurring: option RecurringTemplate }
+record ResultField { name: bytes 524288 value: bytes 524288 }
+record Approved { state: bytes 524288 words: option bytes 524288 }
+record ReportResult { words: bytes 524288 }
+record VerdictResult { code: u32 fields: bytes 1048576 pieces ResultField words: bytes 524288 }
+record ChangeResult { connector: u16 kind: u16 resource: u64 title: bytes 524288 words: bytes 524288 }
+record FailureResult { reason: bytes 524288 }
+enum TaskResult { approved: Approved, report: ReportResult, verdict: VerdictResult, change: ChangeResult, failure: FailureResult, no_change: ReportResult, job: JobResult }
+record Done { result: TaskResult }
+record Cancelled { by: Party at: u64 reason: bytes 524288 result: option TaskResult }
+enum Ending { done: Done, failed: FailureResult, cancelled: Cancelled }
+record FailedClass { class: Class }
+enum Bound { reasoning, metadata, items, answer, tools, history_items, history, window, output }
+record Exceeded { bound: Bound value: u64 }
+enum Hold { failures: FailedClass, stalled, dependency: Number, stopped, placed: Number, drift, effects, effect_failed, uncertain: Effect, budget, deadline, holds_waited, resource_unavailable, resource_access, pool_lost: Number, procedure, circle, exceeded: Exceeded }
+enum Active { idle, due, preparing, claimed: Number, running: Number, backing_off: Number }
+enum Stage { run: Number, delegates, effects, releases, settled }
+record Closing { stage: Stage ending: Ending }
+record Activation { value: Active }
+enum Was { waiting, active: Activation, closing: Closing }
+record HoldEffect { connector: u16 entry: u64 }
+record Circle { tasks: list 32 Number cut: bool }
+record HoldAccount { connector: u16 entry: option u64 words: bytes 512 }
+record HoldPreparation { words: bytes 128 }
+enum HoldSource { resource: Name, effect: HoldEffect, circle: Circle, account: HoldAccount, preparation: HoldPreparation }
+record Held { was: Was why: Hold source: option HoldSource }
+record Final { ending: Ending }
+enum Phase { waiting, active: Activation, closing: Closing, held: Held, ended: Final }
+enum ProposalKind { batch, effect, amend, widen, release, settings }
+record PolicyHolder { project: u32 kind: ProposalKind }
+enum ProposalHolder { task: Task, person: Person, policy: PolicyHolder }
+record PendingProposal { holder: ProposalHolder since: u64 }
+record AcceptedProposal { by: Party }
+record RejectedProposal { by: Party reason: bytes 524288 }
+enum ProposalState { pending: PendingProposal, accepted: AcceptedProposal, rejected: RejectedProposal, withdrawn }
+record AddressChange { revision: u64 address: PersonAddress }
+record Tracked { priority: u32 }
+enum Tracking { tracked: Tracked, untracked }
+record Amendment {
+    tracked: option Tracking
+    addressed: option AddressChange instructions: option bytes 524288 release: option u64
+    spec: option Spec wake: option WakePolicy dependencies: option list 64 Number
+    authority: option Authority llm: option LlmChoice reason: bytes 524288
+}
+record ProposedBatch { members: bytes 67108864 pieces Creation }
+record ProposedEffect { connector: u16 authority: Authority attempt: u64 completion: u32 position: u32 purpose: u64 }
+record ProposedProcedureEffect { connector: u16 authority: Authority step: u64 purpose: u64 }
+record ProposedAmendment { task: u64 revision: u64 amendment: Amendment }
+record ProposedWidening { task: u64 authority: Authority }
+record ReleasePlaced { task: u64 hold: u64 revision: u64 }
+record SettingNumber { number: u32 }
+enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, model: SettingNumber }
+enum SettingEdit { set, removed, reset }
+record SettingHead { setting: Setting edit: SettingEdit }
+record ProposedSettings { against: u32 items: list 128 SettingHead projects: list 32 u32 }
+enum ProposalAction { batch: ProposedBatch, effect: ProposedEffect, procedure_effect: ProposedProcedureEffect, amend: boxed ProposedAmendment, widen: ProposedWidening, release: Task, release_placed: ReleasePlaced, settings: ProposedSettings }
+record Proposal { number: u64 proposer: u64 project: u32 action: ProposalAction reason: bytes 524288 as_holder: bool state: ProposalState }
+enum Change { cancelled, released, amended, moved, proposed, proposal_passed, proposal_accepted, proposal_rejected, proposal_withdrawn }
+record Settings { tracked: option u32 addressed: option PersonAddress taken_by: option u64 instructions: option bytes 524288 spec: Spec wake: WakePolicy dependencies: list 64 Number authority: Authority llm: option LlmChoice }
+record AmendmentHistory { before: Settings after: Settings }
+record History { task: u64 revision: u64 by: Party change: Change reason: bytes 524288 proposal: option Proposal at: u64 amendment: option AmendmentHistory }
+record PendingPersonProposal { since: u64 }
+record RejectedPersonProposal { by: Party reason: bytes 524288 message: u64 at: u64 }
+record WithdrawnPersonProposal { at: u64 }
+record SettingsAccepted { by: Party revision: u32 }
+enum PersonProposalState { pending: PendingPersonProposal, accepted: AcceptedProposal, rejected: RejectedPersonProposal, withdrawn: WithdrawnPersonProposal, settings_accepted: SettingsAccepted }
+enum PersonAction { batch: ProposedBatch, amend: boxed ProposedAmendment, settings: ProposedSettings }
+record PersonProposal { number: u64 proposer: u64 project: u32 action: PersonAction reason: bytes 524288 state: PersonProposalState }
+record Milestone { task: u64 position: u64 phase: Phase at: u64 }
+record Grace { by: Party until: u64 reason: bytes 524288 message: u64 }
+record SettingsRevision { task: u32 run: option u32 }
+record Revisions { hold: u64 spec: u64 person: u64 }
+record FailedRetry { class: Class count: u32 allowance: u32 reason: option bytes 128 }
+record RefusedRetry { count: u32 reason: option bytes 128 }
+enum RetryNotice { failed: FailedRetry, refused: RefusedRetry }
+
+
+
+record NoticeHeld { revision: u64 }
+enum NoticeState { held: NoticeHeld, done, failed, cancelled }
+enum NewsClass { wakes, kept, dropped }
+record ApprovalMessage { state: bytes 524288 words_present: bool }
+record VerdictMessage { code: u32 fields: bytes 1048576 pieces ResultField }
+record ChangeMessage { connector: u16 kind: u16 resource: u64 }
+enum ResultKind { approved: ApprovalMessage, report, verdict: VerdictMessage, change: ChangeMessage, failed, cancelled, no_change, job }
+record EscalationMessage { task: u64 revision: u64 }
+record ProposalMessage { proposer: u64 proposal: u64 kind: ProposalKind }
+record StalledMessage { task: u64 }
+record DecisionMessage { proposal: u64 accepted: bool }
+record SettingsAcceptedRevision { revision: u32 }
+record SettingsStaleRevision { newest: u32 }
+enum SettingsOutcome { accepted: SettingsAcceptedRevision, rejected, stale: SettingsStaleRevision }
+record SettingsDecisionMessage { proposal: u64 outcome: SettingsOutcome }
+record EffectMessage { entry: u64 }
+record AmendmentMessage { revision: u64 }
+record AnswerMessage { question: u64 }
+record NoticeMessage { subscription: u64 target: u64 state: NoticeState }
+record TimerMessage { subscription: u64 }
+record NewsMessage { subscription: u64 class: NewsClass }
+record ResultMessage { kind: ResultKind }
+record MetMessage { dependency: u64 removed: bool }
+enum MessageKind { escalation: EscalationMessage, proposal: ProposalMessage, person_stalled: StalledMessage, proposal_decision: DecisionMessage, words, effect_not_made: EffectMessage, amendment: AmendmentMessage, question, answer: AnswerMessage, notice: NoticeMessage, timer: TimerMessage, news: NewsMessage, result: ResultMessage, met: MetMessage, finish_requested: AmendmentMessage, settings_decision: SettingsDecisionMessage, question_ended: AnswerMessage, question_answered: AnswerMessage, question_owed, nothing_awaited }
+record Word { number: u64 from: Party kind: MessageKind words: bytes 524288 at: u64 hits: u32 eligible: bool }
+enum InvalidResult { form, verdict, words, change, followups }
+record FailedEnd { class: Class invalid_result: option InvalidResult }
+enum EndKind { parked, finished, cancelled, failed: FailedEnd, refused }
+record ActivityWords { message: u64 by: Party kind: MessageKind words: bytes 524288 }
+record HeardMessage { word: Word }
+record NotifiedMessage { recipient: Party word: Word }
+record BeganLine { attempt: u64 why: Why resumed: bool }
+record EndedLine { attempt: u64 end: EndKind spent: u64 }
+record TurnLine { reply: u64 attempt: u64 turn: u32 read: option u64 }
+record DecidedProposal { number: u64 made: bool }
+record DecidedLine { revision: u64 proposal: option DecidedProposal }
+record MilestoneLine { position: u64 }
+record KeptLine { attempt: u64 pending: list 64 Number question: option u64 }
+record NowWrittenLine { attempt: u64 line: bytes 512 }
+record StoodLine { attempt: u64 words: bytes 512 }
+enum SessionEnd { quiet, bound, unoffered, fresh, closed, rules, talk, left }
+record SessionEndedLine { attempt: u64 end: SessionEnd }
+record TalkOpenedLine { party: u64 }
+record TalkEndedLine { party: u64 lapsed: bool }
+enum Line { words: ActivityWords, heard: HeardMessage, notified: NotifiedMessage, run_began: BeganLine, run_ended: EndedLine, turn: TurnLine, decided: DecidedLine, milestone: MilestoneLine, kept: KeptLine, stood: StoodLine, session_ended: SessionEndedLine, talk_opened: TalkOpenedLine, talk_ended: TalkEndedLine, now_written: NowWrittenLine }
+record ActivityLine { task: u64 position: u64 at: u64 line: Line }
+enum Status { done, failed, cancelled }
+record Stub { task: u64 phase: Status result: u64 }
+record ReplyHint { number: u64 activity: u64 attempt: u64 turn: u32 at: u64 }
+record EscalationTask { task: u64 }
+record EscalationPerson { person: u64 }
+record EscalationRole { project: u32 role: u32 }
+enum EscalationHolder { task: EscalationTask, person: EscalationPerson, role: EscalationRole }
+record UnheldEscalation { revision: u64 }
+record RoutingEscalation { revision: u64 }
+record WaitingEscalation { revision: u64 holder: EscalationHolder entry: u64 since: u64 }
+record RejectedEscalation { revision: u64 by: u64 reason: bytes 524288 }
+enum Escalation { unheld: UnheldEscalation, routing: RoutingEscalation, waiting: WaitingEscalation, rejected: RejectedEscalation }
+record PersonAnswer { by: u64 at: u64 }
+record PersonStallNotice { message: u64 at: u64 activity: u64 }
+record PersonWait { since: u64 stall: duration deadline: u64 notice: option PersonStallNotice }
+record RecurringState { template: RecurringTemplate last_batch: list 1024 Number last_period: u64 pending_period: option u64 }
+record QuestionCredit { number: u64 answerer: Party asked: Party line: u64 }
+record TaskInterest { target: u64 held: bool result: bool }
+record TimerInterest { at: u64 period: option duration }
+record TopicInterest { connector: u16 topic: u64 }
+enum SubscriptionKind { task: TaskInterest, timer: TimerInterest, topic: TopicInterest }
+record Subscription { number: u64 kind: SubscriptionKind }
+record SavedResource { connector: u16 path: bytes 65536 pieces AuthoritySegment }
+record AnswerLine { task: u64 position: u64 }
+record QuestionLine { message: u64 line: u64 answer: option AnswerLine }
+record ProposalRow { proposal: u64 revision: u64 }
+record Endings { done: u32 failed: u32 cancelled: u32 }
+record ReplyObject { message: u64 activity: u64 }
+record ProposalUpdate { proposal: u64 }
+enum UpdateObject { result, reply: ReplyObject, proposal: ProposalUpdate }
+record Update { party: u64 at: u64 task: u64 object: UpdateObject }
+record ResultRow { party: u64 position: u64 task: u64 }
+record Edge { requester: u64 task: u64 }
+record TranscriptState { ever_turned: bool }
+record TaskHistory {
+    last_activity: u64
+    ended_below: Endings
+    ended_delegates: Endings
+    question_lines: list 128 QuestionLine
+    hold: u64
+    placed: option u64
+    proposal_rows: list 128 ProposalRow
+    instructions: option bytes 524288
+    refused: list 128 Number
+    grace: option Grace
+    settings: SettingsRevision
+    revisions: Revisions
+    created_at: u64
+    changed: u64
+    phase_since: u64
+    run_since: option u64
+    retry_notice: option RetryNotice
+    ended_at: option u64
+    revision: u64
+}
+record TaskRun {
+    milestone: u64
+    activity: u64
+    due_reason: Why
+    reasons: u32
+    offered: u32
+    narrowing: bool llm_changed: bool
+    result_position: u64
+    last_reply: u64
+    replies: list 128 ReplyHint
+    escalation: Escalation
+    proposal: option Proposal
+    result_proposal: bool
+    number: u64
+    project: u32
+    requester: Party
+    run_spent: u64
+    run_reserved: u64
+}
+record Added { task: u64 at: u64 by: Party }
+record TaskDefinition {
+    label: u32 flags: Flags
+    root: u64
+    depth: u32
+    executor: Executor
+    llm: option LlmChoice
+    kept_account: option u32
+    taken_by: option u64
+    person_answer: option PersonAnswer
+    person_wait: option PersonWait
+    recurring: option RecurringState
+    tracked: option u32
+    spec: Spec
+    contract: Contract
+    authority: Authority
+    numbers: Numbers
+    funder: Funder
+    dependencies: list 64 Number
+    waiting_on: list 64 Number
+    added: list 64 Added
+}
+enum InboxItem { word: Word, credit: QuestionCredit }
+record TaskInterests {
+    holdings: list 64 Holding
+    holds_taken: bool
+    hold_wait_since: option u64
+    hold_bound_since: option u64
+    delegates: list 256 Number
+    result_followups: list 1024 Number
+    references: list 64 Number
+    subscriptions: list 64 Subscription
+    wake: WakePolicy
+    turn: u32
+    last_message: u64
+    inbox: list 130 InboxItem
+    saved: list 64 SavedResource
+    ever_turned: TranscriptState
+    made: u32
+}
+record RoomProject { project: u32 }
+enum LiveRoom { deployment, project: RoomProject }
+record RoomWait { room: LiveRoom order: u64 }
+record TaskOutcome {
+    attempt: u64
+    last_answer: option u64
+    tries: Tries
+    invalid_result: option InvalidResult
+    refusals: u32
+    phase: Phase
+    room_wait: option RoomWait
+}
+record Talk { party: u64 opened: u64 last: u64 }
+record Session { first: u64 reasons: u32 last: u64 }
+record BeforeTalk { activation_open: bool session: option Session closer: option u64 history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool }
+record TaskRecord { record: BeforeTalk talk: option Talk }
+record EndedByParty { party: u64 label: u32 ended_at: u64 task: u64 }
+record EndedByProject { project: u32 label: u32 ended_at: u64 task: u64 }
+enum HoldOwner { party: Person, task: Number }
+enum HoldMode { stop, drain }
+record SubtreeScope { task: u64 }
+enum HoldScope { subtree: SubtreeScope, project }
+record PlacedHold { number: u64 project: u32 owner: HoldOwner mode: HoldMode scope: HoldScope reason: bytes 524288 placed_at: u64 revision: u64 exempt: list 4096 u64 lifted: bool }
+enum Value { ledger: FundingRecord, closed_ledger: FundingRecord, writer: WriterSlot, pool: PoolSlots, history: boxed History, milestone: Milestone, person_proposal: PersonProposal, decided_proposal: PersonProposal, activity: ActivityLine, live: BeforeTalk, ended: BeforeTalk, stub: Stub, update: Update, result: ResultRow, ended_delegate: Edge, delegate: Edge, ended_by_party: EndedByParty, ended_by_project: EndedByProject, placed_hold: PlacedHold, live_talk: TaskRecord, ended_talk: TaskRecord }
+record ModelName { value: text 4096 }
+versioned record Row { value: Value models: list 64 ModelName }
+record CapacityActionBatch { first: option u64 members: u32 }
+record CapacityActionProposal { number: u64 }
+record CapacityActionPersonProposal { number: u64 }
+record CapacityActionMessage { task: u64 number: u64 }
+record CapacityActionSource { funder: Funder }
+record CapacityActionIntroduce { left: u64 right: u64 }
+record CapacityActionSubscription { number: u64 }
+record CapacityActionEffect { entry: u64 }
+record CapacityActionClaim { attempt: u64 }
+record CapacityActionPlace { hold: u64 }
+enum CapacityAction { batch: CapacityActionBatch, proposal: CapacityActionProposal, person_proposal: CapacityActionPersonProposal, message: CapacityActionMessage, source: CapacityActionSource, introduce: CapacityActionIntroduce, subscription: CapacityActionSubscription, effect: CapacityActionEffect, claim: CapacityActionClaim, release, move_task, place: CapacityActionPlace }
+record CapacityCauseTasks { limit: u32 }
+record CapacityCauseCreationFlights { limit: u32 }
+record CapacityCauseResourceReports { limit: u32 }
+record CapacityCauseProjectTasks { limit: u32 }
+record CapacityCauseTree { limit: u32 }
+record CapacityCauseDelegates { limit: u32 }
+record CapacityCauseInbox { task: u64 messages: u32 bytes: u32 }
+record CapacityCauseHoldings { limit: u32 }
+record CapacityCauseHoldWaiters { limit: u32 }
+record CapacityCauseProposals { limit: u32 }
+record CapacityCauseReferences { limit: u32 }
+record CapacityCauseSubscriptions { limit: u32 }
+record CapacityCauseFunders { limit: u32 }
+record CapacityCauseWriters { limit: u32 }
+record CapacityCausePlacedHolds { limit: u32 }
+record CapacityCauseProjectPlacedHolds { limit: u32 }
+record CapacityCausePartyPlacedHolds { limit: u32 }
+record CapacityCauseExemptions { limit: u32 }
+enum CapacityCause { tasks: CapacityCauseTasks, creation_flights: CapacityCauseCreationFlights, resource_reports: CapacityCauseResourceReports, project_tasks: CapacityCauseProjectTasks, tree: CapacityCauseTree, delegates: CapacityCauseDelegates, inbox: CapacityCauseInbox, holdings: CapacityCauseHoldings, hold_waiters: CapacityCauseHoldWaiters, proposals: CapacityCauseProposals, references: CapacityCauseReferences, subscriptions: CapacityCauseSubscriptions, funders: CapacityCauseFunders, writers: CapacityCauseWriters, placed_holds: CapacityCausePlacedHolds, project_placed_holds: CapacityCauseProjectPlacedHolds, party_placed_holds: CapacityCausePartyPlacedHolds, exemptions: CapacityCauseExemptions }
+record Capacity { project: option u32 by: Party action: CapacityAction cause: CapacityCause }
+record RefusalPersonRevision { revision: u64 }
+enum LlmFault { unconfigured, effort, charter, authority, procedure, repeated }
+record RefusalLlm { model: u8 why: LlmFault }
+enum AccountWhy { unknown, provider, uses, limited }
+record RefusalAccount { account: u32 why: AccountWhy }
+record RefusalCircle { cut: bool }
+record RefusalDependencyEnded { how: Status }
+record RefusalPlaced { hold: u64 }
+record RefusalHoldOwner { hold: u64 }
+record RefusalHoldRevision { revision: u64 }
+record TalkOpen { party: u64 }
+enum Refusal { goals, grace, unproposable, person_revision: RefusalPersonRevision, resource_unavailable, not_ready, unknown, busy, duplicate, empty, batch, live, project, tree, depth, delegates, reference, subscription, dependencies, circle: RefusalCircle, executor, spec, contract, authority_shape, inputs, state, attempt, live_delegates, restore, read, turn, funding, hold_kind, hold_taken, holds, llm: RefusalLlm, account: RefusalAccount, dependency_ended: RefusalDependencyEnded, kept, placed: RefusalPlaced, hold_owner: RefusalHoldOwner, hold_revision: RefusalHoldRevision, kept_question: AnswerMessage, person_answers: AnswerMessage, not_standing, talk_open: TalkOpen, no_talk }
+versioned record TaskProblem { task: option u64 why: Refusal blocked_by: option list 8192 Number capacity: option Capacity }
+record ResultFollowupsDelegates { value: bytes 67108864 pieces Creation }
+record ResultFollowupsProposal { value: Proposal }
+enum ResultFollowups { delegates: ResultFollowupsDelegates, proposal: boxed ResultFollowupsProposal }
+record EndFinished { result: TaskResult cancel_delegates: bool }
+record EndFinishedWithFollowups { result: TaskResult followups: ResultFollowups }
+record EndFailed { value: Class }
+record EndFailedWithReason { class: Class reason: bytes 128 }
+record EndRefusedWithReason { reason: bytes 128 }
+enum End { finished: EndFinished, finished_with_followups: boxed EndFinishedWithFollowups, parked, failed: EndFailed, refused, recheck, exceeded: Exceeded, failed_with_reason: EndFailedWithReason, refused_with_reason: EndRefusedWithReason }
+versioned record EndRecord { value: End }
+versioned record PhaseRecord { value: Phase }
+versioned record ChangeRecord { value: Change }
+",
         ];
         pub mod v9 {
             pub mod number {
@@ -18027,6 +18461,1990 @@ versioned record ChangeRecord { value: Change }
                 pub const VALUE: FieldIx = FieldIx::new(641);
             }
         }
+        pub mod v12 {
+            pub mod number {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(0);
+            }
+            pub mod person {
+                use skein_codec::schema::FieldIx;
+                pub const PERSON: FieldIx = FieldIx::new(1);
+            }
+            pub mod project {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(2);
+            }
+            pub mod party {
+                use skein_codec::schema::VariantIx;
+                pub const TASK: VariantIx = VariantIx::new(0);
+                pub const PERSON: VariantIx = VariantIx::new(1);
+                pub const DEPLOYMENT: VariantIx = VariantIx::new(2);
+            }
+            pub mod class {
+                use skein_codec::schema::VariantIx;
+                pub const TRANSIENT: VariantIx = VariantIx::new(3);
+                pub const PERMANENT: VariantIx = VariantIx::new(4);
+                pub const RUN: VariantIx = VariantIx::new(5);
+                pub const AGENT: VariantIx = VariantIx::new(6);
+                pub const LOST: VariantIx = VariantIx::new(7);
+                pub const INVALID: VariantIx = VariantIx::new(8);
+                pub const INFRASTRUCTURE: VariantIx = VariantIx::new(9);
+            }
+            pub mod tries {
+                use skein_codec::schema::FieldIx;
+                pub const TRANSIENT: FieldIx = FieldIx::new(3);
+                pub const PERMANENT: FieldIx = FieldIx::new(4);
+                pub const RUN: FieldIx = FieldIx::new(5);
+                pub const AGENT: FieldIx = FieldIx::new(6);
+                pub const LOST: FieldIx = FieldIx::new(7);
+                pub const INVALID: FieldIx = FieldIx::new(8);
+                pub const INFRASTRUCTURE: FieldIx = FieldIx::new(9);
+            }
+            pub mod why {
+                use skein_codec::schema::VariantIx;
+                pub const MADE: VariantIx = VariantIx::new(10);
+                pub const READY: VariantIx = VariantIx::new(11);
+                pub const MESSAGE: VariantIx = VariantIx::new(12);
+                pub const RELEASED: VariantIx = VariantIx::new(13);
+                pub const RETRY: VariantIx = VariantIx::new(14);
+                pub const NARROWED: VariantIx = VariantIx::new(15);
+                pub const CHANGED: VariantIx = VariantIx::new(16);
+            }
+            pub mod role {
+                use skein_codec::schema::FieldIx;
+                pub const ROLE: FieldIx = FieldIx::new(10);
+            }
+            pub mod person_address {
+                use skein_codec::schema::VariantIx;
+                pub const PERSON: VariantIx = VariantIx::new(17);
+                pub const ROLE: VariantIx = VariantIx::new(18);
+            }
+            pub mod agent {
+                use skein_codec::schema::FieldIx;
+                pub const CHARTER: FieldIx = FieldIx::new(11);
+            }
+            pub mod procedure {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(12);
+                pub const CODE: FieldIx = FieldIx::new(13);
+            }
+            pub mod person_executor {
+                use skein_codec::schema::FieldIx;
+                pub const ADDRESS: FieldIx = FieldIx::new(14);
+            }
+            pub mod job_executor {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(15);
+            }
+            pub mod executor {
+                use skein_codec::schema::VariantIx;
+                pub const AGENT: VariantIx = VariantIx::new(19);
+                pub const PROCEDURE: VariantIx = VariantIx::new(20);
+                pub const PERSON: VariantIx = VariantIx::new(21);
+                pub const JOB: VariantIx = VariantIx::new(22);
+            }
+            pub mod numeric_parameter {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(16);
+                pub const VALUE: FieldIx = FieldIx::new(17);
+            }
+            pub mod bytes_parameter {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(18);
+                pub const VALUE: FieldIx = FieldIx::new(19);
+            }
+            pub mod resource_parameter {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(20);
+                pub const CONNECTOR: FieldIx = FieldIx::new(21);
+                pub const RESOURCE: FieldIx = FieldIx::new(22);
+            }
+            pub mod parameter {
+                use skein_codec::schema::VariantIx;
+                pub const NUMBER: VariantIx = VariantIx::new(23);
+                pub const BYTES: VariantIx = VariantIx::new(24);
+                pub const RESOURCE: VariantIx = VariantIx::new(25);
+            }
+            pub mod job_spec {
+                use skein_codec::schema::FieldIx;
+                pub const BYTES: FieldIx = FieldIx::new(23);
+                pub const DEADLINE: FieldIx = FieldIx::new(24);
+            }
+            pub mod job_contract {
+                use skein_codec::schema::FieldIx;
+                pub const BYTES: FieldIx = FieldIx::new(25);
+            }
+            pub mod job_result {
+                use skein_codec::schema::FieldIx;
+                pub const BYTES: FieldIx = FieldIx::new(26);
+            }
+            pub mod spec {
+                use skein_codec::schema::FieldIx;
+                pub const WORDS: FieldIx = FieldIx::new(27);
+                pub const PARAMETERS: FieldIx = FieldIx::new(28);
+                pub const INPUTS: FieldIx = FieldIx::new(29);
+                pub const ASKS: FieldIx = FieldIx::new(30);
+                pub const JOB: FieldIx = FieldIx::new(31);
+            }
+            pub mod part_kind {
+                use skein_codec::schema::VariantIx;
+                pub const RESOURCE: VariantIx = VariantIx::new(26);
+                pub const POOL: VariantIx = VariantIx::new(27);
+                pub const RESULT: VariantIx = VariantIx::new(28);
+                pub const PROCEDURE: VariantIx = VariantIx::new(29);
+                pub const EFFECT: VariantIx = VariantIx::new(30);
+                pub const OUTBOX: VariantIx = VariantIx::new(31);
+                pub const HOLD: VariantIx = VariantIx::new(32);
+            }
+            pub mod part_segment {
+                use skein_codec::schema::FieldIx;
+                pub const BYTES: FieldIx = FieldIx::new(32);
+            }
+            pub mod part_path {
+                use skein_codec::schema::FieldIx;
+                pub const SEGMENTS: FieldIx = FieldIx::new(33);
+            }
+            pub mod part_key {
+                use skein_codec::schema::VariantIx;
+                pub const PATH: VariantIx = VariantIx::new(33);
+                pub const NUMBER: VariantIx = VariantIx::new(34);
+            }
+            pub mod part {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(34);
+                pub const KIND: FieldIx = FieldIx::new(35);
+                pub const KEY: FieldIx = FieldIx::new(36);
+            }
+            pub mod field_rule {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(37);
+                pub const MAX: FieldIx = FieldIx::new(38);
+            }
+            pub mod verdict {
+                use skein_codec::schema::FieldIx;
+                pub const CODE: FieldIx = FieldIx::new(39);
+                pub const WORDS: FieldIx = FieldIx::new(40);
+                pub const FOLLOWUPS: FieldIx = FieldIx::new(41);
+                pub const FIELDS: FieldIx = FieldIx::new(42);
+            }
+            pub mod approval {
+                use skein_codec::schema::FieldIx;
+                pub const STATE: FieldIx = FieldIx::new(43);
+                pub const PART: FieldIx = FieldIx::new(44);
+            }
+            pub mod report {
+                use skein_codec::schema::FieldIx;
+                pub const WORDS: FieldIx = FieldIx::new(45);
+            }
+            pub mod choices {
+                use skein_codec::schema::FieldIx;
+                pub const CHOICES: FieldIx = FieldIx::new(46);
+            }
+            pub mod change_contract {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(47);
+                pub const KIND: FieldIx = FieldIx::new(48);
+                pub const WORDS: FieldIx = FieldIx::new(49);
+            }
+            pub mod contract {
+                use skein_codec::schema::VariantIx;
+                pub const APPROVAL: VariantIx = VariantIx::new(35);
+                pub const REPORT: VariantIx = VariantIx::new(36);
+                pub const VERDICT: VariantIx = VariantIx::new(37);
+                pub const CHANGE: VariantIx = VariantIx::new(38);
+                pub const JOB: VariantIx = VariantIx::new(39);
+            }
+            pub mod tools {
+                use skein_codec::schema::FieldIx;
+                pub const BITS: FieldIx = FieldIx::new(50);
+            }
+            pub mod models {
+                use skein_codec::schema::FieldIx;
+                pub const BITS: FieldIx = FieldIx::new(51);
+                pub const ALL: FieldIx = FieldIx::new(52);
+            }
+            pub mod model_effort {
+                use skein_codec::schema::FieldIx;
+                pub const MODEL: FieldIx = FieldIx::new(53);
+                pub const EFFORT: FieldIx = FieldIx::new(54);
+            }
+            pub mod llm_later {
+                use skein_codec::schema::FieldIx;
+                pub const MAIN: FieldIx = FieldIx::new(55);
+                pub const SUBAGENTS: FieldIx = FieldIx::new(56);
+            }
+            pub mod llm_choice {
+                use skein_codec::schema::FieldIx;
+                pub const MAIN: FieldIx = FieldIx::new(57);
+                pub const SUBAGENTS: FieldIx = FieldIx::new(58);
+                pub const LATER: FieldIx = FieldIx::new(59);
+                pub const ACCOUNT: FieldIx = FieldIx::new(60);
+            }
+            pub mod scopes {
+                use skein_codec::schema::FieldIx;
+                pub const BITS: FieldIx = FieldIx::new(61);
+            }
+            pub mod authority_segment {
+                use skein_codec::schema::FieldIx;
+                pub const BYTES: FieldIx = FieldIx::new(62);
+            }
+            pub mod last {
+                use skein_codec::schema::VariantIx;
+                pub const EXACT: VariantIx = VariantIx::new(40);
+                pub const OPEN: VariantIx = VariantIx::new(41);
+            }
+            pub mod pattern {
+                use skein_codec::schema::FieldIx;
+                pub const SEGMENTS: FieldIx = FieldIx::new(63);
+                pub const LAST: FieldIx = FieldIx::new(64);
+            }
+            pub mod grant {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(65);
+                pub const KIND: FieldIx = FieldIx::new(66);
+                pub const PATTERN: FieldIx = FieldIx::new(67);
+            }
+            pub mod resource_scope {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(68);
+                pub const PATTERN: FieldIx = FieldIx::new(69);
+            }
+            pub mod charter {
+                use skein_codec::schema::FieldIx;
+                pub const CHARTER: FieldIx = FieldIx::new(70);
+            }
+            pub mod code {
+                use skein_codec::schema::FieldIx;
+                pub const CODE: FieldIx = FieldIx::new(71);
+            }
+            pub mod authority_job {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(72);
+            }
+            pub mod authority_executor {
+                use skein_codec::schema::VariantIx;
+                pub const CHARTER: VariantIx = VariantIx::new(42);
+                pub const PROCEDURE: VariantIx = VariantIx::new(43);
+                pub const ROLE: VariantIx = VariantIx::new(44);
+                pub const JOB: VariantIx = VariantIx::new(45);
+            }
+            pub mod delegation {
+                use skein_codec::schema::FieldIx;
+                pub const KINDS: FieldIx = FieldIx::new(73);
+                pub const TASKS: FieldIx = FieldIx::new(74);
+                pub const DEPTH: FieldIx = FieldIx::new(75);
+            }
+            pub mod budget {
+                use skein_codec::schema::FieldIx;
+                pub const SPEND: FieldIx = FieldIx::new(76);
+                pub const DEADLINE: FieldIx = FieldIx::new(77);
+            }
+            pub mod authority {
+                use skein_codec::schema::FieldIx;
+                pub const TOOLS: FieldIx = FieldIx::new(78);
+                pub const MODELS: FieldIx = FieldIx::new(79);
+                pub const GRANTS: FieldIx = FieldIx::new(80);
+                pub const DELEGATION: FieldIx = FieldIx::new(81);
+                pub const BUDGET: FieldIx = FieldIx::new(82);
+                pub const NOTES: FieldIx = FieldIx::new(83);
+                pub const NOTE_RESOURCES: FieldIx = FieldIx::new(84);
+            }
+            pub mod task {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(85);
+            }
+            pub mod pool {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(86);
+                pub const PERSON: FieldIx = FieldIx::new(87);
+                pub const PERIOD: FieldIx = FieldIx::new(88);
+            }
+            pub mod recurring {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(89);
+                pub const TASK: FieldIx = FieldIx::new(90);
+                pub const PERIOD: FieldIx = FieldIx::new(91);
+            }
+            pub mod period {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(92);
+                pub const PERIOD: FieldIx = FieldIx::new(93);
+            }
+            pub mod funder {
+                use skein_codec::schema::VariantIx;
+                pub const TASK: VariantIx = VariantIx::new(46);
+                pub const POOL: VariantIx = VariantIx::new(47);
+                pub const RECURRING: VariantIx = VariantIx::new(48);
+                pub const PERIOD: VariantIx = VariantIx::new(49);
+            }
+            pub mod numbers {
+                use skein_codec::schema::FieldIx;
+                pub const BUDGET: FieldIx = FieldIx::new(94);
+                pub const SPENT: FieldIx = FieldIx::new(95);
+                pub const SPENT_BELOW: FieldIx = FieldIx::new(96);
+                pub const RESERVED: FieldIx = FieldIx::new(97);
+            }
+            pub mod period_times {
+                use skein_codec::schema::FieldIx;
+                pub const BEGAN: FieldIx = FieldIx::new(98);
+                pub const NEXT: FieldIx = FieldIx::new(99);
+            }
+            pub mod funding_record {
+                use skein_codec::schema::FieldIx;
+                pub const PERIOD: FieldIx = FieldIx::new(100);
+                pub const FUNDER: FieldIx = FieldIx::new(101);
+                pub const PARENT: FieldIx = FieldIx::new(102);
+                pub const NUMBERS: FieldIx = FieldIx::new(103);
+                pub const MADE: FieldIx = FieldIx::new(104);
+                pub const CLOSED: FieldIx = FieldIx::new(105);
+            }
+            pub mod segment {
+                use skein_codec::schema::FieldIx;
+                pub const BYTES: FieldIx = FieldIx::new(106);
+            }
+            pub mod name {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(107);
+                pub const PATH: FieldIx = FieldIx::new(108);
+            }
+            pub mod run {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(109);
+                pub const ATTEMPT: FieldIx = FieldIx::new(110);
+            }
+            pub mod effect {
+                use skein_codec::schema::FieldIx;
+                pub const ENTRY: FieldIx = FieldIx::new(111);
+            }
+            pub mod writer {
+                use skein_codec::schema::VariantIx;
+                pub const RUN: VariantIx = VariantIx::new(50);
+                pub const EFFECT: VariantIx = VariantIx::new(51);
+            }
+            pub mod writer_slot {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(112);
+                pub const RESOURCE: FieldIx = FieldIx::new(113);
+                pub const WRITER: FieldIx = FieldIx::new(114);
+                pub const LOST: FieldIx = FieldIx::new(115);
+            }
+            pub mod pool_slots {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(116);
+                pub const POOL: FieldIx = FieldIx::new(117);
+                pub const SLOTS: FieldIx = FieldIx::new(118);
+            }
+            pub mod write_holding {
+                use skein_codec::schema::FieldIx;
+                pub const RESOURCE: FieldIx = FieldIx::new(119);
+                pub const KIND: FieldIx = FieldIx::new(120);
+            }
+            pub mod slot_holding {
+                use skein_codec::schema::FieldIx;
+                pub const POOL: FieldIx = FieldIx::new(121);
+                pub const KIND: FieldIx = FieldIx::new(122);
+            }
+            pub mod holding {
+                use skein_codec::schema::VariantIx;
+                pub const WRITE: VariantIx = VariantIx::new(52);
+                pub const SLOT: VariantIx = VariantIx::new(53);
+            }
+            pub mod wake_batch {
+                use skein_codec::schema::FieldIx;
+                pub const COUNT: FieldIx = FieldIx::new(123);
+                pub const AGE: FieldIx = FieldIx::new(124);
+            }
+            pub mod wake_pace {
+                use skein_codec::schema::FieldIx;
+                pub const SPAN: FieldIx = FieldIx::new(125);
+            }
+            pub mod wake_rule {
+                use skein_codec::schema::VariantIx;
+                pub const NEVER: VariantIx = VariantIx::new(54);
+                pub const IMMEDIATE: VariantIx = VariantIx::new(55);
+                pub const BATCH: VariantIx = VariantIx::new(56);
+                pub const PACED: VariantIx = VariantIx::new(57);
+            }
+            pub mod results_wake {
+                use skein_codec::schema::VariantIx;
+                pub const NEVER: VariantIx = VariantIx::new(58);
+                pub const EACH: VariantIx = VariantIx::new(59);
+                pub const LAST_OR_FAILURE: VariantIx = VariantIx::new(60);
+            }
+            pub mod wake_policy {
+                use skein_codec::schema::FieldIx;
+                pub const WORDS: FieldIx = FieldIx::new(126);
+                pub const NOTICES: FieldIx = FieldIx::new(127);
+                pub const NEWS: FieldIx = FieldIx::new(128);
+                pub const RESULTS: FieldIx = FieldIx::new(129);
+                pub const QUESTIONS: FieldIx = FieldIx::new(130);
+                pub const ANSWERS: FieldIx = FieldIx::new(131);
+                pub const TIMERS: FieldIx = FieldIx::new(132);
+            }
+            pub mod recurring_overlap {
+                use skein_codec::schema::VariantIx;
+                pub const SKIP: VariantIx = VariantIx::new(61);
+                pub const WAIT: VariantIx = VariantIx::new(62);
+            }
+            pub mod retention {
+                use skein_codec::schema::VariantIx;
+                pub const KEPT: VariantIx = VariantIx::new(63);
+                pub const FORGOTTEN_ONCE_READ: VariantIx = VariantIx::new(64);
+            }
+            pub mod closer {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(133);
+                pub const CODE: FieldIx = FieldIx::new(134);
+            }
+            pub mod ended_by {
+                use skein_codec::schema::VariantIx;
+                pub const RESULT: VariantIx = VariantIx::new(65);
+                pub const REQUESTER: VariantIx = VariantIx::new(66);
+                pub const CLOSER: VariantIx = VariantIx::new(67);
+                pub const STANDING: VariantIx = VariantIx::new(68);
+            }
+            pub mod flags {
+                use skein_codec::schema::FieldIx;
+                pub const CONVERSATION: FieldIx = FieldIx::new(135);
+                pub const LISTED: FieldIx = FieldIx::new(136);
+                pub const RETENTION: FieldIx = FieldIx::new(137);
+                pub const ENDED_BY: FieldIx = FieldIx::new(138);
+            }
+            pub mod deadline_span {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(139);
+            }
+            pub mod deadline {
+                use skein_codec::schema::VariantIx;
+                pub const NAMED: VariantIx = VariantIx::new(69);
+                pub const SPAN: VariantIx = VariantIx::new(70);
+            }
+            pub mod member {
+                use skein_codec::schema::FieldIx;
+                pub const DEADLINE: FieldIx = FieldIx::new(140);
+                pub const LABEL: FieldIx = FieldIx::new(141);
+                pub const FLAGS: FieldIx = FieldIx::new(142);
+                pub const NUMBER: FieldIx = FieldIx::new(143);
+                pub const PROJECT: FieldIx = FieldIx::new(144);
+                pub const EXECUTOR: FieldIx = FieldIx::new(145);
+                pub const LLM: FieldIx = FieldIx::new(146);
+                pub const SPEC: FieldIx = FieldIx::new(147);
+                pub const CONTRACT: FieldIx = FieldIx::new(148);
+                pub const AUTHORITY: FieldIx = FieldIx::new(149);
+                pub const NUMBERS: FieldIx = FieldIx::new(150);
+                pub const FUNDER: FieldIx = FieldIx::new(151);
+                pub const DEPENDENCIES: FieldIx = FieldIx::new(152);
+                pub const HOLDINGS: FieldIx = FieldIx::new(153);
+                pub const WAKE: FieldIx = FieldIx::new(154);
+                pub const TRACKED: FieldIx = FieldIx::new(155);
+            }
+            pub mod recurring_template {
+                use skein_codec::schema::FieldIx;
+                pub const KEY: FieldIx = FieldIx::new(156);
+                pub const BATCH: FieldIx = FieldIx::new(157);
+                pub const OVERLAP: FieldIx = FieldIx::new(158);
+            }
+            pub mod creation {
+                use skein_codec::schema::FieldIx;
+                pub const MEMBER: FieldIx = FieldIx::new(159);
+                pub const RECURRING: FieldIx = FieldIx::new(160);
+            }
+            pub mod result_field {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(161);
+                pub const VALUE: FieldIx = FieldIx::new(162);
+            }
+            pub mod approved {
+                use skein_codec::schema::FieldIx;
+                pub const STATE: FieldIx = FieldIx::new(163);
+                pub const WORDS: FieldIx = FieldIx::new(164);
+            }
+            pub mod report_result {
+                use skein_codec::schema::FieldIx;
+                pub const WORDS: FieldIx = FieldIx::new(165);
+            }
+            pub mod verdict_result {
+                use skein_codec::schema::FieldIx;
+                pub const CODE: FieldIx = FieldIx::new(166);
+                pub const FIELDS: FieldIx = FieldIx::new(167);
+                pub const WORDS: FieldIx = FieldIx::new(168);
+            }
+            pub mod change_result {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(169);
+                pub const KIND: FieldIx = FieldIx::new(170);
+                pub const RESOURCE: FieldIx = FieldIx::new(171);
+                pub const TITLE: FieldIx = FieldIx::new(172);
+                pub const WORDS: FieldIx = FieldIx::new(173);
+            }
+            pub mod failure_result {
+                use skein_codec::schema::FieldIx;
+                pub const REASON: FieldIx = FieldIx::new(174);
+            }
+            pub mod task_result {
+                use skein_codec::schema::VariantIx;
+                pub const APPROVED: VariantIx = VariantIx::new(71);
+                pub const REPORT: VariantIx = VariantIx::new(72);
+                pub const VERDICT: VariantIx = VariantIx::new(73);
+                pub const CHANGE: VariantIx = VariantIx::new(74);
+                pub const FAILURE: VariantIx = VariantIx::new(75);
+                pub const NO_CHANGE: VariantIx = VariantIx::new(76);
+                pub const JOB: VariantIx = VariantIx::new(77);
+            }
+            pub mod done {
+                use skein_codec::schema::FieldIx;
+                pub const RESULT: FieldIx = FieldIx::new(175);
+            }
+            pub mod cancelled {
+                use skein_codec::schema::FieldIx;
+                pub const BY: FieldIx = FieldIx::new(176);
+                pub const AT: FieldIx = FieldIx::new(177);
+                pub const REASON: FieldIx = FieldIx::new(178);
+                pub const RESULT: FieldIx = FieldIx::new(179);
+            }
+            pub mod ending {
+                use skein_codec::schema::VariantIx;
+                pub const DONE: VariantIx = VariantIx::new(78);
+                pub const FAILED: VariantIx = VariantIx::new(79);
+                pub const CANCELLED: VariantIx = VariantIx::new(80);
+            }
+            pub mod failed_class {
+                use skein_codec::schema::FieldIx;
+                pub const CLASS: FieldIx = FieldIx::new(180);
+            }
+            pub mod bound {
+                use skein_codec::schema::VariantIx;
+                pub const REASONING: VariantIx = VariantIx::new(81);
+                pub const METADATA: VariantIx = VariantIx::new(82);
+                pub const ITEMS: VariantIx = VariantIx::new(83);
+                pub const ANSWER: VariantIx = VariantIx::new(84);
+                pub const TOOLS: VariantIx = VariantIx::new(85);
+                pub const HISTORY_ITEMS: VariantIx = VariantIx::new(86);
+                pub const HISTORY: VariantIx = VariantIx::new(87);
+                pub const WINDOW: VariantIx = VariantIx::new(88);
+                pub const OUTPUT: VariantIx = VariantIx::new(89);
+            }
+            pub mod exceeded {
+                use skein_codec::schema::FieldIx;
+                pub const BOUND: FieldIx = FieldIx::new(181);
+                pub const VALUE: FieldIx = FieldIx::new(182);
+            }
+            pub mod hold {
+                use skein_codec::schema::VariantIx;
+                pub const FAILURES: VariantIx = VariantIx::new(90);
+                pub const STALLED: VariantIx = VariantIx::new(91);
+                pub const DEPENDENCY: VariantIx = VariantIx::new(92);
+                pub const STOPPED: VariantIx = VariantIx::new(93);
+                pub const PLACED: VariantIx = VariantIx::new(94);
+                pub const DRIFT: VariantIx = VariantIx::new(95);
+                pub const EFFECTS: VariantIx = VariantIx::new(96);
+                pub const EFFECT_FAILED: VariantIx = VariantIx::new(97);
+                pub const UNCERTAIN: VariantIx = VariantIx::new(98);
+                pub const BUDGET: VariantIx = VariantIx::new(99);
+                pub const DEADLINE: VariantIx = VariantIx::new(100);
+                pub const HOLDS_WAITED: VariantIx = VariantIx::new(101);
+                pub const RESOURCE_UNAVAILABLE: VariantIx = VariantIx::new(102);
+                pub const RESOURCE_ACCESS: VariantIx = VariantIx::new(103);
+                pub const POOL_LOST: VariantIx = VariantIx::new(104);
+                pub const PROCEDURE: VariantIx = VariantIx::new(105);
+                pub const CIRCLE: VariantIx = VariantIx::new(106);
+                pub const EXCEEDED: VariantIx = VariantIx::new(107);
+            }
+            pub mod active {
+                use skein_codec::schema::VariantIx;
+                pub const IDLE: VariantIx = VariantIx::new(108);
+                pub const DUE: VariantIx = VariantIx::new(109);
+                pub const PREPARING: VariantIx = VariantIx::new(110);
+                pub const CLAIMED: VariantIx = VariantIx::new(111);
+                pub const RUNNING: VariantIx = VariantIx::new(112);
+                pub const BACKING_OFF: VariantIx = VariantIx::new(113);
+            }
+            pub mod stage {
+                use skein_codec::schema::VariantIx;
+                pub const RUN: VariantIx = VariantIx::new(114);
+                pub const DELEGATES: VariantIx = VariantIx::new(115);
+                pub const EFFECTS: VariantIx = VariantIx::new(116);
+                pub const RELEASES: VariantIx = VariantIx::new(117);
+                pub const SETTLED: VariantIx = VariantIx::new(118);
+            }
+            pub mod closing {
+                use skein_codec::schema::FieldIx;
+                pub const STAGE: FieldIx = FieldIx::new(183);
+                pub const ENDING: FieldIx = FieldIx::new(184);
+            }
+            pub mod activation {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(185);
+            }
+            pub mod was {
+                use skein_codec::schema::VariantIx;
+                pub const WAITING: VariantIx = VariantIx::new(119);
+                pub const ACTIVE: VariantIx = VariantIx::new(120);
+                pub const CLOSING: VariantIx = VariantIx::new(121);
+            }
+            pub mod hold_effect {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(186);
+                pub const ENTRY: FieldIx = FieldIx::new(187);
+            }
+            pub mod circle {
+                use skein_codec::schema::FieldIx;
+                pub const TASKS: FieldIx = FieldIx::new(188);
+                pub const CUT: FieldIx = FieldIx::new(189);
+            }
+            pub mod hold_account {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(190);
+                pub const ENTRY: FieldIx = FieldIx::new(191);
+                pub const WORDS: FieldIx = FieldIx::new(192);
+            }
+            pub mod hold_preparation {
+                use skein_codec::schema::FieldIx;
+                pub const WORDS: FieldIx = FieldIx::new(193);
+            }
+            pub mod hold_source {
+                use skein_codec::schema::VariantIx;
+                pub const RESOURCE: VariantIx = VariantIx::new(122);
+                pub const EFFECT: VariantIx = VariantIx::new(123);
+                pub const CIRCLE: VariantIx = VariantIx::new(124);
+                pub const ACCOUNT: VariantIx = VariantIx::new(125);
+                pub const PREPARATION: VariantIx = VariantIx::new(126);
+            }
+            pub mod held {
+                use skein_codec::schema::FieldIx;
+                pub const WAS: FieldIx = FieldIx::new(194);
+                pub const WHY: FieldIx = FieldIx::new(195);
+                pub const SOURCE: FieldIx = FieldIx::new(196);
+            }
+            pub mod r#final {
+                use skein_codec::schema::FieldIx;
+                pub const ENDING: FieldIx = FieldIx::new(197);
+            }
+            pub mod phase {
+                use skein_codec::schema::VariantIx;
+                pub const WAITING: VariantIx = VariantIx::new(127);
+                pub const ACTIVE: VariantIx = VariantIx::new(128);
+                pub const CLOSING: VariantIx = VariantIx::new(129);
+                pub const HELD: VariantIx = VariantIx::new(130);
+                pub const ENDED: VariantIx = VariantIx::new(131);
+            }
+            pub mod proposal_kind {
+                use skein_codec::schema::VariantIx;
+                pub const BATCH: VariantIx = VariantIx::new(132);
+                pub const EFFECT: VariantIx = VariantIx::new(133);
+                pub const AMEND: VariantIx = VariantIx::new(134);
+                pub const WIDEN: VariantIx = VariantIx::new(135);
+                pub const RELEASE: VariantIx = VariantIx::new(136);
+                pub const SETTINGS: VariantIx = VariantIx::new(137);
+            }
+            pub mod policy_holder {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(198);
+                pub const KIND: FieldIx = FieldIx::new(199);
+            }
+            pub mod proposal_holder {
+                use skein_codec::schema::VariantIx;
+                pub const TASK: VariantIx = VariantIx::new(138);
+                pub const PERSON: VariantIx = VariantIx::new(139);
+                pub const POLICY: VariantIx = VariantIx::new(140);
+            }
+            pub mod pending_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const HOLDER: FieldIx = FieldIx::new(200);
+                pub const SINCE: FieldIx = FieldIx::new(201);
+            }
+            pub mod accepted_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const BY: FieldIx = FieldIx::new(202);
+            }
+            pub mod rejected_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const BY: FieldIx = FieldIx::new(203);
+                pub const REASON: FieldIx = FieldIx::new(204);
+            }
+            pub mod proposal_state {
+                use skein_codec::schema::VariantIx;
+                pub const PENDING: VariantIx = VariantIx::new(141);
+                pub const ACCEPTED: VariantIx = VariantIx::new(142);
+                pub const REJECTED: VariantIx = VariantIx::new(143);
+                pub const WITHDRAWN: VariantIx = VariantIx::new(144);
+            }
+            pub mod address_change {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(205);
+                pub const ADDRESS: FieldIx = FieldIx::new(206);
+            }
+            pub mod tracked {
+                use skein_codec::schema::FieldIx;
+                pub const PRIORITY: FieldIx = FieldIx::new(207);
+            }
+            pub mod tracking {
+                use skein_codec::schema::VariantIx;
+                pub const TRACKED: VariantIx = VariantIx::new(145);
+                pub const UNTRACKED: VariantIx = VariantIx::new(146);
+            }
+            pub mod amendment {
+                use skein_codec::schema::FieldIx;
+                pub const TRACKED: FieldIx = FieldIx::new(208);
+                pub const ADDRESSED: FieldIx = FieldIx::new(209);
+                pub const INSTRUCTIONS: FieldIx = FieldIx::new(210);
+                pub const RELEASE: FieldIx = FieldIx::new(211);
+                pub const SPEC: FieldIx = FieldIx::new(212);
+                pub const WAKE: FieldIx = FieldIx::new(213);
+                pub const DEPENDENCIES: FieldIx = FieldIx::new(214);
+                pub const AUTHORITY: FieldIx = FieldIx::new(215);
+                pub const LLM: FieldIx = FieldIx::new(216);
+                pub const REASON: FieldIx = FieldIx::new(217);
+            }
+            pub mod proposed_batch {
+                use skein_codec::schema::FieldIx;
+                pub const MEMBERS: FieldIx = FieldIx::new(218);
+            }
+            pub mod proposed_effect {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(219);
+                pub const AUTHORITY: FieldIx = FieldIx::new(220);
+                pub const ATTEMPT: FieldIx = FieldIx::new(221);
+                pub const COMPLETION: FieldIx = FieldIx::new(222);
+                pub const POSITION: FieldIx = FieldIx::new(223);
+                pub const PURPOSE: FieldIx = FieldIx::new(224);
+            }
+            pub mod proposed_procedure_effect {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(225);
+                pub const AUTHORITY: FieldIx = FieldIx::new(226);
+                pub const STEP: FieldIx = FieldIx::new(227);
+                pub const PURPOSE: FieldIx = FieldIx::new(228);
+            }
+            pub mod proposed_amendment {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(229);
+                pub const REVISION: FieldIx = FieldIx::new(230);
+                pub const AMENDMENT: FieldIx = FieldIx::new(231);
+            }
+            pub mod proposed_widening {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(232);
+                pub const AUTHORITY: FieldIx = FieldIx::new(233);
+            }
+            pub mod release_placed {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(234);
+                pub const HOLD: FieldIx = FieldIx::new(235);
+                pub const REVISION: FieldIx = FieldIx::new(236);
+            }
+            pub mod setting_number {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(237);
+            }
+            pub mod setting {
+                use skein_codec::schema::VariantIx;
+                pub const CHARTER: VariantIx = VariantIx::new(147);
+                pub const TEMPLATE: VariantIx = VariantIx::new(148);
+                pub const POLICY: VariantIx = VariantIx::new(149);
+                pub const RULES: VariantIx = VariantIx::new(150);
+                pub const MODEL: VariantIx = VariantIx::new(151);
+            }
+            pub mod setting_edit {
+                use skein_codec::schema::VariantIx;
+                pub const SET: VariantIx = VariantIx::new(152);
+                pub const REMOVED: VariantIx = VariantIx::new(153);
+                pub const RESET: VariantIx = VariantIx::new(154);
+            }
+            pub mod setting_head {
+                use skein_codec::schema::FieldIx;
+                pub const SETTING: FieldIx = FieldIx::new(238);
+                pub const EDIT: FieldIx = FieldIx::new(239);
+            }
+            pub mod proposed_settings {
+                use skein_codec::schema::FieldIx;
+                pub const AGAINST: FieldIx = FieldIx::new(240);
+                pub const ITEMS: FieldIx = FieldIx::new(241);
+                pub const PROJECTS: FieldIx = FieldIx::new(242);
+            }
+            pub mod proposal_action {
+                use skein_codec::schema::VariantIx;
+                pub const BATCH: VariantIx = VariantIx::new(155);
+                pub const EFFECT: VariantIx = VariantIx::new(156);
+                pub const PROCEDURE_EFFECT: VariantIx = VariantIx::new(157);
+                pub const AMEND: VariantIx = VariantIx::new(158);
+                pub const WIDEN: VariantIx = VariantIx::new(159);
+                pub const RELEASE: VariantIx = VariantIx::new(160);
+                pub const RELEASE_PLACED: VariantIx = VariantIx::new(161);
+                pub const SETTINGS: VariantIx = VariantIx::new(162);
+            }
+            pub mod proposal {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(243);
+                pub const PROPOSER: FieldIx = FieldIx::new(244);
+                pub const PROJECT: FieldIx = FieldIx::new(245);
+                pub const ACTION: FieldIx = FieldIx::new(246);
+                pub const REASON: FieldIx = FieldIx::new(247);
+                pub const AS_HOLDER: FieldIx = FieldIx::new(248);
+                pub const STATE: FieldIx = FieldIx::new(249);
+            }
+            pub mod change {
+                use skein_codec::schema::VariantIx;
+                pub const CANCELLED: VariantIx = VariantIx::new(163);
+                pub const RELEASED: VariantIx = VariantIx::new(164);
+                pub const AMENDED: VariantIx = VariantIx::new(165);
+                pub const MOVED: VariantIx = VariantIx::new(166);
+                pub const PROPOSED: VariantIx = VariantIx::new(167);
+                pub const PROPOSAL_PASSED: VariantIx = VariantIx::new(168);
+                pub const PROPOSAL_ACCEPTED: VariantIx = VariantIx::new(169);
+                pub const PROPOSAL_REJECTED: VariantIx = VariantIx::new(170);
+                pub const PROPOSAL_WITHDRAWN: VariantIx = VariantIx::new(171);
+            }
+            pub mod settings {
+                use skein_codec::schema::FieldIx;
+                pub const TRACKED: FieldIx = FieldIx::new(250);
+                pub const ADDRESSED: FieldIx = FieldIx::new(251);
+                pub const TAKEN_BY: FieldIx = FieldIx::new(252);
+                pub const INSTRUCTIONS: FieldIx = FieldIx::new(253);
+                pub const SPEC: FieldIx = FieldIx::new(254);
+                pub const WAKE: FieldIx = FieldIx::new(255);
+                pub const DEPENDENCIES: FieldIx = FieldIx::new(256);
+                pub const AUTHORITY: FieldIx = FieldIx::new(257);
+                pub const LLM: FieldIx = FieldIx::new(258);
+            }
+            pub mod amendment_history {
+                use skein_codec::schema::FieldIx;
+                pub const BEFORE: FieldIx = FieldIx::new(259);
+                pub const AFTER: FieldIx = FieldIx::new(260);
+            }
+            pub mod history {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(261);
+                pub const REVISION: FieldIx = FieldIx::new(262);
+                pub const BY: FieldIx = FieldIx::new(263);
+                pub const CHANGE: FieldIx = FieldIx::new(264);
+                pub const REASON: FieldIx = FieldIx::new(265);
+                pub const PROPOSAL: FieldIx = FieldIx::new(266);
+                pub const AT: FieldIx = FieldIx::new(267);
+                pub const AMENDMENT: FieldIx = FieldIx::new(268);
+            }
+            pub mod pending_person_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const SINCE: FieldIx = FieldIx::new(269);
+            }
+            pub mod rejected_person_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const BY: FieldIx = FieldIx::new(270);
+                pub const REASON: FieldIx = FieldIx::new(271);
+                pub const MESSAGE: FieldIx = FieldIx::new(272);
+                pub const AT: FieldIx = FieldIx::new(273);
+            }
+            pub mod withdrawn_person_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const AT: FieldIx = FieldIx::new(274);
+            }
+            pub mod settings_accepted {
+                use skein_codec::schema::FieldIx;
+                pub const BY: FieldIx = FieldIx::new(275);
+                pub const REVISION: FieldIx = FieldIx::new(276);
+            }
+            pub mod person_proposal_state {
+                use skein_codec::schema::VariantIx;
+                pub const PENDING: VariantIx = VariantIx::new(172);
+                pub const ACCEPTED: VariantIx = VariantIx::new(173);
+                pub const REJECTED: VariantIx = VariantIx::new(174);
+                pub const WITHDRAWN: VariantIx = VariantIx::new(175);
+                pub const SETTINGS_ACCEPTED: VariantIx = VariantIx::new(176);
+            }
+            pub mod person_action {
+                use skein_codec::schema::VariantIx;
+                pub const BATCH: VariantIx = VariantIx::new(177);
+                pub const AMEND: VariantIx = VariantIx::new(178);
+                pub const SETTINGS: VariantIx = VariantIx::new(179);
+            }
+            pub mod person_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(277);
+                pub const PROPOSER: FieldIx = FieldIx::new(278);
+                pub const PROJECT: FieldIx = FieldIx::new(279);
+                pub const ACTION: FieldIx = FieldIx::new(280);
+                pub const REASON: FieldIx = FieldIx::new(281);
+                pub const STATE: FieldIx = FieldIx::new(282);
+            }
+            pub mod milestone {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(283);
+                pub const POSITION: FieldIx = FieldIx::new(284);
+                pub const PHASE: FieldIx = FieldIx::new(285);
+                pub const AT: FieldIx = FieldIx::new(286);
+            }
+            pub mod grace {
+                use skein_codec::schema::FieldIx;
+                pub const BY: FieldIx = FieldIx::new(287);
+                pub const UNTIL: FieldIx = FieldIx::new(288);
+                pub const REASON: FieldIx = FieldIx::new(289);
+                pub const MESSAGE: FieldIx = FieldIx::new(290);
+            }
+            pub mod settings_revision {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(291);
+                pub const RUN: FieldIx = FieldIx::new(292);
+            }
+            pub mod revisions {
+                use skein_codec::schema::FieldIx;
+                pub const HOLD: FieldIx = FieldIx::new(293);
+                pub const SPEC: FieldIx = FieldIx::new(294);
+                pub const PERSON: FieldIx = FieldIx::new(295);
+            }
+            pub mod failed_retry {
+                use skein_codec::schema::FieldIx;
+                pub const CLASS: FieldIx = FieldIx::new(296);
+                pub const COUNT: FieldIx = FieldIx::new(297);
+                pub const ALLOWANCE: FieldIx = FieldIx::new(298);
+                pub const REASON: FieldIx = FieldIx::new(299);
+            }
+            pub mod refused_retry {
+                use skein_codec::schema::FieldIx;
+                pub const COUNT: FieldIx = FieldIx::new(300);
+                pub const REASON: FieldIx = FieldIx::new(301);
+            }
+            pub mod retry_notice {
+                use skein_codec::schema::VariantIx;
+                pub const FAILED: VariantIx = VariantIx::new(180);
+                pub const REFUSED: VariantIx = VariantIx::new(181);
+            }
+            pub mod notice_held {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(302);
+            }
+            pub mod notice_state {
+                use skein_codec::schema::VariantIx;
+                pub const HELD: VariantIx = VariantIx::new(182);
+                pub const DONE: VariantIx = VariantIx::new(183);
+                pub const FAILED: VariantIx = VariantIx::new(184);
+                pub const CANCELLED: VariantIx = VariantIx::new(185);
+            }
+            pub mod news_class {
+                use skein_codec::schema::VariantIx;
+                pub const WAKES: VariantIx = VariantIx::new(186);
+                pub const KEPT: VariantIx = VariantIx::new(187);
+                pub const DROPPED: VariantIx = VariantIx::new(188);
+            }
+            pub mod approval_message {
+                use skein_codec::schema::FieldIx;
+                pub const STATE: FieldIx = FieldIx::new(303);
+                pub const WORDS_PRESENT: FieldIx = FieldIx::new(304);
+            }
+            pub mod verdict_message {
+                use skein_codec::schema::FieldIx;
+                pub const CODE: FieldIx = FieldIx::new(305);
+                pub const FIELDS: FieldIx = FieldIx::new(306);
+            }
+            pub mod change_message {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(307);
+                pub const KIND: FieldIx = FieldIx::new(308);
+                pub const RESOURCE: FieldIx = FieldIx::new(309);
+            }
+            pub mod result_kind {
+                use skein_codec::schema::VariantIx;
+                pub const APPROVED: VariantIx = VariantIx::new(189);
+                pub const REPORT: VariantIx = VariantIx::new(190);
+                pub const VERDICT: VariantIx = VariantIx::new(191);
+                pub const CHANGE: VariantIx = VariantIx::new(192);
+                pub const FAILED: VariantIx = VariantIx::new(193);
+                pub const CANCELLED: VariantIx = VariantIx::new(194);
+                pub const NO_CHANGE: VariantIx = VariantIx::new(195);
+                pub const JOB: VariantIx = VariantIx::new(196);
+            }
+            pub mod escalation_message {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(310);
+                pub const REVISION: FieldIx = FieldIx::new(311);
+            }
+            pub mod proposal_message {
+                use skein_codec::schema::FieldIx;
+                pub const PROPOSER: FieldIx = FieldIx::new(312);
+                pub const PROPOSAL: FieldIx = FieldIx::new(313);
+                pub const KIND: FieldIx = FieldIx::new(314);
+            }
+            pub mod stalled_message {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(315);
+            }
+            pub mod decision_message {
+                use skein_codec::schema::FieldIx;
+                pub const PROPOSAL: FieldIx = FieldIx::new(316);
+                pub const ACCEPTED: FieldIx = FieldIx::new(317);
+            }
+            pub mod settings_accepted_revision {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(318);
+            }
+            pub mod settings_stale_revision {
+                use skein_codec::schema::FieldIx;
+                pub const NEWEST: FieldIx = FieldIx::new(319);
+            }
+            pub mod settings_outcome {
+                use skein_codec::schema::VariantIx;
+                pub const ACCEPTED: VariantIx = VariantIx::new(197);
+                pub const REJECTED: VariantIx = VariantIx::new(198);
+                pub const STALE: VariantIx = VariantIx::new(199);
+            }
+            pub mod settings_decision_message {
+                use skein_codec::schema::FieldIx;
+                pub const PROPOSAL: FieldIx = FieldIx::new(320);
+                pub const OUTCOME: FieldIx = FieldIx::new(321);
+            }
+            pub mod effect_message {
+                use skein_codec::schema::FieldIx;
+                pub const ENTRY: FieldIx = FieldIx::new(322);
+            }
+            pub mod amendment_message {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(323);
+            }
+            pub mod answer_message {
+                use skein_codec::schema::FieldIx;
+                pub const QUESTION: FieldIx = FieldIx::new(324);
+            }
+            pub mod notice_message {
+                use skein_codec::schema::FieldIx;
+                pub const SUBSCRIPTION: FieldIx = FieldIx::new(325);
+                pub const TARGET: FieldIx = FieldIx::new(326);
+                pub const STATE: FieldIx = FieldIx::new(327);
+            }
+            pub mod timer_message {
+                use skein_codec::schema::FieldIx;
+                pub const SUBSCRIPTION: FieldIx = FieldIx::new(328);
+            }
+            pub mod news_message {
+                use skein_codec::schema::FieldIx;
+                pub const SUBSCRIPTION: FieldIx = FieldIx::new(329);
+                pub const CLASS: FieldIx = FieldIx::new(330);
+            }
+            pub mod result_message {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(331);
+            }
+            pub mod met_message {
+                use skein_codec::schema::FieldIx;
+                pub const DEPENDENCY: FieldIx = FieldIx::new(332);
+                pub const REMOVED: FieldIx = FieldIx::new(333);
+            }
+            pub mod message_kind {
+                use skein_codec::schema::VariantIx;
+                pub const ESCALATION: VariantIx = VariantIx::new(200);
+                pub const PROPOSAL: VariantIx = VariantIx::new(201);
+                pub const PERSON_STALLED: VariantIx = VariantIx::new(202);
+                pub const PROPOSAL_DECISION: VariantIx = VariantIx::new(203);
+                pub const WORDS: VariantIx = VariantIx::new(204);
+                pub const EFFECT_NOT_MADE: VariantIx = VariantIx::new(205);
+                pub const AMENDMENT: VariantIx = VariantIx::new(206);
+                pub const QUESTION: VariantIx = VariantIx::new(207);
+                pub const ANSWER: VariantIx = VariantIx::new(208);
+                pub const NOTICE: VariantIx = VariantIx::new(209);
+                pub const TIMER: VariantIx = VariantIx::new(210);
+                pub const NEWS: VariantIx = VariantIx::new(211);
+                pub const RESULT: VariantIx = VariantIx::new(212);
+                pub const MET: VariantIx = VariantIx::new(213);
+                pub const FINISH_REQUESTED: VariantIx = VariantIx::new(214);
+                pub const SETTINGS_DECISION: VariantIx = VariantIx::new(215);
+                pub const QUESTION_ENDED: VariantIx = VariantIx::new(216);
+                pub const QUESTION_ANSWERED: VariantIx = VariantIx::new(217);
+                pub const QUESTION_OWED: VariantIx = VariantIx::new(218);
+                pub const NOTHING_AWAITED: VariantIx = VariantIx::new(219);
+            }
+            pub mod word {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(334);
+                pub const FROM: FieldIx = FieldIx::new(335);
+                pub const KIND: FieldIx = FieldIx::new(336);
+                pub const WORDS: FieldIx = FieldIx::new(337);
+                pub const AT: FieldIx = FieldIx::new(338);
+                pub const HITS: FieldIx = FieldIx::new(339);
+                pub const ELIGIBLE: FieldIx = FieldIx::new(340);
+            }
+            pub mod invalid_result {
+                use skein_codec::schema::VariantIx;
+                pub const FORM: VariantIx = VariantIx::new(220);
+                pub const VERDICT: VariantIx = VariantIx::new(221);
+                pub const WORDS: VariantIx = VariantIx::new(222);
+                pub const CHANGE: VariantIx = VariantIx::new(223);
+                pub const FOLLOWUPS: VariantIx = VariantIx::new(224);
+            }
+            pub mod failed_end {
+                use skein_codec::schema::FieldIx;
+                pub const CLASS: FieldIx = FieldIx::new(341);
+                pub const INVALID_RESULT: FieldIx = FieldIx::new(342);
+            }
+            pub mod end_kind {
+                use skein_codec::schema::VariantIx;
+                pub const PARKED: VariantIx = VariantIx::new(225);
+                pub const FINISHED: VariantIx = VariantIx::new(226);
+                pub const CANCELLED: VariantIx = VariantIx::new(227);
+                pub const FAILED: VariantIx = VariantIx::new(228);
+                pub const REFUSED: VariantIx = VariantIx::new(229);
+            }
+            pub mod activity_words {
+                use skein_codec::schema::FieldIx;
+                pub const MESSAGE: FieldIx = FieldIx::new(343);
+                pub const BY: FieldIx = FieldIx::new(344);
+                pub const KIND: FieldIx = FieldIx::new(345);
+                pub const WORDS: FieldIx = FieldIx::new(346);
+            }
+            pub mod heard_message {
+                use skein_codec::schema::FieldIx;
+                pub const WORD: FieldIx = FieldIx::new(347);
+            }
+            pub mod notified_message {
+                use skein_codec::schema::FieldIx;
+                pub const RECIPIENT: FieldIx = FieldIx::new(348);
+                pub const WORD: FieldIx = FieldIx::new(349);
+            }
+            pub mod began_line {
+                use skein_codec::schema::FieldIx;
+                pub const ATTEMPT: FieldIx = FieldIx::new(350);
+                pub const WHY: FieldIx = FieldIx::new(351);
+                pub const RESUMED: FieldIx = FieldIx::new(352);
+            }
+            pub mod ended_line {
+                use skein_codec::schema::FieldIx;
+                pub const ATTEMPT: FieldIx = FieldIx::new(353);
+                pub const END: FieldIx = FieldIx::new(354);
+                pub const SPENT: FieldIx = FieldIx::new(355);
+            }
+            pub mod turn_line {
+                use skein_codec::schema::FieldIx;
+                pub const REPLY: FieldIx = FieldIx::new(356);
+                pub const ATTEMPT: FieldIx = FieldIx::new(357);
+                pub const TURN: FieldIx = FieldIx::new(358);
+                pub const READ: FieldIx = FieldIx::new(359);
+            }
+            pub mod decided_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(360);
+                pub const MADE: FieldIx = FieldIx::new(361);
+            }
+            pub mod decided_line {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(362);
+                pub const PROPOSAL: FieldIx = FieldIx::new(363);
+            }
+            pub mod milestone_line {
+                use skein_codec::schema::FieldIx;
+                pub const POSITION: FieldIx = FieldIx::new(364);
+            }
+            pub mod kept_line {
+                use skein_codec::schema::FieldIx;
+                pub const ATTEMPT: FieldIx = FieldIx::new(365);
+                pub const PENDING: FieldIx = FieldIx::new(366);
+                pub const QUESTION: FieldIx = FieldIx::new(367);
+            }
+            pub mod now_written_line {
+                use skein_codec::schema::FieldIx;
+                pub const ATTEMPT: FieldIx = FieldIx::new(368);
+                pub const LINE: FieldIx = FieldIx::new(369);
+            }
+            pub mod stood_line {
+                use skein_codec::schema::FieldIx;
+                pub const ATTEMPT: FieldIx = FieldIx::new(370);
+                pub const WORDS: FieldIx = FieldIx::new(371);
+            }
+            pub mod session_end {
+                use skein_codec::schema::VariantIx;
+                pub const QUIET: VariantIx = VariantIx::new(230);
+                pub const BOUND: VariantIx = VariantIx::new(231);
+                pub const UNOFFERED: VariantIx = VariantIx::new(232);
+                pub const FRESH: VariantIx = VariantIx::new(233);
+                pub const CLOSED: VariantIx = VariantIx::new(234);
+                pub const RULES: VariantIx = VariantIx::new(235);
+                pub const TALK: VariantIx = VariantIx::new(236);
+                pub const LEFT: VariantIx = VariantIx::new(237);
+            }
+            pub mod session_ended_line {
+                use skein_codec::schema::FieldIx;
+                pub const ATTEMPT: FieldIx = FieldIx::new(372);
+                pub const END: FieldIx = FieldIx::new(373);
+            }
+            pub mod talk_opened_line {
+                use skein_codec::schema::FieldIx;
+                pub const PARTY: FieldIx = FieldIx::new(374);
+            }
+            pub mod talk_ended_line {
+                use skein_codec::schema::FieldIx;
+                pub const PARTY: FieldIx = FieldIx::new(375);
+                pub const LAPSED: FieldIx = FieldIx::new(376);
+            }
+            pub mod line {
+                use skein_codec::schema::VariantIx;
+                pub const WORDS: VariantIx = VariantIx::new(238);
+                pub const HEARD: VariantIx = VariantIx::new(239);
+                pub const NOTIFIED: VariantIx = VariantIx::new(240);
+                pub const RUN_BEGAN: VariantIx = VariantIx::new(241);
+                pub const RUN_ENDED: VariantIx = VariantIx::new(242);
+                pub const TURN: VariantIx = VariantIx::new(243);
+                pub const DECIDED: VariantIx = VariantIx::new(244);
+                pub const MILESTONE: VariantIx = VariantIx::new(245);
+                pub const KEPT: VariantIx = VariantIx::new(246);
+                pub const STOOD: VariantIx = VariantIx::new(247);
+                pub const SESSION_ENDED: VariantIx = VariantIx::new(248);
+                pub const TALK_OPENED: VariantIx = VariantIx::new(249);
+                pub const TALK_ENDED: VariantIx = VariantIx::new(250);
+                pub const NOW_WRITTEN: VariantIx = VariantIx::new(251);
+            }
+            pub mod activity_line {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(377);
+                pub const POSITION: FieldIx = FieldIx::new(378);
+                pub const AT: FieldIx = FieldIx::new(379);
+                pub const LINE: FieldIx = FieldIx::new(380);
+            }
+            pub mod status {
+                use skein_codec::schema::VariantIx;
+                pub const DONE: VariantIx = VariantIx::new(252);
+                pub const FAILED: VariantIx = VariantIx::new(253);
+                pub const CANCELLED: VariantIx = VariantIx::new(254);
+            }
+            pub mod stub {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(381);
+                pub const PHASE: FieldIx = FieldIx::new(382);
+                pub const RESULT: FieldIx = FieldIx::new(383);
+            }
+            pub mod reply_hint {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(384);
+                pub const ACTIVITY: FieldIx = FieldIx::new(385);
+                pub const ATTEMPT: FieldIx = FieldIx::new(386);
+                pub const TURN: FieldIx = FieldIx::new(387);
+                pub const AT: FieldIx = FieldIx::new(388);
+            }
+            pub mod escalation_task {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(389);
+            }
+            pub mod escalation_person {
+                use skein_codec::schema::FieldIx;
+                pub const PERSON: FieldIx = FieldIx::new(390);
+            }
+            pub mod escalation_role {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(391);
+                pub const ROLE: FieldIx = FieldIx::new(392);
+            }
+            pub mod escalation_holder {
+                use skein_codec::schema::VariantIx;
+                pub const TASK: VariantIx = VariantIx::new(255);
+                pub const PERSON: VariantIx = VariantIx::new(256);
+                pub const ROLE: VariantIx = VariantIx::new(257);
+            }
+            pub mod unheld_escalation {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(393);
+            }
+            pub mod routing_escalation {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(394);
+            }
+            pub mod waiting_escalation {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(395);
+                pub const HOLDER: FieldIx = FieldIx::new(396);
+                pub const ENTRY: FieldIx = FieldIx::new(397);
+                pub const SINCE: FieldIx = FieldIx::new(398);
+            }
+            pub mod rejected_escalation {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(399);
+                pub const BY: FieldIx = FieldIx::new(400);
+                pub const REASON: FieldIx = FieldIx::new(401);
+            }
+            pub mod escalation {
+                use skein_codec::schema::VariantIx;
+                pub const UNHELD: VariantIx = VariantIx::new(258);
+                pub const ROUTING: VariantIx = VariantIx::new(259);
+                pub const WAITING: VariantIx = VariantIx::new(260);
+                pub const REJECTED: VariantIx = VariantIx::new(261);
+            }
+            pub mod person_answer {
+                use skein_codec::schema::FieldIx;
+                pub const BY: FieldIx = FieldIx::new(402);
+                pub const AT: FieldIx = FieldIx::new(403);
+            }
+            pub mod person_stall_notice {
+                use skein_codec::schema::FieldIx;
+                pub const MESSAGE: FieldIx = FieldIx::new(404);
+                pub const AT: FieldIx = FieldIx::new(405);
+                pub const ACTIVITY: FieldIx = FieldIx::new(406);
+            }
+            pub mod person_wait {
+                use skein_codec::schema::FieldIx;
+                pub const SINCE: FieldIx = FieldIx::new(407);
+                pub const STALL: FieldIx = FieldIx::new(408);
+                pub const DEADLINE: FieldIx = FieldIx::new(409);
+                pub const NOTICE: FieldIx = FieldIx::new(410);
+            }
+            pub mod recurring_state {
+                use skein_codec::schema::FieldIx;
+                pub const TEMPLATE: FieldIx = FieldIx::new(411);
+                pub const LAST_BATCH: FieldIx = FieldIx::new(412);
+                pub const LAST_PERIOD: FieldIx = FieldIx::new(413);
+                pub const PENDING_PERIOD: FieldIx = FieldIx::new(414);
+            }
+            pub mod question_credit {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(415);
+                pub const ANSWERER: FieldIx = FieldIx::new(416);
+                pub const ASKED: FieldIx = FieldIx::new(417);
+                pub const LINE: FieldIx = FieldIx::new(418);
+            }
+            pub mod task_interest {
+                use skein_codec::schema::FieldIx;
+                pub const TARGET: FieldIx = FieldIx::new(419);
+                pub const HELD: FieldIx = FieldIx::new(420);
+                pub const RESULT: FieldIx = FieldIx::new(421);
+            }
+            pub mod timer_interest {
+                use skein_codec::schema::FieldIx;
+                pub const AT: FieldIx = FieldIx::new(422);
+                pub const PERIOD: FieldIx = FieldIx::new(423);
+            }
+            pub mod topic_interest {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(424);
+                pub const TOPIC: FieldIx = FieldIx::new(425);
+            }
+            pub mod subscription_kind {
+                use skein_codec::schema::VariantIx;
+                pub const TASK: VariantIx = VariantIx::new(262);
+                pub const TIMER: VariantIx = VariantIx::new(263);
+                pub const TOPIC: VariantIx = VariantIx::new(264);
+            }
+            pub mod subscription {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(426);
+                pub const KIND: FieldIx = FieldIx::new(427);
+            }
+            pub mod saved_resource {
+                use skein_codec::schema::FieldIx;
+                pub const CONNECTOR: FieldIx = FieldIx::new(428);
+                pub const PATH: FieldIx = FieldIx::new(429);
+            }
+            pub mod answer_line {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(430);
+                pub const POSITION: FieldIx = FieldIx::new(431);
+            }
+            pub mod question_line {
+                use skein_codec::schema::FieldIx;
+                pub const MESSAGE: FieldIx = FieldIx::new(432);
+                pub const LINE: FieldIx = FieldIx::new(433);
+                pub const ANSWER: FieldIx = FieldIx::new(434);
+            }
+            pub mod proposal_row {
+                use skein_codec::schema::FieldIx;
+                pub const PROPOSAL: FieldIx = FieldIx::new(435);
+                pub const REVISION: FieldIx = FieldIx::new(436);
+            }
+            pub mod endings {
+                use skein_codec::schema::FieldIx;
+                pub const DONE: FieldIx = FieldIx::new(437);
+                pub const FAILED: FieldIx = FieldIx::new(438);
+                pub const CANCELLED: FieldIx = FieldIx::new(439);
+            }
+            pub mod reply_object {
+                use skein_codec::schema::FieldIx;
+                pub const MESSAGE: FieldIx = FieldIx::new(440);
+                pub const ACTIVITY: FieldIx = FieldIx::new(441);
+            }
+            pub mod proposal_update {
+                use skein_codec::schema::FieldIx;
+                pub const PROPOSAL: FieldIx = FieldIx::new(442);
+            }
+            pub mod update_object {
+                use skein_codec::schema::VariantIx;
+                pub const RESULT: VariantIx = VariantIx::new(265);
+                pub const REPLY: VariantIx = VariantIx::new(266);
+                pub const PROPOSAL: VariantIx = VariantIx::new(267);
+            }
+            pub mod update {
+                use skein_codec::schema::FieldIx;
+                pub const PARTY: FieldIx = FieldIx::new(443);
+                pub const AT: FieldIx = FieldIx::new(444);
+                pub const TASK: FieldIx = FieldIx::new(445);
+                pub const OBJECT: FieldIx = FieldIx::new(446);
+            }
+            pub mod result_row {
+                use skein_codec::schema::FieldIx;
+                pub const PARTY: FieldIx = FieldIx::new(447);
+                pub const POSITION: FieldIx = FieldIx::new(448);
+                pub const TASK: FieldIx = FieldIx::new(449);
+            }
+            pub mod edge {
+                use skein_codec::schema::FieldIx;
+                pub const REQUESTER: FieldIx = FieldIx::new(450);
+                pub const TASK: FieldIx = FieldIx::new(451);
+            }
+            pub mod transcript_state {
+                use skein_codec::schema::FieldIx;
+                pub const EVER_TURNED: FieldIx = FieldIx::new(452);
+            }
+            pub mod task_history {
+                use skein_codec::schema::FieldIx;
+                pub const LAST_ACTIVITY: FieldIx = FieldIx::new(453);
+                pub const ENDED_BELOW: FieldIx = FieldIx::new(454);
+                pub const ENDED_DELEGATES: FieldIx = FieldIx::new(455);
+                pub const QUESTION_LINES: FieldIx = FieldIx::new(456);
+                pub const HOLD: FieldIx = FieldIx::new(457);
+                pub const PLACED: FieldIx = FieldIx::new(458);
+                pub const PROPOSAL_ROWS: FieldIx = FieldIx::new(459);
+                pub const INSTRUCTIONS: FieldIx = FieldIx::new(460);
+                pub const REFUSED: FieldIx = FieldIx::new(461);
+                pub const GRACE: FieldIx = FieldIx::new(462);
+                pub const SETTINGS: FieldIx = FieldIx::new(463);
+                pub const REVISIONS: FieldIx = FieldIx::new(464);
+                pub const CREATED_AT: FieldIx = FieldIx::new(465);
+                pub const CHANGED: FieldIx = FieldIx::new(466);
+                pub const PHASE_SINCE: FieldIx = FieldIx::new(467);
+                pub const RUN_SINCE: FieldIx = FieldIx::new(468);
+                pub const RETRY_NOTICE: FieldIx = FieldIx::new(469);
+                pub const ENDED_AT: FieldIx = FieldIx::new(470);
+                pub const REVISION: FieldIx = FieldIx::new(471);
+            }
+            pub mod task_run {
+                use skein_codec::schema::FieldIx;
+                pub const MILESTONE: FieldIx = FieldIx::new(472);
+                pub const ACTIVITY: FieldIx = FieldIx::new(473);
+                pub const DUE_REASON: FieldIx = FieldIx::new(474);
+                pub const REASONS: FieldIx = FieldIx::new(475);
+                pub const OFFERED: FieldIx = FieldIx::new(476);
+                pub const NARROWING: FieldIx = FieldIx::new(477);
+                pub const LLM_CHANGED: FieldIx = FieldIx::new(478);
+                pub const RESULT_POSITION: FieldIx = FieldIx::new(479);
+                pub const LAST_REPLY: FieldIx = FieldIx::new(480);
+                pub const REPLIES: FieldIx = FieldIx::new(481);
+                pub const ESCALATION: FieldIx = FieldIx::new(482);
+                pub const PROPOSAL: FieldIx = FieldIx::new(483);
+                pub const RESULT_PROPOSAL: FieldIx = FieldIx::new(484);
+                pub const NUMBER: FieldIx = FieldIx::new(485);
+                pub const PROJECT: FieldIx = FieldIx::new(486);
+                pub const REQUESTER: FieldIx = FieldIx::new(487);
+                pub const RUN_SPENT: FieldIx = FieldIx::new(488);
+                pub const RUN_RESERVED: FieldIx = FieldIx::new(489);
+            }
+            pub mod added {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(490);
+                pub const AT: FieldIx = FieldIx::new(491);
+                pub const BY: FieldIx = FieldIx::new(492);
+            }
+            pub mod task_definition {
+                use skein_codec::schema::FieldIx;
+                pub const LABEL: FieldIx = FieldIx::new(493);
+                pub const FLAGS: FieldIx = FieldIx::new(494);
+                pub const ROOT: FieldIx = FieldIx::new(495);
+                pub const DEPTH: FieldIx = FieldIx::new(496);
+                pub const EXECUTOR: FieldIx = FieldIx::new(497);
+                pub const LLM: FieldIx = FieldIx::new(498);
+                pub const KEPT_ACCOUNT: FieldIx = FieldIx::new(499);
+                pub const TAKEN_BY: FieldIx = FieldIx::new(500);
+                pub const PERSON_ANSWER: FieldIx = FieldIx::new(501);
+                pub const PERSON_WAIT: FieldIx = FieldIx::new(502);
+                pub const RECURRING: FieldIx = FieldIx::new(503);
+                pub const TRACKED: FieldIx = FieldIx::new(504);
+                pub const SPEC: FieldIx = FieldIx::new(505);
+                pub const CONTRACT: FieldIx = FieldIx::new(506);
+                pub const AUTHORITY: FieldIx = FieldIx::new(507);
+                pub const NUMBERS: FieldIx = FieldIx::new(508);
+                pub const FUNDER: FieldIx = FieldIx::new(509);
+                pub const DEPENDENCIES: FieldIx = FieldIx::new(510);
+                pub const WAITING_ON: FieldIx = FieldIx::new(511);
+                pub const ADDED: FieldIx = FieldIx::new(512);
+            }
+            pub mod inbox_item {
+                use skein_codec::schema::VariantIx;
+                pub const WORD: VariantIx = VariantIx::new(268);
+                pub const CREDIT: VariantIx = VariantIx::new(269);
+            }
+            pub mod task_interests {
+                use skein_codec::schema::FieldIx;
+                pub const HOLDINGS: FieldIx = FieldIx::new(513);
+                pub const HOLDS_TAKEN: FieldIx = FieldIx::new(514);
+                pub const HOLD_WAIT_SINCE: FieldIx = FieldIx::new(515);
+                pub const HOLD_BOUND_SINCE: FieldIx = FieldIx::new(516);
+                pub const DELEGATES: FieldIx = FieldIx::new(517);
+                pub const RESULT_FOLLOWUPS: FieldIx = FieldIx::new(518);
+                pub const REFERENCES: FieldIx = FieldIx::new(519);
+                pub const SUBSCRIPTIONS: FieldIx = FieldIx::new(520);
+                pub const WAKE: FieldIx = FieldIx::new(521);
+                pub const TURN: FieldIx = FieldIx::new(522);
+                pub const LAST_MESSAGE: FieldIx = FieldIx::new(523);
+                pub const INBOX: FieldIx = FieldIx::new(524);
+                pub const SAVED: FieldIx = FieldIx::new(525);
+                pub const EVER_TURNED: FieldIx = FieldIx::new(526);
+                pub const MADE: FieldIx = FieldIx::new(527);
+            }
+            pub mod room_project {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(528);
+            }
+            pub mod live_room {
+                use skein_codec::schema::VariantIx;
+                pub const DEPLOYMENT: VariantIx = VariantIx::new(270);
+                pub const PROJECT: VariantIx = VariantIx::new(271);
+            }
+            pub mod room_wait {
+                use skein_codec::schema::FieldIx;
+                pub const ROOM: FieldIx = FieldIx::new(529);
+                pub const ORDER: FieldIx = FieldIx::new(530);
+            }
+            pub mod task_outcome {
+                use skein_codec::schema::FieldIx;
+                pub const ATTEMPT: FieldIx = FieldIx::new(531);
+                pub const LAST_ANSWER: FieldIx = FieldIx::new(532);
+                pub const TRIES: FieldIx = FieldIx::new(533);
+                pub const INVALID_RESULT: FieldIx = FieldIx::new(534);
+                pub const REFUSALS: FieldIx = FieldIx::new(535);
+                pub const PHASE: FieldIx = FieldIx::new(536);
+                pub const ROOM_WAIT: FieldIx = FieldIx::new(537);
+            }
+            pub mod talk {
+                use skein_codec::schema::FieldIx;
+                pub const PARTY: FieldIx = FieldIx::new(538);
+                pub const OPENED: FieldIx = FieldIx::new(539);
+                pub const LAST: FieldIx = FieldIx::new(540);
+            }
+            pub mod session {
+                use skein_codec::schema::FieldIx;
+                pub const FIRST: FieldIx = FieldIx::new(541);
+                pub const REASONS: FieldIx = FieldIx::new(542);
+                pub const LAST: FieldIx = FieldIx::new(543);
+            }
+            pub mod before_talk {
+                use skein_codec::schema::FieldIx;
+                pub const ACTIVATION_OPEN: FieldIx = FieldIx::new(544);
+                pub const SESSION: FieldIx = FieldIx::new(545);
+                pub const CLOSER: FieldIx = FieldIx::new(546);
+                pub const HISTORY: FieldIx = FieldIx::new(547);
+                pub const RUN: FieldIx = FieldIx::new(548);
+                pub const DEFINITION: FieldIx = FieldIx::new(549);
+                pub const STARTED_FROM: FieldIx = FieldIx::new(550);
+                pub const INTERESTS: FieldIx = FieldIx::new(551);
+                pub const OUTCOME: FieldIx = FieldIx::new(552);
+                pub const ASKED_REQUESTER: FieldIx = FieldIx::new(553);
+            }
+            pub mod task_record {
+                use skein_codec::schema::FieldIx;
+                pub const RECORD: FieldIx = FieldIx::new(554);
+                pub const TALK: FieldIx = FieldIx::new(555);
+            }
+            pub mod ended_by_party {
+                use skein_codec::schema::FieldIx;
+                pub const PARTY: FieldIx = FieldIx::new(556);
+                pub const LABEL: FieldIx = FieldIx::new(557);
+                pub const ENDED_AT: FieldIx = FieldIx::new(558);
+                pub const TASK: FieldIx = FieldIx::new(559);
+            }
+            pub mod ended_by_project {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(560);
+                pub const LABEL: FieldIx = FieldIx::new(561);
+                pub const ENDED_AT: FieldIx = FieldIx::new(562);
+                pub const TASK: FieldIx = FieldIx::new(563);
+            }
+            pub mod hold_owner {
+                use skein_codec::schema::VariantIx;
+                pub const PARTY: VariantIx = VariantIx::new(272);
+                pub const TASK: VariantIx = VariantIx::new(273);
+            }
+            pub mod hold_mode {
+                use skein_codec::schema::VariantIx;
+                pub const STOP: VariantIx = VariantIx::new(274);
+                pub const DRAIN: VariantIx = VariantIx::new(275);
+            }
+            pub mod subtree_scope {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(564);
+            }
+            pub mod hold_scope {
+                use skein_codec::schema::VariantIx;
+                pub const SUBTREE: VariantIx = VariantIx::new(276);
+                pub const PROJECT: VariantIx = VariantIx::new(277);
+            }
+            pub mod placed_hold {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(565);
+                pub const PROJECT: FieldIx = FieldIx::new(566);
+                pub const OWNER: FieldIx = FieldIx::new(567);
+                pub const MODE: FieldIx = FieldIx::new(568);
+                pub const SCOPE: FieldIx = FieldIx::new(569);
+                pub const REASON: FieldIx = FieldIx::new(570);
+                pub const PLACED_AT: FieldIx = FieldIx::new(571);
+                pub const REVISION: FieldIx = FieldIx::new(572);
+                pub const EXEMPT: FieldIx = FieldIx::new(573);
+                pub const LIFTED: FieldIx = FieldIx::new(574);
+            }
+            pub mod value {
+                use skein_codec::schema::VariantIx;
+                pub const LEDGER: VariantIx = VariantIx::new(278);
+                pub const CLOSED_LEDGER: VariantIx = VariantIx::new(279);
+                pub const WRITER: VariantIx = VariantIx::new(280);
+                pub const POOL: VariantIx = VariantIx::new(281);
+                pub const HISTORY: VariantIx = VariantIx::new(282);
+                pub const MILESTONE: VariantIx = VariantIx::new(283);
+                pub const PERSON_PROPOSAL: VariantIx = VariantIx::new(284);
+                pub const DECIDED_PROPOSAL: VariantIx = VariantIx::new(285);
+                pub const ACTIVITY: VariantIx = VariantIx::new(286);
+                pub const LIVE: VariantIx = VariantIx::new(287);
+                pub const ENDED: VariantIx = VariantIx::new(288);
+                pub const STUB: VariantIx = VariantIx::new(289);
+                pub const UPDATE: VariantIx = VariantIx::new(290);
+                pub const RESULT: VariantIx = VariantIx::new(291);
+                pub const ENDED_DELEGATE: VariantIx = VariantIx::new(292);
+                pub const DELEGATE: VariantIx = VariantIx::new(293);
+                pub const ENDED_BY_PARTY: VariantIx = VariantIx::new(294);
+                pub const ENDED_BY_PROJECT: VariantIx = VariantIx::new(295);
+                pub const PLACED_HOLD: VariantIx = VariantIx::new(296);
+                pub const LIVE_TALK: VariantIx = VariantIx::new(297);
+                pub const ENDED_TALK: VariantIx = VariantIx::new(298);
+            }
+            pub mod model_name {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(575);
+            }
+            pub mod row {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(576);
+                pub const MODELS: FieldIx = FieldIx::new(577);
+            }
+            pub mod capacity_action_batch {
+                use skein_codec::schema::FieldIx;
+                pub const FIRST: FieldIx = FieldIx::new(578);
+                pub const MEMBERS: FieldIx = FieldIx::new(579);
+            }
+            pub mod capacity_action_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(580);
+            }
+            pub mod capacity_action_person_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(581);
+            }
+            pub mod capacity_action_message {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(582);
+                pub const NUMBER: FieldIx = FieldIx::new(583);
+            }
+            pub mod capacity_action_source {
+                use skein_codec::schema::FieldIx;
+                pub const FUNDER: FieldIx = FieldIx::new(584);
+            }
+            pub mod capacity_action_introduce {
+                use skein_codec::schema::FieldIx;
+                pub const LEFT: FieldIx = FieldIx::new(585);
+                pub const RIGHT: FieldIx = FieldIx::new(586);
+            }
+            pub mod capacity_action_subscription {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(587);
+            }
+            pub mod capacity_action_effect {
+                use skein_codec::schema::FieldIx;
+                pub const ENTRY: FieldIx = FieldIx::new(588);
+            }
+            pub mod capacity_action_claim {
+                use skein_codec::schema::FieldIx;
+                pub const ATTEMPT: FieldIx = FieldIx::new(589);
+            }
+            pub mod capacity_action_place {
+                use skein_codec::schema::FieldIx;
+                pub const HOLD: FieldIx = FieldIx::new(590);
+            }
+            pub mod capacity_action {
+                use skein_codec::schema::VariantIx;
+                pub const BATCH: VariantIx = VariantIx::new(299);
+                pub const PROPOSAL: VariantIx = VariantIx::new(300);
+                pub const PERSON_PROPOSAL: VariantIx = VariantIx::new(301);
+                pub const MESSAGE: VariantIx = VariantIx::new(302);
+                pub const SOURCE: VariantIx = VariantIx::new(303);
+                pub const INTRODUCE: VariantIx = VariantIx::new(304);
+                pub const SUBSCRIPTION: VariantIx = VariantIx::new(305);
+                pub const EFFECT: VariantIx = VariantIx::new(306);
+                pub const CLAIM: VariantIx = VariantIx::new(307);
+                pub const RELEASE: VariantIx = VariantIx::new(308);
+                pub const MOVE_TASK: VariantIx = VariantIx::new(309);
+                pub const PLACE: VariantIx = VariantIx::new(310);
+            }
+            pub mod capacity_cause_tasks {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(591);
+            }
+            pub mod capacity_cause_creation_flights {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(592);
+            }
+            pub mod capacity_cause_resource_reports {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(593);
+            }
+            pub mod capacity_cause_project_tasks {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(594);
+            }
+            pub mod capacity_cause_tree {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(595);
+            }
+            pub mod capacity_cause_delegates {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(596);
+            }
+            pub mod capacity_cause_inbox {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(597);
+                pub const MESSAGES: FieldIx = FieldIx::new(598);
+                pub const BYTES: FieldIx = FieldIx::new(599);
+            }
+            pub mod capacity_cause_holdings {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(600);
+            }
+            pub mod capacity_cause_hold_waiters {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(601);
+            }
+            pub mod capacity_cause_proposals {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(602);
+            }
+            pub mod capacity_cause_references {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(603);
+            }
+            pub mod capacity_cause_subscriptions {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(604);
+            }
+            pub mod capacity_cause_funders {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(605);
+            }
+            pub mod capacity_cause_writers {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(606);
+            }
+            pub mod capacity_cause_placed_holds {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(607);
+            }
+            pub mod capacity_cause_project_placed_holds {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(608);
+            }
+            pub mod capacity_cause_party_placed_holds {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(609);
+            }
+            pub mod capacity_cause_exemptions {
+                use skein_codec::schema::FieldIx;
+                pub const LIMIT: FieldIx = FieldIx::new(610);
+            }
+            pub mod capacity_cause {
+                use skein_codec::schema::VariantIx;
+                pub const TASKS: VariantIx = VariantIx::new(311);
+                pub const CREATION_FLIGHTS: VariantIx = VariantIx::new(312);
+                pub const RESOURCE_REPORTS: VariantIx = VariantIx::new(313);
+                pub const PROJECT_TASKS: VariantIx = VariantIx::new(314);
+                pub const TREE: VariantIx = VariantIx::new(315);
+                pub const DELEGATES: VariantIx = VariantIx::new(316);
+                pub const INBOX: VariantIx = VariantIx::new(317);
+                pub const HOLDINGS: VariantIx = VariantIx::new(318);
+                pub const HOLD_WAITERS: VariantIx = VariantIx::new(319);
+                pub const PROPOSALS: VariantIx = VariantIx::new(320);
+                pub const REFERENCES: VariantIx = VariantIx::new(321);
+                pub const SUBSCRIPTIONS: VariantIx = VariantIx::new(322);
+                pub const FUNDERS: VariantIx = VariantIx::new(323);
+                pub const WRITERS: VariantIx = VariantIx::new(324);
+                pub const PLACED_HOLDS: VariantIx = VariantIx::new(325);
+                pub const PROJECT_PLACED_HOLDS: VariantIx = VariantIx::new(326);
+                pub const PARTY_PLACED_HOLDS: VariantIx = VariantIx::new(327);
+                pub const EXEMPTIONS: VariantIx = VariantIx::new(328);
+            }
+            pub mod capacity {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(611);
+                pub const BY: FieldIx = FieldIx::new(612);
+                pub const ACTION: FieldIx = FieldIx::new(613);
+                pub const CAUSE: FieldIx = FieldIx::new(614);
+            }
+            pub mod refusal_person_revision {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(615);
+            }
+            pub mod llm_fault {
+                use skein_codec::schema::VariantIx;
+                pub const UNCONFIGURED: VariantIx = VariantIx::new(329);
+                pub const EFFORT: VariantIx = VariantIx::new(330);
+                pub const CHARTER: VariantIx = VariantIx::new(331);
+                pub const AUTHORITY: VariantIx = VariantIx::new(332);
+                pub const PROCEDURE: VariantIx = VariantIx::new(333);
+                pub const REPEATED: VariantIx = VariantIx::new(334);
+            }
+            pub mod refusal_llm {
+                use skein_codec::schema::FieldIx;
+                pub const MODEL: FieldIx = FieldIx::new(616);
+                pub const WHY: FieldIx = FieldIx::new(617);
+            }
+            pub mod account_why {
+                use skein_codec::schema::VariantIx;
+                pub const UNKNOWN: VariantIx = VariantIx::new(335);
+                pub const PROVIDER: VariantIx = VariantIx::new(336);
+                pub const USES: VariantIx = VariantIx::new(337);
+                pub const LIMITED: VariantIx = VariantIx::new(338);
+            }
+            pub mod refusal_account {
+                use skein_codec::schema::FieldIx;
+                pub const ACCOUNT: FieldIx = FieldIx::new(618);
+                pub const WHY: FieldIx = FieldIx::new(619);
+            }
+            pub mod refusal_circle {
+                use skein_codec::schema::FieldIx;
+                pub const CUT: FieldIx = FieldIx::new(620);
+            }
+            pub mod refusal_dependency_ended {
+                use skein_codec::schema::FieldIx;
+                pub const HOW: FieldIx = FieldIx::new(621);
+            }
+            pub mod refusal_placed {
+                use skein_codec::schema::FieldIx;
+                pub const HOLD: FieldIx = FieldIx::new(622);
+            }
+            pub mod refusal_hold_owner {
+                use skein_codec::schema::FieldIx;
+                pub const HOLD: FieldIx = FieldIx::new(623);
+            }
+            pub mod refusal_hold_revision {
+                use skein_codec::schema::FieldIx;
+                pub const REVISION: FieldIx = FieldIx::new(624);
+            }
+            pub mod talk_open {
+                use skein_codec::schema::FieldIx;
+                pub const PARTY: FieldIx = FieldIx::new(625);
+            }
+            pub mod refusal {
+                use skein_codec::schema::VariantIx;
+                pub const GOALS: VariantIx = VariantIx::new(339);
+                pub const GRACE: VariantIx = VariantIx::new(340);
+                pub const UNPROPOSABLE: VariantIx = VariantIx::new(341);
+                pub const PERSON_REVISION: VariantIx = VariantIx::new(342);
+                pub const RESOURCE_UNAVAILABLE: VariantIx = VariantIx::new(343);
+                pub const NOT_READY: VariantIx = VariantIx::new(344);
+                pub const UNKNOWN: VariantIx = VariantIx::new(345);
+                pub const BUSY: VariantIx = VariantIx::new(346);
+                pub const DUPLICATE: VariantIx = VariantIx::new(347);
+                pub const EMPTY: VariantIx = VariantIx::new(348);
+                pub const BATCH: VariantIx = VariantIx::new(349);
+                pub const LIVE: VariantIx = VariantIx::new(350);
+                pub const PROJECT: VariantIx = VariantIx::new(351);
+                pub const TREE: VariantIx = VariantIx::new(352);
+                pub const DEPTH: VariantIx = VariantIx::new(353);
+                pub const DELEGATES: VariantIx = VariantIx::new(354);
+                pub const REFERENCE: VariantIx = VariantIx::new(355);
+                pub const SUBSCRIPTION: VariantIx = VariantIx::new(356);
+                pub const DEPENDENCIES: VariantIx = VariantIx::new(357);
+                pub const CIRCLE: VariantIx = VariantIx::new(358);
+                pub const EXECUTOR: VariantIx = VariantIx::new(359);
+                pub const SPEC: VariantIx = VariantIx::new(360);
+                pub const CONTRACT: VariantIx = VariantIx::new(361);
+                pub const AUTHORITY_SHAPE: VariantIx = VariantIx::new(362);
+                pub const INPUTS: VariantIx = VariantIx::new(363);
+                pub const STATE: VariantIx = VariantIx::new(364);
+                pub const ATTEMPT: VariantIx = VariantIx::new(365);
+                pub const LIVE_DELEGATES: VariantIx = VariantIx::new(366);
+                pub const RESTORE: VariantIx = VariantIx::new(367);
+                pub const READ: VariantIx = VariantIx::new(368);
+                pub const TURN: VariantIx = VariantIx::new(369);
+                pub const FUNDING: VariantIx = VariantIx::new(370);
+                pub const HOLD_KIND: VariantIx = VariantIx::new(371);
+                pub const HOLD_TAKEN: VariantIx = VariantIx::new(372);
+                pub const HOLDS: VariantIx = VariantIx::new(373);
+                pub const LLM: VariantIx = VariantIx::new(374);
+                pub const ACCOUNT: VariantIx = VariantIx::new(375);
+                pub const DEPENDENCY_ENDED: VariantIx = VariantIx::new(376);
+                pub const KEPT: VariantIx = VariantIx::new(377);
+                pub const PLACED: VariantIx = VariantIx::new(378);
+                pub const HOLD_OWNER: VariantIx = VariantIx::new(379);
+                pub const HOLD_REVISION: VariantIx = VariantIx::new(380);
+                pub const KEPT_QUESTION: VariantIx = VariantIx::new(381);
+                pub const PERSON_ANSWERS: VariantIx = VariantIx::new(382);
+                pub const NOT_STANDING: VariantIx = VariantIx::new(383);
+                pub const TALK_OPEN: VariantIx = VariantIx::new(384);
+                pub const NO_TALK: VariantIx = VariantIx::new(385);
+            }
+            pub mod task_problem {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(626);
+                pub const WHY: FieldIx = FieldIx::new(627);
+                pub const BLOCKED_BY: FieldIx = FieldIx::new(628);
+                pub const CAPACITY: FieldIx = FieldIx::new(629);
+            }
+            pub mod result_followups_delegates {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(630);
+            }
+            pub mod result_followups_proposal {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(631);
+            }
+            pub mod result_followups {
+                use skein_codec::schema::VariantIx;
+                pub const DELEGATES: VariantIx = VariantIx::new(386);
+                pub const PROPOSAL: VariantIx = VariantIx::new(387);
+            }
+            pub mod end_finished {
+                use skein_codec::schema::FieldIx;
+                pub const RESULT: FieldIx = FieldIx::new(632);
+                pub const CANCEL_DELEGATES: FieldIx = FieldIx::new(633);
+            }
+            pub mod end_finished_with_followups {
+                use skein_codec::schema::FieldIx;
+                pub const RESULT: FieldIx = FieldIx::new(634);
+                pub const FOLLOWUPS: FieldIx = FieldIx::new(635);
+            }
+            pub mod end_failed {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(636);
+            }
+            pub mod end_failed_with_reason {
+                use skein_codec::schema::FieldIx;
+                pub const CLASS: FieldIx = FieldIx::new(637);
+                pub const REASON: FieldIx = FieldIx::new(638);
+            }
+            pub mod end_refused_with_reason {
+                use skein_codec::schema::FieldIx;
+                pub const REASON: FieldIx = FieldIx::new(639);
+            }
+            pub mod end {
+                use skein_codec::schema::VariantIx;
+                pub const FINISHED: VariantIx = VariantIx::new(388);
+                pub const FINISHED_WITH_FOLLOWUPS: VariantIx = VariantIx::new(389);
+                pub const PARKED: VariantIx = VariantIx::new(390);
+                pub const FAILED: VariantIx = VariantIx::new(391);
+                pub const REFUSED: VariantIx = VariantIx::new(392);
+                pub const RECHECK: VariantIx = VariantIx::new(393);
+                pub const EXCEEDED: VariantIx = VariantIx::new(394);
+                pub const FAILED_WITH_REASON: VariantIx = VariantIx::new(395);
+                pub const REFUSED_WITH_REASON: VariantIx = VariantIx::new(396);
+            }
+            pub mod end_record {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(640);
+            }
+            pub mod phase_record {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(641);
+            }
+            pub mod change_record {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(642);
+            }
+        }
         pub mod p0001 {
             pub use super::v9 as old;
             pub use super::v10 as new;
@@ -18034,6 +20452,10 @@ versioned record ChangeRecord { value: Change }
         pub mod p0003 {
             pub use super::v10 as old;
             pub use super::v11 as new;
+        }
+        pub mod p0004 {
+            pub use super::v11 as old;
+            pub use super::v12 as new;
         }
     }
 }
@@ -18076,5 +20498,10 @@ mod tests {
     #[test]
     fn p0003_goldens() {
         assert_eq!(skein_codegen::patch::goldens(&owner(), 3, super::written), Ok(()), "patch 0003 goldens");
+    }
+
+    #[test]
+    fn p0004_goldens() {
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 4, super::written), Ok(()), "patch 0004 goldens");
     }
 }

@@ -194,7 +194,7 @@ fn down(record: jig_domain_host::LinkDown) -> translate::Down {
     };
     translated.expect("complete output")
 }
-fn codec() -> jig_protocol_worker_wire::v10::Limits {
+fn codec() -> jig_protocol_worker_wire::v11::Limits {
     jig_protocol_worker_wire::sizes::limits(&fixtures::SIZES).expect("small codec")
 }
 fn assignment_output() -> jig_domain_host::LinkDown {
@@ -765,4 +765,30 @@ fn an_empty_draining_record_becomes_the_hubs_draining_notice() {
     let decoded = translate::decode(wire::Kind::Draining.number(), &bytes, &limits).expect("draining record");
     assert_eq!(up(decoded), jig_domain_host::LinkUp::Draining);
     assert!(translate::decode(wire::Kind::Draining.number(), &[0], &limits).is_none());
+}
+
+#[test]
+fn a_version_refusal_decodes_its_wire_and_range_without_parts() {
+    use jig_protocol_worker_wire as wire;
+    let limits = codec();
+    let mismatch = wire::Mismatch::new(
+        &limits,
+        wire::MismatchParts { wire: b"smith-charter".as_slice().into(), version: 5, lowest: 4, highest: 4 },
+    )
+    .unwrap();
+    let refusal =
+        wire::RefusalValue::new(&limits, wire::RefusalValueParts { value: wire::Refusal::Version(mismatch) }).unwrap();
+    let mut fields = fixtures::answer_record().into_parts();
+    fields.ending = wire::Ending::Refused(refusal);
+    let (answer, parts) = answer(wire::Answer::new(&limits, fields).unwrap());
+    assert!(parts.is_empty());
+    assert_eq!(
+        answer.ending,
+        jig_domain_host::Ending::Refused(jig_domain_host::Refusal::Version(jig_domain_host::Mismatch {
+            wire: b"smith-charter".as_slice().into(),
+            version: 5,
+            lowest: 4,
+            highest: 4,
+        }))
+    );
 }

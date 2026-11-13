@@ -1,6 +1,6 @@
 use crate::{
     Bounds, BoundsParts, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts, Hosting,
-    HostingParts, Phase, v10,
+    HostingParts, Phase, v11,
 };
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Secret, Writer};
@@ -8,12 +8,13 @@ use skein_lib::{Duration, List, Secret, Writer};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const WORKER_B: &[u8] = b"worker-b";
 
-pub const LIMITS: v10::Limits = v10::Limits {
-    list_row_name: v10::CEILINGS.list_row_name,
-    list_row_shown_some: v10::CEILINGS.list_row_shown_some,
-    list_row_efforts: v10::CEILINGS.list_row_efforts,
-    list_row_efforts_item: v10::CEILINGS.list_row_efforts_item,
-    listed_rows_rows: v10::CEILINGS.listed_rows_rows,
+pub const LIMITS: v11::Limits = v11::Limits {
+    mismatch_wire: 32,
+    list_row_name: v11::CEILINGS.list_row_name,
+    list_row_shown_some: v11::CEILINGS.list_row_shown_some,
+    list_row_efforts: v11::CEILINGS.list_row_efforts,
+    list_row_efforts_item: v11::CEILINGS.list_row_efforts_item,
+    listed_rows_rows: v11::CEILINGS.listed_rows_rows,
     input_call_id: 256,
     input_call_tool: 64,
     piece_bytes: 32,
@@ -27,13 +28,13 @@ pub const LIMITS: v10::Limits = v10::Limits {
     login_email_some: 255,
     logins_logins: 2,
     signed_out_name: 32,
-    wire_name: v10::CEILINGS.wire_name,
-    wire_layouts: v10::CEILINGS.wire_layouts,
-    credential_wires: v10::CEILINGS.credential_wires,
+    wire_name: v11::CEILINGS.wire_name,
+    wire_layouts: v11::CEILINGS.wire_layouts,
+    credential_wires: v11::CEILINGS.credential_wires,
     credential_name: 16,
     credential_secret: 32,
     bounds_endpoints: 2,
-    bounds_program_endpoints: v10::CEILINGS.bounds_program_endpoints,
+    bounds_program_endpoints: v11::CEILINGS.bounds_program_endpoints,
     hello_jobs: 2,
     job_spec: 32,
     job_grants: 2,
@@ -104,8 +105,8 @@ pub fn hello_fullest() -> Hello {
     let mut models = List::with_capacity(2);
     models.push(model()).expect("first model slot");
     models.push(model()).expect("second model slot");
-    let mut program_endpoints = List::with_capacity(v10::CEILINGS.bounds_program_endpoints);
-    for endpoint in 0..v10::CEILINGS.bounds_program_endpoints {
+    let mut program_endpoints = List::with_capacity(v11::CEILINGS.bounds_program_endpoints);
+    for endpoint in 0..v11::CEILINGS.bounds_program_endpoints {
         program_endpoints.push(endpoint).unwrap();
     }
     let bounds = Bounds::new(
@@ -278,7 +279,7 @@ pub fn grant(value: crate::GrantValue, number: u32, generation: u64) -> crate::G
         .expect("grant within small limits")
 }
 
-pub fn granted_key(limits: &v10::Limits, key: &[u8]) -> crate::Granted {
+pub fn granted_key(limits: &v11::Limits, key: &[u8]) -> crate::Granted {
     let value = crate::CredentialValue::new(
         limits,
         crate::CredentialValueParts { scheme: crate::Scheme::Key, bytes: Secret::new(key.into()) },
@@ -431,7 +432,7 @@ pub const SIZES_LARGE: crate::sizes::Sizes = crate::sizes::Sizes {
     facts: 4470,
 };
 
-fn one_slot_limits() -> v10::Limits {
+fn one_slot_limits() -> v11::Limits {
     crate::sizes::limits(&SIZES_ONE_SLOT).expect("small size bounds")
 }
 
@@ -459,7 +460,7 @@ pub fn fullest_turn() -> crate::Turn {
     .expect("full turn")
 }
 
-fn fullest_call(limits: &v10::Limits) -> crate::AnsweredCall {
+fn fullest_call(limits: &v11::Limits) -> crate::AnsweredCall {
     let answer = crate::HostAnswer::new(limits, crate::HostAnswerParts { error: true, body: full_bytes() })
         .expect("full host answer");
     crate::AnsweredCall::new(
@@ -469,7 +470,7 @@ fn fullest_call(limits: &v10::Limits) -> crate::AnsweredCall {
     .expect("full answered call")
 }
 
-fn fullest_grants(limits: &v10::Limits) -> List<crate::Grant> {
+fn fullest_grants(limits: &v11::Limits) -> List<crate::Grant> {
     let mut grants = List::with_capacity(2);
     for number in [5, 6] {
         let mut name = skein_lib::bytes::zeroed(skein_lib::length::usize_of(limits.program_value_name));

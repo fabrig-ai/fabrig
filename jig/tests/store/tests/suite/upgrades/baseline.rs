@@ -111,14 +111,15 @@ fn real_jig_set_versions_match_each_level() {
     };
     let binary = jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT);
     for (level, mut expected, steps) in [
-        (0, baseline, &[(Owner::Jig, 1), (Owner::Jig, 2), (Owner::Jig, 3)][..]),
+        (0, baseline, &[(Owner::Jig, 1), (Owner::Jig, 2), (Owner::Jig, 3), (Owner::Jig, 4)][..]),
         (
             1,
             codec::component::Format { tasks: 10, people: 15, settings: 2, ..binary },
-            &[(Owner::Jig, 2), (Owner::Jig, 3)][..],
+            &[(Owner::Jig, 2), (Owner::Jig, 3), (Owner::Jig, 4)][..],
         ),
-        (2, codec::component::Format { tasks: 10, people: 15, ..binary }, &[(Owner::Jig, 3)][..]),
-        (3, binary, &[][..]),
+        (2, codec::component::Format { tasks: 10, people: 15, ..binary }, &[(Owner::Jig, 3), (Owner::Jig, 4)][..]),
+        (3, codec::component::Format { tasks: 11, ..binary }, &[(Owner::Jig, 4)][..]),
+        (4, binary, &[][..]),
     ] {
         expected.levels =
             codec::component::Levels { skein: Some(0), smith: Some(0), jig: Some(level), application: None };

@@ -427,7 +427,12 @@ pub(crate) fn refuses_job_end(executor: crate::Executor, end: &End) -> bool {
     }
     match end {
         End::Parked | End::FinishedWithFollowups { .. } | End::Exceeded(_) => true,
-        End::Finished { .. } | End::Failed(_) | End::FailedWithReason { .. } | End::Refused | End::Recheck => false,
+        End::Finished { .. }
+        | End::Failed(_)
+        | End::FailedWithReason { .. }
+        | End::Refused
+        | End::RefusedWithReason { .. }
+        | End::Recheck => false,
     }
 }
 
@@ -442,6 +447,11 @@ pub(crate) struct Ended {
 pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, ended: Ended, out: &mut Queue<Request>) {
     let Ended { number, attempt, end, saved } = ended;
     let (end, reason) = match end {
+        End::RefusedWithReason { reason } => {
+            let reason = preparation_reason(&reason);
+            let reason = if reason.is_empty() { None } else { Some(reason) };
+            (End::Refused, reason)
+        }
         End::FailedWithReason { class, reason } => {
             let reason = preparation_reason(&reason);
             let reason = if reason.is_empty() { None } else { Some(reason) };
@@ -486,6 +496,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::Exceeded(_)
         | End::Parked
         | End::Refused
+        | End::RefusedWithReason { .. }
         | End::Recheck
         | End::Finished { .. }
         | End::FinishedWithFollowups { .. } => false,
@@ -515,6 +526,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::Failed(_)
         | End::FailedWithReason { .. }
         | End::Refused
+        | End::RefusedWithReason { .. }
         | End::Recheck => false,
     };
     let invalid = match &end {
@@ -527,6 +539,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::Failed(_)
         | End::FailedWithReason { .. }
         | End::Refused
+        | End::RefusedWithReason { .. }
         | End::Recheck => None,
     };
     let parked = invalid.is_none() && kept.run_parks(&end);
@@ -550,6 +563,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::Failed(_)
         | End::FailedWithReason { .. }
         | End::Refused
+        | End::RefusedWithReason { .. }
         | End::Recheck => end,
     };
     let end = if parked { End::Parked } else { end };
@@ -561,6 +575,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         | End::Failed(_)
         | End::FailedWithReason { .. }
         | End::Refused
+        | End::RefusedWithReason { .. }
         | End::Recheck => false,
     };
     if closing.is_none() && refuses_live && !old.delegates.is_empty() {
@@ -577,7 +592,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
             End::FailedWithReason { class, .. } | End::Failed(class) => {
                 crate::EndKind::Failed { class: *class, invalid_result: invalid }
             }
-            End::Refused | End::Recheck => crate::EndKind::Refused,
+            End::Refused | End::RefusedWithReason { .. } | End::Recheck => crate::EndKind::Refused,
             End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
         }
     };
@@ -585,7 +600,12 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     let activation_ended = match &end {
         End::Parked => !narrowed && !kept.blocks_claims() && !kept.owes,
         End::Finished { .. } => true,
-        End::Exceeded(_) | End::Failed(_) | End::FailedWithReason { .. } | End::Refused | End::Recheck => false,
+        End::Exceeded(_)
+        | End::Failed(_)
+        | End::FailedWithReason { .. }
+        | End::Refused
+        | End::RefusedWithReason { .. }
+        | End::Recheck => false,
         End::FinishedWithFollowups { .. } => unreachable!("follow-ups normalized"),
     };
     let next = if let Some(mut closing) = closing {
@@ -599,6 +619,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
                 | End::Failed(_)
                 | End::FailedWithReason { .. }
                 | End::Refused
+                | End::RefusedWithReason { .. }
                 | End::Recheck => {}
             },
             Ending::Done(_) | Ending::Failed { .. } => {}
@@ -623,7 +644,8 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
             }
             End::Exceeded(value) => exceeded(domain, number, value),
             End::FailedWithReason { class, .. } | End::Failed(class) => failure(domain, env, number, class, reason),
-            End::Refused => pause(domain, env, number, None),
+            End::Refused => pause(domain, env, number, reason),
+            End::RefusedWithReason { reason } => pause(domain, env, number, Some(reason)),
             End::Recheck => {
                 if kept.blocks_claims() {
                     Phase::Active(Active::Idle)

@@ -4,5 +4,5 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[path = "generated/tasks_v11.rs"]
-pub mod tasks_v11;
+#[path = "generated/tasks_v12.rs"]
+pub mod tasks_v12;
