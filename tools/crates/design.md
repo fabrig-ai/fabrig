@@ -415,8 +415,11 @@ fails the check. Its exceptions when it lands, read on the code as milestone C1 
   whose library holds none is none.
 - **Each older version's generated record file,** which keeps its test module and has no tests'
   module until milestone C2 of the same execution file removes it: of `temper-protocol-store-codec`,
-  `jig-protocol-store-people` and `smith-transcript`, whichever the code still holds when the check
-  lands. C2 removes these exceptions with the files, or none is written if C2 has landed.
+  `jig-protocol-store-people` and `smith-transcript`, and the wires' older versions
+  (`smith-channel`'s `v7`, `jig-protocol-worker-wire`'s `v12`), whichever the code still holds when
+  the check lands. A wire keeps no older version's code (`gate-compile.md`, 4), so C2's
+  one-version check removes the wires' files too. C2 removes these exceptions with the files, or
+  none is written if C2 has landed.
 
 ## 4. The figure
 
