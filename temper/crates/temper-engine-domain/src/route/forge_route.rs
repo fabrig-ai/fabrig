@@ -4931,8 +4931,9 @@ pub(crate) fn outputs(
                     Err(_) => domain.work.push(Work::Forge(forge::Event::HistoryUnloaded { load })),
                 }
             }
-            // Party read routing is a separate boundary; no root caller issues these reads yet.
-            forge::Request::HistoryPage { .. } => {}
+            forge::Request::HistoryPage { read, answer } => {
+                super::kinds::history_answer(domain, env, decision, read, answer);
+            }
             forge::Request::LinkNoted { forge, note } => {
                 super::diagnostics::emit(domain, crate::Fact::ForgeLink { forge, note });
             }
