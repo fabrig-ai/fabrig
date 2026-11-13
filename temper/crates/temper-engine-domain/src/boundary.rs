@@ -728,13 +728,6 @@ pub enum Fact {
 }
 
 #[derive(Hash, Debug)]
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::large_enum_variant,
-        reason = "the worker boundary carries the decoded call whole, its later choice with it"
-    )
-)]
 pub enum WorkerInput {
     /// An authenticated opening, kept independently of the worker's hello (protocol/wires.md, 10.1).
     Opened { worker: Box<str>, statement: crate::WorkerStatement },

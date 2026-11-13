@@ -533,6 +533,7 @@ fn notice_cases() -> [NoticeCase; 3] {
         NoticeCase {
             failure: agent::llm::Failure::Refused,
             report: agent::llm::Report {
+                status: None,
                 code: Box::from(b"not-eligible".as_slice()),
                 request: Box::default(),
                 field: Box::default(),

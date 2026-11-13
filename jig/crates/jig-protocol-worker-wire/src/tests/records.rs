@@ -5,7 +5,7 @@ use skein_channel::{Direction, Role, Term};
 use skein_lib::{Duration, List, Reader};
 
 // Hello151 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
-const HELLO_MAX: u32 = 151 + 4 + crate::v12::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
+const HELLO_MAX: u32 = 151 + 4 + crate::v13::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
 fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
@@ -18,7 +18,7 @@ fn hello_terms(largest: u32) -> List<Term> {
     for (kind, largest) in [
         (0x0101, 96),
         (0x0102, 103),
-        (0x0103, 145),
+        (0x0103, 239),
         (0x0104, 398),
         (0x0105, 28),
         (0x0106, 29),
@@ -174,8 +174,8 @@ fn a_hello_past_the_endpoint_ceiling_is_refused_at_its_bound() {
         (at_cap, Ok(ENDPOINT_CAP)),
         (
             past_cap,
-            Err(crate::v12::Problem {
-                path: crate::v12::Path::BoundsProgramEndpoints,
+            Err(crate::v13::Problem {
+                path: crate::v13::Path::BoundsProgramEndpoints,
                 reason: skein_codec::Reason::Bound,
             }),
         ),
@@ -354,7 +354,7 @@ pub(super) fn through_bytes<T>(
     value: &T,
     measure: fn(&T) -> u32,
     encode: fn(&T, &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>,
-    decode: fn(&crate::v12::Limits, &mut Reader<'_>) -> Result<T, crate::v12::Problem>,
+    decode: fn(&crate::v13::Limits, &mut Reader<'_>) -> Result<T, crate::v13::Problem>,
 ) -> T {
     let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(measure(value)));
     encode(value, &mut writer).expect("measured room");

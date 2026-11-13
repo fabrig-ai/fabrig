@@ -39,7 +39,7 @@ pub struct Component {
     pub(crate) limits: Limits,
     pub(crate) workers: Box<[Worker]>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v12::Limits,
+    pub(crate) codec: wire::v13::Limits,
     pub(crate) connections: Map<Token, Connection>,
     schema: skein_channel::Schema,
     next_channel: u64,
@@ -496,7 +496,7 @@ impl Component {
                             .expect("agreed wire fits credential limits");
                             wires.push(record).expect("agreed wires fit credential limits");
                         }
-                        let record = wire::v12::Agreed::new(&self.codec, wire::v12::AgreedParts { wires })
+                        let record = wire::v13::Agreed::new(&self.codec, wire::v13::AgreedParts { wires })
                             .expect("agreed wires fit credential limits");
                         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
                         record.encode(&mut body).expect("measured statement");

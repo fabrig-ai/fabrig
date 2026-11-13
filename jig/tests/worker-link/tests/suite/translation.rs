@@ -61,7 +61,7 @@ pub(super) fn world(version: u16, charter: u16, seed: u64) -> Joined {
 
 #[test]
 fn capped_components_translate_smith_payloads_and_refuse_an_unheld_charter_without_a_frame() {
-    let mut world = world(11, 4, 7);
+    let mut world = world(12, 4, 7);
     let mut assignment = fixtures::assignment();
     assignment.assignment.charter = charter(1);
     assignment.turns = Box::new([]);
@@ -166,9 +166,9 @@ fn application(single: bool) -> Application {
 #[test]
 fn a_newer_worker_checks_total_sends_after_the_statement_but_a_capped_worker_does_not() {
     for cap in [false, true] {
-        let worker_wires = if cap { capped(12, 5) } else { wire::spoken() };
+        let worker_wires = if cap { capped(13, 5) } else { wire::spoken() };
         let mut world =
-            Joined::with_applications(&limits(), 3, capped(12, 5), worker_wires, application(true), application(cap));
+            Joined::with_applications(&limits(), 3, capped(13, 5), worker_wires, application(true), application(cap));
         world.run();
         if cap {
             assert!(world.worker_root.iter().any(|e| matches!(e, Request::Ready)));
@@ -207,7 +207,7 @@ fn rooted(single: bool) -> Application {
     application
 }
 fn rooted_world() -> Joined {
-    let mut world = Joined::with_applications(&limits(), 9, wire::spoken(), capped(11, 5), rooted(false), rooted(true));
+    let mut world = Joined::with_applications(&limits(), 9, wire::spoken(), capped(12, 5), rooted(false), rooted(true));
     world.run();
     world.acknowledge(false);
     world

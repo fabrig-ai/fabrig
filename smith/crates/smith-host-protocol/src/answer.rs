@@ -140,6 +140,7 @@ fn model_fault(record: &wire::ModelFaultValue) -> Result<host::ModelFault, Error
                 model: record.model(),
                 attempts: record.attempts(),
                 report: host::Report {
+                    status: *record.status(),
                     code: record.code().into(),
                     request: record.request_id().into(),
                     field: record.field().into(),

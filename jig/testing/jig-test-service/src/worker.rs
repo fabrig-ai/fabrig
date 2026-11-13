@@ -1077,7 +1077,7 @@ mod admission_tests {
                     )
                     .expect("four wires");
             }
-            let record = wire::v12::Agreed::new(&codec, wire::v12::AgreedParts { wires }).expect("statement");
+            let record = wire::v13::Agreed::new(&codec, wire::v13::AgreedParts { wires }).expect("statement");
             let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut body).expect("statement body");
             let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("statement frame");

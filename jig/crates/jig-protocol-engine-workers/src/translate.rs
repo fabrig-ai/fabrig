@@ -79,7 +79,7 @@ pub(crate) enum Up {
     Limited(wire::Limited),
     AccountRefused(wire::AccountRefused),
 }
-pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v12::Limits) -> Option<Up> {
+pub(crate) fn decode(kind: u16, body: &[u8], limits: &wire::v13::Limits) -> Option<Up> {
     let mut found = None;
     for rule in wire::KINDS {
         if rule.kind == kind {
@@ -424,10 +424,36 @@ fn ending(value: wire::Ending, parts: &mut Parts) -> host::Ending {
         wire::Ending::Failed(record) => {
             let fields = record.into_parts();
             let failure = failure(fields.failure, parts);
-            host::Ending::Failed { failure, detail: fields.detail, work: work(fields.work, parts) }
+            let model = model_failure(fields.model);
+            host::Ending::Failed { failure, detail: fields.detail, work: work(fields.work, parts), model }
         }
     }
 }
+fn model_failure(value: Option<wire::ModelFailure>) -> Option<host::ModelFailure> {
+    let fields = value?.into_parts();
+    let kind = match fields.kind {
+        wire::ModelFailureKind::Unavailable => host::ModelFailureKind::Unavailable,
+        wire::ModelFailureKind::Overloaded => host::ModelFailureKind::Overloaded,
+        wire::ModelFailureKind::RateLimited => host::ModelFailureKind::RateLimited,
+        wire::ModelFailureKind::Exhausted => host::ModelFailureKind::Exhausted,
+        wire::ModelFailureKind::TimedOut => host::ModelFailureKind::TimedOut,
+        wire::ModelFailureKind::ContextTooLong => host::ModelFailureKind::ContextTooLong,
+        wire::ModelFailureKind::Invalid => host::ModelFailureKind::Invalid,
+        wire::ModelFailureKind::Refused => host::ModelFailureKind::Refused,
+        wire::ModelFailureKind::Unsupported => host::ModelFailureKind::Unsupported,
+        wire::ModelFailureKind::Unauthorized => host::ModelFailureKind::Unauthorized,
+        wire::ModelFailureKind::Protocol => host::ModelFailureKind::Protocol,
+        wire::ModelFailureKind::Cancelled => host::ModelFailureKind::Cancelled,
+        wire::ModelFailureKind::Limit => host::ModelFailureKind::Limit,
+    };
+    let evidence = match fields.evidence {
+        wire::ModelEvidence::Unsent => host::ModelEvidence::Unsent,
+        wire::ModelEvidence::Unknown => host::ModelEvidence::Unknown,
+        wire::ModelEvidence::Response => host::ModelEvidence::Response,
+    };
+    Some(host::ModelFailure { endpoint: fields.endpoint, model: fields.model, kind, evidence, status: fields.status })
+}
+
 fn work(value: wire::Work, parts: &mut Parts) -> host::Work {
     let fields = value.into_parts();
     let left = parts.optional(fields.left);
@@ -587,7 +613,7 @@ pub(crate) fn down(
     down: host::LinkDown,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v12::Limits,
+    limits: &wire::v13::Limits,
 ) -> Option<Down> {
     match down {
         host::LinkDown::ReadList { read, endpoint, grant } => {
@@ -677,7 +703,7 @@ fn job_record(
     job: host::JobAssignment,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v12::Limits,
+    limits: &wire::v13::Limits,
 ) -> Option<wire::Job> {
     let workspace = match job.workspace {
         Some(workspace) => Some(
@@ -713,7 +739,7 @@ fn assignment_record(
     assignment: host::Assignment,
     parts: &[wire::Part],
     values: Box<[Option<crate::GrantValue>]>,
-    limits: &wire::v12::Limits,
+    limits: &wire::v13::Limits,
 ) -> Option<wire::Assignment> {
     let run = assignment.assignment;
     let workspace = match run.workspace {
@@ -808,7 +834,7 @@ fn transcript(turns: &[Box<[u8]>], bound: u32) -> Option<Box<[u8]>> {
 fn grant_record(
     grant: jig_domain_link::Grant,
     value: crate::GrantValue,
-    limits: &wire::v12::Limits,
+    limits: &wire::v13::Limits,
 ) -> Option<wire::Grant> {
     let value = match grant.form {
         Form::Program(form) => match value {
@@ -856,7 +882,7 @@ const fn grant_scheme(scheme: Scheme) -> crate::Scheme {
         Scheme::Key => crate::Scheme::Key,
     }
 }
-fn settled(answer: host::SettledAnswer, limits: &wire::v12::Limits) -> Option<wire::SettledAnswer> {
+fn settled(answer: host::SettledAnswer, limits: &wire::v13::Limits) -> Option<wire::SettledAnswer> {
     match answer {
         host::SettledAnswer::Host { error, body } => {
             Some(wire::SettledAnswer::Host(wire::HostAnswer::new(limits, wire::HostAnswerParts { error, body }).ok()?))
@@ -876,7 +902,7 @@ fn settled(answer: host::SettledAnswer, limits: &wire::v12::Limits) -> Option<wi
     }
 }
 
-pub(crate) fn turn_busy(run: Token, attempt: Token, turn: u32, limits: &wire::v12::Limits) -> Down {
+pub(crate) fn turn_busy(run: Token, attempt: Token, turn: u32, limits: &wire::v13::Limits) -> Down {
     Down::TurnBusy(
         wire::TurnBusy::new(limits, wire::TurnBusyParts { task: run.raw(), attempt: attempt.raw(), number: turn })
             .expect("fixed turn busy fields fit"),
@@ -944,7 +970,7 @@ pub(crate) fn send(
     frame: skein_channel::Frame,
     version: u16,
     agreed: &List<wire::Agreed>,
-    limits: &wire::v12::Limits,
+    limits: &wire::v13::Limits,
 ) -> Result<skein_channel::Frame, wire::translation::Untranslated> {
     machine.send(frame, version, agreed.as_slice(), limits)
 }
@@ -954,7 +980,7 @@ pub(crate) fn receive(
     body: &[u8],
     version: u16,
     agreed: &List<wire::Agreed>,
-    limits: &wire::v12::Limits,
+    limits: &wire::v13::Limits,
 ) -> Result<skein_channel::Frame, wire::translation::Untranslated> {
     machine.receive(kind, body, version, agreed.as_slice(), limits)
 }

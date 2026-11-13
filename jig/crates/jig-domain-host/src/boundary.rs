@@ -326,7 +326,7 @@ pub struct Turn {
 pub enum Finish {
     Ended { outcome: Box<[u8]> },
     Parked,
-    Failed { failure: RunFailure },
+    Failed { failure: RunFailure, model: Option<crate::ModelFailure> },
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -343,7 +343,7 @@ pub enum Ending {
     Refused(Refusal),
     Ended { outcome: Box<[u8]>, work: Work },
     Parked { work: Work },
-    Failed { failure: Failure, detail: Box<[u8]>, work: Work },
+    Failed { failure: Failure, detail: Box<[u8]>, work: Work, model: Option<crate::ModelFailure> },
 }
 
 /// The application's workspace items, held by its root.

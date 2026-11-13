@@ -68,7 +68,7 @@ pub(crate) fn note(note: &temper_service::Note) {
             "temper",
             temper_engine_service::Note::WorkerOpened { worker: worker.clone(), wires: wires.clone() },
         );
-        assert!(line.contains("opened: jig-worker-wire 11,"), "{line}");
+        assert!(line.contains("opened: jig-worker-wire 12,"), "{line}");
         assert!(line.contains("smith-charter 4,"), "{line}");
         STATE.with(|state| state.borrow_mut().opened += 1);
     }

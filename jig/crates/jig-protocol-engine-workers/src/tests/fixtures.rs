@@ -294,6 +294,7 @@ pub fn answer_failed_on(failure: jig_protocol_worker_wire::RunFailure) -> jig_pr
     let failed = wire::Failed::new(
         &codec,
         wire::FailedParts {
+            model: None,
             failure: wire::Failure::Run(run),
             detail: Box::from(b"detail".as_slice()),
             work: ended.into_parts().work,
@@ -316,7 +317,7 @@ pub fn refused_account() -> jig_protocol_worker_wire::RunFailure {
     wire::RunFailure::Refused(refused)
 }
 
-fn codec() -> jig_protocol_worker_wire::v12::Limits {
+fn codec() -> jig_protocol_worker_wire::v13::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {
@@ -349,6 +350,7 @@ pub fn answer_with_resource() -> jig_protocol_worker_wire::Answer {
     let failed = wire::Failed::new(
         &codec,
         wire::FailedParts {
+            model: None,
             failure: wire::Failure::Unprepared(preparation),
             detail: Box::from(b"detail".as_slice()),
             work: ended.into_parts().work,

@@ -1,6 +1,6 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::{self as channel, Agreed, Application, Carried, Root, Spoken, v12 as wire};
+use crate::{self as channel, Agreed, Application, Carried, Root, Spoken, v13 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -137,9 +137,9 @@ fn enumeration_bridges_cover_every_kind_and_refuse_unheld_variants() {
             original = worker(&wire::FromWorker::Call(wire::Call::new(&wire::CEILINGS, call).unwrap()));
         }
         let expected = skein_lib::bytes::copy_of(original.bytes());
-        let down = sender.send(original, 11, &agreed(11, 5), &wire::CEILINGS);
+        let down = sender.send(original, 12, &agreed(12, 5), &wire::CEILINGS);
         if kind == channel::Kind::Wires.number() {
-            assert!(down.is_err(), "no wires kind at eleven");
+            assert!(down.is_err(), "no wires kind at twelve");
             continue;
         }
         let down = match down {
@@ -149,7 +149,7 @@ fn enumeration_bridges_cover_every_kind_and_refuse_unheld_variants() {
         if kind == channel::Kind::Call.number() {
             assert_eq!(down.body_len() + 2, u32::try_from(expected.len() - 8).unwrap());
         }
-        let up = receiver.receive(down.kind(), body(&down), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+        let up = receiver.receive(down.kind(), body(&down), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
         assert_eq!(up.bytes(), expected.as_ref(), "{}", golden.name);
         covered.insert(kind).unwrap();
     }
@@ -162,13 +162,13 @@ fn smith_charters_results_and_old_window_turns_take_their_own_bridges() {
     let mut worker_side = opaque();
     let current = charter(1);
     let record = wire::FromEngine::Assignment(assignment(current.clone()));
-    let down = engine_side.send(engine(&record), 11, &agreed(11, 4), &wire::CEILINGS).unwrap();
+    let down = engine_side.send(engine(&record), 12, &agreed(12, 4), &wire::CEILINGS).unwrap();
     let wire::FromEngine::Assignment(at_worker) = engine_value(&down) else { panic!("assignment") };
     assert_eq!(&at_worker.charter()[..2], &[0, 4]);
-    let up = worker_side.receive(down.kind(), body(&down), 11, &agreed(11, 4), &wire::CEILINGS).unwrap();
+    let up = worker_side.receive(down.kind(), body(&down), 12, &agreed(12, 4), &wire::CEILINGS).unwrap();
     assert_eq!(engine_value(&up), record);
     let refusal = engine_side
-        .send(engine(&wire::FromEngine::Assignment(assignment(charter(2)))), 11, &agreed(11, 4), &wire::CEILINGS)
+        .send(engine(&wire::FromEngine::Assignment(assignment(charter(2)))), 12, &agreed(12, 4), &wire::CEILINGS)
         .unwrap_err();
     assert_eq!(refusal.wire.as_ref(), b"smith-charter");
     assert_eq!(refusal.version, 5);
@@ -193,11 +193,11 @@ fn smith_charters_results_and_old_window_turns_take_their_own_bridges() {
         )
         .unwrap(),
     );
-    let down = worker_side.send(worker(&answer), 11, &agreed(11, 4), &wire::CEILINGS).unwrap();
+    let down = worker_side.send(worker(&answer), 12, &agreed(12, 4), &wire::CEILINGS).unwrap();
     let wire::FromWorker::Answer(at_engine) = worker_value(&down) else { panic!("answer") };
     let wire::Ending::Ended(end) = at_engine.ending() else { panic!("ended") };
     assert_eq!(&end.outcome()[..2], &[0, 4]);
-    let up = engine_side.receive(down.kind(), body(&down), 11, &agreed(11, 4), &wire::CEILINGS).unwrap();
+    let up = engine_side.receive(down.kind(), body(&down), 12, &agreed(12, 4), &wire::CEILINGS).unwrap();
     assert_eq!(worker_value(&up), answer);
 
     let old_turn =
@@ -210,14 +210,14 @@ fn smith_charters_results_and_old_window_turns_take_their_own_bridges() {
     let down = engine_side
         .send(
             engine(&wire::FromEngine::Assignment(wire::Assignment::new(&wire::CEILINGS, parts).unwrap())),
-            11,
-            &agreed(11, 4),
+            12,
+            &agreed(12, 4),
             &wire::CEILINGS,
         )
         .unwrap();
     let wire::FromEngine::Assignment(at_worker) = engine_value(&down) else { panic!("assignment") };
     assert_eq!(at_worker.transcript(), window.as_ref(), "old turns cross byte for byte");
-    let up = worker_side.receive(down.kind(), body(&down), 11, &agreed(11, 4), &wire::CEILINGS).unwrap();
+    let up = worker_side.receive(down.kind(), body(&down), 12, &agreed(12, 4), &wire::CEILINGS).unwrap();
     let wire::FromEngine::Assignment(at_worker) = engine_value(&up) else { panic!("assignment") };
     let mut reader = Reader::new(at_worker.transcript());
     let turn = skein_codec::piece::split(&mut reader).unwrap().unwrap();
@@ -234,19 +234,19 @@ fn application_roots_translate_parts_and_each_grant_without_touching_its_envelop
     );
     parts.grants.push(grant()).unwrap();
     let original = wire::FromEngine::Assignment(wire::Assignment::new(&wire::CEILINGS, parts).unwrap());
-    let down = sender.send(engine(&original), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+    let down = sender.send(engine(&original), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
     let wire::FromEngine::Assignment(record) = engine_value(&down) else { panic!("assignment") };
     assert_eq!(record.workspace().as_ref().unwrap().items(), OLDER);
     check_grant(record.grants().get(0).unwrap());
-    let up = receiver.receive(down.kind(), body(&down), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+    let up = receiver.receive(down.kind(), body(&down), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
     assert_eq!(engine_value(&up), original);
     let original = wire::FromEngine::Grant(
         wire::Granted::new(&wire::CEILINGS, wire::GrantedParts { task: 7, attempt: 2, grant: grant() }).unwrap(),
     );
-    let down = sender.send(engine(&original), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+    let down = sender.send(engine(&original), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
     let wire::FromEngine::Grant(record) = engine_value(&down) else { panic!("grant") };
     check_grant(record.grant());
-    let up = receiver.receive(down.kind(), body(&down), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+    let up = receiver.receive(down.kind(), body(&down), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
     assert_eq!(engine_value(&up), original);
     let job = wire::Job::new(
         &wire::CEILINGS,
@@ -261,7 +261,7 @@ fn application_roots_translate_parts_and_each_grant_without_touching_its_envelop
         },
     )
     .unwrap();
-    let down = sender.send(engine(&wire::FromEngine::Job(job)), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+    let down = sender.send(engine(&wire::FromEngine::Job(job)), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
     let wire::FromEngine::Job(record) = engine_value(&down) else { panic!("job") };
     assert_eq!(record.spec(), OLDER);
     for ending in [
@@ -301,7 +301,7 @@ fn application_roots_translate_parts_and_each_grant_without_touching_its_envelop
         let original = wire::FromWorker::JobAnswer(
             wire::JobAnswer::new(&wire::CEILINGS, wire::JobAnswerParts { task: 7, attempt: 2, ending }).unwrap(),
         );
-        let down = sender.send(worker(&original), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+        let down = sender.send(worker(&original), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
         let wire::FromWorker::JobAnswer(record) = worker_value(&down) else { panic!("job answer") };
         match record.ending() {
             wire::JobEnding::Finished(end) => {
@@ -316,7 +316,7 @@ fn application_roots_translate_parts_and_each_grant_without_touching_its_envelop
             }
             wire::JobEnding::Refused(_) => panic!("not refused"),
         }
-        let up = receiver.receive(down.kind(), body(&down), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+        let up = receiver.receive(down.kind(), body(&down), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
         assert_eq!(worker_value(&up), original);
     }
 }
@@ -356,12 +356,12 @@ fn construction_rejects_missing_bridges_and_declarations_and_total_checks_worker
     missing.roots.get_mut(0).unwrap().declaration = "Absent";
     Translation::new(missing).unwrap_err();
     let mut machine = Translation::new(application()).unwrap();
-    let incomplete = machine.incomplete(&agreed(11, 4));
+    let incomplete = machine.incomplete(&agreed(12, 4));
     assert_eq!(
         incomplete.as_slice(),
-        &[Agreed { name: "jig-worker-wire", version: 11 }, Agreed { name: "application", version: 1 }]
+        &[Agreed { name: "jig-worker-wire", version: 12 }, Agreed { name: "application", version: 1 }]
     );
-    assert!(opaque().incomplete(&agreed(12, 5)).is_empty());
+    assert!(opaque().incomplete(&agreed(13, 5)).is_empty());
 }
 
 #[test]
@@ -385,14 +385,14 @@ fn current_links_keep_no_plans_and_only_an_older_family_materializes() {
         .unwrap(),
     );
     let original = worker(&call);
-    let current = sender.send(original, 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
-    let up = receiver.receive(current.kind(), body(&current), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+    let current = sender.send(original, 13, &agreed(13, 5), &wire::CEILINGS).unwrap();
+    let up = receiver.receive(current.kind(), body(&current), 13, &agreed(13, 5), &wire::CEILINGS).unwrap();
     assert_eq!(worker_value(&up), call);
     assert_eq!((sender.planned(), receiver.planned()), (0, 0));
-    assert!(sender.incomplete(&agreed(12, 5)).is_empty());
+    assert!(sender.incomplete(&agreed(13, 5)).is_empty());
     assert_eq!(sender.planned(), 0);
-    let old = sender.send(worker(&call), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
-    let up = receiver.receive(old.kind(), body(&old), 11, &agreed(11, 5), &wire::CEILINGS).unwrap();
+    let old = sender.send(worker(&call), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
+    let up = receiver.receive(old.kind(), body(&old), 12, &agreed(12, 5), &wire::CEILINGS).unwrap();
     assert_eq!(worker_value(&up), call);
     assert_eq!((sender.planned(), receiver.planned()), (1, 1));
 }

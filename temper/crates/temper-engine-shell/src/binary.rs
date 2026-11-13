@@ -216,7 +216,7 @@ mod tests {
         let wires = temper_engine_service::wires();
         assert_eq!(wires.len(), 6);
         for (wire, (name, lowest, highest)) in wires.iter().zip([
-            ("jig-worker-wire", 11, 12),
+            ("jig-worker-wire", 12, 13),
             ("smith-pieces", 1, 1),
             ("smith-charter", 4, 5),
             ("smith-transcript", 7, 7),

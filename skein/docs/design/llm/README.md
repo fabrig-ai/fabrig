@@ -353,6 +353,11 @@ pub struct Report {
   too: its detail is the body itself, clipped to the detail limit, as a
   cut body's is. The client never puts a diagnostic of its own in its
   place; the status is in the evidence already.
+- **A 403 that is not the provider's own** is `Unavailable`: its body
+  did not decode as the dialect's error document (an edge's or a proxy's
+  page, another shape, none, or one cut at its bound), so the provider's
+  edge refused the call before the provider saw it. A 403 whose body did
+  decode stays as its code or the status says (4.7, 4.8).
 
 ### 2.6 Credentials
 
@@ -749,7 +754,8 @@ ordering, delta types, cumulative usage patches and completion at `message_stop`
   `api_error` is `Unavailable`; a context too long, an
   `invalid_request_error` whose message says `prompt is too long`, or a
   `request_too_large`, is `ContextTooLong`; any other
-  `invalid_request_error` is `Invalid`. An `error` event in the
+  `invalid_request_error` is `Invalid`. A type it does not name falls
+  to the status, as on the public route (4.8). An `error` event in the
   stream, after a head that said 200, of a type this list does not name
   is `Unavailable`, its type kept in the report (section 2.5). Anthropic
   names no field, so its report's field is empty, and a field it will
@@ -842,7 +848,8 @@ bounds still hold.
 - **The request id** is the head's `x-request-id`.
 - **Failures, by code before status.** The error's `code`, else its
   `type`, decides where the table names it. Otherwise the status does:
-  401 is `Unauthorized`; 403, 404 and 422 `Invalid`; 400 and 413
+  401 is `Unauthorized`; 403 `Invalid` where its body decoded, else
+  `Unavailable` (2.5); 404 and 422 `Invalid`; 400 and 413
   `ContextTooLong` where the error says so, else `Invalid`; 429
   `RateLimited`; a 5xx `Unavailable`, or `Overloaded` where it is 529 or
   its error's code, else type, is `overloaded_error`. In the stream,

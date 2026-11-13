@@ -74,6 +74,23 @@ mod tests {
     }
 
     #[test]
+    fn landed_wire_names_without_floors_mean_the_landed_build() {
+        let scratch = fixture("legacy-landed", "w 4\n", DOWN);
+        let mut files = alloc::collections::BTreeMap::new();
+        files.insert("schema/kept/w-v3.schema".into(), OLD.as_bytes().to_vec());
+        files.insert("schema/kept/w-v4.schema".into(), NEW.as_bytes().to_vec());
+        files.insert("patches/0001.patch".into(), DOWN.as_bytes().to_vec());
+        files.insert("schema/wires".into(), b"w\n".to_vec());
+        let base = Landed::new(files);
+        assert_eq!(patch::check(scratch.path(), &base), Ok(vec![]));
+        put(scratch.path(), "schema/wires", "w 3\n");
+        assert_eq!(
+            patch::check(scratch.path(), &base),
+            Ok(vec![Finding::Floor { family: "w".into(), floor: 3, wrong: FloorWrong::Lowered }])
+        );
+    }
+
+    #[test]
     fn floor_never_lowers_the_landed_floor() {
         floor_case("lowered", 3, DOWN, Some(4), false, &[FloorWrong::Lowered]);
         floor_case("kept", 4, DOWN, Some(4), false, &[]);

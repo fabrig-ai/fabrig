@@ -59,10 +59,10 @@ fn the_worker_s_opening_states_chosen_versions() {
                 else {
                     panic!("open control")
                 };
-                assert_eq!((lowest, highest), (11, 11));
+                assert_eq!((lowest, highest), (12, 12));
                 opening = Some(
                     jig_protocol_worker_wire::Credential::decode(
-                        &jig_protocol_worker_wire::v12::CEILINGS,
+                        &jig_protocol_worker_wire::v13::CEILINGS,
                         &mut Reader::new(&credential),
                     )
                     .expect("worker credential"),

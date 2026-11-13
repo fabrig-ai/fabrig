@@ -94,6 +94,50 @@ fn a_live_kind_disagreeing_with_its_call_is_dropped() {
 }
 
 #[test]
+fn decoded_endpoint_names_follow_model_indices_not_endpoint_table_order() {
+    let mut agent = fixtures::agent();
+    let jig_protocol_worker_link::Request::Down { down: host::LinkDown::Assign { assignment }, .. } =
+        fixtures::chat_assignment()
+    else {
+        panic!("assignment")
+    };
+    let mut source = start(assignment.assignment, host::LiveAsk::NONE);
+    let mut charter =
+        smith_protocol_channel::decode_charter(&source.charter, &agent.limits.charter, &agent.endpoints).unwrap();
+    charter.llm.endpoint = smith_domain_run::charter::Endpoint(27);
+    charter.llm.model = b"claude-opus-5-5".as_slice().into();
+    let mut child = charter.llm.clone();
+    child.endpoint = smith_domain_run::charter::Endpoint(91);
+    child.model = b"child-model".as_slice().into();
+    charter.models = Box::new([child]);
+    let mut entries = skein_lib::List::with_capacity(2);
+    entries
+        .push(smith_protocol_channel::Endpoint {
+            name: b"child".as_slice().into(),
+            number: 91,
+            dialect: charter.llm.dialect,
+        })
+        .unwrap();
+    entries
+        .push(smith_protocol_channel::Endpoint {
+            name: b"anthropic".as_slice().into(),
+            number: 27,
+            dialect: charter.llm.dialect,
+        })
+        .unwrap();
+    agent.endpoints = smith_protocol_channel::Endpoints::new(entries);
+    source.charter = smith_protocol_channel::encode_charter(&charter, &agent.limits.charter, &agent.endpoints).unwrap();
+    let temper_worker_domain::Event::Decoded { agent: owner, start: Ok(start), endpoints } =
+        worker_route::decoded(AGENT, RUN, source, &agent)
+    else {
+        panic!("decoded start")
+    };
+    assert_eq!(owner, AGENT);
+    assert_eq!(start.charter.value().model(1).unwrap().endpoint.0, 91);
+    assert_eq!(endpoints.as_ref(), &[Box::<[u8]>::from(b"anthropic".as_slice()), Box::from(b"child".as_slice())]);
+}
+
+#[test]
 fn the_start_passes_each_ask_and_omits_an_empty_one() {
     let agent = fixtures::agent();
     for text in [false, true] {
@@ -185,6 +229,7 @@ fn a_permanent_preparation_goes_up_by_tag_and_a_transient_one_not() {
             failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: Some(Token::new(13)) }),
             detail: Box::new([]),
             work: host::Work { left: None, saved: None },
+            model: None,
         });
         let host::LinkUp::Answer { answer, .. } = answer else { panic!("answer fixture") };
         let parts = worker_route::answer_parts(&answer, &work, Some(&why));

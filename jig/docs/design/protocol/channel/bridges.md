@@ -77,7 +77,7 @@ them is its own (temper's `protocol/wires.md`).
   ```
 
   `FromEngine` gains the variant `wires: Agreed` after its last, so its
-  kind is `0x018d` in `jig-worker-wire` 12, the version that adds it
+  kind is `0x018d` in `jig-worker-wire` 13, the version that adds it
   (`wires.md`, 4). It lists each wire the worker stated and the engine
   speaks, with its agreed version, in the statement's order
   (`wires.md`, 3).
@@ -93,7 +93,7 @@ them is its own (temper's `protocol/wires.md`).
   engine accepted. It translates to them, from its current, statement
   or none. A production worker states its whole ranges; a world caps a
   worker at chosen versions so (temper's `protocol/wires.md`, 11).
-- **A channel version without the kind** (below 12): the engine predates
+- **A channel version without the kind** (below 13): the engine predates
   the statement and speaks one version of each wire. A worker that
   stated a range of any wire cannot know the engine's versions: it
   closes the channel at once, logging `the engine states no wires:

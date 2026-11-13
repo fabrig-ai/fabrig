@@ -218,12 +218,18 @@ fn fail_review(domain: &Domain, event: &mut core::Event) {
         return;
     }
     let Some(Payload::Answer {
-        end: hub::Ending::Link(host::Ending::Failed { failure: host::Failure::Run(failure), .. }),
+        end: hub::Ending::Link(host::Ending::Failed { failure: host::Failure::Run(failure), model, .. }),
         ..
     }) = domain.hub_link.payload(*payload)
     else {
         return;
     };
+    if *failure == host::RunFailure::Model
+        && let Some(model) = model
+        && model.outage()
+    {
+        return;
+    }
     let Some(reason) = review_failure(failure) else { return };
     *end =
         tasks::End::Finished { result: tasks::TaskResult::Failure { reason: reason.into() }, cancel_delegates: false };
@@ -709,6 +715,194 @@ mod tests {
         }
         for failure in [host::RunFailure::Model, host::RunFailure::Policy, host::RunFailure::Budget] {
             assert!(review_failure(&failure).is_some());
+        }
+    }
+
+    #[test]
+    fn current_review_outages_keep_the_infrastructure_end() {
+        use host::{ModelEvidence as E, ModelFailureKind as K};
+        for model in [
+            Some(review_model(K::Unavailable, E::Unsent)),
+            Some(review_model(K::Overloaded, E::Unsent)),
+            Some(review_model(K::Invalid, E::Unsent)),
+            Some(review_model(K::Unavailable, E::Response)),
+            None,
+        ] {
+            let (mut domain, task) = review_root();
+            let outage = match &model {
+                Some(model) => model.outage(),
+                None => false,
+            };
+            let expected = if outage {
+                tasks::End::FailedWithReason {
+                    class: tasks::Class::Infrastructure,
+                    reason: model.as_ref().unwrap().words(),
+                }
+            } else {
+                tasks::End::Finished {
+                    result: tasks::TaskResult::Failure {
+                        reason: b"Review model call failed before giving a verdict".as_slice().into(),
+                    },
+                    cancel_delegates: false,
+                }
+            };
+            let payload = domain.hub_link.retain(Payload::Answer {
+                task,
+                attempt: 1,
+                cumulative: 0,
+                read: None,
+                refused: Box::new([]),
+                end: hub::Ending::Link(host::Ending::Failed {
+                    failure: host::Failure::Run(host::RunFailure::Model),
+                    model,
+                    detail: Box::new([]),
+                    work: host::Work { left: None, saved: None },
+                }),
+            });
+            domain.answer_parts.insert(payload, Parts::none()).unwrap();
+            assert!(current_review(&domain, task));
+            assert!(domain.core.current_proof(task, 1));
+            route(&mut domain, hub::Event::AnswerPayload { run: Token::new(task), attempt: Token::new(1), payload });
+            let Some(Work::Core(core::Event::AnswerPayload { end, .. })) = domain.work.pop() else {
+                panic!("core answer")
+            };
+            assert_eq!(end, expected);
+        }
+    }
+
+    fn review_model(kind: host::ModelFailureKind, evidence: host::ModelEvidence) -> host::ModelFailure {
+        host::ModelFailure {
+            endpoint: b"anthropic".as_slice().into(),
+            model: b"claude-opus-5-5".as_slice().into(),
+            kind,
+            evidence,
+            status: Some(403),
+        }
+    }
+
+    fn review_root() -> (Domain, u64) {
+        use crate::tests::{live_task, resume_fixture};
+        let (source, env, task) = live_task(None, tasks::Executor::Agent { charter: 1 });
+        let mut child = source.core.tasks.task(task).unwrap().clone();
+        let mut parent = child.clone();
+        parent.number = 7;
+        child.requester = tasks::Party::Task(7);
+        child.depth = 1;
+        let (mut domain, _) = resume_fixture::root_with_records(
+            resume_fixture::config(7),
+            &env.limits,
+            &[
+                crate::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(
+                    *source.core.tasks.funding(child.funder).unwrap(),
+                ))),
+                crate::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(parent)))),
+                crate::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(child)))),
+            ],
+        );
+        domain
+            .core
+            .proofs
+            .insert(
+                task,
+                core::RunProof {
+                    task,
+                    attempt: 1,
+                    conversation: 1,
+                    credentials: Box::new([]),
+                    accounts: Box::new([]),
+                    placement: Some(Token::new(7)),
+                    account_failure: None,
+                    account_terminal: false,
+                    window: None,
+                    crossed: false,
+                    host: jig_domain_fleet::HostKind::Worker,
+                    offered: None,
+                    outstanding: Box::new([]),
+                    turn: None,
+                    terminal: None,
+                },
+            )
+            .unwrap();
+        domain.forge.restore_begin(env.wall);
+        temper_engine_domain_forge::step(
+            &mut domain.forge,
+            &crate::translate::environment_forge(&env),
+            temper_engine_domain_forge::Event::Restore {
+                record: temper_engine_domain_forge::Stored::Change(Box::new(review_change(task))),
+            },
+            &mut Queue::uncapped(),
+        );
+        (domain, task)
+    }
+
+    fn review_change(task: u64) -> temper_engine_domain_forge::ChangeRow {
+        use temper_engine_domain_forge as forge;
+        use temper_engine_domain_forge_change as change;
+        forge::ChangeRow {
+            signed: Box::new([]),
+            task: 7,
+            repository: skein_forge::api::Repository { forge: 3, repository: 1 },
+            branch: b"temper/7".as_slice().into(),
+            base: b"main".as_slice().into(),
+            title: b"Change".as_slice().into(),
+            body: Box::new([]),
+            priority: 0,
+            ci: None,
+            change: change::Change {
+                ended_held: None,
+                early: change::Early::None,
+                way: change::Way::Queue,
+                landing: None,
+                task: 7,
+                state: change::State::Gating { head: [7; 32], asked: Box::new([1]) },
+                gates: Box::new([change::Gate {
+                    number: 1,
+                    kind: change::GateKind::Agent,
+                    blocking: true,
+                    freshness: change::Freshness::Clean,
+                    eager: true,
+                }]),
+                clean: Box::new([]),
+                gate_failures: Box::new([]),
+                released: None,
+                repairs: 0,
+                resolutions: 0,
+                updates: 0,
+                since: skein_lib::Wall::EPOCH,
+                ready_since: None,
+                owns_turn: false,
+                last_head: Some([7; 32]),
+            },
+            pull: Some(7),
+            pending: None,
+            effect: change::EffectResult::None,
+            delegate: Some((task, change::Delegate::Gate { number: 1, head: [7; 32] })),
+            delegate_status: change::Status::Unknown,
+            verdicts: Box::new([]),
+            goal: None,
+            ending: None,
+            repair_tasks: Box::new([]),
+            resolution_tasks: Box::new([]),
+            result: forge::ChangeResult::empty(),
+            gate_remarks: Box::new([]),
+            drift: None,
+            base_repair: false,
+            queue_repair: None,
+            queue_repairs: 0,
+            producing_charter: 1,
+            review_charter: 1,
+            producing_llm: None,
+            review_llm: None,
+            questions: change::Questions::default(),
+            effect_account: None,
+            producer_failure: None,
+            report: Box::new([]),
+            repairs: None,
+            follows: None,
+            catch_up: None,
+            close: None,
+            merge_result: None,
+            follow_check: None,
         }
     }
 

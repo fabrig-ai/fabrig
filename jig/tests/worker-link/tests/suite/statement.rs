@@ -16,7 +16,7 @@ fn singles(version: u16) -> List<Spoken> {
 }
 
 #[test]
-fn the_engine_states_twelve_first_and_the_worker_uses_it() {
+fn the_engine_states_thirteen_first_and_the_worker_uses_it() {
     let mut world = Joined::new(&fixtures::joined_limits(), 3);
     world.run();
     assert_eq!(world.engine_records().first(), Some(&0x018d));
@@ -26,7 +26,7 @@ fn the_engine_states_twelve_first_and_the_worker_uses_it() {
     assert_eq!(
         wires.iter().map(|wire| (wire.name, wire.version)).collect::<Vec<_>>(),
         [
-            ("jig-worker-wire", 12),
+            ("jig-worker-wire", 13),
             ("smith-pieces", 1),
             ("smith-charter", 5),
             ("smith-transcript", 7),
@@ -48,7 +48,7 @@ fn the_engine_states_twelve_first_and_the_worker_uses_it() {
 
 #[test]
 fn an_engine_without_statements_closes_ranged_workers_and_they_redial_after_the_pause() {
-    let mut world = Joined::with_wires(&fixtures::joined_limits(), 3, singles(11), wire::spoken());
+    let mut world = Joined::with_wires(&fixtures::joined_limits(), 3, singles(12), wire::spoken());
     world.run();
     assert!(world.engine_root.is_empty(), "no worker hello at the old engine");
     assert!(world.worker_root.iter().any(|event| matches!(event, Request::Fact { why: Loss::EngineStatesNoWires })));
@@ -63,11 +63,11 @@ fn an_engine_without_statements_closes_ranged_workers_and_they_redial_after_the_
 
 #[test]
 fn a_single_version_worker_needs_no_statement_and_accepts_one_too() {
-    for version in [11, 12] {
+    for version in [12, 13] {
         let mut world = Joined::with_wires(&fixtures::joined_limits(), 3, wire::spoken(), singles(version));
         world.run();
         assert_eq!(world.engine_root.len(), 1, "hello at version {version}");
-        assert_eq!(world.engine_records().contains(&0x018d), version == 12);
+        assert_eq!(world.engine_records().contains(&0x018d), version == 13);
         world.finish();
     }
 }
@@ -87,7 +87,7 @@ fn repeated_unknown_and_out_of_range_statements_fault_the_link_and_redial() {
                 .push(
                     wire::AgreedWire::new(
                         &fixtures::codec(),
-                        wire::AgreedWireParts { name: name.into(), version: if fault == "unknown" { 3 } else { 13 } },
+                        wire::AgreedWireParts { name: name.into(), version: if fault == "unknown" { 3 } else { 14 } },
                     )
                     .expect("wire"),
                 )

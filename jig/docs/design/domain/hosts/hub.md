@@ -148,7 +148,8 @@ Typed, so the engine can act on them without reading prose:
   last `REASON_BYTES` as a failed job's is (9), so that its hold names
   what failed; a permanent one as permanent;
 - **the run failed,** as it reports it (smith's `domain/run.md`,
-  section 9), or because the source of an LLM account it needs turned
+  section 9), a failure of its model naming the model call where it can
+  (below), or because the source of an LLM account it needs turned
   limited, refused or in need of a sign-in, naming the account, which
   is no failure of its task's (../tasks/lifecycle.md, 6; ../accounts.md, 3.5);
 - **the agent failed:** it could not be started, it exited or was dropped
@@ -203,6 +204,68 @@ The tasks child holds this failure at once (../tasks/lifecycle.md, 6). It is not
 account wait and is not rewritten to an account Recheck. The host, tasks,
 people and client domains each own their `Exceeded` and `Bound`; every
 translation between them is exhaustive, without a wildcard.
+
+**A model call's failure is named,** by structured fields alone, so
+that the engine can class it and a hold can say what failed without
+any prose. A run that failed for its model (`RunFailure::Model`)
+carries, beside that failure, the model call whose failure ended it,
+where its application can name one:
+
+```rust
+pub struct ModelFailure {
+    pub endpoint: Box<[u8]>,     // the endpoint's configured name, as the run's charter names it
+    pub model: Box<[u8]>,        // the model's name, as the run's charter names it
+    pub kind: ModelFailureKind,
+    pub evidence: ModelEvidence,
+    pub status: Option<u16>,     // the HTTP status the call's answer carried, where one came
+}
+impl ModelFailure {
+    pub const NAME_BYTES: u32 = 40;     // each name's bound
+    pub fn outage(&self) -> bool;       // the provider unreachable (below)
+    pub fn words(&self) -> Box<[u8]>;   // its words (below)
+}
+pub enum ModelFailureKind {
+    Unavailable, Overloaded, RateLimited, Exhausted, TimedOut, ContextTooLong,
+    Invalid, Refused, Unsupported, Unauthorized, Protocol, Cancelled, Limit,
+}
+pub enum ModelEvidence { Unsent, Unknown, Response }
+```
+
+- **Where it rides.** `jig-domain-host` owns the three types. The agent
+  capability hands it to the hub in `Finish::Failed { failure, model }`,
+  and the hub's answer carries it in `Ending::Failed { failure, detail,
+  work, model }`, to the engine on the channel (`../../protocol/channel/records.md`,
+  1). `model` is `Some` only beside `Failure::Run(RunFailure::Model)`,
+  and `None` for every other failure, and for a model failure its
+  application names no call for (a provider failed for good, a model
+  that kept declining, a program that could not run). `RunFailure` and
+  `Failure` stay `Copy`.
+- **What it names.** Each name is at most `NAME_BYTES`, cut by its
+  application where longer; neither is ever a provider's text, a body,
+  a diagnostic or a tool's output. The kind is the provider's failure
+  class, one to one, a local limit's being `Limit`; the evidence says
+  whether the call's request went out (`Unsent`: no call reached the
+  model), may have (`Unknown`), or was answered (`Response`).
+- **Its words** are `<endpoint> <model>: <kind>, status <status>,
+  <evidence>`, the status part only where one came, and each name's
+  bytes outside printable ASCII written `?`:
+  `anthropic claude-opus-5-5: unavailable, status 403, unsent`. The kinds
+  are written `unavailable`, `overloaded`, `rate limited`, `exhausted`,
+  `timed out`, `context too long`, `invalid`, `refused`, `unsupported`,
+  `unauthorized`, `protocol`, `cancelled` and `limit`; the evidence
+  `unsent`, `unknown` and `response`. They are at most 123 bytes, within
+  the tasks child's `REASON_BYTES` (128).
+- **An outage** is a failure of kind `Unavailable` or `Overloaded` whose
+  evidence is `Unsent`: the provider could not be reached, and no call
+  reached the model. The engine counts it an infrastructure failure
+  (../tasks/lifecycle.md, 6), as `End::FailedWithReason { class:
+  Infrastructure, reason }`, its words the reason. Any other named
+  model failure, one answered (`Response`) or perhaps sent (`Unknown`)
+  among them, is the run's own: `End::FailedWithReason { class: Run,
+  reason }`, its words the reason. A model failure with none named is
+  `End::Failed(Run)`, as before. So the retry notice and, past the
+  class's tries, the hold name the call, and nothing a provider echoed
+  reaches their readers.
 
 ## 4. Turns
 

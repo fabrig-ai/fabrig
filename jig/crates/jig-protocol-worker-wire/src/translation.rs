@@ -1,6 +1,6 @@
 //! Nested bytes before outer records on send; outer before nested on receipt
 //! (jig/docs/design/protocol/channel/bridges.md, 5, 6 and 8).
-use crate::{Agreed, Application, Carried, Root, v12 as wire};
+use crate::{Agreed, Application, Carried, Root, v13 as wire};
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
@@ -637,7 +637,8 @@ impl Translation {
         let record = record.into_parts();
         let work = self.work(record.work, agreed, down, limits)?;
         let failure = self.failure(record.failure, agreed, down, limits)?;
-        wire::Failed::new(limits, wire::FailedParts { failure, detail: record.detail, work }).or(Err(order()))
+        wire::Failed::new(limits, wire::FailedParts { failure, detail: record.detail, work, model: record.model })
+            .or(Err(order()))
     }
     fn job_finished(
         &mut self,

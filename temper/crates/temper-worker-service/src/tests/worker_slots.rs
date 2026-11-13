@@ -140,9 +140,11 @@ fn assigned(
     let mut spawned = None;
     while let Some(request) = out.pop() {
         if let root::Request::Decode { agent: owner, run, start } = request {
-            let start = crate::worker_route::decode(run, *start, agent);
-            assert!(start.is_ok(), "the stock agent decodes the assignment: {start:?}");
-            root::step(&mut worker.root, &worker.env, root::Event::Decoded { agent: owner, start }, &mut out);
+            let event = crate::worker_route::decoded(owner, run, *start, agent);
+            let root::Event::Decoded { start: Ok(_), .. } = &event else {
+                panic!("the stock agent decodes the assignment: {event:?}")
+            };
+            root::step(&mut worker.root, &worker.env, event, &mut out);
         } else {
             if let root::Request::Process(ref process) = request
                 && let smith_host_domain::process::Request::Spawn { owner, .. } = process.as_ref()

@@ -17,7 +17,7 @@ fn transcript_schema_matches_generated_code_and_all_goldens() {
 
 #[test]
 fn channel_schema_matches_generated_code_and_all_goldens() {
-    assert_family("channel", 7);
+    assert_family("channel", smith_channel::wire::VERSION);
 }
 
 fn assert_family(family: &str, version: u16) {

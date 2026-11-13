@@ -201,8 +201,11 @@ them (8).
     it needs did: a workspace its host could not prepare for now
     (../hosts/hub.md, 3), for a run or a job alike, or a brief's required
     section whose system failed for now or that was not gathered by the
-    brief's deadline (../engine/briefs.md, 1.1). Its allowance and backoff
-    are its own (below);
+    brief's deadline (../engine/briefs.md, 1.1); or a run whose model's
+    provider could not be reached, its model call failed unavailable or
+    overloaded with no call reaching the model, its evidence unsent (an
+    outage, ../hosts/hub.md, 3). Its allowance and backoff are its own
+    (below);
   - *permanent until something on a system changes:* a resource missing,
     an identity refused, an assignment its host found invalid, a brief
     whose system answers wrongly or whose required section cannot fit
@@ -234,8 +237,9 @@ them (8).
   A standing task's tries start again as each of its sessions begins
   (`standing.md`, 5.1).
 - **Infrastructure failures wait longer, within a bound of their own.**
-  A forge or a network down for minutes, or a burst of preparations
-  timing out together, holds no task, while a run's own failures keep
+  A forge, a network or a model's provider down for minutes, or a burst
+  of preparations timing out together, holds no task, while a run's own
+  failures keep
   their tries. Each class counts its own tries: an infrastructure
   failure spends none of another class's, and another class's failure
   none of its. Its defaults, both profiles alike: 12 tries, its backoff
@@ -247,8 +251,9 @@ them (8).
   `.base_ms` and `.max_ms`. Past them the task is held for `Failures` of
   the infrastructure class, as for any class, its hold's words its last
   failure's reason, which names what failed: the host's detail, cut as a
-  failed job's is (../hosts/hub.md, 3), or the brief's section and words
-  (../engine/briefs.md, 1.1). A preparation that always fails still
+  failed job's is (../hosts/hub.md, 3), the brief's section and words
+  (../engine/briefs.md, 1.1), or the model call's words, from its
+  structured fields alone (../hosts/hub.md, 3). A preparation that always fails still
   holds, past that bound. A run whose account waits turns an
   infrastructure failure into a recheck as it does a transient one
   (../accounts.md, 3.5).
@@ -285,7 +290,10 @@ them (8).
   `REASON_BYTES` (128 bytes), retained on its retry notice and its
   `HoldSource::Preparation` after exhaustion. That source covers both
   preparation and activation causes. The terminal proof stores this
-  reason too, so a restart before task settlement retains it.
+  reason too, so a restart before task settlement retains it. A run
+  that failed for a named model call carries the call's words so, in
+  the infrastructure class for an outage and the run's otherwise
+  (../hosts/hub.md, 3), and its hold names the call.
 - **A hold is escalated** (`proposals.md`): it waits for the nearest task or
   party above it that may decide, which it wakes. Whoever it reaches
   decides it: releases the task from it, leaves the task held or passes

@@ -2,7 +2,7 @@ patch 1
 owner jig 2
 
 family jig-worker-wire 11 to 12
-add Call.contract u16 1
-add AgreedWire
-add Agreed
-add FromEngine.wires
+add ModelFailureKind
+add ModelEvidence
+add ModelFailure
+add Failed.model option ModelFailure none

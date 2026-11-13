@@ -126,8 +126,8 @@ them.
   `data/codec/bridges.md`, 4): a build speaks, negotiates and translates
   down to every version from it to its current.
 - **At the landing of this design's milestone** (R4,
-  `../draft/redeploys.execution.md`): `jig-worker-wire` 11, its current
-  12; `smith-charter` 4, its current 5; `smith-pieces`,
+  `../draft/redeploys.execution.md`): `jig-worker-wire` 12, its current
+  13; `smith-charter` 4, its current 5; `smith-pieces`,
   `smith-transcript` and `temper-worker-wire` at their current. Each move
   this milestone makes keeps its floor at the version before, so its
   reverse is held from the start.

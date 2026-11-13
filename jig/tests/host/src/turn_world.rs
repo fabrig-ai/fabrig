@@ -477,7 +477,7 @@ impl World {
             owner: self.owner.expect("assigned"),
             turns,
             spent: u64::from(turns) * 17,
-            finish: Finish::Failed { failure },
+            finish: Finish::Failed { failure, model: None },
         }));
     }
 

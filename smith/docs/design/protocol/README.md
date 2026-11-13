@@ -388,7 +388,7 @@ to an older reader or writer. Each has one version at a time.
     section 12), so a reader is still handed one version.
   - **the event stream** carries its version on every record, and a
     reader refuses a stream in another (events.md, section 6).
-- **Where each is.** The channel speaks version 7 (channel.md, section
+- **Where each is.** The channel speaks version 8 (channel.md, section
   2); the pieces a host keeps, `smith-pieces`, version 1 (above); the
   charter and its result, version 5 (charter.md, section 5); turns
   and transcripts, version 7 (transcript.md, section 6); the event

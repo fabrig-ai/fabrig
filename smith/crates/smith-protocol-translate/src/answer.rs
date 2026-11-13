@@ -190,6 +190,7 @@ fn model_fault(
                         code: report.code,
                         request_id: report.request,
                         field: report.field,
+                        status: report.status,
                     },
                 ) {
                     Ok(value) => value,

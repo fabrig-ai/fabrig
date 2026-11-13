@@ -250,6 +250,7 @@ fn a_bad_or_missing_answer_part_discards_all_of_its_parts() {
         failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: Some(Token::new(2)) }),
         detail: Box::new([]),
         work: host::Work { left: Some(Token::new(1)), saved: None },
+        model: None,
     });
     for bytes in [b"".as_slice(), &[0, 0, 0, 0, 3], &[0, 0, 0, 1]] {
         let parts = [
@@ -276,6 +277,7 @@ fn a_named_preparation_part_reaches_the_roots_parts() {
         failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: Some(Token::new(2)) }),
         detail: Box::new([]),
         work: host::Work { left: None, saved: None },
+        model: None,
     });
     let parts = [jig_protocol_worker_wire::Part {
         token: Token::new(2),
@@ -489,6 +491,7 @@ fn the_roots_facts_are_drained_and_counted_after_each_step() {
                 failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: None }),
                 detail: Box::new([]),
                 work: host::Work { left: None, saved: None },
+                model: None,
             },
         },
     };
@@ -878,6 +881,7 @@ fn failed_answer_detail_reaches_operator_once() {
                 failure: host::Failure::Run(host::RunFailure::Model),
                 detail: b"program claude exit 1: bad stream".as_slice().into(),
                 work: host::Work { left: None, saved: None },
+                model: None,
             },
             47,
             full,

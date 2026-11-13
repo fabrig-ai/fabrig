@@ -840,8 +840,8 @@ impl Worker {
             }
             root::Request::Process(request) => self.process(*request),
             root::Request::Decode { agent, run, start } => {
-                let start = worker_route::decode(run, *start, &self.agent);
-                root::step(&mut self.root, &self.env, root::Event::Decoded { agent, start }, &mut self.out);
+                let event = worker_route::decoded(agent, run, *start, &self.agent);
+                root::step(&mut self.root, &self.env, event, &mut self.out);
             }
             root::Request::Encode { owner, value } => {
                 let encoded = worker_route::encode(value, &self.agent);

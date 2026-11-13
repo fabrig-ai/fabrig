@@ -2,7 +2,7 @@ use super::fixtures::SIZES_ONE_SLOT;
 use crate::{
     self as wire,
     sizes::{self, Sizes},
-    v12,
+    v13,
 };
 use skein_lib::{List, Reader, Writer};
 
@@ -121,5 +121,5 @@ fn whole_source_lists_enforce_bounds_through_round_trip() {
             assert_eq!(wire::Sources::decode(&limits, &mut Reader::new(&writer.finish())), Ok(sources));
         }
     }
-    v12::check_limits(&limits).expect("source limits");
+    v13::check_limits(&limits).expect("source limits");
 }

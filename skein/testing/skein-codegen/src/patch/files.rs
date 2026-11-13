@@ -104,7 +104,17 @@ impl Crate {
         if let Some(bytes) = landed.files.get(Path::new("schema/wires")) {
             let source = core::str::from_utf8(bytes)
                 .map_err(|error| Error::Schema { path: PathBuf::from("schema/wires"), error: error.to_string() })?;
-            base.wire_floors = floors(source, |family| base.kept.contains_key(family))?;
+            // Before floors were named, each landed wire spoke its build alone.
+            // Normalize only that history; current manifests must name a floor.
+            let source = source
+                .lines()
+                .map(|line| {
+                    let words = line.split('#').next().unwrap_or_default().split_whitespace().collect::<Vec<_>>();
+                    if let [family] = words.as_slice() { format!("{family} build") } else { line.to_owned() }
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            base.wire_floors = floors(&source, |family| base.kept.contains_key(family))?;
             base.wires = base.wire_floors.keys().cloned().collect();
         }
         Ok(base)

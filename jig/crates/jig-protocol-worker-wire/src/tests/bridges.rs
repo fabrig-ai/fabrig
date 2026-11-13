@@ -26,7 +26,7 @@ fn credentials_have_one_layout_from_the_floor() {
 #[test]
 fn running_attempt_kinds_are_present_and_total_from_the_floor() {
     let bridge =
-        kept::bridge(skein_codec::patch::Capacity { versions: 3, patches: 3, text: 32_768, bytes: 1024, nodes: 128 })
+        kept::bridge(skein_codec::patch::Capacity { versions: 4, patches: 4, text: 32_768, bytes: 1024, nodes: 128 })
             .expect("worker bridge accepts records and enumeration roots");
     // Enumeration roots are bridgeable too, even though a frame holds a record alone.
     assert_eq!(bridge.total(wire::VERSION, b"FromEngine"), Some(true));
@@ -75,9 +75,9 @@ fn running_attempt_kinds_are_present_and_total_from_the_floor() {
 fn kept_terms_exclude_fields_and_kinds_the_version_does_not_have() {
     let limits = super::fixtures::LIMITS;
     let schema = crate::schema(&limits).expect("terms");
-    assert_eq!(schema.range(), Some((11, 12)));
-    let old = schema.version(11).expect("floor");
-    let current = schema.version(12).expect("current");
+    assert_eq!(schema.range(), Some((12, 13)));
+    let old = schema.version(12).expect("floor");
+    let current = schema.version(13).expect("current");
     assert_eq!(old.kind(0x018d), None);
     assert_eq!(current.kind(0x018d).expect("statement").largest, 612);
     assert_eq!(old.kind(0x0102).expect("old call").largest + 2, current.kind(0x0102).expect("current call").largest);
@@ -99,7 +99,7 @@ fn kept_terms_exclude_fields_and_kinds_the_version_does_not_have() {
             for tag in 0..count {
                 let variant = text.variant(VariantIx::new(first.index() + tag));
                 let bound = text
-                    .most_bytes_within(variant.record.expect("record"), &crate::v12::LIMIT_NAMES, &limits.values())
+                    .most_bytes_within(variant.record.expect("record"), &crate::v13::LIMIT_NAMES, &limits.values())
                     .expect("bound");
                 let kind = version.kind(base + u16::try_from(tag).expect("tag fits")).expect("kind");
                 assert_eq!(kind.direction, direction);

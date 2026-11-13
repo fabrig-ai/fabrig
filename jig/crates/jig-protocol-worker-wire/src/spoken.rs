@@ -121,10 +121,10 @@ mod tests {
             assert_eq!(wire.layouts.len(), count);
         }
         let jig = wires.get(0).expect("jig");
-        let rebuilt = Spoken::of(jig.name, crate::patches::kept::jig_worker_wire::TEXTS, 12).expect("raised floor");
-        assert_eq!(rebuilt.lowest, 12);
+        let rebuilt = Spoken::of(jig.name, crate::patches::kept::jig_worker_wire::TEXTS, 13).expect("raised floor");
+        assert_eq!(rebuilt.lowest, 13);
         assert_eq!(rebuilt.layouts.len(), 1);
-        assert_eq!(rebuilt.layout(12), jig.layout(12));
+        assert_eq!(rebuilt.layout(13), jig.layout(13));
     }
 
     #[test]

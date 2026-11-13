@@ -170,6 +170,12 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
         )) => tasks::End::Failed(tasks::Class::Transient),
         host::Ending::Refused(host::Refusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Permanent),
         host::Ending::Parked { .. } => tasks::End::Parked,
+        host::Ending::Failed { failure: host::Failure::Run(host::RunFailure::Model), model: Some(model), .. } => {
+            tasks::End::FailedWithReason {
+                class: if model.outage() { tasks::Class::Infrastructure } else { tasks::Class::Run },
+                reason: model.words(),
+            }
+        }
         host::Ending::Failed { failure, detail, .. } => match failure {
             host::Failure::Run(host::RunFailure::Exceeded(value)) => tasks::End::Exceeded(tasks::Exceeded {
                 bound: match value.bound {

@@ -287,7 +287,7 @@ impl World {
             Request::Process(request) => self.process(*request),
             Request::Decode { agent, run, start } => {
                 let start = protocol::decode(run, *start, &self.env.limits.agent);
-                self.owed.push_back(Event::Decoded { agent, start });
+                self.owed.push_back(Event::Decoded { agent, start, endpoints: Box::new([]) });
             }
             Request::Encode { owner, value } => {
                 self.owed.push_back(Event::Encoded { owner, encoded: protocol::encode(value) });
