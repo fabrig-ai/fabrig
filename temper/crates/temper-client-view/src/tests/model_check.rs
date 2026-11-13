@@ -721,7 +721,7 @@ fn took_names_the_account_that_answered_and_the_newest_row_wins() {
         let (tree, _) = from_root(&root, &w);
         assert!(model_check::of_account(&root, &w, 1).is_none());
         assert!(model_check::of_account(&root, &w, 2).is_some());
-        assert_eq!(model_check::stopped(&root, &w), Some((Box::from(b"ChatGPT".as_slice()), 1)));
+        assert_eq!(crate::common::model_check::stopped(&root, &w), Some((Box::from(b"ChatGPT".as_slice()), 1)));
         position(&tree, Role::Paragraph, "ChatGPT plan · ChatGPT didn’t answer".as_bytes());
         position(&tree, Role::Paragraph, "ChatGPT didn’t answer within a minute.".as_bytes());
         assert_eq!(items(&tree).len(), 2);

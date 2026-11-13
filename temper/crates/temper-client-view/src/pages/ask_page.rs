@@ -122,7 +122,7 @@ fn opening(b: &mut Builder, root: &Domain, ways: &StockWays, w: &Words, bindings
         }
         WaysState::Shown(_) => {}
     }
-    super::ways::tabs(b, ways, w, bindings, project);
+    crate::common::ways::tabs(b, ways, w, bindings, project);
     let tabs = ways.tabs();
     if let Some(index) = ways.shown()
         && let Some(tab) = tabs.get(index)
@@ -133,14 +133,14 @@ fn opening(b: &mut Builder, root: &Domain, ways: &StockWays, w: &Words, bindings
         if !tab.line.is_empty() {
             paragraph(b, &tab.line, look::WAYS_SAYS);
         }
-        super::ways::drawing(b, &tab.path, ways.open(), w, bindings, project);
+        crate::common::ways::drawing(b, &tab.path, ways.open(), w, bindings, project);
         if let Some(open) = ways.open()
             && let Some(stop) = tab.path.stops().get(open)
         {
-            super::ways::card(b, stop, w, bindings, project);
+            crate::common::ways::card(b, stop, w, bindings, project);
         }
         foot(b, root, ways, index, w, bindings, project);
-        super::ways::refused(b, ways, w);
+        crate::common::ways::refused(b, ways, w);
         b.close();
     }
 }
@@ -156,7 +156,7 @@ fn foot(
 ) {
     b.open(Role::Slot);
     b.style(look::WAYS_FOOT);
-    super::ways::legend(b, w);
+    crate::common::ways::legend(b, w);
     b.open(Role::Slot);
     b.style(look::WAYS_ACTS);
     b.open(Role::Button);
@@ -171,7 +171,7 @@ fn foot(
     }
     b.bind(bindings.insert(Act::AskHow));
     b.close();
-    super::ways::act_button(b, ways, index, w, bindings, project);
+    crate::common::ways::act_button(b, ways, index, w, bindings, project);
     b.close();
     b.close();
 }

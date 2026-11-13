@@ -2,6 +2,7 @@
 use super::{
     confirmation, heading, key_field, named, named_control, omitted, outcome, provider_name, run, state, text,
 };
+use crate::common::accounts::playground;
 use crate::{
     accounts::{
         Bindings, Meaning,
@@ -18,12 +19,6 @@ use temper_client_domain::{
     pages::accounts::{self, Act, Operation, Row, SignInState, Way},
 };
 
-pub(super) fn playground(root: &Domain, provider: Option<u32>) -> bool {
-    match root.forge().playground_provider() {
-        Some(number) => provider == Some(number),
-        None => false,
-    }
-}
 pub(super) fn own(
     b: &mut Builder,
     root: &Domain,

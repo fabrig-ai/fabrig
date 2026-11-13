@@ -41,7 +41,7 @@ pub(crate) mod team;
 pub(crate) mod tell;
 pub(crate) mod terminal;
 pub(crate) mod told;
-pub(crate) mod ways;
+pub(crate) use crate::common::ways;
 pub(crate) mod welcome;
 mod welcome_copy;
 mod welcome_model;
