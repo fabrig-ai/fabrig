@@ -4,6 +4,7 @@ pub mod description;
 #[doc(hidden)]
 pub mod fake;
 pub mod hosts;
+pub mod openings;
 pub mod record;
 pub mod redeploy;
 pub mod referee;

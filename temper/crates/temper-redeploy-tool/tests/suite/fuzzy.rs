@@ -3,6 +3,9 @@ use temper_redeploy_tool::hosts::quote_bytes;
 #[path = "referee_fuzzy.rs"]
 mod referee;
 
+mod openings;
+mod redeploy;
+
 fn read_word(text: &[u8]) -> Vec<u8> {
     let mut bytes = Vec::new();
     let mut cursor = 0;

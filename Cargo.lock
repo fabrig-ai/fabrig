@@ -7161,11 +7161,16 @@ dependencies = [
 name = "temper-redeploy-tool"
 version = "0.0.0"
 dependencies = [
+ "jig-protocol-worker-wire",
  "serde",
  "serde_json",
+ "skein-lib",
  "skein-scratch",
  "skein-shell",
+ "temper-engine-service",
+ "temper-engine-shell",
  "temper-test-env",
+ "time",
 ]
 
 [[package]]
