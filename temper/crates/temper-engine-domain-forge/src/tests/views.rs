@@ -672,7 +672,6 @@ fn changes_owned_bytes_charges_every_field() {
                 task: fixtures::CHANGE,
                 title: Box::from(TITLE),
                 ready_since: env().wall,
-                alone: false,
                 checks_since: Some(env().wall),
             }]),
         }]),

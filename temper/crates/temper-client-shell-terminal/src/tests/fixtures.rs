@@ -305,7 +305,6 @@ fn populate_page(
                                     task: 9,
                                     title: b"Store: policy record".as_slice().into(),
                                     ready_since: 0,
-                                    alone: false,
                                     checks_since: Some(0),
                                 },
                             )

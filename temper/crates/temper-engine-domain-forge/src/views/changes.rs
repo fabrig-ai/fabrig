@@ -67,7 +67,6 @@ impl Domain {
                         title: crate::text::fit(&row.title, crate::LOGGED_TITLE_BYTES, "…".as_bytes()),
                         ready_since,
                         checks_since,
-                        alone: row.change.alone,
                     })
                     .ok()?;
                 left = left.checked_sub(1)?;

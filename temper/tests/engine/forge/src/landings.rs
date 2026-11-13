@@ -115,6 +115,7 @@ pub struct LandingStep {
     pub decision: landing::Decision,
     pub entry: Option<u64>,
     pub evidence: Option<Box<[top::LandingEvidence]>>,
+    pub news: Vec<(u64, Box<[u8]>)>,
 }
 pub fn read_landing_step(world: &mut World, task: u64, entry: u64, heard: top::LandingHeard) -> LandingStep {
     world.take_seen();
@@ -122,9 +123,13 @@ pub fn read_landing_step(world: &mut World, task: u64, entry: u64, heard: top::L
     let mut decision = None;
     let mut committed = None;
     let mut evidence = None;
+    let mut news = Vec::new();
     for _ in 0..20 {
         world.run_for(1);
         for request in world.take_seen() {
+            if let top::Request::LandingNews { task, member, step } = request {
+                news.push(world.landing_news_words(task, member, step).expect("committed news"));
+            }
             if let top::Request::LandingDecision { task: decided, decision: choice, entry, evidence: facts } = request
                 && decided == task
             {
@@ -137,7 +142,7 @@ pub fn read_landing_step(world: &mut World, task: u64, entry: u64, heard: top::L
             break;
         }
     }
-    LandingStep { decision: decision.expect("landing step made a decision"), entry: committed, evidence }
+    LandingStep { decision: decision.expect("landing step made a decision"), entry: committed, evidence, news }
 }
 
 pub fn drive_landing(world: &mut World, task: u64) {
@@ -313,9 +318,6 @@ impl Trains {
 
 /// A change into a goal's branch, still proved and merged by its landing.
 pub fn ready_on(world: &mut World, task: u64, branch: &[u8], base: &[u8]) {
-    ready_marked(world, task, branch, base, false);
-}
-pub fn ready_marked(world: &mut World, task: u64, branch: &[u8], base: &[u8], alone: bool) {
     world.produce_on(branch, base);
     let pull = world.open_pull(branch, base);
     let head = crate::translate::commit(world.branch(branch));
@@ -324,7 +326,6 @@ pub fn ready_marked(world: &mut World, task: u64, branch: &[u8], base: &[u8], al
     row.branch = Box::from(branch);
     row.base = Box::from(base);
     row.change.task = task;
-    row.change.alone = alone;
     row.change.way = change::Way::Turn;
     row.change.state = change::State::Ready { head, ready_since: world.wall() };
     row.change.ready_since = Some(world.wall());

@@ -1,0 +1,12 @@
+patch 1
+owner temper 8 after jig 5
+
+family temper-store 18 to 19
+drop Change.alone
+add LandingBlamed
+add LandingLeave.blamed
+add LandingRoundEnd.cut
+add LandingSearch
+add LandingRound.search option LandingSearch none
+add LandingEntry.preparation option u16 none
+add LandingEntry.base option fixed 32 none

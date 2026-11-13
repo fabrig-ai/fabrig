@@ -316,8 +316,14 @@ fn landing_preflight_checks_rules_and_live_room() {
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
     d.landing.rows.get_mut(&100).expect("landing").landing.phase = policy::Phase::Landed;
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Ok(()));
-    d.landing.rows.get_mut(&100).expect("landing").entries =
-        Box::new([LandingEntry { entry: 1, member: 0, gate: 0, operation: Operation::Merge }]);
+    d.landing.rows.get_mut(&100).expect("landing").entries = Box::new([LandingEntry {
+        preparation: None,
+        base: None,
+        entry: 1,
+        member: 0,
+        gate: 0,
+        operation: Operation::Merge,
+    }]);
     assert_eq!(d.landing_admits(5, &[fixtures::CHANGE]), Err(LandingRefusal::Landings));
 }
 
@@ -1056,7 +1062,14 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
         member.head = Some(fixtures::HEAD);
         member.base = Some(fixtures::BASE);
         member.candidate = Some(fixtures::HEAD);
-        row.entries = Box::new([LandingEntry { entry: 91, member: 0, gate: 0, operation: Operation::Merge }]);
+        row.entries = Box::new([LandingEntry {
+            preparation: None,
+            base: None,
+            entry: 91,
+            member: 0,
+            gate: 0,
+            operation: Operation::Merge,
+        }]);
     }
     let mut entry = held_issue();
     entry.number = 91;
@@ -1225,8 +1238,14 @@ fn a_formed_landing_is_sealed_against_joining_and_ordering() {
     member.change = OTHER_CHANGE;
     member.repository.repository = OTHER_REPOSITORY.repository;
     let key = [7; 32];
-    d.landing.rows.get_mut(&61).expect("landing").entries =
-        Box::new([LandingEntry { entry: 91, member: 0, gate: 0, operation: Operation::Dispatch }]);
+    d.landing.rows.get_mut(&61).expect("landing").entries = Box::new([LandingEntry {
+        preparation: None,
+        base: None,
+        entry: 91,
+        member: 0,
+        gate: 0,
+        operation: Operation::Dispatch,
+    }]);
     d.landing.results.insert((61, 0, 0, 1), policy::Status::Pending).expect("result room");
     d.landing.keys.insert((61, 0, 0), (fixtures::HEAD, None, key)).expect("key room");
     d.landing.keys.insert((62, 0, 0), (fixtures::HEAD, None, key)).expect("other landing key room");

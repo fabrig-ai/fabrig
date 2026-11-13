@@ -1656,12 +1656,12 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 }
 
 #[test]
-fn embedded_client_refusals_keep_their_bytes_at_client_eighteen() {
+fn embedded_client_refusals_keep_their_bytes_at_client_nineteen() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
     jig_client_protocol_wire::v21::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
-    assert_eq!(wire::CLIENT_VERSION, 18);
+    assert_eq!(wire::CLIENT_VERSION, 19);
 }
 
 #[test]
@@ -2890,14 +2890,12 @@ fn changes_document_encodes_and_decodes() {
                     task: 51,
                     title: Box::from(b"First".as_slice()),
                     ready_since: skein_lib::Wall::from_nanos(123),
-                    alone: false,
                     checks_since: Some(skein_lib::Wall::from_nanos(456)),
                 },
                 forge::ChangesQueued {
                     task: 52,
                     title: Box::from(b"Next".as_slice()),
                     ready_since: skein_lib::Wall::from_nanos(789),
-                    alone: false,
                     checks_since: None,
                 },
             ]),
@@ -3552,7 +3550,6 @@ fn the_worst_small_changes_document_fits_its_decision() {
                     task: u64::from(task),
                     title: Box::from([b't'; forge::LOGGED_TITLE_BYTES]),
                     ready_since: skein_lib::Wall::EPOCH,
-                    alone: false,
                     checks_since: Some(skein_lib::Wall::EPOCH),
                 }]),
             })
