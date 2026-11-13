@@ -961,6 +961,11 @@ impl World {
         self.run_for(1);
     }
 
+    /// Keep the scripted root's mapped reviews before it sends `ReviewsChanged`.
+    pub fn keep_review_facts(&mut self, task: u64, facts: top::ReviewFacts) -> bool {
+        self.top.keep_review_facts(self.wall(), task, facts)
+    }
+
     /// Commit the forge's settings and drive the resulting live-change wakes.
     pub fn keep_settings(&mut self, revision: u64, items: &[top::settings::Asked]) {
         self.top.keep_settings(&self.env, revision, None, items, &mut self.top_out);

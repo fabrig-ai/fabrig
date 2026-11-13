@@ -1433,7 +1433,7 @@ impl Domain {
         let before = crate::panel::ready(row);
         row.priority = priority;
         let saved = row.clone();
-        save_queue_change(self, env, before, saved, out);
+        save_queue_panel(self, env, before, saved, out);
     }
 
     /// Live change procedures in one repository, bounded by the connector's change table.
@@ -1893,6 +1893,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 row.queue_repairs = row.queue_repairs.saturating_add(1);
                 let saved = row.clone();
                 save_change(d, out, saved);
+                crate::readiness::repair_started(d, env, owner, out);
             }
         }
         Event::ProducedTitle { task, child, title, report } => produced_title(d, task, child, &title, report, out),
@@ -3644,6 +3645,7 @@ fn delegate_result(
         return;
     }
     let fresh = row.ending.is_none() && !row.terminal();
+    let mut held_why = None;
     let owned = row.change.owns_turn;
     let mut ended = false;
     if let change::State::Held { was, why } = &row.change.state
@@ -3652,6 +3654,7 @@ fn delegate_result(
                 && kind == change::Delegate::Close
                 && **was == (change::State::Producing { requested: true })))
     {
+        held_why = Some(*why);
         row.change.state = (**was).clone();
         row.change.owns_turn = false;
         ended = true;
@@ -3713,6 +3716,9 @@ fn delegate_result(
     if fresh && let change::State::NoChange { .. } = saved.change.state {
         crate::readiness::ending(d, env, &mut saved, crate::history::Ending::NoChange, out);
     }
+    if ended && let Some(why) = held_why {
+        crate::readiness::released(d, env, &mut saved, why, out);
+    }
     crate::readiness::reconcile(d, env, &mut saved, None, out);
     wake_after_turn(d, &saved, owned);
     save_change(d, out, saved);
@@ -3735,7 +3741,10 @@ fn dependencies_met(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queu
     }
     if let change::State::Producing { .. } = row.change.state {
         row.change.since = env.wall;
-        let saved = row.clone();
+        let mut saved = row.clone();
+        if ended {
+            crate::readiness::released(d, env, &mut saved, change::Hold::Stalled, out);
+        }
         wake_after_turn(d, &saved, owned);
         save_change(d, out, saved);
         if ended {
@@ -3927,7 +3936,9 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     {
         row.change.owns_turn = false;
         let mut saved = row.clone();
-        crate::readiness::unavailable(d, env, &mut saved, crate::history::Unready::Dependency, out);
+        if !heard.cancelled {
+            crate::readiness::unavailable(d, env, &mut saved, crate::history::Unready::Dependency, out);
+        }
         wake_after_turn(d, &saved, true);
         save_change(d, out, saved);
     }
@@ -5269,15 +5280,18 @@ pub(crate) fn in_queue(state: &change::State) -> bool {
 /// New review facts change membership without changing the change's first ready time.
 fn reviews_changed(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     let Some(mut row) = d.changes.get(&task).cloned() else { return };
-    if row.terminal() || row.change.way != change::Way::Queue {
+    if row.terminal() {
         return;
     }
     let yielded = yield_approval_turn(d, &mut row);
-    crate::readiness::reconcile(d, env, &mut row, None, out);
-    if yielded || row.history != d.changes.get(&task).expect("known change").history {
+    crate::readiness::reviews(d, env, &mut row, out);
+    if yielded {
         d.changes.insert(task, row.clone()).expect("replaces change");
+        save_change(d, out, row.clone());
     }
-    save_change(d, out, row.clone());
+    if row.change.way != change::Way::Queue {
+        return;
+    }
     if let Some(tasks) = crate::views::changes_mark(d, row.repository) {
         emit(out, Request::Marked { tasks: Box::from(tasks) });
     }
@@ -8443,6 +8457,16 @@ fn save_queue_change(
 ) {
     crate::readiness::reconcile(d, env, &mut row, None, out);
     d.changes.insert(row.task, row.clone()).expect("existing change");
+    save_queue_panel(d, env, before, row, out);
+}
+
+fn save_queue_panel(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    before: Option<change::Ready>,
+    mut row: ChangeRow,
+    out: &mut Queue<Request>,
+) {
     if row.terminal() {
         connection_wait::take(d, row.task);
     }
