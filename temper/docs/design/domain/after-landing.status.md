@@ -7,7 +7,6 @@ there is no known gap in that projection. Older public history is deferred
 in section 14. The log's other gaps and the retained change rows remain below.
 
 - **Not yet:** 7, *A goal that has ended*: a red of no goal's is not filed as a finding of its project, once per landing, so no triager hears it [in flight: change 751].
-- **Not yet:** 7, *A goal that has ended*: a red of a landing that brought a follow change filed with its follow's owner's area [in flight: change 2006].
 - **Not yet:** 3, by plan `forge-polls-quiet`: a tier polls its run in
   flight every `poll`, not at the client's `poll_at`.
 - **Not yet:** 3: the pending verdict status a run posts on its tip
