@@ -1,4 +1,4 @@
-use super::{chats, fixtures};
+use super::fixtures;
 use crate::{
     frame::Bindings,
     look,
@@ -14,8 +14,9 @@ use temper_client_domain::{
 };
 
 // The mock's row has six landed tasks out of nine (client/pages/README.md).
-const DONE: u32 = 6;
-const TOTAL: u32 = 9;
+
+pub(super) use super::fixtures::goals::{TEXT_BYTES, TOTAL, line, template};
+
 const EMPTY: u32 = 0;
 const ONE: u32 = 1;
 // One link, top, title, metadata, state and headline in the browser contract.
@@ -25,10 +26,7 @@ const META_NODES: u32 = 2;
 // Seven states, with the two needs words checked separately.
 const STATE_CASES: usize = 8;
 // The template fixture's bounds and identities, independent of its name.
-const TEXT_BYTES: u32 = 64;
-const CHARTER: u32 = 1;
-const LABEL: u32 = 1;
-const DEPTH: u32 = 1;
+
 const TASK_WAY: u32 = 2;
 const WHOLE_WAY: u32 = 4;
 const UNTRACKED_WAY: u32 = 7;
@@ -46,12 +44,6 @@ const NOON: u64 = THURSDAY + 12 * HOUR;
 const TODAY_END: u64 = THURSDAY + HOUR + 12 * MINUTE;
 const MONDAY_END: u64 = MONDAY + 18 * HOUR + 40 * MINUTE;
 
-fn line() -> c::TaskLine {
-    let mut line = chats::line();
-    line.delegates_done = DONE;
-    line.delegates_total = TOTAL;
-    line
-}
 fn tree(line: &c::TaskLine, state: State, report: Option<&Report>, words: &Words) -> (Tree, Bindings) {
     let mut b = Builder::new(&fixtures::tree_limits());
     let mut bindings = Bindings::new(fixtures::tree_limits().bindings);
@@ -221,23 +213,7 @@ fn a_row_reads_in_the_terminal() {
         );
     }
 }
-pub(super) fn template(number: u32, name: &[u8], tracked: bool) -> c::Template {
-    c::Template {
-        resources: List::uncapped(),
-        number,
-        name: c::DocumentText::complete(c::Text::new(name.into(), TEXT_BYTES).unwrap()),
-        executor: c::TemplateExecutor::Charter(CHARTER),
-        contract: c::TaskContractDocument::Report { words: TEXT_BYTES },
-        shallower: DEPTH,
-        budget: c::TemplateBudget::AsAllowed { cap: None },
-        deadline: c::TemplateDeadline::None,
-        tracked: if tracked { Some(LABEL) } else { None },
-        flags: line().flags,
-        label: LABEL,
-        grace: None,
-        llm: None,
-    }
-}
+
 #[test]
 fn ways_name_their_templates_in_number_order() {
     let root = fixtures::root_in_project(Some(fixtures::PROJECT));

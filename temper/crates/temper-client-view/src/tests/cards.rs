@@ -4,9 +4,9 @@ use jig_client::{
     words::{DecisionWord, Word},
 };
 use skein_ui::{Builder, phrases::Hole};
-const FUNDS: u64 = 40;
-const LEFT: u64 = 120;
-const AFTER: u64 = 80;
+
+pub(super) use super::fixtures::cards::{AFTER, FUNDS, LEFT, batch_proposal};
+
 #[test]
 fn proposal_funding_uses_the_mockups_pool_sentence() {
     let words = fixtures::words();
@@ -101,63 +101,6 @@ fn live_project_refusals_name_tasks_in_cards_and_send_feedback() {
         assert!(feedback.refused);
         assert!(feedback.after.is_none());
     }
-}
-
-pub(super) fn batch_proposal() -> c::ReadValue {
-    let mut task = fixtures::task::document();
-    task.authority.authority.spend = 6;
-    task.authority.authority.delegation.tasks = 1;
-    task.authority.authority.delegation.depth = 1;
-    task.spec.specification.words =
-        c::DocumentText::complete(c::Text::new(Box::from(*b"Ship update\nDetails"), 32).unwrap());
-    let mut resources = List::with_capacity(1);
-    resources
-        .push(c::Part {
-            connector: fixtures::FORGE,
-            kind: c::PartKind::Resource,
-            key: c::PartKey::Path(fixtures::path(&[b"forge", b"github.com", b"robin", b"tally", b"branch", b"main"])),
-        })
-        .unwrap();
-    let mut tasks = List::with_capacity(1);
-    tasks
-        .push(c::ProposedTask {
-            number: 1,
-            spec: task.spec,
-            executor: c::Executor::Agent { charter: 2 },
-            contract: task.result_contract,
-            authority: task.authority,
-            deadline: c::NewDeadline::Named,
-            budget: 6,
-            funder: task.budget.funder,
-            dependencies: List::with_capacity(0),
-            resources,
-            wake: task.wake,
-            priority: Some(2),
-            cut: false,
-        })
-        .unwrap();
-    let root = fixtures::chat::proposal_root();
-    let mut page = None;
-    for card in root.pages().cards().unwrap() {
-        if let Some(value) = &card.page {
-            page = Some(value.clone());
-            break;
-        }
-    }
-    let mut page = page.unwrap();
-    let c::ReadValue::Proposal(proposal) = &mut page else { panic!("proposal") };
-    proposal.action = c::ProposalAction::Batch(tasks);
-    proposal.funding = List::with_capacity(1);
-    proposal
-        .funding
-        .push(c::FundingOffer {
-            source: c::Funder::Pool { project: fixtures::PROJECT, person: 73, period: 1 },
-            needed: FUNDS,
-            left: Some(LEFT),
-            after: Some(AFTER),
-        })
-        .unwrap();
-    page
 }
 
 #[test]
