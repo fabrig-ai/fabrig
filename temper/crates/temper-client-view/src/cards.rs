@@ -1,8 +1,8 @@
 //! Temper's cards read delivered objects and jig's public decision facts.
 pub(crate) mod delegation;
 pub(crate) mod proposal;
-pub mod words;
 use crate::words::Words;
+pub use crate::words::cards as words;
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_ui::{Builder, Role, Run, phrases::Hole};

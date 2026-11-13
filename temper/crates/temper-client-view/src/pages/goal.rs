@@ -1,7 +1,7 @@
 //! A goal's header, needs, report and side (temper/docs/design/client/pages/goal.md, 2, temper/docs/design/client/pages/task.md, 4, temper/docs/design/client/view.md, 6).
 use super::ask::{self, Kind};
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, TimeForm, Times, Word, Words},
 };
@@ -174,7 +174,7 @@ fn band_controls(
             Kind::Proposal | Kind::Held | Kind::Funds { .. } => Word::HomeOpen,
         };
         let name = w.say(word, &[]);
-        crate::link(
+        crate::bindings::link(
             b,
             &name,
             bindings.insert(Act::Go {
@@ -444,7 +444,7 @@ fn byline(b: &mut Builder, report: Option<&Report>, word: Word, words: &Words, t
     }
 }
 fn chat_link(b: &mut Builder, task: u64, label: &[u8], bindings: &mut Bindings) {
-    crate::link(b, label, bindings.insert(Act::Go { address: Address::Chat { task } }));
+    crate::bindings::link(b, label, bindings.insert(Act::Go { address: Address::Chat { task } }));
     b.style(look::GOAL_BTN);
     b.style(look::GOAL_SMALL);
     b.text(Run::Plain, label);
@@ -591,7 +591,7 @@ impl<'a> Delegates<'a> {
             b.style(look::GOAL_LINE_RUNNING);
         }
         let title = row.chip.title.bytes();
-        crate::link(b, title, bindings.insert(Act::Go { address: Address::Task { task: row.chip.task } }));
+        crate::bindings::link(b, title, bindings.insert(Act::Go { address: Address::Task { task: row.chip.task } }));
         b.text(Run::Plain, title);
         b.close();
         let said = match row.line {

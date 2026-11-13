@@ -13,7 +13,7 @@ pub(super) fn under(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bi
     b.close();
     if question.choices.is_empty() {
         let name = super::say(w, super::T::AnswerInNeeds);
-        crate::link(b, &name, bindings.insert(Act::Needs(needs::Act::Open { object: question.object })));
+        crate::bindings::link(b, &name, bindings.insert(Act::Needs(needs::Act::Open { object: question.object })));
         b.text(Run::Plain, &name);
         b.close();
     } else {

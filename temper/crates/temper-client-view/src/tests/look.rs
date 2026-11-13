@@ -621,7 +621,7 @@ fn the_settings_controls_have_their_own_names_and_small_element() {
     ] {
         assert_eq!(NAMES.style(style), Some(name));
     }
-    assert!(ELEMENTS.contains(&(crate::frame::owner(), Role::Text, SETTINGS_DETAIL, "small")));
+    assert!(ELEMENTS.contains(&(owner(), Role::Text, SETTINGS_DETAIL, "small")));
 }
 
 #[test]

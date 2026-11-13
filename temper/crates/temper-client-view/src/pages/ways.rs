@@ -1,7 +1,7 @@
 //! A project's stock ways, drawn on Ask temper's page and How work runs
 //! (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/settings.md, 2 and temper/docs/design/client/pages/chat/conversation.md, 3).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look, paths,
     words::{Word, Words},
 };
@@ -116,7 +116,7 @@ pub(crate) fn card(b: &mut Builder, stop: &wire::Stop, w: &Words, bindings: &mut
     };
     if let Some(address) = address {
         let label = w.say(Word::WaysOpen, &[Hole::Name(copy_of(card.name()))]);
-        crate::link(b, &label, bindings.insert(Act::Go { address }));
+        crate::bindings::link(b, &label, bindings.insert(Act::Go { address }));
         b.text(Run::Plain, &label);
         b.close();
     }

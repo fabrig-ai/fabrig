@@ -59,7 +59,7 @@ impl Draw<'_> {
         self.styled_link(b, name, page, &[]);
     }
     fn styled_link(&mut self, b: &mut Builder, name: &[u8], page: Public, styles: &[skein_ui::Style]) {
-        let binding = Binding { owner: crate::frame::owner(), token: Token::new(u64::from(self.links.len())) };
+        let binding = Binding { owner: crate::look::owner(), token: Token::new(u64::from(self.links.len())) };
         self.links.push(page).expect("public links within view bounds");
         b.open(Role::Link);
         for style in styles {

@@ -436,7 +436,7 @@ pub(crate) fn settings(
     root: &temper_client_domain::Domain,
     card: &temper_client_domain::pages::inbox::Card,
     words: &Words,
-    bindings: &mut crate::frame::Bindings,
+    bindings: &mut crate::bindings::Bindings,
     replaced: bool,
 ) -> bool {
     let Some(facts) = settings_facts(card) else { return false };
@@ -641,7 +641,7 @@ fn settings_read_state(card: &temper_client_domain::pages::inbox::Card) -> Setti
 fn settings_button(
     b: &mut Builder,
     words: &Words,
-    bindings: &mut crate::frame::Bindings,
+    bindings: &mut crate::bindings::Bindings,
     word: Word,
     act: temper_client_domain::pages::Act,
     primary: bool,
@@ -1059,7 +1059,7 @@ fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     out.finish()
 }
 fn project_label(root: &temper_client_domain::Domain, project: u32) -> Box<[u8]> {
-    match crate::pages::project_name(root.pages().me(root.client()), project) {
+    match crate::common::project_name(root.pages().me(root.client()), project) {
         Some(name) => name,
         None => skein_lib::bytes::copy_of(skein_lib::Decimal::of(u64::from(project)).as_bytes()),
     }
@@ -1090,7 +1090,7 @@ pub(crate) fn terminal(
     root: &temper_client_domain::Domain,
     card: &temper_client_domain::pages::inbox::Card,
     words: &Words,
-    bindings: &mut crate::frame::Bindings,
+    bindings: &mut crate::bindings::Bindings,
     rows: u32,
 ) {
     let Some(page) = &card.page else { return };

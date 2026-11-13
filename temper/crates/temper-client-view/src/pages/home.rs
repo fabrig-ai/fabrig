@@ -1,7 +1,7 @@
 //! A project's first page (temper/docs/design/client/pages/README.md).
 //! A stopped try (temper/docs/design/domain/trial.md, 6.3).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Shell, TimeForm, Times},
     words::{Word, Words},
@@ -429,7 +429,11 @@ fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
         let word = if cut || live_cut { Word::HomeAllChatsCut } else { Word::HomeAllChats };
         let label = w.say(word, &[Hole::Number(u64::try_from(count).expect("chat count fits"))]);
         let name = w.say(Word::HomeAllChatsName, &[Hole::Name(label.clone())]);
-        crate::link(b, &name, bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All } }));
+        crate::bindings::link(
+            b,
+            &name,
+            bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All } }),
+        );
         b.text(Run::Plain, &label);
         b.close();
     }
@@ -455,7 +459,11 @@ fn chats(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pro
                 Word::HomeChatName,
                 &[Hole::Name(title.into()), Hole::Name(status.clone()), Hole::Name(age.clone())],
             );
-            crate::link(b, &name, bindings.insert(Act::Go { address: Address::Chat { task: line.chip.task } }));
+            crate::bindings::link(
+                b,
+                &name,
+                bindings.insert(Act::Go { address: Address::Chat { task: line.chip.task } }),
+            );
             let when = crate::accounts::words::join(&[&status, &w.say(Word::ToolSeparator, &[]), &age]);
             row_words(b, w, title, &when);
             b.close();
@@ -527,7 +535,7 @@ fn acts(b: &mut Builder) {
     b.style(look::HOME_ACTS);
 }
 fn go(b: &mut Builder, bindings: &mut Bindings, label: &[u8], address: Address, style: Option<skein_ui::Style>) {
-    crate::link(b, label, bindings.insert(Act::Go { address }));
+    crate::bindings::link(b, label, bindings.insert(Act::Go { address }));
     if let Some(style) = style {
         b.style(style);
     }
@@ -616,7 +624,7 @@ fn to_begin(
             b,
             bindings,
             &w.say(Word::HomeStart, &[]),
-            Act::Go { address: crate::frame::ask_address(root, project) },
+            Act::Go { address: crate::bindings::ask_address(root, project) },
             look::HOME_PRIMARY,
             false,
         );
@@ -957,7 +965,11 @@ fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, p
         w.text(b, word, &[Hole::Number(u64::from(project))]);
         b.close();
         let chats = w.say(Word::Chats, &[]);
-        crate::link(b, &chats, bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All } }));
+        crate::bindings::link(
+            b,
+            &chats,
+            bindings.insert(Act::Go { address: Address::Chats { filter: ChatsFilter::All } }),
+        );
         b.text(Run::Plain, &chats);
         b.close();
     }

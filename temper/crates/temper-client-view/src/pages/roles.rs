@@ -1,7 +1,7 @@
 //! A role's or a rule's page (temper/docs/design/client/pages/README.md).
 use super::settings::{self, Tab};
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };
@@ -23,7 +23,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, pages: &mut Bi
             b.open(Role::Navigation);
             b.style(look::CRUMBS);
             let name = words.say(Word::SettingsHowTab, &[]);
-            crate::link(b, &name, pages.insert(Act::Go { address: Address::Settings { project } }));
+            crate::bindings::link(b, &name, pages.insert(Act::Go { address: Address::Settings { project } }));
             b.style(look::BACK);
             b.text(Run::Plain, &name);
             b.close();

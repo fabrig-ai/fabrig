@@ -158,7 +158,7 @@ pub fn why(
     Some(w.say(word, &[]))
 }
 fn path_set(root: &temper_client_domain::Domain, w: &Words, project: u32) -> Box<[u8]> {
-    let name = crate::pages::project_name(root.pages().me(root.client()), project)
+    let name = crate::common::project_name(root.pages().me(root.client()), project)
         .unwrap_or(w.say(Word::Project, &[Hole::Number(u64::from(project))]));
     w.say(Word::WhyPathSet, &[Hole::Name(name)])
 }

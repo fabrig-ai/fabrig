@@ -1,7 +1,10 @@
 //! Supplied next-run choices and account waits (client/pages/README.md and client/pages/accounts.md, 2).
 pub(crate) mod picker;
+#[cfg(test)]
+pub(crate) use crate::words::MODEL_SHOWN;
+pub(crate) use crate::words::shown;
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     words::{TimeForm, Times, Word as W, Words},
 };
 use alloc::boxed::Box;
@@ -12,6 +15,7 @@ use temper_client_domain::{
     Address, Domain,
     pages::{
         Act,
+        chats::ended,
         choice::{self},
     },
 };
@@ -28,7 +32,7 @@ fn line(b: &mut Builder, w: &Words, word: W, holes: &[Hole]) {
 }
 fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], act: Act, pressed: bool) {
     if role == Role::Link {
-        crate::link(b, name, bindings.insert(act));
+        crate::bindings::link(b, name, bindings.insert(act));
         b.text(skein_ui::Run::Plain, name);
     } else {
         b.open(role);
@@ -45,7 +49,7 @@ fn account_link(b: &mut Builder, bindings: &mut Bindings, name: &[u8]) {
 }
 pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     if root.approval().is_some()
-        || crate::frame::unavailable(root).is_some()
+        || crate::column::unavailable(root).is_some()
         || match root.pages().address() {
             // page-view: draw Remembered.
             Address::Told
@@ -126,7 +130,7 @@ pub(crate) fn composer(
     times: &mut Times,
 ) {
     if let Some(task) = task {
-        if task.result.is_some() || crate::pages::chats::ended(&task.chip) {
+        if task.result.is_some() || ended(&task.chip) {
             return;
         }
         match task.chip.executor {
@@ -167,10 +171,7 @@ pub(crate) fn changeable(root: &Domain, task: Option<&c::Task>) -> bool {
     let draft = root.pages().choice();
     can_send(root)
         && match task {
-            Some(task) => {
-                draft.pending.is_some()
-                    || task.result.is_none() && !crate::pages::chats::ended(&task.chip) && editable(task)
-            }
+            Some(task) => draft.pending.is_some() || task.result.is_none() && !ended(&task.chip) && editable(task),
             None => true,
         }
         && match (temper_client_domain::pages::accounts::current_me(root.client()), draft.project()) {
@@ -253,32 +254,6 @@ pub(crate) fn provider_shown(root: &Domain, number: Option<u32>, name: &[u8], w:
     } else {
         skein_lib::bytes::copy_of(name)
     }
-}
-
-/// Includes the UTF-8 ellipsis; smaller phrasebooks retain their joined Name bound.
-pub(crate) const MODEL_SHOWN: u32 = 256;
-pub(crate) fn shown(name: &[u8], w: &Words) -> Box<[u8]> {
-    let Ok(bound) = usize::try_from(MODEL_SHOWN.min(w.name_bytes)) else { return Box::default() };
-    if name.len() <= bound {
-        return skein_lib::bytes::copy_of(name);
-    }
-    let mark = "…".as_bytes();
-    let Some(prefix_bound) = bound.checked_sub(mark.len()) else { return Box::default() };
-    let Some(scan) = prefix_bound.checked_add(1) else { return Box::default() };
-    // Text arrived validated; a continuation byte cannot begin the cut suffix.
-    let mut end = 0;
-    for (index, byte) in name.iter().enumerate().take(scan) {
-        if byte & 0xc0 != 0x80 {
-            end = index;
-        }
-    }
-    let Some(prefix) = name.get(..end) else { return Box::default() };
-    let Some(bytes) = end.checked_add(mark.len()) else { return Box::default() };
-    let mut out = skein_lib::Writer::new(bytes);
-    if out.put(prefix).is_err() || out.put(mark).is_err() {
-        return Box::default();
-    }
-    out.finish()
 }
 
 /// Only work funded by the viewer can name their accounts.

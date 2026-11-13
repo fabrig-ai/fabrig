@@ -304,7 +304,7 @@ fn all_models(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
     b.style(look::MODEL_LONG);
     groups(b, root, w, bindings, true);
     b.close();
-    crate::link(
+    crate::bindings::link(
         b,
         &w.say(W::ModelsAccounts, &[]),
         bindings.insert(Act::Go { address: Address::Models { project: draft.project().expect("picker has project") } }),

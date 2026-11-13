@@ -225,7 +225,7 @@ impl Limits {
             // or a proposal's lead and at most rows role recipients (two nodes each).
             .checked_add(receiving.rows.checked_mul(2)?.checked_add(3)?.max(6))?;
         let text_bytes = choices
-            .checked_mul(crate::choice::MODEL_SHOWN.checked_mul(2)?.checked_add(128)?)?
+            .checked_mul(crate::words::MODEL_SHOWN.checked_mul(2)?.checked_add(128)?)?
             .checked_add(structural.checked_mul(text)?)?
             .checked_add(window_text)?
             .checked_add(live_text)?

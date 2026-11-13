@@ -1,6 +1,6 @@
 //! Home: needs first, updates afterwards, and deciding controls (06.3).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{TimeForm, Times, Word, Words},
 };
@@ -21,7 +21,7 @@ fn text(b: &mut Builder, role: Role, value: &[u8]) {
 }
 fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], act: Act) {
     if role == Role::Link {
-        crate::link(b, name, bindings.insert(act));
+        crate::bindings::link(b, name, bindings.insert(act));
         b.text(Run::Plain, name);
     } else {
         b.open(role);
@@ -572,7 +572,7 @@ pub(crate) fn card_key(object: ObjectKey) -> skein_ui::Key {
         ObjectKey::Result(task) => (5, task, 0),
         ObjectKey::Note { project, note } => (6, u64::from(project), note),
     };
-    skein_ui::Key { owner: crate::frame::owner(), kind, a, b }
+    skein_ui::Key { owner: look::owner(), kind, a, b }
 }
 
 /// The card's wait; task-page decision facts carry no wait.

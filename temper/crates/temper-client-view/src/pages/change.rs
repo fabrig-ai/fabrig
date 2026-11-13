@@ -1,6 +1,6 @@
 //! Layout of the forge's change facts (client/pages/task.md, 3).
 use crate::{
-    frame::Bindings,
+    bindings::Bindings,
     look,
     words::{Word, Words},
 };
