@@ -50,6 +50,7 @@ merged into main brought, each key once. Each is dropped once fixed.
 - test smith-bench::suite pipeline::grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
 - test smith-bench::suite runner::a_recorded_answer_is_observed_before_the_tree_settles
 - test smith-bench::suite runner::an_overflowing_stderr_retains_its_prefix_and_settles_the_tree
+- test temper-box::suite box_front::front_refuses_without_a_first_link_before_starting_steps
 - test temper-box::suite box_listeners::a_box_without_openssl_logs_sign_in_unavailable_once_and_stays_up
 - test temper-box::suite box_listeners::a_fresh_box_prints_its_block_and_nothing_else
 - test temper-box::suite box_listeners::a_later_box_refuses_a_taken_port_naming_the_port_and_document
