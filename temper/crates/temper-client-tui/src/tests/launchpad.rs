@@ -11,7 +11,7 @@ use skein_lib::{List, Queue, Wall};
 use skein_ui::Role;
 use temper_client_domain::{self as d, Address, Domain, Event, Request};
 use temper_client_protocol_wire::{self as wire, v1 as w};
-use temper_client_view::shared::NeedMark;
+use temper_client_view_parts::shared::NeedMark;
 
 const PROJECT: u32 = 1;
 const OTHER_PROJECT: u32 = 2;
@@ -1012,7 +1012,7 @@ fn the_launchpads_are_their_goldens() {
             let mut facts = d::pages::all_home::facts(&root, NOW);
             facts.needs = d::pages::home::Needs::Count { count, cut: false };
             part.lines.get_mut(0).unwrap().words =
-                temper_client_view::shared::all_home_headline(f::words().view(), &facts, NOW).0;
+                temper_client_view_parts::shared::all_home_headline(f::words().view(), &facts, NOW).0;
         }
         views.push(draw(part, size.columns, count)).unwrap();
     }

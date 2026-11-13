@@ -256,12 +256,12 @@ fn the_tui_offers_its_commands() {
         }
         let task = if let Some(chat) = root.pages().chat() { chat.task(root.client()) } else { None };
         if chat {
-            assert!(temper_client_view::shared::offered(&root, task, Close), "{name}");
+            assert!(temper_client_view_parts::shared::offered(&root, task, Close), "{name}");
         }
         if draft {
             assert!(root.pages().chat().unwrap().draft.is_some());
-            assert!(temper_client_view::shared::offered(&root, task, Draft));
-            assert!(temper_client_view::shared::offered(&root, task, Command::Font));
+            assert!(temper_client_view_parts::shared::offered(&root, task, Draft));
+            assert!(temper_client_view_parts::shared::offered(&root, task, Command::Font));
         }
         let found = crate::offered(&root, &words);
         if found.as_ref() != want {

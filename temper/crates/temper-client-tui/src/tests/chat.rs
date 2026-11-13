@@ -14,7 +14,7 @@ use skein_ui::{Role, Style};
 use temper_client_domain::pages::chat::Shown;
 use temper_client_domain::{self as d, Address, Domain, Event};
 use temper_client_protocol_wire::{self as wire, v1 as w};
-use temper_client_view::shared;
+use temper_client_view_parts::shared;
 
 const TASK: u64 = 2;
 const DELEGATE: u64 = 7;
@@ -704,7 +704,7 @@ pub(super) fn talk_root(case: &str) -> Domain {
 
 fn view() -> crate::View {
     let words = f::words();
-    let page = temper_client_view::Limits::of(&f::limits(), words.view()).unwrap();
+    let page = temper_client_view_words::Limits::of(&f::limits(), words.view()).unwrap();
     crate::View::new(&crate::limits(&f::limits(), &page.tree, 512).unwrap(), words)
 }
 fn draw(part: Chat, list: Option<foot::Options>, columns: u16) -> crate::View {
