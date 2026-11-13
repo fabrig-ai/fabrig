@@ -34,7 +34,7 @@ fn covers_requires_the_branch_and_any_named_touched_set() {
         ([1].as_slice(), b"main".as_slice(), Touched::UNKNOWN, true),
         ([1].as_slice(), b"other".as_slice(), Touched::UNKNOWN, false),
     ] {
-        let rule = crate::settings::LandingRule {
+        let rule = settings::LandingRule {
             sets: sets.into(),
             pattern: GatePattern {
                 segments: Box::new([b"branch".as_slice().into()]),

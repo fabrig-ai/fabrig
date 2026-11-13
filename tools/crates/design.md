@@ -127,7 +127,7 @@ Its exceptions when it lands, with today's lines as read by section 2's rules:
 | `jig-domain-core` | about 100,000, and about 88,000 after G6 | `Core`'s state grouped into owned parts (`jig/docs/development/debt/D003-core-one-object.md`), then a split along them: G6 moves its vocabulary out, but `Core` can't be cut (`jig/docs/design/domain/engine/README.md`, 3) |
 | `temper-engine-service` | about 66,000 | G4 |
 | `temper-client-domain` | about 84,000 | its split, not yet planned |
-| `temper-engine-domain-forge` | about 74,000 | G5 |
+| `temper-engine-domain-forge` | about 79,000, and about 70,000 after G5 | `Domain`'s state grouped into owned parts (`temper/docs/development/debt/D013-forge-one-object.md`), then a split along them: G5 moves its vocabulary out, but `Domain` can't be cut (`temper/docs/design/domain/forge/README.md`, 3) |
 | `jig-protocol-store` | about 69,000 | its split, not yet planned: G2 moves only its generated record code, which this bound leaves out |
 | `temper-client-tools` | about 67,000 | its split, not yet planned |
 | `jig-client-view` | about 64,000 | its split, not yet planned |

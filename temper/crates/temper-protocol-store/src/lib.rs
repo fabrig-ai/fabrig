@@ -34,7 +34,7 @@ pub fn forge_changes_bound() -> Option<u32> {
 /// Largest encodings under the forge's and task spec's bounds, before jig's key tag.
 #[must_use]
 pub fn application(
-    limits: &temper_engine_domain_forge::Limits,
+    limits: &temper_engine_domain_forge_vocabulary::Limits,
     change_words: u32,
 ) -> Option<jig_protocol_store::sizes::Application> {
     let bounds = bounds(limits, change_words)?;
@@ -50,7 +50,7 @@ pub fn application(
 pub enum Undecodable {
     Malformed,
     /// The setting's identity survives refusal of a retired stored value.
-    Setting(temper_engine_domain_forge::settings::SettingKey),
+    Setting(temper_engine_domain_forge_vocabulary::settings::SettingKey),
 }
 
 /// Schema limits checked once alongside the forge's key bounds.
@@ -58,7 +58,7 @@ pub enum Undecodable {
 pub struct Bounds {
     // Keep schema limits out of the store's by-value construction frames.
     limits: Box<v17::Limits>,
-    forge: temper_engine_domain_forge::Limits,
+    forge: temper_engine_domain_forge_vocabulary::Limits,
 }
 impl Bounds {
     /// The generated decoder's limits.
@@ -68,14 +68,14 @@ impl Bounds {
     }
     /// The domain limits for names and key decoding.
     #[must_use]
-    pub const fn forge(&self) -> &temper_engine_domain_forge::Limits {
+    pub const fn forge(&self) -> &temper_engine_domain_forge_vocabulary::Limits {
         &self.forge
     }
 }
 
 /// Make schema bounds from the forge and task spec bytes, refusing any ceiling overflow.
 #[must_use]
-pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> Option<Bounds> {
+pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_words: u32) -> Option<Bounds> {
     let limits = v17::Limits {
         closer_selections: forge.tasks,
         closing_question_words: forge.client.op_bytes.max(change_words),
@@ -84,7 +84,7 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         closing_message_words: jig_domain_tasks::HOLD_ACCOUNT_BYTES.checked_add(29)?,
         status_brief_sentence: 200,
         status_brief_lede: 600,
-        effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,
+        effect_account_words: temper_engine_domain_forge_vocabulary::EFFECT_ACCOUNT_BYTES,
         // Explicit titles fit the forge; the body retains the task words.
         change_row_title: 256,
         change_row_body: change_words,
@@ -98,8 +98,8 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         dispatch_input_value: forge.client.op_bytes,
         dispatch_write_workflow: 255,
         dispatch_write_branch: forge.name_bytes,
-        adopted_workflows: u32::try_from(temper_engine_domain_forge::WORKFLOWS).ok()?,
-        adopted_workflows_item: u32::try_from(temper_engine_domain_forge::WORKFLOW_BYTES).ok()?,
+        adopted_workflows: u32::try_from(temper_engine_domain_forge_vocabulary::WORKFLOWS).ok()?,
+        adopted_workflows_item: u32::try_from(temper_engine_domain_forge_vocabulary::WORKFLOW_BYTES).ok()?,
         dispatch_write_inputs: u32::try_from(skein_forge::api::INPUTS).ok()?,
         set_status_description: 140,
         set_status_link: 2048,

@@ -17,7 +17,7 @@ impl ResultText {
         Self { bytes: Box::new([]), cut: 0 }
     }
 
-    pub(crate) fn add(&mut self, bytes: &[u8], bound: u32) {
+    pub fn add(&mut self, bytes: &[u8], bound: u32) {
         let room = skein_lib::usize_of(bound).saturating_sub(self.bytes.len());
         let kept = if self.cut == 0 { crate::held::edge(bytes, room.min(bytes.len()), false) } else { &[] };
         let mut writer = Writer::new(self.bytes.len().checked_add(kept.len()).expect("bounded result text"));
@@ -32,7 +32,7 @@ impl ResultText {
         self.cut = self.cut.saturating_add(text.cut);
     }
     /// Least room for either the whole text or a mark counting every omitted byte.
-    pub(crate) fn minimum_room(&self) -> u64 {
+    pub fn minimum_room(&self) -> u64 {
         let length = skein_lib::len_u64(self.bytes.len());
         let lost = self.cut.saturating_add(length);
         let marker = 2_u64
@@ -96,7 +96,7 @@ impl ChangeResult {
         }
     }
 
-    pub(crate) fn checked(&mut self, head: Commit, checks: &[Status], bound: u32) -> bool {
+    pub fn checked(&mut self, head: Commit, checks: &[Status], bound: u32) -> bool {
         let mut checks_text = ResultText::empty();
         let mut failed = ResultText::empty();
         for check in checks {
@@ -135,7 +135,7 @@ impl ChangeResult {
         self.failed = failed;
         true
     }
-    pub(crate) fn repaired(&mut self, why: change::Repair, head: Option<Commit>, bound: u32) {
+    pub fn repaired(&mut self, why: change::Repair, head: Option<Commit>, bound: u32) {
         if self.repair_count != 0 {
             self.repairs.add(b"; ", bound);
         }
@@ -159,14 +159,14 @@ impl ChangeResult {
         }
     }
     /// A CI repair ended by a green head (domain/forge/change/repairs.md). Nothing to say where none was asked.
-    pub(crate) fn ci_passed(&mut self, head: &Commit, bound: u32) {
+    pub fn ci_passed(&mut self, head: &Commit, bound: u32) {
         if self.repair_count == 0 {
             return;
         }
         self.repairs.add(b", then CI passed at ", bound);
         self.repairs.add(&crate::commit_text(head), bound);
     }
-    pub(crate) fn reviewed(&mut self, head: &Commit, verdict: &[u8], bound: u32) {
+    pub fn reviewed(&mut self, head: &Commit, verdict: &[u8], bound: u32) {
         if !self.reviews.bytes.is_empty() || self.reviews.cut != 0 {
             self.reviews.add(b"; ", bound);
         }
@@ -175,7 +175,7 @@ impl ChangeResult {
         self.reviews.add(&crate::commit_text(head), bound);
     }
     /// Retain a successful repair account with its task identity in completion order.
-    pub(crate) fn completed(&mut self, child: u64, report: &[u8], bound: u32) {
+    pub fn completed(&mut self, child: u64, report: &[u8], bound: u32) {
         self.repairs.add(b"\nsuccessful repair task ", bound);
         self.repairs.add(Decimal::of(child).as_bytes(), bound);
         self.repairs.add(b": ", bound);

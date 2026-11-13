@@ -5904,10 +5904,10 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "temper-client-protocol-wire",
- "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-records-forge",
@@ -6029,6 +6029,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
 ]
 
@@ -6070,6 +6071,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-engine-domain-forge-vocabulary"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-core-vocabulary",
+ "jig-domain-people",
+ "jig-domain-tasks",
+ "skein-forge",
+ "skein-forge-client",
+ "skein-lib",
+ "temper-client-protocol-wire",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-closer",
+ "temper-engine-domain-forge-issues",
+ "temper-engine-domain-forge-landing",
+ "temper-engine-domain-forge-tiers",
+ "temper-protocol-reaches",
+]
+
+[[package]]
 name = "temper-engine-domain-trials"
 version = "0.0.0"
 dependencies = [
@@ -6081,8 +6101,8 @@ name = "temper-engine-domain-ways"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
- "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
 ]
 
@@ -6399,9 +6419,9 @@ dependencies = [
  "skein-shell",
  "smith-agent-world",
  "smith-domain-run",
- "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
+ "temper-engine-domain-forge-vocabulary",
  "temper-engine-service",
  "temper-forge-setup",
  "temper-init",
@@ -6852,6 +6872,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-forge-vocabulary",
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-store-codec",
@@ -7279,7 +7300,7 @@ dependencies = [
  "smith-domain-run",
  "smith-domain-session",
  "smith-host-domain",
- "temper-engine-domain-forge",
+ "temper-engine-domain-forge-vocabulary",
  "temper-worker-domain-checkout",
  "temper-worker-domain-tooling",
 ]

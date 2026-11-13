@@ -2,7 +2,7 @@ use super::{Bounds, FITS, Undecodable, w};
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{List, Reader, Wall, Writer};
-use temper_engine_domain_forge as d;
+use temper_engine_domain_forge_vocabulary as d;
 
 pub(super) fn encode_repository(value: api::Repository) -> w::Repository {
     let api::Repository { forge, repository } = value;

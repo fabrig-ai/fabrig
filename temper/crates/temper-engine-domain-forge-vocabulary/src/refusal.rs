@@ -70,7 +70,7 @@ fn recovery(error: skein_forge::api::Error) -> &'static [u8] {
     }
 }
 
-pub(crate) fn read(
+pub fn read(
     out: &mut skein_lib::Queue<crate::Request>,
     task: u64,
     operation: &'static [u8],
@@ -125,7 +125,7 @@ fn parts(branch: &[u8]) -> Box<[Box<[u8]>]> {
     parts.into_boxed()
 }
 
-pub(crate) fn limit(
+pub fn limit(
     out: &mut skein_lib::Queue<crate::Request>,
     task: u64,
     repository: skein_forge::api::Repository,
@@ -145,7 +145,7 @@ pub(crate) fn limit(
     });
 }
 
-pub(crate) fn resource_limit(
+pub fn resource_limit(
     out: &mut skein_lib::Queue<crate::Request>,
     task: u64,
     operation: &'static [u8],

@@ -275,8 +275,8 @@ temper's crates follow jig's rule (jig's `README.md`, section 15), with
 temper's side before the layer:
 
 - `temper-engine-domain` (the root), its forge children
-  `temper-engine-domain-forge`, `-forge-change`, `-forge-landing`,
-  `-forge-issues` and `-forge-tiers`, which own skein's forge client,
+  `temper-engine-domain-forge`, `-forge-vocabulary`, `-forge-change`,
+  `-forge-landing`, `-forge-issues` and `-forge-tiers`, which own skein's forge client,
   `skein-forge-client`, and its calendar, `temper-engine-domain-calendar`;
   `temper-worker-domain` (the worker's root),
   `temper-worker-domain-checkout` and its job capability,

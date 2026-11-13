@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_kv::{KeyReader, KeyWriter};
 use skein_lib::List;
-use temper_engine_domain_forge as forge;
+use temper_engine_domain_forge_vocabulary as forge;
 
 /// The `Binding` family's byte, taken at landing as a version is (protocol/store.md, 2).
 pub const BINDING: u8 = 18;

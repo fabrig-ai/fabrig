@@ -17,7 +17,7 @@ jig-domain-link.workspace = true
 smith-host-domain.workspace = true
 
 [dev-dependencies]
-temper-engine-domain-forge.workspace = true
+temper-engine-domain-forge-vocabulary.workspace = true
 smith-domain-run.workspace = true
 smith-domain-session.workspace = true
 

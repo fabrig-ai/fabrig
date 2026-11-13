@@ -7,7 +7,7 @@ use skein_lib::{List, Reader};
 // The schema has eight answer-record words and four name-list words.
 const ANSWER_WORDS: u32 = 8;
 const NAME_WORDS: u32 = 4;
-use temper_engine_domain_forge as forge;
+use temper_engine_domain_forge_vocabulary as forge;
 
 // Ordinary test code: one framing loop, with each declaration's own decoder.
 fn pieces<T>(bytes: &[u8], bounds: &Bounds, decode: fn(&Bounds, &mut Reader<'_>) -> T) -> Box<[T]> {
