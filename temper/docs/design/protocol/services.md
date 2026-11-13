@@ -286,7 +286,12 @@ Every piece holds to these:
   from the startup's checked start and `Service::prepared` itself.
 - **No piece's tests use a crate that depends on that piece,** which
   would give them two copies of its types; so only
-  `temper-engine-service`'s own tests use it.
+  `temper-engine-service`'s own tests use it. The one exception is
+  today's: the tests that drive `temper-engine-domain-world`
+  (`first_model`, `ask_bound`) keep it as a dev-dependency, as the
+  crate's tests do now, and pass no piece's type through it. Once the
+  world names only the vocabulary and the stock (the readers' move,
+  4.4), they belong to the startup's tests.
 - **The component's tests may use the startup and the stock,** to read a
   document and take the stock's settings as today's fixtures do (section
   10).
