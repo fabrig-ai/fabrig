@@ -193,7 +193,11 @@ pub fn credential(worker: &settings::Worker, secret: &[u8]) -> link::Credential 
             payload::wire::layout(),
         ))
         .expect("one application wire");
-    link::Credential { name: worker.jig.name.clone(), secret: config::secret(secret.into()), wires }
+    link::Credential {
+        name: worker.jig.name.clone(),
+        secret: config::secret(secret.into()),
+        application: jig_protocol_worker_wire::Application::opaque(wires),
+    }
 }
 
 fn tooling(slots: u32) -> temper_worker_domain::tooling::Limits {

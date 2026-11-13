@@ -44,6 +44,7 @@ pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit)]
 /// ([`crate::try_step`]) hands back first, and their host sends again.
 pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option<core::Event> {
     match link {
+        Link::Mismatch => Some(core::Event::Fleet(fleet::Event::Mismatch { channel })),
         Link::Hello { worker, hello } => {
             domain.hub_link.connect(channel);
             Some(core::Event::Fleet(fleet::Event::Hello { channel, worker, hello }))
@@ -82,7 +83,7 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
             ..
         } => true,
         WorkerInput::ResultRead { .. }
-        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost, .. }
+        | WorkerInput::Link { link: Link::Hello { .. } | Link::Lost | Link::Mismatch, .. }
         | WorkerInput::Link {
             link:
                 Link::Up {

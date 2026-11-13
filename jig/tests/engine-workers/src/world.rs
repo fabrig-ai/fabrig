@@ -24,7 +24,7 @@ impl World {
                 limits,
                 workers.to_vec().into_boxed_slice(),
                 jig_protocol_worker_wire::spoken(),
-                crate::fixtures::application(),
+                jig_protocol_worker_wire::Application::opaque(crate::fixtures::application()),
             )
             .expect("valid engine"),
             nets: BTreeMap::new(),

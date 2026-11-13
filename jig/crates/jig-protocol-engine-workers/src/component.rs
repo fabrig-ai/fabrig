@@ -12,6 +12,7 @@ use skein_lib::{Decimal, List, Map, Queue, Reader, Time, Token, bytes};
 pub enum Unusable {
     Limits,
     Workers,
+    Application,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Life {
@@ -46,6 +47,7 @@ pub struct Component {
     life: Life,
     dropped_down: u64,
     sending: Option<Sending>,
+    translation: Box<wire::translation::Translation>,
 }
 impl core::fmt::Debug for Component {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -57,7 +59,7 @@ impl Component {
         limits: &Limits,
         workers: Box<[Worker]>,
         jig: List<wire::Spoken>,
-        application: List<wire::Spoken>,
+        application: wire::Application,
     ) -> Result<Self, Unusable> {
         if !crate::valid(limits) {
             return Err(Unusable::Limits);
@@ -81,9 +83,10 @@ impl Component {
         for wire in &jig {
             wires.push(wire.clone()).expect("uncapped wire list");
         }
-        for wire in &application {
+        for wire in &application.spoken {
             wires.push(wire.clone()).expect("uncapped wire list");
         }
+        let translation = Box::new(wire::translation::Translation::new(application).or(Err(Unusable::Application))?);
         let connections = Map::with_capacity(limits.workers.checked_add(limits.opening).expect("checked limits"));
         Ok(Self {
             limits: *limits,
@@ -97,6 +100,7 @@ impl Component {
             life: Life::Running,
             dropped_down: 0,
             sending: None,
+            translation,
         })
     }
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
@@ -315,7 +319,19 @@ impl Component {
         };
         let kind = record.kind();
         let mut state = self.connections.remove(&connection).expect("heard channel exists");
-        let frame = if past.is_none() { Some(record.frame()) } else { None };
+        let frame = if past.is_none() {
+            let version = state.version;
+            match crate::translate::send(&mut self.translation, record.frame(), version, &state.wires, &self.codec) {
+                Ok(frame) => Some(frame),
+                Err(error) => {
+                    self.untranslated(&state, kind, reply, error, out);
+                    self.keep(connection, state);
+                    return;
+                }
+            }
+        } else {
+            None
+        };
         let bytes = match past {
             Some(bytes) => bytes,
             None => frame.as_ref().expect("a fitting record encoded").wire_len(),
@@ -449,6 +465,9 @@ impl Component {
                         worker
                     }
                 };
+                if let Ok(credential) = wire::Credential::decode(&self.codec, &mut Reader::new(&credential)) {
+                    state.stated = credential.into_parts().wires;
+                }
                 state.worker = Some(worker);
                 state.channel = Token::new(self.next_channel);
                 self.next_channel =
@@ -458,6 +477,7 @@ impl Component {
                 state.down(ChannelRequest::Accept { version: highest }, connection, out);
             }
             ChannelEvent::Ready { version, terms } => {
+                state.version = version;
                 if let Some(kind) = wire::terms_gap(&self.schema, version, Role::Responder, &terms) {
                     let text = bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes());
                     self.refuse(now, connection, state, 2, text, out);
@@ -484,6 +504,9 @@ impl Component {
                             .expect("bounded statement");
                         frame.put(&body.finish()).expect("measured statement");
                         let frame = frame.finish().expect("measured statement");
+                        let frame =
+                            crate::translate::send(&mut self.translation, frame, version, &state.wires, &self.codec)
+                                .expect("a statement is sent only where its kind is held");
                         self.sending =
                             Some(Sending { kind: wire::Kind::Wires, bytes: frame.wire_len(), reply: Reply::Drop });
                         state.down(ChannelRequest::Send { token: state.channel, frame }, connection, out);
@@ -544,6 +567,14 @@ impl Component {
         body: &[u8],
         out: &mut Queue<Request>,
     ) {
+        let Ok(frame) =
+            crate::translate::receive(&mut self.translation, kind, body, state.version, &state.wires, &self.codec)
+        else {
+            self.refuse(now, connection, state, 3, Box::new([]), out);
+            return;
+        };
+        let kind = frame.kind();
+        let body = frame.bytes().get(8..).expect("validated frame header");
         match state.phase {
             Phase::Hello => {
                 if kind == 0x0100
@@ -785,9 +816,11 @@ fn unsent_words(name: &[u8], bytes: u32, bound: Bound) -> Box<[u8]> {
     let room = match bound {
         Bound::Room(room) => room,
         Bound::Channel(_) => 0,
+        Bound::Translation { .. } => unreachable!("translation has its mismatch reason"),
     };
     let room = Decimal::of(u64::from(room));
     let (middle, value, end): (&[u8], &[u8], &[u8]) = match bound {
+        Bound::Translation { .. } => unreachable!("translation has its mismatch reason"),
         Bound::Room(_) => (b" bytes past the link's room of ", room.as_bytes(), b" bytes"),
         Bound::Channel(why) => {
             let reason: &[u8] = match why {
@@ -810,4 +843,90 @@ fn unsent_words(name: &[u8], bytes: u32, bound: Bound) -> Box<[u8]> {
         words.put(part).expect("measured words");
     }
     words.finish()
+}
+
+impl Component {
+    fn untranslated(
+        &mut self,
+        state: &Connection,
+        kind: wire::Kind,
+        reply: Reply,
+        error: wire::translation::Untranslated,
+        out: &mut Queue<Request>,
+    ) {
+        use jig_domain_host as host;
+        let mut lowest = state.version;
+        let mut highest = state.version;
+        for stated in &state.stated {
+            if stated.name() == error.wire.as_ref() {
+                lowest = stated.lowest();
+                highest = lowest.saturating_add(
+                    u16::try_from(stated.layouts().len().saturating_sub(1)).expect("bounded wire range"),
+                );
+            }
+        }
+        let mismatch = host::Mismatch { wire: error.wire, version: error.version, lowest, highest };
+        out.push(Request::Unsent {
+            worker: state.worker.expect("authenticated worker"),
+            channel: state.channel,
+            unsent: Unsent { kind, bytes: 0, bound: Bound::Translation { version: state.version, halt: error.halt } },
+        });
+        let up = match reply {
+            Reply::Assignment { run, attempt } => host::LinkUp::Answer {
+                run,
+                attempt,
+                answer: host::RunAnswer {
+                    read: None,
+                    refused: Box::new([]),
+                    turns: 0,
+                    spent: 0,
+                    ending: host::Ending::Refused(host::Refusal::Untranslated(mismatch)),
+                },
+            },
+            Reply::Job { run, attempt } => host::LinkUp::JobAnswer {
+                run,
+                attempt,
+                answer: host::JobEnding::Refused(host::JobRefusal::Untranslated(mismatch)),
+            },
+            Reply::ReadList { .. } | Reply::Drop => {
+                self.dropped_down = self.dropped_down.saturating_add(1);
+                return;
+            }
+        };
+        out.push(Request::Up { channel: state.channel, up, parts: Box::new([]) });
+    }
+}
+
+#[cfg(test)]
+mod bridge_tests {
+    use super::{Bound, Connection, Reply, Request};
+    use jig_protocol_worker_wire::{self as wire, translation::Untranslated};
+    use skein_lib::{Queue, Time, Token};
+    #[test]
+    fn a_halted_running_message_is_discarded_with_its_channel_diagnostic() {
+        let mut component = crate::tests::fixtures::component();
+        let mut state = Connection::new(component.schema.clone(), &component.limits, Time::ZERO);
+        state.worker = Some(0);
+        state.channel = Token::new(17);
+        state.version = 11;
+        let mut out = Queue::uncapped();
+        component.untranslated(
+            &state,
+            wire::Kind::Message,
+            Reply::Drop,
+            Untranslated {
+                wire: b"jig-worker-wire".as_slice().into(),
+                version: 12,
+                halt: skein_codec::patch::Halt::Altered,
+            },
+            &mut out,
+        );
+        let Request::Unsent { channel, worker, unsent } = out.pop().expect("halt diagnostic") else {
+            panic!("diagnostic")
+        };
+        assert_eq!((channel, worker, unsent.kind), (Token::new(17), 0, wire::Kind::Message));
+        assert_eq!(unsent.bound, Bound::Translation { version: 11, halt: skein_codec::patch::Halt::Altered });
+        assert!(out.is_empty(), "no frame or attempt answer for a running message");
+        assert_eq!(component.dropped_down(), 1);
+    }
 }

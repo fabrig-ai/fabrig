@@ -174,6 +174,7 @@ impl World {
     }
     fn route(&mut self, request: Request) {
         match request {
+            request @ (Request::CannotSendWhole { .. } | Request::Untranslated { .. }) => self.root.push(request),
             Request::Dial => {
                 self.dial = DialState::Pending;
                 self.dials.push(self.now);

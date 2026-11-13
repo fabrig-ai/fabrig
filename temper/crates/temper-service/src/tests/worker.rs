@@ -11,7 +11,7 @@ fn the_workers_credential_uses_the_engines_table_entry() {
     let mut found = false;
     for wire in &wires {
         if wire.name == temper_protocol_worker_wire::wire::FAMILY {
-            assert_eq!(credential.wires.as_slice(), core::slice::from_ref(wire));
+            assert_eq!(credential.application.spoken.as_slice(), core::slice::from_ref(wire));
             found = true;
         }
     }

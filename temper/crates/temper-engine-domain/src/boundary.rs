@@ -635,6 +635,7 @@ pub enum StoreInput {
 /// `domain/hosts/README.md`, 2, and `domain/hosts/hub.md`, 4).
 #[derive(Hash, Debug)]
 pub enum Link {
+    Mismatch,
     Hello {
         worker: u32,
         hello: jig_domain_link::Hello,
