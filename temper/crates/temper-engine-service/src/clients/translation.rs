@@ -5,6 +5,12 @@ use jig_domain_people as people;
 use jig_protocol_engine_clients as kit;
 use temper_engine_domain as root;
 
+/// Room for a moved client document in the account store.
+#[must_use]
+pub fn moved_bytes(limits: &jig_protocol_config::Limits) -> u64 {
+    jig_protocol_accounts::moved::bound(&limits.driver.client.document)
+}
+
 /// Translate the core events the clients' component issues. An internal core
 /// event on this boundary aborts the component instead of deciding root work.
 #[expect(clippy::too_many_lines, reason = "one exhaustive match translates the clients' core boundary")]

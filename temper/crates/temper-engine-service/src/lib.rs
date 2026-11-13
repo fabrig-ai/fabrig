@@ -49,7 +49,7 @@ mod stop;
 pub mod upgrade;
 pub use start_refusal::{refused_row_start, refused_start};
 pub use store::UnreadableRow;
-mod tools;
+pub mod tools;
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
 pub use tools::{render_for_task, render_for_task_page, settings_note};
 /// How the service ended (protocol/README.md, 4).

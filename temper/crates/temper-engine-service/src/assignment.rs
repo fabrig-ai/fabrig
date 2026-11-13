@@ -37,7 +37,8 @@ pub struct Encoding {
 /// text, behind a cut marker, never longer than the tail given. jig's own fix
 /// renders the turns as text.
 #[expect(clippy::disallowed_methods, reason = "the worker protocol checks a tail's text before Smith's brief")]
-pub(crate) fn text_tail(tail: &[u8]) -> Box<[u8]> {
+#[must_use]
+pub fn text_tail(tail: &[u8]) -> Box<[u8]> {
     const MARKER: &[u8] = b"[earlier bytes not text, cut]\n";
     let mut from = 0_usize;
     let mut at = 0_usize;

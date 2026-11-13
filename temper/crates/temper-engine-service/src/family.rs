@@ -1494,7 +1494,8 @@ fn first_repository(first: forge::First, limits: &w::Limits) -> Option<w::FirstR
 }
 
 /// A bounded path on this clients listener, checked before root admission (client/engine.md).
-pub(crate) fn return_path(path: &[u8]) -> bool {
+#[must_use]
+pub fn return_path(path: &[u8]) -> bool {
     if path.is_empty() || path.len() > 512 || path.first() != Some(&b'/') || path.get(1) == Some(&b'/') {
         return false;
     }
