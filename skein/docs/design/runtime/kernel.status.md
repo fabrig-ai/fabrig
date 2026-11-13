@@ -1,6 +1,6 @@
 # kernel: status
 
-2026-11-07. Where skein's code lags or departs from [kernel.md](kernel.md).
+2026-11-13. Where skein's code lags or departs from [kernel.md](kernel.md).
 
 Section 6.3 has no known gap in reading a requested `SIGHUP` as a
 shutdown, with the sender on Linux and none on macOS.
@@ -15,3 +15,6 @@ gives the descriptor an immediate read end and accepts its writes.
   `SyncFilesystem` and btrfs's subvolume records. 6.2, 6.6: cgroups and
   contained spawn, the helper among them. 7: the invariants of those
   records. 8: their conformance scenarios.
+- **Not yet:** 3, 6.4, 7, 8: `HardLink`, on the ring, the readiness
+  backends and the simulator, its invariants and its conformance
+  scenario [in flight: change 2656].
