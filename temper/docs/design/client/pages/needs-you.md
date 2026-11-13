@@ -382,10 +382,12 @@
     project's, its address naming the project or, for a page of a task, the
     task being the project's; else Tell temper has no page.
   - *Where it goes:* `tell::goes(root: &Domain, project: u32, about:
-    Option<&tell::About>) -> Option<tell::Goes>`, one pure function the
-    browser and the terminal share, from the project's `findings` document
+    Option<&tell::About>) -> Option<tell::Goes>`, which the browser and the
+    terminal share: the project's `findings` document
     (`../forge/records.md`), the one Needs you's finding cards read
-    (`pages::findings`), and none until that is read:
+    (`pages::findings`), given to one pure rule, `tell::route(document:
+    &w::Findings, about: Option<&tell::About>) -> tell::Goes`, and none
+    until that document is read:
 
     ```rust
     pub enum Goes {
