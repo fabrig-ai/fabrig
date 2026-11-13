@@ -87,3 +87,4 @@ checks count them as inherited (`tools/pre-pr/design.md`, section 5).
 
 - lint temper-settings-form unfulfilled_lint_expectations temper/crates/temper-settings-form/src/kinds.rs
 - lint temper-engine-domain unfulfilled_lint_expectations temper/crates/temper-engine-domain/src/route/applications.rs
+- test jig-protocol-worker-wire patches::tests::p0002_goldens
