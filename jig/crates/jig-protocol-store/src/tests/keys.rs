@@ -4,6 +4,26 @@ use crate::keys;
 use jig_domain_core_vocabulary::{CoreKey, Key};
 use skein_lib::Rng;
 
+#[test]
+fn an_opening_key_is_the_escaped_worker_name_after_wires() {
+    let key = keys::Own::Opening("w\0é".into());
+    let expected = &[0, 5, b'w', 0, 255, 0xc3, 0xa9, 0, 0];
+    assert_eq!(keys::encode_own(&key, 9).as_deref(), Some(expected.as_slice()));
+    assert_eq!(keys::decode_own(expected), Some(key.clone()));
+    assert_eq!(keys::encode_own(&key, 8), None);
+    assert_eq!(keys::decode_own(&[0, 5, 255, 0, 0]), None, "worker names are UTF-8");
+    assert_eq!(keys::decode_own(&[0, 5, b'w', 0, 0, 0]), None, "no trailing bytes");
+    let names = ["", "a", "a\0", "a\0b", "aa", "w1", "w2", "é"];
+    let mut previous = keys::encode_own(&keys::Own::Wires, 64).expect("wires key");
+    for name in names {
+        let key = keys::Own::Opening(name.into());
+        let encoded = keys::encode_own(&key, 64).expect("opening key");
+        assert!(encoded > previous);
+        assert_eq!(keys::decode_own(&encoded), Some(key));
+        previous = encoded;
+    }
+}
+
 fn samples() -> core::ops::Range<u32> {
     0..500
 }

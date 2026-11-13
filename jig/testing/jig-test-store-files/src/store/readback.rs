@@ -154,6 +154,14 @@ impl Store {
                         )
                         .expect("wires row");
                     }
+                    keys::Own::Opening(worker) => {
+                        let opening = protocol::openings_v1::WorkerOpening::decode(
+                            &protocol::openings_v1::CEILINGS,
+                            &mut Reader::new(value),
+                        )
+                        .expect("opening row");
+                        assert_eq!(opening.worker(), worker.as_bytes(), "opening key agreement");
+                    }
                     keys::Own::Transcript { task } => {
                         let index = codec::component::Transcript::decode(value).expect("transcript index");
                         assert!(index.window <= index.length, "window within committed transcript");
