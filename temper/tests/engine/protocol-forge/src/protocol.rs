@@ -661,6 +661,8 @@ impl Protocol {
                     self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
                 }
                 other @ (top::Request::Settled { .. }
+                | top::Request::LoadHistory { .. }
+                | top::Request::HistoryPage { .. }
                 | top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }

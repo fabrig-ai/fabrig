@@ -53,7 +53,10 @@ pub fn completes(event: &Event) -> bool {
         Event::Worker(worker) => worker_completes(worker),
         Event::Forge(event) => match event.as_ref() {
             forge::Event::Bind { .. } | forge::Event::Installation { .. } | forge::Event::Hint { .. } => false,
-            forge::Event::Signed { .. }
+            forge::Event::ReadHistory { .. }
+            | forge::Event::HistoryLoaded { .. }
+            | forge::Event::HistoryUnloaded { .. }
+            | forge::Event::Signed { .. }
             | forge::Event::MakingStarted { .. }
             | forge::Event::MakingCopying { .. }
             | forge::Event::MakingMade { .. }

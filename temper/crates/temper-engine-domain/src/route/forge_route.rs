@@ -4916,6 +4916,25 @@ pub(crate) fn outputs(
     for _ in 0..out.len() {
         let request = out.pop().expect("connector output count");
         match request {
+            forge::Request::LoadHistory { load, range, after, most } => {
+                match domain.archive_reads.insert(Some(crate::boundary::Read::History { load, most })) {
+                    Ok(id) => emit(
+                        decision,
+                        &env.limits,
+                        Delivery::Load {
+                            waiter: id.token(),
+                            range: crate::Range::History(range),
+                            after: match after {
+                                Some(key) => Some(Key::Forge(key)),
+                                None => None,
+                            },
+                        },
+                    ),
+                    Err(_) => domain.work.push(Work::Forge(forge::Event::HistoryUnloaded { load })),
+                }
+            }
+            // Party read routing is a separate boundary; no root caller issues these reads yet.
+            forge::Request::HistoryPage { .. } => {}
             forge::Request::LinkNoted { forge, note } => {
                 super::diagnostics::emit(domain, crate::Fact::ForgeLink { forge, note });
             }

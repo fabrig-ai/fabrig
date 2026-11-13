@@ -206,6 +206,7 @@ pub struct Domain {
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
+    pub(crate) history_reads: crate::history::read::State,
     pub(crate) history_projects: Map<u32, crate::history::Project>,
     pub(crate) devices: Option<Box<crate::devices::State>>,
     pub(crate) drafts: Option<Box<crate::drafts::State>>,
@@ -836,6 +837,7 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             project_facts: Map::with_capacity(l.judge_projects),
+            history_reads: crate::history::read::State::new(),
             history_projects: Map::with_capacity(l.judge_projects),
             devices: match config.push {
                 Some(push) => Some(Box::new(crate::devices::State::new(Some(push), l.devices()))),
@@ -1456,6 +1458,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::ReadHistory { read, query } => crate::history::read::begin(d, read, query, out),
+        Event::HistoryLoaded { load, rows, next } => crate::history::read::loaded(d, load, rows, next, out),
+        Event::HistoryUnloaded { load } => crate::history::read::unloaded(d, load, out),
         Event::Signed { task, signed } => {
             if let Some(row) = d.changes.get_mut(&task) {
                 row.signed = signed;

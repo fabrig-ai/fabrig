@@ -603,6 +603,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
+        | Request::LoadHistory { .. }
+        | Request::HistoryPage { .. }
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -702,6 +704,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
+        | Request::LoadHistory { .. }
+        | Request::HistoryPage { .. }
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -794,6 +798,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::MakingCopied { .. }
         | Request::MakingAct { .. }
         | Request::Decided { .. }
+        | Request::LoadHistory { .. }
+        | Request::HistoryPage { .. }
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }
