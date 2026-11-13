@@ -706,6 +706,8 @@ pub(crate) fn checked_start_with(
         demo: parsed.application.demo,
         welcome: parsed.application.welcome,
         program_environment: Box::new([]),
+        kinds: Box::default(),
+        period_span: crate::stock::PERIOD_SPAN,
         kinds_stock: Box::default(),
         ways_stock: match given {
             crate::stock::Given::Stock => crate::stock::ways(),
@@ -715,6 +717,9 @@ pub(crate) fn checked_start_with(
         limits: parsed.application.limits,
     };
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
+    if let Some(&connector) = core.connectors.first() {
+        engine.kinds = crate::stock::kinds(&root, connector);
+    }
     engine.kinds_stock = match given {
         crate::stock::Given::Stock => crate::stock::forge(&root),
         crate::stock::Given::Own { forge, .. } => forge.clone(),

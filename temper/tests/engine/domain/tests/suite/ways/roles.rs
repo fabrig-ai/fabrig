@@ -53,7 +53,7 @@ fn driver(producers: &[(u32, Option<&[u8]>)]) -> (Driver, jig_domain_core::Templ
     let policy = &mut config.core.seed_projects[0].policy.policy;
     policy.ceiling.delegation.kinds.clone_from(&executors);
     policy.roles[0].authority.delegation.kinds = executors;
-    let stock = temper_engine_service::stock::with_models(
+    let stock = temper_engine_service_stock::stock::with_models(
         Box::new([core_settings::CatalogueModel {
             first_read: None,
             number: 1,

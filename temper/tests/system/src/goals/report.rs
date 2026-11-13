@@ -41,7 +41,8 @@ fn configured() -> (Driver, engine::Event) {
                 })
                 .collect(),
         };
-        config.core.defaults = temper_engine_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
+        config.core.defaults =
+            temper_engine_service_stock::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
         config.core.seed_projects[0].policy = config.core.defaults.policies.get(&1).expect("stock policy").clone();
         config.core.connectors = Box::new([1]);
         config.kinds_stock = engine::landing_stock(&[], &skein_lib::Map::with_capacity(0), 2, 4);

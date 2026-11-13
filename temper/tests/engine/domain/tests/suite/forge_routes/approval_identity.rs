@@ -36,7 +36,7 @@ fn defaults() -> s::Defaults {
 
         providers: Box::new([]),
     };
-    let mut defaults = temper_engine_service::stock::with_models(llm.models.clone(), 4096);
+    let mut defaults = temper_engine_service_stock::stock::with_models(llm.models.clone(), 4096);
     temper_engine_domain_world::forge_routes::add_settings_charter(&mut defaults);
     defaults
 }
