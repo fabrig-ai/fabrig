@@ -216,7 +216,8 @@ mod tests {
                 "wire jig-worker-wire differs: kept 0, binary",
             ),
         ] {
-            let mut report = report(Event::Rehearsing { owner: Token::new(1), wires: kept, fresh });
+            let mut report =
+                report(Event::Rehearsing { owner: Token::new(1), wires: kept, fresh, openings: Box::new([]) });
             report.events.push(Event::Decoded { owner: Token::new(1), records: 17 });
             report.restored = true;
             let (text, code) = lines("temper-engine", &report, &dirs, b"/backup");

@@ -194,7 +194,8 @@ pub(crate) fn announce(store: &mut Store, above: &mut Queue<Event>) {
     let owner = state.owner;
     let wires = kept_wires(store, owner);
     let fresh = fresh(store, owner);
-    above.push(Event::Rehearsing { owner, wires, fresh });
+    let openings = crate::openings::kept(store).unwrap_or(Box::new([]));
+    above.push(Event::Rehearsing { owner, wires, fresh, openings });
 }
 fn kept_wires(store: &mut Store, owner: Token) -> Option<Box<[KeptWire]>> {
     let key = crate::keys::encode_own(&crate::keys::Own::Wires, store.limits.store.key)?;
