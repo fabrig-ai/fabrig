@@ -140,7 +140,7 @@ fn a_branch_another_party_advanced_makes_the_push_moved_and_nothing_is_forced() 
                 | Landing::DesignMoving
                 | Landing::DesignUnchecked
                 | Landing::Conflicted { .. } => panic!("this fixture prepares one checkout branch"),
-                Landing::Landed { .. } => {}
+                Landing::Landed { .. } | Landing::Prefixes { .. } => {}
                 Landing::Moved => moved += 1,
                 other @ (Landing::Failed
                 | Landing::Refused

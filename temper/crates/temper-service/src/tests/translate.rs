@@ -377,6 +377,7 @@ fn landing_comparison_roundtrips_and_read_only_access_strips_it() {
                 assert_eq!(landing.as_deref(), Some(b"main".as_slice()));
             }
             temper_worker_domain::wire::Access::ReadOnly => assert!(!writable),
+            temper_worker_domain::wire::Access::Prefixes { .. } => panic!("this run has one writable branch"),
         }
     }
 }

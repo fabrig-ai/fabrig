@@ -30,6 +30,7 @@ pub fn workspace(items: Option<&v1::Items>) -> Assigned {
                 landing: value.landing().clone(),
             },
             v1::Access::ReadOnly => worker::Access::ReadOnly,
+            v1::Access::Prefixes(value) => worker::Access::Prefixes { branches: value.branches().clone().into_boxed() },
         };
         repositories
             .push(worker::Repository {
@@ -197,4 +198,50 @@ pub fn value(identity: &v1::Identity) -> Option<crate::identities::Value> {
             }
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prefix_access_keeps_every_branch_in_wire_order_without_a_writable_push() {
+        let limits = &v1::CEILINGS;
+        let mut branches = List::with_capacity(3);
+        for branch in [b"prefix-1".as_slice(), b"prefix-2", b"prefix-3"] {
+            branches.push(Box::from(branch)).expect("fixture branches");
+        }
+        let access = v1::Access::Prefixes(v1::Prefixes::new(limits, v1::PrefixesParts { branches }).expect("prefixes"));
+        let repository = v1::Repository::new(
+            limits,
+            v1::RepositoryParts {
+                tag: 7,
+                name: b"work".as_slice().into(),
+                remote: b"org/work".as_slice().into(),
+                git: None,
+                start: v1::Start::Commit(v1::Commit::new(limits, v1::CommitParts { commit: [1; 32] }).expect("commit")),
+                access,
+                identity: 3,
+                account: None,
+                save: None,
+            },
+        )
+        .expect("repository");
+        let mut repositories = List::with_capacity(1);
+        repositories.push(repository).expect("fixture repository");
+        let items = v1::Items::new(limits, v1::ItemsParts { repositories }).expect("items");
+        let bytes = wire::items(&items);
+        let decoded = v1::Items::decode(limits, &mut skein_lib::Reader::new(&bytes)).expect("wire items");
+        let translated = workspace(Some(&decoded));
+        assert_eq!(
+            translated.repositories[0].access,
+            temper_worker_domain::wire::Access::Prefixes {
+                branches: Box::new([
+                    Box::from(b"prefix-1".as_slice()),
+                    Box::from(b"prefix-2".as_slice()),
+                    Box::from(b"prefix-3".as_slice())
+                ]),
+            }
+        );
+    }
 }
