@@ -267,7 +267,7 @@ pub struct Output {
 }
 pub struct Tests { /* the tests' module but for the records' path */ }
 impl Tests {
-    // tests/generated/<module>.rs's text, naming the records by `records`,
+    // tests/generated/<file>.rs's text, naming the records by `records`,
     // their module's public path: "temper_protocol_store_codec::v20"
     pub fn text(&self, records: &str) -> String;
 }
@@ -358,9 +358,12 @@ pub fn tests_main(modules: &[&str]) -> String;
   one integration test target for its generated tests,
   `tests/generated/main.rs`, Cargo's test `generated`. It holds a
   module for each records' module of the crate,
-  `tests/generated/<module>.rs`, `<module>` the records' module's name
-  in the library, which is its file's: `src/generated/v20.rs`'s tests
-  are `tests/generated/v20.rs`. `main.rs` is `tests_main`'s text,
+  `tests/generated/<file>.rs`, named as the records' file is, whatever
+  the library names its module: `src/generated/v20.rs`'s tests are
+  `tests/generated/v20.rs`. Records' files outside `src/generated/`,
+  as skein's codec fixtures', name theirs for their module in the
+  library: `src/every/v2.rs`, the module `every_v2`, has
+  `tests/generated/every_v2.rs`. `main.rs` is `tests_main`'s text,
   written with them, each module left out of formatting. A crate's
   hand-written tests that use its public items alone may be modules of
   the same target, `main.rs` naming them beside the generated ones.

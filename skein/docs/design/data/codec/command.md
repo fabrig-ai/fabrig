@@ -41,7 +41,7 @@
 | `patches/context.rs` | the `Context`, written once, empty, deriving `Default` | the author's |
 | `patches/mod.rs` | generated from the kept texts and the patches alone (3) | the command's |
 | `patches/golden/NNNN/<family>/` | each old golden through the patch (3) | the command's or the golden test's, reviewed |
-| `tests/generated/<module>.rs` | the generated tests of the records' module `<module>`, in the crate holding it (`README.md`, section 6) | the drift test's |
+| `tests/generated/<file>.rs` | the generated tests of the records' file `src/generated/<file>.rs`, in the crate holding it (`README.md`, section 6) | the drift test's |
 | `tests/generated/main.rs` | their test target's root, a module for each (`README.md`, section 6) | the drift test's |
 
 - **The owner's crate** includes `patches/mod.rs` as a module of its
