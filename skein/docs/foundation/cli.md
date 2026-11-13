@@ -17,7 +17,9 @@ shrink (section 9). The reasons are the user's, of 2026-11-08
 - **No Cargo features:** `cargo build` at the root builds everything,
   and a binary links exactly its package's dependencies, whatever is
   built beside it. What a feature chose becomes a crate, a runtime
-  setting or a fixtures crate (section 3).
+  setting or a fixtures crate. External crates' features are chosen
+  once, at the root, so every build of a context compiles each external
+  crate alike, whatever it selects (section 3).
 - **Three sets:** public (stable, advertised by help), internal (hidden,
   may change without notice) and test (read by tests alone). A
   variable's name says its set; a command's or a flag's set is in its
@@ -60,7 +62,8 @@ shrink (section 9). The reasons are the user's, of 2026-11-08
 - **No workspace crate declares `[features]`.** No dependency on a
   workspace crate is `optional`, or sets `default-features` or
   `features`. An external crate's features are chosen once, in the
-  root's `[workspace.dependencies]`.
+  root's `[workspace.dependencies]`, as the last bullets of this
+  section say.
 - **`cargo build` at the root builds every member,** and once no tree
   has features left, each binary is the same, built alone or with the
   rest.
@@ -107,6 +110,61 @@ shrink (section 9). The reasons are the user's, of 2026-11-08
   it linked, so most change nothing. One that becomes a runtime setting
   compiles its code into every build: the change that removes such a
   feature reports each binary's size before and after.
+
+External crates still have features. A build that selects fewer
+packages would compile one with fewer features, and with it every crate
+above, under compiler-cache keys that no other build asks for
+(`temper/docs/design/draft/crate-graph.md`, 2 and 3). So:
+
+- **Every build of one context compiles each external crate with one
+  feature set,** whatever packages it selects: `cargo build`,
+  `cargo test`, `cargo clippy` and `cargo nextest run`, with `-p` of any
+  packages or `--workspace`. A context is a platform and a mode. The
+  platforms are the native targets, `wasm32-unknown-unknown`, and the
+  host, for build scripts and procedural macros. The modes are with the
+  dev-dependencies (tests, `clippy --all-targets`, nextest) and without
+  (libraries and binaries alone).
+- **A member inherits every external crate:** it names one only as
+  `NAME.workspace = true`, in every dependency table, choosing nothing:
+  no version, and no `features`, `default-features` or `optional`.
+- **The root's entry carries the union:** each external entry in
+  `[workspace.dependencies]` asks for every feature that its crate
+  resolves to, with the dev-dependencies, in each context where a member
+  names the entry, the crate's occurrences for the host included. So the
+  entry says what every build compiles, and the two modes agree on every
+  crate a member names.
+- **A platform's own entry:** where a platform needs a crate otherwise,
+  the root names the crate a second time, and a member names each entry
+  only where its platform's builds see it, in a
+  `[target.'cfg(...)'.*]` table whose condition holds on no other
+  platform. The one pair is rustls's: `rustls`, without `std`, for
+  `wasm32-unknown-unknown`, whose clock that `std` needs; and
+  `rustls-std`, with it, for the native targets
+  (`skein/docs/design/net/tls.md`, 4). Cargo refuses one package under
+  two names in one crate, whatever their conditions, so a crate built
+  for both platforms names the wasm32 entry in its wasm32 table and, in
+  its native one, a bridge crate of ours that names the native entry
+  there and re-exports it: `skein-tls` names `skein-rustls-std`.
+- **Cargo's unification covers the crates below ours,** which no
+  manifest of ours names. The repository's `.cargo/config.toml` sets
+  `[unstable] feature-unification = true` and `[resolver]
+  feature-unification = "workspace"`, on the pinned nightly
+  (`programming-model.md`, 10.1). Every build then resolves each
+  external crate as if it selected every member. Cargo unifies within a
+  context, not across contexts: the host's resolution stays apart from
+  the target's, and a build without the dev-dependencies leaves out
+  their features. So the two modes still differ below a dev-dependency
+  that adds a feature further down. Landings build with the
+  dev-dependencies, so that mode's keys are the ones their builds share.
+- **The browser bundle's nested build keeps its own selection,** with
+  `CARGO_RESOLVER_FEATURE_UNIFICATION=selected`
+  (`temper/docs/design/client/web/README.md`, 2.6). It always selects
+  the same packages, so it is a context of its own, and stable. A union
+  over every member would give its module features that no package it
+  builds asks for.
+- **Both layers hold:** the root's entries hold for every crate a
+  manifest names, with or without the settings, and keep the root the
+  one place features are chosen. The settings add the crates below.
 
 ## 4. Three sets
 
@@ -267,7 +325,11 @@ otherwise.
    reads them: no `[features]` table, no `optional`, `default-features`
    or `features` on a member's dependency, and none on a workspace
    crate's entry in the root's `[workspace.dependencies]`. An external
-   crate's entry there may choose its features.
+   crate's entry there may choose its features. A member's dependency
+   names a path or inherits, `workspace = true`: one with neither, a
+   bare version among them, is a finding. Section 3's other rules for
+   external crates are checked with the crate graph's checks
+   (`tools/crates/design.md`, 3.3).
 4. **Environment access:** clippy's `disallowed-methods` in every
    variant of `tools/lints/` lists section 6's functions
    (`../../../tools/lints/design.md`, 4). Each read says why with a

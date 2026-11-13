@@ -3,8 +3,9 @@
 Provisional, 2026-10-03, revised 2026-11-12. What belongs with
 programming-model.md and testing-strategy.md but is not a rule: the
 questions still open, why the memory strategy is what it is, why facts
-are never lost inside a process, why a binary is a process, and why the
-toolchain is a pinned nightly.
+are never lost inside a process, why a binary is a process, why the
+toolchain is a pinned nightly, and why every build compiles one feature
+set.
 
 ## Open questions
 
@@ -203,3 +204,25 @@ The code stays within stable Rust's language and library
 Cargo's resolution, so the pin moves to a later nightly, or to Cranelift
 once it fits, by `rust-toolchain.toml` alone. Fuzz targets need a
 nightly in any case, for their sanitizers.
+
+## Why one feature set for every build
+
+A shared compiler cache keys each crate by its features and by the keys
+of every crate below it. On main of 2026-11-12, `cargo build -p` of one
+package compiled `rustls`, `serde` or `bitflags` with other features
+than the workspace's build with tests did, so 206 of the 380 members,
+about 450 s of the libraries' 741 s, compiled under keys the other build
+never asked for. The delivery check builds with `-p` for the packages a
+change reaches, so a change's builds rarely shared main's keys (temper's
+`docs/design/draft/crate-graph.md`, 2). The user's plan of that day: no
+features anywhere, and an external crate that needs features gets the
+same ones everywhere (cli.md, 3).
+
+The root's unions alone don't reach the crates below ours, which no
+manifest names; Cargo's unification alone would leave a manifest free to
+choose. So both stay, and back on stable the crates below would drift
+again: a features crate, one package every member depends on naming each
+of them with the workspace's union, would pin them then. The browser's
+nested build keeps its selection because a union over every member,
+resolved for `wasm32-unknown-unknown`, reaches crates whose `std` that
+target can't build, as rustls's.
