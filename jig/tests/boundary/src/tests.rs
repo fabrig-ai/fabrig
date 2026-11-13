@@ -192,6 +192,7 @@ fn the_test_store_links_only_its_codec_boundary_and_foundation() {
         [
             "jig-test-connector",
             "jig-test-domain",
+            "jig-test-store-codec",
             "jig-domain-core",
             "jig-domain-notes",
             "jig-domain-people",

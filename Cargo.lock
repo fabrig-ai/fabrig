@@ -2437,8 +2437,17 @@ dependencies = [
  "jig-test-connector",
  "jig-test-connector-kit",
  "jig-test-domain",
+ "jig-test-store-codec",
  "skein-codec",
  "skein-kv",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-test-store-codec"
+version = "0.0.0"
+dependencies = [
+ "skein-codec",
  "skein-lib",
 ]
 
