@@ -1,6 +1,7 @@
 # welcome: status
 
-2026-11-11. Where the tree's code lags or departs from [welcome.md](welcome.md).
+2026-11-12. Where the tree's code lags or departs from [welcome.md](welcome.md).
+
 
 - **Not yet:** 1: two endings leave nothing under "Model none yet"
   (`temper-client-view`'s `pages/connect_model.rs`, `welcome_end`), and no

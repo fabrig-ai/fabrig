@@ -1,8 +1,0 @@
-setup 1
-after "project-landing"
-see "work/hello is in Hello"
-reload "/chats"
-mark 2 "Hello from the local fake model."
-mark 3 "I wrote an Away mode draft with its purpose, return flow and open questions."
-mark 4 "I added how a running goal continues and waits for your decisions."
-mark 8 "The local goal wrote its report."
