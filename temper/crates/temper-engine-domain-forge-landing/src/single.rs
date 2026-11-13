@@ -245,7 +245,7 @@ fn proving(mut landing: Landing, facts: &Facts, project: Project, limits: &Limit
                 | Decision::Record { .. }
                 | Decision::Landed { .. }
                 | Decision::Close
-                | Decision::Delete
+                | Decision::Delete { .. }
                 | Decision::Resolve { .. }
                 | Decision::Leave { .. }
                 | Decision::Judge { .. } => unreachable!("gate decisions only"),

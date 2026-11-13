@@ -125,6 +125,13 @@ fn member(domain: &Domain, env: &Env<Limits>, task: u64) -> Option<landing::Memb
         }
     }
     Some(landing::Member {
+        unit: 0,
+        branch: Box::new([]),
+        combined: None,
+        recorded: false,
+        told: false,
+        judging: false,
+        leave_told: false,
         left: None,
         change: task,
         repository: landing::Repository { forge: row.repository.forge, repository: row.repository.repository },
@@ -205,6 +212,7 @@ fn create_landing(domain: &mut Domain, env: &Env<Limits>, task: u64, project: u3
     else {
         return false;
     };
+    members.get_mut(0).expect("one member").branch.clone_from(&own_branch);
     let Some(what) = super::branch_what(&own_branch, env.limits.forge.name_bytes) else { return false };
     let name = forge::Name { forge: provider.forge, repository: provider.repository, what };
     let Some(holding) = super::write_holding(domain.config.forge_connector, &name, &env.limits.tasks) else {
@@ -367,7 +375,7 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
         landing::Decision::None
         | landing::Decision::Open
         | landing::Decision::Close
-        | landing::Decision::Delete
+        | landing::Decision::Delete { .. }
         | landing::Decision::Record { .. }
         | landing::Decision::Landed { .. }
         | landing::Decision::Leave { .. }

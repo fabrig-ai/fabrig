@@ -39,6 +39,13 @@ pub fn landing_row(change: &top::ChangeRow) -> top::LandingRow {
             project: PROJECT,
             phase: landing::Phase::Waiting,
             members: Box::new([landing::Member {
+                unit: 0,
+                branch: Box::from(b"temper/1/l61".as_slice()),
+                combined: None,
+                recorded: false,
+                told: false,
+                judging: false,
+                leave_told: false,
                 left: None,
                 change: change.task,
                 repository: landing::Repository {

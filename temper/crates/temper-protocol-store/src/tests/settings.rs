@@ -1,6 +1,6 @@
 //! Settings rows and their bounds (temper/docs/design/protocol/store.md, sections 2 to 4).
 use super::fixtures;
-use crate::{Undecodable, keys, records, v17 as w};
+use crate::{Undecodable, keys, records, v18 as w};
 use temper_engine_domain_forge::{self as forge, settings as d};
 
 fn rule() -> d::LandingRule {
@@ -280,7 +280,7 @@ fn setting_records_refuse_unknown_kinds_and_slot_tags() {
 }
 
 #[test]
-fn a_replaced_row_has_store_v17_golden_bytes() {
+fn a_replaced_row_has_store_v18_golden_bytes() {
     let row = forge::Stored::Setting(d::SettingRow {
         key: d::SettingKey { kind: 3, scope: 0, number: 1, slot: d::SettingSlot::Replaced(3) },
         edit: d::Edit::Set(d::SizedValue { value: d::Value::Charter(2), size: 4 }),

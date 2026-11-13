@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::{records, v17};
+use crate::{records, v18};
 use temper_engine_domain_forge as forge;
 
 #[test]
@@ -114,7 +114,7 @@ fn bounds_take_each_limit_from_its_source() {
 #[test]
 fn bounds_refuse_sources_past_schema_ceilings() {
     let mut larger = fixtures::LIMITS;
-    larger.name_bytes = v17::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
+    larger.name_bytes = v18::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
     assert_eq!(crate::bounds(&larger, fixtures::LIMITS.client.op_bytes), None);
 }
 
@@ -408,9 +408,9 @@ fn an_ended_changes_hold_round_trips_in_its_state() {
         row.change.ended_held = ended_held;
         let row = forge::Stored::Change(Box::new(row));
         let bytes = records::encode(&row);
-        let wire = v17::Row::decode(&v17::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded row");
-        let v17::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
-        assert_eq!(wire.change().state().live(), &v17::ChangeLive::Ended);
+        let wire = v18::Row::decode(&v18::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded row");
+        let v18::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
+        assert_eq!(wire.change().state().live(), &v18::ChangeLive::Ended);
         assert_eq!(wire.change().state().holds().len(), u32::from(ended_held.is_some()));
         assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     }
@@ -423,21 +423,21 @@ fn old_ended_rows_decode_with_or_without_a_hold() {
     let row = fixtures::change_row(State::Ended);
     let bytes = records::encode(&forge::Stored::Change(Box::new(row.clone())));
     for ended_held in [None, Some(Hold::Repairs)] {
-        let wire = v17::Row::decode(&v17::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("fixture row");
-        let v17::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
+        let wire = v18::Row::decode(&v18::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("fixture row");
+        let v18::Value::Change(wire) = wire.into_parts().value else { panic!("change row") };
         let mut wire = wire.into_parts();
         let mut change = wire.change.into_parts();
         let mut holds = skein_lib::List::with_capacity(1);
         if ended_held.is_some() {
-            holds.push(v17::ChangeHold::Repairs).expect("one hold");
+            holds.push(v18::ChangeHold::Repairs).expect("one hold");
         }
         // The unchanged schema's representation, independent of the domain encoder.
         change.state =
-            v17::ChangeState::new(&v17::CEILINGS, v17::ChangeStateParts { live: v17::ChangeLive::Ended, holds })
+            v18::ChangeState::new(&v18::CEILINGS, v18::ChangeStateParts { live: v18::ChangeLive::Ended, holds })
                 .expect("old state");
-        wire.change = v17::Change::new(&v17::CEILINGS, change).expect("old change");
-        let value = v17::Value::Change(Box::new(v17::ChangeRow::new(&v17::CEILINGS, wire).expect("old row")));
-        let wire = v17::Row::new(&v17::CEILINGS, v17::RowParts { value }).expect("old row");
+        wire.change = v18::Change::new(&v18::CEILINGS, change).expect("old change");
+        let value = v18::Value::Change(Box::new(v18::ChangeRow::new(&v18::CEILINGS, wire).expect("old row")));
+        let wire = v18::Row::new(&v18::CEILINGS, v18::RowParts { value }).expect("old row");
         let mut writer = skein_lib::Writer::new(usize::try_from(wire.measure()).expect("row size"));
         wire.encode(&mut writer).expect("measured room");
         let mut expected = row.clone();
@@ -982,21 +982,21 @@ fn every_application_outcome_preserves_its_complete_record() {
         jig_protocol_store::people_v16::Limits { refusal_judged_why: 0, ..jig_protocol_store::people_v16::CEILINGS };
     assert!(
         jig_protocol_store::people_v16::Refusal::encoded_bound(&limits).expect("bounded facts")
-            <= u64::from(v17::CEILINGS.core_refused_refusal)
+            <= u64::from(v18::CEILINGS.core_refused_refusal)
     );
 }
 #[test]
 fn application_decoding_refuses_malformed_refusal_facts() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for refusal in [Box::from([255]), Box::from([2]), Box::from([9, 0])] {
-        let value = v17::CoreRefused::new(&v17::CEILINGS, v17::CoreRefusedParts { refusal }).expect("small piece");
-        let application = v17::Application::new(
-            &v17::CEILINGS,
-            v17::ApplicationParts { token: 9, until: 10, outcome: v17::ApplicationOutcome::CoreRefused(value) },
+        let value = v18::CoreRefused::new(&v18::CEILINGS, v18::CoreRefusedParts { refusal }).expect("small piece");
+        let application = v18::Application::new(
+            &v18::CEILINGS,
+            v18::ApplicationParts { token: 9, until: 10, outcome: v18::ApplicationOutcome::CoreRefused(value) },
         )
         .expect("application");
         let row =
-            v17::Row::new(&v17::CEILINGS, v17::RowParts { value: v17::Value::Application(application) }).expect("row");
+            v18::Row::new(&v18::CEILINGS, v18::RowParts { value: v18::Value::Application(application) }).expect("row");
         assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable::Malformed));
     }
 }
@@ -1096,7 +1096,7 @@ fn binding_decoder_preserves_bounded_noncanonical_addresses() {
 }
 #[test]
 fn binding_schema_refuses_fields_one_past_their_bounds() {
-    use crate::v17 as w;
+    use crate::v18 as w;
     for (address, subject) in [
         (Box::from([b'a'; 255]), b"subject".as_slice().into()),
         (b"sam@example.com".as_slice().into(), Box::from([b's'; 256])),
@@ -1112,7 +1112,7 @@ fn embedded_people_refusals_changed_at_store_nine() {
     let mut after = skein_lib::Writer::new(1);
     jig_protocol_store::people_v16::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[10]);
-    assert_eq!(crate::STORE_VERSION, 17);
+    assert_eq!(crate::STORE_VERSION, 18);
 }
 
 #[test]
@@ -1339,6 +1339,13 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                         project: 5,
                         phase: phase.clone(),
                         members: Box::new([l::Member {
+                            unit: 0,
+                            branch: Box::from(b"temper/1/l61".as_slice()),
+                            combined: None,
+                            recorded: false,
+                            told: false,
+                            judging: false,
+                            leave_told: false,
                             left: None,
                             change: 51,
                             repository: l::Repository { forge: 1, repository: 2 },
@@ -2563,9 +2570,9 @@ fn devices_round_trip_at_both_bounds_and_refuse_malformed_rows_and_keys() {
     oversized.extend_from_slice(&(u64::from(u32::MAX) + 1).to_be_bytes());
     assert!(crate::keys::decode(&oversized, &fixtures::LIMITS).is_none());
     for (endpoint, label) in [(1025, 60), (1024, 61)] {
-        v17::Device::new(
-            &v17::CEILINGS,
-            v17::DeviceParts {
+        v18::Device::new(
+            &v18::CEILINGS,
+            v18::DeviceParts {
                 party: 1,
                 number: 1,
                 endpoint: vec![b'e'; endpoint].into_boxed_slice(),
@@ -2630,7 +2637,7 @@ fn pull_size_is_omitted_without_changing_the_stored_pull() {
 
 #[test]
 fn a_change_holding_a_retired_route_or_state_never_decodes() {
-    use crate::v17 as w;
+    use crate::v18 as w;
     use temper_engine_domain_forge_change::State;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let row = forge::Stored::Change(Box::new(fixtures::change_row(State::Producing { requested: true })));
