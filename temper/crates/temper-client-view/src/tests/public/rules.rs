@@ -211,6 +211,24 @@ fn a_queue_merges_line_and_landing_read_as_a_landing() {
     }
 }
 #[test]
+fn a_public_landing_shows_the_search_and_blame_by_prefix() {
+    let page = render(
+        Public::Landing { project: PROJECT, task: TASK },
+        &[(Doc::ForgeLanding, records::searching_landing())],
+        0,
+    );
+    let lines = paragraphs(&page);
+    for expected in [
+        "probing at 1111111",
+        "Search: green member 0 at 2222222",
+        "Search: red member 3 at 3333333",
+        "Left: blamed by gate 3, red at 3333333, green at 2222222",
+    ] {
+        assert!(lines.iter().any(|line| line == expected), "{expected}: {lines:?}");
+    }
+}
+
+#[test]
 fn a_commit_is_seven_plain_digits_and_no_padding() {
     let other = [0x45; 32];
     for (head, merge, expected) in [
