@@ -439,7 +439,10 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   lowest version that carries the current host tools' contract: a
   charter of contract 2 or later cannot go down to version 4, whose
   reverse holds contract 1 alone (7), so its assignment is for a worker
-  that reads version 5 (`../draft/redeploys.md`, 4.3). The run calls
+  that reads version 5 (`../draft/redeploys.md`, 4.3). Likewise
+  `jig-worker-wire`: its version 12's call implies contract 1, and
+  version 13 is the first to carry the call's contract, so the worker
+  speaks it from 13. The run calls
   the current contract; an older contract's adapters are held by `temper-engine-smith`'s
   focused tests over a contract of two versions made in the test. The world's seam is each side's wires: the worker's link and
   the engine's component take the `Spoken` lists and bridges the world
