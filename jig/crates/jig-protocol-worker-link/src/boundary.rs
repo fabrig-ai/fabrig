@@ -33,6 +33,14 @@ pub enum Scheme {
 }
 #[derive(Debug)]
 pub enum Request {
+    CannotSendWhole {
+        wire: &'static str,
+        version: u16,
+    },
+    Untranslated {
+        kind: u16,
+        halt: skein_codec::patch::Halt,
+    },
     Ready,
     /// A peer's refusal, before loss and redial.
     Refused {

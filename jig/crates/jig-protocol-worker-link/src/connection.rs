@@ -11,6 +11,7 @@ pub(crate) struct Connection {
     pub(crate) stall: Option<Time>,
     pub(crate) wires: Option<skein_lib::List<jig_protocol_worker_wire::Agreed>>,
     pub(crate) stated: bool,
+    pub(crate) version: u16,
 }
 #[derive(Debug)]
 pub(crate) enum Phase {

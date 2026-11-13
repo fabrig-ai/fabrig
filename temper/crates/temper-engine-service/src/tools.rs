@@ -10,12 +10,14 @@ use temper_engine_smith::{Decoded, ForgeReadBounds, Problem};
 
 #[cfg(test)]
 pub(crate) fn decode(to: ReplyTo, task: u64, attempt: u64, call: &fleet::Call) -> engine::Event {
-    decode_configured(to, task, attempt, call, &[], &[], &[])
+    decode_configured(to, task, attempt, call.contract, call, &[], &[], &[])
 }
+#[expect(clippy::too_many_arguments, reason = "the call's contract travels with its configured decoding context")]
 pub(crate) fn decode_configured(
     to: ReplyTo,
     _task: u64,
     attempt: u64,
+    contract: u16,
     call: &fleet::Call,
     models: &[engine::Model],
     catalogue: &[core::settings::CatalogueModel],
@@ -31,7 +33,7 @@ pub(crate) fn decode_configured(
         return invalid(to, Problem::Malformed);
     };
     let name = run::CallName { activation: name.activation, completion: name.completion, position: name.position };
-    match temper_engine_smith::call_in(name, &call.tool, &input, models, catalogue, repositories) {
+    match temper_engine_smith::call_for_contract(contract, name, &call.tool, &input, models, catalogue, repositories) {
         Ok(Decoded::Call(body)) => engine::Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }),
         Ok(Decoded::Answered(answer)) => {
             let (body, error) = answer.into_parts();

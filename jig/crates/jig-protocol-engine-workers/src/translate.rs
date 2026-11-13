@@ -501,6 +501,7 @@ pub(crate) fn call(record: wire::Call) -> host::LinkUp {
     host::LinkUp::Call {
         run: Token::new(fields.task),
         attempt: Token::new(fields.attempt),
+        contract: fields.contract,
         call: fields.name,
         tool: fields.tool,
         writes: fields.writes,
@@ -935,4 +936,25 @@ fn list_outcome(value: wire::ListOutcome) -> jig_domain_link::ListOutcome {
             wire::ListFailed::Agent => ListFailure::Agent,
         }),
     }
+}
+
+/// Byte bridges surround this component's current-value/domain translation (bridges.md, 5).
+pub(crate) fn send(
+    machine: &mut wire::translation::Translation,
+    frame: skein_channel::Frame,
+    version: u16,
+    agreed: &List<wire::Agreed>,
+    limits: &wire::v12::Limits,
+) -> Result<skein_channel::Frame, wire::translation::Untranslated> {
+    machine.send(frame, version, agreed.as_slice(), limits)
+}
+pub(crate) fn receive(
+    machine: &mut wire::translation::Translation,
+    kind: u16,
+    body: &[u8],
+    version: u16,
+    agreed: &List<wire::Agreed>,
+    limits: &wire::v12::Limits,
+) -> Result<skein_channel::Frame, wire::translation::Untranslated> {
+    machine.receive(kind, body, version, agreed.as_slice(), limits)
 }

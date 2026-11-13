@@ -49,6 +49,7 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
                 host::JobEnding::Finished { .. } => fleet::Answer::Ended,
                 host::JobEnding::Failed { .. } => fleet::Answer::Failed { turned: None },
                 host::JobEnding::Refused(host::JobRefusal::Busy) => fleet::Answer::Busy,
+                host::JobEnding::Refused(host::JobRefusal::Untranslated(_)) => fleet::Answer::Untranslated,
                 host::JobEnding::Refused(host::JobRefusal::Invalid(_)) => fleet::Answer::Invalid,
             };
             let payload = domain.retain(Payload::Answer {
@@ -87,6 +88,7 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
                 host::Ending::Refused(host::Refusal::Busy) => fleet::Answer::Busy,
                 host::Ending::Refused(host::Refusal::Invalid(_)) => fleet::Answer::Invalid,
                 host::Ending::Refused(host::Refusal::Version(_)) => fleet::Answer::Version,
+                host::Ending::Refused(host::Refusal::Untranslated(_)) => fleet::Answer::Untranslated,
             };
             let payload = domain.retain(Payload::Answer {
                 task: run.raw(),
@@ -98,7 +100,7 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
             });
             fleet::Event::Answer { channel, run, attempt, answer: kind, payload }
         }
-        host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } => {
+        host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
             domain
                 .host_calls
                 .insert(call.clone(), crate::HostCall { channel, run, attempt })
@@ -107,7 +109,7 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
                 channel,
                 run,
                 attempt,
-                call: fleet::Call { name: call, tool, writes, input, deadline },
+                call: fleet::Call { name: call, contract, tool, writes, input, deadline },
             }
         }
         host::LinkUp::Unauthorized { run, attempt, account, generation } => {
@@ -160,7 +162,7 @@ fn refusals(values: Box<[host::Refused]>) -> Box<[u64]> {
 pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
     match ending {
         host::Ending::Refused(host::Refusal::Busy) => tasks::End::Refused,
-        host::Ending::Refused(host::Refusal::Version(mismatch)) => {
+        host::Ending::Refused(host::Refusal::Version(mismatch) | host::Refusal::Untranslated(mismatch)) => {
             tasks::End::RefusedWithReason { reason: mismatch.reason() }
         }
         host::Ending::Refused(host::Refusal::Invalid(
@@ -222,6 +224,7 @@ pub(crate) fn unusable_history(ending: &host::Ending) -> bool {
         host::Ending::Refused(
             host::Refusal::Busy
             | host::Refusal::Version(_)
+            | host::Refusal::Untranslated(_)
             | host::Refusal::Invalid(
                 host::Invalid::Charter
                 | host::Invalid::Grants
@@ -308,6 +311,9 @@ pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
             tasks::End::Finished { result: tasks::TaskResult::Job { bytes: result.clone() }, cancel_delegates: false }
         }
         host::JobEnding::Refused(host::JobRefusal::Busy) => tasks::End::Refused,
+        host::JobEnding::Refused(host::JobRefusal::Untranslated(mismatch)) => {
+            tasks::End::RefusedWithReason { reason: mismatch.reason() }
+        }
         host::JobEnding::Refused(host::JobRefusal::Invalid(_)) => tasks::End::Failed(tasks::Class::Permanent),
         host::JobEnding::Failed { failure, .. } => match failure {
             host::JobFailure::Unprepared(host::Preparation::Transient) => {

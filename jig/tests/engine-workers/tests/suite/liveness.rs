@@ -397,9 +397,13 @@ fn the_room_holds_the_smallest_resumed_start() {
     for (room, accepted) in [(FLOOR, true), (FLOOR - 1, false)] {
         let limits = Limits { sizes, room, ..fixtures::LIMITS };
         let valid = valid(&limits);
-        let made =
-            Component::new(&limits, fixtures::workers(), jig_protocol_worker_wire::spoken(), fixtures::application())
-                .is_ok();
+        let made = Component::new(
+            &limits,
+            fixtures::workers(),
+            jig_protocol_worker_wire::spoken(),
+            jig_protocol_worker_wire::Application::opaque(fixtures::application()),
+        )
+        .is_ok();
         assert_eq!((valid, made), (accepted, accepted), "room {room}: (valid, made)");
     }
 }

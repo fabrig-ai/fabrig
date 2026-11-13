@@ -445,6 +445,7 @@ fn delivery_why(outcome: &crate::checkout::Outcome) -> Option<Box<[u8]>> {
 fn job_reason(answer: &host::JobEnding) -> Box<[u8]> {
     use host::{DeliveryOutcome, JobFailure, JobInvalid, JobRefusal, Reason};
     let why: &[u8] = match answer {
+        host::JobEnding::Refused(JobRefusal::Untranslated(_)) => unreachable!("untranslated is local to the engine"),
         host::JobEnding::Failed { detail, .. } if !detail.is_empty() => return detail.clone(),
         host::JobEnding::Failed { failure, .. } => match failure {
             JobFailure::Unprepared(_) => b"workspace preparation failed",

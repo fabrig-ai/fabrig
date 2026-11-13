@@ -59,7 +59,11 @@ pub const LIMITS: Limits = Limits {
     busy: Duration::from_millis(200),
 };
 pub fn credential() -> Credential {
-    Credential { name: WORKER_A.into(), secret: Secret::new(SECRET_A.into()), wires: application() }
+    Credential {
+        name: WORKER_A.into(),
+        secret: Secret::new(SECRET_A.into()),
+        application: jig_protocol_worker_wire::Application::opaque(application()),
+    }
 }
 
 use jig_domain_host as host;

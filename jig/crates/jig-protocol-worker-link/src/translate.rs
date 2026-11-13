@@ -150,7 +150,7 @@ pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v12::Limits) -
             record.encode(&mut body).ok()?;
             frame(0x0101, body.finish())
         }
-        host::LinkUp::Call { run, attempt, call, tool, writes, input, deadline } => {
+        host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } => {
             let record = wire::Call::new(
                 limits,
                 wire::CallParts {
@@ -161,7 +161,7 @@ pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v12::Limits) -
                     writes,
                     input,
                     deadline,
-                    contract: 1,
+                    contract,
                 },
             )
             .ok()?;
@@ -267,6 +267,7 @@ fn ending(ending: host::Ending, parts: &[Part], limits: &wire::v12::Limits) -> O
     Some(match ending {
         host::Ending::Refused(refusal) => {
             let value = match refusal {
+                host::Refusal::Untranslated(_) => return None,
                 host::Refusal::Busy => wire::Refusal::Busy,
                 host::Refusal::Version(value) => wire::Refusal::Version(
                     wire::Mismatch::new(
@@ -308,6 +309,7 @@ fn job_ending(ending: host::JobEnding, parts: &[Part], limits: &wire::v12::Limit
     Some(match ending {
         host::JobEnding::Refused(refusal) => {
             let value = match refusal {
+                host::JobRefusal::Untranslated(_) => return None,
                 host::JobRefusal::Busy => wire::JobRefusal::Busy,
                 host::JobRefusal::Invalid(invalid) => {
                     let value = match invalid {
@@ -921,4 +923,25 @@ fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wi
     let mut body = Writer::new(usize::try_from(record.measure()).ok()?);
     record.encode(&mut body).ok()?;
     frame(wire::Kind::ListRead.number(), body.finish())
+}
+
+/// Byte bridges surround this component's current-value/domain translation (bridges.md, 5).
+pub(crate) fn send(
+    machine: &mut wire::translation::Translation,
+    frame: Frame,
+    version: u16,
+    agreed: &[wire::Agreed],
+    limits: &wire::v12::Limits,
+) -> Result<Frame, wire::translation::Untranslated> {
+    machine.send(frame, version, agreed, limits)
+}
+pub(crate) fn receive(
+    machine: &mut wire::translation::Translation,
+    kind: u16,
+    body: &[u8],
+    version: u16,
+    agreed: &[wire::Agreed],
+    limits: &wire::v12::Limits,
+) -> Result<Frame, wire::translation::Untranslated> {
+    machine.receive(kind, body, version, agreed, limits)
 }

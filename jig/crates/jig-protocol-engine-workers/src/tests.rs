@@ -1,5 +1,5 @@
 mod debug;
-mod fixtures;
+pub(crate) mod fixtures;
 mod opening;
 mod room;
 mod translate;

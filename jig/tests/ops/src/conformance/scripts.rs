@@ -152,6 +152,7 @@ impl Agents {
                     agent.remember(turn);
                 }
                 self.live.insert(owner, agent);
+                out.push(host::FromAgent::Decoded { owner, contract: 1 });
                 out.push(host::FromAgent::Started { owner, agent: owner });
             }
             host::ToAgent::Message { agent: owner, name, words, .. } => {

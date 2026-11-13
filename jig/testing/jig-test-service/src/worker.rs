@@ -106,7 +106,7 @@ impl Worker {
             link::Credential {
                 name: config.name,
                 secret: config::secret(secret.into()),
-                wires: List::with_capacity(0),
+                application: jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
             },
             seed,
         )
@@ -366,7 +366,10 @@ impl Worker {
                     }
                 }
                 link::Request::Closed => self.closed = true,
-                link::Request::Refused { .. } | link::Request::Fact { .. } => {}
+                link::Request::Refused { .. }
+                | link::Request::Fact { .. }
+                | link::Request::CannotSendWhole { .. }
+                | link::Request::Untranslated { .. } => {}
             }
         }
         self.values.expire(now);

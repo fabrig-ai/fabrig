@@ -96,7 +96,10 @@ impl State {
                 worker.assign(assignment);
                 self.workers.insert(owner, worker);
                 self.turns.insert(owner, 0);
-                vec![Input::Event(root::Event::Agent(host::FromAgent::Started { owner, agent: owner }))]
+                vec![
+                    Input::Event(root::Event::Agent(host::FromAgent::Decoded { owner, contract: 1 })),
+                    Input::Event(root::Event::Agent(host::FromAgent::Started { owner, agent: owner })),
+                ]
             }
             host::ToAgent::Message { agent, name, words, .. } => {
                 if let Some(worker) = self.workers.get_mut(&agent) {
