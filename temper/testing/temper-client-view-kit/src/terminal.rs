@@ -5,6 +5,7 @@ use temper_client_domain::{
     pages::{Act, terminal},
 };
 
+#[must_use]
 pub fn state_root(state: u8) -> d::Domain {
     let mut task = super::chat_helpers::asking_task();
     task.chip.phase = c::Phase::Active;
@@ -40,10 +41,12 @@ pub fn state_root(state: u8) -> d::Domain {
     super::chat_helpers::asking_task_root(task, true, 1)
 }
 
+#[must_use]
 pub fn command_root(state: u8) -> d::Domain {
     command_root_with_watch(state).0
 }
 
+#[must_use]
 pub fn command_root_with_watch(state: u8) -> (d::Domain, Option<skein_lib::Token>) {
     let source = state_root(state);
     let mut me = source.pages().me(source.client()).unwrap().clone();
@@ -115,6 +118,7 @@ pub fn command_root_with_watch(state: u8) -> (d::Domain, Option<skein_lib::Token
     (root, chats_watch)
 }
 
+#[must_use]
 pub fn cards_limits() -> d::Limits {
     let mut limits = f::domain_limits();
     limits.client.domain.text = 512;
@@ -138,6 +142,7 @@ pub const QUESTION_OBJECT: c::ObjectKey = c::ObjectKey::Question { task: f::chat
     clippy::too_many_lines,
     reason = "one fixture answers the chat, subtree inbox and question through their requests"
 )]
+#[must_use]
 pub fn terminal_question_root(choices: bool) -> d::Domain {
     use skein_lib::{List, Queue, Wall};
     let source = f::chat::messaging_root();

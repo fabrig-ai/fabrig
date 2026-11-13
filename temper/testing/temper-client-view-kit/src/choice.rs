@@ -14,6 +14,7 @@ pub fn delivered(root: &mut d::Domain, watch: Token, value: c::Delivery) {
     );
 }
 
+#[must_use]
 pub fn line_models(task_page: bool) -> List<c::MeModel> {
     let mut models = List::with_capacity(3);
     if !task_page {
@@ -27,10 +28,7 @@ pub fn line_models(task_page: bool) -> List<c::MeModel> {
     models
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
+#[must_use]
 pub fn provider_byline_root(
     address: Address,
     ready: [c::Readiness; 2],
@@ -126,10 +124,7 @@ pub fn provider_byline_root(
     (root, task_watch)
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
+#[must_use]
 pub fn line_fixture(
     ready: Option<c::PayerReadiness>,
     accounts: List<c::AccountLine>,
@@ -219,10 +214,6 @@ pub fn line_fixture(
 
 pub const NAME_BYTES: u32 = jig_client_protocol_wire::v21::CEILINGS.me_model_name;
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
 pub fn wait_pointers(text: &[u8]) {
     let text = core::str::from_utf8(text).unwrap();
     assert!(!text.contains("temper ctl "), "page wait names ctl: {text}");
@@ -232,6 +223,7 @@ pub fn wait_pointers(text: &[u8]) {
     }
 }
 
+#[must_use]
 pub fn source(kind: c::AccountKind, usable: bool) -> c::AccountSource {
     c::AccountSource {
         name: Some(Box::from(b"Claude Code".as_slice())),
@@ -246,10 +238,6 @@ pub fn source(kind: c::AccountKind, usable: bool) -> c::AccountSource {
     }
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
 pub fn account(number: u32, kind: c::AccountKind, address: Option<&[u8]>) -> c::AccountLine {
     let mut sources = List::with_capacity(2);
     sources.push(source(c::AccountKind::Program, false)).unwrap();
@@ -272,6 +260,7 @@ pub fn account(number: u32, kind: c::AccountKind, address: Option<&[u8]>) -> c::
 }
 
 /// The playground and real providers share a supplied catalogue.
+#[must_use]
 pub fn playground_offers_root(address: Address, playground: bool) -> (d::Domain, Token) {
     use temper_client_protocol_wire::v1 as w;
     let (mut root, me_watch, _, _, accounts, forges) = fixtures::root_at_with_forges(
@@ -323,6 +312,7 @@ pub fn playground_offers_root(address: Address, playground: bool) -> (d::Domain,
 }
 
 /// A complete unavailable slice, shared by both composers' event-path tests.
+#[must_use]
 pub fn no_model_root(task_page: bool) -> d::Domain {
     let (mut root, _, task_watch, watch) = line_fixture(None, List::with_capacity(0), None, None, None, task_page);
     if let Some(task_watch) = task_watch {
@@ -351,10 +341,12 @@ pub fn no_model_root(task_page: bool) -> d::Domain {
     root
 }
 
+#[must_use]
 pub fn model_text(name: &[u8]) -> c::Text {
     c::Text::new(Box::from(name), NAME_BYTES).unwrap()
 }
 
+#[must_use]
 pub fn provider_offer(provider: u32, name: &[u8]) -> c::ProviderOffer {
     c::ProviderOffer {
         provider,
@@ -370,6 +362,7 @@ pub fn provider_offer(provider: u32, name: &[u8]) -> c::ProviderOffer {
     }
 }
 
+#[must_use]
 pub fn offer_row(name: &[u8], provider: Option<u32>) -> c::MeModel {
     c::MeModel {
         new_until: None,
@@ -390,6 +383,7 @@ pub fn offer_row(name: &[u8], provider: Option<u32>) -> c::MeModel {
     }
 }
 
+#[must_use]
 pub fn picker_fixture(two: bool, openai: bool, hidden: bool) -> (d::Domain, Token, Token) {
     let (mut root, watch, _, accounts_watch) = line_fixture(None, List::with_capacity(0), None, None, None, false);
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
@@ -445,6 +439,7 @@ pub fn picker_fixture(two: bool, openai: bool, hidden: bool) -> (d::Domain, Toke
     (root, watch, accounts_watch)
 }
 
+#[must_use]
 pub fn accounts(rows: &[c::AccountLine]) -> List<c::AccountLine> {
     let mut accounts = List::with_capacity(u32::try_from(rows.len()).unwrap());
     for row in rows {
@@ -453,6 +448,7 @@ pub fn accounts(rows: &[c::AccountLine]) -> List<c::AccountLine> {
     accounts
 }
 
+#[must_use]
 pub fn line_facts(
     ready: Option<c::PayerReadiness>,
     accounts: List<c::AccountLine>,

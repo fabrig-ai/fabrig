@@ -11,6 +11,7 @@ pub const TASK: u64 = f::chat::TASK;
 
 pub const LONG: u32 = 65_536;
 
+#[must_use]
 pub fn limits() -> d::Limits {
     let mut limits = f::domain_limits();
     limits.client.domain.long_text = LONG;
@@ -22,6 +23,7 @@ pub fn limits() -> d::Limits {
     limits
 }
 
+#[must_use]
 pub fn activity(outcomes: &[&str]) -> c::ActivityPage {
     let mut rows = List::with_capacity(1);
     if !outcomes.is_empty() {
@@ -76,6 +78,7 @@ pub const PROPOSAL: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Tas
 
 pub const ACCEPTED_AT: Wall = Wall::from_nanos(50_580_000_000_000);
 
+#[must_use]
 pub fn document_root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str], state: ProposalState) -> d::Domain {
     activity_root(body, mode, activity(outcomes), state)
 }
@@ -84,6 +87,7 @@ pub fn document_root(body: Option<&[u8]>, mode: Mode, outcomes: &[&str], state: 
     clippy::too_many_lines,
     reason = "the fixture pumps the task, document and departed proposal through their public events"
 )]
+#[must_use]
 pub fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage, state: ProposalState) -> d::Domain {
     let limits = limits();
     let drafts = state == ProposalState::DraftOffered
@@ -253,6 +257,7 @@ pub fn activity_root(body: Option<&[u8]>, mode: Mode, activity: c::ActivityPage,
     root
 }
 
+#[must_use]
 pub fn asking_me(source: &d::Domain) -> c::Me {
     let mut me = source.pages().me(source.client()).unwrap().clone();
     let member = me.projects.get_mut(0).unwrap();
@@ -266,6 +271,7 @@ pub fn asking_me(source: &d::Domain) -> c::Me {
     me
 }
 
+#[must_use]
 pub fn proposal_answer(state: ProposalState, departed: bool) -> c::ReadResult {
     if departed {
         if state == ProposalState::Unknown {
@@ -302,6 +308,7 @@ pub fn proposal_answer(state: ProposalState, departed: bool) -> c::ReadResult {
     }
 }
 
+#[must_use]
 pub fn offered(body: Option<&[u8]>, ended: bool) -> d::Domain {
     document_root(
         body,

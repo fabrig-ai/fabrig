@@ -7,6 +7,7 @@ use temper_fixtures::client_documents as documents;
 
 pub const QUESTION: &str = "Fix the dropped watch in jig’s store, or keep it alive in temper serve?\n\nMakeProject answers after the client’s watch drops.\n\nSaw: The box test reproduces it every time.\nChoice: In jig’s store (recommended)\nChoice: In temper serve";
 
+#[must_use]
 pub fn limits() -> d::Limits {
     let mut limits = f::domain_limits();
     limits.client.domain.reads = 8;
@@ -16,6 +17,7 @@ pub fn limits() -> d::Limits {
     limits
 }
 
+#[must_use]
 pub fn object(message: u64) -> c::ObjectKey {
     c::ObjectKey::Question { task: f::INBOX_TASK, message }
 }
@@ -24,10 +26,12 @@ pub fn event(root: &mut d::Domain, event: Event, out: &mut Queue<d::Request>) {
     d::step(root, &Env { now: Time::ZERO, wall: f::NOW, limits: limits() }, event, out);
 }
 
+#[must_use]
 pub fn fixture(words: &str, cut: bool, count: u32, more: bool, filter: d::address::Filter) -> d::Domain {
     fixture_title(words, cut, count, more, filter, None)
 }
 
+#[must_use]
 pub fn fixture_title(
     words: &str,
     cut: bool,
@@ -41,6 +45,7 @@ pub fn fixture_title(
     root
 }
 
+#[must_use]
 pub fn fixture_watched(
     words: &str,
     cut: bool,
@@ -52,6 +57,7 @@ pub fn fixture_watched(
     fixture_classes(words, cut, count, more, filter, title, None)
 }
 
+#[must_use]
 pub fn fixture_classes(
     words: &str,
     cut: bool,
@@ -66,6 +72,7 @@ pub fn fixture_classes(
 
 #[expect(clippy::too_many_arguments, reason = "the card fixture carries independent document and role rows")]
 #[expect(clippy::too_many_lines, reason = "the fixture delivers independent question and class documents")]
+#[must_use]
 pub fn fixture_classes_role(
     words: &str,
     cut: bool,
@@ -367,6 +374,7 @@ pub fn empty_decided_inbox(root: &mut d::Domain, watch: skein_lib::Token, out: &
     );
 }
 
+#[must_use]
 pub fn decided_fixture(filter: d::address::Filter, count: u32, open: bool) -> d::Domain {
     let (mut root, _, initial) = f::root_at(Address::Inbox { filter }, &limits());
     let mut out = Queue::uncapped();
@@ -445,10 +453,12 @@ pub fn decided_fixture(filter: d::address::Filter, count: u32, open: bool) -> d:
     root
 }
 
+#[must_use]
 pub fn words(value: &str) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(value.as_bytes().into(), 4096).unwrap())
 }
 
+#[must_use]
 pub fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
     let mut acts = List::with_capacity(u32::try_from(kinds.len()).unwrap());
     for act in kinds {
@@ -457,10 +467,7 @@ pub fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
     acts
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
+#[must_use]
 pub fn proposal(proposer: c::Proposer) -> c::Proposal {
     let source = f::chat::proposal_root();
     let mut proposal = source
@@ -506,6 +513,7 @@ pub fn proposal(proposer: c::Proposer) -> c::Proposal {
     proposal
 }
 
+#[must_use]
 pub fn held(reason: Option<c::HoldCategory>) -> c::Escalation {
     let source = f::task::held_root();
     let mut task = source.pages().task().unwrap().document(source.client()).unwrap().clone();
@@ -524,6 +532,7 @@ pub fn held(reason: Option<c::HoldCategory>) -> c::Escalation {
     c::Escalation { task: Box::new(task), acts: offers(&[c::ActKind::Release, c::ActKind::LeaveHeld]) }
 }
 
+#[must_use]
 pub fn person() -> c::PersonTask {
     let mut task = f::task::document();
     task.chip.title = words("Review the plan");
@@ -545,14 +554,17 @@ pub fn person() -> c::PersonTask {
     }
 }
 
+#[must_use]
 pub fn kinds(values: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> d::Domain {
     kinds_read(values, None)
 }
 
+#[must_use]
 pub fn kinds_read(values: &[(c::ObjectKey, c::Read, c::ReadValue)], whole: Option<c::ReadResult>) -> d::Domain {
     kinds_owned(values, whole, None)
 }
 
+#[must_use]
 pub fn settings_owned(page: c::ReadValue, owned: Option<bool>) -> d::Domain {
     let c::ReadValue::Proposal(proposal) = &page else { panic!("settings proposal") };
     let key = proposal.key;
@@ -562,10 +574,6 @@ pub fn settings_owned(page: c::ReadValue, owned: Option<bool>) -> d::Domain {
 #[expect(
     clippy::too_many_lines,
     reason = "the fixture delivers the inbox, decision document and each card read together"
-)]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
 )]
 pub fn kinds_owned(
     values: &[(c::ObjectKey, c::Read, c::ReadValue)],
@@ -677,6 +685,7 @@ pub fn kinds_owned(
     root
 }
 
+#[must_use]
 pub fn approval_row() -> d::forge::approvals::Row {
     d::forge::approvals::Row {
         task: 81,
@@ -714,6 +723,7 @@ pub fn approvals(root: &mut d::Domain, rows: &[d::forge::approvals::Row], more: 
     );
 }
 
+#[must_use]
 pub fn size_cases() -> [(Option<d::forge::approvals::Size>, &'static str, &'static str); 6] {
     use d::forge::approvals::Size;
     [
@@ -738,11 +748,6 @@ pub fn size_cases() -> [(Option<d::forge::approvals::Size>, &'static str, &'stat
     ]
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    clippy::disallowed_types,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
 pub fn check_size(tree: &skein_ui::Tree, words: &str, files: &str) {
     let nodes = tree.nodes();
     let rows: Vec<_> = nodes.iter().enumerate().filter(|(_, n)| n.styles.as_slice().contains(&look::CHIPS)).collect();
@@ -765,6 +770,7 @@ pub fn check_size(tree: &skein_ui::Tree, words: &str, files: &str) {
     }
 }
 
+#[must_use]
 pub fn stop_root(owner: bool, set: bool) -> d::Domain {
     use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject, Way};
     let classes = if set {

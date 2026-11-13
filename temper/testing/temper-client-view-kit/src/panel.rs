@@ -4,6 +4,7 @@ use skein_lib::List;
 use temper_client_domain::forge;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 /// Every heap field at its receiving bound, with optional facts populated.
+#[must_use]
 pub fn panel(task: u64, step: w::Step) -> w::ChangePanel {
     let limits = forge::wire_limits(&limits().forge).expect("wire limits");
     let mut gates = List::with_capacity(wire::GATES);
@@ -63,6 +64,7 @@ pub fn panel(task: u64, step: w::Step) -> w::ChangePanel {
     )
     .expect("panel")
 }
+#[must_use]
 pub fn queued() -> w::Step {
     let limits = forge::wire_limits(&limits().forge).expect("wire limits");
     let mut ahead = List::with_capacity(wire::TASKS_AHEAD);
@@ -72,6 +74,7 @@ pub fn queued() -> w::Step {
     w::Step::Queued(w::Queued::new(&limits, w::QueuedParts { place: 65, ahead }).expect("queued"))
 }
 
+#[must_use]
 pub fn field(byte: u8, count: u32) -> Box<[u8]> {
     let mut bytes = skein_lib::bytes::zeroed(usize::try_from(count).unwrap());
     bytes.fill(byte);

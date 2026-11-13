@@ -1,5 +1,14 @@
 //! Shared view fixtures staged for the kit (temper/docs/design/client/view-crates.md, 4.2–4.3).
 
+#![expect(
+    clippy::unwrap_used,
+    clippy::manual_map,
+    clippy::needless_pass_by_value,
+    clippy::single_match_else,
+    reason = "the shared test fixtures retain their setup and semantic inspection unchanged"
+)]
+#![cfg_attr(not(test), expect(clippy::wildcard_imports, reason = "the shared test fixtures retain their imports unchanged"))]
+use temper_client_view_words::{look, paths, words};
 use skein_lib::{Duration, List, RequestLimits, Wall};
 use temper_client_domain::{Limits, forge};
 pub use temper_fixtures::first_run;
@@ -41,6 +50,7 @@ pub const PROJECT: u32 = 1;
 pub const SECOND_PROJECT: u32 = 2;
 pub const SEED: u64 = 11;
 #[expect(clippy::arithmetic_side_effects, reason = "the request count is the nonzero constant declared here")]
+#[must_use]
 pub fn limits() -> Limits {
     {
         let requests = RequestLimits {
@@ -95,10 +105,12 @@ pub fn browser_words() -> crate::words::Words {
     static WORDS: std::sync::OnceLock<crate::words::Words> = std::sync::OnceLock::new();
     WORDS.get_or_init(|| english(crate::words::Shell::Browser)).clone()
 }
+#[must_use]
 pub fn english(shell: crate::words::Shell) -> crate::words::Words {
     crate::words::Words::english(FORGE, 64, shell).expect("forge English fits")
 }
 
+#[must_use]
 pub fn tree_limits() -> skein_ui::Limits {
     skein_ui::Limits {
         // The largest goal plan and its frame, including Changes' link and text,
@@ -119,9 +131,11 @@ pub fn tree_limits() -> skein_ui::Limits {
         markdown_depth: 3,
     }
 }
+#[must_use]
 pub fn domain_limits() -> Limits {
     limits()
 }
+#[must_use]
 pub fn path(segments: &[&[u8]]) -> List<Box<[u8]>> {
     let mut path = List::with_capacity(u32::try_from(segments.len()).expect("fixture segments fit"));
     for segment in segments {

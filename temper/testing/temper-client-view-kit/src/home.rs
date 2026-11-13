@@ -4,6 +4,7 @@ use skein_lib::{List, Queue, Token};
 use temper_client_domain::{self as d, Address};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
+#[must_use]
 pub fn home_limits() -> d::Limits {
     let mut limits = f::domain_limits();
     // Home, stock ways, goal presence, Goals, standing Needs, trials and a running trial task (client/pages/README.md).
@@ -52,11 +53,11 @@ pub struct StatusFixture {
 }
 
 #[expect(
-    clippy::disallowed_methods,
     clippy::too_many_arguments,
     clippy::too_many_lines,
     reason = "one fixture delivers Home documents and their public replies together"
 )]
+#[must_use]
 pub fn home_documents_with_status(
     rows: List<w::ForgeRow>,
     configured: bool,
@@ -250,6 +251,7 @@ pub fn read_done(root: &mut d::Domain, read: Token, value: c::ReadValue) -> Queu
     )
 }
 
+#[must_use]
 pub fn home_need_page(object: c::ObjectKey) -> c::ReadValue {
     let mut task = f::task::document();
     task.chip.title = f::task::document_words(b"Add a README");
@@ -315,7 +317,6 @@ pub fn home_need_page(object: c::ObjectKey) -> c::ReadValue {
 }
 
 #[expect(
-    clippy::disallowed_methods,
     clippy::too_many_lines,
     reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
 )]
@@ -656,6 +657,7 @@ pub fn settle_home(
     }
 }
 
+#[must_use]
 pub fn forge_rows(in_project: bool) -> List<w::ForgeRow> {
     let mut rows = super::connect_forge::first_rows(super::connect_forge::connected(), super::connect_forge::made());
     if in_project {
@@ -684,6 +686,7 @@ pub const STATUS_NOW: u64 = 345_600_000_000_000;
 
 pub const STATUS_MINUTE: u64 = 60_000_000_000;
 
+#[must_use]
 pub fn status_parts() -> w::ProjectStatusParts {
     w::ProjectStatusParts {
         project: f::PROJECT,
@@ -700,6 +703,7 @@ pub fn status_parts() -> w::ProjectStatusParts {
 
 pub const HOME_QUESTION: &[u8] = b"Which license?\n\nThe README needs a license.\n\nSaw: No license file.\nChoice: MIT (recommended)\nChoice: Apache";
 
+#[must_use]
 pub fn goal_notes(scope: c::NoteScope) -> c::ReadValue {
     let mut rows = List::uncapped();
     if scope == (c::NoteScope::Task { project: f::PROJECT, task: 9 }) {
@@ -726,6 +730,7 @@ pub struct AwayFixture {
     pub state: d::pages::decided::DecisionTask,
 }
 
+#[must_use]
 pub fn away_fixture(count: u32) -> AwayFixture {
     let mut rows = List::with_capacity(count);
     for number in 1..=count {
@@ -778,6 +783,7 @@ pub fn away_fixture(count: u32) -> AwayFixture {
     }
 }
 
+#[must_use]
 pub fn away_home(
     away: AwayFixture,
     beginning: bool,
@@ -787,6 +793,7 @@ pub fn away_home(
     away_home_with_needs(away, beginning, NeedsFixture { objects, cut: false, read: true, decided: true }, parts)
 }
 
+#[must_use]
 pub fn away_home_with_needs(
     away: AwayFixture,
     beginning: bool,
@@ -814,6 +821,7 @@ pub fn away_home_with_needs(
     .0
 }
 
+#[must_use]
 pub fn default_away(away: AwayFixture) -> d::Domain {
     away_home(away, false, &[], status_parts())
 }
@@ -831,6 +839,7 @@ pub fn overturn_drive(root: &mut d::Domain, event: d::Event) -> Queue<d::Request
     out
 }
 
+#[must_use]
 pub fn overturn_attempt(out: &Queue<d::Request>) -> Token {
     for request in out {
         if let d::Request::Unlinked {
@@ -843,6 +852,7 @@ pub fn overturn_attempt(out: &Queue<d::Request>) -> Token {
     panic!("overturn attempt")
 }
 
+#[must_use]
 pub fn overturn_answer(outcome: w::Outcome, message: Option<c::Answer>) -> d::Domain {
     let mut root = default_away(away_fixture(2));
     overturn_drive(

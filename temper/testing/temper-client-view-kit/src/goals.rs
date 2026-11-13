@@ -14,6 +14,7 @@ pub const LABEL: u32 = 1;
 
 pub const DEPTH: u32 = 1;
 
+#[must_use]
 pub fn line() -> c::TaskLine {
     let mut line = chats::line();
     line.delegates_done = DONE;
@@ -21,6 +22,7 @@ pub fn line() -> c::TaskLine {
     line
 }
 
+#[must_use]
 pub fn template(number: u32, name: &[u8], tracked: bool) -> c::Template {
     c::Template {
         resources: List::uncapped(),

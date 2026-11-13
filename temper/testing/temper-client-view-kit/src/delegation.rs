@@ -5,14 +5,17 @@ pub const CHANGE: u64 = 2;
 
 pub const TITLE: &[u8] = b"Export widget's table as CSV";
 
+#[must_use]
 pub fn text(bytes: &[u8]) -> c::Text {
     c::Text::new(Box::from(bytes), 256).expect("fixture text")
 }
 
+#[must_use]
 pub fn document(bytes: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(text(bytes))
 }
 
+#[must_use]
 pub fn change() -> c::Task {
     let mut task = fixtures::task::document();
     task.chip.task = CHANGE;

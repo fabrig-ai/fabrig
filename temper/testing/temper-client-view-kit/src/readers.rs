@@ -1,15 +1,18 @@
 use skein_lib::{List, Writer};
 
+#[must_use]
 pub fn text(tree: &skein_ui::Tree) -> Box<[u8]> {
     nodes_text(tree.nodes())
 }
 /// The text of a node and its descendants, in tree order.
+#[must_use]
 pub fn node_text(tree: &skein_ui::Tree, index: usize) -> Box<[u8]> {
     let end = index
         .checked_add(usize::try_from(tree.nodes()[index].size).expect("fixture subtree fits"))
         .expect("fixture index fits");
     nodes_text(&tree.nodes()[index..end])
 }
+#[must_use]
 pub fn nodes_text(nodes: &[skein_ui::Node]) -> Box<[u8]> {
     let mut bytes = 0_usize;
     for node in nodes {
@@ -26,6 +29,7 @@ pub fn nodes_text(nodes: &[skein_ui::Node]) -> Box<[u8]> {
     writer.finish()
 }
 /// Type the number from the last terminal print, checking the complete control line.
+#[must_use]
 pub fn terminal_command(
     tree: &skein_ui::Tree,
     limits: &skein_ui::Limits,
@@ -53,6 +57,7 @@ pub fn terminal_command(
     assert_eq!(node, control);
     (node, first)
 }
+#[must_use]
 pub fn find(tree: &skein_ui::Tree, role: skein_ui::Role, name: &[u8]) -> Option<skein_ui::NodeId> {
     for node in tree.nodes() {
         if node.role == role && node.name.as_deref() == Some(name) {
@@ -61,6 +66,7 @@ pub fn find(tree: &skein_ui::Tree, role: skein_ui::Role, name: &[u8]) -> Option<
     }
     None
 }
+#[must_use]
 pub fn person_find(tree: &skein_ui::Tree, role: skein_ui::Role, name: &[u8]) -> Option<skein_ui::NodeId> {
     use skein_fake_person::{Face, Find, Found, TreeFace};
     match TreeFace::new(tree).find(&Find::exactly_named(role, name)) {
@@ -68,6 +74,7 @@ pub fn person_find(tree: &skein_ui::Tree, role: skein_ui::Role, name: &[u8]) -> 
         Found::Absent | Found::Pending => None,
     }
 }
+#[must_use]
 pub fn frame_statuses(tree: &skein_ui::Tree) -> Box<[Box<[u8]>]> {
     let mut names = List::with_capacity(tree.len());
     for (index, node) in tree.nodes().iter().enumerate() {
@@ -85,6 +92,7 @@ pub fn frame_statuses(tree: &skein_ui::Tree) -> Box<[Box<[u8]>]> {
     names.into_boxed()
 }
 
+#[must_use]
 pub fn main_text(tree: &skein_ui::Tree) -> Box<[u8]> {
     let mut main = None;
     for (index, node) in tree.nodes().iter().enumerate() {
@@ -112,6 +120,7 @@ pub fn main_text(tree: &skein_ui::Tree) -> Box<[u8]> {
 }
 
 /// The styles of each node of `role`, in tree order.
+#[must_use]
 pub fn styles(tree: &skein_ui::Tree, role: skein_ui::Role) -> Box<[Box<[skein_ui::Style]>]> {
     let mut found = List::with_capacity(u32::try_from(tree.nodes().len()).expect("nodes fit"));
     for node in tree.nodes() {

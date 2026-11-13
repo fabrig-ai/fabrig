@@ -1,6 +1,6 @@
 //! Chat render adapters used by whole-view tests.
 use super as fixtures;
-pub use crate::view_kit::chat::*;
+pub use temper_client_view_kit::chat::*;
 use jig_client::{contract as c, thread::Thread};
 use skein_lib::List;
 use skein_ui::Builder;

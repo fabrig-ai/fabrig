@@ -3,9 +3,11 @@ use jig_client::contract as c;
 use skein_lib::{Env, Queue, Time, Token, Wall, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
+#[must_use]
 pub fn root_in_project(project: Option<u32>) -> temper_client_domain::Domain {
     root_with_watch(project).0
 }
+#[must_use]
 pub fn root_with_watch(project: Option<u32>) -> (temper_client_domain::Domain, Token) {
     let (root, me, _) = root_at(
         temper_client_domain::Address::Inbox {
@@ -15,6 +17,7 @@ pub fn root_with_watch(project: Option<u32>) -> (temper_client_domain::Domain, T
     );
     (root, me)
 }
+#[must_use]
 pub fn root_at(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -22,12 +25,14 @@ pub fn root_at(
     let (root, me, page, _) = root_at_with_tree(address, limits);
     (root, me, page)
 }
+#[must_use]
 pub fn root_at_with_tree(
     address: temper_client_domain::Address,
     limits: &Limits,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>) {
     root_at_with_tree_named(address, limits, b"Shop")
 }
+#[must_use]
 pub fn root_at_with_tree_named(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -36,10 +41,12 @@ pub fn root_at_with_tree_named(
     let (root, me, page, tree, _) = root_at_full(address, limits, project_name);
     (root, me, page, tree)
 }
+#[must_use]
 pub fn account_root() -> (temper_client_domain::Domain, Token) {
     let (root, _, _, _, accounts) = root_at_full(temper_client_domain::Address::Accounts, &domain_limits(), b"Shop");
     (root, accounts.expect("global accounts watch"))
 }
+#[must_use]
 pub fn root_at_full(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -47,6 +54,7 @@ pub fn root_at_full(
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>) {
     root_at_with_playground(address, limits, project_name, None)
 }
+#[must_use]
 pub fn root_at_with_playground(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -70,6 +78,7 @@ pub fn root_at_with_playground(
         None,
     )
 }
+#[must_use]
 pub fn root_at_with_activity(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -83,6 +92,7 @@ pub fn root_at_with_activity(
     (root, me, page, tree, accounts)
 }
 
+#[must_use]
 pub fn root_at_with_forges(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -94,6 +104,7 @@ pub fn root_at_with_forges(
     root_at_with_dismissals(address, limits, project_name, playground, activity, forge_rows, Some(&[]))
 }
 
+#[must_use]
 pub fn root_at_with_needs(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -102,6 +113,7 @@ pub fn root_at_with_needs(
         root_at_with_dismissals_and_needs(address, limits, b"Shop", None, None, None, Some(&[]));
     (root, me, page, needs.expect("standing needs watch"))
 }
+#[must_use]
 pub fn root_at_with_dismissals(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -127,6 +139,7 @@ pub fn root_at_with_dismissals(
 }
 
 #[expect(clippy::type_complexity, reason = "the fixture returns session and page watch tokens")]
+#[must_use]
 pub fn root_at_with_dismissals_and_needs(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -151,6 +164,7 @@ pub fn root_at_with_dismissals_and_needs(
     (root, me, page, tree, accounts, forges, needs)
 }
 
+#[must_use]
 pub fn root_with_ways(
     address: temper_client_domain::Address,
     ways: Option<forge::ways::Ways>,
@@ -158,10 +172,12 @@ pub fn root_with_ways(
     root_at_with_values(address, &domain_limits(), b"Shop", None, None, None, Some(&[]), ways, false, true).0
 }
 
+#[must_use]
 pub fn root_with_refused_ways(address: temper_client_domain::Address) -> temper_client_domain::Domain {
     root_at_with_values(address, &domain_limits(), b"Shop", None, None, None, Some(&[]), None, true, true).0
 }
 
+#[must_use]
 pub fn home_root(
     limits: &Limits,
     rows: List<w::ForgeRow>,
@@ -192,6 +208,7 @@ pub fn home_root(
 
 #[expect(clippy::type_complexity, reason = "the fixture returns the session and page watch tokens to their callers")]
 #[expect(clippy::too_many_arguments, reason = "the fixture carries independent session answers")]
+#[must_use]
 pub fn root_at_with_values(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -231,6 +248,7 @@ pub fn root_at_with_values(
 #[expect(clippy::type_complexity, reason = "the fixture returns the session and page watch tokens to their callers")]
 #[expect(clippy::too_many_arguments, reason = "the fixture carries independent session answers")]
 #[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
+#[must_use]
 pub fn root_at_with_classes(
     address: temper_client_domain::Address,
     limits: &Limits,
@@ -613,6 +631,7 @@ pub fn empty_session(root: &mut temper_client_domain::Domain, read: Token, watch
         },
     );
 }
+#[must_use]
 pub fn activity_token(request: Option<&temper_client_domain::Request>) -> Option<Token> {
     if let Some(temper_client_domain::Request::Unlinked {
         request:
@@ -658,9 +677,11 @@ pub fn answer_activity(
         out,
     );
 }
+#[must_use]
 pub fn adoption_root() -> temper_client_domain::Domain {
     adoption_page(PROJECT, b"shop")
 }
+#[must_use]
 pub fn adoption_page(project: u32, name: &[u8]) -> temper_client_domain::Domain {
     root_at_with_tree_named(temper_client_domain::Address::Adopt { project }, &domain_limits(), name).0
 }
@@ -674,21 +695,26 @@ pub const INBOX_REPLY_TASK: u64 = 10;
 pub const INBOX_QUESTION: u64 = 1;
 pub const INBOX_POSITION: u64 = 1;
 pub const OTHER_PARTY: u64 = 74;
+#[must_use]
 pub fn inbox_root() -> temper_client_domain::Domain {
     inbox_root_filtered(temper_client_domain::address::Filter::ALL)
 }
+#[must_use]
 pub fn inbox_root_filtered(filter: temper_client_domain::address::Filter) -> temper_client_domain::Domain {
     inbox_with_document(filter, None)
 }
+#[must_use]
 pub fn inbox_with_document(
     filter: temper_client_domain::address::Filter,
     document: Option<(jig_client::contract::Read, jig_client::contract::ReadValue)>,
 ) -> temper_client_domain::Domain {
     inbox_with_proposer(filter, document, c::Proposer::Task(INBOX_TASK))
 }
+#[must_use]
 pub fn inbox_from(proposer: c::Proposer) -> temper_client_domain::Domain {
     inbox_with_proposer(temper_client_domain::address::Filter::ALL, None, proposer)
 }
+#[must_use]
 pub fn inbox_with_proposer(
     filter: temper_client_domain::address::Filter,
     document: Option<(c::Read, c::ReadValue)>,
@@ -696,6 +722,7 @@ pub fn inbox_with_proposer(
 ) -> temper_client_domain::Domain {
     inbox_facts(filter, document, proposer, false, None)
 }
+#[must_use]
 pub fn inbox_facts(
     filter: temper_client_domain::address::Filter,
     document: Option<(c::Read, c::ReadValue)>,
@@ -706,6 +733,7 @@ pub fn inbox_facts(
     inbox_facts_at(temper_client_domain::Address::Inbox { filter }, document, proposer, cut, unread)
 }
 /// A question's reply on Home, sharing the inbox's delivered card fixture.
+#[must_use]
 pub fn reply_composer(document: (c::Read, c::ReadValue)) -> temper_client_domain::Domain {
     inbox_facts_at(
         temper_client_domain::Address::Home { project: PROJECT },
@@ -716,6 +744,7 @@ pub fn reply_composer(document: (c::Read, c::ReadValue)) -> temper_client_domain
     )
 }
 #[expect(clippy::too_many_lines, reason = "one fixture delivers the inbox and its reply composer through public reads")]
+#[must_use]
 pub fn inbox_facts_at(
     address: temper_client_domain::Address,
     document: Option<(c::Read, c::ReadValue)>,
@@ -902,11 +931,13 @@ pub fn inbox_facts_at(
     root
 }
 
+#[must_use]
 pub fn signed_out() -> temper_client_domain::Domain {
     let mut root = root_in_project(Some(PROJECT));
     root_event(&mut root, temper_client_domain::Event::SignedOut);
     root
 }
+#[must_use]
 pub fn out_of_date() -> temper_client_domain::Domain {
     let mut root = root_in_project(Some(PROJECT));
     root_event(
@@ -917,9 +948,11 @@ pub fn out_of_date() -> temper_client_domain::Domain {
     );
     root
 }
+#[must_use]
 pub fn chats_root() -> temper_client_domain::Domain {
     chats::listed(&[], &[], false)
 }
+#[must_use]
 pub fn fixture_me(project_name: &[u8]) -> c::Me {
     use jig_client::contract::{self, DocumentText, HeldRole, Me, MeParty, MeProject, Needs, PartyKind};
     let mut projects = List::with_capacity(2);
@@ -967,6 +1000,7 @@ pub fn fixture_me(project_name: &[u8]) -> c::Me {
 }
 pub const PLAYGROUND_CUE: &[u8] = b"Change the title";
 pub const PLAYGROUND_OTHER_CUE: &[u8] = b"Add a test";
+#[must_use]
 pub fn playground_root(
     address: temper_client_domain::Address,
     project: u32,
@@ -978,6 +1012,7 @@ pub fn playground_root(
     }
     root
 }
+#[must_use]
 pub fn playground_choice_root(
     address: temper_client_domain::Address,
     project: u32,
@@ -986,6 +1021,7 @@ pub fn playground_choice_root(
 ) -> temper_client_domain::Domain {
     playground_frame_root(address, project, model, llm, None)
 }
+#[must_use]
 pub fn playground_frame_root(
     address: temper_client_domain::Address,
     project: u32,
@@ -996,6 +1032,7 @@ pub fn playground_frame_root(
     playground_frame_with_watch(address, project, model, llm, frame).0
 }
 #[expect(clippy::too_many_lines, reason = "the fixture delivers playground offer, preview and task through watches")]
+#[must_use]
 pub fn playground_frame_with_watch(
     address: temper_client_domain::Address,
     project: u32,
@@ -1121,6 +1158,7 @@ pub fn playground_frame_with_watch(
 }
 
 /// T1 keeps its playground account after another provider's key becomes usable.
+#[must_use]
 pub fn playground_kept_root() -> temper_client_domain::Domain {
     let address = temper_client_domain::Address::Chat { task: 1 };
     let (mut root, me_watch, task_watch, _, account_watch) =
@@ -1182,6 +1220,7 @@ pub fn playground_kept_root() -> temper_client_domain::Domain {
     root
 }
 
+#[must_use]
 pub fn hidden_playground_root(ready: Option<c::Readiness>, payer: u64) -> temper_client_domain::Domain {
     let address = temper_client_domain::Address::Chat { task: 1 };
     let (mut root, me_watch, task_watch, _, account_watch) =
@@ -1222,6 +1261,7 @@ pub fn hidden_playground_root(ready: Option<c::Readiness>, payer: u64) -> temper
     root
 }
 
+#[must_use]
 pub fn playground_provider() -> c::ProviderOffer {
     c::ProviderOffer {
         provider: 17,
@@ -1237,6 +1277,7 @@ pub fn playground_provider() -> c::ProviderOffer {
     }
 }
 
+#[must_use]
 pub fn playground_accounts(model: bool) -> c::Accounts {
     let mut rows = List::with_capacity(2);
     let mut sources = List::with_capacity(1);
@@ -1403,16 +1444,19 @@ pub fn playground_session(
 }
 
 /// First-run facts answered, with or without the deployment's playground.
+#[must_use]
 pub fn welcome_root(step: temper_client_domain::Step, playground: bool) -> temper_client_domain::Domain {
     let address = temper_client_domain::Address::Welcome { step };
     root_at_with_playground(address, &domain_limits(), b"Shop", if playground { Some((PROJECT, true)) } else { None }).0
 }
 
 /// A flow's rows delivered through the session watch.
+#[must_use]
 pub fn forge_root(address: temper_client_domain::Address, rows: List<w::ForgeRow>) -> temper_client_domain::Domain {
     forge_root_accounts(address, rows).0
 }
 
+#[must_use]
 pub fn forge_root_accounts(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
@@ -1435,12 +1479,14 @@ pub fn welcome_account(root: &mut temper_client_domain::Domain, watch: Token) {
 }
 
 /// A playground and explicit forge rows share the session watch.
+#[must_use]
 pub fn playground_forges_root(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
 ) -> temper_client_domain::Domain {
     playground_forges_state_root(address, rows, w::PlaygroundState::Running)
 }
+#[must_use]
 pub fn playground_forges_state_root(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
@@ -1512,6 +1558,7 @@ pub fn playground_start_answer(
 }
 
 /// A forge flow that can receive subsequent watch deliveries.
+#[must_use]
 pub fn forge_root_watch(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
@@ -1520,6 +1567,7 @@ pub fn forge_root_watch(
     (root, watch.expect("forges watch"))
 }
 
+#[must_use]
 pub fn pair(
     first: temper_client_domain::Domain,
     second: temper_client_domain::Domain,
@@ -1531,9 +1579,11 @@ pub fn pair(
 }
 
 /// A signed-in root with no project and a deployment without the welcome.
+#[must_use]
 pub fn no_project_root() -> temper_client_domain::Domain {
     chats::no_project_root(Some(false))
 }
+#[must_use]
 pub fn reading_me_at(address: temper_client_domain::Address) -> temper_client_domain::Domain {
     use temper_client_domain::Event;
     let mut root = temper_client_domain::unlinked(&domain_limits(), SEED);
@@ -1558,6 +1608,7 @@ pub fn deliver_me(root: &mut temper_client_domain::Domain, watch: Token, me: c::
 }
 
 /// Template 5's charter deliberately differs from its number and its name is editable.
+#[must_use]
 pub fn asking_me(mut me: c::Me) -> c::Me {
     let project = me.projects.get_mut(0).expect("project");
     let stock = match project.templates.get(0) {
@@ -1581,6 +1632,7 @@ pub fn asking_me(mut me: c::Me) -> c::Me {
     me
 }
 
+#[must_use]
 pub fn root_with_classes(
     address: temper_client_domain::Address,
     classes: &temper_protocol_reaches::Classes,
@@ -1600,12 +1652,14 @@ pub fn root_with_classes(
     )
     .0
 }
+#[must_use]
 pub fn classes_bytes(classes: &temper_protocol_reaches::Classes) -> Box<[u8]> {
     let record = temper_protocol_reaches::classes_record(classes).unwrap();
     let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut writer).unwrap();
     writer.finish()
 }
+#[must_use]
 pub fn ways_bytes(ways: forge::ways::Ways) -> Box<[u8]> {
     let value = w::ProjectWays::new(
         &w::CEILINGS,
@@ -1618,9 +1672,11 @@ pub fn ways_bytes(ways: forge::ways::Ways) -> Box<[u8]> {
 }
 
 /// The party's Away watch and project frame, without an optimistic row.
+#[must_use]
 pub fn away_root(until: Option<Wall>, off: Option<Wall>) -> temper_client_domain::Domain {
     away_frame(until, off).0
 }
+#[must_use]
 pub fn away_frame(until: Option<Wall>, off: Option<Wall>) -> (temper_client_domain::Domain, Token) {
     let (mut root, me, _, _, _, _, _, _, watch) = root_at_with_values(
         temper_client_domain::Address::Home { project: PROJECT },
@@ -1720,6 +1776,7 @@ pub struct ReadPage {
     pub reads: List<(Token, c::Read)>,
 }
 impl ReadPage {
+    #[must_use]
     pub fn new(address: temper_client_domain::Address) -> Self {
         use jig_client::{Down, Readable, Up, Watchable};
         use temper_client_domain::{Event, Request};
@@ -1939,6 +1996,7 @@ pub fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
     }
 }
 
+#[must_use]
 pub fn sheet_root() -> temper_client_domain::Domain {
     let mut rows = List::with_capacity(1);
     let mut row =
@@ -1965,6 +2023,7 @@ pub fn sheet_root() -> temper_client_domain::Domain {
 }
 
 /// An in-flight model sign-in for the shared waiting page's direct render checks.
+#[must_use]
 pub fn waiting_root() -> temper_client_domain::Domain {
     connect_model::pasting().0
 }

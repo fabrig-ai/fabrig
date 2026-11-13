@@ -36,7 +36,8 @@ impl TerminalWord {
         PhraseId { owner: crate::look::owner(), number: self.data().0 }
     }
 }
-pub(crate) fn say(w: &Words, word: TerminalWord) -> Box<[u8]> {
+#[must_use]
+pub fn say(w: &Words, word: TerminalWord) -> Box<[u8]> {
     w.book.say(w.language, word.id(), &[]).expect("checked terminal phrase").text
 }
 pub(crate) fn extend(shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>) {

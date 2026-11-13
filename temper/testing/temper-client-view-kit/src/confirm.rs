@@ -22,10 +22,12 @@ pub const EMPTY_BATCH: u32 = 0;
 pub const PROPOSAL: c::ProposalKey =
     c::ProposalKey { proposer: c::Proposer::Task(fixtures::INBOX_TASK), number: fixtures::INBOX_QUESTION };
 
+#[must_use]
 pub fn text(words: &[u8]) -> c::Text {
     c::Text::new(Box::from(words), TEXT_BYTES).expect("fixture text")
 }
 
+#[must_use]
 pub fn root(act: ActKind, admission: Admission) -> temper_client_domain::Domain {
     let mut acts = List::with_capacity(SINGLE_OFFER);
     acts.push(c::Offered { act, admission, effect: None }).expect("one act");

@@ -1,10 +1,10 @@
 //! temper's frame and forge words as checked English data.
 //! Trial endings: temper/docs/design/domain/trial.md, 6.4.
 //! Playground and forge setup words (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/welcome.md, 2).
-pub(crate) mod accounts;
+pub mod accounts;
 pub mod cards;
 pub mod forge;
-pub(crate) mod terminal;
+pub mod terminal;
 
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -16,8 +16,9 @@ use skein_ui::{
     },
 };
 /// Includes the UTF-8 ellipsis; smaller phrasebooks retain their joined Name bound.
-pub(crate) const MODEL_SHOWN: u32 = 256;
-pub(crate) fn shown(name: &[u8], w: &Words) -> Box<[u8]> {
+pub const MODEL_SHOWN: u32 = 256;
+#[must_use]
+pub fn shown(name: &[u8], w: &Words) -> Box<[u8]> {
     let Ok(bound) = usize::try_from(MODEL_SHOWN.min(w.name_bytes)) else { return Box::default() };
     if name.len() <= bound {
         return copy_of(name);
@@ -2071,7 +2072,7 @@ pub enum Word {
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds three literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
-pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
+pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
 // The row's Replace adds seven phrases and nine segments (client/forge/deployment.md).
 // The banner's setup link and project switcher add two literal phrases (5.1 and 5.6).
@@ -6457,7 +6458,7 @@ pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 3] {
 
 impl Words {
     /// The shell's minutes east of universal time (temper/docs/design/client/view.md, 6).
-    pub(crate) fn set_zone_minutes(&mut self, zone_minutes: i32) {
+    pub fn set_zone_minutes(&mut self, zone_minutes: i32) {
         self.zone_minutes = zone_minutes;
     }
     fn local_nanos(&self, at: skein_lib::Wall) -> i128 {
@@ -6465,12 +6466,14 @@ impl Words {
         i128::from(at.as_nanos()).checked_add(offset).expect("wall and i32 minutes fit i128")
     }
     /// The calendar day in the person's zone, including before the epoch.
-    pub(crate) fn calendar_day(&self, at: skein_lib::Wall) -> i64 {
+    #[must_use]
+    pub fn calendar_day(&self, at: skein_lib::Wall) -> i64 {
         i64::try_from(self.local_nanos(at).div_euclid(i128::from(DAY))).expect("wall and i32 minutes' days fit i64")
     }
 
     /// The configured playground model's identifier has its own display name (client/pages/welcome.md, 2).
-    pub(crate) fn model_name(&self, name: &[u8]) -> Box<[u8]> {
+    #[must_use]
+    pub fn model_name(&self, name: &[u8]) -> Box<[u8]> {
         if name == SCRIPTED_MODEL { self.say(Word::PlaygroundModelName, &[]) } else { copy_of(name) }
     }
 
@@ -6511,7 +6514,8 @@ impl Words {
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {
         self.book.say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
     }
-    pub(crate) fn deadline(&self, at: skein_lib::Wall) -> Box<[u8]> {
+    #[must_use]
+    pub fn deadline(&self, at: skein_lib::Wall) -> Box<[u8]> {
         let word = if at.as_secs() % 86_400 == 0 { Word::BudgetDeadlineDate } else { Word::BudgetDeadlineMoment };
         self.say(word, &[Hole::Wall(at)])
     }
@@ -6520,7 +6524,8 @@ impl Words {
         self.book.say(self.language, word.id(), holes).expect("checked jig word").text
     }
     /// A run's supplied placement time in absolute UTC.
-    pub(crate) fn run_started(&self, at: skein_lib::Wall) -> Box<[u8]> {
+    #[must_use]
+    pub fn run_started(&self, at: skein_lib::Wall) -> Box<[u8]> {
         self.say(Word::RunStarted, &[Hole::Name(copy_of(&chat_clock(at)))])
     }
 
@@ -6537,7 +6542,7 @@ impl Words {
         builder.text(Run::Plain, &text);
     }
     #[must_use]
-    pub(crate) fn path_bytes(&self) -> u32 {
+    pub fn path_bytes(&self) -> u32 {
         self.book
             .capacity(temper_client_domain::forge::words::ResourceWord::Path.id(self.connector))
             .expect("checked path word")
@@ -8633,15 +8638,16 @@ const DAY: u64 = 86_400_000_000_000;
 
 /// A build accumulates only the times it actually draws.
 #[derive(Debug)]
-pub(crate) struct Times {
-    pub(crate) now: skein_lib::Wall,
-    pub(crate) next: Option<skein_lib::Wall>,
+pub struct Times {
+    pub now: skein_lib::Wall,
+    pub next: Option<skein_lib::Wall>,
 }
 impl Times {
-    pub(crate) fn new(now: skein_lib::Wall) -> Self {
+    #[must_use]
+    pub fn new(now: skein_lib::Wall) -> Self {
         Self { now, next: None }
     }
-    pub(crate) fn model_new(&mut self, model: &jig_client::contract::MeModel) -> bool {
+    pub fn model_new(&mut self, model: &jig_client::contract::MeModel) -> bool {
         if model.source != jig_client::contract::ModelSource::List {
             return false;
         }
@@ -8652,13 +8658,13 @@ impl Times {
         self.next = [self.next, Some(until)].into_iter().flatten().min();
         true
     }
-    pub(crate) fn say(&mut self, words: &Words, form: TimeForm, at: skein_lib::Wall) -> Box<[u8]> {
+    pub fn say(&mut self, words: &Words, form: TimeForm, at: skein_lib::Wall) -> Box<[u8]> {
         let (text, next) = words.time(form, at, self.now);
         self.next = [self.next, next].into_iter().flatten().min();
         text
     }
     /// Public rows use full units with the same span, ago and reconsideration rules (client/web/public.md, 3).
-    pub(crate) fn public_time(&mut self, words: &Words, form: TimeForm, at: skein_lib::Wall) -> Box<[u8]> {
+    pub fn public_time(&mut self, words: &Words, form: TimeForm, at: skein_lib::Wall) -> Box<[u8]> {
         let text = self.say(words, form, at);
         let minutes = self.now.as_nanos().saturating_sub(at.as_nanos()).checked_div(MINUTE).expect("nonzero minute");
         match form {
@@ -8726,7 +8732,8 @@ impl Words {
         self.say(Word::PublicTimeParts, &[Hole::Name(self.looked_span(hours)), Hole::Name(self.looked_span(remainder))])
     }
     /// Whole wake spans use the largest exact unit (client/pages/team.md, 1).
-    pub(crate) fn wake_span(&self, span: skein_lib::Duration) -> Box<[u8]> {
+    #[must_use]
+    pub fn wake_span(&self, span: skein_lib::Duration) -> Box<[u8]> {
         let nanos = span.as_nanos();
         for (unit, one, many) in [
             (604_800_000_000_000, Word::WakeWeek, Word::WakeWeeks),
@@ -8742,13 +8749,15 @@ impl Words {
         }
         self.say(Word::WakeSeconds, &[Hole::Number(nanos.checked_div(1_000_000_000).expect("second is nonzero"))])
     }
-    pub(crate) fn wake_weekly(&self, at: skein_lib::Wall) -> Box<[u8]> {
+    #[must_use]
+    pub fn wake_weekly(&self, at: skein_lib::Wall) -> Box<[u8]> {
         self.say(
             Word::WakeWeekly,
             &[Hole::Name(self.time_weekday(self.calendar_day(at), true)), Hole::Name(self.turn_clock(at))],
         )
     }
-    pub(crate) fn time_span(&self, minutes: u64) -> Box<[u8]> {
+    #[must_use]
+    pub fn time_span(&self, minutes: u64) -> Box<[u8]> {
         match minutes {
             0 => self.say(Word::TimeUnderMinute, &[]),
             1..60 => self.say(Word::TimeMinutes, &[Hole::Number(minutes)]),
@@ -8793,7 +8802,8 @@ impl Words {
         }
     }
     /// A turn under a day line has a fixed clock and needs no wake of its own.
-    pub(crate) fn turn_clock(&self, at: skein_lib::Wall) -> Box<[u8]> {
+    #[must_use]
+    pub fn turn_clock(&self, at: skein_lib::Wall) -> Box<[u8]> {
         let minute = self.local_nanos(at).div_euclid(i128::from(MINUTE));
         let minute = u64::try_from(minute.rem_euclid(1440)).expect("minute in day");
         self.say(
@@ -8802,7 +8812,8 @@ impl Words {
         )
     }
     /// A session always names its weekday, including today, in the person's zone.
-    pub(crate) fn session_clock(&self, at: skein_lib::Wall) -> Box<[u8]> {
+    #[must_use]
+    pub fn session_clock(&self, at: skein_lib::Wall) -> Box<[u8]> {
         self.say(
             Word::TimePair,
             &[Hole::Name(self.time_weekday(self.calendar_day(at), false)), Hole::Name(self.turn_clock(at))],
@@ -8830,7 +8841,8 @@ impl Words {
         let index = usize::try_from(day.checked_add(4).expect("epoch day fits").rem_euclid(7)).expect("weekday fits");
         self.say(*if full { long.get(index) } else { short.get(index) }.expect("weekday in week"), &[])
     }
-    pub(crate) fn time_date(&self, at: skein_lib::Wall, now: skein_lib::Wall) -> Box<[u8]> {
+    #[must_use]
+    pub fn time_date(&self, at: skein_lib::Wall, now: skein_lib::Wall) -> Box<[u8]> {
         let (year, month, day) = civil_date(self.calendar_day(at));
         let months = [
             Word::TimeJanuary,
@@ -8906,7 +8918,8 @@ fn next_tick(
 }
 
 /// Grouped counts and spend (temper/docs/design/client/pages/accounts.md, 2).
-pub(crate) fn grouped(value: u64) -> Box<[u8]> {
+#[must_use]
+pub fn grouped(value: u64) -> Box<[u8]> {
     let digits = skein_lib::Decimal::of(value);
     let digits = digits.as_bytes();
     let commas = digits.len().checked_sub(1).expect("decimal has digits").checked_div(3).expect("three is nonzero");

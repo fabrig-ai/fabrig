@@ -2,10 +2,12 @@ use super::{self as f, connect_forge as forge};
 use temper_client_domain::{self as d, Address, Step, pages};
 use temper_client_protocol_wire::v1 as w;
 
+#[must_use]
 pub fn model_address(kind: d::WayKind) -> Address {
     Address::Welcome { step: Step::Model { way: Some(d::ModelWay { provider: 17, kind, source: None }) } }
 }
 
+#[must_use]
 pub fn owned_adopted_rows() -> skein_lib::List<w::ForgeRow> {
     let mut rows = forge::first_rows(forge::connected(), forge::made());
     let mut parts = rows.get(0).unwrap().clone().into_parts();
@@ -28,6 +30,7 @@ pub fn owned_adopted_rows() -> skein_lib::List<w::ForgeRow> {
     rows
 }
 
+#[must_use]
 pub fn model_with_forge(kind: d::WayKind) -> (d::Domain, skein_lib::Token) {
     let (offered, _) = super::connect_model::flow_fixture(kind);
     let me = pages::accounts::current_me(offered.client()).unwrap().clone();

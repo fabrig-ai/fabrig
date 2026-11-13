@@ -3,11 +3,13 @@ use jig_client::contract as c;
 use skein_ui::{Node, Tree};
 use temper_client_domain::{Domain, address::Filter};
 
+#[must_use]
 pub fn subtree(tree: &Tree, index: usize) -> &[Node] {
     let node = &tree.nodes()[index];
     &tree.nodes()[index..index.checked_add(usize::try_from(node.size).expect("subtree size")).expect("subtree end")]
 }
 
+#[must_use]
 pub fn styled(tree: &Tree, token: skein_ui::Style) -> usize {
     for (index, node) in tree.nodes().iter().enumerate() {
         if node.styles.as_slice().contains(&token) {
@@ -17,6 +19,7 @@ pub fn styled(tree: &Tree, token: skein_ui::Style) -> usize {
     panic!("styled node {token:?}");
 }
 
+#[must_use]
 pub fn question_root() -> Domain {
     let task = fixtures::task::document();
     let page = c::Question {

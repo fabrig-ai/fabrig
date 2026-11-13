@@ -7,6 +7,7 @@ pub const PROVIDER: u32 = 17;
 
 pub const SOURCE: u32 = 43;
 
+#[must_use]
 pub fn card_document(provider: &[u8], display: &[u8], kind: c::AccountKind) -> c::Accounts {
     let mut doc = document(1);
     let row = doc.accounts.get_mut(0).unwrap();
@@ -21,6 +22,7 @@ pub fn card_document(provider: &[u8], display: &[u8], kind: c::AccountKind) -> c
     doc
 }
 
+#[must_use]
 pub fn email_facts(email: Option<&[u8]>) -> List<c::AccountFact> {
     match email {
         Some(email) => List::from_boxed(Box::new([c::AccountFact {
@@ -35,6 +37,7 @@ pub fn email_facts(email: Option<&[u8]>) -> List<c::AccountFact> {
     }
 }
 
+#[must_use]
 pub fn source(number: u32) -> c::AccountSource {
     c::AccountSource {
         name: None,
@@ -49,6 +52,7 @@ pub fn source(number: u32) -> c::AccountSource {
     }
 }
 
+#[must_use]
 pub fn document(count: u32) -> c::Accounts {
     let mut accounts = List::with_capacity(count);
     let mut signing = List::with_capacity(count);
@@ -110,10 +114,7 @@ pub fn deliver(root: &mut d::Domain, watch: Token, doc: c::Accounts) {
     );
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
+#[must_use]
 pub fn sign_in_address(address: &[u8]) -> d::Domain {
     let mut root = super::connect_model::offered_root();
     let limits = fixtures::limits();

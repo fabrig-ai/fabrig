@@ -15,6 +15,7 @@ pub fn deliver_chat(root: &mut temper_client_domain::Domain, watch: skein_lib::T
     );
 }
 
+#[must_use]
 pub fn named_position(nodes: &[skein_ui::Node], role: Role, name: Option<&[u8]>) -> Option<usize> {
     for (index, node) in nodes.iter().enumerate() {
         if node.role == role && (name.is_none() || node.name.as_deref() == name) {
@@ -24,6 +25,7 @@ pub fn named_position(nodes: &[skein_ui::Node], role: Role, name: Option<&[u8]>)
     None
 }
 
+#[must_use]
 pub fn structured_messages() -> List<c::Message> {
     let mut messages = List::with_capacity(4);
     for speaker in [c::Speaker::Person, c::Speaker::Assistant, c::Speaker::Tool, c::Speaker::System] {
@@ -51,6 +53,7 @@ pub fn structured_messages() -> List<c::Message> {
     messages
 }
 
+#[must_use]
 pub fn structured_thread() -> Thread {
     let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 128, live: 128 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
@@ -153,10 +156,12 @@ pub fn assert_run_line(tree: &skein_ui::Tree, name: &[u8], description: &[u8], l
     assert_eq!(child, at.checked_add(usize::try_from(fold.size).unwrap()).unwrap());
 }
 
+#[must_use]
 pub fn asking_task_root(task: c::Task, template: bool, charter: u32) -> temper_client_domain::Domain {
     asking_task_root_owned(task, template, charter, true)
 }
 
+#[must_use]
 pub fn asking_task_root_owned(
     mut task: c::Task,
     template: bool,
@@ -180,6 +185,7 @@ pub fn asking_task_root_owned(
     root
 }
 
+#[must_use]
 pub fn asking_task() -> c::Task {
     let source = messaging_root();
     let mut task = source.pages().chat().expect("chat").task(source.client()).expect("task").clone();
@@ -191,6 +197,7 @@ pub fn asking_task() -> c::Task {
     task
 }
 
+#[must_use]
 pub fn model_effort(model: &str, effort: Option<&str>) -> c::ModelEffort {
     c::ModelEffort {
         model: fixtures::first_run::text(model.as_bytes()),
@@ -201,10 +208,12 @@ pub fn model_effort(model: &str, effort: Option<&str>) -> c::ModelEffort {
     }
 }
 
+#[must_use]
 pub fn model_choice(model: &str, effort: Option<&str>) -> c::LlmChoice {
     c::LlmChoice { later: None, account: None, main: model_effort(model, effort), subagents: List::with_capacity(0) }
 }
 
+#[must_use]
 pub fn model_line_page(latest: Option<c::ModelEffort>) -> c::ActivityPage {
     let mut row =
         temper_fixtures::client_documents::line(1, Wall::EPOCH, c::Activity::Decided { revision: 1, proposal: None });
@@ -229,6 +238,7 @@ pub fn model_line_page(latest: Option<c::ModelEffort>) -> c::ActivityPage {
     c::ActivityPage { rows: List::from_boxed(Box::new([row])), before: None, after: None, cut: false }
 }
 
+#[must_use]
 pub fn model_line_root(
     task: c::Task,
     latest: Option<c::ModelEffort>,
@@ -274,6 +284,7 @@ pub fn model_line_root(
     root
 }
 
+#[must_use]
 pub fn long_line_page(
     address: temper_client_domain::Address,
     line: c::Activity,

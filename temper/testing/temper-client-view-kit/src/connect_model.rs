@@ -5,6 +5,7 @@ use temper_client_domain::{self as d, pages::connect_model::Act as M};
 
 pub const PROVIDER: u32 = 17;
 
+#[must_use]
 pub fn terminal_root(welcome: bool, doc: c::Accounts) -> (d::Domain, skein_lib::Token) {
     let address = if welcome {
         d::Address::Welcome { step: d::Step::Model { way: None } }
@@ -32,6 +33,7 @@ pub fn terminal_root(welcome: bool, doc: c::Accounts) -> (d::Domain, skein_lib::
     (root, watch.unwrap())
 }
 
+#[must_use]
 pub fn terminal_document(lendable: bool) -> c::Accounts {
     let mut doc = super::accounts::document(0);
     doc.lendable = lendable;
@@ -41,6 +43,7 @@ pub fn terminal_document(lendable: bool) -> c::Accounts {
     doc
 }
 
+#[must_use]
 pub fn offer(provider: u32, name: &[u8], sign_in: bool, program: bool) -> c::ProviderOffer {
     let mut programs = List::with_capacity(1);
     if program {
@@ -60,10 +63,12 @@ pub fn offer(provider: u32, name: &[u8], sign_in: bool, program: bool) -> c::Pro
     }
 }
 
+#[must_use]
 pub fn text(value: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(Box::from(value), 64).unwrap())
 }
 
+#[must_use]
 pub fn ways_root(offers: List<c::ProviderOffer>, playground: bool) -> d::Domain {
     let limits = fixtures::limits();
     let (mut root, watch, _) = fixtures::root_at(d::Address::ConnectModel { way: None }, &limits);
@@ -92,6 +97,7 @@ pub fn ways_root(offers: List<c::ProviderOffer>, playground: bool) -> d::Domain 
 }
 
 /// `openai`'s sign-in and `anthropic`'s program, each provider taking keys too.
+#[must_use]
 pub fn plans_root() -> d::Domain {
     let mut providers = List::with_capacity(2);
     providers.push(offer(PROVIDER, b"openai", true, false)).unwrap();
@@ -99,12 +105,14 @@ pub fn plans_root() -> d::Domain {
     ways_root(providers, false)
 }
 
+#[must_use]
 pub fn offered_root() -> d::Domain {
     let mut providers = List::with_capacity(1);
     providers.push(offer(PROVIDER, b"openai", true, false)).unwrap();
     ways_root(providers, false)
 }
 
+#[must_use]
 pub fn flow_fixture(kind: d::WayKind) -> (d::Domain, skein_lib::Token) {
     flow_fixture_at(
         kind,
@@ -112,6 +120,7 @@ pub fn flow_fixture(kind: d::WayKind) -> (d::Domain, skein_lib::Token) {
     )
 }
 
+#[must_use]
 pub fn flow_fixture_at(kind: d::WayKind, address: d::Address) -> (d::Domain, skein_lib::Token) {
     let (mut root, me_watch, _, _, accounts_watch) = fixtures::root_at_full(address, &fixtures::limits(), b"Shop");
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
@@ -133,10 +142,6 @@ pub fn flow_fixture_at(kind: d::WayKind, address: d::Address) -> (d::Domain, ske
     (root, accounts_watch.unwrap())
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
 pub fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
     let limits = fixtures::limits();
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits };
@@ -181,6 +186,7 @@ pub fn answer(root: &mut d::Domain, attempt: skein_lib::Token, outcome: c::Docum
     );
 }
 
+#[must_use]
 pub fn ending(end: c::AccountEnd, display: &[u8]) -> d::Domain {
     let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
     let attempt = sent(
@@ -207,6 +213,7 @@ pub fn ending(end: c::AccountEnd, display: &[u8]) -> d::Domain {
     root
 }
 
+#[must_use]
 pub fn pasting() -> (d::Domain, skein_lib::Token) {
     let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
     let way = d::pages::accounts::Way::SignIn { provider: PROVIDER, plan: true };
@@ -225,10 +232,6 @@ pub fn pasting() -> (d::Domain, skein_lib::Token) {
 
 pub const ENVIRONMENT: &[u8] = b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper";
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
 pub fn answer_environment(root: &mut d::Domain, words: &[u8]) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let address = root.pages().address().clone();
@@ -274,10 +277,7 @@ pub fn answer_environment(root: &mut d::Domain, words: &[u8]) {
     );
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
+#[must_use]
 pub fn opened(out: &skein_lib::Queue<d::Request>, subject: &c::Subject) -> skein_lib::Token {
     out.iter()
         .find_map(|request| match request {
@@ -304,10 +304,6 @@ pub fn opened(out: &skein_lib::Queue<d::Request>, subject: &c::Subject) -> skein
         .unwrap()
 }
 
-#[expect(
-    clippy::disallowed_methods,
-    reason = "the shared test fixture keeps its semantic inspection and setup unchanged"
-)]
 pub fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -> (d::Domain, skein_lib::Token) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let limits = fixtures::limits();

@@ -8,20 +8,24 @@ pub const READER: u64 = 7;
 
 pub const SAM: u64 = 8;
 
+#[must_use]
 pub fn person(you: bool, name: &[u8], role: HeldRole, waits: Option<Waits>) -> Person {
     Person { party: if you { READER } else { SAM }, you, name: name.into(), role, waits, signed: None }
 }
 
 pub const MADE: Wall = Wall::from_nanos(1_793_577_600_000_000_000);
 
+#[must_use]
 pub fn holder_task(number: u64) -> w::Holder {
     w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap())
 }
 
+#[must_use]
 pub fn owner_task(number: u64) -> w::AreaOwner {
     w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap())
 }
 
+#[must_use]
 pub fn facts() -> Facts {
     Facts {
         member: true,

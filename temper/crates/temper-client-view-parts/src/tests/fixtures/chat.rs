@@ -1,6 +1,6 @@
 //! Chat closing confirmation render adapter.
 use super as fixtures;
-pub use crate::view_kit::chat::*;
+pub use temper_client_view_kit::chat::*;
 use jig_client::contract as c;
 use skein_lib::List;
 use skein_ui::Builder;
