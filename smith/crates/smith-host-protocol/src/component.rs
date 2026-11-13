@@ -100,7 +100,7 @@ pub struct Component {
     now: Time,
     stopping: Stopping,
     endpoints: smith_protocol_translate::Endpoints,
-    charter: smith_charter::v4::Limits,
+    charter: smith_charter::v5::Limits,
     transcript: smith_transcript::v7::Limits,
     sequence: u32,
     long_open: u32,

@@ -192,6 +192,7 @@ fn the_test_store_links_only_its_codec_boundary_and_foundation() {
         [
             "jig-test-connector",
             "jig-test-domain",
+            "jig-test-store-codec",
             "jig-domain-core",
             "jig-domain-notes",
             "jig-domain-people",
@@ -226,6 +227,7 @@ fn engine_clients_link_only_their_boundary_wire_and_foundation() {
             "jig-domain-people",
             "jig-domain-tasks",
             "jig-domain-views",
+            "jig-protocol-engine-clients-codec",
             "jig-protocol-store",
             "jig-protocol-transcript",
             "skein-codec",

@@ -1,0 +1,18 @@
+[package]
+name = "skein-ui-example-view-codec"
+description = "The notes example's generated record codecs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lib]
+test = false
+
+[dependencies]
+skein-lib.workspace = true
+skein-codec.workspace = true
+
+[lints]
+workspace = true

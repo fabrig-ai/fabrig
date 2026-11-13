@@ -28,6 +28,8 @@ fn assignment(world: &World) -> &host::Assignment {
             | Request::Close { .. }
             | Request::Abort { .. }
             | Request::Refused { .. }
+            | Request::CannotSendWhole { .. }
+            | Request::Untranslated { .. }
             | Request::Fact { .. }
             | Request::Resend { .. }
             | Request::RelayCancelled { .. } => None,
@@ -50,6 +52,8 @@ fn down(world: &World) -> Vec<&host::LinkDown> {
             | Request::Close { .. }
             | Request::Abort { .. }
             | Request::Refused { .. }
+            | Request::CannotSendWhole { .. }
+            | Request::Untranslated { .. }
             | Request::Fact { .. }
             | Request::Resend { .. }
             | Request::RelayCancelled { .. } => None,
@@ -153,7 +157,7 @@ fn a_transcript_piece_that_does_not_split_is_refused_as_invalid() {
     }
 }
 
-fn check_up_records(records: &[skein_fake_channel::Observed], limits: &wire::v12::Limits) {
+fn check_up_records(records: &[skein_fake_channel::Observed], limits: &wire::v13::Limits) {
     let turn = wire::Turn::decode(limits, &mut Reader::new(&records[1].body)).expect("turn");
     assert_eq!(
         (turn.task(), turn.attempt(), turn.number(), turn.spent(), *turn.read(), turn.opens_window(), turn.body()),

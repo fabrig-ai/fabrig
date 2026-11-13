@@ -41,7 +41,13 @@ fn ident(name: &str) -> String {
 
 pub(crate) fn function_names(patch: &PatchText) -> Result<Vec<String>, Error> {
     let mut names = BTreeMap::new();
-    patch.sites().map(|(_, target, _)| unique(&mut names, ident(&snake(target)), target)).collect()
+    patch
+        .sites()
+        .map(|(_, target, _, down)| {
+            let name = if down { format!("{}_down", snake(target)) } else { snake(target) };
+            unique(&mut names, ident(&name), target)
+        })
+        .collect()
 }
 
 pub(crate) fn read_patch(source: &str, number: u32) -> Result<PatchText, Error> {
@@ -71,12 +77,19 @@ pub(crate) fn module_text(krate: &Crate) -> Result<String, Error> {
     for (family, versions) in &krate.kept {
         let name = unique(&mut families, ident(&family.replace('-', "_")), family)?;
         writeln!(out, "    pub mod {name} {{").expect("String write");
+        if krate.wires.contains(family) {
+            out.push_str("        use skein_codec::bridge::{Bridge, BridgeError};\n        use skein_codec::patch::Capacity;\n\n");
+        }
         text_array(
             &mut out,
             "        ",
             "TEXTS",
             &versions.values().map(|text| text.source.as_str()).collect::<Vec<_>>(),
         );
+        if let Some(floor) = krate.wire_floors.get(family) {
+            let floor = floor.unwrap_or_else(|| krate.current.get(family).expect("wire family checked").version);
+            writeln!(out, "        pub const FLOOR: u16 = {floor};\n\n        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {{\n            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)\n        }}").expect("String write");
+        }
         for (version, text) in versions {
             let schema = schema::parse(text.source.as_bytes())
                 .map_err(|error| Error::Schema { path: text.path.clone(), error: format!("{error:?}") })?;
@@ -112,6 +125,7 @@ pub(crate) fn module_text(krate: &Crate) -> Result<String, Error> {
     }
     out.push_str("}\n\n");
     dispatch(krate, &mut out)?;
+    out.push_str("\npub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {\n    written(site, old, new, at, &mut Context::default())\n}\n");
     tests(krate, &mut out);
     Ok(out)
 }

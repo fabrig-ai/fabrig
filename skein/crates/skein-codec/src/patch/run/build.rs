@@ -420,7 +420,8 @@ impl Build {
                 | Type::Option(_)
                 | Type::Named(_) => old.content(node)?,
             };
-            return self.content(bytes);
+            let result = self.content(bytes);
+            return self.derived_result(old, node, result);
         }
         // begin checks the enclosing list's bound; the walk counts the carried nodes.
         self.begin()?;
@@ -443,7 +444,7 @@ impl Build {
         match a {
             Source::Type(a) => match b {
                 Source::Type(b) => {
-                    plan::compare(&self.current().olds, self.old_schema(), self.new_schema(), a, b)
+                    plan::compared(self.current(), self.old_schema(), self.new_schema(), a, b)
                         != plan::Comparison::Retype
                 }
                 Source::Declaration(b) => match ty(self.old_schema(), Source::Type(a)) {

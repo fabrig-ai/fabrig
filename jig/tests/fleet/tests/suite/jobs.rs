@@ -196,12 +196,19 @@ fn a_worker_never_gets_a_message_or_relay_for_a_job() {
         h.step(Event::Inbound { run: R1, attempt: A1, message }),
         &[Request::Undelivered { run: R1, attempt: A1, message, undelivered: Undelivered::Gone }]
     );
-    let call =
-        Call { name: Box::new([]), tool: Box::new([]), writes: false, input: Box::new([]), deadline: Duration::ZERO };
+    let call = Call {
+        contract: 1,
+        name: Box::new([]),
+        tool: Box::new([]),
+        writes: false,
+        input: Box::new([]),
+        deadline: Duration::ZERO,
+    };
     assert_eq!(
         h.step(Event::Relay { channel: C1, run: R1, attempt: A1, call }),
         &[Request::DropCall {
             call: Call {
+                contract: 1,
                 name: Box::new([]),
                 tool: Box::new([]),
                 writes: false,

@@ -20,6 +20,7 @@ fn opening(words: &str, mode: run::Mode) -> run::Opening {
         },
         conventions: None,
         grants: charter::Grants {
+            contract: 1,
             wait: true,
             deliver: None,
             save: false,

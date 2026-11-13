@@ -23,10 +23,22 @@ add ModelEvidence
 add ModelFailure
 add Failed.model option ModelFailure none
 ",
+    r"patch 1
+owner jig 3
+
+family jig-worker-wire 12 to 13
+add Call.contract u16 1
+add AgreedWire
+add Agreed
+add FromEngine.wires
+",
 ];
 
 pub mod kept {
     pub mod jig_worker_wire {
+        use skein_codec::bridge::{Bridge, BridgeError};
+        use skein_codec::patch::Capacity;
+
         pub const TEXTS: &[&str] = &[
             r"family jig-worker-wire 10
 
@@ -660,7 +672,236 @@ enum FromEngine {
     sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList
 }
 ",
+            r"family jig-worker-wire 13
+
+# The worker's credential (protocol/channel/README.md, 4.1).
+record Wire { name: text 32 lowest: u16 layouts: list 16 fixed 32 }
+record Credential { name: text 256 secret: secret 1024 wires: list 16 Wire output: u32 }
+
+# The worker's hello and agent bounds (protocol/channel/records.md, 1).
+record JobBound { kind: u32 spec: u32 result: u32 deadline: duration }
+record EndpointBound { endpoint: u32 window: u32 output: u32 }
+record Bounds {
+    endpoints: list 64 EndpointBound
+    turns: u32
+    spend: u64
+    time: duration
+    waiting: duration
+    checks: duration
+    message_bytes: u32
+    inbox: u32
+    unacknowledged: u32
+    reply_bytes: option u32
+    program_endpoints: list 64 u32
+}
+enum Phase { answered, preparing, starting, active, waiting, ending }
+record Hosting { task: u64 attempt: u64 phase: Phase }
+record Hello {
+    slots: u32
+    stop_bound: duration
+    workstreams: list 65536 u64
+    hosting: list 65536 Hosting
+    jobs: list 256 JobBound
+    bounds: Bounds
+}
+
+# Other worker-to-engine records (protocol/channel/records.md, 1, and protocol/channel/README.md, 5.4).
+enum MessageRefusal { too_large, full, name_in_use, ending }
+record Refused { name: u64 reason: MessageRefusal }
+record Turn {
+    task: u64 attempt: u64 number: u32 spent: u64
+    read: option u64
+    opens_window: bool
+    refused: list 1024 Refused
+    body: bytes 33554432
+}
+record Call {
+    task: u64 attempt: u64
+    name: bytes 64
+    tool: text 64
+    writes: bool
+    input: bytes 1048576
+    deadline: duration
+    contract: u16
+}
+enum StartCause { other, grants, transcript }
+record InvalidStart { why: bytes 4096 cause: StartCause }
+enum Invalid { charter, transcript, grants, messages, start: InvalidStart }
+record InvalidValue { value: Invalid }
+record Mismatch { wire: text 32 version: u16 lowest: u16 highest: u16 }
+enum Refusal { busy, invalid: InvalidValue, version: Mismatch }
+record RefusalValue { value: Refusal }
+record Work { left: option bytes 65536 saved: option bytes 16777216 }
+record Ended { outcome: bytes 67108864 work: Work }
+record Parked { work: Work }
+record Resource { resource: option bytes 1024 }
+enum Preparation { transient, permanent: Resource }
+record PreparationValue { value: Preparation }
+record LimitedAccount { account: u32 reset: option duration }
+record RefusedAccount { account: u32 }
+enum Bound { reasoning, metadata, items, answer, tools, history_items, history, window, output }
+record Exceeded { bound: Bound value: u64 }
+enum RunFailure {
+    model, budget, policy, cancelled, stale,
+    limited: LimitedAccount, refused: RefusedAccount, exceeded: Exceeded, transcript }
+record RunFailureValue { value: RunFailure }
+enum AgentFailure { unstarted, exited, rules, no_progress, wall_time }
+record AgentFailureValue { value: AgentFailure }
+enum CancelReason { engine, contact, shutdown }
+record CancelReasonValue { value: CancelReason }
+enum Failure {
+    unprepared: PreparationValue, run: RunFailureValue,
+    agent: AgentFailureValue, cancelled: CancelReasonValue
+}
+enum ModelFailureKind {
+    unavailable, overloaded, rate_limited, exhausted, timed_out, context_too_long,
+    invalid, refused, unsupported, unauthorized, protocol, cancelled, limit
+}
+enum ModelEvidence { unsent, unknown, response }
+record ModelFailure {
+    endpoint: bytes 40
+    model: bytes 40
+    kind: ModelFailureKind
+    evidence: ModelEvidence
+    status: option u16
+}
+record Failed { failure: Failure detail: bytes 4096 work: Work model: option ModelFailure }
+enum Ending { refused: RefusalValue, ended: Ended, parked: Parked, failed: Failed }
+record Answer {
+    task: u64 attempt: u64 turns: u32 spent: u64
+    read: option u64
+    refused: list 1024 Refused
+    ending: Ending
+}
+enum Operation { checks, completion, command }
+record Long { operation: Operation span: duration }
+enum CountKind {
+    admitted, ended, llm_started, llm_retried, llm_finished,
+    tool_started, tool_finished, check_started, check_finished, text_arrived
+}
+record Count { kind: CountKind elapsed: duration value: u64 }
+record PhaseValue { value: Phase }
+record InputCall { id: text 256 tool: text 64 }
+enum LiveKind { text, reasoning, input: InputCall }
+record Piece { turn: u32 retry: u32 kind: LiveKind offset: u64 bytes: bytes 4096 }
+enum FactValue { phase: PhaseValue, long: Long, long_done, count: Count, piece: Piece }
+record Fact { task: u64 attempt: u64 value: FactValue }
+record Unauthorized { task: u64 attempt: u64 account: u32 generation: u64 }
+record Limited { task: u64 attempt: u64 account: u32 reset: option duration }
+record AccountRefused { task: u64 attempt: u64 account: u32 code: text 128 reason: text 512 }
+
+# Engine-to-worker records (protocol/channel/records.md, 2, and protocol/channel/README.md, 6 and 7).
+record Message { name: u64 sender: text 1024 words: text 1048576 finish_requested: bool }
+record Workspace { workstream: u64 items: bytes 1048576 }
+record HostAnswer { error: bool body: bytes 1048576 }
+enum DeliveryOutcome { delivered, nothing, stale, refused, failed }
+record DeliveryAnswer { outcome: DeliveryOutcome evidence: bytes 1048576 }
+enum SettledAnswer { host: HostAnswer, delivery: DeliveryAnswer }
+record AnsweredCall { name: bytes 64 tool: text 64 answer: SettledAnswer }
+# A grant's value (protocol/channel/README.md, 7): an LLM account's credential with
+# its scheme, or the application's secret; its arm names whose table it is in.
+enum Scheme { bearer, key }
+record CredentialValue { scheme: Scheme bytes: secret 8192 }
+record ApplicationValue { secret: secret 8192 }
+record ProgramValue { name: text 32 }
+enum GrantValue { credential: CredentialValue, application: ApplicationValue, program: ProgramValue }
+record Grant { number: u32 generation: u64 valid: duration value: GrantValue }
+record LiveAsk { text: bool reasoning: bool input: bool }
+record Assignment {
+    task: u64 attempt: u64
+    identity: fixed 16
+    workspace: option Workspace
+    save: bool
+    live: LiveAsk
+    charter: bytes 67108864
+    transcript: bytes 134217728
+    answered: list 1024 AnsweredCall
+    messages: list 1024 Message
+    grants: list 64 Grant
+}
+# Jobs carry the application's bytes (jig/docs/design/protocol/channel/records.md, 4).
+record Job {
+    task: u64 attempt: u64 kind: u32
+    spec: bytes 67108864
+    deadline: duration
+    workspace: option Workspace
+    grants: list 64 Grant
+}
+record JobInvalidStart { why: bytes 4096 }
+enum JobInvalid { kind, spec, deadline, grants, start: JobInvalidStart }
+record JobInvalidValue { value: JobInvalid }
+enum JobRefusal { busy, invalid: JobInvalidValue }
+record JobRefusalValue { value: JobRefusal }
+record JobFinished { result: bytes 67108864 work: Work }
+record DeliveryOutcomeValue { value: DeliveryOutcome }
+enum JobFailure {
+    unprepared: PreparationValue, failed, deadline, result, unstarted,
+    undelivered: DeliveryOutcomeValue, cancelled: CancelReasonValue
+}
+record JobFailed { failure: JobFailure detail: bytes 4096 work: Work }
+enum JobEnding { refused: JobRefusalValue, finished: JobFinished, failed: JobFailed }
+record JobAnswer { task: u64 attempt: u64 ending: JobEnding }
+
+record Inbound { task: u64 attempt: u64 name: u64 sender: text 1024 words: text 1048576 finish_requested: bool }
+record RelayText { error: bool text: bytes 1048576 }
+enum RelayAnswer { text: RelayText, busy }
+record Relayed { task: u64 attempt: u64 name: bytes 64 answer: RelayAnswer }
+record TurnKept { task: u64 attempt: u64 number: u32 }
+record TurnBusy { task: u64 attempt: u64 number: u32 }
+record Acknowledge { task: u64 attempt: u64 }
+record Cancel { task: u64 attempt: u64 }
+record Granted { task: u64 attempt: u64 grant: Grant }
+
+# Host-wide program sources (protocol/channel/records.md). Every Logins is whole.
+record ProgramSource { name: text 32 }
+record Sources { sources: list 65536 ProgramSource }
+record Check { name: text 32 }
+record SignOut { name: text 32 }
+enum SourceFailure { missing, deadline, unreadable, exited, unconfigured, unknown, closed }
+record SourceFailed { reason: SourceFailure detail: bytes 4096 }
+record LoginOtherwise { method: text 32 }
+enum LoginState { usable, not_signed_in, signed_in_otherwise: LoginOtherwise, failed: SourceFailed }
+record Login { name: text 32 state: LoginState email: option text 255 }
+record Logins { logins: list 65536 Login }
+enum SignOutResult { signed_out, failed: SourceFailed }
+record SignedOut { name: text 32 result: SignOutResult }
+
+# Account list reads (protocol/channel/records.md, 1 and 2, and protocol/channel/README.md, 7).
+record ReadList { read: u64 endpoint: u32 grant: Grant }
+record ListRow { name: bytes 128 shown: option bytes 64 window: option u32 output: option u32 efforts: list 8 bytes 16 }
+record ListRefused { status: u16 }
+enum ListFailed { refused: ListRefused, unreachable, unreadable, deadline, agent }
+record ListedRows { rows: list 256 ListRow }
+record ListFailureValue { value: ListFailed }
+enum ListOutcome { listed: ListedRows, failed: ListFailureValue }
+record ListRead { read: u64 outcome: ListOutcome }
+
+# A shutting worker leaves placement (jig/docs/design/protocol/channel/records.md, 1).
+record Draining {}
+
+# The engine states the agreed wires (protocol/channel/bridges.md, 3).
+record AgreedWire { name: text 32 version: u16 }
+record Agreed { wires: list 16 AgreedWire }
+
+# The channel's kinds (protocol/channel/wires.md, 4).
+enum FromWorker {
+    hello: Hello, turn: Turn, call: Call, answer: Answer, fact: Fact,
+    unauthorized: Unauthorized, limited: Limited, account_refused: AccountRefused,
+    logins: Logins, signed_out: SignedOut, list_read: ListRead, draining: Draining,
+    job_answer: JobAnswer
+}
+enum FromEngine {
+    assignment: Assignment, message: Inbound, relayed: Relayed, turn_kept: TurnKept,
+    turn_busy: TurnBusy, acknowledge: Acknowledge, cancel: Cancel, grant: Granted,
+    sources: Sources, check: Check, sign_out: SignOut, job: Job, read_list: ReadList, wires: Agreed
+}
+",
         ];
+        pub const FLOOR: u16 = 12;
+
+        pub fn bridge(capacity: Capacity) -> Result<Bridge, BridgeError> {
+            Bridge::new(capacity, TEXTS, super::super::PATCHES, FLOOR, super::super::sites)
+        }
         pub mod v10 {
             pub mod wire {
                 use skein_codec::schema::FieldIx;
@@ -2802,6 +3043,754 @@ enum FromEngine {
                 pub const READ_LIST: VariantIx = VariantIx::new(170);
             }
         }
+        pub mod v13 {
+            pub mod wire {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(0);
+                pub const LOWEST: FieldIx = FieldIx::new(1);
+                pub const LAYOUTS: FieldIx = FieldIx::new(2);
+            }
+            pub mod credential {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(3);
+                pub const SECRET: FieldIx = FieldIx::new(4);
+                pub const WIRES: FieldIx = FieldIx::new(5);
+                pub const OUTPUT: FieldIx = FieldIx::new(6);
+            }
+            pub mod job_bound {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(7);
+                pub const SPEC: FieldIx = FieldIx::new(8);
+                pub const RESULT: FieldIx = FieldIx::new(9);
+                pub const DEADLINE: FieldIx = FieldIx::new(10);
+            }
+            pub mod endpoint_bound {
+                use skein_codec::schema::FieldIx;
+                pub const ENDPOINT: FieldIx = FieldIx::new(11);
+                pub const WINDOW: FieldIx = FieldIx::new(12);
+                pub const OUTPUT: FieldIx = FieldIx::new(13);
+            }
+            pub mod bounds {
+                use skein_codec::schema::FieldIx;
+                pub const ENDPOINTS: FieldIx = FieldIx::new(14);
+                pub const TURNS: FieldIx = FieldIx::new(15);
+                pub const SPEND: FieldIx = FieldIx::new(16);
+                pub const TIME: FieldIx = FieldIx::new(17);
+                pub const WAITING: FieldIx = FieldIx::new(18);
+                pub const CHECKS: FieldIx = FieldIx::new(19);
+                pub const MESSAGE_BYTES: FieldIx = FieldIx::new(20);
+                pub const INBOX: FieldIx = FieldIx::new(21);
+                pub const UNACKNOWLEDGED: FieldIx = FieldIx::new(22);
+                pub const REPLY_BYTES: FieldIx = FieldIx::new(23);
+                pub const PROGRAM_ENDPOINTS: FieldIx = FieldIx::new(24);
+            }
+            pub mod phase {
+                use skein_codec::schema::VariantIx;
+                pub const ANSWERED: VariantIx = VariantIx::new(0);
+                pub const PREPARING: VariantIx = VariantIx::new(1);
+                pub const STARTING: VariantIx = VariantIx::new(2);
+                pub const ACTIVE: VariantIx = VariantIx::new(3);
+                pub const WAITING: VariantIx = VariantIx::new(4);
+                pub const ENDING: VariantIx = VariantIx::new(5);
+            }
+            pub mod hosting {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(25);
+                pub const ATTEMPT: FieldIx = FieldIx::new(26);
+                pub const PHASE: FieldIx = FieldIx::new(27);
+            }
+            pub mod hello {
+                use skein_codec::schema::FieldIx;
+                pub const SLOTS: FieldIx = FieldIx::new(28);
+                pub const STOP_BOUND: FieldIx = FieldIx::new(29);
+                pub const WORKSTREAMS: FieldIx = FieldIx::new(30);
+                pub const HOSTING: FieldIx = FieldIx::new(31);
+                pub const JOBS: FieldIx = FieldIx::new(32);
+                pub const BOUNDS: FieldIx = FieldIx::new(33);
+            }
+            pub mod message_refusal {
+                use skein_codec::schema::VariantIx;
+                pub const TOO_LARGE: VariantIx = VariantIx::new(6);
+                pub const FULL: VariantIx = VariantIx::new(7);
+                pub const NAME_IN_USE: VariantIx = VariantIx::new(8);
+                pub const ENDING: VariantIx = VariantIx::new(9);
+            }
+            pub mod refused {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(34);
+                pub const REASON: FieldIx = FieldIx::new(35);
+            }
+            pub mod turn {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(36);
+                pub const ATTEMPT: FieldIx = FieldIx::new(37);
+                pub const NUMBER: FieldIx = FieldIx::new(38);
+                pub const SPENT: FieldIx = FieldIx::new(39);
+                pub const READ: FieldIx = FieldIx::new(40);
+                pub const OPENS_WINDOW: FieldIx = FieldIx::new(41);
+                pub const REFUSED: FieldIx = FieldIx::new(42);
+                pub const BODY: FieldIx = FieldIx::new(43);
+            }
+            pub mod call {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(44);
+                pub const ATTEMPT: FieldIx = FieldIx::new(45);
+                pub const NAME: FieldIx = FieldIx::new(46);
+                pub const TOOL: FieldIx = FieldIx::new(47);
+                pub const WRITES: FieldIx = FieldIx::new(48);
+                pub const INPUT: FieldIx = FieldIx::new(49);
+                pub const DEADLINE: FieldIx = FieldIx::new(50);
+                pub const CONTRACT: FieldIx = FieldIx::new(51);
+            }
+            pub mod start_cause {
+                use skein_codec::schema::VariantIx;
+                pub const OTHER: VariantIx = VariantIx::new(10);
+                pub const GRANTS: VariantIx = VariantIx::new(11);
+                pub const TRANSCRIPT: VariantIx = VariantIx::new(12);
+            }
+            pub mod invalid_start {
+                use skein_codec::schema::FieldIx;
+                pub const WHY: FieldIx = FieldIx::new(52);
+                pub const CAUSE: FieldIx = FieldIx::new(53);
+            }
+            pub mod invalid {
+                use skein_codec::schema::VariantIx;
+                pub const CHARTER: VariantIx = VariantIx::new(13);
+                pub const TRANSCRIPT: VariantIx = VariantIx::new(14);
+                pub const GRANTS: VariantIx = VariantIx::new(15);
+                pub const MESSAGES: VariantIx = VariantIx::new(16);
+                pub const START: VariantIx = VariantIx::new(17);
+            }
+            pub mod invalid_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(54);
+            }
+            pub mod mismatch {
+                use skein_codec::schema::FieldIx;
+                pub const WIRE: FieldIx = FieldIx::new(55);
+                pub const VERSION: FieldIx = FieldIx::new(56);
+                pub const LOWEST: FieldIx = FieldIx::new(57);
+                pub const HIGHEST: FieldIx = FieldIx::new(58);
+            }
+            pub mod refusal {
+                use skein_codec::schema::VariantIx;
+                pub const BUSY: VariantIx = VariantIx::new(18);
+                pub const INVALID: VariantIx = VariantIx::new(19);
+                pub const VERSION: VariantIx = VariantIx::new(20);
+            }
+            pub mod refusal_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(59);
+            }
+            pub mod work {
+                use skein_codec::schema::FieldIx;
+                pub const LEFT: FieldIx = FieldIx::new(60);
+                pub const SAVED: FieldIx = FieldIx::new(61);
+            }
+            pub mod ended {
+                use skein_codec::schema::FieldIx;
+                pub const OUTCOME: FieldIx = FieldIx::new(62);
+                pub const WORK: FieldIx = FieldIx::new(63);
+            }
+            pub mod parked {
+                use skein_codec::schema::FieldIx;
+                pub const WORK: FieldIx = FieldIx::new(64);
+            }
+            pub mod resource {
+                use skein_codec::schema::FieldIx;
+                pub const RESOURCE: FieldIx = FieldIx::new(65);
+            }
+            pub mod preparation {
+                use skein_codec::schema::VariantIx;
+                pub const TRANSIENT: VariantIx = VariantIx::new(21);
+                pub const PERMANENT: VariantIx = VariantIx::new(22);
+            }
+            pub mod preparation_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(66);
+            }
+            pub mod limited_account {
+                use skein_codec::schema::FieldIx;
+                pub const ACCOUNT: FieldIx = FieldIx::new(67);
+                pub const RESET: FieldIx = FieldIx::new(68);
+            }
+            pub mod refused_account {
+                use skein_codec::schema::FieldIx;
+                pub const ACCOUNT: FieldIx = FieldIx::new(69);
+            }
+            pub mod bound {
+                use skein_codec::schema::VariantIx;
+                pub const REASONING: VariantIx = VariantIx::new(23);
+                pub const METADATA: VariantIx = VariantIx::new(24);
+                pub const ITEMS: VariantIx = VariantIx::new(25);
+                pub const ANSWER: VariantIx = VariantIx::new(26);
+                pub const TOOLS: VariantIx = VariantIx::new(27);
+                pub const HISTORY_ITEMS: VariantIx = VariantIx::new(28);
+                pub const HISTORY: VariantIx = VariantIx::new(29);
+                pub const WINDOW: VariantIx = VariantIx::new(30);
+                pub const OUTPUT: VariantIx = VariantIx::new(31);
+            }
+            pub mod exceeded {
+                use skein_codec::schema::FieldIx;
+                pub const BOUND: FieldIx = FieldIx::new(70);
+                pub const VALUE: FieldIx = FieldIx::new(71);
+            }
+            pub mod run_failure {
+                use skein_codec::schema::VariantIx;
+                pub const MODEL: VariantIx = VariantIx::new(32);
+                pub const BUDGET: VariantIx = VariantIx::new(33);
+                pub const POLICY: VariantIx = VariantIx::new(34);
+                pub const CANCELLED: VariantIx = VariantIx::new(35);
+                pub const STALE: VariantIx = VariantIx::new(36);
+                pub const LIMITED: VariantIx = VariantIx::new(37);
+                pub const REFUSED: VariantIx = VariantIx::new(38);
+                pub const EXCEEDED: VariantIx = VariantIx::new(39);
+                pub const TRANSCRIPT: VariantIx = VariantIx::new(40);
+            }
+            pub mod run_failure_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(72);
+            }
+            pub mod agent_failure {
+                use skein_codec::schema::VariantIx;
+                pub const UNSTARTED: VariantIx = VariantIx::new(41);
+                pub const EXITED: VariantIx = VariantIx::new(42);
+                pub const RULES: VariantIx = VariantIx::new(43);
+                pub const NO_PROGRESS: VariantIx = VariantIx::new(44);
+                pub const WALL_TIME: VariantIx = VariantIx::new(45);
+            }
+            pub mod agent_failure_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(73);
+            }
+            pub mod cancel_reason {
+                use skein_codec::schema::VariantIx;
+                pub const ENGINE: VariantIx = VariantIx::new(46);
+                pub const CONTACT: VariantIx = VariantIx::new(47);
+                pub const SHUTDOWN: VariantIx = VariantIx::new(48);
+            }
+            pub mod cancel_reason_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(74);
+            }
+            pub mod failure {
+                use skein_codec::schema::VariantIx;
+                pub const UNPREPARED: VariantIx = VariantIx::new(49);
+                pub const RUN: VariantIx = VariantIx::new(50);
+                pub const AGENT: VariantIx = VariantIx::new(51);
+                pub const CANCELLED: VariantIx = VariantIx::new(52);
+            }
+            pub mod model_failure_kind {
+                use skein_codec::schema::VariantIx;
+                pub const UNAVAILABLE: VariantIx = VariantIx::new(53);
+                pub const OVERLOADED: VariantIx = VariantIx::new(54);
+                pub const RATE_LIMITED: VariantIx = VariantIx::new(55);
+                pub const EXHAUSTED: VariantIx = VariantIx::new(56);
+                pub const TIMED_OUT: VariantIx = VariantIx::new(57);
+                pub const CONTEXT_TOO_LONG: VariantIx = VariantIx::new(58);
+                pub const INVALID: VariantIx = VariantIx::new(59);
+                pub const REFUSED: VariantIx = VariantIx::new(60);
+                pub const UNSUPPORTED: VariantIx = VariantIx::new(61);
+                pub const UNAUTHORIZED: VariantIx = VariantIx::new(62);
+                pub const PROTOCOL: VariantIx = VariantIx::new(63);
+                pub const CANCELLED: VariantIx = VariantIx::new(64);
+                pub const LIMIT: VariantIx = VariantIx::new(65);
+            }
+            pub mod model_evidence {
+                use skein_codec::schema::VariantIx;
+                pub const UNSENT: VariantIx = VariantIx::new(66);
+                pub const UNKNOWN: VariantIx = VariantIx::new(67);
+                pub const RESPONSE: VariantIx = VariantIx::new(68);
+            }
+            pub mod model_failure {
+                use skein_codec::schema::FieldIx;
+                pub const ENDPOINT: FieldIx = FieldIx::new(75);
+                pub const MODEL: FieldIx = FieldIx::new(76);
+                pub const KIND: FieldIx = FieldIx::new(77);
+                pub const EVIDENCE: FieldIx = FieldIx::new(78);
+                pub const STATUS: FieldIx = FieldIx::new(79);
+            }
+            pub mod failed {
+                use skein_codec::schema::FieldIx;
+                pub const FAILURE: FieldIx = FieldIx::new(80);
+                pub const DETAIL: FieldIx = FieldIx::new(81);
+                pub const WORK: FieldIx = FieldIx::new(82);
+                pub const MODEL: FieldIx = FieldIx::new(83);
+            }
+            pub mod ending {
+                use skein_codec::schema::VariantIx;
+                pub const REFUSED: VariantIx = VariantIx::new(69);
+                pub const ENDED: VariantIx = VariantIx::new(70);
+                pub const PARKED: VariantIx = VariantIx::new(71);
+                pub const FAILED: VariantIx = VariantIx::new(72);
+            }
+            pub mod answer {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(84);
+                pub const ATTEMPT: FieldIx = FieldIx::new(85);
+                pub const TURNS: FieldIx = FieldIx::new(86);
+                pub const SPENT: FieldIx = FieldIx::new(87);
+                pub const READ: FieldIx = FieldIx::new(88);
+                pub const REFUSED: FieldIx = FieldIx::new(89);
+                pub const ENDING: FieldIx = FieldIx::new(90);
+            }
+            pub mod operation {
+                use skein_codec::schema::VariantIx;
+                pub const CHECKS: VariantIx = VariantIx::new(73);
+                pub const COMPLETION: VariantIx = VariantIx::new(74);
+                pub const COMMAND: VariantIx = VariantIx::new(75);
+            }
+            pub mod long {
+                use skein_codec::schema::FieldIx;
+                pub const OPERATION: FieldIx = FieldIx::new(91);
+                pub const SPAN: FieldIx = FieldIx::new(92);
+            }
+            pub mod count_kind {
+                use skein_codec::schema::VariantIx;
+                pub const ADMITTED: VariantIx = VariantIx::new(76);
+                pub const ENDED: VariantIx = VariantIx::new(77);
+                pub const LLM_STARTED: VariantIx = VariantIx::new(78);
+                pub const LLM_RETRIED: VariantIx = VariantIx::new(79);
+                pub const LLM_FINISHED: VariantIx = VariantIx::new(80);
+                pub const TOOL_STARTED: VariantIx = VariantIx::new(81);
+                pub const TOOL_FINISHED: VariantIx = VariantIx::new(82);
+                pub const CHECK_STARTED: VariantIx = VariantIx::new(83);
+                pub const CHECK_FINISHED: VariantIx = VariantIx::new(84);
+                pub const TEXT_ARRIVED: VariantIx = VariantIx::new(85);
+            }
+            pub mod count {
+                use skein_codec::schema::FieldIx;
+                pub const KIND: FieldIx = FieldIx::new(93);
+                pub const ELAPSED: FieldIx = FieldIx::new(94);
+                pub const VALUE: FieldIx = FieldIx::new(95);
+            }
+            pub mod phase_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(96);
+            }
+            pub mod input_call {
+                use skein_codec::schema::FieldIx;
+                pub const ID: FieldIx = FieldIx::new(97);
+                pub const TOOL: FieldIx = FieldIx::new(98);
+            }
+            pub mod live_kind {
+                use skein_codec::schema::VariantIx;
+                pub const TEXT: VariantIx = VariantIx::new(86);
+                pub const REASONING: VariantIx = VariantIx::new(87);
+                pub const INPUT: VariantIx = VariantIx::new(88);
+            }
+            pub mod piece {
+                use skein_codec::schema::FieldIx;
+                pub const TURN: FieldIx = FieldIx::new(99);
+                pub const RETRY: FieldIx = FieldIx::new(100);
+                pub const KIND: FieldIx = FieldIx::new(101);
+                pub const OFFSET: FieldIx = FieldIx::new(102);
+                pub const BYTES: FieldIx = FieldIx::new(103);
+            }
+            pub mod fact_value {
+                use skein_codec::schema::VariantIx;
+                pub const PHASE: VariantIx = VariantIx::new(89);
+                pub const LONG: VariantIx = VariantIx::new(90);
+                pub const LONG_DONE: VariantIx = VariantIx::new(91);
+                pub const COUNT: VariantIx = VariantIx::new(92);
+                pub const PIECE: VariantIx = VariantIx::new(93);
+            }
+            pub mod fact {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(104);
+                pub const ATTEMPT: FieldIx = FieldIx::new(105);
+                pub const VALUE: FieldIx = FieldIx::new(106);
+            }
+            pub mod unauthorized {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(107);
+                pub const ATTEMPT: FieldIx = FieldIx::new(108);
+                pub const ACCOUNT: FieldIx = FieldIx::new(109);
+                pub const GENERATION: FieldIx = FieldIx::new(110);
+            }
+            pub mod limited {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(111);
+                pub const ATTEMPT: FieldIx = FieldIx::new(112);
+                pub const ACCOUNT: FieldIx = FieldIx::new(113);
+                pub const RESET: FieldIx = FieldIx::new(114);
+            }
+            pub mod account_refused {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(115);
+                pub const ATTEMPT: FieldIx = FieldIx::new(116);
+                pub const ACCOUNT: FieldIx = FieldIx::new(117);
+                pub const CODE: FieldIx = FieldIx::new(118);
+                pub const REASON: FieldIx = FieldIx::new(119);
+            }
+            pub mod message {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(120);
+                pub const SENDER: FieldIx = FieldIx::new(121);
+                pub const WORDS: FieldIx = FieldIx::new(122);
+                pub const FINISH_REQUESTED: FieldIx = FieldIx::new(123);
+            }
+            pub mod workspace {
+                use skein_codec::schema::FieldIx;
+                pub const WORKSTREAM: FieldIx = FieldIx::new(124);
+                pub const ITEMS: FieldIx = FieldIx::new(125);
+            }
+            pub mod host_answer {
+                use skein_codec::schema::FieldIx;
+                pub const ERROR: FieldIx = FieldIx::new(126);
+                pub const BODY: FieldIx = FieldIx::new(127);
+            }
+            pub mod delivery_outcome {
+                use skein_codec::schema::VariantIx;
+                pub const DELIVERED: VariantIx = VariantIx::new(94);
+                pub const NOTHING: VariantIx = VariantIx::new(95);
+                pub const STALE: VariantIx = VariantIx::new(96);
+                pub const REFUSED: VariantIx = VariantIx::new(97);
+                pub const FAILED: VariantIx = VariantIx::new(98);
+            }
+            pub mod delivery_answer {
+                use skein_codec::schema::FieldIx;
+                pub const OUTCOME: FieldIx = FieldIx::new(128);
+                pub const EVIDENCE: FieldIx = FieldIx::new(129);
+            }
+            pub mod settled_answer {
+                use skein_codec::schema::VariantIx;
+                pub const HOST: VariantIx = VariantIx::new(99);
+                pub const DELIVERY: VariantIx = VariantIx::new(100);
+            }
+            pub mod answered_call {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(130);
+                pub const TOOL: FieldIx = FieldIx::new(131);
+                pub const ANSWER: FieldIx = FieldIx::new(132);
+            }
+            pub mod scheme {
+                use skein_codec::schema::VariantIx;
+                pub const BEARER: VariantIx = VariantIx::new(101);
+                pub const KEY: VariantIx = VariantIx::new(102);
+            }
+            pub mod credential_value {
+                use skein_codec::schema::FieldIx;
+                pub const SCHEME: FieldIx = FieldIx::new(133);
+                pub const BYTES: FieldIx = FieldIx::new(134);
+            }
+            pub mod application_value {
+                use skein_codec::schema::FieldIx;
+                pub const SECRET: FieldIx = FieldIx::new(135);
+            }
+            pub mod program_value {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(136);
+            }
+            pub mod grant_value {
+                use skein_codec::schema::VariantIx;
+                pub const CREDENTIAL: VariantIx = VariantIx::new(103);
+                pub const APPLICATION: VariantIx = VariantIx::new(104);
+                pub const PROGRAM: VariantIx = VariantIx::new(105);
+            }
+            pub mod grant {
+                use skein_codec::schema::FieldIx;
+                pub const NUMBER: FieldIx = FieldIx::new(137);
+                pub const GENERATION: FieldIx = FieldIx::new(138);
+                pub const VALID: FieldIx = FieldIx::new(139);
+                pub const VALUE: FieldIx = FieldIx::new(140);
+            }
+            pub mod live_ask {
+                use skein_codec::schema::FieldIx;
+                pub const TEXT: FieldIx = FieldIx::new(141);
+                pub const REASONING: FieldIx = FieldIx::new(142);
+                pub const INPUT: FieldIx = FieldIx::new(143);
+            }
+            pub mod assignment {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(144);
+                pub const ATTEMPT: FieldIx = FieldIx::new(145);
+                pub const IDENTITY: FieldIx = FieldIx::new(146);
+                pub const WORKSPACE: FieldIx = FieldIx::new(147);
+                pub const SAVE: FieldIx = FieldIx::new(148);
+                pub const LIVE: FieldIx = FieldIx::new(149);
+                pub const CHARTER: FieldIx = FieldIx::new(150);
+                pub const TRANSCRIPT: FieldIx = FieldIx::new(151);
+                pub const ANSWERED: FieldIx = FieldIx::new(152);
+                pub const MESSAGES: FieldIx = FieldIx::new(153);
+                pub const GRANTS: FieldIx = FieldIx::new(154);
+            }
+            pub mod job {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(155);
+                pub const ATTEMPT: FieldIx = FieldIx::new(156);
+                pub const KIND: FieldIx = FieldIx::new(157);
+                pub const SPEC: FieldIx = FieldIx::new(158);
+                pub const DEADLINE: FieldIx = FieldIx::new(159);
+                pub const WORKSPACE: FieldIx = FieldIx::new(160);
+                pub const GRANTS: FieldIx = FieldIx::new(161);
+            }
+            pub mod job_invalid_start {
+                use skein_codec::schema::FieldIx;
+                pub const WHY: FieldIx = FieldIx::new(162);
+            }
+            pub mod job_invalid {
+                use skein_codec::schema::VariantIx;
+                pub const KIND: VariantIx = VariantIx::new(106);
+                pub const SPEC: VariantIx = VariantIx::new(107);
+                pub const DEADLINE: VariantIx = VariantIx::new(108);
+                pub const GRANTS: VariantIx = VariantIx::new(109);
+                pub const START: VariantIx = VariantIx::new(110);
+            }
+            pub mod job_invalid_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(163);
+            }
+            pub mod job_refusal {
+                use skein_codec::schema::VariantIx;
+                pub const BUSY: VariantIx = VariantIx::new(111);
+                pub const INVALID: VariantIx = VariantIx::new(112);
+            }
+            pub mod job_refusal_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(164);
+            }
+            pub mod job_finished {
+                use skein_codec::schema::FieldIx;
+                pub const RESULT: FieldIx = FieldIx::new(165);
+                pub const WORK: FieldIx = FieldIx::new(166);
+            }
+            pub mod delivery_outcome_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(167);
+            }
+            pub mod job_failure {
+                use skein_codec::schema::VariantIx;
+                pub const UNPREPARED: VariantIx = VariantIx::new(113);
+                pub const FAILED: VariantIx = VariantIx::new(114);
+                pub const DEADLINE: VariantIx = VariantIx::new(115);
+                pub const RESULT: VariantIx = VariantIx::new(116);
+                pub const UNSTARTED: VariantIx = VariantIx::new(117);
+                pub const UNDELIVERED: VariantIx = VariantIx::new(118);
+                pub const CANCELLED: VariantIx = VariantIx::new(119);
+            }
+            pub mod job_failed {
+                use skein_codec::schema::FieldIx;
+                pub const FAILURE: FieldIx = FieldIx::new(168);
+                pub const DETAIL: FieldIx = FieldIx::new(169);
+                pub const WORK: FieldIx = FieldIx::new(170);
+            }
+            pub mod job_ending {
+                use skein_codec::schema::VariantIx;
+                pub const REFUSED: VariantIx = VariantIx::new(120);
+                pub const FINISHED: VariantIx = VariantIx::new(121);
+                pub const FAILED: VariantIx = VariantIx::new(122);
+            }
+            pub mod job_answer {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(171);
+                pub const ATTEMPT: FieldIx = FieldIx::new(172);
+                pub const ENDING: FieldIx = FieldIx::new(173);
+            }
+            pub mod inbound {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(174);
+                pub const ATTEMPT: FieldIx = FieldIx::new(175);
+                pub const NAME: FieldIx = FieldIx::new(176);
+                pub const SENDER: FieldIx = FieldIx::new(177);
+                pub const WORDS: FieldIx = FieldIx::new(178);
+                pub const FINISH_REQUESTED: FieldIx = FieldIx::new(179);
+            }
+            pub mod relay_text {
+                use skein_codec::schema::FieldIx;
+                pub const ERROR: FieldIx = FieldIx::new(180);
+                pub const TEXT: FieldIx = FieldIx::new(181);
+            }
+            pub mod relay_answer {
+                use skein_codec::schema::VariantIx;
+                pub const TEXT: VariantIx = VariantIx::new(123);
+                pub const BUSY: VariantIx = VariantIx::new(124);
+            }
+            pub mod relayed {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(182);
+                pub const ATTEMPT: FieldIx = FieldIx::new(183);
+                pub const NAME: FieldIx = FieldIx::new(184);
+                pub const ANSWER: FieldIx = FieldIx::new(185);
+            }
+            pub mod turn_kept {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(186);
+                pub const ATTEMPT: FieldIx = FieldIx::new(187);
+                pub const NUMBER: FieldIx = FieldIx::new(188);
+            }
+            pub mod turn_busy {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(189);
+                pub const ATTEMPT: FieldIx = FieldIx::new(190);
+                pub const NUMBER: FieldIx = FieldIx::new(191);
+            }
+            pub mod acknowledge {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(192);
+                pub const ATTEMPT: FieldIx = FieldIx::new(193);
+            }
+            pub mod cancel {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(194);
+                pub const ATTEMPT: FieldIx = FieldIx::new(195);
+            }
+            pub mod granted {
+                use skein_codec::schema::FieldIx;
+                pub const TASK: FieldIx = FieldIx::new(196);
+                pub const ATTEMPT: FieldIx = FieldIx::new(197);
+                pub const GRANT: FieldIx = FieldIx::new(198);
+            }
+            pub mod program_source {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(199);
+            }
+            pub mod sources {
+                use skein_codec::schema::FieldIx;
+                pub const SOURCES: FieldIx = FieldIx::new(200);
+            }
+            pub mod check {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(201);
+            }
+            pub mod sign_out {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(202);
+            }
+            pub mod source_failure {
+                use skein_codec::schema::VariantIx;
+                pub const MISSING: VariantIx = VariantIx::new(125);
+                pub const DEADLINE: VariantIx = VariantIx::new(126);
+                pub const UNREADABLE: VariantIx = VariantIx::new(127);
+                pub const EXITED: VariantIx = VariantIx::new(128);
+                pub const UNCONFIGURED: VariantIx = VariantIx::new(129);
+                pub const UNKNOWN: VariantIx = VariantIx::new(130);
+                pub const CLOSED: VariantIx = VariantIx::new(131);
+            }
+            pub mod source_failed {
+                use skein_codec::schema::FieldIx;
+                pub const REASON: FieldIx = FieldIx::new(203);
+                pub const DETAIL: FieldIx = FieldIx::new(204);
+            }
+            pub mod login_otherwise {
+                use skein_codec::schema::FieldIx;
+                pub const METHOD: FieldIx = FieldIx::new(205);
+            }
+            pub mod login_state {
+                use skein_codec::schema::VariantIx;
+                pub const USABLE: VariantIx = VariantIx::new(132);
+                pub const NOT_SIGNED_IN: VariantIx = VariantIx::new(133);
+                pub const SIGNED_IN_OTHERWISE: VariantIx = VariantIx::new(134);
+                pub const FAILED: VariantIx = VariantIx::new(135);
+            }
+            pub mod login {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(206);
+                pub const STATE: FieldIx = FieldIx::new(207);
+                pub const EMAIL: FieldIx = FieldIx::new(208);
+            }
+            pub mod logins {
+                use skein_codec::schema::FieldIx;
+                pub const LOGINS: FieldIx = FieldIx::new(209);
+            }
+            pub mod sign_out_result {
+                use skein_codec::schema::VariantIx;
+                pub const SIGNED_OUT: VariantIx = VariantIx::new(136);
+                pub const FAILED: VariantIx = VariantIx::new(137);
+            }
+            pub mod signed_out {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(210);
+                pub const RESULT: FieldIx = FieldIx::new(211);
+            }
+            pub mod read_list {
+                use skein_codec::schema::FieldIx;
+                pub const READ: FieldIx = FieldIx::new(212);
+                pub const ENDPOINT: FieldIx = FieldIx::new(213);
+                pub const GRANT: FieldIx = FieldIx::new(214);
+            }
+            pub mod list_row {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(215);
+                pub const SHOWN: FieldIx = FieldIx::new(216);
+                pub const WINDOW: FieldIx = FieldIx::new(217);
+                pub const OUTPUT: FieldIx = FieldIx::new(218);
+                pub const EFFORTS: FieldIx = FieldIx::new(219);
+            }
+            pub mod list_refused {
+                use skein_codec::schema::FieldIx;
+                pub const STATUS: FieldIx = FieldIx::new(220);
+            }
+            pub mod list_failed {
+                use skein_codec::schema::VariantIx;
+                pub const REFUSED: VariantIx = VariantIx::new(138);
+                pub const UNREACHABLE: VariantIx = VariantIx::new(139);
+                pub const UNREADABLE: VariantIx = VariantIx::new(140);
+                pub const DEADLINE: VariantIx = VariantIx::new(141);
+                pub const AGENT: VariantIx = VariantIx::new(142);
+            }
+            pub mod listed_rows {
+                use skein_codec::schema::FieldIx;
+                pub const ROWS: FieldIx = FieldIx::new(221);
+            }
+            pub mod list_failure_value {
+                use skein_codec::schema::FieldIx;
+                pub const VALUE: FieldIx = FieldIx::new(222);
+            }
+            pub mod list_outcome {
+                use skein_codec::schema::VariantIx;
+                pub const LISTED: VariantIx = VariantIx::new(143);
+                pub const FAILED: VariantIx = VariantIx::new(144);
+            }
+            pub mod list_read {
+                use skein_codec::schema::FieldIx;
+                pub const READ: FieldIx = FieldIx::new(223);
+                pub const OUTCOME: FieldIx = FieldIx::new(224);
+            }
+            pub mod draining {}
+            pub mod agreed_wire {
+                use skein_codec::schema::FieldIx;
+                pub const NAME: FieldIx = FieldIx::new(225);
+                pub const VERSION: FieldIx = FieldIx::new(226);
+            }
+            pub mod agreed {
+                use skein_codec::schema::FieldIx;
+                pub const WIRES: FieldIx = FieldIx::new(227);
+            }
+            pub mod from_worker {
+                use skein_codec::schema::VariantIx;
+                pub const HELLO: VariantIx = VariantIx::new(145);
+                pub const TURN: VariantIx = VariantIx::new(146);
+                pub const CALL: VariantIx = VariantIx::new(147);
+                pub const ANSWER: VariantIx = VariantIx::new(148);
+                pub const FACT: VariantIx = VariantIx::new(149);
+                pub const UNAUTHORIZED: VariantIx = VariantIx::new(150);
+                pub const LIMITED: VariantIx = VariantIx::new(151);
+                pub const ACCOUNT_REFUSED: VariantIx = VariantIx::new(152);
+                pub const LOGINS: VariantIx = VariantIx::new(153);
+                pub const SIGNED_OUT: VariantIx = VariantIx::new(154);
+                pub const LIST_READ: VariantIx = VariantIx::new(155);
+                pub const DRAINING: VariantIx = VariantIx::new(156);
+                pub const JOB_ANSWER: VariantIx = VariantIx::new(157);
+            }
+            pub mod from_engine {
+                use skein_codec::schema::VariantIx;
+                pub const ASSIGNMENT: VariantIx = VariantIx::new(158);
+                pub const MESSAGE: VariantIx = VariantIx::new(159);
+                pub const RELAYED: VariantIx = VariantIx::new(160);
+                pub const TURN_KEPT: VariantIx = VariantIx::new(161);
+                pub const TURN_BUSY: VariantIx = VariantIx::new(162);
+                pub const ACKNOWLEDGE: VariantIx = VariantIx::new(163);
+                pub const CANCEL: VariantIx = VariantIx::new(164);
+                pub const GRANT: VariantIx = VariantIx::new(165);
+                pub const SOURCES: VariantIx = VariantIx::new(166);
+                pub const CHECK: VariantIx = VariantIx::new(167);
+                pub const SIGN_OUT: VariantIx = VariantIx::new(168);
+                pub const JOB: VariantIx = VariantIx::new(169);
+                pub const READ_LIST: VariantIx = VariantIx::new(170);
+                pub const WIRES: VariantIx = VariantIx::new(171);
+            }
+        }
         pub mod p0001 {
             pub use super::v10 as old;
             pub use super::v11 as new;
@@ -2810,6 +3799,10 @@ enum FromEngine {
             pub use super::v11 as old;
             pub use super::v12 as new;
         }
+        pub mod p0003 {
+            pub use super::v12 as old;
+            pub use super::v13 as new;
+        }
     }
 }
 
@@ -2817,6 +3810,10 @@ pub mod refusal {}
 
 pub fn written(site: Site, _old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Result<(), Halt> {
     Err(Halt::NoSite(site))
+}
+
+pub fn sites(site: Site, old: &Old, new: &mut Build, at: Node) -> Result<(), Halt> {
+    written(site, old, new, at, &mut Context::default())
 }
 
 #[cfg(test)]
@@ -2840,5 +3837,10 @@ mod tests {
     #[test]
     fn p0002_goldens() {
         assert_eq!(skein_codegen::patch::goldens(&owner(), 2, super::written), Ok(()), "patch 0002 goldens");
+    }
+
+    #[test]
+    fn p0003_goldens() {
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 3, super::written), Ok(()), "patch 0003 goldens");
     }
 }

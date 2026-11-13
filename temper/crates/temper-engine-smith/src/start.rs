@@ -159,6 +159,7 @@ fn charter_with_history(assignment: &engine::Assignment, resumed: bool) -> run::
     });
     let mut charter = jig_protocol_charter::charter(charter).expect("bounded charter");
     charter.check_timeout = assignment.check_timeout;
+    charter.grants.contract = crate::wire::VERSION;
     if assignment.charter == 1 && charter.mode == run::Mode::Finite {
         for tool in &mut charter.grants.host_tools {
             tool.reserve = tool.name.as_ref() == b"message";

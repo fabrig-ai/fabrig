@@ -338,7 +338,16 @@ mod tests {
         try_step(&mut domain, &env, Event::Committed { number: 1, fill: 0 }).expect("commit answers are taken");
         try_step(&mut domain, &env, event).expect("the same input enters below the watermark");
         let (run, call, deadline) = (Token::new(1), Box::<[u8]>::default(), skein_lib::Duration::ZERO);
-        let up = Up::Call { run, attempt: run, tool: call.clone(), input: call.clone(), call, writes: false, deadline };
+        let up = Up::Call {
+            contract: 1,
+            run,
+            attempt: run,
+            tool: call.clone(),
+            input: call.clone(),
+            call,
+            writes: false,
+            deadline,
+        };
         assert_eq!(super::class(&Event::Link { channel: run, link: crate::link::Event::Up(up) }), super::Class::New);
     }
 }

@@ -274,6 +274,11 @@ pub(crate) fn decoded(
     }
     let event = match start {
         Ok(mut start) => {
+            route::host_step(
+                domain,
+                env,
+                host::Event::Agent(host::FromAgent::Decoded { owner, contract: start.charter.value().grants.contract }),
+            );
             let models = crate::hand_out::model_names(&start, endpoints);
             let old = domain.starting_models.insert(owner, models).expect("one name list per hosted start");
             assert!(old.is_none(), "each start is decoded once");

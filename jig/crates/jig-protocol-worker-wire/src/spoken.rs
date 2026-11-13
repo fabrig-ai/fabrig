@@ -9,6 +9,11 @@ pub struct Spoken {
 }
 
 impl Spoken {
+    /// Fingerprints from the family's floor (protocol/channel/bridges.md, 2).
+    pub fn of(name: &'static str, texts: &[&str], floor: u16) -> Result<Spoken, skein_codec::bridge::BridgeError> {
+        Ok(Spoken { name, lowest: floor, layouts: skein_codec::bridge::layouts(texts, floor)? })
+    }
+
     #[must_use]
     pub fn current(name: &'static str, version: u16, layout: [u8; 32]) -> Spoken {
         let mut layouts = List::with_capacity(1);
@@ -40,14 +45,26 @@ pub struct Agreed {
 pub fn spoken() -> List<Spoken> {
     let mut wires = List::with_capacity(4);
     for wire in [
-        Spoken::current(crate::wire::FAMILY, crate::wire::VERSION, crate::wire::layout()),
-        Spoken::current(smith_channel::wire::FAMILY, smith_channel::wire::VERSION, smith_channel::wire::layout()),
-        Spoken::current(smith_charter::wire::FAMILY, smith_charter::wire::VERSION, smith_charter::wire::layout()),
-        Spoken::current(
+        Spoken::of(crate::wire::FAMILY, crate::patches::kept::jig_worker_wire::TEXTS, crate::wire::FLOOR)
+            .expect("jig's kept wire"),
+        Spoken::of(
+            smith_channel::pieces::wire::FAMILY,
+            smith_channel::patches::kept::smith_pieces::TEXTS,
+            smith_channel::pieces::wire::FLOOR,
+        )
+        .expect("smith's kept pieces"),
+        Spoken::of(
+            smith_charter::wire::FAMILY,
+            smith_charter::patches::kept::smith_charter::TEXTS,
+            smith_charter::wire::FLOOR,
+        )
+        .expect("smith's kept charter"),
+        Spoken::of(
             smith_transcript::wire::FAMILY,
-            smith_transcript::wire::VERSION,
-            smith_transcript::wire::layout(),
-        ),
+            smith_transcript::patches::kept::smith_transcript::TEXTS,
+            smith_transcript::wire::FLOOR,
+        )
+        .expect("smith's kept transcript"),
     ] {
         wires.push(wire).expect("four wires have four slots");
     }
@@ -57,6 +74,58 @@ pub fn spoken() -> List<Spoken> {
 #[cfg(test)]
 mod tests {
     use super::Spoken;
+
+    #[test]
+    fn the_opening_states_jigs_wires_then_smiths_kept_families() {
+        let wires = super::spoken();
+        assert_eq!(wires.len(), 4);
+        for (wire, name) in wires.iter().zip(["jig-worker-wire", "smith-pieces", "smith-charter", "smith-transcript"]) {
+            assert_eq!(wire.name, name);
+        }
+        let pieces = wires.get(1).expect("the kept pieces follow jig's wire");
+        assert_eq!(pieces.lowest, smith_channel::pieces::wire::VERSION);
+        assert_eq!(pieces.highest(), smith_channel::pieces::wire::VERSION);
+        assert_eq!(pieces.layout(pieces.lowest), Some(smith_channel::pieces::wire::layout()));
+    }
+
+    #[test]
+    fn kept_wires_state_every_layout_from_their_floor() {
+        let wires = super::spoken();
+        for (wire, texts, floor) in [
+            (wires.get(0).expect("jig"), crate::patches::kept::jig_worker_wire::TEXTS, crate::wire::FLOOR),
+            (
+                wires.get(1).expect("pieces"),
+                smith_channel::patches::kept::smith_pieces::TEXTS,
+                smith_channel::pieces::wire::FLOOR,
+            ),
+            (
+                wires.get(2).expect("charter"),
+                smith_charter::patches::kept::smith_charter::TEXTS,
+                smith_charter::wire::FLOOR,
+            ),
+            (
+                wires.get(3).expect("transcript"),
+                smith_transcript::patches::kept::smith_transcript::TEXTS,
+                smith_transcript::wire::FLOOR,
+            ),
+        ] {
+            assert_eq!(wire.lowest, floor);
+            let mut count = 0;
+            for text in texts {
+                let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept text");
+                if schema.version() >= floor {
+                    count += 1;
+                    assert_eq!(wire.layout(schema.version()), Some(schema.fingerprints().family().digest()));
+                }
+            }
+            assert_eq!(wire.layouts.len(), count);
+        }
+        let jig = wires.get(0).expect("jig");
+        let rebuilt = Spoken::of(jig.name, crate::patches::kept::jig_worker_wire::TEXTS, 13).expect("raised floor");
+        assert_eq!(rebuilt.lowest, 13);
+        assert_eq!(rebuilt.layouts.len(), 1);
+        assert_eq!(rebuilt.layout(13), jig.layout(13));
+    }
 
     #[test]
     fn a_spoken_range_names_each_versions_layout() {

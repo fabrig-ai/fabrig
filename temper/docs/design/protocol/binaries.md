@@ -224,7 +224,7 @@ default; the document is `temper.json` in the configuration directory
   the opening the copy keeps of it, and whether the workers may: yes
   when every worker the configuration names may and no pending patch
   is marked fresh, no naming each that may not and why, unknown when
-  the copy keeps no wires (`wires.md`, 9.2; `../draft/upgrades.md`,
+  the copy keeps no wires (`wires.md`, 10.2; `../draft/upgrades.md`,
   section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
   patches and restores pass, 1 when a start would be refused there.
 - **`temper-box upgrade --back`:** makes the previous generation active
@@ -398,7 +398,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
     `notes`, `accounts` and `settings`, and `temper`'s, `STORE_VERSION`
     (`README.md`, section 7; jig's `format::current`);
   - for each wire of `temper_engine_service::wires()`, in its order
-    (`wires.md`, section 9): `wire NAME LOWEST HIGHEST`, LOWEST its
+    (`wires.md`, section 10): `wire NAME LOWEST HIGHEST`, LOWEST its
     floor, then `layout NAME VERSION FINGERPRINT` for each version from
     LOWEST to HIGHEST, FINGERPRINT its layout's 64 lowercase hex digits.
 - **`upgrade`** is `binaries.md`'s `temper-box upgrade`, on this binary.

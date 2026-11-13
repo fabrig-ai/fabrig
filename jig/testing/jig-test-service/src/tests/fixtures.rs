@@ -427,6 +427,7 @@ pub fn call(input: &[u8]) -> jig_domain_fleet::Call {
     let mut writer = Writer::new(skein_lib::length::usize_of(name.measure()));
     name.encode(&mut writer).expect("call name size");
     jig_domain_fleet::Call {
+        contract: 1,
         name: writer.finish(),
         tool: b"cancel".as_slice().into(),
         writes: true,
