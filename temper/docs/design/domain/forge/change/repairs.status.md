@@ -3,8 +3,6 @@
 2026-11-13. Where the tree's code lags or departs from [repairs.md](repairs.md).
 
 
-- **Not yet:** "Stalls", a wait for its dependencies: at producing with a dependency pending, the forge top's `wait_for_forge` and `titled_change` and the policy's requested-producer waits still count the stall, and its end does not reset it (`temper-engine-domain-forge/src/domain.rs`; `temper-engine-domain-forge-change/src/domain.rs`, `waiting`). [in flight: change 2242]
-- **Not yet:** "A dependency's end ends a stall at producing": a dependency's end reaches no held change, so its stall holds until a party's release (`temper-engine-domain/src/route.rs`, `route_core_requests`). [in flight: change 2242]
 - **Not yet:** "Stalls" and "A stall's hold says where": a `Stalled` hold names neither the step nor what it waits on, and a goal's landing can sit at updating with no hold (`temper-engine-domain/src/route/forge_route.rs`, `hold_change_decision`; `temper-engine-domain-forge-change/src/domain.rs`, `updating`).
 - **Not yet:** "A repair", a runner's failure: the brief does not say a failure was the runner's, nor how many times its job ran again at the head, and such a failure is repaired, not run again (`temper-engine-domain-forge/src/brief.rs`).
 
