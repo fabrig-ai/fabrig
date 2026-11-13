@@ -12,4 +12,5 @@
    the pending-reasons continuation gap remains `settings.status.md`, 6.
    the settings-holder gap remains `settings.status.md`, 6.
    the ignored restore stories remain `settings.status.md`, 10.
+- **Not yet:** *Relaying*: an application's asks, fenced as calls [in flight: change 2511].
 

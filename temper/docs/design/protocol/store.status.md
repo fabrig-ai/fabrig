@@ -5,6 +5,7 @@
 - **Not yet:** 2: family 41, `LandedDraft`, neither kept nor read
   [in flight: change 663].
 - **Not yet:** 2: family 42, `Follow`, a follow's record [in flight: change 105].
+- **Not yet:** 2, *A goal's reds*: families 44 `Red` and 45 `RedNumber`, and the named call's `CallPayload::Red`, with their patch [in flight: change 2492].
 
 - **Not yet:** 2: the `Change` row's `follows` [in flight: change 99].
 

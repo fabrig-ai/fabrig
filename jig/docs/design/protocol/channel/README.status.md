@@ -5,6 +5,8 @@
 
 - **Not yet:** 10: the application's parts' ceilings: a run's saved work is at most 65,536 bytes (`worker-wire-v9.schema`, `Work`), not 16 MiB.
 
+- **Not yet:** 10: the application's largest ask and answer among the sizes [in flight: change 2511].
+
 - **Not yet:** 9.1: the dial due at the grace's end less the handshake's deadline; a redial waits at most a quarter of the grace, so an engine back in the grace's last quarter can miss the last dial (`jig-protocol-worker-link/src/component.rs`).
 
 Sections 4.1 and 8 have no known gap in agreeing output rooms. The v9

@@ -3,6 +3,8 @@
 2026-11-12. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
 
 
+- **Not yet:** *A goal's reds for each check*: no `temper/reds-wait` at prepare, and no `temper/reds` written at a check's start or removed at its end [in flight: change 2514].
+
 `checkouts.md`'s design delivery has no known gap in running the repository's
 `.temper/pre-pr` and refusing a failed check. Its landing pin stays frozen
 for the hold. `checkouts.md`'s delivery retains the checkout's ancestry through
