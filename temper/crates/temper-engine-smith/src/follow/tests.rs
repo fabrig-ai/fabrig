@@ -76,7 +76,7 @@ fn follow_calls_validate_members_before_deciding() {
     schema_members(&schema);
     let properties = schema.required(b"properties").unwrap();
     assert_eq!(properties.required(b"commits").unwrap().required(b"minItems").unwrap().number(b"minItems").unwrap(), 2);
-    assert_eq!(schema.required(b"oneOf").unwrap().array(b"oneOf").unwrap().len(), 5);
+    assert!(schema.field(b"oneOf").unwrap().is_none());
     assert_eq!(
         properties.required(b"reason").unwrap().required(b"minLength").unwrap().number(b"minLength").unwrap(),
         1
@@ -108,16 +108,41 @@ fn follow_calls_validate_members_before_deciding() {
 fn schema_members(schema: &crate::json::Value) {
     use crate::json::Value;
     assert_eq!(schema.required(b"additionalProperties").unwrap(), &Value::Boolean(false));
-    assert_eq!(
-        schema.required(b"required").unwrap(),
-        &Value::Array(Box::new([Value::String(b"act".as_slice().into())]))
-    );
-    for shape in schema.required(b"oneOf").unwrap().array(b"oneOf").unwrap() {
-        let required = match shape.field(b"required").unwrap() {
-            Some(required) => required.array(b"required").unwrap(),
-            None => &[],
-        };
-        let acts = shape
+    let acts = schema
+        .required(b"properties")
+        .unwrap()
+        .required(b"act")
+        .unwrap()
+        .required(b"enum")
+        .unwrap()
+        .array(b"enum")
+        .unwrap();
+    assert_eq!(acts.len(), 6);
+    for (act, expected) in [
+        (b"start".as_slice(), [b"act".as_slice(), b"follow", b"commit"].as_slice()),
+        (b"hold", [b"act".as_slice(), b"follow", b"commit", b"reason"].as_slice()),
+        (b"skip", [b"act".as_slice(), b"follow", b"commit", b"reason"].as_slice()),
+        (b"merge", [b"act".as_slice(), b"follow", b"commits"].as_slice()),
+        (b"list", [b"act".as_slice()].as_slice()),
+        (b"show", [b"act".as_slice(), b"follow"].as_slice()),
+    ] {
+        assert!(acts.contains(&Value::String(act.into())));
+        let mut required = skein_lib::List::uncapped();
+        schema_required(schema, act, &mut required);
+        assert_eq!(skein_lib::usize_of(required.len()), expected.len());
+        for name in expected {
+            assert!(required.as_slice().contains(&Box::<[u8]>::from(*name)));
+        }
+    }
+}
+fn schema_required(schema: &crate::json::Value, act: &[u8], output: &mut skein_lib::List<Box<[u8]>>) {
+    if let Some(required) = schema.field(b"required").unwrap() {
+        for name in required.array(b"required").unwrap() {
+            output.push(name.text(b"required").unwrap()).unwrap();
+        }
+    }
+    if let Some(condition) = schema.field(b"if").unwrap() {
+        let acts = condition
             .required(b"properties")
             .unwrap()
             .required(b"act")
@@ -126,19 +151,9 @@ fn schema_members(schema: &crate::json::Value) {
             .unwrap()
             .array(b"enum")
             .unwrap();
-        for act in acts {
-            let expected: &[&[u8]] = match act.text(b"act").unwrap().as_ref() {
-                b"start" => &[b"follow", b"commit"],
-                b"hold" | b"skip" => &[b"follow", b"commit", b"reason"],
-                b"merge" => &[b"follow", b"commits"],
-                b"list" => &[],
-                b"show" => &[b"follow"],
-                _ => panic!("a declared follow act"),
-            };
-            assert_eq!(required.len(), expected.len());
-            for member in expected {
-                assert!(required.contains(&Value::String((*member).into())));
-            }
+        let branch: &[u8] = if acts.contains(&crate::json::Value::String(act.into())) { b"then" } else { b"else" };
+        if let Some(branch) = schema.field(branch).unwrap() {
+            schema_required(branch, act, output);
         }
     }
 }
