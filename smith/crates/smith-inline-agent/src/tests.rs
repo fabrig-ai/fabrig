@@ -797,3 +797,34 @@ fn a_parent_drain_keeps_the_completion_and_tells_its_turn_before_cancelling() {
     }
     assert!(turn && answered);
 }
+
+#[test]
+fn the_inline_answer_keeps_a_program_failures_report_status() {
+    for status in [Some(403), None] {
+        let report = run::Report { status, ..run::Report::none() };
+        let answer = run::Answer::Failed {
+            failure: run::RunFailure::Model(run::Fault::Completion {
+                failure: run::CompletionFailure::Unavailable,
+                evidence: run::CompletionEvidence::Unsent,
+                model: 2,
+                attempts: 3,
+                report: report.clone(),
+            }),
+            spent: run::Spend::ZERO,
+            turns: 0,
+        };
+        let translated = translate::answer(answer, None, Time::ZERO);
+        assert_eq!(
+            translated.result,
+            host::RunResult::Failed {
+                failure: host::RunFailure::Model(host::ModelFault::Completion {
+                    failure: host::CompletionFailure::Unavailable,
+                    evidence: host::CompletionEvidence::Unsent,
+                    model: 2,
+                    attempts: 3,
+                    report,
+                })
+            }
+        );
+    }
+}

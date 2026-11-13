@@ -342,6 +342,7 @@ fn completion_answer_fields() {
         let charter = smith_agent_world::scripted_charter(&settings);
         let mut world = World::with_failure(settings, source, llm::Evidence::Response { status: Some(503) });
         world.failure_report(smith_domain::llm::Report {
+            status: None,
             code: Box::from(b"provider-code".as_slice()),
             request: Box::from(b"request-id".as_slice()),
             field: Box::from(b"request-field".as_slice()),
@@ -398,6 +399,7 @@ fn expected_fault(expected: run::CompletionFailure, world: &smith_agent_world::W
             model: 0,
             attempts: 1,
             report: run::Report {
+                status: None,
                 code: Box::from(b"provider-code".as_slice()),
                 request: Box::from(b"request-id".as_slice()),
                 field: Box::from(b"request-field".as_slice()),

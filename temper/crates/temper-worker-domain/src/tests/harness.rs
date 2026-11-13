@@ -115,7 +115,7 @@ impl Harness {
             Request::Decode { agent, run, start } => {
                 self.owner = Some(*agent);
                 let start = Ok(Box::new(fixtures::start(*run, start)));
-                return self.owed.push(Event::Decoded { agent: *agent, start });
+                return self.owed.push(Event::Decoded { agent: *agent, start, endpoints: Box::new([]) });
             }
             Request::Encode { owner, value } => {
                 let encoded = Event::Encoded { owner: *owner, encoded: encode(value) };

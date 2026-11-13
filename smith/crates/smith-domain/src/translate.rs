@@ -265,7 +265,12 @@ pub(crate) fn end(
             evidence: completion_evidence(evidence),
             model,
             attempts,
-            report: run::Report { code: report.code, request: report.request, field: report.field },
+            report: run::Report {
+                status: report.status,
+                code: report.code,
+                request: report.request,
+                field: report.field,
+            },
         }),
         session::End::NoSummary { fault } => run::End::Fault(match fault {
             session::NoSummary::Refused => run::Fault::Declined,

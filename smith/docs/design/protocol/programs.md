@@ -492,8 +492,30 @@ open is section 9.
 - **`system/api_retry`** is the program's own retry, told as the event
   stream's (events.md, 3.5): the program, not the session, retries.
 - **Any other error the `result` reports** (`is_error`, with its
-  `api_error_status`, `terminal_reason` and `errors`) fails the run as
-  its model's, with the status as evidence.
+  `api_error_status`, `terminal_reason`, `result` and `errors`) fails
+  the call as its model's, classed by its status:
+
+  | `api_error_status` | Failure |
+  |---|---|
+  | 403 whose error text holds the provider's own error | *invalid* |
+  | 403 whose does not (an edge's or a proxy's page, or no text) | *unavailable* |
+  | 529 | *overloaded* |
+  | any other 5xx | *unavailable* |
+  | any other, or none | *invalid* |
+
+  The provider's own error is a JSON object whose `error` member is an
+  object, as Anthropic's `{"type":"error","error":{"type":"permission_error",…}}`,
+  found in the `result` text or in one of the `errors`; the backend reads
+  that text only to class the failure, and keeps none of it beyond the
+  failure's detail. The evidence is *unsent*: the program made the call,
+  not smith, and no completion came. The status goes in the failure's
+  report (`Report::status`), never in its evidence, so a host can name it
+  (domain/run.md, section 9): a 403 from an edge is
+  *unavailable, status 403, unsent*. An unavailable or overloaded call
+  restarts the program and is retried as the session retries any
+  transient failure (domain/session.md, section 4), the window's first
+  call resuming the program's session (5.8); past those retries the run
+  fails with it, for its host to retry as an outage.
 - **A start that fails,** the program missing, a check that failed, no
   `system/init` within the start's deadline, or one that lacks what the
   run needs or lists a built-in tool not granted, fails the run as its
