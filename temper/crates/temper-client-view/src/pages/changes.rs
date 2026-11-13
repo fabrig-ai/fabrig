@@ -310,15 +310,6 @@ fn queues(
                     ),
                 }
             };
-            let when = if row.alone() {
-                crate::accounts::words::join(&[
-                    &when,
-                    &words.say(Word::ToolSeparator, &[]),
-                    &super::change::say(words, W::LandAlone, &[]),
-                ])
-            } else {
-                when
-            };
             let label = if checking {
                 crate::accounts::words::join(&[&words.say(Word::ChangesChecking, &[]), &when])
             } else {

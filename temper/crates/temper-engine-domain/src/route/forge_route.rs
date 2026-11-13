@@ -2569,7 +2569,6 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                     ready_since: None,
                     owns_turn: false,
                     last_head: None,
-                    alone: false,
                 },
                 pull: None,
                 pending: None,
