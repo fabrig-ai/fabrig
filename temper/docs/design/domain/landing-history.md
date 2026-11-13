@@ -203,7 +203,11 @@ pub fn write_event(
   its landing). A start is written when its member is none and the step
   finds the interval open; its end when the member is set and the step
   finds it closed. A restart restores the member with the row, so
-  relearning writes nothing.
+  relearning writes nothing. It also keeps `delivered`, the last head
+  an attempt's answer delivered, or none: the change's `last_head` is
+  also set by branch reads, so it can't tell an accepted head from an
+  observed one. An answer whose head equals `delivered` writes nothing;
+  a different head writes `delivered` and sets the member.
 - **Only what changed:** a poll or a hint that finds nothing new writes
   nothing.
 - **Advancing steps in one decision** each write their event: a change
