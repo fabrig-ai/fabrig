@@ -153,13 +153,16 @@ fn a_ready_change_lands_only_when_told_its_prefix() {
 fn a_repair_ask_delegates_a_landing_repair_counted_against_repairs() {
     let mut f = facts();
     f.contains_base = Status::Failed;
-    f.ask = Some(Ask::Repair { gate: 3, candidate: NEW });
+    f.ask = Some(Ask::Repair { gate: 3, candidate: NEW, below: None });
     let repairing = decide(&ready(), &f, &heard());
-    assert_eq!(repairing.decision, Decision::Delegate(Delegate::Repair(Repair::LandingAt { gate: 3, candidate: NEW })));
+    assert_eq!(
+        repairing.decision,
+        Decision::Delegate(Delegate::Repair(Repair::LandingAt { gate: 3, candidate: NEW, below: None }))
+    );
     assert_eq!(repairing.change.repairs, 1);
     assert_eq!(
         repairing.change.state,
-        State::Repairing { requested: true, why: Repair::LandingAt { gate: 3, candidate: NEW } }
+        State::Repairing { requested: true, why: Repair::LandingAt { gate: 3, candidate: NEW, below: None } }
     );
     let mut exhausted = ready();
     exhausted.repairs = LIMITS.repairs;
@@ -173,6 +176,35 @@ fn a_repair_ask_delegates_a_landing_repair_counted_against_repairs() {
     let again = decide(&repaired.change, &f, &heard());
     assert_eq!(again.change.state, State::Ready { head: NEW, ready_since: at(0) });
     assert_eq!(again.decision, Decision::Ready);
+}
+
+#[test]
+fn ready_and_judging_changes_keep_the_blamed_repair_context() {
+    use crate::{Below, Judgement, Landed};
+    let below = Some(Below { green: BASE, changes: [Some(Landed { change: 2341, pull: 7 }), None, None, None] });
+    let why = Repair::LandingAt { gate: 3, candidate: NEW, below };
+    let f = Facts { ask: Some(Ask::Repair { gate: 3, candidate: NEW, below }), ..facts() };
+    let mut judging = ready();
+    judging.state = State::Judging {
+        head: HEAD,
+        ready_since: at(0),
+        asked: Box::new([]),
+        target: Judgement {
+            landing: 81,
+            round: 1,
+            pull: 9,
+            branch: b"prefix".as_slice().into(),
+            base: b"main".as_slice().into(),
+            prefix: NEW,
+        },
+    };
+    for c in [ready(), judging] {
+        let next = decide(&c, &f, &heard());
+        assert_eq!(next.decision, Decision::Delegate(Delegate::Repair(why)));
+        assert_eq!(next.change.state, State::Repairing { requested: true, why });
+        let waiting = decide(&next.change, &facts(), &heard());
+        assert_eq!(waiting.change.state, next.change.state, "the ask need not be read again");
+    }
 }
 
 #[test]
@@ -202,7 +234,7 @@ fn a_clean_gate_counts_at_a_clean_prepares_candidate_and_an_exact_one_is_asked_a
 
 #[test]
 fn a_queue_change_ignores_an_ask() {
-    for ask in [Ask::Prepare { head: HEAD, main: BASE }, Ask::Repair { gate: 3, candidate: NEW }] {
+    for ask in [Ask::Prepare { head: HEAD, main: BASE }, Ask::Repair { gate: 3, candidate: NEW, below: None }] {
         let mut f = facts();
         f.ask = Some(ask.clone());
         for c in [

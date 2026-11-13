@@ -10,6 +10,10 @@ nothing, the workers' grace covers a start that patches, with the
 engine's grace above their stop bound, and `upgrade --check` names
 each worker that may stay by the opening the engine kept of it
 (`protocol/wires.md`, 9; `domain/root.md`, 8.2; R5, goal 2288).
+A model provider unreachable for minutes holds no task: its run's
+failure waits as an infrastructure failure, and a hold for a model
+call's failure names the call from structured fields alone
+(`draft/run-provider-outage.status.md`; `domain/worker/README.md`, 4.3).
 Remaining work spans
 landing and finding workflows, client surfaces, deployment and releases,
 and verification and cost. The status files below record where temper's
@@ -83,15 +87,16 @@ holds, with no credential named. Its passes follow landing
 (`testing/qa/README.md`; `testing/qa/setups.md`;
 `draft/landed-qa.status.md`).
 
-The merge queue's milestones M1 and M2, goals 683 and 2175, make
+The merge queue's milestones M1 to M3, goals 683, 2175 and 2336, make
 landing by `turn` a merge queue (`domain/landing.md`): a train per
 repository and branch, one landing at a time on each, a batch of
 waiting units up to the project's `batch`, stacked by the worker's
 merge train with a branch per member, proved once at the top, and
 landed by one fast-forward of the landing's own pull request; a red
-round of several units falls back to one unit at a time until M3's
-search by prefixes. Its process story and staging walks follow landing
-(`draft/merge-queue.status.md`).
+round of several units is narrowed by prefixes, the blamed unit
+repaired, the green prefix landed and the units above it carried to the
+next round (`domain/landing-search.md`). Its process stories and
+staging walks follow landing (`draft/merge-queue.status.md`).
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
@@ -303,6 +308,7 @@ Design documents:
 - [`domain/forge/queues.md`](domain/forge/queues.status.md)
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
+- [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/root.md`](domain/root.status.md)
 - [`domain/routing.md`](domain/routing.status.md)
 - [`domain/trial.md`](domain/trial.status.md)
@@ -387,9 +393,11 @@ Drafts:
 - [`draft/forge-identity.md`](draft/forge-identity.status.md)
 - [`draft/forge-polls-quiet.md`](draft/forge-polls-quiet.status.md)
 - [`draft/forge-reads-targeted.md`](draft/forge-reads-targeted.status.md)
+- [`draft/gate-compile.md`](draft/gate-compile.status.md)
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
+- [`draft/known-reds-merge.md`](draft/known-reds-merge.status.md)
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
@@ -406,6 +414,7 @@ Drafts:
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/redeploys.md`](draft/redeploys.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
+- [`draft/run-provider-outage.md`](draft/run-provider-outage.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
 - [`draft/squash-in.md`](draft/squash-in.status.md) — S1, goal 2176: a change's commit into its goal's branch, its title, description and trailers; S2, goal 2231: the stock charters' words for the coding agent, the designer and the coordinator, a change's commits its maker's and main taken only for a change that needs it.

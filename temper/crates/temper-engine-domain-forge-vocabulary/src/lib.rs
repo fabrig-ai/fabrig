@@ -113,7 +113,8 @@ pub use result::{ChangeResult, ResultText};
 pub use settings::ForgeCharters;
 pub use temper_engine_domain_forge_landing::CHECK_NAME_BYTES;
 pub use temper_engine_domain_forge_landing::{
-    Combine as LandingCombine, Hold as LandingHold, Leave as LandingLeave, Phase as LandingPhase, Round as LandingRound,
+    Combine as LandingCombine, Hold as LandingHold, Leave as LandingLeave, Phase as LandingPhase,
+    Round as LandingRound, Search as LandingSearch,
 };
 pub use verification::LandingRed;
 pub use views::{

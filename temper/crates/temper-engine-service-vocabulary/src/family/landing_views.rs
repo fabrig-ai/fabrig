@@ -21,6 +21,7 @@ pub(super) fn step(value: forge::LandingStep) -> w::LandingStep {
         forge::LandingStep::Waiting => w::LandingStep::Waiting,
         forge::LandingStep::Preparing => w::LandingStep::Preparing,
         forge::LandingStep::Proving => w::LandingStep::Proving,
+        forge::LandingStep::Probing => w::LandingStep::Probing,
         forge::LandingStep::Proved => w::LandingStep::Proved,
         forge::LandingStep::Turn => w::LandingStep::Turn,
         forge::LandingStep::Landed => w::LandingStep::Landed,
@@ -41,10 +42,9 @@ pub(super) fn combined(value: forge::LandingCombine) -> w::Combined {
 pub(super) fn left(value: forge::LandingLeave, limits: &w::Limits) -> Option<w::LandingLeave> {
     Some(match value {
         forge::LandingLeave::Conflict | forge::LandingLeave::EarlierConflict => w::LandingLeave::Conflict,
-        forge::LandingLeave::Unit { .. }
-        | forge::LandingLeave::Dependency { .. }
-        | forge::LandingLeave::Fallback { .. }
-        | forge::LandingLeave::Held => w::LandingLeave::Held,
+        forge::LandingLeave::Unit { .. } | forge::LandingLeave::Dependency { .. } | forge::LandingLeave::Held => {
+            w::LandingLeave::Held
+        }
         forge::LandingLeave::HeadMoved { head } => {
             w::LandingLeave::HeadMoved(w::MovedHead::new(limits, w::MovedHeadParts { head }).ok()?)
         }
@@ -55,7 +55,37 @@ pub(super) fn left(value: forge::LandingLeave, limits: &w::Limits) -> Option<w::
         forge::LandingLeave::Failed { gate, run } => {
             w::LandingLeave::Failed(w::FailedGate::new(limits, w::FailedGateParts { gate, run }).ok()?)
         }
+        forge::LandingLeave::Blamed { gate, run, red, green } => {
+            w::LandingLeave::Blamed(w::BlamedGate::new(limits, w::BlamedGateParts { gate, run, red, green }).ok()?)
+        }
     })
+}
+pub(super) fn search(value: &forge::LandingView, limits: &w::Limits) -> Option<w::LandingSearch> {
+    let search = value.round.search?;
+    w::LandingSearch::new(
+        limits,
+        w::LandingSearchParts {
+            green: bound(value, search.green, limits)?,
+            red: bound(value, search.red, limits)?,
+            probe: value.probe,
+        },
+    )
+    .ok()
+}
+fn bound(value: &forge::LandingView, member: u16, limits: &w::Limits) -> Option<w::SearchBound> {
+    let prefix = if member == 0 {
+        value.round.upstream?
+    } else {
+        let member = value.members.get(usize::from(member.checked_sub(1)?))?;
+        if let Some(prefix) = member.candidate {
+            prefix
+        } else if let Some(forge::LandingLeave::Blamed { red, .. }) = member.left {
+            red
+        } else {
+            return None;
+        }
+    };
+    w::SearchBound::new(limits, w::SearchBoundParts { member, prefix }).ok()
 }
 pub(super) fn judgement(value: forge::PrefixJudgement, limits: &w::Limits) -> Option<w::PrefixJudgement> {
     let mut gates = List::with_capacity(u32::try_from(value.gates.len()).ok()?);

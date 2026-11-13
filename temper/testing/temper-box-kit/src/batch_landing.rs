@@ -1,5 +1,7 @@
-//! A queue that lands green on real git and the owned runner
-//! (temper/docs/design/testing/process-tier.md; domain/landing.md, 5, 8–10 and 14).
+//! A queue that lands green and a red narrowed on real git and the owned runner
+//! (temper/docs/design/testing/process-tier.md; domain/landing.md, 5, 8–10 and 14;
+//! domain/landing-search.md, 3–5 and 8).
+mod narrowed;
 use super::{
     ChatJudge, ChatPhase, Ending, LANDING, Process, ctl,
     forgejo::{JobBarrier, Throwaway},
@@ -17,7 +19,22 @@ use std::{fs, path::Path};
 // siblings before any producer starts. The latch is a report, not a change.
 const CHANGES: [u64; 3] = [3, 4, 5];
 const FOURTH: u64 = 6;
-const LATCH: u64 = 7;
+#[derive(Clone, Copy)]
+enum Story {
+    Green,
+    Narrowed,
+}
+impl Story {
+    fn changes(self) -> u64 {
+        match self {
+            Self::Green => 4,
+            Self::Narrowed => 3,
+        }
+    }
+    fn latch(self) -> u64 {
+        self.changes() + 3
+    }
+}
 
 fn call(name: &[u8], value: &Value) -> Turn {
     Turn {
@@ -34,22 +51,22 @@ fn hold(name: &[u8]) -> Line {
     Line::Pieces { pieces: Box::new([Piece { text: b"Waiting.".as_slice().into(), hold: Some(name.into()) }]) }
 }
 
-fn scripts(root: &Path, forge: &Throwaway) -> Box<[Script]> {
+fn scripts(root: &Path, forge: &Throwaway, story: Story) -> Box<[Script]> {
     let value: Value =
         serde_json::from_slice(&fs::read(root.join("temper.json")).expect("configuration")).expect("JSON");
     let engine = temper_real_loop_world::settings::configuration(&value);
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
-    scripted_batch(landing_scripts(super::ANSWER, forge).into_vec(), stock.rules.maximum_run_spend)
+    scripted_batch(landing_scripts(super::ANSWER, forge).into_vec(), stock.rules.maximum_run_spend, story)
 }
 
-fn scripted_batch(mut shared: Vec<Script>, run: u64) -> Box<[Script]> {
+fn scripted_batch(mut shared: Vec<Script>, run: u64, story: Story) -> Box<[Script]> {
     // Four runs per change and one for the latch fit the chat's stock 24-run budget.
     let mut owner = shared.remove(0);
     let Line::Call { arguments, .. } = &owner.turns[0].lines[0] else { panic!("delegate") };
     let delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
     let mut batch = Vec::new();
     let mut scripts = Vec::new();
-    for number in 1..=4 {
+    for number in 1..=story.changes() {
         let words = format!("@batch-code-{number} Add batch-{number}.txt");
         let mut change = delegate["batch"][0].clone();
         change["spec"]["words"] = words.clone().into();
@@ -59,7 +76,13 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64) -> Box<[Script]> {
         let path = format!("batch-{number}.txt");
         let mut turns = vec![
             call(b"read", &json!({"path":path})),
-            call(b"write", &json!({"path":path,"content":format!("Change {number}\n")})),
+            call(
+                b"write",
+                &json!({"path":path,"content":match (story, number) {
+                    (Story::Narrowed, 2) => "red\n".to_owned(),
+                    _ => format!("Change {number}\n"),
+                }}),
+            ),
             call(
                 b"finish",
                 &json!({"form":"change","fields":{
@@ -83,7 +106,7 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64) -> Box<[Script]> {
     }));
     owner.turns[0] = call(b"delegate", &json!({"batch":batch}));
     // A latch's result wakes the owner before the changes end. Keep its finish
-    // from cancelling those children; the referee releases it after both landings.
+    // from cancelling those children; only the green story releases its finish.
     let finish = &mut owner.turns[2];
     finish.lines = [vec![hold(b"batch-owner")], finish.lines.to_vec()].concat().into_boxed_slice();
     scripts.push(owner);
@@ -109,11 +132,14 @@ fn scripted_batch(mut shared: Vec<Script>, run: u64) -> Box<[Script]> {
     // The shared coder is replaced by disjoint files, so every head merges cleanly.
     shared.retain(|script| !script.cue.starts_with(b"## Task\n\n@coding"));
     scripts.extend(shared);
+    if let Story::Narrowed = story {
+        narrowed::hold_repair(&mut scripts);
+    }
     scripts.into_boxed_slice()
 }
 
 /// The turn and runner-cancellation stories use the same owned forge, policy,
-/// producer and funding setup. Only this story needs concurrent held model turns.
+/// producer and funding setup. The batch stories also hold concurrent model turns.
 pub fn configure(root: &Path, repository: u64) {
     turn_restart::configure_batch(root, repository, 3);
     let path = root.join("temper.json");
@@ -180,6 +206,9 @@ fn members(panel: &Value) -> &[Value] {
 fn candidate(panel: &Value) -> &str {
     sha(&members(panel).last().expect("top")["candidate"])
 }
+fn member_branch(task: u64, number: usize) -> String {
+    if number == 1 { format!("temper/{task}/l{task}") } else { format!("temper/{task}/l{task}-{number}") }
+}
 fn gate_runs(forge: &Throwaway) -> Vec<Value> {
     let runs = get(forge, "actions/runs?limit=100");
     assert_eq!(
@@ -209,6 +238,7 @@ pub mod tests {
         let scripts = super::scripted_batch(
             super::super::forgejo::native_scripts(b"hello", api, 1, b"README").into_vec(),
             stock.rules.maximum_run_spend,
+            super::Story::Green,
         );
         let owner = scripts.iter().find(|script| script.cue.as_ref() == b"@forge_chat").expect("owner");
         let super::Line::Call { arguments, .. } = &owner.turns[0].lines[0] else { panic!("delegate") };
@@ -251,6 +281,7 @@ enum Phase {
     Next,
     Landed,
     Ending,
+    Search(narrowed::Step),
 }
 struct Judge<'a> {
     chat: ChatJudge<'a>,
@@ -262,6 +293,8 @@ struct Judge<'a> {
     base: String,
     first: Option<Proof>,
     second: Option<Proof>,
+    story: Story,
+    probes: Vec<u64>,
 }
 
 fn release(procs: &mut [Process], name: &[u8]) {
@@ -297,7 +330,7 @@ impl Judge<'_> {
                     "--rev",
                     "0",
                     "--dependency",
-                    &LATCH.to_string(),
+                    &self.story.latch().to_string(),
                     "Become ready with the other two changes",
                     "--key",
                     &format!("batch-keep-{task}"),
@@ -326,25 +359,27 @@ impl Judge<'_> {
             members(&panel).iter().map(|member| member["change"].as_u64().expect("change")).collect::<Vec<_>>(),
             expected
         );
+        self.dispatched(run, candidate(&panel));
+        let runs = gate_runs(self.forge);
+        assert_eq!(runs.len(), if previous.is_some() { 2 } else { 1 }, "no push, member or merge runs");
+        self.stack(&panel);
+        Some(Proof { panel, run })
+    }
+    fn dispatched(&self, run: u64, prefix: &str) {
         let actual = get(self.forge, &format!("actions/runs/{run}"));
         assert_eq!(actual["id"], run);
         assert_eq!(actual["workflow_id"], "gate.yaml");
         assert_eq!(actual["trigger_event"], "workflow_dispatch");
         assert_eq!(actual["trigger_user"]["login"], "temper");
         assert_eq!(actual["status"], "running");
-        assert_eq!(actual["commit_sha"], candidate(&panel), "proof at the top only");
-        let runs = gate_runs(self.forge);
-        assert_eq!(runs.len(), if previous.is_some() { 2 } else { 1 }, "no push, member or merge runs");
-        self.stack(&panel);
-        Some(Proof { panel, run })
+        assert_eq!(actual["commit_sha"], prefix, "proof at the chosen prefix");
     }
     fn stack(&self, panel: &Value) {
         let task = panel["task"].as_u64().expect("landing task");
         let mut below = sha(&members(panel)[0]["base"]).to_owned();
         for (index, member) in members(panel).iter().enumerate() {
             let number = index + 1;
-            let branch =
-                if number == 1 { format!("temper/{task}/l{task}") } else { format!("temper/{task}/l{task}-{number}") };
+            let branch = member_branch(task, number);
             let prefix = sha(&member["candidate"]);
             let actual = get(self.forge, &format!("branches/{branch}"));
             assert_eq!(actual["commit"]["id"], prefix, "a branch for each member's prefix");
@@ -356,14 +391,22 @@ impl Judge<'_> {
             assert_eq!(sha(&change["head"]), sha(&member["head"]), "no member head rewritten");
             below = prefix.into();
         }
-        assert_eq!(panel["round"]["branch"], {
-            let count = members(panel).len();
-            if count == 1 { format!("temper/{task}/l{task}") } else { format!("temper/{task}/l{task}-{count}") }
-        });
+        assert_eq!(panel["round"]["branch"], member_branch(task, members(panel).len()));
     }
 }
 
 impl Judge<'_> {
+    fn stop(&mut self, procs: &mut [Process]) {
+        calls(procs).release();
+        let Process::Binary(binary) = &mut procs[0] else { panic!("serve") };
+        binary.signal(Signal::Terminate);
+        for proc in procs {
+            if let Process::Peer(peer) = proc {
+                peer.shutdown();
+            }
+        }
+        self.chat.phase = ChatPhase::Stopping;
+    }
     fn landed(&self, proof: &Proof) -> bool {
         let panel = landing(self.root, proof.panel["task"].as_u64().expect("landing task"));
         if panel["phase"] != "landed" {
@@ -371,19 +414,9 @@ impl Judge<'_> {
         }
         assert_eq!(members(&panel).len(), members(&proof.panel).len());
         for (member, prepared) in members(&panel).iter().zip(members(&proof.panel)) {
-            assert_eq!(member["change"], prepared["change"]);
-            assert_eq!(member["landed"], prepared["candidate"], "each member lands at its own prefix");
-            let change = change(self.root, member["change"].as_u64().expect("change"));
-            if change["merge"].is_null() {
+            if !self.member_landed(member, prepared) {
                 return false;
             }
-            assert_eq!(sha(&change["merge"]), sha(&member["landed"]));
-            let number = member["pull"]["number"].as_u64().expect("member pull");
-            let pull = get(self.forge, &format!("pulls/{number}"));
-            if pull["merged"] != true {
-                return false;
-            }
-            assert_eq!(pull["merge_commit_sha"], sha(&member["landed"]));
         }
         let pull =
             get(self.forge, &format!("pulls/{}", panel["round"]["pull"]["number"].as_u64().expect("landing pull")));
@@ -392,6 +425,25 @@ impl Judge<'_> {
         assert_eq!(pull["merge_commit_sha"], candidate(&proof.panel), "one fast-forward, no extra merge commit");
         let run = get(self.forge, &format!("actions/runs/{}", proof.run));
         assert_eq!(run["status"], "success");
+        true
+    }
+    fn member_landed(&self, member: &Value, prepared: &Value) -> bool {
+        assert_eq!(member["change"], prepared["change"]);
+        if member["landed"].is_null() {
+            return false;
+        }
+        assert_eq!(member["landed"], prepared["candidate"], "each member lands at its own prefix");
+        let change = change(self.root, member["change"].as_u64().expect("change"));
+        if change["merge"].is_null() {
+            return false;
+        }
+        assert_eq!(sha(&change["merge"]), sha(&member["landed"]));
+        let number = member["pull"]["number"].as_u64().expect("member pull");
+        let pull = get(self.forge, &format!("pulls/{number}"));
+        if pull["merged"] != true {
+            return false;
+        }
+        assert_eq!(pull["merge_commit_sha"], sha(&member["landed"]));
         true
     }
     fn sample(&mut self, procs: &mut [Process]) {
@@ -423,8 +475,16 @@ impl Judge<'_> {
                 if let Some(proof) = self.proof(None, &CHANGES) {
                     assert_eq!(main(self.forge), self.base, "main stays at the base throughout proof");
                     self.first = Some(proof);
-                    release(procs, b"batch-fourth");
-                    self.phase = Phase::Fourth;
+                    match self.story {
+                        Story::Green => {
+                            release(procs, b"batch-fourth");
+                            self.phase = Phase::Fourth;
+                        }
+                        Story::Narrowed => {
+                            self.barrier.release(self.first.as_ref().expect("top proof").run);
+                            self.phase = Phase::Search(narrowed::Step::One);
+                        }
+                    }
                 }
             }
             Phase::Fourth => {
@@ -476,19 +536,12 @@ impl Judge<'_> {
                     self.phase = Phase::Ending;
                 }
             }
+            Phase::Search(step) => self.search(step, procs),
             Phase::Ending => {
                 release(procs, b"batch-owner");
                 let Process::Person(person) = &procs[1] else { panic!("person") };
                 if person.finished && person.client.as_ref().is_some_and(Host::is_empty) {
-                    calls(procs).release();
-                    let Process::Binary(binary) = &mut procs[0] else { panic!("serve") };
-                    binary.signal(Signal::Terminate);
-                    for proc in procs {
-                        if let Process::Peer(peer) = proc {
-                            peer.shutdown();
-                        }
-                    }
-                    self.chat.phase = ChatPhase::Stopping;
+                    self.stop(procs);
                 }
             }
         }
@@ -528,7 +581,7 @@ impl Referee<Process> for Judge<'_> {
     }
 }
 
-fn peer(root: &Path, forge: &Throwaway) -> super::llm::Listening {
+fn peer(root: &Path, forge: &Throwaway, story: Story) -> super::llm::Listening {
     let mut recipe = temper_real_loop_world::llm::scripted(Box::new([]));
     // Three reviews, the fourth coder, the latch and the owner may be held
     // together. The transport and script domain admit the same concurrent calls.
@@ -538,7 +591,7 @@ fn peer(root: &Path, forge: &Throwaway) -> super::llm::Listening {
     recipe.domain = skein_fake_llm_domain::Domain::played(
         &recipe.domain_limits,
         17,
-        temper_real_loop_world::llm::cued(scripts(root, forge)),
+        temper_real_loop_world::llm::cued(scripts(root, forge, story)),
         skein_fake_llm_domain::api::Menu { arguments: Box::new([]), invalid: Box::new([]) },
     )
     .expect("concurrent batch scripts");
@@ -548,14 +601,23 @@ fn peer(root: &Path, forge: &Throwaway) -> super::llm::Listening {
 /// One world drives the native person, ctl Steps, fake model and shipped binary.
 /// The referee's polls and the whole story are bounded by the landing deadline.
 pub fn run(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
-    let peer = peer(root, forge);
+    run_story(root, forge, barrier, Story::Green);
+}
+
+/// The same owned-turn world, with a red second member and held repair delegate.
+pub fn run_narrowed(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
+    run_story(root, forge, barrier, Story::Narrowed);
+}
+
+fn run_story(root: &Path, forge: &Throwaway, barrier: &JobBarrier, story: Story) {
+    let peer = peer(root, forge, story);
     peer.configure(root);
     let clock = Clock::new();
     let mut binary = super::serve(root);
     let streams = binary.take_streams().expect("serve pipes");
     let mut fds = streams.descriptors();
     let person_root = skein_shell::open_root(root).expect("native root");
-    let progress = super::patience::Patience::watching("the two batch landings", LANDING, &binary);
+    let progress = super::patience::Patience::watching("the batch landing", LANDING, &binary);
     let mut world = real::World::new(Judge {
         chat: ChatJudge {
             phase: ChatPhase::SettingUp,
@@ -573,6 +635,8 @@ pub fn run(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
         base: main(forge),
         first: None,
         second: None,
+        story,
+        probes: Vec::new(),
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(vec![person_root], || {

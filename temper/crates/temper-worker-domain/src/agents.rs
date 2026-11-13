@@ -25,6 +25,8 @@ pub(crate) struct Bound {
     pub(crate) agent: Token,
     /// smith admitted its run, and the hub was told it started.
     pub(crate) admitted: bool,
+    /// The charter's model-indexed call names (domain/worker/README.md, 4.3).
+    models: Box<[crate::hand_out::ModelName]>,
     /// Bounded operator evidence retained until process cleanup.
     detail: Box<[u8]>,
     /// A refused start waits for its process to drain before answering.
@@ -102,9 +104,13 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
 pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, out: &mut Queue<Request>) {
     let event = match request {
         smith::parent::Request::Started { client, agent } => {
+            let models = match domain.starting_models.remove(&client) {
+                Some(models) => models,
+                None => Box::new([]),
+            };
             let old = domain
                 .agents
-                .insert(client, Bound { agent, admitted: false, detail: Box::new([]), refused: None })
+                .insert(client, Bound { agent, admitted: false, models, detail: Box::new([]), refused: None })
                 .expect("smith bounds its agents");
             assert!(old.is_none(), "one agent per hosted run");
             if crate::stopping::cut(domain, client) {
@@ -190,9 +196,10 @@ fn answered(
     out: &mut Queue<Request>,
 ) {
     let smith::Answer { read, turns, spent, result } = answer;
-    domain.agents.get_mut(&client).expect("a started agent answers").detail =
-        translate::failure_detail(&result, detail, env.limits.host.detail_bytes);
-    domain.pending.push(Pending::Result { owner: client, turns, spent, read, finish: Finish::of(&result) });
+    let bound = domain.agents.get_mut(&client).expect("a started agent answers");
+    bound.detail = translate::failure_detail(&result, detail, env.limits.host.detail_bytes);
+    let finish = Finish::of(&result, &bound.models);
+    domain.pending.push(Pending::Result { owner: client, turns, spent, read, finish });
     out.push(Request::Encode { owner: client, value: Encodable::Result(result) });
 }
 
@@ -255,6 +262,7 @@ pub(crate) fn decoded(
     env: &Env<Limits>,
     owner: Token,
     start: Result<Box<smith::Start>, host::Undecoded>,
+    endpoints: Box<[Box<[u8]>]>,
 ) {
     let Some(hosting) = domain.host.hosting(owner) else { return };
     if hosting.phase != Phase::Starting {
@@ -266,6 +274,9 @@ pub(crate) fn decoded(
     }
     let event = match start {
         Ok(mut start) => {
+            let models = crate::hand_out::model_names(&start, endpoints);
+            let old = domain.starting_models.insert(owner, models).expect("one name list per hosted start");
+            assert!(old.is_none(), "each start is decoded once");
             // Earlier answers cross the same agent channel as live replies
             // (`domain/agent/tools.md`), after the protocol decodes the start.
             for call in &mut start.answered {
@@ -355,12 +366,12 @@ fn result_encoded(domain: &mut Domain, env: &Env<Limits>, pending: Pending, enco
             bound.refused = Some(StartRefusal { class, why });
             return;
         }
-        Finish::Ended | Finish::Parked | Finish::Failed(_) => match body {
+        Finish::Ended | Finish::Parked | Finish::Failed { .. } => match body {
             Some(body) => {
                 let finish = match finish {
                     Finish::Ended => host::Finish::Ended { outcome: body },
                     Finish::Parked => host::Finish::Parked,
-                    Finish::Failed(failure) => host::Finish::Failed { failure },
+                    Finish::Failed { failure, model } => host::Finish::Failed { failure, model },
                     Finish::Refused(_) => unreachable!("a refusal waits for cleanup"),
                 };
                 host::FromAgent::Finished { owner, turns, spent, read, finish }
@@ -421,6 +432,7 @@ fn hand_out_pending(domain: &Domain, owner: Token) -> bool {
 /// refused before any process ran keeps its refusal class; any other end waits
 /// behind the run's hand-outs.
 fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, detail: Box<[u8]>) {
+    drop(domain.starting_models.remove(&owner));
     let started = domain.agents.contains_key(&owner);
     let unstarted = match end {
         smith::End::Busy | smith::End::Invalid(_) | smith::End::Unspawned => true,

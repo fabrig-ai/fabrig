@@ -86,8 +86,23 @@ pub enum Repair {
     Landing { gate: u16 },
     /// A person's request for changes on the forge, at the head they reviewed (domain/forge/change/gates.md, 1).
     Review { head: Commit },
-    /// The failed candidate pins the receipt and its job-log snapshot through repair.
-    LandingAt { gate: u16, candidate: Commit },
+    /// The failed prefix pins its receipt; a blamed unit also keeps the green context (domain/landing-search.md, 7).
+    LandingAt { gate: u16, candidate: Commit, below: Option<Below> },
+}
+
+/// The green prefix and its members below a blamed unit (domain/landing-search.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Below {
+    pub green: Commit,
+    /// Members in stack order, followed by empty slots.
+    pub changes: [Option<Landed>; 4],
+}
+
+/// A change landing in the green prefix, in stack order (domain/landing-search.md, 7).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Landed {
+    pub change: u64,
+    pub pull: u64,
 }
 
 /// The part of a change's authority its next delegate needs.
@@ -277,8 +292,6 @@ pub struct Change {
     pub ready_since: Option<Wall>,
     pub owns_turn: bool,
     pub last_head: Option<Commit>,
-    /// A red batch falls back to landing this change's unit alone (domain/landing.md, 7.3).
-    pub alone: bool,
 }
 
 /// Observed state of the change's pull request.
@@ -309,10 +322,11 @@ pub enum Ask {
         head: Commit,
         main: Commit,
     },
-    /// Repair a real gate failure at the landing's candidate.
+    /// Repair a real gate failure at the candidate or a blamed unit's red prefix.
     Repair {
         gate: u16,
         candidate: Commit,
+        below: Option<Below>,
     },
     /// The landing's prefix is on the train's branch.
     Landed {

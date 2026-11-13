@@ -20,6 +20,7 @@ fn contains(world: &World, tip: u64, commit: api::Commit) -> bool {
     };
     commits.is_empty()
 }
+#[expect(clippy::too_many_lines, reason = "batch effects and search invariants share one bounded replay loop")]
 fn run(seed: u64) -> (landing::Landing, u64, Vec<api::Op>) {
     let mut rng = Rng::new(seed);
     let count = 2 + rng.below(3);
@@ -49,7 +50,11 @@ fn run(seed: u64) -> (landing::Landing, u64, Vec<api::Op>) {
     let mut inject = moving;
     let mut pending = None;
     let mut finished = false;
+    let mut probed = Vec::new();
+    let mut search_round = 0;
+    let mut max_probes = 0;
     for step in 0..160 {
+        let prior = world.landing(LANDING).landing.clone();
         let before = world.branch(b"main");
         let decision = landings::step_landing_heard(
             &mut world,
@@ -57,6 +62,44 @@ fn run(seed: u64) -> (landing::Landing, u64, Vec<api::Op>) {
             10_000 + step,
             pending.take().unwrap_or_else(|| heard(landing::Preparation::Idle, b"")),
         );
+        let next = &world.landing(LANDING).landing;
+        if let Some(search) = next.round.search {
+            if prior.round.search.is_none() {
+                probed.clear();
+                search_round = next.preparation;
+                let n = prior
+                    .members
+                    .iter()
+                    .filter(|m| m.left.is_none() && m.landed.is_none() && m.candidate.is_some())
+                    .count();
+                max_probes = usize::BITS - n.saturating_sub(1).leading_zeros();
+            }
+            if let Some(member) = landing::probe(next) {
+                let prefix = next.members[usize::from(member)].candidate.expect("probed prefix");
+                if !probed.contains(&prefix) {
+                    probed.push(prefix);
+                }
+            }
+            assert_eq!(search_round, next.preparation);
+            assert!(
+                probed.len() <= usize::try_from(max_probes).expect("probe count"),
+                "seed {seed}: logarithmic probes"
+            );
+            for (index, (old, new)) in prior.members.iter().zip(&next.members).enumerate() {
+                if old.landed.is_none() && new.landed.is_some() {
+                    assert!(index < usize::from(search.red), "seed {seed}: no red suffix lands");
+                }
+                if matches!(new.left, Some(landing::Leave::Blamed { .. })) && old.left.is_none() {
+                    let first = prior
+                        .members
+                        .iter()
+                        .skip(usize::from(search.green))
+                        .find(|m| m.left.is_none() && m.landed.is_none() && m.candidate.is_some())
+                        .expect("unit above green");
+                    assert_eq!(new.unit, first.unit, "seed {seed}: unit above green blamed");
+                }
+            }
+        }
         if world.branch(b"main") != before {
             let landing::Decision::Merge { member, candidate } = decision else {
                 panic!("seed {seed}: main moved outside the turn")

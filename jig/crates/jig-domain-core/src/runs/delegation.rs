@@ -106,55 +106,56 @@ impl Core {
         key: CallKey,
         batch: &[Delegate],
         decision: Wall,
-    ) -> Result<(), CallPart> {
+    ) -> Result<(), Box<CallPart>> {
         if !self.current_proof(key.task, key.attempt) {
-            return Err(delegate_refused(Some(key.task), tasks::Refusal::State));
+            return Err(Box::new(delegate_refused(Some(key.task), tasks::Refusal::State)));
         }
         let Some(context) = self.tasks.delegation(key.task) else {
-            return Err(delegate_refused(Some(key.task), tasks::Refusal::Unknown));
+            return Err(Box::new(delegate_refused(Some(key.task), tasks::Refusal::Unknown)));
         };
         if batch.is_empty() || batch.len() > skein_lib::length::usize_of(limits.batch) {
-            return Err(delegate_refused(None, tasks::Refusal::Batch));
+            return Err(Box::new(delegate_refused(None, tasks::Refusal::Batch)));
         }
         let mut asked = List::with_capacity(limits.batch);
         for member in batch {
             if missing_closer(member.flags, &member.authority).is_some() {
-                return Err(CallPart::DelegationDenied {
+                return Err(Box::new(CallPart::DelegationDenied {
                     answer: authority::Answer::Refuse,
                     findings: Box::new([authority::Finding::Executor { source: authority::Source::Task }]),
-                });
+                }));
             }
             match member.executor {
-                tasks::Executor::Job { .. } => return Err(delegate_refused(None, tasks::Refusal::Executor)),
+                tasks::Executor::Job { .. } => return Err(Box::new(delegate_refused(None, tasks::Refusal::Executor))),
                 tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {}
             }
             if let tasks::Executor::Person(tasks::PersonAddress::Person(person)) = member.executor
                 && self.people.identity(person).is_none()
             {
-                return Err(delegate_refused(None, tasks::Refusal::Unknown));
+                return Err(Box::new(delegate_refused(None, tasks::Refusal::Unknown)));
             }
             if let tasks::Executor::Agent { charter } = member.executor
                 && self.charter(charter).is_none()
             {
-                return Err(delegate_refused(None, tasks::Refusal::Executor));
+                return Err(Box::new(delegate_refused(None, tasks::Refusal::Executor)));
             }
             if let Err(why) = super::account_preference::executor(member.executor, member.llm.as_ref()) {
-                return Err(delegate_refused(None, why));
+                return Err(Box::new(delegate_refused(None, why)));
             }
             if let Some(choice) = &member.llm
                 && choice.account.is_some()
             {
-                let payer =
-                    self.tasks.payer(key.task).ok_or(delegate_refused(Some(key.task), tasks::Refusal::Funding))?;
+                let Some(payer) = self.tasks.payer(key.task) else {
+                    return Err(Box::new(delegate_refused(Some(key.task), tasks::Refusal::Funding)));
+                };
                 if let Err(why) = self.account_preference(Some(choice), payer, context.project, None) {
-                    return Err(delegate_refused(None, why));
+                    return Err(Box::new(delegate_refused(None, why)));
                 }
             }
             let Some(executor) = self.delegation_executor(context.project, member.executor) else {
-                return Err(delegate_refused(None, tasks::Refusal::Executor));
+                return Err(Box::new(delegate_refused(None, tasks::Refusal::Executor)));
             };
             let Some(symbolic) = symbolic_grants(&member.symbolic_grants, self.authority.limits().grants) else {
-                return Err(delegate_refused(None, tasks::Refusal::AuthorityShape));
+                return Err(Box::new(delegate_refused(None, tasks::Refusal::AuthorityShape)));
             };
             let mut authority = crate::admission::deadlines::authority(&member.authority, member.deadline, decision);
             if member.deadline == tasks::Deadline::Named && authority.budget.deadline.is_none() {
@@ -176,7 +177,7 @@ impl Core {
             for _ in 0..findings.len() {
                 found.push(findings.pop().expect("finding count")).expect("finding bound");
             }
-            return Err(CallPart::DelegationDenied { answer: checked.answer, findings: found.into_boxed() });
+            return Err(Box::new(CallPart::DelegationDenied { answer: checked.answer, findings: found.into_boxed() }));
         }
         Ok(())
     }
@@ -187,16 +188,16 @@ impl Core {
         limits: &tasks::Limits,
         key: CallKey,
         batch: &[Delegate],
-    ) -> Result<(u32, Box<[u64]>), CallPart> {
+    ) -> Result<(u32, Box<[u64]>), Box<CallPart>> {
         let Some(context) = self.tasks.delegation(key.task) else {
-            return Err(delegate_refused(Some(key.task), tasks::Refusal::Unknown));
+            return Err(Box::new(delegate_refused(Some(key.task), tasks::Refusal::Unknown)));
         };
         let capacity =
             batch.len().checked_mul(skein_lib::length::usize_of(limits.inputs)).expect("bounded batch input count");
         let mut ids = List::with_capacity(u32::try_from(capacity).expect("bounded input IDs"));
         for member in batch {
             if member.spec.inputs.len() > skein_lib::length::usize_of(limits.inputs) {
-                return Err(delegate_refused(None, tasks::Refusal::Inputs));
+                return Err(Box::new(delegate_refused(None, tasks::Refusal::Inputs)));
             }
             for &input in &member.spec.inputs {
                 let mut known = false;

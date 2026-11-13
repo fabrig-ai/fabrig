@@ -693,37 +693,103 @@ fn leaving_cascades_over_units_and_dependencies_before_notifications() {
 }
 
 #[test]
-fn a_red_repairs_one_unit_but_falls_back_for_several() {
-    for units in [1, 2, 3] {
-        let (mut landing, mut f) = stacked(3);
-        for (index, member) in landing.members.iter_mut().enumerate() {
-            member.unit = u16::try_from(index % units).unwrap();
+fn a_red_round_of_one_unit_repairs_every_member() {
+    let (mut landing, mut f) = stacked(3);
+    for member in &mut landing.members {
+        member.unit = 0;
+    }
+    f.members[2].gates[0].key = Some(KEY);
+    f.members[2].gates[0].receipt = Status::Failed;
+    f.members[2].gates[0].run = 71;
+    for member in 0..3 {
+        let next = decide(&landing, &f);
+        assert_eq!(next.decision, Decision::Leave { member, why: crate::Leave::Failed { gate: 0, run: 71 } });
+        landing = next.landing;
+    }
+}
+
+pub(crate) fn search_receipts(receipts: &[Status]) -> (Landing, Facts, Box<[u16]>) {
+    let (mut landing, mut f) = stacked(receipts.len());
+    for (index, fresh) in f.members.iter_mut().enumerate() {
+        fresh.gates[0].key = Some([u8::try_from(index).unwrap(); 32]);
+        fresh.gates[0].receipt = receipts[index];
+        fresh.gates[0].run = 71_u64.checked_add(u64::try_from(index).unwrap()).unwrap();
+    }
+    let mut probes = skein_lib::List::with_capacity(3);
+    for _ in 0_u32..40 {
+        let next = decide(&landing, &f);
+        if next.landing.round.search != landing.round.search
+            && let Some(probe) = crate::probe(&next.landing)
+        {
+            probes.push(probe.checked_add(1).unwrap()).unwrap();
         }
-        f.members[2].gates[0].key = Some(KEY);
-        f.members[2].gates[0].receipt = Status::Failed;
-        f.members[2].gates[0].run = 71;
-        let why = if units == 1 {
-            crate::Leave::Failed { gate: 0, run: 71 }
-        } else {
-            crate::Leave::Fallback { units: u16::try_from(units).unwrap(), top: prefix(2) }
-        };
-        for member in 0..3 {
-            let next = decide(&landing, &f);
-            assert_eq!(next.decision, Decision::Leave { member, why });
-            for member in &next.landing.members {
-                assert_eq!(member.left, Some(why));
-                assert!(member.landed.is_none());
+        landing = next.landing;
+        if landing.round.ending == Some(crate::RoundEnd::Cut) {
+            return (landing, f, probes.into_boxed());
+        }
+    }
+    panic!("search did not hold its boundary: {landing:?}");
+}
+
+#[test]
+fn red_rounds_probe_midpoint_unit_boundaries_and_hold_the_breaking_unit() {
+    for n in 2_usize..=5 {
+        for k in 1..=n {
+            let mut receipts = skein_lib::List::with_capacity(5);
+            for prefix in 1..=n {
+                receipts.push(if prefix < k { Status::Passed } else { Status::Failed }).unwrap();
             }
-            landing = next.landing;
+            let (landing, _, probes) = search_receipts(receipts.as_slice());
+            let mut expected = skein_lib::List::with_capacity(3);
+            let (mut green, mut red) = (0, n);
+            while red.checked_sub(green).unwrap() > 1 {
+                let midpoint = green.checked_add(red.checked_sub(green).unwrap().checked_div(2).unwrap()).unwrap();
+                expected.push(u16::try_from(midpoint).unwrap()).unwrap();
+                if midpoint < k {
+                    green = midpoint;
+                } else {
+                    red = midpoint;
+                }
+            }
+            assert_eq!(probes.as_ref(), expected.as_slice(), "n {n}, k {k}");
+            assert_eq!(
+                landing.round.search,
+                Some(crate::Search {
+                    green: u16::try_from(k.checked_sub(1).unwrap()).unwrap(),
+                    red: u16::try_from(k).unwrap()
+                })
+            );
+            assert!(
+                probes.len()
+                    <= usize::try_from(usize::BITS.checked_sub((n.checked_sub(1).unwrap()).leading_zeros()).unwrap())
+                        .unwrap()
+            );
+            for (index, member) in landing.members.iter().enumerate() {
+                assert_eq!(
+                    member.left,
+                    if index.checked_add(1).unwrap() == k {
+                        Some(crate::Leave::Blamed {
+                            gate: 0,
+                            run: 71_u64.checked_add(u64::try_from(index).unwrap()).unwrap(),
+                            red: prefix(index),
+                            green: if k == 1 { MAIN } else { prefix(index.checked_sub(1).unwrap()) },
+                        })
+                    } else {
+                        None
+                    }
+                );
+            }
         }
-        let post = decide(&landing, &f);
-        assert_eq!(post.decision, Decision::Post { member: 2, gate: 0, posting: Posting::Ran { passed: false } });
-        f.closed = Status::Passed;
-        for member in 0..3 {
-            assert_eq!(decide(&post.landing, &f).decision, Decision::Delete { member });
-            f.members[usize::from(member)].deleted = Status::Passed;
-        }
-        assert_eq!(decide(&post.landing, &f).decision, Decision::Finish);
+    }
+}
+
+#[test]
+fn the_search_holds_an_observed_boundary_not_the_lowest_red() {
+    let (landing, _, probes) = search_receipts(&[Status::Failed, Status::Passed, Status::Passed, Status::Failed]);
+    assert_eq!(probes.as_ref(), [2, 3]);
+    assert_eq!(landing.round.search, Some(crate::Search { green: 3, red: 4 }));
+    for member in &landing.members[..3] {
+        assert!(member.left.is_none());
     }
 }
 
@@ -816,4 +882,142 @@ fn a_member_the_base_contains_is_told_and_the_stack_goes_on() {
     assert_eq!(landed.decision, Decision::Landed { member: 0, prefix: MAIN });
     assert_eq!(landed.landing.phase, Phase::Preparing);
     assert_eq!(decide(&landed.landing, &f).decision, Decision::Prepare { member: 1, head: head(1), main: MAIN });
+}
+
+#[test]
+fn probes_dispatch_only_blocking_gates_wait_by_key_and_bound_runner_faults() {
+    let (mut landing, mut f) = stacked(4);
+    landing.round.search = Some(crate::Search { green: 0, red: 4 });
+    let proof = landing.members[1].gates[0];
+    let fact = f.members[1].gates[0];
+    landing.members[1].gates = Box::new([proof, proof]);
+    f.members[1].gates = Box::new([GateFacts { blocking: false, ..fact }, fact]);
+    assert_eq!(decide(&landing, &f).decision, Decision::Key { member: 1, gate: 1, candidate: prefix(1) });
+    f.members[1].gates[1].key = Some(KEY);
+    f.members[1].gates[1].flight = Flight::Other;
+    let waiting = decide(&landing, &f);
+    assert!(matches_wait(waiting.decision));
+    assert_eq!(waiting.landing.round.search, landing.round.search);
+    f.members[1].gates[1].flight = Flight::None;
+    let dispatched = decide(&waiting.landing, &f);
+    assert_eq!(dispatched.decision, Decision::Dispatch { member: 1, gate: 1, key: KEY, try_: 1 });
+    let posted = decide(&dispatched.landing, &f);
+    assert_eq!(posted.decision, Decision::Post { member: 1, gate: 1, posting: Posting::Pending });
+    let mut in_flight = posted.landing;
+    f.members[1].gates[1].flight = Flight::Mine { run: Some(Verdict::Running) };
+    assert!(matches_wait(decide(&in_flight, &f).decision));
+    for attempt in 2..=3 {
+        f.members[1].gates[1].flight = Flight::Mine { run: Some(Verdict::Fault(Fault::SetUp)) };
+        let retry = decide(&in_flight, &f);
+        assert_eq!(retry.decision, Decision::Retry { member: 1, gate: 1, key: KEY, try_: attempt });
+        in_flight = retry.landing;
+    }
+    assert_eq!(decide(&in_flight, &f).decision, Decision::Hold(Hold::Faults { member: 1, gate: 1 }));
+    f.members[1].gates[1].flight = Flight::Mine { run: Some(Verdict::Running) };
+    f.members[1].gates[1].expired = Some(88);
+    assert_eq!(decide(&in_flight, &f).decision, Decision::Hold(Hold::Timeout { member: 1, gate: 1, run: 88 }));
+    f.members[1].gates[1].expired = None;
+    f.members[1].gates[1].receipt = Status::Passed;
+    let post = decide(&in_flight, &f);
+    let green = decide(&post.landing, &f);
+    assert_eq!(green.landing.round.search, Some(crate::Search { green: 2, red: 4 }));
+    f.members[1].gates[1].receipt = Status::Failed;
+    f.members[3].gates[0].expired = Some(99);
+    let next_probe = decide(&green.landing, &f);
+    assert_eq!(next_probe.decision, Decision::Key { member: 2, gate: 0, candidate: prefix(2) });
+    assert_eq!(next_probe.landing.round.search, green.landing.round.search);
+    f.members[1].gates[1].receipt = Status::Passed;
+    f.members[2].gates[0].key = Some([8; 32]);
+    f.members[2].gates[0].receipt = Status::Failed;
+    let mut boundary = next_probe.landing;
+    for _ in 0_u32..10 {
+        boundary = decide(&boundary, &f).landing;
+        if boundary.round.ending == Some(crate::RoundEnd::Cut) {
+            break;
+        }
+    }
+    assert_eq!(boundary.round.search, Some(crate::Search { green: 2, red: 3 }));
+    f.closed = Status::Passed;
+    f.members[2].deleted = Status::Passed;
+    f.members[3].deleted = Status::Passed;
+    let cut = decide(&boundary, &f);
+    assert!(cut.landing.members[2].candidate.is_none());
+    let opened = decide(&cut.landing, &f);
+    assert_eq!(decide(&opened.landing, &f).decision, Decision::Proved);
+}
+#[expect(clippy::match_like_matches_macro, reason = "policy cases use no matches macro")]
+fn matches_wait(decision: Decision) -> bool {
+    if let Decision::Wait { .. } = decision { true } else { false }
+}
+
+#[test]
+fn the_green_turn_opens_after_the_cut_and_stale_or_moved_green_ends_unlanded() {
+    for moved in [false, true] {
+        let (mut landing, mut f, _) = search_receipts(&[Status::Passed, Status::Failed, Status::Failed]);
+        assert_eq!(decide(&landing, &f).decision, Decision::Close);
+        f.closed = Status::Passed;
+        for member in 1..=2 {
+            let deleted = decide(&landing, &f);
+            assert_eq!(deleted.decision, Decision::Delete { member });
+            f.members[usize::from(member)].deleted = Status::Passed;
+            landing = deleted.landing;
+        }
+        landing = decide(&landing, &f).landing;
+        assert!(landing.members[2].candidate.is_none());
+        assert_eq!(landing.preparation, 1);
+        f.opened = None;
+        f.opening = Status::Unknown;
+        assert_eq!(decide(&landing, &f).decision, Decision::Open);
+        f.opened = Some(100);
+        landing = decide(&landing, &f).landing;
+        let proved = decide(&landing, &f);
+        assert_eq!(proved.decision, Decision::Proved);
+        landing = proved.landing;
+        f.turn_free = true;
+        landing = decide(&landing, &f).landing;
+        assert_eq!(decide(&landing, &f).decision, Decision::Merge { member: 0, candidate: prefix(0) });
+        if moved {
+            f.members[0].head = NEW;
+        } else {
+            for fresh in &mut f.members {
+                fresh.main = NEW;
+            }
+        }
+        let ended = decide(&landing, &f);
+        assert_eq!(
+            ended.landing.round.ending,
+            Some(if moved { crate::RoundEnd::Leave } else { crate::RoundEnd::Stale })
+        );
+        assert!(ended.landing.members[0].landed.is_none());
+        assert!(ended.landing.members[2].left.is_none());
+    }
+}
+
+#[test]
+fn a_new_round_blames_its_own_boundary_not_a_previous_rounds_unit() {
+    let (mut landing, mut f) = stacked(4);
+    landing.preparation = 2;
+    landing.members[0].left = Some(crate::Leave::Blamed { gate: 0, run: 1, red: prefix(0), green: MAIN });
+    landing.members[0].leave_told = true;
+    landing.members[0].candidate = None;
+    landing.members[0].base = None;
+    landing.round.search = Some(crate::Search { green: 0, red: 4 });
+    for (index, fresh) in f.members.iter_mut().enumerate() {
+        fresh.gates[0].key = Some([u8::try_from(index).unwrap(); 32]);
+        fresh.gates[0].receipt = if index == 1 { Status::Passed } else { Status::Failed };
+        fresh.gates[0].run = 71;
+    }
+    for _ in 0_u32..20 {
+        landing = decide(&landing, &f).landing;
+        if landing.round.ending.is_some() {
+            break;
+        }
+    }
+    assert_eq!(landing.round.search, Some(crate::Search { green: 2, red: 3 }));
+    assert_eq!(
+        landing.members[2].left,
+        Some(crate::Leave::Blamed { gate: 0, run: 71, red: prefix(2), green: prefix(1) })
+    );
+    assert!(landing.members[1].left.is_none());
+    assert!(landing.members[3].left.is_none());
 }

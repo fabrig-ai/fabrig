@@ -874,7 +874,6 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-ui",
- "skein-ui-bundle",
  "skein-world",
 ]
 
@@ -3785,14 +3784,11 @@ dependencies = [
  "skein-codegen",
  "skein-fake-oauth",
  "skein-heap",
- "skein-http",
- "skein-io",
  "skein-lib",
  "skein-llm",
  "skein-llm-kit",
  "skein-oauth",
  "skein-scratch",
- "skein-sim",
 ]
 
 [[package]]
@@ -5564,7 +5560,6 @@ dependencies = [
  "skein-sim",
  "skein-tls-kit",
  "skein-ui",
- "skein-ui-bundle",
  "skein-ui-web",
  "skein-world",
  "temper-client-domain",
@@ -6775,7 +6770,6 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-shell",
- "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-protocol-records",
  "temper-protocol-records-forge",

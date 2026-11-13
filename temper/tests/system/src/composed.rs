@@ -1357,7 +1357,7 @@ impl World {
             worker::Request::Process(request) => self.process_request(*request),
             worker::Request::Decode { agent, run, start } => {
                 let start = worker_protocol::decode(run, *start, &self.worker_env.limits.agent);
-                self.worker_events.push_back(worker::Event::Decoded { agent, start });
+                self.worker_events.push_back(worker::Event::Decoded { agent, start, endpoints: Box::new([]) });
             }
             worker::Request::Encode { owner, value } => {
                 let encoded = worker_protocol::encode(value);

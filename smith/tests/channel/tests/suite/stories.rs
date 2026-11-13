@@ -316,6 +316,7 @@ fn channel_completion(
             model: 0,
             attempts: 1,
             report: run::Report {
+                status: None,
                 code: b"code".as_slice().into(),
                 request: b"request".as_slice().into(),
                 field: b"feature".as_slice().into(),
@@ -327,6 +328,7 @@ fn channel_completion(
             model: 0,
             attempts: 1,
             report: host::Report {
+                status: None,
                 code: b"code".as_slice().into(),
                 request: b"request".as_slice().into(),
                 field: b"feature".as_slice().into(),
@@ -1423,5 +1425,44 @@ fn concrete_turn() -> smith_domain_session::record::Turn {
                 ]),
             }]),
         )
+    }
+}
+
+#[test]
+fn a_program_failure_report_reaches_the_host_with_and_without_status() {
+    use smith_domain::run;
+    use smith_host_domain as host;
+    for status in [Some(403), None] {
+        let report = run::Report { status, ..run::Report::none() };
+        let mut world = World::admitted();
+        world.agent_answers(run::Answer::Failed {
+            failure: run::RunFailure::Model(run::Fault::Completion {
+                failure: run::CompletionFailure::Unavailable,
+                evidence: run::CompletionEvidence::Unsent,
+                model: 0,
+                attempts: 3,
+                report: report.clone(),
+            }),
+            spent: run::Spend::ZERO,
+            turns: 0,
+        });
+        world.settle();
+        assert_eq!(
+            world.take_host_answer(),
+            Some(host::Answer {
+                read: None,
+                turns: 0,
+                spent: 0,
+                result: host::RunResult::Failed {
+                    failure: host::RunFailure::Model(host::ModelFault::Completion {
+                        failure: host::CompletionFailure::Unavailable,
+                        evidence: host::CompletionEvidence::Unsent,
+                        model: 0,
+                        attempts: 3,
+                        report,
+                    })
+                },
+            })
+        );
     }
 }

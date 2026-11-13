@@ -156,7 +156,9 @@ impl State {
                                 ),
                             },
                             workers::End::Parked => host::Finish::Parked,
-                            workers::End::Failed(_) => host::Finish::Failed { failure: host::RunFailure::Cancelled },
+                            workers::End::Failed(_) => {
+                                host::Finish::Failed { failure: host::RunFailure::Cancelled, model: None }
+                            }
                         },
                     },
                     workers::Up::Hello { .. }
