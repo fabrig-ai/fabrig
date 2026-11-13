@@ -230,6 +230,7 @@ pub(crate) fn route_forge(
                     | Address::ConnectModel { .. }
                     | Address::Welcome { .. }
                     | Address::Chat { .. }
+                    | Address::Talk { .. }
                     | Address::Task { .. }
                     | Address::Home { .. }
                     | Address::Changes { .. }
@@ -562,6 +563,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Told
         | Address::Remembered

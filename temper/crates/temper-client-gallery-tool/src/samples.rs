@@ -1593,6 +1593,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Team { .. }
+        | Address::Talk { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
@@ -1636,6 +1637,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         }
         | Address::Welcome { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Changes { .. }

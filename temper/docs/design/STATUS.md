@@ -27,7 +27,7 @@ check follows landing (`domain/forge/drafts.md`; `client/pages/work.md`, 1;
 `role talk`, with instructions for every case becoming rules by settings
 proposals. A role reports through its Now, a line per session and a weekly
 `report` note, with its Now in Home's brief's words; areas and routing are R2, goal 684; Team's talk and report are P4c's, goal 1983, and the
-terminal's T3's (`draft/standing-roles.status.md`).
+terminal's talk is T3's, goal 1984 (`draft/standing-roles.status.md`).
 Being told is the whole story's milestone N3b, goal 492, built
 against fakes alone: a person's devices, jig's need's arrival, the
 root's pushes and the service's Web Push, `temper ctl push add`, and
@@ -92,9 +92,13 @@ T1's repair, goal 761, reads the launchpad's brief, Where you left off
 and Needs you across the person's projects, says why a walked need
 reached the person and when each need asked, dates a left-off row and
 draws the blank row under the header (`client/tui/pages/launchpad.md`).
-Its walk follows landing; team lines, `/talk` and `/tell` remain T3's,
-and Stop asking in the terminal remains the web's
-(`draft/surfaces.status.md`, 11).
+Its walk follows landing, and Stop asking in the terminal remains the
+web's (`draft/surfaces.status.md`, 11). T3, goal 1984, talks with a
+standing role in the terminal: `/talk`, the role's head and Now, its
+rule question's choices and its proposal accepted in place, leaving by
+Esc; Team on PROJECT on the launchpad; and `/tell`, filing a person's
+word as a `feedback` finding (`client/pages/talk.md`;
+`client/tui/pages/talk.md`). Its journey and walk follow landing.
 
 How work runs' What follows a landing and a role's budget are the whole
 story's milestone P3d, by goal 1016 (`client/pages/settings.md`, 2): a box

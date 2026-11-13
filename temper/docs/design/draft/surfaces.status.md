@@ -68,20 +68,24 @@
     project holds yet (`../domain/landing.md`, 13.1); no design has the
     brief tell what became of a finding (`../domain/forge/attention.md`, 3). Its
     routing to an area's owner is P5b's (`whole-story.execution.md`,
-    section 3).
+    section 3). The domain's act files a person's word, kind `feedback`
+    with no area, and the terminal's `/tell` sends it
+    (`../client/pages/needs-you.md`, 1, *Tell temper*); the web draws no
+    Tell temper yet.
   - 11: `../client/tui/README.md`, 3, `../client/tui/pages/launchpad.md` and
     `../client/tui/pages/README.md` hold the launchpad as 11.1 draws it, its
     brief, Where you left off and Needs you across the person's projects,
-    but for its team lines and `/talk` in Start, 11.4's commands but for
-    `/talk` and `/tell`, and 11.5's printed views (the plan
-    `tui-whole-t1` and T1's repair); a walked need says why it reached
+    its team lines and `/talk` in Start, 11.4's commands, `/talk` and
+    `/tell` among them, and 11.5's printed views (the plan
+    `tui-whole-t1`, T1's repair and T3, goal 1984); a walked need says why it reached
     the person but offers no Stop asking, which stays the web's, and a
     chat's question says no reason (`../client/tui/pages/launchpad.md`, 8).
     `../client/tui/pages/design-session.md`, 1, holds 11.2 and
     11.1's and 11.4's `/draft`, where it
     departs from `design-session.html` as it says and
-    `tui-design-session.status.md` records. No design holds 11.3's
-    talking with a role, or the launchpad's "checked · +142 -18 in 4
+    `tui-design-session.status.md` records. `../client/tui/pages/talk.md`,
+    1, and `../client/pages/talk.md` hold 11.3, where they depart from
+    `role.html` as they say. No design holds the launchpad's "checked · +142 -18 in 4
     files" on an approval's row, as `pair/launchpad.html` draws it, which
     temper/tui's design would draw from the row's size
     (`../client/forge/records.md`, the subject `approvals`).
@@ -233,6 +237,30 @@
     sentence, where the at-scale mockup has one brief across projects in
     the status agent's words: the engine keeps one brief a project (15's
     default). Decided by T1's repair's design, 2026-11-11.
+  - 11.1 and 13: `../client/tui/pages/launchpad.md`, 4, lists no talk
+    with a role under Where you left off, where 11.1 has one among the
+    conversations to go back to: no read lists the talks a person has
+    open, jig's `TaskLine` carrying no `talk`, and a talk lapses 30
+    minutes after its last words; `/talk NAME` opens the role, and its
+    open talk with it (`../client/pages/talk.md`, 4). Its Team on PROJECT
+    (7) words each row's areas by their names, labels, where `launchpad.html`
+    has a phrase ("tests and proof"), and draws at most four rows, a
+    person holding an area among them as "You" with Team's line of what
+    waits on them. Decided by goal 1984's design, 2026-11-12.
+  - 11.3 and 13: `../client/tui/pages/talk.md`, 1, sets the talk's head
+    and its Now inside its frame, where `role.html` draws an empty frame
+    and the two lines under it; says "this period S of B" where the
+    project's period is no week; names no model in the quiet line, a
+    role's runs taking its charter's; has the role ask "Add it to my
+    rules?" in its own words; and accepts its proposal in place by a
+    prompt of the proposal's own after "Yes, add it", where `role.html`'s
+    one answer adds the rule: an owner decides a proposal of settings,
+    never the role. Decided by goal 1984's design, 2026-11-12.
+  - 9, 11.4 and 13: `../client/tui/pages/README.md`, 2, *`/tell`*, files
+    the words at once, with no "About" and "Goes to" before and no "Ask
+    temper instead", which section 9's card has: the words are typed to
+    be filed, and a question is `/ask`'s. Decided by goal 1984's design,
+    2026-11-12.
   - 10 and 13: on a phone, `../client/view.md`, 3, reaches Team, How
     work runs and Deployment by the switcher's menu alone, where this
     section has Team and How work runs from Home's project rows too and

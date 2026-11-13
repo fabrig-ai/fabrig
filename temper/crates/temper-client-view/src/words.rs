@@ -1606,6 +1606,8 @@ pub enum Word {
     FindingNotYours,
     FindingNoAreaRefused,
     FindingFull,
+    FindingNoSuchArea,
+    FindingOtherOwner,
 
     FindingHand,
     FindingRoute,
@@ -2033,7 +2035,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
-const PHRASES: u32 = 2605;
+const PHRASES: u32 = 2607;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2060,10 +2062,10 @@ const PHRASES: u32 = 2605;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4741;
+const SEGMENTS: u32 = 4747;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 61753;
-const ALL: [Word; 1896] = [
+const ENGLISH_BYTES: u32 = 61802;
+const ALL: [Word; 1898] = [
     Word::StopAsking,
     Word::StopAskingRule,
     Word::ReachSomeChanges,
@@ -3617,6 +3619,8 @@ const ALL: [Word; 1896] = [
     Word::FindingNotYours,
     Word::FindingNoAreaRefused,
     Word::FindingFull,
+    Word::FindingNoSuchArea,
+    Word::FindingOtherOwner,
     Word::FindingHand,
     Word::FindingRoute,
     Word::FindingBacklog,
@@ -5628,6 +5632,8 @@ impl Word {
             Self::FindingNotYours => 8033,
             Self::FindingNoAreaRefused => 8034,
             Self::FindingFull => 8035,
+            Self::FindingNoSuchArea => 8036,
+            Self::FindingOtherOwner => 8037,
 
             Self::FindingHand => 8001,
             Self::FindingRoute => 8002,
@@ -6177,6 +6183,7 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
             Word::FindingHanded,
             Word::FindingNotYours,
             Word::FindingNoAreaRefused,
+            Word::FindingNoSuchArea,
         ]
         .contains(&word)
     {
@@ -8209,6 +8216,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::FindingNotYours => (&[b"finding ", b"/", b" is not yours: its owner is ", b""], &[Number, Number, Name]),
         Word::FindingNoAreaRefused => (&[b"no area ", b" in project ", b"; its areas: ", b""], &[Name, Number, Name]),
         Word::FindingFull => (&[b"the project's findings are full: ", b" new"], &[Number]),
+        Word::FindingNoSuchArea => (&[b"No such area; its areas: ", b""], &[Name]),
+        Word::FindingOtherOwner => (&[b"Not yours: its owner is ", b""], &[Name]),
 
         Word::FindingHand => (&[b"Hand on"], &[]),
         Word::FindingRoute => (&[b"Route to a goal"], &[]),
