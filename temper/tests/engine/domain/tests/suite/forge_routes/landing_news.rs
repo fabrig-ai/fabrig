@@ -319,3 +319,36 @@ fn ready_goal_change(world: &mut World, goal: &engine::Assignment, call: u64) ->
     }
     change
 }
+
+#[test]
+fn a_batch_request_grants_every_prefix_and_each_goal_hears_its_own_prefix() {
+    let (mut world, goal, changes) = joined_batch(); world.manual_prepare_jobs();
+    world.send(protocol::hello_with(Token::new(7), 0, 2, jig_domain_link::Bounds { message_bytes: 256, ..protocol::bounds() }, Box::new([])));
+    for _ in 0..800 { world.tick(); if !world.jobs.is_empty() { break; } }
+    let job = world.jobs.first().expect("one stack prepare"); let task = job.workspace.expect("workspace").workstream;
+    let row = landing_rows(&world).into_iter().find(|row| row.landing.task == task).expect("landing");
+    let branches: Vec<_> = row.landing.members.iter().map(|m| m.branch.clone()).collect();
+    let spec = temper_protocol_worker_wire::v1::JobSpec::decode(&temper_protocol_worker_wire::v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("job spec");
+    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("worker request");
+    assert_eq!(request["from"], hex(&row.landing.members[0].base.expect("base")));
+    let members = request["members"].as_array().expect("members"); assert_eq!(members.len(), 3);
+    for (index, member) in members.iter().enumerate() { assert_eq!(member["number"], index + 1); assert_eq!(member["prefix"], String::from_utf8_lossy(&branches[index]).as_ref()); }
+    assert_eq!(world.job_workspaces.get(&job.run.raw()).expect("typed items").repositories[0].prefixes.as_ref(), branches);
+    for branch in &branches {
+        assert!(world.store.rows.values().any(|record| matches!(record, Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Writer(slot))) if matches!(slot.writer, tasks::Writer::Run { .. }) && slot.resource.path.last().is_some_and(|last| *last == *branch))));
+    }
+    world.automatic_prepare_jobs();
+    for _ in 0..2400 { world.tick(); if ended(&world, task) && changes.iter().all(|change| ended(&world, *change)) { break; } }
+    assert!(ended(&world, task), "batch procedure ends");
+    let row = landing_rows(&world).into_iter().find(|row| row.landing.task == task).expect("landed batch");
+    let top = row.landing.members[2].landed.expect("top landed"); let lines = news(&world, goal.task, task);
+    for (index, member) in row.landing.members.iter().enumerate() {
+        let prefix = member.landed.expect("member landed");
+        let proving = format!("landing {task}: change {} proving at {} on {}{}", member.change, hex(&prefix), hex(&member.base.expect("base")), if index == 2 { String::new() } else { format!(", under {}", hex(&top)) });
+        assert_eq!(lines.iter().filter(|line| **line == proving).count(), 1, "{proving}: {lines:?}");
+        assert_eq!(lines.iter().filter(|line| **line == format!("landing {task}: change {} landed at {}", member.change, hex(&prefix))).count(), 1);
+        assert!(world.fake.branch(b"org/repo", &member.branch).is_none(), "prefix released");
+    }
+    let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) = &task_row(&world, task).expect("ended").phase else { panic!("landing report") };
+    for member in &row.landing.members { assert!(String::from_utf8_lossy(words).contains(&hex(&member.landed.expect("prefix")))); }
+}

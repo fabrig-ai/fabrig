@@ -8,6 +8,7 @@ mod follows;
 mod green;
 mod hooks;
 mod landing;
+mod landing_batches;
 mod landing_judgement;
 mod landing_leaving;
 mod landing_rounds;
@@ -24,6 +25,7 @@ mod update_lost;
 mod writer;
 
 mod fuzzy {
+    mod landing_batches;
     mod branch_patterns;
     mod gate_keys;
     mod pull_cutoff;

@@ -633,3 +633,25 @@ fn ended_landings_show_round_evidence_and_outcomes_in_text_and_json() {
     assert!(contains(&read_panel(&left, false).stdout, "left: gate 0 failed in run 7"));
     assert!(contains(&read_panel(&left, true).stdout, "\"left\":{\"failed\":{\"gate\":0,\"run\":7}}"));
 }
+
+#[test]
+fn a_stack_shows_each_head_prefix_and_outcome_in_order_in_text_and_json() {
+    let mut parts = panel(w::LandingPhase::Proving).into_parts(); let template = parts.members.get(0).unwrap().clone().into_parts(); parts.members = List::with_capacity(3);
+    for offset in 0_u8..3 {
+        let mut member = template.clone(); member.change = 51 + u64::from(offset); member.branch = format!("temper/{}", member.change).into_bytes().into();
+        member.head = Some([0x30 + offset; 32]); member.candidate = Some([0x40 + offset; 32]); member.landed = if offset == 0 { member.candidate } else { None };
+        member.left = if offset == 2 { Some(w::LandingLeave::HeadMoved(w::MovedHead::new(&w::CEILINGS, w::MovedHeadParts { head: [0x99; 32] }).unwrap())) } else { None };
+        member.gates = List::with_capacity(0); parts.members.push(w::Member::new(&w::CEILINGS, member).unwrap()).unwrap();
+    }
+    let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap(); let text = read_panel(&panel, false); let text = core::str::from_utf8(&text.stdout).unwrap();
+    let json = read_panel(&panel, true); let json = core::str::from_utf8(&json.stdout).unwrap(); let mut text_position = 0; let mut json_position = 0;
+    for offset in 0_u8..3 {
+        let change = 51 + u64::from(offset); let at = text.find(&format!("member: change {change}")).expect("member text"); assert!(at >= text_position); text_position = at;
+        let at = json.find(&format!("\"change\":{change}")).expect("member JSON"); assert!(at >= json_position); json_position = at;
+        let head = format!("{:02x}", 0x30 + offset).repeat(32); let prefix = format!("{:02x}", 0x40 + offset).repeat(32);
+        assert!(text.contains(&format!("round head: {head}"))); assert!(text.contains(&format!("candidate {prefix}")));
+        assert!(json.contains(&format!("\"head\":\"{head}\""))); assert!(json.contains(&format!("\"candidate\":\"{prefix}\"")));
+    }
+    assert!(text.contains("landed: main at 40404040")); assert!(text.contains("left: head moved to 99999999"));
+    assert!(json.contains("\"landed\":\"40404040")); assert!(json.contains("\"head_moved\":\"99999999"));
+}
