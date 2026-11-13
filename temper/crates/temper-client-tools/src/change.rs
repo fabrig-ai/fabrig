@@ -1,4 +1,5 @@
 //! A change's way to landing, using the browser's panel (client/ctl/tools.md, 4).
+mod history;
 use crate::{
     jig::{
         self,
@@ -37,7 +38,7 @@ pub const READ: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 6,
-    notes: b"While landing-rule approval is outstanding, it prints each requirement,\ncounted people and review heads, the remaining count and any unmapped\nreviews, then points to the pull request for review. Unread and incomplete\nevidence are named separately from zero qualifying approvals.\nOtherwise, until it lands, it prints `next: temper ctl DIR change show TASK\n--until landed`, or, while a task is held, `next: temper ctl DIR\ntask show N`; while verifying or red, `next: temper ctl DIR change show TASK\n--until cleared`; landed, its merge commit. Successful no-change completion\nprints `result: completed, no change` and `next: temper ctl DIR task show N`\nfor its report. An unmet wait ends with `not met: ended`,\n`not met: ended: cancelled` or `not met: ended: failed` (exit 3).\nA wait for landing ends at a hold, `not met: held` (exit 3).\nA task without a panel prints `no change panel for task N` (exit 2).\nThe forge holds its diff, reviews and logs: read them there.\n",
+    notes: b"Outstanding landing-rule approval lists each requirement, counted people,\nreview heads, remaining count and unmapped reviews, then the pull for review.\nUnread/incomplete evidence differs from zero qualifying approvals.\nNext: `temper ctl DIR change show TASK --until landed`; held, `temper ctl DIR\ntask show N`; verifying/red, `temper ctl DIR change show TASK --until cleared`;\nlanded, its merge. No-change completion prints `result: completed, no change`\nand that task-show command for its report.\nUnmet waits: `not met: ended`, `not met: ended: cancelled` or\n`not met: ended: failed` (exit 3); landing waits at a hold: `not met: held` (3).\nGone record: last 8 history events and the all-events read (0), up to 16 pages,\nnaming more. Empty history: record and history gone (2). JSON: events/read\nor history: gone. A wait without a panel: `no change panel for task N` (2).\nRead the forge for its diff, reviews and logs.\n",
 };
 #[derive(Debug)]
 pub(crate) struct Changes {
@@ -96,6 +97,8 @@ struct Watching {
     last: Option<Box<w::ChangePanel>>,
     serial: u32,
     started: bool,
+    history: Option<history::Reading>,
+    task_absent: Option<Readout>,
 }
 /// Task completion and recovery details rendered beside the forge's panel.
 #[derive(Debug)]
@@ -211,6 +214,8 @@ pub(crate) fn call(state: &mut Changes, client: &Client, env: &Env<Limits>, call
             last: None,
             serial: 16,
             started: false,
+            history: None,
+            task_absent: None,
         },
     );
     ready(state, client, env, out);
@@ -320,12 +325,14 @@ fn missing(task: u64, json: bool) -> jig::Printed {
     out.number(task);
     render::failure(&out.finish(), json, 2)
 }
-fn panel_ended(watch: &mut Watching, out: &mut Queue<Out>) {
+fn panel_ended(watch: &mut Watching, env: &Env<Limits>, out: &mut Queue<Out>) {
     watch.panel_state = PanelState::Missing;
     if let Some(handle) = watch.panel.take() {
         out.push(Out::Client { event: Event::Unwatch { handle } });
     }
-    if !watch.read.active() || watch.run_read.is_some() {
+    if watch.task_absent.is_some() && !watch.waiting {
+        history::start(watch, env, out);
+    } else if !watch.read.active() || watch.run_read.is_some() {
         read_task(watch, out);
     }
 }
@@ -404,6 +411,18 @@ fn task_read(
     out: &mut Queue<Out>,
 ) -> Option<jig::Printed> {
     let Readout::Jig(c::ReadResult::Value(value)) = page else {
+        if !watch.waiting
+            && watch.project.is_some()
+            && watch.last.is_none()
+            && (*page == Readout::Jig(c::ReadResult::None(c::ReadNone::Gone))
+                || *page == Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)))
+        {
+            watch.task_absent = Some(page.clone());
+            if watch.panel_state == PanelState::Missing {
+                history::start(watch, env, out);
+            }
+            return None;
+        }
         return Some(render::read(
             page,
             client,
@@ -429,6 +448,10 @@ fn task_read(
     if watch.project.is_none() {
         watch.project = Some(task.project);
         open_panel(watch, env, out);
+    }
+    if !watch.waiting && watch.panel_state == PanelState::Missing {
+        history::start(watch, env, out);
+        return None;
     }
     if watch.waiting {
         if terminal(task) {
@@ -458,22 +481,18 @@ fn continue_panel(watch: &mut Watching, env: &Env<Limits>, out: &mut Queue<Out>)
     None
 }
 fn unregistered(watch: &Watching, task: &c::Task) -> Option<jig::Printed> {
-    if watch.panel_state == PanelState::Missing {
-        if task.chip.phase == c::Phase::Held
-            && let c::TaskContractDocument::Change { connector: wire::FORGE, kind: 1, .. } = task.result_contract
-        {
-            let reason = render::holds::summary(task, &crate::root::Parts);
-            let mut measure = Text::measure();
-            measure.put(b"held before registration: ");
-            measure.put(&reason);
-            let mut out = Text::writing_exact(measure);
-            out.put(b"held before registration: ");
-            out.put(&reason);
-            return Some(render::failure(&out.finish(), watch.called.json, 2));
-        }
-        if !watch.waiting {
-            return Some(missing(watch.task, watch.called.json));
-        }
+    if watch.panel_state == PanelState::Missing
+        && task.chip.phase == c::Phase::Held
+        && let c::TaskContractDocument::Change { connector: wire::FORGE, kind: 1, .. } = task.result_contract
+    {
+        let reason = render::holds::summary(task, &crate::root::Parts);
+        let mut measure = Text::measure();
+        measure.put(b"held before registration: ");
+        measure.put(&reason);
+        let mut out = Text::writing_exact(measure);
+        out.put(b"held before registration: ");
+        out.put(&reason);
+        return Some(render::failure(&out.finish(), watch.called.json, 2));
     }
     None
 }
@@ -605,6 +624,16 @@ fn panel_changed(
     };
     match panel {
         Some(panel) if panel.task() == watch.task => {
+            if let Some(page) = watch.task_absent.take() {
+                return Some(render::read(
+                    &page,
+                    client,
+                    handle,
+                    watch.called.json,
+                    &env.limits.tools,
+                    &crate::root::Parts,
+                ));
+            }
             watch.last = Some(Box::new(panel));
             watch.panel_state = PanelState::Expected;
             watch.holds.run = None;
@@ -621,7 +650,7 @@ fn panel_changed(
                 return delivered(watch, env);
             }
         }
-        _ => panel_ended(watch, out),
+        _ => panel_ended(watch, env, out),
     }
     None
 }
@@ -647,6 +676,9 @@ fn read_answer(
     out: &mut Queue<Out>,
 ) -> Option<jig::Printed> {
     watch.read = Reading::Idle;
+    if watch.history.is_some() {
+        return history::answer(watch, page, client, env, out);
+    }
     if watch.waiting && *page == Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)) {
         // A read cut by a restart (including a not-ready HTTP answer)
         // keeps its target. The host owns the link deadline and its line.
@@ -735,7 +767,7 @@ pub(crate) fn told(state: &mut Changes, client: &Client, env: &Env<Limits>, told
         Told::Ended { why, .. } if watch.panel == Some(handle) || watch.task_watch == Some(handle) => {
             if *why == Why::Unknown || *why == Why::SubjectEnded {
                 if watch.panel == Some(handle) {
-                    panel_ended(watch, out);
+                    panel_ended(watch, env, out);
                 } else {
                     watch.task_watch = None;
                     read_task(watch, out);
@@ -831,9 +863,13 @@ pub(crate) fn fire(state: &mut Changes, env: &Env<Limits>, out: &mut Queue<Out>)
         {
             let run = watch.run_read;
             watch.read = Reading::Idle;
-            match run {
-                Some(run) => read_run(watch, run, out),
-                None => read_task(watch, out),
+            if watch.history.is_some() {
+                history::send(watch, out);
+            } else {
+                match run {
+                    Some(run) => read_run(watch, run, out),
+                    None => read_task(watch, out),
+                }
             }
         }
     }

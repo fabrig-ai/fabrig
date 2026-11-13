@@ -33,7 +33,7 @@ impl Joint {
     /// Home and a pushed change share the forge's real CI, review and landing path.
     #[must_use]
     pub fn with_status_landing(seed: u64, limits: client::Limits) -> Self {
-        let mut front = Self::change_landing(seed, &limits, Some(SESSION), false, false);
+        let mut front = Self::change_landing(seed, &limits, Some(SESSION), false, false, None);
         front.engine.forge = Some(ForgeStand::with_checks(fixtures::REPOSITORIES, &[b"build"]));
         fixtures::adopt_change_repository(&mut front);
         front
