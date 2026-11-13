@@ -9,7 +9,7 @@ Draft, 2026-11-13. What to change next so that temper's CI gate compiles less fo
 - **Generated code compiles once** (section 3). Each generated file carries its own golden and bound tests, so a codec crate's own tests compile all its generated code a second time: 70 to 115 s a gate. The generator writes those tests as an integration test of the crate instead, against the public items they already use.
 - **One version's generated code** (section 4). Codec crates hold older versions' generated code that the codec design says only the current version has. `temper-protocol-store-codec` holds three of 3.5 MB each, and recompiles all three at each of the store's version moves: five in 20 hours.
 - **The crates over the size bound split** (section 5). Five crates over `crate-graph.md`, 7.3's bound have no planned split. The four client crates among them recompile 55 to 60 s a gate between them.
-- **The next cuts come from the measure** (section 6). No crate dominates now: the twenty that cause the most rebuilds cause 36% of them. The figure's tool ranks them each week.
+- **No crate dominates the rebuilds now** (section 6): the twenty that cause the most cause 36% of them. A ranking for the next cuts waits, by the user's word.
 - **Expected** (section 9): 90 to 150 s less compile a gate, 12 to 20%, so a build step of about 120 to 130 s in place of 147 s.
 
 ## 2. What a gate compiles today
@@ -78,11 +78,11 @@ The gate builds every test target of the workspace (`cargo nextest run --no-run`
 - **Each splits by `crate-graph.md`, 5.2's rules,** its preparatory changes first and the moves as one change (5.3), along the lines its history says change apart. The client crates carry v0.1.0's UI with looks, so their splits land between that work's landings, each when its crate is quiet.
 - **`jig-domain-core` and `temper-engine-domain-forge` wait** for their state grouped into owned parts, as `tools/crates/design.md`, 3.1, says, though their own tests still take 9 to 12 s a gate each.
 
-## 6. The next cuts, by measure
+## 6. The next cuts
 
 - **A crate's cost to the gates** is how often its library's sources change times the packages a test build recompiles when they do, itself and every package above it.
 - **No crate dominates now.** Over the 45 landings of section 5, `jig-protocol-config` leads with 7 changes and 85 packages, 4% of all rebuilds, then `jig-protocol-store` (6 and 88), `skein-world` (2 and 187) and `jig-domain-core` (4 and 86). The twenty first cause 36%.
-- **The figure's tool ranks them** (`tools/crates/design.md`, 4) over each week's landings, a test-only change counting for its own package alone. A crate over 5% of a week's rebuilds is the next split's candidate, by section 5's rules.
+- **No ranking for now** (the user, 2026-11-13): the next cut after section 5's is chosen as those were, from the size bound and the measure of section 2. A ranking over each week's landings in the figure's tool waits (section 11).
 
 ## 7. The checks
 
@@ -95,7 +95,6 @@ In the boundary suite, as `crate-graph.md`, section 7's are, each with exception
 
 - **The gate's build step,** its median over a day's full gates, against section 2's 147 s, and its compile from the shared cache's records, against 700 to 750 s, by whoever runs the CI builder.
 - **Section 2's units,** each against its row, and the temper store's codec crate against its 36 to 65 s.
-- **Section 6's ranking,** from the figure's tool.
 
 ## 9. What to expect
 
@@ -115,12 +114,11 @@ In the boundary suite, as `crate-graph.md`, section 7's are, each with exception
 | Generated tests as integration tests, the generator and the drift test writing them, and their check (3, 7) | temper/dev |
 | One version's generated code: the temper store's and jig's people family's older versions out, their readers moved, and the check (4, 7) | temper/dev |
 | The splits of section 5, one milestone each | temper/dev |
-| The ranking in the figure's tool (6) | temper/dev |
 | Reading the figure after landing (8) | whoever runs the CI builder |
 
 ## 11. Later and open questions
 
-- **Open, the user's:** the 5% at which a crate becomes the next split's candidate (6).
+- **Later: a ranking of the next cuts** (6), in the figure's tool over each week's landings, a test-only change counting for its own package alone, with a share of a week's rebuilds that makes a crate the next split's candidate. The user's, when they want it.
 - **Not this draft's: the cache's operation.** Units rebuilt with an unchanged key, 160 to 233 s a gate, and slow remote lookups go to whoever runs the builders.
 - **Later: one test binary per package.** The ten packages with two or more test binaries the tiers don't name hold 37 of them. Merging them would save about 20 s a gate, too little for now. `crate-graph.md`, 6.4's choice stays the tiers'.
 - **Later: crates' own tests,** half of a gate's compile. A crate's own tests compile it again (`crate-graph.md`, 6.2). Tests that use only public items could become integration tests, against the testing strategy's step tests (`skein/docs/foundation/testing-strategy.md`, 2.1).
