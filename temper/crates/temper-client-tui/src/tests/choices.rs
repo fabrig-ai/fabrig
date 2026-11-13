@@ -23,6 +23,11 @@ fn reply_choices_read_a_list_that_ends_in_tell_me_something_else() {
             Some(choices(&[(b"Move it at once", Some(b"no mixed state")), (b"Side by side", None)])),
         ),
         (
+            "standing role rule",
+            "That's a rule for every port, so it goes in my rules. Add it to my rules?\n\n1. Yes, add it — it applies from my next run\n2. Just for this port\n3. Tell it something else",
+            Some(choices(&[(b"Yes, add it", Some(b"it applies from my next run")), (b"Just for this port", None)])),
+        ),
+        (
             "colon",
             "1. Move it at once: no mixed state\n2. Side by side: fallback\n3. Tell me something else",
             Some(choices(&[(b"Move it at once", Some(b"no mixed state")), (b"Side by side", Some(b"fallback"))])),

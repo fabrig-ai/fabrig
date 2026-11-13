@@ -313,6 +313,7 @@ fn reads(root: &Domain) -> Option<&AllHome> {
         | crate::Address::ConnectModel { .. }
         | crate::Address::Welcome { .. }
         | crate::Address::Chat { .. }
+        | crate::Address::Talk { .. }
         | crate::Address::Task { .. }
         | crate::Address::Changes { .. }
         | crate::Address::Settings { .. }

@@ -43,6 +43,7 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
             | Address::Chat { .. }
+            | Address::Talk { .. }
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Changes { .. }

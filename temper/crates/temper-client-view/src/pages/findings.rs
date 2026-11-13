@@ -237,7 +237,6 @@ fn refused(card: &Card, refusal: &w::FindingRefusal, words: &Words) -> Box<[u8]>
                 &[Hole::Name(card.area.clone()), Hole::Number(u64::from(card.id.project)), Hole::Name(names)],
             )
         }
-        w::FindingRefusal::Full(full) => words.say(Word::FindingFull, &[Hole::Number(u64::from(full.count()))]),
         w::FindingRefusal::NotYours(held) => {
             let (prefix, number) = match held.holder() {
                 w::Holder::Task(task) => (Word::FindingTask, task.number()),
@@ -254,10 +253,11 @@ fn refused(card: &Card, refusal: &w::FindingRefusal, words: &Words) -> Box<[u8]>
                 ],
             )
         }
-        w::FindingRefusal::NoFinding => words.say(Word::FindingGone, &[]),
-        w::FindingRefusal::NoGoal => words.say(Word::FindingNoGoal, &[]),
-        w::FindingRefusal::Ended => words.say(Word::FindingEnded, &[]),
-        w::FindingRefusal::Words(field) => field.field().into(),
+        w::FindingRefusal::Full(_)
+        | w::FindingRefusal::NoFinding
+        | w::FindingRefusal::NoGoal
+        | w::FindingRefusal::Ended
+        | w::FindingRefusal::Words(_) => crate::shared::finding_refusal(words, refusal),
     }
 }
 pub(crate) fn preview(

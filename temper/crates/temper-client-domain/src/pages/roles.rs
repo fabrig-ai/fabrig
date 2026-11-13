@@ -57,6 +57,7 @@ impl Roles {
             | Address::ConnectModel { .. }
             | Address::Welcome { .. }
             | Address::Chat { .. }
+            | Address::Talk { .. }
             | Address::Task { .. }
             | Address::Home { .. }
             | Address::Goals { .. }
@@ -189,6 +190,7 @@ fn view_address(address: &Address) -> Box<[u8]> {
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Chat { .. }
+        | Address::Talk { .. }
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Goals { .. }

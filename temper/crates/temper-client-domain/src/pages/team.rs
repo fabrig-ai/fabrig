@@ -15,11 +15,70 @@ mod rules;
 mod standing;
 pub mod wakes;
 pub use rules::{Rules, asked};
+pub(crate) use standing::now;
 pub use standing::{Card, Now, Role, StartedBy};
 pub(crate) mod sessions;
 pub use sessions::Session;
 /// The standing roles watch’s window.
+/// A project's areas from its findings document (client/pages/talk.md, 3).
+#[derive(Debug, PartialEq, Eq)]
+pub struct Areas {
+    pub rows: Box<[Area]>,
+    pub triager: Option<Holder>,
+}
+#[derive(Debug, PartialEq, Eq)]
+pub struct Area {
+    pub name: Box<[u8]>,
+    pub holder: Option<Holder>,
+}
+#[derive(Debug, PartialEq, Eq)]
+pub enum Holder {
+    Task(u64),
+    Party(u64),
+    Role(u32),
+}
+#[must_use]
+pub fn areas(root: &crate::Domain, project: u32) -> Option<Areas> {
+    let document = root.pages.needs.findings.document(project)?;
+    let mut rows = List::with_capacity(document.areas().len());
+    for area in document.areas() {
+        rows.push(Area {
+            name: area.name().into(),
+            holder: match area.holder() {
+                Some(value) => Some(area_holder(value)),
+                None => None,
+            },
+        })
+        .expect("document's areas fit");
+    }
+    Some(Areas {
+        rows: rows.into_boxed(),
+        triager: if document.triager().is_some() { Some(area_holder(document.holder())) } else { None },
+    })
+}
+fn area_holder(value: &w::Holder) -> Holder {
+    match value {
+        w::Holder::Task(task) => Holder::Task(task.number()),
+        w::Holder::Party(party) => Holder::Party(party.number()),
+        w::Holder::Role(role) => Holder::Role(role.number()),
+    }
+}
+
 pub const ROLES: u32 = 16;
+
+/// The project's open period lasts seven days (client/pages/talk.md, 2).
+#[must_use]
+pub fn weekly(root: &crate::Domain, project: u32) -> bool {
+    let Some(document) = root.pages().team.document(project) else { return false };
+    let Some(period) = &document.current_period else { return false };
+    if period.closed {
+        return false;
+    }
+    match (period.began, period.next) {
+        (Some(began), Some(next)) => next.as_nanos().checked_sub(began.as_nanos()) == Some(604_800_000_000_000),
+        (Some(_), None) | (None, Some(_) | None) => false,
+    }
+}
 
 /// Other people whose waits are read, one `tasks{query}` watch each.
 pub const OTHERS: u32 = 8;
@@ -453,9 +512,11 @@ impl Team {
         clippy::match_like_matches_macro,
         reason = "the step crate excludes matches!; its address check uses if let"
     )]
+    #[expect(clippy::too_many_arguments, reason = "launchpad enables Home's Now reads, not Team's other reads")]
     pub(crate) fn configure(
         &mut self,
         address: &Address,
+        launchpad: bool,
         you: u64,
         env: &skein_lib::Env<Limits>,
         client: &Client,
@@ -511,7 +572,7 @@ impl Team {
             self.areas = None;
         }
         self.configure_others(you, on_team, &env.limits, next, out);
-        self.standing.configure(project, address, next, out);
+        self.standing.configure(project, address, launchpad, next, out);
         let wanted = if on_team { self.standing.activity(client) } else { None };
         self.sessions.configure(wanted, env.wall, next, out);
         self.standing.configure_rules(client, env.limits.forge, next, out);

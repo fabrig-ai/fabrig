@@ -196,6 +196,7 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         | Act::StopAsking(_)
         | Act::Needs(_)
         | Act::Finding(_)
+        | Act::Tell { .. }
         | Act::Choice(_)
         | Act::Accounts(_)
         | Act::ConnectModel(_)
@@ -231,6 +232,14 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
 }
 #[expect(clippy::too_many_lines, reason = "the act dispatch retains each page variant and its shown revision")]
 fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Key> {
+    let mut moves = false;
+    if let Some(chat) = pages.chat()
+        && chat.talk().is_some()
+    {
+        for card in &chat.cards {
+            moves |= card.object == open.object;
+        }
+    }
     let card = find_card(pages, open.object)?;
     if card.key.is_some() {
         return None;
@@ -252,7 +261,7 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Ke
                     && let ReadValue::Proposal(proposal) = page
                     && let contract::ProposalAction::Settings(_) = proposal.action
                 {
-                    Some(contract::Running::Stays)
+                    Some(if moves { contract::Running::Moves } else { contract::Running::Stays })
                 } else {
                     None
                 },
