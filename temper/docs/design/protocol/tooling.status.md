@@ -3,11 +3,6 @@
 2026-11-13. Where temper's code lags or departs from [tooling.md](tooling.md).
 
 
-- **Not yet:** 4: a member's `message` and `squash` are `Merge pull
-  request 'TITLE' ...` and `TITLE` with `Temper-Change`, `Temper-Pull`
-  and `Temper-Head` trailers, with no description or goal, and the
-  engine knows a squash by a `Temper-Head` line anywhere in its message
-  [in flight: change 2185].
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
   contract, since neither kind is built (`../domain/worker/jobs.md`): no
   project names one, and the worker declares the merge and close kinds alone,
