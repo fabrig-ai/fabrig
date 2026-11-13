@@ -17,7 +17,7 @@ fn observer(bytes: &[u8]) -> smith_bench::agent::smith::events::Observer {
     const ITEMS: u32 = 512;
     const LINE_BYTES: u32 = 16_384;
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = STRING_BYTES;
         fixture_limits.content = CONTENT_BYTES;
         fixture_limits.items = ITEMS;

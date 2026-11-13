@@ -171,7 +171,7 @@ fn a_clean_merge_combines_independent_lines_and_records_two_parents() {
     let theirs = forge.advance(b"forge/temper", b"main", b"code", b"one\ntwo\nTHREE\n");
     git::fetch(&mut forge, &mut checkout, b"forge/temper", b"w/temper", Want::Commit(theirs)).expect("remote parent");
     let merged = git::merge(&forge, &mut checkout, b"w/temper", theirs).expect("fetched");
-    assert!(merged.conflicts.is_empty());
+    assert_eq!(merged.conflicts.len(), 0);
     assert_eq!(files(&checkout), tree(&[(b"code", b"ONE\ntwo\nTHREE\n")]));
     let commit =
         git::commit_merging(&mut forge, &mut checkout, b"w/temper", ours, theirs, b"fixture").expect("clean merge");
@@ -224,7 +224,7 @@ fn even_an_unchanged_merge_tree_is_committed_and_a_stale_expected_head_refuses()
     let (mut forge, mut checkout, first) = cloned(&[(b"code", b"old")]);
     let theirs = forge.advance(b"forge/temper", b"main", b"code", b"new");
     git::fetch(&mut forge, &mut checkout, b"forge/temper", b"w/temper", Want::Commit(theirs)).expect("fetch");
-    assert!(git::merge(&forge, &mut checkout, b"w/temper", theirs).expect("merge").conflicts.is_empty());
+    assert_eq!(git::merge(&forge, &mut checkout, b"w/temper", theirs).expect("merge").conflicts.len(), 0);
     let merged = git::commit_merging(&mut forge, &mut checkout, b"w/temper", first, theirs, b"fixture")
         .expect("unchanged records merge");
     assert_eq!(forge.tree(merged), forge.tree(theirs));

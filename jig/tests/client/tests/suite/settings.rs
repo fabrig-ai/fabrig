@@ -106,6 +106,7 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     setup.truth.settings = Some(values::settings_document());
     let mut settings_values = values::settings_values().into_boxed().into_vec();
     setup.truth.setting_values.push(c::SettingDocument {
+        overlay: None,
         setting: c::Setting::Rules,
         revision: 6,
         value: Some(settings_values.pop().expect("valid public story fixture")),
@@ -138,7 +139,7 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     };
     story.event(client::Event::StartUnlinked { kept: List::with_capacity(0) });
     story.event(client::Event::Up {
-        up: client::Up::Served { served: true, versions: Some(c::VersionRange { first: 19, last: 19 }) },
+        up: client::Up::Served { served: true, versions: Some(c::VersionRange { first: 21, last: 21 }) },
     });
     story.event(client::Event::SignIn { with: client::With::Transport });
     let watch = client::Handle { asker: client::Asker::JIG, number: 8 };

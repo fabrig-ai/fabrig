@@ -10,7 +10,7 @@ fn loading() -> Service {
     service
 }
 
-use local::fixture::loaded;
+use smith_local_domain_fixtures::loaded;
 
 #[test]
 fn a_line_before_interrupt_never_spawns_its_silent_check() {

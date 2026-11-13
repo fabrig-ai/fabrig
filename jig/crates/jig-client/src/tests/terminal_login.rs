@@ -1,7 +1,7 @@
 //! A terminal watch uses the same opaque document lifecycle as other jig watches.
 use super::fixtures::{self, Client, TASK};
 use crate::{Event, Latest, Message, Request, State, Watchable, contract as c};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{Reader, Writer};
 #[test]
 fn a_terminal_watch_opens_delivers_and_closes() {
@@ -48,7 +48,7 @@ fn a_terminal_watch_opens_delivers_and_closes() {
         let mut out = Writer::new(skein_lib::length::usize_of(wire.measure()));
         wire.encode(&mut out).unwrap();
         let document =
-            w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: out.finish() })
+            w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: 21, record: out.finish() })
                 .unwrap();
         client.stream(fixtures::event(&w::StreamEvent::Delivery(
             w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: opening.watch(), document }).unwrap(),

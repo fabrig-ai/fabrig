@@ -1074,7 +1074,7 @@ fn an_explicit_gzip_endpoint_arrives_gzip_encoded_and_the_fake_answers_it() {
     assert!(world.seen.iter().any(|event| matches!(event, skein_llm::client::Event::Completed { .. })));
     // The fake reads the member as the same query as the body as rendered.
     let (inflated, response) = peer_native_request(&world.requests, skein_llm::Provider::OpenAi);
-    assert!(response.is_empty());
+    assert_eq!(response.len(), 0);
     let identity = skein_llm_world::identity(&world.requests);
     let (rendered, _) = peer_native_request(&identity, skein_llm::Provider::OpenAi);
     assert_eq!(inflated.expect("the fake inflates a gzip body"), rendered.expect("the rendered body is a query"));

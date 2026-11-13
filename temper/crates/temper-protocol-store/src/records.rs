@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v14 as w};
+use crate::{Bounds, Undecodable, v16 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as d;
@@ -11,6 +11,7 @@ mod change;
 mod client;
 mod closer;
 mod drafts;
+mod findings;
 mod follows;
 #[cfg(test)]
 pub(crate) use api::encode_error;
@@ -38,6 +39,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Device(row) => w::Value::Device(away::encode_device(row)),
         d::Stored::LandedDraft(row) => w::Value::LandedDraft(drafts::encode(row)),
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
+        d::Stored::Finding(row) => w::Value::Finding(findings::encode(row)),
         d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
         d::Stored::Looked(row) => w::Value::Looked(status::encode_looked(row)),
         d::Stored::Making(row) => w::Value::Making(making::encode(row)),
@@ -121,6 +123,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Device(row) => d::Stored::Device(away::decode_device(row)?),
         w::Value::LandedDraft(row) => d::Stored::LandedDraft(drafts::decode(row)?),
         w::Value::Away(row) => d::Stored::Away(away::decode_away(row)),
+        w::Value::Finding(row) => d::Stored::Finding(findings::decode(row)?),
         w::Value::Decided(row) => d::Stored::Decided(away::decode_decided(row)?),
         w::Value::Looked(row) => d::Stored::Looked(status::decode_looked(row)),
         w::Value::Making(row) => d::Stored::Making(making::decode(row)),
@@ -306,6 +309,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         empty_intent_org: forge.name_bytes,
         empty_intent_repository: forge.name_bytes,
         landing_state_members: forge.landing_members,
+        landing_state_branch: forge.name_bytes,
         landing_member_gates: forge.gates,
         landing_row_asks: forge.landing_members,
         landing_row_entries: forge.entries,

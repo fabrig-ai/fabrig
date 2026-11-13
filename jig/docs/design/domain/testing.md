@@ -347,7 +347,11 @@ more than one world needs them (testing-strategy.md, section 4):
   (`jig-engine-clients-kit`), the protocol client (`jig-client-protocol-kit`),
   the accounts' fixtures (`jig-protocol-accounts-kit`), the channel's
   (`jig-channel-kit`), the people's referee (`jig-people-kit`) and the tasks'
-  world and referees (`jig-tasks-kit`).
+  world and referees (`jig-tasks-kit`);
+- **what one package's test binaries share,** a kit too, compiled once for
+  them all (`tools/crates/design.md`, 3.2): the reference binary's stories'
+  rig, its binary, native person and provider on skein's real ring
+  (`jig-test-kit`).
 
 They stay in jig, and an application's worlds reuse them. What jig finds
 missing in skein's world harness goes into skein first.

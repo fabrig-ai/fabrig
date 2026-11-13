@@ -3,7 +3,7 @@ use super::{Undecodable, classify, piece_problem, too_large};
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Reader, Wall, bytes, length::len_u64};
 #[path = "accounts.rs"]
 mod accounts;

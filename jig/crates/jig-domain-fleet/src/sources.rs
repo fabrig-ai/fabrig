@@ -31,10 +31,7 @@ impl Sources {
         }
     }
     pub(crate) fn ready(&self) -> bool {
-        if self.waiting || self.desired.is_some() || self.retained_removed {
-            return false;
-        }
-        true
+        !(self.waiting || self.desired.is_some() || self.retained_removed)
     }
     pub(crate) fn clear(&self) -> bool {
         if !self.ready() {

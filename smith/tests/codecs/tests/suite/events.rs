@@ -5,7 +5,7 @@ use crate::support::{events as fixtures, wire};
 use smith_events::{Capture, Error, Event, Limits, read, write};
 
 fn limits() -> Limits {
-    Limits { items: 8, ..smith_events::fixture::SMALL }
+    Limits { items: 8, ..smith_events_fixtures::SMALL }
 }
 
 #[test]
@@ -222,7 +222,7 @@ fn configured_boundaries_and_unknown_content_kinds_are_checked() {
         .find(|(_, value, _)| matches!(value.event, Event::TextDelta(_)))
         .expect("delta");
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 32;
         fixture_limits.content = 4;
         fixture_limits.items = 2;
@@ -242,7 +242,7 @@ fn configured_boundaries_and_unknown_content_kinds_are_checked() {
     }
     assert_eq!(write(&record, &Capture::Everything, &limits), Err(Error::Text));
     let overflowing = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = u32::MAX;
         fixture_limits.content = u32::MAX;
         fixture_limits.items = u32::MAX;
@@ -527,7 +527,7 @@ fn message_capture_keeps_identity_size_and_refusal_and_removes_only_label_and_te
 #[test]
 fn message_label_text_and_unknown_refusal_obey_their_separate_bounds() {
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 4;
         fixture_limits.content = 5;
         fixture_limits.items = 0;
@@ -551,7 +551,7 @@ fn message_label_text_and_unknown_refusal_obey_their_separate_bounds() {
         assert_eq!(write(&record, &Capture::Everything, &self::limits()), Err(Error::Text));
     }
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 32;
         fixture_limits.content = 5;
         fixture_limits.items = 0;

@@ -20,7 +20,7 @@ impl Oid {
             return None;
         }
         let mut bytes = [0; 20];
-        for (i, pair) in hex.chunks_exact(2).enumerate() {
+        for (i, pair) in hex.as_chunks::<2>().0.iter().enumerate() {
             let digit = |b: u8| char::from(b).to_digit(16).and_then(|n| u8::try_from(n).ok());
             bytes[i] = digit(pair[0])? * 16 + digit(pair[1])?;
         }

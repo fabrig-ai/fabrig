@@ -41,7 +41,7 @@ skein-ui.workspace = true
 jig-protocol-transcript.workspace = true
 jig-protocol-config.workspace = true
 temper-client-protocol-wire.workspace = true
-temper-service = { workspace = true, features = ["worker"] }
+temper-engine-service.workspace = true
 temper-client-domain.workspace = true
 temper-client-shell-tui.workspace = true
 temper-client-tui.workspace = true
@@ -76,6 +76,9 @@ disallowed_macros = "deny"
 disallowed_methods = "deny"
 
 [dev-dependencies]
+settings-form.workspace = true
+temper-client-shell-cli.workspace = true
+skein-shell.workspace = true
 skein-ui-text.workspace = true
 skein-fake-forge-domain.workspace = true
 jig-boundary.workspace = true

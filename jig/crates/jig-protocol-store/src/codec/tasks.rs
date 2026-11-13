@@ -10,7 +10,7 @@ pub mod proposals;
 pub mod record;
 pub mod state;
 pub mod value;
-use crate::tasks_v10 as wire;
+use crate::tasks_v11 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{Reader, Writer};
@@ -145,7 +145,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         proposed_settings_items: domain::SETTINGS_ITEMS,
         proposed_settings_projects: wire::CEILINGS.proposed_settings_projects,
         row_models: jig_domain_tasks::MODELS,
-        model_name_value: jig_domain_core::MODEL_NAME_BYTES,
+        model_name_value: jig_domain_core_vocabulary::MODEL_NAME_BYTES,
         person_proposal_reason: domain.message_bytes,
         grace_reason: domain.result_bytes,
         task_problem_blocked_by_some: domain.delegates.max(domain.dependencies).max(domain.circle),
@@ -265,7 +265,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
 pub fn encode(
     row: &domain::Stored,
     limits: &wire::Limits,
-    names: &[jig_domain_core::settings::ModelName],
+    names: &[jig_domain_core_vocabulary::settings::ModelName],
 ) -> Result<Box<[u8]>, wire::Problem> {
     let (models, moved) = models::encode(row, names, limits)?;
     let value = match row {
@@ -324,7 +324,7 @@ pub fn encode(
 pub fn decode(
     bytes: &[u8],
     limits: &wire::Limits,
-    names: &[jig_domain_core::settings::ModelName],
+    names: &[jig_domain_core_vocabulary::settings::ModelName],
 ) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value, models: kept } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let mut row = match value {

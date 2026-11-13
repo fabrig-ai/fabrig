@@ -22,7 +22,7 @@ pub(super) fn without_defaults(bytes: &[u8]) -> Box<[u8]> {
     let after = bytes::find(&document, b"\n},\n\"hosts\":").unwrap();
     fixtures::with(&document, &document[first..after], b"")
 }
-fn defaults() -> jig_domain_core::settings::Defaults {
+fn defaults() -> jig_domain_core_vocabulary::settings::Defaults {
     crate::core(&fixtures::engine(fixtures::ENGINE_SMALL).unwrap(), [3; 16], 11).defaults
 }
 fn passed() -> Engine {
@@ -88,7 +88,10 @@ fn a_seed_policy_above_the_passed_rules_is_refused_at_pass() {
     );
     let expected = parse(&document, Defaults::Document).unwrap_err();
     assert_eq!(found.problems, expected.problems);
-    assert_eq!(found.problems.get(0).unwrap().what, What::Bound);
+    assert_eq!(
+        found.problems.get(0).unwrap().what,
+        What::Because(b"policy authority or period spend exceeds deployment rules")
+    );
 }
 #[test]
 fn files_name_no_charter_for_passed_defaults() {
@@ -119,7 +122,7 @@ fn pass_leaves_the_defaults_own_check_to_the_core() {
 
 #[test]
 fn passed_models_are_the_catalogue() {
-    use jig_domain_core::settings::ModelSource;
+    use jig_domain_core_vocabulary::settings::ModelSource;
     let mut engine = passed();
     assert!(engine.llm.models.is_empty(), "passed catalogues have no document models");
     let mut given = defaults();
@@ -155,7 +158,7 @@ fn passed_models_are_the_catalogue() {
 
 #[test]
 fn a_documents_models_are_numbered_by_position() {
-    use jig_domain_core::settings::ModelSource;
+    use jig_domain_core_vocabulary::settings::ModelSource;
     let bytes = fixtures::with(
         fixtures::ENGINE_SMALL,
         br#""unit": 1000}
@@ -216,11 +219,11 @@ fn a_resolved_charter_of_64_models_fits_run_bytes() {
     let models = models.into_boxed();
     charter.policy.model = models[0].clone();
     charter.policy.alternatives = models[1..].into();
-    let bytes = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
+    let bytes = jig_domain_core_vocabulary::policy_owned_bytes(&charter.policy).unwrap();
     let standard = crate::profile(crate::Profile::Standard);
     assert_eq!(standard.core.settings.alternatives, 63);
     assert_eq!(crate::profile(crate::Profile::Small).core.settings.alternatives, 63);
-    assert_eq!(jig_client_protocol_wire::v19::CEILINGS.charter_alternatives, 63);
+    assert_eq!(jig_client_protocol_wire::v21::CEILINGS.charter_alternatives, 63);
     assert!(bytes <= u64::from(standard.core.run_bytes), "64-model resolved policy owns {bytes} bytes");
     assert!(
         bytes > u64::from(crate::profile(crate::Profile::Small).core.run_bytes),

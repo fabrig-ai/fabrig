@@ -289,14 +289,14 @@ fn frames_within_the_interval_keep_only_the_newest() {
     p.drive(Time::from_nanos(100));
     p.terminal.draw(&frame(SIZE, SIZE, 'C'));
     p.drive(Time::from_nanos(200));
-    assert!(p.drain().is_empty());
+    assert_eq!(p.drain().len(), 0);
     assert_eq!(p.terminal.next_deadline(), Some(SECOND));
     assert!(!p.terminal.work_pending(p.now));
     assert!(p.terminal.work_pending(SECOND));
     p.drive(SECOND);
     assert_eq!(p.drain(), DIFF_C);
     p.drive(THIRD);
-    assert!(p.drain().is_empty());
+    assert_eq!(p.drain().len(), 0);
     assert_eq!(p.terminal.next_deadline(), None);
     p.finish();
 }
@@ -562,7 +562,7 @@ fn lending_and_resuming_are_inert_outside_their_live_phases() {
     assert!(!closing.terminal.lent());
     closing.terminal.lend();
     closing.terminal.resume();
-    assert!(closing.collect().is_empty());
+    assert_eq!(closing.collect(), Vec::<u8>::new());
     closing.finish();
 
     // A window that answers Gone cannot supply the whole-frame flag for resume.

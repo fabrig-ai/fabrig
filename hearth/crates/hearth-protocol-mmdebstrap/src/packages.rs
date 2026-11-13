@@ -316,7 +316,7 @@ fn digest(value: &[u8]) -> Option<[u8; 32]> {
         return None;
     }
     let mut out = [0_u8; 32];
-    for (pair, byte) in value.chunks_exact(2).zip(&mut out) {
+    for (pair, byte) in value.as_chunks::<2>().0.iter().zip(&mut out) {
         for b in pair {
             let digit = bytes::hex_value(*b)?;
             *byte = byte.checked_mul(16)?.checked_add(digit)?;

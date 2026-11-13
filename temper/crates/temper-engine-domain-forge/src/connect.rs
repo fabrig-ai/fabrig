@@ -1,7 +1,7 @@
 //! Volatile public connects; only handles cross this boundary (client/engine.md).
 use crate::{AcceptAnswer, Answered, Ask, ConnectAnswer, Connection, Domain, ForgeRefusal, InstallAnswer, Request};
 use alloc::boxed::Box;
-use jig_domain_core::Carried;
+use jig_domain_core_vocabulary::Carried;
 use jig_domain_people::Role;
 use skein_lib::{Map, Queue, Token};
 

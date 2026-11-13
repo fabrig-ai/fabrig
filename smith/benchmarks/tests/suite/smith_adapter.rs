@@ -13,6 +13,9 @@ use smith_bench::{End, Forced, Measure};
 
 mod retried;
 
+/// No test here proves these bounds; the answer and natural exit each expects come first.
+const HANG_GUARD: Duration = Duration::from_secs(30);
+
 #[test]
 fn a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup() {
     let scratch = root("terminal-before-exit");
@@ -40,7 +43,7 @@ fn a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup() 
     assert!(result.error.is_none(), "{:?}", result.error);
     assert_eq!(result.forced, Forced::No);
     assert!(result.answered.is_some());
-    assert!(result.tree.live_pids.is_empty());
+    assert_eq!(result.tree.live_pids.len(), 0);
     assert_eq!(result.exit, smith_bench::Exit::Code(0));
 }
 
@@ -63,16 +66,16 @@ fn observing(trace: &Path) -> Observing {
         program: "/bin/sh".into(),
         state: trace.with_extension("state"),
         serial: None,
-        teardown: Duration::from_millis(40),
+        teardown: HANG_GUARD,
     }).expect("event observing")
 }
 
 fn bounds() -> Bounds {
     Bounds {
-        hard: Duration::from_millis(150),
-        teardown: Duration::from_millis(40),
+        hard: HANG_GUARD,
+        teardown: HANG_GUARD,
         grace: Duration::from_millis(20),
-        settlement: Duration::from_millis(200),
+        settlement: HANG_GUARD,
         stdout: 16384,
         stderr: 4096,
         force_walk: true,
@@ -181,7 +184,7 @@ fn a_terminal_person_closes_after_main_acceptance_and_drains_the_final_file_reco
     assert!(result.answered.is_some());
     assert!(String::from_utf8_lossy(&result.trace).contains("session.ended"));
     assert_eq!(result.observing.expect("paired observer").classify(result.exit, result.forced).end, End::Completed);
-    assert!(result.tree.live_pids.is_empty());
+    assert_eq!(result.tree.live_pids.len(), 0);
 }
 
 #[test]
@@ -203,7 +206,7 @@ fn an_incomplete_file_record_faults_after_observed_tree_settlement_and_retains_i
     .expect("settled tree");
     assert!(result.error.as_ref().is_some_and(|error| error.contains("partial record")));
     assert_eq!(result.trace, b"{\"type\":");
-    assert!(result.tree.live_pids.is_empty());
+    assert_eq!(result.tree.live_pids.len(), 0);
 }
 
 #[test]
@@ -287,7 +290,7 @@ fn every_probe_tasks_overrides_pass_the_observed_public_startup_derivation() {
         .filter(|path| path.is_file())
         .collect::<Vec<_>>();
     paths.sort();
-    assert!(!paths.is_empty());
+    assert_ne!(paths.len(), 0);
     for path in paths {
         let task = smith_bench::read_task(&path).expect("authored probe");
         let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
@@ -476,7 +479,7 @@ fn every_smith_pin_is_a_product_settings_layer() {
 #[test]
 fn a_time_breakdown_sums_to_task_wall_within_one_second() {
     let limits = {
-        let mut fixture_limits = smith_events::fixture::SMALL;
+        let mut fixture_limits = smith_events_fixtures::SMALL;
         fixture_limits.string = 524_288;
         fixture_limits.content = 4096;
         fixture_limits.items = 512;

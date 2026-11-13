@@ -1,8 +1,8 @@
 //! A pasted address is held, bounded and erased once (protocol/store/secrets.md).
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest};
-use jig_client_protocol_wire::v19 as w;
-use jig_domain_core as core;
+use jig_client_protocol_wire::v21 as w;
+use jig_domain_core_vocabulary as core;
 use jig_domain_people as p;
 use skein_lib::{Secret, Token, Writer};
 const SOURCE: u32 = 29;
@@ -33,7 +33,7 @@ fn finish(exchange: &mut Exchange, bytes: &[u8]) -> Token {
         w::KeyedParts {
             key: [5; 16],
             owner: w::Owner::Jig,
-            version: 19,
+            version: 21,
             request: f::encode_ask(&ask),
             value: Some(Secret::new(Box::from(bytes))),
         },

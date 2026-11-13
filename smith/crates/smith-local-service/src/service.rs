@@ -1063,7 +1063,8 @@ impl Service {
                 | host::Down::Acknowledge { .. }
                 | host::Down::Answer { .. }
                 | host::Down::Grant { .. }
-                | host::Down::Cancel => {}
+                | host::Down::Cancel
+                | host::Down::Drain => {}
             },
             host::process::Request::Spawn { .. }
             | host::process::Request::Read { .. }

@@ -9,7 +9,7 @@ fn the_saved_record_bound_is_oauths_ceiling() {
 }
 #[test]
 fn carried_and_key_bounds_are_the_client_wires_ceiling() {
-    let bound = jig_client_protocol_wire::v19::CEILINGS.keyed_value_some;
+    let bound = jig_client_protocol_wire::v21::CEILINGS.keyed_value_some;
     for ceiling in
         [CEILINGS.source_key_key, CEILINGS.carried_key_key, CEILINGS.carried_value_value, CEILINGS.carried_moved_moved]
     {

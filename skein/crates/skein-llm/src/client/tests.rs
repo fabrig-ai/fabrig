@@ -536,6 +536,7 @@ fn owned_measurement_preserves_admission_refusals() {
 }
 
 #[test]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn the_encoder_checks_written_bytes_against_the_measurement() {
     for provider in [Provider::OpenAi, Provider::Anthropic] {
         for difference in [-1_i32, 1_i32] {

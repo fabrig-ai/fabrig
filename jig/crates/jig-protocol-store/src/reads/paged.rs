@@ -1,7 +1,7 @@
 //! Bounded family pages and dense activity in either direction (protocol/store/loads.md, 3 and 4).
 use super::{Failure, Spent, empty, joins};
 use crate::{Cursor, Row, Store, intervals, keys, pages, restore};
-use jig_domain_core::{self as core, reads};
+use jig_domain_core_vocabulary::{self as core, reads};
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_kv::Range;

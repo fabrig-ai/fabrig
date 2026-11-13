@@ -35,7 +35,7 @@ fn a_draft_kept_across_a_reload_stays_unsent_on_the_actual_engine() {
             .count(),
         1
     );
-    assert!(owner.peers.as_ref().expect("actual worker").workers[0].messages.is_empty());
+    assert_eq!(owner.peers.as_ref().expect("actual worker").workers[0].messages.len(), 0);
 }
 
 pub(super) fn stop_ready() -> (World<Test, Joint>, crate::ClientId) {

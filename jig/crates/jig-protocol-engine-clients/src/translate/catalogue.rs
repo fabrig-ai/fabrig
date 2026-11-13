@@ -1,7 +1,7 @@
 //! Public configured offers and volatile payer facts (client/domain/contract/documents.md, 1).
 use super::{accounts, owner, pieces, w};
 use alloc::boxed::Box;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
 
 pub(super) fn offers(values: &List<d::ProviderOffer>, bound: u32, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {

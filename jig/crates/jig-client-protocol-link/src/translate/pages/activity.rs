@@ -50,6 +50,7 @@ pub(crate) fn word_result_fields(value: &w::WordResult, limits: &Limits) -> Resu
         }
         w::WordResult::Failed => c::WordResult::Failed,
         w::WordResult::Cancelled => c::WordResult::Cancelled,
+        w::WordResult::Job => c::WordResult::Job,
     })
 }
 

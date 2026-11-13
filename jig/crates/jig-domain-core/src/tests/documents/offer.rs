@@ -244,20 +244,20 @@ fn offers_require_a_host_with_current_source_facts() {
             sources: Box::new([SourceName::new(b"personal").unwrap(), SourceName::new(b"pending").unwrap()]),
         }),
     ));
-    assert!(offered(&core, &limits).is_empty());
+    assert_eq!(offered(&core, &limits).len(), 0);
     program_login(&mut core, &limits, LoginState::Usable);
     assert_eq!(offered(&core, &limits), [(0, vec![0])]);
     program_login(&mut core, &limits, LoginState::NotSignedIn);
-    assert!(offered(&core, &limits).is_empty());
+    assert_eq!(offered(&core, &limits).len(), 0);
     program_login(&mut core, &limits, LoginState::Usable);
     assert_eq!(offered(&core, &limits), [(0, vec![0])]);
     drop(watch_outputs(&mut core, &limits, Event::Fleet(fleet::Event::Lost { channel: HOST })));
-    assert!(offered(&core, &limits).is_empty());
+    assert_eq!(offered(&core, &limits).len(), 0);
 
     let (mut core, limits) = fixture();
     key(&mut core, &limits, OWN, SOURCE, PROVIDER);
     core.fleet = runs::run_choice::placement_fleet(&core, &limits);
-    assert!(offered(&core, &limits).is_empty());
+    assert_eq!(offered(&core, &limits).len(), 0);
     host(&mut core, &limits, HOST, &[b"scripted", b"same", b"other"]);
     assert_eq!(offered(&core, &limits), [(0, vec![OWN]), (1, vec![OWN])]);
     drop(watch_outputs(
@@ -265,7 +265,7 @@ fn offers_require_a_host_with_current_source_facts() {
         &limits,
         Event::Fleet(fleet::Event::Sources { sources: Box::new([SourceName::new(b"pending").unwrap()]) }),
     ));
-    assert!(offered(&core, &limits).is_empty());
+    assert_eq!(offered(&core, &limits).len(), 0);
     inventory(&mut core, &limits, HOST, Box::new([login(b"pending", LoginState::NotSignedIn)]));
     assert_eq!(offered(&core, &limits), [(0, vec![OWN]), (1, vec![OWN])]);
 }

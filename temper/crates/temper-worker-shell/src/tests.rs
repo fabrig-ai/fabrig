@@ -52,3 +52,5 @@ fn workspace_reuse_reads_nonempty_values_from_the_given_environment() {
         assert_eq!(super::workspace_reuse(&environment), expected, "{value:?}");
     }
 }
+
+mod pin;

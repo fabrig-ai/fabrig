@@ -33,7 +33,7 @@ fn playground_answer(bytes: &[u8]) {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one mutation sweep checks the forge-family decoders and request outcomes")]
 fn client_wire_decoders_never_panic_and_reencode_the_same() {
-    let decoders: [fn(&[u8]); 13] = [
+    let decoders: [fn(&[u8]); 17] = [
         requesting,
         answer,
         reading,
@@ -47,6 +47,10 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         proposal_items_answer,
         ways_panel,
         view_answer,
+        project_areas,
+        project_triager,
+        findings,
+        finding_answer,
     ];
     let mut rng = Rng::new(0x7e3d_0302);
     let goldens = temper_codecs_world::goldens("crates/temper-client-protocol-wire/golden");
@@ -367,7 +371,7 @@ fn drawn_makings(rng: &mut Rng) -> v1::Forges {
 }
 
 fn drawn_request(rng: &mut Rng) -> v1::Request {
-    match rng.below(3) {
+    match rng.below(6) {
         0 => v1::Request::StartPlayground,
         1 => v1::Request::DismissMaking(
             v1::DismissMaking::new(
@@ -385,7 +389,7 @@ fn drawn_request(rng: &mut Rng) -> v1::Request {
             )
             .expect("bounded dismissal"),
         ),
-        _ => v1::Request::MakeRepository(
+        2 => v1::Request::MakeRepository(
             v1::MakeRepository::new(
                 &v1::CEILINGS,
                 v1::MakeRepositoryParts {
@@ -397,6 +401,63 @@ fn drawn_request(rng: &mut Rng) -> v1::Request {
                 },
             )
             .expect("bounded make request"),
+        ),
+        3 => v1::Request::FileFinding(
+            v1::FileFinding::new(
+                &v1::CEILINGS,
+                v1::FileFindingParts {
+                    project: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
+                    kind: match rng.below(5) {
+                        0 => v1::FindingKind::Qa,
+                        1 => v1::FindingKind::Flake,
+                        2 => v1::FindingKind::Red,
+                        3 => v1::FindingKind::Review,
+                        _ => v1::FindingKind::Feedback,
+                    },
+                    severity: match rng.below(3) {
+                        0 => v1::Severity::Low,
+                        1 => v1::Severity::Medium,
+                        _ => v1::Severity::High,
+                    },
+                    area: if rng.chance(500) { Some(drawn_words(rng, 32)) } else { None },
+                    title: drawn_words(rng, 200),
+                    body: drawn_words(rng, 4096),
+                },
+            )
+            .expect("bounded finding"),
+        ),
+        4 => v1::Request::HandFinding(
+            v1::HandFinding::new(
+                &v1::CEILINGS,
+                v1::HandFindingParts {
+                    project: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
+                    number: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
+                    area: drawn_words(rng, 32),
+                    why: drawn_words(rng, 200),
+                },
+            )
+            .expect("bounded hand"),
+        ),
+        _ => v1::Request::TriageFinding(
+            v1::TriageFinding::new(
+                &v1::CEILINGS,
+                v1::TriageFindingParts {
+                    project: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
+                    number: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
+                    act: match rng.below(3) {
+                        0 => v1::Triage::Route(
+                            v1::FindingRoute::new(&v1::CEILINGS, v1::FindingRouteParts { task: rng.below(u64::MAX) })
+                                .expect("route"),
+                        ),
+                        1 => v1::Triage::Backlog,
+                        _ => v1::Triage::Drop(
+                            v1::FindingDrop::new(&v1::CEILINGS, v1::FindingDropParts { reason: drawn_words(rng, 400) })
+                                .expect("drop"),
+                        ),
+                    },
+                },
+            )
+            .expect("bounded triage"),
         ),
     }
 }
@@ -410,5 +471,40 @@ fn ways_panel(bytes: &[u8]) {
 fn view_answer(bytes: &[u8]) {
     if let Some(record) = temper_client_protocol_wire::decode_view_answer(bytes, &v1::CEILINGS) {
         assert_eq!(temper_client_protocol_wire::view_answer(&record).as_ref(), bytes, "ViewAnswer");
+    }
+}
+
+fn project_areas(bytes: &[u8]) {
+    let mut reader = Reader::new(bytes);
+    if let Ok(record) = v1::ProjectAreas::decode(&v1::CEILINGS, &mut reader) {
+        assert!(reader.is_empty());
+        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured bytes"));
+        record.encode(&mut writer).expect("measured room");
+        assert_eq!(writer.finish().as_ref(), bytes);
+    }
+}
+
+fn project_triager(bytes: &[u8]) {
+    let mut reader = Reader::new(bytes);
+    if let Ok(record) = v1::ProjectTriager::decode(&v1::CEILINGS, &mut reader) {
+        assert!(reader.is_empty());
+        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured bytes"));
+        record.encode(&mut writer).expect("measured room");
+        assert_eq!(writer.finish().as_ref(), bytes);
+    }
+}
+
+fn drawn_words(rng: &mut Rng, most: u32) -> Box<[u8]> {
+    let length = usize::try_from(rng.between(1, u64::from(most))).expect("word length");
+    vec![b'a'; length].into_boxed_slice()
+}
+fn findings(bytes: &[u8]) {
+    if let Some(record) = temper_client_protocol_wire::decode_findings(bytes, &v1::CEILINGS) {
+        assert_eq!(temper_client_protocol_wire::findings(&record).as_ref(), bytes, "Findings");
+    }
+}
+fn finding_answer(bytes: &[u8]) {
+    if let Some(record) = temper_client_protocol_wire::decode_finding_answer(bytes, &v1::CEILINGS) {
+        assert_eq!(temper_client_protocol_wire::finding_answer(&record).as_ref(), bytes, "FindingAnswer");
     }
 }

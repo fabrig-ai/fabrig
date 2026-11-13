@@ -36,7 +36,7 @@ impl Failure {
 /// Collect the fixed startup entropy required by the OAuth composition.
 pub(super) fn oauth_entropy() -> Result<[u8; 32], String> {
     let mut entropy = [0_u8; 32];
-    for part in entropy.chunks_exact_mut(8) {
+    for part in entropy.as_chunks_mut::<8>().0 {
         let seed = skein_shell::seed().map_err(|error| format!("OAuth entropy failed (errno {error})"))?;
         part.copy_from_slice(&seed.to_be_bytes());
     }

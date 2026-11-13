@@ -4,7 +4,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 mod declarations;
 mod decode;
 mod json;

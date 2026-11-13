@@ -57,7 +57,7 @@ pub const LIMITS: Limits = Limits {
         },
         ..TIGHT.session
     },
-    ..smith_domain::fixture::SMALL
+    ..smith_domain_fixtures::SMALL
 };
 
 /// A charter with unchanged aggregate context filler distributed across role,

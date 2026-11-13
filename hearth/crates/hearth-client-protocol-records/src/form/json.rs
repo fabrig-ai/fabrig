@@ -146,7 +146,7 @@ pub(crate) fn digest(json: &mut Encoder, value: &[u8; 32]) {
 }
 pub(crate) fn digest_hex(value: &[u8; 32]) -> [u8; 64] {
     let mut digits = [0_u8; 64];
-    for (pair, byte) in digits.chunks_exact_mut(2).zip(value) {
+    for (pair, byte) in digits.as_chunks_mut::<2>().0.iter_mut().zip(value) {
         for (digit, nibble) in pair.iter_mut().zip([byte >> 4_u32, *byte]) {
             *digit = bytes::hex_digit(nibble);
         }

@@ -64,7 +64,7 @@ pub fn hello_with(channel: Token, worker: u32, slots: u32, bounds: Bounds, hosti
         engine::Link::Hello {
             worker,
             hello: jig_domain_link::Hello {
-                jobs: Box::new([merge_bound()]),
+                jobs: Box::new([JobBound { kind: JobKind(1), ..merge_bound() }, merge_bound()]),
                 slots,
                 stop_bound: Duration::from_millis(100),
                 workstreams: Box::new([]),
@@ -321,7 +321,7 @@ impl Protocol {
                     ))))),
                 },
                 engine::HostRequest::SettingsNote { to, call, body } => {
-                    Ok(vec![temper_service::settings_note(to, *call, &body, &self.catalogue)])
+                    Ok(vec![temper_engine_service::settings_note(to, *call, &body, &self.catalogue)])
                 }
                 engine::HostRequest::Dropped { .. } => Ok(Vec::new()),
             },

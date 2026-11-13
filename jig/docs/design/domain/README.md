@@ -54,6 +54,7 @@ uses for its examples.
 an application's engine
 <application>-domain            the root: the application's (root.md)
 ├── jig-domain-core             the core (engine.md)
+│   ├── jig-domain-core-vocabulary  what crosses the core's edge (engine/README.md, 3)
 │   ├── jig-domain-tasks        every live task, the center of the core (tasks.md)
 │   ├── jig-domain-authority    policy (authority.md)
 │   ├── jig-domain-people       parties (people.md)

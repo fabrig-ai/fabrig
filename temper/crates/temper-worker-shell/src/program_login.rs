@@ -28,7 +28,7 @@ pub const PROGRAM_LOGIN: Command = Command {
 
 /// The worker of a document that is not a worker alone, as the box's setup check reads it.
 pub type Deployment =
-    fn(&[u8], &jig_protocol_config::Directories) -> Result<temper_service::startup::NamedWorker, String>;
+    fn(&[u8], &jig_protocol_config::Directories) -> Result<temper_worker_service::startup::NamedWorker, String>;
 
 fn source_name(name: &OsStr) -> Result<&str, String> {
     smith_host_domain::SourceName::new(name.as_bytes())
@@ -44,15 +44,15 @@ pub fn command(
 ) -> Result<std::process::Command, String> {
     let name = source_name(name)?;
     let bytes = directories.read()?;
-    let worker = match temper_service::startup::shape(&bytes, &jig_directories(directories))
-        .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
-    {
-        temper_service::startup::Shape::WorkerAlone => {
-            let part = temper_service::startup::worker_part(&bytes, &jig_directories(directories))
-                .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
+    let worker = match temper_service_core::startup::nearest(&bytes) {
+        Some(temper_service_core::startup::Shape::WorkerAlone) | None => {
+            let part =
+                temper_worker_service::startup::worker_part(&bytes, &jig_directories(directories)).map_err(|why| {
+                    String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned()
+                })?;
             part.named
         }
-        temper_service::startup::Shape::Standalone | temper_service::startup::Shape::EngineAlone => {
+        Some(temper_service_core::startup::Shape::Standalone | temper_service_core::startup::Shape::EngineAlone) => {
             deployment.ok_or("temper.json holds no worker alone")?(&bytes, &jig_directories(directories))?
         }
     };
@@ -60,7 +60,7 @@ pub fn command(
     let program = agent
         .programs
         .iter()
-        .find(|program| program.adapter == temper_service::settings::Adapter::ClaudeCode)
+        .find(|program| program.adapter == temper_service_core::settings::Adapter::ClaudeCode)
         .ok_or("workers[0].agent.configuration: programs.claude_code: not configured")?;
     if super::agent::launcher(super::path(&program.directory)).as_deref() == Some(super::path(&program.path)) {
         temper_launcher::place(

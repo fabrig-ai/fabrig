@@ -45,7 +45,7 @@ fn configured(
     projects: bool,
 ) -> Joint {
     let mut engine_limits = engine_limits();
-    engine_limits.tasks.charters = 13; // Kind 9's stock lines run up to charter 13.
+    engine_limits.tasks.charters = 16; // Kind 9's stock lines run up to charter 16.
     engine_limits.tasks.spec_bytes = engine_limits.tasks.spec_bytes.max(512);
     engine_limits.tasks.parameters = 4;
     engine_limits.people.amendment_bytes = 8192;
@@ -63,7 +63,7 @@ fn configured(
     let mut config = kinds::configuration(&engine_limits);
     config.core.seed = seed;
     config.core.connectors = Box::new([fixtures::FORGE]);
-    config.core.kinds = temper_service::stock::kinds(&engine_limits, fixtures::FORGE);
+    config.core.kinds = temper_engine_service::stock::kinds(&engine_limits, fixtures::FORGE);
     let models = config
         .core
         .settings
@@ -82,7 +82,7 @@ fn configured(
             estimated: false,
         })
         .collect();
-    let stock = temper_service::stock::with_models(models, engine_limits.tasks.result_bytes);
+    let stock = temper_engine_service::stock::with_models(models, engine_limits.tasks.result_bytes);
     let mut templates = config.core.defaults.templates.into_vec();
     templates.push(stock.templates.iter().find(|template| template.number == 4).expect("stock draft goal").clone());
     config.core.defaults.templates = templates.into_boxed_slice();
@@ -204,6 +204,10 @@ fn configured(
                     .insert(
                         1,
                         engine::ProjectLanding {
+                            gate_retries: 2,
+                            combine_main: engine::Combine::Merge,
+                            combine_other: engine::Combine::Squash,
+                            gate_timeout: skein_lib::Duration::from_millis(3_600_000),
                             landing_attempts: engine::LANDING_ATTEMPTS,
                             check_timeout: None,
                             by: engine::Way::Queue,

@@ -490,8 +490,7 @@ pub(crate) fn finish_brief_plan(
         && !row.terminal()
         && let Some((child, _)) = row.delegate
         && child == task
-        && let Some(number) = row.pull
-        && let Some(head) = row.change.last_head
+        && let Some((number, _, _, head)) = row.review_target()
     {
         let item = forge::BriefItem { repository: row.repository.repository, number };
         let pull = forge::BriefSource::Pull { item, head: forge::BriefCommit(head) };
@@ -507,9 +506,11 @@ pub(crate) fn finish_brief_plan(
             forge_change::Delegate::Repair(forge_change::Repair::Gate(_)) => {
                 (Some(forge::BriefSource::Reviews { item, head: forge::BriefCommit(head) }), false)
             }
-            forge_change::Delegate::Repair(forge_change::Repair::Ci | forge_change::Repair::Landing { .. }) => {
-                (Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }), false)
-            }
+            forge_change::Delegate::Repair(
+                forge_change::Repair::Ci
+                | forge_change::Repair::LandingAt { .. }
+                | forge_change::Repair::Landing { .. },
+            ) => (Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }), false),
             forge_change::Delegate::Repair(forge_change::Repair::Semantic) => {
                 (Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }), true)
             }

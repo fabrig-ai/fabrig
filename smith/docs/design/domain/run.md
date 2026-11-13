@@ -840,6 +840,14 @@ what is beyond the limits; the start's messages are refused with it. A
 cancel from the host ends the run along the same path; a change its
 finish delivered meanwhile is still its result (8.4).
 
+**A drain from the host** (protocol/channel.md, section 3) ends the run at the end of its current turn, rather than in the middle of it:
+
+- **No new completion** of the main conversation starts once the run has heard it, a finishing one of a wind-down (`budget.md`, 1) included. A completion in flight goes on to its answer, and each call that answer makes runs to its result, a sub-agent's whole conversation and a check included, so the turn is whole.
+- **Then the run ends as a cancel ends it:** the turn told, its sessions closed, what is in flight settled, and the answer *failed: cancelled*, with every turn it told and its fence. Messages that arrived meanwhile stay unread, named once as any are (`host.md`, section 4).
+- **At once** when no completion of main is in flight: a run awaiting its first message, waiting, listening after a reply, or still preparing ends as a cancel ends it.
+- **A turn that ends the run anyway** answers as it would have: a result accepted, a park.
+- **A cancel after a drain** cuts the turn, as any cancel does. The drain's wait is the host's to bound: smith arms nothing for it.
+
 ## 10. Facts
 
 Each child domain pushes what happened as typed, content-free facts into

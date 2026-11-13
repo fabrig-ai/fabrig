@@ -166,7 +166,7 @@ fn the_profile_as_proposed_passes() {
     let report = report(&proposed(unedited));
     assert!(report.passed(), "{}", report.text());
     assert_eq!(report.verdicts.len(), OBLIGATIONS);
-    assert!(report.extras.is_empty());
+    assert_eq!(report.extras.len(), 0);
     let bindings: Vec<_> = report.binding.iter().map(|b| (b.role.as_str(), b.number, b.by)).collect();
     assert_eq!(
         bindings,
@@ -322,7 +322,7 @@ fn the_stock_rule_left_fails_only() {
         outcome(&report, "landing-rules.only"),
         &Outcome::Wrong { found: json!([item.setting]), expected: json!("only bound roles") }
     );
-    assert!(report.extras.is_empty());
+    assert_eq!(report.extras.len(), 0);
 }
 #[test]
 fn the_small_goal_template_set_is_wrong() {
@@ -616,7 +616,7 @@ fn only_checks_both_landing_rule_scopes() {
         outcome(&report, "landing-rules.only"),
         &Outcome::Wrong { found: json!([extra.setting]), expected: json!("only bound roles") }
     );
-    assert!(report.extras.is_empty());
+    assert_eq!(report.extras.len(), 0);
 }
 #[test]
 fn another_projects_rule_cannot_bind() {

@@ -196,6 +196,7 @@ fn filters(b: &mut Builder, root: &Domain, filter: Filter, words: &Words, bindin
                     Kind::Question => Word::Question,
                     Kind::Held => Word::Held,
                     Kind::PersonTask => Word::PersonTask,
+                    Kind::Finding => Word::Finding,
                 },
                 &[],
             ))],
@@ -209,6 +210,7 @@ fn filters(b: &mut Builder, root: &Domain, filter: Filter, words: &Words, bindin
         (Some(Kind::Question), Word::Question),
         (Some(Kind::Held), Word::Held),
         (Some(Kind::PersonTask), Word::PersonTask),
+        (Some(Kind::Finding), Word::Finding),
     ] {
         filter_control(b, bindings, &words.say(word, &[]), Filter { kind, ..filter }, filter.kind == kind);
     }

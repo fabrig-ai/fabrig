@@ -144,13 +144,18 @@ fn start_signed_in(settings: internal::Internal) {
     let parsed_ways = ways.as_ref().map_or(temper_client_view::sign_in::Ways::NONE, |(content, origin)| {
         temper_client_view::sign_in::Ways::parse(content, origin.as_bytes())
     });
+    let record_content = document
+        .query_selector("meta[name=\"temper-record\"]")
+        .expect("record selector")
+        .and_then(|meta| meta.get_attribute("content"));
+    let record = settings.recording(record_content.as_deref());
     let mount = document.get_element_by_id("app").expect("bundle mount");
     let facts = platform::facts();
     let path = window.location().pathname().expect("path") + &window.location().search().expect("query");
     #[cfg(debug_assertions)]
     assert_ne!(path.split('?').next(), Some("/test/panic"), "the test address panics at start");
     let inbox = Inbox::new();
-    if settings.record {
+    if record {
         record_keys(&document, &inbox);
     }
     let platform =
@@ -170,7 +175,7 @@ fn start_signed_in(settings: internal::Internal) {
     let kept = Store::kept(b"temper.", None);
     let mut stored = store.read_all(&platform);
     stored.extend(kept.read_all(&platform).into_iter().filter(|record| record.key.as_ref() == records::LOOK_KEY));
-    let recorder = settings.record.then(|| {
+    let recorder = record.then(|| {
         journey::Recorder::new(&journey::Facts {
             seed: facts.seed,
             now: facts.now,
@@ -393,6 +398,11 @@ impl<P: ShellPlatform> Shell<P> {
             // navigating. The previous turn's close warning is already stale.
             web_sys::window().expect("window").set_onbeforeunload(None);
         }
+        if duties.reload {
+            let window = web_sys::window().expect("window");
+            window.set_onbeforeunload(None);
+            window.location().reload().expect("reload the engine's page");
+        }
         if let Some(to) = duties.replace {
             let window = web_sys::window().expect("window");
             window.set_onbeforeunload(None);
@@ -465,10 +475,10 @@ impl<P: ShellPlatform> Shell<P> {
     fn save_recording(&mut self, departing: bool) {
         if departing {
             if let Some(recorder) = self.recorder.take() {
-                save_recording(&recorder.end(&self.page.borrow()));
+                save_recording(&journey::saved(&recorder.end(&self.page.borrow())));
             }
         } else if let Some(recorder) = &self.recorder {
-            save_recording(&recorder.save(&self.page.borrow()));
+            save_recording(&journey::saved(&recorder.save(&self.page.borrow())));
         }
     }
 }

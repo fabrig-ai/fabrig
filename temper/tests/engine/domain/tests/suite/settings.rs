@@ -13,7 +13,7 @@ use temper_engine_domain::{self as engine, Delivery, Event, Key, PartyInput, Rec
 use temper_engine_domain_world::{direct::Driver, host_tool::host_tool, store::Store, walking};
 
 const SEED: u64 = 9761;
-const SETTINGS_CHARTER: u32 = 14;
+const SETTINGS_CHARTER: u32 = 17;
 const SETTINGS_TEMPLATE: u32 = 12;
 // Restoration keeps two archived revisions; pruning keeps one (jig's domain/engine/settings.md, 7).
 const HISTORY: u32 = 2;
@@ -276,7 +276,8 @@ fn stock_config() -> engine::Config {
 
         providers: Box::new([]),
     };
-    config.core.defaults = temper_service::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
+    config.core.defaults =
+        temper_engine_service::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
     config.core.connectors = Box::new([1]);
     config.core.seed_projects = Box::new([]);
     config.core.owners[0].project = people::DEPLOYMENT;
@@ -287,15 +288,15 @@ fn stock_limits() -> engine::Limits {
     let mut limits = walking::limits();
     // Room for the stock policy and the world's settings charter, with fourteen grants.
     limits.authority.grants = 16;
-    // The standing charter, closer procedure and close job are delegation targets.
-    limits.authority.executors = 18;
+    // The standing charters, closer procedure and close job are delegation targets.
+    limits.authority.executors = 21;
     limits.authority.roles = 4;
     limits.documents.grants = 16;
-    // The standing charter, closer procedure and close job are delegation targets.
-    limits.documents.executors = 18;
+    // The standing charters, closer procedure and close job are delegation targets.
+    limits.documents.executors = 21;
     limits.notes.scopes = 32;
     // Room for the stock charters and the world's settings charter.
-    limits.tasks.charters = 10;
+    limits.tasks.charters = 17;
     limits.journal.writes = journal::WALKING_WRITES;
     limits.journal.run_bytes = STOCK_RUN_BYTES;
     // The page and its per-row payload hold charter 5's instructions and parts.
@@ -344,7 +345,7 @@ fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
 
         providers: Box::new([]),
     };
-    let defaults = temper_service::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
+    let defaults = temper_engine_service::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
     let mut rules = defaults.rules;
     let mut policy = defaults.policies.get(&POLICY_NUMBER).expect("stock policy 1").clone();
     let widened = authority::Tools(1023);

@@ -502,7 +502,7 @@ fn cut_specification_is_shown_and_cannot_be_reconstructed_by_the_words_editor() 
     let mut bindings = JigBindings::new(256, CLIENT.client.text);
     let tree = dialog(&domain, words, &mut bindings);
     goldens.check(&tree);
-    assert!(drive(&mut domain, Event::Act { action: Action::Confirm }).is_empty());
+    assert_eq!(drive(&mut domain, Event::Act { action: Action::Confirm }).len(), 0);
 }
 
 #[test]
@@ -554,7 +554,7 @@ fn specification_documents_keep_independent_text_and_list_loss_and_block_whole_e
         let tree = dialog(&domain, words, &mut bindings);
         if mask != 0 {
             goldens.check(&tree);
-            assert!(drive(&mut domain, Event::Act { action: Action::Confirm }).is_empty());
+            assert_eq!(drive(&mut domain, Event::Act { action: Action::Confirm }).len(), 0);
         } else {
             drive(
                 &mut domain,

@@ -378,7 +378,7 @@ fn adopting_into_a_full_slab_returns_the_descriptor() {
     rig.down(Request::Listen { owner: owner(1), addr: addr(40001) }).nothing();
     let out = rig.next();
     assert_eq!(out.events, [Event::Listening { owner: owner(1), listener: token, addr: addr(40001) }]);
-    assert!(out.subs.is_empty());
+    assert_eq!(out.subs.len(), 0);
     let close = rig.down(Request::Close { entity: token }).take(Kind::Close);
     assert_eq!(rig.complete(close, Ok(Done::Nothing)).events, [Event::Closed { owner: owner(1) }]);
     rig.empty();

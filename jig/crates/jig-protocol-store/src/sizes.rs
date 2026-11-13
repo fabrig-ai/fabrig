@@ -1,6 +1,6 @@
 //! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/README.md, 5 and 8).
-use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, people_v15, tasks_v10};
-use jig_domain_core as core;
+use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, people_v16, tasks_v11};
+use jig_domain_core_vocabulary as core;
 
 /// Decoded byte allowance for a two-row restart page (protocol/store/loads.md, 2).
 /// Application rows count untagged keys and values; jig rows and joined
@@ -22,6 +22,22 @@ pub fn frame(domain: &core::Limits, transcript_bytes: u32) -> Option<u32> {
     limits.turn_record_transcript = transcript_bytes;
     let body = u32::try_from(core_v6::TurnRecord::encoded_bound(&limits)?).ok()?;
     body.checked_add(crate::transcripts::frame::WRAPPER_BYTES)
+}
+
+/// Settings history with replaced values, framing and the model-name table
+/// (protocol/store/records.md, 4).
+#[must_use]
+pub fn settings_value(domain: &core::Limits) -> Option<u32> {
+    u32::try_from(
+        core::settings::revision_bound(domain)?.checked_add(16)?.checked_add(
+            u64::from(jig_domain_tasks::MODELS)
+                .checked_mul(u64::from(core::MODEL_NAME_BYTES).checked_add(4)?.checked_add(4)?.checked_add(
+                    u64::from(core::EFFORTS).checked_mul(u64::from(core::EFFORT_BYTES).checked_add(4)?)?,
+                )?)?
+                .checked_add(4)?,
+        )?,
+    )
+    .ok()
 }
 
 /// Largest whole manifest: 88 fixed bytes, plus a length and two counts
@@ -154,20 +170,12 @@ fn largest(
     map_core.turn_record_transcript = 0;
     let value = u32::try_from(
         core_v6::Row::encoded_bound(&map_core)?
-            .max(tasks_v10::Row::encoded_bound(&limits.tasks)?)
-            .max(people_v15::Row::encoded_bound(&limits.people)?)
+            .max(tasks_v11::Row::encoded_bound(&limits.tasks)?)
+            .max(people_v16::Row::encoded_bound(&limits.people)?)
             .max(notes_v1::Row::encoded_bound(&limits.notes)?)
             .max(component_v3::encoded_bound(&component_v3::CEILINGS)?)
             .max(accounts_v2::encoded_bound(&accounts_v2::CEILINGS)?)
-            .max(
-                core::settings::revision_bound(domain)?.checked_add(16)?.checked_add(
-                    u64::from(jig_domain_tasks::MODELS)
-                        .checked_mul(u64::from(core::MODEL_NAME_BYTES).checked_add(4)?.checked_add(4)?.checked_add(
-                            u64::from(core::EFFORTS).checked_mul(u64::from(core::EFFORT_BYTES).checked_add(4)?)?,
-                        )?)?
-                        .checked_add(4)?,
-                )?,
-            )
+            .max(u64::from(settings_value(domain)?))
             .max(u64::from(application.value)),
     )
     .ok()?;

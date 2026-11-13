@@ -1,6 +1,6 @@
 //! Process wiring for a terminal lent to the found box (client/tui/box.md, Lending's tests).
 use super::{Binary, Command, Delegate, Expectation, Host, Mode, Referee, Streams, Terminal, real, support};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_io::{
     self as io,
     kernel::{Complete, Exit, Fd, Size, Submit},

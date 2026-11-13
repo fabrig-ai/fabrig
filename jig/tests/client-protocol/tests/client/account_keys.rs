@@ -33,8 +33,8 @@ fn a_key_ask_without_a_value_is_malformed() {
         let mut story = Story::live(fixtures::SEED);
         story.send(STOP, ask(replace, sha256::digest(VALUE)));
         assert!(story.run_until(|s| s.malformed_requests() == 1, WAIT));
-        assert!(story.account_key_inputs().is_empty());
-        assert!(story.carried().is_empty());
+        assert_eq!(story.account_key_inputs(), []);
+        assert_eq!(story.carried().len(), 0);
     }
 }
 #[test]
@@ -42,8 +42,8 @@ fn a_value_on_another_ask_is_not_a_record() {
     let mut story = Story::live(fixtures::SEED);
     story.carry(STOP, NAME, Ask::Jig(Box::new(c::Ask::Stop { project: 1, task: 9 })), VALUE);
     assert!(story.run_until(|s| s.malformed_requests() == 1, WAIT));
-    assert!(story.account_key_inputs().is_empty());
-    assert!(story.carried().is_empty());
+    assert_eq!(story.account_key_inputs(), []);
+    assert_eq!(story.carried().len(), 0);
 }
 #[test]
 fn a_key_digest_different_from_its_value_is_not_a_record() {
@@ -51,8 +51,8 @@ fn a_key_digest_different_from_its_value_is_not_a_record() {
         let mut story = Story::live(fixtures::SEED);
         story.carry(STOP, NAME, ask(replace, sha256::digest(b"another LLM key")), VALUE);
         assert!(story.run_until(|s| s.malformed_requests() == 1, WAIT));
-        assert!(story.account_key_inputs().is_empty());
-        assert!(story.carried().is_empty());
+        assert_eq!(story.account_key_inputs(), []);
+        assert_eq!(story.carried().len(), 0);
     }
 }
 #[test]
@@ -62,7 +62,7 @@ fn an_unused_carried_key_is_erased() {
     assert!(story.run_until(|s| !s.answered(STOP).is_empty(), WAIT));
     assert!(matches!(story.answered(STOP).as_slice(), [Outcome::Answered(Answered::Jig(c::Answer::Refused { .. }))]));
     assert_eq!(story.erased_carried(), &[1 << 63]);
-    assert!(story.carried().is_empty());
+    assert_eq!(story.carried().len(), 0);
 }
 
 #[test]
@@ -79,5 +79,5 @@ fn a_finish_is_answered_not_waiting_and_its_held_address_erased() {
         }))]
     );
     assert_eq!(story.erased_carried(), &[(1 << 63) + (1 << 62)]);
-    assert!(story.carried().is_empty());
+    assert_eq!(story.carried().len(), 0);
 }

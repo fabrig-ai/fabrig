@@ -267,7 +267,7 @@ pub(crate) fn smith_delivery(domain: &Domain, left: Token) -> agent::Delivery {
 #[derive(Debug)]
 pub(crate) struct Workspace {
     /// The hosted run it is for: the host's token for the run.
-    run: Token,
+    pub(crate) run: Token,
     items: Token,
     repositories: u32,
     /// Each repository's directory, what the agent calls it, and whether it
@@ -347,7 +347,8 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, owner: Token, work
     let id = domain.workspaces.insert(record).expect("a workspace for every slot");
     let fresh = domain.preparing.insert(owner, id).expect("a prepare for every slot");
     assert!(fresh.is_none(), "a run's workspace is prepared once");
-    let spec = translate::spec(workstream, spec);
+    let mut spec = translate::spec(workstream, spec);
+    crate::jobs::checkout_spec(domain, owner, &mut spec);
     let then = Then { checkout: Some(checkout::Event::Prepare { client: id.token(), spec }), host: None };
     follow(domain, env, id, then);
 }
@@ -367,6 +368,25 @@ pub(crate) fn abort(domain: &mut Domain, env: &Env<Limits>, owner: Token) {
         }
     };
     follow(domain, env, id, then);
+}
+
+/// Cut the operations of an attempt whose contact stop bound passed. The hold
+/// remembers the cut, so an agent's later end cannot start a save after it.
+pub(crate) fn cut(domain: &mut Domain, env: &Env<Limits>, owner: Token) {
+    let mut holds = List::with_capacity(domain.workspaces.len());
+    for (_, workspace) in &domain.workspaces {
+        if workspace.run == owner {
+            match workspace.state {
+                State::Preparing { hold: Some(hold), .. } | State::Ready { hold, .. } => {
+                    holds.push(hold).expect("one hold per workspace");
+                }
+                State::Preparing { hold: None, .. } | State::Releasing | State::Closed => {}
+            }
+        }
+    }
+    for hold in &holds {
+        route::checkout_step(domain, env, checkout::Event::Cut { hold: *hold });
+    }
 }
 
 /// The host's push or save, the host's `owner`, of `workspace`.
@@ -431,6 +451,17 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, client: Token, hold: 
 /// The prepare for `client` ended.
 pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, prepared: checkout::Prepared) {
     let id = Id::<Workspace>::from_token(client);
+    let prepared = match prepared {
+        checkout::Prepared::Candidate { workspace, outcome } => {
+            let owner = domain.workspaces.get(id).expect("preparing workspace").run;
+            crate::jobs::candidate(domain, owner, &outcome);
+            checkout::Prepared::Ready { workspace, conflicts: Box::new([]) }
+        }
+        ready @ (checkout::Prepared::Ready { .. }
+        | checkout::Prepared::Refused { .. }
+        | checkout::Prepared::Failed { .. }
+        | checkout::Prepared::Aborted) => ready,
+    };
     let record = domain.workspaces.get_mut(id).expect("a workspace lives until it is released");
     let items = record.items;
     let failure = match &prepared {
@@ -439,6 +470,7 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
             let items = domain.items.get(&items).expect("the assignment lives through prepare");
             Some(translate::failure(*failure, &items.tags))
         }
+        checkout::Prepared::Candidate { .. } => unreachable!("candidate moved to job metadata"),
         checkout::Prepared::Ready { .. } | checkout::Prepared::Aborted => None,
     };
     if let Some(failure) = failure {
@@ -449,6 +481,7 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
     let state = mem::replace(&mut record.state, State::Closed);
     record.state = match state {
         State::Preparing { hold, abandoned } => match prepared {
+            checkout::Prepared::Candidate { .. } => unreachable!("candidate moved to job metadata"),
             checkout::Prepared::Ready { workspace, conflicts } => {
                 record.conflicts = conflicts;
                 ended(
@@ -649,6 +682,7 @@ fn ended(
     then: &mut Then,
 ) -> State {
     match prepared {
+        checkout::Prepared::Candidate { .. } => unreachable!("candidate moved to job metadata"),
         checkout::Prepared::Ready { workspace: directory, conflicts } => {
             assert!(conflicts.is_empty(), "conflicts moved to the workspace record before the transition");
             assert!(!abandoned, "a released hold's prepare ends aborted");

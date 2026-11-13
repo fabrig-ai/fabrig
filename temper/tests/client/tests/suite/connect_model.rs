@@ -180,7 +180,7 @@ fn a_press_opens_its_tab_before_any_answer() {
             .outcome
             .is_none()
     );
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 #[test]
 fn an_answer_points_once_and_replaces_the_page_address() {
@@ -190,7 +190,7 @@ fn an_answer_points_once_and_replaces_the_page_address() {
     assert_eq!(front.tabs, expected);
     assert_eq!(d::address::print(root.person().pages().address()).as_ref(), returned_path(source));
     assert_eq!(front.shows.last(), Some(&(root.person().pages().address().clone(), true)));
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
     view(&root);
     accounts::settle(&mut front, &mut root);
     // An unrelated answer must not replay the sign-in's tab action.
@@ -220,7 +220,7 @@ fn an_answer_after_leaving_closes_the_tab() {
     visit(&mut front, &mut root, source);
     assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
     assert_eq!(root.person().pages().address(), &Address::Accounts);
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 #[test]
 fn a_refused_sign_in_closes_the_tab_and_explains_why() {
@@ -229,7 +229,7 @@ fn a_refused_sign_in_closes_the_tab_and_explains_why() {
     accounts::refused_answer(&mut front, &mut root);
     assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
     assert!(text(&root).contains("not offered"), "{}", text(&root));
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 #[test]
 fn a_lost_sign_in_closes_the_tab_and_explains_why() {
@@ -240,7 +240,7 @@ fn a_lost_sign_in_closes_the_tab_and_explains_why() {
     accounts::expire_answer(&mut front, &mut root);
     assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
     assert!(text(&root).contains("Waiting for current account facts."), "{}", text(&root));
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 #[test]
 fn a_refused_tab_keeps_the_address_without_pointing() {
@@ -255,7 +255,7 @@ fn a_refused_tab_keeps_the_address_without_pointing() {
         root.person().pages().connect_model().expect("page").request.sign_in_address(root.person().client()),
         Some(ISSUER)
     );
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 #[test]
 fn a_fresh_page_at_the_return_address_lands_on_accounts() {
@@ -297,7 +297,7 @@ fn a_fresh_page_at_the_return_address_lands_on_accounts() {
     accounts::reopen(&mut front, &mut root, Address::Accounts);
     assert!(root.person().pages().accounts().unwrap().added.is_none());
     assert!(!text(&root).contains("Added your ChatGPT plan."));
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 fn welcome_sign_in() -> (Joint, Root, u32) {
     let (mut front, mut root) = accounts::empty_plan_fixture(fixtures::SEED);
@@ -324,7 +324,7 @@ fn a_welcome_model_answer_names_its_source_and_holds() {
     view(&root);
     accounts::settle(&mut front, &mut root);
     assert_eq!(front.tabs, expected);
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 fn welcome_signed_in(front: &mut Joint, root: &mut Root, source: u32, declined: bool) {
     front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::SignedIn {
@@ -369,7 +369,7 @@ fn welcome_moves_on(front: &mut Joint, root: &mut Root, source: u32) {
     );
     accounts::settle(front, root);
     assert_eq!(front.shows.len(), shown + 1);
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
     accounts::reopen(front, root, Address::Accounts);
     assert_eq!(usable_sign_in_account(root, source), account);
 }
@@ -429,7 +429,7 @@ fn a_welcome_sign_in_ending_without_a_usable_model_keeps_its_words_and_acts() {
                     .any(|node| { node.role == Role::Link && node.name.as_deref() == Some(b"Use an API key") })
             );
         }
-        assert!(front.leaves.is_empty());
+        assert_eq!(front.leaves.len(), 0);
     }
 }
 #[test]
@@ -452,7 +452,7 @@ fn a_typed_welcome_sign_in_way_with_a_usable_model_keeps_continue() {
             .iter()
             .any(|node| { node.role == Role::Link && node.name.as_deref() == Some(b"Continue") })
     );
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 #[test]
 fn a_typed_welcome_ready_reads_the_sign_in_then_its_account() {
@@ -491,7 +491,7 @@ fn an_unknown_return_source_is_removed_and_the_way_can_start_again() {
             .iter()
             .any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Continue with ChatGPT"))
     );
-    assert!(front.leaves.is_empty());
+    assert_eq!(front.leaves.len(), 0);
 }
 
 #[test]

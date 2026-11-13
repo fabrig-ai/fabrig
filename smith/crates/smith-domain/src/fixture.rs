@@ -29,7 +29,7 @@ pub const SMALL: Limits = Limits {
         answer_bytes: 64,
         nudges: 1,
         check_tail: 256,
-        ..smith_domain_run::fixture::SMALL
+        ..smith_domain_run_fixtures::SMALL
     },
     session: session::Limits {
         sessions: 4,
@@ -49,9 +49,9 @@ pub const SMALL: Limits = Limits {
             read_bytes: 4096,
             file_timeout: Duration::from_secs(60),
             shell_tail: 64,
-            ..smith_domain_tools::fixture::SMALL
+            ..smith_domain_tools_fixtures::SMALL
         },
-        ..smith_domain_session::fixture::SMALL
+        ..smith_domain_session_fixtures::SMALL
     },
 };
 

@@ -2,7 +2,9 @@
 
 ## 1. The toolchain
 
-- **`wasm32-unknown-unknown`, stable Rust,** and the glue crates,
+- **`wasm32-unknown-unknown`, on the toolchain the repository's
+  `rust-toolchain.toml` pins** (../../../foundation/programming-model.md,
+  10.1), which names the target, and the glue crates,
   `wasm-bindgen`, `js-sys` and `web-sys` (only the features the parts
   use), pinned to exact versions in skein's workspace: the only `unsafe`
   the module runs, with the code their macros generate

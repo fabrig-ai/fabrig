@@ -766,7 +766,7 @@ pub(crate) fn answer(
                 handed(to, answer, payload, on, names, &mut domain.facts, out)
             }
         },
-        State::Crossed { to, at: _, .. } => {
+        State::Crossed { to, .. } => {
             out.push(Request::Acknowledge { channel, run, attempt });
             out.push(Request::Drop { payload });
             presumed(to, names, &mut domain.facts, out)

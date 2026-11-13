@@ -1,6 +1,6 @@
 use crate::{Decoded, Problem, Why};
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_tasks::Cancel;
 mod fixtures;
 mod llm;
@@ -379,7 +379,7 @@ fn schema(tool: &[u8]) {
     let declaration = declared.expect("the declared tool");
     let doc = crate::json::parse(declaration.schema, &limits).expect("a schema is JSON");
     let schema = crate::json::Node::root(&doc, &limits);
-    assert!(!declaration.description.is_empty());
+    assert_ne!((declaration.description).len(), 0);
     let mut expected = None;
     for (name, fields) in fixtures::FIELDS {
         if *name == declaration.name {

@@ -21,7 +21,7 @@ fn a_point_outside_the_box_is_hidden() {
             event => panic!("expected Hidden for {point:?}, got {event:?}"),
         }
     }
-    assert!(world.hit_points.is_empty());
+    assert_eq!(world.hit_points.len(), 0);
     assert!(!world.sent.iter().any(|command| {
         command.windows(b"Input.dispatchMouseEvent".len()).any(|part| part == b"Input.dispatchMouseEvent")
     }));

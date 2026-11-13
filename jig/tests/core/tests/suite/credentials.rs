@@ -429,7 +429,7 @@ fn a_key_ask_routes_to_the_child_and_is_answered() {
     assert_eq!(world.people_answers.len(), before + 1);
     assert_eq!(world.people_answers.last(), Some(&people::Reply::Outcome(people::Outcome::AccountKeyKept { source })));
     assert_eq!(world.domain.accounts().source(source).expect("replaced LLM key").generation, Some(2));
-    assert!(world.carried_unused.is_empty());
+    assert_eq!(world.carried_unused.len(), 0);
 }
 #[test]
 fn a_refused_key_ask_returns_its_carried_value_unused() {

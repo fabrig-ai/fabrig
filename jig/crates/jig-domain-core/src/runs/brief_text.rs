@@ -1,38 +1,14 @@
 //! The core's bounded task, dependency, attempt and transcript sections
 //! (domain/engine/briefs.md, section 1).
 
+pub use jig_domain_core_vocabulary::runs::brief_text::*;
+
 use alloc::boxed::Box;
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Decimal, List, Writer, length::len_u64};
 
 use crate::{Core, RetainedResult, Transcript};
-
-/// Limits for rendering one core-owned brief section.
-#[derive(Clone, Copy, Debug)]
-pub struct BriefTextLimits {
-    pub parts: u32,
-    pub read_bytes: u32,
-    pub brief_bytes: u32,
-}
-
-/// A root-owned part of the task context rendered for a brief.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum BriefPart {
-    Spec,
-    /// Received open questions not carried by the run's start (domain/engine/briefs.md, 1.2).
-    Waiting {
-        carried: u32,
-    },
-    Dependencies,
-    Delegates,
-    Attempts,
-    TranscriptTail,
-    /// Whole requester preferences (domain/engine/briefs.md, 2.1).
-    Preferences,
-    /// A standing task's Now (domain/tasks/standing.md, 6).
-    Now,
-}
 
 /// Render the bounded note index by durable name so a run can recall entries.
 #[must_use]
@@ -329,13 +305,14 @@ fn waiting_read(core: &Core, task: u64, carried: u32, bytes: u32) -> BriefRead {
 }
 
 fn attempt_read(tries: tasks::Tries, invalid: Option<tasks::InvalidResult>, bytes: u32) -> BriefRead {
-    let classes: [(&[u8], u32); 6] = [
+    let classes: [(&[u8], u32); 7] = [
         (b"transient: ", tries.transient),
         (b"permanent: ", tries.permanent),
         (b"run: ", tries.run),
         (b"agent: ", tries.agent),
         (b"lost: ", tries.lost),
         (b"invalid: ", tries.invalid),
+        (b"infrastructure: ", tries.infrastructure),
     ];
     let mut total = 0_usize;
     for (name, count) in classes {
@@ -759,7 +736,7 @@ mod tests {
             text_bytes: 0,
             text_kept: 0,
         };
-        for byte in [b'a', b'b', b'c'] {
+        for byte in *b"abc" {
             transcript.append_text(Some(Box::from(&[byte; 40][..])), 128);
         }
         let BriefRead::Got(parts) = tail_read(&transcript, 90) else { panic!("read tail") };

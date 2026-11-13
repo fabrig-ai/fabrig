@@ -29,6 +29,7 @@ pub struct Root {
     changes: crate::change::Changes,
     landings: crate::landing::Landings,
     devices: crate::push::Devices,
+    findings: crate::finding::Findings,
     follows: crate::follow::Follows,
     next: Option<u32>,
     recovery: crate::recovery::Recovery,
@@ -94,6 +95,7 @@ impl Root {
             changes: crate::change::Changes::new(),
             landings: crate::landing::Landings::new(),
             devices: crate::push::Devices::new(),
+            findings: crate::finding::Findings::new(),
             follows: crate::follow::Follows::new(),
             next: Some(1),
             recovery: crate::recovery::Recovery::new(),
@@ -159,6 +161,7 @@ impl Root {
         self.adopter.kept_json(json);
         self.drafts.kept_json(json);
         self.maker.kept_json(json);
+        self.findings.json = json;
         self.follows.kept_json(json);
         self.forges.kept_json(json);
         self.devices.kept_json(json);
@@ -185,6 +188,8 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             let active = root
                 .runner
                 .calls()
+                .checked_add(root.findings.calls())
+                .expect("bounded calls")
                 .checked_add(root.maker.calls())
                 .expect("bounded calls")
                 .checked_add(root.drafts.calls())
@@ -214,6 +219,8 @@ pub fn step(root: &mut Root, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 let called = runner::Called { number, call_number, call, json, value };
                 if crate::push::owns(&called.call) {
                     crate::push::call(&mut root.devices, &root.client, env, called, &mut child);
+                } else if crate::finding::owns(&called.call) {
+                    crate::finding::call(&mut root.findings, &root.client, env, called, &mut child);
                 } else if crate::making::owns(&called.call) {
                     crate::making::call(&mut root.maker, &root.client, env, called, &mut child);
                 } else if crate::follow::owns(&called.call) {
@@ -478,6 +485,7 @@ fn route_owner(
                 | Told::Page { .. } => {}
             }
             crate::push::told(&mut root.devices, &root.client, env, &told, child);
+            crate::finding::told(&mut root.findings, &root.client, env, &told, child);
             crate::making::told(&mut root.maker, &root.client, env, &told, child);
             crate::follow::told(&mut root.follows, &root.client, env, &told, child);
             crate::landing::told(&mut root.landings, &root.client, env, &told, child);
@@ -490,6 +498,7 @@ fn route_owner(
     }
     if me_changed {
         crate::push::ready(&mut root.devices, &root.client, env, child);
+        crate::finding::ready(&mut root.findings, &root.client, env, child);
         crate::drafts::ready(&mut root.drafts, &root.client, env, child);
         crate::making::ready(&mut root.maker, &root.client, env, child);
         crate::follow::ready(&mut root.follows, &root.client, env, child);

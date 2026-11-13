@@ -172,20 +172,41 @@ open is section 9.
 - **The source's environment.** Every command of a program source, its
   status, sign-in, sign-out and runs, runs with:
   - `CLAUDE_CONFIG_DIR` set to the source's configuration directory;
-  - none of `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
-    `CLAUDE_CODE_OAUTH_TOKEN`, a named profile's `ANTHROPIC_PROFILE`,
-    federation's `ANTHROPIC_FEDERATION_RULE_ID` and
-    `ANTHROPIC_ORGANIZATION_ID`, nor a cloud provider's variables, which
-    Claude Code takes before a subscription's login (in `-p`,
-    `ANTHROPIC_API_KEY` whenever it is present; jig's
-    `domain/providers.md`, 3.3), so that a credential in the host's own
-    environment never stands in for the subscription.
-  - What no variable removes, an `oidc_federation` profile active in
-    `~/.config/anthropic`, outside the configuration directory, or a
-    Claude apps gateway session, which Claude Code also takes before the
-    login, the status's check catches: its `authMethod` is not
-    `claude.ai`, so the source is *signed in otherwise* (section 3) and
-    no run takes it.
+  - `ANTHROPIC_CONFIG_DIR` set to `anthropic` in the source's
+    configuration directory, `<programs directory>/<source>/anthropic`,
+    so that the Anthropic profiles Claude Code reads, an active
+    `oidc_federation` profile among them, are the source's own and never
+    the host's `~/.config/anthropic` (the person, 2026-11-12). Nothing of
+    smith's makes, reads or removes that directory: a missing one holds
+    no profile. `HOME` and `XDG_CONFIG_HOME` stay the caller's, since a
+    run's commands read them;
+  - no other variable whose name begins `ANTHROPIC_`, the caller's
+    `ANTHROPIC_CONFIG_DIR` among them, nor
+    `CLAUDE_CODE_OAUTH_TOKEN`, nor a cloud provider's variables
+    (`CLAUDE_CODE_USE_` and a name after it, `AWS_BEARER_TOKEN_BEDROCK`).
+    Claude Code takes each of these before a subscription's login (jig's
+    `domain/providers.md`, 3.3; in `-p`, `ANTHROPIC_API_KEY` whenever it
+    is present), so that a credential in the host's own environment never
+    stands in for the subscription. Among them:
+    - a key or a token: `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`,
+      `CLAUDE_CODE_OAUTH_TOKEN`;
+    - a named Anthropic profile: `ANTHROPIC_PROFILE`;
+    - the federation variables: `ANTHROPIC_FEDERATION_RULE_ID` with
+      `ANTHROPIC_ORGANIZATION_ID`;
+    - an endpoint or a provider's settings: `ANTHROPIC_BASE_URL`,
+      `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`,
+      `CLAUDE_CODE_USE_FOUNDRY` and the rest of the two families.
+- **What no variable clears, the status refuses.** Claude Code can also
+  find a credential outside the environment and the source's two
+  directories: a Claude apps gateway session, which it ranks above every
+  other, and a profile in the host's `~/.config/anthropic`, should a
+  release not honour `ANTHROPIC_CONFIG_DIR` (jig's `domain/providers.md`,
+  3.3). Whatever stands in for the subscription, the status run in the
+  source's environment names its `authMethod`, which is then not
+  `claude.ai`: the source is *signed in otherwise* (section 3), its runs
+  end before their first turn (5.6), and the person is told the method.
+  Where a gateway session lives is 9's *Credentials outside the
+  environment*.
 - **The settings file** in the directory is the agent's (5.3): written
   whole, by durable replace (skein's `runtime/io/files.md`, 2), with the same content
   for every run, so that runs on one source never race over it.
@@ -904,6 +925,14 @@ the next turn of that same cued script (decided 2026-11-02).
 - **Logins out of the run's reach:** a contained tree that keeps the
   configuration directories from the run's commands while the program
   reads its own, which would lift section 7's one-person rule.
+- **Credentials outside the environment** (4.2): where Claude Code keeps
+  a Claude apps gateway session, and what selects one, which its
+  authentication page ranks above every other credential (read
+  2026-11-12). One kept in the source's configuration directory is the
+  source's own, made by its own sign-in. Default: 4.2's status refusal
+  for any other, and for a profile in the host's `~/.config/anthropic`
+  should a release not honour `ANTHROPIC_CONFIG_DIR`, which no check of
+  smith's establishes.
 - **What a program sends:** Claude Code makes its own calls, so a host can
   read what it gave the program and not the requests: the program's system
   prompt and built-in tools' descriptions, its later messages and its effort

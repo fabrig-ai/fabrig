@@ -52,7 +52,7 @@ fn a_suite_with_two_override_arms_prepares_ten_interleaved_requests() {
     let prepared = requests(&root, &entry, &suite, &arm);
     assert_eq!(prepared.len(), 10);
     let ordered = crate::batch::ordered(&suite, prepared, 17).expect("interleaved requests");
-    for block in ordered.chunks_exact(2) {
+    for block in ordered.as_chunks::<2>().0 {
         assert_ne!(block[0].identity.arm, block[1].identity.arm);
     }
     let mut results = Vec::new();
@@ -175,7 +175,7 @@ fn the_parity_suite_runs_58_attempts_interleaved() {
     ] {
         assert_eq!(ordered.iter().filter(|request| request.identity.task == name).count(), expected, "{name}");
     }
-    for block in ordered.chunks_exact(2) {
+    for block in ordered.as_chunks::<2>().0 {
         assert_eq!(block[0].identity.task, block[1].identity.task);
         assert_ne!(block[0].identity.agent, block[1].identity.agent);
     }
@@ -256,7 +256,7 @@ fn a_suite_with_two_binary_arms_prepares_each_arm_by_its_name() {
     assert_eq!(prepared.len(), 30);
     assert_eq!(prepared.iter().filter(|request| request.identity.arm == "before").count(), 15);
     assert_eq!(prepared.iter().filter(|request| request.identity.arm == "after").count(), 15);
-    for task in prepared.chunks_exact(10) {
+    for task in prepared.as_chunks::<10>().0 {
         assert_eq!(
             task.iter().map(|request| request.identity.arm.as_str()).collect::<Vec<_>>(),
             ["before", "before", "before", "before", "before", "after", "after", "after", "after", "after"]
@@ -273,7 +273,7 @@ fn a_suite_with_two_binary_arms_prepares_each_arm_by_its_name() {
         assert_eq!(request.identity.agent_version, commit);
         assert_eq!(request.identity.binary_sha256, sha256);
     }
-    for block in ordered.chunks_exact(2) {
+    for block in ordered.as_chunks::<2>().0 {
         assert_ne!(block[0].identity.arm, block[1].identity.arm);
     }
 }
@@ -291,7 +291,7 @@ fn a_change_suite_runs_a_change_and_its_parent() {
     let prepared = binary_requests(&root, &suite, &binaries);
     let ordered = crate::batch::ordered(&suite, prepared, 17).expect("interleaved change arms");
     assert_eq!(ordered.len(), 40);
-    for block in ordered.chunks_exact(2) {
+    for block in ordered.as_chunks::<2>().0 {
         assert_eq!(block[0].identity.task, block[1].identity.task);
         assert_ne!(block[0].identity.arm, block[1].identity.arm);
     }

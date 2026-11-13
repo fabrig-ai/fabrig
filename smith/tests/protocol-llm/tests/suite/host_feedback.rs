@@ -110,7 +110,7 @@ fn retired_boundary(world: &World, tool_name: &[u8]) {
 fn root_story(configuration: Configuration, tool_name: &'static [u8]) {
     let expected_arguments = configuration.continuation_arguments.clone();
     let mut bounds =
-        smith_protocol_llm::fixture::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated());
+        smith_protocol_llm_fixtures::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated());
     bounds.client.http.request = 16384;
     bounds.client.request = 16384;
     let mut settings = Settings {

@@ -9,7 +9,7 @@ publish.workspace = true
 
 [dependencies]
 skein-lib.workspace = true
-jig-domain-core.workspace = true
+jig-domain-core-vocabulary.workspace = true
 jig-protocol-tools.workspace = true
 jig-ops-domain-observability.workspace = true
 

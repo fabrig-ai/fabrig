@@ -27,7 +27,7 @@ fn nothing_leaves_before_the_worker_is_ready() {
     page.visibility(true, Time::ZERO);
     let mut out = Vec::new();
     page.outgoing(&mut out);
-    assert!(out.is_empty());
+    assert_eq!(out.len(), 0);
     page.ready();
     page.outgoing(&mut out);
     let mut expected = vec![ToWorld::Start(start()), ToWorld::Pace(Speed::ONE)];
@@ -254,7 +254,7 @@ fn other_messages_leave_the_clock_and_high_waters_alone() {
         [Heard::Printed(printed), Heard::Stopped, Heard::Failed { words: b"failure".as_slice().into() }, Heard::Clock]
     {
         assert_eq!(heard.clone(), heard);
-        assert!(!format!("{heard:?}").is_empty());
+        assert_ne!(format!("{heard:?}"), "");
     }
 }
 

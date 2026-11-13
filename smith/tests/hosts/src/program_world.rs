@@ -350,6 +350,11 @@ impl Referee<Process> for Judge {
 
 fn make_fake(spawn: &kernel::Spawn, inherited: &Inherited) -> Process {
     assert!(inherited.pipes.iter().all(|(number, _)| *number != 0), "source commands have no stdin pipe");
+    assert_eq!(
+        spawn.env.iter().filter(|entry| entry.starts_with(b"ANTHROPIC_")).map(AsRef::as_ref).collect::<Vec<_>>(),
+        [b"ANTHROPIC_CONFIG_DIR=/programs/alice/anthropic".as_slice()],
+        "source commands use only the source's Anthropic profiles"
+    );
     Process::Fake(Box::new((smith_fake_claude::hosted(b"claude").make)(spawn, inherited)))
 }
 

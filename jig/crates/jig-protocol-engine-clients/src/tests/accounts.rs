@@ -1,9 +1,9 @@
 //! Complete accounts watch translation and independent nested limits.
 use super::fixtures;
 use crate::translate::{accounts, watches};
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_accounts as a;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_people::CapacityAction as A;
 use skein_lib::{Duration, List, Wall};
 fn source_lines() -> List<d::SourceLine> {
@@ -110,7 +110,7 @@ fn ends() -> Box<[a::End]> {
 }
 #[test]
 fn an_accounts_watch_binds_its_party_at_core_admission() {
-    let Some(jig_domain_core::Event::Watch { watcher, sign_in, subject, window }) =
+    let Some(jig_domain_core_vocabulary::Event::Watch { watcher, sign_in, subject, window }) =
         watches::watch(skein_lib::Token::new(17), 23, w::Subject::Accounts, 2)
     else {
         panic!("accounts watch event");

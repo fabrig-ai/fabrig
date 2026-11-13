@@ -2,7 +2,7 @@
 use super::fixtures;
 use crate::{Event, Phase, Request, Store, Write, codec, keys};
 use alloc::boxed::Box;
-use jig_domain_core::{CoreKey, CoreRecord, Key, Record};
+use jig_domain_core_vocabulary::{CoreKey, CoreRecord, Key, Record};
 use skein_lib::Token;
 
 fn assert_committed(events: &[Event], number: u64) -> u64 {
@@ -84,11 +84,11 @@ fn a_first_commit_puts_format_layouts_and_installation_with_its_header() {
         codec::component::Format {
             component: 3,
             core: 6,
-            tasks: 10,
-            people: 15,
+            tasks: 11,
+            people: 16,
             notes: 1,
             accounts: 2,
-            settings: 2,
+            settings: 3,
             application: 1,
             deployment: fixtures::DEPLOYMENT,
             levels: crate::format::NONE,
@@ -325,7 +325,7 @@ fn a_put_then_an_erase_of_one_key_is_one_erase() {
 
 #[test]
 fn archiving_a_settings_revision_copies_its_items_before_erasing_the_held_row() {
-    use jig_domain_core::settings as s;
+    use jig_domain_core_vocabulary::settings as s;
     let mut store = fixtures::opened();
     let revision = s::Revision {
         applications: Box::default(),

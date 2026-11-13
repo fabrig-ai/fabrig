@@ -4,7 +4,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_ops_domain_observability as observability;
 use jig_protocol_tools::Limits;
 

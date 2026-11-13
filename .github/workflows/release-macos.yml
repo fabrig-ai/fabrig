@@ -17,7 +17,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RUST_VERSION: "1.95"
   CARGO_TERM_COLOR: never
 
 jobs:
@@ -32,15 +31,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Rust at the workspace's rust-version, with wasm32 for the browser's bundle
+      - name: Rust from the workspace's toolchain file, with wasm32 for the browser's bundle
         run: |
           # rustup is on the image; no installer script runs here.
           if ! command -v rustup >/dev/null; then
               echo "::error title=rustup::rustup is not on the macos-26 image"
               exit 1
           fi
-          rustup toolchain install "$RUST_VERSION" --profile minimal --target wasm32-unknown-unknown
-          rustup default "$RUST_VERSION"
+          rustup --version
+          rustup toolchain install
           rustc --version
           uname -a
 

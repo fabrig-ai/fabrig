@@ -764,8 +764,8 @@ fn constants_fit() {
     assert_eq!(issued.secret.expose(), &token);
     assert_eq!(issued.scopes.as_ref(), &[Box::<[u8]>::from(b"all".as_slice())]);
     assert!(skein_fake_forge_http::git::fits(&crate::wire::forge_limits().git(), &forge::limits().limits));
-    assert!(plain.observations().is_empty());
-    assert!(peer.observations().is_empty());
+    assert_eq!(plain.observations(), []);
+    assert_eq!(peer.observations(), []);
 }
 
 #[test]
@@ -1088,9 +1088,9 @@ fn llm_failing_lines_refuse_invalid_members() {
 #[test]
 fn llm_added_keys_checks() {
     let mut doc = llm_document();
-    assert!(llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap().added_keys().is_empty());
+    assert_eq!(llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap().added_keys(), []);
     doc["added_keys"] = json!([]);
-    assert!(llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap().added_keys().is_empty());
+    assert_eq!(llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap().added_keys(), []);
     doc["added_keys"] = json!([format!("/{}", "x".repeat(4095))]);
     llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap();
     let keys = (0..15).map(|i| format!("/tmp/added-{i}")).collect::<Vec<_>>();

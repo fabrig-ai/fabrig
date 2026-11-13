@@ -1,7 +1,7 @@
 //! Populated settings proposals shared by both wire ends (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
 use jig_client_domain::contract as c;
 use skein_lib::List;
-/// A review's oversized value is described by its size, beyond wire 19's document ceiling.
+/// A review's oversized value is described by its size, beyond wire 21's document ceiling.
 pub const OVERSIZED_VALUE: u64 = 16_777_217;
 #[must_use]
 pub fn proposal() -> c::ProposeSettings {

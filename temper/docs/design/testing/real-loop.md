@@ -316,7 +316,7 @@ in the lower world that owns it, never here.
     the pages the shell prints (../client/line.md, sections 3 and
     4): what it knows of the system is what the pages say. It is
     ordinary Rust in the test process, with the process tier's typist
-    as its model (`bin/temper-box/tests/support/terminal.rs`) and no
+    as its model (`testing/temper-box-kit/src/terminal.rs`) and no
     terminal device; the shell's input and output are the harness's
     pipes in the loop. Its acts are a story's steps: open, type on a
     label, see a page that holds a text and lacks another, and close.

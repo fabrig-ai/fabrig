@@ -3,7 +3,7 @@ use super::fixtures;
 use crate::{Component, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_people as p;
 use jig_domain_tasks as t;
 use skein_lib::{Queue, Reader, Writer};
@@ -42,13 +42,14 @@ fn project(record: &w::Me, at: usize) -> w::MeProject {
 #[test]
 fn me_lists_the_cores_offer_with_its_accounts_in_order() {
     let mut frame = fixtures::frame_two_projects();
-    frame.projects.get_mut(0).unwrap().offer = skein_lib::List::from_boxed(Box::new([jig_domain_core::Offered {
-        model: 1,
-        accounts: skein_lib::List::from_boxed(Box::new([9, 7])),
-    }]));
+    frame.projects.get_mut(0).unwrap().offer =
+        skein_lib::List::from_boxed(Box::new([jig_domain_core_vocabulary::Offered {
+            model: 1,
+            accounts: skein_lib::List::from_boxed(Box::new([9, 7])),
+        }]));
     frame.projects.get_mut(1).unwrap().offer = skein_lib::List::from_boxed(Box::new([
-        jig_domain_core::Offered { model: 0, accounts: skein_lib::List::from_boxed(Box::new([7])) },
-        jig_domain_core::Offered { model: 1, accounts: skein_lib::List::from_boxed(Box::new([9, 7])) },
+        jig_domain_core_vocabulary::Offered { model: 0, accounts: skein_lib::List::from_boxed(Box::new([7])) },
+        jig_domain_core_vocabulary::Offered { model: 1, accounts: skein_lib::List::from_boxed(Box::new([9, 7])) },
     ]));
     let mut models = fixtures::models();
     let careful = models.first_mut().unwrap();
@@ -420,12 +421,12 @@ fn task_documents_keep_the_claimed_account_separate_from_the_preference() {
     preferred.account = Some(42);
     task.llm = Some(preferred);
     task.kept_account = Some(41);
-    task.run_wait = Some(jig_domain_core::documents::TaskRunWait::Account {
+    task.run_wait = Some(jig_domain_core_vocabulary::documents::TaskRunWait::Account {
         account: Some(41),
         source: Some(91),
-        why: jig_domain_core::documents::TaskWaitWhy::Source(jig_domain_core::documents::TaskSourceState::Limited {
-            until: None,
-        }),
+        why: jig_domain_core_vocabulary::documents::TaskWaitWhy::Source(
+            jig_domain_core_vocabulary::documents::TaskSourceState::Limited { until: None },
+        ),
     });
     let record = translate::task::document(&task, &fixtures::models(), &l).unwrap();
     assert_eq!(*record.llm().as_ref().unwrap().account(), Some(42));
@@ -449,11 +450,11 @@ fn an_account_refusal_preserves_its_number() {
 }
 
 fn assert_task_refusal_round_trip(
-    source: jig_domain_core::documents::TaskWaitRefused,
+    source: jig_domain_core_vocabulary::documents::TaskWaitRefused,
     expected: jig_client_domain::contract::TaskWaitRefused,
 ) {
     use jig_client_domain::contract as c;
-    use jig_domain_core::documents as d;
+    use jig_domain_core_vocabulary::documents as d;
     let limits = fixtures::wire_limits();
     let client_limits = fixtures::client_limits();
     let mut task = fixtures::task_with_hold();
@@ -489,7 +490,7 @@ fn assert_task_refusal_round_trip(
 #[test]
 fn hello_refusals_reuse_the_deployment_context_through_server_bytes_and_client_tasks() {
     use jig_client_domain::contract as c;
-    use jig_domain_core::documents as d;
+    use jig_domain_core_vocabulary::documents as d;
     use jig_domain_fleet as fleet;
     use skein_lib::{Duration, Wall};
     for (why, expected) in [
@@ -570,7 +571,7 @@ fn hello_refusals_reuse_the_deployment_context_through_server_bytes_and_client_t
 #[test]
 fn checks_refusal_preserves_charter_through_server_bytes_and_client_tasks() {
     use jig_client_domain::contract as c;
-    use jig_domain_core::documents as d;
+    use jig_domain_core_vocabulary::documents as d;
     use jig_domain_fleet as fleet;
     let at = skein_lib::Wall::from_nanos(1234);
     assert_task_refusal_round_trip(

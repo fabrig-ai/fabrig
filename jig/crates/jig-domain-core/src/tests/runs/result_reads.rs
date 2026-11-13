@@ -62,15 +62,15 @@ fn assert_empty(out: &[Request]) {
 fn dependencies_and_inputs_load_in_order_before_the_notes() {
     let (mut core, limits) = preparing();
     let request = start(&mut core, &limits);
-    assert!((core.note_flights() == 0));
+    assert_eq!(core.note_flights(), 0);
     assert!(core.dependency_results.is_empty());
     let out = answer(&mut core, &limits, request, Some(ended(DEPENDENCY)));
     let next = requested(&out, INPUT);
     assert_ne!(next, request);
-    assert!((core.note_flights() == 0));
+    assert_eq!(core.note_flights(), 0);
     assert!(core.dependency_results.is_empty());
     let out = answer(&mut core, &limits, next, Some(ended(INPUT)));
-    assert!((core.result_read_flights() == 0));
+    assert_eq!(core.result_read_flights(), 0);
     assert_eq!(
         read_brief_part(&core, TEXT_LIMITS, PREPARING, BriefPart::Dependencies).unwrap().as_ref(),
         b"task 12: report\ndone\n\ntask 13: report\ndone\n\n",
@@ -91,15 +91,15 @@ fn abandoning_preparation_drops_its_read_and_ignores_late_answers() {
     let (mut core, limits) = preparing();
     let request = start(&mut core, &limits);
     watch_outputs(&mut core, &limits, Event::Tasks(tasks::Event::Hold { task: PREPARING, why: tasks::Hold::Budget }));
-    assert!((core.result_read_flights() == 0));
+    assert_eq!(core.result_read_flights(), 0);
     let phase = core.tasks.task(PREPARING).unwrap().phase.clone();
     let out = answer(&mut core, &limits, request, None);
     assert_empty(&out);
     assert_eq!(core.tasks.task(PREPARING).unwrap().phase, phase);
-    assert!((core.result_read_flights() == 0));
+    assert_eq!(core.result_read_flights(), 0);
     assert!(core.dependency_results.is_empty());
     assert!(core.contexts.is_empty());
-    assert!((core.note_flights() == 0));
+    assert_eq!(core.note_flights(), 0);
 }
 
 #[test]
@@ -110,9 +110,9 @@ fn a_reply_for_a_changed_preparation_is_silently_dropped() {
     let out = answer(&mut core, &limits, request, None);
     assert_empty(&out);
     assert_eq!(core.tasks.task(PREPARING).unwrap().phase, tasks::Phase::Active(tasks::Active::Preparing));
-    assert!((core.result_read_flights() == 0));
+    assert_eq!(core.result_read_flights(), 0);
     assert!(core.dependency_results.is_empty());
-    assert!((core.note_flights() == 0));
+    assert_eq!(core.note_flights(), 0);
 }
 
 #[test]

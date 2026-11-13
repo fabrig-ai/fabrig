@@ -56,7 +56,7 @@ struct Walk {
 
 pub(crate) fn configured_all(d: &Domain, repository: Repository) -> &[Tier] {
     let Some(adopted) = d.repositories.get(&repository) else { return &[] };
-    if let Some((_, repositories, _, _, _)) = d.landing.projects.get(&adopted.project) {
+    if let Some((_, repositories, _, _, _, _)) = d.landing.projects.get(&adopted.project) {
         for row in repositories {
             if row.repository == repository {
                 return &row.tiers;
@@ -127,7 +127,11 @@ pub(crate) fn watched(d: &Domain) -> List<Name> {
                     names.push(name).expect("one watch per subscription");
                 }
             }
-            Topic::Landings { .. } | Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+            Topic::Landings { .. }
+            | Topic::Ci { .. }
+            | Topic::Pull { .. }
+            | Topic::Participation { .. }
+            | Topic::Findings { .. } => {}
         }
     }
     crate::follows::watches(d, &mut names);
@@ -464,6 +468,7 @@ fn tree_answer(
                     &tier.ignored,
                     walk.commit,
                     walk.trees.as_slice(),
+                    None,
                     &landing::KeyLimits { entries: env.limits.key_entries, path_bytes: env.limits.key_path_bytes },
                 );
             }
@@ -605,6 +610,20 @@ pub(crate) fn task(
         row.task = task;
         row.requested = task.is_some();
         save(row, out);
+    }
+}
+/// A live run and its retained probe still read their branch heads.
+pub(crate) fn needs_head(row: &TierRow, name: &Name) -> bool {
+    if row.repository.forge != name.forge || row.repository.repository != name.repository {
+        return false;
+    }
+    let Some(run) = &row.record.run else { return false };
+    if crate::items::branch_matches(name, &branch(&row.tier, run.number)) {
+        return true;
+    }
+    match &row.probe {
+        Some(probe) => crate::items::branch_matches(name, &probe_branch(row, probe.landing)),
+        None => false,
     }
 }
 fn branch(tier: &[u8], number: u64) -> Box<[u8]> {
@@ -861,7 +880,7 @@ fn effect(d: &mut Domain, row: &mut TierRow, entry: u64, write: Write, release: 
         out,
     );
 }
-fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<Request>) {
+fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u32, out: &mut Queue<Request>) {
     let result = row.result.as_ref().expect("terminal receipt");
     let run = row.record.run.as_ref().expect("live range");
     let next = if row.received {
@@ -898,7 +917,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, out: &mut Queue<
                 wait(row.task.expect("tier task"), out);
                 return;
             };
-            red::landed(d, row, &newly_red, &logs, out);
+            red::landed(d, row, &newly_red, &logs, message_bytes, out);
         }
         let run = row.record.run.as_ref().expect("judged range");
         crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
@@ -1062,7 +1081,7 @@ pub(crate) fn step(
             TierBranch::Pending { .. } => wait(task, out),
             TierBranch::Absent => {
                 d.tier_ops.follows.remove(&key);
-                finish(d, env, &mut row, out);
+                finish(d, env, &mut row, heard.message_bytes, out);
             }
         }
     } else {
@@ -1724,7 +1743,9 @@ pub(crate) fn row_bytes(row: &TierRow) -> Option<u64> {
         )?;
     }
     if let Some(result) = &row.result {
-        held = held.checked_add(skein_lib::len_u64(result.run.url.len()))?;
+        held = held
+            .checked_add(skein_lib::len_u64(result.run.url.len()))?
+            .checked_add(skein_lib::len_u64(result.logs.len()))?;
         if let Some(failures) = &result.failures {
             held = held.checked_add(failures_bytes(failures)?)?;
         }
@@ -1795,6 +1816,7 @@ fn observation(
                 p::Outcome::Fault => unreachable!("completed observation"),
             };
             Some(crate::Receipt {
+                logs: Box::new([]),
                 passed: *outcome == p::Outcome::Passed,
                 failures: Some(failures),
                 candidate: candidate(row.record.run.as_ref().expect("followed run")).0,

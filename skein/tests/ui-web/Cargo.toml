@@ -13,7 +13,6 @@ skein-fake-person-browser.workspace = true
 skein-fake-person.workspace = true
 skein-ui.workspace = true
 skein-ui-web.workspace = true
-skein-ui-example-server.workspace = true
 skein-ui-bundle.workspace = true
 skein-ui-example-view.workspace = true
 skein-lib.workspace = true
@@ -24,6 +23,7 @@ skein-http.workspace = true
 skein-scratch.workspace = true
 
 [dev-dependencies]
+skein-ui-example-server.workspace = true
 flate2.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

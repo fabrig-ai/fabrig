@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::{Event, FromApplication, Request, ToApplication, translate::watches};
-use jig_client_protocol_wire::v19 as w;
-use jig_domain_core as core;
+use jig_client_protocol_wire::v21 as w;
+use jig_domain_core_vocabulary as core;
 use skein_lib::{Reader, Token};
 const ENDED_WATCH: u64 = 17;
 fn stream_world() -> (fixtures::Exchange, [u8; 16]) {
@@ -381,7 +381,7 @@ fn an_absent_stream_digest_is_answered_signed_out() {
 
 #[test]
 fn an_accounts_document_is_watched_but_never_read() {
-    use jig_domain_core::{documents as d, reads};
+    use jig_domain_core_vocabulary::{documents as d, reads};
     use skein_lib::List;
     let document = d::Document::Accounts(Box::new(d::Accounts {
         readiness: List::with_capacity(0),
@@ -423,4 +423,118 @@ fn an_accounts_document_is_watched_but_never_read() {
         ),
         Err(w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag })
     );
+}
+
+// jig/docs/design/protocol/client/README.md, 5 and 10.
+#[test]
+fn a_web_pages_first_deliveries_fit_together() {
+    const WATCHES: u32 = 26;
+    const DOCUMENT_BYTES: usize = 16_384;
+    let mut env = fixtures::env();
+    env.limits.watches_per_stream = WATCHES;
+    env.limits.exchanges = WATCHES + 1; // The stream owns a connection too.
+    env.limits.wire = w::CEILINGS;
+    env.limits.queued_bytes =
+        crate::limits::stream_queue_bytes(WATCHES, &env.limits.wire).expect("first-delivery queue");
+    let mut world = fixtures::Exchange::with_env(env);
+    let stream = world.open_stream();
+    for name in 1..=WATCHES {
+        world.open_record(stream, u64::from(name), fixtures::family_subject());
+        let Some(Request::Application(ToApplication::Watch { watcher, .. })) = world.out.pop() else {
+            panic!("application watch");
+        };
+        world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
+        world.component.down(
+            &world.env,
+            Event::Application(FromApplication::Delivery {
+                watcher,
+                family: 9,
+                record: fixtures::message_bytes(DOCUMENT_BYTES),
+            }),
+            &mut world.out,
+        );
+        assert!(!world.stream().closing(), "first delivery of watch {name}");
+    }
+    assert_eq!(world.stream().watches.len(), WATCHES);
+    assert!(world.stream().waiting, "the hello is still in flight");
+    for (_, watch) in &world.stream().watches {
+        assert!(watch.delivery.is_some());
+    }
+}
+
+fn application_watch(world: &mut fixtures::Exchange, stream: [u8; 16], name: u64) -> Token {
+    world.open_record(stream, name, fixtures::family_subject());
+    let Some(Request::Application(ToApplication::Watch { watcher, .. })) = world.out.pop() else {
+        panic!("application watch");
+    };
+    world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
+    watcher
+}
+fn family_delivery(watcher: Token, bytes: usize) -> Event {
+    Event::Application(FromApplication::Delivery { watcher, family: 9, record: fixtures::message_bytes(bytes) })
+}
+#[test]
+fn a_stream_queue_includes_the_in_flight_record_at_its_exact_bound() {
+    for short in [false, true] {
+        let (mut world, stream) = stream_world();
+        let watcher = application_watch(&mut world, stream, 1);
+        let packet = watches::application_packet(9, 2, Box::new([77; 128]), 1, &world.env.limits.wire).expect("packet");
+        let exact = world.stream().bytes + packet.measure();
+        world.env.limits.queued_bytes = exact - u32::from(short);
+        world.component.down(&world.env, family_delivery(watcher, 128), &mut world.out);
+        assert_eq!(world.stream().closing(), short);
+        if short {
+            let Some(Request::StreamFailed { sign_in, why }) = world.out.pop() else { panic!("queue diagnostic") };
+            assert_eq!(sign_in, fixtures::NUMBER);
+            assert_eq!(why, crate::StreamFailure::QueueBound { queued_bytes: exact - 1 });
+        }
+        assert!(world.out.is_empty());
+    }
+}
+#[test]
+fn an_untranslatable_document_names_its_path_and_closes_only_once() {
+    let (mut world, stream) = stream_world();
+    let first = application_watch(&mut world, stream, 1);
+    let second = application_watch(&mut world, stream, 2);
+    for watcher in [first, second] {
+        world.component.down(&world.env, family_delivery(watcher, 257), &mut world.out);
+    }
+    assert!(world.stream().closing());
+    let Some(Request::StreamFailed { sign_in, why }) = world.out.pop() else { panic!("translation diagnostic") };
+    assert_eq!(sign_in, fixtures::NUMBER);
+    assert_eq!(
+        why,
+        crate::StreamFailure::Translation(w::Problem {
+            path: w::Path::OwnedRecord,
+            reason: skein_codec::Reason::Bound
+        })
+    );
+    assert!(world.out.is_empty(), "one diagnostic per stream");
+}
+
+#[test]
+fn an_untranslatable_me_document_also_names_its_sign_in() {
+    let (mut world, stream) = stream_world();
+    let (_, watcher) = request_task(&mut world, stream, 1);
+    world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
+    world.env.limits.wire.owned_record = 1;
+    world.component.down(
+        &world.env,
+        Event::Delivery {
+            watcher,
+            document: Box::new(core::documents::Document::Frame(fixtures::frame_two_projects())),
+        },
+        &mut world.out,
+    );
+    let Some(Request::StreamFailed { sign_in, why }) = world.out.pop() else { panic!("me diagnostic") };
+    assert_eq!(sign_in, fixtures::NUMBER);
+    assert_eq!(
+        why,
+        crate::StreamFailure::Translation(w::Problem {
+            path: w::Path::OwnedRecord,
+            reason: skein_codec::Reason::Bound
+        })
+    );
+    assert!(world.stream().closing());
+    assert!(world.out.is_empty());
 }

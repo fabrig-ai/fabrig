@@ -106,7 +106,7 @@ fn project_refusal_ignores_another_projects_ending_then_makes_its_batch() {
     h.env.limits.project_tasks = 2;
     batch(&mut h, 1, 4);
     waiting(&h, 1, LiveRoom::Project(1), 1);
-    assert!(activations(&finish(&mut h, 3)).is_empty());
+    assert_eq!(activations(&finish(&mut h, 3)).len(), 0);
     waiting(&h, 1, LiveRoom::Project(1), 1);
     assert_eq!(activations(&finish(&mut h, 2)), [1]);
     batch(&mut h, 1, 4);

@@ -292,6 +292,7 @@ fn covered(d: &Domain, task: u64) -> Option<(Commit, Commit)> {
         | temper_engine_domain_forge_change::State::Recreating { .. }
         | temper_engine_domain_forge_change::State::Reopening { .. }
         | temper_engine_domain_forge_change::State::Checking { .. }
+        | temper_engine_domain_forge_change::State::Judging { .. }
         | temper_engine_domain_forge_change::State::Gating { .. }
         | temper_engine_domain_forge_change::State::CancellingGates { .. }
         | temper_engine_domain_forge_change::State::Ready { .. }

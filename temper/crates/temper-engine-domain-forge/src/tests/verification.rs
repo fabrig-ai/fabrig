@@ -80,6 +80,7 @@ const LIMITS: Limits = Limits {
     tiers: TierLimits { tiers: 2, failing_tests: 16, test_id_bytes: 256 },
     judge_projects: 2,
     decided_per_project: 64,
+    findings_per_project: 256,
     judge_criteria: 8,
     landing_rules: 4,
     follows: 2,
@@ -291,6 +292,7 @@ fn configured_domain(names: &[(&[u8], Option<&[u8]>)]) -> Domain {
         PROJECT,
         change::Way::Queue,
         Box::new([RepositoryGates { repository: REPO, gates: Box::new([]), tiers: tiers.into_boxed() }]),
+        temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding { verdict: policy::Settings { retries: 2, suspects: policy::Suspects::Bisect }, bound: BOUND }
     ));
     d
@@ -431,6 +433,7 @@ fn green(d: &mut Domain, number: u64, commits: &[skein_forge::api::Commit]) -> Q
     let row = d.tiers.get_mut(&(REPO, Box::from(TIER))).expect("tier");
     row.task = Some(TIER_TASK);
     row.result = Some(Receipt {
+        logs: Box::new([]),
         failures: None,
         passed: true,
         run: ReceiptRun { id: number, number, url: Box::new([]) },
@@ -438,7 +441,7 @@ fn green(d: &mut Domain, number: u64, commits: &[skein_forge::api::Commit]) -> Q
         ended: env().wall,
     });
     let mut out = Queue::uncapped();
-    tiers::step(d, &env(), TIER_TASK, OPEN, TierHeard { released: false }, &mut out);
+    tiers::step(d, &env(), TIER_TASK, OPEN, TierHeard { released: false, message_bytes: 4096 }, &mut out);
     out
 }
 
@@ -1109,14 +1112,14 @@ fn retained_tier_runs_survive_later_verdicts_restart_and_shared_change_release()
     restored.restore_begin(Wall::EPOCH);
     restore(&mut restored, &env(), Stored::Verification(row));
     assert_eq!(restored.change_verdicts(CHANGE), expected);
-    assert!(restored.change_verdicts(SECOND).is_empty());
+    assert_eq!((restored.change_verdicts(SECOND)).len(), 0);
     add_change(&mut restored, SECOND, b"main");
     merged(&mut restored, SECOND, FIRST);
     verification::released(&mut restored, CHANGE, &mut Queue::uncapped());
-    assert!(restored.change_verdicts(CHANGE).is_empty());
+    assert_eq!((restored.change_verdicts(CHANGE)).len(), 0);
     assert_eq!(restored.change_verdicts(SECOND), expected);
     verification::released(&mut restored, SECOND, &mut Queue::uncapped());
-    assert!(restored.change_verdicts(SECOND).is_empty());
+    assert_eq!((restored.change_verdicts(SECOND)).len(), 0);
 }
 
 #[path = "landing_log.rs"]

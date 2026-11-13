@@ -16,7 +16,7 @@ const FEEDBACK: &[u8] = b"exact host receipt\nsecond line";
 
 fn receiving(bounds: &Limits) -> Receiving {
     let decoded_call_bytes = 4096;
-    smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
+    smith_protocol_llm_fixtures::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
 }
 
 fn prompt() -> llm::Prompt {
@@ -94,8 +94,8 @@ fn run_client(prompt: llm::Prompt, configuration: &Configuration, owner: u64) ->
     assert_eq!(wire.peer.machine.waiting(), skein_llm::client::Waiting::Idle);
     assert!(wire.observed.contains(&Observed::Reusable));
     assert!(wire.close().is_empty(), "closing a won terminal never adds another root terminal");
-    assert!(wire.settle().is_empty());
-    assert!(wire.settle().is_empty());
+    assert_eq!(wire.settle().len(), 0);
+    assert_eq!(wire.settle().len(), 0);
     assert_eq!(wire.observed.iter().filter(|observed| **observed == Observed::Closed).count(), 1);
     (wire, terminal)
 }
@@ -270,7 +270,7 @@ fn invalid_limits_are_refused() {
     let bounds = limits();
     let accepted = receiving(&bounds);
     assert!(codec::valid(&bounds, &accepted));
-    smith_protocol_llm::fixture::prepare_prompt(Token::new(1), prompt(), accepted, &bounds)
+    smith_protocol_llm_fixtures::prepare_prompt(Token::new(1), prompt(), accepted, &bounds)
         .expect("valid limits prepare a prompt");
     let mut cases = Vec::new();
     let mut invalid = bounds;
@@ -298,7 +298,7 @@ fn invalid_limits_are_refused() {
         assert!(!codec::valid(&bounds, &receiving), "{check}");
         assert!(
             matches!(
-                smith_protocol_llm::fixture::prepare_prompt(Token::new(1), prompt(), receiving, &bounds),
+                smith_protocol_llm_fixtures::prepare_prompt(Token::new(1), prompt(), receiving, &bounds),
                 Err(codec::Error::Limit)
             ),
             "{check}"
@@ -358,14 +358,14 @@ fn restored_result_metadata_has_explicit_unsupported_refusal_before_start() {
             scripts(),
         )
         .expect("ordinary concrete result is representable before any wire start");
-        assert!(positive.peer.queries.is_empty());
-        assert!(positive.close().is_empty());
+        assert_eq!(positive.peer.queries.len(), 0);
+        assert_eq!(positive.close().len(), 0);
         let observed = positive.settle();
         let [Event::Below(smith_domain::Below::Cancelled { owner })] = observed.as_slice() else {
             panic!("observed accepted prepared Client closes once");
         };
         assert_eq!(*owner, Token::new(19));
-        assert!(positive.settle().is_empty());
+        assert_eq!(positive.settle().len(), 0);
         let opaque = skein_llm::Replay {
             provider: configuration.endpoint.provider,
             value: skein_llm::Json::from_bytes(
@@ -470,7 +470,7 @@ fn reservation_control(configuration: &Configuration, exact: bool) {
     let decoded_call_bytes = cells + payload - u64::from(!exact);
     let receiving = Receiving {
         max_completion_blocks: 2,
-        ..smith_protocol_llm::fixture::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
+        ..smith_protocol_llm_fixtures::receiving(&bounds.client, decoded_call_bytes).expect("fixture receiving bound")
     };
     let (context, mut peer) = two_calls(configuration, &bounds, receiving);
     let (_owner, observed_completion) = owned_completion(&mut peer);
@@ -535,7 +535,7 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
         let floor = u64::try_from(core::mem::size_of::<llm::Decoded>()).expect("fixed fallback cell");
         let secured = Receiving {
             max_completion_blocks: 1,
-            ..smith_protocol_llm::fixture::receiving(&bounds.client, floor).expect("fixture receiving bound")
+            ..smith_protocol_llm_fixtures::receiving(&bounds.client, floor).expect("fixture receiving bound")
         };
         let script = Box::new([Script {
             cue: b"@client-host".as_slice().into(),
@@ -564,9 +564,9 @@ fn unknown_call_uses_its_full_secured_fallback_cell() {
         assert_eq!(input.as_ref(), b"{}");
         assert!(matches!(call, llm::Decoded::Invalid { problem: llm::Problem::UnknownTool }));
         assert_eq!(call.owned_bytes(), Some(floor));
-        assert!(wire.close().is_empty());
-        assert!(wire.settle().is_empty());
-        assert!(wire.settle().is_empty());
+        assert_eq!(wire.close().len(), 0);
+        assert_eq!(wire.settle().len(), 0);
+        assert_eq!(wire.settle().len(), 0);
     }
 }
 

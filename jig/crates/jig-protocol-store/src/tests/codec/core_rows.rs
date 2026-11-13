@@ -2,7 +2,7 @@
 use super::{call_limits, core_round_trip};
 use crate::codec::core as codec;
 use crate::tests::fixtures::core_rows as fixtures;
-use jig_domain_core as core;
+use jig_domain_core_vocabulary as core;
 use jig_domain_tasks as tasks;
 
 fn the_deployment_header_reads_back_with_its_id_and_projects_mark() {

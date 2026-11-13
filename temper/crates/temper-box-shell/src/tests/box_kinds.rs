@@ -389,3 +389,24 @@ fn a_box_with_no_sign_in_has_no_source_step_in_its_group() {
     assert!(!owned.steps.iter().any(|(stage, _)| *stage == Stage::Source), "no source needs the held engine");
     assert_eq!(owned.before, 0, "the group can start before serve");
 }
+
+#[test]
+fn recording_is_given_only_to_the_serve_step_after_box() {
+    let dirs = super::configuration::directories(std::path::Path::new("/fixture"));
+    let document = super::configuration::init_document();
+    for record in [false, true] {
+        let (steps, _) = crate::box_command::configuration_steps_recording(&dirs, &document, Box::new([]), record)
+            .expect("box steps");
+        let serve = steps.always.iter().find(|step| step.name() == b"serve").expect("serve step");
+        let arguments: Vec<_> = serve.arguments().iter().map(std::convert::AsRef::as_ref).collect();
+        assert_eq!(arguments.contains(&b"--record".as_slice()), record);
+        if record {
+            assert!(arguments.ends_with(&[b"--box".as_slice(), b"--record"]));
+        }
+        for group in &steps.asked {
+            for (_, step) in &group.steps {
+                assert!(!step.arguments().iter().any(|word| word.as_ref() == b"--record"));
+            }
+        }
+    }
+}

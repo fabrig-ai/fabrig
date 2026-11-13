@@ -6,17 +6,17 @@ fn changes_while_a_delivery_is_in_flight_make_one_next_delivery() {
     let mut world = World::default();
     world.watch(1, 7);
     for _ in 0..10 {
-        assert!(world.changed(7).is_empty());
+        assert_eq!(world.changed(7).len(), 0);
     }
     assert_eq!(world.delivered(1).len(), 2);
-    assert!(world.delivered(1).is_empty());
+    assert_eq!(world.delivered(1).len(), 0);
     assert_eq!(world.referee.deliveries(), 2);
 }
 #[test]
 fn a_watch_on_a_subject_that_ends_ends_saying_why() {
     let mut world = World::default();
     world.watch(1, 7);
-    assert!(world.step(Event::Gone { subject: Token::new(7), why: End::Gone }).is_empty());
+    assert_eq!(world.step(Event::Gone { subject: Token::new(7), why: End::Gone }).len(), 0);
     assert_eq!(world.delivered(1), vec![Request::Ended { watcher: Token::new(1), end: End::Gone }]);
 }
 #[test]
@@ -33,7 +33,7 @@ fn an_idle_watch_makes_a_changed_document_immediately() {
     world.watch(1, 7);
     world.delivered(1);
     assert_eq!(world.changed(7).len(), 2);
-    assert!(world.changed(8).is_empty());
+    assert_eq!(world.changed(8).len(), 0);
 }
 
 #[test]
@@ -82,12 +82,12 @@ fn a_new_turn_s_text_never_resets_an_earlier_one() {
     let mut world = World::default();
     world.watch_from(1, 7, Some(Follow { run: Token::new(7), turn: None, offset: 0 }));
     world.text(7, TurnName { attempt: 1, turn: 1, retry: 0 }, b"earlier", None);
-    assert!(world.text(7, TurnName { attempt: 1, turn: 2, retry: 0 }, b"later", None).is_empty());
+    assert_eq!(world.text(7, TurnName { attempt: 1, turn: 2, retry: 0 }, b"later", None).len(), 0);
     let output = world.stream_delivered(1);
     assert!(
         matches!(output.as_slice(), [Request::Stream { turn, from: 0, to: 5, .. }] if *turn == TurnName { attempt: 1, turn: 2, retry: 0 })
     );
-    assert!(world.text(7, TurnName { attempt: 1, turn: 1, retry: 0 }, b"stale", None).is_empty());
+    assert_eq!(world.text(7, TurnName { attempt: 1, turn: 1, retry: 0 }, b"stale", None).len(), 0);
     world.settle();
 }
 #[test]

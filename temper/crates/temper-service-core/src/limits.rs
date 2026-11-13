@@ -224,6 +224,7 @@ pub const NAMES: &[&str] = &[
     "forge.landings_kept",
     "forge.landings",
     "forge.decided_per_project",
+    "forge.findings_per_project",
     "forge.judge_projects",
     "forge.judge_criteria",
     "forge.landing_rules",
@@ -434,4 +435,10 @@ pub fn shared_name(name: &[u8]) -> bool {
         }
     }
     false
+}
+
+/// The prepare job’s bounds (temper/docs/design/domain/worker/jobs.md).
+#[must_use]
+pub fn prepare_bound() -> JobBound {
+    JobBound { kind: JobKind(1), spec: 16_384, result: 4_096, deadline: Duration::from_secs(600) }
 }

@@ -78,7 +78,7 @@ fn run(seed: u64) -> Vec<Request> {
     respond(&mut world, &mut rng, closing, &mut trace);
     assert_eq!(world.domain.accounts(), 0);
     assert_eq!(world.domain.next_deadline(), None);
-    assert!(world.step(Event::Want).is_empty());
+    assert_eq!(world.step(Event::Want).len(), 0);
     trace
 }
 #[test]

@@ -1,5 +1,5 @@
 //! Native settings ingress uses the same held-answer boundary as other reads.
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use jig_domain_core::{self as core, reads, settings};
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{List, Reader, Writer};
@@ -8,7 +8,7 @@ fn encoded(read: &w::Read) -> Box<[u8]> {
     let limits = fixtures::limits().wire;
     let mut bytes = Writer::new(skein_lib::length::usize_of(read.measure()));
     read.encode(&mut bytes).expect("read bytes");
-    let value = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 19, record: bytes.finish() })
+    let value = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version: 21, record: bytes.finish() })
         .expect("read owner");
     let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("owned bytes");

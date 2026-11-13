@@ -22,7 +22,7 @@ fn agent_spawns_select_the_run_or_list_process() {
             (vec!["--list", "internal", "agent-list", "/agent.json"], true),
         ] {
             let spawn = Spawn {
-                program: b"/opt/temper/bin/temper".as_slice().into(),
+                program: crate::documents::PINNED_AGENT_PROGRAM.into(),
                 args: words.iter().map(|word| Box::from(word.as_bytes())).collect(),
                 env: Box::new([]),
                 root: Fd::new(9),

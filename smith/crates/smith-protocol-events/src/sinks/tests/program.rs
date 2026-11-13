@@ -39,7 +39,7 @@ fn prompt_timestamps_set_the_backend_duration() {
     ] {
         let (mut sinks, destination, owner, observation) = requesting(backend, capture);
         assert!(observation.is_some());
-        assert!(drain_ready(&mut sinks, destination).is_empty());
+        assert_eq!(drain_ready(&mut sinks, destination).len(), 0);
         sinks.measure(
             Time::ZERO,
             smith_protocol_llm::Measure::Prompt {

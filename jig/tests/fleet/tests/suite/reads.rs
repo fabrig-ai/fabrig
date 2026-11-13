@@ -141,6 +141,7 @@ impl World {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table holds the fleet read placement stories")]
+#[ignore = "fails under Cranelift, which cannot unwind yet: run it on LLVM (2026-11-12)"]
 fn reads_wait_place_retry_and_answer_without_attempts() {
     let name = SourceName::new(b"provider").expect("fixture source name");
     let rows = [

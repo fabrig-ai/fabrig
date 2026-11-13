@@ -2,7 +2,7 @@
 use super::{deployment, owner, pieces, w};
 use alloc::boxed::Box;
 use jig_domain_accounts as a;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
 /// Until terminal offers are served, login changes are refused before entering the core
 /// (domain/terminal-login.md, 5).

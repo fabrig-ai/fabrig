@@ -31,7 +31,7 @@ fn restore_people(store: &mut Store) {
         store,
         Request::Restore {
             owner: OWNER,
-            range: Restore::Jig(Box::new([jig_domain_core::RestoreRange::People])),
+            range: Restore::Jig(Box::new([jig_domain_core_vocabulary::RestoreRange::People])),
             after: None,
             rows: 20,
             bytes: u64::MAX,
@@ -169,7 +169,7 @@ fn the_sweep_erases_a_digest_whose_sign_in_is_gone() {
     let row = jig_domain_people::Stored::SignIn { number: 4, person: 11, expires: Wall::EPOCH };
     fixtures::committed(
         &mut store,
-        Box::new([fixtures::header(2), fixtures::save(jig_domain_core::Record::People(row))]),
+        Box::new([fixtures::header(2), fixtures::save(jig_domain_core_vocabulary::Record::People(row))]),
     );
     restore_people(&mut store);
     assert_eq!(get(&mut store, SecretOwner::SignIn, 4), Some(SecretValue::Digest { expiry: 0, digest: [41; 32] }));

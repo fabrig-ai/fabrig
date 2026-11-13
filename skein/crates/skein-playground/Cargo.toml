@@ -19,7 +19,7 @@ skein-ui-web.workspace = true
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen.workspace = true
 js-sys.workspace = true
-web-sys = { workspace = true, features = ["DedicatedWorkerGlobalScope", "WorkerGlobalScope", "MessageEvent", "Performance"] }
+web-sys = { workspace = true }
 
 [lints]
 workspace = true

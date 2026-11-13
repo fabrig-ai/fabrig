@@ -726,7 +726,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
     }
     core.run_now = env.now;
     core.run_wall = env.wall;
-    if core.stopping && stopping::waits(timer) {
+    if core.stopping && jig_domain_core_vocabulary::vocabulary::waits(timer) {
         return stopping::empty();
     }
     let oldest = core.current.oldest;

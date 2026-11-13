@@ -21,7 +21,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 238] = [
+pub static NAMES: [Name; 243] = [
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,
@@ -417,6 +417,24 @@ pub static NAMES: [Name; 238] = [
         unit: Unit::Milliseconds,
         line: "Bounds the exponential-backoff delay for invalid failures.",
         value: |limits| limits.core.tasks.retries.invalid.max.as_millis(),
+    },
+    Name {
+        name: "tasks.retries.infrastructure.retries",
+        unit: Unit::Count,
+        line: "Bounds failures allowed before holding a task for infrastructure failures.",
+        value: |limits| u64::from(limits.core.tasks.retries.infrastructure.retries),
+    },
+    Name {
+        name: "tasks.retries.infrastructure.base_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the initial exponential-backoff delay for infrastructure failures.",
+        value: |limits| limits.core.tasks.retries.infrastructure.base.as_millis(),
+    },
+    Name {
+        name: "tasks.retries.infrastructure.max_ms",
+        unit: Unit::Milliseconds,
+        line: "Bounds the exponential-backoff delay for infrastructure failures.",
+        value: |limits| limits.core.tasks.retries.infrastructure.max.as_millis(),
     },
     Name {
         name: "people.program_hosts",
@@ -1371,6 +1389,18 @@ pub static NAMES: [Name; 238] = [
         unit: Unit::Count,
         line: "Bounds client exchanges admitted at once.",
         value: |limits| u64::from(limits.clients.exchanges),
+    },
+    Name {
+        name: "clients.queued_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds encoded records held by one client stream, including its in-flight record.",
+        value: |limits| u64::from(limits.clients.queued_bytes),
+    },
+    Name {
+        name: "clients.exchanges_per_client",
+        unit: Unit::Count,
+        line: "Bounds exchanges in flight per sign-in, shared by its clients.",
+        value: |limits| u64::from(limits.clients.exchanges_per_client),
     },
     Name {
         name: "clients.provider_codes",

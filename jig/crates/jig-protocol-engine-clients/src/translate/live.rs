@@ -1,7 +1,7 @@
 //! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 use super::{chips, pieces, task, w};
 use alloc::boxed::Box;
-use jig_domain_core::documents as d;
+use jig_domain_core_vocabulary::documents as d;
 use jig_domain_views as views;
 use skein_lib::{List, Writer, bytes};
 pub fn current_call(value: &views::Call, limits: &w::Limits) -> Result<w::CurrentCall, w::Problem> {

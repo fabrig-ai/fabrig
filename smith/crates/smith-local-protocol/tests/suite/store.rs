@@ -259,7 +259,7 @@ mod tests {
         ));
         let turn = smith_domain::Turn {
             endpoint: Some(smith_domain::session::llm::Endpoint(2)),
-            ..smith_local_domain::fixture::turn()
+            ..smith_local_domain_fixtures::turn()
         };
         assert!(matches!(
             disk.drive(StoreRequest::SaveTurn {

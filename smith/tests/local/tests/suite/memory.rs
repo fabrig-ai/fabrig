@@ -16,7 +16,7 @@ fn a_local_domain_with_every_line_slot_full_stays_under_its_ceiling() {
         line_bytes: 1024,
         show_bytes: 4096,
         facts: 64,
-        ..local::fixture::small(smith_agent_world::LIMITS)
+        ..smith_local_domain_fixtures::small(smith_agent_world::LIMITS)
     };
     let config = local::Config {
         protocol_allowances: Box::new([0]),

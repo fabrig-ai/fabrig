@@ -1,7 +1,7 @@
 //! Model offers across engine, wire and client link (jig/docs/design/client/domain/contract/documents.md, 1).
 use super::fixtures;
 use jig_client_domain::contract as c;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Reader};
 
 fn list<T, const N: usize>(items: [T; N]) -> List<T> {
@@ -37,9 +37,9 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
     use crate as engine;
     let limits = fixtures::client_limits();
     for (populated, source) in [
-        (false, jig_domain_core::settings::ModelSource::Stock),
-        (true, jig_domain_core::settings::ModelSource::List),
-        (true, jig_domain_core::settings::ModelSource::Person),
+        (false, jig_domain_core_vocabulary::settings::ModelSource::Stock),
+        (true, jig_domain_core_vocabulary::settings::ModelSource::List),
+        (true, jig_domain_core_vocabulary::settings::ModelSource::Person),
     ] {
         let model = engine::Model {
             new_until: None,
@@ -62,7 +62,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
             picker: !populated,
         };
         let wire = engine::translate::llm::models(
-            &[jig_domain_core::Offered { model: 0, accounts: List::with_capacity(0) }],
+            &[jig_domain_core_vocabulary::Offered { model: 0, accounts: List::with_capacity(0) }],
             core::slice::from_ref(&model),
             limits.wire(),
         )
@@ -99,9 +99,9 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
                 new_until: None,
                 number: 37,
                 source: match source {
-                    jig_domain_core::settings::ModelSource::Stock => c::ModelSource::Stock,
-                    jig_domain_core::settings::ModelSource::List => c::ModelSource::List,
-                    jig_domain_core::settings::ModelSource::Person => c::ModelSource::Person,
+                    jig_domain_core_vocabulary::settings::ModelSource::Stock => c::ModelSource::Stock,
+                    jig_domain_core_vocabulary::settings::ModelSource::List => c::ModelSource::List,
+                    jig_domain_core_vocabulary::settings::ModelSource::Person => c::ModelSource::Person,
                 },
                 estimated: populated,
                 name: text(b"chosen"),
@@ -142,7 +142,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
 #[test]
 fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
     use crate::{Message, Request};
-    use jig_domain_core::settings::catalogue::ModelAct;
+    use jig_domain_core_vocabulary::settings::catalogue::ModelAct;
     use jig_domain_people as p;
     let limits = fixtures::client_limits();
     for ask in [
@@ -167,7 +167,7 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
         let digest: [u8; 32] = crate::sign_in::digest(&encoded).expose().try_into().unwrap();
         let keyed = w::Keyed::new(
             limits.wire(),
-            w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 19, request: encoded.clone(), value: None },
+            w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 21, request: encoded.clone(), value: None },
         )
         .unwrap();
         let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());
@@ -179,7 +179,7 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
         match (ask, *event) {
             (
                 c::Ask::ReadLists { provider },
-                jig_domain_core::Event::People(p::Event::Ask {
+                jig_domain_core_vocabulary::Event::People(p::Event::Ask {
                     sign_in,
                     key,
                     ask: p::Ask::AccountChange { holder, change: p::AccountChange::ReadLists { provider: got } },
@@ -206,7 +206,7 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
             }
             (
                 c::Ask::ChangeModel(c::ChangeModel { act: c::ModelAct::Picker { number, on } }),
-                jig_domain_core::Event::ChangeModel {
+                jig_domain_core_vocabulary::Event::ChangeModel {
                     sign_in,
                     key,
                     digest: got,
@@ -218,7 +218,7 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
             }
             (
                 c::Ask::ChangeModel(c::ChangeModel { act: c::ModelAct::Add { provider, name } }),
-                jig_domain_core::Event::ChangeModel {
+                jig_domain_core_vocabulary::Event::ChangeModel {
                     sign_in,
                     key,
                     digest: got,

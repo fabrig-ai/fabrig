@@ -33,6 +33,7 @@ fn pending(landings: Box<[p::Landing]>, part: p::Part, failing: p::Failures) -> 
     run.part = part;
     kept.branch = TierBranch::Absent;
     kept.result = Some(Receipt {
+        logs: Box::new([]),
         failures: Some(failing),
         passed: false,
         run: ReceiptRun { id: RUN, number: 17, url: URL.into() },
@@ -145,6 +146,30 @@ fn expected(goal: u64, subscription: u64, commit: api::Commit, failing: p::Failu
         class: Class::Wakes,
     }
 }
+fn filings(out: &[Request]) -> Vec<FileFinding> {
+    out.iter()
+        .filter_map(|request| match request {
+            Request::FileRedFinding { task, finding } => {
+                assert_eq!(*task, TIER_TASK);
+                Some(finding.clone())
+            }
+            _ => None,
+        })
+        .collect()
+}
+fn expected_finding() -> FileFinding {
+    FileFinding {
+        project: 5,
+        kind: FindingKind::Red,
+        severity: Severity::High,
+        area: None,
+        title: b"Red after landing on main: tier browser".as_slice().into(),
+        body: format!(
+            "Red after landing: tier browser run 1 blames landing {} on main: 1 failing.\nsuite.first\nRun: https://forge.example/run/71\nEnd of job tests's log:\nfirst job failed\n\nEnd of job second's log:\nsecond job failed\n",
+            core::str::from_utf8(&commit_text(&NEXT_TIP)).unwrap()
+        ).into_bytes().into(),
+    }
+}
 fn job_logs(second: Option<&[u8]>) -> Box<[JobLog]> {
     Box::new([
         JobLog { name: b"tests".as_slice().into(), end: Some(LOG.into()) },
@@ -159,7 +184,7 @@ fn one_landings_red_wakes_its_goal_once_with_logs() {
     subscribe(&mut d, OTHER_GOAL, NEXT_SUBSCRIPTION, b"main", &[THIRD_CHANGE]);
     let waiting = tier_step(&mut d, RELEASE, false);
     assert_eq!(choice(&waiting), Some(&TierDecision::Wait { until: None }));
-    assert!(news(&waiting).is_empty());
+    assert_eq!(news(&waiting).len(), 0);
     assert!(d.verifications.get(&(REPO, NEXT_TIP)).unwrap().tiers[0].verdict.is_none());
     // The failed count excludes the successful job between the two failed jobs.
     run_answer(&mut d);
@@ -256,7 +281,7 @@ fn inherited_failures_tell_no_goal_again() {
     kept.result = receipt;
     verification(&mut d, LAST_TIP, &[SECOND_CHANGE]);
     let out = tier_step(&mut d, RELEASE + 2, false);
-    assert!(news(&out).is_empty());
+    assert_eq!(news(&out).len(), 0);
     assert!(d.tier_ops.reads.is_empty());
     assert!(row(&d).record.run.is_none());
     assert_eq!(d.verifications.get(&(REPO, NEXT_TIP)).unwrap().tiers[0].verdict.as_ref().unwrap().run, 1);
@@ -300,7 +325,7 @@ fn restart_repeats_unfinished_reads_and_tells_once() {
     let mut again = restoring(None);
     outputs(&mut again, Event::Restore { record: Stored::Tier(saved) });
     let out = outputs(&mut again, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    assert!(news(&out).is_empty());
+    assert_eq!(news(&out).len(), 0);
 }
 
 #[test]
@@ -336,12 +361,58 @@ fn a_red_without_a_subscribed_goal_still_judges() {
     tier_step(&mut d, RELEASE, false);
     logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
     let out = tier_step(&mut d, RELEASE + 1, false);
-    assert!(news(&out).is_empty());
+    assert_eq!(news(&out).len(), 0);
     assert!(row(&d).record.run.is_none());
+    assert_eq!(filings(&out), [expected_finding()]);
     assert_eq!(
         d.verifications.get(&(REPO, NEXT_TIP)).unwrap().tiers[0].verdict,
         Some(TierVerdict { run: 1, blame: p::Blame::Owns(failures(&[FIRST_TEST])) })
     );
+}
+
+#[test]
+fn a_landing_temper_did_not_make_asks_to_file_its_red() {
+    let mut d = one();
+    d.verifications.remove(&(REPO, NEXT_TIP));
+    tier_step(&mut d, RELEASE, false);
+    logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
+    let out = tier_step(&mut d, RELEASE + 1, false);
+    assert_eq!(news(&out).len(), 0);
+    assert!(row(&d).record.run.is_none());
+    assert_eq!(filings(&out), [expected_finding()]);
+}
+
+#[test]
+fn a_filed_red_is_not_filed_again_in_a_later_run() {
+    let mut d = one();
+    d.verifications.remove(&(REPO, NEXT_TIP));
+    tier_step(&mut d, RELEASE, false);
+    logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
+    let out = tier_step(&mut d, RELEASE + 1, false);
+    let calls = filings(&out);
+    let [call] = calls.as_slice() else { panic!("one red filing") };
+    let write = d.prepare_file_finding(&LIMITS, env().wall, Filer::Task(TIER_TASK), call.clone()).unwrap();
+    let saved = Stored::Finding(write.row);
+    // A restart keeps the finding, not the disposed run or any Verification of temper's.
+    let mut d = one();
+    d.verifications.remove(&(REPO, NEXT_TIP));
+    outputs(&mut d, Event::Restore { record: saved });
+    d.tiers.get_mut(&(REPO, TIER.into())).unwrap().record.run.as_mut().unwrap().number = 2;
+    tier_step(&mut d, RELEASE + 2, false);
+    logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
+    let out = tier_step(&mut d, RELEASE + 3, false);
+    assert_eq!(filings(&out).len(), 0);
+    assert!(row(&d).record.run.is_none());
+}
+
+#[test]
+fn a_landing_that_reaches_a_goal_files_no_finding() {
+    let mut d = one();
+    tier_step(&mut d, RELEASE, false);
+    logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
+    let out = tier_step(&mut d, RELEASE + 1, false);
+    assert_eq!(news(&out).len(), 1);
+    assert_eq!(filings(&out).len(), 0);
 }
 
 #[test]
@@ -351,7 +422,7 @@ fn an_already_red_landing_needs_no_reads_or_news() {
     d.verifications.get_mut(&(REPO, NEXT_TIP)).unwrap().tiers[0].verdict =
         Some(TierVerdict { run: 1, blame: p::Blame::Suspect(failures(&[FIRST_TEST])) });
     let out = tier_step(&mut d, RELEASE, false);
-    assert!(news(&out).is_empty());
+    assert_eq!(news(&out).len(), 0);
     assert!(d.tier_ops.reads.is_empty());
     assert!(row(&d).record.run.is_none());
 }
@@ -374,7 +445,7 @@ fn cancelling_during_log_reads_discards_the_pending_news() {
     let out = close_tier(&mut d, TIER_TASK, ReleaseEnding::Cancelled);
     let mut late = Queue::uncapped();
     crate::tiers::answered(&mut d, &env(), owner, Ok(api::Answer::Run(run)), &mut late);
-    assert!(news(&out).is_empty());
+    assert_eq!(news(&out).len(), 0);
     assert!(collect(late).is_empty());
     assert!(row(&d).task.is_none());
     assert_eq!(row(&d).record.sequence, 1);

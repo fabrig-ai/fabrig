@@ -1,7 +1,7 @@
 //! Compact proposal reads beside revisions (temper/docs/design/domain/agent/ask-temper.md, 1).
 use crate::{Limits, Text, render, view, wire};
 use alloc::boxed::Box;
-use jig_client_protocol_wire::v19 as w;
+use jig_client_protocol_wire::v21 as w;
 use skein_lib::{List, Reader};
 
 #[cfg(test)]
@@ -218,7 +218,8 @@ fn encode_application_value(kind: u32, value: &view::SettingValue, out: &mut ske
                 return;
             }
         }
-        view::SettingValue::Model(_)
+        view::SettingValue::Overlay(_)
+        | view::SettingValue::Model(_)
         | view::SettingValue::Charter(_)
         | view::SettingValue::Template(_)
         | view::SettingValue::Policy(_)

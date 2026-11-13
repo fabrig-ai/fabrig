@@ -1,7 +1,6 @@
 //! Chromium scenarios through the shared real-loop rig.
-#[path = "support/real.rs"]
-pub mod real;
 use real::{Profile, Rig, Scenario, chromium};
+pub use skein_browser_rig as real;
 #[path = "suite/folds_away.rs"]
 mod folds_away;
 #[path = "suite/log_end.rs"]

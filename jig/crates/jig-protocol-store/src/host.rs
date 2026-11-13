@@ -57,7 +57,7 @@ impl Hosted {
     pub fn new(
         limits: &crate::Limits,
         application: crate::sizes::Application,
-        models: &[jig_domain_core::Model],
+        models: &[jig_domain_core_vocabulary::Model],
         seed: u64,
         not_ready: NotReady,
     ) -> Self {
@@ -638,7 +638,9 @@ fn driver(limits: &crate::Limits) -> Driver {
     let files = handles(limits);
     let read = max_read(limits);
     let whole = max_whole(limits);
-    let file_limits = FileLimits { files, read, entries: 32, whole, timeout: limits.store.deadline };
+    // Each open adds a log segment, and a store that seldom snapshots keeps them all: 32 entries stopped a store
+    // with few writes after its 32nd start.
+    let file_limits = FileLimits { files, read, entries: 1024, whole, timeout: limits.store.deadline };
     let io = FileIo::with_limits(&file_limits);
     Driver { io, file_limits, above: Queue::uncapped(), handles: Map::with_capacity(handles(limits)) }
 }

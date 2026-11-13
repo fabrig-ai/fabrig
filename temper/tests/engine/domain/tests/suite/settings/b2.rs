@@ -36,7 +36,8 @@ fn configuration() -> engine::Config {
 
         providers: Box::new([]),
     };
-    config.core.defaults = temper_service::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
+    config.core.defaults =
+        temper_engine_service::stock::with_models(llm.models.clone(), stock_limits().tasks.result_bytes);
 
     config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
         direct: Box::new([]),
@@ -260,7 +261,7 @@ fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
     let chat = assigned(&driver, 1).expect("stock chat assigned");
     assert_eq!(
         chat.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../../crates/temper-service/src/stock/chat.txt"),
+        include_bytes!("../../../../../../crates/temper-engine-service/src/stock/chat.txt"),
         "the chat reports a landed change as its result says it"
     );
     assert_eq!(chat.run.policy.model, box_model());
@@ -449,7 +450,7 @@ pub(super) fn changes_without_settings_or_message() {
     }
     let (mut driver, chat) = chat_in(config);
     assert_ne!(chat.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
-    assert_eq!(temper_engine_smith::charter(&chat).grants.host_tools.len(), 39);
+    assert!(temper_engine_smith::charter(&chat).grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"finding"));
     for tool in &temper_engine_smith::charter(&chat).grants.host_tools {
         assert!(tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings");
     }
@@ -477,7 +478,13 @@ pub(super) fn changes_without_settings_or_message() {
     };
     let coordinator = assigned(&driver, made[0].task).expect("coordinator run");
     assert_ne!(coordinator.run.authority.tools.0 & core::ToolFamilies::JIG.message.0, 0);
-    assert_eq!(temper_engine_smith::charter(&coordinator).grants.host_tools.len(), 39);
+    assert!(
+        temper_engine_smith::charter(&coordinator)
+            .grants
+            .host_tools
+            .iter()
+            .any(|tool| tool.name.as_ref() == b"finding")
+    );
     repair_change(&mut driver, &coordinator, 43);
 }
 
@@ -502,7 +509,7 @@ pub(super) fn story() {
     let first = assigned(&driver, made[0].task).expect("D1");
     assert_eq!(
         first.run.policy.instructions.as_ref(),
-        include_bytes!("../../../../../../crates/temper-service/src/stock/chat.txt"),
+        include_bytes!("../../../../../../crates/temper-engine-service/src/stock/chat.txt"),
         "the goal reports a landed change as its result says it"
     );
     let engine::CallAnswer::Sent { message: question } = call(

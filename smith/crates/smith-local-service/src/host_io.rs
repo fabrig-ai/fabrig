@@ -722,6 +722,9 @@ impl HostIo {
                     host::Down::Cancel => {
                         process.send_cancel(send_token, &mut self.process_events, &mut self.io_requests)
                     }
+                    host::Down::Drain => {
+                        process.send_drain(send_token, &mut self.process_events, &mut self.io_requests)
+                    }
                 };
                 if sent.is_err() {
                     self.failed = true;

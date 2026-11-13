@@ -623,3 +623,15 @@ fn no_ci_rule_draws_not_required_for_a_retained_pending_verdict() {
     let rows = styled(&tree, look::GATE);
     assert_eq!(f::node_text(&tree, rows[0]).as_ref(), joined(&[b"CI at its head", b"Not required"]).as_ref());
 }
+
+#[test]
+fn a_change_panel_names_its_way_and_retained_landing() {
+    let (mut root, watch) = opened();
+    let mut value = parts(w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [9; 32] }).unwrap()));
+    value.way = w::Way::Turn;
+    value.in_landing = Some(61);
+    deliver(&mut root, watch, &w::ChangePanel::new(&w::CEILINGS, value).unwrap());
+    let text = f::main_text(page_view(&root).tree());
+    assert!(skein_lib::bytes::find(&text, b"Way: turn.").is_some());
+    assert!(skein_lib::bytes::find(&text, b"Landing: task 61.").is_some());
+}

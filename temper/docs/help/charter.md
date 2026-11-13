@@ -112,6 +112,40 @@ older transcript pages. To find a turn, read `task activity TASK` for its
 continuation for a cut part. `task text` reads the task's specification or
 instructions, which do not establish the document content supplied to a run.
 
+### Over a default
+
+An overlay keeps optional field replacements and added text over a charter's
+binary default. Unlike a whole `set`, it takes later defaults: omitted fields
+follow them. Named fields replace their whole, including an empty list.
+Instructions append with a blank line; parts append in order, never merge.
+Number and wake policy cannot be replaced. Only a charter with a default takes
+an overlay; applying another replaces the stored overlay, not adds to it.
+
+In a settings file, use `{"setting":{"kind":"charter","number":2},
+"overlay":{"shell":true,"instructions":"Our rules"}}`. Literal
+`instructions` and `parts` are optional, empty when absent. Or replace both
+with `"charters":["."]`: directories relative to that settings file, in order.
+Standard input (`-`) requires absolute directories. Each directory's Markdown
+files are read, not its subdirectories; other extensions are ignored.
+The optional five names and assembly are the stock's above. `designer` is on
+`first`; each coordinator section begins `## part, on:` and comma-separated
+reasons, its heading excluded. Texts retain every byte but opening and closing
+line feeds. Unknown Markdown names, text before the first coordinator section,
+and empty, repeated or unknown reasons are refused by file and line, even in
+files the selected charter does not take. Sets are only for charters 5 and 2.
+Markdown counts toward the settings file's input bound.
+
+`settings apply FILE... --against REVISION` stacks files in order: overlays
+of one charter join their text and later named fields win; every other setting
+may occur in only one file. A whole set, removal or reset beside an overlay of
+that charter is refused, naming both files and items. `settings propose` takes
+one file. No refusal sends a change.
+
+`settings show charter N` prints the current charter and marks what the overlay
+replaces and adds; inventory origin is `overlay`. With `--json`, `value` is the
+charter and `overlay` the literal overlay, with no directories. Wrap that member
+as a settings-file item to apply it back over later defaults anywhere.
+
 ## How it changes
 
 A change of a charter reaches the tasks made after it. A task made

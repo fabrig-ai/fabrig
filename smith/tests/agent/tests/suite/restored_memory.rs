@@ -647,7 +647,7 @@ impl Counted {
                 name: GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(3600),
             }]),
-            ..smith_domain::fixture::start(PARENT, charter(restoring))
+            ..smith_domain_fixtures::start(PARENT, charter(restoring))
         }));
         assert!(self.admitted.is_some() && self.read.is_some());
         assert_eq!(self.calls, 0, "selected Start ownership survives outstanding discovery");
@@ -1048,7 +1048,7 @@ fn refuse_one_over(counted: &mut Counted, cycles: u32, tight: &Limits) {
         counted.discover();
         counted.cycle(cycles);
         assert_eq!(counted.calls, 0, "one-over valid history starts no provider or owned tool");
-        assert!(counted.records.is_empty());
+        assert_eq!(counted.records.len(), 0);
         assert!(matches!(
             counted.answer,
             Some(run::Answer::Failed {
@@ -1251,7 +1251,7 @@ fn a_restored_run_keeps_full_brief_and_custom_paths_with_caller_copies() {
             name: GrantName { account: 0, generation: 1 },
             valid: Duration::from_secs(3600),
         }]),
-        ..smith_domain::fixture::start(PARENT, active)
+        ..smith_domain_fixtures::start(PARENT, active)
     }));
     assert!(counted.admitted.is_some() && counted.read.is_some());
     assert_eq!(counted.calls, 0, "maximum retained paths and caller Start coexist before any provider effect");

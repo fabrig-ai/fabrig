@@ -59,7 +59,7 @@ fn with_every_bound_zero_nothing_is_public() {
     visibility(&mut core, &limits, true);
     make(&mut core, &limits, 1, None, Some(1), false);
     make(&mut core, &limits, 2, Some(1), None, false);
-    assert!(ready(&core).live().is_empty());
+    assert_eq!((ready(&core).live()).len(), 0);
     assert!(ready(&core).ended().is_empty());
     assert!(ready(&core).public_tasks().is_empty());
     for task in [1, 2] {
