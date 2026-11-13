@@ -663,3 +663,7 @@ fn help_names_invalid_run_end_causes() {
 fn the_landing_reference_is_what_the_table_renders() {
     reference_matches(b"landing", b"ctl-landing");
 }
+#[test]
+fn the_change_reference_is_what_the_table_renders() {
+    reference_matches(b"change", b"ctl-change");
+}

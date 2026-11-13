@@ -272,6 +272,9 @@ impl ChangeHistory {
     pub fn events(&self) -> &List<w::HistoryEvent> {
         &self.events
     }
+    pub(crate) fn gone(&self, gone: &w::HistoryGone, json: bool) -> jig::Printed {
+        render::gone(&self.query, gone, json)
+    }
     pub fn accept(&mut self, page: w::HistoryPage) -> Option<Readable> {
         if self.pages >= 16 {
             return None;
