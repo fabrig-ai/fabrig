@@ -346,6 +346,64 @@ fn only_the_exact_passed_tree_skips_checks() {
 }
 
 #[test]
+fn a_goals_red_passes_a_failing_test() {
+    let scratch = fixture();
+    let root = scratch.path();
+    pin(root);
+    write(root, "a/src/lib.rs", "fn changed() {}\n");
+    let reds = String::from_utf8(git(root, &["rev-parse", "--git-path", "temper/reds"])).expect("reds path");
+    write(root, reds.trim(), "temper-reds 1\n- test A::rules rule\n");
+    ledger(root, &json!({"head": {"tests": [test_failure("rule", "goal red output")]}}));
+    let output = deliver(root);
+    let log = text(&output);
+    assert!(output.status.success(), "goal red must inherit: {log}");
+    assert!(log.contains("inherited: test A::rules rule (red, temper/reds)"), "{log}");
+    assert!(log.contains("pre-pr: reds: 1 entries (temper/reds)"), "{log}");
+    assert!(passed(root));
+}
+
+#[test]
+fn only_the_exact_reds_bytes_reuse_a_passed_tree() {
+    let scratch = fixture();
+    let root = scratch.path();
+    pin(root);
+    write(root, "a/src/lib.rs", "fn changed() {}\n");
+    write(root, ".git/temper/reds", "temper-reds 1\n- test A::rules rule\n");
+    ledger(root, &json!({"head": {"tests": [test_failure("rule", "goal red output")]}}));
+    let first = deliver(root);
+    assert!(first.status.success(), "{}", text(&first));
+    let record = fs::read_to_string(root.join(".git/pre-pr-passed")).expect("passed record");
+    let fields: Vec<_> = record.split_whitespace().collect();
+    assert_eq!(fields.len(), 3, "tree, base and reds digest: {record}");
+    let tree = fields.first().expect("tree");
+    let base = fields.get(1).expect("base");
+    let reds = fields.get(2).expect("reds digest");
+    assert_eq!(reds.len(), 64);
+    assert_ne!(*reds, "-");
+    let hit = format!("pre-pr: passed before (tree {tree}, base {base}, reds {reds})");
+    reset(root, "format");
+    let cached = deliver(root);
+    assert!(cached.status.success(), "identical reds: {}", text(&cached));
+    assert!(text(&cached).contains(&hit), "{}", text(&cached));
+    assert_eq!(budget(root)["ms"], 0);
+    write(root, ".git/pre-pr-passed", &format!("{tree} {base}\n"));
+    assert!(!deliver(root).status.success(), "two-field cache must not match");
+    write(root, ".git/pre-pr-passed", &record);
+    reset(root, "");
+    ledger(root, &json!({"head": {"tests": [test_failure("rule", "no longer inherited")]}}));
+    write(root, ".git/temper/reds", "temper-reds 1\n");
+    let changed = deliver(root);
+    assert!(!changed.status.success(), "changed reds must recheck: {}", text(&changed));
+    assert!(!text(&changed).contains("passed before"));
+    fs::remove_file(root.join(".git/temper/reds")).expect("remove goal reds");
+    reset(root, "");
+    ledger(root, &json!({"head": {"tests": [test_failure("rule", "reds gone")]}}));
+    let missing = deliver(root);
+    assert!(!missing.status.success(), "missing reds must recheck: {}", text(&missing));
+    assert!(!text(&missing).contains("passed before"));
+}
+
+#[test]
 fn private_index_checks_new_sources_without_staging_them() {
     let scratch = fixture();
     let root = scratch.path();
